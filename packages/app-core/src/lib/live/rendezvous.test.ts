@@ -187,6 +187,7 @@ describe("a session paired over a carrier", () => {
       transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
+      unverifiedManual: true,
     });
     await settle();
     expect(guest.status.at).toBe("joined");
@@ -226,6 +227,7 @@ describe("a session paired over a carrier", () => {
       transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
+      unverifiedManual: true,
     });
     await settle();
     expect(owner.state.guests[0]?.state).toBe("asking");
@@ -275,6 +277,7 @@ describe("a session paired over a carrier", () => {
       transport: net.transports(),
       useRoutes: false,
       carriers: bus.factory(),
+      unverifiedManual: true,
     });
     await settle();
     expect(bus.seen.length).toBe(before);
@@ -297,6 +300,7 @@ describe("a session paired over a carrier", () => {
       transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
+      unverifiedManual: true,
     });
     const request = guest.status.at === "request" ? guest.status.code : "";
     expect((await owner.receive(request)).kind).toBe("guest");

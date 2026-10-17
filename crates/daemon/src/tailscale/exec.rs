@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use opensesame_trusted_exec::{
-    command_at, command_on_path, pass_in, resolve_in, Lookup, Pass, ResolveError,
+    command_at, command_on_path, pass_in, resolve_in, Lookup, ResolveError, WSL,
 };
 
 /// The variable that names the exact Tailscale CLI to run.
@@ -21,14 +21,6 @@ pub(super) const TAILSCALE_OVERRIDE: &str = "OPENSESAME_TAILSCALE";
 const WINDOWS_CANDIDATES: &[&str] = &[
     "/mnt/c/Program Files/Tailscale/tailscale.exe",
     "/mnt/c/Program Files (x86)/Tailscale/tailscale.exe",
-];
-
-/// A Windows program started from WSL (`tailscale.exe`, `curl.exe`) reaches
-/// Windows through the interop socket these name; nothing else is added.
-const WSL_INTEROP: [Pass; 3] = [
-    Pass::Name("WSL_INTEROP"),
-    Pass::Name("WSL_DISTRO_NAME"),
-    Pass::Name("WSLENV"),
 ];
 
 /// The Tailscale CLI for `lookup`: the file `OPENSESAME_TAILSCALE` names (a
@@ -54,7 +46,7 @@ pub(super) fn locate_in(lookup: &Lookup) -> Result<PathBuf, String> {
 /// environment and the WSL interop variables.
 pub(super) fn command_for(bin: &Path, lookup: &Lookup) -> Result<Command, String> {
     let mut command = command_at(bin, lookup).map_err(|e| e.to_string())?;
-    pass_in(&mut command, &WSL_INTEROP, lookup);
+    pass_in(&mut command, &WSL, lookup);
     Ok(command)
 }
 

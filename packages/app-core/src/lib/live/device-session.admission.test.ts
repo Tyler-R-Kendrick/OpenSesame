@@ -157,6 +157,7 @@ describe("a session that does not offer it", () => {
       transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
+      unverifiedManual: true,
     });
     for (let i = 0; i < 40 && guest.status.at !== "joined"; i += 1)
       await settle(5);

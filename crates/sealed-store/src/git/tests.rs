@@ -161,3 +161,58 @@ fn push_backup_without_remote_names_the_fix() {
     let err = push_backup(dir.path(), None).unwrap_err();
     assert!(err.to_string().contains("--remote"));
 }
+
+#[cfg(unix)]
+#[test]
+fn the_push_token_never_reaches_the_persons_own_credential_helpers() {
+    use std::io::Write as _;
+    use std::process::Stdio;
+    // A person who keeps `credential.helper=store`: git hands a credential it
+    // was given to every helper once it works, so the token would be written
+    // to ~/.git-credentials in plaintext.
+    const TOKEN: &str = "vtok_dummy_push_0123456789abcdef";
+    let home = tempfile::tempdir().unwrap();
+    std::fs::write(
+        home.path().join(".gitconfig"),
+        "[credential]\n\thelper = store\n",
+    )
+    .unwrap();
+    let mut lookup = Lookup::capture();
+    lookup.vars.retain(|(name, _)| name != "XDG_CONFIG_HOME");
+    lookup.vars.retain(|(name, _)| name != "HOME");
+    lookup.vars.push(("HOME".into(), home.path().into()));
+    let git_credential = |verb: &str, input: &str| {
+        let mut cmd = authenticated_git_in(&lookup, Some(TOKEN)).unwrap();
+        let mut child = cmd
+            .args(["credential", verb])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .unwrap();
+        let out = child.wait_with_output().unwrap();
+        assert!(
+            out.status.success(),
+            "{verb}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8(out.stdout).unwrap()
+    };
+    let filled = git_credential("fill", "protocol=https\nhost=example.invalid\n\n");
+    assert!(
+        filled.contains(TOKEN),
+        "our helper did not answer: {filled}"
+    );
+    git_credential("approve", &filled);
+    let stored = home.path().join(".git-credentials");
+    assert!(
+        !stored.exists(),
+        "the push token was stored by the person's own helper"
+    );
+}

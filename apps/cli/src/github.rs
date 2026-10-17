@@ -9,7 +9,9 @@
 use std::process::Command;
 
 use anyhow::Context;
-use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass, CA_BUNDLE, PROXY};
+use opensesame_trusted_exec::{
+    command_in, pass_in, Lookup, Pass, CA_BUNDLE, PROXY, VERSION_MANAGERS,
+};
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_API_BASE: &str = "https://api.github.com";
@@ -22,10 +24,13 @@ const GH_OVERRIDE: &str = "OPENSESAME_GH";
 /// What `gh` is given besides `PATH` (the trusted entries), the common set,
 /// the proxy and the CA bundle, each for one reason. The GitHub App key, the
 /// Host's keys and every other secret this process holds stay behind.
-const GH_ENV: [Pass; 7] = [
-    // The account and host the operator chose for gh.
+const GH_ENV: [Pass; 9] = [
+    // The account and host the operator chose for gh, and the token for a
+    // GitHub Enterprise Server host (`GH_HOST`), which gh reads under its own names.
     Pass::Name("GH_TOKEN"),
     Pass::Name("GITHUB_TOKEN"),
+    Pass::Name("GH_ENTERPRISE_TOKEN"),
+    Pass::Name("GITHUB_ENTERPRISE_TOKEN"),
     Pass::Name("GH_HOST"),
     // Where gh keeps its login.
     Pass::Name("GH_CONFIG_DIR"),
@@ -38,7 +43,8 @@ const GH_ENV: [Pass; 7] = [
 /// `gh`, found by the trusted rule or `OPENSESAME_GH`, handed [`GH_ENV`].
 pub fn gh_in(lookup: &Lookup) -> anyhow::Result<Command> {
     let mut command = command_in("gh", Some(GH_OVERRIDE), lookup)?;
-    for allow in [&GH_ENV[..], &PROXY, &CA_BUNDLE] {
+    // `gh` is often a version manager's shim, which must know where it lives.
+    for allow in [&GH_ENV[..], &VERSION_MANAGERS, &PROXY, &CA_BUNDLE] {
         pass_in(&mut command, allow, lookup);
     }
     Ok(command)
@@ -209,16 +215,27 @@ pub async fn resolve_push_token() -> Option<String> {
             Err(error) => eprintln!("warning: GitHub App config incomplete: {error:#}"),
         }
     }
-    let output = gh_in(&Lookup::capture())
-        .ok()?
-        .args(["auth", "token"])
-        .output()
-        .ok()?;
+    match gh_token_in(&Lookup::capture()) {
+        Ok(token) => token,
+        Err(why) => {
+            eprintln!("warning: gh was not asked for a push credential: {why}");
+            None
+        }
+    }
+}
+
+/// What `gh auth token` prints, `Ok(None)` when `gh` ran and printed none, and
+/// why `gh` was not run when no trusted `gh` could be.
+fn gh_token_in(lookup: &Lookup) -> Result<Option<String>, String> {
+    let mut gh = gh_in(lookup).map_err(|why| format!("{why:#}"))?;
+    let Ok(output) = gh.args(["auth", "token"]).output() else {
+        return Ok(None);
+    };
     if !output.status.success() {
-        return None;
+        return Ok(None);
     }
     let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (!token.is_empty()).then_some(token)
+    Ok((!token.is_empty()).then_some(token))
 }
 
 fn non_empty_env(name: &str) -> Option<String> {
@@ -226,128 +243,4 @@ fn non_empty_env(name: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn an_installation_token_never_prints() {
-        let token: InstallationToken = serde_json::from_str(
-            r#"{"token":"ghs_16C7e42F292c6912E7710c838347Ae178B4a","expires_at":"2030-01-01T00:00:00Z"}"#,
-        )
-        .unwrap();
-        let shown = format!("{token:?}");
-        assert!(!shown.contains("ghs_") && shown.contains("2030"), "{shown}");
-    }
-
-    /// Fresh throwaway key per run — a committed PEM would trip the gitleaks
-    /// gate and repo policy (keys live outside git).
-    fn throwaway_rsa_pem() -> Option<String> {
-        let output = std::process::Command::new("openssl")
-            .args(["genrsa", "2048"])
-            .output()
-            .ok()?;
-        if !output.status.success() {
-            return None;
-        }
-        String::from_utf8(output.stdout).ok()
-    }
-
-    #[test]
-    #[expect(
-        clippy::items_after_statements,
-        reason = "the test-local decoding import belongs beside the assertion that uses it"
-    )]
-    fn app_jwt_is_rs256_with_app_id_issuer() {
-        let Some(pem) = throwaway_rsa_pem() else {
-            eprintln!("skipping: openssl unavailable");
-            return;
-        };
-        let config = GitHubAppConfig {
-            app_id: "12345".into(),
-            installation_id: None,
-            private_key_pem: pem,
-            api_base: DEFAULT_API_BASE.into(),
-        };
-        let jwt = mint_app_jwt(&config).unwrap();
-        let parts: Vec<&str> = jwt.split('.').collect();
-        assert_eq!(parts.len(), 3);
-        use base64::Engine as _;
-        let engine = base64::engine::general_purpose::URL_SAFE_NO_PAD;
-        let header: serde_json::Value =
-            serde_json::from_slice(&engine.decode(parts[0]).unwrap()).unwrap();
-        assert_eq!(header["alg"], "RS256");
-        let claims: serde_json::Value =
-            serde_json::from_slice(&engine.decode(parts[1]).unwrap()).unwrap();
-        assert_eq!(claims["iss"], "12345");
-        let lifetime = claims["exp"].as_i64().unwrap() - claims["iat"].as_i64().unwrap();
-        assert_eq!(lifetime, 600, "GitHub caps app JWTs at 10 minutes");
-    }
-
-    #[test]
-    fn resolve_requires_an_app_id() {
-        // No explicit values and (in tests) no env — must fail with the fix named.
-        if std::env::var("GITHUB_APP_ID").is_ok() {
-            return; // environment already configured; nothing to assert
-        }
-        let err = GitHubAppConfig::resolve(None, None, None).unwrap_err();
-        assert!(err.to_string().contains("GITHUB_APP_ID"));
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn gh_is_the_trusted_one_and_never_sees_the_app_key_or_the_hosts_secrets() {
-        use opensesame_trusted_exec::testkit::{Fixture, SECRET};
-        let fixture = Fixture::new("gh");
-        let lookup = fixture.lookup(&[
-            ("GH_HOST", "github.example.invalid"),
-            ("GH_CONFIG_DIR", "/home/dummy/.config/gh"),
-            ("HTTPS_PROXY", "http://proxy.invalid:3128"),
-            ("GITHUB_APP_PRIVATE_KEY_PATH", "/home/dummy/app.pem"),
-            ("GITHUB_APP_ID", "12345"),
-            ("OPENSESAME_GIT_TOKEN", SECRET),
-        ]);
-        let mut command = gh_in(&lookup).unwrap();
-        assert!(command.args(["auth", "token"]).status().unwrap().success());
-        let env = fixture.assert_clean();
-        for name in ["GH_HOST", "GH_CONFIG_DIR", "HTTPS_PROXY"] {
-            assert!(env.contains_key(name), "{name} missing: {env:?}");
-        }
-        for name in [
-            "GITHUB_APP_PRIVATE_KEY_PATH",
-            "GITHUB_APP_ID",
-            "OPENSESAME_GIT_TOKEN",
-        ] {
-            assert!(!env.contains_key(name), "{name} reached gh");
-        }
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn opensesame_gh_names_the_exact_file() {
-        use opensesame_trusted_exec::testkit::Fixture;
-        let fixture = Fixture::new("gh");
-        let chosen = fixture.scratch("chosen").join("gh");
-        fixture.stub_recorder(&chosen);
-        let value = chosen.display().to_string();
-        let command = gh_in(&fixture.lookup(&[(GH_OVERRIDE, &value)])).unwrap();
-        assert_eq!(command.get_program(), chosen.as_os_str());
-        let err = gh_in(&fixture.lookup(&[(GH_OVERRIDE, "gh")]))
-            .unwrap_err()
-            .to_string();
-        assert!(
-            err.contains("OPENSESAME_GH must be an absolute path"),
-            "{err}"
-        );
-    }
-
-    #[test]
-    fn a_garbage_key_fails_closed() {
-        let config = GitHubAppConfig {
-            app_id: "1".into(),
-            installation_id: None,
-            private_key_pem: "not a pem".into(),
-            api_base: DEFAULT_API_BASE.into(),
-        };
-        assert!(mint_app_jwt(&config).is_err());
-    }
-}
+mod tests;

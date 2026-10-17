@@ -145,3 +145,35 @@ describe("streaming AI families over independent HTTP", () => {
     expect(cancel).toHaveBeenCalledOnce();
   });
 });
+
+describe("completed AI body retirement", () => {
+  it("does not cancel a drained stream reader", async () => {
+    let cancelled = false;
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n',
+            ),
+          );
+          controller.close();
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { headers: { "content-type": "text/event-stream" } },
+    );
+    await expect(
+      readAiTextStream(
+        response,
+        "openai_chat",
+        vi.fn(),
+        vi.fn(),
+        new AbortController().signal,
+      ),
+    ).resolves.toBe("ok");
+    expect(cancelled).toBe(false);
+  });
+});

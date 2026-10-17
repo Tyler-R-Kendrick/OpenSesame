@@ -90,7 +90,7 @@ fn empty_relative_missing_and_non_directory_entries_are_skipped_with_their_reaso
     let skipped: Vec<_> = found
         .skipped
         .iter()
-        .map(|(d, s)| (d.display().to_string(), *s))
+        .map(|(d, s)| (d.display().to_string(), s.clone()))
         .collect();
     assert_eq!(
         skipped,
@@ -126,7 +126,11 @@ fn a_directory_only_the_caller_and_its_groups_can_write_is_searched_on_unix() {
             usize::from(skipped.is_none()),
             "{mode:o}"
         );
-        assert_eq!(found.skipped.first().map(|(_, s)| *s), skipped, "{mode:o}");
+        assert_eq!(
+            found.skipped.first().map(|(_, s)| s.clone()),
+            skipped,
+            "{mode:o}"
+        );
     }
 }
 

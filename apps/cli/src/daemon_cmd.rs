@@ -277,6 +277,14 @@ fn stop_daemon(pidfile: &str) {
     }
 }
 
+/// The binary the daemon is started from: this one. When this process cannot
+/// say where it is, there is no other `opensesame` to guess at on `PATH`.
+fn daemon_program(exe: std::io::Result<PathBuf>) -> Result<PathBuf, String> {
+    exe.map_err(|error| {
+        format!("cannot tell where this opensesame is, so cannot start it: {error}")
+    })
+}
+
 fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
     let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
     // The daemon's log is sealed (ADR 0157): opened and keyed here first, so a
@@ -290,7 +298,13 @@ fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
         );
         return;
     }
-    let program = env::current_exe().unwrap_or_else(|_| PathBuf::from("opensesame"));
+    let program = match daemon_program(env::current_exe()) {
+        Ok(program) => program,
+        Err(error) => {
+            println!("{}", json!({"status":"error","error": error}));
+            return;
+        }
+    };
     match StdCommand::new(program)
         .args(["daemon", "run"])
         .env(crate::log_sink::ENV_LOG_FILE, logfile)
@@ -320,77 +334,4 @@ fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{read_log, LogRead};
-    use std::path::Path;
-
-    fn dir() -> tempfile::TempDir {
-        tempfile::tempdir().expect("tempdir")
-    }
-
-    #[test]
-    fn no_logfile_falls_through_to_the_health_probe() {
-        let d = dir();
-        let log = d.path().join("daemon.log");
-        assert!(matches!(read_log(&log, None), LogRead::Missing));
-    }
-
-    #[test]
-    fn plaintext_log_with_no_key_is_read_scrubbed() {
-        let d = dir();
-        let log = d.path().join("daemon.log");
-        std::fs::write(&log, "started ok\nlogin password=hunter2value\n").unwrap();
-        assert!(!d.path().join("daemon.log.key").exists());
-        match read_log(&log, None) {
-            LogRead::Lines(lines) => {
-                assert_eq!(lines.len(), 2);
-                assert_eq!(lines[0], "started ok");
-                assert!(!lines.join("\n").contains("hunter2value"), "{lines:?}");
-            }
-            other => panic!("expected lines, got {other:?}"),
-        }
-        assert!(
-            !d.path().join("daemon.log.key").exists(),
-            "never creates a key"
-        );
-    }
-
-    #[test]
-    fn sealed_log_with_no_key_is_unreadable() {
-        let d = dir();
-        let log = d.path().join("daemon.log");
-        let key = opensesame_sealed_log::LogKey::generate();
-        let sealed = opensesame_sealed_log::seal_line(&key, "secret line");
-        std::fs::write(&log, format!("{sealed}\n")).unwrap();
-        assert!(matches!(read_log(&log, None), LogRead::Unreadable(_)));
-    }
-
-    #[test]
-    fn sealed_log_with_its_key_is_opened() {
-        let d = dir();
-        let log: &Path = &d.path().join("daemon.log");
-        let key_path = d.path().join("daemon.log.key");
-        let key = opensesame_sealed_log::LogKey::load_or_create(&key_path).unwrap();
-        let sealed = opensesame_sealed_log::seal_line(&key, "hello");
-        std::fs::write(log, format!("{sealed}\n")).unwrap();
-        match read_log(log, None) {
-            LogRead::Lines(lines) => assert_eq!(lines, vec!["hello".to_owned()]),
-            other => panic!("expected lines, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn daemon_args_print_no_operator_token() {
-        let args = super::DaemonArgs {
-            url: "http://127.0.0.1:18790".into(),
-            operator_token: Some("operator-12345".into()),
-            cmd: super::DaemonCmd::Status,
-        };
-        let shown = format!("{args:?}");
-        assert!(
-            shown.contains("[REDACTED]") && shown.contains("18790"),
-            "{shown}"
-        );
-        assert!(!shown.contains("operator-12345"), "{shown}");
-    }
-}
+mod tests;

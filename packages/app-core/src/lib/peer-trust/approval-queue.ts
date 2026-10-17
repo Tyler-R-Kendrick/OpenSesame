@@ -15,6 +15,9 @@ export interface PeerEnsureResult {
 
 const ENSURE_RATE_WINDOW_MS = 60_000;
 const ENSURE_RATE_MAX = 8;
+const PENDING_CAP = 8;
+
+export type PeerApprovalMode = "refuse" | "queue";
 
 interface ApprovedPeerSession {
   peerSessionId: string;
@@ -30,7 +33,10 @@ export class PeerApprovalQueue {
   private ensureRate = new Map<string, number[]>();
   private nextRequest = 0;
 
-  constructor(private readonly clock: () => number = Date.now) {}
+  constructor(
+    private readonly clock: () => number = Date.now,
+    private readonly mode: PeerApprovalMode = "refuse",
+  ) {}
 
   ensure(
     peerSessionId: string,
@@ -69,15 +75,7 @@ export class PeerApprovalQueue {
         return { status: "pending", requestId: row.requestId };
       }
     }
-    const requestId = `pr_${++this.nextRequest}`;
-    this.pending.set(requestId, {
-      requestId,
-      terminalSessionId: peerSessionId,
-      verb,
-      reference,
-      createdAtMs: this.clock(),
-    });
-    return { status: "pending", requestId };
+    return this.enqueue(peerSessionId, verb, reference);
   }
 
   listPending(): readonly PendingRequest[] {
@@ -117,9 +115,28 @@ export class PeerApprovalQueue {
   }
 
   private refuseAmbiguousPending(): void {
-    if (this.pending.size > 1) {
-      this.pending.clear();
+    if (this.mode === "queue") return;
+    if (this.pending.size > 1) this.pending.clear();
+  }
+
+  /** Queue mode keeps every pending peer, up to the cap. It never drops them. */
+  private enqueue(
+    peerSessionId: string,
+    verb: string,
+    reference: string | undefined,
+  ): PeerEnsureResult {
+    if (this.mode === "queue" && this.pending.size >= PENDING_CAP) {
+      return { status: "denied" };
     }
+    const requestId = `pr_${++this.nextRequest}`;
+    this.pending.set(requestId, {
+      requestId,
+      terminalSessionId: peerSessionId,
+      verb,
+      reference,
+      createdAtMs: this.clock(),
+    });
+    return { status: "pending", requestId };
   }
 
   private ensureRateLimited(peerSessionId: string): boolean {

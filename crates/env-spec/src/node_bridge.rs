@@ -38,7 +38,7 @@ use std::process::Command;
 
 pub(crate) use opensesame_trusted_exec::Lookup as Host;
 use opensesame_trusted_exec::{resolve_in, ResolveError};
-#[cfg(test)]
+#[cfg(all(test, unix))]
 use opensesame_trusted_exec::{search, Caller, Owner, Skip};
 pub(crate) use opensesame_trusted_exec::{Platform, LOCALE};
 
@@ -48,6 +48,14 @@ mod operator;
 
 /// Variable names the bridge may inherit, besides the `PATH` built here.
 const PASSED: [&str; 3] = ["HOME", "TMPDIR", "LANG"];
+/// Where a version manager keeps what its `node` shim runs (`volta`, `asdf`,
+/// `mise`); without them the shim finds no Node to start.
+const VERSION_MANAGERS: [&str; 4] = [
+    "VOLTA_HOME",
+    "ASDF_DATA_DIR",
+    "MISE_DATA_DIR",
+    "XDG_DATA_HOME",
+];
 /// What Node needs to start on Windows.
 const PASSED_ON_WINDOWS: [&str; 3] = ["SystemRoot", "PATHEXT", "COMSPEC"];
 
@@ -57,6 +65,7 @@ fn is_passed(name: &OsStr, platform: Platform) -> bool {
     };
     let listed = |names: &[&str]| names.iter().any(|n| platform.same_name(n, name));
     listed(&PASSED)
+        || listed(&VERSION_MANAGERS)
         || listed(&LOCALE)
         || (platform == Platform::Windows && listed(&PASSED_ON_WINDOWS))
 }
@@ -73,9 +82,13 @@ pub(crate) fn bridge_environment(
         .filter(|(name, _)| is_passed(name, platform))
         .cloned()
         .collect();
-    let path = std::env::join_paths(trusted)
-        .map_err(|e| EnvSpecError::Node(format!("PATH cannot be rebuilt: {e}")))?;
-    out.push((OsString::from("PATH"), path));
+    // No trusted entry, no PATH: an empty one means the working directory to
+    // `execvp`, `env` and every shell.
+    if !trusted.is_empty() {
+        let path = std::env::join_paths(trusted)
+            .map_err(|e| EnvSpecError::Node(format!("PATH cannot be rebuilt: {e}")))?;
+        out.push((OsString::from("PATH"), path));
+    }
     Ok(out)
 }
 
@@ -88,7 +101,7 @@ pub(crate) fn node_command_for(host: &Host) -> Result<Command, EnvSpecError> {
         ResolveError::NotFound(why) => EnvSpecError::Node(why),
         ResolveError::Override(why) => EnvSpecError::NodeOverride(why),
     })?;
-    let mut command = Command::new(found.program);
+    let mut command = found.command();
     command.env_clear().envs(bridge_environment(
         &host.vars,
         &found.trusted,
@@ -108,5 +121,7 @@ pub fn node_command() -> Result<Command, EnvSpecError> {
     node_command_for(&Host::capture())
 }
 
+#[cfg(all(test, unix))]
+mod environment_tests;
 #[cfg(all(test, unix))]
 mod tests;

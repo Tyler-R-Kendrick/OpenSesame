@@ -156,7 +156,7 @@ try {
     "password.invocation",
     "env.write",
     "env.resolve",
-    "read.explicit",
+    "reveal.explicit",
   ];
   fs.writeFileSync(
     report,

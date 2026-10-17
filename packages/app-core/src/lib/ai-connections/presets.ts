@@ -21,12 +21,21 @@ export function aiConnectionFamilies(providerId: string) {
     (family) =>
       providerId === "byo-ai" ||
       family.id === preset?.family ||
-      (providerId === "openai" && family.id === "openai_responses"),
+      (["openai", "azure-openai"].includes(providerId) &&
+        family.id === "openai_responses"),
   );
 }
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "azure-openai")
+    return {
+      providerId,
+      name: "Azure OpenAI",
+      family: "openai_chat" as const,
+      baseUrl: "",
+      azure: { api: "v1", credential: "api-key" } as const,
+    };
   if (providerId === "byo-ai")
     return {
       providerId,
@@ -56,9 +65,8 @@ export function aiConnectionDraft(providerId: string): AiConnectionDraft {
     model: "",
     authentication: "api-key",
     apiKey: "",
-    tokenParameter:
-      providerId === "openai" || providerId === "byo-ai"
-        ? "max_completion_tokens"
-        : "max_tokens",
+    tokenParameter: ["openai", "byo-ai", "azure-openai"].includes(providerId)
+      ? "max_completion_tokens"
+      : "max_tokens",
   };
 }

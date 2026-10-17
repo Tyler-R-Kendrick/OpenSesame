@@ -1,0 +1,810 @@
+{
+  "recordedDate": "2026-10-15",
+  "scope": "PR #1338 native 1Password shared configuration UI and legacy Connect upgrade; PR #1339 measured ordinary-build budget metadata",
+  "ui": {
+    "result": "PASS_CONFIGURATION_AND_LEGACY_CONNECT_ONLY",
+    "receipt": {
+      "file": "receipt.json",
+      "sha256": "b0767bf636749af239b987f25ba30fb07418ef5b0f378e817b5d453489a1dcd4",
+      "bytes": 1353659
+    },
+    "rootReview": {
+      "file": "parent-ui-upgrade-review.json",
+      "sha256": "2fdd6c4c4b81a1c5b0023e09e467299509a29c275ef31552b5f0d38638939497",
+      "bytes": 958
+    },
+    "readback": {
+      "file": "runtime-ui-upgrade-readback.json",
+      "sha256": "f384148ee4f4d6d86e2b0fa957f5dde215ca795fe0f7e3447ea1faa2d9c8738e",
+      "bytes": 2569
+    },
+    "closureReceipt": {
+      "file": "runtime-ui-upgrade-closure.json",
+      "sha256": "41e365a40d716299b12475c35063737cdf38ece93d9c9fe92c95e7343e1427b2",
+      "bytes": 375
+    },
+    "compiledBefore": "9b8bb3a436c16cc2b1fb79100bf19ad7d9c8804c",
+    "compiledAfter": "a50848dfe53fdaffc220604e55fc42697573f617",
+    "browserVersion": "151.0.7922.173",
+    "startedAt": 1792067458718,
+    "finishedAt": 1792067501183,
+    "durationMs": 42465,
+    "harnessManifestSha256": "d0ca11ac1f535739fbbe9d55bde50420c912602d427ba050d1db920455bda300",
+    "frozenInputCount": 30,
+    "archives": [
+      {
+        "phase": "before",
+        "files": 250,
+        "inventorySha256": "bf8a14811574a2d5067d70c88adc6a9e02574b421aa00c97de11b3bf8eda7872"
+      },
+      {
+        "phase": "after",
+        "files": 255,
+        "inventorySha256": "6fdc9c6c3090136b738d15ac684dc635ec59a51ecee5988520cf58a42e9203c9"
+      }
+    ],
+    "allFrozenInputsAndArtifactsUnchanged": true,
+    "nativePngsInReceipt": 10,
+    "selectedNativePngs": 8,
+    "viewports": [
+      {
+        "width": 1280,
+        "passed": true,
+        "observations": [
+          {
+            "checkpoint": "old-connect-default",
+            "at": 1792067465532,
+            "pathname": "/OpenSesame/settings/connections/1password",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 1280,
+            "height": 900,
+            "hasTouch": false,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 1280,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          },
+          {
+            "checkpoint": "upgraded-saved-connect",
+            "at": 1792067475114,
+            "pathname": "/OpenSesame/settings/connections/1password",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 1280,
+            "height": 900,
+            "hasTouch": false,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 1280,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          },
+          {
+            "checkpoint": "new-native-default",
+            "at": 1792067475601,
+            "pathname": "/OpenSesame/settings/connections/1password",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 1280,
+            "height": 900,
+            "hasTouch": false,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 1280,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          },
+          {
+            "checkpoint": "byo-native-fields",
+            "at": 1792067475762,
+            "pathname": "/OpenSesame/settings/connections/byo-secret-backend",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 1280,
+            "height": 900,
+            "hasTouch": false,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 1280,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          },
+          {
+            "checkpoint": "saved-native-blank-token",
+            "at": 1792067480702,
+            "pathname": "/OpenSesame/settings/connections/1password",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 1280,
+            "height": 900,
+            "hasTouch": false,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 1280,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          }
+        ],
+        "noAction": [
+          {
+            "label": "old saved Connect",
+            "at": 1792067470480,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "upgraded legacy Connect",
+            "at": 1792067475356,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "new native draft",
+            "at": 1792067475685,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "BYO native composition/mode switch",
+            "at": 1792067475908,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "native Save and cold unlock with blank token",
+            "at": 1792067480702,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "saved native rename",
+            "at": 1792067480881,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          }
+        ],
+        "legacyConnect": {
+          "retained": true,
+          "realAuthenticatedGet": true,
+          "qualification": "Controlled Connect REST success, not native SDK"
+        },
+        "legacyFixtureRemovedThroughConfirmation": true,
+        "partnerFields": [
+          {
+            "label": "1Password account URL",
+            "type": "text",
+            "box": {
+              "x": 280,
+              "y": 395.40625,
+              "width": 480,
+              "height": 34
+            }
+          },
+          {
+            "label": "Service account token",
+            "type": "password",
+            "box": {
+              "x": 280,
+              "y": 470.203125,
+              "width": 480,
+              "height": 34
+            }
+          },
+          {
+            "label": "Vault ID",
+            "type": "text",
+            "box": {
+              "x": 280,
+              "y": 545,
+              "width": 480,
+              "height": 34
+            }
+          }
+        ],
+        "byoFields": [
+          {
+            "label": "1Password account URL",
+            "type": "text",
+            "box": {
+              "x": 280,
+              "y": 395.40625,
+              "width": 480,
+              "height": 34
+            }
+          },
+          {
+            "label": "Service account token",
+            "type": "password",
+            "box": {
+              "x": 280,
+              "y": 470.203125,
+              "width": 480,
+              "height": 34
+            }
+          },
+          {
+            "label": "Vault ID",
+            "type": "text",
+            "box": {
+              "x": 280,
+              "y": 545,
+              "width": 480,
+              "height": 34
+            }
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "passed": true,
+        "observations": [
+          {
+            "checkpoint": "old-connect-default",
+            "at": 1792067486281,
+            "pathname": "/OpenSesame/settings/connections/1password",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 390,
+            "height": 900,
+            "hasTouch": true,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 390,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          },
+          {
+            "checkpoint": "upgraded-saved-connect",
+            "at": 1792067495683,
+            "pathname": "/OpenSesame/settings/connections/1password",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 390,
+            "height": 900,
+            "hasTouch": true,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 390,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          },
+          {
+            "checkpoint": "new-native-default",
+            "at": 1792067496128,
+            "pathname": "/OpenSesame/settings/connections/1password",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 390,
+            "height": 900,
+            "hasTouch": true,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 390,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          },
+          {
+            "checkpoint": "byo-native-fields",
+            "at": 1792067496232,
+            "pathname": "/OpenSesame/settings/connections/byo-secret-backend",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 390,
+            "height": 900,
+            "hasTouch": true,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 390,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          },
+          {
+            "checkpoint": "saved-native-blank-token",
+            "at": 1792067500926,
+            "pathname": "/OpenSesame/settings/connections/1password",
+            "workspaces": 0,
+            "verifiedMarks": 0,
+            "width": 390,
+            "height": 900,
+            "hasTouch": true,
+            "overflow": false,
+            "visibility": "visible",
+            "focused": true,
+            "visualWidth": 390,
+            "visualHeight": 900,
+            "devicePixelRatio": 1,
+            "scrollX": 0,
+            "scrollY": 0
+          }
+        ],
+        "noAction": [
+          {
+            "label": "old saved Connect",
+            "at": 1792067490725,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "upgraded legacy Connect",
+            "at": 1792067495859,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "new native draft",
+            "at": 1792067496168,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "BYO native composition/mode switch",
+            "at": 1792067496349,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "native Save and cold unlock with blank token",
+            "at": 1792067500926,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          },
+          {
+            "label": "saved native rename",
+            "at": 1792067501024,
+            "nativeAssets": 0,
+            "nativeWorkers": 0,
+            "nativeApi": 0
+          }
+        ],
+        "legacyConnect": {
+          "retained": true,
+          "realAuthenticatedGet": true,
+          "qualification": "Controlled Connect REST success, not native SDK"
+        },
+        "legacyFixtureRemovedThroughConfirmation": true,
+        "partnerFields": [
+          {
+            "label": "1Password account URL",
+            "type": "text",
+            "box": {
+              "x": 16,
+              "y": 536.140625,
+              "width": 358,
+              "height": 44
+            }
+          },
+          {
+            "label": "Service account token",
+            "type": "password",
+            "box": {
+              "x": 16,
+              "y": 619.9375,
+              "width": 358,
+              "height": 44
+            }
+          },
+          {
+            "label": "Vault ID",
+            "type": "text",
+            "box": {
+              "x": 16,
+              "y": 703.734375,
+              "width": 358,
+              "height": 44
+            }
+          }
+        ],
+        "byoFields": [
+          {
+            "label": "1Password account URL",
+            "type": "text",
+            "box": {
+              "x": 16,
+              "y": 599.75,
+              "width": 358,
+              "height": 44
+            }
+          },
+          {
+            "label": "Service account token",
+            "type": "password",
+            "box": {
+              "x": 16,
+              "y": 683.546875,
+              "width": 358,
+              "height": 44
+            }
+          },
+          {
+            "label": "Vault ID",
+            "type": "text",
+            "box": {
+              "x": 16,
+              "y": 767.34375,
+              "width": 358,
+              "height": 44
+            }
+          }
+        ]
+      }
+    ],
+    "closure": {
+      "contexts": [
+        {
+          "width": 1280,
+          "closed": true
+        },
+        {
+          "width": 390,
+          "closed": true
+        }
+      ],
+      "provider": {
+        "serverClosed": true,
+        "socketsClosed": true,
+        "tlsRemoved": true
+      },
+      "connect": true,
+      "app": true,
+      "browser": true
+    },
+    "ownedProcessesAfter": [],
+    "plannedListenersAfter": []
+  },
+  "nativeSdkActionDiagnostic": {
+    "result": "FAILED_NOT_COMPLETED",
+    "receipt": {
+      "file": "receipt.json",
+      "sha256": "bff6393b04e7d57f970590e193e69a5ca47b5c140c8e5b06d64583e19974b899",
+      "bytes": 357969
+    },
+    "closureReceipt": {
+      "file": "runtime-native-closure.json",
+      "sha256": "08b89005a92752a5fb80eac12e9d13228a8abc06b86bcbc4d3cb0b666dfa70d3",
+      "bytes": 371
+    },
+    "compiledAfter": "a50848dfe53fdaffc220604e55fc42697573f617",
+    "durationMs": 41951,
+    "summary": "Test never reached the intended fixture 401. Native OPTIONS/POST failed; the complete 4,188,530-byte gzip transfer had HTTP 200 followed by an unexpected abort. No native action completed; separate diagnosis is pending.",
+    "ownedProcessesAfter": [],
+    "plannedListenersAfter": [],
+    "laterResultsIncluded": false
+  },
+  "buildsAndStatic": {
+    "root-subpath-build-review.json": {
+      "receipt": {
+        "file": "root-subpath-build-review.json",
+        "sha256": "cd0dac3372f202f3980c95e6f3d4564b46c69d30f0d24e2d2cc3eaad42f99d69",
+        "bytes": 553
+      },
+      "review": {
+        "result": "PASS_BUILD_AND_INTEGRITY_ONLY",
+        "allTrackedInputsMatched": 14849,
+        "readonlyArtifactFiles": 255,
+        "artifactBytes": 21322766,
+        "indexSha256": "d72cf577384e349c4ce47e9f2ac5d58fad3bb90426db010c2a1c2cb95470c8b5",
+        "receiptSha256": "16182c45854037fc0f81cb135a43f31a4adca011de97c4bf556810805a193d0a",
+        "threePinnedAssetsAndRawIdentity": true,
+        "graphZeroViolations": true,
+        "budgets": "RED unchanged total/javascript/javascriptGzip; no waiver",
+        "httpMimeCspProviderUiProof": false,
+        "closureNoLiveOwnedProcessesOrListeners": true
+      }
+    },
+    "parent-root-build-review.json": {
+      "receipt": {
+        "file": "parent-root-build-review.json",
+        "sha256": "c97b4132aef9257bb757498af2d4655447f04dba4fdde0440907dff1e60f8811",
+        "bytes": 470
+      },
+      "review": {
+        "result": "PASS_ROOT_BUILD_AND_INTEGRITY_ONLY",
+        "trackedInputsMatched": 14849,
+        "readonlyOutputs": 254,
+        "bytes": 21317577,
+        "receiptSha256": "ea028380f2a6e91453fd191edc3cf712637ece4e8688ebbe8a507e9857e446f0",
+        "indexSha256": "e7aa43925ab5c2f154cda4b1029259213fca71c3bca0e693411dad08fdd16a45",
+        "assetsRawIdentityAndGraph": true,
+        "normalMeasuredBudgetsPass": true,
+        "httpBrowserProviderStrictHostingProof": false,
+        "closureNoOwnedLiveOrListeners": true
+      }
+    },
+    "parent-minimal-hardened-review.json": {
+      "receipt": {
+        "file": "parent-minimal-hardened-review.json",
+        "sha256": "2ff45412d55e6a3ef7b07bb8317d6223660c9fe2a79d5995edaba1019ec43cd2",
+        "bytes": 512
+      },
+      "review": {
+        "checkedAt": "2026-10-15T12:31:05.852808+00:00",
+        "sourceHead": "dbb1729bed6229c1b74f8841873f209e110e9fb6",
+        "allTrackedIdentitiesAndCurrentBytesVerified": 14849,
+        "onlyExpectedProfileMtimeChange": [
+          "apps/pages/public/security-profile.json"
+        ],
+        "all18IndexedReceiptsVerified": true,
+        "all113ReadonlyOutputsVerified": true,
+        "actualGraphAbsentAndUnchangedBudgets": true,
+        "ownedResourcesClosed": true,
+        "qualification": "Build/static proof only; no browser or provider authentication proof."
+      }
+    },
+    "parent-family-hardened-review.json": {
+      "receipt": {
+        "file": "parent-family-hardened-review.json",
+        "sha256": "9f3f417d1dbe8647b112a5d4390123c94152b6e52c031deda4eb483ade663745",
+        "bytes": 354
+      },
+      "review": {
+        "checkedAt": "2026-10-15T12:36:12.264773+00:00",
+        "allIndexedReceiptsAnd113ReadonlyFilesVerified": true,
+        "all14849IdentitiesAndCurrentBytesVerified": true,
+        "actualGraphAbsentAndUnchangedProfileCeilingsPass": true,
+        "sourceClean": true,
+        "ownedResourcesClosed": true,
+        "qualification": "Build/static absence only, no browser/provider proof"
+      },
+      "rootApprovedSummary": {
+        "outputs": 113,
+        "bytes": 3929481,
+        "evidenceIndexSha256": "f073fe19c3af5a9a7207a5b7d3f659885bea7cc753dbf45f342871509d4c9171",
+        "measuredKiB": {
+          "total": 3837,
+          "javascript": 3250,
+          "javascriptGzip": 1007,
+          "css": 161,
+          "largest": 628
+        },
+        "ceilingsKiB": {
+          "total": 4767,
+          "javascript": 4164,
+          "javascriptGzip": 1259,
+          "css": 171,
+          "largest": 693
+        },
+        "nativeImplementationWorkerResourcesAbsent": true,
+        "qualification": "Static build only; no browser/provider proof."
+      }
+    }
+  },
+  "buildQualification": {
+    "subpathSource": "a50848dfe53fdaffc220604e55fc42697573f617",
+    "profile": "loopback_development",
+    "canonicalOrigin": "http://localhost:41901",
+    "headerSecurity": false,
+    "uiBase": "/OpenSesame/",
+    "sdkResources": "Three pinned resources (runtime, gzip and MIT license) plus a distinct Vite worker. Graph ownership is static evidence, not proof of downloads or caching.",
+    "normalBudgetKiB": {
+      "total": 21050,
+      "javascript": 7320,
+      "javascriptGzip": 2210
+    },
+    "budgetAdjustmentPR": 1339,
+    "historicalSubpathFirstBudgetResult": "RED under unchanged previous ceilings; preserved",
+    "unchangedBudgets": "CSS, largest asset, other app and all hardened profile data",
+    "rootAndHardenedSource": "dbb1729bed6229c1b74f8841873f209e110e9fb6"
+  },
+  "images": [
+    {
+      "phase": "before",
+      "checkpoint": "old-connect-default",
+      "width": 1280,
+      "height": 900,
+      "captureAt": 1792067465620,
+      "sourceNativePng": "1280-old-connect-default.png",
+      "nativePngSha256": "d2f7b7656bb08c36307cb9e5ad783019f4ab2af3e41971d3c6ccde3dba123c58",
+      "nativePngBytes": 60604,
+      "file": "1280-old-connect-default.webp",
+      "webpSha256": "390fc04d7923834bf81eb83198a928b4ec38065f98b408603abd4c8957e366fa",
+      "webpBytes": 19714,
+      "decodedRgbaSha256": "74de0c671ad795a2351a9dd95926e550186966f6a56569fa0489c64ffc3a54ca",
+      "decodedRgbaBytes": 4608000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegPng": true,
+        "PillowPngVsFfmpegWebp": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "after",
+      "checkpoint": "new-native-default",
+      "width": 1280,
+      "height": 900,
+      "captureAt": 1792067475683,
+      "sourceNativePng": "1280-new-native-default.png",
+      "nativePngSha256": "015d04842a4b040eb9c3d59614da76c7228cfb7ffd8d6c88abd5de4928143b62",
+      "nativePngBytes": 64646,
+      "file": "1280-new-native-default.webp",
+      "webpSha256": "89343d4092ebf0ed0d82d0980c5d5a73024aaa66feb511eab71ebf5610d85961",
+      "webpBytes": 21102,
+      "decodedRgbaSha256": "b6d2741a57ec5271041f3a8ec38d6a3607e04235a2928d5d44d715c60eea30d7",
+      "decodedRgbaBytes": 4608000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegPng": true,
+        "PillowPngVsFfmpegWebp": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "after",
+      "checkpoint": "byo-native-fields",
+      "width": 1280,
+      "height": 900,
+      "captureAt": 1792067475854,
+      "sourceNativePng": "1280-byo-native-fields.png",
+      "nativePngSha256": "011b9b65eedd91a30fab3a9b8dfe0edfdcd5ebbd2c3fa7be50bed0c376471b0e",
+      "nativePngBytes": 63984,
+      "file": "1280-byo-native-fields.webp",
+      "webpSha256": "aa123df5c681f804ee43c77cff5e44c5e6764d9c42e9af75e3ae56be61877441",
+      "webpBytes": 20710,
+      "decodedRgbaSha256": "7709c2842b41b6a49d8fb60d71414197c6e2e9b8cd95a5c73b10fe4a3bac9abc",
+      "decodedRgbaBytes": 4608000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegPng": true,
+        "PillowPngVsFfmpegWebp": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "after",
+      "checkpoint": "saved-native-blank-token",
+      "width": 1280,
+      "height": 900,
+      "captureAt": 1792067480784,
+      "sourceNativePng": "1280-saved-native-blank-token.png",
+      "nativePngSha256": "1d5c08ccbeda5704c5a53cc3911b0cc1a3c5f8d38cc10557a50d599cedfe5420",
+      "nativePngBytes": 71254,
+      "file": "1280-saved-native-blank-token.webp",
+      "webpSha256": "f77f0707af2fe1d66b8874c6fc45efcca74fb77f15ef22a8bed723488fadbbeb",
+      "webpBytes": 23888,
+      "decodedRgbaSha256": "986fe4dba50b7aea07d510519e05059047ff154bcbed80f0acd345f4f3c34717",
+      "decodedRgbaBytes": 4608000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegPng": true,
+        "PillowPngVsFfmpegWebp": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "before",
+      "checkpoint": "old-connect-default",
+      "width": 390,
+      "height": 900,
+      "captureAt": 1792067486316,
+      "sourceNativePng": "390-old-connect-default.png",
+      "nativePngSha256": "09e950c2c8e2f1f5cd61eadcfc9797c580ff1807bdbd53eb0e75902830f0752e",
+      "nativePngBytes": 32375,
+      "file": "390-old-connect-default.webp",
+      "webpSha256": "273e9a0ed7525322d11e91bed6c90dbd2274b638f6c163c8d57205583065f418",
+      "webpBytes": 10546,
+      "decodedRgbaSha256": "13f42c348e20da61711b82c5b6b6980e4bd5153ce7eff383fa50a1ef065bc7e0",
+      "decodedRgbaBytes": 1404000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegPng": true,
+        "PillowPngVsFfmpegWebp": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "after",
+      "checkpoint": "new-native-default",
+      "width": 390,
+      "height": 900,
+      "captureAt": 1792067496166,
+      "sourceNativePng": "390-new-native-default.png",
+      "nativePngSha256": "b0c482c56436a43d7cd358ab9136d3e55ff82d0e154d0b632207b58857c605ff",
+      "nativePngBytes": 36312,
+      "file": "390-new-native-default.webp",
+      "webpSha256": "df55ceb460f84a395f6953ad5dfc09f04eb21d477841eae14cb5a732db2d2d30",
+      "webpBytes": 12460,
+      "decodedRgbaSha256": "b0761472e4abf07ff449e000fcf2e908c568143e9df29922949597fb64d8c626",
+      "decodedRgbaBytes": 1404000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegPng": true,
+        "PillowPngVsFfmpegWebp": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "after",
+      "checkpoint": "byo-native-fields",
+      "width": 390,
+      "height": 900,
+      "captureAt": 1792067496306,
+      "sourceNativePng": "390-byo-native-fields.png",
+      "nativePngSha256": "ccbfd97fc80749482febc68ec83cfab55e2a557209d8516898c51828660b1078",
+      "nativePngBytes": 37315,
+      "file": "390-byo-native-fields.webp",
+      "webpSha256": "f9ef0e9d906ffbe270e712230e55871db02231beb002d7f3f9fb54ca6db45044",
+      "webpBytes": 12732,
+      "decodedRgbaSha256": "0034538b471c6f8d4e5ab28502c379c28db02c3f5596cc2883cd674c52b97622",
+      "decodedRgbaBytes": 1404000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegPng": true,
+        "PillowPngVsFfmpegWebp": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "after",
+      "checkpoint": "saved-native-blank-token",
+      "width": 390,
+      "height": 900,
+      "captureAt": 1792067500967,
+      "sourceNativePng": "390-saved-native-blank-token.png",
+      "nativePngSha256": "a5a57cd88614c0f3a8bb3fd58e454b5ef0e722ddc26ff8236d84fe34e80c3a09",
+      "nativePngBytes": 43445,
+      "file": "390-saved-native-blank-token.webp",
+      "webpSha256": "f466e10fbb378e7cfc834f9982d447a9610909698d55e8938703326d14ce0241",
+      "webpBytes": 15238,
+      "decodedRgbaSha256": "743f7ab8d238c264681c51008ec2b0f7ac46cf792d42147d914c4956e30a810d",
+      "decodedRgbaBytes": 1404000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegPng": true,
+        "PillowPngVsFfmpegWebp": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    }
+  ],
+  "rgbaHashDefinition": "SHA256 row-major RGBA8, width*height*4; native PNG/WebP independently decoded by Pillow and FFmpeg.",
+  "limits": [
+    "Actual configuration UI and controlled legacy Connect REST success only. Native service-account authentication, selected-vault access, item decryption and CRUD are not proved.",
+    "Fresh BYO native screenshots are unsaved. Saved-native-blank-token screenshots show partner 1Password after Save and cold unlock; these are distinct checkpoints.",
+    "Twelve no-action checkpoints establish observed native SDK asset, worker and API inactivity only, not service-worker caching or offline behavior.",
+    "The first actual production-PWA native SDK action run failed and remains failed. No native action completed; PR #1338 remains draft.",
+    "Native failed run: Test did not reach its intended fixture 401. Native OPTIONS/POST failed; the complete gzip transfer had HTTP 200 followed by an unexpected abort. Cause remains under separate diagnosis. No raw SDK/network error, token, header or body is reproduced.",
+    "Both ordinary builds declare loopback_development, HTTP port 41901 and headerSecurity false. They do not prove strict production HTTPS hosting.",
+    "The historical subpath unchanged-budget result remains RED. PR #1339 separately acknowledges deliberate measured ordinary-build feature cost; hardened profiles, other apps, CSS and largest-asset budgets are unchanged.",
+    "Minimal-local and family-local hardened absence is build/static proof only. Installed service-worker caching, offline behavior, strict hosting, positive hosted access and broader integrations are not passed by this gallery.",
+    "Required CI, remaining provider/caller work, full security landing gates and verified bottom-up restacking remain separate."
+  ]
+}

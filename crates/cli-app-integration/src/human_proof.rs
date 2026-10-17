@@ -33,7 +33,7 @@ pub struct HumanProofContext {
 
 /// Verbs that require a hardware-backed passkey proof (D7-2 decision 6).
 fn verb_requires_hardware_passkey(verb: &str) -> bool {
-    matches!(verb, "run" | "env-resolve" | "pass-reveal")
+    matches!(verb, "run" | "pass-reveal")
 }
 
 /// Verified human proof: PIN unlock or passkey with monotonic sign count.
@@ -122,7 +122,7 @@ mod tests {
             request_id: "clr_1".into(),
             terminal_session_id: "term-a".into(),
             respond_nonce: "nonce".into(),
-            verb: "read".into(),
+            verb: "reveal".into(),
             argv_hash: "00".into(),
             peer_pid: 42,
             peer_start_time: 1,
@@ -210,7 +210,7 @@ mod tests {
                 "signatureB64": "AA",
             })
         );
-        for verb in ["run", "env-resolve", "pass-reveal"] {
+        for verb in ["run", "pass-reveal"] {
             let mut c = ctx();
             c.verb = verb.to_string();
             assert!(

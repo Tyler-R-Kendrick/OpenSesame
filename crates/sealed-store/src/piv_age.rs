@@ -53,7 +53,7 @@ pub fn discover_piv_age() -> PivAgeDiscovery {
         Ok(command) => command,
         Err(why) => {
             notes.push(why.to_string());
-            notes.push("install age-plugin-yubikey per its docs, or name it with OPENSESAME_AGE_PLUGIN_YUBIKEY".into());
+            notes.push("install age-plugin-yubikey per its docs".into());
             return PivAgeDiscovery {
                 plugin_path: None,
                 runtime: PivAgeRuntime::PluginMissing,

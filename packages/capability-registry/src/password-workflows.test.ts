@@ -9,7 +9,7 @@ describe("password workflow boundaries", () => {
   );
 
   it("declares every surface without introducing an unreviewed gap", () => {
-    expect(workflows).toHaveLength(22);
+    expect(workflows).toHaveLength(21);
     for (const capability of workflows) {
       for (const surface of SURFACES) {
         expect(surfaceGaps()[surface]).not.toContain(capability.id);
@@ -28,8 +28,7 @@ describe("password workflow boundaries", () => {
       "vault.workflow.create_private",
       "vault.workflow.compare_private",
       "vault.workflow.update_private",
-      "password_provider.read",
-      "password_provider.env_resolve",
+      "password_provider.reveal",
     ]);
     for (const capability of workflows) {
       expect(capability.surfaces.mcp_host).toBeNull();

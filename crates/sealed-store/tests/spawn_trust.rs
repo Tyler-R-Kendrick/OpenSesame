@@ -155,7 +155,7 @@ fn a_gpg_entry_is_opened_and_sealed_by_the_trusted_gpg_with_nothing_else() {
 
 #[test]
 fn opensesame_sops_bin_must_name_a_file_that_can_run_and_sops_sees_only_its_own() {
-    use opensesame_sealed_store::{resolve_sops_bin, sops_decrypt, SopsError, SopsFormat};
+    use opensesame_sealed_store::{resolve_sops_bin, sops_decrypt, SopsFormat};
     use std::os::unix::fs::PermissionsExt;
     let fixture = Fixture::new("sops");
     let dir = fixture.scratch("sops");
@@ -169,7 +169,8 @@ fn opensesame_sops_bin_must_name_a_file_that_can_run_and_sops_sees_only_its_own(
         let _env = enter(&fixture, &[("OPENSESAME_SOPS_BIN", &value)]);
         resolve_sops_bin()
     };
-    assert_eq!(refused, Err(SopsError::InvalidBinaryPath));
+    let said = refused.expect_err("a file nobody can run").to_string();
+    assert!(said.contains("is not executable"), "{said}");
     let opened = {
         let value = runnable.display().to_string();
         let _env = enter(&fixture, &[("OPENSESAME_SOPS_BIN", &value)]);

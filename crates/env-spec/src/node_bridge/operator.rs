@@ -12,7 +12,7 @@
 pub(crate) const VARIABLE: &str = "OPENSESAME_NODE";
 
 /// The `node` `value` names, as the bridge's error.
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(crate) fn node(value: &std::ffi::OsStr) -> Result<std::path::PathBuf, crate::EnvSpecError> {
     opensesame_trusted_exec::named(VARIABLE, value)
         .map_err(|e| crate::EnvSpecError::NodeOverride(e.to_string()))

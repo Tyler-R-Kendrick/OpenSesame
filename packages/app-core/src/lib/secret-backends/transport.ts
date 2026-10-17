@@ -10,6 +10,11 @@ export type SecretBackendTransport = Readonly<{
   assertCurrent(): void;
   signal: AbortSignal;
 }>;
+type BackendLifetime = Pick<
+  SecretBackendTransport,
+  "assertCurrent" | "signal"
+> &
+  Partial<Pick<SecretBackendTransport, "fetch">>;
 
 function stale(): SecretBackendError {
   return new SecretBackendError(
@@ -49,18 +54,31 @@ export function secretBackendTransport(): SecretBackendTransport {
 export function guardSecretBackendTransport(
   transport: SecretBackendTransport,
   guard?: () => void,
+  ownerSignal?: AbortSignal,
 ): SecretBackendTransport {
+  const fetcher = transport.fetch.bind(transport);
+  const capturedCheck = transport.assertCurrent.bind(transport);
+  const signal = ownerSignal
+    ? AbortSignal.any([transport.signal, ownerSignal])
+    : transport.signal;
   const assertCurrent = () => {
-    transport.assertCurrent();
-    if (transport.signal.aborted) throw stale();
+    capturedCheck();
+    if (signal.aborted) throw stale();
     guard?.();
+    if (signal.aborted) throw stale();
   };
   return {
-    signal: transport.signal,
+    signal,
     assertCurrent,
     fetch: async (input, init) => {
       assertCurrent();
-      const response = await transport.fetch(input, init);
+      const signals = [signal];
+      if (input instanceof Request) signals.push(input.signal);
+      if (init?.signal) signals.push(init.signal);
+      const response = await fetcher(input, {
+        ...init,
+        signal: AbortSignal.any(signals),
+      });
       assertCurrent();
       return response;
     },
@@ -68,7 +86,7 @@ export function guardSecretBackendTransport(
 }
 
 async function duringLease<T>(
-  transport: SecretBackendTransport,
+  transport: BackendLifetime,
   operation: () => Promise<T>,
   discard?: (result: T) => Promise<void>,
 ): Promise<T> {
@@ -112,11 +130,12 @@ async function duringLease<T>(
 /** HTTP and SDK results have the same activation fence as the requests that made them. */
 export function fenceSecretBackend(
   backend: SecretBackend,
-  transport: SecretBackendTransport,
+  transport: BackendLifetime,
 ): SecretBackend {
   const fenced: SecretBackend = {
     id: backend.id,
     name: backend.name,
+    signal: transport.signal,
     capabilities: backend.capabilities,
     authenticate: (config) =>
       duringLease(

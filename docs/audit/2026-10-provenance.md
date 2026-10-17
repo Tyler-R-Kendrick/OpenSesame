@@ -364,3 +364,289 @@ GraphQL publisher using recovered CLI authentication and independently
 verified through the connector; no queued Actions result was promoted. Other
 native provider and broker-backed identity gaps remain separate work. Required
 CI, signed bottom-up restack and security landing gates remain mandatory.
+
+### Native 1Password assets, worker boundary and item codecs
+
+Codex and delegated Codex agents implemented and independently reviewed these
+small signed slices. Grok authentication remains unavailable and Kimi is absent.
+The MIT `@1password/sdk-core` 0.5.0 pin, unchanged asset hashes and build helper
+were published in `30a74f480d8a367e977287946f70761f32fe4cad` (PR #1308).
+The guarded HTTP boundary followed in `eced3d8f48892f61f0c3c67cc3c2ac585086021a`
+(#1309), and the worker/loader in `0c0f025d569f716ff4055b437e50f909eeb25284`
+with the CSP correction `5d0389c6e29836948af5fc3f1aa29ae62cb9f9fc` (#1310).
+Actual official-WASM source proof passed 47 checks with zero failures across six
+workers and zero CSP violations, covering owned HTTPS 401 responses and
+cancellation. This was not positive provider authentication or a production
+capability-graph result. Private proof compilations did not activate product
+assets, factory, UI, build emission or cache ownership; those remain unfinished.
+Native read mapping was published in `7c55012fae082aedb59c16ba1bd658ff24368721`
+(#1311), and metadata-preserving write codec in
+`326a97f0772b1b12c86799ac6b70224966156a20` (#1312). Pure codec fixtures establish
+shape, identity and preservation, not hosted access or encrypted provider CRUD.
+
+### Shared secret-backend ownership and inherited formatting
+
+Codex and delegated Codex agents implemented and independently reviewed session
+lifetimes in `d601301caea81f3f259c83b3ad1337927c269d5b` (#1313), owner transport
+cancellation in `2ee8830c73ba729d4420953c258caf0de70120c9` (#1314), and early
+vault-authority cancellation in `6f5cb1eea850fa071d8d0dd9ef8608c770beedc3` (#1315).
+Grok authentication remains unavailable and Kimi is absent. The transport slice
+passed 315 backend tests, including four real socket aborts; early authority
+passed 330 backend tests including 15 new cases using cooperative fetch/Promise
+fixtures. These are scoped backend results, not whole-core or browser proof.
+`61be3e73c251e0efb5897f36a13978a0b2422cae` (#1316) fixes one inherited Rustfmt
+hunk; its pinned formatting gate passed, while native tests and Clippy remain
+unproven. Across both groups, reviewed GraphQL publishing, verified signatures
+and independent exact-byte readback preceded adoption. SDK activation, positive
+hosted 1Password authentication/CRUD, cloud transport and UI completion remain
+open; required CI, full security landing gates and verified restack remain due.
+
+Controlled exact-handle closure in
+`59158ea7a6230468026af84138ed3ca113beefed` (#1317) distinguishes local removal
+from provider-ended sessions and preserves the default AbortError. Its 334
+backend tests include 16 registry cases; these are scoped fixtures, not mounted
+UI or native-provider completion.
+
+Distinct runtime admission in
+`7264241ca0a879b3ee90170073c2421a50ae2a7c` (#1318) withdraws the exact held handle
+synchronously and publishes through the existing SDK-free seam revision.
+Its 355 backend tests include 21 new cases covering normal probe disposal
+versus provider loss. This continues the same reviewed Codex fallback and
+signed GraphQL/readback provenance. CI remains queued; the known formatting
+hunk is corrected, without implying native CI or full security/restack success.
+
+### 2026-10-15 — PWA secret-backend ownership and native 1Password
+
+Codex and delegated Codex agents continued under the recorded fallback: Grok
+authentication and Kimi were unavailable. Each scope was frozen, signed through
+GitHub GraphQL without an author override, checked for its sole parent and
+exact published tree/blob bytes, and opened as a separate stacked PR before
+the next implementation scope began.
+
+- #1320, `58ed49b93c9603edc5539609b46db489baf7dc0c`: caller cancellation before
+  vault capture and exact per-connection pending ownership; 22 new tests,
+  377 backend tests passing. Controlled vault/fetch fixtures establish
+  ownership; they are separate from the earlier actual socket proof.
+- #1321, `33b8bb39f5eb8bc775e5812e78e29d33a5527cfa`: captured external-feature
+  lifetime withdraws idle admission and cancels probe disposal. Two parent
+  regression failures were preserved; 20 new tests and 397 backend tests pass.
+  Controlled lifetime fixtures do not establish browser or hosted access.
+- #1322, `3dc1a05ff69c026852ae14a67f5a728e207039d5`: standalone native 1Password
+  authentication/read adapter, actual SDK-loader default, exact vault/item
+  probes, original opaque sessions and idempotent native cleanup. Its 52
+  injected-client cases and all 449 backend tests pass; writers are absent
+  in that exact source slice. It is not yet selectable configuration.
+- #1323, `5aa2d136b6d53ce04a710d9a67b9aa7d05c39a37`: native create/update/delete
+  command mapping, full-item metadata/version preservation and bounded backup
+  payloads. There are 23 new mutation cases plus two read-publication
+  regressions; 77 native adapter cases and all 474 backend tests pass.
+  Injected native results prove mapping/lifetime behavior, not hosted writes.
+
+Both typechecks, exact-file lint/structural/security rules and full quality
+passed for these scopes. Focused Gitleaks scans accounted for all source
+bytes and detected generated negative controls before and after scanning.
+The bounded published-source review at `a39b16ea` visited 447 files with
+11 AST rules. Gitleaks directory mode omitted one 3,874-byte test filename;
+the unchanged bytes were scanned explicitly via stdin. No findings were
+reported under those rules. This is scoped SAST, not full security completion.
+
+Native authentication/read and mutation adapters are implemented but remain
+unactivated. Injected responses do not prove encrypted SDK authentication or
+hosted CRUD. The earlier 47 actual Chromium/WASM denial/cancellation checks
+remain separate. Configuration, production transport/cache/asset ownership
+and UI activation, React ownership/status consumers, other audited providers,
+required CI, full security gates and verified bottom-up restacking remain open.
+
+Codex and delegated Codex agents implemented and reviewed the mounted-action
+slice, PR #1325, `fb53fee28c7d3943c4120232d09a0161b2f5cc41`, under the
+recorded fallback: Grok authentication unavailable and Kimi absent. Its 51
+affected tests (20 new), both typechecks, static rules and full quality
+(546 script plus 17 security tests) passed. Scoped scans of the two frozen
+files accounted for all 17,780 bytes with zero findings. The actual gallery
+uses parent `80e245ef` and after `fb53fee2` builds; the approved after trace
+confirms six successful owned-REST logins, not native 1Password or hosted
+authentication. The original phone post-HTTP200 abort remains unresolved and
+is not retrospectively passed; two Node instrumentation warnings are retained.
+Pending caller cancellation, native activation, remaining integrations,
+required CI, security landing gates and verified restacking remain OPEN.
+
+
+Codex and delegated Codex agents implemented and reviewed the retained-session
+slice, PR #1327, `b3a322b5382f1dde8584410a39adcf8a3bd8b830`, under the
+recorded fallback: Grok authentication unavailable and Kimi absent. Its 66
+UI tests across six files (15 new), both typechecks, static rules and full
+quality (546 script plus 17 security tests) passed. Scoped scans covered all
+38,268 bytes in four frozen files with zero findings and detection controls.
+
+The actual desktop/touch comparison uses before `fb53fee2` and after
+`b3a322b5` immutable builds with the same executed harness. Before, each
+pending socket stayed open through deliberate release and made one next
+authenticated GET; after, both sockets closed before release with zero next
+GETs. Four later logins completed with retained List, real feature disable,
+local Copy and reconnect. Four native images document unchanged page context;
+protocol traces establish the lifecycle change. These are owned REST-fixture
+journeys in a declared loopback profile, not hosted/native-SDK authentication
+or all-integrations completion. Two expected pre-response cancellations were
+observed; there were no unexpected errors or Node warnings. No live owned
+processes/listeners/workers remained; two terminated zombies are separate.
+The prior action-only post-200 abort remains a separate unexplained record.
+Native activation, remaining callers/providers, required CI, full security
+landing gates and verified bottom-up restacking remain OPEN.
+
+
+Codex and delegated Codex agents implemented and reviewed the on-demand cache
+root fix, PR #1328, `8d20c9f6d0a108004b74f79e981f7b7b4b7eb30f`, under
+the same recorded fallback. One production line and eight new regression cases
+preserve known-owner detection, core roots and static-required assets. The
+unchanged-parent emitted-shape case reproduces unwanted SDK assets; its static
+countercase passes. Final 33 graph/plan-assets tests, Pages types, exact static
+checks and full quality (546 script plus 17 security tests) pass. The initial
+sandbox failure is retained; the existing local fixtures pass with required
+process/socket permissions. Scoped unchanged-rule scans cover all 12,315 bytes
+in two files with zero findings and working controls. This is cache-plan unit
+behavior, not installed-SW/download/native-provider activation proof.
+
+
+Codex and delegated Codex agents implemented and reviewed the critical mounted
+Probe/Connect caller slice, PR #1336,
+`9b8bb3a436c16cc2b1fb79100bf19ad7d9c8804c`, under the recorded fallback:
+Grok authentication unavailable and Kimi absent. Its 78 UI tests across seven
+affected suites (12 new), both typechecks, exact static checks and full quality
+(557 script plus 17 security tests) passed. Scoped unchanged-rule scans covered
+all 29,536 bytes in three frozen files with zero findings and working detection
+controls. This is bounded source SAST, not full security completion.
+
+The actual desktop/touch Test journey used immutable before `a19ccfa8` and after
+`9b8bb3a4` builds with the same 18 frozen harness/helper/package inputs. Before,
+both held login sockets stayed open after departure and continued to one
+authenticated GET after deliberate release. After, both sockets closed before
+release with native pre-response cancellation, no HTTP status/finish and zero
+next GETs; fresh unheld Test controls verified through actual HTTP in both
+widths. Four lossless native viewport images, exact identities, hashes and
+measurements are preserved in
+`docs/evidence/2026-10-15-secret-probe-cancellation/`. All 250 outputs per phase
+and all frozen inputs remained unchanged, with no runtime errors, page overflow,
+live owned processes or planned listeners. These are controlled Infisical
+UniversalAuth HTTP observations, not native 1Password SDK or hosted-account
+authentication. No application backend, extension, interception, raw storage
+seeding or component-state injection was introduced. Remaining callers/providers,
+required CI, full security landing gates and verified restacking remain OPEN.
+
+
+Codex and delegated Codex agents implemented and reviewed native 1Password
+configuration PR #1338, `a50848dfe53fdaffc220604e55fc42697573f617`,
+under the recorded fallback: Grok authentication unavailable and Kimi absent.
+Its 619 core tests across 39 suites and 109 UI tests across nine suites
+(35 new tests combined), both typechecks, static checks and full quality
+(557 script tests plus 17 security tests) passed. Scoped scans covered all
+64,975 frozen bytes with working controls and no findings. MJS used explicit
+byte-identical TypeScript parser aliases; JSON received syntax checks only.
+Signed readback preserved the source tree on a fresh stack branch after an
+externally merged parent; the rejected force-reset was never executed.
+
+Budget PR #1339, `dbb1729bed6229c1b74f8841873f209e110e9fb6`, changes
+only ordinary Pages total/JS/gzip ceilings to 21050/7320/2210 KiB, about 1%
+headroom above measured native-feature cost. CSS, largest asset, other app and
+hardened data are unchanged. All 57,219 JSON bytes passed scoped Gitleaks
+checks with working controls; metadata is not semantic AST proof. The first
+unchanged-budget subpath result remains RED.
+
+The actual desktop/touch UI retained saved Connect across an archive swap,
+completed a controlled Connect REST GET, showed native-first partner and shared
+BYO fields, and restored partner Save/cold unlock with a blank token input.
+Twelve no-action checkpoints loaded no native SDK assets, workers or API calls.
+Eight lossless native images and qualified root/subpath/minimal/family static
+receipts are in `docs/evidence/2026-10-15-onepassword-native-configuration/`.
+The first separate native SDK action run FAILED before its intended fixture 401;
+no native action completed. Its complete gzip HTTP 200 then unexpected abort
+remains under diagnosis, with immutable failed receipt and clean owned closure.
+PR #1338 remains draft. Positive native/hosted authorization, decryption/CRUD,
+strict hosting, caching/offline behavior, remaining integrations, required CI,
+full security landing and verified restacking remain OPEN.
+
+Codex and delegated Codex agents implemented and reviewed Infisical lifetime PR
+#1345, `c3221680d0379d4e7bc0e50b60e315935de2fcdb`, under the recorded fallback:
+Grok authentication unavailable and Kimi absent. Issued UniversalAuth lifetimes
+now own deadline checks, idle withdrawal and captured-session termination for
+HTTP 401 or exact 403 TokenError; PermissionDenied remains nonterminal. Manual
+opaque tokens receive no invented TTL. The 114 scoped tests across eight files
+include 32 lifetime and two credential cases, each credential case covering
+three variants. Core types, exact static checks, anti-slop baseline and full
+quality passed. Scoped unchanged-rule scans covered all 27,026 bytes in four
+files, including 10,915 production bytes, with zero findings and working
+controls. Response-based/fake-clock cases are not hosted-account or browser
+proof.
+
+Test-only PR #1346, `fffa80768d3df40f67447d33652568968bca8a6e`, added seven
+actual-provider/production-vault composition cases among 162 scoped tests across
+11 files; these totals overlap the earlier supporting suites and are not
+additive. Its one 9,809-byte test file passed scoped scans with working
+controls, core types, static/baseline checks and full quality. Both source
+slices recorded 557 script and 17 security quality tests. The runtime fixture
+uses controlled Responses, fake clocks and a Map-backed filesystem consumed by
+production vault code, not physical browser OPFS.
+
+Evidence-only PR #1349, `bb350569e2020b945823f8210af12715a19e99ee`, preserves
+[the Infisical
+observations](../evidence/2026-10-15-infisical-lifetime/README.md). Fresh
+normal/root/subpath artifacts were compiled from fffa; all 14,868 tracked input
+identities were restored, independent graphs passed and the five ordinary
+budgets remained unchanged and passed. Old subpath is a508; old root is dbb.
+Terminal execution used ef70 with only CI delivery and two JSON-whitespace
+maintenance changes, without relabeling the fffa artifacts.
+
+Both original paired idle phases remain FAILED. Desktop branches showed the old
+session stale past TTL and new withdrawal first observed after 5,991 ms on
+subpath and 5,998 ms on root. Subpath touch failed on the new Connect; root
+touch failed on the old dbb Connect before selecting the new artifact. Each
+received HTTP 200 and full expected 14 decoded/24 encoded bytes, then an
+unexplained native abort without completion. Full byte counts are not
+application EOF proof, and the cause remains unresolved. A separate after-only
+touch/subpath observation passed strict admission and withdrawal after 5,989 ms
+with no idle I/O, interaction or navigation; it does not clear either earlier
+failure.
+
+Both after-only terminal matrices passed on desktop and actual touch, at root
+and subpath: 12 cases and 12 strict positive admissions, 80 native requests, 76
+native finishes and four precisely established selected-401 body cancellations.
+Cancellations remain labeled canceled, never native finished. All four
+TokenError403 and four PermissionDenied403 responses finished; PermissionDenied
+retried HTTP 200 with the same auth and no new login. Terminal 401/TokenError
+recovery obtained fresh auth. Twelve expected browser denial-console messages
+matched their exact selected cases; there were no unmatched console/page errors.
+All successful-200 and unrelated aborts remained strict failures.
+
+Six lossless WebPs total 85,894 bytes and independently decode through Pillow
+and FFmpeg to the unchanged native PNG RGBA pixels. No crop, resize, stitch or
+overlay was applied. Four published text files, 64,965 bytes, passed
+unchanged-config Gitleaks with before/after detection controls; JSON is not
+claimed as semantic AST proof. JSON identity, changed-file lint, generated
+index, whitespace and selected-original preservation checks passed. The initial
+full `pnpm lint` stopped on nested-git EPERM before tests and remains recorded;
+root reran that identical command with the required local process capability and
+obtained exit zero, 107 existing tests and changed-file lint over 535 files
+without fixes.
+
+These are controlled real Infisical HTTP/CORS and PIN/physical-OPFS
+observations, not hosted authentication or all integrations working.
+Verification used localhost, header security false and blocked service workers;
+normal build header security was also false. Existing helpers enter
+Features/detail through History API/popstate; configuration/actions use actual
+controls. No application backend, extension, interception, fake SDK, storage
+seed or component-state injection was introduced. Captures are viewports, not
+full nested-form coverage. Recorded runtime closures left no owned
+processes/listeners. Strict hosting/CSP/SW/offline behavior, required CI, full
+security and landing remain separate gates.
+
+Under the same recorded fallback, PR #1353,
+`1a644d1d72a8ec31d70349074aba01fa395d6363`, changed one 8,508-byte source file.
+Conditional assignment of RequestInit.body for a present body fixes the actual
+client CLI TS2375 exact-optional-property failure without adding undefined to
+bodyless requests. All three typechecks, 16 existing controlled HTTP tests, full
+pnpm lint (107 existing tests and 535 files), full quality (557 script plus 17
+security tests), and the unchanged baseline with zero regressions passed. The
+existing eleven AST rules and Gitleaks covered all 8,508 source bytes with zero
+findings and before/after detection controls. The initial spread/strict-check
+failure and Cargo PATH diagnostic remain preserved. This uses the recorded
+fallback, not a new preflight claim. Actual CI is still pending; inherited/stale
+browser gates remain open.

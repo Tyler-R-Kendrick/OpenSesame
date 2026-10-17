@@ -243,9 +243,14 @@ it never falls back to `PATH`.
 | `OPENSESAME_TOMB` | `tomb`, for `opensesame tomb open` and `close` |
 | `OPENSESAME_ID_BIN` | `opensesame-id`, for the `opensesame vault` item commands (now an absolute path to the file, like the rest) |
 
+The program is run by its real path, and every directory above it has to be
+one only you and root can change (or root's sticky one, like `/tmp`); a program
+under a directory anyone can write is refused, with the directory named.
+
 Each starts with an empty environment plus what it needs: `git` gets your git
-configuration, ssh agent, proxy and CA settings but not `GIT_SSH_COMMAND` or
-any other `GIT_*` of yours (put an ssh command in `core.sshCommand`), and none
+configuration, ssh agent, proxy and CA settings (including `GIT_SSL_CAINFO`)
+but no other `GIT_*` of yours, not `GIT_SSH_COMMAND` among them (put an ssh
+command in `core.sshCommand`), and none
 of them gets `OPENSESAME_*` secrets, `GITHUB_APP_*` or cloud credentials. The
 full list is the
 [2026-10-17 audit](../security/audits/2026-10-17-external-program-spawns.md).

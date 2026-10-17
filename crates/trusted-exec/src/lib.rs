@@ -28,6 +28,7 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod chain;
 mod env;
 mod operator;
 mod search;
@@ -35,10 +36,12 @@ mod search;
 pub mod testkit;
 pub mod trust;
 
-pub use env::{pass, pass_in, Pass, CA_BUNDLE, COMMON, COMMON_ON_WINDOWS, LOCALE, PROXY};
+pub use env::{
+    pass, pass_in, Pass, CA_BUNDLE, COMMON, COMMON_ON_WINDOWS, LOCALE, PROXY, VERSION_MANAGERS, WSL,
+};
 pub use operator::named;
 pub use search::{find, search, Found, Search};
-pub use trust::{Caller, Owner, Skip};
+pub use trust::{Caller, Cause, Owner, Skip};
 
 /// Where the rules differ: the file name of a program, how a variable name is
 /// compared, and what makes a `PATH` directory untrustworthy.
@@ -132,7 +135,11 @@ impl std::error::Error for ResolveError {}
 /// A program found to run, and the `PATH` entries that were trusted on the way.
 #[derive(Debug)]
 pub struct Resolved {
+    /// What to run: on Unix, for a `PATH` search, the real path of the file
+    /// that was checked.
     pub program: PathBuf,
+    /// The path it was found as, which is what it is told it was started as.
+    pub invoked_as: PathBuf,
     pub trusted: Vec<PathBuf>,
 }
 
@@ -151,17 +158,52 @@ pub fn resolve_in(
     let path = lookup.var("PATH");
     let found = path.map(|p| search(p, lookup)).unwrap_or_default();
     let named_value = override_var.and_then(|var| lookup.var(var).map(|value| (var, value)));
-    let file = if let Some((var, value)) = named_value {
-        named(var, value)?
+    let (file, invoked_as) = if let Some((var, value)) = named_value {
+        let file = named(var, value)?;
+        (file.clone(), file)
     } else {
         let hit = find(&lookup.platform.file_name(program), &found.trusted, lookup);
-        hit.program
-            .ok_or_else(|| search::not_found(program, path, &found, &hit.rejected))?
+        match (hit.program, hit.invoked_as) {
+            (Some(file), Some(invoked_as)) => (file, invoked_as),
+            _ => {
+                return Err(search::not_found(
+                    program,
+                    override_var,
+                    path,
+                    &found,
+                    &hit.rejected,
+                ))
+            }
+        }
     };
     Ok(Resolved {
         program: file,
+        invoked_as,
         trusted: found.trusted,
     })
+}
+
+impl Resolved {
+    /// A `Command` for the file, told it was started under the name it was
+    /// found as: a shim that behaves by its name (`volta`, `mise`, `snap`)
+    /// must not see the name of the program it points to. The environment is
+    /// the caller's to build; [`command_in`] builds the usual one.
+    #[must_use]
+    pub fn command(&self) -> Command {
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt as _;
+            let mut command = Command::new(&self.program);
+            if self.invoked_as != self.program {
+                command.arg0(&self.invoked_as);
+            }
+            command
+        }
+        #[cfg(not(unix))]
+        {
+            Command::new(&self.program)
+        }
+    }
 }
 
 /// `program` for this process, or the file `override_var` names.
@@ -195,11 +237,11 @@ pub fn command_in(
     lookup: &Lookup,
 ) -> Result<Command, ResolveError> {
     let found = resolve_in(program, override_var, lookup)?;
-    built(&found.program, &found.trusted, lookup)
+    built(found.command(), &found.trusted, lookup)
 }
 
-/// A fixed absolute file the code itself chose (a Windows install seen from
-/// WSL, say), with the same built environment as [`command_in`].
+/// A fixed absolute file the code chose (a Windows install seen from WSL,
+/// say), with the same built environment as [`command_in`].
 ///
 /// # Errors
 ///
@@ -216,14 +258,23 @@ pub fn command_at(file: &Path, lookup: &Lookup) -> Result<Command, ResolveError>
         .var("PATH")
         .map(|path| search(path, lookup).trusted)
         .unwrap_or_default();
-    built(file, &trusted, lookup)
+    built(Command::new(file), &trusted, lookup)
 }
 
-fn built(file: &Path, trusted: &[PathBuf], lookup: &Lookup) -> Result<Command, ResolveError> {
-    let path = std::env::join_paths(trusted)
-        .map_err(|e| ResolveError::NotFound(format!("PATH cannot be rebuilt: {e}")))?;
-    let mut command = Command::new(file);
-    command.env_clear().env("PATH", path);
+/// `command` with its environment cleared and rebuilt: `PATH` from the trusted
+/// entries, or none at all when there are none, since an empty `PATH` means
+/// the working directory to `execvp`, `env` and every shell.
+fn built(
+    mut command: Command,
+    trusted: &[PathBuf],
+    lookup: &Lookup,
+) -> Result<Command, ResolveError> {
+    command.env_clear();
+    if !trusted.is_empty() {
+        let path = std::env::join_paths(trusted)
+            .map_err(|e| ResolveError::NotFound(format!("PATH cannot be rebuilt: {e}")))?;
+        command.env("PATH", path);
+    }
     pass_in(&mut command, &COMMON, lookup);
     if lookup.platform == Platform::Windows {
         pass_in(&mut command, &COMMON_ON_WINDOWS, lookup);

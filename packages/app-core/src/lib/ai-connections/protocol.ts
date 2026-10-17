@@ -5,6 +5,7 @@ import {
   hostedModelAnswer,
   hostedModelRequest,
 } from "../hosted-model-protocol.js";
+import { azureConnectionHeaders, azureInferenceUrl } from "./azure-protocol.js";
 import { aiConnectionBase } from "./configuration.js";
 import {
   type AiConnectionDraft,
@@ -25,6 +26,8 @@ export function aiInferenceRequest(
   input: HostedModelInput,
   stream = false,
 ) {
+  const base = aiConnectionBase(draft.baseUrl);
+  const azure = azureInferenceUrl(draft, base);
   const provider =
     draft.family === "openai_chat" && draft.tokenParameter === "max_tokens"
       ? "openrouter"
@@ -38,7 +41,7 @@ export function aiInferenceRequest(
         : draft.family === "anthropic_messages"
           ? "messages"
           : `models/${input.model}:${stream ? "streamGenerateContent" : "generateContent"}`;
-  const url = new URL(relative, aiConnectionBase(draft.baseUrl));
+  const url = azure ?? new URL(relative, base);
   if (stream && draft.family === "gemini_generate_content")
     url.searchParams.set("alt", "sse");
   const body =
@@ -56,6 +59,8 @@ export function aiInferenceRequest(
 }
 
 export function aiConnectionHeaders(draft: AiConnectionDraft): Headers {
+  const azure = azureConnectionHeaders(draft);
+  if (azure) return azure;
   const headers = new Headers({ "content-type": "application/json" });
   if (draft.authentication === "api-key") {
     if (!draft.apiKey)
