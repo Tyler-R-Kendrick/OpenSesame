@@ -1,6 +1,7 @@
 //! `opensesame pass protect root-rotate | rewrap` driven through the real
 //! binary: after a rotation the store still opens with its passphrase, and the
 //! key file as git history keeps it no longer opens anything in the store.
+#![cfg(unix)]
 
 use opensesame_sealed_store::{unlock_store_key, StoreError, StoreRoot};
 use std::io::Write;
@@ -22,11 +23,8 @@ fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output 
         .env("OPENSESAME_STORE_PASSWORD", password)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env(
-            "OPENSESAME_DAEMON_API",
-            cli_app_integration_mock::shared_daemon_base().as_str(),
-        );
+        .stderr(Stdio::piped());
+    cli_app_integration_mock::apply_journey_daemon_env(&mut command);
     let mut child = command
         .spawn()
         .expect("failed to run the opensesame binary");
@@ -101,11 +99,8 @@ fn person_command(store: &Path, password: &str, args: &[&str]) -> Command {
         .env("GIT_AUTHOR_NAME", "Test")
         .env("GIT_AUTHOR_EMAIL", "test@example.com")
         .env("GIT_COMMITTER_NAME", "Test")
-        .env("GIT_COMMITTER_EMAIL", "test@example.com")
-        .env(
-            "OPENSESAME_DAEMON_API",
-            cli_app_integration_mock::shared_daemon_base().as_str(),
-        );
+        .env("GIT_COMMITTER_EMAIL", "test@example.com");
+    cli_app_integration_mock::apply_journey_daemon_env(&mut command);
     command
 }
 
