@@ -1,6 +1,9 @@
 use std::path::Path;
+use std::process::Command;
 
-use crate::git_exec::git;
+use opensesame_trusted_exec::Lookup;
+
+use crate::git_exec::{git, git_in};
 use crate::StoreError;
 
 /// Environment variable the push credential helper reads the token from, so
@@ -245,15 +248,7 @@ pub fn push_backup(root: &Path, token: Option<&str>) -> Result<(), StoreError> {
             "no backup remote configured; run `opensesame pass backup --remote <url>`".into(),
         ));
     }
-    let mut cmd = git()?;
-    if let Some(token) = token {
-        let helper = format!(
-            "!f() {{ echo username=x-access-token; echo \"password=${GIT_TOKEN_ENV}\"; }}; f"
-        );
-        cmd.env(GIT_TOKEN_ENV, token)
-            .arg("-c")
-            .arg(format!("credential.helper={helper}"));
-    }
+    let mut cmd = authenticated_git_in(&Lookup::capture(), token)?;
     let output = cmd
         .args(["push", "-u", REMOTE, "HEAD"])
         .current_dir(root)
@@ -266,6 +261,27 @@ pub fn push_backup(root: &Path, token: Option<&str>) -> Result<(), StoreError> {
         )));
     }
     Ok(())
+}
+
+/// `git`, and with a `token` the one credential helper that answers with it.
+/// The token travels in [`GIT_TOKEN_ENV`] in the child's environment only.
+fn authenticated_git_in(lookup: &Lookup, token: Option<&str>) -> Result<Command, StoreError> {
+    let mut cmd = git_in(lookup)?;
+    if let Some(token) = token {
+        let helper = format!(
+            "!f() {{ echo username=x-access-token; echo \"password=${GIT_TOKEN_ENV}\"; }}; f"
+        );
+        // An empty value first empties git's list of helpers: git asks every
+        // helper it has, the person's own first, and once the push works tells
+        // each to remember what it was given, so `store` would write the token
+        // to ~/.git-credentials in plaintext.
+        cmd.env(GIT_TOKEN_ENV, token)
+            .arg("-c")
+            .arg("credential.helper=")
+            .arg("-c")
+            .arg(format!("credential.helper={helper}"));
+    }
+    Ok(cmd)
 }
 
 #[cfg(test)]

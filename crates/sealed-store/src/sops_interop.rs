@@ -20,8 +20,8 @@ pub enum SopsFormat {
 pub enum SopsError {
     #[error("sops unavailable: set OPENSESAME_SOPS_BIN to an absolute path")]
     Unavailable,
-    #[error("OPENSESAME_SOPS_BIN must be an absolute existing file")]
-    InvalidBinaryPath,
+    #[error("{0}")]
+    InvalidBinaryPath(String),
     #[error("sops failed: {0}")]
     Failed(String),
     #[error("io: {0}")]
@@ -35,13 +35,16 @@ const SOPS_BIN: &str = "OPENSESAME_SOPS_BIN";
 ///
 /// # Errors
 ///
-/// Returns `Unavailable` when unset; `InvalidBinaryPath` when it is not an
-/// absolute path to a regular file (after symlinks) the caller can run.
+/// Returns `Unavailable` when unset; `InvalidBinaryPath`, with the reason
+/// (`OPENSESAME_SOPS_BIN must be an absolute path …`, `… is not executable`),
+/// when it is not an absolute path to a regular file (after symlinks) the
+/// caller can run.
 pub fn resolve_sops_bin() -> Result<PathBuf, SopsError> {
     let Some(raw) = std::env::var_os(SOPS_BIN) else {
         return Err(SopsError::Unavailable);
     };
-    opensesame_trusted_exec::named(SOPS_BIN, &raw).map_err(|_| SopsError::InvalidBinaryPath)
+    opensesame_trusted_exec::named(SOPS_BIN, &raw)
+        .map_err(|why| SopsError::InvalidBinaryPath(why.to_string()))
 }
 
 /// Encrypt structured document bytes with the pinned SOPS binary.
@@ -156,7 +159,11 @@ mod tests {
         let before = std::env::var_os("OPENSESAME_SOPS_BIN");
         std::env::set_var("OPENSESAME_SOPS_BIN", "sops");
         let err = resolve_sops_bin().unwrap_err();
-        assert_eq!(err, SopsError::InvalidBinaryPath);
+        assert!(
+            matches!(&err, SopsError::InvalidBinaryPath(why)
+                if why.starts_with("OPENSESAME_SOPS_BIN must be an absolute path")),
+            "{err:?}"
+        );
         match before {
             Some(v) => std::env::set_var("OPENSESAME_SOPS_BIN", v),
             None => std::env::remove_var("OPENSESAME_SOPS_BIN"),
