@@ -4,6 +4,7 @@
  * Usage: node deepsec-wave2-grok-tier-stats.mjs [repoRoot] [marker]
  */
 import fs from "node:fs";
+import { isString } from "../lib/json-boundary.mjs";
 import {
   DEFAULT_MARKER,
   filesRootForRepo,
@@ -23,7 +24,7 @@ let excludedCount = 0;
 
 for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
-  if (typeof rec.filePath !== "string") continue;
+  if (!isString(rec.filePath)) continue;
   const hist = rec.analysisHistory ?? [];
   const grokDone = hist.some((h) => isWaveProcessComplete(h, marker, "grok"));
   if (grokDone) continue;

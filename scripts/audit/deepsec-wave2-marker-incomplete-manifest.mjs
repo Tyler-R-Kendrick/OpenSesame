@@ -5,6 +5,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { isString } from "../lib/json-boundary.mjs";
 import {
   DEFAULT_MARKER,
   fileHasInvestigateWaveStrict,
@@ -27,7 +28,7 @@ function sourceByteSize(repoRoot, filePath) {
 const paths = [];
 for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
-  if (typeof rec.filePath !== "string") continue;
+  if (!isString(rec.filePath)) continue;
   if (fileHasInvestigateWaveStrict(rec, marker)) continue;
   paths.push(rec.filePath);
 }

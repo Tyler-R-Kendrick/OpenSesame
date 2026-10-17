@@ -65,7 +65,7 @@ for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
       continue;
     }
 
-    if (typeof h.numTurns !== "number" || h.numTurns < deep - 0.01) continue;
+    if (!Number.isFinite(h.numTurns) || h.numTurns < deep - 0.01) continue;
     if ((h.usage?.outputTokens ?? 0) > 0 && !isGrokDurationSyntheticUsage(h)) {
       continue;
     }
