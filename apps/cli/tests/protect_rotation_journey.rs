@@ -3,12 +3,14 @@
 //! key file as git history keeps it no longer opens anything in the store.
 #![cfg(unix)]
 
-use std::io::{Read, Write};
-use std::os::unix::io::FromRawFd;
+use opensesame_sealed_store::{unlock_store_key, StoreError, StoreRoot};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 mod cli_app_integration_mock;
+#[cfg(unix)]
+mod terminal_person;
 
 const PASSPHRASE: &str = "correct horse battery staple";
 
@@ -86,6 +88,7 @@ fn given_a_store_with_an_entry_and_a_document() -> Fixture {
     Fixture { dir, store }
 }
 
+#[cfg(unix)]
 fn person_command(store: &Path, password: &str, args: &[&str]) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
     command
@@ -101,92 +104,107 @@ fn person_command(store: &Path, password: &str, args: &[&str]) -> Command {
     command
 }
 
-/// A person at a terminal: stdin and stdout are both the slave side of a pty.
-/// Piped `Command::output` is the agent shape, and the reveal gate refuses it.
-fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
-    let mut master_fd: libc::c_int = -1;
-    let mut slave_fd: libc::c_int = -1;
-    let opened = unsafe {
-        libc::openpty(
-            &raw mut master_fd,
-            &raw mut slave_fd,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        )
-    };
-    assert_eq!(opened, 0, "openpty");
-    let master = unsafe { std::fs::File::from_raw_fd(master_fd) };
-    let slave = unsafe { std::fs::File::from_raw_fd(slave_fd) };
-    let slave_in = slave.try_clone().expect("dup slave for stdin");
-    let slave_out = slave.try_clone().expect("dup slave for stdout");
-    drop(slave);
+/// Portable stored-data checks; these do not certify Windows terminal reveal.
+fn stored_entry(store: &Path, password: &str) -> Result<String, StoreError> {
+    let key = unlock_store_key(store, password.as_bytes())?;
+    StoreRoot::open(store)?
+        .show("Dev/token", &key)
+        .map(|entry| entry.render())
+}
 
-    let mut child = person_command(store, password, args)
-        .stdin(Stdio::from(slave_in))
-        .stdout(Stdio::from(slave_out))
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("failed to run the opensesame binary");
-    let stdout_thread = std::thread::spawn(move || {
-        let mut master = master;
-        let mut buf = Vec::new();
-        let _ = master.read_to_end(&mut buf);
-        buf
-    });
-    let mut stderr_pipe = child.stderr.take().expect("stderr");
-    let stderr_thread = std::thread::spawn(move || {
-        let mut buf = Vec::new();
-        let _ = stderr_pipe.read_to_end(&mut buf);
-        buf
-    });
-    let status = child.wait().expect("wait for opensesame");
-    Output {
-        status,
-        stdout: stdout_thread.join().expect("stdout thread"),
-        stderr: stderr_thread.join().expect("stderr thread"),
-    }
+fn stored_document(store: &Path, password: &str) -> Result<Vec<u8>, StoreError> {
+    let key = unlock_store_key(store, password.as_bytes())?;
+    let mut bytes = Vec::new();
+    StoreRoot::open(store)?.attach_get("Taxes/w2", &mut bytes, &key)?;
+    Ok(bytes)
 }
 
 fn shows(store: &Path, password: &str) -> Option<String> {
-    let out = run_as_person(store, password, &["pass", "show", "Dev/token", "--reveal"]);
-    out.status.success().then(|| {
-        String::from_utf8_lossy(&out.stdout)
-            .replace("\r\n", "\n")
-            .replace('\r', "")
-    })
+    let stored = stored_entry(store, password).ok();
+    #[cfg(unix)]
+    {
+        let out = terminal_person::run(person_command(
+            store,
+            password,
+            &["pass", "show", "Dev/token", "--reveal"],
+        ));
+        let shown = out.status.success().then(|| {
+            String::from_utf8_lossy(&out.stdout)
+                .replace("\r\n", "\n")
+                .replace('\r', "")
+        });
+        assert_eq!(
+            shown, stored,
+            "terminal reveal must match independent stored entry"
+        );
+    }
+    stored
 }
 
 fn document(store: &Path, password: &str, out: &Path) -> Option<Vec<u8>> {
-    let got = run_as_person(
-        store,
-        password,
-        &[
-            "pass",
-            "attach",
-            "get",
-            "Taxes/w2",
-            "--reveal",
-            "--out",
-            out.to_str().unwrap(),
-        ],
-    );
-    got.status.success().then(|| std::fs::read(out).unwrap())
+    let stored = stored_document(store, password).ok();
+    #[cfg(unix)]
+    {
+        let got = terminal_person::run(person_command(
+            store,
+            password,
+            &[
+                "pass",
+                "attach",
+                "get",
+                "Taxes/w2",
+                "--reveal",
+                "--out",
+                out.to_str().unwrap(),
+            ],
+        ));
+        let revealed = got.status.success().then(|| std::fs::read(out).unwrap());
+        assert_eq!(
+            revealed, stored,
+            "terminal reveal must match independent stored attachment"
+        );
+    }
+    #[cfg(not(unix))]
+    let _ = out;
+    stored
+}
+
+/// Only copies the owned fixture, including dot files; no links or special files.
+fn copy_fixture(source: &Path, destination: &Path) {
+    std::fs::create_dir_all(destination).unwrap();
+    for entry in std::fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let kind = entry.file_type().unwrap();
+        let target = destination.join(entry.file_name());
+        if kind.is_dir() {
+            copy_fixture(&entry.path(), &target);
+        } else {
+            assert!(
+                kind.is_file(),
+                "unexpected fixture file type: {:?}",
+                entry.path()
+            );
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
 }
 
 /// The store as it would come back with the pre-rotation key file restored
 /// from git history.
 fn with_old_key_file(f: &Fixture, old_key_file: &[u8]) -> PathBuf {
     let copy = f.dir.path().join("history");
-    std::fs::create_dir_all(&copy).unwrap();
-    let status = Command::new("cp")
-        .arg("-a")
-        .arg(format!("{}/.", f.store.display()))
-        .arg(&copy)
-        .status()
-        .unwrap();
-    assert!(status.success());
+    copy_fixture(&f.store, &copy);
     std::fs::write(copy.join(".opensesame-key"), old_key_file).unwrap();
+    // The historical passphrase still unwraps the old root; ciphertext must reject it.
+    unlock_store_key(&copy, PASSPHRASE.as_bytes()).expect("historical wrapper remains unlockable");
+    assert!(matches!(
+        stored_entry(&copy, PASSPHRASE),
+        Err(StoreError::Crypto(_))
+    ));
+    assert!(matches!(
+        stored_document(&copy, PASSPHRASE),
+        Err(StoreError::Crypto(_))
+    ));
     copy
 }
 
