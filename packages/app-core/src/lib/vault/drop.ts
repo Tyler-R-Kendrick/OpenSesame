@@ -48,6 +48,9 @@ export {
   presentDrop,
 } from "../claims/drop-open.js";
 
+// Pages reaches ceremony-kit through app-core, never as a direct dependency.
+export { isPortableDropToken } from "@opensesame/ceremony-kit";
+
 export {
   DROP_CHUNK_BYTES,
   type DropChunk,

@@ -157,34 +157,31 @@ function rethrowPortableFailure(error: Error): void {
   throw new DropTransportError(code, error.message, attemptsLeft);
 }
 
-async function presentClaimDefault(
+async function presentPortable(
   bearerToken: string,
   userCode: string,
   pkt?: string,
 ): Promise<DropTransportPresented> {
-  if (isPortableDropToken(bearerToken) || pkt !== undefined) {
-    try {
-      const { openPortableDropBundle } = await import(
-        "../vault/portable-drop.js"
-      );
-      const targetManifest = await openPortableDropBundle(
-        pkt ?? "",
-        bearerToken,
-        userCode,
-      );
-      return { targetManifest };
-    } catch (error) {
-      if (error instanceof Error) rethrowPortableFailure(error);
-      throw error;
-    }
+  try {
+    const { openPortableDropBundle } = await import(
+      "../vault/portable-drop.js"
+    );
+    const targetManifest = await openPortableDropBundle(
+      pkt ?? "",
+      bearerToken,
+      userCode,
+    );
+    return { targetManifest };
+  } catch (error) {
+    if (error instanceof Error) rethrowPortableFailure(error);
+    throw error;
   }
-  if (
-    isDeviceIdentityMode() &&
-    !isRemoteIdentityConfigured() &&
-    isClaimToken(bearerToken)
-  ) {
-    return presentLocal(bearerToken, userCode);
-  }
+}
+
+async function presentRemote(
+  bearerToken: string,
+  userCode: string,
+): Promise<DropTransportPresented> {
   let res: Response;
   try {
     res = await identityFetch("/v1/claims/present", {
@@ -221,6 +218,24 @@ async function presentClaimDefault(
     );
   }
   return { targetManifest: overlapCast(manifest) };
+}
+
+async function presentClaimDefault(
+  bearerToken: string,
+  userCode: string,
+  pkt?: string,
+): Promise<DropTransportPresented> {
+  if (isPortableDropToken(bearerToken) || pkt !== undefined) {
+    return presentPortable(bearerToken, userCode, pkt);
+  }
+  if (
+    isDeviceIdentityMode() &&
+    !isRemoteIdentityConfigured() &&
+    isClaimToken(bearerToken)
+  ) {
+    return presentLocal(bearerToken, userCode);
+  }
+  return presentRemote(bearerToken, userCode);
 }
 
 /** The one presentation step of opening; a test substitutes it. */

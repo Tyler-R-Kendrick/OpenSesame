@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 
 import {
   type SharedOnce,
+  isPortableDropToken,
   shareOnce,
   sweepDrop,
 } from "@opensesame/app-core/lib/vault/drop.js";
@@ -22,7 +23,6 @@ import {
   accountUsernameLine,
   shareText,
 } from "@opensesame/app-core/sections/vault-share-text.js";
-import { isPortableDropToken } from "@opensesame/ceremony-kit";
 import {
   type DropItem,
   type VaultItem,
