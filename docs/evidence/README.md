@@ -54,6 +54,8 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-17-p8-2-peer-trust-profiles/`](2026-10-17-p8-2-peer-trust-profiles/README.md) | Peer trust on four install profiles |
+| [`2026-10-17-p8-1-portable-drop-profiles/`](2026-10-17-p8-1-portable-drop-profiles/README.md) | Portable drop on four install profiles |
 | [`2026-10-15-tailscale-status/`](2026-10-15-tailscale-status/README.md) | Tailscale browser-node live status: actual browser evidence |
 | [`2026-10-15-tailscale-service-probe/`](2026-10-15-tailscale-service-probe/README.md) | Tailscale service-probe HTTP results |
 | [`2026-10-15-tailscale-primary-ui/`](2026-10-15-tailscale-primary-ui/README.md) | Peering-only Tailscale primary UI: actual browser evidence |
