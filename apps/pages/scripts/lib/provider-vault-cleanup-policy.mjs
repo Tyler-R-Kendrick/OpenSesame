@@ -164,7 +164,10 @@ async function signInAgain({ page, provider, service, idp, grants }) {
     .click();
   const popup = await opened.catch(async (error) => {
     throw new Error(
-      `Re-sign-in window never opened: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page.locator("body").innerText().then((text) => text.slice(0, 1200))}`,
+      `Re-sign-in window never opened: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
+        .locator("body")
+        .innerText()
+        .then((text) => text.slice(0, 1200))}`,
       { cause: error },
     );
   });
