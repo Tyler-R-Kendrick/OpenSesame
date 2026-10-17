@@ -7,14 +7,18 @@
  * always-on `sharing.drops` (`vault/drop.ts`). A legacy drop record still
  * sweeps from there. Both build on the errors defined here.
  *
- * Opening is two steps: present the bearer with the user code the sender
- * shared out of band (`POST /v1/claims/present`, single-use on the server),
- * then decrypt the returned manifest under the key the link carried. The key
- * never leaves this function's caller: it is not sent, stored or logged.
+ * A remote drop presents to the Identity API; a legacy device-local drop uses
+ * its strict single-use claim store; a portable drop opens its fragment packet
+ * here without a server. The manifest key never leaves this function's caller.
  */
 
-import { type DropRefusalCode, dropRefusal } from "@opensesame/ceremony-kit";
 import {
+  dropRefusal,
+  isClaimToken,
+  isPortableDropToken,
+} from "@opensesame/ceremony-kit";
+import {
+  type BoundaryObject,
   type BoundaryValue,
   type JsonObject,
   isNumber,
@@ -29,61 +33,30 @@ import {
   guardManifest as guardManifestFormat,
   openDrop as openDropFormat,
 } from "@opensesame/vault-core";
+import {
+  isDeviceIdentityMode,
+  isRemoteIdentityConfigured,
+} from "../device-identity.js";
 import { identityBase, identityFetch } from "../identity.js";
 import { noteDropOpened, noteDropRefused } from "../sharing-receipts.js";
+import {
+  LocalDropClaimError,
+  presentLocalDropClaim,
+} from "../vault/local-drop-claims.js";
 import { claimIdFromBearer } from "../vault/local-drop-codec.js";
 import { noteOutboundDropConsumed } from "../vault/outbound-drops.js";
+import {
+  DropError,
+  DropTransportError,
+  type DropTransportErrorCode,
+} from "./drop-errors.js";
 
-/**
- * What went wrong on the claim plane. Creating and polling a drop fail as
- * `refused`; opening one says why, in ceremony-kit's recipient terms
- * (`DropRefusalCode`): a wrong code, already opened, expired, or a link that
- * is not valid.
- */
-export type DropTransportErrorCode =
-  | DropRefusalCode
-  | "refused"
-  | "limit_exceeded"
-  | "corrupt";
-
-export class DropTransportError extends Error {
-  readonly code: DropTransportErrorCode;
-  /** Wrong-code refusals only: tries remaining after this one. */
-  readonly attemptsLeft?: number | undefined;
-  constructor(
-    code: DropTransportErrorCode,
-    message: string,
-    attemptsLeft?: number,
-  ) {
-    super(message);
-    this.name = "DropTransportError";
-    this.code = code;
-    this.attemptsLeft = attemptsLeft;
-  }
-}
-
-/**
- * Sealing and opening refusals from the format (`payload_too_large` …
- * `tampered`), and the transport's.
- */
-export type DropErrorCode =
-  | "payload_too_large"
-  | "invalid_manifest"
-  | "invalid_key"
-  | "tampered"
-  | DropTransportErrorCode;
-
-export class DropError extends Error {
-  constructor(
-    readonly code: DropErrorCode,
-    message: string,
-    /** Wrong-code refusals only: tries remaining after this one. */
-    readonly attemptsLeft?: number,
-  ) {
-    super(message);
-    this.name = "DropError";
-  }
-}
+export {
+  DropError,
+  type DropErrorCode,
+  DropTransportError,
+  type DropTransportErrorCode,
+} from "./drop-errors.js";
 
 export type DropTransportPresented = { targetManifest: JsonObject };
 
@@ -132,7 +105,80 @@ function obj(value: BoundaryValue): Record<string, BoundaryValue> {
   return {};
 }
 
-async function presentClaimDefault(
+async function presentLocal(
+  bearerToken: string,
+  userCode: string,
+): Promise<DropTransportPresented> {
+  try {
+    return await presentLocalDropClaim(bearerToken, userCode);
+  } catch (error) {
+    if (!(error instanceof LocalDropClaimError)) throw error;
+    if (error.code === "unreachable") {
+      throw new DropTransportError("unreachable", error.message);
+    }
+    const refused = dropRefusal(error.wire, 401, error.message);
+    throw new DropTransportError(
+      refused.code,
+      refused.words,
+      error.attemptsLeft,
+    );
+  }
+}
+
+function portableFailureCode(code: string): DropTransportErrorCode | null {
+  switch (code) {
+    case "invalid_token":
+    case "tampered":
+    case "expired":
+    case "locked_out":
+    case "invalid_code":
+      return code;
+    default:
+      return null;
+  }
+}
+
+/** An object's own fields; anything else has none. */
+function ownFields(value: BoundaryValue): BoundaryObject | null {
+  if (value === null || !isTypeofObject(value)) return null;
+  return Object.fromEntries(Object.entries(value));
+}
+
+/** Map a portable opener failure without a static import of that module. */
+function rethrowPortableFailure(error: Error): void {
+  if (error.name !== "PortableDropFailure") return;
+  const fields = ownFields(error);
+  if (fields === null || !isString(fields.code)) return;
+  const code = portableFailureCode(fields.code);
+  if (code === null) return;
+  const attemptsLeft = isNumber(fields.attemptsLeft)
+    ? fields.attemptsLeft
+    : undefined;
+  throw new DropTransportError(code, error.message, attemptsLeft);
+}
+
+async function presentPortable(
+  bearerToken: string,
+  userCode: string,
+  pkt?: string,
+): Promise<DropTransportPresented> {
+  try {
+    const { openPortableDropBundle } = await import(
+      "../vault/portable-drop.js"
+    );
+    const targetManifest = await openPortableDropBundle(
+      pkt ?? "",
+      bearerToken,
+      userCode,
+    );
+    return { targetManifest };
+  } catch (error) {
+    if (error instanceof Error) rethrowPortableFailure(error);
+    throw error;
+  }
+}
+
+async function presentRemote(
   bearerToken: string,
   userCode: string,
 ): Promise<DropTransportPresented> {
@@ -174,21 +220,43 @@ async function presentClaimDefault(
   return { targetManifest: overlapCast(manifest) };
 }
 
-/** The one network step of opening; a test substitutes it. */
+async function presentClaimDefault(
+  bearerToken: string,
+  userCode: string,
+  pkt?: string,
+): Promise<DropTransportPresented> {
+  if (isPortableDropToken(bearerToken) || pkt !== undefined) {
+    return presentPortable(bearerToken, userCode, pkt);
+  }
+  if (
+    isDeviceIdentityMode() &&
+    !isRemoteIdentityConfigured() &&
+    isClaimToken(bearerToken)
+  ) {
+    return presentLocal(bearerToken, userCode);
+  }
+  return presentRemote(bearerToken, userCode);
+}
+
+/** The one presentation step of opening; a test substitutes it. */
 export const dropOpenSeams = { presentClaim: presentClaimDefault };
 
 function dropPresentFailedForGood(error: DropError): boolean {
   return error.code !== "invalid_code" && error.code !== "unreachable";
 }
 
-/** Open a drop once — user code + bearer; returns the sealed manifest. */
+/** Open a drop's sealed manifest with its bearer, code and optional packet. */
 export async function presentDrop(
   bearerToken: string,
   userCode: string,
+  pkt?: string,
 ): Promise<PresentedDrop> {
   const claimId = claimIdFromBearer(bearerToken);
   try {
-    const presented = await dropOpenSeams.presentClaim(bearerToken, userCode);
+    const presented =
+      pkt === undefined
+        ? await dropOpenSeams.presentClaim(bearerToken, userCode)
+        : await dropOpenSeams.presentClaim(bearerToken, userCode, pkt);
     if (claimId) noteOutboundDropConsumed(claimId);
     if (claimId) noteDropOpened(claimId);
     return { targetManifest: guardManifest(presented.targetManifest) };

@@ -1,4 +1,3 @@
-import { configureHost } from "@opensesame/app-core/host.js";
 /** @vitest-environment jsdom */
 /**
  * `/claim`: a claim link is reviewed and accepted over the one claim model; a
@@ -9,9 +8,7 @@ import { configureHost } from "@opensesame/app-core/host.js";
  */
 import {
   bindClaimLockReset,
-  captureClaimArrivalFromPage,
   peekClaimArrival,
-  resetClaimArrivalForTests,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import {
   OPEN_CLAIM,
@@ -24,23 +21,29 @@ import { dropOpenSeams } from "@opensesame/app-core/lib/claims/drop-open.js";
 import {
   CLAIM_ACCEPTED,
   CLAIM_FAILURE_MARK,
-  CLAIM_NOTICE,
 } from "@opensesame/app-core/lib/claims/route-model.js";
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import { clearNotices } from "@opensesame/app-core/lib/notices.js";
 import { emitVaultLock } from "@opensesame/app-core/lib/vault/lock-events.js";
-import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Link, MemoryRouter, Route, Routes } from "react-router";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../../bindings/identity.js";
 import { useOnlineSeams } from "../../lib/use-online.js";
 import { ClaimRoute } from "./ClaimRoute.js";
+import {
+  KEY,
+  arrive,
+  cleanupClaimRoutePage,
+  resetClaimRoutePage,
+  show,
+  showSitting,
+  trayed,
+} from "./ClaimRoute.test-support.js";
 import { claimHookSeams } from "./useClaimCeremony.js";
 
-const KEY = "a2V5LW1hdGVyaWFs"; // gitleaks:allow -- synthetic drop key test vector
 const session: { current: IdentitySession | null } = { current: null };
 let harness = claimHarness();
 
@@ -51,45 +54,8 @@ Object.assign(identityHookSeams, {
 Object.assign(useOnlineSeams, { useOnline: () => true });
 Object.assign(claimHookSeams, { ceremony: () => harness.ceremony });
 
-function arrive(address: string) {
-  history.replaceState(null, "", address);
-  captureClaimArrivalFromPage();
-}
-
-function show() {
-  return render(
-    <MemoryRouter initialEntries={["/claim"]}>
-      <ClaimRoute />
-    </MemoryRouter>,
-  );
-}
-
-/** `/claim` and a vault stub, so the way back is a real in-app navigation. */
-function showSitting() {
-  return render(
-    <MemoryRouter initialEntries={["/claim"]}>
-      <Routes>
-        <Route path="/claim" element={<ClaimRoute />} />
-        <Route
-          path="/vault"
-          element={
-            <>
-              <h1>Vault home</h1>
-              <Link to="/claim">Claim</Link>
-            </>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
-  );
-}
-
-function trayed() {
-  return listNotices().find((notice) => notice.id.startsWith(CLAIM_NOTICE));
-}
-
 beforeEach(() => {
-  configureHost(createTestHost());
+  resetClaimRoutePage();
   harness = claimHarness();
   session.current = overlapCast({ accessToken: "t", principalId: "prn_1" });
   harness.routes.present.mockResolvedValue(json(OPEN_CLAIM));
@@ -98,10 +64,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  cleanup();
-  resetClaimArrivalForTests();
-  sessionStorage.clear();
-  history.replaceState(null, "", "/");
+  cleanupClaimRoutePage();
 });
 
 describe("a claim link", () => {

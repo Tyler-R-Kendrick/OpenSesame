@@ -1,10 +1,7 @@
-import {
-  type BoundaryValue,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { type DropItem, createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { deviceIdentitySeams } from "../device-identity.js";
 import { clearSession, identitySeams } from "../identity.js";
 import {
   DropError,
@@ -40,9 +37,11 @@ Object.assign(identitySeams, {
 });
 
 const originals = { ...dropSeams };
+const originalRemoteIdentity = deviceIdentitySeams.remoteIdentityApi;
 
 beforeEach(() => {
   clearSession();
+  deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:8788";
   identityFetch.mockReset();
   connectProvisional.mockReset();
   connectProvisional.mockResolvedValue(provisionalSession);
@@ -59,6 +58,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentity;
   Object.assign(dropSeams, originals);
   Object.assign(identitySeams, {
     identityBase: () => "http://127.0.0.1:8788",
@@ -199,54 +199,19 @@ describe("sealDrop / openDrop", () => {
   });
 });
 
-describe("createDrop without remote Identity API (device identity host)", () => {
-  it("seals and mints a claim through the in-tab identity plane", async () => {
-    const { deviceIdentityFetch, resetDeviceIdentitySessionsForTests } =
-      await import("../device-identity-host.js");
-    const { localDropClaimSeams, resetLocalDropClaimsForTests } = await import(
+describe("createDrop without remote Identity API", () => {
+  it("opens a portable drop after the recipient loses every local claim", async () => {
+    deviceIdentitySeams.remoteIdentityApi = () => "";
+    const { resetLocalDropClaimsForTests } = await import(
       "./local-drop-claims.js"
     );
-    resetLocalDropClaimsForTests();
-    resetDeviceIdentitySessionsForTests();
-    localDropClaimSeams.claimBase = () => "http://localhost:5180/OpenSesame";
-
-    let live: {
-      principalId: string;
-      accessToken: string;
-      issuerOrigin: string;
-      expiresAt?: string;
-    } | null = null;
-
-    connectProvisional.mockImplementation(async () => {
-      const res = await deviceIdentityFetch("/v1/principals/provisional", {
-        method: "POST",
-        body: "{}",
-      });
-      const body = overlapCast(await res.json());
-      live = {
-        principalId: String(body.principalId),
-        accessToken: String(body.accessToken),
-        issuerOrigin: "https://device.identity.local",
-        expiresAt: isString(body.expiresAt) ? body.expiresAt : undefined,
-      };
-      return live;
-    });
-    identityFetch.mockImplementation(async (path, init = {}) => {
-      const headers = new Headers(init.headers);
-      if (live) headers.set("authorization", `Bearer ${live.accessToken}`);
-      if (init.body && !headers.has("content-type")) {
-        headers.set("content-type", "application/json");
-      }
-      return deviceIdentityFetch(String(path), { ...init, headers });
-    });
-    Object.assign(identitySeams, {
-      identityBase: () => "https://device.identity.local",
-      currentSession: () => live,
-    });
-
-    const { createDrop, openDrop, presentDrop, pollDrop } = await import(
-      "./drop.js"
+    const { resetPortableDropAttemptsForTests } = await import(
+      "./portable-drop.js"
     );
+    resetLocalDropClaimsForTests();
+    resetPortableDropAttemptsForTests();
+
+    const { createDrop, openDrop, presentDrop } = await import("./drop.js");
     const created = await createDrop({
       name: "Deploy token",
       payload: textPayload(),
@@ -255,30 +220,33 @@ describe("createDrop without remote Identity API (device identity host)", () => 
     });
     expect(created.record.kind).toBe("drop");
     expect(created.record.state).toBe("pending");
-    expect(created.link).toContain("/claim#token=");
+    expect(created.link).toContain("/claim#token=osc_pdrop_");
     expect(created.link).toContain("&key=");
+    expect(created.link).toContain("&pkt=");
     expect(created.userCode).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    expect(identityFetch).not.toHaveBeenCalled();
 
-    const fragment = new URL(created.link).hash.slice(1);
-    const params = new URLSearchParams(fragment);
+    const params = new URLSearchParams(new URL(created.link).hash.slice(1));
     const token = params.get("token");
     const key = params.get("key");
+    const pkt = params.get("pkt");
     expect(token).toBeTruthy();
     expect(key).toBeTruthy();
+    expect(pkt).toBeTruthy();
 
-    const presented = await presentDrop(String(token), created.userCode);
+    // A second browser profile has none of the sealing browser's OPFS claims.
+    resetLocalDropClaimsForTests();
+    resetPortableDropAttemptsForTests();
+    const presented = await presentDrop(
+      String(token),
+      created.userCode,
+      String(pkt),
+    );
     const opened = await openDrop(presented.targetManifest, String(key));
     expect(opened).toEqual(textPayload());
-    await expect(
-      pollDrop(created.record.claimId, created.record.bearerToken),
-    ).resolves.toBe("consumed");
+    expect(identityFetch).not.toHaveBeenCalled();
     resetLocalDropClaimsForTests();
-    resetDeviceIdentitySessionsForTests();
-    live = null;
-    Object.assign(identitySeams, {
-      identityBase: () => "http://127.0.0.1:8788",
-      currentSession: () => null,
-    });
+    resetPortableDropAttemptsForTests();
   });
 });
 

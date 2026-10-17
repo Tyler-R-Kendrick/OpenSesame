@@ -1,15 +1,13 @@
-import {
-  deviceIdentitySeams,
-  isDeviceIdentityMode,
-} from "@opensesame/app-core/lib/device-identity.js";
+import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
 import { useEffect, useRef } from "react";
 
-/** Shown before seal when drops claim only on this browser (PF-02 / persona item 9). */
-export const DEVICE_ONLY_DROP_WARNING =
-  "Only this browser can open this drop. Anyone opening the link elsewhere will be refused.";
-
-export function showDeviceOnlyDropWarning(): boolean {
-  return isDeviceIdentityMode() && !deviceIdentitySeams.remoteIdentityApi();
+/**
+ * Drops sealed here travel: the link carries the sealed packet, so any browser
+ * opens it (P8-1). Shown before seal only where that is true — a configured
+ * Identity API already claims cross-device and draws no row.
+ */
+export function showPortableDropScope(): boolean {
+  return deviceIdentitySeams.remoteIdentityApi() === "";
 }
 import { FieldRow } from "../../components/FieldRow.js";
 import { FormCommit } from "../../components/FormCommit.js";
@@ -46,13 +44,10 @@ export function ShareForm({
   return (
     <section className="detail__group" aria-label="Share this item once">
       <h2 className="detail__grouphead">Share once</h2>
-      {showDeviceOnlyDropWarning() ? (
-        <>
-          <FieldRow label="Opens on">
-            <span className="frow__value">This browser</span>
-          </FieldRow>
-          <p className="hint">{DEVICE_ONLY_DROP_WARNING}</p>
-        </>
+      {showPortableDropScope() ? (
+        <FieldRow label="Opens on">
+          <span className="frow__value">Any browser with the link</span>
+        </FieldRow>
       ) : null}
       <TtlChoices
         value={ttlMs}

@@ -14,15 +14,11 @@ import {
   deviceIdentityFetch,
   resetDeviceIdentitySessionsForTests,
 } from "../device-identity-host.js";
+import { deviceIdentitySeams } from "../device-identity.js";
 import { identitySeams } from "../identity.js";
+import { dropSeams, openDrop, presentDrop, sealDrop } from "./drop.js";
 import {
-  createDrop,
-  dropSeams,
-  openDrop,
-  presentDrop,
-  sealDrop,
-} from "./drop.js";
-import {
+  createLocalDropClaim,
   localDropClaimSeams,
   resetLocalDropClaimsForTests,
 } from "./local-drop-claims.js";
@@ -31,8 +27,10 @@ const identityFetch =
   vi.fn<(path: string, init?: RequestInit) => Promise<Response>>();
 const original = { ...identitySeams };
 const originalDrop = { ...dropSeams };
+const originalRemoteIdentity = deviceIdentitySeams.remoteIdentityApi;
 
 beforeEach(() => {
+  deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:8788";
   identityFetch.mockReset();
   Object.assign(identitySeams, {
     identityFetch,
@@ -41,6 +39,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentity;
   Object.assign(identitySeams, original);
   Object.assign(dropSeams, originalDrop);
 });
@@ -122,6 +121,7 @@ describe("presenting a drop to this device's claim plane", () => {
   let live: JsonObject | null = null;
 
   beforeEach(() => {
+    deviceIdentitySeams.remoteIdentityApi = () => "";
     resetLocalDropClaimsForTests();
     resetDeviceIdentitySessionsForTests();
     localDropClaimSeams.claimBase = () => "http://localhost:5180/OpenSesame";
@@ -156,15 +156,14 @@ describe("presenting a drop to this device's claim plane", () => {
     resetDeviceIdentitySessionsForTests();
   });
 
-  it("keeps the drop unburned on a wrong code, then burns it exactly once", async () => {
-    const created = await createDrop({
-      name: "Deploy token",
-      payload: TEXT,
-      ttlMs: 600_000,
-      keepCopy: false,
-    });
-    const params = new URLSearchParams(new URL(created.link).hash.slice(1));
-    const token = String(params.get("token"));
+  it("keeps a legacy local claim strict and single-use", async () => {
+    const sealed = await sealDrop(TEXT);
+    // SAFETY: the sealed drop manifest contains JSON values only.
+    const created = await createLocalDropClaim(
+      overlapCast(sealed.manifest),
+      600_000,
+    );
+    const token = created.bearerToken;
 
     await expect(presentDrop(token, "WRONG-CODE")).rejects.toMatchObject({
       code: "invalid_code",
@@ -172,7 +171,7 @@ describe("presenting a drop to this device's claim plane", () => {
     });
     const opened = await presentDrop(token, created.userCode);
     await expect(
-      openDrop(opened.targetManifest, String(params.get("key"))),
+      openDrop(opened.targetManifest, sealed.fragmentKey),
     ).resolves.toEqual(TEXT);
     await expect(presentDrop(token, created.userCode)).rejects.toMatchObject({
       code: "already_opened",

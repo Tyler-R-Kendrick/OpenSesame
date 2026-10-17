@@ -49,6 +49,7 @@ const GATES = [
   "verify:siop",
   "verify:static",
   "verify:encrypted-search",
+  "verify:portable-drop",
   "verify:auth",
   "verify:customer-vault-browser",
   "verify-experience-journeys.mjs",
