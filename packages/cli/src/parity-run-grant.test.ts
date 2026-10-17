@@ -37,7 +37,10 @@ describe("run grant CLI store", () => {
       "--uses",
       "3",
     ]);
-    expect(binding.assignments).toEqual(["A=op://v/i/f", "B=os://personal/i2/f"]);
+    expect(binding.assignments).toEqual([
+      "A=op://v/i/f",
+      "B=os://personal/i2/f",
+    ]);
     expect(expiresIn).toBe("5m");
     expect(uses).toBe(3);
   });
@@ -60,7 +63,9 @@ describe("run grant CLI store", () => {
     } finally {
       store.close();
     }
-    await expect(claimRunGrantForRun("grant-store-1", binding)).resolves.toBeUndefined();
+    await expect(
+      claimRunGrantForRun("grant-store-1", binding),
+    ).resolves.toBeUndefined();
     await expect(claimRunGrantForRun("grant-store-1", binding)).rejects.toThrow(
       /invalid, expired, revoked, exhausted/,
     );
