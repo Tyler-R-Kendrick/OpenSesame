@@ -67,7 +67,7 @@ const run = (dir, ...args) =>
   });
 
 // The structural gate counts each describe callback as one function of at most
-// 100 lines, so the suite is two describes of the same name.
+// 100 lines, so the suite is several describes of the same name.
 describe("tag-check.sh", () => {
   it("is executable, as the workflow calls it", () => {
     expect(statSync(script).mode & 0o111).not.toBe(0);
@@ -97,7 +97,7 @@ describe("tag-check.sh", () => {
       ["v0.1.0", commit],
       ["v0.1.0-rc1", commit],
     ]) {
-      const out = run(dir, "verify", tag, sha, "main");
+      const out = run(dir, "verify", tag, sha, "refs/heads/main");
       expect({ tag, sha, status: out.status, err: out.stderr }).toEqual({
         tag,
         sha,
@@ -123,22 +123,50 @@ describe("tag-check.sh", () => {
       "verify",
       "v0.1.0",
       git(dir, "rev-parse", "v0.1.0"),
-      "main",
+      "refs/heads/main",
     );
     expect(out.status).toBe(2);
-    expect(out.stderr).toContain(`points at ${off}, which is not on main`);
+    expect(out.stderr).toContain(
+      `points at ${off}, which is not on refs/heads/main`,
+    );
     expect(out.stdout).toBe("");
+  });
+
+  it("is not fooled by a tag named like the remote branch it compares with", () => {
+    const { dir, commit } = repo();
+    git(dir, "update-ref", "refs/remotes/origin/main", commit);
+    git(dir, "checkout", "-q", "-b", "topic");
+    writeFileSync(join(dir, "other.txt"), "x");
+    git(dir, "add", "other.txt");
+    git(dir, "commit", "-q", "-m", "off main");
+    const off = git(dir, "rev-parse", "HEAD");
+    // A bare `origin/main` resolves to a tag of that name before the
+    // remote-tracking branch, and the tag job fetches every tag.
+    git(dir, "tag", "origin/main", off);
+    git(dir, "tag", "v0.1.0", off);
+    const out = run(dir, "verify", "v0.1.0", off);
+    expect({ status: out.status, out: out.stdout }).toEqual({
+      status: 2,
+      out: "",
+    });
+    expect(out.stderr).toContain(`points at ${off}, which is not on`);
+    // And the commit that is on main still passes, with the same tag planted.
+    git(dir, "checkout", "-q", commit);
+    expect(run(dir, "verify", "v0.1.0", commit).status).toBe(0);
   });
 
   it("holds the tag to the workspace version, and nothing under another table", () => {
     const { dir, commit } = repo("0.4.2");
     for (const tag of ["v0.1.0", "v9.9.9", "v8.8.8", "v0.4.20", "v0.4"]) {
-      const out = run(dir, "verify", tag, commit, "main");
+      const out = run(dir, "verify", tag, commit, "refs/heads/main");
       expect(out.status, tag).toBe(2);
       expect(out.stderr, tag).toContain("is not version 0.4.2");
     }
     for (const tag of ["v0.4.2", "v0.4.2-rc.1", "v0.4.2-dryrun"]) {
-      expect(run(dir, "verify", tag, commit, "main").status, tag).toBe(0);
+      expect(
+        run(dir, "verify", tag, commit, "refs/heads/main").status,
+        tag,
+      ).toBe(0);
     }
   });
 
@@ -147,21 +175,40 @@ describe("tag-check.sh", () => {
     writeFileSync(join(dir, "later.txt"), "x");
     git(dir, "add", "later.txt");
     git(dir, "commit", "-q", "-m", "a later commit on main");
-    const out = run(dir, "verify", "v0.1.0", commit, "main");
+    const out = run(dir, "verify", "v0.1.0", commit, "refs/heads/main");
     expect(out.status).toBe(2);
     expect(out.stderr).toContain(`not ${commit}`);
   });
+});
 
+describe("tag-check.sh", () => {
   it("refuses what is not a tag name, a commit, or a main to compare with", () => {
     const { dir, commit } = repo();
     for (const tag of ["0.1.0", "v0.1.0;id", "v", "../v0.1.0"]) {
-      expect(run(dir, "verify", tag, commit, "main").status, tag).toBe(2);
+      expect(
+        run(dir, "verify", tag, commit, "refs/heads/main").status,
+        tag,
+      ).toBe(2);
     }
     expect(run(dir, "commit", "not-a-sha").status).toBe(2);
-    expect(run(dir, "verify", "v0.1.0", "0".repeat(40), "main").status).toBe(2);
-    const noMain = run(dir, "verify", "v0.1.0", commit, "origin/main");
+    expect(
+      run(dir, "verify", "v0.1.0", "0".repeat(40), "refs/heads/main").status,
+    ).toBe(2);
+    const noMain = run(dir, "verify", "v0.1.0", commit);
     expect(noMain.status).toBe(2);
-    expect(noMain.stderr).toContain("no origin/main to compare with");
+    expect(noMain.stderr).toContain(
+      "no refs/remotes/origin/main to compare with",
+    );
+    // A bare name is never looked up, and neither is a short object name.
+    for (const bare of ["main", "origin/main", "heads/main"]) {
+      const out = run(dir, "verify", "v0.1.0", commit, bare);
+      expect(out.status, bare).toBe(2);
+      expect(out.stderr, bare).toContain("is not a full ref name");
+    }
+    expect(
+      run(dir, "verify", "v0.1.0", commit.slice(0, 12), "HEAD").status,
+    ).toBe(2);
+    expect(run(dir, "commit", "v0.1.0").status).toBe(2);
     expect(run(dir).status).toBe(2);
   });
 
@@ -170,11 +217,12 @@ describe("tag-check.sh", () => {
     const version =
       /\[workspace\.package\][^[]*?\nversion\s*=\s*"([^"]+)"/.exec(toml)?.[1];
     expect(version).toMatch(/^\d+\.\d+\.\d+/);
-    const out = run(root, "verify", `v${version}`, "HEAD", "HEAD");
+    const head = git(root, "rev-parse", "HEAD");
+    const out = run(root, "verify", `v${version}`, head, "HEAD");
     expect({ status: out.status, err: out.stderr }).toEqual({
       status: 0,
       err: "",
     });
-    expect(out.stdout.trim()).toBe(git(root, "rev-parse", "HEAD"));
+    expect(out.stdout.trim()).toBe(head);
   });
 });
