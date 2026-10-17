@@ -4,7 +4,9 @@
 
 - Production Rust code that starts an external program by a fixed name: `git`,
   `gpg`, `gh`, `vercel`, SOPS, `age-plugin-yubikey`, `ps`, `tailscale`,
-  `hostname`, `kill`, `taskkill` and the browser openers.
+  `hostname`, `kill`, `taskkill`, the browser openers, the daemon's discovery
+  CLIs and invoke-through token source, `tomb`, the enrollment prompts and
+  `opensesame-id`.
 - The follow-up the [2026-10-13 audit](2026-10-13-env-spec-bridge-environment.md)
   left under Not fixed, which gave `node` for the env-spec bridge the rule
   below.
@@ -62,6 +64,10 @@ the rule the env-spec bridge already used for `node`:
 | `hostname`, `kill`, `taskkill` | `crates/daemon/src/tailscale.rs`; `kill` also in `apps/cli/src/daemon_cmd.rs` (`daemon stop`) | none | Nothing. |
 | `xdg-open`, `open`, `explorer.exe` | `apps/cli/src/connect/browser.rs` | none | `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `DBUS_SESSION_BUS_ADDRESS`, `XDG_*`, `BROWSER`; on Windows `APPDATA` and `LOCALAPPDATA`. |
 | `node` | `crates/env-spec/src/node_bridge.rs` | `OPENSESAME_NODE` | As in the 2026-10-13 audit, now resolved by the shared crate: exactly `PATH`, `HOME`, `TMPDIR`, `LANG`, the `LC_*` variables (on Windows `SystemRoot`, `PATHEXT`, `COMSPEC`). |
+| CLI probes and the invoke-through token source (`gh`, `glab`, `aws`, `gcloud`, `op`, `kubectl`, `pass`, …) | `crates/daemon/src/runner/programs.rs` (used by `ScrubbedCommandRunner` in `runner.rs`, and by presence in `cli_probe.rs`) | `OPENSESAME_GH` for `gh`; none for the others | Found over the snapshot the runner holds, so a snapshot without `PATH` runs nothing and a CLI in a directory anyone can write is neither offered nor run. Every CLI: `USER`, `LOGNAME`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS` (the keychain), as ADR 0048's allowlist already gave. Each adds where its own configuration is: `gh` `GH_CONFIG_DIR`, `GH_HOST`, `XDG_CONFIG_HOME`; `glab` `GLAB_CONFIG_DIR`, `XDG_CONFIG_HOME`; `aws` `AWS_CONFIG_FILE`, `AWS_SHARED_CREDENTIALS_FILE`, `AWS_PROFILE` (never the keys); `gcloud` `CLOUDSDK_CONFIG`; `op` `OP_CONFIG_DIR`, `XDG_CONFIG_HOME`; `kubectl` `KUBECONFIG`. `pass` still gets no `PASSWORD_STORE_DIR`, as its probe documents. |
+| `tomb` | `apps/cli/src/store/tomb_exec.rs` (`opensesame tomb open` and `close`) | `OPENSESAME_TOMB` | `GNUPGHOME`, `GPG_AGENT_INFO`, `GPG_TTY`, `TERM`, `DISPLAY`, `XAUTHORITY`, `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS` (the gpg-sealed key's pinentry), `SUDO_ASKPASS` (mounting without a terminal). |
+| `osascript`, `systemd-ask-password`, `zenity`, `powershell.exe` | `apps/cli/src/enroll_entry.rs` (the root-trust enrollment prompt) | none | `zenity`: `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`; `powershell.exe`: `APPDATA`, `LOCALAPPDATA`; the others nothing. No trusted prompt is the same as no prompt: enrollment is refused. |
+| `opensesame-id` | `apps/cli/src/vault_file.rs` (the `opensesame vault` item commands: `new`, `list`, `import`, `export`, `set`, `copy`, `share`) | `OPENSESAME_ID_BIN`, now held to the override rule (an absolute executable file; a bare name is refused) | `OPENSESAME_STATE_DIR` (its vault), `TERM` (its password prompt), `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR` (`vault copy`'s clipboard tool). Not `NODE_OPTIONS` or any other `NODE_*`, nor the store password. |
 
 `openssl` has no production spawn. Its three `Command::new("openssl")` calls
 (`apps/cli/src/github.rs`, `crates/connection-broker/src/installation.rs`,
@@ -93,6 +99,20 @@ Each program family has a test that fails on the code before the change:
   `resolve_tailscale_bin` returned the planted `tailscale` from a 0777
   directory ahead of the trusted one (shown with a test against the old file,
   not committed).
+- `crates/daemon/src/runner/tests.rs` runs the discovery runner and the token
+  source over a planted snapshot, and `cli_probe.rs` checks presence. Before
+  the change: a planted `gh` and `kubectl` were offered ("planted CLIs were
+  offered: [... github ... High ...]"), the token source captured the planted
+  `gh`'s empty output instead of the trusted one's token ("gh printed no
+  credential"), a CLI was handed none of its own configuration and
+  `OPENSESAME_GH` was ignored ("the planted gh ran"), and a snapshot with no
+  `PATH` still ran `sh`. The existing runner tests now give their snapshot
+  `PATH=/usr/bin:/bin`.
+- `tomb`, the enrollment prompts and `opensesame-id` were each shown with a
+  test against the old file, not committed: "which_tomb took the planted
+  tomb", "the planted zenity ran", "the planted opensesame-id ran". The
+  committed tests use the fixture through `tomb_exec`, `prompt_in` and
+  `id_cli_in`.
 - env-spec keeps all of its tests and messages.
 
 ## Not changed here
@@ -100,19 +120,8 @@ Each program family has a test that fails on the code before the change:
 Programs a person or operator names on purpose keep their own rules: the
 command `dev run` starts, connector-host executable plans, the password-agent
 programs its policy names, the surrogate-proxy plugin's source, the
-`local_authority` executable, `OPENSESAME_ID_BIN` (`vault` item commands) and
-`opensesame` re-running its own `current_exe()`.
-
-Fixed names this change did not reach, for a follow-up:
-
-- The daemon's discovery runner (`crates/daemon/src/runner.rs`,
-  `ScrubbedCommandRunner`) runs `gh auth token` and the other CLI probes, and
-  the invoke-through token source captures `gh auth token`'s output as a
-  credential. Their environment is already an allowlist (ADR 0048 contract C2),
-  but the program is resolved by bare name through that environment's `PATH`.
-- `tomb` (`apps/cli/src/store.rs`, found by `which_tomb` on `PATH`) and the
-  enrollment prompts (`osascript`, `systemd-ask-password`, `zenity`,
-  `powershell.exe` in `apps/cli/src/enroll_entry.rs`).
+`local_authority` executable and `opensesame` re-running its own
+`current_exe()`.
 
 ## Limits
 
@@ -121,7 +130,11 @@ Fixed names this change did not reach, for a follow-up:
   WSL interop with the cleared environment was not run.
 - The credential helper, pinentry and keyring variables are passed by reading
   how those programs find their state; a libsecret helper, a graphical pinentry
-  and gh's keyring were not exercised.
+  and gh's keyring were not exercised. The same holds for each discovery CLI's
+  configuration variables (`GLAB_CONFIG_DIR`, `CLOUDSDK_CONFIG`,
+  `OP_CONFIG_DIR`, ...): the real CLIs were not run.
+- `OPENSESAME_ID_BIN` used to accept any value, including a bare name searched
+  on `PATH`; it now takes an absolute executable file only.
 - An operator who relied on `GIT_SSH_COMMAND`, `GIT_SSH` or `GIT_ASKPASS` for the
   store's remote now sets `core.sshCommand` or a credential helper in git's own
   configuration instead.

@@ -235,11 +235,13 @@ it never falls back to `PATH`.
 | `OPENSESAME_NODE` | `node`, for the schema bridge |
 | `OPENSESAME_GIT` | `git`, for the sealed store's commits, history and `pass backup` |
 | `OPENSESAME_GPG` | `gpg`, for `.gpg` entries |
-| `OPENSESAME_GH` | `gh`, for `gh auth token` and the connect doctor |
+| `OPENSESAME_GH` | `gh`, for `gh auth token`, the connect doctor and the daemon's discovery |
 | `OPENSESAME_SOPS_BIN` | SOPS (the only way it is found) |
 | `OPENSESAME_AGE_PLUGIN_YUBIKEY` | `age-plugin-yubikey` |
 | `OPENSESAME_PS` | `ps`, on macOS |
 | `OPENSESAME_TAILSCALE` | the Tailscale CLI the daemon uses |
+| `OPENSESAME_TOMB` | `tomb`, for `opensesame tomb open` and `close` |
+| `OPENSESAME_ID_BIN` | `opensesame-id`, for the `opensesame vault` item commands (now an absolute path to the file, like the rest) |
 
 Each starts with an empty environment plus what it needs: `git` gets your git
 configuration, ssh agent, proxy and CA settings but not `GIT_SSH_COMMAND` or
