@@ -1,0 +1,57 @@
+name: Bug report
+description: Report incorrect behavior in OpenSesame.
+title: "Bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the defect. Leave out tokens, claim secrets, and exploit details. Report vulnerabilities through GitHub private vulnerability reporting; see [SECURITY.md](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/SECURITY.md).
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Environment
+      description: Where you saw the problem. Add the commit, tag, OS, and browser in the details below.
+      multiple: true
+      options:
+        - Pages PWA
+        - Native CLI / Host / daemon (opensesame)
+        - Identity API (control-plane)
+        - Browser extension
+        - MCP server
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Commit SHA or tag, operating system, browser, and the version of any local service you were running.
+      placeholder: |
+        commit or tag:
+        OS / browser:
+        opensesame, Identity API, or extension version:
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence that shows the bug.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
