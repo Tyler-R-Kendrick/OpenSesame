@@ -9,7 +9,9 @@
 use std::process::Command;
 
 use anyhow::Context;
-use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass, CA_BUNDLE, PROXY};
+use opensesame_trusted_exec::{
+    command_in, pass_in, Lookup, Pass, CA_BUNDLE, PROXY, VERSION_MANAGERS,
+};
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_API_BASE: &str = "https://api.github.com";
@@ -22,10 +24,13 @@ const GH_OVERRIDE: &str = "OPENSESAME_GH";
 /// What `gh` is given besides `PATH` (the trusted entries), the common set,
 /// the proxy and the CA bundle, each for one reason. The GitHub App key, the
 /// Host's keys and every other secret this process holds stay behind.
-const GH_ENV: [Pass; 7] = [
-    // The account and host the operator chose for gh.
+const GH_ENV: [Pass; 9] = [
+    // The account and host the operator chose for gh, and the token for a
+    // GitHub Enterprise Server host (`GH_HOST`), which gh reads under its own names.
     Pass::Name("GH_TOKEN"),
     Pass::Name("GITHUB_TOKEN"),
+    Pass::Name("GH_ENTERPRISE_TOKEN"),
+    Pass::Name("GITHUB_ENTERPRISE_TOKEN"),
     Pass::Name("GH_HOST"),
     // Where gh keeps its login.
     Pass::Name("GH_CONFIG_DIR"),
@@ -38,7 +43,8 @@ const GH_ENV: [Pass; 7] = [
 /// `gh`, found by the trusted rule or `OPENSESAME_GH`, handed [`GH_ENV`].
 pub fn gh_in(lookup: &Lookup) -> anyhow::Result<Command> {
     let mut command = command_in("gh", Some(GH_OVERRIDE), lookup)?;
-    for allow in [&GH_ENV[..], &PROXY, &CA_BUNDLE] {
+    // `gh` is often a version manager's shim, which must know where it lives.
+    for allow in [&GH_ENV[..], &VERSION_MANAGERS, &PROXY, &CA_BUNDLE] {
         pass_in(&mut command, allow, lookup);
     }
     Ok(command)
@@ -209,16 +215,27 @@ pub async fn resolve_push_token() -> Option<String> {
             Err(error) => eprintln!("warning: GitHub App config incomplete: {error:#}"),
         }
     }
-    let output = gh_in(&Lookup::capture())
-        .ok()?
-        .args(["auth", "token"])
-        .output()
-        .ok()?;
+    match gh_token_in(&Lookup::capture()) {
+        Ok(token) => token,
+        Err(why) => {
+            eprintln!("warning: gh was not asked for a push credential: {why}");
+            None
+        }
+    }
+}
+
+/// What `gh auth token` prints, `Ok(None)` when `gh` ran and printed none, and
+/// why `gh` was not run when no trusted `gh` could be.
+fn gh_token_in(lookup: &Lookup) -> Result<Option<String>, String> {
+    let mut gh = gh_in(lookup).map_err(|why| format!("{why:#}"))?;
+    let Ok(output) = gh.args(["auth", "token"]).output() else {
+        return Ok(None);
+    };
     if !output.status.success() {
-        return None;
+        return Ok(None);
     }
     let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (!token.is_empty()).then_some(token)
+    Ok((!token.is_empty()).then_some(token))
 }
 
 fn non_empty_env(name: &str) -> Option<String> {
@@ -318,6 +335,60 @@ mod tests {
             "OPENSESAME_GIT_TOKEN",
         ] {
             assert!(!env.contains_key(name), "{name} reached gh");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_refused_gh_is_said_with_the_variable_that_names_it() {
+        use opensesame_trusted_exec::testkit::Fixture;
+        let fixture = Fixture::new("gh");
+        std::fs::remove_file(fixture.trusted.join("gh")).unwrap();
+        let why = gh_token_in(&fixture.lookup(&[])).expect_err("gh was refused, not absent");
+        assert!(
+            why.contains("or set OPENSESAME_GH to the absolute path"),
+            "{why}"
+        );
+        assert!(!fixture.planted_ran());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_trusted_gh_that_prints_a_token_gives_it() {
+        use opensesame_trusted_exec::testkit::Fixture;
+        let fixture = Fixture::new("gh");
+        fixture.stub_recorder_saying(&fixture.trusted.join("gh"), "gho_dummy_0123456789\n");
+        let lookup = fixture.lookup(&[]);
+        assert_eq!(
+            gh_token_in(&lookup),
+            Ok(Some("gho_dummy_0123456789".into()))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn gh_is_handed_a_ghes_token_and_a_version_managers_home() {
+        use opensesame_trusted_exec::testkit::Fixture;
+        let fixture = Fixture::new("gh");
+        let lookup = fixture.lookup(&[
+            ("GH_ENTERPRISE_TOKEN", "vtok_dummy_ghes_0123456789abcdef"),
+            (
+                "GITHUB_ENTERPRISE_TOKEN",
+                "vtok_dummy_ghes_0123456789abcdef",
+            ),
+            ("ASDF_DATA_DIR", "/home/dummy/.asdf"),
+            ("NIX_SSL_CERT_FILE", "/etc/ssl/certs/ca-bundle.crt"),
+        ]);
+        let mut command = gh_in(&lookup).unwrap();
+        assert!(command.args(["auth", "token"]).status().unwrap().success());
+        let env = fixture.env().expect("gh ran");
+        for name in [
+            "GH_ENTERPRISE_TOKEN",
+            "GITHUB_ENTERPRISE_TOKEN",
+            "ASDF_DATA_DIR",
+            "NIX_SSL_CERT_FILE",
+        ] {
+            assert!(env.contains_key(name), "{name} missing: {env:?}");
         }
     }
 

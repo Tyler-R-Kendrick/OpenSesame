@@ -277,6 +277,14 @@ fn stop_daemon(pidfile: &str) {
     }
 }
 
+/// The binary the daemon is started from: this one. When this process cannot
+/// say where it is, there is no other `opensesame` to guess at on `PATH`.
+fn daemon_program(exe: std::io::Result<PathBuf>) -> Result<PathBuf, String> {
+    exe.map_err(|error| {
+        format!("cannot tell where this opensesame is, so cannot start it: {error}")
+    })
+}
+
 fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
     let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
     // The daemon's log is sealed (ADR 0157): opened and keyed here first, so a
@@ -290,7 +298,13 @@ fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
         );
         return;
     }
-    let program = env::current_exe().unwrap_or_else(|_| PathBuf::from("opensesame"));
+    let program = match daemon_program(env::current_exe()) {
+        Ok(program) => program,
+        Err(error) => {
+            println!("{}", json!({"status":"error","error": error}));
+            return;
+        }
+    };
     match StdCommand::new(program)
         .args(["daemon", "run"])
         .env(crate::log_sink::ENV_LOG_FILE, logfile)
@@ -321,8 +335,20 @@ fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{read_log, LogRead};
-    use std::path::Path;
+    use super::{daemon_program, read_log, LogRead};
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn the_daemon_starts_from_this_binary_or_not_at_all() {
+        let here = PathBuf::from("/opt/opensesame/bin/opensesame");
+        assert_eq!(daemon_program(Ok(here.clone())), Ok(here));
+        let lost = std::io::Error::other("no /proc");
+        let error = daemon_program(Err(lost)).expect_err("no guessing at a PATH search");
+        assert!(
+            error.contains("cannot tell where this opensesame is"),
+            "{error}"
+        );
+    }
 
     fn dir() -> tempfile::TempDir {
         tempfile::tempdir().expect("tempdir")
