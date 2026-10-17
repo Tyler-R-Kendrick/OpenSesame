@@ -145,24 +145,25 @@ async function verifiedJoin(browser, session) {
     name: VERIFIED_NAME,
     peerTrust: session.signal,
   });
-  await readRequest(session.panel, request);
   const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  check(
+    (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
+    "verified join is not marked unverified",
+  );
+  // ownerAdmitsByHand pastes the request and reads the guest-row SAS.
+  // Reading it earlier waits on a row that does not exist yet.
+  const reply = await ownerAdmitsByHand(
+    session.page,
+    session.panel,
+    request,
+    VERIFIED_NAME,
+  );
   const ownerSas = (
     await session.panel.locator(".vault-row .live-sas").innerText()
   ).trim();
   check(
     SAS.test(joinerSas) && joinerSas === ownerSas,
     "verified join shows the same session SAS on both sides",
-  );
-  check(
-    (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
-    "verified join is not marked unverified",
-  );
-  const reply = await ownerAdmitsByHand(
-    session.page,
-    session.panel,
-    request,
-    VERIFIED_NAME,
   );
   await joinerConnects(joiner.page, reply);
   await joiner.page
