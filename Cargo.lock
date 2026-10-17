@@ -3753,6 +3753,7 @@ dependencies = [
  "opensesame-storage",
  "opensesame-tailnet-admin",
  "opensesame-transport-security",
+ "opensesame-trusted-exec",
  "opensesame-vault-item-types",
  "opensesame-worker",
  "p256",
