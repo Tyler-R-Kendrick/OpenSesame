@@ -8,9 +8,12 @@ import {
 
 const repository = "Tyler-R-Kendrick/OpenSesame";
 const root = `repos/${repository}`;
-const expected = JSON.parse(
-  readFileSync(new URL("./default-branch.json", import.meta.url), "utf8"),
-);
+const readPolicy = (file) =>
+  JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
+const expected = readPolicy("./default-branch.json");
+// Who may create, move or delete a v* tag, which is what starts a release
+// (docs/operators/release-kit.md).
+const releaseTags = readPolicy("./release-tags.json");
 const mode = process.argv[2] ?? "--dry-run";
 if (
   !["--dry-run", "--apply", "--verify"].includes(mode) ||
@@ -56,39 +59,48 @@ function list(path, field) {
 
 function inspect() {
   const repo = api(root);
-  const match = selectRuleset(list(`${root}/rulesets`), expected.name);
-  const current = match ? api(`${root}/rulesets/${match.id}`) : null;
+  const live = list(`${root}/rulesets`);
+  const detail = (policy) => {
+    const match = selectRuleset(live, policy.name);
+    return match ? api(`${root}/rulesets/${match.id}`) : null;
+  };
+  const current = detail(expected);
+  const currentTags = detail(releaseTags);
   const environment = api(`${root}/environments/github-pages`);
   const branches = list(
     `${root}/environments/github-pages/deployment-branch-policies`,
     "branch_policies",
   );
-  return { repo, current, environment, branches };
+  return { repo, current, currentTags, environment, branches };
 }
 
 let state = inspect();
 const action = rulesetAction(state.current, expected);
+const tagsAction = rulesetAction(state.currentTags, releaseTags);
 const pages = pagesPolicyChanges(state.branches, state.repo.default_branch);
 console.log(
   JSON.stringify({
     repository,
     mode,
     ruleset: action,
+    release_tags: tagsAction,
     pages,
     auto_merge: state.repo.allow_auto_merge,
   }),
 );
 
+function writeRuleset(policy, current, todo) {
+  if (todo === "none") return;
+  api(
+    todo === "create" ? `${root}/rulesets` : `${root}/rulesets/${current.id}`,
+    todo === "create" ? "POST" : "PUT",
+    policy,
+  );
+}
+
 if (mode === "--apply") {
-  if (action !== "none") {
-    api(
-      action === "create"
-        ? `${root}/rulesets`
-        : `${root}/rulesets/${state.current.id}`,
-      action === "create" ? "POST" : "PUT",
-      expected,
-    );
-  }
+  writeRuleset(expected, state.current, action);
+  writeRuleset(releaseTags, state.currentTags, tagsAction);
   if (!state.repo.allow_auto_merge)
     api(root, "PATCH", { allow_auto_merge: true });
   // Preserve reviewers, wait timer, bypass policy and custom deployment rules.
@@ -128,6 +140,7 @@ if (mode !== "--dry-run") {
   );
   if (
     rulesetAction(state.current, expected) !== "none" ||
+    rulesetAction(state.currentTags, releaseTags) !== "none" ||
     !branch.protected ||
     !state.repo.allow_auto_merge ||
     remaining.create ||
@@ -143,6 +156,7 @@ if (mode !== "--dry-run") {
     JSON.stringify({
       verified: true,
       ruleset_id: state.current.id,
+      release_tags_ruleset_id: state.currentTags.id,
       ...expected,
       pages_branch: state.repo.default_branch,
       auto_merge: true,
