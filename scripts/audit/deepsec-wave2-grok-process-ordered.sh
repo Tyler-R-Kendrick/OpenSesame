@@ -3,6 +3,7 @@
 # deepsec re-sorts by candidate count and pre-locks the whole manifest; slicing avoids both.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+LOG="${DEEPSEC_REINVESTIGATE_LOG:-/tmp/deepsec-reinvestigate-wave.log}"
 WS="${ROOT}/.deepsec"
 DEEPSEC="${WS}/node_modules/.bin/deepsec"
 WAVE="${DEEPSEC_REINVESTIGATE_WAVE:-2}"
@@ -33,14 +34,21 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
   echo "deepsec-wave2-grok-process-ordered: file $((idx + 1))/${TOTAL} ${path}"
   node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-file-locks.mjs" "$ROOT" || true
   cd "$WS"
-  "$DEEPSEC" process --project-id opensesame \
+  if ! "$DEEPSEC" process --project-id opensesame \
     --agent "$AGENT" --model "$MODEL" \
     --thinking-level "${DEEPSEC_THINKING:-medium}" \
     --concurrency 1 \
     --reinvestigate "$WAVE" \
     --batch-size 1 \
     --max-turns "${DEEPSEC_GROK_SHALLOW_MAX_TURNS:-60}" \
-    --manifest "$SLICE"
+    --manifest "$SLICE"; then
+    reason="process_exit"
+    if tail -20 "$LOG" 2>/dev/null | grep -q 'file wall exceeded'; then
+      reason="file_wall_exceeded"
+    fi
+    node "${ROOT}/scripts/audit/deepsec-wave2-grok-deferred.mjs" path "$ROOT" "$path" "$reason"
+    echo "deepsec-wave2-grok-process-ordered: deferred ${path} (${reason}) — continuing"
+  fi
   idx=$((idx + 1))
 done
 rm -f "$SLICE" "$ORDERED"

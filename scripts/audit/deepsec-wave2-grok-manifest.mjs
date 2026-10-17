@@ -16,8 +16,10 @@ import {
   walkJsonFiles,
 } from "./deepsec-wave2-completion.mjs";
 import { grokTierForPath } from "./deepsec-wave2-grok-tier-paths.mjs";
+import { deferredPathSet } from "./deepsec-wave2-grok-deferred.mjs";
 
 const repoRoot = process.argv[2] ?? process.cwd();
+const deferred = deferredPathSet(repoRoot);
 const marker = Number(process.argv[3] ?? String(DEFAULT_MARKER));
 const tierArg = process.argv[4] ?? "all";
 
@@ -40,6 +42,7 @@ for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const grokDone = hist.some((h) => isWaveProcessComplete(h, marker, "grok"));
   if (grokDone) continue;
   if (!tierFilter(rec.filePath)) continue;
+  if (deferred.has(rec.filePath)) continue;
   entries.push({
     filePath: rec.filePath,
     strict: strictLast && fileHasInvestigateWaveStrict(rec, marker),
