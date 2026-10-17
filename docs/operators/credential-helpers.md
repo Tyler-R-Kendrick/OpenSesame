@@ -21,20 +21,24 @@ helper ever decrypts a stored credential.
 helper (git/docker/aws/kubectl)
   → POST /v1/mint  over the daemon's Unix socket
     → daemon forwards to POST /api/v1/connections/{id}/mint (operator_forward)
-      → gateway mints a derived token (github App installation token in v1)
+      → gateway mints a derived token (a GitHub App installation token, or
+        STS credentials for an aws connection's bound role, ADR 0207)
 ```
 
-The helpers send **no token**: they rely on the socket, where the daemon reads
-the kernel-attested peer UID and allows only the UIDs in
-`OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the daemon's own UID). The daemon's
-`/v1/mint` route, however, runs the same `require_operator` check as its other
-operator routes, which also demands the operator token
+The socket fences who may ask: the daemon reads the kernel-attested peer UID
+and allows only the UIDs in `OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the
+daemon's own UID). Its `/v1/mint` route also runs the same `require_operator`
+check as its other operator routes, which demands the operator token
 (`X-OpenSesame-Operator`, from `OPENSESAME_OPERATOR_TOKEN`) on every transport
-(`crates/daemon/src/mint.rs`, `crates/daemon/src/lib.rs`). A token-less helper
-call is therefore answered `401 operator_unauthorized` (or `503
-operator_token_unconfigured` when the daemon holds none), not forwarded. Any
-non-200 from the daemon is a hard failure: non-zero exit, nothing on stdout,
-only a failure class on stderr.
+(`crates/daemon/src/mint.rs`, `crates/daemon/src/lib.rs`). A helper therefore
+forwards the `OPENSESAME_OPERATOR_TOKEN` it inherits from its environment and
+holds no secret of its own: it never stores, prints or logs the value, and a
+value that is not a plain header token (a line break, a space) is refused before
+the socket is opened. Run a helper from the operator's own shell or deploy job;
+one started in an environment without the token — an agent's — is answered `401
+operator_unauthorized` (or `503 operator_token_unconfigured` when the daemon
+holds none) and is not forwarded. Any non-200 from the daemon is a hard failure:
+non-zero exit, nothing on stdout, only a failure class on stderr.
 
 ## Socket location
 
@@ -99,13 +103,59 @@ credential_process = opensesame-credential-process
 
 ```bash
 export OPENSESAME_AWS_CONNECTION_ID="conn_…"            # required
+# export OPENSESAME_AWS_DURATION_SECONDS=1800           # 900 up to the binding's cap
 ```
 
-**Fails closed in v1.** The gateway's aws mint arm (STS
-GetSessionToken/AssumeRole) is a `422 unmintable` follow-up (ADR 0049 §3), so
-this binary exits non-zero with a clear message until that arm lands; the
-credential_process JSON output path is already implemented and lights up
-unchanged when it does.
+The Host assumes an IAM role with STS and the helper prints STS's temporary
+credential in the `credential_process` shape (`Version`, `AccessKeyId`,
+`SecretAccessKey`, `SessionToken`, `Expiration`). The IAM key pair it signs
+with stays sealed in the Host (ADR 0207).
+
+**Configure a binding** (an operator or the connection's owner, administrator
+role). The connection is an `aws`, `aws-kms`, `aws-ps` or `aws-bedrock`
+connection whose configuration holds `access_key_id` and `secret_access_key`
+(and `session_token` when the key is itself temporary), opted in to
+`materialization = derived_short_lived`:
+
+```bash
+curl -sS -X PUT "$OPENSESAME_HOST_API/api/v1/connections/conn_…/aws-sts-binding" \
+  -H "X-OpenSesame-Operator: $OPENSESAME_OPERATOR_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{
+    "role_arn": "arn:aws:iam::123456789012:role/Deployer",
+    "region": "eu-west-1",
+    "max_duration_seconds": 1800,
+    "session_policy": {"Version": "2012-10-17", "Statement": [
+      {"Effect": "Allow", "Action": "s3:PutObject", "Resource": "arn:aws:s3:::deploy-bucket/*"}
+    ]},
+    "external_id": "…"
+  }'
+```
+
+- `role_arn` and `region` are required. The region must be one with a
+  regional STS endpoint; the mint talks to `sts.<region>.amazonaws.com` and
+  nowhere else.
+- `max_duration_seconds` caps every mint (900–3600, default 900). A mint asks
+  for 900 unless the caller sends `duration_seconds`; a request above the cap
+  is refused, not shortened.
+- `session_policy` is optional. STS intersects it with the role's own policy,
+  so it can only narrow what a minted credential may do (at most 2048
+  characters once minified).
+- `external_id` is optional, sealed with the binding, and never shown again:
+  `GET` on the same path answers only whether one is set. `DELETE` removes the
+  binding, after which the connection is `422 unmintable` again.
+- The role's trust policy must let the source principal call
+  `sts:AssumeRole` **and** `sts:SetSourceIdentity`: every mint sets
+  `SourceIdentity` to the calling principal, and `RoleSessionName` to
+  `opensesame-<grant id>`, the id the Host's receipt records.
+
+Every mint writes a value-blind receipt (role, session name, source identity,
+duration, expiry, STS request id) as the connection's `materialized` event, and
+its expiry is published on the `lifecycle.*` feed. A refusal is one stable code
+and none of STS's words: `aws.sts.access_denied`, `aws.sts.expired_source`,
+`aws.sts.region_disabled`, `aws.sts.throttled`, `aws.sts.malformed_response`,
+`aws.sts.unreachable`. Nothing is retried; on `throttled` or `unreachable`, run
+the AWS command again.
 
 ## kubectl — `opensesame-kube-exec`
 
