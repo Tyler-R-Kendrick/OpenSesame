@@ -3,9 +3,46 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass};
+
 use crate::StoreError;
 
 const GPG_ID: &str = ".gpg-id";
+
+/// The variable that names the exact `gpg` to run.
+const GPG_OVERRIDE: &str = "OPENSESAME_GPG";
+
+/// What `gpg` is given of the parent's environment besides `PATH` (the
+/// trusted entries) and the common set, each for one reason. Everything else,
+/// the Host's keys and every provider token among it, stays behind.
+const GPG_ENV: [Pass; 9] = [
+    // The keyring, when it is not `~/.gnupg`.
+    Pass::Name("GNUPGHOME"),
+    // An agent a gpg 1.x setup started on its own socket.
+    Pass::Name("GPG_AGENT_INFO"),
+    // gpg hands these to gpg-agent for pinentry: the terminal it asks on...
+    Pass::Name("GPG_TTY"),
+    Pass::Name("TERM"),
+    // ...or the display, session and bus of a graphical pinentry.
+    Pass::Name("DISPLAY"),
+    Pass::Name("XAUTHORITY"),
+    Pass::Name("WAYLAND_DISPLAY"),
+    Pass::Name("XDG_RUNTIME_DIR"),
+    Pass::Name("DBUS_SESSION_BUS_ADDRESS"),
+];
+
+/// `gpg` for this process: found by the trusted rule or `OPENSESAME_GPG`,
+/// handed [`GPG_ENV`].
+fn gpg() -> Result<Command, StoreError> {
+    gpg_in(&Lookup::capture())
+}
+
+fn gpg_in(lookup: &Lookup) -> Result<Command, StoreError> {
+    let mut command = command_in("gpg", Some(GPG_OVERRIDE), lookup)
+        .map_err(|e| StoreError::Gpg(e.to_string()))?;
+    pass_in(&mut command, &GPG_ENV, lookup);
+    Ok(command)
+}
 
 ///
 /// # Errors
@@ -34,7 +71,7 @@ pub fn decrypt_gpg_file(path: &Path) -> Result<Vec<u8>, StoreError> {
 }
 
 pub(crate) fn decrypt_gpg(ciphertext: &[u8]) -> Result<Vec<u8>, StoreError> {
-    let mut child = Command::new("gpg")
+    let mut child = gpg()?
         .args(["--quiet", "--batch", "--decrypt"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -89,7 +126,7 @@ pub(crate) fn encrypt_gpg(plaintext: &[u8], recipients: &[String]) -> Result<Vec
         args.push("--recipient".into());
         args.push(r.clone());
     }
-    let mut child = Command::new("gpg")
+    let mut child = gpg()?
         .args(&args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -114,4 +151,40 @@ pub(crate) fn encrypt_gpg(plaintext: &[u8], recipients: &[String]) -> Result<Vec
         ));
     }
     Ok(output.stdout)
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use opensesame_trusted_exec::testkit::Fixture;
+
+    #[test]
+    fn gpg_is_the_trusted_one_and_is_handed_its_keyring_and_pinentry_only() {
+        let fixture = Fixture::new("gpg");
+        let pinentry = [
+            ("GNUPGHOME", "/home/dummy/.gnupg-store"),
+            ("GPG_TTY", "/dev/pts/9"),
+            ("DISPLAY", ":0"),
+        ];
+        let lookup = fixture.lookup(&pinentry);
+        assert!(gpg_in(&lookup).unwrap().status().unwrap().success());
+        let env = fixture.assert_clean();
+        for (name, value) in pinentry {
+            assert_eq!(env.get(name).map(String::as_str), Some(value), "{name}");
+        }
+    }
+
+    #[test]
+    fn opensesame_gpg_names_the_exact_file_or_is_refused_by_name() {
+        let fixture = Fixture::new("gpg");
+        let chosen = fixture.scratch("chosen").join("gpg2");
+        fixture.stub_recorder(&chosen);
+        let value = chosen.display().to_string();
+        let command = gpg_in(&fixture.lookup(&[(GPG_OVERRIDE, &value)])).unwrap();
+        assert_eq!(command.get_program(), chosen.as_os_str());
+        let err = gpg_in(&fixture.lookup(&[(GPG_OVERRIDE, "")]))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("OPENSESAME_GPG is set but empty"), "{err}");
+    }
 }

@@ -108,9 +108,19 @@ impl Fixture {
     ///
     /// When the stub cannot be written.
     pub fn stub_recorder_saying(&self, path: &Path, stdout: &str) {
+        self.stub_recorder_with(path, ":", stdout);
+    }
+
+    /// [`Fixture::stub_recorder_saying`] that first runs the shell line
+    /// `first` (`/bin/cat > /dev/null` for a program fed on stdin).
+    ///
+    /// # Panics
+    ///
+    /// When the stub cannot be written.
+    pub fn stub_recorder_with(&self, path: &Path, first: &str, stdout: &str) {
         let dump = self.dump.display();
         let body = format!(
-            "/usr/bin/env > '{dump}'\necho --args-- >> '{dump}'\nfor a in \"$@\"; do echo \"$a\" >> '{dump}'; done\nprintf '%s' '{stdout}'\nexit 0"
+            "{first}\n/usr/bin/env > '{dump}'\necho --args-- >> '{dump}'\nfor a in \"$@\"; do echo \"$a\" >> '{dump}'; done\nprintf '%s' '{stdout}'\nexit 0"
         );
         write_script(path, &body, 0o755);
     }

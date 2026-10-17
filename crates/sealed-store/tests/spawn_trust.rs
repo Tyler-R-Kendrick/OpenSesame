@@ -1,4 +1,4 @@
-//! The store's `git` is found by the trusted rule and handed only what it
+//! The store's `git` and `gpg` are found by the trusted rule and handed only what it
 //! needs, through the crate's public functions. These tests point this
 //! process's own environment at a planted `PATH`, so each holds `ENV`.
 #![cfg(unix)]
@@ -126,4 +126,29 @@ fn the_parents_secrets_and_git_redirections_never_reach_git() {
     let env = fixture.assert_clean();
     assert_eq!(url.as_deref(), Some(URL));
     assert_eq!(env.get("LC_ALL").map(String::as_str), Some("C"));
+}
+
+#[test]
+fn a_gpg_entry_is_opened_and_sealed_by_the_trusted_gpg_with_nothing_else() {
+    let fixture = Fixture::new("gpg");
+    let reads_stdin = "/bin/cat > /dev/null";
+    fixture.stub_recorder_with(&fixture.trusted.join("gpg"), reads_stdin, "sealed");
+    let root = store(&fixture);
+    let file = root.join("entry.gpg");
+    std::fs::write(&file, "ciphertext").unwrap();
+    let (opened, sealed) = {
+        let _env = enter(&fixture, &[("GNUPGHOME", "/home/dummy/.gnupg")]);
+        let opened = opensesame_sealed_store::decrypt_gpg_file(&file);
+        let recipients = ["dummy@example.invalid".to_owned()];
+        let sealed = opensesame_sealed_store::encrypt_gpg_file(&file, b"plain", &recipients);
+        (opened, sealed)
+    };
+    let env = fixture.assert_clean();
+    assert_eq!(opened.unwrap(), b"sealed");
+    sealed.unwrap();
+    assert_eq!(
+        env.get("GNUPGHOME").map(String::as_str),
+        Some("/home/dummy/.gnupg")
+    );
+    assert!(fixture.args().unwrap().contains(&"--encrypt".to_owned()));
 }
