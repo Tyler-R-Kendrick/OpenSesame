@@ -65,9 +65,12 @@ pub(super) fn run_brokered(
     paths: &[String],
     methods: &[String],
     command: &[String],
+    grant_approved: bool,
 ) -> anyhow::Result<()> {
     core::validate_run_assignments(assignments)?;
-    crate::cli_app_integration::ensure_reveal("run", None)?;
+    if !grant_approved {
+        crate::cli_app_integration::ensure_reveal("run", None)?;
+    }
     let plan = core::broker_plan(assignments, paths, methods)?;
     // A provider with no credential source is refused before any secret
     // is read: starting the plugin for it could only end unserved.
