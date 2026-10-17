@@ -22,6 +22,7 @@
  * it holds the catalog, and the owner answers every greeting.
  */
 
+import type { IceDiagnosticView } from "./ice-diagnostics.js";
 import type { ChannelMessage } from "./messages.js";
 import type { IceServerSpec } from "./routes.js";
 
@@ -76,6 +77,11 @@ export interface PeerLink {
   readonly channel: Promise<LiveChannel>;
   /** Hear, once, that the route failed. Never after `close`. */
   onFailed(handler: () => void): void;
+  /**
+   * ICE progress while the link is opening. Optional: memory and test transports
+   * omit it; WebRTC reports gathering, checking and failure reasons (P8-3).
+   */
+  onIce?(listener: (view: IceDiagnosticView) => void): () => void;
   /** Tear the link down, channel and all. Safe to call again. */
   close(): void;
 }

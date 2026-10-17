@@ -8,6 +8,7 @@
 import type { ConnectionPort } from "./connection-port.js";
 import type { DevicesState } from "./device-types.js";
 import type { HostPeer, LogEntry, ReadField, WriteField } from "./host-peer.js";
+import type { IcePhase } from "./ice-diagnostics.js";
 import type { Catalog, SeatKind, SeatRoute } from "./messages.js";
 import type { PeerTransport } from "./p2p.js";
 import type { SeatPeerTrust } from "./peer-trust-join.js";
@@ -28,6 +29,11 @@ export type Admission = "invite" | "open";
 
 export type GuestState = "asking" | "replied" | "joined" | "refused" | "gone";
 
+export type GuestConnection = Readonly<{
+  phase: IcePhase;
+  detail: string;
+}>;
+
 export type Guest = Readonly<{
   /** The request id. */
   key: string;
@@ -47,6 +53,8 @@ export type Guest = Readonly<{
   nameClash?: boolean | undefined;
   peerFingerprint?: string | undefined;
   peerEpoch?: number | undefined;
+  /** While the browsers meet after a reply was handed back (P8-3). */
+  connection?: GuestConnection | undefined;
 }>;
 
 export type HostState = Readonly<{

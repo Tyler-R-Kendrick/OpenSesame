@@ -277,6 +277,12 @@ export class LiveHost {
         if (seat.peer === peer) this.#drop(key, "gone");
       },
       onLog: (entry) => this.#record(entry),
+      onConnection: (connection) => {
+        if (seat.peer !== peer) return;
+        const guest = this.#seats.get(key)?.guest;
+        if (!guest || guest.state !== "replied") return;
+        this.#set(key, { connection: connection ?? undefined });
+      },
     });
     return peer;
   }
@@ -333,7 +339,7 @@ export class LiveHost {
       }
       // The window to connect runs from the reply, not from the request.
       this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
-      this.#set(key, { state: "replied", reply });
+      this.#set(key, { state: "replied", reply, connection: undefined });
       this.options.post?.(reply);
     } catch {
       peer.close();

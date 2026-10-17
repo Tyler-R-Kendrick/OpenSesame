@@ -7,6 +7,8 @@ import {
   type LiveLink,
   parseLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
+import { iceStatusLabel } from "@opensesame/app-core/lib/live/ice-diagnostics.js";
+import { CONNECTING_TIMEOUT_MS } from "@opensesame/app-core/lib/live/guest.js";
 import { cleanText } from "@opensesame/app-core/lib/live/messages.js";
 import {
   LIVE_SESSION_ENDED_TRAY,
@@ -67,12 +69,14 @@ function standing(status: GuestStatus): Standing {
         label: "Waiting for the owner's reply code",
         tray: "Waiting for the owner's reply code",
       };
-    case "connecting":
+    case "connecting": {
+      const detail = status.ice ? iceStatusLabel(status.ice) : "Connecting";
       return {
         tone: "idle",
         label: "Connecting to the owner's browser",
-        tray: "Connecting to the owner's browser",
+        tray: detail,
       };
+    }
     case "connect_timeout":
       return {
         tone: "err",
@@ -89,7 +93,7 @@ function standing(status: GuestStatus): Standing {
       return {
         tone: "err",
         label: "No route to the owner's browser",
-        tray: "No route to the owner's browser",
+        tray: status.reason,
       };
     default:
       return {
@@ -282,7 +286,7 @@ export function LiveJoinSession() {
   const mark = status ? standing(status) : null;
   useEffect(() => {
     if (status?.at === "unreachable") {
-      reportLiveOutcome("Live session", "No route to the owner's browser");
+      reportLiveOutcome("Live session", status.reason);
     }
     if (status?.at === "ended") {
       reportLiveOutcome("Live session", mark?.tray || LIVE_SESSION_ENDED_TRAY);
@@ -306,6 +310,9 @@ export function LiveJoinSession() {
       </div>
       {opened.status.at === "request" ? (
         <RequestWaiting guest={opened.guest} status={opened.status} />
+      ) : null}
+      {opened.status.at === "connecting" ? (
+        <ConnectingProgress guest={opened.guest} status={opened.status} />
       ) : null}
       {opened.status.at === "connect_timeout" ? (
         <div className="go-row">
@@ -351,6 +358,45 @@ function openedSession(
 ): { guest: LiveGuest; status: GuestStatus; mark: Standing } | null {
   if (!guest || !status || !mark) return null;
   return { guest, status, mark };
+}
+
+function ConnectingProgress({
+  guest,
+  status,
+}: {
+  guest: LiveGuest;
+  status: Extract<GuestStatus, { at: "connecting" }>;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const elapsed = Math.max(0, Math.floor((now - status.since) / 1000));
+  const limit = Math.floor(CONNECTING_TIMEOUT_MS / 1000);
+  const iceLine = status.ice ? iceStatusLabel(status.ice) : "Checking a route";
+  return (
+    <>
+      <p className="vault-row__meta" data-testid="live-join-ice">
+        {iceLine} · {elapsed}s / {limit}s
+      </p>
+      <div className="go-row" id="live-start-over">
+        <button
+          type="button"
+          className="go"
+          aria-label="Start over"
+          title="Start over"
+          onClick={() => {
+            leaveLive();
+            reportLiveOutcome("Live session", "Connecting ended");
+          }}
+        >
+          <IconArrowRight size={18} />
+        </button>
+        <span className="go-verb" aria-hidden="true">Start over</span>
+      </div>
+    </>
+  );
 }
 
 function RequestWaiting({

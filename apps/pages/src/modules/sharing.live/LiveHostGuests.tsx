@@ -232,6 +232,14 @@ function GuestMeta({ guest }: { guest: Guest }) {
       {guest.note ? (
         <span className="vault-row__meta">{guest.note}</span>
       ) : null}
+      {guest.connection ? (
+        <span
+          className="vault-row__meta"
+          data-testid="live-owner-connection"
+        >
+          {guest.connection.detail}
+        </span>
+      ) : null}
       {guest.sas ? (
         <span className="vault-row__meta live-sas">{guest.sas}</span>
       ) : null}
