@@ -31,6 +31,8 @@ pub fn run(mut command: Command) -> Output {
         .stderr(Stdio::piped())
         .spawn()
         .expect("failed to run the opensesame binary");
+    // Command retains the PTY slave handles after spawn; release them before EOF.
+    drop(command);
     let stdout_thread = std::thread::spawn(move || {
         let mut master = master;
         let mut buf = Vec::new();
