@@ -28,6 +28,16 @@ const CASES = [
     family: "gemini_generate_content",
     path: `/custom/v1/models/${AI_FIXTURE_MODEL}:generateContent`,
   },
+  {
+    providerId: "anthropic",
+    family: "anthropic_messages",
+    path: "/custom/v1/messages",
+  },
+  {
+    providerId: "gemini",
+    family: "gemini_generate_content",
+    path: `/custom/v1/models/${AI_FIXTURE_MODEL}:generateContent`,
+  },
 ];
 
 async function visit(page, base, route) {
@@ -71,7 +81,7 @@ async function configure(page, fixture, entry, name, check, width) {
       tested[0].authenticated &&
       tested[0].path === entry.path &&
       !tested[0].stream,
-    `${width}: ${entry.family} Test performs authenticated inference on its exact custom mount`,
+    `${width}: ${entry.providerId}/${entry.family} Test performs authenticated inference on its exact custom mount`,
   );
   await page
     .getByRole("button", { name: "Save AI connection", exact: true })
@@ -86,7 +96,7 @@ async function configure(page, fixture, entry, name, check, width) {
       saved.every(
         (request) => request.authenticated && request.path === entry.path,
       ),
-    `${width}: ${entry.family} Save independently verifies its actual protocol before retaining vault custody`,
+    `${width}: ${entry.providerId}/${entry.family} Save independently verifies its actual protocol before retaining vault custody`,
   );
 }
 
@@ -110,7 +120,7 @@ async function chooseAndColdReload(
   const selected = await select.inputValue();
   check(
     selected.startsWith("connection:"),
-    `${width}: ${entry.family} inference selection names the saved connection`,
+    `${width}: ${entry.providerId}/${entry.family} inference selection names the saved connection`,
   );
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPin(page);
@@ -120,7 +130,7 @@ async function chooseAndColdReload(
   ).toHaveValue(selected);
   check(
     true,
-    `${width}: ${entry.family} exact inference choice survives cold reload and PIN unlock`,
+    `${width}: ${entry.providerId}/${entry.family} exact inference choice survives cold reload and PIN unlock`,
   );
   await open(page, base, entry.providerId);
   await expect(page.getByLabel("Connection name", { exact: true })).toHaveValue(
@@ -150,14 +160,14 @@ async function verifyToken(page, { base, entry, name, width, check }) {
   await page.getByRole("button", { name: /^Hide [Tt]oken$/ }).click();
   check(
     true,
-    `${width}: ${entry.family} API key is a real readable Token item after cold unlock`,
+    `${width}: ${entry.providerId}/${entry.family} API key is a real readable Token item after cold unlock`,
   );
   check(
     await page.evaluate(
       (secret) => !JSON.stringify(Object.values(localStorage)).includes(secret),
       AI_FIXTURE_KEY,
     ),
-    `${width}: ${entry.family} API key is absent from plaintext browser configuration storage`,
+    `${width}: ${entry.providerId}/${entry.family} API key is absent from plaintext browser configuration storage`,
   );
   await open(page, base, entry.providerId);
 }
@@ -194,7 +204,7 @@ async function infer(page, { fixture, entry, width, check }) {
         rows[0].authenticated &&
         rows[0].path === path &&
         rows[0].stream === stream,
-      `${width}: ${entry.family} ${stream ? "genuine SSE" : "JSON"} inference uses the saved exact endpoint and auth`,
+      `${width}: ${entry.providerId}/${entry.family} ${stream ? "genuine SSE" : "JSON"} inference uses the saved exact endpoint and auth`,
     );
   }
 }
@@ -211,7 +221,7 @@ export async function verifyAiConnections({
   await addCapabilities(page, ["On-device model"]);
   const beforePreflights = fixture.preflights.length;
   for (const entry of CASES) {
-    const name = `AI ${entry.family} ${width}`;
+    const name = `AI ${entry.providerId} ${entry.family} ${width}`;
     await open(page, base, entry.providerId);
     await configure(page, fixture, entry, name, check, width);
     const context = { base, fixture, entry, name, width, check };
@@ -225,6 +235,6 @@ export async function verifyAiConnections({
   );
   check(
     fixture.errors.length === 0,
-    `${width}: all four inference protocols passed the fixture's independent request validation`,
+    `${width}: all six configurations across four inference protocols passed the fixture's independent request validation`,
   );
 }

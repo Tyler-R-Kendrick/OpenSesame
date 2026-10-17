@@ -1,0 +1,888 @@
+{
+  "recordedDate": "2026-10-15",
+  "scope": "PR #1336 shared secret-backend Test caller cancellation; controlled real Infisical UniversalAuth HTTP",
+  "browser": "Chromium 151.0.7922.173",
+  "build": {
+    "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:secret-backends-verify",
+    "profile": {
+      "version": 1,
+      "profile": "loopback_development",
+      "canonicalOrigin": "http://localhost:41901",
+      "headerSecurity": false
+    },
+    "base": "/OpenSesame/",
+    "fixtureOrigin": "http://localhost:41903",
+    "serviceWorkers": "blocked for both fresh browser contexts",
+    "phaseBoundSeconds": 120
+  },
+  "harness": {
+    "manifestSha256": "c2401c2af6df7e400b3bfc5bd6d22addcb802eb0c99b01533a729e3645cc1595",
+    "sameExecutedBytesBothPhases": true,
+    "frozenInputCount": 18,
+    "pins": [
+      {
+        "path": "apps/pages/package.json",
+        "bytes": 8700,
+        "sha256": "835e458521b3a24fdd7bbeba4f8ab0b80168ebf6000fa4a2e7c58468f45433c0"
+      },
+      {
+        "path": "apps/pages/scripts/lib/always-on.mjs",
+        "bytes": 1954,
+        "sha256": "982f0f1a1592c49c1a1bf1d46fb9c6c7b592eec92f9a44636841d372e69fbba5"
+      },
+      {
+        "path": "apps/pages/scripts/lib/front-door.mjs",
+        "bytes": 1228,
+        "sha256": "e3fb44293710ddb77a025c4c542da212c740a901b8b12a208ae814b73422ec62"
+      },
+      {
+        "path": "apps/pages/scripts/lib/http-failures.mjs",
+        "bytes": 1295,
+        "sha256": "e49f1a40e38674dd4670f2fc7fe63e05385f303d62ec0940e4119360751f0ca1"
+      },
+      {
+        "path": "apps/pages/scripts/lib/local-network-permission.mjs",
+        "bytes": 1163,
+        "sha256": "d4d702002ded3189309eaf8f906190ce21364531e91dedd384a7a763f31289d4"
+      },
+      {
+        "path": "apps/pages/scripts/lib/pages-journey.mjs",
+        "bytes": 7259,
+        "sha256": "a81799cdde08545e214599f1c1ce50db576a9669fbb4eb6d652c21019eca05f7"
+      },
+      {
+        "path": "apps/pages/scripts/lib/secret-backend-app-server.mjs",
+        "bytes": 1950,
+        "sha256": "1f99be1de5fb6c148c656be97d5e3f46ae4ecaacb1f08dcd909ef1ae4388b3de"
+      },
+      {
+        "path": "apps/pages/scripts/lib/secret-backend-browser.mjs",
+        "bytes": 8453,
+        "sha256": "b80ead13da727987632d06ec35dfb084c0310c3ba4e2e115b8ce845fd6e670d4"
+      },
+      {
+        "path": "apps/pages/scripts/lib/secret-backend-fixture-http.mjs",
+        "bytes": 3623,
+        "sha256": "1f73a8dab08ab2651d72c96c676a2368c821767c17367381689ec2de0ae06877"
+      },
+      {
+        "path": "apps/pages/scripts/lib/secret-backend-infisical-fixture.mjs",
+        "bytes": 3741,
+        "sha256": "154f04374f923d3222c16d829b364465d56d830be26586989a87c2bd0622c895"
+      },
+      {
+        "path": "apps/pages/scripts/lib/session-section.mjs",
+        "bytes": 1258,
+        "sha256": "621cc5b0f803a5b39fa3cc66338f96ae32b9e9fe5db18dfd1e8dc12b7d7f5f1a"
+      },
+      {
+        "path": "package.json",
+        "bytes": 11992,
+        "sha256": "761717426ee8f00d32617b7544398e43ecbb22e41c30b1fe97900ead4da0c24b"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "bytes": 711051,
+        "sha256": "ddbe39cff149036da6de8f44082c5b1f3357bf6f60fcda91a26f48de7da7f0e5"
+      },
+      {
+        "path": "private-harness/fixture.mjs",
+        "bytes": 5576,
+        "sha256": "cd233af643a40df1da541308329ef4ea7a257d98c91cf90947b1fd7cb414436a"
+      },
+      {
+        "path": "private-harness/journey.mjs",
+        "bytes": 8454,
+        "sha256": "9674e9ac0ce0301c947a273b2b9945c484a4bbaa9a32dcafbdf36cfe26864a34"
+      },
+      {
+        "path": "private-harness/observe.mjs",
+        "bytes": 5112,
+        "sha256": "45c197a8c172caddf82250defe4455c679bf6bbd6f07886953542806fd82c786"
+      },
+      {
+        "path": "private-harness/run-bound.py",
+        "bytes": 2166,
+        "sha256": "f60e8101b4ddca4c4e5038076afa27593063df68860259e71be850f9ac357eb6"
+      },
+      {
+        "path": "private-harness/run.mjs",
+        "bytes": 9947,
+        "sha256": "c3c02294e96da31d4fa2d83dbc2ceb2c75dcc335056626b6295f96d2ced02fd5"
+      }
+    ],
+    "staticChecks": {
+      "strict": "4 files PASS; exit 0",
+      "structural": "4 files / 7 rules PASS; zero diagnostics",
+      "biome": "4 files PASS; no fixes applied"
+    },
+    "inputIdentitiesMatchedBeforeAndAfterBothPhases": true,
+    "setupNavigation": "Existing helper uses History API and popstate to enter Features/detail routes. PIN, feature toggle, configuration, Save, Test and departure backlink use actual rendered controls. No component/store-state injection."
+  },
+  "phases": {
+    "before": {
+      "compiledHead": "a19ccfa84e917d4902e63c4ed7483bb57ff414fb",
+      "compiledTree": "acb0331f12d5f534f59af14203e543a6148e1e26",
+      "buildReceiptSha256": "31c0d1a983954d02bc0e0e526e51cf82705499e1ec42f8cfb8a8c7d5c49a9592",
+      "indexSha256": "f63b83ecddf2e09caf04a99211c3de6abb1955a9bb08955f65e17faa5e50a852",
+      "inventorySha256": "abf309dbad276b1f5eea3453fea31d5b94e5003cbe5f42e03d7a98b19bd6773f",
+      "outputFiles": 250,
+      "outputBytes": 16996855,
+      "trackedInputCount": 14839,
+      "allTrackedInputsRestored": true,
+      "declaredTemporaryProfile": [
+        {
+          "observedAt": "2026-10-15T11:18:59.117674+00:00",
+          "path": "apps/pages/public/security-profile.json",
+          "sha256": "c1d793a450e0031248f9ca61576d28abf33b3ab3164873c2002650e0e714f384",
+          "profile": {
+            "version": 1,
+            "profile": "loopback_development",
+            "canonicalOrigin": "http://localhost:41901",
+            "headerSecurity": false
+          }
+        }
+      ],
+      "profileRestoration": {
+        "helperRestored": true,
+        "emergencyRestoration": false
+      },
+      "trackedMetadataChanges": [
+        {
+          "path": "apps/pages/public/security-profile.json",
+          "beforeMtimeNs": 1792061795744753431,
+          "afterMtimeNs": 1792063188675451497
+        }
+      ],
+      "runtimeReceiptSha256": "fa320f362beccd523b1df01e6e97c9d20697c319ed637d07f1a2354771c2e59a",
+      "safeProjectionSha256": "4adc6c722020dd8a0882ab3af571689c41fca4739ac253e3696694e48de22118",
+      "runtimeReadbackSha256": "c9679102a7592dbfe4745450bf2934e4cf3ac515618e91e447a43e4953448f79",
+      "runtimeClosureSha256": "73c0495e9fb598016b9c7e0d275d588fcda0a167644b58ae5bd2475fdc402986",
+      "durationMs": 15239,
+      "outcome": "passed",
+      "unexpectedExternalRequests": 0,
+      "rawErrorCount": 0,
+      "artifactUnchanged": true,
+      "nativeCaptureCount": 6,
+      "closure": {
+        "appClosed": true,
+        "browserClosed": true,
+        "fixtureClosures": [
+          {
+            "width": 1280,
+            "closed": true
+          },
+          {
+            "width": 390,
+            "closed": true
+          }
+        ],
+        "contextClosures": [
+          {
+            "width": 1280,
+            "closed": true
+          },
+          {
+            "width": 390,
+            "closed": true
+          }
+        ]
+      },
+      "liveOwnedProcesses": [],
+      "plannedPortListeners": [],
+      "cases": [
+        {
+          "width": 1280,
+          "touch": false,
+          "pendingTest": {
+            "clickAt": 1792064012934,
+            "navigationAt": 1792064013089,
+            "arrivedAt": 1792064013217,
+            "gateEnteredAt": 1792064012997,
+            "socketClosedAt": null,
+            "releaseAt": 1792064013523,
+            "gateReleasedAt": 1792064013523,
+            "gateTimedOut": false,
+            "serverRequestId": 2,
+            "heldAuthId": 1,
+            "beforeReleaseGetCount": 0,
+            "afterReleaseGetCount": 1,
+            "authenticatedNextGets": 1,
+            "closedBeforeRelease": false,
+            "nativePost": {
+              "requestId": "1044089.119",
+              "route": "universal-auth-login",
+              "method": "POST",
+              "startedAt": 1792064012995,
+              "monotonic": 78281.165273,
+              "wallTime": 1792064012.990809,
+              "type": "Fetch",
+              "initiator": "script",
+              "responseAt": 1792064013528,
+              "status": 200,
+              "protocol": "http/1.1",
+              "decodedDataBytes": 99,
+              "encodedDataBytes": 110,
+              "finishedAt": 1792064013533,
+              "encodedTransferBytes": 520
+            },
+            "server": {
+              "id": 2,
+              "method": "POST",
+              "path": "/api/v1/auth/universal-auth/login",
+              "startedAt": 1792064012995,
+              "socketBytesAtStart": 333,
+              "finishedAt": 1792064013524,
+              "status": 200,
+              "writableFinished": true,
+              "socketBytesAtFinish": 853,
+              "responseClosedAt": 1792064013524,
+              "finishedOnClose": true
+            }
+          },
+          "freshTest": {
+            "startedAt": 1792064014192,
+            "issuedAuthId": 2,
+            "verified": true
+          },
+          "observations": [
+            {
+              "checkpoint": "pending-test",
+              "at": 1792064012999,
+              "pathname": "/OpenSesame/settings/connections/infisical",
+              "workspaces": 0,
+              "verifiedMarks": 0,
+              "width": 1280,
+              "height": 900,
+              "hasTouch": false,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 1280,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            },
+            {
+              "checkpoint": "after-pending-navigation",
+              "at": 1792064014049,
+              "pathname": "/OpenSesame/settings/integrations",
+              "workspaces": 0,
+              "verifiedMarks": 0,
+              "width": 1280,
+              "height": 900,
+              "hasTouch": false,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 1280,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            },
+            {
+              "checkpoint": "fresh-mounted-test-verified",
+              "at": 1792064014330,
+              "pathname": "/OpenSesame/settings/connections/infisical",
+              "workspaces": 0,
+              "verifiedMarks": 1,
+              "width": 1280,
+              "height": 900,
+              "hasTouch": false,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 1280,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            }
+          ],
+          "freshWire": [
+            {
+              "id": 6,
+              "method": "POST",
+              "route": "universal-auth-login",
+              "serverRequestId": 6,
+              "credentialValid": true,
+              "responseStatus": 200,
+              "expectedJsonBytes": 99,
+              "issuedAuthId": 2,
+              "issuedAt": 1792064014258
+            },
+            {
+              "id": 8,
+              "method": "GET",
+              "route": "scoped-secrets",
+              "serverRequestId": 8,
+              "credentialValid": true,
+              "responseStatus": 200,
+              "expectedJsonBytes": 14,
+              "presentedAuthId": 2
+            }
+          ]
+        },
+        {
+          "width": 390,
+          "touch": true,
+          "pendingTest": {
+            "clickAt": 1792064020567,
+            "navigationAt": 1792064020718,
+            "arrivedAt": 1792064020867,
+            "gateEnteredAt": 1792064020625,
+            "socketClosedAt": null,
+            "releaseAt": 1792064021171,
+            "gateReleasedAt": 1792064021171,
+            "gateTimedOut": false,
+            "serverRequestId": 2,
+            "heldAuthId": 1,
+            "beforeReleaseGetCount": 0,
+            "afterReleaseGetCount": 1,
+            "authenticatedNextGets": 1,
+            "closedBeforeRelease": false,
+            "nativePost": {
+              "requestId": "1044129.125",
+              "route": "universal-auth-login",
+              "method": "POST",
+              "startedAt": 1792064020623,
+              "monotonic": 78288.796511,
+              "wallTime": 1792064020.622054,
+              "type": "Fetch",
+              "initiator": "script",
+              "responseAt": 1792064021175,
+              "status": 200,
+              "protocol": "http/1.1",
+              "decodedDataBytes": 99,
+              "encodedDataBytes": 110,
+              "finishedAt": 1792064021177,
+              "encodedTransferBytes": 520
+            },
+            "server": {
+              "id": 2,
+              "method": "POST",
+              "path": "/api/v1/auth/universal-auth/login",
+              "startedAt": 1792064020625,
+              "socketBytesAtStart": 333,
+              "finishedAt": 1792064021171,
+              "status": 200,
+              "writableFinished": true,
+              "socketBytesAtFinish": 853,
+              "responseClosedAt": 1792064021171,
+              "finishedOnClose": true
+            }
+          },
+          "freshTest": {
+            "startedAt": 1792064021755,
+            "issuedAuthId": 2,
+            "verified": true
+          },
+          "observations": [
+            {
+              "checkpoint": "pending-test",
+              "at": 1792064020631,
+              "pathname": "/OpenSesame/settings/connections/infisical",
+              "workspaces": 0,
+              "verifiedMarks": 0,
+              "width": 390,
+              "height": 900,
+              "hasTouch": true,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 390,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            },
+            {
+              "checkpoint": "after-pending-navigation",
+              "at": 1792064021697,
+              "pathname": "/OpenSesame/settings/integrations",
+              "workspaces": 0,
+              "verifiedMarks": 0,
+              "width": 390,
+              "height": 900,
+              "hasTouch": true,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 390,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            },
+            {
+              "checkpoint": "fresh-mounted-test-verified",
+              "at": 1792064021820,
+              "pathname": "/OpenSesame/settings/connections/infisical",
+              "workspaces": 0,
+              "verifiedMarks": 1,
+              "width": 390,
+              "height": 900,
+              "hasTouch": true,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 390,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            }
+          ],
+          "freshWire": [
+            {
+              "id": 6,
+              "method": "POST",
+              "route": "universal-auth-login",
+              "serverRequestId": 6,
+              "credentialValid": true,
+              "responseStatus": 200,
+              "expectedJsonBytes": 99,
+              "issuedAuthId": 2,
+              "issuedAt": 1792064021804
+            },
+            {
+              "id": 8,
+              "method": "GET",
+              "route": "scoped-secrets",
+              "serverRequestId": 8,
+              "credentialValid": true,
+              "responseStatus": 200,
+              "expectedJsonBytes": 14,
+              "presentedAuthId": 2
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "compiledHead": "9b8bb3a436c16cc2b1fb79100bf19ad7d9c8804c",
+      "compiledTree": "ffa771d0a58f2c460b5ff440cb565d2d3efdcaf6",
+      "buildReceiptSha256": "d93ce6d119d2d3ce3a05e3f95b50ad652bba410d335708400d50ac6626c0c3fd",
+      "indexSha256": "c3e545ecc3f58d4a82e0f35a51fcf8819d8120b384f1f53e315fb04728e153b4",
+      "inventorySha256": "bf8a14811574a2d5067d70c88adc6a9e02574b421aa00c97de11b3bf8eda7872",
+      "outputFiles": 250,
+      "outputBytes": 16996928,
+      "trackedInputCount": 14840,
+      "allTrackedInputsRestored": true,
+      "declaredTemporaryProfile": [
+        {
+          "observedAt": "2026-10-15T11:31:23.605153+00:00",
+          "path": "apps/pages/public/security-profile.json",
+          "sha256": "c1d793a450e0031248f9ca61576d28abf33b3ab3164873c2002650e0e714f384",
+          "profile": {
+            "version": 1,
+            "profile": "loopback_development",
+            "canonicalOrigin": "http://localhost:41901",
+            "headerSecurity": false
+          }
+        }
+      ],
+      "profileRestoration": {
+        "helperRestored": true,
+        "emergencyRestoration": false
+      },
+      "trackedMetadataChanges": [
+        {
+          "path": "apps/pages/public/security-profile.json",
+          "beforeMtimeNs": 1792063188675451497,
+          "afterMtimeNs": 1792063934982128254
+        }
+      ],
+      "runtimeReceiptSha256": "89e50f3925a16ce07ea9c4987288be2184e517460328814696b3661b57f63115",
+      "safeProjectionSha256": "b4f2706c8e0e7cb2be6ec6994b4cb242fe72885256220757f0599ff9cd18f23f",
+      "runtimeReadbackSha256": "c06dcbc2692a36fb819a3a8541488cbaac7df392ce408346ebd81ea8b838ab1c",
+      "runtimeClosureSha256": "8602c1743d8c5abc7075e35dcf80e47676052549f314ada135a7d9263a3f40d1",
+      "durationMs": 14335,
+      "outcome": "passed",
+      "unexpectedExternalRequests": 0,
+      "rawErrorCount": 0,
+      "artifactUnchanged": true,
+      "nativeCaptureCount": 6,
+      "closure": {
+        "appClosed": true,
+        "browserClosed": true,
+        "fixtureClosures": [
+          {
+            "width": 1280,
+            "closed": true
+          },
+          {
+            "width": 390,
+            "closed": true
+          }
+        ],
+        "contextClosures": [
+          {
+            "width": 1280,
+            "closed": true
+          },
+          {
+            "width": 390,
+            "closed": true
+          }
+        ]
+      },
+      "liveOwnedProcesses": [],
+      "plannedPortListeners": [],
+      "cases": [
+        {
+          "width": 1280,
+          "touch": false,
+          "pendingTest": {
+            "clickAt": 1792064133063,
+            "navigationAt": 1792064133218,
+            "arrivedAt": 1792064133391,
+            "gateEnteredAt": 1792064133128,
+            "socketClosedAt": 1792064133341,
+            "releaseAt": 1792064133391,
+            "gateReleasedAt": 1792064133391,
+            "gateTimedOut": false,
+            "serverRequestId": 2,
+            "heldAuthId": 1,
+            "beforeReleaseGetCount": 0,
+            "afterReleaseGetCount": 0,
+            "authenticatedNextGets": 0,
+            "closedBeforeRelease": true,
+            "nativePost": {
+              "requestId": "1044366.119",
+              "route": "universal-auth-login",
+              "method": "POST",
+              "startedAt": 1792064133130,
+              "monotonic": 78401.295272,
+              "wallTime": 1792064133.12081,
+              "type": "Fetch",
+              "initiator": "script",
+              "failedAt": 1792064133342,
+              "error": "net::ERR_ABORTED",
+              "canceled": true
+            },
+            "server": {
+              "id": 2,
+              "method": "POST",
+              "path": "/api/v1/auth/universal-auth/login",
+              "startedAt": 1792064133126,
+              "socketBytesAtStart": 333,
+              "socketClosedAt": 1792064133341,
+              "socketHadError": false,
+              "responseClosedAt": 1792064133341,
+              "finishedOnClose": false
+            }
+          },
+          "freshTest": {
+            "startedAt": 1792064134038,
+            "issuedAuthId": 2,
+            "verified": true
+          },
+          "observations": [
+            {
+              "checkpoint": "pending-test",
+              "at": 1792064133132,
+              "pathname": "/OpenSesame/settings/connections/infisical",
+              "workspaces": 0,
+              "verifiedMarks": 0,
+              "width": 1280,
+              "height": 900,
+              "hasTouch": false,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 1280,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            },
+            {
+              "checkpoint": "after-pending-navigation",
+              "at": 1792064133892,
+              "pathname": "/OpenSesame/settings/integrations",
+              "workspaces": 0,
+              "verifiedMarks": 0,
+              "width": 1280,
+              "height": 900,
+              "hasTouch": false,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 1280,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            },
+            {
+              "checkpoint": "fresh-mounted-test-verified",
+              "at": 1792064134179,
+              "pathname": "/OpenSesame/settings/connections/infisical",
+              "workspaces": 0,
+              "verifiedMarks": 1,
+              "width": 1280,
+              "height": 900,
+              "hasTouch": false,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 1280,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            }
+          ],
+          "freshWire": [
+            {
+              "id": 4,
+              "method": "POST",
+              "route": "universal-auth-login",
+              "serverRequestId": 4,
+              "credentialValid": true,
+              "responseStatus": 200,
+              "expectedJsonBytes": 99,
+              "issuedAuthId": 2,
+              "issuedAt": 1792064134105
+            },
+            {
+              "id": 6,
+              "method": "GET",
+              "route": "scoped-secrets",
+              "serverRequestId": 6,
+              "credentialValid": true,
+              "responseStatus": 200,
+              "expectedJsonBytes": 14,
+              "presentedAuthId": 2
+            }
+          ]
+        },
+        {
+          "width": 390,
+          "touch": true,
+          "pendingTest": {
+            "clickAt": 1792064140169,
+            "navigationAt": 1792064140306,
+            "arrivedAt": 1792064140431,
+            "gateEnteredAt": 1792064140238,
+            "socketClosedAt": 1792064140418,
+            "releaseAt": 1792064140431,
+            "gateReleasedAt": 1792064140431,
+            "gateTimedOut": false,
+            "serverRequestId": 2,
+            "heldAuthId": 1,
+            "beforeReleaseGetCount": 0,
+            "afterReleaseGetCount": 0,
+            "authenticatedNextGets": 0,
+            "closedBeforeRelease": true,
+            "nativePost": {
+              "requestId": "1044406.125",
+              "route": "universal-auth-login",
+              "method": "POST",
+              "startedAt": 1792064140237,
+              "monotonic": 78408.408954,
+              "wallTime": 1792064140.234492,
+              "type": "Fetch",
+              "initiator": "script",
+              "failedAt": 1792064140418,
+              "error": "net::ERR_ABORTED",
+              "canceled": true
+            },
+            "server": {
+              "id": 2,
+              "method": "POST",
+              "path": "/api/v1/auth/universal-auth/login",
+              "startedAt": 1792064140238,
+              "socketBytesAtStart": 333,
+              "socketClosedAt": 1792064140418,
+              "socketHadError": false,
+              "responseClosedAt": 1792064140418,
+              "finishedOnClose": false
+            }
+          },
+          "freshTest": {
+            "startedAt": 1792064140981,
+            "issuedAuthId": 2,
+            "verified": true
+          },
+          "observations": [
+            {
+              "checkpoint": "pending-test",
+              "at": 1792064140243,
+              "pathname": "/OpenSesame/settings/connections/infisical",
+              "workspaces": 0,
+              "verifiedMarks": 0,
+              "width": 390,
+              "height": 900,
+              "hasTouch": true,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 390,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            },
+            {
+              "checkpoint": "after-pending-navigation",
+              "at": 1792064140932,
+              "pathname": "/OpenSesame/settings/integrations",
+              "workspaces": 0,
+              "verifiedMarks": 0,
+              "width": 390,
+              "height": 900,
+              "hasTouch": true,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 390,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            },
+            {
+              "checkpoint": "fresh-mounted-test-verified",
+              "at": 1792064141099,
+              "pathname": "/OpenSesame/settings/connections/infisical",
+              "workspaces": 0,
+              "verifiedMarks": 1,
+              "width": 390,
+              "height": 900,
+              "hasTouch": true,
+              "overflow": false,
+              "visibility": "visible",
+              "focused": true,
+              "visualWidth": 390,
+              "visualHeight": 900,
+              "devicePixelRatio": 1,
+              "scrollX": 0,
+              "scrollY": 0
+            }
+          ],
+          "freshWire": [
+            {
+              "id": 4,
+              "method": "POST",
+              "route": "universal-auth-login",
+              "serverRequestId": 4,
+              "credentialValid": true,
+              "responseStatus": 200,
+              "expectedJsonBytes": 99,
+              "issuedAuthId": 2,
+              "issuedAt": 1792064141034
+            },
+            {
+              "id": 6,
+              "method": "GET",
+              "route": "scoped-secrets",
+              "serverRequestId": 6,
+              "credentialValid": true,
+              "responseStatus": 200,
+              "expectedJsonBytes": 14,
+              "presentedAuthId": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "images": [
+    {
+      "phase": "before",
+      "width": 1280,
+      "height": 900,
+      "sourceNativePng": "before/1280-after-pending-navigation.png",
+      "nativePngSha256": "80511f5d74e153809a96345f3bf83d6b5eab4cdea52bb44eba6af84989ebc862",
+      "nativePngBytes": 69477,
+      "file": "before-1280.webp",
+      "webpSha256": "d0764e8a435acc34e60be709cd606245df96711ddba8626aac0f94165bc83fae",
+      "webpBytes": 24464,
+      "decodedRgbaSha256": "b3d3fc2fdc794ea0e13bcee84d76ba25c48447ca8e2782aa465d6415a8d51cda",
+      "decodedRgbaBytes": 4608000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegWebp": true,
+        "PillowPngVsFfmpegPng": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "before",
+      "width": 390,
+      "height": 900,
+      "sourceNativePng": "before/390-after-pending-navigation.png",
+      "nativePngSha256": "eea78c66a53a1267d763b8bf04969fd86f2e98694532515a11cbc51a4f0b2eff",
+      "nativePngBytes": 29868,
+      "file": "before-390.webp",
+      "webpSha256": "f4b91130f9763e12aaef96286c8b0a803873b537d1891d19421323b45a623c48",
+      "webpBytes": 10100,
+      "decodedRgbaSha256": "eb39641441532d9443098b555a2d580bd6fc120c60c36a7ef45d04e40d2fce05",
+      "decodedRgbaBytes": 1404000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegWebp": true,
+        "PillowPngVsFfmpegPng": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "after",
+      "width": 1280,
+      "height": 900,
+      "sourceNativePng": "after/1280-after-pending-navigation.png",
+      "nativePngSha256": "2b7b36aa1a680c3aa164afeea8c1db751e049a746f18cd79bb30378acf275a04",
+      "nativePngBytes": 69468,
+      "file": "after-1280.webp",
+      "webpSha256": "812d0700dc16c76ff4b12879fb0b16c9828638fc484f7be89853daa7da7d76c8",
+      "webpBytes": 24682,
+      "decodedRgbaSha256": "f61ffcc39a3bacdb4ebddaefff7e3559874ff06e3233e6d93bdbb27aa8bf0569",
+      "decodedRgbaBytes": 4608000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegWebp": true,
+        "PillowPngVsFfmpegPng": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    },
+    {
+      "phase": "after",
+      "width": 390,
+      "height": 900,
+      "sourceNativePng": "after/390-after-pending-navigation.png",
+      "nativePngSha256": "eea78c66a53a1267d763b8bf04969fd86f2e98694532515a11cbc51a4f0b2eff",
+      "nativePngBytes": 29868,
+      "file": "after-390.webp",
+      "webpSha256": "f4b91130f9763e12aaef96286c8b0a803873b537d1891d19421323b45a623c48",
+      "webpBytes": 10100,
+      "decodedRgbaSha256": "eb39641441532d9443098b555a2d580bd6fc120c60c36a7ef45d04e40d2fce05",
+      "decodedRgbaBytes": 1404000,
+      "independentPixelEquality": {
+        "PillowPngVsPillowWebp": true,
+        "PillowPngVsFfmpegWebp": true,
+        "PillowPngVsFfmpegPng": true
+      },
+      "transforms": "Lossless encoding only; no crop, resize, stitch, recolor, overlay or DOM alteration."
+    }
+  ],
+  "rgbaHashDefinition": "SHA256 of row-major RGBA8 bytes, width*height*4; dimensions recorded separately. Pillow encodes WebP; independent FFmpeg decodes both native PNG and WebP.",
+  "rootIndependentReview": {
+    "result": "PASS",
+    "receiptSha256": "381e5086766852d16f3780d01bbbc9a9b011115597bb9a2d611ee05064c4837c",
+    "verifiedInputs": 18,
+    "artifactsPerPhase": 250,
+    "nativePngs": 12
+  },
+  "limits": [
+    "This is a controlled actual Infisical UniversalAuth HTTP fixture, not hosted account authorization, native 1Password SDK/WASM proof or all-integrations completion.",
+    "A baseline pass means the expected defect was reproduced: held Test survives route departure and makes a later authenticated GET.",
+    "After requires a native canceled request and socket close before deliberate release, no HTTP response status/finish and no authenticated follow-on GET. Post-HTTP200 abort is not accepted.",
+    "Images show unchanged post-navigation context; native protocol/server timing proves cancellation, not the pixels alone.",
+    "No application backend, extension, request interception, raw storage seeding, fake SDK, component-state injection or product edits were introduced for these journeys.",
+    "Required CI, broader provider/caller activation, full security landing gates and verified bottom-up restacking remain separate."
+  ]
+}

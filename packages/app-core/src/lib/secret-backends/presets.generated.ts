@@ -8,6 +8,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
       "local",
       "file-import",
       "credential-management",
+      "onepassword-sdk",
       "onepassword-connect",
       "bitwarden-api",
       "bitwarden-secrets",
@@ -17,7 +18,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
     defaultMode: "local",
     docsUrl: "https://developer.mozilla.org/en-US/docs/Web/API/File_API",
     setup:
-      "Choose a local vault, an export file, browser credentials, or a documented HTTP protocol. HTTP connections use your supplied endpoint and credential; allow this browser origin through CORS. No local process is started.",
+      "Choose a local vault, an export file, browser credentials, a native SDK, or a documented HTTP protocol. Use a 1Password service account token for native SDK access. HTTP connections use your supplied endpoint and credential; allow this browser origin through CORS. No local process is started.",
     fileFormats: [
       {
         id: "bitwarden-json",
@@ -82,11 +83,11 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
   {
     providerId: "1password",
     label: "1Password",
-    modes: ["onepassword-connect", "file-import"],
-    defaultMode: "onepassword-connect",
-    docsUrl: "https://www.1password.dev/connect/api-reference",
+    modes: ["onepassword-sdk", "onepassword-connect", "file-import"],
+    defaultMode: "onepassword-sdk",
+    docsUrl: "https://www.1password.dev/sdks",
     setup:
-      "Connect a 1Password Connect server and vault with a scoped access token and CORS for this origin. You can also import 1PUX/CSV or explicitly save an item through the official Save in 1Password button.",
+      "Use the native browser SDK with your 1Password account URL, vault ID and a service account token scoped to that vault. The selected vault must allow item reads; writes require the corresponding permissions. The SDK authenticates directly with your account and decrypts items on this device. You can also choose a configured Connect server, import 1PUX/CSV, or explicitly save an item through the official Save in 1Password button.",
     fileFormats: [
       {
         id: "1password-1pux",

@@ -18,6 +18,15 @@ type Field = {
 const endpoint: Field = { key: "baseUrl", label: "API base URL" };
 const token: Field = { key: "token", label: "Access token", secret: true };
 const API_FIELDS = {
+  "onepassword-sdk": [
+    {
+      key: "baseUrl",
+      label: "1Password account URL",
+      placeholder: "https://team.1password.com",
+    },
+    { key: "token", label: "Service account token", secret: true },
+    { key: "vaultId", label: "Vault ID" },
+  ],
   "onepassword-connect": [
     endpoint,
     token,
