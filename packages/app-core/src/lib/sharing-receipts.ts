@@ -1,15 +1,7 @@
 /**
- * Value-blind receipts for a drop opened, a live session granted, or a
- * person's local share granted or revoked (PF-24).
- *
- * Each one is an activity line and a device receipt, written after the
- * action commits. Both name ids only — a claim, a session, a guest, a share,
- * a principal, a resource — never a label, a code, a bearer, a link, a name
- * or a payload. A failure to write does not undo the action. While the vault
- * is locked, drop expiry notes wait for unlock.
- *
- * System share writes (a standing renewal, a vault session issuing its own
- * rows) are not callers. Those are not a person's decision.
+ * Value-blind receipts for a drop, a live grant, or a local share (PF-24).
+ * Ids only, written after the action commits. A failed write does not undo it.
+ * System share writes are not callers. Locked-vault drop expiry waits.
  */
 
 import { scrubText } from "@opensesame/log-scrub";
@@ -28,6 +20,11 @@ import {
   flushReceipts,
   recordReceipt,
 } from "./device-receipts.js";
+import {
+  planDropRefusal,
+  resetRefusalTalliesForTest,
+  reviseDropRefusal,
+} from "./sharing-receipts-tally.js";
 
 const seen = new Set<string>();
 const SEEN_MAX = 256;
@@ -106,7 +103,6 @@ function write(
   );
 }
 
-/** Settle receipts already fired, including the activity line a receipt's notice adds. */
 export async function flushSharingReceipts(): Promise<void> {
   await chain;
   await flushActivityLog();
@@ -114,13 +110,12 @@ export async function flushSharingReceipts(): Promise<void> {
   if (tomb) await flushReceipts(tomb).catch(() => 0);
 }
 
-/** Test-only: forget which ids this tab already recorded. */
 export function resetSharingReceiptsForTest(): void {
   seen.clear();
   heldDropExpiry = undefined;
+  resetRefusalTalliesForTest();
 }
 
-/** The sender sealed a drop for someone else to claim. */
 export function noteDropSent(
   tomb: string,
   claimId: string,
@@ -152,7 +147,6 @@ export function noteDropSent(
   );
 }
 
-/** The claim was presented. `claimId` is the id, never the bearer. */
 export function noteDropOpened(claimId: string): void {
   const id = blindId(claimId);
   if (!id) return;
@@ -172,7 +166,6 @@ export function noteDropOpened(claimId: string): void {
   }
 }
 
-/** One sender-tomb line for a drop terminal state; names the claim id only. */
 function noteSenderDropState(
   claimId: string,
   rememberKey: string,
@@ -180,11 +173,14 @@ function noteSenderDropState(
   summary: string,
   outcome: ActivityOutcome,
   deviceKind: ReceiptKind,
+  count?: number,
 ): boolean {
   const id = blindId(claimId);
   if (!id) return false;
   const tomb = tombForSenderDropReceipt(id);
   if (!tomb || !remember(`${rememberKey}:${tomb}:${id}`)) return false;
+  const metadata: JsonObject = { claimId: id };
+  if (count !== undefined) metadata.count = count;
   write(
     tomb,
     {
@@ -194,15 +190,18 @@ function noteSenderDropState(
       outcome,
       targetType: "claim",
       targetId: id,
-      metadata: { claimId: id },
+      metadata,
     },
     deviceKind,
-    { claimId: id },
+    count === undefined ? { claimId: id } : { claimId: id, count },
   );
   return true;
 }
 
-/** The sender's drop passed its TTL with no claim. */
+function enqueueReceiptWork(task: () => Promise<void>): void {
+  chain = chain.then(task, task);
+}
+
 export function noteDropExpired(claimId: string): void {
   const id = blindId(claimId);
   if (!id) return;
@@ -220,7 +219,6 @@ export function noteDropExpired(claimId: string): void {
   );
 }
 
-/** The sender's drop was locked out after too many wrong codes. */
 export function noteDropLockedOut(claimId: string): void {
   const wrote = noteSenderDropState(
     claimId,
@@ -233,19 +231,30 @@ export function noteDropLockedOut(claimId: string): void {
   if (wrote) outboundLockedOut(claimId);
 }
 
-/** A drop presentation failed for good on a send this device still tracks. */
-export function noteDropRefused(claimId: string): void {
+export function noteDropRefused(claimId: string, wrongCodes?: number): void {
+  const id = blindId(claimId);
+  const tomb = id ? tombForSenderDropReceipt(id) : null;
+  const noted =
+    id !== null && tomb !== null && seen.has(`drop-refused:${tomb}:${id}`);
+  const plan = planDropRefusal(id, tomb, wrongCodes, noted);
+  if (!id || !tomb || plan.action === "skip") return;
+  if (plan.action === "revise") {
+    enqueueReceiptWork(() =>
+      reviseDropRefusal(tomb, id, plan.count, plan.summary),
+    );
+    return;
+  }
   noteSenderDropState(
     claimId,
     "drop-refused",
     "vault.drop.refused",
-    "Drop refused",
+    plan.summary,
     "denied",
     "drop.refused",
+    plan.count,
   );
 }
 
-/** The sender revoked the drop before it was claimed. */
 export function noteDropRevoked(claimId: string): void {
   noteSenderDropState(
     claimId,
@@ -257,7 +266,6 @@ export function noteDropRevoked(claimId: string): void {
   );
 }
 
-/** The owner ended the live session for everyone on this tab. */
 export function noteLiveSessionEnded(liveSessionId: string): void {
   const session = blindId(liveSessionId);
   const tomb = activitySeams.activeTomb();
@@ -278,7 +286,6 @@ export function noteLiveSessionEnded(liveSessionId: string): void {
   );
 }
 
-/** The owner let this guest in. Ids only: the session, and the request. */
 export function noteLiveSessionGranted(
   sessionId: string,
   guestId: string,
@@ -309,7 +316,6 @@ const GRANT_RECEIPT_KIND = [
   "share.denied",
 ] as const satisfies readonly [ReceiptKind, ReceiptKind];
 
-/** An agent or application grant is waiting for a person to approve. */
 export function noteShareRequested(
   tomb: string,
   share: { id: string; principalId: string; resourceId: string },
@@ -336,7 +342,6 @@ export function noteShareRequested(
   );
 }
 
-/** Identity share grant decision after a person approves or denies. */
 export function noteShareGrantStep(
   tomb: string,
   step: 0 | 1,
@@ -366,7 +371,6 @@ export function noteShareGrantStep(
   );
 }
 
-/** A person granted or revoked a share. The label stays on the share, not here. */
 export function noteLocalShare(
   tomb: string,
   action: "granted" | "revoked",
