@@ -182,7 +182,7 @@ export function resolvePlanAssets(
   for (const id of moduleIds) {
     const owners = chunksForModule(graph, id);
     if (owners.length === 0) unknown.push(id);
-    else roots.push(...owners);
+    else roots.push(...owners.filter((owner) => !owner.onDemand));
   }
   if (unknown.length > 0) return { ok: false, unknown };
   const files = new Set(graph.shellAssets);

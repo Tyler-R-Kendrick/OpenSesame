@@ -79,8 +79,8 @@ opensesame-id service-account setup --vault Automation --create-vault --write --
 Creation and password changes accept secrets from a pipe or `--clipboard`,
 verify every write by reading it back, and never retry a write. Passwords retain
 exact bytes; `password` compares unless `--apply` is supplied. Discovery and
-receipts contain metadata and references. `read` and `env resolve` refuse unless
-stdin and stdout are both TTYs, you pass `--reveal`, and `op://` reads also need
+receipts contain metadata and references. `reveal` refuses unless
+stdin and stdout are both TTYs, you pass `--reveal`, and `op://` reveals also need
 `--desktop`. Desktop `run` and `env run` need `--desktop` as well. Every path
 that would print or inject plaintext then asks the OpenSesame app for CLI
 integration approval for this terminal session (PIN or passkey in the app; 600 s
@@ -93,7 +93,7 @@ scripts — the same `run` wrapper pattern as `op run`, `infisical run`, and
 device's OpenSesame vault (unlocked on the terminal); `--mount NAME=<ref>`
 instead writes the secret to a private temp file for the child's lifetime,
 sets `NAME` to its path, and removes it when the child exits. Injected
-values are masked wherever the child prints them. `env resolve` is deprecated in favor of `env run`. The broker lane
+values are masked wherever the child prints them. `env resolve` is retired — it wrote plaintext at rest — in favor of `env run`. The broker lane
 (network stand-in swap) is a mode of `run`, not a separate top-level command:
 `run --agent-proxy --env NAME=os://… --paths NAME=/prefix --methods NAME=GET`
 gives the child a scoped surrogate for an `os://` item under

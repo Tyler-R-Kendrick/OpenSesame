@@ -44,15 +44,17 @@ export function NativeMcpTools({
   controller,
   onChanged,
   onFlash,
+  disabled = false,
 }: NativeConnectorCallbacks & {
   view: NativeConnectorView;
   controller: NativeConnectorController;
+  disabled?: boolean;
 }) {
   const [discovery, setDiscovery] = useState<SafeActionResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
   async function discover() {
-    if (busy || view.status !== "connected") return;
+    if (disabled || busy || view.status !== "connected") return;
     setBusy(true);
     setFailure("");
     try {
@@ -78,7 +80,7 @@ export function NativeMcpTools({
       <div className="panel__body cx-form">
         <IconKey
           label="Discover MCP tools"
-          disabled={busy || view.status !== "connected"}
+          disabled={disabled || busy || view.status !== "connected"}
           onClick={() => void discover()}
         >
           <IconSearch size={16} />
@@ -92,7 +94,7 @@ export function NativeMcpTools({
             <NativeConnectorActions
               controller={controller}
               view={view}
-              disabled={busy}
+              disabled={disabled || busy}
               onChanged={onChanged}
               onFlash={onFlash}
               descriptor={{

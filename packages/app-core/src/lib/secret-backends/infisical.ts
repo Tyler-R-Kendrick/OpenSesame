@@ -1,4 +1,4 @@
-import { isJsonObject, isString } from "@opensesame/os-domain";
+import { isJsonObject, isNumber, isString } from "@opensesame/os-domain";
 import { createBackendHttp } from "./http.js";
 import {
   infisicalItem,
@@ -6,6 +6,7 @@ import {
   infisicalSummaries,
   infisicalWritable,
 } from "./infisical-codec.js";
+import { createInfisicalLifetime } from "./infisical-lifetime.js";
 import { createSecretBackendSessions } from "./sessions.js";
 import {
   type SecretBackend,
@@ -22,10 +23,12 @@ type InfisicalScope = {
   secretPath: string;
 };
 type InfisicalState = {
-  request: ReturnType<typeof createBackendHttp>;
+  lifetime: ReturnType<typeof createInfisicalLifetime>;
   scope: InfisicalScope;
-  token: string;
 };
+type InfisicalSessions = ReturnType<
+  typeof createSecretBackendSessions<InfisicalState>
+>;
 type InfisicalWrite = InfisicalScope & {
   type: "shared";
   secretValue: string;
@@ -67,9 +70,27 @@ function listPath(scope: InfisicalScope): string {
   return `/api/v4/secrets?${query}`;
 }
 
+function writeBody(
+  scope: InfisicalScope,
+  item: SecretBackendItemInput,
+  method: "POST" | "PATCH",
+): InfisicalWrite {
+  infisicalWritable(item);
+  const body: InfisicalWrite = {
+    ...scope,
+    type: "shared",
+    secretValue: item.secret,
+    secretComment: item.notes,
+    skipMultilineEncoding: true,
+  };
+  if (method === "PATCH") body.newSecretName = item.name;
+  return body;
+}
+
 async function authenticateToken(
   config: SecretBackendConfiguration,
   request: ReturnType<typeof createBackendHttp>,
+  lifetime: ReturnType<typeof createInfisicalLifetime>,
 ) {
   if (!config.clientId && !config.clientSecret) {
     const token = config.token.trim();
@@ -78,7 +99,8 @@ async function authenticateToken(
         "configuration",
         "Enter an Infisical access token or Universal Auth client ID and secret.",
       );
-    return token;
+    lifetime.install(token, null);
+    return;
   }
   if (!config.clientId.trim() || !config.clientSecret)
     throw new SecretBackendError(
@@ -86,6 +108,7 @@ async function authenticateToken(
       "Universal Auth requires both a client ID and client secret.",
     );
   const result = await request("/api/v1/auth/universal-auth/login", {
+    signal: lifetime.signal,
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -102,7 +125,42 @@ async function authenticateToken(
       "response",
       "Infisical did not return an access token.",
     );
-  return result.accessToken;
+  if (
+    !isNumber(result.expiresIn) ||
+    !isNumber(result.accessTokenMaxTTL) ||
+    !Number.isFinite(result.accessTokenMaxTTL) ||
+    result.accessTokenMaxTTL < 0 ||
+    result.tokenType !== "Bearer"
+  )
+    throw new SecretBackendError(
+      "response",
+      "Infisical did not return a valid Universal Auth token lifetime.",
+    );
+  lifetime.install(result.accessToken, result.expiresIn);
+}
+
+async function authenticate(
+  config: SecretBackendConfiguration,
+  fetcher: SecretBackendFetch | undefined,
+  sessions: InfisicalSessions,
+) {
+  const scope = scopeFor(config);
+  const request = createBackendHttp(config.baseUrl, fetcher);
+  const lifetime = createInfisicalLifetime(request);
+  try {
+    await authenticateToken(config, request, lifetime);
+    const result = await lifetime.call(listPath(scope));
+    infisicalSummaries(result);
+    lifetime.check();
+    const session = sessions.create({ lifetime, scope }, lifetime.signal);
+    session.signal?.addEventListener("abort", lifetime.close, { once: true });
+    if (session.signal?.aborted) lifetime.close();
+    lifetime.check();
+    return session;
+  } catch (error) {
+    lifetime.close();
+    throw error;
+  }
 }
 
 /** Native Universal Auth and v4 REST secrets at the explicitly configured deployment. */
@@ -110,16 +168,23 @@ export function createInfisicalBackend(
   fetcher?: SecretBackendFetch,
 ): SecretBackend {
   const sessions = createSecretBackendSessions<InfisicalState>("infisical");
+  function owned(session: SecretBackendSession): InfisicalState {
+    const state = sessions.read(session);
+    state.lifetime.check();
+    return state;
+  }
+  function checked<T>(session: SecretBackendSession, result: T): T {
+    owned(session);
+    return result;
+  }
   async function call(
     session: SecretBackendSession,
     path: string,
     init: RequestInit = {},
   ) {
-    const state = sessions.read(session);
-    const headers = new Headers(init.headers);
-    headers.set("authorization", `Bearer ${state.token}`);
-    const result = await state.request(path, { ...init, headers });
-    sessions.read(session);
+    const state = owned(session);
+    const result = await state.lifetime.call(path, init);
+    owned(session);
     return result;
   }
   async function write(
@@ -128,22 +193,16 @@ export function createInfisicalBackend(
     item: SecretBackendItemInput,
     method: "POST" | "PATCH",
   ) {
-    infisicalWritable(item);
-    const { scope } = sessions.read(session);
-    const body: InfisicalWrite = {
-      ...scope,
-      type: "shared",
-      secretValue: item.secret,
-      secretComment: item.notes,
-      skipMultilineEncoding: true,
-    };
-    if (method === "PATCH") body.newSecretName = item.name;
-    return infisicalItem(
-      await call(session, secretPath(name), {
-        method,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      }),
+    const body = writeBody(owned(session).scope, item, method);
+    return checked(
+      session,
+      infisicalItem(
+        await call(session, secretPath(name), {
+          method,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      ),
     );
   }
   return {
@@ -159,46 +218,45 @@ export function createInfisicalBackend(
       delete: true,
       import: false,
     },
-    async authenticate(config) {
-      const scope = scopeFor(config);
-      const request = createBackendHttp(config.baseUrl, fetcher);
-      const token = await authenticateToken(config, request);
-      const result = await request(listPath(scope), {
-        headers: { authorization: `Bearer ${token}` },
-      });
-      infisicalSummaries(result);
-      return sessions.create({ request, token, scope });
-    },
+    authenticate: (config) => authenticate(config, fetcher, sessions),
     async listItems(session) {
-      return infisicalSummaries(
-        await call(session, listPath(sessions.read(session).scope)),
+      return checked(
+        session,
+        infisicalSummaries(await call(session, listPath(owned(session).scope))),
       );
     },
     async getItem(name, session) {
       const query = new URLSearchParams({
-        ...sessions.read(session).scope,
+        ...owned(session).scope,
         viewSecretValue: "true",
         expandSecretReferences: "false",
         includeImports: "false",
         type: "shared",
       });
-      return infisicalItem(await call(session, `${secretPath(name)}?${query}`));
+      return checked(
+        session,
+        infisicalItem(await call(session, `${secretPath(name)}?${query}`)),
+      );
     },
     async getNotes(name, session) {
-      return (await this.getItem(name, session)).notes;
+      return checked(session, (await this.getItem(name, session)).notes);
     },
     createItem: (item, session) => write(session, item.name, item, "POST"),
     updateItem: (id, item, session) => write(session, id, item, "PATCH"),
     async deleteItem(id, session) {
-      const body = { ...sessions.read(session).scope, type: "shared" };
+      const body = { ...owned(session).scope, type: "shared" };
       await call(session, secretPath(id), {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
+      owned(session);
     },
     async disconnect(session) {
+      if (session.signal?.aborted) return;
+      const { lifetime } = sessions.read(session);
       sessions.remove(session);
+      lifetime.close();
     },
   };
 }

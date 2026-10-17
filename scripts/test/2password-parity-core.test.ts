@@ -82,7 +82,7 @@ function provider(items: ReturnType<typeof item>[]) {
 }
 
 describe("2password parity core", () => {
-  it("read.explicit", async () => {
+  it("reveal.explicit", async () => {
     const calls: string[][] = [];
     const port: PasswordAgentPort = {
       async invoke(args) {

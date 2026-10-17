@@ -5,6 +5,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { isJsonObject } from "../lib/json-boundary.mjs";
 
 export const DEFAULT_MARKER = 2;
 export const DEFAULT_AGENT = "kimi";
@@ -41,7 +42,7 @@ export function grokDeepMaxTurns() {
 
 /** True when outputTokens match the duration/1000 backfill heuristic (not Grok CLI usage). */
 export function isGrokDurationSyntheticUsage(row) {
-  if (typeof row !== "object" || row === null) return false;
+  if (!isJsonObject(row)) return false;
   const out = row.usage?.outputTokens ?? 0;
   const dur = row.durationMs ?? 0;
   if (out <= 0 || dur <= 0) return false;
@@ -68,7 +69,7 @@ function isShallowLimitStderr(stderr) {
 }
 
 export function isGrokMarker2InvestigationFinished(row) {
-  if (typeof row !== "object" || row === null) return false;
+  if (!isJsonObject(row)) return false;
   if (row.agentType !== "grok") return true;
   const stderr = String(row.codexStderr ?? "");
   if (stderr.includes("shallow_ok")) return true;
@@ -80,7 +81,7 @@ export function isGrokMarker2InvestigationFinished(row) {
 
 /** outputTokens > 0 that count toward the gate (reject duration-only synthetic unless parse-proven). */
 export function isGrokWave2UsageCreditable(row) {
-  if (typeof row !== "object" || row === null) return false;
+  if (!isJsonObject(row)) return false;
   const out = row.usage?.outputTokens ?? 0;
   if (out <= 0) return false;
   if (!isGrokDurationSyntheticUsage(row)) return true;
@@ -89,7 +90,7 @@ export function isGrokWave2UsageCreditable(row) {
 
 /** Grok marker-N row that hit shallow cap/timeout — not wave-2 complete until deep pass. */
 export function isGrokShallowIncomplete(h) {
-  if (typeof h !== "object" || h === null) return false;
+  if (!isJsonObject(h)) return false;
   const row = h;
   if (row.agentType !== "grok") return false;
   if (isGrokMarker2InvestigationFinished(row)) return false;
@@ -104,7 +105,7 @@ export function isGrokShallowIncomplete(h) {
   ) {
     return true;
   }
-  if (typeof row.numTurns === "number" && row.numTurns >= shallow - 0.01) {
+  if (Number.isFinite(row.numTurns) && row.numTurns >= shallow - 0.01) {
     if (configured === shallow) return true;
   }
   if (/max turns/i.test(stderr)) return true;
@@ -113,7 +114,7 @@ export function isGrokShallowIncomplete(h) {
 
 /** @param {unknown} h */
 export function isWaveProcessComplete(h, marker, agentType) {
-  if (typeof h !== "object" || h === null) return false;
+  if (!isJsonObject(h)) return false;
   const row = h;
   if (row.reinvestigateMarker !== marker) return false;
   if (row.phase === "revalidate") return false;
@@ -129,7 +130,7 @@ export function isWaveProcessComplete(h, marker, agentType) {
 
 /** File has marker-N strict gate satisfied on Kimi or Grok (wave-2 investigate agents). */
 export function fileHasInvestigateWaveStrict(rec, marker = DEFAULT_MARKER) {
-  if (typeof rec !== "object" || rec === null) return false;
+  if (!isJsonObject(rec)) return false;
   const hist = rec.analysisHistory ?? [];
   return WAVE2_INVESTIGATE_AGENTS.some((at) =>
     hist.some((h) => isWaveProcessComplete(h, marker, at)),

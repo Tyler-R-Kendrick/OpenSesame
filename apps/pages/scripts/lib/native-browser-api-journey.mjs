@@ -1,11 +1,15 @@
 import { expect } from "@playwright/test";
+import { nativeAiFormContract } from "./native-browser-ai-form-contract.mjs";
 import { nativeApiGuideJourney } from "./native-browser-api-guide.mjs";
 import {
   nativeApiReadJourney,
   nativeVerifiedCapture,
 } from "./native-browser-api-lifecycle.mjs";
 import { nativeVisit } from "./native-browser-catalog-journey.mjs";
-import { NATIVE_AI_MODEL_PROVIDER_IDS } from "./native-browser-catalog-projection.mjs";
+import {
+  NATIVE_AI_MODEL_PROVIDER_IDS,
+  NATIVE_SHARED_AI_PRESETS,
+} from "./native-browser-catalog-projection.mjs";
 /** Human controls against real compiled HTTP handlers, with encrypted cold reload. */
 import { unlockWithPin } from "./pages-journey.mjs";
 
@@ -128,6 +132,40 @@ async function nativeApiAvailability(page, harness, fixture, submit) {
   return null;
 }
 
+async function nativeApiConfiguration(
+  page,
+  harness,
+  authority,
+  fixture,
+  preset,
+  { base, label, route },
+) {
+  const before = authority.state.calls.length;
+  await nativeAiFormContract(
+    page,
+    { id: fixture.providerId, name: fixture.name },
+    preset,
+    {
+      check: harness.check,
+      record: harness.record,
+      phone: label === "phone",
+      sheet: false,
+      routePath: `${base}${route}`,
+      base,
+    },
+  );
+  harness.check(
+    authority.state.calls.length === before,
+    `${fixture.providerId}: shared AI configuration issues no native protocol authority calls`,
+  );
+  return {
+    providerId: fixture.providerId,
+    coverage: "shared-ai-configuration",
+    assurance:
+      "configuration only; no provider authentication or inference performed",
+  };
+}
+
 export async function nativeApiJourney(
   page,
   harness,
@@ -136,26 +174,20 @@ export async function nativeApiJourney(
   { base, out, label },
 ) {
   harness.setStep(`${label}-api-${fixture.providerId}`);
-  // AI model providers are configured through the shared AI connection
-  // form, which the AI connections journey walks; the native API-key
-  // journey no longer applies to them.
-  if (NATIVE_AI_MODEL_PROVIDER_IDS.has(fixture.providerId))
-    return {
-      providerId: fixture.providerId,
-      connected: false,
-      reason: "shared AI connection journey",
-    };
-  // A model provider's first connection from the Add catalog is a sheet
-  // (walked in the catalog journey and in `nativeAiSheetJourney`); its page,
-  // with the method step and Verify and connect, is the one Settings opens.
-  await nativeVisit(
-    page,
-    base,
-    `${NATIVE_AI_MODEL_PROVIDER_IDS.has(fixture.providerId) ? "settings/" : ""}connections/${fixture.providerId}`,
-  );
+  // Settings owns shared AI configuration; its inference protocol has a
+  // separate real HTTP verifier. Legacy model-provider pages also use Settings.
+  const preset = NATIVE_SHARED_AI_PRESETS.get(fixture.providerId);
+  const route = `${preset || NATIVE_AI_MODEL_PROVIDER_IDS.has(fixture.providerId) ? "settings/" : ""}connections/${fixture.providerId}`;
+  await nativeVisit(page, base, route);
   await page
     .getByRole("heading", { name: fixture.name, exact: true })
     .waitFor();
+  if (preset)
+    return nativeApiConfiguration(page, harness, authority, fixture, preset, {
+      base,
+      label,
+      route,
+    });
   const submit = page.getByRole("button", {
     name: `Verify and connect ${fixture.name}`,
     exact: true,
