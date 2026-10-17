@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, expect, it } from "vitest";
 import {
   CONSENT_POPUP_TIMEOUT_MS,
   openLinearConsentPopup,
@@ -7,7 +6,7 @@ import {
 
 describe("openLinearConsentPopup", () => {
   it("is a function", () => {
-    assert.equal(openLinearConsentPopup.name, "openLinearConsentPopup");
+    expect(openLinearConsentPopup.name).toBe("openLinearConsentPopup");
   });
 
   it("schedules waitForURL before the consent click resolves", async () => {
@@ -45,28 +44,31 @@ describe("openLinearConsentPopup", () => {
     const pending = openLinearConsentPopup(page, button);
     await Promise.resolve();
 
-    assert.equal(clickResolved, false);
-    assert.ok(clickResolve);
+    expect(clickResolved).toBe(false);
+    expect(clickResolve).toBeTruthy();
     const armed = calls.find((call) => call[0] === "waitForURL");
-    assert.ok(armed, "waitForURL must be scheduled while click is pending");
-    assert.equal(armed[3], false);
-    assert.equal(armed[1], "https://linear.app/oauth/authorize?**");
-    assert.deepEqual(armed[2], {
+    expect(
+      armed,
+      "waitForURL must be scheduled while click is pending",
+    ).toBeTruthy();
+    expect(armed[3]).toBe(false);
+    expect(armed[1]).toBe("https://linear.app/oauth/authorize?**");
+    expect(armed[2]).toEqual({
       timeout: CONSENT_POPUP_TIMEOUT_MS,
       waitUntil: "commit",
     });
-    assert.equal(CONSENT_POPUP_TIMEOUT_MS, 60_000);
-    assert.deepEqual(
-      calls.find((call) => call[0] === "waitForEvent"),
-      ["waitForEvent", "popup", { timeout: CONSENT_POPUP_TIMEOUT_MS }],
-    );
+    expect(CONSENT_POPUP_TIMEOUT_MS).toBe(60_000);
+    expect(calls.find((call) => call[0] === "waitForEvent")).toEqual([
+      "waitForEvent",
+      "popup",
+      { timeout: CONSENT_POPUP_TIMEOUT_MS },
+    ]);
 
     navigationResolve();
     clickResolve();
-    assert.equal(await pending, popup);
-    assert.ok(
-      calls.findIndex((call) => call[0] === "waitForURL") <
-        calls.indexOf("clickResolve"),
+    expect(await pending).toBe(popup);
+    expect(calls.findIndex((call) => call[0] === "waitForURL")).toBeLessThan(
+      calls.indexOf("clickResolve"),
     );
   });
 
@@ -103,13 +105,13 @@ describe("openLinearConsentPopup", () => {
       observedWhilePending = opened === popup && !clickResolved;
     });
     await Promise.resolve();
-    assert.equal(clickResolved, false);
-    assert.equal(observedWhilePending, true);
-    assert.ok(navigationReject);
-    assert.ok(clickResolve);
+    expect(clickResolved).toBe(false);
+    expect(observedWhilePending).toBe(true);
+    expect(navigationReject).toBeTruthy();
+    expect(clickResolve).toBeTruthy();
 
     navigationReject(new Error("page closed"));
     clickResolve();
-    await assert.rejects(pending, /page closed/);
+    await expect(pending).rejects.toThrow(/page closed/);
   });
 });

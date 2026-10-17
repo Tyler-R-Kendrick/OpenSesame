@@ -174,14 +174,11 @@ function handlePagesDevRequest(
 export default defineConfig({
   test: {
     // The relay's suites under `server/` are `node --test` (`test:relay`).
-    // `linear-consent-popup-arming.test.mjs` is `node --test` as well, so it
-    // can record popup arming order. Sibling contracts such as
-    // `native-browser-catalog-sheet-contract.test.mjs` stay on Vitest.
-    exclude: [
-      ...configDefaults.exclude,
-      "server/**",
-      "scripts/lib/linear-consent-popup-arming.test.mjs",
-    ],
+    // Popup arming order is a Vitest suite
+    // (`linear-consent-popup-arming.test.mjs`), with the other `scripts/lib`
+    // contracts. Root `vitest run scripts/lib` discovers `**/scripts/lib/**`,
+    // so that file cannot stay on `node:test`.
+    exclude: [...configDefaults.exclude, "server/**"],
     testTimeout: 20_000,
     hookTimeout: 20_000,
     setupFiles: ["./src/host/test-setup.ts", "./src/host/test-queries.ts"],

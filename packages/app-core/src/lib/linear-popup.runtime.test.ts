@@ -182,6 +182,13 @@ describe("Linear consent returns to the originating unlocked runtime", () => {
       },
     );
     const window = browserPort(authorize);
+    // `configured()` may already have left a full-page pending request.
+    // The reserved state must be the request created before this window opens.
+    let reservedState = "";
+    window.prepare.mockImplementation(() => {
+      reservedState = pendingLinear(id).state;
+      return window.release;
+    });
     const fetcher = linearAnswers(
       { body: linearToken },
       { body: { data: linearAccount } },
@@ -191,6 +198,7 @@ describe("Linear consent returns to the originating unlocked runtime", () => {
     expect(authorize).not.toHaveBeenCalled();
     await consent;
     expect(window.prepare).toHaveBeenCalledOnce();
+    expect(reservedState).toBe(authorize.mock.calls[0]?.[1].state);
     expect(window.prepare.mock.invocationCallOrder[0]).toBeLessThan(
       authorize.mock.invocationCallOrder[0] ?? 0,
     );
@@ -206,6 +214,40 @@ describe("Linear consent returns to the originating unlocked runtime", () => {
     expect(exchange.get("redirect_uri")).toBe(
       "https://app.example.org/OpenSesame/auth/linear.html",
     );
+  });
+
+  it("clears the prepared request when the consent window cannot open", async () => {
+    const id = await configured();
+    const release = vi.fn();
+    const prepare = vi.fn(() => {
+      throw new Error("Allow the provider sign-in window and try again");
+    });
+    const authorize = vi.fn<NonNullable<NativeOAuthBrowserPort["authorize"]>>();
+    unbind = bindNativeOAuthBrowserPort({
+      redirectUri:
+        "https://app.example.org/OpenSesame/auth/native-connector.html",
+      navigate,
+      scrubCallback: vi.fn(),
+      prepareAuthorization: prepare,
+      authorize,
+    });
+    await expect(beginLinearAuthorization(id, "app")).rejects.toThrow(
+      "sign-in window",
+    );
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(release).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(readDeviceSecrets()[id]?.linear_pending).toBeUndefined();
+    const retry = vi.fn<NonNullable<NativeOAuthBrowserPort["authorize"]>>(
+      async (_url, options) => response(options.state),
+    );
+    const window = browserPort(retry);
+    linearAnswers({ body: linearToken }, { body: { data: linearAccount } });
+    await beginLinearAuthorization(id, "app");
+    expect(window.prepare).toHaveBeenCalledOnce();
+    expect(window.release).toHaveBeenCalledOnce();
+    expect(deviceConnection(id)?.status).toBe("active");
   });
 
   it("clears only its unconsumed pending request on cancellation and allows retry", async () => {
