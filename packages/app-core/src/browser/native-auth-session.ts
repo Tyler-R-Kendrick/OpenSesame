@@ -71,7 +71,12 @@ function closeSessionPopup(session: PopupSession): void {
     // Nulling the opener removes our right to close a foreign consent window.
     // Reading its location succeeds again once the callback returns to us.
     try {
-      void session.popup.location.href;
+      const href = session.popup.location.href;
+      if (
+        href !== "about:blank" &&
+        new URL(href).origin !== window.location.origin
+      )
+        return;
     } catch {
       return;
     }
