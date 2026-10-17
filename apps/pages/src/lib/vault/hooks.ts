@@ -13,6 +13,7 @@ import {
 import { overlapCast } from "@opensesame/os-domain";
 import { packsVersion, subscribePacks } from "@opensesame/vault-item-types";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { lockAfterDraft } from "../sw-update-guard.js";
 import {
   applyTheme,
   hasStoredTheme,
@@ -132,7 +133,7 @@ function useSessionGuardsDefault(): void {
           unlocked: status === "unlocked",
         })
       ) {
-        vaultStore.lock();
+        lockAfterDraft(vaultStore);
       }
     };
     document.addEventListener("visibilitychange", onHide);

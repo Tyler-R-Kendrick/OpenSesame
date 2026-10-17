@@ -1,14 +1,10 @@
-import {
-  acknowledgeCertificateDelivery,
-  issueCertificate,
-} from "@opensesame/app-core/lib/certs.js";
+import { registerDraftSaver } from "@opensesame/app-core/lib/dirty-edit.js";
 import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import {
   acceptsDraftUsername,
   isGeneratedDraftName,
   newItemDraft,
 } from "@opensesame/app-core/lib/vault/new-draft.js";
-import { validateWebsitePatterns } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
   type AccountItem,
@@ -18,8 +14,8 @@ import {
   itemTypeId,
   itemTypeRegistry,
 } from "@opensesame/vault-core";
-import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import type { FieldValue } from "@opensesame/vault-item-types";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip } from "../../components/EmptyTip.js";
@@ -36,12 +32,12 @@ import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
-import {
-  saveWithCredentials,
-  settleForSave,
-  settleMethods,
-} from "./account-secrets.js";
 import { useEditorContributions } from "./item-contributions.js";
+import {
+  type EditorPersistResult,
+  editorDraftError,
+  persistEditorDraft,
+} from "./item-editor-persist.js";
 import { seedDraft } from "./seed-draft.js";
 import { useEditorPath } from "./useEditorPath.js";
 
@@ -53,6 +49,13 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   return (
     <EditorForm key={`${mode}:${kind ?? ""}:${itemId ?? ""}`} mode={mode} />
   );
+}
+
+/** The latest value, including renders that returned before a saver ran. */
+function useLatest<T>(value: T): { readonly current: T } {
+  const ref = useRef(value);
+  ref.current = value;
+  return ref;
 }
 
 function EditorForm({ mode }: { mode: "new" | "edit" }) {
@@ -90,6 +93,25 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     setPendingDeliveryId(undefined);
     setIssuanceKey(crypto.randomUUID());
   }, [initial]);
+
+  const draftRef = useLatest(draft);
+  const formRef = useRef<HTMLFormElement>(null);
+  const persistRef = useRef<() => Promise<EditorPersistResult>>(async () => ({
+    ok: false,
+    message: "Nothing to edit",
+  }));
+  useEffect(
+    () =>
+      registerDraftSaver("vault-item-editor", async () => {
+        const result = await persistRef.current();
+        if (!result.ok) return false;
+        formRef.current?.dispatchEvent(
+          new Event("os-edit-committed", { bubbles: true }),
+        );
+        return true;
+      }),
+    [],
+  );
 
   const patch = (changes: Partial<VaultItem>) =>
     setDraft((current) =>
@@ -180,94 +202,55 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         : { ...current, values: { ...current.values, [fieldId]: value } },
     );
 
+  persistRef.current = () => {
+    const current = draftRef.current;
+    if (!current || current.kind === "drop") {
+      return Promise.resolve({ ok: false, message: "Nothing to edit" });
+    }
+    return persistEditorDraft({
+      draft: current,
+      existing,
+      items,
+      writer: store,
+      locate: () => {
+        const location = path.resolve();
+        return {
+          name: location.name,
+          folderId: location.folderId,
+          folder: location.folder,
+        };
+      },
+      pendingDeliveryId,
+      issuanceKey,
+      rememberIssued: (next, deliveryId) => {
+        setPendingDeliveryId(deliveryId);
+        setDraft(next);
+      },
+      clearDelivery: () => setPendingDeliveryId(undefined),
+    });
+  };
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!draft) return;
-    if (!draft.name.trim() && draft.kind !== "certificate") {
-      setError("Give this item a name so you can find it again.");
+    const current = draftRef.current;
+    if (!current) return;
+    const rejected = editorDraftError(current);
+    if (rejected) {
+      setError(rejected);
       return;
-    }
-    if (
-      draft.kind === "certificate" &&
-      !draft.certificatePem &&
-      !draft.commonName.trim()
-    ) {
-      setError("Enter the certificate's common name before issuing it.");
-      return;
-    }
-    // The editor marks a required field with a star. Saying so and then
-    // saving anyway is worse than not marking it at all.
-    if (draft.kind === "typed" && typedDefinition !== undefined) {
-      const missing = missingRequired(typedDefinition, draft.values);
-      if (missing.length > 0) {
-        setError(
-          `Fill in ${missing.map((field) => field.label).join(", ")} before saving.`,
-        );
-        return;
-      }
     }
     setSaving(true);
     setError(null);
-    let deliveryId = pendingDeliveryId;
     try {
-      const location = path.resolve();
-      if (draft.kind === "account") await validateWebsitePatterns(draft.uris);
-      let next = { ...draft, name: location.name, folderId: location.folderId };
-      if (next.kind === "certificate" && !next.certificatePem) {
-        const issued = await issueCertificate({
-          commonName: next.commonName.trim(),
-          dnsNames: next.dnsNames
-            .split(/[,\s]+/)
-            .map((name) => name.trim())
-            .filter(Boolean),
-          ipAddrs: next.ipAddrs
-            .split(/[,\s]+/)
-            .map((name) => name.trim())
-            .filter(Boolean),
-          ttlHours: Number(next.ttlHours) || 24,
-          idempotencyKey: issuanceKey,
-        });
-        deliveryId = issued.deliveryId;
-        setPendingDeliveryId(deliveryId);
-        next = {
-          ...next,
-          name: next.name.trim() || issued.commonName,
-          commonName: issued.commonName,
-          dnsNames: issued.dnsNames.join(", "),
-          certificatePem: issued.certificate,
-          privateKeyPem: issued.privateKey,
-          caPem: issued.caCertificate,
-          serial: issued.serial,
-          notAfter: issued.notAfter,
-        };
-        // Keep one-time material in memory if vault sealing fails. A retry
-        // saves this exact issuance instead of minting another certificate.
-        setDraft(next);
+      const result = await persistRef.current();
+      if (!result.ok) {
+        setError(result.message);
+        return;
       }
-      if (next.kind === "account") {
-        // `changedAt` moves with the password it describes (ADR 0174).
-        next = settleForSave(
-          next,
-          existing?.kind === "account" ? existing : undefined,
-        );
-      }
-      if (next.kind === "credential") {
-        const [method = next.method] = settleMethods(
-          [next.method],
-          existing?.kind === "credential" ? [existing.method] : [],
-        );
-        next = { ...next, method };
-      }
-      await saveWithCredentials(store, items, next, location.folder);
-      if (deliveryId) {
-        await acknowledgeCertificateDelivery(deliveryId);
-        setPendingDeliveryId(undefined);
-      }
-      navigate(`/vault/${next.id}`);
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not save this item.",
+      formRef.current?.dispatchEvent(
+        new Event("os-edit-committed", { bubbles: true }),
       );
+      navigate(`/vault/${result.id}`);
     } finally {
       setSaving(false);
     }
@@ -286,7 +269,11 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
   return (
     <div className="detail">
-      <form className="editor" onSubmit={(event) => void onSubmit(event)}>
+      <form
+        ref={formRef}
+        className="editor"
+        onSubmit={(event) => void onSubmit(event)}
+      >
         <EditorTitle
           value={draft}
           folders={path.choices}

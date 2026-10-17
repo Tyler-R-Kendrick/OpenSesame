@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { lockAfterDraft } from "../lib/sw-update-guard.js";
 import { useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccountSwitcher } from "./AccountSwitcher.js";
@@ -15,7 +16,7 @@ export function LockKey() {
       ref={ref}
       type="button"
       className="icon-btn"
-      onClick={() => store.lock()}
+      onClick={() => lockAfterDraft(store)}
       aria-label="Lock vault"
       title="Lock vault"
     >
