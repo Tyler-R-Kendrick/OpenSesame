@@ -1,5 +1,5 @@
 //! Run-grant persistence on the same authority store as leases.
-use super::*;
+use super::{Row, RunGrant, RunGrantBinding, Store};
 
 impl Store {
     async fn load_run_grant(&mut self, id: &str) -> anyhow::Result<RunGrant> {
