@@ -5,7 +5,11 @@
 
 import { z } from "zod";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
-import { writeCliAppIntegrationBearer } from "./bearer-session.js";
+import {
+  clearCliAppIntegrationBearer,
+  writeCliAppIntegrationBearer,
+} from "./bearer-session.js";
+import type { CliAppPasskeyRegistration } from "./webauthn-credential.js";
 
 /** 32 random bytes, unpadded base64url — same as `plugin-pairing.ts` SECRET. */
 export const CLI_APP_PAIRING_SECRET = /^[A-Za-z0-9_-]{43}$/;
@@ -24,9 +28,68 @@ export type CliAppPairingCode = Readonly<{
   label: string;
 }>;
 
+export type CliAppPairingFailure = Readonly<{
+  ok: false;
+  code: string;
+  message: string;
+}>;
+
 export type CliAppPairingConfirmOutcome = Readonly<{
+  ok: true;
   registrationCode: string;
 }>;
+
+/** One sentence per daemon or local refusal. Unknown codes keep their code. */
+export function cliAppPairingRefusalMessage(code: string): string {
+  switch (code) {
+    case "origin_required":
+      return "This page's origin cannot pair.";
+    case "root_key_not_enrolled":
+      return "The root trust key is not enrolled, so pairing cannot finish.";
+    case "pairing_confirm_required":
+      return "Confirm the pairing code before finishing.";
+    case "pairing_registration_required":
+      return "Type the registration code into the terminal, then finish pairing.";
+    case "pairing_registration_mismatch":
+      return "The registration code did not match.";
+    case "too_many_pairings":
+      return "Too many pairings are stored. Remove one, then try again.";
+    case "invalid_proof":
+      return "The passkey proof was rejected.";
+    case "pairing_expired":
+      return "That pairing code expired.";
+    case "pairing_unknown":
+      return "That pairing code is not waiting.";
+    case "pairing_wrong_origin":
+      return "That pairing code was issued for another origin.";
+    case "invalid_origin":
+      return "That origin cannot pair.";
+    case "cli_app_pairing_required":
+      return "Pairing did not stick. Start again from the code.";
+    case "ark_enrollment_required":
+      return "Approver enrollment is required before pairing can finish.";
+    case "client_supplied_spki_rejected":
+      return "A software key cannot stand in for the passkey.";
+    case "vault_locked":
+      return "Unlock the vault before pairing.";
+    case "challenge_unavailable":
+      return "The pairing challenge could not be read.";
+    case "network":
+      return "The pairing service could not be reached.";
+    case "pairing_unreadable":
+      return "The pairing refusal could not be read.";
+    default:
+      return `Pairing was refused (${code}).`;
+  }
+}
+
+function refused(code: string, message?: string): CliAppPairingFailure {
+  return {
+    ok: false,
+    code,
+    message: message ?? cliAppPairingRefusalMessage(code),
+  };
+}
 
 const pairingPayloadSchema = z.object({
   code: z.string(),
@@ -135,11 +198,26 @@ async function postPairing(
   });
 }
 
+async function refusalFromResponse(
+  res: Response,
+): Promise<CliAppPairingFailure> {
+  let code = "pairing_unreadable";
+  try {
+    const body = z
+      .object({ error: z.string().min(1) })
+      .safeParse(await res.json());
+    if (body.success) code = body.data.error;
+  } catch {
+    code = "pairing_unreadable";
+  }
+  return refused(code);
+}
+
 export async function fetchCliAppPairingChallenge(
   parsed: CliAppPairingCode,
-): Promise<Uint8Array | null> {
+): Promise<Uint8Array | CliAppPairingFailure> {
   const base = daemonBase(parsed.url);
-  if (!base) return null;
+  if (!base) return refused("invalid_origin");
   const url = new URL(`${base}${CLI_APP_PAIRING_CHALLENGE_PATH}`);
   url.searchParams.set("code", parsed.code);
   const res = await fetch(url, {
@@ -147,20 +225,21 @@ export async function fetchCliAppPairingChallenge(
     credentials: "omit",
     headers: { Origin: parsed.origin },
   });
-  if (!res.ok) return null;
+  if (!res.ok) return refusalFromResponse(res);
   const body = pairingChallengeBodySchema.safeParse(await res.json());
-  if (!body.success) return null;
-  const challengeB64 = body.data.challengeB64;
+  if (!body.success) return refused("pairing_unreadable");
   const { b64urlDecode } = await import("./device-crypto.js");
-  const bytes = b64urlDecode(challengeB64);
-  return bytes && bytes.byteLength === 32 ? bytes : null;
+  const bytes = b64urlDecode(body.data.challengeB64);
+  return bytes && bytes.byteLength === 32
+    ? bytes
+    : refused("challenge_unavailable");
 }
 
 export async function confirmCliAppPairingCode(
   parsed: CliAppPairingCode,
-): Promise<CliAppPairingConfirmOutcome | null> {
+): Promise<CliAppPairingConfirmOutcome | CliAppPairingFailure> {
   const base = daemonBase(parsed.url);
-  if (!base) return null;
+  if (!base) return refused("invalid_origin");
   const {
     pairingConfirmMessage,
     ensureCliAppDeviceSigningKey,
@@ -168,92 +247,131 @@ export async function confirmCliAppPairingCode(
   } = await import("./device-crypto.js");
   const device = await ensureCliAppDeviceSigningKey();
   const vaultSessionRootDigest = await readVaultSessionRootDigestForCliApp();
-  if (!device || !vaultSessionRootDigest) return null;
-  const challenge = await fetchCliAppPairingChallenge(parsed);
-  if (!challenge) return null;
+  if (!device || !vaultSessionRootDigest) return refused("vault_locked");
+  let challenge: Uint8Array | CliAppPairingFailure;
+  try {
+    challenge = await fetchCliAppPairingChallenge(parsed);
+  } catch {
+    return refused("network");
+  }
+  if (!(challenge instanceof Uint8Array)) return challenge;
   const message = pairingConfirmMessage(challenge, parsed.code, parsed.origin);
   const pairingSignatureB64 = await device.sign(message);
-  const res = await postPairing(
-    base,
-    CLI_APP_PAIRING_CONFIRM_PATH,
-    parsed.origin,
-    {
+  let res: Response;
+  try {
+    res = await postPairing(base, CLI_APP_PAIRING_CONFIRM_PATH, parsed.origin, {
       code: parsed.code,
       devicePublicKeySpkiB64: device.publicKeySpkiB64,
       pairingSignatureB64,
       vaultSessionRootDigest,
-    },
-  );
-  if (!res.ok) return null;
+    });
+  } catch {
+    return refused("network");
+  }
+  if (!res.ok) return refusalFromResponse(res);
   const body = pairingConfirmBodySchema.safeParse(await res.json());
-  if (!body.success) return null;
-  return { registrationCode: body.data.registrationCode };
+  if (!body.success) return refused("pairing_unreadable");
+  return { ok: true, registrationCode: body.data.registrationCode };
+}
+
+export async function submitCliAppWebAuthnRegistration(
+  base: string,
+  origin: string,
+  token: string,
+  vaultSessionRootDigest: string,
+  registration: CliAppPasskeyRegistration,
+): Promise<true | CliAppPairingFailure> {
+  const { cliAppWebAuthnRegisterPayload, saveCliAppWebAuthnCredential } =
+    await import("./webauthn-credential.js");
+  let res: Response;
+  try {
+    res = await fetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {
+      method: "POST",
+      credentials: "omit",
+      headers: {
+        "content-type": "application/json",
+        Origin: origin,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(
+        cliAppWebAuthnRegisterPayload(vaultSessionRootDigest, registration),
+      ),
+    });
+  } catch {
+    return refused("network");
+  }
+  if (res.status !== 204) return refusalFromResponse(res);
+  await saveCliAppWebAuthnCredential({
+    credentialIdB64: registration.credentialIdB64,
+    coseKeyB64: registration.coseKeyB64,
+    publicKeySpkiB64: registration.publicKeySpkiB64,
+  });
+  return true;
 }
 
 async function registerCliAppHumanProofCredential(
   base: string,
   origin: string,
   token: string,
-): Promise<boolean> {
+): Promise<true | CliAppPairingFailure> {
   const {
-    ensureCliAppApprovalSigningKey,
     readVaultSessionRootDigestForCliApp,
-    mintCliAppRegisterHumanProof,
-    b64urlEncode,
+    webauthnRegisterChallengeDigest,
   } = await import("./device-crypto.js");
-  const approval = await ensureCliAppApprovalSigningKey();
+  const { createCliAppPasskeyCredential } = await import(
+    "./webauthn-credential.js"
+  );
   const vaultSessionRootDigest = await readVaultSessionRootDigestForCliApp();
-  if (!approval || !vaultSessionRootDigest) return false;
-  const humanProof = await mintCliAppRegisterHumanProof(
-    approval,
+  if (!vaultSessionRootDigest) return refused("vault_locked");
+  const challenge = await webauthnRegisterChallengeDigest(
     token,
     origin,
     vaultSessionRootDigest,
   );
-  const credentialIdB64 = b64urlEncode(
-    new TextEncoder().encode(approval.publicKeySpkiB64),
+  const registration = await createCliAppPasskeyCredential(challenge);
+  if (!registration.ok) return refused(registration.code, registration.message);
+  return submitCliAppWebAuthnRegistration(
+    base,
+    origin,
+    token,
+    vaultSessionRootDigest,
+    registration,
   );
-  const res = await fetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {
-    method: "POST",
-    credentials: "omit",
-    headers: {
-      "content-type": "application/json",
-      Origin: origin,
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      vaultSessionRootDigest,
-      humanProof,
-      credentialIdB64,
-      publicKeySpkiB64: approval.publicKeySpkiB64,
-      signCount: 1,
-    }),
-  });
-  return res.status === 204;
 }
 
 export async function exchangeCliAppPairingCode(
   parsed: CliAppPairingCode,
-): Promise<boolean> {
+): Promise<true | CliAppPairingFailure> {
   const base = daemonBase(parsed.url);
-  if (!base) return false;
-  const res = await postPairing(
-    base,
-    CLI_APP_PAIRING_EXCHANGE_PATH,
-    parsed.origin,
-    {
-      code: parsed.code,
-    },
-  );
-  if (res.status !== 201) return false;
+  if (!base) return refused("invalid_origin");
+  let res: Response;
+  try {
+    res = await postPairing(
+      base,
+      CLI_APP_PAIRING_EXCHANGE_PATH,
+      parsed.origin,
+      {
+        code: parsed.code,
+      },
+    );
+  } catch {
+    return refused("network");
+  }
+  if (res.status !== 201) return refusalFromResponse(res);
   const body = pairingExchangeBodySchema.safeParse(await res.json());
   if (!body.success || !CLI_APP_PAIRING_SECRET.test(body.data.token)) {
-    return false;
+    return refused("pairing_unreadable");
   }
   const token = body.data.token;
   writeCliAppIntegrationBearer(token);
-  if (!(await registerCliAppHumanProofCredential(base, parsed.origin, token))) {
-    return false;
+  const registered = await registerCliAppHumanProofCredential(
+    base,
+    parsed.origin,
+    token,
+  );
+  if (registered !== true) {
+    clearCliAppIntegrationBearer();
+    return registered;
   }
   return true;
 }
@@ -261,9 +379,10 @@ export async function exchangeCliAppPairingCode(
 /** Confirm in the unlocked PWA, then exchange for the session bearer. */
 export async function completeCliAppPairing(
   parsed: CliAppPairingCode,
-): Promise<CliAppPairingConfirmOutcome | null> {
+): Promise<CliAppPairingConfirmOutcome | CliAppPairingFailure> {
   const confirmed = await confirmCliAppPairingCode(parsed);
-  if (!confirmed) return null;
-  if (!(await exchangeCliAppPairingCode(parsed))) return null;
+  if (!confirmed.ok) return confirmed;
+  const exchanged = await exchangeCliAppPairingCode(parsed);
+  if (exchanged !== true) return exchanged;
   return confirmed;
 }

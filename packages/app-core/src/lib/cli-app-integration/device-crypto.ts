@@ -17,7 +17,6 @@ async function readCliAppPairingVaultSessionRoot(): Promise<string | null> {
   return vaultStore.readSessionRootDigest();
 }
 const DEVICE_SIGNING_STORAGE_KEY = "opensesame-cli-app-device-signing.v1";
-const APPROVAL_SIGNING_STORAGE_KEY = "opensesame-cli-app-approval-signing.v1";
 
 async function sha256(data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
@@ -121,51 +120,6 @@ export function formatCliAppHumanProofPin(signatureB64: string): string {
 
 export function formatCliAppHumanProofPasskey(assertionJson: string): string {
   return `${CLI_APP_HUMAN_PROOF_PREFIX}passkey:${assertionJson}`;
-}
-
-/** Build a passkey-shaped registration proof for the daemon register route. */
-export async function mintCliAppRegisterHumanProof(
-  approval: CliAppDeviceSigningKey,
-  token: string,
-  origin: string,
-  vaultSessionRootDigest: string,
-): Promise<string> {
-  const challenge = await webauthnRegisterChallengeDigest(
-    token,
-    origin,
-    vaultSessionRootDigest,
-  );
-  const challengeB64 = b64urlEncode(challenge);
-  const clientDataJson = JSON.stringify({
-    type: "webauthn.get",
-    challenge: challengeB64,
-  });
-  const clientDataBytes = new TextEncoder().encode(clientDataJson);
-  const clientHash = new Uint8Array(
-    await crypto.subtle.digest("SHA-256", clientDataBytes),
-  );
-  const authData = new Uint8Array(37);
-  authData[32] = 0x05;
-  authData[33] = 0;
-  authData[34] = 0;
-  authData[35] = 0;
-  authData[36] = 1;
-  const signed = new Uint8Array(authData.byteLength + clientHash.byteLength);
-  signed.set(authData, 0);
-  signed.set(clientHash, authData.byteLength);
-  const signatureB64 = await approval.sign(signed);
-  const credentialIdB64 = b64urlEncode(
-    new TextEncoder().encode(approval.publicKeySpkiB64),
-  );
-  const wire = JSON.stringify({
-    credentialIdB64,
-    authenticatorDataB64: b64urlEncode(authData),
-    clientDataJsonB64: b64urlEncode(clientDataBytes),
-    signatureB64,
-  });
-  // Register route still verifies the `oschip2:passkey:` wire (binding.rs);
-  // approve proofs moved to `oschip3:` above.
-  return `oschip2:passkey:${wire}`;
 }
 
 type StoredDeviceKey = Readonly<{
@@ -318,9 +272,4 @@ async function ensureCliAppSigningKeyForStorage(
 /** Load or create the device signing key while the vault is unlocked. */
 export async function ensureCliAppDeviceSigningKey(): Promise<CliAppDeviceSigningKey | null> {
   return ensureCliAppSigningKeyForStorage(DEVICE_SIGNING_STORAGE_KEY);
-}
-
-/** Vault-wrapped approval key (distinct from the pairing device key). */
-export async function ensureCliAppApprovalSigningKey(): Promise<CliAppDeviceSigningKey | null> {
-  return ensureCliAppSigningKeyForStorage(APPROVAL_SIGNING_STORAGE_KEY);
 }

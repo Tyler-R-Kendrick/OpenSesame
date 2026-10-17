@@ -31,8 +31,8 @@ export function useCliAuthorizePairingForm(onPaired: () => void) {
     }
     const confirmed = await pairing.confirmCliAppPairingCode(parsed);
     setBusy(false);
-    if (!confirmed) {
-      setMark("The daemon refused that code.");
+    if (!confirmed.ok) {
+      setMark(confirmed.message);
       return;
     }
     setPendingParsed(parsed);
@@ -47,10 +47,10 @@ export function useCliAuthorizePairingForm(onPaired: () => void) {
     const pairing = await import(
       "@opensesame/app-core/lib/cli-app-integration/pairing.js"
     );
-    const ok = await pairing.exchangeCliAppPairingCode(pendingParsed);
+    const exchanged = await pairing.exchangeCliAppPairingCode(pendingParsed);
     setBusy(false);
-    if (!ok) {
-      setMark("The daemon refused to finish pairing.");
+    if (exchanged !== true) {
+      setMark(exchanged.message);
       return;
     }
     setPendingParsed(null);
