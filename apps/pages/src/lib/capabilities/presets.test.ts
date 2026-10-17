@@ -11,6 +11,9 @@ import {
   presetById,
   presetToInstancePolicy,
 } from "@opensesame/app-core/lib/capabilities/presets.js";
+import onepasswordArtifacts from "@opensesame/app-core/lib/secret-backends/onepassword-artifacts.json" with {
+  type: "json",
+};
 import {
   isModuleId,
   parseDistributionContract,
@@ -124,6 +127,33 @@ describe("MODULE_OWNERSHIP", () => {
       }
       const onDisk = file.endsWith("/**") ? file.slice(0, -3) : file;
       expect(existsSync(join(pagesRoot, "public", onDisk)), file).toBe(true);
+    }
+  });
+
+  it("owns exactly the three pinned native SDK resources as generated connector assets", () => {
+    expect(Object.keys(onepasswordArtifacts.assets).sort()).toEqual([
+      "license",
+      "runtime",
+      "wasm",
+    ]);
+    const assets = Object.values(onepasswordArtifacts.assets).sort();
+    for (const map of [PUBLIC_FILE_OWNERSHIP, GENERATED_PUBLIC_FILES]) {
+      expect(
+        Object.keys(map)
+          .filter((path) => path.startsWith("onepassword/"))
+          .sort(),
+      ).toEqual(assets);
+      expect(map).not.toHaveProperty("onepassword/**");
+    }
+    for (const path of assets) {
+      expect(PUBLIC_FILE_OWNERSHIP[path], path).toBe("connectors.external");
+      expect(GENERATED_PUBLIC_FILES[path], path).toBe(
+        "scripts/onepassword-wasm-assets.mjs",
+      );
+      expect(
+        existsSync(join(pagesRoot, GENERATED_PUBLIC_FILES[path])),
+        path,
+      ).toBe(true);
     }
   });
 

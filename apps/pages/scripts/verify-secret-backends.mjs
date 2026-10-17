@@ -142,7 +142,12 @@ async function nativeConnections(page, width) {
     const preset = presets.find((entry) => entry.providerId === providerId);
     setStep(`${width}-${providerId}-native-http`);
     await openBackend(page, base, preset);
-    await fillNativeBackend(page, fixture, preset.defaultMode, width);
+    const mode =
+      providerId === "1password" ? "onepassword-connect" : preset.defaultMode;
+    await page
+      .getByLabel("Connection method", { exact: true })
+      .selectOption(mode);
+    await fillNativeBackend(page, fixture, mode, width);
     await saveBackend(page);
     await savedBackendReload(page, {
       base,

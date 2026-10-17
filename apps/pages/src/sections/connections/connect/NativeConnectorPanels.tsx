@@ -11,7 +11,7 @@ import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connec
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
@@ -28,6 +28,7 @@ import {
 } from "./native-key-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 import { nativeS3Descriptor } from "./native-s3-descriptor.js";
+import { useNativeAuthorization } from "./useNativeAuthorization.js";
 
 function nativeKeyActionsFor(providerId: string) {
   const keyed = nativeKeyDriverFor(providerId);
@@ -195,6 +196,24 @@ function actions(
   };
 }
 
+// Removal bumps the revision before deleting, which supersedes the
+// summary attempt that would report it; publish the disappearance here.
+function usePublishConnectorDisappearance(
+  view: NativeConnectorView | null,
+  changed: (next: NativeConnectorView | null) => void,
+) {
+  const hadView = useRef(false);
+  const publish = useRef(changed);
+  publish.current = changed;
+  useEffect(() => {
+    if (view) hadView.current = true;
+    else if (hadView.current) {
+      hadView.current = false;
+      publish.current(null);
+    }
+  }, [view]);
+}
+
 export function NativeConnectorPanels({
   provider,
   connection,
@@ -211,6 +230,7 @@ export function NativeConnectorPanels({
   // The connector bridge changes what a refused provider offers (ADR 0199).
   useNativeBridge(provider.id);
   const descriptor = nativeSettingsDescriptor(provider);
+  const pending = useNativeAuthorization(provider.id, connection?.connectionId);
   const controller = useMemo(
     () =>
       nativeConnectorController(
@@ -219,8 +239,9 @@ export function NativeConnectorPanels({
           refused: connectPlan(provider.id)?.refused ?? false,
         },
         connection?.connectionId,
+        pending.onAuthorization,
       ),
-    [provider.id, connection?.connectionId],
+    [provider.id, connection?.connectionId, pending.onAuthorization],
   );
   const [, refresh] = useState(0);
   const view = controller.load();
@@ -240,12 +261,14 @@ export function NativeConnectorPanels({
     refresh((version) => version + 1);
     onChanged();
   };
+  usePublishConnectorDisappearance(view, changed);
   const form = (
     <NativeConnectorForm
-      key={`${provider.id}/${connection?.connectionId ?? "new"}/${roads}`}
+      key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}/${pending.generation}`}
       descriptor={current}
       controller={controller}
       view={view}
+      authorization={pending.authorization}
       onFlash={onFlash}
       onChanged={changed}
     />
@@ -275,6 +298,7 @@ export function NativeConnectorPanels({
             onFlash={onFlash}
             onChanged={changed}
             onRemoved={() => changed(null)}
+            authorization={pending.authorization}
           />
           {view.configuration.method === "mcp" ? (
             <NativeMcpTools
@@ -282,6 +306,7 @@ export function NativeConnectorPanels({
               controller={controller}
               onFlash={onFlash}
               onChanged={changed}
+              disabled={!!pending.authorization}
             />
           ) : null}
         </>

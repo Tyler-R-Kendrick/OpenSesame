@@ -154,18 +154,56 @@ export async function proveDeniedProviderCleanup(input) {
 
 async function signInAgain({ page, provider, service, idp, grants }) {
   await page.context().clearCookies({ domain: new URL(idp.issuer).hostname });
-  await page
-    .getByLabel("Instance HTTPS origin", { exact: true })
-    .fill(service.endpoint);
   const issuedBefore = grants.length;
-  const opened = page.context().waitForEvent("page");
-  await page
-    .getByRole("button", { name: `Sign in to ${provider.name}`, exact: true })
-    .click();
-  const popup = await opened;
+  const signIn = page.getByRole("button", {
+    name: `Sign in to ${provider.name}`,
+    exact: true,
+  });
+  // Removal finalizing remounts the form (committed revision key) and can
+  // discard a just-filled draft; re-fill until the click lands on a live form.
+  let opened;
+  for (let attempt = 1; ; attempt += 1) {
+    await page
+      .getByLabel("Instance HTTPS origin", { exact: true })
+      .fill(service.endpoint);
+    await expect(signIn)
+      .toBeEnabled({ timeout: 10_000 })
+      .catch(async (error) => {
+        throw new Error(
+          `Re-sign-in control unavailable: count=${await signIn.count()} :: ${await page
+            .locator("body")
+            .innerText()
+            .then((text) => text.slice(0, 1600))}`,
+          { cause: error },
+        );
+      });
+    opened = page.context().waitForEvent("page", { timeout: 30_000 });
+    opened.catch(() => {});
+    try {
+      await signIn.click({ timeout: 5_000 });
+      break;
+    } catch (error) {
+      if (attempt >= 4) throw error;
+    }
+  }
+  const popup = await opened.catch(async (error) => {
+    throw new Error(
+      `Re-sign-in window never opened: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
+        .locator("body")
+        .innerText()
+        .then((text) => text.slice(0, 1200))}`,
+      { cause: error },
+    );
+  });
   await popup
     .getByRole("heading", { name: "Provider sign in", exact: true })
-    .waitFor();
+    .waitFor()
+    .catch(async (error) => {
+      throw new Error(
+        `Re-sign-in window closed before consent: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))}`,
+        { cause: error },
+      );
+    });
   await finishProvider(popup, idp);
   await expect(
     page.getByRole("img", { name: `${provider.name} connected`, exact: true }),

@@ -24,6 +24,7 @@ async function beginProvider(page, { base, provider, bao }) {
     .getByLabel("Instance HTTPS origin", { exact: true })
     .fill(bao.endpoint);
   const popupPromise = page.context().waitForEvent("page");
+  popupPromise.catch(() => {});
   await page
     .getByRole("button", { name: `Sign in to ${provider.name}`, exact: true })
     .click();
