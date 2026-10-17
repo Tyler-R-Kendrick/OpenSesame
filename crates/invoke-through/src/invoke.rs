@@ -23,7 +23,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
 use zeroize::Zeroizing;
 
-use crate::egress::{EgressRule, EGRESS_RULES};
+use crate::egress::{AuthStyle, EgressRule, EGRESS_RULES};
 use crate::error::InvokeError;
 use crate::fence::{EgressFence, PreparedRequest};
 use crate::scrub::Needles;
@@ -32,7 +32,7 @@ use crate::tls::{build_client, HttpsClient, TlsClientSpec};
 
 #[cfg(test)]
 #[path = "invoke_stub.rs"]
-mod stub;
+pub(crate) mod stub;
 
 /// Outbound body cap: generous for an API payload, useless for exfiltration.
 pub const DEFAULT_REQUEST_BODY_CAP: usize = 256 * 1024;
@@ -211,7 +211,30 @@ impl Invoker {
         token: &SecretString,
         prepared: PreparedRequest,
     ) -> Result<InvokeResponse, InvokeError> {
+        if prepared.auth != AuthStyle::Bearer {
+            return Err(InvokeError::UnsupportedProvider(prepared.provider_id));
+        }
         let started = Instant::now();
+        let mut builder = Self::request_builder(&prepared);
+        // The one place the token is materialized into the request. The
+        // formatted `Bearer …` string is zeroized immediately after the
+        // header value is built; the header itself is marked sensitive so
+        // Debug representations redact it.
+        let mut authorization =
+            HeaderValue::from_str(&Zeroizing::new(format!("Bearer {}", token.expose_secret())))
+                .map_err(|_| InvokeError::MalformedToken)?;
+        authorization.set_sensitive(true);
+        builder = builder.header(hyper::header::AUTHORIZATION, authorization);
+        let request = builder
+            .body(Full::new(prepared.body.clone()))
+            .map_err(|_| InvokeError::InvalidUrl)?;
+        let needles = [Needles::new(token.expose_secret())];
+        self.dispatch(request, &needles, prepared, started).await
+    }
+
+    /// The method, URI and caller headers of a cleared request, plus the
+    /// default user agent when the caller set none.
+    pub(crate) fn request_builder(prepared: &PreparedRequest) -> hyper::http::request::Builder {
         let mut builder = hyper::Request::builder()
             .method(prepared.method.clone())
             .uri(prepared.uri.clone());
@@ -225,19 +248,19 @@ impl Invoker {
         {
             builder = builder.header("user-agent", DEFAULT_USER_AGENT);
         }
-        // The one place the token is materialized into the request. The
-        // formatted `Bearer …` string is zeroized immediately after the
-        // header value is built; the header itself is marked sensitive so
-        // Debug representations redact it.
-        let mut authorization =
-            HeaderValue::from_str(&Zeroizing::new(format!("Bearer {}", token.expose_secret())))
-                .map_err(|_| InvokeError::MalformedToken)?;
-        authorization.set_sensitive(true);
-        builder = builder.header(hyper::header::AUTHORIZATION, authorization);
-        let request = builder
-            .body(Full::new(prepared.body.clone()))
-            .map_err(|_| InvokeError::InvalidUrl)?;
+        builder
+    }
 
+    /// Send a credentialed request and read the answer through every fence on
+    /// the way back: allowlisted headers, the body cap, the timeout, and the
+    /// reflection scrub over each needle.
+    pub(crate) async fn dispatch(
+        &self,
+        request: hyper::Request<Full<Bytes>>,
+        needles: &[Needles],
+        prepared: PreparedRequest,
+        started: Instant,
+    ) -> Result<InvokeResponse, InvokeError> {
         let response = match tokio::time::timeout(self.timeout, self.client.request(request)).await
         {
             Ok(Ok(response)) => response,
@@ -247,7 +270,6 @@ impl Invoker {
         let status = response.status().as_u16();
         // Built before anything upstream sent is read: every header and the
         // body pass through it on the way back (ADR 0150 §4).
-        let needles = Needles::new(token.expose_secret());
         let mut credential_reflected = false;
         let headers = response
             .headers()
@@ -256,7 +278,7 @@ impl Invoker {
                 RESPONSE_HEADER_ALLOWLIST.contains(&name.as_str().to_ascii_lowercase().as_str())
             })
             .filter_map(|(name, value)| {
-                let (value, hit) = needles.scrub_str(value.to_str().ok()?.to_string());
+                let (value, hit) = scrub_all(needles, value.to_str().ok()?.to_string());
                 credential_reflected |= hit;
                 Some((name.as_str().to_string(), value))
             })
@@ -286,8 +308,12 @@ impl Invoker {
             }
             Err(_) => return Err(InvokeError::Timeout),
         };
-        let (body, body_hit) = needles.scrub(body);
-        credential_reflected |= body_hit;
+        let mut body = body;
+        for needle in needles {
+            let (scrubbed, hit) = needle.scrub(body);
+            body = scrubbed;
+            credential_reflected |= hit;
+        }
         Ok(InvokeResponse {
             status,
             headers,
@@ -323,6 +349,14 @@ impl Invoker {
         let token = source.acquire()?;
         self.execute(&token, prepared).await
     }
+}
+
+/// One header value through every needle in turn.
+fn scrub_all(needles: &[Needles], value: String) -> (String, bool) {
+    needles.iter().fold((value, false), |(value, hit), needle| {
+        let (value, found) = needle.scrub_str(value);
+        (value, hit || found)
+    })
 }
 
 #[cfg(test)]

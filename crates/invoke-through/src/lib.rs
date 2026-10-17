@@ -22,7 +22,11 @@
 //! named directly only for the types [`tls`] exposes; both were already in
 //! the tree through `hyper-rustls` / `hyper-util`.
 //!
-//! 5. **Injected TLS scope** ([`tls`], ADR 0132) — the authority plane may
+//! 5. **Signed requests** ([`RequestSigner`]) — for a provider whose
+//!    credential is a signature (AWS `SigV4`), the signer sees exactly the
+//!    method, URI, headers and body that go on the wire and returns the
+//!    headers to add; the key itself never enters the request.
+//! 6. **Injected TLS scope** ([`tls`], ADR 0132) — the authority plane may
 //!    hand the broker an already-validated `rustls::ClientConfig` (server
 //!    trust, exact server name, optional client identity) plus the addresses
 //!    its egress preflight resolved; such a client is https-only and dials
@@ -33,6 +37,7 @@ mod error;
 pub mod fence;
 mod invoke;
 mod scrub;
+mod signed;
 mod source;
 pub mod surrogate;
 pub mod tls;
@@ -44,6 +49,7 @@ pub use invoke::{
     InvokeRequest, InvokeResponse, Invoker, ReceiptMeta, DEFAULT_REQUEST_BODY_CAP,
     DEFAULT_RESPONSE_BODY_CAP, DEFAULT_TIMEOUT,
 };
+pub use signed::{RequestSigner, SignableParts};
 pub use source::{source_tool, SourceToolSpec, TokenSource};
 pub use surrogate::{
     Admission, IssueError, Refusal, RefusalCode, RequestView, Surrogate, SurrogateLedger,
