@@ -29,6 +29,7 @@ import { webRtc } from "@opensesame/app-core/lib/live/webrtc.js";
 import { useEffect, useState } from "react";
 import type { StatusTone } from "../../components/StatusMark.js";
 import { carriersUnavailable } from "./carriers/index.js";
+import { liveOwnerCertificate } from "./live-dtls-pin.js";
 
 /** A glyph's tone, its short page label, and the tray sentence. */
 export type Standing = Readonly<{
@@ -118,7 +119,11 @@ export function useDraftField(
 /** Seams, so a test can stand a fake network in for the browser's. */
 export const liveUiSeams = {
   /** What carries sessions; another `PeerTransport` would plug in here. */
-  transport: webRtc((config) => new RTCPeerConnection(config)),
+  transport: webRtc((config) => {
+    const certificate = liveOwnerCertificate();
+    if (!certificate) return new RTCPeerConnection(config);
+    return new RTCPeerConnection({ ...config, certificates: [certificate] });
+  }),
   /**
    * The carrier clients, made by `runtime.ts` from this activation's egress
    * port and taken away again on dispose: until then nothing opens, and a

@@ -4,6 +4,7 @@ import { createTestHost } from "../../test-host.js";
 import { fakeIndexedDb } from "../at-rest/fake-idb.test-support.js";
 import { compareRootTrustFingerprint } from "./alarm.js";
 import { PeerApprovalQueue } from "./approval-queue.js";
+import { ensurePeerArkSigningKey } from "./ark-key.js";
 import { signPeerTrustEnvelope, verifyPeerTrustEnvelope } from "./envelope.js";
 import { fingerprintOfSpki } from "./fingerprint.js";
 import {
@@ -14,9 +15,9 @@ import { parsePeerTrustSignal } from "./parse.js";
 import { parsePeerTrustRecord } from "./record.js";
 import { sasFromFingerprint } from "./sas.js";
 import {
-  buildPeerTrustSignal,
   decodePeerTrustSignal,
   encodePeerTrustSignal,
+  signedPeerTrustSignal,
   verifyPeerTrustSignal,
 } from "./signaling.js";
 import { commitPeerTrustEnrollment, loadPeerTrustStore } from "./store.js";
@@ -147,7 +148,14 @@ describe("signed peer trust store (IndexedDB)", () => {
     const committed = await commitPeerTrustEnrollment(undefined);
     expect(committed.ok).toBe(true);
     if (!committed.ok) return;
-    const signal = buildPeerTrustSignal(committed.envelope);
+    const ark = await ensurePeerArkSigningKey();
+    expect(ark).not.toBeNull();
+    if (!ark) return;
+    const signal = await signedPeerTrustSignal(
+      ark.privateKey,
+      committed.envelope,
+      "absent",
+    );
     expect(signal).not.toBeNull();
     if (!signal) return;
     const raw = encodePeerTrustSignal(signal);

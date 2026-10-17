@@ -213,10 +213,13 @@ pub(super) fn run_assignments(
     assignments: &[String],
     mounts: &[String],
     command: &[String],
+    grant_approved: bool,
 ) -> anyhow::Result<()> {
     core::validate_run_assignments(assignments)?;
     core::validate_run_assignments(mounts)?;
-    crate::cli_app_integration::ensure_reveal("run", None)?;
+    if !grant_approved {
+        crate::cli_app_integration::ensure_reveal("run", None)?;
+    }
     let parsed = assignments
         .iter()
         .map(|input| core::assignment(input))

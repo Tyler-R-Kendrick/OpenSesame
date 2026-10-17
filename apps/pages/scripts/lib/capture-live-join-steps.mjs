@@ -9,6 +9,7 @@
  */
 
 import { ask, grantClipboard, owners } from "./capture-live-steps.mjs";
+import { admitControl } from "./live-join-walk.mjs";
 import { phoneContext } from "./mobile-contract.mjs";
 
 /** Which page a `shot` takes, per owner page: absent means the owner's own. */
@@ -86,7 +87,7 @@ async function joinThrough(page, harness, { link, code }, name) {
   const request = await ask(seat, { link, code, name });
   await own.getByLabel("A request code", { exact: true }).fill(request);
   await own.getByRole("button", { name: "Read the request" }).click();
-  await own.getByRole("button", { name: `Let ${name} in` }).click();
+  await admitControl(own, name).click();
   const reply = own.getByRole("button", {
     name: `Copy the reply code for ${name}`,
   });

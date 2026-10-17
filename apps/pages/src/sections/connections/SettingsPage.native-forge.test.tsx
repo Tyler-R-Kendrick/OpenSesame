@@ -51,7 +51,7 @@ it("keeps Cancel sign-in when the saved view re-renders during pending authoriza
     redirectUri: "https://selfhost.example/auth/native-connector.html",
     navigate: () => undefined,
     scrubCallback: () => undefined,
-    prepareAuthorization: () => () => undefined,
+    prepareAuthorization: () => cancelAuthorization,
     authorize: () => new Promise<string>(() => {}),
     cancelAuthorization,
   });

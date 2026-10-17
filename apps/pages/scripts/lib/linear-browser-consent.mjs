@@ -6,20 +6,39 @@ const CONSENT_POPUP_TIMEOUT_MS = 60_000;
 export async function beginLinearConsent(harness, page, label, action) {
   const original = page.url();
   const button = page.getByRole("button", { name: action, exact: true });
-  // Bind the popup to this click — context-wide "page" events can catch a stray tab.
-  const [popup] = await Promise.all([
-    page.waitForEvent("popup", { timeout: CONSENT_POPUP_TIMEOUT_MS }),
-    button.click(),
-  ]);
-  if (popup.isClosed()) {
-    throw new Error(
-      `${label}: consent popup closed before Linear authorize URL`,
-    );
+  let popup;
+  // A reserved consent window can be released when its preparation ends
+  // against a superseded attempt; one fresh click starts the real consent.
+  for (let attempt = 1; ; attempt += 1) {
+    // Bind the popup to this click — context-wide "page" events can catch a stray tab.
+    [popup] = await Promise.all([
+      page.waitForEvent("popup", { timeout: CONSENT_POPUP_TIMEOUT_MS }),
+      button.click(),
+    ]);
+    try {
+      if (popup.isClosed())
+        throw new Error("consent popup closed before Linear authorize URL");
+      await popup.waitForURL("https://linear.app/oauth/authorize?**", {
+        timeout: CONSENT_POPUP_TIMEOUT_MS,
+        waitUntil: "domcontentloaded",
+      });
+      break;
+    } catch (error) {
+      const ended =
+        (await page
+          .getByRole("button", { name: "Cancel sign-in", exact: true })
+          .count()) === 0;
+      if (attempt >= 2 || !ended || !popup.isClosed())
+        throw new Error(
+          `${label}: consent window closed before Linear authorize URL: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
+            .locator("body")
+            .innerText()
+            .then((text) => text.slice(-1200))}`,
+          { cause: error },
+        );
+      await expect(button).toBeEnabled({ timeout: 10_000 });
+    }
   }
-  await popup.waitForURL("https://linear.app/oauth/authorize?**", {
-    timeout: CONSENT_POPUP_TIMEOUT_MS,
-    waitUntil: "domcontentloaded",
-  });
   await popup
     .getByText("Test-only OAuth consent transport.", { exact: true })
     .waitFor();

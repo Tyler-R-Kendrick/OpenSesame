@@ -54,6 +54,7 @@ export function secretBackendModeLabel(mode: SecretBackendMode) {
     local: "This device's vault",
     "file-import": "Import an export file",
     "credential-management": "Browser password credentials",
+    "onepassword-sdk": "1Password native SDK",
     "onepassword-connect": "1Password Connect API",
     "bitwarden-api": "Bitwarden Vault Management API",
     "bitwarden-secrets": "Bitwarden Secrets Manager",

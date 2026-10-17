@@ -196,6 +196,7 @@ it("saves and reloads configuration without authenticating, then connects its sa
   expect(dependencies.connectSecretBackend).toHaveBeenCalledWith(
     "backend-one",
     "backend-one",
+    expect.any(AbortSignal),
   );
 });
 
@@ -213,6 +214,7 @@ it("tests current settings without saving or collecting a configured connection"
   expect(dependencies.probeSecretBackend).toHaveBeenCalledWith(
     expect.objectContaining({ baseUrl: "https://passwords.example.com" }),
     undefined,
+    expect.any(AbortSignal),
   );
   expect(dependencies.saveSecretBackendConnection).not.toHaveBeenCalled();
   expect(dependencies.connectSecretBackend).not.toHaveBeenCalled();
@@ -276,6 +278,7 @@ it("keeps a file and its password transient and clears the authenticated view on
       mode: "file-import",
     }),
     "backend-one",
+    expect.any(AbortSignal),
   );
   expect(screen.getByLabelText("Export password")).toHaveProperty("value", "");
   act(() => {

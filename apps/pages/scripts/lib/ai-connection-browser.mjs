@@ -4,6 +4,7 @@ import {
   AI_FIXTURE_KEY,
   AI_FIXTURE_MODEL,
 } from "./ai-connection-http-fixture.mjs";
+import { verifyAzureAiLifecycle } from "./azure-ai-browser-lifecycle.mjs";
 import { addCapabilities, unlockWithPin } from "./pages-journey.mjs";
 import { enableBackendConnections } from "./secret-backend-browser.mjs";
 
@@ -28,6 +29,16 @@ const CASES = [
     family: "gemini_generate_content",
     path: `/custom/v1/models/${AI_FIXTURE_MODEL}:generateContent`,
   },
+  {
+    providerId: "anthropic",
+    family: "anthropic_messages",
+    path: "/custom/v1/messages",
+  },
+  {
+    providerId: "gemini",
+    family: "gemini_generate_content",
+    path: `/custom/v1/models/${AI_FIXTURE_MODEL}:generateContent`,
+  },
 ];
 
 async function visit(page, base, route) {
@@ -47,17 +58,38 @@ function requestsSince(fixture, before, family) {
     .slice(before)
     .filter((request) => request.family === family);
 }
+function fields(fixture, entry) {
+  return {
+    baseLabel: entry.azure ? "Azure resource endpoint" : "API base URL",
+    modelLabel: entry.azure ? "Deployment ID" : "Model ID",
+    keyLabel: entry.keyLabel ?? "API key",
+    key: entry.key ?? AI_FIXTURE_KEY,
+    model: entry.model ?? AI_FIXTURE_MODEL,
+    baseUrl: entry.mount ? `${fixture.origin}${entry.mount}` : fixture.baseUrl,
+  };
+}
+async function datedTokenParameter(page, select = false) {
+  const summary = page.getByText("Connection setup", { exact: true });
+  if ((await summary.locator("..").getAttribute("open")) === null)
+    await summary.click();
+  const field = page.getByLabel("Output token parameter", { exact: true });
+  if (select) await field.selectOption("max_tokens");
+  await expect(field).toHaveValue("max_tokens");
+}
 async function configure(page, fixture, entry, name, check, width) {
+  const form = fields(fixture, entry);
   await page.getByLabel("Connection name", { exact: true }).fill(name);
   await page
     .getByLabel("API family", { exact: true })
     .selectOption(entry.family);
-  await page.getByLabel("API base URL", { exact: true }).fill(fixture.baseUrl);
-  await page.getByLabel("Model ID", { exact: true }).fill(AI_FIXTURE_MODEL);
-  await page
-    .getByLabel("Authentication", { exact: true })
-    .selectOption("api-key");
-  await page.getByLabel("API key", { exact: true }).fill(AI_FIXTURE_KEY);
+  await page.getByLabel(form.baseLabel, { exact: true }).fill(form.baseUrl);
+  await page.getByLabel(form.modelLabel, { exact: true }).fill(form.model);
+  if (!entry.azure)
+    await page
+      .getByLabel("Authentication", { exact: true })
+      .selectOption("api-key");
+  await page.getByLabel(form.keyLabel, { exact: true }).fill(form.key);
+  if (entry.dated) await datedTokenParameter(page, true);
   const before = fixture.requests.length;
   await page
     .getByRole("button", { name: "Test AI connection", exact: true })
@@ -71,7 +103,7 @@ async function configure(page, fixture, entry, name, check, width) {
       tested[0].authenticated &&
       tested[0].path === entry.path &&
       !tested[0].stream,
-    `${width}: ${entry.family} Test performs authenticated inference on its exact custom mount`,
+    `${width}: ${entry.providerId}/${entry.family} Test performs authenticated inference on its exact custom mount`,
   );
   await page
     .getByRole("button", { name: "Save AI connection", exact: true })
@@ -79,14 +111,14 @@ async function configure(page, fixture, entry, name, check, width) {
   await page
     .getByRole("region", { name: "Model inference", exact: true })
     .waitFor();
-  await expect(page.getByLabel("API key", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel(form.keyLabel, { exact: true })).toHaveValue("");
   const saved = requestsSince(fixture, before, entry.family);
   check(
     saved.length === 2 &&
       saved.every(
         (request) => request.authenticated && request.path === entry.path,
       ),
-    `${width}: ${entry.family} Save independently verifies its actual protocol before retaining vault custody`,
+    `${width}: ${entry.providerId}/${entry.family} Save independently verifies its actual protocol before retaining vault custody`,
   );
 }
 
@@ -94,12 +126,13 @@ async function chooseAndColdReload(
   page,
   { base, fixture, entry, name, width, check },
 ) {
+  const form = fields(fixture, entry);
   await visit(page, base, "settings/features");
   const select = page.getByRole("combobox", {
     name: "Inference model",
     exact: true,
   });
-  const label = `${name} · ${AI_FIXTURE_MODEL}`;
+  const label = `${name} · ${form.model}`;
   await expect(
     select.getByRole("option", { name: label, exact: true }),
   ).toHaveCount(1);
@@ -110,7 +143,7 @@ async function chooseAndColdReload(
   const selected = await select.inputValue();
   check(
     selected.startsWith("connection:"),
-    `${width}: ${entry.family} inference selection names the saved connection`,
+    `${width}: ${entry.providerId}/${entry.family} inference selection names the saved connection`,
   );
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPin(page);
@@ -120,7 +153,7 @@ async function chooseAndColdReload(
   ).toHaveValue(selected);
   check(
     true,
-    `${width}: ${entry.family} exact inference choice survives cold reload and PIN unlock`,
+    `${width}: ${entry.providerId}/${entry.family} exact inference choice survives cold reload and PIN unlock`,
   );
   await open(page, base, entry.providerId);
   await expect(page.getByLabel("Connection name", { exact: true })).toHaveValue(
@@ -129,16 +162,19 @@ async function chooseAndColdReload(
   await expect(page.getByLabel("API family", { exact: true })).toHaveValue(
     entry.family,
   );
-  await expect(page.getByLabel("API base URL", { exact: true })).toHaveValue(
-    fixture.baseUrl,
+  await expect(page.getByLabel(form.baseLabel, { exact: true })).toHaveValue(
+    form.baseUrl,
   );
-  await expect(page.getByLabel("Model ID", { exact: true })).toHaveValue(
-    AI_FIXTURE_MODEL,
+  await expect(page.getByLabel(form.modelLabel, { exact: true })).toHaveValue(
+    form.model,
   );
-  await expect(page.getByLabel("API key", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel(form.keyLabel, { exact: true })).toHaveValue("");
+  if (entry.dated) await datedTokenParameter(page);
+  return selected;
 }
 
-async function verifyToken(page, { base, entry, name, width, check }) {
+async function verifyToken(page, { base, fixture, entry, name, width, check }) {
+  const form = fields(fixture, entry);
   await visit(page, base, "vault?f=all");
   const title = `AI API key · ${name}`;
   const row = page.getByRole("treeitem").filter({ hasText: title });
@@ -146,18 +182,18 @@ async function verifyToken(page, { base, entry, name, width, check }) {
   await row.click();
   await page.getByRole("heading", { name: title, exact: true }).waitFor();
   await page.getByRole("button", { name: /^Reveal [Tt]oken$/ }).click();
-  await expect(page.getByText(AI_FIXTURE_KEY, { exact: true })).toBeVisible();
+  await expect(page.getByText(form.key, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /^Hide [Tt]oken$/ }).click();
   check(
     true,
-    `${width}: ${entry.family} API key is a real readable Token item after cold unlock`,
+    `${width}: ${entry.providerId}/${entry.family} API key is a real readable Token item after cold unlock`,
   );
   check(
     await page.evaluate(
       (secret) => !JSON.stringify(Object.values(localStorage)).includes(secret),
-      AI_FIXTURE_KEY,
+      form.key,
     ),
-    `${width}: ${entry.family} API key is absent from plaintext browser configuration storage`,
+    `${width}: ${entry.providerId}/${entry.family} API key is absent from plaintext browser configuration storage`,
   );
   await open(page, base, entry.providerId);
 }
@@ -179,7 +215,7 @@ async function infer(page, { fixture, entry, width, check }) {
       .getByRole("button", { name: "Send prompt", exact: true })
       .click();
     await expect(region.getByLabel("Model answer", { exact: true })).toHaveText(
-      `Fixture ${entry.family} answer`,
+      entry.answer ?? `Fixture ${entry.family} answer`,
     );
     await expect(
       region.getByRole("button", { name: "Send prompt", exact: true }),
@@ -194,7 +230,7 @@ async function infer(page, { fixture, entry, width, check }) {
         rows[0].authenticated &&
         rows[0].path === path &&
         rows[0].stream === stream,
-      `${width}: ${entry.family} ${stream ? "genuine SSE" : "JSON"} inference uses the saved exact endpoint and auth`,
+      `${width}: ${entry.providerId}/${entry.family} ${stream ? "genuine SSE" : "JSON"} inference uses the saved exact endpoint and auth`,
     );
   }
 }
@@ -211,7 +247,7 @@ export async function verifyAiConnections({
   await addCapabilities(page, ["On-device model"]);
   const beforePreflights = fixture.preflights.length;
   for (const entry of CASES) {
-    const name = `AI ${entry.family} ${width}`;
+    const name = `AI ${entry.providerId} ${entry.family} ${width}`;
     await open(page, base, entry.providerId);
     await configure(page, fixture, entry, name, check, width);
     const context = { base, fixture, entry, name, width, check };
@@ -225,6 +261,17 @@ export async function verifyAiConnections({
   );
   check(
     fixture.errors.length === 0,
-    `${width}: all four inference protocols passed the fixture's independent request validation`,
+    `${width}: all six configurations across four inference protocols passed the fixture's independent request validation`,
+  );
+  await verifyAzureAiLifecycle(
+    { page, base, fixture, width, check },
+    {
+      visit,
+      open,
+      configure,
+      chooseAndColdReload,
+      verifyToken,
+      infer,
+    },
   );
 }

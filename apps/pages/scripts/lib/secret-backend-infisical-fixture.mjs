@@ -29,6 +29,7 @@ export function startInfisicalFixture(origin, port = 41903) {
       ? reply({
           accessToken: FIXTURE_TOKEN,
           expiresIn: 3600,
+          accessTokenMaxTTL: 3600,
           tokenType: "Bearer",
         })
       : refused("Universal Auth refused", 401);

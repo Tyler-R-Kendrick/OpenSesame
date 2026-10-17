@@ -24,4 +24,8 @@ pub(crate) struct RunArgs {
     /// Brokered method scope for one name: NAME=GET[,POST...].
     #[arg(long = "methods", requires = "agent_proxy")]
     pub(super) methods: Vec<String>,
+    /// Consume one use of a human-approved run grant (`lease approve-run`)
+    /// for exactly this assignment set instead of per-run approval.
+    #[arg(long = "grant")]
+    pub(super) grant: Option<String>,
 }

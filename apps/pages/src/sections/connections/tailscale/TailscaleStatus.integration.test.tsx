@@ -165,17 +165,19 @@ it("uses the real two-step Forget control to remove metadata and retire the priv
   fireEvent.click(
     screen.getByRole("button", { name: "Confirm forget local browser node" }),
   );
-  await waitFor(() =>
-    expect(readDeviceRows().some((row) => row.connectionId === id)).toBe(false),
-  );
+  // Forget removes the device row, then discards the vault credential: wait
+  // for both, not only the first.
+  await waitFor(() => {
+    expect(readDeviceRows().some((row) => row.connectionId === id)).toBe(false);
+    expect(
+      vaultStore
+        .getSnapshot()
+        .items.some(
+          (item) => item.kind === "credential" && item.method.type === "token",
+        ),
+    ).toBe(false);
+  });
   expect(worker.terminated).toBe(true);
-  expect(
-    vaultStore
-      .getSnapshot()
-      .items.some(
-        (item) => item.kind === "credential" && item.method.type === "token",
-      ),
-  ).toBe(false);
 });
 it("observes the real generic Revoke path even when the encrypted Token is unchanged", async () => {
   const worker = await fixture.connect();

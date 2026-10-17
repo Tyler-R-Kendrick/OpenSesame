@@ -226,3 +226,93 @@ describe("graph emission", () => {
     );
   });
 });
+
+test("native on-demand metadata follows owned modules and retains emitted SDK assets", async () => {
+  const { main } = await compose(tree, { mode: "selective" });
+  const state = main.__state();
+  const { ctx, bundle } = fakeBundle(tree.appRoot, "");
+  const output = bundle();
+  const prefix = "/repo/packages/app-core/src/lib/secret-backends/";
+  const rules = [
+    {
+      pattern: "packages/app-core/src/lib/secret-backends/",
+      classification: "optional",
+      capability: "connectors.external",
+      rationale: "backup providers",
+    },
+    {
+      pattern:
+        "packages/app-core/src/lib/secret-backends/onepassword-sdk-codec.ts",
+      classification: "shared",
+      capability: null,
+      rationale: "wrong owner counterexample",
+    },
+  ];
+  const classify = (id) =>
+    id.startsWith(prefix)
+      ? classifyModule(id, rules, { repoRoot: "/repo" })
+      : state.classify(id);
+  const assets = [
+    "assets/native-sdk-worker.js",
+    "assets/native-sdk-glue.js",
+    "assets/native-sdk.wasm",
+    "assets/native-sdk-LICENSE",
+  ];
+  output["assets/unrelated-name.js"] = {
+    ...output["assets/pre-1.js"],
+    name: "unrelated-name",
+    isDynamicEntry: true,
+    modules: {
+      [`${prefix}onepassword-sdk-loader.ts?source`]: { renderedLength: 200 },
+      [`${prefix}onepassword-worker-http.ts`]: { renderedLength: 100 },
+    },
+    viteMetadata: { importedAssets: new Set(assets) },
+  };
+  output["assets/name-only.js"] = {
+    ...output["assets/pre-1.js"],
+    name: "secret-backend-onepassword-sdk",
+    modules: {
+      [`${prefix}onepassword.ts`]: { renderedLength: 100 },
+      [`${prefix}factory.ts`]: { renderedLength: 100 },
+    },
+  };
+  output["assets/shared-native.js"] = {
+    ...output["assets/pre-1.js"],
+    name: "shared-native",
+    modules: {
+      [`${prefix}onepassword-sdk-codec.ts`]: { renderedLength: 100 },
+    },
+  };
+  for (const file of assets)
+    output[file] = { type: "asset", source: "fixture" };
+  const graph = buildGraph(ctx, output, { ...state, classify }, "/OpenSesame/");
+  const native = graph.chunks.find((chunk) => chunk.name === "unrelated-name");
+  assert.equal(native.onDemand, true);
+  assert.deepEqual(native.importedAssets, [...assets].sort());
+  assert.deepEqual(
+    native.modules.map(({ classification, capability }) => [
+      classification,
+      capability,
+    ]),
+    [
+      ["optional", "connectors.external"],
+      ["optional", "connectors.external"],
+    ],
+  );
+  assert.equal(
+    graph.chunks.find((chunk) => chunk.file === "assets/name-only.js").onDemand,
+    false,
+  );
+  assert.equal(
+    graph.chunks.find((chunk) => chunk.name === "shared-native").onDemand,
+    false,
+  );
+  assert.equal(
+    graph.chunks.find((chunk) => chunk.name === "main").onDemand,
+    false,
+  );
+  assert.deepEqual(
+    graph.assets.filter(({ file }) => assets.includes(file)),
+    [...assets].sort().map((file) => ({ file, size: 7 })),
+  );
+});

@@ -41,11 +41,11 @@ import {
   type PeerRouting,
   type TransportFactory,
 } from "./p2p.js";
-import { gateLivePeerTrustSignal } from "./peer-trust-peering.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
 import { type RelaySource, buildLiveHost } from "./session-build-host.js";
 import { guestCarriersFor, openCarriers, poster } from "./session-carriers.js";
+import { prepareJoinTrust } from "./session-trust.js";
 import type { CarrierSpec, LiveTransport } from "./transport.js";
 import type { ShareScope } from "./vault-share.js";
 
@@ -315,6 +315,11 @@ export type JoinInput = Readonly<{
   peerTrustSignal?: string | null;
   rememberedPeerFingerprint?: string;
   minimumPeerTrustEpoch?: number;
+  /**
+   * An unsigned manual-code join. Empty without this is refused.
+   * The SAS compare is still required when the device can sign.
+   */
+  unverifiedManual?: boolean;
 }>;
 
 /**
@@ -325,6 +330,13 @@ export type JoinInput = Readonly<{
 export async function joinLive(input: JoinInput): Promise<LiveGuest> {
   armRestoreGuard();
   leaveLive();
+  const prepared = await prepareJoinTrust({
+    peerTrustSignal: input.peerTrustSignal,
+    rememberedPeerFingerprint: input.rememberedPeerFingerprint,
+    minimumPeerTrustEpoch: input.minimumPeerTrustEpoch,
+    unverifiedManual: input.unverifiedManual === true,
+  });
+  if (!prepared.ok) throw new Error(`peer_trust_refused:${prepared.reason}`);
   // The join screen refuses a link whose routes do not read; direct here.
   const routes = linkRoutes(input.link) ?? NO_ROUTES;
   const routing: PeerRouting = input.useRoutes
@@ -347,22 +359,12 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
     note: input.note,
     transport: input.transport(routing),
     carriers: carriers ? guestCarriersFor(carriers) : null,
+    peerTrust: prepared.material,
   });
   guest = next;
   watchPlan();
   // The plan may already have withdrawn Live sessions: left before it began.
   if (guest !== next) return next;
-  if (input.peerTrustSignal) {
-    const trust = await gateLivePeerTrustSignal(
-      input.peerTrustSignal,
-      input.rememberedPeerFingerprint,
-      input.minimumPeerTrustEpoch,
-    );
-    if (!trust.ok) {
-      leaveLive();
-      throw new Error(`peer_trust_refused:${trust.reason}`);
-    }
-  }
   changed();
   await next.start();
   return next;
