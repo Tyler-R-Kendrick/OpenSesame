@@ -1,16 +1,21 @@
 import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
+import {
+  type CliAppPasskeyReady,
+  loadCliAppPasskeyReady,
+} from "@opensesame/app-core/lib/cli-app-integration/webauthn-credential.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
-import type { VaultHeader } from "@opensesame/vault-core";
-import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import {
+  CLI_AUTHORIZE_LOAD_BLOCKED,
+  CLI_AUTHORIZE_LOAD_UNREADABLE,
+  CLI_AUTHORIZE_RESPOND_UNREACHABLE,
+  cliAuthorizeRespondMessage,
+} from "./cli-authorize-messages.js";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import { postCliRespond } from "./cli-authorize-net.js";
-import {
-  runCliAuthorizePasskeyApprove,
-  runCliAuthorizePinApprove,
-} from "./cli-authorize-proof-run.js";
+import { runCliAuthorizePasskeyApprove } from "./cli-authorize-proof-run.js";
 
 function daemonOrigin(): string | null {
   const raw = loadSettings().daemonApi.trim() || "http://127.0.0.1:18790";
@@ -31,11 +36,6 @@ function pageOrigin(): string | null {
     return null;
   }
 }
-
-import {
-  CLI_AUTHORIZE_LOAD_BLOCKED,
-  CLI_AUTHORIZE_LOAD_UNREADABLE,
-} from "./cli-authorize-messages.js";
 
 export { CLI_AUTHORIZE_LOAD_BLOCKED, CLI_AUTHORIZE_LOAD_UNREADABLE };
 
@@ -129,10 +129,19 @@ export function useCliAuthorizePanel() {
   const [row, setRow] = useState<CliAuthorizeRow | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pinOpen, setPinOpen] = useState(false);
-  const [pin, setPin] = useState("");
   const [mark, setMark] = useState<string | null>(null);
-  const [header, setHeader] = useState<VaultHeader | null>(null);
+  const [passkeyReady, setPasskeyReady] =
+    useState<CliAppPasskeyReady>("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadCliAppPasskeyReady().then((ready) => {
+      if (!cancelled) setPasskeyReady(ready);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -167,7 +176,7 @@ export function useCliAuthorizePanel() {
       return;
     }
     try {
-      const ok = await postCliRespond(
+      const result = await postCliRespond(
         origin,
         headers,
         row,
@@ -175,48 +184,35 @@ export function useCliAuthorizePanel() {
         humanProof,
       );
       setBusy(false);
-      if (ok) setRow(null);
-      else setMark("That did not work.");
+      if (result.ok) {
+        setRow(null);
+        setMark(null);
+      } else setMark(cliAuthorizeRespondMessage(result.status));
     } catch (error) {
       setBusy(false);
       setMark(
         blockedCopy(
           error instanceof DOMException ? error : null,
-          "That did not work.",
+          CLI_AUTHORIZE_RESPOND_UNREACHABLE,
         ),
       );
     }
   }
 
-  const proofInput = {
-    row,
-    busy,
-    setBusy,
-    setMark,
-    setHeader,
-    setPinOpen,
-    finish,
-  };
-
   return {
     row,
     loadError,
     busy,
-    pinOpen,
-    pin,
     mark,
-    setPin,
+    passkeyReady,
     onPasskey: () => {
-      if (row) void runCliAuthorizePasskeyApprove({ ...proofInput, row });
-    },
-    onPin: (event: FormEvent) => {
       if (row)
-        void runCliAuthorizePinApprove({
-          ...proofInput,
+        void runCliAuthorizePasskeyApprove({
           row,
-          pin,
-          header,
-          event,
+          busy,
+          setBusy,
+          setMark,
+          finish,
         });
     },
     onDeny: () => void finish("deny"),

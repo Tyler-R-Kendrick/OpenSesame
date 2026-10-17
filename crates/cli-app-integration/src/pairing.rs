@@ -68,6 +68,27 @@ pub enum PairingError {
     RootKeyNotEnrolled,
 }
 
+impl PairingError {
+    /// Stable HTTP `error` code. Each variant keeps its own code.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::InvalidOrigin => "invalid_origin",
+            Self::Full => "too_many_pairings",
+            Self::Unknown => "pairing_unknown",
+            Self::Expired => "pairing_expired",
+            Self::WrongOrigin => "pairing_wrong_origin",
+            Self::NotConfirmed => "pairing_confirm_required",
+            Self::RegistrationRequired => "pairing_registration_required",
+            Self::RegistrationMismatch => "pairing_registration_mismatch",
+            Self::InvalidProof => "invalid_proof",
+            Self::ArkEnrollmentRequired => "ark_enrollment_required",
+            Self::ClientSuppliedSpkiRejected => "client_supplied_spki_rejected",
+            Self::RootKeyNotEnrolled => "root_key_not_enrolled",
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 struct Pending {
     code_sha256: String,

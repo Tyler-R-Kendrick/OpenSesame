@@ -75,9 +75,11 @@ impl CliAppIntegrationPairings {
             .trim()
             .strip_prefix("oschip2:passkey:")
             .ok_or(PairingError::InvalidProof)?;
-        if verify_passkey_assertion(proof_tail, &challenge, &stored).is_none() {
-            return Err(PairingError::InvalidProof);
-        }
+        let verified_sign_count = verify_passkey_assertion(proof_tail, &challenge, &stored)
+            .ok_or(PairingError::InvalidProof)?;
+        // `registration.sign_count` is the client body. Storing it would let a
+        // caller reset the counter after a higher assertion count was verified.
+        let _client_sign_count = registration.sign_count;
         let Some(page) = self.paired.iter_mut().find(|page| {
             page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
         }) else {
@@ -86,7 +88,7 @@ impl CliAppIntegrationPairings {
         page.webauthn = Some(WebAuthnCredential {
             credential_id_b64: credential_id_b64.to_string(),
             public_key_spki_b64: public_key_spki_b64.to_string(),
-            sign_count: registration.sign_count,
+            sign_count: verified_sign_count,
         });
         Ok(())
     }
@@ -155,6 +157,9 @@ impl CliAppIntegrationPairings {
         let Some(webauthn) = page.webauthn.as_mut() else {
             return false;
         };
+        if sign_count == 0 && webauthn.sign_count == 0 {
+            return true;
+        }
         if sign_count <= webauthn.sign_count {
             return false;
         }

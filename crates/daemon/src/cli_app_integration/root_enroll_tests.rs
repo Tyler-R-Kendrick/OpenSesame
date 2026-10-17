@@ -211,7 +211,7 @@ async fn round_trip_persists_and_unblocks_pairing() {
     let response = app.oneshot(confirm_http).await.unwrap();
     let (status, parsed, _) = read_json(response).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
-    assert_eq!(parsed["error"], "pairing_refused");
+    assert_eq!(parsed["error"], "invalid_proof");
     assert!(state
         .cli_app_integration
         .lock()

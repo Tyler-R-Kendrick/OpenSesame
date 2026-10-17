@@ -237,6 +237,19 @@ pub fn test_human_proof_ctx(
     }
 }
 
+/// Register-challenge passkey proof. `sign_count` is the authenticator counter in the assertion.
+#[must_use]
+pub fn mint_register_passkey_proof(token: &str, origin: &str, sign_count: u32) -> String {
+    let challenge =
+        webauthn_register_challenge_digest(token, origin, TEST_VAULT_SESSION_ROOT_DIGEST);
+    mint_passkey_proof_for_challenge(
+        &approval_fixture().0,
+        "test-cli-app-cred",
+        challenge,
+        sign_count,
+    )
+}
+
 /// Mint a passkey-shaped human proof for integration tests (registered `WebAuthn` cred).
 #[must_use]
 pub fn mint_test_human_proof(

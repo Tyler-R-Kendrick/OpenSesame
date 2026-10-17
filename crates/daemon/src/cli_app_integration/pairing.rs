@@ -84,7 +84,7 @@ pub(crate) async fn pairing_challenge(
             })),
         )
             .into_response(),
-        None => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+        None => pairing_error(StatusCode::FORBIDDEN, PairingError::Unknown.code()),
     }
 }
 
@@ -114,22 +114,7 @@ pub(crate) async fn pairing_confirm(
             Json(json!({ "registrationCode": outcome.registration_code })),
         )
             .into_response(),
-        Err(PairingError::RootKeyNotEnrolled) => {
-            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
-        }
-        Err(
-            PairingError::WrongOrigin
-            | PairingError::InvalidProof
-            | PairingError::Unknown
-            | PairingError::Expired
-            | PairingError::InvalidOrigin
-            | PairingError::Full
-            | PairingError::NotConfirmed
-            | PairingError::RegistrationRequired
-            | PairingError::RegistrationMismatch
-            | PairingError::ArkEnrollmentRequired
-            | PairingError::ClientSuppliedSpkiRejected,
-        ) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+        Err(err) => pairing_error(StatusCode::FORBIDDEN, err.code()),
     }
 }
 
@@ -156,26 +141,8 @@ pub(crate) async fn pairing_exchange(
             })),
         )
             .into_response(),
-        Err(PairingError::RootKeyNotEnrolled) => {
-            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
-        }
-        Err(PairingError::NotConfirmed) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_confirm_required")
-        }
-        Err(PairingError::RegistrationRequired) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_registration_required")
-        }
-        Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
-        Err(
-            PairingError::WrongOrigin
-            | PairingError::Unknown
-            | PairingError::Expired
-            | PairingError::InvalidOrigin
-            | PairingError::RegistrationMismatch
-            | PairingError::InvalidProof
-            | PairingError::ArkEnrollmentRequired
-            | PairingError::ClientSuppliedSpkiRejected,
-        ) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+        Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, PairingError::Full.code()),
+        Err(err) => pairing_error(StatusCode::FORBIDDEN, err.code()),
     }
 }
 
@@ -203,13 +170,10 @@ pub(crate) async fn pairing_register_webauthn(
         .register_webauthn(token, origin, &registration)
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(PairingError::RootKeyNotEnrolled) => {
-            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
-        }
         Err(PairingError::Unknown) => {
             pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required")
         }
-        Err(_) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+        Err(err) => pairing_error(StatusCode::FORBIDDEN, err.code()),
     }
 }
 
@@ -235,14 +199,10 @@ pub(crate) async fn pairing_arm_registration(
         .arm_registration(&body.origin, &body.registration_code, now)
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(PairingError::RootKeyNotEnrolled) => {
-            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        Err(PairingError::Unknown) => {
+            pairing_error(StatusCode::NOT_FOUND, PairingError::Unknown.code())
         }
-        Err(PairingError::RegistrationMismatch) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
-        Err(PairingError::Unknown) => pairing_error(StatusCode::NOT_FOUND, "pairing_refused"),
-        Err(_) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+        Err(err) => pairing_error(StatusCode::FORBIDDEN, err.code()),
     }
 }
 
@@ -294,23 +254,14 @@ pub(crate) async fn pairing_issue_operator(
             }))
             .into_response()
         }
-        Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
+        Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, PairingError::Full.code()),
         Err(PairingError::InvalidOrigin) => {
-            pairing_error(StatusCode::BAD_REQUEST, "invalid_origin")
+            pairing_error(StatusCode::BAD_REQUEST, PairingError::InvalidOrigin.code())
         }
-        Err(PairingError::RootKeyNotEnrolled) => {
-            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
-        }
-        Err(
-            PairingError::Unknown
-            | PairingError::Expired
-            | PairingError::WrongOrigin
-            | PairingError::NotConfirmed
-            | PairingError::RegistrationRequired
-            | PairingError::RegistrationMismatch
-            | PairingError::InvalidProof
-            | PairingError::ArkEnrollmentRequired
-            | PairingError::ClientSuppliedSpkiRejected,
-        ) => pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "pairing_refused"),
+        Err(PairingError::RootKeyNotEnrolled) => pairing_error(
+            StatusCode::FORBIDDEN,
+            PairingError::RootKeyNotEnrolled.code(),
+        ),
+        Err(err) => pairing_error(StatusCode::INTERNAL_SERVER_ERROR, err.code()),
     }
 }

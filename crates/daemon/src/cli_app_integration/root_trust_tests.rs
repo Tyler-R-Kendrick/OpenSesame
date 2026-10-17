@@ -181,7 +181,7 @@ async fn enrolled_store_lets_confirm_past_the_root_key_gate() {
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(parsed["error"], "pairing_refused");
+    assert_eq!(parsed["error"], "invalid_proof");
 }
 
 fn confirm_request() -> axum::http::Request<axum::body::Body> {
