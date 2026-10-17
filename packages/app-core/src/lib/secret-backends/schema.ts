@@ -11,6 +11,7 @@ export const SecretBackendDraftSchema = z.object({
     "local",
     "file-import",
     "credential-management",
+    "onepassword-sdk",
     "onepassword-connect",
     "bitwarden-api",
     "bitwarden-secrets",
@@ -58,6 +59,20 @@ function validateProtocol(draft: Draft): void {
   if (draft.identityUrl) secretBackendUrl(draft.identityUrl);
 }
 
+function validateNativeOnePassword(draft: Draft): void {
+  if (draft.mode !== "onepassword-sdk") return;
+  if (
+    secretBackendUrl(draft.baseUrl).pathname !== "/" ||
+    !draft.vaultId.trim() ||
+    draft.vaultId.length > 1024 ||
+    draft.token.length > 16_384
+  )
+    throw new SecretBackendError(
+      "configuration",
+      "Enter a 1Password account origin, vault ID and service account token within the supported limits.",
+    );
+}
+
 function validateTargets(draft: Draft): void {
   if (draft.mode === "onepassword-connect" && !draft.vaultId.trim())
     throw new SecretBackendError(
@@ -81,9 +96,12 @@ function validateTargets(draft: Draft): void {
 
 function requirePrivateCredentials(draft: Draft): void {
   if (
-    ["onepassword-connect", "bitwarden-secrets", "passwordstate"].includes(
-      draft.mode,
-    ) &&
+    [
+      "onepassword-sdk",
+      "onepassword-connect",
+      "bitwarden-secrets",
+      "passwordstate",
+    ].includes(draft.mode) &&
     !draft.token.trim()
   )
     throw new SecretBackendError(
@@ -129,6 +147,7 @@ export function validateSecretBackendDraft(
     );
   const draft = result.data;
   validateProtocol(draft);
+  validateNativeOnePassword(draft);
   validateTargets(draft);
   if (requireCredentials) requirePrivateCredentials(draft);
   protectCredentialFields(draft);
