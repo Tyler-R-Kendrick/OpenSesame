@@ -58,6 +58,80 @@ export function grokFileWallSec(): number {
   return Number.isFinite(n) && n > 0 ? n : 2700;
 }
 
+/** Wall-clock per-file budget (shallow + deep share one deadline). */
+export type GrokFileWallContext = {
+  startedAtMs: number;
+  wallSec: number;
+};
+
+export function grokWallRemainingSec(ctx: GrokFileWallContext): number {
+  const elapsed = (Date.now() - ctx.startedAtMs) / 1000;
+  return Math.max(0, ctx.wallSec - elapsed);
+}
+
+export function assertFileWallRemaining(
+  ctx: GrokFileWallContext,
+  headroomSec = 5,
+): void {
+  if (grokWallRemainingSec(ctx) <= headroomSec) {
+    throw new Error(
+      `grok file wall exceeded ${ctx.wallSec}s (DEEPSEC_GROK_FILE_WALL_SEC)`,
+    );
+  }
+}
+
+/** Cap a single grok CLI invoke so shallow + deep cannot exceed the file wall. */
+export function capInvokeTimeoutToFileWall(
+  invokeTimeoutSec: number,
+  ctx: GrokFileWallContext,
+  headroomSec: number,
+): number {
+  assertFileWallRemaining(ctx, headroomSec);
+  const budget = Math.floor(grokWallRemainingSec(ctx) - headroomSec);
+  return Math.min(invokeTimeoutSec, Math.max(1, budget));
+}
+
+let activeGrokChild: ReturnType<typeof spawn> | null = null;
+
+export function killActiveGrokChild(): void {
+  if (!activeGrokChild) {
+    return;
+  }
+  killGrokTree(activeGrokChild);
+  activeGrokChild = null;
+}
+
+/** Poll wall-clock deadline; kills the active grok process group when exceeded. */
+export function startFileWallAbortScope(ctx: GrokFileWallContext): {
+  signal: AbortSignal;
+  stop: () => void;
+} {
+  const controller = new AbortController();
+  const onExceeded = () => {
+    if (controller.signal.aborted) {
+      return;
+    }
+    killActiveGrokChild();
+    controller.abort(
+      new Error(
+        `grok file wall exceeded ${ctx.wallSec}s (DEEPSEC_GROK_FILE_WALL_SEC)`,
+      ),
+    );
+  };
+  const interval = setInterval(() => {
+    if (grokWallRemainingSec(ctx) <= 0) {
+      onExceeded();
+    }
+  }, 1000);
+  if (grokWallRemainingSec(ctx) <= 0) {
+    onExceeded();
+  }
+  return {
+    signal: controller.signal,
+    stop: () => clearInterval(interval),
+  };
+}
+
 function combineAbortSignals(
   primary: AbortSignal | undefined,
   secondary: AbortSignal,
@@ -257,12 +331,24 @@ function makeGrokSettler(
 }
 
 export function runGrokPromptWithMeta(
-  params: RunPromptParams & { maxTurns: number; timeoutSec?: number },
+  params: RunPromptParams & {
+    maxTurns: number;
+    timeoutSec?: number;
+    fileWall?: GrokFileWallContext;
+  },
 ): Promise<GrokPromptRunResult> {
-  const timeoutSec = params.timeoutSec ?? grokInvestigateTimeoutSec();
+  const killGraceMs = Number(process.env.DEEPSEC_GROK_KILL_GRACE_MS ?? "10000");
+  const killGraceSec = Math.ceil(killGraceMs / 1000) + 5;
+  let timeoutSec = params.timeoutSec ?? grokInvestigateTimeoutSec();
+  if (params.fileWall) {
+    timeoutSec = capInvokeTimeoutToFileWall(
+      timeoutSec,
+      params.fileWall,
+      killGraceSec,
+    );
+  }
   const timeoutMs = timeoutSec * 1000;
   const maxTurns = params.maxTurns;
-  const killGraceMs = Number(process.env.DEEPSEC_GROK_KILL_GRACE_MS ?? "10000");
 
   return new Promise((resolve, reject) => {
     if (params.signal?.aborted) {
@@ -283,9 +369,40 @@ export function runGrokPromptWithMeta(
       // path was not detached and the group kill missed the grandchild.
       detached: process.platform !== "win32",
     });
+    activeGrokChild = child;
+    const clearActiveChild = () => {
+      if (activeGrokChild === child) {
+        activeGrokChild = null;
+      }
+    };
     const io = { stdout: "", stderr: "" };
     const settler = makeGrokSettler(child, resolve, reject);
     const { finish, fail } = settler;
+    const finishWrapped = (result: GrokPromptRunResult) => {
+      clearActiveChild();
+      finish(result);
+    };
+    const failWrapped = (err: Error) => {
+      clearActiveChild();
+      fail(err);
+    };
+
+    let wallPollStop: (() => void) | undefined;
+    const fileWallCtx = params.fileWall;
+    if (fileWallCtx) {
+      const wallPoll = setInterval(() => {
+        if (grokWallRemainingSec(fileWallCtx) <= 0) {
+          killGrokTree(child);
+          finishWrapped({
+            text: io.stdout,
+            capHit: detectGrokCapHit(io.stderr, io.stdout, maxTurns),
+            timedOut: true,
+            stderr: `${io.stderr}\n[deepsec] grok file wall exceeded ${fileWallCtx.wallSec}s (DEEPSEC_GROK_FILE_WALL_SEC)`,
+          });
+        }
+      }, 1000);
+      wallPollStop = () => clearInterval(wallPoll);
+    }
 
     // Hard kill only after the grace window: with coreutils, `timeout -k`
     // owns the TERM-then-KILL sequence; without it, killTimer sends the
@@ -293,7 +410,7 @@ export function runGrokPromptWithMeta(
     // the SIGTERM at the same instant, so the grace never applied.
     const watchdog = setTimeout(() => {
       killGrokTree(child);
-      finish({
+      finishWrapped({
         text: io.stdout,
         capHit: detectGrokCapHit(io.stderr, io.stdout, maxTurns),
         timedOut: true,
@@ -311,7 +428,7 @@ export function runGrokPromptWithMeta(
     const onAbort = () => {
       killGrokTree(child);
       if (timeoutSignal.aborted) {
-        finish({
+        finishWrapped({
           text: io.stdout,
           capHit: detectGrokCapHit(io.stderr, io.stdout, maxTurns),
           timedOut: true,
@@ -319,8 +436,21 @@ export function runGrokPromptWithMeta(
         });
         return;
       }
-      fail(
-        signal.reason instanceof Error ? signal.reason : new Error("aborted"),
+      const reason = signal.reason;
+      const wallExceeded =
+        reason instanceof Error &&
+        reason.message.includes("DEEPSEC_GROK_FILE_WALL_SEC");
+      if (wallExceeded) {
+        finishWrapped({
+          text: io.stdout,
+          capHit: detectGrokCapHit(io.stderr, io.stdout, maxTurns),
+          timedOut: true,
+          stderr: reason.message,
+        });
+        return;
+      }
+      failWrapped(
+        reason instanceof Error ? reason : new Error("aborted"),
       );
     };
     signal.addEventListener("abort", onAbort, { once: true });
@@ -333,15 +463,18 @@ export function runGrokPromptWithMeta(
     });
     child.on("error", (err) => {
       signal.removeEventListener("abort", onAbort);
-      fail(err);
+      wallPollStop?.();
+      failWrapped(err);
     });
     child.on("close", (code) => {
       signal.removeEventListener("abort", onAbort);
+      wallPollStop?.();
       if (settler.isSettled()) {
+        clearActiveChild();
         return;
       }
       settler.clearTimers();
-      handleGrokClose(code, io, maxTurns, finish, fail);
+      handleGrokClose(code, io, maxTurns, finishWrapped, failWrapped);
     });
   });
 }

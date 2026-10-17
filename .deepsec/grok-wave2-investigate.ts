@@ -1,11 +1,14 @@
 import type { InvestigateParams } from "./deepsec-headless-agent-types.js";
 import {
+  capInvokeTimeoutToFileWall,
   grokDeepMaxTurns,
   grokDeepTimeoutSec,
   grokFileWallSec,
   grokShallowMaxTurns,
   grokShallowTimeoutSec,
   runGrokPromptWithMeta,
+  startFileWallAbortScope,
+  type GrokFileWallContext,
 } from "./grok-agent-prompt.js";
 import { runHeadlessInvestigateOnce } from "./grok-headless-investigate-once.js";
 import {
@@ -51,6 +54,7 @@ async function* runPass(
   maxTurns: number,
   timeoutSec: number,
   passSignal?: AbortSignal,
+  fileWall?: GrokFileWallContext,
 ): AsyncGenerator<unknown, PassOutcome> {
   let lastCap = false;
   let lastTimedOut = false;
@@ -62,6 +66,7 @@ async function* runPass(
         maxTurns,
         timeoutSec,
         signal: passSignal,
+        fileWall,
       });
       lastCap = run.capHit;
       lastTimedOut = run.timedOut;
@@ -145,16 +150,26 @@ async function* runShallowPass(
   agentOptions: AgentOptions,
   shallowMax: number,
   shallowTimeout: number,
-  fileWall: AbortSignal,
+  fileWallSignal: AbortSignal,
+  fileWallCtx: GrokFileWallContext,
 ): AsyncGenerator<unknown, PassOutcome> {
   try {
     return yield* drainPass(
-      runPass(params, agentOptions, shallowMax, shallowTimeout, fileWall),
+      runPass(
+        params,
+        agentOptions,
+        shallowMax,
+        shallowTimeout,
+        fileWallSignal,
+        fileWallCtx,
+      ),
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const timedOut =
-      msg.includes("DEEPSEC_GROK_INVESTIGATE_TIMEOUT_SEC") || fileWall.aborted;
+      msg.includes("DEEPSEC_GROK_INVESTIGATE_TIMEOUT_SEC") ||
+      msg.includes("DEEPSEC_GROK_FILE_WALL_SEC") ||
+      fileWallSignal.aborted;
     const cap = msg.includes("max turns");
     if (!timedOut && !cap) {
       throw err;
@@ -167,27 +182,19 @@ async function* runShallowPass(
 const WALL_HEADROOM_SEC = 30;
 
 function deepBudgetOrThrow(
-  fileWall: AbortSignal,
-  fileWallSec: number,
-  fileWallStartedAt: number,
+  fileWallCtx: GrokFileWallContext,
   deepTimeout: number,
 ): number {
-  if (fileWall.aborted) {
-    throw new Error(
-      `grok file wall exceeded ${fileWallSec}s (DEEPSEC_GROK_FILE_WALL_SEC)`,
-    );
-  }
-  const wallRemainingSec = Math.max(
-    0,
-    fileWallSec - (Date.now() - fileWallStartedAt) / 1000,
-  );
-  const deepBudgetSec = Math.min(
+  const deepBudgetSec = capInvokeTimeoutToFileWall(
     deepTimeout,
-    Math.max(0, Math.floor(wallRemainingSec - WALL_HEADROOM_SEC)),
+    fileWallCtx,
+    WALL_HEADROOM_SEC,
   );
   if (deepBudgetSec < 60) {
     throw new Error(
-      `grok file wall: only ${Math.floor(wallRemainingSec)}s left after shallow pass (need >= ${60 + WALL_HEADROOM_SEC}s for deep)`,
+      `grok file wall: only ${Math.floor(
+        deepBudgetSec,
+      )}s budget for deep pass (need >= 60s; DEEPSEC_GROK_FILE_WALL_SEC)`,
     );
   }
   return deepBudgetSec;
@@ -233,40 +240,54 @@ export async function* grokWave2Investigate(
     grokDeepTimeoutSec(),
     Math.max(60, fileWallSec - shallowTimeout - WALL_HEADROOM_SEC),
   );
-  const fileWallStartedAt = Date.now();
-  const fileWall = AbortSignal.timeout(fileWallSec * 1000);
-
-  const shallowOutcome = yield* runShallowPass(
-    params,
-    agentOptions,
-    shallowMax,
-    shallowTimeout,
-    fileWall,
-  );
-  if (!shallowOutcome.lastCap && !shallowOutcome.lastTimedOut) {
-    return {
-      ...shallowOutcome.value,
-      meta: { ...shallowOutcome.value.meta, codexStderr: "shallow_ok" },
-    };
-  }
-
-  bumpGrokDepthSummary({ shallowCapOrTimeout: 1, deepRetries: 1 });
-  yield {
-    type: "started",
-    message: `Shallow ${limitMessage(shallowOutcome.lastCap, shallowOutcome.lastTimedOut, shallowMax)} — re-investigating with ${deepMax} Grok turns (${deepTimeout}s budget)`,
+  const fileWallCtx: GrokFileWallContext = {
+    startedAtMs: Date.now(),
+    wallSec: fileWallSec,
   };
+  const wallScope = startFileWallAbortScope(fileWallCtx);
+  try {
+    const shallowBudgetSec = capInvokeTimeoutToFileWall(
+      shallowTimeout,
+      fileWallCtx,
+      WALL_HEADROOM_SEC,
+    );
+    const shallowOutcome = yield* runShallowPass(
+      params,
+      agentOptions,
+      shallowMax,
+      shallowBudgetSec,
+      wallScope.signal,
+      fileWallCtx,
+    );
+    if (!shallowOutcome.lastCap && !shallowOutcome.lastTimedOut) {
+      return {
+        ...shallowOutcome.value,
+        meta: { ...shallowOutcome.value.meta, codexStderr: "shallow_ok" },
+      };
+    }
 
-  const deepBudgetSec = deepBudgetOrThrow(
-    fileWall,
-    fileWallSec,
-    fileWallStartedAt,
-    deepTimeout,
-  );
-  const deepOutcome = yield* drainPass(
-    runPass(params, agentOptions, deepMax, deepBudgetSec, fileWall),
-  );
-  bumpGrokDepthSummary({ deepCompleted: 1 });
-  return finalizeDeepOutcome(deepOutcome, shallowOutcome, shallowMax, deepMax);
+    bumpGrokDepthSummary({ shallowCapOrTimeout: 1, deepRetries: 1 });
+    const deepBudgetSec = deepBudgetOrThrow(fileWallCtx, deepTimeout);
+    yield {
+      type: "started",
+      message: `Shallow ${limitMessage(shallowOutcome.lastCap, shallowOutcome.lastTimedOut, shallowMax)} — re-investigating with ${deepMax} Grok turns (${deepBudgetSec}s budget)`,
+    };
+
+    const deepOutcome = yield* drainPass(
+      runPass(
+        params,
+        agentOptions,
+        deepMax,
+        deepBudgetSec,
+        wallScope.signal,
+        fileWallCtx,
+      ),
+    );
+    bumpGrokDepthSummary({ deepCompleted: 1 });
+    return finalizeDeepOutcome(deepOutcome, shallowOutcome, shallowMax, deepMax);
+  } finally {
+    wallScope.stop();
+  }
 }
 
 export function logGrokDepthSummaryLine(): string {
