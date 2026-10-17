@@ -223,7 +223,14 @@ export function accessWorkspace(page) {
 
 export async function returnToAccessList(page) {
   const back = accessWorkspace(page).locator(".record-workspace__back");
-  if (await back.isVisible()) await back.click();
+  // The record can close itself between the check and the click (a second
+  // tab settling the request re-renders the workspace). A back key that has
+  // gone is what the click was for, so only a key still showing is a failure.
+  if (await back.isVisible()) {
+    await back.click({ timeout: 5_000 }).catch(async (error) => {
+      if (await back.isVisible()) throw error;
+    });
+  }
   await expect(accessWorkspace(page).locator(".vault__list")).toBeVisible();
 }
 
