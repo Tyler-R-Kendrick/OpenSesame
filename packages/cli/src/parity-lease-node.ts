@@ -11,6 +11,12 @@ import {
   claimLease,
 } from "@opensesame/app-core/lib/password-agent/lease.js";
 import type { Binding } from "@opensesame/app-core/lib/password-agent/request.js";
+import {
+  type RunGrantBinding,
+  type RunGrantRecord,
+  type RunGrantStorePort,
+  claimRunGrant,
+} from "@opensesame/app-core/lib/password-agent/run-grant.js";
 import { z } from "zod";
 const leaseSchema = z.object({
   capability: z.literal("request"),
@@ -35,7 +41,7 @@ export interface NodeLeaseStore extends LeaseStorePort {
   list(): Promise<LeaseRecord[]>;
   close(): void;
 }
-async function openStore(): Promise<NodeLeaseStore> {
+async function connectAuthorityDatabase(): Promise<DatabaseSync> {
   const { DatabaseSync } = await import("node:sqlite");
   const directory = join(
     process.env.OPENSESAME_STATE_DIR ??
@@ -51,12 +57,15 @@ async function openStore(): Promise<NodeLeaseStore> {
   const db = new DatabaseSync(path);
   chmodSync(path, 0o600);
   db.exec(
-    "PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS authority(key TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS leases(id TEXT PRIMARY KEY,value TEXT NOT NULL);",
+    "PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS authority(key TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS leases(id TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS run_grants(id TEXT PRIMARY KEY,value TEXT NOT NULL);",
   );
   db.prepare(
     "INSERT OR IGNORE INTO authority(key,value) VALUES('principal',?)",
   ).run(randomUUID());
-  return databaseStore(db);
+  return db;
+}
+async function openStore(): Promise<NodeLeaseStore> {
+  return databaseStore(await connectAuthorityDatabase());
 }
 function databaseStore(db: DatabaseSync): NodeLeaseStore {
   const principal = () =>
@@ -147,5 +156,113 @@ export async function openLeaseStore(): Promise<NodeLeaseStore> {
     return await openStore();
   } catch {
     throw new Error("Lease store unavailable (details suppressed).");
+  }
+}
+
+const runGrantSchema = z.object({
+  capability: z.literal("run"),
+  assignments: z.array(z.string()),
+  mounts: z.array(z.string()),
+  agentProxy: z.boolean(),
+  paths: z.array(z.string()),
+  methods: z.array(z.string()),
+  id: z.string(),
+  principal: z.string(),
+  createdAt: z.number().int(),
+  expiresAt: z.number().int(),
+  useBudget: z.number().int(),
+  usesRemaining: z.number().int(),
+  revoked: z.boolean(),
+});
+export interface NodeRunGrantStore extends RunGrantStorePort {
+  list(): Promise<RunGrantRecord[]>;
+  close(): void;
+}
+function databaseRunGrantStore(db: DatabaseSync): NodeRunGrantStore {
+  const principal = () =>
+    rowSchema.parse(
+      db.prepare("SELECT value FROM authority WHERE key='principal'").get(),
+    ).value;
+  const get = (id: string) => {
+    try {
+      return runGrantSchema.parse(
+        JSON.parse(
+          rowSchema.parse(
+            db.prepare("SELECT value FROM run_grants WHERE id=?").get(id),
+          ).value,
+        ),
+      );
+    } catch {
+      throw new Error("Run grant metadata unavailable (details suppressed).");
+    }
+  };
+  const update = (record: RunGrantRecord) =>
+    db
+      .prepare("UPDATE run_grants SET value=? WHERE id=?")
+      .run(JSON.stringify(record), record.id);
+  return {
+    async principal() {
+      return principal();
+    },
+    async get(id) {
+      return get(id);
+    },
+    async insert(grant) {
+      db.prepare("INSERT INTO run_grants(id,value) VALUES(?,?)").run(
+        grant.id,
+        JSON.stringify(grant),
+      );
+    },
+    async list() {
+      return db
+        .prepare("SELECT value FROM run_grants ORDER BY id")
+        .all()
+        .map((row) =>
+          runGrantSchema.parse(JSON.parse(rowSchema.parse(row).value)),
+        );
+    },
+    async claim(
+      id: string,
+      binding: RunGrantBinding,
+      owner: string,
+      now: number,
+    ) {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        const record = claimRunGrant(get(id), binding, owner, now);
+        update(record);
+        db.exec("COMMIT");
+        return record;
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
+    async revoke(id, owner) {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        const record = get(id);
+        if (record.principal !== owner)
+          throw new Error("Run grant principal mismatch");
+        record.revoked = true;
+        update(record);
+        db.exec("COMMIT");
+        return record;
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
+    close() {
+      db.close();
+    },
+  };
+}
+
+export async function openRunGrantStore(): Promise<NodeRunGrantStore> {
+  try {
+    return databaseRunGrantStore(await connectAuthorityDatabase());
+  } catch {
+    throw new Error("Run grant store unavailable (details suppressed).");
   }
 }

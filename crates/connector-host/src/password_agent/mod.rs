@@ -8,6 +8,7 @@ pub mod mask;
 pub mod policy;
 pub mod request;
 pub mod reveal_gate;
+pub mod run_grant;
 pub mod service;
 pub mod writes;
 

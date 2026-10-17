@@ -13,6 +13,7 @@ import type { ParityContext } from "./parity-commands.js";
 import { openLeaseStore } from "./parity-lease-node.js";
 import { exhausted, option } from "./parity-parse.js";
 import { requestAddresses, sendPrivateRequest } from "./parity-request-node.js";
+import { approveRunGrant, runGrantMetadata } from "./parity-run-grant.js";
 function options(args: string[]): RequestOptions {
   const url = args.shift();
   const reference = option(args, "--secret") ?? option(args, "--ref");
@@ -58,6 +59,9 @@ export async function runPrivateRequest(ctx: ParityContext): Promise<number> {
 export async function runLease(ctx: ParityContext): Promise<number> {
   const verb = ctx.args.shift();
   if (verb === "approve") return approve(ctx);
+  if (verb === "approve-run") return approveRunGrant(ctx);
+  if (verb === "run-list" || verb === "run-status" || verb === "run-revoke")
+    return runGrantMetadata(verb, ctx);
   const store = await openLeaseStore();
   try {
     if (verb === "list") {
@@ -77,7 +81,10 @@ export async function runLease(ctx: ParityContext): Promise<number> {
           await store.revoke(id, await store.principal(), Date.now()),
         ),
       );
-    } else throw new Error("Lease requires approve, list, status, or revoke.");
+    } else
+      throw new Error(
+        "Lease requires approve, approve-run, list, status, revoke, run-list, run-status, or run-revoke.",
+      );
   } catch {
     throw new Error("Lease metadata operation failed (details suppressed).");
   } finally {
