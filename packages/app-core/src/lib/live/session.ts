@@ -358,6 +358,7 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
     name: input.name,
     note: input.note,
     transport: input.transport(routing),
+    routing,
     carriers: carriers ? guestCarriersFor(carriers) : null,
     peerTrust: prepared.material,
   });

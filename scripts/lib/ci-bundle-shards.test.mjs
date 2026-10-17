@@ -56,6 +56,7 @@ const GATES = [
   "verify:relay-join-live",
   "verify:live-local-pair",
   "verify:peer-trust-two-context",
+  "verify:peering-diagnostics",
 ];
 
 /** The shards a step's `if:` selects: the union of its `||` clauses. */
