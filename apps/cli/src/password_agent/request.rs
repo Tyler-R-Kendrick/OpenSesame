@@ -47,10 +47,25 @@ pub(crate) enum LeaseCommand {
         #[arg(long, default_value_t = 1)]
         uses: u32,
     },
+    /// Human-approve a reusable grant for one exact `run` assignment set.
+    ApproveRun {
+        #[command(flatten)]
+        args: super::run_args::RunArgs,
+        #[arg(long, default_value = "10m")]
+        expires_in: String,
+        #[arg(long, default_value_t = 1)]
+        uses: u32,
+    },
     Status {
         id: String,
     },
     Revoke {
+        id: String,
+    },
+    RunStatus {
+        id: String,
+    },
+    RunRevoke {
         id: String,
     },
 }
@@ -131,6 +146,13 @@ pub(super) async fn lease(cmd: LeaseCommand) -> anyhow::Result<()> {
                 .await?;
             super::print(&receipt(&granted)?)?;
         }
+        LeaseCommand::ApproveRun {
+            args,
+            expires_in,
+            uses,
+        } => super::run_grant_cli::approve_run(&args, &expires_in, uses).await?,
+        LeaseCommand::RunStatus { id } => super::run_grant_cli::run_status(&id).await?,
+        LeaseCommand::RunRevoke { id } => super::run_grant_cli::run_revoke(&id).await?,
         LeaseCommand::Status { id } => {
             super::print(&receipt(&Store::open().await?.status(&id).await?)?)?;
         }
