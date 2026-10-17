@@ -48,13 +48,9 @@ export function readClaimLink(hash: string): ClaimLink | null {
   }
   const key = params.get("key");
   const pkt = params.get("pkt");
-  if (key || isPortableDropToken(token) || pkt !== null) {
-    return {
-      kind: "drop",
-      token,
-      key: key || "",
-      ...(pkt === null ? {} : { pkt }),
-    };
+  if (pkt !== null) return { kind: "drop", token, key: key || "", pkt };
+  if (key || isPortableDropToken(token)) {
+    return { kind: "drop", token, key: key || "" };
   }
   return { kind: "claim", token };
 }
