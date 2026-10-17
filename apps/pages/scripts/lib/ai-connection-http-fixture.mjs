@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { z } from "zod";
+import { AI_EXCHANGE_HEADER } from "./ai-request-lifecycle.mjs";
 
 export const AI_FIXTURE_KEY = "ai-browser-fixture-key";
 export const AI_FIXTURE_MODEL = "fixture-model";
@@ -197,11 +199,14 @@ function deliver(response, family, text, stream, state, row) {
   if (pending && pending.path === row.path && pending.stream === stream) {
     state.pending = null;
     pending.id = row.id;
-    pending.started = true;
     response.on("close", () => {
       pending.closed = !response.writableEnded;
+      state.observer?.closed(pending, pending.closed);
     });
-    pending.release = () =>
+    pending.release = () => {
+      if (pending.released) return;
+      pending.released = true;
+      state.observer?.release(pending);
       response.end(
         stream
           ? frames
@@ -213,6 +218,17 @@ function deliver(response, family, text, stream, state, row) {
               .join("")
           : JSON.stringify(jsonReply(family, text)),
       );
+    };
+    Promise.resolve()
+      .then(() => state.observer?.bindHold(pending, row.correlation))
+      .then(() => {
+        pending.started = true;
+      })
+      .catch(() => {
+        state.errors.push({ id: row.id, status: "hold-binding" });
+        response.destroy();
+      });
+    response.flushHeaders();
     if (stream) response.write(`data: ${JSON.stringify(frames[0])}\n\n`);
     return;
   }
@@ -254,6 +270,7 @@ function accept(request, response, raw, state) {
   );
   const row = {
     id: `request-${state.requests.length + 1}`,
+    correlation: `${state.nonce}:request-${state.requests.length + 1}`,
     path,
     family,
     method: request.method,
@@ -276,6 +293,7 @@ function accept(request, response, raw, state) {
   response.writeHead(200, {
     "content-type": stream ? "text/event-stream" : "application/json",
     "cache-control": "no-store",
+    [AI_EXCHANGE_HEADER]: row.correlation,
   });
   deliver(response, family, text, stream, state, row);
 }
@@ -306,6 +324,7 @@ function fixtureHandler(state) {
 export async function createAiConnectionHttpFixture({
   port = 41912,
   appOrigin = "http://127.0.0.1:41911",
+  observer,
 } = {}) {
   const requests = [];
   const preflights = [];
@@ -314,6 +333,8 @@ export async function createAiConnectionHttpFixture({
   const timers = new Set();
   const origins = new Set([appOrigin, "http://localhost:41911"]);
   const state = {
+    nonce: randomUUID(),
+    observer,
     port,
     origins,
     requests,
@@ -344,8 +365,14 @@ export async function createAiConnectionHttpFixture({
         stream,
         started: false,
         closed: false,
+        released: false,
         id: null,
         release() {},
+      };
+      observer?.reserve(pending);
+      pending.armCancellation = (reason) => {
+        if (!observer) throw new Error("Cancellation observer missing");
+        observer.arm(pending, reason);
       };
       state.pending = pending;
       holds.add(pending);

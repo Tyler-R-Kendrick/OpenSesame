@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { verifyAiConnections } from "./lib/ai-connection-browser.mjs";
 import { createAiConnectionHttpFixture } from "./lib/ai-connection-http-fixture.mjs";
+import { createAiRequestLifecycle } from "./lib/ai-request-lifecycle.mjs";
 import { startIdentityAppServer } from "./lib/identity-browser-server.mjs";
 import { sealWithPin } from "./lib/pages-journey.mjs";
 import {
@@ -28,6 +29,9 @@ if (!fs.existsSync(path.join(dist, "index.html")))
   throw new Error(`Build the declared AI verification profile first: ${dist}`);
 fs.mkdirSync(out, { recursive: true });
 const h = createHarness({ dist, origin, base, out });
+const lifecycle = createAiRequestLifecycle({
+  fixtureOrigin: "http://127.0.0.1:41912",
+});
 let browser;
 let fixture;
 let app;
@@ -78,6 +82,7 @@ async function runViewport(width) {
     providers: [fixture.origin],
     record: h.record,
   });
+  lifecycle.attach(context, String(width));
   try {
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await sealWithPin(page);
@@ -90,13 +95,18 @@ async function runViewport(width) {
     });
     throw error;
   } finally {
+    await lifecycle.checkpoint(context);
     await context.close();
+    lifecycle.finalize(context);
   }
 }
 
 try {
   app = await startIdentityAppServer(dist, origin, base);
-  fixture = await createAiConnectionHttpFixture({ appOrigin: origin });
+  fixture = await createAiConnectionHttpFixture({
+    appOrigin: origin,
+    observer: lifecycle,
+  });
   browser = await h.launch({ args: ["--no-sandbox"] });
   for (const width of [1280, 390]) await runViewport(width);
 } catch (error) {
@@ -119,18 +129,22 @@ for (const entry of h.log) {
     ].includes(entry.kind)
   )
     h.failures.push(`${entry.kind}: ${entry.detail}`);
-  if (
-    entry.kind === "network-failure" &&
-    !entry.detail.startsWith("net::ERR_ABORTED:")
-  )
-    h.failures.push(`${entry.kind}: ${entry.detail}`);
 }
+lifecycle.finalize();
+const nativeRequests = lifecycle.snapshot();
+h.failures.push(...nativeRequests.failures);
+const rawFailed = h.log.filter(
+  (entry) => entry.kind === "network-failure",
+).length;
+if (rawFailed !== nativeRequests.nativeFailed)
+  h.failures.push("raw-network-failure-ledger-mismatch");
 fs.writeFileSync(
   path.join(out, "results.json"),
   `${JSON.stringify(
     {
       failures: h.failures,
       log: h.log,
+      nativeRequests,
       requests: fixture?.requests,
       preflights: fixture?.preflights,
       limits: [

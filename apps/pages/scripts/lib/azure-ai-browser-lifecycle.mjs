@@ -178,6 +178,7 @@ async function cancelSupport(context) {
       exact: true,
     });
     const before = await answers.count();
+    held.armCancellation("support-cancel");
     await sheet.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect.poll(() => held.closed).toBe(true);
     await expect(
@@ -217,6 +218,7 @@ async function cancelStream(context, api, lock) {
     await expect(region.getByLabel("Model answer", { exact: true })).toHaveText(
       "Fixture ",
     );
+    held.armCancellation(lock ? "vault-lock" : "route-unmount");
     if (lock) await lockVault(page);
     else
       await page
