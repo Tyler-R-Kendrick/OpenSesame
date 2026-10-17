@@ -54,7 +54,14 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-15-tailscale-status/`](2026-10-15-tailscale-status/README.md) | Tailscale browser-node live status: actual browser evidence |
+| [`2026-10-15-tailscale-service-probe/`](2026-10-15-tailscale-service-probe/README.md) | Tailscale service-probe HTTP results |
+| [`2026-10-15-tailscale-primary-ui/`](2026-10-15-tailscale-primary-ui/README.md) | Peering-only Tailscale primary UI: actual browser evidence |
+| [`2026-10-15-github-app-entry/`](2026-10-15-github-app-entry/README.md) | Native GitHub App configuration entry: browser evidence |
+| [`2026-10-15-ai-connection-projection/`](2026-10-15-ai-connection-projection/README.md) | Verified AI connection projection: actual browser evidence |
+| [`2026-10-14-integration-settings/`](2026-10-14-integration-settings/README.md) | Integration settings: AI and Tailscale |
 | [`2026-10-14-identity-integrations/`](2026-10-14-identity-integrations/README.md) | Configurable identity integrations |
+| [`2026-10-14-byo-first/`](2026-10-14-byo-first/README.md) | BYO configuration first |
 | [`2026-10-14-backup-integrations/`](2026-10-14-backup-integrations/README.md) | Configurable secret backends and encrypted vault backups |
 | [`2026-10-12-transfer-vault-ownership/`](2026-10-12-transfer-vault-ownership/README.md) | Transfer ownership in Settings › Danger (ADR 0195) |
 | [`2026-10-12-key-driven-providers/`](2026-10-12-key-driven-providers/README.md) | Connections — providers that connect with the person's own key |

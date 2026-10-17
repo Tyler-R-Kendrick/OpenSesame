@@ -1,4 +1,12 @@
-import { runtimeFixture } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import {
+  assertLeaseCurrent,
+  mintLease,
+} from "@opensesame/app-core/lib/capabilities/lease.js";
+import {
+  deferred,
+  runtimeFixture,
+} from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import * as nodeState from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 // @vitest-environment jsdom
@@ -30,6 +38,33 @@ const config = {
   hostname: "operator-browser",
   controlURL: "https://controlplane.tailscale.com",
 };
+type HeldWrite = { resume(): void; returned: boolean };
+const heldWrites: HeldWrite[] = [];
+function holdWrites() {
+  const write = nodeState.writeBrowserNodeState;
+  vi.spyOn(nodeState, "writeBrowserNodeState").mockImplementation(
+    async (...args) => {
+      const receipt = await write(...args);
+      const gate = deferred<void>();
+      const held = { resume: () => gate.resolve(), returned: false };
+      heldWrites.push(held);
+      await gate.promise;
+      held.returned = true;
+      return receipt;
+    },
+  );
+}
+async function editToken() {
+  const item = vaultStore
+    .getSnapshot()
+    .items.find((entry) => entry.kind === "credential");
+  if (!item || item.kind !== "credential" || item.method.type !== "token")
+    throw new Error("Expected node credential");
+  await vaultStore.saveItem({
+    ...item,
+    method: { ...item.method, token: '{"person":"edited"}' },
+  });
+}
 function controller() {
   return createBrowserNodeController({
     assertCurrent() {
@@ -46,6 +81,7 @@ beforeEach(async () => {
   vi.stubGlobal("Worker", WorkerFixture);
 });
 afterEach(async () => {
+  for (const write of heldWrites.splice(0)) write.resume();
   vi.unstubAllGlobals();
   await fixture.close();
 });
@@ -147,15 +183,7 @@ it("clears a real authorization URL and terminates when actual vault credential 
   await vi.waitFor(() =>
     expect(node.snapshot().authURL).toContain("login.tailscale.com"),
   );
-  const item = vaultStore
-    .getSnapshot()
-    .items.find((entry) => entry.kind === "credential");
-  if (!item || item.kind !== "credential" || item.method.type !== "token")
-    throw new Error("Expected node credential");
-  const edited = structuredClone(item);
-  if (edited.method.type === "token")
-    edited.method.token = '{"person":"edited"}';
-  await vaultStore.saveItem(edited);
+  await editToken();
   expect(worker.terminated).toBe(true);
   expect(node.snapshot().authURL).toBe("");
 });
@@ -224,4 +252,142 @@ it("terminates the actual worker when a peer GET times out because the SDK has n
     vi.useRealTimers();
     node.stop();
   }
+});
+
+it.each(["edited", "deleted"])(
+  "refuses an actual token %s after store completion but before controller adoption",
+  async (change) => {
+    holdWrites();
+    const node = controller();
+    await node.start(config);
+    const worker = WorkerFixture.current;
+    worker.emit({ kind: "storage", state: { key: "real-committed-state" } });
+    await vi.waitFor(() => expect(heldWrites).toHaveLength(1));
+    if (change === "edited") await editToken();
+    else {
+      const item = vaultStore.getSnapshot().items[0];
+      if (!item) throw new Error("Missing actual node Token");
+      await vaultStore.trashItem(item.id);
+      await vaultStore.purgeItem(item.id);
+    }
+    expect(worker.terminated).toBe(false);
+    heldWrites[0]?.resume();
+    await vi.waitFor(() => expect(worker.terminated).toBe(true));
+    expect(node.snapshot().status).toBe("error");
+    expect(node.snapshot().addresses).toEqual([]);
+  },
+);
+
+it("cannot adopt an old receipt into a different restarted node record", async () => {
+  holdWrites();
+  const node = controller();
+  await node.start(config);
+  const older = WorkerFixture.current;
+  older.emit({ kind: "storage", state: { key: "older-turn" } });
+  await vi.waitFor(() => expect(heldWrites).toHaveLength(1));
+  await node.forget();
+  await node.start({ ...config, hostname: "new-node-record" });
+  const newer = WorkerFixture.current;
+  heldWrites[0]?.resume();
+  await vi.waitFor(() => expect(heldWrites[0]?.returned).toBe(true));
+  newer.emit({ kind: "storage", state: { key: "newer-turn" } });
+  await vi.waitFor(() => expect(heldWrites).toHaveLength(2));
+  heldWrites[1]?.resume();
+  authorized(newer);
+  await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));
+  expect(older.terminated).toBe(true);
+  expect(newer.terminated).toBe(false);
+  expect(node.snapshot().hostname).toBe("new-node-record");
+  node.stop();
+});
+
+it("does not decrement a newer turn's in-flight write when an old write settles", async () => {
+  holdWrites();
+  const node = controller();
+  await node.start(config);
+  WorkerFixture.current.emit({ kind: "storage", state: { key: "older" } });
+  await vi.waitFor(() => expect(heldWrites).toHaveLength(1));
+  await node.start(config);
+  const newer = WorkerFixture.current;
+  newer.emit({ kind: "storage", state: { key: "newer" } });
+  await vi.waitFor(() => expect(heldWrites).toHaveLength(2));
+  heldWrites[0]?.resume();
+  await vi.waitFor(() => expect(heldWrites[0]?.returned).toBe(true));
+  expect(() => node.login()).not.toThrow();
+  heldWrites[1]?.resume();
+  authorized(newer);
+  await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));
+  await editToken();
+  expect(newer.terminated).toBe(true);
+});
+
+it("cannot recover an actual withdrawn activation lease after a held store receipt", async () => {
+  const authority = mintLease(
+    {
+      instanceId: "fixture",
+      installationId: "fixture",
+      vaultId: null,
+      distributionId: "fixture",
+      policyRevision: "1",
+      selectionRevision: "1",
+      planDigest: "sha256:fixture",
+    },
+    1,
+  );
+  const node = createBrowserNodeController({
+    assertCurrent: () =>
+      assertLeaseCurrent(authority.lease, 1, "networking.tailnet"),
+    approve,
+    approvePeer: () => true,
+  });
+  holdWrites();
+  await node.start(config);
+  const worker = WorkerFixture.current;
+  worker.emit({
+    kind: "storage",
+    state: { key: "committed-before-withdrawal" },
+  });
+  await vi.waitFor(() => expect(heldWrites).toHaveLength(1));
+  authority.abort("operator withdrew networking");
+  heldWrites[0]?.resume();
+  authorized(worker);
+  await vi.waitFor(() => expect(worker.terminated).toBe(true));
+  expect(node.snapshot().status).toBe("error");
+  expect(node.snapshot().addresses).toEqual([]);
+});
+
+it("cannot commit an old turn's still-pending vault write after restarting", async () => {
+  const node = controller();
+  await node.start(config);
+  const gate = deferred<void>();
+  const entered = deferred<void>();
+  const save = vaultStore.saveItems.bind(vaultStore);
+  const pending = vi
+    .spyOn(vaultStore, "saveItems")
+    .mockImplementationOnce(async (...args) => {
+      entered.resolve();
+      await gate.promise;
+      return save(...args);
+    });
+  WorkerFixture.current.emit({
+    kind: "storage",
+    state: { key: "pending-old-turn" },
+  });
+  await entered.promise;
+  await node.start(config);
+  const newer = WorkerFixture.current;
+  newer.emit({ kind: "storage", state: { key: "committed-new-turn" } });
+  authorized(newer);
+  await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));
+  gate.resolve();
+  await expect(pending.mock.results[0]?.value).rejects.toThrow();
+  expect(newer.terminated).toBe(false);
+  expect(JSON.stringify(vaultStore.getSnapshot().items)).toContain(
+    "committed-new-turn",
+  );
+  expect(JSON.stringify(vaultStore.getSnapshot().items)).not.toContain(
+    "pending-old-turn",
+  );
+  await editToken();
+  expect(newer.terminated).toBe(true);
 });

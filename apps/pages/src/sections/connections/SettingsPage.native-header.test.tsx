@@ -1,6 +1,14 @@
+import { aiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/presets.js";
+import {
+  deleteAiConnection,
+  saveAiConnection,
+} from "@opensesame/app-core/lib/ai-connections/runtime.js";
+import { bindAiConnectionTransport } from "@opensesame/app-core/lib/ai-connections/transport.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { deviceConnectorView } from "@opensesame/app-core/lib/device-connector-view.js";
+import { deviceConnection } from "@opensesame/app-core/lib/device-connectors.js";
 import {
   modelMemoryBackend,
   saveModelFixture,
@@ -10,6 +18,8 @@ import {
   readNativeConnector,
   updateNativeConnector,
 } from "@opensesame/app-core/lib/native-connector-store.js";
+import { runtimeFixture } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { connectorCeremonyRoot } from "@opensesame/app-core/sections/connections/shared.js";
 import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
@@ -19,6 +29,7 @@ import { createActivation } from "../../modules/activation.js";
 import { bindNativeRuntime } from "../../modules/connectors.external/native-runtime.js";
 import { createTestContext } from "../../modules/test-context.js";
 import { ConnectorSettingsPage } from "./SettingsPage.js";
+import { nativeConnectorHeaderStatus } from "./SettingsPageNativeStatus.js";
 import { AuthorizedAccount } from "./SettingsPageStatus.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
@@ -203,3 +214,49 @@ it("uses the same truthful facts in native authorization list rows", async () =>
     result.container.querySelector('[role="img"]')?.getAttribute("aria-label"),
   ).toBe("Access verified");
 });
+
+it.each(["endpoint", "lock", "forget"])(
+  "uses current AI authority after %s despite an old active connection prop",
+  async (withdraw) => {
+    const fixture = await runtimeFixture();
+    let allowed = true;
+    const lifetime = new AbortController();
+    const release = bindAiConnectionTransport({
+      signal: lifetime.signal,
+      assertCurrent: () => lifetime.signal.throwIfAborted(),
+      assertEndpointAllowed: () => {
+        if (!allowed) throw new Error("Endpoint withdrawn");
+      },
+      fetch: async () =>
+        Response.json({ choices: [{ message: { content: "OK" } }] }),
+    });
+    const test = createTestContext();
+    const activation = createActivation(test.ctx, "connectors.external");
+    bindNativeRuntime(test.ctx, activation);
+    try {
+      const saved = await saveAiConnection({
+        ...aiConnectionDraft("nvidia"),
+        baseUrl: "https://configured-model.example/v1",
+        model: "fixture-model",
+        apiKey: "private-header-ai-token",
+      });
+      const connection = deviceConnection(saved.connectionId);
+      const ai = catalogProvider("nvidia");
+      if (!connection || !ai) throw new Error("Missing actual AI connection");
+      expect(connection.status).toBe("active");
+      expect(nativeConnectorHeaderStatus(connection, ai)).toMatchObject({
+        tone: "ok",
+        label: "Access verified",
+      });
+      if (withdraw === "endpoint") allowed = false;
+      if (withdraw === "lock") vaultStore.lock();
+      if (withdraw === "forget") await deleteAiConnection(saved.connectionId);
+      expect(nativeConnectorHeaderStatus(connection, ai)?.tone).not.toBe("ok");
+    } finally {
+      activation.dispose();
+      lifetime.abort();
+      release();
+      await fixture.close();
+    }
+  },
+);

@@ -1,0 +1,2907 @@
+{
+  "phase": "before",
+  "dist": "/workspace/work/pwa-ai-projection-before/apps/pages/dist-ai-connections-verify",
+  "browserVersion": "151.0.7922.173",
+  "sourceParent": "e68e24c18ddaa12c4a5c4b056d413555032a4b8c",
+  "sourceTree": "47c818c3a9fe1de488949be748b27918fc26d152",
+  "sourceDescription": "Clean immutable e68 parent; declared loopback_development AI verification profile",
+  "indexSha256": "9b674124bd7ce7c9d422a9156806a62cb45b5446e27cfcc0f2ff2f21d8f098b7",
+  "profile": "loopback_development",
+  "canonicalOrigin": "http://localhost:41911",
+  "measurements": [
+    {
+      "width": 1280,
+      "height": 900,
+      "step": "denied-test",
+      "url": "http://localhost:41911/OpenSesame/settings/connections/nvidia",
+      "heading": "Nvidia",
+      "statuses": [
+        {
+          "label": "Not available here",
+          "tone": "idle",
+          "inHeader": true
+        },
+        {
+          "label": "The AI service refused the credential or its permissions.",
+          "tone": "err",
+          "inHeader": false
+        },
+        {
+          "label": "The AI service refused the credential or its permissions.",
+          "tone": "err",
+          "inHeader": false
+        }
+      ],
+      "overflow": {
+        "viewport": 1280,
+        "document": 1280
+      },
+      "coarse": false,
+      "controls": [
+        {
+          "label": "Connection name",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 300.625,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "API family",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 359.3125,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "API base URL",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 439.40625,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Model ID",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 514.203125,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Authentication",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 572.890625,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "API key",
+          "tag": "INPUT",
+          "type": "password",
+          "disabled": false,
+          "x": 280,
+          "y": 652.984375,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Output token parameter",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 732.671875,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "Save AI connection",
+          "tag": "BUTTON",
+          "type": "submit",
+          "disabled": false,
+          "x": 280,
+          "y": 741.484375,
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Test AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 479.625,
+          "y": 745.484375,
+          "width": 32,
+          "height": 32
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "step": "verified-save",
+      "url": "http://localhost:41911/OpenSesame/settings/connections/nvidia",
+      "heading": "Nvidia",
+      "statuses": [
+        {
+          "label": "Browser route unavailable",
+          "tone": "warn",
+          "inHeader": true
+        },
+        {
+          "label": "The AI service refused the credential or its permissions.",
+          "tone": "err",
+          "inHeader": false
+        }
+      ],
+      "overflow": {
+        "viewport": 1280,
+        "document": 1280
+      },
+      "coarse": false,
+      "controls": [
+        {
+          "label": "Forget AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 888,
+          "y": 261.75,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "label": "Connection name",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 345.234375,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "API family",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 403.921875,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "API base URL",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 484.015625,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Model ID",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 558.8125,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Authentication",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 617.5,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "API key",
+          "tag": "INPUT",
+          "type": "password",
+          "disabled": false,
+          "x": 280,
+          "y": 697.59375,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Output token parameter",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 777.28125,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "Save AI connection",
+          "tag": "BUTTON",
+          "type": "submit",
+          "disabled": false,
+          "x": 280,
+          "y": 786.09375,
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Test AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 479.625,
+          "y": 790.09375,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "label": "Prompt",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 921.46875,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Stream response",
+          "tag": "INPUT",
+          "type": "checkbox",
+          "disabled": false,
+          "x": 284,
+          "y": 975.96875,
+          "width": 13,
+          "height": 13
+        },
+        {
+          "label": "Send prompt",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": true,
+          "x": 280,
+          "y": 1011.96875,
+          "width": 40,
+          "height": 40
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "step": "saved-inference",
+      "url": "http://localhost:41911/OpenSesame/settings/connections/nvidia",
+      "heading": "Nvidia",
+      "statuses": [
+        {
+          "label": "Browser route unavailable",
+          "tone": "warn",
+          "inHeader": true
+        },
+        {
+          "label": "The AI service refused the credential or its permissions.",
+          "tone": "err",
+          "inHeader": false
+        }
+      ],
+      "overflow": {
+        "viewport": 1280,
+        "document": 1280
+      },
+      "coarse": false,
+      "controls": [
+        {
+          "label": "Forget AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 888,
+          "y": -7.25,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "label": "Connection name",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 76.234375,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "API family",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 134.921875,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "API base URL",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 215.015625,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Model ID",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 289.8125,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Authentication",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 348.5,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "API key",
+          "tag": "INPUT",
+          "type": "password",
+          "disabled": false,
+          "x": 280,
+          "y": 428.59375,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Output token parameter",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 441.59375,
+          "y": 508.28125,
+          "width": 478.40625,
+          "height": 32
+        },
+        {
+          "label": "Save AI connection",
+          "tag": "BUTTON",
+          "type": "submit",
+          "disabled": false,
+          "x": 280,
+          "y": 517.09375,
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Test AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 479.625,
+          "y": 521.09375,
+          "width": 32,
+          "height": 32
+        },
+        {
+          "label": "Prompt",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 280,
+          "y": 652.46875,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "label": "Stream response",
+          "tag": "INPUT",
+          "type": "checkbox",
+          "disabled": false,
+          "x": 284,
+          "y": 706.96875,
+          "width": 13,
+          "height": 13
+        },
+        {
+          "label": "Send prompt",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 280,
+          "y": 742.96875,
+          "width": 40,
+          "height": 40
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "step": "denied-test",
+      "url": "http://localhost:41911/OpenSesame/settings/connections/nvidia",
+      "heading": "Nvidia",
+      "statuses": [
+        {
+          "label": "Not available here",
+          "tone": "idle",
+          "inHeader": true
+        },
+        {
+          "label": "The AI service refused the credential or its permissions.",
+          "tone": "err",
+          "inHeader": false
+        },
+        {
+          "label": "The AI service refused the credential or its permissions.",
+          "tone": "err",
+          "inHeader": false
+        }
+      ],
+      "overflow": {
+        "viewport": 390,
+        "document": 390
+      },
+      "coarse": true,
+      "controls": [
+        {
+          "label": "Connection name",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 187.515625,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API family",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 283.296875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API base URL",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 374.890625,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Model ID",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 458.6875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Authentication",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 554.46875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API key",
+          "tag": "INPUT",
+          "type": "password",
+          "disabled": false,
+          "x": 16,
+          "y": 646.0625,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Output token parameter",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 786.84375,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Save AI connection",
+          "tag": "BUTTON",
+          "type": "submit",
+          "disabled": false,
+          "x": 16,
+          "y": 768.0625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "label": "Test AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 219.625,
+          "y": 768.0625,
+          "width": 44,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "step": "verified-save",
+      "url": "http://localhost:41911/OpenSesame/settings/connections/nvidia",
+      "heading": "Nvidia",
+      "statuses": [
+        {
+          "label": "Browser route unavailable",
+          "tone": "warn",
+          "inHeader": true
+        },
+        {
+          "label": "The AI service refused the credential or its permissions.",
+          "tone": "err",
+          "inHeader": false
+        }
+      ],
+      "overflow": {
+        "viewport": 390,
+        "document": 390
+      },
+      "coarse": true,
+      "controls": [
+        {
+          "label": "Forget AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 330,
+          "y": 415.140625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "label": "Connection name",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 510.125,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API family",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 605.90625,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API base URL",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 697.5,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Model ID",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 781.296875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Authentication",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 877.078125,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API key",
+          "tag": "INPUT",
+          "type": "password",
+          "disabled": false,
+          "x": 16,
+          "y": 968.671875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Output token parameter",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 1109.453125,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Save AI connection",
+          "tag": "BUTTON",
+          "type": "submit",
+          "disabled": false,
+          "x": 16,
+          "y": 1090.671875,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "label": "Test AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 219.625,
+          "y": 1090.671875,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "label": "Prompt",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 1229.546875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Stream response",
+          "tag": "INPUT",
+          "type": "checkbox",
+          "disabled": false,
+          "x": 20,
+          "y": 1293.546875,
+          "width": 13,
+          "height": 13
+        },
+        {
+          "label": "Send prompt",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": true,
+          "x": 16,
+          "y": 1329.546875,
+          "width": 44,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "step": "saved-inference",
+      "url": "http://localhost:41911/OpenSesame/settings/connections/nvidia",
+      "heading": "Nvidia",
+      "statuses": [
+        {
+          "label": "Browser route unavailable",
+          "tone": "warn",
+          "inHeader": true
+        },
+        {
+          "label": "The AI service refused the credential or its permissions.",
+          "tone": "err",
+          "inHeader": false
+        }
+      ],
+      "overflow": {
+        "viewport": 390,
+        "document": 390
+      },
+      "coarse": true,
+      "controls": [
+        {
+          "label": "Forget AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 330,
+          "y": -151.859375,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "label": "Connection name",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": -56.875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API family",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 38.90625,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API base URL",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 130.5,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Model ID",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 214.296875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Authentication",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 310.078125,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "API key",
+          "tag": "INPUT",
+          "type": "password",
+          "disabled": false,
+          "x": 16,
+          "y": 401.671875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Output token parameter",
+          "tag": "SELECT",
+          "type": "select-one",
+          "disabled": false,
+          "x": 16,
+          "y": 542.453125,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Save AI connection",
+          "tag": "BUTTON",
+          "type": "submit",
+          "disabled": false,
+          "x": 16,
+          "y": 523.671875,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "label": "Test AI connection",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 219.625,
+          "y": 523.671875,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "label": "Prompt",
+          "tag": "INPUT",
+          "type": "text",
+          "disabled": false,
+          "x": 16,
+          "y": 662.546875,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "label": "Stream response",
+          "tag": "INPUT",
+          "type": "checkbox",
+          "disabled": false,
+          "x": 20,
+          "y": 726.546875,
+          "width": 13,
+          "height": 13
+        },
+        {
+          "label": "Send prompt",
+          "tag": "BUTTON",
+          "type": "button",
+          "disabled": false,
+          "x": 16,
+          "y": 762.546875,
+          "width": 44,
+          "height": 44
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "step": "before-1280-denied-test",
+      "kind": "PASS",
+      "detail": "1280: wrong key made one actual rejected inference request"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "PASS",
+      "detail": "1280: rejected probe does not create a saved inference workspace"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "PASS",
+      "detail": "1280 denied-test: no horizontal document overflow"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "PASS",
+      "detail": "1280 denied-test: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280: Test performs a real authenticated inference"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280: Test and Save independently pass authenticated custom-endpoint inference"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280 verified-save: no horizontal document overflow"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280 verified-save: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280: one actual provider header status"
+    },
+    {
+      "step": "before-1280-saved-inference",
+      "kind": "PASS",
+      "detail": "1280: saved connection performs actual inference with vault-owned token"
+    },
+    {
+      "step": "before-1280-saved-inference",
+      "kind": "PASS",
+      "detail": "1280 saved-inference: no horizontal document overflow"
+    },
+    {
+      "step": "before-1280-saved-inference",
+      "kind": "PASS",
+      "detail": "1280 saved-inference: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "kind": "PASS",
+      "detail": "1280: retained key is an actual readable vault Token item"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "kind": "PASS",
+      "detail": "1280: fixture key absent from plaintext configuration storage"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "PASS",
+      "detail": "390: wrong key made one actual rejected inference request"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "PASS",
+      "detail": "390: rejected probe does not create a saved inference workspace"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "PASS",
+      "detail": "390 denied-test: no horizontal document overflow"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "PASS",
+      "detail": "390 denied-test: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390: Test performs a real authenticated inference"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390: Test and Save independently pass authenticated custom-endpoint inference"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390 verified-save: no horizontal document overflow"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390 verified-save: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390: one actual provider header status"
+    },
+    {
+      "step": "before-390-saved-inference",
+      "kind": "PASS",
+      "detail": "390: saved connection performs actual inference with vault-owned token"
+    },
+    {
+      "step": "before-390-saved-inference",
+      "kind": "PASS",
+      "detail": "390 saved-inference: no horizontal document overflow"
+    },
+    {
+      "step": "before-390-saved-inference",
+      "kind": "PASS",
+      "detail": "390 saved-inference: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-390-token-custody",
+      "kind": "PASS",
+      "detail": "390: retained key is an actual readable vault Token item"
+    },
+    {
+      "step": "before-390-token-custody",
+      "kind": "PASS",
+      "detail": "390: fixture key absent from plaintext configuration storage"
+    },
+    {
+      "step": "before-390-token-custody",
+      "kind": "PASS",
+      "detail": "Actual browser CORS preflights reached independent HTTP fixture"
+    }
+  ],
+  "failures": [],
+  "fixture": {
+    "requests": [
+      {
+        "id": "request-1",
+        "path": "/custom/v1/chat/completions",
+        "family": "openai_chat",
+        "method": "POST",
+        "authenticated": false,
+        "stream": false,
+        "bytes": 112
+      },
+      {
+        "id": "request-2",
+        "path": "/custom/v1/chat/completions",
+        "family": "openai_chat",
+        "method": "POST",
+        "authenticated": true,
+        "stream": false,
+        "bytes": 112
+      },
+      {
+        "id": "request-3",
+        "path": "/custom/v1/chat/completions",
+        "family": "openai_chat",
+        "method": "POST",
+        "authenticated": true,
+        "stream": false,
+        "bytes": 112
+      },
+      {
+        "id": "request-4",
+        "path": "/custom/v1/chat/completions",
+        "family": "openai_chat",
+        "method": "POST",
+        "authenticated": true,
+        "stream": false,
+        "bytes": 143
+      },
+      {
+        "id": "request-5",
+        "path": "/custom/v1/chat/completions",
+        "family": "openai_chat",
+        "method": "POST",
+        "authenticated": false,
+        "stream": false,
+        "bytes": 112
+      },
+      {
+        "id": "request-6",
+        "path": "/custom/v1/chat/completions",
+        "family": "openai_chat",
+        "method": "POST",
+        "authenticated": true,
+        "stream": false,
+        "bytes": 112
+      },
+      {
+        "id": "request-7",
+        "path": "/custom/v1/chat/completions",
+        "family": "openai_chat",
+        "method": "POST",
+        "authenticated": true,
+        "stream": false,
+        "bytes": 112
+      },
+      {
+        "id": "request-8",
+        "path": "/custom/v1/chat/completions",
+        "family": "openai_chat",
+        "method": "POST",
+        "authenticated": true,
+        "stream": false,
+        "bytes": 142
+      }
+    ],
+    "preflights": [
+      {
+        "path": "/custom/v1/chat/completions",
+        "origin": "http://localhost:41911",
+        "method": "POST",
+        "headers": "authorization,content-type"
+      },
+      {
+        "path": "/custom/v1/chat/completions",
+        "origin": "http://localhost:41911",
+        "method": "POST",
+        "headers": "authorization,content-type"
+      },
+      {
+        "path": "/custom/v1/chat/completions",
+        "origin": "http://localhost:41911",
+        "method": "POST",
+        "headers": "authorization,content-type"
+      },
+      {
+        "path": "/custom/v1/chat/completions",
+        "origin": "http://localhost:41911",
+        "method": "POST",
+        "headers": "authorization,content-type"
+      },
+      {
+        "path": "/custom/v1/chat/completions",
+        "origin": "http://localhost:41911",
+        "method": "POST",
+        "headers": "authorization,content-type"
+      },
+      {
+        "path": "/custom/v1/chat/completions",
+        "origin": "http://localhost:41911",
+        "method": "POST",
+        "headers": "authorization,content-type"
+      },
+      {
+        "path": "/custom/v1/chat/completions",
+        "origin": "http://localhost:41911",
+        "method": "POST",
+        "headers": "authorization,content-type"
+      },
+      {
+        "path": "/custom/v1/chat/completions",
+        "origin": "http://localhost:41911",
+        "method": "POST",
+        "headers": "authorization,content-type"
+      }
+    ],
+    "errors": [
+      {
+        "id": "request-1",
+        "status": 401
+      },
+      {
+        "id": "request-5",
+        "status": 401
+      }
+    ],
+    "expectedRejectionIds": ["request-1", "request-5"]
+  },
+  "log": [
+    {
+      "step": "before-1280-denied-test",
+      "kind": "EXPECTED-HTTP-ERROR",
+      "detail": "401 http://127.0.0.1:41912/custom/v1/chat/completions"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "EXPECTED-console-error",
+      "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "EXPECTED-console-error",
+      "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized) http://127.0.0.1:41912/custom/v1/chat/completions"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "EXPECTED-network-failure",
+      "detail": "net::ERR_ABORTED: http://127.0.0.1:41912/custom/v1/chat/completions"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "PASS",
+      "detail": "1280: wrong key made one actual rejected inference request"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "PASS",
+      "detail": "1280: rejected probe does not create a saved inference workspace"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "PASS",
+      "detail": "1280 denied-test: no horizontal document overflow"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "kind": "PASS",
+      "detail": "1280 denied-test: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280: Test performs a real authenticated inference"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280: Test and Save independently pass authenticated custom-endpoint inference"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280 verified-save: no horizontal document overflow"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280 verified-save: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "kind": "PASS",
+      "detail": "1280: one actual provider header status"
+    },
+    {
+      "step": "before-1280-saved-inference",
+      "kind": "PASS",
+      "detail": "1280: saved connection performs actual inference with vault-owned token"
+    },
+    {
+      "step": "before-1280-saved-inference",
+      "kind": "PASS",
+      "detail": "1280 saved-inference: no horizontal document overflow"
+    },
+    {
+      "step": "before-1280-saved-inference",
+      "kind": "PASS",
+      "detail": "1280 saved-inference: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "kind": "PASS",
+      "detail": "1280: retained key is an actual readable vault Token item"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "kind": "PASS",
+      "detail": "1280: fixture key absent from plaintext configuration storage"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "EXPECTED-HTTP-ERROR",
+      "detail": "401 http://127.0.0.1:41912/custom/v1/chat/completions"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "EXPECTED-console-error",
+      "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "EXPECTED-console-error",
+      "detail": "Failed to load resource: the server responded with a status of 401 (Unauthorized) http://127.0.0.1:41912/custom/v1/chat/completions"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "EXPECTED-network-failure",
+      "detail": "net::ERR_ABORTED: http://127.0.0.1:41912/custom/v1/chat/completions"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "PASS",
+      "detail": "390: wrong key made one actual rejected inference request"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "PASS",
+      "detail": "390: rejected probe does not create a saved inference workspace"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "PASS",
+      "detail": "390 denied-test: no horizontal document overflow"
+    },
+    {
+      "step": "before-390-denied-test",
+      "kind": "PASS",
+      "detail": "390 denied-test: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390: Test performs a real authenticated inference"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390: Test and Save independently pass authenticated custom-endpoint inference"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390 verified-save: no horizontal document overflow"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390 verified-save: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-390-verified-save",
+      "kind": "PASS",
+      "detail": "390: one actual provider header status"
+    },
+    {
+      "step": "before-390-saved-inference",
+      "kind": "PASS",
+      "detail": "390: saved connection performs actual inference with vault-owned token"
+    },
+    {
+      "step": "before-390-saved-inference",
+      "kind": "PASS",
+      "detail": "390 saved-inference: no horizontal document overflow"
+    },
+    {
+      "step": "before-390-saved-inference",
+      "kind": "PASS",
+      "detail": "390 saved-inference: actual desktop/touch pointer mode"
+    },
+    {
+      "step": "before-390-token-custody",
+      "kind": "PASS",
+      "detail": "390: retained key is an actual readable vault Token item"
+    },
+    {
+      "step": "before-390-token-custody",
+      "kind": "PASS",
+      "detail": "390: fixture key absent from plaintext configuration storage"
+    },
+    {
+      "step": "before-390-token-custody",
+      "kind": "PASS",
+      "detail": "Actual browser CORS preflights reached independent HTTP fixture"
+    }
+  ],
+  "network": [
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/",
+      "type": "document"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/main-BRRcWII7.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/react-dom-BFHKdIf_.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/ConnectorMark-vobDd8Ld.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/auth-outcome-weFuoELe.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/registration-Bxn8PGm8.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/pin-kdf-QgE8Qw2k.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/notifications-catalog-DFl7R0Ht.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/react-router-DxfH7UJy.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/main-BiehmCE_.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/os-runtime-config.json",
+      "type": "fetch"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/hosted-model-authority-mciPqWF_.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/revision-L0RBgpMK.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/gesture-motion-BhSsPtrG.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/identity-view-paths-BE9LUt0C.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/listing-page-B8gjUKEC.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/react-B9dncEvR.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/org-signin-DHi8cq0R.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-coarse-pointer-B0Ewkt2c.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/expiry-C8hkkXv8.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/notation-DjuRVCDh.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/payload-DQVUpaL8.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/StatusNote-DlAjTa2e.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/site-broker-vbMfHvKi.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/vault-menu-BGOtlylY.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/InvokeScreen-CfVfm_7P.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/InvokeScreen-CsvSkues.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/MethodPicker-0C_RIhTc.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connectivity-monitor-DLiXjCXZ.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/IdentityConnectionSignIn-BnP1FoR-.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/federation-configured-restoration-DUIR5_X2.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/AmbientAuthPanel-Bt0c0wPu.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/gate-seat-C2rIYJAy.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/vault-list-path-P23FYX_d.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/consent-CvgB2B2i.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/gate-seat-D6oRkKUH.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/scroll-renderer-Bl39e_IG.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/scroll-renderer-CPup0pR-.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/vaults-DanrsBtU.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/CapabilitySwitch-CW0tBELH.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/status-g3dp99eV.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/identity-enterprise-DCHYOmLg.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-vault-sessions-DE7TOMiI.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-vault-sessions-CUBYU_YP.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/iam-BzgDVWR1.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/iam-eLeEtpt3.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/idp-presets-Bvv11p-u.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/gesture-motion-CJkgn7S4.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/os-logo-Dhy2KbxY.ttf",
+      "type": "font"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-DVO8o4Bk.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-BzHz3H7U.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/identity-DVMC1zHh.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/settings-ZmD3SZzI.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-dWJzPZcY.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-C-XvRqLR.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-DckjUEj9.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-D4gQqtxM.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/SupportLauncher-VdbYSU9F.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/SupportLauncher-BtSLwx45.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-B1foWQZN.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-BFa23LKn.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/cap-access.authority-DTmvq__C.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-access-book-QABzJYgA.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/shared-DfmXpHxI.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connections-error-pwHG5x0z.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/BackupEnableSwitch-Bk5fn0t4.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/BackupEnableSwitch-Cn-nedP2.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-share-grants-approvals-BuGp2F2H.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connections-CBRfslv6.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connect-plan-Cw8tGAKK.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-directory-bootstrap-CuCxP_8z.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-applications-CfO9uGQK.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/device-inbox-DqFDvLlb.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/ApproveScreen-ByH4HP1c.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/hosted-identity-rail-Bo0XZDbG.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/UpLink-D9DhNEGJ.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/Crumbs-CXusvAqZ.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/PageTreeBranch-DFeNIl9M.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-settings-category-BHm3yZY2.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-integrations-drawn-Dcay15jg.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-settings-category-Ci1J38pa.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-vault-search-CKYj_aDE.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-vault-search-Cy48_tAA.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/hosted-identity-rail-CUw0rn2T.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-access-book-B4DbnYPA.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/cap-identity.local-iam-DLOPNhDH.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/useLocalConsent-DTTk8aMk.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connector-marks-BA_Uk7CW.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/AppShell-Cau2wVz3.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/AppShell-BBeW7zoR.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/VaultSection-yyly4Ujt.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/EmptyTip-nw09uTjY.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/VaultSection-BUcbIjl5.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/SettingsSection-CMdKDrhN.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/FeatureSections-lCUVGpYi.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/OpenFileKey-Dj06XLtl.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/SettingsSection-BR62zU3g.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/cap-connectors.external-BzGoxaW3.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/session-connections-BAsmSTw1.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/native-google-capability-BL2kb-lb.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/secret-backends-BVw8ZgVU.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/tailscale-artifacts-CGM0Udd8.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/s3-sigv4-BxzpKoAL.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/hosted-model-protocol-U-4NzjjY.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/native-auth-return-BYLWNvBW.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/session-connections-oSO_RMA1.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/native-implicit-session-BlBOgR-6.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/cap-support.local-ai-Bhv4wyyl.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/DraftSuggestions-BPIc9OWj.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/agent-prompt-api-DMR_qLmA.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/context-C7Baw29-.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/path-suggest-CsuPrKYk.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/DraftSuggestions-DuLxCyqM.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-1280-denied-test",
+      "method": "POST",
+      "url": "http://127.0.0.1:41912/custom/v1/chat/completions",
+      "type": "fetch"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "method": "POST",
+      "url": "http://127.0.0.1:41912/custom/v1/chat/completions",
+      "type": "fetch"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "method": "POST",
+      "url": "http://127.0.0.1:41912/custom/v1/chat/completions",
+      "type": "fetch"
+    },
+    {
+      "step": "before-1280-verified-save",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/item-type-pack-token-Cfp58zHW.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-saved-inference",
+      "method": "POST",
+      "url": "http://127.0.0.1:41912/custom/v1/chat/completions",
+      "type": "fetch"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/ItemDetail-BtA1VUOk.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/item-secret-update-CiWQh4Hm.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/password-workflows-BVjxttL7.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/item-contributions-zvXYQkzC.js",
+      "type": "script"
+    },
+    {
+      "step": "before-1280-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/",
+      "type": "document"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/main-BRRcWII7.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/react-dom-BFHKdIf_.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/ConnectorMark-vobDd8Ld.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/auth-outcome-weFuoELe.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/registration-Bxn8PGm8.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/pin-kdf-QgE8Qw2k.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/notifications-catalog-DFl7R0Ht.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/react-router-DxfH7UJy.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/main-BiehmCE_.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/os-runtime-config.json",
+      "type": "fetch"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/hosted-model-authority-mciPqWF_.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/revision-L0RBgpMK.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/gesture-motion-BhSsPtrG.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/identity-view-paths-BE9LUt0C.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/listing-page-B8gjUKEC.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/react-B9dncEvR.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/org-signin-DHi8cq0R.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-coarse-pointer-B0Ewkt2c.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/expiry-C8hkkXv8.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/notation-DjuRVCDh.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/payload-DQVUpaL8.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/StatusNote-DlAjTa2e.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/site-broker-vbMfHvKi.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/vault-menu-BGOtlylY.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/InvokeScreen-CfVfm_7P.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/InvokeScreen-CsvSkues.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/MethodPicker-0C_RIhTc.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connectivity-monitor-DLiXjCXZ.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/IdentityConnectionSignIn-BnP1FoR-.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/federation-configured-restoration-DUIR5_X2.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/AmbientAuthPanel-Bt0c0wPu.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/gate-seat-C2rIYJAy.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/vault-list-path-P23FYX_d.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/consent-CvgB2B2i.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/gate-seat-D6oRkKUH.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/scroll-renderer-Bl39e_IG.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/scroll-renderer-CPup0pR-.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/vaults-DanrsBtU.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/CapabilitySwitch-CW0tBELH.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/status-g3dp99eV.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/identity-enterprise-DCHYOmLg.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-vault-sessions-DE7TOMiI.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-vault-sessions-CUBYU_YP.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/iam-BzgDVWR1.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/iam-eLeEtpt3.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/idp-presets-Bvv11p-u.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/gesture-motion-CJkgn7S4.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/os-logo-Dhy2KbxY.ttf",
+      "type": "font"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-DVO8o4Bk.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-BzHz3H7U.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/identity-DVMC1zHh.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/settings-ZmD3SZzI.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-dWJzPZcY.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-C-XvRqLR.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-DckjUEj9.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-D4gQqtxM.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/SupportLauncher-VdbYSU9F.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/SupportLauncher-BtSLwx45.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-B1foWQZN.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/runtime-BFa23LKn.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/cap-access.authority-DTmvq__C.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-access-book-QABzJYgA.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/shared-DfmXpHxI.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connections-error-pwHG5x0z.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/BackupEnableSwitch-Bk5fn0t4.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/BackupEnableSwitch-Cn-nedP2.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-share-grants-approvals-BuGp2F2H.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connections-CBRfslv6.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connect-plan-Cw8tGAKK.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-directory-bootstrap-CuCxP_8z.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/local-applications-CfO9uGQK.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/device-inbox-DqFDvLlb.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/ApproveScreen-ByH4HP1c.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/hosted-identity-rail-Bo0XZDbG.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/UpLink-D9DhNEGJ.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/Crumbs-CXusvAqZ.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/PageTreeBranch-DFeNIl9M.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-settings-category-BHm3yZY2.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-integrations-drawn-Dcay15jg.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-settings-category-Ci1J38pa.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-vault-search-CKYj_aDE.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-vault-search-Cy48_tAA.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/hosted-identity-rail-CUw0rn2T.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/use-access-book-B4DbnYPA.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/cap-identity.local-iam-DLOPNhDH.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/useLocalConsent-DTTk8aMk.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/connector-marks-BA_Uk7CW.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/AppShell-Cau2wVz3.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/AppShell-BBeW7zoR.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/VaultSection-yyly4Ujt.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/EmptyTip-nw09uTjY.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/VaultSection-BUcbIjl5.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/SettingsSection-CMdKDrhN.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/FeatureSections-lCUVGpYi.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/OpenFileKey-Dj06XLtl.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/SettingsSection-BR62zU3g.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/cap-connectors.external-BzGoxaW3.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/session-connections-BAsmSTw1.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/native-google-capability-BL2kb-lb.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/secret-backends-BVw8ZgVU.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/tailscale-artifacts-CGM0Udd8.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/s3-sigv4-BxzpKoAL.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/hosted-model-protocol-U-4NzjjY.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/native-auth-return-BYLWNvBW.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/session-connections-oSO_RMA1.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/native-implicit-session-BlBOgR-6.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/cap-support.local-ai-Bhv4wyyl.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/DraftSuggestions-BPIc9OWj.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/agent-prompt-api-DMR_qLmA.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/context-C7Baw29-.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/path-suggest-CsuPrKYk.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-real-vault",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/DraftSuggestions-DuLxCyqM.css",
+      "type": "stylesheet"
+    },
+    {
+      "step": "before-390-denied-test",
+      "method": "POST",
+      "url": "http://127.0.0.1:41912/custom/v1/chat/completions",
+      "type": "fetch"
+    },
+    {
+      "step": "before-390-verified-save",
+      "method": "POST",
+      "url": "http://127.0.0.1:41912/custom/v1/chat/completions",
+      "type": "fetch"
+    },
+    {
+      "step": "before-390-verified-save",
+      "method": "POST",
+      "url": "http://127.0.0.1:41912/custom/v1/chat/completions",
+      "type": "fetch"
+    },
+    {
+      "step": "before-390-verified-save",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/item-type-pack-token-Cfp58zHW.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-saved-inference",
+      "method": "POST",
+      "url": "http://127.0.0.1:41912/custom/v1/chat/completions",
+      "type": "fetch"
+    },
+    {
+      "step": "before-390-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    },
+    {
+      "step": "before-390-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/ItemDetail-BtA1VUOk.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/item-secret-update-CiWQh4Hm.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/password-workflows-BVjxttL7.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/assets/item-contributions-zvXYQkzC.js",
+      "type": "script"
+    },
+    {
+      "step": "before-390-token-custody",
+      "method": "GET",
+      "url": "http://localhost:41911/OpenSesame/icon.svg",
+      "type": "other"
+    }
+  ],
+  "limits": [
+    "Synthetic fixture account only; no hosted NVIDIA/vendor account claim.",
+    "Actual production build and durable PIN vault; no credentials/configuration/DOM seeded.",
+    "Real loopback HTTP/CORS; no provider request routing, browser extension, TLS relaxation or OpenSesame backend.",
+    "Development local-network consent is granted through existing explicit Chrome permission helper."
+  ]
+}

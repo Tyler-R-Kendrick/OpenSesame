@@ -1,0 +1,178 @@
+[
+  {
+    "source": "1280-tailscale-status.png",
+    "target": "1280-tailscale-status.webp",
+    "width": 2638,
+    "height": 3256,
+    "sourceBytes": 425216,
+    "targetBytes": 122812,
+    "sourceSha256": "986e922c33d8f498ab6adbf3fb1aeed1e8b8e43d256295ecf37e7e333dade7ef",
+    "targetSha256": "cda97d4bb49d335d7c9a51b7b4dba6dd958f2af5287025d28c9417f1e053e8a2",
+    "decodedRgbaSha256": "6b49836bbcbd767ea76cca03c587269ffd51e17f1516dae7bcf5aa93450972dd",
+    "decodedPixelEquality": true,
+    "resized": false,
+    "cropped": false,
+    "nativeViewportEmbeddings": [
+      {
+        "source": "raw/before/1280-real-peer.png",
+        "x": 28,
+        "y": 256,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "99309009df597637882f4a3921424cd3fe226c348dbefb484ec571d954dbb4f1",
+        "sourcePngSha256": "253b2a8a99a7a80129ade0b0e7754d33a39ed5673d093cf898ff5495ffb44f43"
+      },
+      {
+        "source": "raw/after/1280-real-peer.png",
+        "x": 1330,
+        "y": 256,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "5f97e5b753e3341db4e70ef085ce5388d012aaedf3010dca3d041043c5a8a15e",
+        "sourcePngSha256": "91208b3867b8a92103ca2ca9019ea679f35b0342b8fefb107810d27b4c2c83c9"
+      },
+      {
+        "source": "raw/before/1280-home-connected.png",
+        "x": 28,
+        "y": 1292,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "c06d2cc81dad4b76229f93df517ad21ef439adc9ee03e60f40b38070208b43b3",
+        "sourcePngSha256": "0b5788352e5f9cd012529684643b795e4eee013f7550d69eb9e1eeca7193d1fe"
+      },
+      {
+        "source": "raw/after/1280-home-connected.png",
+        "x": 1330,
+        "y": 1292,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "e2ca7a680e5a21c6c83ce38471e41b395afe3ee30f0c33415f9a3f9768122dd3",
+        "sourcePngSha256": "d3cc6cf099857584d15f4c7033d2fbd9eb50b46241af7abe3c54a037e60f5e99"
+      },
+      {
+        "source": "raw/before/1280-networking-withdrawn.png",
+        "x": 28,
+        "y": 2328,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "2d9b3707976608562bd26dcb82f26ebb31df74d24ccb28ef353e6155d24a78ed",
+        "sourcePngSha256": "9b8fc3e27f505ed0e7182de183fefbc362e0ffe6e1438caaf9c8876f62f4bbde"
+      },
+      {
+        "source": "raw/after/1280-networking-withdrawn.png",
+        "x": 1330,
+        "y": 2328,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "a6faa86366a762a5d9e51553918a05bccf08d05d29c3be7dc6d7e2cf2d5f1478",
+        "sourcePngSha256": "940d0d0c5e4c044e5112a365beb8d93d764efd70d7c9e32c641ecf13e0fcc71a"
+      }
+    ]
+  },
+  {
+    "source": "390-tailscale-status.png",
+    "target": "390-tailscale-status.webp",
+    "width": 858,
+    "height": 3256,
+    "sourceBytes": 248707,
+    "targetBytes": 72168,
+    "sourceSha256": "a4e2ff0f5cd8c4417205aa7b708c573077a62d7928d418dcb27f05136e2a24f7",
+    "targetSha256": "c68ddb15850a1f9854c9fc5b0ef4f8ec8816977b0c6f0060680bc73c5d543fd1",
+    "decodedRgbaSha256": "bd242fbb304e98a0f187589dcf4134595023e2f2b8d9551d6b1b952b38ae6e5e",
+    "decodedPixelEquality": true,
+    "resized": false,
+    "cropped": false,
+    "nativeViewportEmbeddings": [
+      {
+        "source": "raw/before/390-real-peer.png",
+        "x": 28,
+        "y": 256,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "01bc65bd6de9a9712968375ab10d6d9f86c333ba1861b3f3601f1bf05c2723d6",
+        "sourcePngSha256": "016ad01186cd7354c889f7278e4807b0d3e496520b76e98229476b89a8bf7094"
+      },
+      {
+        "source": "raw/after/390-real-peer.png",
+        "x": 440,
+        "y": 256,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "b0aaa6c829d74fdf0b78d64e20f2f9e7159b7ae412493ff95ead172217142d27",
+        "sourcePngSha256": "7707ac16e8661f3609ddc95407017278b260ebcad0223e9c23e551d695221d3a"
+      },
+      {
+        "source": "raw/before/390-home-connected.png",
+        "x": 28,
+        "y": 1292,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "8cbab08f3825a04e935682c0f89791eede2b85cd74209c31563db992a5785ab1",
+        "sourcePngSha256": "89a824885af6376ef69bc49d6807682d5e86b61b7723391634912077e10a9b4b"
+      },
+      {
+        "source": "raw/after/390-home-connected.png",
+        "x": 440,
+        "y": 1292,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "5bb30f2dadba37fd871508bdba9a5cbe0fd4221273fb3c29066897c303bef879",
+        "sourcePngSha256": "a40c7f5b99a6edcd42fc2afb7ae67be0a810103aafe745c4db8c6e34e5db97fb"
+      },
+      {
+        "source": "raw/before/390-networking-withdrawn.png",
+        "x": 28,
+        "y": 2328,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "d3decf1306a090094e609878bf86a26efd600e5f69ce90b6c311b85ea3bd9703",
+        "sourcePngSha256": "f5a8d24df15dbd2f739224f84c92449e77c6cb53431f2846d658aae061a928ee"
+      },
+      {
+        "source": "raw/after/390-networking-withdrawn.png",
+        "x": 440,
+        "y": 2328,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "78bb414572eaece3b368526a2983b41b5c6f55568d7dc33a38e3554025f406b4",
+        "sourcePngSha256": "63bade8dbafd5d9caa4bacaa375e4eba9a1d1b04e588b3f48446af7cb838ab8f"
+      }
+    ]
+  }
+]

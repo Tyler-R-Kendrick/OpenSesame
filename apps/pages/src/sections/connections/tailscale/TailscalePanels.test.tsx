@@ -1,232 +1,339 @@
 /** @vitest-environment jsdom */
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import {
-  closeFixture,
-  fixture,
-  mount,
-  port,
-  register,
-  resetFixture,
-} from "./tailscale-ui.test-support.js";
-beforeEach(resetFixture);
-afterEach(closeFixture);
-it("renders shared configuration fields and a generated deployment app name without the old unsupported refusal", async () => {
-  mount();
+  DEVICE_CONNECTOR_KEYS,
+  readDeviceRows,
+} from "@opensesame/app-core/lib/device-connector-records.js";
+import { kvFlush, kvForgetAll, kvSeams } from "@opensesame/app-core/lib/kv.js";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import {
+  PERSONAL_PROJECT_ID,
+  createProject,
+  setActiveProject,
+} from "@opensesame/app-core/lib/projects.js";
+import {
+  deferred,
+  runtimePassword,
+} from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import { tailscaleNodeAuthorization } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
+import { enrollTotp } from "@opensesame/app-core/lib/vault/store-totp.fixture.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  StatusWorker,
+  netmap,
+  statusFixture,
+} from "../../../modules/networking.tailnet/browser/authorization.test-support.js";
+import { ConnectorSettingsPage } from "../SettingsPage.js";
+import { declareConnectionsTutorial } from "../tutorial.test-support.js";
+import { TailscalePanels } from "./TailscalePanels.js";
+let fixture: Awaited<ReturnType<typeof statusFixture>>;
+const catalog = catalogProvider("tailscale");
+if (!catalog) throw new Error("Missing Tailscale provider");
+const provider: Provider = {
+  ...catalog,
+  configured: true,
+  autoConfigurable: false,
+  missingConfig: [],
+  callbackUrl: null,
+};
+declareConnectionsTutorial();
+beforeEach(async () => {
+  fixture = await statusFixture();
+  clearNotices();
+});
+afterEach(async () => {
+  cleanup();
+  vi.restoreAllMocks();
+  vaultStore.lock();
+  await setActiveProject(PERSONAL_PROJECT_ID);
+  vaultStore.loadActiveProjectScope();
+  await fixture.close();
+  clearNotices();
+});
+function primary(online = true) {
+  return render(
+    <TailscalePanels
+      provider={provider}
+      connection={null}
+      online={online}
+      onFlash={vi.fn()}
+      onChanged={vi.fn()}
+    />,
+  );
+}
+function button() {
+  return screen.getByRole("button", { name: "Connect browser node" });
+}
+async function ready() {
+  await waitFor(() => expect(button().hasAttribute("disabled")).toBe(false));
+}
+function actualPage() {
+  return render(
+    <MemoryRouter>
+      <ConnectorSettingsPage
+        provider={provider}
+        providerId="tailscale"
+        connection={null}
+        connections={[]}
+        loading={false}
+        online
+        canConfigure
+        configureHint=""
+        flash={null}
+        rememberOffer={null}
+        onFlash={vi.fn()}
+        onRememberOffer={vi.fn()}
+        onChanged={vi.fn()}
+      />
+    </MemoryRouter>,
+  );
+}
+it("mounts the browser peering panel and the OAuth provisioning panels at the actual settings entry", async () => {
+  actualPage();
+  await ready();
   expect(
-    (await screen.findByLabelText("App name")).getAttribute("value"),
-  ).toMatch(/^OpenSesame /);
+    screen.getByRole("region", { name: "Tailscale browser node" }),
+  ).toBeTruthy();
   expect(
-    screen.getByLabelText("Tailscale API base URL").getAttribute("value"),
-  ).toBe("https://api.tailscale.com/");
+    screen.getByLabelText("Browser node hostname").getAttribute("value"),
+  ).toMatch(/^opensesame-/);
   expect(
-    screen.getByLabelText("Redirect URI to register").hasAttribute("readonly"),
+    screen.getByLabelText("Tailscale control server").getAttribute("value"),
+  ).toBe("https://controlplane.tailscale.com");
+  for (const name of [
+    "App name",
+    "Tailscale API base URL",
+    "Redirect URI to register",
+    "Returned OAuth app JSON",
+    "Issued device auth key",
+  ])
+    expect(screen.getByLabelText(name)).toBeTruthy();
+  expect(
+    screen.getByRole("region", { name: "Tailscale OAuth app configuration" }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("region", { name: "Tailscale device provisioning" }),
+  ).toBeTruthy();
+  expect(fixture.fetcher).not.toHaveBeenCalled();
+});
+it("starts the real controller through the primary form and admits only the actual authenticated browser node", async () => {
+  primary();
+  await ready();
+  fireEvent.change(screen.getByLabelText("Browser node hostname"), {
+    target: { value: "primary-browser" },
+  });
+  fireEvent.change(screen.getByLabelText("Optional node auth key"), {
+    target: { value: "transient-primary-key" },
+  });
+  fireEvent.click(button());
+  await waitFor(() => expect(fixture.node.snapshot().status).toBe("starting"));
+  await screen.findByRole("button", { name: "Forget local browser node" });
+  const worker = StatusWorker.current;
+  expect(readDeviceRows()).toHaveLength(1);
+  expect(tailscaleNodeAuthorization()?.connected).toBe(false);
+  await act(async () => {
+    worker.emit({ kind: "state", state: "NeedsLogin" });
+  });
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Sign in to Tailscale" }),
+  );
+  expect(worker.sent).toContainEqual({ kind: "login" });
+  await act(async () => {
+    worker.emit({ kind: "auth", url: "https://login.tailscale.com/a/primary" });
+  });
+  expect(
+    await screen.findByRole("link", {
+      name: "Continue signing in with Tailscale",
+    }),
+  ).toHaveProperty("href", "https://login.tailscale.com/a/primary");
+  await act(async () => {
+    worker.emit({
+      kind: "storage",
+      state: { key: "sealed-primary-private-node-state" },
+    });
+    netmap(worker);
+    worker.emit({ kind: "state", state: "Running" });
+  });
+  await waitFor(() =>
+    expect(tailscaleNodeAuthorization()?.connected).toBe(true),
+  );
+  expect(fixture.connection().status).toBe("active");
+  expect(
+    vaultStore
+      .getSnapshot()
+      .items.some(
+        (item) => item.kind === "credential" && item.method.type === "token",
+      ),
   ).toBe(true);
   expect(
-    screen.queryByText(/device enrollment requires tailscaled/),
-  ).toBeNull();
-});
-it("registers and verifies an app without rendering its generated secret or retaining the bootstrap token", async () => {
-  mount();
-  await register();
-  expect(fixture.fetch).toHaveBeenCalledTimes(2);
-  expect(
-    screen.getByLabelText("Registered client ID").getAttribute("value"),
-  ).toBe("generated-operator-id");
-  expect(screen.queryByLabelText("Admin API access token")).toBeNull();
+    screen.getByLabelText("Optional node auth key").getAttribute("value"),
+  ).toBe("");
   expect(document.body.textContent).not.toContain(
-    "private-generated-app-secret",
+    "sealed-primary-private-node-state",
   );
-  expect(screen.queryByDisplayValue("private-generated-app-secret")).toBeNull();
+  expect(fixture.fetcher).not.toHaveBeenCalled();
 });
-it("performs consent and returns a concealed single-use key without claiming device enrollment", async () => {
-  mount();
-  await register();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Authorize a device with Tailscale" }),
-  );
-  const key = await screen.findByLabelText("Single-use auth key");
-  expect(key.getAttribute("type")).toBe("password");
-  expect(key.getAttribute("value")).toBe("issued-one-use-device-key");
-  expect(fixture.fetch).toHaveBeenCalledTimes(3);
+it("restores the actual encrypted durable node metadata after its in-memory KV cache is empty", async () => {
+  await fixture.connect();
+  fixture.node.stop();
+  await kvFlush();
+  kvForgetAll();
+  expect(readDeviceRows()).toEqual([]);
+  primary();
+  await ready();
   expect(
-    screen.getByText(
-      /Device enrollment is completed by that device's Tailscale client/,
-    ),
+    screen.getByLabelText("Browser node hostname").getAttribute("value"),
+  ).toBe("status-browser");
+  expect(readDeviceRows()).toHaveLength(1);
+  expect(
+    screen.getByRole("button", { name: "Forget local browser node" }),
   ).toBeTruthy();
-  act(() => {
-    for (const lock of fixture.locks) lock();
-  });
-  expect(screen.queryByLabelText("Single-use auth key")).toBeNull();
+  expect(tailscaleNodeAuthorization()).toBeNull();
 });
-it("requires a second explicit action before forgetting the local app", async () => {
-  mount();
-  await register();
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: "Remove local Tailscale app configuration",
-    }),
-  );
-  expect(fixture.saved).not.toBeNull();
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: "Confirm remove local Tailscale app configuration",
-    }),
-  );
-  await waitFor(() => expect(fixture.saved).toBeNull());
-});
-it("refuses guest registration before sending bootstrap credentials", async () => {
-  fixture.guest = true;
-  mount();
-  fireEvent.click(screen.getByText("Direct API registration"));
-  fireEvent.change(await screen.findByLabelText("Admin API access token"), {
-    target: { value: "fixture-admin" },
-  });
-  await waitFor(() =>
-    expect(
-      screen
-        .getByRole("button", { name: "Register app with Tailscale" })
-        .hasAttribute("disabled"),
-    ).toBe(false),
-  );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Register app with Tailscale" }),
-  );
-  await waitFor(() => expect(fixture.flash).toHaveBeenCalled());
-  expect(fixture.fetch).not.toHaveBeenCalled();
+it("waits for actual metadata hydration before allowing Connect", async () => {
+  const hydrate = kvSeams.kvHydrate;
+  const gate = deferred<void>();
+  const spy = vi
+    .spyOn(kvSeams, "kvHydrate")
+    .mockImplementationOnce(async (keys) => {
+      await gate.promise;
+      await hydrate(keys);
+    });
+  primary();
+  expect(button().hasAttribute("disabled")).toBe(true);
   expect(
-    screen.getByLabelText("Admin API access token").getAttribute("value"),
-  ).toBe("");
-});
-
-it("imports actual app responses into vault custody without HTTP and reports unverified status", async () => {
-  mount();
-  const name = screen.getByLabelText("App name").getAttribute("value");
-  const app = {
-    id: "manually-issued-client-id",
-    name,
-    clientSecret: "returned-vendor-secret",
-    redirectURIs: [port.redirectUri],
-    scopes: ["auth_keys:create:once"],
-  };
-  fireEvent.change(await screen.findByLabelText("Returned OAuth app JSON"), {
-    target: { value: JSON.stringify(app) },
-  });
-  await waitFor(() =>
-    expect(
-      screen
-        .getByRole("button", { name: "Save returned Tailscale app" })
-        .hasAttribute("disabled"),
-    ).toBe(false),
-  );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Save returned Tailscale app" }),
-  );
-  await screen.findByLabelText("Registered client ID");
-  expect(fixture.app).toEqual(app);
-  expect(fixture.fetch).not.toHaveBeenCalled();
-  expect(screen.queryByDisplayValue("returned-vendor-secret")).toBeNull();
-  expect(
-    screen.getAllByLabelText(
-      /App credentials saved in this vault. Vendor verification is pending/,
-    ).length,
-  ).toBeGreaterThan(0);
-});
-it("prepares a manual device key handoff entirely offline and never invents expiry or verification", async () => {
-  mount();
-  fireEvent.change(await screen.findByLabelText("Issued device auth key"), {
-    target: { value: "user-issued-opaque-device-key" },
-  });
-  await waitFor(() =>
-    expect(
-      screen
-        .getByRole("button", { name: "Prepare device key handoff" })
-        .hasAttribute("disabled"),
-    ).toBe(false),
-  );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Prepare device key handoff" }),
-  );
-  const key = await screen.findByLabelText("Unverified device auth key");
-  expect(key.getAttribute("type")).toBe("password");
-  expect(fixture.fetch).not.toHaveBeenCalled();
-  expect(document.body.textContent).toContain(
-    "validity, expiry and reuse policy are unverified",
-  );
-  act(() => {
-    for (const lock of fixture.locks) lock();
-  });
-  expect(screen.queryByLabelText("Unverified device auth key")).toBeNull();
-});
-it("reports direct browser access refusal and still offers the registration artifact", async () => {
-  fixture.fetch.mockRejectedValue(new TypeError("Failed to fetch"));
-  mount();
-  fireEvent.click(screen.getByText("Direct API registration"));
-  fireEvent.change(await screen.findByLabelText("Admin API access token"), {
-    target: { value: "fixture-admin" },
-  });
-  await waitFor(() =>
-    expect(
-      screen
-        .getByRole("button", { name: "Register app with Tailscale" })
-        .hasAttribute("disabled"),
-    ).toBe(false),
-  );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Register app with Tailscale" }),
-  );
-  await waitFor(() => expect(fixture.flash).toHaveBeenCalled());
-  expect(
-    screen.getByRole("button", { name: "Download registration request" }),
-  ).toBeTruthy();
-  expect(
-    screen.getByLabelText("Admin API access token").getAttribute("value"),
-  ).toBe("");
-  expect(fixture.saved).toBeNull();
-});
-it("editing the actual credential clears a published device key with unchanged metadata", async () => {
-  mount();
-  await register();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Authorize a device with Tailscale" }),
-  );
-  await screen.findByLabelText("Single-use auth key");
-  if (!fixture.app) throw new Error("Missing fixture app");
-  act(() => {
-    if (fixture.app)
-      fixture.app = { ...fixture.app, clientSecret: "edited-vault-credential" };
-    for (const change of fixture.changes) change();
-  });
-  expect(screen.queryByLabelText("Single-use auth key")).toBeNull();
-});
-it("editing an unchanged-reference credential while exchange is pending rejects its late response", async () => {
-  mount();
-  await register();
-  let resolve: ((response: Response) => void) | undefined;
-  fixture.fetch.mockImplementationOnce(
-    () =>
-      new Promise<Response>((done) => {
-        resolve = done;
-      }),
-  );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Authorize a device with Tailscale" }),
-  );
-  await waitFor(() => expect(resolve).toBeTruthy());
-  act(() => {
-    if (fixture.app)
-      fixture.app = { ...fixture.app, clientSecret: "edited-during-exchange" };
-    for (const change of fixture.changes) change();
-  });
+    screen.getByLabelText("Browser node hostname").hasAttribute("disabled"),
+  ).toBe(false);
+  expect(spy).toHaveBeenCalledWith([...DEVICE_CONNECTOR_KEYS]);
   await act(async () => {
-    resolve?.(
-      Response.json({
-        access_token: "late-old-secret-key",
-        token_type: "Bearer",
-        expires_in: 3600,
-      }),
-    );
+    gate.resolve();
   });
-  expect(screen.queryByLabelText("Single-use auth key")).toBeNull();
-  expect(screen.queryByDisplayValue("late-old-secret-key")).toBeNull();
+  await ready();
+});
+it("reports a real storage-load failure without enabling Connect", async () => {
+  vi.spyOn(kvSeams, "kvHydrate").mockRejectedValueOnce(
+    new Error("Cannot read encrypted storage"),
+  );
+  primary();
+  await waitFor(() =>
+    expect(
+      listNotices().some((notice) => notice.id === "tailscale-browser-storage"),
+    ).toBe(true),
+  );
+  expect(button().hasAttribute("disabled")).toBe(true);
+  expect(screen.getByLabelText("Tailscale control server")).toBeTruthy();
+  expect(tailscaleNodeAuthorization()).toBeNull();
+});
+it.each(["Networking off", "offline"])(
+  "keeps configuration fields usable with %s",
+  async (mode) => {
+    if (mode === "Networking off") fixture.activation.dispose();
+    primary(mode !== "offline");
+    fireEvent.change(screen.getByLabelText("Browser node hostname"), {
+      target: { value: "configured-offline" },
+    });
+    expect(
+      screen.getByLabelText("Browser node hostname").getAttribute("value"),
+    ).toBe("configured-offline");
+    expect(button().hasAttribute("disabled")).toBe(true);
+    expect(readDeviceRows()).toHaveLength(0);
+    expect(fixture.fetcher).not.toHaveBeenCalled();
+  },
+);
+it("withdraws readiness on the actual vault lock and restores it after owner unlock", async () => {
+  primary();
+  await ready();
+  act(() => vaultStore.lock());
+  expect(button().hasAttribute("disabled")).toBe(true);
+  await act(async () => {
+    await vaultStore.unlock(runtimePassword);
+  });
+  await ready();
+});
+it("does not enable Connect in an actual guest vault", async () => {
+  vaultStore.lock();
+  await vaultStore.createGuest();
+  primary();
+  await waitFor(() => expect(vaultStore.getSnapshot().guest).toBe(true));
+  expect(button().hasAttribute("disabled")).toBe(true);
+  expect(fixture.fetcher).not.toHaveBeenCalled();
+});
+it("keeps actual second-step unlock pending", async () => {
+  await enrollTotp(vaultStore);
+  const selfId = vaultStore.getSnapshot().header?.unlocks?.totp?.selfItemId;
+  if (!selfId) throw new Error("Missing real self authenticator");
+  await vaultStore.trashItem(selfId);
+  vaultStore.lock();
+  await vaultStore.unlock(runtimePassword);
+  expect(vaultStore.getSnapshot().awaitingSecondStep).toBe(true);
+  primary();
+  expect(button().hasAttribute("disabled")).toBe(true);
+});
+it.each(["success", "failure"])(
+  "discards a former owner's late hydration %s while the actual new owner's storage is pending",
+  async (outcome) => {
+    const hydrate = kvSeams.kvHydrate;
+    const first = deferred<void>();
+    const second = deferred<void>();
+    let fail = (_error: Error) => {};
+    const failure = new Promise<void>((_resolve, reject) => {
+      fail = reject;
+    });
+    vi.spyOn(kvSeams, "kvHydrate")
+      .mockImplementationOnce(async (keys) => {
+        await Promise.race([first.promise, failure]);
+        await hydrate(keys);
+      })
+      .mockImplementationOnce(async (keys) => {
+        await second.promise;
+        await hydrate(keys);
+      });
+    primary();
+    const previous = vaultStore.getSnapshot().tomb;
+    const project = await createProject("Different node owner");
+    await act(async () => {
+      await setActiveProject(project.id);
+      vaultStore.loadActiveProjectScope();
+      await vaultStore.create(runtimePassword);
+    });
+    expect(vaultStore.getSnapshot().tomb).not.toBe(previous);
+    await act(async () => {
+      if (outcome === "success") first.resolve();
+      else fail(new Error("Old owner storage failed"));
+    });
+    expect(button().hasAttribute("disabled")).toBe(true);
+    expect(
+      listNotices().some((notice) => notice.id === "tailscale-browser-storage"),
+    ).toBe(false);
+    await act(async () => {
+      second.resolve();
+    });
+    await ready();
+  },
+);
+it("ignores an unmounted primary page's late storage failure", async () => {
+  let fail = (_error: Error) => {};
+  const pending = new Promise<void>((_resolve, reject) => {
+    fail = reject;
+  });
+  vi.spyOn(kvSeams, "kvHydrate").mockReturnValueOnce(pending);
+  const view = primary();
+  view.unmount();
+  await act(async () => {
+    fail(new Error("Late unmounted storage failure"));
+  });
+  expect(
+    listNotices().some((notice) => notice.id === "tailscale-browser-storage"),
+  ).toBe(false);
 });

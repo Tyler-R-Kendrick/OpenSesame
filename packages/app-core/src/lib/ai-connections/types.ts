@@ -17,6 +17,8 @@ export type AiConnectionTransport = {
   fetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   assertCurrent(): void;
   signal: AbortSignal;
+  /** The same captured egress authority as inference; absence grants no readiness. */
+  assertEndpointAllowed?: (endpoint: string) => void;
 };
 
 export class AiConnectionError extends Error {

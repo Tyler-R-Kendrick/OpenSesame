@@ -49,7 +49,7 @@ it("admits Github's actual browser token driver without offering confidential Ap
   });
 });
 
-it("keeps unavailable GitHub access in the native experience without exposing server-backed App registration", () => {
+it("keeps unavailable GitHub token access beside native browser App registration", () => {
   const fixture = connectorIntegration();
   fixture.activation.dispose();
   const provider = githubProvider();
@@ -79,10 +79,10 @@ it("keeps unavailable GitHub access in the native experience without exposing se
   );
   expect(screen.queryByTestId("github-app-presence")).toBeNull();
   expect(
-    screen.queryByRole("button", {
-      name: "Create GitHub App for this organization",
+    screen.getByRole("button", {
+      name: "Create GitHub App",
     }),
-  ).toBeNull();
+  ).toBeTruthy();
   expect(screen.queryByLabelText("GitHub personal access token")).toBeNull();
   expect(
     screen.queryByRole("button", { name: "Authorize with GitHub" }),
@@ -135,14 +135,10 @@ it.each([true, false])(
           name: available ? "Not connected" : "Not available here",
         }),
       ).toBeTruthy();
-      expect(
-        screen.getByText("Personal access token · Backup/recovery"),
-      ).toBeTruthy();
+      expect(screen.getByText("App or token · Backup/recovery")).toBeTruthy();
       expect(
         screen.getByRole("link", { name: "Docs" }).getAttribute("href"),
-      ).toBe(
-        "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
-      );
+      ).toBe("https://docs.github.com/en/apps");
       expect(
         screen.getByRole("img", { name: "GitHub rejected the token." }),
       ).toBeTruthy();
@@ -179,6 +175,10 @@ it("opens Github's specific browser form, rejects a bad token, then verifies and
   expect(screen.queryByTestId("github-app-presence")).toBeNull();
   expect(screen.queryByLabelText("Connector name")).toBeNull();
   expect(screen.queryByLabelText("Icon")).toBeNull();
+  await userEvent.selectOptions(
+    screen.getByLabelText("Connection method"),
+    "token",
+  );
   const token = screen.getByLabelText("GitHub personal access token");
   await userEvent.type(token, "private-browser-token");
   fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });

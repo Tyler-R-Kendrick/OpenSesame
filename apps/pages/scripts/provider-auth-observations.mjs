@@ -121,9 +121,50 @@ export async function saveProviderFailure({
   error,
   observed,
 }) {
+  const text = await page.locator("body").innerText();
+  console.error(
+    `provider-auth failure at ${step}: ${error.message}\n${text.slice(0, 3000)}`,
+  );
+  for (const [index, other] of page.context().pages().entries()) {
+    if (other === page) continue;
+    const otherText = await other
+      .locator("body")
+      .innerText()
+      .catch(() => "<unavailable>");
+    const state = await other
+      .evaluate(() => ({
+        title: document.title,
+        children: document.body?.childElementCount ?? -1,
+        isolated: crossOriginIsolated,
+        html: document.body?.innerHTML.slice(0, 1500) ?? "",
+      }))
+      .catch((error) => ({ error: String(error) }));
+    console.error(
+      `provider-auth failure page ${index} ${other.url()} ${JSON.stringify(state)}\n${otherText.slice(0, 3000)}`,
+    );
+  }
+  console.error(
+    `provider-auth observed: exchanges=${observed.exchanges.length} httpFailures=${JSON.stringify(observed.httpFailures).slice(0, 1000)}`,
+  );
+  console.error(
+    `provider-auth errors: ${JSON.stringify(observed.errors).slice(0, 2000)}`,
+  );
+  for (const [index, other] of page.context().pages().entries()) {
+    const nav = await other
+      .evaluate(() => ({
+        ready: document.readyState,
+        navType:
+          performance.getEntriesByType("navigation")[0]?.type ?? "unknown",
+        entries: performance.getEntriesByType("navigation").length,
+      }))
+      .catch((error) => ({ error: String(error) }));
+    console.error(
+      `provider-auth nav page ${index} ${other.url()} ${JSON.stringify(nav)}`,
+    );
+  }
   fs.writeFileSync(
     `${out}/${label}-failure.txt`,
-    `${step}\n${error.message}\n${JSON.stringify(observed.httpFailures)}\n${await page.locator("body").innerText()}`,
+    `${step}\n${error.message}\n${JSON.stringify(observed.httpFailures)}\n${text}`,
     { mode: 0o600 },
   );
   await page.bringToFront();

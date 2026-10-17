@@ -1,8 +1,10 @@
+/** Browser peering uses the node's own login; OAuth provisioning stays a distinct flow. */
 import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { TailscaleBrowserNode } from "./TailscaleBrowserNode.js";
 import {
   TailscaleAppImport,
@@ -11,6 +13,7 @@ import {
 import { TailscaleDevicePanel } from "./TailscaleDevicePanel.js";
 import { tailscaleAppDependencies as deps } from "./tailscale-dependencies.js";
 import { useTailscaleApp } from "./useTailscaleApp.js";
+import { useTailscaleBrowserNodeReady } from "./useTailscaleBrowserNodeReady.js";
 import "../connect/connect.css";
 type Props = {
   provider: Provider;
@@ -25,12 +28,18 @@ export function TailscalePanels({
   onFlash,
   onChanged,
 }: Props) {
+  const { ready, failure } = useTailscaleBrowserNodeReady();
   const model = useTailscaleApp(connection?.connectionId, onChanged, onFlash);
   const callback =
     model.saved?.redirectUri ?? deps.optionalBrowser()?.redirectUri ?? "";
   return (
     <div className="cx-setup">
-      <TailscaleBrowserNode ready={model.ready} online={online} />
+      <FailureNotice
+        id="tailscale-browser-storage"
+        title="Tailscale"
+        message={failure}
+      />
+      <TailscaleBrowserNode ready={ready} online={online} />
       <TailscaleConfiguration
         model={model}
         callback={callback}

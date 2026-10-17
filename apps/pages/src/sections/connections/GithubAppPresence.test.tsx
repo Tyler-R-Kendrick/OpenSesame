@@ -1,11 +1,13 @@
 import { backupSeams } from "@opensesame/app-core/lib/backup.js";
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
+import { allowGithub } from "@opensesame/app-core/lib/github-app-authority.test-support.js";
 import {
   claimGithubAppCode,
   forgetLocalGithubApp,
 } from "@opensesame/app-core/lib/github-app-manifest.js";
+import { startGithubRegistration } from "@opensesame/app-core/lib/github-app-vault-transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { localStore, sessionStore } from "@opensesame/app-core/ports.js";
+import { localStore, maybePage } from "@opensesame/app-core/ports.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -159,7 +161,7 @@ describe("GithubAppPresence", () => {
     expect(screen.queryByLabelText("Repository")).toBeNull();
     await userEvent.click(screen.getByTestId("github-repo-edit"));
     const input = await screen.findByTestId("github-repo-input");
-    expect((input as HTMLInputElement).disabled).toBe(false);
+    expect(input).toHaveProperty("disabled", false);
   });
 
   it("shows local App registrant when stored", async () => {
@@ -210,7 +212,6 @@ describe("GithubAppPresence", () => {
     render(<GithubAppPresence />);
     expect(screen.queryByTestId("github-app-presence")).toBeNull();
 
-    sessionStore().setItem("opensesame.github-app.state", "claim-state");
     vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
       status: "unlocked",
       tomb: "guest",
@@ -230,26 +231,30 @@ describe("GithubAppPresence", () => {
       awaitingSecondStep: false,
       durable: true,
     });
+    allowGithub();
+    startGithubRegistration(
+      "claim-state",
+      maybePage()?.location.href ?? "https://app.example/",
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo) => {
         const url = String(input);
-        if (url.includes("/api/github-app/convert")) {
+        if (url.includes("/app-manifests/")) {
           return Response.json({
             id: 4997182,
+            slug: "opensesame-local",
             client_id: "Iv1.example",
             name: "OpenSesame Local",
             html_url: "https://github.com/apps/opensesame-local",
             client_secret: "secret",
             pem: "-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----",
-            ownerLogin: "Tyler-R-Kendrick",
-            ownerType: "User",
+            owner: { login: "Tyler-R-Kendrick", type: "User" },
           });
         }
         if (url.includes("/api/github-app/installations")) {
           return Response.json({
-            ownerLogin: "Tyler-R-Kendrick",
-            ownerType: "User",
+            owner: { login: "Tyler-R-Kendrick", type: "User" },
             installations: [
               {
                 id: "1",

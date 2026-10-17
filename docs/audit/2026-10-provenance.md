@@ -265,3 +265,102 @@ research applies the official `tailscale/tailscale-skill` instructions and
 current documentation, the official `@tailscale/connect` browser SDK source,
 and tailcat's browser WASM example. Verification results distinguish real
 vendor protocol/client execution from deterministic local service fixtures.
+
+### Browser-native GitHub integration follow-up
+
+Codex and delegated Codex agents implemented and reviewed the direct GitHub
+App REST/crypto core, registration custody, and App/token configuration entry.
+Task preflights again found no authenticated Grok session and no Kimi binary.
+GitHub GraphQL `createCommitOnBranch` produced signed commits, independently
+checked for parent, tree, inventory, and verified signature before promotion.
+Actual Chromium protocol tests use a local HTTP GitHub fixture; desktop and
+touch UI evidence uses two actual static production builds. Neither is a live
+GitHub account registration or installation claim. The evidence gallery also
+records a rejected plaintext-storage fixture as unverified, rather than as a
+passing saved-App check. Repository selection and backup caller migration are
+separate implementation slices and are not completed by the entry UI.
+
+### Verified shared AI connection projection
+
+Codex and delegated Codex agents implemented and independently reviewed the
+shared AI proof projection correction in signed commit
+`ac5d3c43ed68ca9032e7f107ed5df6ef47a7a4b6` (PR #1297). Grok authentication
+remains unavailable and Kimi is absent; no alternate tool output is claimed.
+Actual desktop and touch Chromium journeys use two real production builds of
+the declared loopback verification profile, a real PIN-sealed vault, and a
+real HTTP/CORS fixture: 60 behavioral checks, 16 inference requests and 16
+preflights, including four deliberate wrong-key refusals. This proves the
+configured-endpoint/proof/custody flow, not a hosted vendor account or global
+integration completion. The gallery retains the misleading unsaved hosted
+status and sticky earlier failed-Test flash as unresolved UI findings.
+Lossless WebP gallery compression independently compares every decoded pixel.
+Full package runs and required security landing checks remain separately
+reported; focused tests and browser results are not an aggregate pass.
+
+### Live Tailscale browser-node status
+
+Codex and delegated Codex agents implemented and independently reviewed the
+current browser-node authority projection in signed commit
+`1093cff9e0e0a194b2aea529dfa3351d1770c92a` (PR #1301). Grok authentication
+remains unavailable and Kimi is absent. Before and after were actual matched
+loopback production builds of signed parents plus exact frozen overlays;
+their trees were independently matched to the later verified signed commits.
+Official pinned WASM, real Headscale/DERP and a native peer produced 120 checks
+across desktop and touch, including live membership before any service GET,
+actual peer HTTP 200, current home/navigation and worker termination on stop,
+vault lock and capability withdrawal. Transparent provider-side fixture edges
+and a DERP SPKI-only test exception are explicit; no hosted account, ordinary
+hosted PKI, general VPN or universal integration completion is claimed. All
+12 gallery viewports retain exact native pixels, and full-sheet lossless WebP
+compression independently preserves every decoded pixel. The final portable
+after-capture replay passed another 66 checks, excluded from the primary 120.
+Full repository quality and public static verification passed separately;
+required CI and complete security landing gates are not inferred from these
+results. OAuth-management UI removal and remaining provider gaps continue in
+separate slices.
+
+### Peering-only Tailscale primary configuration
+
+Codex and delegated Codex agents implemented and independently reviewed signed
+commit `540dbb8eadb4e4e1501174552c3fe5123f754726` (PR #1303). Grok
+authentication remains unavailable and Kimi is absent. The primary page now
+composes browser peering without OAuth app management or external-device
+provisioning. Actual before/after production builds of the declared loopback
+profile produced 184 desktop/touch checks, real official WASM control/DERP
+exchanges, native-peer HTTP 200, cold document reload and PIN unlock, and
+reconnect without another auth key. The after build compiled the exact parent
+plus frozen five-file overlay; its tree and bytes were independently matched
+to the later signed commit. All eight gallery viewports and both complete
+lossless WebP sheets preserve decoded native pixels exactly. Full original
+metrics and build receipts are retained. Provider-side fixture CORS/TLS edges
+and a DERP SPKI-only Chromium exception are explicit; no hosted tenant,
+ordinary hosted PKI, installed-offline test or general VPN claim is made.
+The initial hostname-helper diagnostic is preserved and excluded from 184.
+Focused tests, actual browser proof and full package runs are separately
+reported. Non-2xx service-probe presentation and other audited integrations
+remain unfinished; this entry UI does not complete them or waive landing CI.
+
+### Actual Tailscale service failure and retry
+
+Codex and delegated Codex agents implemented and independently reviewed signed
+commit `c55d195c8b5f84b400dde7efaf78430df4da9a37` (PR #1306). Grok
+authentication remains unavailable and Kimi is absent. The shared service
+probe accepts only 2xx, places service errors beside Test, routes the existing
+notification, clears stale outcomes and preserves independent node membership.
+The saved public-field readiness ordering exposed by regression tests is fixed
+without weakening its assertion. Final validation includes 157 focused tests,
+5,520 Pages and 114 server tests, both package types, full repository quality,
+two actual final builds and zero public capability graph violations/mismatches.
+Actual before/after Chromium journeys pass 108 checks (52 before/56 after),
+with real native-peer 404s and 200 retries through unchanged official WASM,
+Noise and DERP. The eight native gallery viewports and two complete lossless
+WebP sheets preserve every decoded pixel. Full original metrics and exact
+historical-build equivalence receipts remain intact. Superseded two-file
+AFTER52, the harness diagnostic and initial cold-test failures are excluded
+and retained privately. Provider-side CORS/TLS fixture edges and a DERP-only
+SPKI exception are explicit; no hosted-account/ordinary-PKI, installed-offline
+or general VPN claim is made. The source commit was created with the reviewed
+GraphQL publisher using recovered CLI authentication and independently
+verified through the connector; no queued Actions result was promoted. Other
+native provider and broker-backed identity gaps remain separate work. Required
+CI, signed bottom-up restack and security landing gates remain mandatory.

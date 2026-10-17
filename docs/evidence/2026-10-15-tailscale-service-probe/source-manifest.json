@@ -1,0 +1,125 @@
+{
+  "beforeEquivalence": {
+    "currentSourceParent": "433d4332d8947dabccf06e1ff4d3f377981d4c5a",
+    "currentTree": "e75782114268ab10c7a3a9e20e4b8732a27726a2",
+    "productEquivalentSignedCommit": "540dbb8eadb4e4e1501174552c3fe5123f754726",
+    "equivalentTree": "831bfc65f3b563ee89cb798f3c79a6b258956acf",
+    "onlyInterveningPaths": [
+      "apps/pages/src/sections/connections/SettingsPage.roads.test.tsx",
+      "docs/audit/2026-10-provenance.md",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/1280-tailscale-primary-ui.webp",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/390-tailscale-primary-ui.webp",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/README.md",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/capture-observers.mjs",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/capture.mjs",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/compose.mjs",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/lossless-gallery-receipt.json",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/lossless-gallery.py",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/metrics.json",
+      "docs/evidence/2026-10-15-tailscale-primary-ui/source-manifest.json",
+      "docs/evidence/README.md"
+    ],
+    "allInterveningPathsAreDocsOrTests": true,
+    "actualBeforeBuildReceipt": {
+      "parent": "4437d0981635f8fa3bcb096e457ff08edfff7c8c",
+      "tree": "831bfc65f3b563ee89cb798f3c79a6b258956acf",
+      "sourceOverlay": "exact5 files /workspace/work/pwa-tailscale-primary-ui/manifest.json",
+      "cleanSource": false,
+      "profile": "loopback_development",
+      "canonicalOrigin": "http://localhost:41911",
+      "dist": "/workspace/work/pwa-tailscale-primary-ui-after-dist",
+      "indexSha256": "fb905fd8b04a9771741a2066cc1ce47ee0c0d1cfcb107825b49a9e555285965a",
+      "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:tailnet-browser-verify",
+      "exit": 0
+    },
+    "qualification": "Reused actual earlier production-profile build; production source matches the current signed parent. This archive was not rebuilt at the current parent; embedded build HEAD remains its actual compiled4437 parent plus frozen5 overlay. No fresh-current-head compilation claim."
+  },
+  "builds": {
+    "before": {
+      "parent": "4437d0981635f8fa3bcb096e457ff08edfff7c8c",
+      "tree": "831bfc65f3b563ee89cb798f3c79a6b258956acf",
+      "sourceOverlay": "exact5 files /workspace/work/pwa-tailscale-primary-ui/manifest.json",
+      "cleanSource": false,
+      "profile": "loopback_development",
+      "canonicalOrigin": "http://localhost:41911",
+      "dist": "/workspace/work/pwa-tailscale-primary-ui-after-dist",
+      "indexSha256": "fb905fd8b04a9771741a2066cc1ce47ee0c0d1cfcb107825b49a9e555285965a",
+      "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:tailnet-browser-verify",
+      "exit": 0
+    },
+    "after": {
+      "parent": "433d4332d8947dabccf06e1ff4d3f377981d4c5a",
+      "tree": "f9de8fabc24c6a057a8fc096efdcf9d20cb7a36e",
+      "sourceOverlay": "exact3 files /workspace/work/pwa-tailscale-service-probe/manifest.json",
+      "cleanSource": false,
+      "profile": "loopback_development",
+      "canonicalOrigin": "http://localhost:41911",
+      "dist": "/workspace/work/pwa-tailscale-service-probe-final-after-dist",
+      "indexSha256": "278f2a1c4db394115be1844775deade516628d9261bc5b32f221b9e7ef51f7fa",
+      "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:tailnet-browser-verify",
+      "exit": 0,
+      "qualification": "Actual signed433d parent plus final frozen THREE-file overlay; supersedes two-file intermediate. No source adoption during builds. Future signed equivalence pending."
+    }
+  },
+  "borrowedHelpers": [
+    {
+      "path": "docs/evidence/2026-10-15-tailscale-status/capture-support.mjs",
+      "sha256": "76dc16778829ae2ed8cf38b43078ee2618facdf50a0adb3c03892daa1a2d3a23"
+    },
+    {
+      "path": "docs/evidence/2026-10-15-tailscale-primary-ui/capture-observers.mjs",
+      "sha256": "5416726ba76cfb78bcf809f9c708f3d5f1f109a606a11649d739e37667f60887"
+    }
+  ],
+  "signedSource": {
+    "status": "root independently verified signature, parent, exact THREE-file inventory and all frozen source bytes",
+    "commit": "c55d195c8b5f84b400dde7efaf78430df4da9a37",
+    "tree": "f9de8fabc24c6a057a8fc096efdcf9d20cb7a36e",
+    "parent": "433d4332d8947dabccf06e1ff4d3f377981d4c5a",
+    "pullRequest": "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1306",
+    "buildEquivalenceQualification": "AFTER was compiled at signed433d parent plus exact final THREE-file overlay before signature; its frozen source tree is identical to this later signed commit. No rebuild at c55d or embedded-HEAD claim."
+  },
+  "officialAssets": {
+    "sdk": {
+      "version": "1.102.3-3-tb31d8a75a-g5e651e16f",
+      "jsHash": "318a91bdbc32d4aa57a7ffa554368d390e96bf7128419b4561f98001e86e3795",
+      "gzipHash": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52",
+      "wasmHash": "a36372a325e1bd88a6fb60c8b08abcc4e38d7d1aad7b1467022d76435d97c895",
+      "runtimeHash": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+    },
+    "wasm": {
+      "file": "tailscale/main-fbf63118.wasm.gz",
+      "bytes": 6600192,
+      "sha256": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52"
+    },
+    "runtime": {
+      "file": "tailscale/go-runtime-3990fa87.js",
+      "sha256": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+    },
+    "worker": {
+      "file": "assets/tailscale-node-CjVovgpR.js",
+      "sha256": "891c8f0d705986fbe53fe6f9ce6858fb5c34d247415729f16be752f02de4beb8"
+    }
+  },
+  "beforeCaptureScripts": [
+    {
+      "path": "capture.mjs",
+      "sha256": "167f2d2d61888a2395e397c2d59d7e9b5aadf52747fc8e351935b0e8f247cfc4"
+    },
+    {
+      "path": "probe-support.mjs",
+      "sha256": "448a899f472753c265a45a9a06124afbbda5476768db3582484e116c38ce4e77"
+    }
+  ],
+  "finalCaptureScripts": [
+    {
+      "path": "capture.mjs",
+      "sha256": "167f2d2d61888a2395e397c2d59d7e9b5aadf52747fc8e351935b0e8f247cfc4"
+    },
+    {
+      "path": "probe-support.mjs",
+      "sha256": "94760f987f5e18a5f38577618f8240bc66481190643e7ce4e65df8f3360a31af"
+    }
+  ],
+  "scriptChangeQualification": "Only AFTER-only DOM-order assertions and retained domOrder metrics were added after BEFORE52. Final AFTER56 ran the gated updated helper. BEFORE behavior and52count remain unchanged. Intermediate two-file AFTER52 is excluded."
+}

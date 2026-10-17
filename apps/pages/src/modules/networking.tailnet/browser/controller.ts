@@ -1,3 +1,4 @@
+import { subscribeDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { localVaultSessionGuard } from "@opensesame/app-core/lib/secret-backends/local-vault-port.js";
 import type {
   TailscaleBrowserNode,
@@ -6,7 +7,9 @@ import type {
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import {
   type TailscaleNodeRecord,
+  type TailscaleNodeState,
   browserNodeCredentialFingerprint,
+  browserNodePublicFingerprint,
   forgetBrowserNodeState,
   openBrowserNodeState,
   writeBrowserNodeState,
@@ -41,11 +44,14 @@ class BrowserNodeController implements TailscaleBrowserNode {
   private turn = 0;
   private session: ReturnType<typeof localVaultSessionGuard> | null = null;
   private record: TailscaleNodeRecord | null = null;
-  private expected: Record<string, string> = {};
+  private connectionId = "";
+  private expectedPublic = "";
+  private expected: TailscaleNodeState = {};
   private expectedCredential = "";
   private writes: Promise<void> = Promise.resolve();
   private writing = 0;
   private releaseVault: (() => void) | null = null;
+  private releaseRows: (() => void) | null = null;
   private running = false;
   private authorized = false;
   private nextGet = 0;
@@ -59,6 +65,15 @@ class BrowserNodeController implements TailscaleBrowserNode {
   >();
   constructor(private readonly policy: BrowserNodePolicy) {}
   snapshot = () => this.view;
+  authorization = () => {
+    const turn = this.turn;
+    const connectionId = this.connectionId;
+    if (!connectionId || !this.record || this.writing) return null;
+    this.check(turn);
+    if (!this.policy.approve(this.record.controlURL, "GET")) return null;
+    this.check(turn);
+    return { connectionId, connected: this.view.status === "connected" };
+  };
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -73,6 +88,12 @@ class BrowserNodeController implements TailscaleBrowserNode {
       throw new Error("Tailscale node session ended.");
     if (this.session.current().guest)
       throw new Error("Create your own vault first.");
+    if (
+      this.record &&
+      browserNodePublicFingerprint(this.record, this.connectionId) !==
+        this.expectedPublic
+    )
+      throw new Error("The saved Tailscale browser node changed.");
     if (
       this.record &&
       !this.writing &&
@@ -133,16 +154,29 @@ class BrowserNodeController implements TailscaleBrowserNode {
         () => this.check(turn),
       );
       this.check(turn);
+      if (
+        browserNodeCredentialFingerprint(stored.record) !==
+          stored.credentialReceipt ||
+        browserNodePublicFingerprint(stored.record, stored.connectionId) !==
+          stored.publicReceipt
+      )
+        throw new Error(
+          "The saved Tailscale browser node changed during startup.",
+        );
       this.record = stored.record;
+      this.connectionId = stored.connectionId;
+      this.expectedPublic = stored.publicReceipt;
       this.expected = stored.state;
-      this.expectedCredential = browserNodeCredentialFingerprint(stored.record);
-      this.releaseVault = vaultStore.subscribe(() => {
+      this.expectedCredential = stored.credentialReceipt;
+      const observe = () => {
         try {
           this.check(turn);
         } catch {
           this.fail(turn);
         }
-      });
+      };
+      this.releaseVault = vaultStore.subscribe(observe);
+      this.releaseRows = subscribeDeviceRows(observe);
       this.worker = new Worker(new URL("./worker.ts", import.meta.url), {
         type: "module",
         name: "opensesame-tailscale",
@@ -186,19 +220,34 @@ class BrowserNodeController implements TailscaleBrowserNode {
       })
       .catch(() => this.fail(turn));
   }
-  private persist(next: Record<string, string>, turn: number) {
+  private persist(next: TailscaleNodeState, turn: number) {
     this.writes = this.writes.then(async () => {
       this.check(turn);
       if (!this.record) throw new Error("Browser node credential is missing.");
+      const record = this.record;
+      const state = { ...next };
       this.writing++;
+      this.publish({});
       try {
-        await writeBrowserNodeState(this.record, this.expected, next, () =>
-          this.check(turn),
+        const receipt = await writeBrowserNodeState(
+          record,
+          this.expected,
+          state,
+          () => this.check(turn),
         );
-        this.expected = next;
-        this.expectedCredential = browserNodeCredentialFingerprint(this.record);
+        this.check(turn);
+        if (
+          this.record !== record ||
+          browserNodeCredentialFingerprint(record) !== receipt
+        )
+          throw new Error("Tailscale private state changed after persistence.");
+        this.expected = state;
+        this.expectedCredential = receipt;
       } finally {
-        this.writing--;
+        if (turn === this.turn) {
+          this.writing--;
+          this.publish({});
+        }
       }
       this.check(turn);
     });
@@ -320,11 +369,16 @@ class BrowserNodeController implements TailscaleBrowserNode {
     this.worker = null;
     this.releaseVault?.();
     this.releaseVault = null;
+    this.releaseRows?.();
+    this.releaseRows = null;
     this.session?.close();
     this.session = null;
     this.record = null;
+    this.connectionId = "";
+    this.expectedPublic = "";
     this.expected = {};
     this.expectedCredential = "";
+    this.writing = 0;
     this.writes = Promise.resolve();
     this.running = false;
     this.authorized = false;

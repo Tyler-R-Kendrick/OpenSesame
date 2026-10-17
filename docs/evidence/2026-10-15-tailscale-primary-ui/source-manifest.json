@@ -1,0 +1,81 @@
+{
+  "builds": {
+    "before": {
+      "parent": "4437d0981635f8fa3bcb096e457ff08edfff7c8c",
+      "tree": "7098ec6c6bd0ea955d1b03c26a466ec15b1b1ed0",
+      "sourceOverlay": null,
+      "cleanSource": true,
+      "profile": "loopback_development",
+      "canonicalOrigin": "http://localhost:41911",
+      "dist": "/workspace/work/pwa-tailscale-primary-ui-before-dist",
+      "indexSha256": "c40853241d4b1a958b87a01327b5c8d925cac487cedfd7062000c620b32e5b86",
+      "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:tailnet-browser-verify",
+      "exit": 0
+    },
+    "after": {
+      "parent": "4437d0981635f8fa3bcb096e457ff08edfff7c8c",
+      "tree": "831bfc65f3b563ee89cb798f3c79a6b258956acf",
+      "sourceOverlay": "exact5 files /workspace/work/pwa-tailscale-primary-ui/manifest.json",
+      "cleanSource": false,
+      "profile": "loopback_development",
+      "canonicalOrigin": "http://localhost:41911",
+      "dist": "/workspace/work/pwa-tailscale-primary-ui-after-dist",
+      "indexSha256": "fb905fd8b04a9771741a2066cc1ce47ee0c0d1cfcb107825b49a9e555285965a",
+      "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:tailnet-browser-verify",
+      "exit": 0
+    }
+  },
+  "source": {
+    "before": {
+      "cleanSource": true,
+      "commit": "4437d0981635f8fa3bcb096e457ff08edfff7c8c",
+      "tree": "7098ec6c6bd0ea955d1b03c26a466ec15b1b1ed0"
+    },
+    "after": {
+      "compiledParent": "4437d0981635f8fa3bcb096e457ff08edfff7c8c",
+      "compiledOverlayTree": "831bfc65f3b563ee89cb798f3c79a6b258956acf",
+      "files": [
+        {
+          "path": "apps/pages/src/sections/connections/tailscale/TailscalePanels.tsx",
+          "sha256": "4f31f3966c51811bbb2886bd34523d00761085343652412e520df176e0de12de",
+          "bytes": 713
+        },
+        {
+          "path": "apps/pages/src/sections/connections/tailscale/useTailscaleBrowserNodeReady.ts",
+          "sha256": "5405a2b6a2286ddce0e12b40d76a67a7497a6a0e10eab173b4bcd072bd4e4195",
+          "bytes": 1423
+        },
+        {
+          "path": "apps/pages/src/sections/connections/tailscale/TailscalePanels.test.tsx",
+          "sha256": "b85f15a9d4877bf2460dd3f58165bcaab8bf60f29c66ab7353d47b409636e98c",
+          "bytes": 12134
+        },
+        {
+          "path": "apps/pages/src/sections/connections/tailscale/TailscaleOAuthPanels.test.tsx",
+          "sha256": "8011125b7cc9605ba02759f9e4889cdcd1848838182e775f21b83cc9d60159b4",
+          "bytes": 8169
+        },
+        {
+          "path": "apps/pages/src/sections/connections/tailscale/tailscale-ui.test-support.tsx",
+          "sha256": "855480c29f9ce07f5c6235eb410d7d0b90b3d1a3688a859e3173f531368ebfbd",
+          "bytes": 6265
+        }
+      ],
+      "equivalentSignedCommit": "540dbb8eadb4e4e1501174552c3fe5123f754726",
+      "sourcePr": "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1303"
+    }
+  },
+  "sdk": {
+    "version": "1.102.3-3-tb31d8a75a-g5e651e16f",
+    "jsHash": "318a91bdbc32d4aa57a7ffa554368d390e96bf7128419b4561f98001e86e3795",
+    "gzipHash": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52",
+    "wasmHash": "a36372a325e1bd88a6fb60c8b08abcc4e38d7d1aad7b1467022d76435d97c895",
+    "runtimeHash": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+  },
+  "reusedCaptureHelper": {
+    "path": "docs/evidence/2026-10-15-tailscale-status/capture-support.mjs",
+    "sha256": "76dc16778829ae2ed8cf38b43078ee2618facdf50a0adb3c03892daa1a2d3a23",
+    "modified": false
+  },
+  "qualification": "Before is an actual clean4437 build. After was compiled from4437 plus exact five-file frozen overlay; root independently verified its exact signed-equivalent source540dbb8eadb4e4e1501174552c3fe5123f754726, tree831bfc65f3b563ee89cb798f3c79a6b258956acf, parent, inventory and bytes. It was not rebuilt as a clean signed-head checkout."
+}

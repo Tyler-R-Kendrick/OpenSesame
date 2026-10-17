@@ -44,6 +44,10 @@ import { AiProviderSheet } from "./connections/ai/AiProviderSheet.js";
 import { useAiSheet } from "./connections/ai/use-ai-sheet.js";
 import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
 import { useProviderCallbacks } from "./connections/connect/useProviderCallbacks.js";
+import {
+  currentTailscaleConnections,
+  useTailscaleConnections,
+} from "./connections/tailscale/useTailscaleConnectionState.js";
 import { useScopedState } from "./connections/use-scoped-state.js";
 import { useFlashNotice } from "./connections/useFlashNotice.js";
 import "./connections.css";
@@ -66,7 +70,7 @@ export function ConnectionsSection() {
   const [importing, setImporting] = useState(false);
 
   const [providers, setProviders] = useState<Provider[] | null>(null);
-  const [connections, setConnections] = useState<Connection[] | null>(null);
+  const [connections, setConnections] = useTailscaleConnections();
   useEffect(() => {
     const ready = hash.startsWith("#connected-")
       ? connections !== null
@@ -167,11 +171,11 @@ export function ConnectionsSection() {
     try {
       const nextConnections = await listConnections();
       if (connectionRun.current !== id) return;
-      setConnections(nextConnections);
+      setConnections(currentTailscaleConnections(nextConnections));
       setLoadError(null);
     } catch (error) {
       if (connectionRun.current !== id) return;
-      setConnections(mergeLocalGitConnections([]));
+      setConnections(currentTailscaleConnections(mergeLocalGitConnections([])));
       setLoadError({
         message: errorText(error),
         unreachable: false,
@@ -180,7 +184,7 @@ export function ConnectionsSection() {
     } finally {
       if (connectionRun.current === id) setLoading(false);
     }
-  }, []);
+  }, [setConnections]);
 
   useProviderCallbacks(search, loadConnections, setFlash);
 
