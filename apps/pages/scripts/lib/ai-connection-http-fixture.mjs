@@ -222,9 +222,16 @@ function deliver(response, family, text, stream, state, row) {
 function requestStatus(row, allowed, body, target) {
   if (!row.family || row.method !== "POST") return 404;
   if (!allowed) return 401;
-  return validBody(row.family, body, target?.model ?? AI_FIXTURE_MODEL)
-    ? 200
-    : 400;
+  if (!validBody(row.family, body, target?.model ?? AI_FIXTURE_MODEL))
+    return 400;
+  // This fixed dated target uses the documented legacy Chat cap.
+  if (
+    row.path ===
+      "/azure/byo-chat/openai/deployments/byo-chat-deployment/chat/completions?api-version=2024-06-01" &&
+    ("max_completion_tokens" in body || "max_output_tokens" in body)
+  )
+    return 400;
+  return 200;
 }
 function accept(request, response, raw, state) {
   const url = new URL(request.url ?? "/", `http://127.0.0.1:${state.port}`);
