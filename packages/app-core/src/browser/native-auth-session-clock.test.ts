@@ -6,6 +6,10 @@
  * keep the window waiting past its lifetime.
  */
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type {
+  NativeAuthAcknowledgement,
+  NativeAuthBroadcast,
+} from "./native-auth-message.js";
 import { reserveNativeAuthPopup } from "./native-auth-session.js";
 
 const origin = "https://app.example";
@@ -13,12 +17,15 @@ const redirectUri = `${origin}/auth/linear.html`;
 const authorizationUrl = "https://linear.app/oauth/authorize?actor=app";
 const state = "c".repeat(64);
 const LIFETIME = 10 * 60_000;
+const CANCELLED = "Provider authorization was cancelled or expired";
 
+type TestMessage = NativeAuthAcknowledgement | NativeAuthBroadcast;
 class Channel {
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  readonly sent: unknown[] = [];
+  onmessage: ((event: Pick<MessageEvent<TestMessage>, "data">) => void) | null =
+    null;
+  readonly sent: TestMessage[] = [];
   constructor(readonly name: string) {}
-  postMessage(data: unknown) {
+  postMessage(data: TestMessage) {
     this.sent.push(data);
   }
   close() {
@@ -46,9 +53,6 @@ function minted(createdAt: number, lifetime = LIFETIME) {
     expiresAt: createdAt + lifetime,
   };
 }
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : "rejected";
-}
 
 beforeEach(() => {
   vi.stubGlobal("BroadcastChannel", Channel);
@@ -66,20 +70,23 @@ it("opens the reserved window when the clock steps back after the request was mi
   const clock = vi.spyOn(Date, "now").mockReturnValue(createdAt - 1);
   const pending = reservation.wait(minted(createdAt));
   clock.mockRestore();
-  const outcome = pending.then(() => "settled", message);
-  const first = await Promise.race([
-    outcome,
-    vi
-      .waitFor(() => expect(popup.location.replace).toHaveBeenCalledOnce())
-      .then(() => "navigated"),
-  ]);
-  expect(first).toBe("navigated");
+  let settled = false;
+  pending.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    },
+  );
+  await vi.waitFor(() => {
+    expect(settled).toBe(false);
+    expect(popup.location.replace).toHaveBeenCalledOnce();
+  });
   expect(popup.location.replace).toHaveBeenCalledWith(authorizationUrl);
   expect(popup.close).not.toHaveBeenCalled();
   reservation.cancel();
-  await expect(outcome).resolves.toBe(
-    "Provider authorization was cancelled or expired",
-  );
+  await expect(pending).rejects.toThrow(CANCELLED);
 });
 
 it("still closes the window at its lifetime when the clock stepped back", async () => {
@@ -87,15 +94,20 @@ it("still closes the window at its lifetime when the clock stepped back", async 
   const popup = browser();
   const createdAt = Date.now();
   vi.setSystemTime(createdAt - 20_000);
-  let failure = "";
-  reserveNativeAuthPopup()
-    .wait(minted(createdAt))
-    .catch((error: unknown) => {
-      failure = message(error);
-    });
+  const pending = reserveNativeAuthPopup().wait(minted(createdAt));
+  let outcome = "pending";
+  pending.then(
+    () => {
+      outcome = "resolved";
+    },
+    () => {
+      outcome = "rejected";
+    },
+  );
   await vi.waitFor(() => expect(popup.location.replace).toHaveBeenCalledOnce());
   await vi.advanceTimersByTimeAsync(LIFETIME);
-  expect(failure).toBe("Provider authorization was cancelled or expired");
+  expect(outcome).toBe("rejected");
+  await expect(pending).rejects.toThrow(CANCELLED);
   expect(popup.close).toHaveBeenCalled();
 });
 
