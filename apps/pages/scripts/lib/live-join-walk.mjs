@@ -203,9 +203,13 @@ export async function endSession(panel) {
 
 /**
  * The joiner opens the link and asks. `routes` keeps (true) or declines
- * (false) the servers the link names; null when it names none.
+ * (false) the servers the link names; null when it names none. `peerTrust`,
+ * when set, is pasted into Peer trust signal before the ask.
  */
-export async function joinerAsks(page, { link, code, name, routes = null }) {
+export async function joinerAsks(
+  page,
+  { link, code, name, routes = null, peerTrust = "" },
+) {
   await page.goto(link, { waitUntil: "networkidle" });
   await page
     .getByRole("heading", { level: 1, name: "Join a session" })
@@ -215,6 +219,9 @@ export async function joinerAsks(page, { link, code, name, routes = null }) {
   await page.getByLabel("Your name").waitFor({ timeout: 20_000 });
   if (code) await page.getByLabel("Code").fill(code.toLowerCase());
   await page.getByLabel("Your name").fill(name);
+  if (peerTrust) {
+    await page.getByLabel("Peer trust signal", { exact: true }).fill(peerTrust);
+  }
   const choice = page.getByRole("checkbox", { name: /^Through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
@@ -223,9 +230,39 @@ export async function joinerAsks(page, { link, code, name, routes = null }) {
   return copyFrom(page, copy);
 }
 
+const SAS_TEXT = /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/;
+
+function escapeName(name) {
+  return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * The owner pastes a request by hand and lets the person in (an open
- * session lets them in by itself: `admit: false`); the reply code.
+ * The admit control for `name`: the SAS compare when the request carries a
+ * peer block, otherwise the legacy let-in key.
+ */
+export function admitControl(root, name) {
+  const escaped = escapeName(name);
+  return root.getByRole("button", {
+    name: new RegExp(`^(Yes, they match for ${escaped}|Let ${escaped} in)$`),
+  });
+}
+
+async function confirmSessionSas(panel) {
+  // The owner's fingerprint is also `.live-sas`. The session string is the
+  // one on the guest row, which is what the joiner is showing.
+  const text = (
+    await panel.locator(".vault-row .live-sas").first().innerText()
+  ).trim();
+  if (!SAS_TEXT.test(text)) {
+    throw new Error(`session SAS is not readable: ${text}`);
+  }
+}
+
+/**
+ * The owner pastes a request by hand and lets the person in. An open session
+ * still auto-admits a request with no peer block (`admit: false`). A request
+ * that shows a session SAS waits for "Yes, they match" either way. The reply
+ * code.
  */
 export async function ownerAdmitsByHand(
   page,
@@ -236,11 +273,28 @@ export async function ownerAdmitsByHand(
 ) {
   await panel.getByLabel("A request code", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
-  if (admit)
-    await panel.getByRole("button", { name: `Let ${name} in` }).click();
+  const match = panel.getByRole("button", {
+    name: `Yes, they match for ${name}`,
+  });
+  const letIn = panel.getByRole("button", { name: `Let ${name} in` });
   const copy = panel.getByRole("button", {
     name: `Copy the reply code for ${name}`,
   });
+  if (admit) {
+    await match.or(letIn).first().waitFor({ timeout: 20_000 });
+    if (await match.isVisible()) {
+      await confirmSessionSas(panel);
+      await match.click();
+    } else {
+      await letIn.click();
+    }
+  } else {
+    await match.or(copy).first().waitFor({ timeout: 20_000 });
+    if (await match.isVisible()) {
+      await confirmSessionSas(panel);
+      await match.click();
+    }
+  }
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }

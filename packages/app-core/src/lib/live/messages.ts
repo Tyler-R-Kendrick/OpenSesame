@@ -1,19 +1,6 @@
 /**
  * What crosses between two browsers in a live session, read strictly
- * (ADR 0150 §3–§5).
- *
- * Two vocabularies:
- *
- * - **pairing** — inside the sealed codes two people pass each other: the
- *   joiner's request (a name, a note, the offer its transport made) and the
- *   owner's reply (the answer to that offer). An offer and an answer are
- *   opaque here: the session's transport reads them (`p2p.ts`).
- * - **channel** — the transport's channel once connected: the shared items'
- *   catalog, one-field-at-a-time reveals and copies, and an authorized edit.
- *
- * Every reader bounds every string and list, and a message that does not
- * match its shape exactly is dropped, never read as the nearest thing it
- * resembles.
+ * (ADR 0150 §3–§5). A message that does not match is dropped.
  */
 
 import {
@@ -28,6 +15,8 @@ import {
   isDeviceMessage,
   readDeviceMessage,
 } from "./device-messages.js";
+import type { JoinPeerBlock, ReplyPeerBlock } from "./join-peer.js";
+import { readJoinPeerBlock, readReplyPeerBlock } from "./join-peer.js";
 
 export const NAME_MAX = 64;
 export const NOTE_MAX = 280;
@@ -74,6 +63,8 @@ export type JoinRequest = Readonly<{
   kind?: SeatKind;
   /** Absent means a peer route. */
   route?: SeatRoute;
+  /** Absent on a request from before channel-bound peer trust. */
+  peer?: JoinPeerBlock;
 }>;
 
 /** The owner's reply, as sealed in its reply code. */
@@ -88,6 +79,8 @@ export type JoinReply = Readonly<{
    * (ADR 0167).
    */
   relay?: "nats";
+  /** Present when the request carried a peer-trust handshake. */
+  peer?: ReplyPeerBlock;
 }>;
 
 export type SharePolicy = "read" | "use" | "edit";
@@ -259,7 +252,11 @@ export function readJoinRequest(
   const greets = readGreets(body.greets);
   if (!name || note === null || greets === null) return null;
   const seat = readSeat(body, reads);
-  return seat ? { id, name, note, greets, ...seat } : null;
+  if (!seat) return null;
+  const peer = readJoinPeerBlock(body.peer);
+  if (peer === null) return null;
+  if (!peer) return { id, name, note, greets, ...seat };
+  return { id, name, note, greets, ...seat, peer };
 }
 
 /**
@@ -271,16 +268,31 @@ export function readJoinReply(
   raw: string,
   reads: HandshakeReader,
 ): JoinReply | null {
-  const body = parse(raw, HANDSHAKE_MAX + 1024);
+  const body = parse(raw, HANDSHAKE_MAX + 2048);
   if (!body) return null;
   const { id } = body;
   if (!isString(id) || !REQUEST_ID.test(id)) return null;
   if (body.relay !== undefined && body.relay !== "nats") return null;
+  const peer = readReplyPeerBlock(body.peer);
+  if (peer === null) return null;
+  const relay = body.relay === "nats";
   if (body.answer === "")
-    return body.relay === "nats" ? { id, answer: "", relay: "nats" } : null;
+    return relay ? replyWithPeer(id, "", peer, true) : null;
   const answer = readHandshake(body, "answer", reads);
   if (!answer) return null;
-  return body.relay === "nats" ? { id, answer, relay: "nats" } : { id, answer };
+  return replyWithPeer(id, answer, peer, relay);
+}
+
+function replyWithPeer(
+  id: string,
+  answer: string,
+  peer: ReplyPeerBlock | undefined,
+  relay: boolean,
+): JoinReply {
+  if (relay && peer) return { id, answer, relay: "nats", peer };
+  if (relay) return { id, answer, relay: "nats" };
+  if (peer) return { id, answer, peer };
+  return { id, answer };
 }
 
 function readField(value: BoundaryValue): SharedField | null {

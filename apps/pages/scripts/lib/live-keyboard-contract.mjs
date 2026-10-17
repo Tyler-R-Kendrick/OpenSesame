@@ -190,7 +190,9 @@ async function ownerAdmits(page, { request, tabTo }) {
   await tabTo(page, field);
   await page.keyboard.insertText(request);
   await page.keyboard.press("Enter");
-  const letIn = panel.getByRole("button", { name: "Let Ada Lovelace in" });
+  const letIn = panel.getByRole("button", {
+    name: /^(Yes, they match for Ada Lovelace|Let Ada Lovelace in)$/,
+  });
   await expect(letIn).toBeVisible();
   await expect(field, "a paste returns to its field").toBeFocused();
   await focusIn(page, "#live-session", "after a paste");
@@ -199,8 +201,8 @@ async function ownerAdmits(page, { request, tabTo }) {
   const reply = panel.getByRole("button", {
     name: "Copy the reply code for Ada Lovelace",
   });
-  await expect(reply, "Let in lands on the reply code").toBeFocused();
-  await focusIn(page, "#live-session", "after Let in");
+  await expect(reply, "Admit lands on the reply code").toBeFocused();
+  await focusIn(page, "#live-session", "after admit");
   await page.keyboard.press("Enter");
   return copied(page);
 }

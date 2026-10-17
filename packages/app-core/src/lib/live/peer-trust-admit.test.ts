@@ -2,9 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
 import { fakeIndexedDb } from "../at-rest/fake-idb.test-support.js";
+import { ensurePeerArkSigningKey } from "../peer-trust/ark-key.js";
 import {
-  buildPeerTrustSignal,
   encodePeerTrustSignal,
+  signedPeerTrustSignal,
 } from "../peer-trust/signaling.js";
 import { commitPeerTrustEnrollment } from "../peer-trust/store.js";
 import { admitPeerTrustSignal } from "./peer-trust-admit.js";
@@ -20,7 +21,14 @@ describe("admitPeerTrustSignal", () => {
     const committed = await commitPeerTrustEnrollment(undefined);
     expect(committed.ok).toBe(true);
     if (!committed.ok) return;
-    const signal = buildPeerTrustSignal(committed.envelope);
+    const ark = await ensurePeerArkSigningKey();
+    expect(ark).not.toBeNull();
+    if (!ark) return;
+    const signal = await signedPeerTrustSignal(
+      ark.privateKey,
+      committed.envelope,
+      "absent",
+    );
     expect(signal).not.toBeNull();
     if (!signal) return;
     const raw = encodePeerTrustSignal(signal);

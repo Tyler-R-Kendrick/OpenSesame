@@ -16,6 +16,7 @@ import {
 import { engineOf } from "./live-engines.mjs";
 import {
   WATCH_RTC,
+  admitControl,
   assertSameMachineSdpPrivacy,
   endSession,
   gatheredHosts,
@@ -107,6 +108,14 @@ export async function direct(browser, owner) {
     "a sealed request code",
   );
   const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
+  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  const ownerSas = (
+    await panel.locator(".vault-row .live-sas").innerText()
+  ).trim();
+  check(
+    /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) && joinerSas === ownerSas,
+    "both sides show the same session SAS",
+  );
   await joinerConnects(joiner.page, reply);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   // What a browser put in a description itself is its own doing; what the
@@ -195,7 +204,7 @@ export async function carried(browser, owner, kind) {
     if (kind === "broadcast") await joiner.page.addInitScript(WATCH_RTC);
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     // The request crossed on the carrier: the owner is asked with nothing pasted.
-    const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
+    const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     await joined(joiner.page).waitFor({ timeout: 45_000 });
@@ -264,9 +273,7 @@ export async function declined(browser, owner) {
       "declined: the carrier heard nothing of them",
     );
     check(
-      (await panel
-        .getByRole("button", { name: `Let ${JOINER} in` })
-        .count()) === 0,
+      (await admitControl(panel, JOINER).count()) === 0,
       "declined: not asked",
     );
     await endSession(panel);
