@@ -38,7 +38,9 @@ use std::process::Command;
 use crate::EnvSpecError;
 
 mod operator;
+mod script;
 mod trust;
+pub(crate) use script::script;
 use trust::{Caller, NodeSearch, Owner, Skip};
 
 /// Variable names the bridge may inherit, besides the `PATH` built here.

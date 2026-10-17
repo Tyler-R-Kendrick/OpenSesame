@@ -8,6 +8,7 @@ Release and merge-gate tooling run from a terminal or CI.
 | `land-signed-stack.mjs` | Replays a local branch stack as GitHub-verified commits |
 | `deploy-pages.sh`, `pages-release.mjs` | Pages publish and release marker |
 | `pin-connect-services.mjs`, `pin-marketplace.mjs` | Pin generated service and marketplace digests |
+| `kit-archive.sh` | The release kit's reproducible archives and `SHA256SUMS`, run by `.github/workflows/release-kit.yml` ([docs/operators/release-kit.md](../../docs/operators/release-kit.md)) |
 
 ## land-signed-stack
 

@@ -9,9 +9,13 @@
   },
   "scripts": {
     "build": "node -e \"console.log('noop build — ESM ready')\"",
-    "test": "node --test test/parse.test.mjs"
+    "bundle": "node scripts/bundle.mjs",
+    "test": "node --test test/parse.test.mjs test/bundle.test.mjs"
   },
   "dependencies": {
     "@env-spec/parser": "0.4.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

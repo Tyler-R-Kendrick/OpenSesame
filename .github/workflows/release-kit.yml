@@ -1,0 +1,312 @@
+# Release kit: a pushed v* tag builds the native binaries a downstream lane
+# runs instead of building OpenSesame from source, and publishes them as a
+# GitHub release with a SHA256SUMS over every file and a build-provenance
+# attestation for each (ADR 0207, docs/operators/release-kit.md).
+#
+# Per target, two archives (scripts/release/kit-archive.sh):
+#   opensesame-kit_<tag>_<target>.tar.gz
+#     opensesame and opensesame-surrogate-proxy with the shipped features, and
+#     the bundled env-spec bridge, opensesame-env-parse.mjs, beside them;
+#   opensesame-surrogate-proxy-TEST-upstream-override_<tag>_<target>.tar.gz
+#     the plugin built with --features upstream-override, for test lanes only.
+# Beside them, opensesame-env-parse.mjs on its own and SHA256SUMS.
+#
+# Run by hand (Actions > Release kit > Run workflow) it is a dry run: it builds
+# the commit selected in "Use workflow from" under the label given as `tag` and
+# leaves the files as artifacts of the run. Nothing is attested or released.
+name: Release kit
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Dry run: version label for the archives, e.g. v0.0.0-dryrun (builds the selected commit; nothing is released)"
+        required: true
+        type: string
+
+# No job gets a token it did not ask for. Only `attest` and `publish` write.
+permissions: {}
+
+concurrency:
+  group: release-kit-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: never
+
+jobs:
+  bridge:
+    name: env-spec bridge bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - name: Install the bridge's parser and esbuild from the lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
+      - name: The bundle prints what the bridge prints, and is reproducible
+        run: pnpm --filter @opensesame/env-spec-bridge test
+      - name: Bundle
+        run: |
+          node packages/env-spec-bridge/scripts/bundle.mjs dist/opensesame-env-parse.mjs
+          sha256sum dist/opensesame-env-parse.mjs
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: bridge
+          path: dist/opensesame-env-parse.mjs
+          if-no-files-found: error
+          retention-days: 7
+
+  build:
+    name: build ${{ matrix.target }}
+    needs: bridge
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # Built on the architecture it runs on: no cross linker, and the
+          # smoke test below runs the binary that ships.
+          - { target: x86_64-unknown-linux-gnu, runner: ubuntu-24.04 }
+          - { target: aarch64-unknown-linux-gnu, runner: ubuntu-24.04-arm }
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        with:
+          toolchain: 1.88.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: bridge
+          path: bridge
+      - name: Build the shipped binaries, then the plugin's test build
+        # Each binary is copied out the moment it is built: the test build
+        # writes the same file name in the target directory. No cache: a
+        # release is built from the lockfile and nothing a previous run left.
+        # The checkout and cargo home are remapped so the binaries do not name
+        # this runner's paths.
+        run: |
+          set -euo pipefail
+          rustc +1.88.0 -vV
+          host="$(rustc +1.88.0 -vV | sed -n 's/^host: //p')"
+          [ "$host" = "$TARGET" ] || { echo "::error::runner host $host is not $TARGET"; exit 1; }
+          export RUSTFLAGS="--remap-path-prefix=$GITHUB_WORKSPACE=/opensesame --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo"
+          mkdir -p bins
+          cargo +1.88.0 build --locked --release -p opensesame-cli --bin opensesame
+          cp target/release/opensesame bins/opensesame
+          cargo +1.88.0 build --locked --release -p opensesame-surrogate-proxy --bin opensesame-surrogate-proxy
+          cp target/release/opensesame-surrogate-proxy bins/opensesame-surrogate-proxy
+          cargo +1.88.0 build --locked --release -p opensesame-surrogate-proxy --features upstream-override --bin opensesame-surrogate-proxy
+          cp target/release/opensesame-surrogate-proxy bins/opensesame-surrogate-proxy-TEST-upstream-override
+          sha256sum bins/*
+      - name: The tag names the version the binary reports
+        if: github.event_name == 'push'
+        run: |
+          said="$(bins/opensesame --version)"
+          version="${said#opensesame }"
+          case "${TAG#v}" in
+            "$version" | "$version"-*) ;;
+            *) echo "::error::$TAG is not version $version ($said); set the workspace version first"; exit 1 ;;
+          esac
+      - name: Pack
+        run: |
+          set -euo pipefail
+          # The time of the tagged commit: the one clock the archives may carry.
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH
+          scripts/release/kit-archive.sh pack "$TAG" "$TARGET" bins bridge/opensesame-env-parse.mjs dist
+      - name: The unpacked kit runs its own bridge
+        # No node_modules exist on this runner, and the checkout's bridge is
+        # moved away, so a parse that works ran the bundle beside the binary.
+        # The runner's node sits in a directory anyone can write, so it is
+        # named the way an operator names it.
+        run: |
+          set -euo pipefail
+          mv packages/env-spec-bridge/bin/opensesame-env-parse.mjs "$RUNNER_TEMP/checkout-bridge.mjs"
+          OPENSESAME_NODE="$(readlink -f "$(command -v node)")"
+          export OPENSESAME_NODE
+          unset OPENSESAME_ENV_PARSE
+          unpacked="$RUNNER_TEMP/unpacked"
+          mkdir -p "$unpacked"
+          tar -xzf "dist/opensesame-kit_${TAG}_${TARGET}.tar.gz" -C "$unpacked"
+          kit="$unpacked/opensesame-kit_${TAG}_${TARGET}"
+          "$kit/opensesame" --version
+          "$kit/opensesame" dev --schema tests/fixtures/demo.env.schema check > "$RUNNER_TEMP/check.json"
+          node -e 'const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); if (!s.items.some((i) => i.key === "WORKOS_API_KEY")) process.exit(1)' "$RUNNER_TEMP/check.json"
+          # A bridge anyone could have replaced is refused, not run.
+          chmod 0666 "$kit/opensesame-env-parse.mjs"
+          if "$kit/opensesame" dev --schema tests/fixtures/demo.env.schema check 2> "$RUNNER_TEMP/refused.txt"; then
+            echo "::error::a world-writable bridge beside the binary was run"; exit 1
+          fi
+          grep -F "writable by others" "$RUNNER_TEMP/refused.txt"
+          mv "$RUNNER_TEMP/checkout-bridge.mjs" packages/env-spec-bridge/bin/opensesame-env-parse.mjs
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: kit-${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  checksums:
+    name: SHA256SUMS
+    needs: [bridge, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      # The commit the files were built from and the check below passed;
+      # publish releases only while the tag still names it.
+      verified-sha: ${{ steps.on-main.outputs.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          # Every branch's history, so origin/main is here for the check below.
+          fetch-depth: 0
+      - name: The tag is on main
+        id: on-main
+        # A release is cut only from a commit main already holds; a tag pushed
+        # on any other commit stops here, before anything is attested or published.
+        if: github.event_name == 'push'
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$TAG points at $GITHUB_SHA, which is not on main. Tag a commit that main already contains."
+            exit 1
+          fi
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: kit-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: bridge
+          path: dist
+      - name: Sums
+        run: |
+          scripts/release/kit-archive.sh sums dist
+          {
+            echo '### SHA256SUMS'
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: release-files
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  # Signs a SLSA build-provenance statement for every file SHA256SUMS names,
+  # bound to this workflow, this commit and this run. Verify one with
+  # `gh attestation verify <file> --repo Tyler-R-Kendrick/OpenSesame`.
+  attest:
+    name: build provenance
+    if: github.event_name == 'push'
+    needs: checksums
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: release-files
+          path: dist
+      - name: Every file is the one SHA256SUMS names
+        working-directory: dist
+        run: sha256sum --check --strict SHA256SUMS
+      - uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-checksums: dist/SHA256SUMS
+
+  # The only job that writes to the repository. It checks nothing out and builds
+  # nothing: it hands GitHub the files the jobs above made and attested. The
+  # release is created as a draft with every file attached and published last,
+  # so a download never finds a release without its checksums, and only while
+  # the tag still names the commit that was built and checked (asked of the API
+  # before the draft and again just before it is published). A failed run leaves
+  # the draft behind: delete it and re-run this job. A published asset is never
+  # overwritten.
+  publish:
+    name: publish release
+    if: github.event_name == 'push'
+    needs: [checksums, attest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: release-files
+          path: dist
+      - name: Create as a draft, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ needs.checksums.outputs.verified-sha }}
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum --check --strict SHA256SUMS)
+          # The commit the tag names now, through any annotated tag objects.
+          tag_commit() {
+            local obj type
+            read -r type obj < <(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha')
+            while [ "$type" = tag ]; do
+              read -r type obj < <(gh api "repos/$GH_REPO/git/tags/$obj" --jq '.object.type + " " + .object.sha')
+            done
+            [ "$type" = commit ] && echo "$obj"
+          }
+          # Fails unless the tag still names the commit that was built and
+          # checked: a tag moved since then is not released.
+          tag_unmoved() {
+            local now
+            now="$(tag_commit)" || true
+            if [ -z "$VERIFIED_SHA" ] || [ "$now" != "$VERIFIED_SHA" ]; then
+              echo "::error::$TAG now points at ${now:-nothing}, not $VERIFIED_SHA, the commit that was built and checked. Nothing was published."
+              return 1
+            fi
+          }
+          tag_unmoved
+          prerelease=()
+          case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
+          {
+            echo "The OpenSesame release kit for $TAG, built from $VERIFIED_SHA."
+            echo
+            echo "- \`opensesame-kit_${TAG}_<target>.tar.gz\`: \`opensesame\` and \`opensesame-surrogate-proxy\` (shipped features) with the env-spec bridge, \`opensesame-env-parse.mjs\`, beside them."
+            echo "- \`opensesame-surrogate-proxy-TEST-upstream-override_${TAG}_<target>.tar.gz\`: the plugin's **test build**, which can be aimed at a stand-in upstream. For test lanes only; never give it a real token."
+            echo "- \`opensesame-env-parse.mjs\`: the bridge on its own."
+            echo
+            # shellcheck disable=SC2016 # the backticks are Markdown, not a command
+            echo 'Verify a download with `sha256sum --check --ignore-missing SHA256SUMS` and `gh attestation verify <file> --repo '"$GH_REPO"'`; see docs/operators/release-kit.md.'
+          } > notes.md
+          gh release create "$TAG" dist/* --draft --verify-tag --target "$VERIFIED_SHA" \
+            --title "$TAG" --notes-file notes.md "${prerelease[@]}"
+          tag_unmoved
+          gh release edit "$TAG" --draft=false

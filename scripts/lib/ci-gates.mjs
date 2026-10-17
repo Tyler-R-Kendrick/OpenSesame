@@ -337,6 +337,9 @@ function gatesByPath(path, reach) {
   // The workflow is every job's definition: an edit to one job is proved only
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();
+  // The release kit builds binaries on a tag: no Pages gate can see it, and
+  // ci-release-kit.test.mjs pins it (ADR 0207).
+  if (path === ".github/workflows/release-kit.yml") return gates();
   if (path === "tools/quality/bundle-budgets.json") return gates("budgets");
   if (path === "spec/connectors/self-hosted-config.json")
     return gates("budgets");
