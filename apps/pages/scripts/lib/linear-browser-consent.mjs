@@ -16,10 +16,20 @@ export async function beginLinearConsent(harness, page, label, action) {
       `${label}: consent popup closed before Linear authorize URL`,
     );
   }
-  await popup.waitForURL("https://linear.app/oauth/authorize?**", {
-    timeout: CONSENT_POPUP_TIMEOUT_MS,
-    waitUntil: "domcontentloaded",
-  });
+  await popup
+    .waitForURL("https://linear.app/oauth/authorize?**", {
+      timeout: CONSENT_POPUP_TIMEOUT_MS,
+      waitUntil: "domcontentloaded",
+    })
+    .catch(async (error) => {
+      throw new Error(
+        `${label}: consent window closed before Linear authorize URL: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
+          .locator("body")
+          .innerText()
+          .then((text) => text.slice(0, 1200))}`,
+        { cause: error },
+      );
+    });
   await popup
     .getByText("Test-only OAuth consent transport.", { exact: true })
     .waitFor();
