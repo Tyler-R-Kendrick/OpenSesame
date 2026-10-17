@@ -196,6 +196,24 @@ function actions(
   };
 }
 
+// Removal bumps the revision before deleting, which supersedes the
+// summary attempt that would report it; publish the disappearance here.
+function usePublishConnectorDisappearance(
+  view: NativeConnectorView | null,
+  changed: (next: NativeConnectorView | null) => void,
+) {
+  const hadView = useRef(false);
+  const publish = useRef(changed);
+  publish.current = changed;
+  useEffect(() => {
+    if (view) hadView.current = true;
+    else if (hadView.current) {
+      hadView.current = false;
+      publish.current(null);
+    }
+  }, [view]);
+}
+
 export function NativeConnectorPanels({
   provider,
   connection,
@@ -243,18 +261,7 @@ export function NativeConnectorPanels({
     refresh((version) => version + 1);
     onChanged();
   };
-  // Removal bumps the revision before deleting, which supersedes the
-  // summary attempt that would report it; publish the disappearance here.
-  const hadView = useRef(false);
-  const publishChanged = useRef(changed);
-  publishChanged.current = changed;
-  useEffect(() => {
-    if (view) hadView.current = true;
-    else if (hadView.current) {
-      hadView.current = false;
-      publishChanged.current(null);
-    }
-  }, [view]);
+  usePublishConnectorDisappearance(view, changed);
   const form = (
     <NativeConnectorForm
       key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}/${pending.generation}`}
