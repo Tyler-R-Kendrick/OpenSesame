@@ -17,7 +17,7 @@ import {
 import {
   type AuditEvent,
   outcomeChip,
-  receiptLabel,
+  receiptWords,
 } from "@opensesame/app-core/sections/access/receipts-model.js";
 import { isString } from "@opensesame/os-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -143,9 +143,7 @@ function SentDropRow({
               <span className="access-trail__when">
                 {formatTime(event.occurredAt)}
               </span>
-              <span className="access-trail__type">
-                {receiptLabel(event.eventType)}
-              </span>
+              <span className="access-trail__type">{receiptWords(event)}</span>
               <StatusMark
                 tone={statusTone(outcomeChip(event.outcome))}
                 label={event.outcome}
