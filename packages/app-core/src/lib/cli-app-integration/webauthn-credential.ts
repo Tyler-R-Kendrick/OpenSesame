@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import type { WebStorage } from "../../ports.js";
 import {
   b64urlDecode,
   b64urlEncode,
@@ -76,12 +77,13 @@ function bytesOf(source: BufferSource): Uint8Array {
   );
 }
 
-let storePort: (() => Storage) | null = null;
+let storePort: (() => WebStorage) | null = null;
 
-async function storage(): Promise<Storage> {
+async function storage(): Promise<WebStorage> {
   if (!storePort) {
     const { localStore } = await import("../../ports.js");
     storePort = localStore;
+    return localStore();
   }
   return storePort();
 }
