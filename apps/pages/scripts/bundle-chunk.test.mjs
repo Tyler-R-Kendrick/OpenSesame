@@ -1,0 +1,50 @@
+import assert from "node:assert/strict";
+import { test } from "vitest";
+import { bundleChunk } from "./bundle-chunk.mjs";
+
+test("renderer and router keep their own chunks", () => {
+  assert.equal(bundleChunk("/x/node_modules/react-dom/client.js"), "react-dom");
+  assert.equal(bundleChunk("/x/node_modules/react/index.js"), "react-dom");
+  assert.equal(
+    bundleChunk("/x/node_modules/react-router/dist/index.js"),
+    "react-router",
+  );
+});
+
+test("named lazy chunks stay addressable by file name", () => {
+  assert.equal(
+    bundleChunk("/x/packages/app-core/src/lib/device-identity-host.ts"),
+    "device-identity-host",
+  );
+  assert.equal(
+    bundleChunk("/x/node_modules/@noble/curves/ed25519.js"),
+    "noble-crypto",
+  );
+  // The /esm/ entries stay with the bootstrap chunk.
+  assert.equal(
+    bundleChunk("/x/node_modules/@noble/hashes/esm/sha256.js"),
+    undefined,
+  );
+});
+
+test("peer-trust modules shared by live and sharing graphs share one chunk", () => {
+  for (const name of ["handshake", "webcrypto", "peers"]) {
+    assert.equal(
+      bundleChunk(`/x/packages/app-core/src/lib/peer-trust/${name}.ts`),
+      "peer-trust",
+    );
+  }
+  // Bootstrap-imported peer-trust modules are not pulled into the lazy chunk.
+  assert.equal(
+    bundleChunk("/x/packages/app-core/src/lib/peer-trust/db.ts"),
+    undefined,
+  );
+});
+
+test("windows separators and unmatched modules fall through", () => {
+  assert.equal(
+    bundleChunk("C:\\x\\node_modules\\react-dom\\client.js"),
+    "react-dom",
+  );
+  assert.equal(bundleChunk("/x/src/main.tsx"), undefined);
+});

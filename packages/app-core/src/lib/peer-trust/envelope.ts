@@ -1,6 +1,7 @@
 import type { PeerTrustRecord } from "./record.js";
 
 import { PEER_TRUST_ENVELOPE_KIND } from "./constants.js";
+import { signP256, verifyP256 } from "./webcrypto.js";
 
 export { PEER_TRUST_ENVELOPE_KIND };
 
@@ -38,16 +39,12 @@ export async function signPeerTrustEnvelope(
     enrollmentEpoch: record.enrollmentEpoch,
     spkiB64,
   };
-  const signature = await crypto.subtle.sign(
-    { name: "ECDSA", hash: "SHA-256" },
+  const signatureB64 = await signP256(
     privateKey,
     peerTrustSignedBytes(unsigned),
   );
-  let binary = "";
-  for (const byte of new Uint8Array(signature)) {
-    binary += String.fromCharCode(byte);
-  }
-  return { ...unsigned, signatureB64: btoa(binary) };
+  if (!signatureB64) throw new Error("peer_trust_sign");
+  return { ...unsigned, signatureB64 };
 }
 
 export async function verifyPeerTrustEnvelope(
@@ -60,33 +57,17 @@ export async function verifyPeerTrustEnvelope(
     return false;
   }
   if (envelope.enrollmentEpoch < 1) return false;
-  try {
-    const der = Uint8Array.from(atob(envelope.spkiB64), (c) => c.charCodeAt(0));
-    const publicKey = await crypto.subtle.importKey(
-      "spki",
-      der,
-      { name: "ECDSA", namedCurve: "P-256" },
-      false,
-      ["verify"],
-    );
-    const signature = Uint8Array.from(atob(envelope.signatureB64), (c) =>
-      c.charCodeAt(0),
-    );
-    return await crypto.subtle.verify(
-      { name: "ECDSA", hash: "SHA-256" },
-      publicKey,
-      signature,
-      peerTrustSignedBytes({
-        schemaVersion: envelope.schemaVersion,
-        kind: envelope.kind,
-        spkiFingerprint: envelope.spkiFingerprint,
-        enrollmentEpoch: envelope.enrollmentEpoch,
-        spkiB64: envelope.spkiB64,
-      }),
-    );
-  } catch {
-    return false;
-  }
+  return verifyP256(
+    envelope.spkiB64,
+    envelope.signatureB64,
+    peerTrustSignedBytes({
+      schemaVersion: envelope.schemaVersion,
+      kind: envelope.kind,
+      spkiFingerprint: envelope.spkiFingerprint,
+      enrollmentEpoch: envelope.enrollmentEpoch,
+      spkiB64: envelope.spkiB64,
+    }),
+  );
 }
 
 export function recordFromEnvelope(

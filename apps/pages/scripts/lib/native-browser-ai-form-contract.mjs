@@ -27,28 +27,54 @@ async function sharedAiLayout(page, form) {
   return read();
 }
 
-async function sharedAiDefaults(form, row, preset, check) {
-  const fields = {};
-  for (const [label, expected] of [
+function sharedAiDefaultFields(preset) {
+  const azure = preset.azure;
+  const key = azure
+    ? azure.credential === "api-key"
+      ? "Azure API key"
+      : "Entra access token"
+    : "API key";
+  const fields = [
     ["Connection name", preset.name],
     ["API family", preset.family],
-    ["API base URL", preset.baseUrl],
-    ["Model ID", ""],
-    ["Authentication", "api-key"],
-    ["API key", ""],
-  ]) {
+    [azure ? "Azure resource endpoint" : "API base URL", preset.baseUrl],
+    [azure ? "Deployment ID" : "Model ID", ""],
+    [
+      azure ? "Azure authentication" : "Authentication",
+      azure?.credential ?? "api-key",
+    ],
+    [key, ""],
+  ];
+  if (azure) fields.push(["Azure API mode", azure.api]);
+  if (azure?.api === "dated-chat")
+    fields.push(["Azure API version", azure.apiVersion]);
+  return {
+    fields,
+    key,
+    auth: azure ? "Azure authentication" : "Authentication",
+  };
+}
+
+async function sharedAiDefaults(form, row, preset, check) {
+  const defaults = sharedAiDefaultFields(preset);
+  const fields = {};
+  for (const [label, expected] of defaults.fields) {
     const field = form.getByLabel(label, { exact: true });
     const value = await field.inputValue();
     check(
       value === expected,
       `${row.id}: ${label} has its public provider default`,
     );
-    const configurable = ["API family", "Authentication"].includes(label)
+    const configurable = [
+      "API family",
+      defaults.auth,
+      "Azure API mode",
+    ].includes(label)
       ? await field.isEnabled()
       : await field.isEditable();
     check(configurable, `${row.id}: ${label} is configurable`);
     fields[label] =
-      label === "API key"
+      label === defaults.key
         ? { blank: value === "", configurable }
         : { value, configurable };
   }
@@ -61,15 +87,18 @@ async function sharedAiDefaults(form, row, preset, check) {
     `${row.id}: supported inference API families are explicit`,
   );
   const authentication = await form
-    .getByLabel("Authentication", { exact: true })
+    .getByLabel(defaults.auth, { exact: true })
     .locator("option")
     .evaluateAll((options) => options.map((option) => option.value));
   check(
-    JSON.stringify(authentication) === JSON.stringify(["api-key", "none"]),
-    `${row.id}: API key and unauthenticated endpoints are selectable`,
+    JSON.stringify(authentication) ===
+      JSON.stringify(
+        preset.azure ? ["api-key", "entra-token"] : ["api-key", "none"],
+      ),
+    `${row.id}: ${preset.azure ? "API key and Entra token authentication" : "API key and unauthenticated endpoints"} are selectable`,
   );
   const apiKeyType = await form
-    .getByLabel("API key", { exact: true })
+    .getByLabel(defaults.key, { exact: true })
     .getAttribute("type");
   check(
     apiKeyType === "password",
@@ -83,7 +112,34 @@ async function sharedAiDefaults(form, row, preset, check) {
     check(disabled, `${row.id}: ${name} requires a complete configuration`);
     actionsDisabled[name] = disabled;
   }
-  return { fields, families, authentication, apiKeyType, actionsDisabled };
+  const apiModes = await sharedAiModeDefaults(form, row, preset, check);
+  return {
+    fields,
+    families,
+    authentication,
+    apiModes,
+    apiKeyType,
+    actionsDisabled,
+  };
+}
+
+async function sharedAiModeDefaults(form, row, preset, check) {
+  if (!preset.azure) return undefined;
+  const modes = await form
+    .getByLabel("Azure API mode", { exact: true })
+    .locator("option")
+    .evaluateAll((options) => options.map((option) => option.value));
+  check(
+    JSON.stringify(modes) === JSON.stringify(["v1", "dated-chat"]),
+    `${row.id}: Azure exposes explicit v1 and dated Chat modes`,
+  );
+  if (preset.azure.api === "v1")
+    check(
+      (await form.getByLabel("Azure API version", { exact: true }).count()) ===
+        0,
+      `${row.id}: v1 does not collect an unrelated dated API version`,
+    );
+  return modes;
 }
 
 export async function nativeAiFormContract(
