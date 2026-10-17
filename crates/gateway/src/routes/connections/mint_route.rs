@@ -18,6 +18,9 @@ use crate::app_state::AppState;
 pub struct MintBody {
     /// Numeric GitHub App installation ID (required for GitHub).
     pub installation_id: Option<String>,
+    /// The lifetime asked for, in seconds. An AWS mint honours it from 900 up
+    /// to its binding's cap and refuses anything outside; GitHub ignores it.
+    pub duration_seconds: Option<u32>,
 }
 
 /// Administrator-only provider tokens. Connection ownership and
@@ -47,11 +50,12 @@ pub async fn mint(
     let actor = caller_subject(&who).unwrap_or_else(|| "operator".into());
     match st
         .connection_broker
-        .mint_derived_token(
+        .mint_derived_token_for(
             &organization_id,
             &id,
             &actor,
             body.installation_id.as_deref(),
+            body.duration_seconds,
         )
         .await
     {

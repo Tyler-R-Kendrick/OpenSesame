@@ -322,6 +322,13 @@ pub struct DerivedMaterialization {
     pub subject: String,
     pub actor: String,
     pub issued_at: String,
+    /// AWS mints only (ADR 0207): the STS credential's three parts, at the
+    /// top level where `opensesame-credential-process` reads them.
+    #[serde(flatten)]
+    pub aws: Option<crate::aws_sts::AwsSessionCredentials>,
+    /// AWS mints only: the value-blind receipt.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<crate::aws_sts::MintReceipt>,
 }
 
 /// `POST /connections`.

@@ -1,6 +1,7 @@
-//! `POST /connections/{id}/mint` in the broker (ADR 0049), moved out of
-//! `lib.rs` unchanged so that module stays inside its size budget (ADR 0093):
-//! one entry point, one arm per provider with a native mint path.
+//! `POST /connections/{id}/mint` in the broker (ADR 0049): one entry point,
+//! one arm per provider with a native mint path. GitHub mints an App
+//! installation token; the aws family assumes a role with STS
+//! (`aws_mint.rs`, ADR 0207). Every other provider is `unmintable`.
 
 use chrono::Utc;
 use opensesame_domain::OrganizationId;
@@ -27,6 +28,25 @@ impl ConnectionBroker {
         id: &str,
         actor: &str,
         installation_id: Option<&str>,
+    ) -> Result<DerivedMaterialization> {
+        self.mint_derived_token_for(organization_id, id, actor, installation_id, None)
+            .await
+    }
+
+    /// [`ConnectionBroker::mint_derived_token`] with a requested lifetime, which
+    /// an AWS mint honours under its binding's cap (ADR 0207) and a GitHub
+    /// mint ignores (GitHub fixes the installation token's hour).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when authorization, policy, credential, or provider minting fails.
+    pub async fn mint_derived_token_for(
+        &self,
+        organization_id: &OrganizationId,
+        id: &str,
+        actor: &str,
+        installation_id: Option<&str>,
+        duration_seconds: Option<u32>,
     ) -> Result<DerivedMaterialization> {
         let mut row = self.row_in_org(organization_id, id).await?;
         if parse_materialization(&row.materialization) != MaterializationPolicy::DerivedShortLived {
@@ -105,15 +125,15 @@ impl ConnectionBroker {
                     subject,
                     actor: actor.to_string(),
                     issued_at: Utc::now().to_rfc3339(),
+                    aws: None,
+                    receipt: None,
                 })
             }
-            // ADR 0049 follow-up: STS GetSessionToken (or AssumeRole when the
-            // connection carries a role ARN) over the sealed long-term keys,
-            // sigv4-signed through the broker's HTTP client. Until that lands the
-            // aws family fails closed with the same answer as any other provider
-            // without a mint path.
-            "aws" | "aws-kms" | "aws-ps" | "aws-bedrock" => {
-                Err(BrokerError::Unmintable(row.provider_id.clone()))
+            // ADR 0207: STS AssumeRole over the sealed key pair, for the role
+            // the connection's binding names. No binding, no mint path.
+            provider if crate::aws_sts::is_mintable_provider(provider) => {
+                self.mint_aws_sts(&row, subject, actor, duration_seconds)
+                    .await
             }
             other => Err(BrokerError::Unmintable(other.to_string())),
         }

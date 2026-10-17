@@ -23,6 +23,7 @@
 pub mod binding;
 pub mod client;
 pub mod endpoint;
+pub mod minted;
 pub mod request;
 pub mod response;
 pub mod signer;
@@ -32,6 +33,7 @@ pub mod store;
 
 pub use binding::{AwsStsBinding, AwsStsBindingInput, AwsStsBindingView};
 pub use client::{assume_role, AssumedRole};
+pub use minted::{AwsSessionCredentials, MintReceipt};
 pub use request::AssumeRoleRequest;
 pub use signer::SourceCredential;
 

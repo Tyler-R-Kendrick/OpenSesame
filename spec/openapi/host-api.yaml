@@ -1323,7 +1323,9 @@ paths:
         "403": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
         "422": { $ref: "#/components/responses/ContractError" }
+        "429": { $ref: "#/components/responses/ContractError" }
         "502": { $ref: "#/components/responses/ContractError" }
+        "504": { $ref: "#/components/responses/ContractError" }
   /connections/{id}/aws-sts-binding:
     parameters:
       - $ref: "#/components/parameters/ConnectionId"
@@ -5044,6 +5046,13 @@ components:
         installation_id:
           type: string
           description: Numeric GitHub App installation id; required for github connections.
+        duration_seconds:
+          type: integer
+          minimum: 900
+          maximum: 3600
+          description: >-
+            Credential lifetime asked for. An AWS mint honours it up to its
+            binding's cap and refuses anything outside; GitHub ignores it.
     AwsStsBindingInput:
       type: object
       additionalProperties: false
@@ -5066,6 +5075,18 @@ components:
         max_duration_seconds: { type: integer }
         session_policy: { type: boolean, description: Whether a session policy is set. }
         external_id: { type: boolean, description: Whether an ExternalId is set. }
+    AwsMintReceipt:
+      type: object
+      additionalProperties: false
+      required: [grant_id, role_arn, role_session_name, source_identity, duration_seconds, expires_at, request_id]
+      properties:
+        grant_id: { type: string }
+        role_arn: { type: string }
+        role_session_name: { type: string }
+        source_identity: { type: string }
+        duration_seconds: { type: integer }
+        expires_at: { type: string, format: date-time }
+        request_id: { type: string, description: STS's request id. }
     DerivedMaterialization:
       type: object
       additionalProperties: false
@@ -5087,6 +5108,10 @@ components:
           type: string
           description: RFC 8693 actor — the caller that requested the mint.
         issued_at: { type: string, format: date-time }
+        access_key_id: { type: string, description: AWS mints only (ADR 0207). }
+        secret_access_key: { type: string, description: AWS mints only. }
+        session_token: { type: string, description: AWS mints only; also derived_token. }
+        receipt: { $ref: "#/components/schemas/AwsMintReceipt" }
 
     Ceremony:
       type: object

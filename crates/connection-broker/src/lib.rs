@@ -7,6 +7,8 @@
 //! nothing on the API boundary carries token material — callers get a [`ConnectionRef`] and status.
 
 mod aws_binding;
+mod aws_mint;
+mod aws_receipt;
 pub mod aws_sts;
 pub mod catalog;
 pub mod changelog_hook;
