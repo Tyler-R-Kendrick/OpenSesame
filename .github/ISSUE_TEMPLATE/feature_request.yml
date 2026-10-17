@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose a change to OpenSesame.
+title: "Feature: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        State the problem and the scope. Consequential decisions are recorded as ADRs in `docs/adr/`. See [CONTRIBUTING.md](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/CONTRIBUTING.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and motivation
+      description: What is hard or missing, and who hits it?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What should change, which surface it touches (Pages PWA, opensesame CLI/Host/daemon, Identity API, browser extension, MCP server), and what stays out of scope.
+    validations:
+      required: true
