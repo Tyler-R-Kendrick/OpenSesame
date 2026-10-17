@@ -25,6 +25,10 @@ export function parseParity(
   args: string[],
   flags: GlobalFlags,
 ): ParityCommand | undefined {
+  if (verb === "read")
+    throw new Error(
+      "read is retired; use `reveal <op://reference|os://reference> --reveal --desktop` for human-only plaintext, or `run --env NAME=<ref>` to inject without revealing.",
+    );
   if (!VERBS.has(verb)) return undefined;
   return { name: "parity", verb, args, flags };
 }

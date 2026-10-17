@@ -103,12 +103,6 @@ export function parseArgs(argv: string[]): ParsedCommand {
   const parity = parseParity(cmd, args, flags);
   if (parity) return parity;
 
-  if (cmd === "read") {
-    throw new Error(
-      "read is retired; use `reveal <op://reference|os://reference> --reveal --desktop` for human-only plaintext, or `run --env NAME=<ref>` to inject without revealing.",
-    );
-  }
-
   if (cmd === "help" || cmd === "--help" || cmd === "-h") {
     return { name: "help" };
   }
