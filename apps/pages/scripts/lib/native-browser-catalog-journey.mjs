@@ -4,6 +4,7 @@ import {
   NATIVE_CANONICAL_CATALOG_IDS,
   NATIVE_CANONICAL_PROVIDERS,
 } from "./native-browser-catalog-projection.mjs";
+import { waitForModelProviderSheetKeyField } from "./native-browser-catalog-sheet-contract.mjs";
 
 export async function nativeVisit(page, base, route) {
   await page.evaluate((href) => {
@@ -109,8 +110,9 @@ async function nativeSheetContract(page, row, sheet, { check, phone }) {
     (await dialog.count()) === 1,
     `${row.id}: a model provider's first connection opens the Add sheet`,
   );
+  await waitForModelProviderSheetKeyField(dialog);
   check(
-    await sheet
+    await dialog
       .locator('input[type="password"]')
       .evaluateAll(
         (inputs) =>
