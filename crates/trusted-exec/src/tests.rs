@@ -163,3 +163,15 @@ fn resolve_and_command_read_this_process() {
         assert!(names.iter().all(|n| n != "OPENSESAME_CONNECTION_KEY"));
     }
 }
+
+#[test]
+fn a_fixed_file_the_code_chose_gets_the_same_built_environment() {
+    let fixture = Fixture::new("curl.exe");
+    let fixed = fixture.scratch("fixed").join("curl.exe");
+    fixture.stub_recorder(&fixed);
+    run(command_at(&fixed, &fixture.lookup(&[])).unwrap());
+    let env = fixture.assert_clean();
+    assert_eq!(env["PATH"], fixture.trusted.display().to_string());
+    let err = command_at(Path::new("curl.exe"), &fixture.lookup(&[])).unwrap_err();
+    assert!(err.to_string().contains("not an absolute path"), "{err}");
+}

@@ -25,7 +25,7 @@
 //!    variables that program needs ([`pass_in`]), then what it sets itself.
 
 use std::ffi::{OsStr, OsString};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod env;
@@ -195,9 +195,34 @@ pub fn command_in(
     lookup: &Lookup,
 ) -> Result<Command, ResolveError> {
     let found = resolve_in(program, override_var, lookup)?;
-    let path = std::env::join_paths(&found.trusted)
+    built(&found.program, &found.trusted, lookup)
+}
+
+/// A fixed absolute file the code itself chose (a Windows install seen from
+/// WSL, say), with the same built environment as [`command_in`].
+///
+/// # Errors
+///
+/// [`ResolveError::NotFound`] when `file` is not absolute, or `PATH` cannot
+/// be rebuilt from the trusted entries.
+pub fn command_at(file: &Path, lookup: &Lookup) -> Result<Command, ResolveError> {
+    if !file.is_absolute() {
+        return Err(ResolveError::NotFound(format!(
+            "\"{}\" is not an absolute path",
+            file.display()
+        )));
+    }
+    let trusted = lookup
+        .var("PATH")
+        .map(|path| search(path, lookup).trusted)
+        .unwrap_or_default();
+    built(file, &trusted, lookup)
+}
+
+fn built(file: &Path, trusted: &[PathBuf], lookup: &Lookup) -> Result<Command, ResolveError> {
+    let path = std::env::join_paths(trusted)
         .map_err(|e| ResolveError::NotFound(format!("PATH cannot be rebuilt: {e}")))?;
-    let mut command = Command::new(&found.program);
+    let mut command = Command::new(file);
     command.env_clear().env("PATH", path);
     pass_in(&mut command, &COMMON, lookup);
     if lookup.platform == Platform::Windows {
