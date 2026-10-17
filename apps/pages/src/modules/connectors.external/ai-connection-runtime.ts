@@ -1,3 +1,4 @@
+import { aiCompletionSeams } from "@opensesame/app-core/lib/ai-connections/http.js";
 import { bindAiConnectionTransport } from "@opensesame/app-core/lib/ai-connections/transport.js";
 import { AiConnectionError } from "@opensesame/app-core/lib/ai-connections/types.js";
 import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
@@ -44,16 +45,22 @@ export function bindAiConnectionRuntime(
       const requestSignal = init?.signal
         ? anySignal([signal, init.signal])
         : signal;
-      return runUnlessAborted(requestSignal, () =>
-        ctx.egress.fetch(
+      return runUnlessAborted(requestSignal, () => {
+        if (init?.signal)
+          aiCompletionSeams.observe?.({
+            phase: "signal",
+            httpSignal: init.signal,
+            fetchSignal: requestSignal,
+          });
+        return ctx.egress.fetch(
           input,
           { ...init, signal: requestSignal },
           {
             capability: "connectors.external",
             purpose: NATIVE_PROVIDER_PURPOSE,
           },
-        ),
-      );
+        );
+      });
     },
   });
   void initializeVaultCredentialCustody()
