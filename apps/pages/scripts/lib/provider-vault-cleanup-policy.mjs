@@ -154,28 +154,38 @@ export async function proveDeniedProviderCleanup(input) {
 
 async function signInAgain({ page, provider, service, idp, grants }) {
   await page.context().clearCookies({ domain: new URL(idp.issuer).hostname });
-  await page
-    .getByLabel("Instance HTTPS origin", { exact: true })
-    .fill(service.endpoint);
   const issuedBefore = grants.length;
   const signIn = page.getByRole("button", {
     name: `Sign in to ${provider.name}`,
     exact: true,
   });
-  await expect(signIn)
-    .toBeEnabled({ timeout: 10_000 })
-    .catch(async (error) => {
-      throw new Error(
-        `Re-sign-in control unavailable: count=${await signIn.count()} :: ${await page
-          .locator("body")
-          .innerText()
-          .then((text) => text.slice(0, 1600))}`,
-        { cause: error },
-      );
-    });
-  const opened = page.context().waitForEvent("page");
-  opened.catch(() => {});
-  await signIn.click();
+  // Removal finalizing remounts the form (committed revision key) and can
+  // discard a just-filled draft; re-fill until the click lands on a live form.
+  let opened;
+  for (let attempt = 1; ; attempt += 1) {
+    await page
+      .getByLabel("Instance HTTPS origin", { exact: true })
+      .fill(service.endpoint);
+    await expect(signIn)
+      .toBeEnabled({ timeout: 10_000 })
+      .catch(async (error) => {
+        throw new Error(
+          `Re-sign-in control unavailable: count=${await signIn.count()} :: ${await page
+            .locator("body")
+            .innerText()
+            .then((text) => text.slice(0, 1600))}`,
+          { cause: error },
+        );
+      });
+    opened = page.context().waitForEvent("page", { timeout: 30_000 });
+    opened.catch(() => {});
+    try {
+      await signIn.click({ timeout: 5_000 });
+      break;
+    } catch (error) {
+      if (attempt >= 4) throw error;
+    }
+  }
   const popup = await opened.catch(async (error) => {
     throw new Error(
       `Re-sign-in window never opened: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
