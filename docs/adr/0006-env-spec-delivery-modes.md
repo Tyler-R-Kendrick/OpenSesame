@@ -7,11 +7,17 @@ Amended by: [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md) (the
 "MITM proxy is non-goal" line becomes §6.1 there, a per-run surrogate proxy).
 
 Amended 2026-10-13 (decision 2): the Node bridge is started with a `node` found
-only among absolute, existing `PATH` entries that group and others cannot write,
-run by its absolute path, and with a minimal environment (`PATH`, `HOME`,
-`TMPDIR`, `LANG`, `LC_*`; on Windows `SystemRoot`, `PATHEXT`, `COMSPEC`). The
-process that reads the schema may hold the store passphrase, and the bridge
-never receives it
+only among absolute, existing `PATH` entries that nobody else could have put a
+`node` in (owned by root or the caller, not writable by others, group-writable
+only by root's group or one of the caller's own; on Windows, not the current
+directory), run by its absolute path, and with a minimal environment (`PATH`,
+`HOME`, `TMPDIR`, `LANG`, `LC_*`; on Windows `SystemRoot`, `PATHEXT`,
+`COMSPEC`). An operator may instead name the exact `node` with
+`OPENSESAME_NODE` (an absolute path to an executable file): consulted first,
+trusted as named like `OPENSESAME_ENV_PARSE`, exempt from the directory and file
+checks, never forwarded to the bridge, and an unusable value is an error that
+names the variable, not a fallback to `PATH`. The process that reads the schema
+may hold the store passphrase, and the bridge never receives it
 ([audit](../security/audits/2026-10-13-env-spec-bridge-environment.md)).
 
 ## Context

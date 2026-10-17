@@ -8,13 +8,19 @@
 //! package manager configured). Two rules, kept in this one place so that no
 //! spawn of Node takes a shortcut around them:
 //!
-//! 1. `node` is found here, by this crate, and run by its absolute path. Only
-//!    `PATH` entries that are absolute, exist and cannot be written by group or
-//!    others are searched (on Windows: absolute, existing and not the current
-//!    directory). An empty entry or a relative one means the working
-//!    directory to a shell, and a `node` planted there would run with
-//!    everything the process holds. When nothing is found the error says so;
-//!    the inherited `PATH` is never a fallback.
+//! 1. `node` is found here, by this crate, and run by its absolute path. If the
+//!    operator set `OPENSESAME_NODE` to an absolute path, that file is the
+//!    `node` (see `operator`): it is exempt from the checks below, and a value
+//!    that cannot be used is an error, not a fallback. Otherwise only
+//!    `PATH` entries that are absolute, exist and that nobody else could have
+//!    put a `node` in are searched: owned by root or the caller, not writable
+//!    by others, and group-writable only by root's group or one of the
+//!    caller's own (see `trust`). On Windows: absolute, existing and not the
+//!    current directory. The `node` itself must be owned by root or the caller
+//!    and not world-writable. An empty entry or a relative one means the
+//!    working directory to a shell, and a `node` planted there would run with
+//!    everything the process holds. When nothing is found the error says so
+//!    and why each entry was skipped; the inherited `PATH` is never a fallback.
 //! 2. The environment is built, not inherited: `PATH` reduced to those same
 //!    entries, `HOME`, `TMPDIR`, `LANG` and the `LC_*` locale variables, and on
 //!    Windows `SystemRoot`, `PATHEXT` and `COMSPEC`. Nothing else, so nothing
@@ -26,10 +32,14 @@
 
 use std::ffi::{OsStr, OsString};
 use std::fmt::Write as _;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 use crate::EnvSpecError;
+
+mod operator;
+mod trust;
+use trust::{Caller, NodeSearch, Owner, Skip};
 
 /// Variable names the bridge may inherit, besides the `PATH` built here.
 const PASSED: [&str; 3] = ["HOME", "TMPDIR", "LANG"];
@@ -90,6 +100,7 @@ pub(crate) struct Host {
     pub(crate) vars: Vec<(OsString, OsString)>,
     pub(crate) cwd: Option<PathBuf>,
     pub(crate) platform: Platform,
+    pub(crate) caller: Caller,
 }
 
 impl Host {
@@ -98,6 +109,7 @@ impl Host {
             vars: std::env::vars_os().collect(),
             cwd: std::env::current_dir().ok(),
             platform: Platform::current(),
+            caller: Caller::current(),
         }
     }
 
@@ -109,43 +121,10 @@ impl Host {
     }
 }
 
-/// Why a `PATH` entry is not searched.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Skip {
-    Empty,
-    Relative,
-    NotADirectory,
-    WritableByOthers,
-    CurrentDirectory,
-}
-
-impl Skip {
-    const fn reason(self) -> &'static str {
-        match self {
-            Self::Empty => "empty entry",
-            Self::Relative => "relative",
-            Self::NotADirectory => "missing or not a directory",
-            Self::WritableByOthers => "writable by group or others",
-            Self::CurrentDirectory => "the current directory",
-        }
-    }
-}
-
 #[derive(Debug, Default)]
 pub(crate) struct Search {
     pub(crate) trusted: Vec<PathBuf>,
     pub(crate) skipped: Vec<(PathBuf, Skip)>,
-}
-
-#[cfg(unix)]
-fn writable_by_others(meta: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    meta.permissions().mode() & 0o022 != 0
-}
-
-#[cfg(not(unix))]
-fn writable_by_others(_: &std::fs::Metadata) -> bool {
-    false
 }
 
 #[cfg(unix)]
@@ -159,14 +138,6 @@ fn executable(_: &std::fs::Metadata) -> bool {
     true
 }
 
-fn is_cwd(dir: &Path, cwd: Option<&Path>) -> bool {
-    let Some(cwd) = cwd else { return false };
-    match (dir.canonicalize(), cwd.canonicalize()) {
-        (Ok(a), Ok(b)) => a == b,
-        _ => dir == cwd,
-    }
-}
-
 /// Sorts the entries of `path` into those searched, in order, and those not.
 pub(crate) fn search(path: &OsStr, host: &Host) -> Search {
     let mut found = Search::default();
@@ -178,11 +149,11 @@ pub(crate) fn search(path: &OsStr, host: &Host) -> Search {
         } else {
             match std::fs::metadata(&dir) {
                 Ok(meta) if meta.is_dir() => match host.platform {
-                    Platform::Unix if writable_by_others(&meta) => Some(Skip::WritableByOthers),
-                    Platform::Windows if is_cwd(&dir, host.cwd.as_deref()) => {
+                    Platform::Unix => trust::directory(Owner::from(&meta), &host.caller),
+                    Platform::Windows if trust::is_cwd(&dir, host.cwd.as_deref()) => {
                         Some(Skip::CurrentDirectory)
                     }
-                    _ => None,
+                    Platform::Windows => None,
                 },
                 _ => Some(Skip::NotADirectory),
             }
@@ -195,14 +166,30 @@ pub(crate) fn search(path: &OsStr, host: &Host) -> Search {
     found
 }
 
-/// The first `node` an entry of `trusted` holds, as an absolute path.
-pub(crate) fn find_node(trusted: &[PathBuf], platform: Platform) -> Option<PathBuf> {
-    trusted
-        .iter()
-        .map(|dir| dir.join(platform.node_file()))
-        .find(|candidate| {
-            std::fs::metadata(candidate).is_ok_and(|meta| meta.is_file() && executable(&meta))
-        })
+/// The first `node` an entry of `trusted` holds that may be run, as an
+/// absolute path, and the ones passed over on the way.
+pub(crate) fn find_node(trusted: &[PathBuf], host: &Host) -> NodeSearch {
+    let mut found = NodeSearch::default();
+    for dir in trusted {
+        let candidate = dir.join(host.platform.node_file());
+        let Ok(meta) = std::fs::metadata(&candidate) else {
+            continue;
+        };
+        if !meta.is_file() || !executable(&meta) {
+            continue;
+        }
+        let verdict = match host.platform {
+            Platform::Unix => trust::file(Owner::from(&meta), &host.caller),
+            Platform::Windows => None,
+        };
+        if let Some(skip) = verdict {
+            found.rejected.push((candidate, skip));
+            continue;
+        }
+        found.node = Some(candidate);
+        break;
+    }
+    found
 }
 
 fn is_passed(name: &OsStr, platform: Platform) -> bool {
@@ -233,9 +220,12 @@ pub(crate) fn bridge_environment(
     Ok(out)
 }
 
-fn not_found(path: Option<&OsStr>, found: &Search) -> EnvSpecError {
-    let mut why = String::from("no usable `node`: only absolute, existing directories that ");
-    why.push_str("group and others cannot write are searched, and ");
+fn not_found(path: Option<&OsStr>, found: &Search, rejected: &[(PathBuf, Skip)]) -> EnvSpecError {
+    let mut why = String::from(
+        "no usable `node`: PATH entries are searched only when absolute, existing, owned by \
+         root or you, not writable by others, and group-writable only by root's group or \
+         one of yours; ",
+    );
     match path {
         None => why.push_str("PATH is not set"),
         Some(_) if found.trusted.is_empty() => why.push_str("PATH has none"),
@@ -248,23 +238,34 @@ fn not_found(path: Option<&OsStr>, found: &Search) -> EnvSpecError {
             let _ = write!(why, "none of {} holds a `node`", searched.join(", "));
         }
     }
-    if !found.skipped.is_empty() {
-        why.push_str(" (skipped:");
-        for (dir, skip) in &found.skipped {
-            let _ = write!(why, " \"{}\" {};", dir.display(), skip.reason());
-        }
-        why.pop();
-        why.push(')');
+    let mut notes: Vec<String> = found
+        .skipped
+        .iter()
+        .map(|(dir, skip)| format!("\"{}\" {}", dir.display(), skip.reason()))
+        .collect();
+    notes.extend(
+        rejected
+            .iter()
+            .map(|(node, skip)| format!("node \"{}\" {}", node.display(), skip.reason())),
+    );
+    if !notes.is_empty() {
+        let _ = write!(why, " (skipped: {})", notes.join("; "));
     }
     EnvSpecError::Node(why)
 }
 
 /// `node` for `host`, ready for the bridge's arguments.
+///
+/// `OPENSESAME_NODE` is consulted first and is final: a value that cannot be
+/// used is an error, never a reason to search `PATH` instead.
 pub(crate) fn node_command_for(host: &Host) -> Result<Command, EnvSpecError> {
     let path = host.var("PATH");
     let found = path.map(|p| search(p, host)).unwrap_or_default();
-    let Some(node) = find_node(&found.trusted, host.platform) else {
-        return Err(not_found(path, &found));
+    let node = if let Some(named) = host.var(operator::VARIABLE) {
+        operator::node(named)?
+    } else {
+        let NodeSearch { node, rejected } = find_node(&found.trusted, host);
+        node.ok_or_else(|| not_found(path, &found, &rejected))?
     };
     let mut command = Command::new(node);
     command.env_clear().envs(bridge_environment(
