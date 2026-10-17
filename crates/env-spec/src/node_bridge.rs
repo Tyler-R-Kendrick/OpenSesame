@@ -122,4 +122,6 @@ pub fn node_command() -> Result<Command, EnvSpecError> {
 }
 
 #[cfg(all(test, unix))]
+mod environment_tests;
+#[cfg(all(test, unix))]
 mod tests;
