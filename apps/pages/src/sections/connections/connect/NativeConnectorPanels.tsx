@@ -11,7 +11,7 @@ import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connec
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
@@ -243,6 +243,18 @@ export function NativeConnectorPanels({
     refresh((version) => version + 1);
     onChanged();
   };
+  // Removal bumps the revision before deleting, which supersedes the
+  // summary attempt that would report it; publish the disappearance here.
+  const hadView = useRef(false);
+  const publishChanged = useRef(changed);
+  publishChanged.current = changed;
+  useEffect(() => {
+    if (view) hadView.current = true;
+    else if (hadView.current) {
+      hadView.current = false;
+      publishChanged.current(null);
+    }
+  }, [view]);
   const form = (
     <NativeConnectorForm
       key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}/${pending.generation}`}
