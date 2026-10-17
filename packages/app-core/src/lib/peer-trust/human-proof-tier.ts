@@ -3,7 +3,7 @@
  * High-risk peer operations require a hardware-backed passkey proof kind.
  */
 
-const CLI_HIGH_RISK_VERBS = new Set(["run", "env-resolve", "pass-reveal"]);
+const CLI_HIGH_RISK_VERBS = new Set(["run", "pass-reveal"]);
 
 const PEER_HIGH_RISK_VERBS = new Set([
   "peer-reveal",

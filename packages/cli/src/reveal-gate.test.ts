@@ -40,7 +40,7 @@ describe("cli reveal gate conformance", () => {
   for (const caseRow of gate.cases) {
     it(caseRow.id, () => {
       const request: HumanRevealRequest = {
-        verb: caseRow.reference ? "read" : "env-resolve",
+        verb: caseRow.reference ? "reveal" : "pass-reveal",
         reveal: caseRow.reveal,
         desktop: caseRow.desktop,
         reference: caseRow.reference ?? undefined,
@@ -62,7 +62,7 @@ describe("cli reveal gate conformance", () => {
 
 describe("cli reveal gate — agent env markers are not a gate", () => {
   const terminalRead: HumanRevealRequest = {
-    verb: "read",
+    verb: "reveal",
     reveal: true,
     desktop: true,
     reference: "op://v/i/f",
@@ -123,10 +123,10 @@ describe("cli reveal gate — agent env markers are not a gate", () => {
 });
 
 describe("cli reveal gate subprocess refusal", () => {
-  it("refuses read when stdout is piped", () => {
+  it("refuses reveal when stdout is piped", () => {
     expect(
       humanRevealRefusal({
-        verb: "read",
+        verb: "reveal",
         reveal: true,
         desktop: true,
         reference: "op://v/i/f",

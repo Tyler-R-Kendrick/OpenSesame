@@ -106,18 +106,17 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
       "vault.workflow.create_private",
       "vault.workflow.compare_private",
       "vault.workflow.update_private",
-      "password_provider.read",
-      "password_provider.env_resolve",
+      "password_provider.reveal",
     ],
     scope: "session",
     description:
-      "Take the person to where they do a private credential task themselves: a new API credential, or an item's own page for comparing or replacing a password, copying a reference, reading a value or writing a plaintext .env. Takes an action and, optionally, an item id; never accepts or returns a secret.",
+      "Take the person to where they do a private credential task themselves: a new API credential, or an item's own page for comparing or replacing a password, copying a reference or revealing a value. Takes an action and, optionally, an item id; never accepts or returns a secret.",
     inputSchema: {
       type: "object",
       properties: {
         action: {
           type: "string",
-          enum: ["create", "compare", "update", "read", "env-resolve"],
+          enum: ["create", "compare", "update", "reveal"],
         },
         item: { type: "string", pattern: "^[A-Za-z0-9_-]{1,128}$" },
       },
@@ -127,9 +126,7 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
     execute: (args) => {
       requireUnlocked();
       const action = str(args, "action");
-      if (
-        !["create", "compare", "update", "read", "env-resolve"].includes(action)
-      )
+      if (!["create", "compare", "update", "reveal"].includes(action))
         throw new Error("Unknown human password workflow");
       if (Object.keys(args).some((key) => key !== "action" && key !== "item"))
         throw new Error(
