@@ -21,6 +21,7 @@ use opensesame_human_vault::pages_vault::{
     open_body, read_vault_file, summarize, unwrap_with_password, OpenedVaultFile, SealedVaultFile,
     VaultFileError,
 };
+use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass};
 use opensesame_vault_item_types::{resolve_type_id, ItemTypeRegistry};
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::{json, Value};
@@ -193,11 +194,37 @@ fn read_file(path: &Path) -> anyhow::Result<String> {
         .map_err(|error| anyhow::anyhow!("cannot read {}: {error}", path.display()))
 }
 
+/// The variable that names the exact `opensesame-id` to run.
+const ID_OVERRIDE: &str = "OPENSESAME_ID_BIN";
+
+/// What `opensesame-id` is handed besides `PATH` (the trusted entries, where
+/// it finds `node`) and the common set: where its vault lives, the terminal
+/// its password prompt uses, and the desktop `vault copy` writes to. The
+/// store password, the Host's keys and `NODE_OPTIONS` stay behind.
+const ID_ENV: [Pass; 6] = [
+    Pass::Name("OPENSESAME_STATE_DIR"),
+    Pass::Name("TERM"),
+    Pass::Name("DISPLAY"),
+    Pass::Name("WAYLAND_DISPLAY"),
+    Pass::Name("XAUTHORITY"),
+    Pass::Name("XDG_RUNTIME_DIR"),
+];
+
+/// `opensesame-id`: the file `OPENSESAME_ID_BIN` names, or the one on a
+/// trusted `PATH` entry (`opensesame-trusted-exec`).
+fn id_cli_in(lookup: &Lookup) -> anyhow::Result<std::process::Command> {
+    let mut command = command_in("opensesame-id", Some(ID_OVERRIDE), lookup).map_err(|why| {
+        anyhow::anyhow!("{why}; install opensesame-id or name it with {ID_OVERRIDE}")
+    })?;
+    pass_in(&mut command, &ID_ENV, lookup);
+    Ok(command)
+}
+
 /// Item commands run in `opensesame-id`, which shares the Pages vault core.
 fn forward(args: &[String]) -> anyhow::Result<()> {
-    let program =
-        std::env::var("OPENSESAME_ID_BIN").unwrap_or_else(|_| "opensesame-id".to_string());
-    let status = std::process::Command::new(&program)
+    let mut command = id_cli_in(&Lookup::capture())?;
+    let program = command.get_program().to_string_lossy().into_owned();
+    let status = command
         .args(args)
         .status()
         .map_err(|error| anyhow::anyhow!("cannot run {program} for this vault command: {error}"))?;
