@@ -1,4 +1,5 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { aiCompletionSeams } from "../ai-completion-observation.js";
 import { aiConnectionBase } from "./configuration.js";
 import { aiConnectionHeaders, type aiInferenceRequest } from "./protocol.js";
 import {
@@ -6,6 +7,11 @@ import {
   AiConnectionError,
   type AiConnectionTransport,
 } from "./types.js";
+
+export {
+  type AiCompletionObservation,
+  aiCompletionSeams,
+} from "../ai-completion-observation.js";
 
 export function checkAiResponse(response: Response): void {
   if (response.status === 401 || response.status === 403)
@@ -37,10 +43,14 @@ export async function aiConnectionFetch(
   check();
   transport.assertCurrent();
   transport.signal.throwIfAborted();
+  const signal = AbortSignal.any([
+    transport.signal,
+    AbortSignal.timeout(60_000),
+  ]);
   const init: RequestInit = {
     method: body === undefined ? "GET" : "POST",
     headers: aiConnectionHeaders(draft),
-    signal: AbortSignal.any([transport.signal, AbortSignal.timeout(60_000)]),
+    signal,
     credentials: "omit",
     redirect: "error",
     cache: "no-store",
@@ -63,6 +73,13 @@ export async function aiConnectionFetch(
   transport.assertCurrent();
   transport.signal.throwIfAborted();
   checkAiResponse(response);
+  aiCompletionSeams.observe?.({
+    phase: "request",
+    response,
+    owner: check,
+    httpSignal: signal,
+    transportSignal: transport.signal,
+  });
   return response;
 }
 
@@ -78,12 +95,17 @@ export async function readAiJson(
     );
   const chunks: Uint8Array[] = [];
   let length = 0;
+  let drained = false;
+  let value: BoundaryValue = null;
   try {
     for (;;) {
       check();
       const next = await reader.read();
       check();
-      if (next.done) break;
+      if (next.done) {
+        drained = true;
+        break;
+      }
       length += next.value.byteLength;
       if (length > 512 * 1024)
         throw new AiConnectionError(
@@ -99,8 +121,7 @@ export async function readAiJson(
       offset += chunk.byteLength;
     }
     try {
-      const value: BoundaryValue = JSON.parse(new TextDecoder().decode(bytes));
-      return value;
+      value = JSON.parse(new TextDecoder().decode(bytes));
     } catch {
       throw new AiConnectionError(
         "response",
@@ -108,7 +129,16 @@ export async function readAiJson(
       );
     }
   } finally {
-    await reader.cancel().catch(() => undefined);
+    // Retire a drained body without cancellation (see readAiTextStream).
+    if (!drained) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
+  aiCompletionSeams.observe?.({
+    phase: "body",
+    response,
+    owner: check,
+    bytes: length,
+    format: "json",
+  });
+  return value;
 }

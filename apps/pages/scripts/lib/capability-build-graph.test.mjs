@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { afterAll, beforeAll, describe, test } from "vitest";
 import { buildGraph } from "../capability-compose-plugin.mjs";
 import {
@@ -14,6 +14,7 @@ import {
   parseHtmlEntry,
 } from "./capability-graph.mjs";
 import { violations } from "./capability-invariants.mjs";
+import { canonicalTabIcon } from "./front-door-contract.mjs";
 
 // Module classification and the emitted graph: what `capability-graph.json`
 // says about a bundle, and that two identical bundles produce it byte for byte.
@@ -114,6 +115,7 @@ test("records individually switched type packs as on-demand cache resources", as
 test("HTML graph includes local shell resource links without provider-directory or remote assets", () => {
   const entry = parseHtmlEntry(
     `
+    <link rel="icon" href="data:image/svg+xml;base64,${readFileSync(new URL("../../public/icon.svg", import.meta.url)).toString("base64")}">
     <link rel="icon" href="/OpenSesame/icon.svg">
     <link rel="apple-touch-icon" href="/OpenSesame/icon.svg">
     <link rel="stylesheet" href="./assets/shell.css">
@@ -132,6 +134,49 @@ test("HTML graph includes local shell resource links without provider-directory 
     "icon.svg",
     "manifest.webmanifest",
   ]);
+});
+
+test("the actual tab icon is canonical, while unsafe or extra icons fail closed", () => {
+  const html = readFileSync(
+    new URL("../../index.html", import.meta.url),
+    "utf8",
+  );
+  const icons = [...html.matchAll(/<link\b[^>]*\brel="icon"[^>]*>/g)].map(
+    ([tag]) => ({
+      href: tag.match(/\bhref="([^"]*)"/)?.[1] ?? null,
+      type: tag.match(/\btype="([^"]*)"/)?.[1] ?? null,
+    }),
+  );
+  assert.equal(canonicalTabIcon(icons), true);
+  const valid = icons[0];
+  const svg = readFileSync(new URL("../../public/icon.svg", import.meta.url));
+  assert.equal(
+    valid.href,
+    `data:image/svg+xml;base64,${svg.toString("base64")}`,
+  );
+  for (const href of [
+    "https://remote.test/icon.svg",
+    "//remote.test/icon.svg",
+    "/OpenSesame/icon.svg",
+    "icon.svg",
+    "javascript:alert(1)",
+    "data:text/html;base64,PHNjcmlwdD4=",
+    "data:image/svg+xml,%3Csvg%3E%3Cscript%3Ealert(1)%3C/script%3E%3C/svg%3E",
+    `data:image/svg+xml;base64,${Buffer.from("<svg><script>alert(1)</script></svg>").toString("base64")}`,
+    "data:image/svg+xml;base64,%%%",
+    `${valid.href}?extra=1`,
+    `${valid.href}#fragment`,
+    `${valid.href}AA==`,
+  ])
+    assert.equal(canonicalTabIcon([{ ...valid, href }]), false, href);
+  for (const type of [null, "", "text/html", "image/png"])
+    assert.equal(canonicalTabIcon([{ ...valid, type }]), false);
+  assert.equal(canonicalTabIcon([]), false);
+  assert.equal(canonicalTabIcon([valid, valid]), false);
+  assert.equal(
+    canonicalTabIcon([valid, { ...valid, href: "https://remote.test/x" }]),
+    false,
+  );
 });
 
 describe("graph emission", () => {
