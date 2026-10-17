@@ -24,8 +24,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "The base secret and the file. Item list, editor, TOTP codes, website matching and the health report. Other item types are optional.",
     {
       operationIds: [
-        "password_provider.read",
-        "password_provider.env_resolve",
+        "password_provider.reveal",
         "vault.workflow.find_references",
         "vault.workflow.inventory",
         "vault.workflow.audit_organization",

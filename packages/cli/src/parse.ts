@@ -326,17 +326,17 @@ Commands:
   inventory | audit           Metadata and organization checks, never values
   create api-credential --title <title> --vault <vault> --stdin|--clipboard
   password <item> --vault <vault> --stdin|--clipboard [--apply]
-  read <op://reference|os://reference> [--reveal] [--desktop]
+  reveal <op://reference|os://reference> [--reveal] [--desktop]
                                Human-only plaintext stdout (TTY, no agent context)
-  run [--env NAME=<ref>...] [--mount NAME=<ref>...] [--agent-proxy --paths NAME=/p --methods NAME=GET] -- <command...>
+  run [--env NAME=<ref>...] [--mount NAME=<ref>...] [--agent-proxy --paths NAME=/p --methods NAME=GET] [--grant <run-grant-id>] -- <command...>
                                <ref>: op:// or os:// vault/item/field; --mount sets NAME to a private temp file holding the secret; --agent-proxy brokers os:// connections items (native CLI + plugin; this CLI fails closed)
   env write <file> <NAME=op://reference...>
-  env resolve <file> --output <file>|--in-place
   env run <file> -- <command...>
   service-account setup|connect|status|recover|forget
   request <https-url> --secret <op://reference> [--lease <id>]
   lease approve <https-url> --secret <ref> --desktop [--expires-in 10m] [--uses 1]
-  lease list|status <id>|revoke <id>
+  lease approve-run --env NAME=<ref>... [--mount NAME=<ref>...] [--agent-proxy --paths NAME=/p --methods NAME=GET] --desktop [--expires-in 10m] [--uses 1]  (reusable grant for that exact run set; consume with run --grant <id>)
+  lease list|status <id>|revoke <id>|run-list|run-status <id>|run-revoke <id>
   doctor                      Inspect provider setup without authentication
   login [--device|--loopback|--no-browser|--anonymous] [--qr|--no-qr]
                   --anonymous (alias --guest): start as a provisional guest;

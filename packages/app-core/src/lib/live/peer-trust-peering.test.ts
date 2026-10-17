@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
 import { fakeIndexedDb } from "../at-rest/fake-idb.test-support.js";
+import { ensurePeerArkSigningKey } from "../peer-trust/ark-key.js";
 import {
-  buildPeerTrustSignal,
   encodePeerTrustSignal,
+  signedPeerTrustSignal,
 } from "../peer-trust/signaling.js";
 import { commitPeerTrustEnrollment } from "../peer-trust/store.js";
 import { FakeBus, FakeNet } from "./live-fakes.js";
@@ -50,7 +51,7 @@ describe("live peer trust peering (PWA-only)", () => {
     expect(admit.ok).toBe(true);
     if (!admit.ok) return;
     expect(admit.spkiFingerprint).toBe(owner.spkiFingerprint);
-    expect(admit.sas).toBe(owner.sas);
+    expect(admit.ownerDtls).toBe("absent");
   });
 
   it("refuses changed-key admit when a fingerprint is remembered", async () => {
@@ -73,7 +74,14 @@ describe("live peer trust peering (PWA-only)", () => {
     const committed = await commitPeerTrustEnrollment(undefined);
     expect(committed.ok).toBe(true);
     if (!committed.ok) return;
-    const signal = buildPeerTrustSignal(committed.envelope);
+    const ark = await ensurePeerArkSigningKey();
+    expect(ark).not.toBeNull();
+    if (!ark) return;
+    const signal = await signedPeerTrustSignal(
+      ark.privateKey,
+      committed.envelope,
+      "absent",
+    );
     expect(signal).not.toBeNull();
     if (!signal) return;
     const raw = encodePeerTrustSignal(signal);
@@ -83,11 +91,20 @@ describe("live peer trust peering (PWA-only)", () => {
     expect(behind.reason).toBe("epoch-behind");
   });
 
-  it("clears pending when more than one peer join is queued", () => {
+  it("serialises concurrent peer join approvals without dropping one", () => {
     const gate = createLivePeerJoinApproval();
-    gate.requestJoinApproval("peer-a");
-    gate.requestJoinApproval("peer-b");
-    expect(gate.queue.listPending()).toHaveLength(0);
+    const first = gate.requestJoinApproval("peer-a");
+    const second = gate.requestJoinApproval("peer-b");
+    expect(gate.queue.listPending()).toHaveLength(2);
+    expect(gate.queue.approve(first.requestId ?? "", "peer-a").status).toBe(
+      "approved",
+    );
+    expect(
+      gate.queue.listPending().map((row) => row.terminalSessionId),
+    ).toEqual(["peer-b"]);
+    expect(gate.queue.approve(second.requestId ?? "", "peer-b").status).toBe(
+      "approved",
+    );
   });
 
   it("blocks software passkeys on high-risk peer verbs", () => {

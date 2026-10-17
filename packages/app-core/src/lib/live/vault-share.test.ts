@@ -4,6 +4,13 @@ import { describe, expect, it } from "vitest";
 import { pepperedAccount, plainAccount } from "../account.test-support.js";
 import { vaultCatalog, vaultField } from "./vault-share.js";
 
+/**
+ * The concealed PIN. A space and lowercase letters keep it out of every random
+ * item id (hex and hyphens only), so "the wire never carries it" cannot fail on
+ * an id that happens to hold four zeros.
+ */
+const PIN = "pin 0000";
+
 function vault() {
   const github = plainAccount("GitHub", "hunter2", {
     username: "octo",
@@ -11,7 +18,7 @@ function vault() {
   });
   github.notes = "recovery: 1234";
   github.fields = [
-    { id: "pin", name: "PIN", value: "0000", hidden: true },
+    { id: "pin", name: "PIN", value: PIN, hidden: true },
     { id: "team", name: "Team", value: "design", hidden: false },
   ];
   const bank = plainAccount("Bank", "s3cret");
@@ -36,7 +43,7 @@ describe("the catalog", () => {
       "hunter2",
       "s3cret",
       "recovery: 1234",
-      "0000",
+      PIN,
       "old",
       "JBSWY3DPEHPK3PXP",
     ])
@@ -96,7 +103,7 @@ describe("a field on request", () => {
     const scope = { kind: "items" as const, ids: [github.id] };
     const read = vaultField({ scope, items: () => items });
     expect(await read(github.id, "password")).toBe("hunter2");
-    expect(await read(github.id, "custom:pin")).toBe("0000");
+    expect(await read(github.id, "custom:pin")).toBe(PIN);
     expect(await read(bank.id, "password")).toBeNull();
     expect(await read(github.id, "nope")).toBeNull();
     github.methods = [

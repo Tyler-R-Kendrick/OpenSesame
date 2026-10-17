@@ -9,10 +9,21 @@ import {
 } from "../peer-trust/signaling.js";
 
 export type PeerTrustAdmitResult =
-  | { ok: true; spkiFingerprint: string; sas: string; enrollmentEpoch: number }
+  | {
+      ok: true;
+      spkiFingerprint: string;
+      enrollmentEpoch: number;
+      ownerDtls: string;
+      ownerNonce: string;
+      ownerSpkiB64: string;
+    }
   | {
       ok: false;
-      reason: "invalid-signal" | "invalid-signature" | "changed-key";
+      reason:
+        | "invalid-signal"
+        | "invalid-signature"
+        | "changed-key"
+        | "missing-signal";
       alarm?: ReturnType<typeof compareRootTrustFingerprint>;
     };
 
@@ -20,14 +31,13 @@ export async function admitPeerTrustSignal(
   rawSignal: string,
   rememberedFingerprint?: string,
 ): Promise<PeerTrustAdmitResult> {
+  if (rawSignal.trim().length === 0) {
+    return { ok: false, reason: "missing-signal" };
+  }
   const signal = decodePeerTrustSignal(rawSignal);
-  if (!signal) {
-    return { ok: false, reason: "invalid-signal" };
-  }
+  if (!signal) return { ok: false, reason: "invalid-signal" };
   const valid = await verifyPeerTrustSignal(signal);
-  if (!valid) {
-    return { ok: false, reason: "invalid-signature" };
-  }
+  if (!valid) return { ok: false, reason: "invalid-signature" };
   const alarm = compareRootTrustFingerprint(
     rememberedFingerprint,
     signal.envelope.spkiFingerprint,
@@ -38,7 +48,9 @@ export async function admitPeerTrustSignal(
   return {
     ok: true,
     spkiFingerprint: signal.envelope.spkiFingerprint,
-    sas: signal.sas,
     enrollmentEpoch: signal.envelope.enrollmentEpoch,
+    ownerDtls: signal.ownerDtls,
+    ownerNonce: signal.ownerNonce,
+    ownerSpkiB64: signal.envelope.spkiB64,
   };
 }

@@ -1,6 +1,9 @@
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
-import { readDeviceRows } from "../device-connector-records.js";
+import {
+  type StringFields,
+  readDeviceRows,
+} from "../device-connector-records.js";
 import {
   type NativeConnectorRecord,
   loadNativeConnectorRecord,
@@ -10,6 +13,10 @@ import {
 } from "../native-connector-store.js";
 import { verifiedNativeKey } from "../native-key-state.js";
 import { nativeOAuthGuard } from "../native-oauth-session.js";
+import {
+  AzureOpenAiTargetSchema,
+  azureConnectionTarget,
+} from "./azure-protocol.js";
 import {
   aiConnectionBinding,
   aiCredentialDigest,
@@ -27,6 +34,7 @@ export const AI_CONNECTION_CLASSIFICATION = {
     "authentication",
     "vault_tomb",
     "token_parameter",
+    "azure_target",
   ],
   privateCredentials: ["ai_credential_reference", "ai_credential_digest"],
 };
@@ -36,6 +44,21 @@ export function aiConnectionRecord(id: string): NativeConnectorRecord | null {
   return record?.configuration.parameters.ai_contract === AI_CONNECTION_CONTRACT
     ? record
     : null;
+}
+
+function readAzureTarget(value: string | undefined) {
+  if (value === undefined) return {};
+  try {
+    if (!value || value.length > 512) throw new Error("Invalid target size");
+    const target = AzureOpenAiTargetSchema.safeParse(JSON.parse(value));
+    if (!target.success) throw new Error("Invalid target metadata");
+    return { azure: target.data };
+  } catch {
+    throw new AiConnectionError(
+      "configuration",
+      "The saved Azure target is invalid. Configure and verify this connection again.",
+    );
+  }
 }
 
 export function readAiConnection(id: string): AiConnectionDraft | null {
@@ -52,6 +75,7 @@ export function readAiConnection(id: string): AiConnectionDraft | null {
       authentication: parameters.authentication,
       tokenParameter: parameters.token_parameter,
       apiKey: "",
+      ...readAzureTarget(parameters.azure_target),
     },
     false,
   );
@@ -72,6 +96,18 @@ function connectionRecord(
   id: string,
   revision: number,
 ) {
+  const target = azureConnectionTarget(draft);
+  const azure = target
+    ? JSON.stringify(
+        target.api === "v1"
+          ? { api: target.api, credential: target.credential }
+          : {
+              api: target.api,
+              apiVersion: target.apiVersion,
+              credential: target.credential,
+            },
+      )
+    : undefined;
   const fingerprint = bytesToHex(
     sha256(
       new TextEncoder().encode(
@@ -80,6 +116,16 @@ function connectionRecord(
     ),
   );
   const targetId = `ai-${fingerprint}`;
+  const parameters: StringFields = {
+    ai_contract: AI_CONNECTION_CONTRACT,
+    family: draft.family,
+    base_url: draft.baseUrl,
+    model: draft.model,
+    authentication: draft.authentication,
+    vault_tomb: tomb,
+    token_parameter: draft.tokenParameter,
+  };
+  if (azure !== undefined) parameters.azure_target = azure;
   return verifiedNativeKey(
     AI_CONNECTION_CLASSIFICATION,
     id,
@@ -90,15 +136,7 @@ function connectionRecord(
       method: "api-key",
       displayName: draft.name,
       icon: "",
-      parameters: {
-        ai_contract: AI_CONNECTION_CONTRACT,
-        family: draft.family,
-        base_url: draft.baseUrl,
-        model: draft.model,
-        authentication: draft.authentication,
-        vault_tomb: tomb,
-        token_parameter: draft.tokenParameter,
-      },
+      parameters,
       requestedScopes: {},
       targetIds: { endpoint: targetId },
       fingerprint,

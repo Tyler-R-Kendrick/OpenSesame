@@ -39,9 +39,8 @@
     "pinPlaceholder": "PIN"
   },
   "verbLabels": {
-    "read": "Read a secret",
+    "reveal": "Reveal a secret",
     "run": "Run a command",
-    "env-resolve": "Resolve environment variables",
     "pass-reveal": "Reveal from the password store"
   },
   "sessionCases": [

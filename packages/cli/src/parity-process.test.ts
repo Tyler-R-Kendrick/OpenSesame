@@ -85,7 +85,7 @@ describe("2password CLI process gauntlet", { timeout: 120_000 }, () => {
       (await calls()).filter((call) => call.args.includes("edit")),
     ).toHaveLength(1);
   });
-  it("env write resolve and read deliberately materialize while run strips token and preserves child flags", async () => {
+  it("env write materializes, retired env resolve and read refuse, and run strips token and preserves child flags", async () => {
     const template = join(directory, "template.env");
     const target = join(directory, "resolved.env");
     expect((await cli(["env", "write", template, "API=op://v/i/f"])).code).toBe(
@@ -116,7 +116,7 @@ describe("2password CLI process gauntlet", { timeout: 120_000 }, () => {
           "--reveal",
         ])
       ).stderr,
-    ).toMatch(/stdin and stdout/);
+    ).toMatch(/env resolve is retired/);
     const readAttempt = await cli([
       "read",
       "op://v/i/f",
@@ -126,7 +126,17 @@ describe("2password CLI process gauntlet", { timeout: 120_000 }, () => {
       "selected.account",
     ]);
     expect(readAttempt.code).toBe(1);
-    expect(readAttempt.stderr).toMatch(/stdin and stdout/);
+    expect(readAttempt.stderr).toMatch(/read is retired/);
+    const revealAttempt = await cli([
+      "reveal",
+      "op://v/i/f",
+      "--desktop",
+      "--reveal",
+      "--account",
+      "selected.account",
+    ]);
+    expect(revealAttempt.code).toBe(1);
+    expect(revealAttempt.stderr).toMatch(/stdin and stdout/);
     env.OP_SERVICE_ACCOUNT_TOKEN = TOKEN;
     const script =
       "process.stdout.write(JSON.stringify({secret:process.env.API,token:process.env.OP_SERVICE_ACCOUNT_TOKEN,args:process.argv.slice(1)}));process.exit(7)";

@@ -1,4 +1,6 @@
+/** @vitest-environment jsdom */
 import { readFileSync } from "node:fs";
+import { URL as FileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   APP_ICON,
@@ -10,7 +12,7 @@ import {
 } from "./mark-geometry.js";
 
 const iconSvg = readFileSync(
-  new URL("../../../public/icon.svg", import.meta.url),
+  new FileURL("../../../public/icon.svg", import.meta.url),
   "utf8",
 );
 
@@ -46,5 +48,33 @@ describe("the mark's geometry", () => {
     expect(Number(slit.width)).toBeCloseTo(want.slit.w, 2);
     expect(slit.fill).toBe(APP_ICON.slitFill);
     expect(iconSvg).not.toMatch(/#2fb3a3|#0d7268/i);
+  });
+
+  it("embeds the canonical tab icon while retaining the external install icon", () => {
+    const html = readFileSync(
+      new FileURL("../../../index.html", import.meta.url),
+      "utf8",
+    );
+    const document = new DOMParser().parseFromString(html, "text/html");
+    const icons = document.head.querySelectorAll('link[rel~="icon"]');
+    expect(icons).toHaveLength(1);
+    expect(icons[0].getAttribute("type")).toBe("image/svg+xml");
+    const icon = new URL(
+      icons[0].getAttribute("href") ?? "",
+      "https://example.test/",
+    );
+    expect(icon.protocol).toBe("data:");
+    const comma = icon.pathname.indexOf(",");
+    expect(icon.pathname.slice(0, comma)).toBe("image/svg+xml;base64");
+    expect(
+      Buffer.from(icon.pathname.slice(comma + 1), "base64").toString("utf8"),
+    ).toBe(iconSvg);
+    expect(icon.search).toBe("");
+    expect(icon.hash).toBe("");
+    const installIcons = document.head.querySelectorAll(
+      'link[rel~="apple-touch-icon"]',
+    );
+    expect(installIcons).toHaveLength(1);
+    expect(installIcons[0].getAttribute("href")).toBe("%BASE_URL%icon.svg");
   });
 });

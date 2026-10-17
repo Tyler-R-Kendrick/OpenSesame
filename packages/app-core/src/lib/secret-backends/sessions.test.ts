@@ -1,8 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createSecretBackendSessions } from "./sessions.js";
+import { z } from "zod";
+import {
+  createSecretBackendSessions,
+  secretBackendSessionClosure,
+} from "./sessions.js";
 import type { SecretBackendSession } from "./types.js";
 
 afterEach(() => vi.restoreAllMocks());
+
+// Validate a captured original allocation without cloning its identity.
+const originalSession = z.custom<SecretBackendSession>(
+  (value) =>
+    z
+      .object({
+        id: z.string(),
+        backendId: z.string(),
+        authenticatedAt: z.string(),
+        signal: z.instanceof(AbortSignal),
+      })
+      .safeParse(value).success,
+);
 
 function signalOf(session: SecretBackendSession): AbortSignal {
   if (!session.signal) throw new Error("Registry session has no lifetime");
@@ -13,12 +30,14 @@ describe("opaque secret backend sessions", () => {
   it("rejects copied, revoked and foreign handles without exposing credentials", () => {
     const sessions = createSecretBackendSessions<{ token: string }>("fixture");
     const session = sessions.create({ token: "scoped-fixture" });
+    expect(secretBackendSessionClosure(session)).toBeNull();
     expect(JSON.stringify(session)).not.toContain("scoped-fixture");
     expect(sessions.read(session).token).toBe("scoped-fixture");
     expect(() => sessions.read({ ...session })).toThrow();
     const foreign = createSecretBackendSessions<object>("fixture").create({});
     expect(() => sessions.read(foreign)).toThrow();
     sessions.remove(session);
+    expect(secretBackendSessionClosure(session)).toBe("removed");
     expect(() => sessions.read(session)).toThrow();
   });
 
@@ -66,6 +85,7 @@ describe("opaque secret backend sessions", () => {
         "Connect this secret backend again.",
       );
       expect(detach).toHaveBeenCalledOnce();
+      expect(secretBackendSessionClosure(session)).toBe("provider-ended");
       sessions.remove(session);
     });
     signalOf(session).addEventListener("abort", notify);
@@ -82,6 +102,7 @@ describe("opaque secret backend sessions", () => {
     expect(String(signalOf(session).reason)).not.toContain(reason.message);
     expect(JSON.stringify(session)).not.toContain(reason.message);
     sessions.remove(session);
+    expect(secretBackendSessionClosure(session)).toBe("provider-ended");
     expect(notify).toHaveBeenCalledOnce();
   });
 
@@ -90,11 +111,15 @@ describe("opaque secret backend sessions", () => {
     const native = new AbortController();
     const detach = vi.spyOn(native.signal, "removeEventListener");
     const session = sessions.create({}, native.signal);
-    const notify = vi.fn(() => expect(() => sessions.read(session)).toThrow());
+    const notify = vi.fn(() => {
+      expect(() => sessions.read(session)).toThrow();
+      expect(secretBackendSessionClosure(session)).toBe("removed");
+    });
     signalOf(session).addEventListener("abort", notify);
     sessions.remove(session);
     sessions.remove(session);
     native.abort({ credential: "private-reason" });
+    expect(secretBackendSessionClosure(session)).toBe("removed");
     expect(notify).toHaveBeenCalledOnce();
     expect(detach).toHaveBeenCalledOnce();
     expect(signalOf(session).reason.name).toBe("AbortError");
@@ -107,10 +132,13 @@ describe("opaque secret backend sessions", () => {
     const sessions = createSecretBackendSessions<object>("fixture");
     const native = new AbortController();
     const earlier = vi.fn(() => {
+      expect(secretBackendSessionClosure(session)).toBeNull();
+      expect(signalOf(session).aborted).toBe(false);
       expect(() => sessions.read(session)).toThrow(
         "Connect this secret backend again.",
       );
       expect(signalOf(session).aborted).toBe(true);
+      expect(secretBackendSessionClosure(session)).toBe("provider-ended");
     });
     native.signal.addEventListener("abort", earlier);
     const detach = vi.spyOn(native.signal, "removeEventListener");
@@ -150,9 +178,14 @@ describe("opaque secret backend sessions", () => {
           if (timing === "after") native.abort("private-subscribe-reason");
         },
       );
+      const allocated = vi.spyOn(Object, "freeze");
       expect(() => sessions.create({}, native.signal)).toThrow(
         "Connect this secret backend again.",
       );
+      const session = originalSession.parse(allocated.mock.calls[0]?.[0]);
+      allocated.mockRestore();
+      expect(secretBackendSessionClosure(session)).toBe("provider-ended");
+      expect(signalOf(session).reason.name).toBe("AbortError");
       expect(detach).toHaveBeenCalledOnce();
     },
   );
@@ -168,9 +201,14 @@ describe("opaque secret backend sessions", () => {
         throw new Error("private-subscription-credential");
       },
     );
+    const allocated = vi.spyOn(Object, "freeze");
     expect(() => sessions.create({}, native.signal)).toThrow(
       "Connect this secret backend again.",
     );
+    const session = originalSession.parse(allocated.mock.calls[0]?.[0]);
+    allocated.mockRestore();
+    expect(secretBackendSessionClosure(session)).toBe("provider-ended");
+    expect(signalOf(session).reason.name).toBe("AbortError");
     expect(detach).toHaveBeenCalledOnce();
     native.abort();
     expect(detach).toHaveBeenCalledOnce();
@@ -185,6 +223,8 @@ describe("opaque secret backend sessions", () => {
     const session = sessions.create({ token: "original" });
     const foreign = other.create({ token: "foreign" });
     const forged = { ...session, signal: signalOf(session) };
+    expect(secretBackendSessionClosure(forged)).toBeNull();
+    expect(secretBackendSessionClosure({ ...session })).toBeNull();
     expect(foreign.id).toBe(session.id);
     expect(() => sessions.read(forged)).toThrow();
     expect(() => sessions.read(foreign)).toThrow();
@@ -192,10 +232,16 @@ describe("opaque secret backend sessions", () => {
     sessions.remove(forged);
     sessions.remove(foreign);
     other.remove(session);
+    expect(secretBackendSessionClosure(session)).toBeNull();
+    expect(secretBackendSessionClosure(foreign)).toBeNull();
     expect(sessions.read(session).token).toBe("original");
     expect(other.read(foreign).token).toBe("foreign");
     expect(signalOf(session).aborted).toBe(false);
     expect(signalOf(foreign).aborted).toBe(false);
+    sessions.remove(session);
+    expect(secretBackendSessionClosure(session)).toBe("removed");
+    expect(secretBackendSessionClosure(forged)).toBeNull();
+    expect(secretBackendSessionClosure(foreign)).toBeNull();
   });
 
   it("keeps a replacement session live when the old lifetime ends or listeners reenter", () => {
@@ -214,9 +260,67 @@ describe("opaque secret backend sessions", () => {
     signalOf(old).addEventListener("abort", notify);
     native.abort();
     sessions.remove(old);
+    expect(secretBackendSessionClosure(old)).toBe("provider-ended");
+    expect(secretBackendSessionClosure(next)).toBeNull();
     expect(notify).toHaveBeenCalledOnce();
     expect(signalOf(next).aborted).toBe(false);
     expect(sessions.read(next).generation).toBe(2);
+  });
+
+  it("classifies an earlier native listener's remove as provider loss before public notification", () => {
+    const sessions = createSecretBackendSessions<object>("fixture");
+    const native = new AbortController();
+    const earlier = vi.fn(() => sessions.remove(session));
+    native.signal.addEventListener("abort", earlier);
+    const session = sessions.create({}, native.signal);
+    const observer = vi.fn(() => {
+      expect(secretBackendSessionClosure(session)).toBe("provider-ended");
+      expect(() => sessions.read(session)).toThrow();
+      expect(signalOf(session).reason.name).toBe("AbortError");
+    });
+    signalOf(session).addEventListener("abort", observer);
+    native.abort({ secret: "must never become closure metadata" });
+    expect(observer).toHaveBeenCalledOnce();
+    expect(earlier).toHaveBeenCalledOnce();
+    expect(secretBackendSessionClosure(session)).toBe("provider-ended");
+  });
+
+  it.each(["removed", "provider-ended"] as const)(
+    "keeps the first real %s classification immutable",
+    (first) => {
+      const sessions = createSecretBackendSessions<object>("fixture");
+      const other = createSecretBackendSessions<object>("fixture");
+      const native = new AbortController();
+      const session = sessions.create({}, native.signal);
+      if (first === "removed") sessions.remove(session);
+      else native.abort("private provider detail");
+      other.remove(session);
+      sessions.remove({ ...session, signal: signalOf(session) });
+      sessions.remove(session);
+      native.abort("later private provider detail");
+      expect(secretBackendSessionClosure(session)).toBe(first);
+      expect(signalOf(session).reason.name).toBe("AbortError");
+      expect(JSON.stringify(session)).not.toContain(first);
+      expect(JSON.stringify(signalOf(session).reason)).not.toContain(
+        "private provider detail",
+      );
+    },
+  );
+
+  it("returns no metadata for an unknown legacy handle even after its supplied signal aborts", () => {
+    const supplied = new AbortController();
+    const legacy = {
+      id: "legacy",
+      backendId: "fixture",
+      authenticatedAt: "",
+      signal: supplied.signal,
+    };
+    expect(secretBackendSessionClosure(legacy)).toBeNull();
+    supplied.abort({ secret: "untrusted native reason" });
+    expect(secretBackendSessionClosure(legacy)).toBeNull();
+    expect(supplied.signal.reason).toEqual({
+      secret: "untrusted native reason",
+    });
   });
 
   it("admits a new handle inside a terminal observer without the old removal touching it", () => {
