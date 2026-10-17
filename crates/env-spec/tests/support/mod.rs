@@ -64,11 +64,14 @@ impl Sandbox {
     }
 
     /// A `node` that records the environment it was started with in
-    /// `out/<label>.env`, then answers as the bridge would.
+    /// `out/<label>.env` and its arguments, one a line, in `out/<label>.args`,
+    /// then answers as the bridge would.
     pub fn plant(&self, dir: &str, label: &str) {
+        let out = self.path("out");
         let script = format!(
-            "#!/bin/sh\n/usr/bin/env > '{}'\nprintf '%s' '{EMPTY_DOCUMENT}'\n",
-            self.path("out").join(format!("{label}.env")).display()
+            "#!/bin/sh\n/usr/bin/env > '{}'\nprintf '%s\\n' \"$@\" > '{}'\nprintf '%s' '{EMPTY_DOCUMENT}'\n",
+            out.join(format!("{label}.env")).display(),
+            out.join(format!("{label}.args")).display(),
         );
         let node = self.path(dir).join("node");
         let _guard = WRITING_OR_FORKING
@@ -89,12 +92,34 @@ impl Sandbox {
         self.subject_with(path, &[])
     }
 
+    /// The arguments `label`'s `node` was started with, or `None` when it
+    /// never ran.
+    pub fn arguments(&self, label: &str) -> Option<Vec<String>> {
+        let text = std::fs::read_to_string(self.path("out").join(format!("{label}.args"))).ok()?;
+        Some(text.lines().map(str::to_owned).collect())
+    }
+
     /// [`Sandbox::subject`] with more variables in the subject's environment.
     pub fn subject_with(&self, path: &str, extra: &[(&str, String)]) -> String {
+        let parse = (
+            "OPENSESAME_ENV_PARSE",
+            self.path("work/parse.mjs").display().to_string(),
+        );
+        let extra: Vec<_> = std::iter::once(parse)
+            .chain(extra.iter().cloned())
+            .collect();
+        self.subject_at(&std::env::current_exe().unwrap(), path, &extra)
+    }
+
+    /// Starts `exe`, a copy of this test binary, as the subject: in `work/`,
+    /// with `path` as its `PATH`, the passphrase and the other variables
+    /// below, and `extra`. `OPENSESAME_ENV_PARSE` is set only if `extra` sets
+    /// it. Returns what it printed.
+    pub fn subject_at(&self, exe: &Path, path: &str, extra: &[(&str, String)]) -> String {
         let _guard = WRITING_OR_FORKING
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        let output = Command::new(std::env::current_exe().unwrap())
+        let output = Command::new(exe)
             .args(["--exact", "subject", "--nocapture", "--test-threads=1"])
             .env_clear()
             .current_dir(self.path("work"))
@@ -104,7 +129,6 @@ impl Sandbox {
             .env("LANG", "C.UTF-8")
             .env("LC_ALL", "C")
             .env(SUBJECT_SCHEMA, self.path("work/x.env.schema"))
-            .env("OPENSESAME_ENV_PARSE", self.path("work/parse.mjs"))
             .env("OPENSESAME_STORE_PASSWORD", PASSPHRASE)
             .env("OPENSESAME_OPERATOR_TOKEN", "operator-token-for-tests")
             .env("NODE_PATH", "/nonexistent/modules")
