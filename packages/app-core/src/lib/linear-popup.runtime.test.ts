@@ -169,7 +169,7 @@ describe("Linear consent returns to the originating unlocked runtime", () => {
     );
   });
 
-  it("reserves synchronously, pins Linear's callback, exchanges and verifies without navigating the tab", async () => {
+  it("prepares the request before reserving the window, pins Linear's callback, exchanges and verifies without navigating the tab", async () => {
     const id = await configured();
     const authorize = vi.fn<NonNullable<NativeOAuthBrowserPort["authorize"]>>(
       async (url, options) => {
@@ -187,9 +187,13 @@ describe("Linear consent returns to the originating unlocked runtime", () => {
       { body: { data: linearAccount } },
     );
     const consent = beginLinearAuthorization(id, "app");
-    expect(window.prepare).toHaveBeenCalledOnce();
+    expect(window.prepare).not.toHaveBeenCalled();
     expect(authorize).not.toHaveBeenCalled();
     await consent;
+    expect(window.prepare).toHaveBeenCalledOnce();
+    expect(window.prepare.mock.invocationCallOrder[0]).toBeLessThan(
+      authorize.mock.invocationCallOrder[0] ?? 0,
+    );
     expect(window.release).toHaveBeenCalledOnce();
     expect(navigate).not.toHaveBeenCalled();
     expect(fetcher).toHaveBeenCalledTimes(2);

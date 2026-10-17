@@ -91,11 +91,15 @@ export async function beginLinearAuthorization(
   let browser = held?.browser ?? null;
   let state: string | null = null;
   try {
-    // This runs in the originating click, before durable writes or provider requests.
-    reservation ??= reserveLinearAuthorizationWindow();
-    browser = reservation.browser;
+    // A click-held window stays open across durable preparation. Fresh consent
+    // prepares first so a null or failed request never opens an about:blank
+    // popup that release() closes while waitForURL is still listening.
     const request = await prepareLinearAuthorization(id, actor);
     if (!request) return;
+    if (!held) {
+      reservation = reserveLinearAuthorizationWindow();
+      browser = reservation.browser;
+    }
     state = request.pending.state;
     if (!browser?.authorize) {
       page().location.assign(request.url);

@@ -1,5 +1,9 @@
 import type { Connection } from "@opensesame/app-core/lib/connections.js";
 import {
+  type LinearAuthorizationReservation,
+  reserveLinearAuthorizationWindow,
+} from "@opensesame/app-core/lib/linear-auth-reservation.js";
+import {
   beginLinearAuthorization,
   readLinearConnector,
 } from "@opensesame/app-core/lib/linear-connectors.js";
@@ -73,13 +77,17 @@ function useLinearSummaryActions(
   const [confirming, setConfirming] = useState(false);
 
   async function authorize(actor: "app" | "user") {
-    setBusy(true);
-    setAuthorizing(true);
+    let reservation: LinearAuthorizationReservation | undefined;
     try {
-      await beginLinearAuthorization(connectorId, actor);
+      // Synchronous on the click, before durable preparation awaits.
+      reservation = reserveLinearAuthorizationWindow();
+      setBusy(true);
+      setAuthorizing(true);
+      await beginLinearAuthorization(connectorId, actor, reservation);
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });
     } finally {
+      reservation?.release();
       setBusy(false);
       setAuthorizing(false);
       onChanged();
