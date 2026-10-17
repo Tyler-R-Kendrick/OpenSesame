@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "migrationHint": "Use `opensesame-id run` (or `os run`) with `--env NAME=op://vault/item/field` or `os://vault/item/field`, or `env run <file> -- <cmd>`, instead of read or env resolve. Secret references stay in the 1Password-style scheme://vault/item/field form.",
+  "migrationHint": "Use `opensesame-id run` (or `os run`) with `--env NAME=op://vault/item/field` or `os://vault/item/field`, or `env run <file> -- <cmd>`, instead of revealing plaintext. Secret references stay in the 1Password-style scheme://vault/item/field form.",
   "cases": [
     {
       "id": "refuse-piped-stdout",

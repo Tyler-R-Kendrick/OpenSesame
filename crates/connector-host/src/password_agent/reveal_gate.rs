@@ -63,7 +63,7 @@ fn refusal_message(request: &HumanRevealRequest<'_>) -> Option<String> {
     None
 }
 
-/// Gate for `password-agent read` / `env resolve` and sealed-store reveal.
+/// Gate for `password-agent reveal` and sealed-store reveal.
 ///
 /// # Errors
 /// Returns an error when the request fails the human-only reveal policy.
@@ -138,7 +138,7 @@ mod tests {
         let raw: FixtureCases = serde_json::from_str(SOURCE).unwrap();
         for case in raw.cases {
             let request = HumanRevealRequest {
-                verb: "read",
+                verb: "reveal",
                 reveal: case.reveal,
                 desktop: case.desktop,
                 reference: case.reference.as_deref(),

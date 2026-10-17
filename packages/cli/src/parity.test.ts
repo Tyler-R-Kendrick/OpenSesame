@@ -98,13 +98,13 @@ describe("password-agent CLI", () => {
       stdout.mockRestore();
     }
   });
-  it("refuses read without human reveal gate", async () => {
+  it("reveals only through the human reveal gate", async () => {
     const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
     const invoke = vi.fn(async () => "secret-canary");
     try {
       expect(
         await withTerminal(() =>
-          runCli(["read", "op://v/i/f", "--desktop", "--reveal"], {
+          runCli(["reveal", "op://v/i/f", "--desktop", "--reveal"], {
             parityPort: { invoke },
             appIntegration: approveAppIntegration,
           }),
@@ -117,7 +117,7 @@ describe("password-agent CLI", () => {
       stderr.mockRestore();
     }
   });
-  it("suppresses a malformed secret batch for a person at a terminal", async () => {
+  it("refuses retired env resolve for a person at a terminal without touching the provider", async () => {
     const directory = await mkdtemp(join(tmpdir(), "opensesame-reveal-"));
     const template = join(directory, "input.env");
     const output = join(directory, "output.env");
@@ -143,10 +143,10 @@ describe("password-agent CLI", () => {
         ),
       ).toBe(1);
       const err = stderr.mock.calls.map(([value]) => String(value)).join("");
-      expect(err).toContain("details suppressed");
+      expect(err).toContain("env resolve is retired");
       expect(err).not.toContain("malformed-secret-canary");
       expect(await readFile(output, "utf8")).toBe("preserved");
-      expect(invoke).toHaveBeenCalled();
+      expect(invoke).not.toHaveBeenCalled();
     } finally {
       stderr.mockRestore();
       await rm(directory, { recursive: true, force: true });

@@ -9,7 +9,7 @@ import {
 } from "./cli-app-integration-client.js";
 import { emitStderrLine } from "./output.js";
 
-export type HumanRevealVerb = "read" | "env-resolve" | "pass-reveal" | "run";
+export type HumanRevealVerb = "reveal" | "pass-reveal" | "run";
 
 export interface HumanRevealRequest {
   verb: HumanRevealVerb;
