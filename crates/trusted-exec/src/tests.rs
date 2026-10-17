@@ -175,3 +175,154 @@ fn a_fixed_file_the_code_chose_gets_the_same_built_environment() {
     let err = command_at(Path::new("curl.exe"), &fixture.lookup(&[])).unwrap_err();
     assert!(err.to_string().contains("not an absolute path"), "{err}");
 }
+
+/// The planted-swap the review's r1a and r1b ran: if the rule hands back a
+/// command at all, swapping the program after resolution must not run.
+fn swap_and_run(command: Result<Command, ResolveError>, swap: impl FnOnce()) -> String {
+    let Ok(mut command) = command else {
+        return String::new();
+    };
+    swap();
+    let out = command.output().expect("spawn");
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+fn script(path: &Path, body: &str) {
+    std::fs::write(path, format!("#!/bin/sh\n{body}\n")).unwrap();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+fn path_lookup(fixture: &Fixture, dirs: &[&Path]) -> Lookup {
+    let mut lookup = fixture.lookup(&[]);
+    lookup.vars[0].1 = std::env::join_paths(dirs).unwrap();
+    lookup
+}
+
+#[test]
+fn a_program_under_a_directory_anyone_can_write_is_refused_and_a_swap_never_runs() {
+    let fixture = Fixture::new("unused");
+    let shared = fixture.scratch("shared");
+    std::fs::set_permissions(&shared, std::fs::Permissions::from_mode(0o777)).unwrap();
+    let bin = shared.join("bin");
+    std::fs::create_dir(&bin).unwrap();
+    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+    script(&bin.join("git"), "echo trusted-git");
+    let lookup = path_lookup(&fixture, &[&bin]);
+    let said = match resolve_in("git", Some("OPENSESAME_GIT"), &lookup) {
+        Ok(found) => format!("accepted {}", found.program.display()),
+        Err(err) => err.to_string(),
+    };
+    let ran = swap_and_run(command_in("git", Some("OPENSESAME_GIT"), &lookup), || {
+        std::fs::rename(&bin, shared.join("bin.orig")).unwrap();
+        std::fs::create_dir(&bin).unwrap();
+        script(&bin.join("git"), "echo PLANTED-SWAP");
+    });
+    assert!(!ran.contains("PLANTED"), "the swapped-in git ran: {ran}");
+    let under = format!("is under \"{}\", writable by others", shared.display());
+    assert!(said.contains(&under), "{under} not in: {said}");
+}
+
+#[test]
+fn a_link_to_a_program_in_a_directory_anyone_can_write_is_refused() {
+    let fixture = Fixture::new("unused");
+    let (trusted, open) = (fixture.scratch("trusted-dir"), fixture.scratch("open"));
+    std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
+    script(&open.join("gpg-real"), "echo trusted-gpg");
+    std::os::unix::fs::symlink(open.join("gpg-real"), trusted.join("gpg")).unwrap();
+    let lookup = path_lookup(&fixture, &[&trusted]);
+    let ran = swap_and_run(command_in("gpg", Some("OPENSESAME_GPG"), &lookup), || {
+        std::fs::remove_file(open.join("gpg-real")).unwrap();
+        script(&open.join("gpg-real"), "echo PLANTED-GPG");
+    });
+    assert!(!ran.contains("PLANTED"), "the swapped-in gpg ran: {ran}");
+    assert!(resolve_in("gpg", None, &lookup).is_err());
+}
+
+#[test]
+fn a_link_within_trusted_directories_runs_its_real_path() {
+    let fixture = Fixture::new("unused");
+    let (front, real) = (fixture.scratch("front"), fixture.scratch("real"));
+    fixture.stub_recorder(&real.join("gh-real"));
+    std::os::unix::fs::symlink(real.join("gh-real"), front.join("gh")).unwrap();
+    let command = command_in("gh", None, &path_lookup(&fixture, &[&front])).unwrap();
+    assert_eq!(command.get_program(), real.join("gh-real"));
+}
+
+#[test]
+fn with_no_trusted_path_entry_the_child_has_no_path_at_all() {
+    let fixture = Fixture::new("unused");
+    let (chosen, checkout) = (fixture.scratch("chosen"), fixture.scratch("checkout"));
+    std::fs::write(chosen.join("opensesame-id"), "#!/usr/bin/env node\n").unwrap();
+    std::fs::set_permissions(
+        chosen.join("opensesame-id"),
+        std::fs::Permissions::from_mode(0o755),
+    )
+    .unwrap();
+    script(&checkout.join("node"), "echo PLANTED-NODE-FROM-CWD");
+    let value = chosen.join("opensesame-id");
+    let lookup = Lookup {
+        vars: vec![("OPENSESAME_ID_BIN".into(), value.into_os_string())],
+        cwd: None,
+        platform: Platform::Unix,
+        caller: Caller::current(),
+    };
+    let mut command = command_in("opensesame-id", Some("OPENSESAME_ID_BIN"), &lookup).unwrap();
+    let has_path = command.get_envs().any(|(name, _)| name == "PATH");
+    let out = command.current_dir(&checkout).output().unwrap();
+    let ran = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !ran.contains("PLANTED"),
+        "a node in the working directory ran"
+    );
+    assert!(!has_path, "the child was given a PATH");
+}
+
+#[test]
+fn not_finding_a_program_says_which_variable_names_it() {
+    let fixture = Fixture::new("git");
+    std::fs::remove_file(fixture.trusted.join("git")).unwrap();
+    let err = resolve_in("git", Some("OPENSESAME_GIT"), &fixture.lookup(&[]))
+        .unwrap_err()
+        .to_string();
+    let want = "or set OPENSESAME_GIT to the absolute path of the `git` to run";
+    assert!(err.ends_with(want), "{want} not at the end of: {err}");
+    let plain = resolve_in("hostname", None, &fixture.lookup(&[]))
+        .unwrap_err()
+        .to_string();
+    assert!(!plain.contains("or set"), "{plain}");
+}
+
+#[test]
+fn windows_programs_keep_the_folders_they_find_their_state_in() {
+    let lookup = Lookup {
+        vars: [
+            ("APPDATA", "C:\\Users\\d\\AppData\\Roaming"),
+            ("LOCALAPPDATA", "C:\\Users\\d\\AppData\\Local"),
+            ("ProgramData", "C:\\ProgramData"),
+            ("SystemDrive", "C:"),
+            ("windir", "C:\\Windows"),
+            ("OPENSESAME_CONNECTION_KEY", SECRET),
+        ]
+        .iter()
+        .map(|(n, v)| (OsString::from(n), OsString::from(v)))
+        .collect(),
+        cwd: None,
+        platform: Platform::Windows,
+        caller: Caller::default(),
+    };
+    let mut command = Command::new("x");
+    command.env_clear();
+    pass_in(&mut command, &COMMON_ON_WINDOWS, &lookup);
+    let names: BTreeSet<_> = command
+        .get_envs()
+        .map(|(n, _)| n.to_str().unwrap().to_ascii_uppercase())
+        .collect();
+    let want = [
+        "APPDATA",
+        "LOCALAPPDATA",
+        "PROGRAMDATA",
+        "SYSTEMDRIVE",
+        "WINDIR",
+    ];
+    assert_eq!(names, BTreeSet::from(want.map(String::from)));
+}

@@ -9,13 +9,52 @@
 //! refuses what a planted program needs: a directory another user owns, anyone
 //! can write, or a group the caller is not in can write.
 //!
+//! The program file gets the same questions as a directory: another owner, any
+//! writer outside the caller's own groups, anyone at all. And so does every
+//! directory above it (`chain.rs`): a directory only its owner may rename
+//! entries of is safe, one anyone can write is not, unless it is sticky and
+//! root's (`/tmp`, `/nix/store`), where an entry can be renamed only by its
+//! own owner, who is checked in turn.
+//!
 //! The decisions are pure functions of a stat result and the caller, so the
 //! table in `trust/tests.rs` pins them without needing other users on the host.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// What is wrong with a directory or a file, apart from where it is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Cause {
+    /// Owned by a user who is neither root nor the caller.
+    OwnedBy(u32),
+    WritableByOthers,
+    /// Writable by a group the caller is not in (and that is not root's).
+    GroupWritable(u32),
+}
+
+impl Cause {
+    fn reason(self) -> String {
+        match self {
+            Self::OwnedBy(uid) => format!("owned by uid {uid}"),
+            Self::WritableByOthers => "writable by others".into(),
+            Self::GroupWritable(gid) => {
+                format!("group-writable by group {gid} which is not one of yours")
+            }
+        }
+    }
+}
+
+impl From<Cause> for Skip {
+    fn from(cause: Cause) -> Self {
+        match cause {
+            Cause::OwnedBy(uid) => Self::OwnedBy(uid),
+            Cause::WritableByOthers => Self::WritableByOthers,
+            Cause::GroupWritable(gid) => Self::GroupWritable(gid),
+        }
+    }
+}
 
 /// Why a `PATH` entry, or the program in it, is not used.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Skip {
     Empty,
     Relative,
@@ -26,22 +65,28 @@ pub enum Skip {
     /// Owned by a user who is neither root nor the caller.
     OwnedBy(u32),
     CurrentDirectory,
+    /// A directory above it could be renamed or replaced by someone else.
+    Under {
+        ancestor: PathBuf,
+        cause: Cause,
+    },
 }
 
 impl Skip {
     /// What the error says about an entry skipped for this reason.
     #[must_use]
-    pub fn reason(self) -> String {
+    pub fn reason(&self) -> String {
         match self {
             Self::Empty => "empty entry".into(),
             Self::Relative => "relative".into(),
             Self::NotADirectory => "missing or not a directory".into(),
             Self::WritableByOthers => "writable by others".into(),
-            Self::GroupWritable(gid) => {
-                format!("group-writable by group {gid} which is not one of yours")
-            }
-            Self::OwnedBy(uid) => format!("owned by uid {uid}"),
+            Self::GroupWritable(gid) => Cause::GroupWritable(*gid).reason(),
+            Self::OwnedBy(uid) => Cause::OwnedBy(*uid).reason(),
             Self::CurrentDirectory => "the current directory".into(),
+            Self::Under { ancestor, cause } => {
+                format!("is under \"{}\", {}", ancestor.display(), cause.reason())
+            }
         }
     }
 }
@@ -130,31 +175,46 @@ impl Caller {
 
 const OTHERS_WRITE: u32 = 0o002;
 const GROUP_WRITE: u32 = 0o020;
+const STICKY: u32 = 0o1000;
 
 /// Why a `PATH` directory with this owner is not searched, if it is not.
 #[must_use]
 pub fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
+    writers(owner, caller).map(Skip::from)
+}
+
+/// Who could change something owned this way, besides root and the caller.
+fn writers(owner: Owner, caller: &Caller) -> Option<Cause> {
     if !caller.trusts_owner(owner.uid) {
-        Some(Skip::OwnedBy(owner.uid))
+        Some(Cause::OwnedBy(owner.uid))
     } else if owner.mode & OTHERS_WRITE != 0 {
-        Some(Skip::WritableByOthers)
+        Some(Cause::WritableByOthers)
     } else if owner.mode & GROUP_WRITE != 0 && !caller.trusts_group(owner.gid) {
-        Some(Skip::GroupWritable(owner.gid))
+        Some(Cause::GroupWritable(owner.gid))
     } else {
         None
     }
 }
 
 /// Why this program file (after symlinks) is not run, if it is not: owned by
-/// root or the caller, and not writable by everyone.
+/// root or the caller, and writable by nobody outside the caller's own groups.
 #[must_use]
 pub fn file(owner: Owner, caller: &Caller) -> Option<Skip> {
-    if !caller.trusts_owner(owner.uid) {
-        Some(Skip::OwnedBy(owner.uid))
-    } else if owner.mode & OTHERS_WRITE != 0 {
-        Some(Skip::WritableByOthers)
-    } else {
+    writers(owner, caller).map(Skip::from)
+}
+
+/// Why a directory *above* a program or a `PATH` entry cannot be relied on,
+/// if it cannot: the same questions as [`directory`], except that one that
+/// is sticky and root's is fine however it is writable, since a sticky
+/// directory lets only an entry's own owner (or root) rename it, and the
+/// entry below is checked in turn.
+#[must_use]
+pub fn ancestor(owner: Owner, caller: &Caller) -> Option<Cause> {
+    let sticky_root = owner.uid == 0 && owner.mode & STICKY != 0;
+    if sticky_root {
         None
+    } else {
+        writers(owner, caller)
     }
 }
 

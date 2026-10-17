@@ -59,8 +59,11 @@ impl Fixture {
     #[must_use]
     pub fn new(program: &str) -> Self {
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let root =
-            std::env::temp_dir().join(format!("trusted-exec-{}-{n}-{program}", std::process::id()));
+        // The real path of the temporary directory: macOS's is a link, and a
+        // program is run by its real path.
+        let temp = std::env::temp_dir();
+        let temp = temp.canonicalize().unwrap_or(temp);
+        let root = temp.join(format!("trusted-exec-{}-{n}-{program}", std::process::id()));
         let (planted, trusted) = (root.join("planted"), root.join("trusted"));
         for dir in [&root, &planted, &trusted] {
             std::fs::create_dir_all(dir).expect("fixture directory");

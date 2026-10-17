@@ -90,7 +90,7 @@ fn empty_relative_missing_and_non_directory_entries_are_skipped_with_their_reaso
     let skipped: Vec<_> = found
         .skipped
         .iter()
-        .map(|(d, s)| (d.display().to_string(), *s))
+        .map(|(d, s)| (d.display().to_string(), s.clone()))
         .collect();
     assert_eq!(
         skipped,
@@ -126,7 +126,11 @@ fn a_directory_only_the_caller_and_its_groups_can_write_is_searched_on_unix() {
             usize::from(skipped.is_none()),
             "{mode:o}"
         );
-        assert_eq!(found.skipped.first().map(|(_, s)| *s), skipped, "{mode:o}");
+        assert_eq!(
+            found.skipped.first().map(|(_, s)| s.clone()),
+            skipped,
+            "{mode:o}"
+        );
     }
 }
 
@@ -371,4 +375,35 @@ fn path_is_found_whatever_its_case_on_windows_only() {
         .unwrap_err()
         .to_string()
         .contains("PATH is not set"));
+}
+
+#[test]
+fn with_no_trusted_entry_the_bridge_has_no_path_not_an_empty_one() {
+    // An empty PATH means the working directory to execvp and every shell.
+    let vars = os(&[("HOME", "/home/dummy"), ("PATH", "/tmp/planted")]);
+    let got = bridge_environment(&vars, &[], Platform::Unix).unwrap();
+    assert!(got.iter().all(|(name, _)| name != "PATH"), "{got:?}");
+}
+
+#[test]
+fn a_version_managers_shim_is_told_where_it_lives() {
+    let vars = os(&[
+        ("VOLTA_HOME", "/home/dummy/.volta"),
+        ("ASDF_DATA_DIR", "/home/dummy/.asdf"),
+        ("MISE_DATA_DIR", "/home/dummy/.mise"),
+        ("XDG_DATA_HOME", "/home/dummy/.local/share"),
+        ("OPENSESAME_NODE", "/x"),
+    ]);
+    let got = bridge_environment(&vars, &[PathBuf::from("/usr/bin")], Platform::Unix).unwrap();
+    let names: BTreeSet<_> = got.iter().map(|(n, _)| n.to_str().unwrap()).collect();
+    assert_eq!(
+        names,
+        BTreeSet::from([
+            "ASDF_DATA_DIR",
+            "MISE_DATA_DIR",
+            "PATH",
+            "VOLTA_HOME",
+            "XDG_DATA_HOME"
+        ])
+    );
 }

@@ -66,14 +66,38 @@ pub const COMMON: [Pass; 16] = [
 ];
 
 /// What a program on Windows cannot start without: the system directory, how
-/// to run a command, the temporary directory and the profile it stands for `HOME`.
-pub const COMMON_ON_WINDOWS: [Pass; 6] = [
+/// to run a command, the temporary directory and the profile it stands for
+/// `HOME`, and the folders a program keeps its state in (`gh` in `%AppData%`,
+/// Gpg4win's home, `gcloud`, `op`). None is a secret.
+pub const COMMON_ON_WINDOWS: [Pass; 11] = [
     Pass::Name("SystemRoot"),
     Pass::Name("PATHEXT"),
     Pass::Name("COMSPEC"),
     Pass::Name("TEMP"),
     Pass::Name("TMP"),
     Pass::Name("USERPROFILE"),
+    Pass::Name("APPDATA"),
+    Pass::Name("LOCALAPPDATA"),
+    Pass::Name("ProgramData"),
+    Pass::Name("SystemDrive"),
+    Pass::Name("windir"),
+];
+
+/// Where a version manager keeps what its shims run (`volta`, `asdf`, `mise`),
+/// for a program that is usually one of those shims (`node`, `gh`, `aws`,
+/// `kubectl`): a shim told where it lives finds the real program.
+pub const VERSION_MANAGERS: [Pass; 4] = [
+    Pass::Name("ASDF_DATA_DIR"),
+    Pass::Name("MISE_DATA_DIR"),
+    Pass::Name("XDG_DATA_HOME"),
+    Pass::Name("VOLTA_HOME"),
+];
+
+/// How a Windows program started from WSL reaches Windows.
+pub const WSL: [Pass; 3] = [
+    Pass::Name("WSL_INTEROP"),
+    Pass::Name("WSL_DISTRO_NAME"),
+    Pass::Name("WSLENV"),
 ];
 
 /// The proxy an operator configured, for a program that reaches the network
@@ -90,8 +114,12 @@ pub const PROXY: [Pass; 8] = [
 ];
 
 /// The certificate authorities an operator configured, for the same programs
-/// (a proxy that inspects TLS, a private forge).
-pub const CA_BUNDLE: [Pass; 2] = [Pass::Name("SSL_CERT_FILE"), Pass::Name("SSL_CERT_DIR")];
+/// (a proxy that inspects TLS, a private forge; Nix has its own name).
+pub const CA_BUNDLE: [Pass; 3] = [
+    Pass::Name("SSL_CERT_FILE"),
+    Pass::Name("SSL_CERT_DIR"),
+    Pass::Name("NIX_SSL_CERT_FILE"),
+];
 
 /// Copies the variables of `lookup` that `allow` names onto `command`. `PATH`
 /// is never copied: [`crate::command_in`] builds it from the trusted entries.
