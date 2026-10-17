@@ -1481,6 +1481,17 @@ CI lives in `.github/workflows/`:
   gauntlet) on pull requests that touch the CLI, Pages, the extension, the
   crates, `app-core`, `vault-core` and the other paths it lists, and on demand.
   Not a required check.
+- `release-kit.yml` — on a `v*` tag, builds `opensesame` and
+  `opensesame-surrogate-proxy` (shipped features), the plugin's test build
+  (`--features upstream-override`, its own archive named
+  `opensesame-surrogate-proxy-TEST-upstream-override_…`) and the bundled
+  env-spec bridge for x86_64 and aarch64 Linux, packs reproducible archives
+  (`scripts/release/kit-archive.sh`), writes `SHA256SUMS`, attests build
+  provenance and publishes a release that starts as a draft at the verified
+  commit ([ADR 0207](docs/adr/0207-release-kit-binaries.md),
+  `docs/operators/release-kit.md`). Run by hand it is a dry run. An edit to it
+  runs the TypeScript suite, where `scripts/lib/ci-release-kit.test.mjs` pins
+  it, and no browser gate (`ci-gates.mjs`).
 
 CI is the merge gate, not the whole story: the heavier suites
 (`pnpm verify`, integration/e2e, `pnpm audit:*`) stay local — git hooks
