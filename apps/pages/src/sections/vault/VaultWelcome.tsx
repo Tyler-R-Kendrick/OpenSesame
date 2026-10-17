@@ -1,10 +1,18 @@
 import { vaultFilterLabel } from "@opensesame/app-core/lib/crumbs.js";
 import { resolveFilterSlug } from "@opensesame/app-core/lib/vault-filter-slug.js";
 import { itemTypeId, listedItems } from "@opensesame/vault-core";
+import { Suspense, lazy } from "react";
 import { useSearchParams } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
+import { pwaOfferPasswordsOnboarding } from "../../lib/pwa-offer-passwords-onboarding.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { WelcomeKeys } from "./WelcomeKeys.js";
+
+const PasswordsOnboarding = lazy(() =>
+  import("./PasswordsOnboarding.js").then((module) => ({
+    default: module.PasswordsOnboarding,
+  })),
+);
 
 /**
  * The buffer before the cursor lands on a file. No dashboard: moving the
@@ -40,6 +48,11 @@ export function VaultWelcome() {
               ? `no ${what} yet`
               : "nothing sealed yet"}
         </p>
+        {!inTrash && pwaOfferPasswordsOnboarding() ? (
+          <Suspense fallback={null}>
+            <PasswordsOnboarding placement="buffer" />
+          </Suspense>
+        ) : null}
         <WelcomeKeys inTrash={inTrash} empty />
       </div>
     );

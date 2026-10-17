@@ -1,5 +1,5 @@
 import { reportGuideActivation } from "@opensesame/app-core/tutorial/registry/targets.js";
-import { useCallback } from "react";
+import { Suspense, lazy, useCallback } from "react";
 import { Link } from "react-router";
 import { useContributions } from "../../bindings/contributions.js";
 import { IconPlus } from "../../components/Icons.js";
@@ -7,6 +7,7 @@ import {
   type MenuOpening,
   openContextMenu,
 } from "../../components/context-menu/menu-model.js";
+import { pwaOfferPasswordsOnboarding } from "../../lib/pwa-offer-passwords-onboarding.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { AddSlide } from "./AddSlide.js";
 import { ClaimOpenEntry } from "./ClaimOpen.js";
@@ -14,6 +15,12 @@ import { ExportEntry } from "./ExportKey.js";
 import { type AddEntry, addEntries } from "./add-menu.js";
 import { useAddSlide } from "./add-slide.js";
 import "./new-item-fab.css";
+
+const PasswordsOnboarding = lazy(() =>
+  import("./PasswordsOnboarding.js").then((module) => ({
+    default: module.PasswordsOnboarding,
+  })),
+);
 
 /**
  * Run an entry the person chose, by the slide or by the menu, and tell the
@@ -119,6 +126,11 @@ function AddButton({
       {slide.state ? <AddSlide slide={slide.state} /> : null}
       {/* The flows the slide starts: they draw nothing but their sheets. */}
       {flows.map(({ id, Entry }) => (Entry ? <Entry key={id} /> : null))}
+      {pwaOfferPasswordsOnboarding() ? (
+        <Suspense fallback={null}>
+          <PasswordsOnboarding placement="add-menu" />
+        </Suspense>
+      ) : null}
       <ExportEntry />
       <ClaimOpenEntry />
     </>
