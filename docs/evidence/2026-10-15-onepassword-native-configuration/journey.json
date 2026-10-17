@@ -1,0 +1,76 @@
+{
+  "contexts": [
+    {
+      "width": 1280,
+      "height": 900,
+      "touch": false
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "touch": true
+    }
+  ],
+  "steps": [
+    "Open the genuine old signed subpath PWA at its stamped origin and create a durable PIN vault through normal controls.",
+    "Capture the old partner Connect default, enter the controlled Connect configuration and click Save. Cold reload and verify the saved configuration without native SDK activity; no pre-upgrade authentication success is claimed.",
+    "Preserve the actual browser vault across the old-to-new static host swap at the same origin. Reload, unlock, verify that the saved Connect configuration retains its method, then complete the real controlled Connect REST GET.",
+    "Remove the old controlled fixture through the rendered confirmation, then open a fresh partner draft and capture the native default.",
+    "Open BYO, select native 1Password and capture the shared account URL, password token and vault ID fields. This checkpoint does not save the BYO form.",
+    "Return to partner native configuration, enter fixture fields through rendered controls and click Save. Cold reload, unlock and capture the blank token input. Native provider authentication is not attempted in this UI phase.",
+    "Verify that the observed no-action checkpoints and normal rename produce no native SDK asset, worker or API requests. Close all owned resources and rehash input/output identities."
+  ],
+  "qualification": "Observed configuration UI and legacy Connect journey only; the separate native SDK action attempt failed. No storage seeding, component state injection, fake SDK or credential values are retained.",
+  "schema": "native-onepassword-configuration-ui-journey-v1",
+  "compiledBefore": "9b8bb3a436c16cc2b1fb79100bf19ad7d9c8804c",
+  "compiledAfter": "a50848dfe53fdaffc220604e55fc42697573f617",
+  "base": "/OpenSesame/",
+  "profile": {
+    "profile": "loopback_development",
+    "canonicalOrigin": "http://localhost:41901",
+    "headerSecurity": false
+  },
+  "automationNavigationQualification": "Existing setup helpers enter Features and integration routes through History API/popstate. PIN, configuration, Save, removal confirmation, lock, unlock and rename use rendered controls. Native screenshot capture does not alter the DOM.",
+  "selectedScreens": [
+    {
+      "file": "1280-old-connect-default.webp",
+      "width": 1280,
+      "checkpoint": "old-connect-default"
+    },
+    {
+      "file": "1280-new-native-default.webp",
+      "width": 1280,
+      "checkpoint": "new-native-default"
+    },
+    {
+      "file": "1280-byo-native-fields.webp",
+      "width": 1280,
+      "checkpoint": "byo-native-fields"
+    },
+    {
+      "file": "1280-saved-native-blank-token.webp",
+      "width": 1280,
+      "checkpoint": "saved-native-blank-token"
+    },
+    {
+      "file": "390-old-connect-default.webp",
+      "width": 390,
+      "checkpoint": "old-connect-default"
+    },
+    {
+      "file": "390-new-native-default.webp",
+      "width": 390,
+      "checkpoint": "new-native-default"
+    },
+    {
+      "file": "390-byo-native-fields.webp",
+      "width": 390,
+      "checkpoint": "byo-native-fields"
+    },
+    {
+      "file": "390-saved-native-blank-token.webp",
+      "width": 390,
+      "checkpoint": "saved-native-blank-token"
+    }
+  ]
+}

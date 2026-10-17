@@ -57,6 +57,12 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-15-tailscale-status/`](2026-10-15-tailscale-status/README.md) | Tailscale browser-node live status: actual browser evidence |
 | [`2026-10-15-tailscale-service-probe/`](2026-10-15-tailscale-service-probe/README.md) | Tailscale service-probe HTTP results |
 | [`2026-10-15-tailscale-primary-ui/`](2026-10-15-tailscale-primary-ui/README.md) | Peering-only Tailscale primary UI: actual browser evidence |
+| [`2026-10-15-secret-react-session/`](2026-10-15-secret-react-session/README.md) | Secret backend session cancellation |
+| [`2026-10-15-secret-react-action/`](2026-10-15-secret-react-action/README.md) | Mounted secret-backend action ownership |
+| [`2026-10-15-secret-probe-cancellation/`](2026-10-15-secret-probe-cancellation/README.md) | Secret backend Test cancellation |
+| [`2026-10-15-panel-status-touch/`](2026-10-15-panel-status-touch/README.md) | Panel status touch target |
+| [`2026-10-15-onepassword-native-configuration/`](2026-10-15-onepassword-native-configuration/README.md) | Native 1Password configuration |
+| [`2026-10-15-infisical-lifetime/`](2026-10-15-infisical-lifetime/README.md) | Infisical lifetime observations and preserved failures |
 | [`2026-10-15-github-app-entry/`](2026-10-15-github-app-entry/README.md) | Native GitHub App configuration entry: browser evidence |
 | [`2026-10-15-ai-connection-projection/`](2026-10-15-ai-connection-projection/README.md) | Verified AI connection projection: actual browser evidence |
 | [`2026-10-14-integration-settings/`](2026-10-14-integration-settings/README.md) | Integration settings: AI and Tailscale |

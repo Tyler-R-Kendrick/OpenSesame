@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "scope": "Unactivated bounded native Go HTTPS core, owned host TLS test sources and official-source-derived raw js/wasm compile foundation. No binary committed; no browser transport, routing, DNS, peering or provider-operation success claim.",
+  "source": {
+    "repository": "https://github.com/tailscale/tailscale",
+    "commit": "b31d8a75af155bcf19853d1a66041782d13e56ae",
+    "tree": "2d2c5029bc26210c4a16de16abe382492a80a9e2",
+    "archiveURL": "https://codeload.github.com/tailscale/tailscale/tar.gz/b31d8a75af155bcf19853d1a66041782d13e56ae",
+    "archiveSha256": "2bddc92dbecd97af4f522f4a9ef44013d10b84a176c906d1d0a739e6a40ed630",
+    "verifiedGitBlobs": 2753,
+    "licenseSha256": "a7ca6186a7963a0a60740f6047760eecd7a0234e8c38bd7e1e0bbcb324bda45b",
+    "criticalFiles": [
+      {
+        "path": "LICENSE",
+        "sha256": "a7ca6186a7963a0a60740f6047760eecd7a0234e8c38bd7e1e0bbcb324bda45b"
+      },
+      {
+        "path": "go.mod",
+        "sha256": "a83e830a7b4dffa80a6c2478b44758695d01c0a3e35e14b824a4e81824ca67d2"
+      },
+      {
+        "path": "go.sum",
+        "sha256": "b52dcc94289be95d6b2f1d3f5766b308bc1f9d99425c6f6dbb8df6bdee148816"
+      }
+    ]
+  },
+  "compiler": {
+    "repository": "https://github.com/tailscale/go",
+    "commit": "7275f792d406d3c386cc807937a45a4a7b699d42",
+    "version": "go1.26.6",
+    "platform": "linux-amd64",
+    "archiveURL": "https://github.com/tailscale/go/releases/download/build-7275f792d406d3c386cc807937a45a4a7b699d42/linux-amd64.tar.gz",
+    "archiveSha256": "720e20bdb17a58acbad3896b3c55179a1cb4669350a3d235250ade5448b5d906",
+    "publishedReleaseDigestMatches": true,
+    "binarySha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e",
+    "licenseSha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+    "criticalFiles": [
+      {
+        "path": "LICENSE",
+        "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+      },
+      {
+        "path": "VERSION",
+        "sha256": "19a1647c6e8fcfdd9b4ecc10d4c83303d4211738d01daed0a822558d96896c54"
+      },
+      {
+        "path": "bin/go",
+        "sha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e"
+      }
+    ]
+  },
+  "patch": {
+    "path": "cmd/tsconnect/wasmbuild/wasmbuild.go",
+    "beforeSha256": "377541f81fcec2e4d779e798a14c0167db1543b48b7da80459582c74d3d0af12",
+    "afterSha256": "886dab39da795b912f23fe4968549358476a8840b279362a73984a314da40356",
+    "sha256": "6091062082e982a2a6dc4dc0d84ebc6e52b83aa2dbb5426efe4dcdd3d53092a3",
+    "intent": "Only add useexitnode to upstream Keep; leave actual ExitNodeID prefs/API/UI unactivated."
+  },
+  "reproduction": {
+    "GOFLAGS": "-p=2 -buildvcs=false",
+    "GOMAXPROCS": "2",
+    "GOMEMLIMIT": "2GiB",
+    "GOTOOLCHAIN": "local",
+    "VERSION_LONG": "unset/empty",
+    "VERSION_SHORT": "unset/empty",
+    "metadataQualification": "archive has no source-repository VCS metadata; GOFLAGS includes -buildvcs=false; VERSION_LONG and VERSION_SHORT unset. No byte-identical npm claim.",
+    "officialNpmRawSha256": "51c03c72a840062306ab8e39bde92e77dc068583c08a6b6cf759ceaae99b6d46",
+    "environmentPolicy": "Only locale/time/PATH, explicit proxy variants and SSL_CERT_FILE/DIR may be inherited. No HOME, tokens, keys, unrelated flags or arbitrary parent environment."
+  },
+  "nativeHttp": {
+    "packagePath": "cmd/tsconnect/nativehttp",
+    "files": [
+      {
+        "path": "nativehttp.go",
+        "sha256": "c62f507034f6017c3e6d4cc327d223170ca6dfbe5285b4e1f9f3a64520f82c16"
+      },
+      {
+        "path": "nativehttp_test.go",
+        "sha256": "c945abbff4b1bf3845942f9320d9e909589fd37cf33eb6dd545ee0dd72843fa1"
+      },
+      {
+        "path": "nativehttp_security_test.go",
+        "sha256": "f0ba8d3c0f15cfdd1f5703db662df9c6d5e9a6ebebb08566398304a5e9930343"
+      }
+    ],
+    "qualification": "Stage only these three pinned overlays into a fresh owned directory. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not activate browser transport or certify public trust, routes, DNS, exit selection or provider integrations."
+  }
+}

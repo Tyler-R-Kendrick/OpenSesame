@@ -10,6 +10,7 @@ import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
+import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 import {
@@ -293,6 +294,7 @@ export default defineConfig({
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
     siopMetadata(),
     tailscaleWasmAssets(),
+    onePasswordWasmAssets(),
     {
       // The Identity API's auto-admitted origin client returns brokered legs
       // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which
