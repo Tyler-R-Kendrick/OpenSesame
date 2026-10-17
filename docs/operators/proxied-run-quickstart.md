@@ -27,6 +27,9 @@ You need:
   value that is empty, relative or not an executable file stops the run naming
   the variable instead of searching `PATH`.
 - The plugin binary `opensesame-surrogate-proxy` and its sha256.
+  A [release kit](release-kit.md) has `opensesame`, the plugin and the bundled
+  bridge, with the bridge beside the binary where `opensesame` looks for it,
+  so neither a checkout nor `node_modules` is needed.
 - A Vercel token. Use a dummy one while you try this out.
 
 ## 1. Install the plugin and switch it on
