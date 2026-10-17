@@ -673,3 +673,5 @@ orchestration loop killed at ~83m with empty stdout log); Cursor ran
 `/tmp/p8-evidence-round8`; commit `25df77af0` on `cursor/p8-evidence-galleries-8ad8`;
 galleries under `docs/evidence/2026-10-17-p8-1-portable-drop-profiles/` and
 `docs/evidence/2026-10-17-p8-2-peer-trust-profiles/`.
+
+**B8-1 (F11a)** — Grok Build `grok-4.7`; commit `6da1361bc` on `cursor/b8-1-siop-ambient-notice-8ad8`; PR stacked on P8-6.
