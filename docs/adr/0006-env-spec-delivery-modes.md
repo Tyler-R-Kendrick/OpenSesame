@@ -20,6 +20,14 @@ names the variable, not a fallback to `PATH`. The process that reads the schema
 may hold the store passphrase, and the bridge never receives it
 ([audit](../security/audits/2026-10-13-env-spec-bridge-environment.md)).
 
+Amended 2026-10-17: that rule, and the `OPENSESAME_NODE` override, now live in
+[`opensesame-trusted-exec`](../../crates/trusted-exec), and every program
+`opensesame` starts by a fixed name follows it: `git`, `gpg`, `gh`, SOPS, the
+age plugin, `ps`, `tailscale` and the browser openers are found through their
+own `OPENSESAME_<PROGRAM>` variable or a trusted `PATH` entry, and each starts
+from an empty environment plus an allowlist written beside its spawn
+([audit](../security/audits/2026-10-17-external-program-spawns.md)).
+
 ## Context
 Varlock / `@env-spec` provide a durable, MIT-licensed developer config surface (`.env.schema`) with schema/value separation, shaped placeholders, and a credential-proxy preview. OpenSesame already centers agent authority on ConnectionRef + Intent (ADR 0005). Reinventing a custom env DSL would violate anti-NIH; cloning Varlock’s HTTPS MITM as the primary broker would inherit protocol limits and a weak same-UID security boundary.
 

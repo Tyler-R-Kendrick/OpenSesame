@@ -222,6 +222,32 @@ the refused ones. An emulator that does not check `Authorization` answers `200`
 whatever it is sent, so it shows that the call arrived, not which token was
 on it. The recording server in the test is what proves that.
 
+## Programs it starts by name
+
+`node` is one of several programs `opensesame` starts by name, and all of them
+are found the same way: the file their variable names, or else the first
+trusted `PATH` entry that holds them (the rule above). A variable that is set
+but empty, relative or not an executable file stops with an error naming it;
+it never falls back to `PATH`.
+
+| Variable | Program |
+| --- | --- |
+| `OPENSESAME_NODE` | `node`, for the schema bridge |
+| `OPENSESAME_GIT` | `git`, for the sealed store's commits, history and `pass backup` |
+| `OPENSESAME_GPG` | `gpg`, for `.gpg` entries |
+| `OPENSESAME_GH` | `gh`, for `gh auth token` and the connect doctor |
+| `OPENSESAME_SOPS_BIN` | SOPS (the only way it is found) |
+| `OPENSESAME_AGE_PLUGIN_YUBIKEY` | `age-plugin-yubikey` |
+| `OPENSESAME_PS` | `ps`, on macOS |
+| `OPENSESAME_TAILSCALE` | the Tailscale CLI the daemon uses |
+
+Each starts with an empty environment plus what it needs: `git` gets your git
+configuration, ssh agent, proxy and CA settings but not `GIT_SSH_COMMAND` or
+any other `GIT_*` of yours (put an ssh command in `core.sshCommand`), and none
+of them gets `OPENSESAME_*` secrets, `GITHUB_APP_*` or cloud credentials. The
+full list is the
+[2026-10-17 audit](../security/audits/2026-10-17-external-program-spawns.md).
+
 ## What this does not do
 
 - It brokers `vercel` (a sealed entry) and `github` (`gh auth token`). Any
