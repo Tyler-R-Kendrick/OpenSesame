@@ -441,6 +441,13 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:peering-diagnostics
+      - name: Fresh vault Passwords onboarding
+        # P8-4: the walker rebuilds dist with its opt-in, then saves an account.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:fresh-vault-login
 
   ai-connections-e2e:
     name: AI connections end to end

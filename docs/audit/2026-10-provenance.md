@@ -650,3 +650,13 @@ findings and before/after detection controls. The initial spread/strict-check
 failure and Cargo PATH diagnostic remain preserved. This uses the recorded
 fallback, not a new preflight claim. Actual CI is still pending; inherited/stale
 browser gates remain open.
+### Round 8 stack (P8-1–P8-4, 2026-10-17)
+
+Policy: Round 8 implementation edits via **Grok Build** (`grok-4.7`, subscription
+`~/.grok/auth.json`); Cursor orchestrator commits, tests, and PR provenance only.
+**Kimi K3** authored the first P8-4 commit (`11a508953`) before the Grok-only
+correction. **Cursor tier 3** authored P8-2 harness fix `a1c7a7ce9` (and cherry-pick
+`79f7d53ad` on P8-3); Grok Build review session `01a147fc-8297-7f82-ba33-40cdd2710b2e`
+**accepted** that harness change without redo. Grok redo commit `7d146efb6` on P8-4
+after audit **redo** of `11a508953`. P8-1 feature commits via Grok Build; post-Grok
+bundle/ceremony-kit fixes on P8-1 by Tyler Kendrick (tier 3), as listed on PR #1457.>>>>>>> 3cf7f205c (docs(audit): record Round 8 Grok/Kimi/tier-3 provenance)

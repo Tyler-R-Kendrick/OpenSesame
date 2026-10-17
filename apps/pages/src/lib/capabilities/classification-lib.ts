@@ -199,6 +199,11 @@ export const LIB_RULES = [
     "vault.passwords",
     "sealed parts of a file item",
   ),
+  core(
+    `${L}pwa-offer-passwords-onboarding`,
+    null,
+    "build-time opt-in for fresh-vault Passwords onboarding",
+  ),
   ...each(L, CORE_INFRA, (p) =>
     core(p, null, "storage, focus, theme and shell infrastructure"),
   ),
