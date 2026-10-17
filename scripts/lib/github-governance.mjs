@@ -1,24 +1,48 @@
 import { isDeepStrictEqual } from "node:util";
 
-/** Ignore server-owned metadata, never policy fields. */
-export function policyView(policy) {
-  return Object.fromEntries(
-    [
-      "name",
-      "target",
-      "enforcement",
-      "bypass_actors",
-      "conditions",
-      "rules",
-    ].map((key) => [key, policy[key]]),
-  );
+/**
+ * Rules GitHub is known to answer with parameters nobody sent: an `update`
+ * rule comes back with `update_allows_fetch_and_merge`. For these, parameters
+ * the policy leaves out are not compared, so a ruleset GitHub echoed defaults
+ * on is not drift. Every other rule is compared exactly.
+ */
+const SERVER_DEFAULTED = new Set(["update"]);
+
+function rulesView(rules, policy) {
+  return rules.map((rule) => {
+    const sent = policy.rules.find((one) => one.type === rule.type);
+    if (!SERVER_DEFAULTED.has(rule.type) || !sent || "parameters" in sent) {
+      return rule;
+    }
+    return Object.fromEntries(
+      Object.entries(rule).filter(([key]) => key !== "parameters"),
+    );
+  });
+}
+
+/**
+ * Ignore server-owned metadata, never policy fields. `spec` is the policy the
+ * view is compared with: the rules GitHub defaults are read against it.
+ */
+export function policyView(policy, spec = policy) {
+  return {
+    ...Object.fromEntries(
+      ["name", "target", "enforcement", "bypass_actors", "conditions"].map(
+        (key) => [key, policy[key]],
+      ),
+    ),
+    rules: rulesView(policy.rules, spec),
+  };
 }
 
 export function rulesetAction(current, expected) {
   if (!current) return "create";
   if (current.name !== expected.name)
     throw new Error("ruleset ownership mismatch");
-  return isDeepStrictEqual(policyView(current), policyView(expected))
+  return isDeepStrictEqual(
+    policyView(current, expected),
+    policyView(expected, expected),
+  )
     ? "none"
     : "update";
 }

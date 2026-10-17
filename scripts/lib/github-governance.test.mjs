@@ -110,6 +110,23 @@ describe("repository governance release tags", () => {
       "update",
     );
     expect(() => rulesetAction(policy, tags)).toThrow("ownership");
+    // GitHub may answer an `update` rule with parameters nobody sent
+    // (update_allows_fetch_and_merge on the branch form), which is not drift.
+    const echoed = tags.rules.map((rule) =>
+      rule.type === "update"
+        ? { ...rule, parameters: { update_allows_fetch_and_merge: false } }
+        : rule,
+    );
+    expect(rulesetAction({ ...tags, rules: echoed, id: 2 }, tags)).toBe("none");
+    // The same latitude is not given to the default-branch rules.
+    const branchEchoed = policy.rules.map((rule) =>
+      rule.type === "pull_request"
+        ? { ...rule, parameters: { ...rule.parameters, extra: true } }
+        : rule,
+    );
+    expect(
+      rulesetAction({ ...policy, rules: branchEchoed, id: 1 }, policy),
+    ).toBe("update");
     // Both rulesets are told apart by name in one listing.
     const live = [
       { ...policy, id: 1 },

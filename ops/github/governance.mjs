@@ -100,7 +100,6 @@ function writeRuleset(policy, current, todo) {
 
 if (mode === "--apply") {
   writeRuleset(expected, state.current, action);
-  writeRuleset(releaseTags, state.currentTags, tagsAction);
   if (!state.repo.allow_auto_merge)
     api(root, "PATCH", { allow_auto_merge: true });
   // Preserve reviewers, wait timer, bypass policy and custom deployment rules.
@@ -127,6 +126,13 @@ if (mode === "--apply") {
   if (pages.create)
     api(endpoint, "POST", { name: state.repo.default_branch, type: "branch" });
   for (const policy of pages.remove) api(`${endpoint}/${policy.id}`, "DELETE");
+  // Last, and on its own: GitHub may refuse the tag ruleset's bypass actor (a
+  // personal repository), and that must not skip the steps above.
+  try {
+    writeRuleset(releaseTags, state.currentTags, tagsAction);
+  } catch (error) {
+    console.error(`release tag ruleset was not written: ${error.message}`);
+  }
   state = inspect();
 }
 

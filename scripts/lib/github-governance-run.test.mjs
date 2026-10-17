@@ -11,8 +11,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { repoRootFromHere } from "./ci-changed-areas.mjs";
+
+// Each case starts node (and the stand-in gh a dozen times) on a loaded runner.
+vi.setConfig({ testTimeout: 30_000 });
 
 const root = repoRootFromHere();
 const spec = (name) =>
@@ -36,6 +39,7 @@ const repo = "repos/Tyler-R-Kendrick/OpenSesame";
 const bare = path.split("?")[0];
 const out = (value) => process.stdout.write(JSON.stringify(value));
 const save = () => fs.writeFileSync(${JSON.stringify(state)}, JSON.stringify(state));
+if (process.env.GOVERNANCE_REFUSE && body?.name === process.env.GOVERNANCE_REFUSE) process.exit(1);
 if (method !== "GET") {
   fs.appendFileSync(${JSON.stringify(writes)}, JSON.stringify({ method, path: bare, body }) + "\\n");
   if (bare === repo + "/rulesets") {
@@ -69,14 +73,14 @@ const written = () =>
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 
-function governance(mode) {
+function governance(mode, extraEnv = {}) {
   const bin = join(work, "bin");
   execFileSync("mkdir", ["-p", bin]);
   writeFileSync(join(bin, "gh"), FAKE_GH);
   chmodSync(join(bin, "gh"), 0o755);
   const run = spawnSync("node", ["ops/github/governance.mjs", mode], {
     cwd: root,
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, ...extraEnv },
     encoding: "utf8",
   });
   const first = run.stdout.trim().split("\n")[0];
@@ -132,6 +136,43 @@ describe("governance.mjs", () => {
       ["POST", tagPolicy],
     ]);
     expect(run.stdout).toContain('"verified":true');
+  });
+
+  it("writes the tag ruleset after the Pages policy, so a refusal skips nothing", () => {
+    const run = governance("--apply");
+    expect(run.status).toBe(0);
+    const paths = written().map((w) => w.path);
+    const pages = paths.findIndex((p) =>
+      p.endsWith("/environments/github-pages"),
+    );
+    const tag = written().findIndex((w) => w.body?.name === tagPolicy.name);
+    expect(pages).toBeGreaterThan(-1);
+    expect(tag).toBeGreaterThan(pages);
+  });
+
+  it("reports a refused tag ruleset at the end, after the other steps ran", () => {
+    const run = governance("--apply", { GOVERNANCE_REFUSE: tagPolicy.name });
+    expect(run.status).not.toBe(0);
+    expect(run.stderr).toContain("release tag ruleset was not written");
+    const done = written().map(
+      (w) => `${w.method} ${w.path.split("/").slice(-2).join("/")}`,
+    );
+    expect(done).toContain("PUT environments/github-pages");
+    expect(written().some((w) => w.body?.name === branchPolicy.name)).toBe(
+      true,
+    );
+  });
+
+  it("calls a tag ruleset GitHub echoed defaults on in place", () => {
+    const echoed = tagPolicy.rules.map((rule) =>
+      rule.type === "update"
+        ? { ...rule, parameters: { update_allows_fetch_and_merge: false } }
+        : rule,
+    );
+    setState(live(branchPolicy, { ...tagPolicy, rules: echoed }));
+    const run = governance("--verify");
+    expect(run.plan.release_tags).toBe("none");
+    expect(run.status).toBe(0);
   });
 
   it("updates only the tag ruleset when only it drifted", () => {
