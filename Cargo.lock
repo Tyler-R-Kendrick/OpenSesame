@@ -4623,6 +4623,7 @@ dependencies = [
  "libc",
  "opensesame-authenticator-core",
  "opensesame-human-vault",
+ "opensesame-trusted-exec",
  "proptest",
  "rand 0.8.7",
  "regex",

@@ -98,9 +98,19 @@ impl Fixture {
     ///
     /// When the stub cannot be written.
     pub fn stub_recorder(&self, path: &Path) {
+        self.stub_recorder_saying(path, "");
+    }
+
+    /// [`Fixture::stub_recorder`] that also prints `stdout` (a line a caller
+    /// parses, such as a remote's URL).
+    ///
+    /// # Panics
+    ///
+    /// When the stub cannot be written.
+    pub fn stub_recorder_saying(&self, path: &Path, stdout: &str) {
         let dump = self.dump.display();
         let body = format!(
-            "/usr/bin/env > '{dump}'\necho --args-- >> '{dump}'\nfor a in \"$@\"; do echo \"$a\" >> '{dump}'; done\nexit 0"
+            "/usr/bin/env > '{dump}'\necho --args-- >> '{dump}'\nfor a in \"$@\"; do echo \"$a\" >> '{dump}'; done\nprintf '%s' '{stdout}'\nexit 0"
         );
         write_script(path, &body, 0o755);
     }
