@@ -1324,6 +1324,49 @@ paths:
         "404": { $ref: "#/components/responses/ContractError" }
         "422": { $ref: "#/components/responses/ContractError" }
         "502": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/aws-sts-binding:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    put:
+      summary: Bind the STS role an aws-family connection mints for (ADR 0207)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        Owner or operator with the administrator role. The binding is sealed
+        whole under the connection key; the ExternalId is accepted here and
+        never returned. Replaces any earlier binding.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AwsStsBindingInput" }
+      responses:
+        "200":
+          description: The binding's value-blind view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AwsStsBindingView" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    get:
+      summary: Read an aws-family connection's STS binding, value-blind (ADR 0207)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: The binding's value-blind view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AwsStsBindingView" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    delete:
+      summary: Remove an aws-family connection's STS binding (ADR 0207)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "204": { description: Removed; the connection is unmintable again }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
   /connections/{id}/bindings:
     parameters:
       - $ref: "#/components/parameters/ConnectionId"
@@ -5001,6 +5044,28 @@ components:
         installation_id:
           type: string
           description: Numeric GitHub App installation id; required for github connections.
+    AwsStsBindingInput:
+      type: object
+      additionalProperties: false
+      required: [role_arn, region]
+      properties:
+        role_arn: { type: string, description: "arn:<partition>:iam::<account>:role/<name>" }
+        region: { type: string, description: An AWS region with a regional STS endpoint. }
+        max_duration_seconds: { type: integer, minimum: 900, maximum: 3600, default: 900 }
+        session_policy:
+          type: object
+          description: An IAM policy document; STS intersects it with the role's own, so it only narrows.
+        external_id: { type: string, description: "Sealed with the binding; never returned." }
+    AwsStsBindingView:
+      type: object
+      additionalProperties: false
+      required: [role_arn, region, max_duration_seconds, session_policy, external_id]
+      properties:
+        role_arn: { type: string }
+        region: { type: string }
+        max_duration_seconds: { type: integer }
+        session_policy: { type: boolean, description: Whether a session policy is set. }
+        external_id: { type: boolean, description: Whether an ExternalId is set. }
     DerivedMaterialization:
       type: object
       additionalProperties: false

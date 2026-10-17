@@ -109,4 +109,16 @@ pub(super) fn routes() -> Router<AppState> {
             "/api/v1/oauth/callback/{provider_id}",
             get(connections::oauth_callback),
         )
+        .merge(aws_sts_routes())
+}
+
+/// The STS binding an aws-family connection mints for (ADR 0207).
+fn aws_sts_routes() -> Router<AppState> {
+    Router::new().route(
+        "/api/v1/connections/{id}/aws-sts-binding",
+        put(connections::put_aws_sts_binding)
+            .get(connections::get_aws_sts_binding)
+            .delete(connections::delete_aws_sts_binding)
+            .layer(DefaultBodyLimit::max(32 * 1024)),
+    )
 }

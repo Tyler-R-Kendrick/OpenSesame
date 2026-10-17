@@ -20,6 +20,7 @@
 //! Every failure is one of [`StsFailure`]'s stable codes. None carries STS's
 //! own message: an upstream's words are not ours to repeat.
 
+pub mod binding;
 pub mod client;
 pub mod endpoint;
 pub mod request;
@@ -27,7 +28,9 @@ pub mod response;
 pub mod signer;
 #[cfg(any(test, feature = "sts-stand-in"))]
 pub mod stand_in;
+pub mod store;
 
+pub use binding::{AwsStsBinding, AwsStsBindingInput, AwsStsBindingView};
 pub use client::{assume_role, AssumedRole};
 pub use request::AssumeRoleRequest;
 pub use signer::SourceCredential;

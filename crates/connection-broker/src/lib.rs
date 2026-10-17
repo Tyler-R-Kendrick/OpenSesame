@@ -6,6 +6,7 @@
 //! rules enforced here: the credential is sealed under a deployment key bound to its tenant, and
 //! nothing on the API boundary carries token material — callers get a [`ConnectionRef`] and status.
 
+mod aws_binding;
 pub mod aws_sts;
 pub mod catalog;
 pub mod changelog_hook;

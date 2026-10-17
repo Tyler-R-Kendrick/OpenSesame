@@ -19,6 +19,7 @@ use super::*;
 // below are shared, so they stay here and each module reaches them with
 // `use super::*`. Module names deliberately avoid the crate's own module
 // names (catalog, rotation, github_app, ...), which that glob also imports.
+mod aws_sts_binding;
 mod catalog_egress;
 mod connection_lifecycle;
 mod credential_minting;
