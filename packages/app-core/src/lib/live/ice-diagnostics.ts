@@ -143,7 +143,8 @@ export function explainIceFailure(
     };
   }
   if (!routing.relay && routing.servers.length === 0) {
-    const onlyMdns = kinds.host > 0 && kinds.mdns >= kinds.host && kinds.srflx === 0;
+    const onlyMdns =
+      kinds.host > 0 && kinds.mdns >= kinds.host && kinds.srflx === 0;
     if (onlyMdns) {
       return {
         code: "mdns_only",

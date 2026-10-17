@@ -43,7 +43,11 @@ describe("ice diagnostics", () => {
 
   it("explains relay-only without relay candidates", () => {
     const reason = explainIceFailure(
-      { servers: [{ urls: ["turn:turn.example.com"] }], relay: true, addresses: [] },
+      {
+        servers: [{ urls: ["turn:turn.example.com"] }],
+        relay: true,
+        addresses: [],
+      },
       { host: 0, srflx: 0, relay: 0, mdns: 0 },
     );
     expect(reason.code).toBe("relay_missing");

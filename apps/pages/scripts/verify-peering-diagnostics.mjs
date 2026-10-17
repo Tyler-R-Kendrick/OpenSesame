@@ -126,13 +126,13 @@ bindWalk({
         String(row).startsWith("connecting@"),
       );
       if (!hadConnecting) {
-        failures.push("joiner never entered connecting (no ICE line or RTC state)");
+        failures.push(
+          "joiner never entered connecting (no ICE line or RTC state)",
+        );
       }
     } else {
       const text =
-        via === "ice-row"
-          ? await ice.textContent()
-          : await tray.textContent();
+        via === "ice-row" ? await ice.textContent() : await tray.textContent();
       if (!text || !/Checking|Gathering|Connected|route|\d+s/i.test(text)) {
         failures.push(`joiner ICE line missing detail: ${text ?? "(empty)"}`);
       }

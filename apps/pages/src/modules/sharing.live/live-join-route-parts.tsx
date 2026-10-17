@@ -3,12 +3,12 @@ import type {
   GuestStatus,
   LiveGuest,
 } from "@opensesame/app-core/lib/live/guest.js";
+import { CONNECTING_TIMEOUT_MS } from "@opensesame/app-core/lib/live/guest.js";
+import { iceStatusLabel } from "@opensesame/app-core/lib/live/ice-diagnostics.js";
 import {
   type LiveLink,
   parseLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
-import { iceStatusLabel } from "@opensesame/app-core/lib/live/ice-diagnostics.js";
-import { CONNECTING_TIMEOUT_MS } from "@opensesame/app-core/lib/live/guest.js";
 import { cleanText } from "@opensesame/app-core/lib/live/messages.js";
 import {
   LIVE_SESSION_ENDED_TRAY,
@@ -393,7 +393,9 @@ function ConnectingProgress({
         >
           <IconArrowRight size={18} />
         </button>
-        <span className="go-verb" aria-hidden="true">Start over</span>
+        <span className="go-verb" aria-hidden="true">
+          Start over
+        </span>
       </div>
     </>
   );

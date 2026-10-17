@@ -354,7 +354,8 @@ describe("policies and endings", () => {
     const g = guest(r, r.host.code);
     await pair(r, g);
     expect(g.status.at).toBe("unreachable");
-    if (g.status.at === "unreachable") expect(g.status.reason.length).toBeGreaterThan(0);
+    if (g.status.at === "unreachable")
+      expect(g.status.reason.length).toBeGreaterThan(0);
   });
 
   it("the owner sees a joiner leave", async () => {

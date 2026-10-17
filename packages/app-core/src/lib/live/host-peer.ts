@@ -22,6 +22,8 @@ import type { DeviceBroker } from "./device-broker.js";
 import { isDeviceMessage, isDeviceRequest } from "./device-messages.js";
 import type { SeatDevices } from "./device-types.js";
 import { GREETINGS_MAX } from "./greeting.js";
+import type { GuestConnection } from "./host-types.js";
+import { iceStatusLabel } from "./ice-diagnostics.js";
 import {
   type Catalog,
   type ChannelMessage,
@@ -30,8 +32,6 @@ import {
   VALUE_MAX,
   characters,
 } from "./messages.js";
-import { iceStatusLabel } from "./ice-diagnostics.js";
-import type { GuestConnection } from "./host-types.js";
 import type { LiveChannel, PeerLink, PeerTransport } from "./p2p.js";
 import type { Carrier } from "./rendezvous.js";
 import type { Keypair } from "./seal.js";
