@@ -238,6 +238,7 @@ fn the_checkouts_copy_runs_only_while_it_is_there_and_the_other_places_still_win
     let exe = kit(root.path(), "kit", 0o755);
     let copy = root.path().join("checkout.mjs");
     std::fs::write(&copy, "// stand-in\n").unwrap();
+    let copy = copy.canonicalize().unwrap();
     assert_eq!(resolve(&host(&[]), Some(&exe), &copy).unwrap(), copy);
     assert_eq!(resolve(&host(&[]), None, &copy).unwrap(), copy);
     // Neither a bridge beside the executable nor the operator's file needs it.
@@ -247,4 +248,93 @@ fn the_checkouts_copy_runs_only_while_it_is_there_and_the_other_places_still_win
     let named = Path::new("/elsewhere/parse.mjs");
     let chosen = resolve(&host(&[(OVERRIDE, named)]), None, &gone).unwrap();
     assert_eq!(chosen, named);
+}
+
+/// `<root>/<name>/opensesame-env-parse.mjs`, in a directory of `dir_mode`.
+fn checkout_copy(root: &Path, name: &str, dir_mode: u32, file_mode: u32) -> PathBuf {
+    let dir = root.join(name);
+    std::fs::create_dir(&dir).unwrap();
+    chmod(&dir, dir_mode);
+    let file = dir.join(BESIDE);
+    std::fs::write(&file, "// stand-in\n").unwrap();
+    chmod(&file, file_mode);
+    file
+}
+
+fn checkout_refusal(copy: &Path) -> String {
+    let root = tempfile::tempdir().unwrap();
+    let exe = kit(root.path(), "kit", 0o755);
+    let said = lookup_error(Some(&exe), copy);
+    assert!(
+        said.contains("in the checkout this binary was built from"),
+        "{said}"
+    );
+    assert!(said.contains(OVERRIDE), "{said}");
+    said
+}
+
+#[test]
+fn a_checkout_copy_a_stranger_could_write_is_refused_as_the_one_beside_the_executable_is() {
+    let root = tempfile::tempdir().unwrap();
+    // The baked path of a release binary, where a local user could have put a file.
+    let world_file = checkout_copy(root.path(), "a", 0o755, 0o666);
+    let said = checkout_refusal(&world_file);
+    assert!(
+        said.contains(&format!(
+            "\"{}\" writable by others",
+            world_file.canonicalize().unwrap().display()
+        )),
+        "{said}"
+    );
+    let world_dir = checkout_copy(root.path(), "b", 0o777, 0o644);
+    let said = checkout_refusal(&world_dir);
+    assert!(said.contains("writable by others"), "{said}");
+    assert!(
+        said.contains(&world_dir.parent().unwrap().display().to_string()),
+        "{said}"
+    );
+    // Not run, and not skipped for the next place either.
+    let group_file = checkout_copy(root.path(), "c", 0o755, 0o664);
+    let (caller, gid) = into_a_strangers_group(&group_file);
+    let mut on = host(&[]);
+    on.caller = caller;
+    match resolve(&on, None, &group_file) {
+        Err(e @ EnvSpecError::BridgeScript(_)) => assert!(
+            e.to_string()
+                .contains(&format!("group-writable by group {gid}")),
+            "{e}"
+        ),
+        other => panic!("not refused: {other:?}"),
+    }
+}
+
+#[test]
+fn a_checkout_copy_only_its_owner_and_root_could_write_is_run_as_the_file_it_resolves_to() {
+    let root = tempfile::tempdir().unwrap();
+    for (name, dir_mode, file_mode) in [
+        ("a", 0o755, 0o644),
+        ("b", 0o775, 0o664),
+        ("c", 0o700, 0o600),
+    ] {
+        let copy = checkout_copy(root.path(), name, dir_mode, file_mode);
+        let found = copy.canonicalize().unwrap();
+        assert_eq!(resolve(&host(&[]), None, &copy).unwrap(), found, "{name}");
+        // Named the way `CARGO_MANIFEST_DIR/../../packages/...` names it.
+        let dotted = root.path().join(name).join("..").join(name).join(BESIDE);
+        assert_eq!(resolve(&host(&[]), None, &dotted).unwrap(), found, "{name}");
+    }
+}
+
+#[test]
+fn the_override_and_a_bridge_beside_the_executable_never_reach_a_refused_checkout_copy() {
+    let root = tempfile::tempdir().unwrap();
+    let exe = kit(root.path(), "kit", 0o755);
+    let refused = checkout_copy(root.path(), "refused", 0o777, 0o666);
+    let named = Path::new("/elsewhere/parse.mjs");
+    assert_eq!(
+        resolve(&host(&[(OVERRIDE, named)]), Some(&exe), &refused).unwrap(),
+        named
+    );
+    let found = bridge(exe.parent().unwrap(), 0o644);
+    assert_eq!(resolve(&host(&[]), Some(&exe), &refused).unwrap(), found);
 }

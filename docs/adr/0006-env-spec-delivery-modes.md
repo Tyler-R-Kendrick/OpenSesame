@@ -24,8 +24,11 @@ Amended 2026-10-17: the `node` file found that way is held to the rule its
 directory is, group included (owned by root or the caller, not writable by
 others, group-writable only by root's group or one of the caller's own). Before,
 only its directory had the group test, so a `node` a stranger's group could
-write was run from a directory that group could not. The bridge script a release
-kit ships beside `opensesame` is held to the same rule
+write was run from a directory that group could not. A `node` reached through a
+link is also judged in the directory the link resolves into (before, a root-owned
+file in a world-writable directory behind a link in a private `PATH` entry was
+accepted). The bridge script a release kit ships beside `opensesame`, and the
+checkout copy a binary falls back to, are held to the same rule
 ([ADR 0207](0207-release-kit-binaries.md)).
 
 ## Context

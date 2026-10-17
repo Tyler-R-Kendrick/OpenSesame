@@ -18,7 +18,8 @@
 //!    caller's own (see `trust`). On Windows: absolute, existing and not the
 //!    current directory. The `node` itself (after symlinks) is held to the same
 //!    rule: owned by root or the caller, not writable by others, and
-//!    group-writable only by root's group or one of the caller's. An empty entry or a relative one means the
+//!    group-writable only by root's group or one of the caller's; so is the
+//!    directory a link to it resolves into. An empty entry or a relative one means the
 //!    working directory to a shell, and a `node` planted there would run with
 //!    everything the process holds. When nothing is found the error says so
 //!    and why each entry was skipped; the inherited `PATH` is never a fallback.
@@ -33,7 +34,7 @@
 
 use std::ffi::{OsStr, OsString};
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::EnvSpecError;
@@ -169,6 +170,20 @@ pub(crate) fn search(path: &OsStr, host: &Host) -> Search {
     found
 }
 
+/// Why the directory a link at `candidate` resolves into is not trusted, if it
+/// is a link into another directory than `dir` and that is not: the `node`
+/// file is checked after symlinks, so its home is too.
+fn linked_directory(candidate: &Path, dir: &Path, caller: &Caller) -> Option<Skip> {
+    let home = candidate.canonicalize().ok()?.parent()?.to_path_buf();
+    if dir.canonicalize().is_ok_and(|here| here == home) {
+        return None;
+    }
+    match std::fs::metadata(&home) {
+        Ok(meta) => trust::directory(Owner::from(&meta), caller),
+        Err(_) => Some(Skip::NotADirectory),
+    }
+}
+
 /// The first `node` an entry of `trusted` holds that may be run, as an
 /// absolute path, and the ones passed over on the way.
 pub(crate) fn find_node(trusted: &[PathBuf], host: &Host) -> NodeSearch {
@@ -182,7 +197,8 @@ pub(crate) fn find_node(trusted: &[PathBuf], host: &Host) -> NodeSearch {
             continue;
         }
         let verdict = match host.platform {
-            Platform::Unix => trust::file(Owner::from(&meta), &host.caller),
+            Platform::Unix => trust::file(Owner::from(&meta), &host.caller)
+                .or_else(|| linked_directory(&candidate, dir, &host.caller)),
             Platform::Windows => None,
         };
         if let Some(skip) = verdict {
@@ -290,5 +306,7 @@ pub fn node_command() -> Result<Command, EnvSpecError> {
     node_command_for(&Host::capture())
 }
 
+#[cfg(all(test, unix))]
+mod link_tests;
 #[cfg(all(test, unix))]
 mod tests;

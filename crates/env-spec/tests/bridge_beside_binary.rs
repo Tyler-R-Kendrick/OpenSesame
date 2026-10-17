@@ -111,9 +111,12 @@ fn with_no_bridge_beside_the_binary_the_checkouts_copy_is_run() {
     let exe = kit(&sandbox, 0o644);
     std::fs::remove_file(sandbox.path("kit").join(BRIDGE)).unwrap();
     assert_eq!(run(&sandbox, &exe, &[]), "ok items=0");
+    // `node` is handed the file the checkout path resolves to, once it is vetted.
     let checkout = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../packages/env-spec-bridge/bin")
-        .join(BRIDGE);
+        .join(BRIDGE)
+        .canonicalize()
+        .unwrap();
     assert_eq!(
         script(&sandbox).as_deref(),
         Some(checkout.to_str().unwrap())

@@ -35,7 +35,8 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
   `root:othergroup 0775` and `0777` do not; Windows: absolute, existing, not the
   current directory), and the `node` itself (after symlinks) is held to the same
   rule: owned by root or the caller, not writable by others, group-writable only
-  by root's group or one of the caller's. So an empty or relative entry cannot run a `node`
+  by root's group or one of the caller's, and so is the directory a link to it
+  resolves into. So an empty or relative entry cannot run a `node`
   planted in the working directory, and it is run by its absolute path. Its
   environment is built, not inherited: `PATH` (those entries), `HOME`,
   `TMPDIR`, `LANG`, the `LC_*` locale variables and, on Windows, `SystemRoot`,
@@ -57,9 +58,11 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
   of the caller's. A file there that fails, a link to nothing or a directory of
   that name is an error that says which path and why
   (`EnvSpecError::BridgeScript`), never a fall-through to the checkout's copy.
-  With none beside the executable, no override and no checkout copy (a release
-  binary run on its own, which still names the runner it was built on), the
-  error says where it looked. The check is by path and covers no directory above
+  The checkout copy is held to the same rule (a release binary carries the path
+  it was built from, and a file another user put there is refused). With none
+  beside the executable, no override and no checkout copy (a release binary run
+  on its own, which still names the runner it was built on), the error says where
+  it looked. The check is by path and covers no directory above
   the two it reads; on Windows a bridge is only checked to be a regular file.
 - Placeholder suffixes are random per projection.
 
