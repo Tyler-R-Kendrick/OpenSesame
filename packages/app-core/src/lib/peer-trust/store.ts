@@ -2,9 +2,8 @@
  * Authenticated peer trust store held in the PWA (versioned ARK-signed epoch).
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { openOwnedDatabase } from "../../ports.js";
-import { PEER_TRUST_DATABASE } from "../storage-ownership.js";
 import { ensurePeerArkSigningKey } from "./ark-key.js";
+import { openPeerTrustDb as openDb, idbRequest as request } from "./db.js";
 import {
   type SignedPeerTrustEnvelope,
   recordFromEnvelope,
@@ -20,7 +19,6 @@ import {
 } from "./record.js";
 import { sasFromFingerprint } from "./sas.js";
 
-const DB_VERSION = 1;
 const STORE = "trust";
 const RECORD = "signed";
 
@@ -53,31 +51,6 @@ export type PeerTrustCommitResult =
       ok: false;
       reason: "ark-unavailable" | "fingerprint-mismatch" | "epoch-regression";
     };
-
-function request<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB failed"));
-  });
-}
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(PEER_TRUST_DATABASE, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("ark")) {
-        db.createObjectStore("ark", { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB failed"));
-    req.onblocked = () => reject(new Error("IndexedDB blocked"));
-  });
-}
 
 async function readPersisted(db: IDBDatabase): Promise<PersistedTrust | null> {
   const found: BoundaryValue = await request(

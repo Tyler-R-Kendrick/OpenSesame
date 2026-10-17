@@ -1,8 +1,20 @@
-/** Link and peer-trust fields for the live join form. */
+/** Link, identity, and peer-trust fields for the live join form. */
 import type { LiveLink } from "@opensesame/app-core/lib/live/link.js";
+import { NAME_MAX, NOTE_MAX } from "@opensesame/app-core/lib/live/messages.js";
 import { FieldShell } from "../../components/FieldShell.js";
-import { IconShare } from "../../components/Icons.js";
+import { IconSecret, IconShare, IconUser } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+
+type PersonFields = Readonly<{
+  needsCode: boolean;
+  code: string;
+  name: string;
+  note: string;
+  busy: boolean;
+  setCode: (next: string) => void;
+  setName: (next: string) => void;
+  setNote: (next: string) => void;
+}>;
 
 export function LiveLinkField({
   pasted,
@@ -35,6 +47,45 @@ export function LiveLinkField({
   );
 }
 
+export function JoinPersonFields(props: PersonFields) {
+  const { needsCode, code, name, note, busy, setCode, setName, setNote } =
+    props;
+  return (
+    <>
+      {needsCode ? (
+        <FieldShell
+          id="live-code"
+          label="Code"
+          mono
+          autoComplete="off"
+          placeholder="XXXX-XXXX"
+          lead={<IconSecret size={17} />}
+          value={code}
+          disabled={busy}
+          onValueChange={setCode}
+        />
+      ) : null}
+      <FieldShell
+        id="live-name"
+        label="Your name"
+        autoComplete="nickname"
+        lead={<IconUser size={17} />}
+        value={name}
+        disabled={busy}
+        onValueChange={(next) => setName(next.slice(0, NAME_MAX))}
+      />
+      <FieldShell
+        id="live-note"
+        label="Note"
+        placeholder="Optional"
+        value={note}
+        disabled={busy}
+        onValueChange={(next) => setNote(next.slice(0, NOTE_MAX))}
+      />
+    </>
+  );
+}
+
 export function PeerTrustField({
   peerTrust,
   busy,
@@ -51,7 +102,6 @@ export function PeerTrustField({
       type="password"
       mono
       autoComplete="off"
-      placeholder="Optional"
       value={peerTrust}
       disabled={busy}
       onValueChange={setPeerTrust}

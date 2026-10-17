@@ -30,7 +30,7 @@ import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { DeviceRequests } from "./LiveHostDevices.js";
-import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
+import { GuestRows, RequestPaste } from "./LiveHostGuests.js";
 import { CarrierMarks } from "./LiveJoinRoutes.js";
 import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
 
@@ -155,9 +155,7 @@ export function LiveHostSession({
       </Suspense>
       <CarrierMarks rendezvous={currentHostCarriers()} />
       <RequestPaste host={host} />
-      {state.guests.map((guest) => (
-        <GuestRow key={guest.key} host={host} guest={guest} />
-      ))}
+      <GuestRows host={host} guests={state.guests} />
       <DeviceRequests host={host} state={state} />
       <Log host={host} state={state} />
     </div>

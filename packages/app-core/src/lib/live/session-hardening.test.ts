@@ -78,6 +78,7 @@ describe("a joiner who waits", () => {
       transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
+      unverifiedManual: true,
     });
     await settle();
     expect(owner.state.guests[0]?.state).toBe("asking");
