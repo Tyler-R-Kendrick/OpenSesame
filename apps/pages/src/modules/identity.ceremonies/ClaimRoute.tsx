@@ -160,6 +160,7 @@ export function ClaimRoute() {
             <DropClaimScreen
               token={drop.token}
               fragmentKey={drop.key}
+              pkt={drop.pkt}
               onSettled={() => takeClaimArrival()}
             />
           </Suspense>

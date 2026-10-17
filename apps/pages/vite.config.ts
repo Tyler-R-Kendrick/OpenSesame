@@ -45,6 +45,18 @@ const osDomainAuthorityTemplates = fileURLToPath(
 const osDomainWallet = fileURLToPath(
   new URL("../../packages/os-domain/src/wallet/index.ts", import.meta.url),
 );
+/**
+ * app-core already depends on this copy. @scure/bip32 and nostr-tools pin
+ * curves 2.0.1, which emits a second secp256k1 (Point, getPublicKey, sign
+ * and verify with `prehash: false`, schnorr). One resolution keeps a single
+ * copy. Those callers use the surface 2.4.0 still exports.
+ */
+const nobleCurves = fileURLToPath(
+  new URL(
+    "../../packages/app-core/node_modules/@noble/curves",
+    import.meta.url,
+  ),
+);
 
 /**
  * Keep the client renderer out of the entry chunk. A hardened profile's
@@ -74,6 +86,18 @@ function bundleChunk(id: string): string | undefined {
   // disappears (`assets/undefined`). Manual chunks are not folded.
   if (path.includes("/lib/device-identity-host.ts")) {
     return "device-identity-host";
+  }
+  // The same @noble/hashes and @noble/curves modules are emitted into more
+  // than one lazy chunk. One chunk keeps a single copy. The /esm/ entry
+  // stays put: the bootstrap registration chunk imports it, and folding it
+  // in here would pull the lazy curves onto the first page.
+  if (
+    (path.includes("/node_modules/@noble/hashes/") ||
+      path.includes("/node_modules/@noble/curves/")) &&
+    !path.includes("/node_modules/@noble/hashes/esm/") &&
+    !path.includes("/node_modules/@noble/curves/esm/")
+  ) {
+    return "noble-crypto";
   }
   return undefined;
 }
@@ -169,6 +193,7 @@ export default defineConfig({
       "@opensesame/os-domain/authority-templates": osDomainAuthorityTemplates,
       "@opensesame/os-domain/wallet": osDomainWallet,
       "@opensesame/os-domain": osDomainBrowser,
+      "@noble/curves": nobleCurves,
     },
   },
   optimizeDeps: {

@@ -12,6 +12,7 @@ export const DRIVER_GATES = {
   "verify-trusted-contacts.mjs": ["trusted-contacts"],
   "verify-static-origin.mjs": ["static"],
   "verify-encrypted-search.mjs": ["static"],
+  "verify-portable-drop.mjs": ["static"],
   "verify-auth-flow.mjs": ["auth"],
   "verify-experience-journeys.mjs": ["journeys"],
   "verify-webmcp.mjs": ["budgets"],

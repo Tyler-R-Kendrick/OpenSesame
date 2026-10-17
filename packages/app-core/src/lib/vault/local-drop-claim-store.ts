@@ -24,6 +24,8 @@ export const LOCAL_DROP_CLAIM_KEYS: readonly string[] = [
 ];
 
 export const MAX_DROP_CLAIM_ATTEMPTS = 5;
+export const DROP_LOCKOUT_WORDS =
+  "Locked out. Too many wrong codes — ask the sender for a fresh drop.";
 
 export type LocalClaimRecord = {
   id: string;

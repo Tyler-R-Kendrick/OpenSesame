@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 
 import {
   type SharedOnce,
+  isPortableDropToken,
   shareOnce,
   sweepDrop,
 } from "@opensesame/app-core/lib/vault/drop.js";
@@ -99,7 +100,11 @@ export function DropCard({
       <DropCardUsername username={user} />
       <DropCardLinkRow link={drop.link} copy={copyFeedback} />
       <DropCardUserCodeRow userCode={drop.userCode} copy={copyFeedback} />
-      <DropCardMetaRows opensFor={opensFor} expiresLabel={expiresLabel} />
+      <DropCardMetaRows
+        opensFor={opensFor}
+        expiresLabel={expiresLabel}
+        portable={isPortableDropToken(drop.bearerToken)}
+      />
       <DropCardShareTextRow
         clipboard={clipboard}
         passwordInCopy={passwordInCopy}
@@ -153,7 +158,13 @@ export function ShareSecretDrop({
     setError(null);
     try {
       const name = item.name || "Shared item";
-      setDrop(await shareOnce({ name, text, ttlMs, sourceItemId: item.id }));
+      const sealed = await shareOnce({
+        name,
+        text,
+        ttlMs,
+        sourceItemId: item.id,
+      });
+      setDrop(sealed);
     } catch (caught) {
       setError(
         caught instanceof Error

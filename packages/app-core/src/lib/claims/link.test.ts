@@ -27,6 +27,23 @@ describe("claim arrival", () => {
     expect(window.location.pathname).toBe("/claim");
   });
 
+  it("keeps a portable packet in memory and scrubs the whole fragment", () => {
+    const token = `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`;
+    history.replaceState(
+      null,
+      "",
+      `/claim#token=${token}&key=a2V5&pkt=ospd1.packet`,
+    );
+    expect(captureClaimLink()).toEqual({
+      kind: "drop",
+      token,
+      key: "a2V5",
+      pkt: "ospd1.packet",
+    });
+    expect(window.location.hash).toBe("");
+    expect(window.location.pathname).toBe("/claim");
+  });
+
   it("reads the Identity API's complete link as a claim, and scrubs it to the route", () => {
     // `verificationUriComplete`, built by the same ceremony-kit builders the
     // Identity API uses, under a deployment base path.

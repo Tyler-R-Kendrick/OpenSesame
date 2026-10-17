@@ -53,6 +53,8 @@ export {
   type ClaimLink,
   fragmentCarriesBearer,
   isClaimToken,
+  isPortableDropToken,
+  PORTABLE_DROP_TOKEN_PREFIX,
   readClaimLink,
 } from "./claim-link.js";
 export {

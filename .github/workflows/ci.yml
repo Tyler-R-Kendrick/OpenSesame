@@ -341,6 +341,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:encrypted-search
+      - name: Portable drop opens on a second browser
+        if: matrix.shard == 'static'
+        # P8-1: a guest with no Identity API seals a secret. The card says any
+        # browser with the link, and the fragment carries the bearer, the drop
+        # key and the sealed packet. The query string stays empty. A second
+        # context, with its own storage, opens that link, enters the user code,
+        # and reads the payload. The bearer has already left the address.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:portable-drop
       - name: Unlock methods and second steps
         if: matrix.shard == 'auth'
         # ADR 0091: key first, then scan, then a code; lock → PIN → code.

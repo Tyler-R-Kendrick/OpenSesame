@@ -148,4 +148,50 @@ describe("DropClaimScreen", () => {
     await userEvent.type(screen.getByLabelText("One-time code"), "ABCD{Enter}");
     await waitFor(() => expect(onSettled).toHaveBeenCalledTimes(1));
   });
+
+  it("passes the portable packet from arrival into presentation", async () => {
+    const portable = `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`;
+    const sealed = await sealDrop({
+      kind: "text",
+      name: "wifi",
+      text: "portable secret",
+    });
+    const present = vi.fn(async () => ({ targetManifest: sealed.manifest }));
+    dropOpenSeams.presentClaim = present;
+    render(
+      <DropClaimScreen
+        token={portable}
+        fragmentKey={sealed.fragmentKey}
+        pkt="ospd1.packet"
+        onSettled={onSettled}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText("One-time code"), "ABCD{Enter}");
+    expect(await screen.findByText("portable secret")).toBeTruthy();
+    expect(present).toHaveBeenCalledWith(portable, "ABCD", "ospd1.packet");
+  });
+
+  it("refuses a drop link missing its key before presenting anything", async () => {
+    const portable = `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`;
+    const present = vi.fn();
+    dropOpenSeams.presentClaim = present;
+    render(
+      <DropClaimScreen
+        token={portable}
+        fragmentKey=""
+        pkt="ospd1.packet"
+        onSettled={onSettled}
+      />,
+    );
+    await waitFor(() =>
+      expect(trayed()?.body).toBe(
+        "This link is missing its secret part. Ask the sender for the full link.",
+      ),
+    );
+    expect(
+      screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY }),
+    ).toBeTruthy();
+    expect(present).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
 });

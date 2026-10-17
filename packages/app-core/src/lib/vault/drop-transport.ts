@@ -8,6 +8,7 @@
  * `dropSeams` from here).
  */
 
+import { isPortableDropToken } from "@opensesame/ceremony-kit";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -15,13 +16,21 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import { DropTransportError } from "../claims/drop-open.js";
+import { DropTransportError } from "../claims/drop-errors.js";
+import {
+  isDeviceIdentityMode,
+  isRemoteIdentityConfigured,
+} from "../device-identity.js";
 import {
   ensureIdentitySession,
   identityBase,
   identityFetch,
 } from "../identity.js";
 import { pagesClaimBase, pagesClaimUrl } from "./local-drop-claims.js";
+import {
+  PortableDropFailure,
+  createPortableDropSession,
+} from "./portable-drop.js";
 
 const DROP_CLAIM_TYPE = "resource_bundle";
 
@@ -31,6 +40,7 @@ export type DropTransportSession = {
   userCode: string;
   verifyUrl: string;
   expiresAt: string;
+  pkt?: string;
 };
 
 export type DropTransportState = "pending" | "consumed" | "expired";
@@ -38,8 +48,8 @@ export type DropTransportState = "pending" | "consumed" | "expired";
 export {
   DropTransportError,
   type DropTransportErrorCode,
-  type DropTransportPresented,
-} from "../claims/drop-open.js";
+} from "../claims/drop-errors.js";
+export type { DropTransportPresented } from "../claims/drop-open.js";
 
 function obj(value: BoundaryValue): Record<string, BoundaryValue> {
   if (isTypeofObject(value) && !Array.isArray(value)) {
@@ -52,6 +62,24 @@ async function createClaimDefault(
   manifest: JsonObject,
   ttlMs: number,
 ): Promise<DropTransportSession> {
+  if (isDeviceIdentityMode() && !isRemoteIdentityConfigured()) {
+    try {
+      return await createPortableDropSession(
+        manifest,
+        ttlMs,
+        pagesClaimUrl(dropSeams.claimBase()),
+      );
+    } catch (error) {
+      if (error instanceof PortableDropFailure) {
+        throw new DropTransportError(
+          error.code,
+          error.message,
+          error.attemptsLeft,
+        );
+      }
+      throw error;
+    }
+  }
   try {
     await ensureIdentitySession();
   } catch {
@@ -116,6 +144,9 @@ async function pollClaimDefault(
   claimId: string,
   bearerToken: string,
 ): Promise<string> {
+  if (isDeviceIdentityMode() && isPortableDropToken(bearerToken)) {
+    return "pending";
+  }
   let res: Response;
   try {
     res = await identityFetch(

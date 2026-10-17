@@ -16,6 +16,7 @@ import {
   noteDropRefused,
 } from "../sharing-receipts.js";
 import {
+  DROP_LOCKOUT_WORDS,
   type LocalClaimRecord,
   type LocalDropPollState,
   MAX_DROP_CLAIM_ATTEMPTS,
@@ -225,10 +226,7 @@ function throwTerminalPresentRefusal(
     throw refuse("EXPIRED", "This drop has expired.");
   }
   if (record.state === "locked_out") {
-    throw refuse(
-      "too_many_attempts",
-      "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
-    );
+    throw refuse("too_many_attempts", DROP_LOCKOUT_WORDS);
   }
   throw refuse(
     "INVALID_TRANSITION",
@@ -272,20 +270,14 @@ export async function presentLocalDropClaim(
   }
   if (record.attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
     lockOutLocalDropClaim(record, claimId, persist, record.attempts);
-    throw refuse(
-      "too_many_attempts",
-      "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
-    );
+    throw refuse("too_many_attempts", DROP_LOCKOUT_WORDS);
   }
   if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
     const attempts = record.attempts + 1;
     const triesLeft = MAX_DROP_CLAIM_ATTEMPTS - attempts;
     if (attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
       lockOutLocalDropClaim(record, claimId, persist, attempts);
-      throw refuse(
-        "too_many_attempts",
-        "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
-      );
+      throw refuse("too_many_attempts", DROP_LOCKOUT_WORDS);
     }
     persist({ ...record, attempts, version: record.version + 1 });
     throw refuse("invalid_user_code", wrongDropCodeWords(triesLeft), triesLeft);

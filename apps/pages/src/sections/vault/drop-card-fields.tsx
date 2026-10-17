@@ -126,9 +126,12 @@ export function DropCardShareTextRow({
 export function DropCardMetaRows({
   opensFor,
   expiresLabel,
+  portable,
 }: {
   opensFor: string;
   expiresLabel: string;
+  /** A portable bearer opens in any browser; anything else claims locally. */
+  portable: boolean;
 }) {
   return (
     <>
@@ -137,9 +140,11 @@ export function DropCardMetaRows({
           <span className="frow__value">{opensFor}</span>
         </FieldRow>
       ) : null}
-      {isDeviceIdentityMode() ? (
+      {portable || isDeviceIdentityMode() ? (
         <FieldRow label="Opens on">
-          <span className="frow__value">This browser</span>
+          <span className="frow__value">
+            {portable ? "Any browser with the link" : "This browser"}
+          </span>
         </FieldRow>
       ) : null}
       <FieldRow label="Expires">
