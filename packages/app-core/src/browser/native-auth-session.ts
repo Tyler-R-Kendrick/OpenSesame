@@ -42,21 +42,38 @@ export type NativeAuthPopup = {
   cancel: () => void;
 };
 
+/** The longest a consent window waits: a code return, and a redirect consent. */
+const CONSENT_LIFETIME_MS = 10 * 60_000;
+const REDIRECT_CONSENT_LIFETIME_MS = 30 * 60_000;
+/**
+ * How far the wall clock may step back between minting a request and opening
+ * its window. `Date.now()` is not monotonic (a clock correction, an emulated
+ * clock), and a caller that mints the whole lifetime (`createdAt + 10 min`)
+ * would otherwise be refused here, closing the window it reserved unused.
+ * Every wait below is still capped at the lifetime, so this lengthens nothing.
+ */
+const CLOCK_STEP_BACK_MS = 30_000;
+
 function validateRequest(
   request: AuthRequest,
-  maxLifetime = 10 * 60_000,
+  maxLifetime = CONSENT_LIFETIME_MS,
 ): void {
   nativeAuthState(request.state);
   const url = new URL(request.authorizationUrl);
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  const remaining = request.expiresAt - Date.now();
   if (
     (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) ||
     url.username ||
     url.password ||
-    request.expiresAt <= Date.now() ||
-    request.expiresAt > Date.now() + maxLifetime
+    remaining <= 0 ||
+    remaining > maxLifetime + CLOCK_STEP_BACK_MS
   )
     throw new Error("Invalid or expired provider authorization request");
+}
+/** How long the window may still wait, never past the profile's lifetime. */
+function remainingLifetime(request: AuthRequest, maxLifetime: number): number {
+  return Math.min(request.expiresAt - Date.now(), maxLifetime);
 }
 
 type PopupSession = {
@@ -91,7 +108,7 @@ function cancelSession(session: PopupSession): void {
 function startSession(
   session: PopupSession,
   request: AuthRequest,
-  maxLifetime = 10 * 60_000,
+  maxLifetime = CONSENT_LIFETIME_MS,
 ): void {
   if (session.started || session.cancelled)
     throw new Error("This provider authorization window was already used");
@@ -120,7 +137,10 @@ function waitForCode(
       else reject(new Error("Provider authorization was cancelled or expired"));
     };
     const abort = () => finish();
-    const deadline = setTimeout(abort, request.expiresAt - Date.now());
+    const deadline = setTimeout(
+      abort,
+      remainingLifetime(request, CONSENT_LIFETIME_MS),
+    );
     session.cancelWait = abort;
     request.signal?.addEventListener("abort", abort, { once: true });
     stopListening = listen((response) => {
@@ -215,7 +235,7 @@ function showRedirectConsent(
   request: NativeAuthRedirectConsentRequest,
 ): NativeOAuthDeviceConsent {
   try {
-    startSession(session, request, 30 * 60_000);
+    startSession(session, request, REDIRECT_CONSENT_LIFETIME_MS);
     const uri = new URL(request.authorizationUrl);
     if (uri.protocol !== "https:")
       throw new Error("Invalid provider consent request; use HTTPS");
@@ -228,7 +248,10 @@ function showRedirectConsent(
       lifetime.abort();
       close();
     };
-    const deadline = setTimeout(abort, request.expiresAt - Date.now());
+    const deadline = setTimeout(
+      abort,
+      remainingLifetime(request, REDIRECT_CONSENT_LIFETIME_MS),
+    );
     session.cancelWait = abort;
     session.popup.opener = null;
     session.isolated = true;
