@@ -4,6 +4,20 @@ use std::collections::BTreeSet;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
+/// The first `node` a trusted entry holds, and the ones passed over.
+struct NodeSearch {
+    node: Option<PathBuf>,
+    rejected: Vec<(PathBuf, Skip)>,
+}
+
+fn find_node(trusted: &[PathBuf], on: &Host) -> NodeSearch {
+    let found = opensesame_trusted_exec::find(on.platform.file_name("node").as_str(), trusted, on);
+    NodeSearch {
+        node: found.program,
+        rejected: found.rejected,
+    }
+}
+
 pub(super) fn dir(mode: u32) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(mode)).unwrap();

@@ -1,4 +1,4 @@
-//! Who could have put this directory, or this `node`, where it is.
+//! Who could have put this directory, or this program, where it is.
 //!
 //! A `PATH` entry is trusted on Unix when its owner is root or the user running
 //! `opensesame`, others cannot write it, and, if its group can, that group is
@@ -6,17 +6,17 @@
 //! the caller (or root) can change, and still takes the layouts package managers
 //! and CI images really produce: `root:root 0775`, or `user:user 0775` under the
 //! user-private-group `umask 002` that `nvm`, `volta` and Homebrew inherit. It
-//! refuses what a planted `node` needs: a directory another user owns, anyone
+//! refuses what a planted program needs: a directory another user owns, anyone
 //! can write, or a group the caller is not in can write.
 //!
 //! The decisions are pure functions of a stat result and the caller, so the
 //! table in `trust/tests.rs` pins them without needing other users on the host.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-/// Why a `PATH` entry, or the `node` in it, is not used.
+/// Why a `PATH` entry, or the program in it, is not used.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Skip {
+pub enum Skip {
     Empty,
     Relative,
     NotADirectory,
@@ -29,7 +29,9 @@ pub(crate) enum Skip {
 }
 
 impl Skip {
-    pub(crate) fn reason(self) -> String {
+    /// What the error says about an entry skipped for this reason.
+    #[must_use]
+    pub fn reason(self) -> String {
         match self {
             Self::Empty => "empty entry".into(),
             Self::Relative => "relative".into(),
@@ -46,10 +48,10 @@ impl Skip {
 
 /// The part of a `stat` the decisions read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Owner {
-    pub(crate) uid: u32,
-    pub(crate) gid: u32,
-    pub(crate) mode: u32,
+pub struct Owner {
+    pub uid: u32,
+    pub gid: u32,
+    pub mode: u32,
 }
 
 #[cfg(unix)]
@@ -77,14 +79,16 @@ impl From<&std::fs::Metadata> for Owner {
 
 /// Who is asking: the effective user and the groups it is in.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct Caller {
-    pub(crate) euid: u32,
-    pub(crate) groups: Vec<u32>,
+pub struct Caller {
+    pub euid: u32,
+    pub groups: Vec<u32>,
 }
 
 impl Caller {
+    /// The effective user of this process and every group it is in.
     #[cfg(unix)]
-    pub(crate) fn current() -> Self {
+    #[must_use]
+    pub fn current() -> Self {
         // SAFETY: `geteuid` and `getegid` take nothing. `getgroups` fills the
         // buffer it is handed, which is sized by its own answer to a first
         // call with no buffer, and is read only up to the count it returns.
@@ -107,8 +111,10 @@ impl Caller {
         }
     }
 
+    /// Nobody in particular: Windows decides by location, not ownership.
     #[cfg(not(unix))]
-    pub(crate) fn current() -> Self {
+    #[must_use]
+    pub fn current() -> Self {
         Self::default()
     }
 
@@ -126,7 +132,8 @@ const OTHERS_WRITE: u32 = 0o002;
 const GROUP_WRITE: u32 = 0o020;
 
 /// Why a `PATH` directory with this owner is not searched, if it is not.
-pub(crate) fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
+#[must_use]
+pub fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
     if !caller.trusts_owner(owner.uid) {
         Some(Skip::OwnedBy(owner.uid))
     } else if owner.mode & OTHERS_WRITE != 0 {
@@ -138,9 +145,10 @@ pub(crate) fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
     }
 }
 
-/// Why this `node` file (after symlinks) is not run, if it is not: owned by
+/// Why this program file (after symlinks) is not run, if it is not: owned by
 /// root or the caller, and not writable by everyone.
-pub(crate) fn file(owner: Owner, caller: &Caller) -> Option<Skip> {
+#[must_use]
+pub fn file(owner: Owner, caller: &Caller) -> Option<Skip> {
     if !caller.trusts_owner(owner.uid) {
         Some(Skip::OwnedBy(owner.uid))
     } else if owner.mode & OTHERS_WRITE != 0 {
@@ -157,14 +165,6 @@ pub(crate) fn is_cwd(dir: &Path, cwd: Option<&Path>) -> bool {
         (Ok(a), Ok(b)) => a == b,
         _ => dir == cwd,
     }
-}
-
-/// The first `node` an entry of `trusted` holds that may be run.
-#[derive(Debug, Default)]
-pub(crate) struct NodeSearch {
-    pub(crate) node: Option<PathBuf>,
-    /// Executables called `node` that were passed over, and why.
-    pub(crate) rejected: Vec<(PathBuf, Skip)>,
 }
 
 #[cfg(test)]

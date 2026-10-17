@@ -4030,8 +4030,8 @@ dependencies = [
 name = "opensesame-env-spec"
 version = "0.1.0"
 dependencies = [
- "libc",
  "opensesame-domain",
+ "opensesame-trusted-exec",
  "serde",
  "serde_json",
  "tempfile",
@@ -4847,6 +4847,13 @@ dependencies = [
  "tracing-subscriber",
  "x509-parser 0.18.1",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-trusted-exec"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
