@@ -3,12 +3,10 @@
  * Peering trust anchors here — never a host, daemon, or CLI helper.
  */
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { openOwnedDatabase } from "../../ports.js";
-import { PEER_TRUST_DATABASE } from "../storage-ownership.js";
+import { openPeerTrustDb as openDb, idbRequest as request } from "./db.js";
 import { exportSpkiB64, fingerprintOfSpki } from "./fingerprint.js";
 import { parseArkRecord } from "./parse.js";
 
-const DB_VERSION = 1;
 const STORE = "ark";
 const RECORD = "signing";
 
@@ -23,31 +21,6 @@ export type PeerArkSigningKey = Readonly<{
   publicSpkiB64: string;
   spkiFingerprint: string;
 }>;
-
-function request<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB failed"));
-  });
-}
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(PEER_TRUST_DATABASE, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("trust")) {
-        db.createObjectStore("trust", { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB failed"));
-    req.onblocked = () => reject(new Error("IndexedDB blocked"));
-  });
-}
 
 async function readArk(db: IDBDatabase): Promise<ArkRecord | null> {
   const found: BoundaryValue = await request(

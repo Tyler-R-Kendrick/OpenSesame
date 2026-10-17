@@ -10,6 +10,7 @@ import type { DevicesState } from "./device-types.js";
 import type { HostPeer, LogEntry, ReadField, WriteField } from "./host-peer.js";
 import type { Catalog, SeatKind, SeatRoute } from "./messages.js";
 import type { PeerTransport } from "./p2p.js";
+import type { SeatPeerTrust } from "./peer-trust-join.js";
 import type { Carrier } from "./rendezvous.js";
 import type { LiveRoutes } from "./routes.js";
 
@@ -38,6 +39,14 @@ export type Guest = Readonly<{
   reply: string | null;
   /** A person sees shared items; a device may ask to use connections (ADR 0196). */
   kind: SeatKind;
+  /** Session SAS, once the request bound a handshake. */
+  sas?: string | undefined;
+  unverified?: boolean | undefined;
+  /** Short key id, so two askers with one name can be told apart. */
+  keyId?: string | undefined;
+  nameClash?: boolean | undefined;
+  peerFingerprint?: string | undefined;
+  peerEpoch?: number | undefined;
 }>;
 
 export type HostState = Readonly<{
@@ -65,6 +74,7 @@ export type Received =
   /** The request names a relay route, and this session offers no relay. */
   | Readonly<{ kind: "no-relay" }>
   | Readonly<{ kind: "ended" }>
+  | Readonly<{ kind: "duplicate" }>
   | Readonly<{ kind: "guest"; key: string }>;
 
 export type HostOptions = Readonly<{
@@ -108,6 +118,8 @@ export type HostSeat = {
   peer: HostPeer | null;
   /** An admit is waiting on its peer's answer: a second must not start. */
   admitting: boolean;
+  /** Set when the request bound peer trust; the reply stays sealed until compare. */
+  peerTrust: SeatPeerTrust | null;
   /** The seat's expiry while it waits, or its removal once it has ended. */
   timer: ReturnType<typeof setTimeout> | null;
 };

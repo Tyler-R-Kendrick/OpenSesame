@@ -72,6 +72,7 @@ async function session(net: FakeNet, bus: FakeBus, transport: LiveTransport) {
     transport: net.transports(),
     useRoutes: true,
     carriers: bus.factory(),
+    unverifiedManual: true,
   });
   await settle();
   await owner.admit(owner.state.guests[0]?.key ?? "");
