@@ -24,6 +24,7 @@ pub mod binding;
 pub mod client;
 pub mod endpoint;
 pub mod minted;
+pub mod register;
 pub mod request;
 pub mod response;
 pub mod signer;

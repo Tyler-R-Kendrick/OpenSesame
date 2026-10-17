@@ -26,6 +26,7 @@ pub(crate) mod agent_phase;
 mod authority_grant_scan;
 pub mod authority_subjects;
 pub mod dispatch;
+pub mod minted_subjects;
 mod outcome;
 pub mod responders;
 pub mod scanner;

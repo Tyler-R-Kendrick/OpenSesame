@@ -283,3 +283,5 @@ async fn a_binding_is_refused_on_a_connection_that_holds_no_key() {
     assert_no_source("parse refusal", &body.to_string());
 }
 
+#[path = "aws_sts_receipt_tests.rs"]
+mod receipt;
