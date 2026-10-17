@@ -90,9 +90,18 @@ describe("the fresh-vault Passwords offer", () => {
 
   it("is absent when the build flag is off", () => {
     vi.stubEnv("VITE_PWA_OFFER_PASSWORDS_ONBOARDING", "0");
-    render(<PasswordsOnboarding placement="buffer" />);
+    render(<PasswordsOnboarding placement="path" />);
     expect(screen.queryByRole("button", { name: "Passwords" })).toBeNull();
     expect(double.commits).toEqual([]);
+  });
+
+  it("offers Passwords as a path-strip key, not a buffer row", () => {
+    const { container } = render(<PasswordsOnboarding placement="path" />);
+    const button = screen.getByRole("button", { name: "Passwords" });
+    expect(button.classList.contains("icon-btn")).toBe(true);
+    expect(button.textContent).toBe("");
+    expect(button.querySelector("svg")).not.toBeNull();
+    expect(container.querySelector(".buffer__line")).toBeNull();
   });
 
   it("registers Passwords beside the existing Add menu flows", () => {

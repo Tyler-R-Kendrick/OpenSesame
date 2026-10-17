@@ -525,6 +525,7 @@ describe("VaultWelcome", () => {
     renderWelcome();
     expect(screen.getByText("nothing sealed yet")).toBeTruthy();
     expect(screen.getByText("n new · import · ? keys")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Passwords" })).toBeNull();
     expect(screen.queryByText(/Try the keyboard/)).toBeNull(); // list has it
     expect(
       screen.queryByRole("link", { name: /Add your first login/i }),

@@ -4,12 +4,11 @@ import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconLogin } from "../../components/Icons.js";
 import { pwaOfferPasswordsOnboarding } from "../../lib/pwa-offer-passwords-onboarding.js";
 import { useAddEntry } from "./add-menu.js";
+import type { PasswordsOnboardingPlacement } from "./passwords-onboarding-offer.js";
 import {
   commitPasswordsOnboarding,
   passwordsOfferNeeded,
 } from "./passwords-onboarding.js";
-
-export type PasswordsOnboardingPlacement = "buffer" | "add-menu";
 
 function AddMenuEntry({ run }: { run: () => void }) {
   useAddEntry({
@@ -21,7 +20,11 @@ function AddMenuEntry({ run }: { run: () => void }) {
   return null;
 }
 
-/** The one-step fresh-vault offer, in the empty buffer or the Add menu. */
+/**
+ * The one-step fresh-vault offer, where Add is offered: an icon key on the
+ * path strip, or an entry in the phone Add menu. The empty buffer stays two
+ * mono lines (DESIGN.md § Empty states).
+ */
 export function PasswordsOnboarding({
   placement,
 }: {
@@ -66,18 +69,16 @@ export function PasswordsOnboarding({
   }
   return (
     <>
-      <div className="buffer__line">
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label="Passwords"
-          title="Passwords"
-          disabled={busy}
-          onClick={accept}
-        >
-          <IconLogin size={15} />
-        </button>
-      </div>
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label="Passwords"
+        title="Passwords"
+        disabled={busy}
+        onClick={accept}
+      >
+        <IconLogin size={15} />
+      </button>
       {failure}
     </>
   );

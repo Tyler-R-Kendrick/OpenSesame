@@ -67,13 +67,21 @@ try {
   await waitOpen(page);
 
   setStep("offer-passwords");
-  const offer = page.getByRole("button", { name: "Passwords", exact: true });
+  await page.getByText("nothing sealed yet").waitFor({ timeout: 20_000 });
+  const bufferOffer = await page
+    .locator(".buffer")
+    .getByRole("button", { name: "Passwords", exact: true })
+    .count();
+  check(bufferOffer === 0, "the empty buffer has no Passwords control");
+  const offer = page
+    .getByRole("group", { name: "Vault commands" })
+    .getByRole("button", { name: "Passwords", exact: true });
   await offer.waitFor({ state: "visible", timeout: 20_000 });
-  check(true, "the fresh empty vault offers Passwords");
+  check(true, "the fresh empty vault offers Passwords on the path strip");
   await snap(page, "passwords-offer");
   await offer.click();
   await offer.waitFor({ state: "hidden", timeout: 30_000 });
-  check(true, "the one-step offer commits and leaves the empty buffer");
+  check(true, "the one-step offer commits and leaves the path strip");
 
   setStep("create-login");
   await page
