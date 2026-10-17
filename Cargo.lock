@@ -3879,6 +3879,7 @@ dependencies = [
  "opensesame-bitwarden-server",
  "opensesame-ceremony",
  "opensesame-cli-app-integration",
+ "opensesame-connection-broker",
  "opensesame-connector-host",
  "opensesame-credential-helpers",
  "opensesame-daemon",
