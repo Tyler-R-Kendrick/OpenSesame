@@ -10,7 +10,7 @@ use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass};
 /// What a graphical prompt is handed besides `PATH` (the trusted entries) and
 /// the common set: the desktop session it draws on. Nothing else this process
 /// holds goes with it.
-#[cfg(any(target_os = "linux", test))]
+#[cfg(any(target_os = "linux", all(test, unix)))]
 const DESKTOP: [Pass; 5] = [
     Pass::Name("DISPLAY"),
     Pass::Name("WAYLAND_DISPLAY"),
@@ -19,7 +19,7 @@ const DESKTOP: [Pass; 5] = [
     Pass::Name("DBUS_SESSION_BUS_ADDRESS"),
 ];
 
-/// What PowerShell needs on Windows beyond the common set: the profile folders.
+/// What `PowerShell` needs on Windows beyond the common set: the profile folders.
 #[cfg(target_os = "windows")]
 const WINDOWS_PROFILE: [Pass; 2] = [Pass::Name("APPDATA"), Pass::Name("LOCALAPPDATA")];
 
