@@ -66,6 +66,8 @@ const run = (dir, ...args) =>
     encoding: "utf8",
   });
 
+// The structural gate counts each describe callback as one function of at most
+// 100 lines, so the suite is two describes of the same name.
 describe("tag-check.sh", () => {
   it("is executable, as the workflow calls it", () => {
     expect(statSync(script).mode & 0o111).not.toBe(0);
@@ -105,7 +107,9 @@ describe("tag-check.sh", () => {
       expect(out.stdout.trim()).toBe(commit);
     }
   });
+});
 
+describe("tag-check.sh", () => {
   it("stops a tag on a commit main does not hold, naming both", () => {
     const { dir } = repo();
     git(dir, "checkout", "-q", "-b", "topic");

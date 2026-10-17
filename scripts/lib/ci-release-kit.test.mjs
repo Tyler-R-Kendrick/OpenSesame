@@ -59,6 +59,8 @@ function runBlocks() {
   return out;
 }
 
+// The structural gate counts each describe callback as one function of at most
+// 100 lines, so the suite is several describes of the same name.
 describe("release kit workflow", () => {
   it("runs on a v* tag, or by hand as a dry run, with no token by default", () => {
     expect(yaml).toMatch(
@@ -100,7 +102,9 @@ describe("release kit workflow", () => {
       "aarch64-unknown-linux-gnu, runner: ubuntu-24.04-arm",
     );
   });
+});
 
+describe("release kit workflow", () => {
   it("checks the tag first, so a tag on any other commit builds nothing", () => {
     const tag = job("tag");
     expect(tag).toMatch(/permissions:\n {6}contents: read\n/);
@@ -152,7 +156,9 @@ describe("release kit workflow", () => {
     expect(job("publish")).toMatch(/environment:\n {6}name: release\n/);
     expect(guide).toContain("Settings › Environments › release");
   });
+});
 
+describe("release kit workflow", () => {
   it("attests every file, and SHA256SUMS too, with a pinned action", () => {
     const attest = job("attest");
     expect(attest).toMatch(
