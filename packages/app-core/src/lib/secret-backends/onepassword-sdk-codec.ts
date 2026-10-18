@@ -38,7 +38,7 @@ const Overview = z.object({
 const Field = z.object({
   id: Id,
   title: Text,
-  sectionId: z.string().max(1024).optional(),
+  sectionId: z.string().max(1024).nullish(),
   fieldType: Id,
   value: Text,
 });
@@ -57,7 +57,7 @@ const Item = Overview.omit({ state: true }).extend({
       z.object({ attributes: FileAttributes, sectionId: Text, fieldId: Id }),
     )
     .max(1024),
-  document: FileAttributes.optional(),
+  document: FileAttributes.nullish(),
 });
 type NativeItem = z.infer<typeof Item>;
 type NativeField = z.infer<typeof Field>;
