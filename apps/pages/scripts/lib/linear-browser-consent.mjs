@@ -1,5 +1,6 @@
 /** Real popup consent: the originating sealed vault never navigates or unlocks. */
 import { expect } from "@playwright/test";
+import { readLinearStatusCodes } from "./linear-consent-status.mjs";
 
 const CONSENT_POPUP_TIMEOUT_MS = 60_000;
 
@@ -32,26 +33,25 @@ function observeConsent(harness, page, original) {
   let contextClosed = false;
   let stopped = false;
   let sequence = 0;
-  const note = (event, frame) => {
+  const note = (event, frame, status) => {
     if (stopped || sequence >= 32) return;
     try {
       if (frame && frame !== popup.mainFrame()) return;
       const location = popup
         ? consentLocation(popup, original)
         : { location: "unbound" };
-      harness.record(
-        "CONSENT-LIFECYCLE",
-        JSON.stringify({
-          attempt,
-          sequence: ++sequence,
-          event,
-          openerClosed: page.isClosed(),
-          contextClosed,
-          browserConnected: browser?.isConnected() ?? false,
-          popupClosed: popup?.isClosed() ?? null,
-          ...location,
-        }),
-      );
+      const detail = {
+        attempt,
+        sequence: ++sequence,
+        event,
+        openerClosed: page.isClosed(),
+        contextClosed,
+        browserConnected: browser?.isConnected() ?? false,
+        popupClosed: popup?.isClosed() ?? null,
+        ...location,
+      };
+      if (status) detail.status = status;
+      harness.record("CONSENT-LIFECYCLE", JSON.stringify(detail));
     } catch {
       return;
     }
@@ -90,6 +90,22 @@ function observeConsent(harness, page, original) {
       note("popup-bound");
     },
     note,
+    async status(event) {
+      try {
+        const codes = await readLinearStatusCodes(page);
+        const authorizeDisabled = await page
+          .getByRole("button", { name: /^(Authorize|Reconnect) application$/ })
+          .evaluateAll((buttons) =>
+            buttons.map((button) => button.matches(":disabled")),
+          );
+        const cancelCount = await page
+          .getByRole("button", { name: "Cancel sign-in", exact: true })
+          .count();
+        note(event, undefined, { codes, authorizeDisabled, cancelCount });
+      } catch {
+        note(event, undefined, { unavailable: true });
+      }
+    },
     stop() {
       stopped = true;
       for (const remove of listeners) remove();
@@ -107,6 +123,7 @@ export async function beginLinearConsent(harness, page, label, action) {
   for (let attempt = 1; ; attempt += 1) {
     observation = observeConsent(harness, page, original);
     try {
+      await observation.status("status-before-click");
       // Bind the popup to this click — context-wide "page" events can catch a stray tab.
       [popup] = await Promise.all([
         page.waitForEvent("popup", {
@@ -169,6 +186,7 @@ export async function beginLinearConsent(harness, page, label, action) {
     return popup;
   } catch (error) {
     observation?.note("consent-error");
+    await observation?.status("status-after-error");
     throw error;
   } finally {
     observation?.stop();
