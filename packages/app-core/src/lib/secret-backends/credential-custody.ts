@@ -1,10 +1,15 @@
-import type { CredentialItem } from "@opensesame/vault-core";
+import { type CredentialItem, isRetired } from "@opensesame/vault-core";
 import {
   discardVaultCredentials,
   initializeVaultCredentialCustody,
   readVaultCredentials,
   stageVaultCredentials,
+  vaultCredentialField,
 } from "../vault-credential-custody.js";
+import {
+  encryptedRemoteContinuityError,
+  preserveEncryptedRemoteContinuity,
+} from "./encrypted-remote-codec.js";
 import { SECRET_BACKEND_CREDENTIAL_FIELDS } from "./schema.js";
 import type { SecretBackendDraft } from "./types.js";
 
@@ -68,12 +73,14 @@ export function readSecretBackendCredentials(
     encryptionKey: fields.get("encryptionKey") ?? "",
   };
 }
-export function stageSecretBackendCredentials(
+export async function stageSecretBackendCredentials(
   draft: SecretBackendDraft,
   tomb: string,
   check: () => void,
+  previous: readonly CredentialItem[] = [],
 ) {
-  return stageVaultCredentials(
+  const continuity = await continuityForStaging(draft, tomb, check, previous);
+  const staged = await stageVaultCredentials(
     {
       name: draft.name,
       targetBinding: secretBackendCredentialTarget(draft),
@@ -85,11 +92,65 @@ export function stageSecretBackendCredentials(
           encryptionKey: "Encryption key",
         }[field],
         value: draft[field] ?? "",
+        metadata: field === "encryptionKey" ? continuity.fields : undefined,
       })),
     },
     tomb,
     check,
   );
+  return { ...staged, checkContinuity: continuity.check };
+}
+async function continuityForStaging(
+  draft: SecretBackendDraft,
+  tomb: string,
+  check: () => void,
+  previous: readonly CredentialItem[],
+) {
+  if (!draft.encryptionKey || !draft.remoteStoreId)
+    return { fields: [], check: () => {} };
+  check();
+  const { vaultStore } = await import("../vault/store.js");
+  check();
+  const identity = {
+    objectUrl: new URL(draft.baseUrl).href,
+    storeId: draft.remoteStoreId,
+  };
+  const oldIds = new Set(
+    previous
+      .filter((item) => vaultCredentialField(item) === "encryptionKey")
+      .map((item) => item.id),
+  );
+  const candidates = () => {
+    check();
+    const state = vaultStore.getSnapshot();
+    if (state.tomb !== tomb || state.guest || state.status !== "unlocked")
+      throw encryptedRemoteContinuityError();
+    const keys = state.items.filter(
+      (item): item is CredentialItem =>
+        item.kind === "credential" &&
+        item.accountId === null &&
+        item.deletedAt === null &&
+        !isRetired(item) &&
+        vaultCredentialField(item) === "encryptionKey" &&
+        (oldIds.has(item.id) ||
+          (item.method.type === "token" &&
+            item.method.token === draft.encryptionKey)),
+    );
+    if ([...oldIds].some((id) => !keys.some((item) => item.id === id)))
+      throw encryptedRemoteContinuityError();
+    return keys;
+  };
+  const held = preserveEncryptedRemoteContinuity(identity, candidates());
+  return {
+    fields: [held],
+    check: () => {
+      if (
+        preserveEncryptedRemoteContinuity(identity, candidates()).value !==
+        held.value
+      )
+        throw encryptedRemoteContinuityError();
+    },
+  };
 }
 export function discardSecretBackendCredentials(
   items: readonly CredentialItem[],

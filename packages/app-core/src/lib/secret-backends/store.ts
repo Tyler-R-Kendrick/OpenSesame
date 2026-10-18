@@ -167,9 +167,12 @@ export async function writeSecretBackendConnection(
     resolved,
     vaultTomb,
     beforeCommit,
+    oldItems,
   );
-  const publicationCheck = () =>
+  const publicationCheck = () => {
     assertVaultCredentials(staged, vaultTomb, beforeCommit);
+    staged.checkContinuity();
+  };
   let saved: Connection;
   try {
     saved = await saveDeviceConnectorConfigurationDurable(

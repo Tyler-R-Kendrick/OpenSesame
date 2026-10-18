@@ -304,10 +304,9 @@ export function encryptedRemoteContinuitySeed(
     }),
   );
 }
-export function readEncryptedRemoteContinuity(
+export function inspectEncryptedRemoteContinuity(
   item: CredentialItem,
-  identity: EncryptedRemoteIdentity,
-): Checkpoint {
+): EncryptedRemoteCheckpoint {
   const fields = item.fields.filter(
     (row) => row.id === ENCRYPTED_REMOTE_CONTINUITY_FIELD,
   );
@@ -315,13 +314,40 @@ export function readEncryptedRemoteContinuity(
   if (fields.length !== 1 || !saved?.hidden)
     throw encryptedRemoteContinuityError();
   const result = Checkpoint.safeParse(JSON.parse(saved.value));
+  if (!result.success) throw encryptedRemoteContinuityError();
+  return result.data;
+}
+export function readEncryptedRemoteContinuity(
+  item: CredentialItem,
+  identity: EncryptedRemoteIdentity,
+): EncryptedRemoteCheckpoint {
+  const result = inspectEncryptedRemoteContinuity(item);
   if (
-    !result.success ||
-    result.data.objectUrl !== identity.objectUrl ||
-    result.data.storeId !== identity.storeId
+    result.objectUrl !== identity.objectUrl ||
+    result.storeId !== identity.storeId
   )
     throw encryptedRemoteContinuityError();
-  return result.data;
+  return result;
+}
+export function preserveEncryptedRemoteContinuity(
+  identity: EncryptedRemoteIdentity,
+  keys: readonly CredentialItem[],
+): KeyField {
+  let result = Checkpoint.parse(
+    JSON.parse(encryptedRemoteContinuitySeed(identity).value),
+  );
+  for (const key of keys) {
+    const point = inspectEncryptedRemoteContinuity(key);
+    if (
+      point.objectUrl !== identity.objectUrl ||
+      point.storeId !== identity.storeId
+    )
+      continue;
+    if (point.revision === result.revision && point.digest !== result.digest)
+      throw encryptedRemoteContinuityError();
+    if (point.revision > result.revision) result = point;
+  }
+  return encryptedRemoteContinuityField(result);
 }
 
 export function nextEncryptedRemoteContinuity(
