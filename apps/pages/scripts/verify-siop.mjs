@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { build } from "vite";
 import { chooseCapabilities } from "./lib/choose-capabilities.mjs";
+import { privateTempDir } from "./lib/private-files.mjs";
 import {
   SIOP_CALLBACK,
   SIOP_RP,
@@ -44,7 +45,7 @@ const dist =
   process.env.PAGES_VERIFY_DIST ??
   fileURLToPath(new URL("../dist", import.meta.url));
 const root = fileURLToPath(new URL("../../..", import.meta.url));
-const out = process.env.PAGES_VERIFY_OUT ?? "/tmp/opensesame-siop";
+const out = process.env.PAGES_VERIFY_OUT ?? privateTempDir("opensesame-siop-");
 const VAULT_PASSWORD = "Cedar-lantern-47-river!";
 
 if (!fs.existsSync(`${dist}/index.html`)) {
@@ -52,6 +53,7 @@ if (!fs.existsSync(`${dist}/index.html`)) {
   process.exit(2);
 }
 fs.mkdirSync(out, { recursive: true });
+console.log(`Evidence: ${out}`);
 
 // The whole run has a budget a CI job can afford (it shares a 20-minute job
 // with the other journeys): past it, say where the time went and stop, rather

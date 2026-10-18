@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -10,6 +10,7 @@ import { bundleChunk } from "./scripts/bundle-chunk.mjs";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { writePrivateSnapshot } from "./scripts/lib/private-files.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
 import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
@@ -90,7 +91,7 @@ function handleAgentPage(
     req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     req.on("end", () => {
       try {
-        writeFileSync(
+        writePrivateSnapshot(
           "/tmp/agent-page.json",
           Buffer.concat(chunks).toString("utf8"),
         );

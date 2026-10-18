@@ -32,6 +32,7 @@ import {
 } from "./lib/device-identity-scenarios.mjs";
 import { passTheDoor } from "./lib/front-door.mjs";
 import { PIN, sealLocalOnly } from "./lib/pages-journey.mjs";
+import { privateSharedTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const side = process.argv[2];
@@ -44,9 +45,14 @@ const DIST = process.env.EVIDENCE_DIST ?? path.resolve(here, "..", "dist");
 const ORIGIN = "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 // The directory `capture-evidence.mjs compose` reads for this journey file.
-const OUT = path.join(os.tmpdir(), "opensesame-evidence", "journey", side);
+const OUT = path.join(
+  privateSharedTempDir("opensesame-evidence"),
+  "journey",
+  side,
+);
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
+console.log(`Evidence: ${OUT}`);
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "device-identity-"));
 
 const harness = createHarness({

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { privateTempDir } from "./lib/private-files.mjs";
 /**
  * Every tutorial, walked end to end in a real browser (ADR 0163, ADR 0166).
  *
@@ -64,8 +65,10 @@ const origin = devUrl || "https://tyler-r-kendrick.github.io";
 const base = devUrl
   ? "/OpenSesame/"
   : (process.env.VITE_BASE ?? "/OpenSesame/");
-const out = process.env.TUTORIALS_OUT ?? "/tmp/opensesame-tutorials";
+const out =
+  process.env.TUTORIALS_OUT ?? privateTempDir("opensesame-tutorials-");
 fs.mkdirSync(out, { recursive: true });
+console.log(`Evidence: ${out}`);
 const only = new Set(
   (process.env.TUTORIALS_ONLY ?? "").split(",").filter(Boolean),
 );

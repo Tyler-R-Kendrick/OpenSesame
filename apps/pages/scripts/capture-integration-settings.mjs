@@ -1,10 +1,10 @@
 /** Same production UI journey on both builds, with measured desktop/touch-phone frames. */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { sealWithPin } from "./lib/pages-journey.mjs";
+import { privateSharedTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -22,7 +22,7 @@ const out = path.resolve(
 );
 const raw = path.join(
   process.env.PAGES_CAPTURE_RAW ??
-    path.join(os.tmpdir(), "opensesame-integration-followup-evidence"),
+    privateSharedTempDir("opensesame-integration-followup-evidence"),
   phase,
 );
 fs.mkdirSync(out, { recursive: true });

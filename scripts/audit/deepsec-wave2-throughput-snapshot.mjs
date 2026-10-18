@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 /**
  * Record or report wave-2 throughput (filesComplete / hour) for Grok manifest runs.
  * Usage:
@@ -6,12 +7,31 @@
  *   node deepsec-wave2-throughput-snapshot.mjs report [repoRoot]
  */
 import fs from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { writePrivateSnapshot } from "../../apps/pages/scripts/lib/private-files.mjs";
 import { countWaveCompletion } from "./deepsec-wave2-completion.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SNAPSHOT = "/tmp/deepsec-wave2-throughput-baseline.json";
+function snapshotPath(repoRoot) {
+  const owner = process.getuid?.() ?? "local";
+  const dir = path.join(tmpdir(), `opensesame-deepsec-${owner}`);
+  try {
+    fs.mkdirSync(dir, { mode: 0o700 });
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+  }
+  const stat = fs.lstatSync(dir);
+  if (
+    !stat.isDirectory() ||
+    (stat.mode & 0o777) !== 0o700 ||
+    (process.getuid && stat.uid !== process.getuid())
+  )
+    throw new Error("Unsafe snapshot directory");
+  const key = createHash("sha256").update(repoRoot).digest("hex");
+  return path.join(dir, `${key}.json`);
+}
 
 function repoRootFromArgv(argv) {
   const arg = argv[3];
@@ -33,9 +53,10 @@ function readProgress(repoRoot) {
 const cmd = process.argv[2] ?? "report";
 const repoRoot = repoRootFromArgv(process.argv);
 const now = readProgress(repoRoot);
+const SNAPSHOT = snapshotPath(repoRoot);
 
 if (cmd === "baseline") {
-  fs.writeFileSync(SNAPSHOT, `${JSON.stringify(now, null, 2)}\n`);
+  writePrivateSnapshot(SNAPSHOT, `${JSON.stringify(now, null, 2)}\n`);
   console.log(JSON.stringify({ action: "baseline", ...now }));
   process.exit(0);
 }

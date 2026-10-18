@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { privateTempDir } from "./lib/private-files.mjs";
 /**
  * Tutorial walks on the minimal and full capability profiles, with support
  * models unapproved (ADR 0163, ADR 0166).
@@ -75,7 +76,7 @@ for (const profile of PROFILES) {
   env.TUTORIALS_ENABLE = profile.enable;
   env.TUTORIALS_AI = "off";
   env.VITE_BASE = "/OpenSesame/";
-  env.TUTORIALS_OUT = `/tmp/opensesame-tutorials-${profile.name}`;
+  env.TUTORIALS_OUT = privateTempDir(`opensesame-tutorials-${profile.name}-`);
   if (shard) env.TUTORIALS_SHARD = shard;
   else env.TUTORIALS_SHARD = undefined;
   const code = await runWalker(env);
