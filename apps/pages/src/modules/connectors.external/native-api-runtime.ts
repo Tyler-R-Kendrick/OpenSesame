@@ -1,6 +1,5 @@
 /** Provider API-key calls and cleanup use the activation's captured transport. */
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
-import { readNativeAgentMailInboxes } from "@opensesame/app-core/lib/native-agentmail.js";
 import {
   configureNativeApiConnector,
   invokeNativeApiConnector,
@@ -8,6 +7,7 @@ import {
   testNativeApiCredential,
   verifyNativeApiConnector,
 } from "@opensesame/app-core/lib/native-api-connectors.js";
+import { invokeNativeApiResource } from "@opensesame/app-core/lib/native-api-resources.js";
 import {
   type NativeConnectorDriver,
   type NativeDriverInput,
@@ -169,8 +169,14 @@ async function invokeApi(
 ) {
   transport.assertCurrent();
   const provider = providerOf(id);
-  if (provider === "agentmail" && operation === "provider.inboxes.read")
-    return readNativeAgentMailInboxes(id, input, transport);
+  const resource = invokeNativeApiResource(
+    provider,
+    id,
+    operation,
+    input,
+    transport,
+  );
+  if (resource) return resource;
   if (provider === "s3") return invokeNativeS3(id, operation, input, transport);
   const keyed = nativeKeyDriverFor(provider);
   if (keyed) return keyed.invoke(id, operation, input, transport);

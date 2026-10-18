@@ -5,6 +5,7 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
@@ -20,7 +21,10 @@ import { NativeMcpTools } from "./NativeMcpTools.js";
 import { NativeS3BackupControls } from "./NativeS3BackupControls.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
-import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
+import type {
+  NativeActionDescriptor,
+  NativeConnectorDescriptor,
+} from "./native-connector-ui.js";
 import { nativeDeviceProviderDescriptor } from "./native-device-provider-descriptor.js";
 import { nativeGithubDescriptor } from "./native-github-descriptor.js";
 import {
@@ -108,6 +112,25 @@ export function nativeSettingsDescriptor(
   return descriptor;
 }
 
+function primaryActions(
+  view: NativeConnectorView,
+  name: string,
+): readonly NativeActionDescriptor[] {
+  const resources = nativeApiResourceActions(
+    view.providerId,
+    view.configuration.method,
+  );
+  const actions = resources.length
+    ? resources
+    : [{ id: "provider.read", label: `Check ${name} access` }];
+  return actions.map((action) => ({
+    ...action,
+    available: true,
+    fields: [],
+    resultOrigins: [],
+  }));
+}
+
 function actions(
   descriptor: NativeConnectorDescriptor,
   view: NativeConnectorView | null,
@@ -123,21 +146,7 @@ function actions(
     actions:
       view && view.configuration.method !== "mcp"
         ? [
-            {
-              id:
-                view.providerId === "agentmail" &&
-                view.configuration.method === "api-key"
-                  ? "provider.inboxes.read"
-                  : "provider.read",
-              label:
-                view.providerId === "agentmail" &&
-                view.configuration.method === "api-key"
-                  ? "List inboxes"
-                  : `Check ${descriptor.name} access`,
-              available: true,
-              fields: [],
-              resultOrigins: [],
-            },
+            ...primaryActions(view, descriptor.name),
             ...(["vault", "openbao"].includes(descriptor.providerId)
               ? [
                   {
