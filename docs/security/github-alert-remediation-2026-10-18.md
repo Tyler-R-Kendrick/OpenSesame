@@ -17,8 +17,19 @@ Base inspected: `495f1d42082dcd56b7a3d50bf39cfc645c2f7acd`. Changes are in signe
 | [1512](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1512) | Require explicit interactive reveal for generated/updated passwords; stop printing prior passwords and trailers |
 | [1524](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1524) | Kotlin Android/Compose 2.4.20, supported R8 9.1.31 override, and JVM 17 compiler-options migration |
 | [1528](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1528) | Patch 46 advisory IDs in Android build-only dependencies through a Netty BOM and scoped constraints |
+| [1550](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1550) | Remove remaining Rust advisory implementations: AWS-LC RSA, direct SQLite/Postgres drivers, metadata-only system D-Bus |
 
 Independent read-only investigation preceded fixes; fresh candidate reviews identified compatibility regressions that were corrected before shipping. Full repository verification and post-fix CodeQL results are recorded below when complete. No new alert suppressions were added.
+
+## Follow-up: remaining Rust advisory dependencies
+
+The follow-up removes `rsa` from PKI key generation/signing/verification and both lockfiles. RSA-2048/4096, PKCS8 import, SPKI public keys, and PKCS#1 v1.5 SHA-256/384/512 remain supported through AWS-LC. The earlier disposition was incomplete: PKI uses RSA directly, not only via SQLx. No private-key decryption path targeted by the Marvin advisory was demonstrated; removing the affected backend eliminates that implementation regardless.
+
+An explicitly named repository database facade re-exports the runtime APIs of SQLx core, SQLite and PostgreSQL. This preserves the actual supported drivers while removing the umbrella/macro optional MySQL/RSA lock subtree. Linux discovery uses direct metadata-only D-Bus calls instead of secret-service/zbus, preserving locked-store refusal and label enumeration without opening sessions, unlocking, or reading secret values. System libdbus inherits distro security maintenance; CI, development and container prerequisites are included. Existing dependency versions are unchanged.
+
+The new candidate passes 166 PKI tests, 384 storage tests and six daemon keychain tests. Tests include both RSA sizes/digests, PKCS8 round trips, CSR/OCSP paths, hostile signatures and a real private-bus metadata transcript. The daemon test binary dynamically links installed libdbus 1.16.2. Rust formatting, structural and package-boundary checks, 22 CI/container contract tests, actionlint and diff checks pass. Separate fresh RSA/database and D-Bus reviews found no concrete bypass or regression. Full workspace Clippy passes all targets/features with the exact repository deny flags, locked/offline. The obsolete RSA exceptions are removed from both scanner configurations, and the structural baseline only decreases. Both updated locks have zero affected version matches against all 2,944 public crates.io advisory records downloaded and compared locally, including the new binding packages.
+
+The broad runtime/TypeScript results below belong to the earlier eleven-PR combined tree. The 6,005-test full Rust workspace run has not been repeated for this follow-up; the 556 focused runtime tests above are its current execution evidence. No merge or complete follow-up runtime pass is claimed.
 
 ## Local scans and verification
 
@@ -40,15 +51,15 @@ Focused verification includes 422 daemon/sealed-store tests; 95 bridge unit test
 
 Whole public OSV ecosystem databases were downloaded and compared to lockfiles locally. Neither `pnpm audit` nor a dependency-graph upload was used. Updated root, nested fuzz, Go, and DeepSec lockfiles have no remaining advisory matches with an upstream fixed version. Go standard-library/toolchain advisory records were compared against 1.26.9 too; the pinned setup-go action honors the module's toolchain directive. Additional complete public databases (7,192 Maven, 64 SwiftURL, and 56 GitHub Actions records) were matched locally against the native/plugin manifests. This identified Kotlin GHSA-r937-wjx7-w2jp / CVE-2026-53914, addressed by PR 1524. The vulnerable upstream path is KAPT incremental-cache deserialization; this application does not enable KAPT, so a currently exploitable build path was not demonstrated. Kotlin 2.4.20 contains the upstream filtering fix. Swift pins are unaffected; reviewed Action pins use v4 where the matched advisory concerns v2/v3. Native Maven resolution covers 420 distinct package/version pairs across 407 names. It finds 46 advisory IDs / 47 affected entries entirely in the root buildscript/plugin classpath, with none in app compile, runtime or unit-test runtime classpaths. PR 1528 removes these affected build dependencies with a Netty 4.1.139.Final BOM and constraints for Bouncy Castle 1.86, Commons Compress 1.28.0, jose4j 0.9.7 and JDOM 2.0.6.1. Actual changed-source resolution yields 422 external package/version pairs across 409 names, with zero affected matches against the full Maven database, including newly introduced transitives. App dependency sets remain unchanged. See the [per-advisory build inventory](android-build-advisories-2026-10-18.md). These matches were not 46 demonstrated application vulnerabilities. The Multipaz iOS binary has no matching SwiftURL advisory identity.
 
-Eight unpatched-version matches remain in the original lockfile ecosystems, including one duplicate across the two Cargo lockfiles:
+Three raw version matches remain outside the Rust lockfiles:
 
 | Package/advisory | Evidence and disposition |
 | --- | --- |
 | node-forge 1.4.0, GHSA-86w9-cpqp-85rv | Existing exact repository backport; patch/installed-source hashes and malicious/legitimate signature tests pass. GitHub version-only matching can still display this alert. |
 | braces 3.0.3, GHSA-vfj7-8cjw-p6xm | Existing exact repository backport; patch/source hashes and nested-pattern controls pass. |
 | x/crypto, GO-2026-5932 | Advisory concerns the unmaintained OpenPGP subpackage. The TURN dependency import graph does not import it; x/crypto is updated for the separate fixed advisories. |
-| rsa 0.9.10, RUSTSEC-2023-0071 | No patched release. Existing repository policy documents SQLx lockfile ancestry and no OpenSesame RSA private-key operations over observable timing channels. No new exception added. Appears in both Cargo lockfiles. |
-| zvariant, zbus_names, zvariant_derive, RUSTSEC-2026-0370/0371/0372 | Unmaintained transitive packages, no fixed release. Remain outstanding for dependency replacement planning; not silently dismissed. |
+
+The WXT 0.20.27 release removes its fast-glob/micromatch/braces chain. That upgrade remains an unpublished proposal: automatic approval review rejected networked lockfile resolution under the existing dependency-metadata export restriction, and offline resolution fails because required registry metadata is not cached. No untested manifest/lockfile change is included. Neither current node-forge releases nor the inspected adbkit/JKS dependencies provide a fixed drop-in release; the verified local backport remains the security fix. GO-2026-5932 covers only OpenPGP packages, which the actual TURN import graph does not use; changing cryptographic protocol implementations just to remove an unused advisory package is not presented as a necessary security fix.
 
 ## Secret-pattern and code-scanning dispositions
 
@@ -67,6 +78,8 @@ Reviewed JavaScript false positives include:
 - bounded configuration/test/evidence inputs without a demonstrated remote attacker boundary.
 
 These dispositions are review evidence, not bulk GitHub alert dismissal. Repository security APIs return HTTP 403 to this integration, so live alert IDs/counts and secret-scanning history cannot be exhaustively matched or updated through it. The screenshots and local scans nevertheless provide enough information for the concrete fixes above.
+
+A fresh REST read of Dependabot, code-scanning and secret-scanning lists still returns HTTP403. An alternate GraphQL query reports zero Dependabot records even across all states; without the REST inventory this is not accepted as closure evidence. Main advanced independently to 540bdb4ce3c682bb3de2b265c4e592225f4c1e42; these branches retain their reviewed stack bases and have not overwritten unrelated main changes.
 
 ## Activation and completion criteria
 
