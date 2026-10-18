@@ -124,8 +124,16 @@ function actions(
       view && view.configuration.method !== "mcp"
         ? [
             {
-              id: "provider.read",
-              label: `Check ${descriptor.name} access`,
+              id:
+                view.providerId === "agentmail" &&
+                view.configuration.method === "api-key"
+                  ? "provider.inboxes.read"
+                  : "provider.read",
+              label:
+                view.providerId === "agentmail" &&
+                view.configuration.method === "api-key"
+                  ? "List inboxes"
+                  : `Check ${descriptor.name} access`,
               available: true,
               fields: [],
               resultOrigins: [],
