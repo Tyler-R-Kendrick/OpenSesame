@@ -19,10 +19,6 @@ const DESKTOP: [Pass; 5] = [
     Pass::Name("DBUS_SESSION_BUS_ADDRESS"),
 ];
 
-/// What `PowerShell` needs on Windows beyond the common set: the profile folders.
-#[cfg(target_os = "windows")]
-const WINDOWS_PROFILE: [Pass; 2] = [Pass::Name("APPDATA"), Pass::Name("LOCALAPPDATA")];
-
 /// The prompt `program` on a trusted `PATH` entry, handed `extra`; `None` when
 /// there is none, which refuses enrollment like a missing prompt always has.
 fn prompt_in(program: &str, extra: &[Pass], lookup: &Lookup) -> Option<Command> {
@@ -175,7 +171,7 @@ $result = [System.Windows.Forms.MessageBox]::Show(
 )
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) { exit 0 } else { exit 1 }
 ";
-    let Some(mut powershell) = prompt("powershell.exe", &WINDOWS_PROFILE) else {
+    let Some(mut powershell) = prompt("powershell.exe", &[]) else {
         return false;
     };
     let output = powershell
