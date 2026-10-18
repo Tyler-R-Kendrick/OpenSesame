@@ -191,6 +191,12 @@ export default defineConfig({
     },
   },
   build: {
+    modulePreload: {
+      // Browser module imports load their full graph; retain entry HTML hints and
+      // Vite's separately awaited CSS without repeating JS tables per leaf.
+      resolveDependencies: (_url, dependencies, { hostType }) =>
+        hostType === "html" ? dependencies : [],
+    },
     // Compress the shipped offline PWA without changing its capability graph.
     minify: "terser",
     terserOptions: {
