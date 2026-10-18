@@ -1,8 +1,10 @@
 /** Real popup consent: the originating sealed vault never navigates or unlocks. */
 import { expect } from "@playwright/test";
+import {
+  CONSENT_POPUP_TIMEOUT_MS,
+  openLinearConsentPopup,
+} from "./linear-consent-popup-arming.mjs";
 import { readLinearStatusCodes } from "./linear-consent-status.mjs";
-
-const CONSENT_POPUP_TIMEOUT_MS = 60_000;
 
 let consentAttempt = 0;
 
@@ -116,33 +118,20 @@ function observeConsent(harness, page, original) {
 export async function beginLinearConsent(harness, page, label, action) {
   const original = page.url();
   const button = page.getByRole("button", { name: action, exact: true });
+  await expect(button).toBeEnabled({ timeout: CONSENT_POPUP_TIMEOUT_MS });
   let popup;
   let observation;
   // A reserved consent window can be released when its preparation ends
   // against a superseded attempt; one fresh click starts the real consent.
   for (let attempt = 1; ; attempt += 1) {
     observation = observeConsent(harness, page, original);
+    let opened;
     try {
       await observation.status("status-before-click");
       // Bind the popup to this click — context-wide "page" events can catch a stray tab.
-      [popup] = await Promise.all([
-        page.waitForEvent("popup", {
-          timeout: CONSENT_POPUP_TIMEOUT_MS,
-          predicate: (popup) => {
-            observation.bind(popup);
-            return true;
-          },
-        }),
-        button.click(),
-      ]);
-      if (popup.isClosed()) {
-        throw new Error(
-          `${label}: consent popup closed before Linear authorize URL`,
-        );
-      }
-      await popup.waitForURL("https://linear.app/oauth/authorize?**", {
-        timeout: CONSENT_POPUP_TIMEOUT_MS,
-        waitUntil: "domcontentloaded",
+      popup = await openLinearConsentPopup(page, button, (next) => {
+        opened = next;
+        observation.bind(next);
       });
       break;
     } catch (error) {
@@ -152,7 +141,7 @@ export async function beginLinearConsent(harness, page, label, action) {
         (await page
           .getByRole("button", { name: "Cancel sign-in", exact: true })
           .count()) === 0;
-      if (attempt >= 2 || !ended || !popup?.isClosed())
+      if (attempt >= 2 || !ended || opened?.isClosed() !== true)
         throw new Error(
           `${label}: consent window closed before Linear authorize URL: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
             .locator("body")
