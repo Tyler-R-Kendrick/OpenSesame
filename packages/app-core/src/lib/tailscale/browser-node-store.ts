@@ -102,12 +102,12 @@ export async function openBrowserNodeState(
     tomb,
     check,
   );
-  const record = {
+  const record: TailscaleNodeRecord = {
     ...identity,
     reference: capture.reference,
     tomb,
-    ...(nativeHTTP === undefined ? {} : { nativeHTTP }),
   };
+  if (nativeHTTP !== undefined) record.nativeHTTP = nativeHTTP;
   let published = false;
   try {
     const connection = await saveDeviceConnectorConfigurationDurable(
@@ -169,13 +169,13 @@ export function savedBrowserNodeConfiguration(): Omit<
     const row = savedNodeRow(vaultStore.getSnapshot().tomb);
     if (!row) return null;
     const record = Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""));
-    return {
+    const identity = {
       hostname: record.hostname,
       controlURL: record.controlURL,
-      ...(record.nativeHTTP === undefined
-        ? {}
-        : { nativeHTTP: record.nativeHTTP }),
     };
+    return record.nativeHTTP === undefined
+      ? identity
+      : { ...identity, nativeHTTP: record.nativeHTTP };
   } catch {
     return null;
   }
@@ -201,13 +201,15 @@ export async function updateBrowserNodeNativeHTTP(
       throw new Error("The saved Tailscale browser node changed.");
   };
   assertCurrent();
-  const replacement = Metadata.parse({
+  const identity = {
     hostname: record.hostname,
     controlURL: record.controlURL,
     reference: record.reference,
     tomb: record.tomb,
-    ...(nativeHTTP === undefined ? {} : { nativeHTTP }),
-  });
+  };
+  const replacement = Metadata.parse(
+    nativeHTTP === undefined ? identity : { ...identity, nativeHTTP },
+  );
   await updateDeviceConfigurationDurable(
     row.connectionId,
     async (current) => {

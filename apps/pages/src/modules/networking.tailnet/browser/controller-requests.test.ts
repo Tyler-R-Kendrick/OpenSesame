@@ -1,13 +1,15 @@
+import { rootCertificates } from "node:tls";
 import { TailscaleNativeHTTPConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { expect, it, vi } from "vitest";
+import type { z } from "zod";
 import {
   BrowserNodeRequests,
   nativeWorkerOptions,
 } from "./controller-requests.js";
-import type { HostEvent } from "./protocol.js";
+import type { HostEvent, WorkerMessage } from "./protocol.js";
 class WorkerPort {
-  sent: unknown[] = [];
-  postMessage(value: unknown) {
+  sent: z.infer<typeof WorkerMessage>[] = [];
+  postMessage(value: z.infer<typeof WorkerMessage>) {
     this.sent.push(value);
   }
 }
@@ -252,5 +254,42 @@ it("requires this deployment's native asset only for opted-in configurations and
     asset: {
       nativeHTTP: "https://app.example/OpenSesame/tailscale/native-fixture.js",
     },
+  });
+});
+
+it("preserves operator trust fields and rejects nonstring native asset values without widening worker options", () => {
+  const base = new URL("https://app.example/OpenSesame/");
+  const native = TailscaleNativeHTTPConfiguration.parse({
+    version: 1,
+    exitNodeID: "approved-exit",
+    trustMode: "operator",
+    operatorCAPEM: rootCertificates[0] ?? "",
+    targets: [
+      { origin: "https://api.example.com", prefixes: ["203.0.113.0/24"] },
+    ],
+  });
+  for (const nativeHTTP of [null, false, 42, [], {}]) {
+    expect(() => nativeWorkerOptions(native, { nativeHTTP }, base)).toThrow(
+      "missing",
+    );
+    expect(nativeWorkerOptions(undefined, { nativeHTTP }, base)).toEqual({
+      nativeHTTP: undefined,
+      asset: {},
+    });
+  }
+  const options = nativeWorkerOptions(
+    native,
+    { nativeHTTP: "tailscale/native-fixture.js" },
+    base,
+  );
+  expect(options.nativeHTTP).toEqual({
+    exitNodeID: native.exitNodeID,
+    trustMode: "operator",
+    operatorCAPEM: rootCertificates[0],
+    targets: native.targets,
+  });
+  expect(options.nativeHTTP).not.toHaveProperty("version");
+  expect(options.asset).toEqual({
+    nativeHTTP: "https://app.example/OpenSesame/tailscale/native-fixture.js",
   });
 });

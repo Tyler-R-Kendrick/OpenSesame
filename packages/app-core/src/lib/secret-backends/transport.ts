@@ -78,23 +78,9 @@ export function guardSecretBackendTransport(
     guard?.();
     if (signal.aborted) throw stale();
   };
-  return {
+  const guarded: SecretBackendTransport = {
     signal,
     assertCurrent,
-    ...(supportsNativeOrigin
-      ? {
-          supportsNativeOrigin: (origin: string) => {
-            try {
-              assertCurrent();
-              const supported = supportsNativeOrigin(origin);
-              assertCurrent();
-              return supported;
-            } catch {
-              return false;
-            }
-          },
-        }
-      : {}),
     fetch: async (input, init) => {
       assertCurrent();
       const signals = [signal];
@@ -106,6 +92,20 @@ export function guardSecretBackendTransport(
       });
       assertCurrent();
       return response;
+    },
+  };
+  if (!supportsNativeOrigin) return guarded;
+  return {
+    ...guarded,
+    supportsNativeOrigin: (origin) => {
+      try {
+        assertCurrent();
+        const supported = supportsNativeOrigin(origin);
+        assertCurrent();
+        return supported;
+      } catch {
+        return false;
+      }
     },
   };
 }

@@ -2,6 +2,7 @@ import type {
   TailscaleNativeHTTPConfiguration,
   TailscaleNativeHTTPPort,
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { anySignal } from "../../signals.js";
 import { type HostEvent, NativeHTTPRequest } from "./protocol.js";
 
@@ -271,26 +272,24 @@ async function readBody(
 
 export function nativeWorkerOptions(
   native: TailscaleNativeHTTPConfiguration | undefined,
-  assets: Record<string, unknown>,
+  assets: { nativeHTTP?: BoundaryValue },
   base: URL,
 ) {
   const asset = assets.nativeHTTP;
-  if (native && typeof asset !== "string")
+  if (native && !isString(asset))
     throw new Error("This deployment is missing its native HTTPS asset.");
+  const route = native
+    ? {
+        exitNodeID: native.exitNodeID,
+        targets: native.targets,
+        trustMode: native.trustMode,
+      }
+    : undefined;
   return {
-    nativeHTTP: native
-      ? {
-          exitNodeID: native.exitNodeID,
-          targets: native.targets,
-          trustMode: native.trustMode,
-          ...(native.trustMode === "operator"
-            ? { operatorCAPEM: native.operatorCAPEM }
-            : {}),
-        }
-      : undefined,
-    asset:
-      typeof asset === "string"
-        ? { nativeHTTP: new URL(asset, base).href }
-        : {},
+    nativeHTTP:
+      native?.trustMode === "operator"
+        ? { ...route, operatorCAPEM: native.operatorCAPEM }
+        : route,
+    asset: isString(asset) ? { nativeHTTP: new URL(asset, base).href } : {},
   };
 }
