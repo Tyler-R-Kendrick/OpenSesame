@@ -51,6 +51,17 @@ pub(super) enum Operation {
         tomb: String,
     },
     ReadGeneration {},
+    ReadProjection {},
+    PublishHeader {
+        expected: String,
+        next: String,
+    },
+    PublishProjection {
+        expected: Vec<(String, String)>,
+        writes: Vec<(String, String)>,
+    },
+    StateIdentity {},
+    ValidateState {},
     PublishGeneration {
         expected: Option<String>,
         next: Option<String>,
@@ -91,11 +102,13 @@ pub(super) struct Response {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(super) enum Reply {
     Ack,
+    Absent,
     Available { acquired: bool },
     Bytes { base64: Option<String> },
     Names { values: Vec<String> },
     Inventory { entries: Vec<(String, bool)> },
     Identity { value: String },
+    Projection { records: Vec<(String, String)> },
 }
 
 #[cfg(test)]

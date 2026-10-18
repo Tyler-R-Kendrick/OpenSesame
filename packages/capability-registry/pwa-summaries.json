@@ -1000,6 +1000,22 @@
     }
   },
   {
+    "id": "vault.retired_credentials.manage",
+    "title": "Fresh-owner retired-password inspection, consented enrollment, removal and activity cleanup",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings/security"
+    }
+  },
+  {
+    "id": "vault.agent_canaries.manage",
+    "title": "Fresh-owner pairing, inspection, consented detection-only canary enrollment, removal and configuration export",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings/security"
+    }
+  },
+  {
     "id": "vault.items.reveal",
     "title": "Reveal a vault item secret",
     "plane": "client_local",

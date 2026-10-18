@@ -78,7 +78,10 @@ impl NativeNodeDataWriter {
             .strip_prefix("opensesame:vault-body:")
             .ok_or_else(refused)?;
         tomb_name(tomb)?;
-        if logical_key != GLOBAL_KEY && !logical_key.starts_with(&format!("tomb/{tomb}/")) {
+        if logical_key != GLOBAL_KEY
+            && !super::allowed_global_read(logical_key)
+            && !logical_key.starts_with(&format!("tomb/{tomb}/"))
+        {
             return Err(refused());
         }
         let leaf = modern_name(logical_key)?;
