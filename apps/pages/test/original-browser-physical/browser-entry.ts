@@ -3,9 +3,17 @@ import * as contexts from "./native-context-cas.js";
 /** Isolated test entry; no application bootstrap, fake storage, owner issuer or network adapter. */
 import { reset } from "./native-fixture.js";
 import * as registry from "./native-registry.js";
+import {
+  retiredFactorLifecycle,
+  retiredLifecycle,
+} from "./native-retired-flow.js";
 export async function run(name: string, input = "") {
   reset();
   switch (name) {
+    case "retired-factor-lifecycle":
+      return retiredFactorLifecycle();
+    case "retired-lifecycle":
+      return retiredLifecycle();
     case "deleted-registry":
       return registry.deletedRegistry();
     case "restored-registry":
