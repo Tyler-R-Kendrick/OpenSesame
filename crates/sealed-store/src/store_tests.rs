@@ -1,6 +1,63 @@
 use super::*;
 
 #[test]
+fn keyless_age_writes_keep_their_format_and_obey_rotation_guards() {
+    use age::secrecy::ExposeSecret;
+
+    let dir = tempfile::tempdir().unwrap();
+    let root = StoreRoot::open(dir.path()).unwrap();
+    let identity = age::x25519::Identity::generate();
+    fs::write(
+        dir.path().join(".age-recipients"),
+        identity.to_public().to_string(),
+    )
+    .unwrap();
+    let entry = Entry::parse("age-secret\n");
+    root.insert_or_replace_with_optional_key("entry", &entry, None)
+        .unwrap();
+    let original = fs::read(dir.path().join("entry.age")).unwrap();
+    let identity_text = identity.to_string();
+    assert_eq!(
+        root.show_with_optional_key("entry", None, Some(identity_text.expose_secret()))
+            .unwrap()
+            .secret,
+        "age-secret"
+    );
+    fs::create_dir(dir.path().join(crate::rotation::ROTATION_STAGING_DIR)).unwrap();
+    assert!(root
+        .insert_or_replace_with_optional_key("entry", &entry, None)
+        .is_err());
+    assert_eq!(fs::read(dir.path().join("entry.age")).unwrap(), original);
+    fs::remove_dir(dir.path().join(crate::rotation::ROTATION_STAGING_DIR)).unwrap();
+    assert!(root
+        .insert_or_replace_with_optional_key(".GIT/entry", &entry, None)
+        .is_err());
+    fs::write(dir.path().join(".opensesame-recipients"), "").unwrap();
+    root.insert_or_replace_with_optional_key("entry", &Entry::parse("updated\n"), None)
+        .unwrap();
+    assert_eq!(
+        root.show_with_optional_key("entry", None, Some(identity_text.expose_secret()))
+            .unwrap()
+            .secret,
+        "updated"
+    );
+    assert!(!dir.path().join("entry.osseal").exists());
+    assert!(root
+        .insert_or_replace_with_optional_key("new", &entry, None)
+        .is_err());
+    let before = fs::read(dir.path().join("entry.age")).unwrap();
+    fs::write(
+        dir.path().join(KEY_FILE),
+        "a key file appeared after opening",
+    )
+    .unwrap();
+    assert!(root
+        .insert_or_replace_with_optional_key("entry", &entry, None)
+        .is_err());
+    assert_eq!(fs::read(dir.path().join("entry.age")).unwrap(), before);
+}
+
+#[test]
 fn optional_native_key_preserves_age_but_refuses_native_shadow_entries() {
     use age::secrecy::ExposeSecret;
 

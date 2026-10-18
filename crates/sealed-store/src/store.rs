@@ -192,9 +192,25 @@ impl StoreRoot {
         entry: &Entry,
         key: &ItemDataKey,
     ) -> Result<(), StoreError> {
+        self.insert_or_replace_with_optional_key(name, entry, Some(key))
+    }
+
+    /// Insert or replace an entry, retaining an existing entry's format.
+    /// Native writes require an unlocked key; foreign formats use recipients.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::NotInitialized`] when a native key is required,
+    /// or an error when validation, encryption, locking or IO fails.
+    pub fn insert_or_replace_with_optional_key(
+        &self,
+        name: &str,
+        entry: &Entry,
+        key: Option<&ItemDataKey>,
+    ) -> Result<(), StoreError> {
         let existing = self.find_existing(name).ok();
         let keep_format = existing.as_ref().map(|(_, h)| *h);
-        self.write_entry(name, entry, key, keep_format)?;
+        self.write_entry_with_optional_key(name, entry, key, keep_format)?;
         let msg = if existing.is_some() {
             COMMIT_EDIT
         } else {
@@ -224,12 +240,26 @@ impl StoreRoot {
         key: &ItemDataKey,
         format: Option<FormatHint>,
     ) -> Result<(), StoreError> {
-        // Held until the ciphertext is on disk: see `store_lock`.
-        let _lock = StoreLock::for_sealing(&self.path, name, key)?;
-        let plaintext = entry.render().into_bytes();
+        self.write_entry_with_optional_key(name, entry, Some(key), format)
+    }
+
+    fn write_entry_with_optional_key(
+        &self,
+        name: &str,
+        entry: &Entry,
+        key: Option<&ItemDataKey>,
+        format: Option<FormatHint>,
+    ) -> Result<(), StoreError> {
         let format = format.unwrap_or_else(|| self.preferred_write_format());
+        if format == FormatHint::Osseal && key.is_none() {
+            return Err(StoreError::NotInitialized(self.path.clone()));
+        }
+        // Held until the ciphertext is on disk: see `store_lock`.
+        let _lock = StoreLock::for_writing(&self.path, name, key)?;
+        let plaintext = entry.render().into_bytes();
         match format {
             FormatHint::Osseal => {
+                let key = key.ok_or_else(|| StoreError::NotInitialized(self.path.clone()))?;
                 let rel = Self::entry_relative(name, "osseal")?;
                 let path = self.path.join(&rel);
                 let revision = self.next_revision(name, &path, key)?;
