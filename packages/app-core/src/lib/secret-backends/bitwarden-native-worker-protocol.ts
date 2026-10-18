@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bitwardenNativeUnlockInput } from "./bitwarden-native-contract.js";
 
 const Id = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 const Text = z.string().max(524288);
@@ -21,11 +22,9 @@ export const NativeWorkerSettings = z
     identityUrl: z.string().max(8192),
     clientId: z.string().max(4096),
     clientSecret: z.string().max(4096),
-    accountEmail: z.string().min(1).max(4096),
-    masterPassword: z.string().min(1).max(4096),
-    deviceIdentifier: z.string().uuid(),
     vaultId: z.string().max(128),
   })
+  .merge(bitwardenNativeUnlockInput)
   .strict();
 export type NativeWorkerSettings = z.infer<typeof NativeWorkerSettings>;
 export const NativeWorkerRequest = z.discriminatedUnion("type", [
