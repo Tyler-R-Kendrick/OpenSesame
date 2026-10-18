@@ -151,7 +151,7 @@ async function saved(o) {
   const driver = nativeConnectorDriver("api-key", o.protocol.providerId);
   return {
     view,
-    read: () => driver.invoke(view.connectionId, o.protocol.read.id, {}),
+    read: async () => driver.invoke(view.connectionId, o.protocol.read.id, {}),
   };
 }
 it.each(NATIVE_REPRESENTATIVE_API_IDS)(

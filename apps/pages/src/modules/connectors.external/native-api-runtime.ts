@@ -14,7 +14,10 @@ import {
   registerNativeConnectorDriver,
 } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
-import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  captureNativeProviderAuthority,
+} from "@opensesame/app-core/lib/native-connector-transport.js";
 import {
   configureNativeGithubPersonal,
   invokeNativeGithubPersonal,
@@ -85,7 +88,7 @@ function supportedApiProvider(id: string): boolean {
   );
 }
 function apiCleanup(
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ): NativeConnectorDriver["cleanup"] {
   const instanceAdapters = {
     vault: nativeLocalInstanceCleanup("vault", transport),
@@ -121,7 +124,7 @@ function apiCleanup(
 }
 function configureApi(
   input: NativeDriverInput,
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ) {
   transport.assertCurrent();
   if (input.providerId === "s3") return configureNativeS3(input, transport);
@@ -146,10 +149,7 @@ function configureApi(
     transport,
   );
 }
-function testApi(
-  input: NativeDriverInput,
-  transport: ReturnType<typeof nativeProviderTransport>,
-) {
+function testApi(input: NativeDriverInput, transport: NativeProviderTransport) {
   transport.assertCurrent();
   if (
     input.providerId === "s3" ||
@@ -165,7 +165,7 @@ async function invokeApi(
   id: string,
   operation: string,
   input: Record<string, string>,
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ) {
   transport.assertCurrent();
   const provider = providerOf(id);
@@ -190,7 +190,7 @@ async function invokeInstance(
   id: string,
   operation: string,
   input: Record<string, string>,
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ) {
   if (
     operation === "provider.secret.read" &&
@@ -215,14 +215,35 @@ async function invokeInstance(
   };
 }
 export function bindNativeApiRuntime(activation: Activation): void {
-  const transport = nativeProviderTransport();
+  const authority = captureNativeProviderAuthority();
+  const cleanupRoutes = new Map<string, NativeProviderTransport>();
+  activation.onDispose(() => cleanupRoutes.clear());
+  const cleanupTransport = (id: string, fingerprint: string) => {
+    authority.assertCurrent();
+    const key = JSON.stringify([id, fingerprint]);
+    const transport = cleanupRoutes.get(key) ?? authority.capture();
+    transport.assertCurrent();
+    cleanupRoutes.set(key, transport);
+    return transport;
+  };
   activation.onDispose(
     registerNativeConnectorDriver("api-key", {
       supports: supportedApiProvider,
-      configure: (input) => configureApi(input, transport),
-      test: (input) => testApi(input, transport),
-      verify: (id) => {
+      configure: async (input) => {
+        const transport = authority.capture();
+        const configured = await configureApi(input, transport);
         transport.assertCurrent();
+        authority.assertCurrent();
+        const key = JSON.stringify([
+          configured.connectionId,
+          configured.fingerprint,
+        ]);
+        if (!cleanupRoutes.has(key)) cleanupRoutes.set(key, transport);
+        return configured;
+      },
+      test: (input) => testApi(input, authority.capture()),
+      verify: (id) => {
+        const transport = authority.capture();
         const provider = providerOf(id);
         if (provider === "s3") return verifyNativeS3(id, transport);
         const keyed = nativeKeyDriverFor(provider);
@@ -234,8 +255,24 @@ export function bindNativeApiRuntime(activation: Activation): void {
           : verifyNativeApiConnector(id, transport);
       },
       invoke: (id, operation, input) =>
-        invokeApi(id, operation, input, transport),
-      cleanup: apiCleanup(transport),
+        invokeApi(id, operation, input, authority.capture()),
+      cleanup: {
+        classification: (configuration) =>
+          apiCleanup(authority.capture()).classification(configuration),
+        credentialSlots: (configuration, grant) => {
+          const slots = apiCleanup(authority.capture()).credentialSlots;
+          return slots && "call" in slots
+            ? slots(configuration, grant)
+            : (slots ?? []);
+        },
+        cleanup: (obligation, context) =>
+          apiCleanup(
+            cleanupTransport(
+              context.connectionId,
+              context.configuration.fingerprint,
+            ),
+          ).cleanup(obligation, context),
+      },
     }),
   );
 }
