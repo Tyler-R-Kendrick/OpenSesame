@@ -1,0 +1,36 @@
+diff --git a/dist/src/adb/client.js b/dist/src/adb/client.js
+--- a/dist/src/adb/client.js
++++ b/dist/src/adb/client.js
+@@ -6,7 +6,6 @@
+ const events_1 = require("events");
+ const connection_1 = __importDefault(require("./connection"));
+ const host_1 = require("./command/host");
+-const server_1 = __importDefault(require("./tcpusb/server"));
+ const DeviceClient_1 = __importDefault(require("./DeviceClient"));
+ class Client extends events_1.EventEmitter {
+     constructor({ host = '127.0.0.1', port = 5037, bin = 'adb', timeout = 0 } = { port: 5037 }) {
+@@ -18,6 +17,7 @@ class Client extends events_1.EventEmitter {
+         this.options = { host, port, bin, timeout };
+     }
+     createTcpUsbBridge(serial, options) {
++        const server_1 = __importDefault(require("./tcpusb/server"));
+         return new server_1.default(this, serial, options);
+     }
+     connection() {
+diff --git a/dist/src/adb/util.js b/dist/src/adb/util.js
+--- a/dist/src/adb/util.js
++++ b/dist/src/adb/util.js
+@@ -4,12 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+ const parser_1 = __importDefault(require("./parser"));
+-const auth_1 = __importDefault(require("./auth"));
+ class Util {
+     static readAll(stream, callback) {
+         return new parser_1.default(stream).readAll().nodeify(callback);
+     }
+     static parsePublicKey(keyString, callback) {
++        const auth_1 = __importDefault(require("./auth"));
+         return auth_1.default.parsePublicKey(keyString).nodeify(callback);
+     }
+ }

@@ -23,7 +23,7 @@ export const ARM_MESSAGE = "opensesame.fill.arm";
 export const FILL_COMMAND = "fill-focused-field";
 
 /** The guard: registered per switched-on site, injected only as a fallback. */
-export const GUARD_SCRIPT = "fill-guard.js";
+export const GUARD_SCRIPT = "/fill-guard.js";
 
 /**
  * Why a fill did not happen, or that it did — never a value: `filled`, a

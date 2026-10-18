@@ -30,7 +30,7 @@ const tryToScriptActiveTab = () =>
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files: ["fill-guard.js"],
+        files: ["/fill-guard.js"],
       });
       return { ...seen, injected: true, why: "" };
     } catch (cause) {
