@@ -27,10 +27,12 @@ export function isSecretBackendProvider(providerId: string): boolean {
   return secretBackendPreset(providerId) !== null;
 }
 
+export const PROTON_PASS_PUBLIC_APP_VERSION = "cli-pass@2.4.2";
+
 export function secretBackendDraft(providerId: string): SecretBackendDraft {
   const preset = secretBackendPreset(providerId);
   if (!preset) throw new Error("Unknown secret backend provider");
-  return {
+  const draft: SecretBackendDraft = {
     providerId,
     name: preset.label,
     mode: preset.defaultMode,
@@ -47,6 +49,9 @@ export function secretBackendDraft(providerId: string): SecretBackendDraft {
     passwordListId: "",
     fileFormat: preset.fileFormats[0]?.id ?? "",
   };
+  if (draft.mode === "proton-pass")
+    draft.appVersion = PROTON_PASS_PUBLIC_APP_VERSION;
+  return draft;
 }
 
 export function secretBackendModeLabel(mode: SecretBackendMode) {
@@ -54,6 +59,7 @@ export function secretBackendModeLabel(mode: SecretBackendMode) {
     local: "This device's vault",
     "file-import": "Import an export file",
     "credential-management": "Browser password credentials",
+    "proton-pass": "Proton Pass native API",
     "onepassword-sdk": "1Password native SDK",
     "onepassword-connect": "1Password Connect API",
     "bitwarden-api": "Bitwarden Vault Management API",
