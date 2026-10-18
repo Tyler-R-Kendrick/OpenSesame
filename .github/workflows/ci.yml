@@ -280,6 +280,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:push-worker
+      - name: Service worker reload waits for a dirty edit
+        if: matrix.shard == 'budgets'
+        # A guest with an unsaved item must see the waiting release instead of
+        # losing the edit. Lock, idle, and a missing chunk still reload.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:sw-dirty-edit
       - name: Phone and tablet layout and touch contract
         if: startsWith(matrix.shard, 'mobile-')
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
