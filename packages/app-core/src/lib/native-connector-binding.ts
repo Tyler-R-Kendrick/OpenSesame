@@ -4,7 +4,7 @@ import type { NativeProviderTransport } from "./native-connector-transport.js";
 
 export function bindNativeConnectorDriver(
   driver: NativeConnectorDriver,
-  transport: NativeProviderTransport,
+  transport: Pick<NativeProviderTransport, "assertCurrent">,
 ): NativeConnectorDriver {
   const guard = async <T>(action: () => Promise<T>): Promise<T> => {
     transport.assertCurrent();
