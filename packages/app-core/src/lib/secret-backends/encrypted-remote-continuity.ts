@@ -3,6 +3,7 @@ import type { CredentialItem } from "@opensesame/vault-core";
 import { bytesToB64 } from "@opensesame/vault-core/bytes.js";
 /** Authenticated inventory continuity travels inside its actual vault key credential. */
 import { lockManager } from "../../ports.js";
+import { withDeviceConfigurationLock } from "../device-connector-records.js";
 import { kvDurability } from "../kv.js";
 import { vaultStore } from "../vault/store.js";
 import {
@@ -85,32 +86,34 @@ export function createEncryptedRemoteContinuity(
           "configuration",
           "Persistent browser storage and Web Locks are required to preserve encrypted inventory continuity.",
         );
-      const item = key();
-      const before = readEncryptedRemoteContinuity(item, identity);
-      const next = nextEncryptedRemoteContinuity(before, revision, digest);
-      if (
-        revision < before.revision ||
-        (revision === before.revision && !same(before, next))
-      )
-        throw refused();
-      if (same(before, next)) return;
-      const pending = () => {
-        const live = readEncryptedRemoteContinuity(key(), identity);
-        if (!same(live, before) && !same(live, next)) throw refused();
-      };
-      pending();
-      const updated = {
-        ...item,
-        fields: item.fields.map((row) =>
-          row.id === ENCRYPTED_REMOTE_CONTINUITY_FIELD
-            ? encryptedRemoteContinuityField(next)
-            : row,
-        ),
-      };
-      await vaultStore.saveItems([updated], undefined, pending);
-      check();
-      if (!same(readEncryptedRemoteContinuity(key(), identity), next))
-        throw refused();
+      await withDeviceConfigurationLock(async () => {
+        const item = key();
+        const before = readEncryptedRemoteContinuity(item, identity);
+        const next = nextEncryptedRemoteContinuity(before, revision, digest);
+        if (
+          revision < before.revision ||
+          (revision === before.revision && !same(before, next))
+        )
+          throw refused();
+        if (same(before, next)) return;
+        const pending = () => {
+          const live = readEncryptedRemoteContinuity(key(), identity);
+          if (!same(live, before) && !same(live, next)) throw refused();
+        };
+        pending();
+        const updated = {
+          ...item,
+          fields: item.fields.map((row) =>
+            row.id === ENCRYPTED_REMOTE_CONTINUITY_FIELD
+              ? encryptedRemoteContinuityField(next)
+              : row,
+          ),
+        };
+        await vaultStore.saveItems([updated], undefined, pending);
+        check();
+        if (!same(readEncryptedRemoteContinuity(key(), identity), next))
+          throw refused();
+      });
     },
   };
 }

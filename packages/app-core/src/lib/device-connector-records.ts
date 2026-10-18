@@ -239,6 +239,13 @@ function withConfigurationLock<T>(action: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/** Ordering only: checkpoint metadata shares the existing connector publication lock. */
+export function withDeviceConfigurationLock<T>(
+  action: () => Promise<T>,
+): Promise<T> {
+  return withConfigurationLock(action);
+}
+
 async function commitAtomic(
   records: AtomicStore,
   beforeCommit?: () => void,
