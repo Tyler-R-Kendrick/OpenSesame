@@ -62,9 +62,9 @@ async function httpBackend(
       return module.createOnePasswordConnectBackend(transport.fetch);
     }
     case "bitwarden-api": {
-      const module = await import("./bitwarden.js");
+      const module = await import("./bitwarden-native-browser.js");
       transport.assertCurrent();
-      return module.createBitwardenApiBackend(transport.fetch);
+      return module.createBitwardenNativeBrowserBackend(transport);
     }
     case "bitwarden-secrets": {
       const module = await import("./bitwarden-secrets.js");
