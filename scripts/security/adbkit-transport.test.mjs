@@ -23,6 +23,98 @@ const uint = (value) => {
 const syncPacket = (id, payload) =>
   Buffer.concat([Buffer.from(id), uint(payload.length), payload]);
 
+function readFrame(buffer, sync) {
+  const header = sync ? 8 : 4;
+  if (buffer.length < header) return null;
+  const id = sync ? buffer.toString("ascii", 0, 4) : null;
+  const length = sync
+    ? buffer.readUInt32LE(4)
+    : Number.parseInt(buffer.toString("ascii", 0, 4), 16);
+  const payloadLength = id === "DONE" ? 0 : length;
+  if (buffer.length < header + payloadLength) return null;
+  return {
+    id,
+    payload: buffer.subarray(header, header + payloadLength),
+    rest: buffer.subarray(header + payloadLength),
+  };
+}
+
+function syncReply(state, id, payload, send) {
+  if (id === "SEND") state.destination = payload.toString();
+  else if (id === "DATA") state.uploads.push(Buffer.from(payload));
+  else if (id === "DONE") {
+    const denied = state.destination.startsWith("/denied");
+    send(
+      syncPacket(
+        denied ? "FAIL" : "OKAY",
+        denied ? Buffer.from("permission denied") : Buffer.alloc(0),
+      ),
+    );
+  } else if (id === "LIST") {
+    if (payload.toString() === "/denied") {
+      send(syncPacket("FAIL", Buffer.from("permission denied")));
+      return;
+    }
+    send(
+      Buffer.concat([
+        Buffer.from("DENT"),
+        uint(0o100644),
+        uint(7),
+        uint(123),
+        uint(8),
+        Buffer.from("test.xpi"),
+        Buffer.from("DONE"),
+        Buffer.alloc(16),
+      ]),
+    );
+  }
+}
+
+function hostReply(state, command, send, socket) {
+  if (command === "host:devices")
+    send(
+      `OKAY${asciiLength("online\tdevice\noffline\toffline\nlocked\tunauthorized\n")}`,
+      true,
+    );
+  else if (command.startsWith("host:transport:")) send("OKAY");
+  else if (command === "sync:") {
+    state.sync = true;
+    send("OKAY");
+  } else if (command.startsWith("shell:am start"))
+    send("OKAYError: Activity not found\n", true);
+  else if (command.startsWith("shell:")) send("OKAYtransport works\n", true);
+  else if (command.includes(":forward:"))
+    send(`OKAYOKAY${asciiLength("43210")}`, true);
+  else socket.destroy(new Error(`Unexpected command ${command}`));
+}
+
+function acceptPeer(socket, commands, uploads) {
+  let buffer = Buffer.alloc(0);
+  const state = { sync: false, destination: undefined, uploads };
+  const send = (value, end = false) => {
+    const bytes = Buffer.from(value);
+    // Split the status and length fields over writes to exercise upstream parsing.
+    socket.write(bytes.subarray(0, 2));
+    setImmediate(() =>
+      end ? socket.end(bytes.subarray(2)) : socket.write(bytes.subarray(2)),
+    );
+  };
+  socket.on("data", (data) => {
+    buffer = Buffer.concat([buffer, data]);
+    let frame = readFrame(buffer, state.sync);
+    while (frame) {
+      buffer = frame.rest;
+      if (state.sync) syncReply(state, frame.id, frame.payload, send);
+      else {
+        const command = frame.payload.toString();
+        commands.push(command);
+        hostReply(state, command, send, socket);
+      }
+      frame = readFrame(buffer, state.sync);
+    }
+  });
+}
+
 async function peer(run) {
   const commands = [];
   const uploads = [];
@@ -30,81 +122,7 @@ async function peer(run) {
   const server = createServer((socket) => {
     sockets.add(socket);
     socket.on("close", () => sockets.delete(socket));
-    let buffer = Buffer.alloc(0);
-    let sync = false;
-    let destination;
-    const send = (value, end = false) => {
-      const bytes = Buffer.from(value);
-      // Split the status and length fields over writes to exercise upstream parsing.
-      socket.write(bytes.subarray(0, 2));
-      setImmediate(() =>
-        end ? socket.end(bytes.subarray(2)) : socket.write(bytes.subarray(2)),
-      );
-    };
-    socket.on("data", (data) => {
-      buffer = Buffer.concat([buffer, data]);
-      while (buffer.length >= (sync ? 8 : 4)) {
-        const id = sync ? buffer.toString("ascii", 0, 4) : null;
-        const length = sync
-          ? buffer.readUInt32LE(4)
-          : Number.parseInt(buffer.toString("ascii", 0, 4), 16);
-        const header = sync ? 8 : 4;
-        const payloadLength = id === "DONE" ? 0 : length;
-        if (buffer.length < header + payloadLength) return;
-        const payload = buffer.subarray(header, header + payloadLength);
-        buffer = buffer.subarray(header + payloadLength);
-        if (sync) {
-          if (id === "LIST") {
-            if (payload.toString() === "/denied")
-              send(syncPacket("FAIL", Buffer.from("permission denied")));
-            else
-              send(
-                Buffer.concat([
-                  Buffer.from("DENT"),
-                  uint(0o100644),
-                  uint(7),
-                  uint(123),
-                  uint(8),
-                  Buffer.from("test.xpi"),
-                  Buffer.from("DONE"),
-                  Buffer.alloc(16),
-                ]),
-              );
-          } else if (id === "SEND") destination = payload.toString();
-          else if (id === "DATA") uploads.push(Buffer.from(payload));
-          else if (id === "DONE")
-            send(
-              syncPacket(
-                destination.startsWith("/denied") ? "FAIL" : "OKAY",
-                destination.startsWith("/denied")
-                  ? Buffer.from("permission denied")
-                  : Buffer.alloc(0),
-              ),
-            );
-          continue;
-        }
-        const command = payload.toString();
-        commands.push(command);
-        if (command === "host:devices")
-          send(
-            `OKAY${asciiLength(
-              "online\tdevice\noffline\toffline\nlocked\tunauthorized\n",
-            )}`,
-            true,
-          );
-        else if (command.startsWith("host:transport:")) send("OKAY");
-        else if (command === "sync:") {
-          sync = true;
-          send("OKAY");
-        } else if (command.startsWith("shell:am start"))
-          send("OKAYError: Activity not found\n", true);
-        else if (command.startsWith("shell:"))
-          send("OKAYtransport works\n", true);
-        else if (command.includes(":forward:"))
-          send(`OKAYOKAY${asciiLength("43210")}`, true);
-        else socket.destroy(new Error(`Unexpected command ${command}`));
-      }
-    });
+    acceptPeer(socket, commands, uploads);
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
