@@ -164,7 +164,10 @@ pub(super) fn spawn_supervised(
         }
     }
     child_command.envs(env);
+    #[cfg(unix)]
     let handlers = signal::install()?;
+    #[cfg(not(unix))]
+    let handlers = signal::install();
     let run_end = run_child(&mut child_command, session, secrets, stdout, stderr);
     handlers.release(matches!(
         run_end,
