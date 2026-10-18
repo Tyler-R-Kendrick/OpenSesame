@@ -13,6 +13,16 @@ import { assertNativeTaskResources } from "./task-resources.mjs";
 const digestPattern = /^[a-f0-9]{64}$/;
 const inFlight = new Map();
 const hash = (value) => createHash("sha256").update(value).digest("hex");
+/** The pinned executable compiler is Linux AMD64; cached static assets are host-independent. */
+export function assertNativeColdBuildHost(
+  platform = process.platform,
+  architecture = process.arch,
+) {
+  if (platform !== "linux" || architecture !== "x64")
+    throw new Error(
+      "Cold native WASM preparation requires the pinned Linux AMD64 build host; this host cannot execute that compiler. Verified cached static distributions remain portable.",
+    );
+}
 async function present(path) {
   try {
     return await lstat(path);
@@ -201,6 +211,7 @@ async function prepare(repositoryRoot, sourceSha256, distributionSha256) {
     return { directory, ...result };
   };
   if (await present(directory)) return readCached();
+  assertNativeColdBuildHost();
   await mkdir(dirname(directory), { recursive: true });
   const lock = `${directory}.lock`;
   const waiting = performance.now() + 600_000;

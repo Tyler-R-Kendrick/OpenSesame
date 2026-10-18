@@ -13,6 +13,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { gzipSync } from "node:zlib";
 import {
+  assertNativeColdBuildHost,
   nativeDistributionDirectory,
   prepareNativeDistribution,
 } from "./prepare-distribution.mjs";
@@ -148,4 +149,17 @@ test("cache keys accept only fixed digests and remain inside the repository-owne
       "b".repeat(64),
     ),
   );
+});
+
+test("cold preparation rejects unsupported executable hosts before download or compilation", () => {
+  assert.doesNotThrow(() => assertNativeColdBuildHost("linux", "x64"));
+  for (const [platform, architecture] of [
+    ["linux", "arm64"],
+    ["darwin", "x64"],
+    ["win32", "x64"],
+  ])
+    assert.throws(
+      () => assertNativeColdBuildHost(platform, architecture),
+      /pinned Linux AMD64 build host/,
+    );
 });
