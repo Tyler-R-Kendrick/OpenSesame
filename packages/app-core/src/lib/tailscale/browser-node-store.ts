@@ -18,6 +18,7 @@ import { vaultStore } from "../vault/store.js";
 import {
   TailscaleNativeHTTPConfiguration,
   type TailscaleNodeConfiguration,
+  normalizeTailscaleNodeIdentity,
 } from "./browser-node-port.js";
 const FIELD = "tailscale_browser_node";
 const Metadata = z
@@ -143,6 +144,22 @@ export async function openBrowserNodeState(
       );
     throw error;
   }
+}
+/** Persist an explicit public route choice while retaining the original node's private state. */
+export async function configureBrowserNodeState(
+  config: TailscaleNodeConfiguration,
+  tomb: string,
+  check: () => void,
+): Promise<TailscaleNodeRecord> {
+  const identity = normalizeTailscaleNodeIdentity(config);
+  const nativeHTTP =
+    config.nativeHTTP === undefined
+      ? undefined
+      : TailscaleNativeHTTPConfiguration.parse(config.nativeHTTP);
+  check();
+  const stored = await openBrowserNodeState(identity, tomb, check);
+  check();
+  return updateBrowserNodeNativeHTTP(stored.record, nativeHTTP, check);
 }
 export function savedBrowserNodeConfiguration(): Omit<
   TailscaleNodeConfiguration,
