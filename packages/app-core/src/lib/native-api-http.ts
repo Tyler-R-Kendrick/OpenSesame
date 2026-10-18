@@ -2,6 +2,7 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { EgressDenied } from "./capabilities/egress.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
+import { nativeResponseJson } from "./native-response-json.js";
 
 export class NativeApiError extends Error {
   constructor(
@@ -40,33 +41,18 @@ export type NativeApiHttpRequest = {
   signal?: AbortSignal;
 };
 
-async function reply(response: Response): Promise<BoundaryValue> {
-  const reader = response.body?.getReader();
-  if (!reader) throw new NativeApiError("response", response.status);
-  let size = 0;
-  const chunks: Uint8Array[] = [];
+async function reply(
+  response: Response,
+  signal: AbortSignal,
+): Promise<BoundaryValue> {
+  if (signal.aborted) {
+    void response.body?.cancel().catch(() => undefined);
+    throw new NativeApiError("network");
+  }
   try {
-    for (;;) {
-      const part = await reader.read();
-      if (part.done) break;
-      size += part.value.byteLength;
-      if (size > 256 * 1024)
-        throw new NativeApiError("response", response.status);
-      chunks.push(part.value);
-    }
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    const result: BoundaryValue = JSON.parse(new TextDecoder().decode(bytes));
-    return result;
+    return await nativeResponseJson(response, { maxBytes: 256 * 1024, signal });
   } catch {
     throw new NativeApiError("response", response.status);
-  } finally {
-    await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
   }
 }
 export async function nativeApiHttp(
@@ -98,7 +84,7 @@ export async function nativeApiHttp(
     if (response.status === 429) throw new NativeApiError("rate-limit", 429);
     if (!response.ok || response.redirected)
       throw new NativeApiError("response", response.status);
-    const body = await reply(response);
+    const body = await reply(response, controller.signal);
     transport.assertCurrent();
     if (controller.signal.aborted) throw new NativeApiError("network");
     return body;
