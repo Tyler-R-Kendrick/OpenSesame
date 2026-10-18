@@ -83,6 +83,56 @@ const DOCUMENTED_PROBE_REPLIES = {
   },
 };
 
+const DOCUMENTED_READS = {
+  postmark: {
+    id: "provider.messages.read",
+    label: "List outbound messages",
+    method: "GET",
+    url: "https://api.postmarkapp.com/messages/outbound?count=20&offset=0&messagestream=outbound",
+    headers: { Accept: "application/json" },
+    absentHeaders: ["authorization", "x-postmark-account-token"],
+    reply: {
+      TotalCount: 194,
+      Messages: [
+        {
+          MessageID: "0ac29aee-e1cd-480d-b08d-4f48548ff48d",
+          MessageStream: "outbound",
+          Subject: "Protocol welcome",
+          Status: "Sent",
+          To: [{ Email: "private-recipient@example.test", Name: null }],
+          Recipients: ["private-recipient@example.test"],
+          From: "private-sender@example.test",
+          Metadata: { private: "private metadata must not render" },
+        },
+        {
+          MessageID: "e30970cd-3901-4cc4-8b52-9e7dd57ce350",
+          MessageStream: "outbound",
+          Subject: "Protocol followup",
+          Status: "Queued",
+        },
+      ],
+    },
+    result: {
+      label: "Showing 2 of 194 messages in outbound stream",
+      items: [
+        {
+          id: "0ac29aee-e1cd-480d-b08d-4f48548ff48d",
+          label: "Protocol welcome — Sent",
+        },
+        {
+          id: "e30970cd-3901-4cc4-8b52-9e7dd57ce350",
+          label: "Protocol followup — Queued",
+        },
+      ],
+    },
+    excludedText: [
+      "private-recipient@example.test",
+      "private-sender@example.test",
+      "private metadata must not render",
+    ],
+  },
+};
+
 export function nativeBrowserPlans() {
   return CONNECT_PLAN_JSON.map((json) => {
     const plan = JSON.parse(json);
@@ -168,6 +218,9 @@ export function nativeApiFixture(plan, variantId) {
     parameters,
     credentials,
     reply,
+    read: DOCUMENTED_READS[plan.id]
+      ? structuredClone(DOCUMENTED_READS[plan.id])
+      : null,
   };
 }
 
