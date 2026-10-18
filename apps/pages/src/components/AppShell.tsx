@@ -23,7 +23,6 @@ import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { Crumbs } from "./Crumbs.js";
 import { InstallMark } from "./InstallMark.js";
 import { KeymapSheet } from "./KeymapSheet.js";
-import { LegacyIdentityNotice } from "./LegacyIdentityNotice.js";
 import { MobileToolbar } from "./MobileToolbar.js";
 import { NavTree } from "./NavTree.js";
 import {
@@ -147,8 +146,6 @@ function Shell({ children }: { children?: ReactNode }) {
       {/* A row of the frame, not an overlay: it takes height only while a toast
           shows, so nothing rests on a control (DESIGN.md § Layout). */}
       <ToastStack />
-      {/* After the toast stack, so its arrival subscription is already up. */}
-      <LegacyIdentityNotice />
 
       <Statusline />
 
