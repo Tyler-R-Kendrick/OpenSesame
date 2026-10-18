@@ -2,21 +2,14 @@
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import {
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  rename,
-  rm,
-  statfs,
-} from "node:fs/promises";
+import { lstat, mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { nativeBuildEnvironment } from "./compose-native.mjs";
 import {
   assertNativeSourceInputs,
   readNativeDistribution,
 } from "./distribution-cache.mjs";
+import { assertNativeTaskResources } from "./task-resources.mjs";
 const digestPattern = /^[a-f0-9]{64}$/;
 const inFlight = new Map();
 const hash = (value) => createHash("sha256").update(value).digest("hex");
@@ -57,15 +50,10 @@ async function verifyArchive(path, digest) {
     await handle.close();
   }
 }
-async function diskUse(path) {
-  const value = await statfs(path, { bigint: true });
-  if ((value.blocks - value.bfree) * value.bsize > 27n * 1024n ** 3n)
-    throw new Error(
-      "Native runtime preparation exceeded its unchanged disk-use limit.",
-    );
-}
+
 async function command(program, args, logPath, output, timeoutMs) {
-  await diskUse(output);
+  const taskRoot = resolve(output, "../..");
+  await assertNativeTaskResources(taskRoot);
   const log = await open(logPath, "wx", 0o600);
   const child = spawn(program, args, {
     detached: true,
@@ -92,10 +80,17 @@ async function command(program, args, logPath, output, timeoutMs) {
   process.on("SIGTERM", stop);
   process.on("SIGINT", stop);
   const deadline = setTimeout(stop, timeoutMs);
+  let checking = false;
   const monitoring = setInterval(() => {
-    void diskUse(output).catch(() => {
-      if (!completed) stop();
-    });
+    if (checking) return;
+    checking = true;
+    void assertNativeTaskResources(taskRoot)
+      .catch(() => {
+        if (!completed) stop();
+      })
+      .finally(() => {
+        checking = false;
+      });
   }, 1000);
   try {
     await new Promise((accept, reject) => {
@@ -162,6 +157,11 @@ async function archive(pin, cache, work, label) {
 async function prepare(repositoryRoot, sourceSha256, distributionSha256) {
   const here = join(resolve(repositoryRoot), "tools/pwa-tailscale-native-http");
   const pins = await assertNativeSourceInputs(here, sourceSha256);
+  const taskRoot = join(
+    resolve(repositoryRoot),
+    ".cache/pwa-tailscale-native-http",
+  );
+  if (await present(taskRoot)) await assertNativeTaskResources(taskRoot);
   const directory = nativeDistributionDirectory(
     repositoryRoot,
     sourceSha256,
