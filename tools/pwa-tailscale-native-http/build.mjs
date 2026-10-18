@@ -301,13 +301,16 @@ async function stageNativeHttp() {
     "nativehttp_security_test.go",
     "draining.go",
     "draining_test.go",
+    "operations.go",
+    "operations_test.go",
+    "operations_tls_test.go",
   ];
   if (
     !Array.isArray(files) ||
     files.length !== names.length ||
     files.some((file, index) => file?.path !== names[index])
   )
-    throw new Error("Only the five fixed native HTTP overlays may be staged.");
+    throw new Error("Only the eight fixed native HTTP overlays may be staged.");
   for (const file of files)
     await requireHash(join(here, file.path), file.sha256);
   const directory = join(source, "cmd/tsconnect/nativehttp");

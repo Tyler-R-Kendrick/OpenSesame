@@ -89,8 +89,20 @@
       {
         "path": "draining_test.go",
         "sha256": "506e4a7440c5fdf4f675639a7a2d25ef7a87d26c084a17315d12fd0566667b31"
+      },
+      {
+        "path": "operations.go",
+        "sha256": "a01fc67ca8fe048c84f6cce9a2b48c1053ef09615d1cd472356cca7cb9d80856"
+      },
+      {
+        "path": "operations_test.go",
+        "sha256": "0f8aef0a6b6fad954664ea175184429dbdcf51e3062c06d3ea17e2543ae0a8ad"
+      },
+      {
+        "path": "operations_tls_test.go",
+        "sha256": "d053cf6f7cc73ac425530431ee12086b6e7a2cae02ee755a71ff381f2625daef"
       }
     ],
-    "qualification": "Stage only these five pinned overlays into a fresh owned directory. The physical-drain helper is an unactivated prerequisite for operation registry accounting; it is exercised with actual Do by owned host TLS tests. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not activate browser transport or certify public trust, routes, DNS, exit selection or provider integrations."
+    "qualification": "Stage only these eight pinned overlays into a fresh owned directory. Physical drain and the bounded operation registry are unactivated foundations exercised by actual owned host TLS tests, not node/worker browser activation. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not certify public trust, routes, DNS, exit selection, JS publication or provider integrations."
   }
 }
