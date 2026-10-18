@@ -6,7 +6,7 @@ import {
 import type { SecretBackendFetch } from "./types.js";
 
 type AssetPin = { bytes: number; hash: string };
-async function verifiedBytes(
+async function boundedBytes(
   body: ReadableStream<Uint8Array>,
   pin: AssetPin,
   signal: AbortSignal,
@@ -28,6 +28,15 @@ async function verifiedBytes(
   check();
   signal.throwIfAborted();
   if (bytes.byteLength !== pin.bytes) throw onePasswordNetworkError();
+  return bytes;
+}
+async function verifiedBuffer(
+  bytes: ArrayBuffer,
+  pin: AssetPin,
+  signal: AbortSignal,
+  check: () => void,
+): Promise<ArrayBuffer> {
+  if (bytes.byteLength !== pin.bytes) throw onePasswordNetworkError();
   const hash = await crypto.subtle.digest("SHA-256", bytes);
   check();
   signal.throwIfAborted();
@@ -38,6 +47,40 @@ async function verifiedBytes(
   return bytes;
 }
 
+async function verifiedBytes(
+  body: ReadableStream<Uint8Array>,
+  pin: AssetPin,
+  signal: AbortSignal,
+  check: () => void,
+): Promise<ArrayBuffer> {
+  return verifiedBuffer(
+    await boundedBytes(body, pin, signal, check),
+    pin,
+    signal,
+    check,
+  );
+}
+async function verifiedNetworkBytes(
+  response: Response,
+  pin: AssetPin,
+  signal: AbortSignal,
+  check: () => void,
+): Promise<ArrayBuffer> {
+  const copy = response.clone();
+  let complete = false;
+  try {
+    if (!copy.body) throw onePasswordNetworkError();
+    await boundedBytes(copy.body, pin, signal, check);
+    const bytes = await response.arrayBuffer();
+    complete = true;
+    check();
+    signal.throwIfAborted();
+    return await verifiedBuffer(bytes, pin, signal, check);
+  } finally {
+    if (!complete)
+      await Promise.allSettled([copy.body?.cancel(), response.body?.cancel()]);
+  }
+}
 /** Authenticate bounded gzip transport, then the official raw WASM, before instantiation. */
 export function createOnePasswordAssetFetch(
   assets: OnePasswordAssets,
@@ -67,8 +110,8 @@ export function createOnePasswordAssetFetch(
       !response.body
     )
       throw onePasswordNetworkError();
-    const compressed = await verifiedBytes(
-      response.body,
+    const compressed = await verifiedNetworkBytes(
+      response,
       {
         bytes: artifacts.sdk.wasmGzipBytes,
         hash: artifacts.sdk.wasmGzipHash,
