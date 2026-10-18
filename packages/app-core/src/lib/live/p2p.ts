@@ -23,7 +23,7 @@
  */
 
 import type { IceDiagnosticView } from "./ice-diagnostics.js";
-import type { ChannelMessage } from "./messages.js";
+import type { ChannelMessage, SeatRoute } from "./messages.js";
 import type { IceServerSpec } from "./routes.js";
 
 /** What one frame may weigh in bytes: under Chromium's 256 KiB message limit. */
@@ -109,6 +109,16 @@ export interface PeerTransport {
 
 /** Makes the transport for one session, over the routes its link names. */
 export type TransportFactory = (routing: PeerRouting) => PeerTransport;
+
+/** The peer link a request offers, or null on a relay route (no offer). */
+export async function dialForRoute(
+  route: SeatRoute | undefined,
+  transport: PeerTransport | null,
+): Promise<DialLink | null> {
+  if (route === "relay") return null;
+  if (!transport) throw new Error("join_transport_required");
+  return transport.dial();
+}
 
 /** Frames held before anyone reads the channel; the catalog is one. */
 const BACKLOG_MAX = 64;
