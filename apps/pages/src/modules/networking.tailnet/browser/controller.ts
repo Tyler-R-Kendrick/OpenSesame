@@ -2,6 +2,7 @@ import { subscribeDeviceRows } from "@opensesame/app-core/lib/device-connector-r
 import { localVaultSessionGuard } from "@opensesame/app-core/lib/secret-backends/local-vault-port.js";
 import type {
   TailscaleBrowserNode,
+  TailscaleNativeHTTPPort,
   TailscaleNodeConfiguration,
   TailscaleNodeSnapshot,
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
@@ -17,12 +18,16 @@ import {
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import artifacts from "../../../lib/capabilities/tailscale-artifacts.json";
+import {
+  type BrowserNodePolicy,
+  browserNodeControlURL,
+} from "./browser-node-policy.js";
+import {
+  BrowserNodeRequests,
+  nativeWorkerOptions,
+} from "./controller-requests.js";
 import { Configuration, HostMessage, NetMap } from "./protocol.js";
-export type BrowserNodePolicy = {
-  assertCurrent(): void;
-  approve(url: string, method: string): boolean;
-  approvePeer(url: string): boolean;
-};
+export type { BrowserNodePolicy } from "./browser-node-policy.js";
 const stopped = (): TailscaleNodeSnapshot => ({
   status: "stopped",
   hostname: "",
@@ -54,15 +59,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
   private releaseRows: (() => void) | null = null;
   private running = false;
   private authorized = false;
-  private nextGet = 0;
-  private gets = new Map<
-    number,
-    {
-      resolve(value: { status: number; text: string }): void;
-      reject(error: Error): void;
-      timer: ReturnType<typeof setTimeout>;
-    }
-  >();
+  private requests: BrowserNodeRequests | null = null;
   constructor(private readonly policy: BrowserNodePolicy) {}
   snapshot = () => this.view;
   authorization = () => {
@@ -103,37 +100,32 @@ class BrowserNodeController implements TailscaleBrowserNode {
         "Tailscale private state changed. Reconnect the browser node.",
       );
   }
+  private beginSession(
+    input: TailscaleNodeConfiguration,
+    url: URL,
+    turn: number,
+  ): void {
+    this.session = localVaultSessionGuard(vaultStore);
+    this.check(turn);
+    this.publish({
+      ...stopped(),
+      hostname: input.hostname,
+      controlURL: url.origin,
+      status: "starting",
+    });
+  }
   async start(input: TailscaleNodeConfiguration): Promise<void> {
     this.stop();
     const turn = this.turn;
     try {
       this.policy.assertCurrent();
-      const url = new URL(input.controlURL);
-      if (
-        (url.protocol !== "https:" &&
-          !(
-            url.protocol === "http:" &&
-            ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
-          )) ||
-        url.username ||
-        url.password ||
-        url.search ||
-        url.hash ||
-        url.pathname !== "/"
-      )
-        throw new Error(
-          "Use an HTTPS control server or an HTTP loopback test server.",
-        );
-      this.session = localVaultSessionGuard(vaultStore);
-      this.check(turn);
-      this.publish({
-        ...stopped(),
-        hostname: input.hostname,
-        controlURL: url.origin,
-        status: "starting",
-      });
+      const url = browserNodeControlURL(input.controlURL);
+      this.beginSession(input, url, turn);
+      const session = this.session;
+      if (!session) throw new Error("Tailscale node session ended.");
       const config = Configuration.parse({
         ...input,
+        nativeHTTP: undefined,
         controlURL: url.origin,
         authKey: input.authKey ?? "",
         state: {},
@@ -149,8 +141,8 @@ class BrowserNodeController implements TailscaleBrowserNode {
         },
       });
       const stored = await openBrowserNodeState(
-        config,
-        this.session.current().tomb,
+        { ...config, nativeHTTP: input.nativeHTTP },
+        session.current().tomb,
         () => this.check(turn),
       );
       this.check(turn);
@@ -181,11 +173,32 @@ class BrowserNodeController implements TailscaleBrowserNode {
         type: "module",
         name: "opensesame-tailscale",
       });
+      this.requests = new BrowserNodeRequests(
+        this.worker,
+        () => this.check(turn),
+        () => this.view.status === "connected" && this.writing === 0,
+        (url) => this.policy.approvePeer(url),
+        () => this.stop(),
+        stored.record.nativeHTTP !== undefined,
+      );
+      const options = nativeWorkerOptions(
+        stored.record.nativeHTTP,
+        artifacts.assets,
+        new URL(import.meta.env.BASE_URL, location.origin),
+      );
       this.worker.onmessage = (event) => this.receive(event.data, turn);
       this.worker.onerror = () => this.fail(turn);
       this.worker.postMessage({
         kind: "start",
-        config: { ...config, state: stored.state },
+        config: {
+          ...config,
+          state: stored.state,
+          nativeHTTP: options.nativeHTTP,
+          assets: {
+            ...config.assets,
+            ...options.asset,
+          },
+        },
       });
     } catch (error) {
       if (turn === this.turn) {
@@ -257,6 +270,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
     message: ReturnType<typeof HostMessage.parse>,
     turn: number,
   ): void {
+    if (this.requests?.receive(message)) return;
     if (message.kind === "decision") {
       const url = new URL(message.url);
       // Optional upstream diagnostic uploads never leave this PWA.
@@ -281,7 +295,6 @@ class BrowserNodeController implements TailscaleBrowserNode {
       });
       this.connected();
     } else if (message.kind === "auth") this.authorize(message.url);
-    else if (message.kind === "get") this.resolveGet(message);
     else if (message.kind === "error") this.fail(turn);
   }
   private connected() {
@@ -323,36 +336,17 @@ class BrowserNodeController implements TailscaleBrowserNode {
     this.check();
     this.worker?.postMessage({ kind: "login" });
   }
+  captureNativeHTTP(owner: AbortSignal): TailscaleNativeHTTPPort {
+    this.check();
+    if (!this.requests)
+      throw new Error("Connect the original browser node first.");
+    return this.requests.capture(owner);
+  }
   get(url: string): Promise<{ status: number; text: string }> {
     this.check();
-    if (this.view.status !== "connected" || !this.policy.approvePeer(url))
-      return Promise.reject(
-        new Error(
-          "Connect a browser node and allow this tailnet service first.",
-        ),
-      );
-    const id = ++this.nextGet;
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.gets.delete(id);
-        // The published SDK has no per-request cancellation handle.
-        this.stop();
-        reject(
-          new Error(
-            "Tailscale peer request timed out; the browser node was disconnected.",
-          ),
-        );
-      }, 30_000);
-      this.gets.set(id, { resolve, reject, timer });
-      this.worker?.postMessage({ kind: "get", id, url });
-    });
-  }
-  private resolveGet(value: { id: number; status: number; text: string }) {
-    const pending = this.gets.get(value.id);
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.gets.delete(value.id);
-    pending.resolve({ status: value.status, text: value.text });
+    if (!this.requests)
+      return Promise.reject(new Error("Connect a browser node first."));
+    return this.requests.get(url);
   }
   private fail(turn: number) {
     if (turn !== this.turn) return;
@@ -365,6 +359,8 @@ class BrowserNodeController implements TailscaleBrowserNode {
   }
   stop(): void {
     this.turn++;
+    this.requests?.close();
+    this.requests = null;
     this.worker?.terminate();
     this.worker = null;
     this.releaseVault?.();
@@ -382,11 +378,6 @@ class BrowserNodeController implements TailscaleBrowserNode {
     this.writes = Promise.resolve();
     this.running = false;
     this.authorized = false;
-    for (const pending of this.gets.values()) {
-      clearTimeout(pending.timer);
-      pending.reject(new Error("Tailscale node stopped."));
-    }
-    this.gets.clear();
     this.publish(stopped());
   }
 }
