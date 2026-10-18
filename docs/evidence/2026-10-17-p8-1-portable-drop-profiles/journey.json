@@ -1,0 +1,553 @@
+{
+  "out": ".",
+  "driver": "apps/pages/scripts/capture-round8-profile-evidence.mjs",
+  "before": "40681647c9ea585c6ec5fb920e81e2c7a70b12da",
+  "after": "51f27bc95716afda76eeae4629a18abfd03115ba",
+  "profiles": ["minimal-local", "default", "custom", "full"],
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "profile": "minimal-local",
+      "buildKey": "minimal-local",
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "/vault/new"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "shot": "minimal-local-1280-share"
+        },
+        {
+          "press": "Seal and share"
+        },
+        {
+          "shot": "minimal-local-1280-ready"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "profile": "minimal-local",
+      "buildKey": "minimal-local",
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "/vault/new"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "shot": "minimal-local-390-share"
+        },
+        {
+          "press": "Seal and share"
+        },
+        {
+          "shot": "minimal-local-390-ready"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "profile": "default",
+      "buildKey": "stock",
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "/vault/new"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "shot": "default-1280-share"
+        },
+        {
+          "press": "Seal and share"
+        },
+        {
+          "shot": "default-1280-ready"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "profile": "default",
+      "buildKey": "stock",
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "/vault/new"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "shot": "default-390-share"
+        },
+        {
+          "press": "Seal and share"
+        },
+        {
+          "shot": "default-390-ready"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "profile": "custom",
+      "buildKey": "stock",
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "/vault/new"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "shot": "custom-1280-share"
+        },
+        {
+          "press": "Seal and share"
+        },
+        {
+          "shot": "custom-1280-ready"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "profile": "custom",
+      "buildKey": "stock",
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "/vault/new"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "shot": "custom-390-share"
+        },
+        {
+          "press": "Seal and share"
+        },
+        {
+          "shot": "custom-390-ready"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "profile": "full",
+      "buildKey": "full",
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "/vault/new"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "shot": "full-1280-share"
+        },
+        {
+          "press": "Seal and share"
+        },
+        {
+          "shot": "full-1280-ready"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "profile": "full",
+      "buildKey": "full",
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "/vault/new"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "shot": "full-390-share"
+        },
+        {
+          "press": "Seal and share"
+        },
+        {
+          "shot": "full-390-ready"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "minimal-local-1280",
+      "width": 1280,
+      "title": "minimal-local — share and drop ready, 1280 × 900",
+      "caption": "Share once, before seal on minimal-local at 1280 × 900. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 1 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning). Drop ready on minimal-local at 1280 × 900. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 0 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning).",
+      "before": "Opens on “This browser” · any 0 · this browser 1 · Opens on “This browser” · any 0 · this browser 1",
+      "after": "Opens on “Any browser with the link” · any 1 · this browser 0 · Opens on “Any browser with the link” · any 1 · this browser 0"
+    },
+    {
+      "shot": "minimal-local-390",
+      "width": 390,
+      "title": "minimal-local — share and drop ready, 390 × 844",
+      "caption": "Share once, before seal on minimal-local at 390 × 844. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 1 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning). Drop ready on minimal-local at 390 × 844. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 0 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning).",
+      "before": "Opens on “This browser” · any 0 · this browser 1 · Opens on “This browser” · any 0 · this browser 1",
+      "after": "Opens on “Any browser with the link” · any 1 · this browser 0 · Opens on “Any browser with the link” · any 1 · this browser 0"
+    },
+    {
+      "shot": "default-1280",
+      "width": 1280,
+      "title": "default — share and drop ready, 1280 × 900",
+      "caption": "Share once, before seal on default at 1280 × 900. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 1 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning). Drop ready on default at 1280 × 900. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 0 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning).",
+      "before": "Opens on “This browser” · any 0 · this browser 1 · Opens on “This browser” · any 0 · this browser 1",
+      "after": "Opens on “Any browser with the link” · any 1 · this browser 0 · Opens on “Any browser with the link” · any 1 · this browser 0"
+    },
+    {
+      "shot": "default-390",
+      "width": 390,
+      "title": "default — share and drop ready, 390 × 844",
+      "caption": "Share once, before seal on default at 390 × 844. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 1 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning). Drop ready on default at 390 × 844. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 0 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning).",
+      "before": "Opens on “This browser” · any 0 · this browser 1 · Opens on “This browser” · any 0 · this browser 1",
+      "after": "Opens on “Any browser with the link” · any 1 · this browser 0 · Opens on “Any browser with the link” · any 1 · this browser 0"
+    },
+    {
+      "shot": "custom-1280",
+      "width": 1280,
+      "title": "custom — share and drop ready, 1280 × 900",
+      "caption": "Share once, before seal on custom at 1280 × 900. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 1 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning). Drop ready on custom at 1280 × 900. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 0 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning).",
+      "before": "Opens on “This browser” · any 0 · this browser 1 · Opens on “This browser” · any 0 · this browser 1",
+      "after": "Opens on “Any browser with the link” · any 1 · this browser 0 · Opens on “Any browser with the link” · any 1 · this browser 0"
+    },
+    {
+      "shot": "custom-390",
+      "width": 390,
+      "title": "custom — share and drop ready, 390 × 844",
+      "caption": "Share once, before seal on custom at 390 × 844. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 1 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning). Drop ready on custom at 390 × 844. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 0 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning).",
+      "before": "Opens on “This browser” · any 0 · this browser 1 · Opens on “This browser” · any 0 · this browser 1",
+      "after": "Opens on “Any browser with the link” · any 1 · this browser 0 · Opens on “Any browser with the link” · any 1 · this browser 0"
+    },
+    {
+      "shot": "full-1280",
+      "width": 1280,
+      "title": "full — share and drop ready, 1280 × 900",
+      "caption": "Share once, before seal on full at 1280 × 900. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 1 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning). Drop ready on full at 1280 × 900. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 0 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning).",
+      "before": "Opens on “This browser” · any 0 · this browser 1 · Opens on “This browser” · any 0 · this browser 1",
+      "after": "Opens on “Any browser with the link” · any 1 · this browser 0 · Opens on “Any browser with the link” · any 1 · this browser 0"
+    },
+    {
+      "shot": "full-390",
+      "width": 390,
+      "title": "full — share and drop ready, 390 × 844",
+      "caption": "Share once, before seal on full at 390 × 844. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 1 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning). Drop ready on full at 390 × 844. Before: Opens on is “This browser” (0 × Any browser with the link, 1 × This browser, 0 × device-only warning). After: Opens on is “Any browser with the link” (1 × Any browser with the link, 0 × This browser, 0 × device-only warning).",
+      "before": "Opens on “This browser” · any 0 · this browser 1 · Opens on “This browser” · any 0 · this browser 1",
+      "after": "Opens on “Any browser with the link” · any 1 · this browser 0 · Opens on “Any browser with the link” · any 1 · this browser 0"
+    }
+  ],
+  "measurements": {
+    "before": {
+      "minimal-local": {
+        "390": {
+          "share": {
+            "any": 0,
+            "here": 1,
+            "warning": 1,
+            "opensOn": "This browser"
+          },
+          "ready": {
+            "any": 0,
+            "here": 1,
+            "warning": 0,
+            "opensOn": "This browser"
+          }
+        },
+        "1280": {
+          "share": {
+            "any": 0,
+            "here": 1,
+            "warning": 1,
+            "opensOn": "This browser"
+          },
+          "ready": {
+            "any": 0,
+            "here": 1,
+            "warning": 0,
+            "opensOn": "This browser"
+          }
+        },
+        "note": "",
+        "buildKey": "minimal-local"
+      },
+      "default": {
+        "390": {
+          "share": {
+            "any": 0,
+            "here": 1,
+            "warning": 1,
+            "opensOn": "This browser"
+          },
+          "ready": {
+            "any": 0,
+            "here": 1,
+            "warning": 0,
+            "opensOn": "This browser"
+          }
+        },
+        "1280": {
+          "share": {
+            "any": 0,
+            "here": 1,
+            "warning": 1,
+            "opensOn": "This browser"
+          },
+          "ready": {
+            "any": 0,
+            "here": 1,
+            "warning": 0,
+            "opensOn": "This browser"
+          }
+        },
+        "note": "no capability-profiles/default.json; stock build, setup choice Default",
+        "buildKey": "stock"
+      },
+      "custom": {
+        "390": {
+          "share": {
+            "any": 0,
+            "here": 1,
+            "warning": 1,
+            "opensOn": "This browser"
+          },
+          "ready": {
+            "any": 0,
+            "here": 1,
+            "warning": 0,
+            "opensOn": "This browser"
+          }
+        },
+        "1280": {
+          "share": {
+            "any": 0,
+            "here": 1,
+            "warning": 1,
+            "opensOn": "This browser"
+          },
+          "ready": {
+            "any": 0,
+            "here": 1,
+            "warning": 0,
+            "opensOn": "This browser"
+          }
+        },
+        "note": "no capability-profiles/custom.json; setup choice Custom on the stock build",
+        "buildKey": "stock"
+      },
+      "full": {
+        "390": {
+          "share": {
+            "any": 0,
+            "here": 1,
+            "warning": 1,
+            "opensOn": "This browser"
+          },
+          "ready": {
+            "any": 0,
+            "here": 1,
+            "warning": 0,
+            "opensOn": "This browser"
+          }
+        },
+        "1280": {
+          "share": {
+            "any": 0,
+            "here": 1,
+            "warning": 1,
+            "opensOn": "This browser"
+          },
+          "ready": {
+            "any": 0,
+            "here": 1,
+            "warning": 0,
+            "opensOn": "This browser"
+          }
+        },
+        "note": "",
+        "buildKey": "full"
+      }
+    },
+    "after": {
+      "minimal-local": {
+        "390": {
+          "share": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          },
+          "ready": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          }
+        },
+        "1280": {
+          "share": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          },
+          "ready": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          }
+        },
+        "note": "",
+        "buildKey": "minimal-local"
+      },
+      "default": {
+        "390": {
+          "share": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          },
+          "ready": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          }
+        },
+        "1280": {
+          "share": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          },
+          "ready": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          }
+        },
+        "note": "no capability-profiles/default.json; stock build, setup choice Default",
+        "buildKey": "stock"
+      },
+      "custom": {
+        "390": {
+          "share": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          },
+          "ready": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          }
+        },
+        "1280": {
+          "share": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          },
+          "ready": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          }
+        },
+        "note": "no capability-profiles/custom.json; setup choice Custom on the stock build",
+        "buildKey": "stock"
+      },
+      "full": {
+        "390": {
+          "share": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          },
+          "ready": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          }
+        },
+        "1280": {
+          "share": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          },
+          "ready": {
+            "any": 1,
+            "here": 0,
+            "warning": 0,
+            "opensOn": "Any browser with the link"
+          }
+        },
+        "note": "",
+        "buildKey": "full"
+      }
+    }
+  }
+}
