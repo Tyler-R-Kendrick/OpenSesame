@@ -8,7 +8,7 @@
 
 use std::process::Command;
 
-use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass};
+use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass, ResolveError};
 
 /// The variable that names the exact `tomb` to run.
 const TOMB_OVERRIDE: &str = "OPENSESAME_TOMB";
@@ -32,8 +32,10 @@ const TOMB_ENV: [Pass; 10] = [
 
 /// `tomb` for `lookup`, ready for `open` or `close`.
 fn tomb_in(lookup: &Lookup) -> anyhow::Result<Command> {
-    let mut command = command_in("tomb", Some(TOMB_OVERRIDE), lookup).map_err(|why| {
-        anyhow::anyhow!("{why}; install Tomb, name it with {TOMB_OVERRIDE}, or use a portable tomb")
+    // A not-found message already says which variable names the file.
+    let mut command = command_in("tomb", Some(TOMB_OVERRIDE), lookup).map_err(|why| match why {
+        ResolveError::NotFound(_) => anyhow::anyhow!("{why}; install Tomb or use a portable tomb"),
+        ResolveError::Override(_) => anyhow::anyhow!("{why}"),
     })?;
     pass_in(&mut command, &TOMB_ENV, lookup);
     Ok(command)
@@ -82,5 +84,18 @@ mod tests {
             err.starts_with("OPENSESAME_TOMB must be an absolute path"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn a_missing_tomb_names_the_variable_once() {
+        let fixture = Fixture::new("tomb");
+        std::fs::remove_file(fixture.trusted.join("tomb")).unwrap();
+        let err = tomb_in(&fixture.lookup(&[])).unwrap_err().to_string();
+        assert_eq!(err.matches(TOMB_OVERRIDE).count(), 1, "{err}");
+        assert!(
+            err.ends_with("install Tomb or use a portable tomb"),
+            "{err}"
+        );
+        assert!(!fixture.planted_ran());
     }
 }
