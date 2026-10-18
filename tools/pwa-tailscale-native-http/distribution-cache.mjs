@@ -5,6 +5,7 @@ import { lstat, open } from "node:fs/promises";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { string } from "zod/v4/mini";
+import { compressorArchivePin } from "./compressor-archive.mjs";
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const digestPattern = /^[a-f0-9]{64}$/;
 const PublicRootsVersion = string();
@@ -70,7 +71,18 @@ export async function assertNativeSourceInputs(here, expectedSourceSha256) {
     const previous = seen.get(file.path);
     if (previous && previous !== file.sha256)
       throw new Error("Conflicting native source pins.");
-    await pinnedText(join(here, file.path), file.sha256);
+    if (file.path === compressorArchivePin.path) {
+      if (file.sha256 !== compressorArchivePin.sha256)
+        throw new Error("Native compressor source pin differs.");
+      await exactFile(
+        join(here, file.path),
+        {
+          bytes: compressorArchivePin.bytes,
+          sha256: compressorArchivePin.sha256,
+        },
+        compressorArchivePin.bytes,
+      );
+    } else await pinnedText(join(here, file.path), file.sha256);
     seen.set(file.path, file.sha256);
   }
   return source;
