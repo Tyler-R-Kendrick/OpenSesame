@@ -1,6 +1,10 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import {
+  type BitwardenNativeCipherApi,
+  authorizeBitwardenCipherApi,
+} from "./bitwarden-native-cipher-api.js";
+import {
   type BitwardenNativeKey,
   decodeBitwardenKey,
 } from "./bitwarden-native-cose.js";
@@ -156,6 +160,10 @@ function nativeHttp(
     try {
       current(transport, signal);
       if (!response.ok) throw new NativeHttpError(response.status);
+      if (response.status === 204 || maximum === 0) {
+        closeBody(response);
+        return null;
+      }
       validateReply(response, maximum);
       return await readJson(response, maximum, transport, signal);
     } catch (error) {
@@ -237,6 +245,7 @@ export type BitwardenNativeAccount = {
   /** Internal worker-owned material; this is never a public SecretBackendSession. */
   readonly key: BitwardenNativeKey;
   readonly signal: AbortSignal;
+  readonly ciphers: BitwardenNativeCipherApi;
   sync(): Promise<BoundaryValue[]>;
   dispose(): void;
 };
@@ -275,11 +284,12 @@ export async function openBitwardenNativeAccount(
 ): Promise<BitwardenNativeAccount> {
   validatePassword(password);
   let config: BitwardenNativeCredentials | undefined = { ...input };
-  bitwardenAccountIdentity(config);
+  const userId = bitwardenAccountIdentity(config);
   const owner = new AbortController();
   const identity = nativeHttp(config.identityUrl, transport, owner.signal);
   const api = nativeHttp(config.baseUrl, transport, owner.signal);
   const signal = AbortSignal.any([transport.signal, owner.signal]);
+  const check = () => current(transport, signal);
   let token: ReturnType<typeof decodeBitwardenToken> | undefined;
   let refresh: Promise<void> | undefined;
   let expiresAt = 0;
@@ -296,7 +306,7 @@ export async function openBitwardenNativeAccount(
   };
   signal.addEventListener("abort", dispose, { once: true });
   const renew = async () => {
-    current(transport, signal);
+    check();
     if (!config)
       throw new SecretBackendError(
         "locked",
@@ -309,18 +319,18 @@ export async function openBitwardenNativeAccount(
         body: tokenForm(config),
       }),
     );
-    current(transport, signal);
+    check();
     token = result;
     expiresAt = Date.now() + result.expiresIn * 1000;
   };
   const ensureToken = async () => {
-    current(transport, signal);
+    check();
     if (token && Date.now() < expiresAt - 5000) return;
     refresh ??= renew().finally(() => {
       refresh = undefined;
     });
     await refresh;
-    current(transport, signal);
+    check();
   };
   try {
     const settings = await prelogin(
@@ -339,25 +349,26 @@ export async function openBitwardenNativeAccount(
         },
         MAX_SYNC_BYTES,
       );
-      current(transport, signal);
+      check();
       return decodeBitwardenSync(reply, issued.raw, config, settings);
     };
     const { unlock } = await fetchSync();
-    current(transport, signal);
-    key = await unlockUserKey(unlock, password, limits, () =>
-      current(transport, signal),
-    );
-    current(transport, signal);
+    check();
+    key = await unlockUserKey(unlock, password, limits, () => check());
+    check();
     return {
       key,
       signal,
       dispose,
-      sync: syncedCiphers(
-        fetchSync,
-        unlock,
-        () => current(transport, signal),
-        dispose,
+      ciphers: authorizeBitwardenCipherApi(
+        api,
+        ensureToken,
+        () => token?.token,
+        check,
+        userId,
+        key,
       ),
+      sync: syncedCiphers(fetchSync, unlock, check, dispose),
     };
   } catch (error) {
     dispose();
