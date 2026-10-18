@@ -14,7 +14,7 @@ export { initializeVaultCredentialCustody as initializeSecretBackendCustody };
 export function secretBackendCredentialTarget(
   draft: SecretBackendDraft,
 ): string {
-  return JSON.stringify([
+  const target = [
     "secret-backend",
     draft.providerId,
     draft.mode,
@@ -27,7 +27,10 @@ export function secretBackendCredentialTarget(
     draft.secretPath,
     draft.clientId,
     draft.passwordListId,
-  ]);
+  ];
+  // Keep legacy bindings byte-identical; explicit headers bind new authority.
+  if (draft.appVersion) target.push("appVersion", draft.appVersion);
+  return JSON.stringify(target);
 }
 export function readSecretBackendCredentialItems(
   draft: SecretBackendDraft,
