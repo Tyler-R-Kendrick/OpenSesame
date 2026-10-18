@@ -30,6 +30,9 @@ import {
   type SecretBackendSession,
 } from "./types.js";
 export interface EncryptedRemoteBackend extends SecretBackend {
+  createItem: NonNullable<SecretBackend["createItem"]>;
+  updateItem: NonNullable<SecretBackend["updateItem"]>;
+  deleteItem: NonNullable<SecretBackend["deleteItem"]>;
   authenticate(
     config: SecretBackendConfiguration | EncryptedRemoteConfiguration,
   ): Promise<SecretBackendSession>;

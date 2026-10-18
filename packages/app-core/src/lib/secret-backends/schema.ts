@@ -11,6 +11,7 @@ export const SecretBackendDraftSchema = z.object({
   providerId: z.string().min(1).max(100),
   name: z.string().trim().min(1).max(200),
   mode: z.enum([
+    "encrypted-remote",
     "local",
     "file-import",
     "credential-management",
@@ -166,6 +167,27 @@ function requirePrivateCredentials(draft: Draft): void {
     );
 }
 
+function validateEncryptedRemote(
+  draft: Draft,
+  requireCredentials: boolean,
+): void {
+  if (draft.mode !== "encrypted-remote") return;
+  const url = secretBackendUrl(draft.baseUrl);
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    !draft.remoteStoreId ||
+    (requireCredentials && !draft.encryptionKey)
+  )
+    throw new SecretBackendError(
+      "configuration",
+      "Enter one HTTPS object URL, stable store UUID and inventory encryption key.",
+    );
+}
+
 function validateEncryptionKey(draft: Draft): void {
   if (!draft.encryptionKey) return;
   const key = draft.encryptionKey;
@@ -222,6 +244,7 @@ export function validateSecretBackendDraft(
   validateNativeBitwarden(draft, requireCredentials);
   validateTargets(draft);
   if (requireCredentials) requirePrivateCredentials(draft);
+  validateEncryptedRemote(draft, requireCredentials);
   validateEncryptionKey(draft);
   protectCredentialFields(draft);
   return draft;
