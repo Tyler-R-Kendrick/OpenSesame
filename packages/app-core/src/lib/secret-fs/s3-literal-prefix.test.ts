@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { afterEach, expect, it } from "vitest";
-import { bucket, data, failure } from "./s3-response.test-support.js";
+import { bucket, data, failure } from "./test/s3-response-fixtures.js";
 
 const opened: Awaited<ReturnType<typeof bucket>>[] = [];
 afterEach(async () => {
