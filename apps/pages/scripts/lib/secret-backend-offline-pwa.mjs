@@ -153,6 +153,9 @@ export async function coldOfflineBackendImport(
     await approveNotes(page, base);
     const preset = presets.find((entry) => entry.providerId === "proton-pass");
     await openBackend(page, base, preset);
+    await page
+      .getByLabel("Connection method", { exact: true })
+      .selectOption("file-import");
     await saveBackend(page);
     await installedCacheReady(page, width, check);
     await page.waitForLoadState("networkidle");
