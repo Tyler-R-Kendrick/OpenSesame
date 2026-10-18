@@ -90,6 +90,37 @@ function projectPostmarkMessages(body: BoundaryValue): BoundaryValue {
     })),
   };
 }
+const indices = z.object({
+  items: z
+    .array(z.object({ name: z.string().min(1).max(4096).refine(printable) }))
+    .max(20),
+  nbPages: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(Number.MAX_SAFE_INTEGER)
+    .optional(),
+  message: z.never().optional(),
+  status: z.never().optional(),
+  error: z.never().optional(),
+  errors: z.never().optional(),
+});
+function projectAlgoliaIndices(body: BoundaryValue): BoundaryValue {
+  const response = indices.parse(body);
+  if (
+    new Set(response.items.map((index) => index.name)).size !==
+      response.items.length ||
+    (response.nbPages === 0 && response.items.length > 0)
+  )
+    throw new NativeApiError("response");
+  return {
+    label: `Showing ${response.items.length} ${response.items.length === 1 ? "index" : "indices"} from first page`,
+    items: response.items.map((index) => ({
+      id: index.name,
+      label: index.name,
+    })),
+  };
+}
 const resources: readonly Resource[] = [
   {
     providerId: "agentmail",
@@ -107,6 +138,17 @@ const resources: readonly Resource[] = [
       query: { count: 20, offset: 0, messagestream: "outbound" },
     },
     projectPostmarkMessages,
+  ),
+  jsonResource(
+    "List indices",
+    {
+      providerId: "algolia",
+      operationId: "provider.indices.read",
+      method: "GET",
+      path: "/1/indexes",
+      query: { page: 0, hitsPerPage: 20 },
+    },
+    projectAlgoliaIndices,
   ),
 ];
 /** Both UI and runtime derive their closed operations from this one provider-owned registry. */

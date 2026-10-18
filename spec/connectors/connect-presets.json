@@ -3349,13 +3349,13 @@
       ],
       "verify": {
         "method": "GET",
-        "url": "https://{application_id}-dsn.algolia.net/1/indexes",
+        "url": "https://{application_id}-dsn.algolia.net/1/indexes?page=0&hitsPerPage=20",
         "account_field": null,
         "headers": {
           "X-Algolia-Application-Id": "{application_id}"
         }
       },
-      "instructions": "In the Algolia dashboard open **Settings → API Keys**. Copy the **Application ID**, then under **All API Keys** click **New API Key** and grant only the `listIndexes` ACL (add `search` if needed). Copy the key.",
+      "instructions": "In the Algolia dashboard open **Settings → API Keys**. Copy the **Application ID**, then under **All API Keys** click **New API Key** and grant only the `listIndexes` ACL (add `search` if needed). Copy the key. If an existing connection asks to be configured again after an update, re-enter its API key and select Verify and connect Algolia. Its saved connection and sealed key stay intact until verification succeeds.",
       "docs_url": "https://www.algolia.com/doc/rest-api/search/",
       "probe_status": 403,
       "confidence": "medium",
