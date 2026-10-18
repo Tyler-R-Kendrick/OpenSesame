@@ -182,6 +182,8 @@ async function confirmPredecessorEntry(
     name,
     maxBytes,
     check,
+    false,
+    before.handle === null ? entry : undefined,
   );
   check();
   if (!current.handle || !(await entry.same(current.handle)))

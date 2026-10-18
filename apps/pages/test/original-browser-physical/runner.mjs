@@ -91,6 +91,23 @@ try {
       strictPort: true,
       fs: { allow: [repo] },
     },
+    // Reused dependency trees must never redirect the selected source checkout.
+    resolve: {
+      alias: [
+        {
+          find: /^@opensesame\/app-core\/(.*)\.js$/,
+          replacement: `${repo}/packages/app-core/src/$1`,
+        },
+        {
+          find: /^@opensesame\/vault-core$/,
+          replacement: `${repo}/packages/vault-core/src/index.ts`,
+        },
+        {
+          find: /^@opensesame\/vault-core\/(.*)\.js$/,
+          replacement: `${repo}/packages/vault-core/src/$1`,
+        },
+      ],
+    },
     esbuild: { target: "es2022" },
     optimizeDeps: {
       esbuildOptions: { target: "es2022" },
@@ -164,6 +181,13 @@ try {
     }
   }
   for (const name of [
+    "deleted-registry",
+    "restored-registry",
+    "orphan-header",
+    "orphan-body",
+    "catalogue-after-capture-drift",
+    "orphan-retired-record",
+    "empty-profile",
     "roundtrip",
     "no-initialization",
     "key-replacement",
