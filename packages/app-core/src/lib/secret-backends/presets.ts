@@ -36,8 +36,10 @@ export function secretBackendDraft(providerId: string): SecretBackendDraft {
     providerId,
     name: preset.label,
     mode: preset.defaultMode,
-    baseUrl: "",
-    identityUrl: "",
+    baseUrl:
+      preset.providerId === "bitwarden" ? "https://api.bitwarden.com" : "",
+    identityUrl:
+      preset.providerId === "bitwarden" ? "https://identity.bitwarden.com" : "",
     token: "",
     vaultId: "",
     projectId: "",
@@ -62,7 +64,7 @@ export function secretBackendModeLabel(mode: SecretBackendMode) {
     "proton-pass": "Proton Pass native API",
     "onepassword-sdk": "1Password native SDK",
     "onepassword-connect": "1Password Connect API",
-    "bitwarden-api": "Bitwarden Vault Management API",
+    "bitwarden-api": "Bitwarden-compatible personal vault",
     "bitwarden-secrets": "Bitwarden Secrets Manager",
     infisical: "Infisical Secrets API",
     passwordstate: "Passwordstate API",

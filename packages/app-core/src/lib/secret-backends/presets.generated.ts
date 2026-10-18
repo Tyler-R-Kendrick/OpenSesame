@@ -19,7 +19,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
     defaultMode: "local",
     docsUrl: "https://developer.mozilla.org/en-US/docs/Web/API/File_API",
     setup:
-      "Choose a local vault, an export file, browser credentials, a native SDK, or a documented HTTP protocol. Use a 1Password service account token for native SDK access. HTTP connections use your supplied endpoint and credential; allow this browser origin through CORS. No local process is started.",
+      "Choose the native protocol for your secret backend. Bitwarden-compatible personal vaults use your API and identity URLs, personal account credentials and a temporary master password; encryption runs in a dedicated browser worker. Native 1Password uses a scoped service account token. Each method shares this configuration form and the common item and vault-backup interface.",
     fileFormats: [
       {
         id: "bitwarden-json",
@@ -107,7 +107,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
     defaultMode: "bitwarden-api",
     docsUrl: "https://bitwarden.com/help/bitwarden-apis/",
     setup:
-      "Use a configured Vault Management API endpoint, Secrets Manager machine account, or export file. Vault Management is an existing bw serve service (or a protected same-origin endpoint); the PWA calls HTTP and starts no process. The organization Public API does not expose vault items.",
+      "Connect directly to your personal Bitwarden account with its API and identity URLs, account email, personal API client ID and secret. Unlock locally with your master password for each connection. A dedicated browser worker decrypts and encrypts vault items on this device; the password is never saved with the connection. Select a personal folder if needed. Regional and self-hosted endpoints are configurable.",
     fileFormats: [
       {
         id: "bitwarden-json",
@@ -126,7 +126,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
     defaultMode: "bitwarden-api",
     docsUrl: "https://github.com/dani-garcia/vaultwarden/wiki",
     setup:
-      "Use a Vault Management API service signed into your Vaultwarden server, or import a Bitwarden-compatible export. The Vaultwarden server URL itself is not the decrypted Vault Management API.",
+      "Use your Vaultwarden API URL ending in /api and identity URL ending in /identity. Enter your account email and personal API credentials, then supply your master password for this connection. The dedicated browser worker unlocks and encrypts your personal vault directly; no CLI or additional service is used. A personal folder ID is optional.",
     fileFormats: [
       {
         id: "bitwarden-json",
