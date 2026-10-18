@@ -72,8 +72,10 @@ pnpm --filter @opensesame/env-spec-bridge test
 parses, with a planted `node` in its working directory, an empty and a relative
 `PATH` entry, a directory others can write, a `0775` directory of its own group
 (trusted), and a spread of dummy secrets in its environment, and reads what the
-`node` it ran was handed. `src/node_bridge/trust/tests.rs` is the table of
-owner, group and mode combinations the trust rule decides.
+`node` it ran was handed. The trust rule and the `OPENSESAME_NODE` rule are
+[`opensesame-trusted-exec`](../trusted-exec)'s, the ones every program
+`opensesame` starts by name follows; its `src/trust/tests.rs` is the table of
+owner, group and mode combinations the rule decides.
 
 `bridge_roundtrip_fixture` parses
 [`tests/fixtures/demo.env.schema`](../../tests/fixtures/demo.env.schema)
