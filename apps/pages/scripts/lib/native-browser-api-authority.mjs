@@ -67,15 +67,44 @@ function matchesRequest(fixture, request, headers, url, resource) {
     request.postData() === payload
   );
 }
+function sharedContract(fixture) {
+  const read = fixture.read;
+  const verify = fixture.preset.verify;
+  if (
+    !read ||
+    read.method !== verify.method ||
+    read.url !== verificationUrl(fixture).href ||
+    substitute(read.body ?? "", fixture) !==
+      substitute(verify.body ?? "", fixture)
+  )
+    return false;
+  const readHeaders = expectedHeaders(fixture, true);
+  const verifyHeaders = expectedHeaders(fixture, false);
+  return (
+    Object.keys(readHeaders).length === Object.keys(verifyHeaders).length &&
+    Object.entries(readHeaders).every(
+      ([name, value]) => verifyHeaders[name] === value,
+    )
+  );
+}
 function matchingRequest(fixture, state, request, headers, url) {
   for (const candidate of [
     fixture,
     ...(state.alternates.get(fixture.providerId) ?? []),
   ]) {
-    for (const resource of [false, true]) {
-      if (matchesRequest(candidate, request, headers, url, resource))
-        return { fixture: candidate, resource };
-    }
+    const verification = matchesRequest(
+      candidate,
+      request,
+      headers,
+      url,
+      false,
+    );
+    const resource = matchesRequest(candidate, request, headers, url, true);
+    const shared = sharedContract(candidate);
+    // A shared route retains the resource contract's stricter absent-header checks.
+    if (shared && !resource) continue;
+    if (verification || resource)
+      return { fixture: candidate, resource, shared };
   }
   return null;
 }
@@ -116,7 +145,12 @@ function providerRoute(fixture, state, check) {
     const definition = match.resource ? matched.read : matched.preset.verify;
     state.calls.push({
       providerId: fixture.providerId,
-      purpose: match.resource ? "resource" : "verification",
+      // Identical wire contracts cannot reveal which application action sent them.
+      purpose: match.resource
+        ? match.shared
+          ? "shared"
+          : "resource"
+        : "verification",
       operation: match.resource ? definition.id : null,
       method: request.method(),
       variant: fixture.variant?.id ?? null,

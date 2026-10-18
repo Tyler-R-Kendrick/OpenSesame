@@ -38,8 +38,9 @@ export async function nativeApiReadJourney(page, harness, authority, fixture) {
     );
     const call = authority.state.calls.at(-1);
     harness.check(
-      call?.purpose === "resource" && call.operation === resource.id,
-      `${fixture.providerId}: bounded actual resource route, not verification, supplied the consumed results`,
+      ["resource", "shared"].includes(call?.purpose) &&
+        call.operation === resource.id,
+      `${fixture.providerId}: bounded resource response supplied the consumed typed results; identical verification/resource wire contracts are recorded as shared`,
     );
     for (const value of resource.excludedText)
       harness.check(

@@ -84,6 +84,33 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
+  algolia: {
+    id: "provider.indices.read",
+    label: "List indices",
+    method: "GET",
+    url: "https://contractapp-dsn.algolia.net/1/indexes?page=0&hitsPerPage=20",
+    headers: { "X-Algolia-Application-Id": "{application_id}" },
+    absentHeaders: ["authorization"],
+    reply: {
+      items: [
+        {
+          name: "products",
+          entries: 194,
+          privateMetadata: "private index metadata",
+        },
+        { name: "suppliers", entries: 83 },
+      ],
+      nbPages: 7,
+    },
+    result: {
+      label: "Showing 2 indices from first page",
+      items: [
+        { id: "products", label: "products" },
+        { id: "suppliers", label: "suppliers" },
+      ],
+    },
+    excludedText: ["private index metadata"],
+  },
   postmark: {
     id: "provider.messages.read",
     label: "List outbound messages",
