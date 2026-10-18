@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   readDeviceRows,
   removeDeviceConfigurationDurable,
+  updateDeviceConfigurationDurable,
 } from "../device-connector-records.js";
 import { saveDeviceConnectorConfigurationDurable } from "../device-connectors.js";
 import {
@@ -14,7 +15,10 @@ import {
   stageVaultCredentials,
 } from "../vault-credential-custody.js";
 import { vaultStore } from "../vault/store.js";
-import type { TailscaleNodeConfiguration } from "./browser-node-port.js";
+import {
+  TailscaleNativeHTTPConfiguration,
+  type TailscaleNodeConfiguration,
+} from "./browser-node-port.js";
 const FIELD = "tailscale_browser_node";
 const Metadata = z
   .object({
@@ -22,6 +26,7 @@ const Metadata = z
     controlURL: z.string().url(),
     reference: z.string(),
     tomb: z.string(),
+    nativeHTTP: TailscaleNativeHTTPConfiguration.optional(),
   })
   .strict();
 const State = z.record(z.string(), z.string().max(1_000_000));
@@ -49,14 +54,26 @@ export async function openBrowserNodeState(
   tomb: string,
   check: () => void,
 ) {
+  const nativeHTTP =
+    config.nativeHTTP === undefined
+      ? undefined
+      : TailscaleNativeHTTPConfiguration.parse(config.nativeHTTP);
+  const identity = { hostname: config.hostname, controlURL: config.controlURL };
   await initializeVaultCredentialCustody();
   check();
   const row = savedNodeRow(tomb);
   if (row) {
     const record = Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""));
-    if (record.tomb !== tomb || binding(record) !== binding(config))
+    if (record.tomb !== tomb || binding(record) !== binding(identity))
       throw new Error(
         "This vault has a different saved browser node. Use its hostname and control server.",
+      );
+    if (
+      nativeHTTP !== undefined &&
+      canonicalize(record.nativeHTTP ?? null) !== canonicalize(nativeHTTP)
+    )
+      throw new Error(
+        "Update the saved native HTTPS configuration before reconnecting.",
       );
     const capture = captureState(record);
     const state = decodeState(capture.fields.get("nodeState"));
@@ -71,8 +88,8 @@ export async function openBrowserNodeState(
   }
   const capture = await stageVaultCredentials(
     {
-      name: config.hostname,
-      targetBinding: binding(config),
+      name: identity.hostname,
+      targetBinding: binding(identity),
       fields: [
         {
           field: "nodeState",
@@ -85,17 +102,17 @@ export async function openBrowserNodeState(
     check,
   );
   const record = {
-    hostname: config.hostname,
-    controlURL: config.controlURL,
+    ...identity,
     reference: capture.reference,
     tomb,
+    ...(nativeHTTP === undefined ? {} : { nativeHTTP }),
   };
   let published = false;
   try {
     const connection = await saveDeviceConnectorConfigurationDurable(
       () => ({
         providerId: "tailscale",
-        displayName: config.hostname,
+        displayName: identity.hostname,
         scopes: [],
         fields: {
           [FIELD]: JSON.stringify(record),
@@ -127,18 +144,77 @@ export async function openBrowserNodeState(
     throw error;
   }
 }
-export function savedBrowserNodeConfiguration(): {
-  hostname: string;
-  controlURL: string;
-} | null {
+export function savedBrowserNodeConfiguration(): Omit<
+  TailscaleNodeConfiguration,
+  "authKey"
+> | null {
   try {
     const row = savedNodeRow(vaultStore.getSnapshot().tomb);
     if (!row) return null;
     const record = Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""));
-    return { hostname: record.hostname, controlURL: record.controlURL };
+    return {
+      hostname: record.hostname,
+      controlURL: record.controlURL,
+      ...(record.nativeHTTP === undefined
+        ? {}
+        : { nativeHTTP: record.nativeHTTP }),
+    };
   } catch {
     return null;
   }
+}
+/** Change public routing/trust without replacing the original private node keys. */
+export async function updateBrowserNodeNativeHTTP(
+  original: TailscaleNodeRecord,
+  next: TailscaleNativeHTTPConfiguration | undefined,
+  check: () => void,
+): Promise<TailscaleNodeRecord> {
+  const record = Metadata.parse(original);
+  const nativeHTTP =
+    next === undefined
+      ? undefined
+      : TailscaleNativeHTTPConfiguration.parse(next);
+  const row = savedNodeRow(record.tomb);
+  if (!row) throw new Error("The saved Tailscale browser node changed.");
+  const receipt = browserNodePublicFingerprint(record, row.connectionId);
+  const capture = captureState(record);
+  const assertCurrent = () => {
+    assertVaultCredentials(capture, record.tomb, check);
+    if (browserNodePublicFingerprint(record, row.connectionId) !== receipt)
+      throw new Error("The saved Tailscale browser node changed.");
+  };
+  assertCurrent();
+  const replacement = Metadata.parse({
+    hostname: record.hostname,
+    controlURL: record.controlURL,
+    reference: record.reference,
+    tomb: record.tomb,
+    ...(nativeHTTP === undefined ? {} : { nativeHTTP }),
+  });
+  await updateDeviceConfigurationDurable(
+    row.connectionId,
+    async (current) => {
+      assertCurrent();
+      if (JSON.stringify(current.row) !== receipt)
+        throw new Error("The saved Tailscale browser node changed.");
+      if (canonicalize(record) === canonicalize(replacement)) return current;
+      return {
+        ...current,
+        row: {
+          ...current.row,
+          updatedAt: new Date().toISOString(),
+          fields: {
+            ...current.row.fields,
+            [FIELD]: JSON.stringify(replacement),
+          },
+        },
+      };
+    },
+    assertCurrent,
+  );
+  assertVaultCredentials(capture, record.tomb, check);
+  browserNodePublicFingerprint(replacement, row.connectionId);
+  return replacement;
 }
 /** The exact public row is independent of a legitimate pending private-state write. */
 export function browserNodePublicFingerprint(
