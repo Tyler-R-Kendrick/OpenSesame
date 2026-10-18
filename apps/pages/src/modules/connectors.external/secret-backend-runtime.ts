@@ -1,10 +1,14 @@
 import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
 import { EgressDenied } from "@opensesame/app-core/lib/capabilities/egress.js";
 import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { bindSecretBackendTransport } from "@opensesame/app-core/lib/secret-backends/transport.js";
+import {
+  type SecretBackendTransport,
+  bindSecretBackendTransport,
+} from "@opensesame/app-core/lib/secret-backends/transport.js";
 import { SecretBackendError } from "@opensesame/app-core/lib/secret-backends/types.js";
 import type { Activation } from "../activation.js";
 import { anySignal, runUnlessAborted } from "../signals.js";
+import { captureBrowserNodeTransport } from "./browser-node-transport.js";
 
 /** Preserve Request bodies and headers when adapting fetch to the destination-aware port. */
 async function requestArguments(input: Request, overrides?: RequestInit) {
@@ -26,7 +30,7 @@ async function requestArguments(input: Request, overrides?: RequestInit) {
   return { url: request.url, init };
 }
 
-/** Direct PWA egress only. No native-provider bridge or global fetch is installed. */
+/** Capture the explicitly configured original-node route around the same approved direct PWA egress. */
 export function bindSecretBackendRuntime(
   ctx: ApprovedCapabilityContext,
   activation: Activation,
@@ -40,7 +44,7 @@ export function bindSecretBackendRuntime(
         "External connectors were disabled. Reconnect this secret backend.",
       );
   };
-  const release = bindSecretBackendTransport({
+  const base: SecretBackendTransport = {
     signal,
     assertCurrent,
     fetch: async (input, init) => {
@@ -73,6 +77,15 @@ export function bindSecretBackendRuntime(
           );
         throw error;
       }
+    },
+  };
+  const release = bindSecretBackendTransport({
+    ...base,
+    capture: () => {
+      assertCurrent();
+      const captured = captureBrowserNodeTransport(base, ctx);
+      assertCurrent();
+      return { ...captured, capture: undefined, signal };
     },
   });
   activation.onDispose(() => {
