@@ -3,10 +3,44 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { gzipSync } from "node:zlib";
+import { pathToFileURL } from "node:url";
 import { build } from "vite";
+import { compressNativeWasm } from "./compress-wasm.mjs";
 
 const hash = (data) => createHash("sha256").update(data).digest("hex");
+
+async function nativeMinifier(repositoryRoot, pins) {
+  const require = createRequire(
+    join(repositoryRoot, "apps/pages/package.json"),
+  );
+  const packagePath = require.resolve("terser/package.json");
+  const bytes = await readFile(packagePath);
+  const license = await readFile(join(dirname(packagePath), "LICENSE"));
+  if (
+    JSON.parse(bytes).version !== "5.51.2" ||
+    hash(bytes) !== pins.composition.terser.packageSha256 ||
+    hash(license) !== pins.composition.terser.licenseSha256
+  )
+    throw new Error(
+      "Native minification requires the exact declared Pages Terser dependency.",
+    );
+  const { minify } = await import(
+    pathToFileURL(require.resolve("terser")).href
+  );
+  return async (source, expected) => {
+    const result = await minify(source.toString("utf8"), {
+      ecma: 2022,
+      module: true,
+      compress: { passes: 2 },
+      mangle: true,
+      format: { comments: /Copyright|license/ },
+    });
+    const bytes = Buffer.from(result.code ?? "");
+    if (!bytes.length || hash(bytes) !== expected)
+      throw new Error("Native minified runtime differs from its reviewed pin.");
+    return bytes;
+  };
+}
 
 async function bridgeBundle(here, repositoryRoot, pins) {
   const require = createRequire(join(repositoryRoot, "package.json"));
@@ -59,7 +93,7 @@ async function bridgeBundle(here, repositoryRoot, pins) {
   )
     throw new Error("Native bridge must be one standalone ESM asset.");
   const bytes = Buffer.from(chunks[0].code);
-  if (hash(bytes) !== pins.composition.bridgeSha256)
+  if (hash(bytes) !== pins.composition.bridgeUnminifiedSha256)
     throw new Error(
       "Standalone native bridge graph differs from the pinned artifact.",
     );
@@ -109,17 +143,16 @@ export async function emitNativeAssets({
       "Native runtime shim does not match the selected compiler.",
     );
   const bridge = await bridgeBundle(here, repositoryRoot, pins);
+  const minify = await nativeMinifier(repositoryRoot, pins);
+  const runtime = await minify(shim, pins.composition.runtimeMinifiedSha256);
+  const nativeHTTP = await minify(bridge.bytes, pins.composition.bridgeSha256);
+  const compressed = await compressNativeWasm({ raw, wasmSha256, output });
   const directory = join(output, "tailscale");
   await mkdir(directory);
   const assets = {
-    wasm: await ownedAsset(
-      directory,
-      "main",
-      "wasm.gz",
-      gzipSync(raw, { level: 9 }),
-    ),
-    runtime: await ownedAsset(directory, "go-runtime", "js", shim),
-    nativeHTTP: await ownedAsset(directory, "native-http", "js", bridge.bytes),
+    wasm: await ownedAsset(directory, "main", "wasm.gz", compressed),
+    runtime: await ownedAsset(directory, "go-runtime", "js", runtime),
+    nativeHTTP: await ownedAsset(directory, "native-http", "js", nativeHTTP),
   };
   const notice = Buffer.concat([
     Buffer.from("Tailscale source (BSD-3-Clause)\n\n"),
@@ -138,6 +171,10 @@ export async function emitNativeAssets({
     compilerCommit: pins.compiler.commit,
     publicRootsVersion: pins.publicTrust.version,
     rawWasm: { sha256: hash(raw), bytes: raw.length },
+    buildTools: {
+      minifier: pins.composition.terser,
+      compressor: pins.composition.compressor,
+    },
     assets,
     upstreamNotices: {
       path: "tailscale/OPEN-SOURCE-LICENSES.md",

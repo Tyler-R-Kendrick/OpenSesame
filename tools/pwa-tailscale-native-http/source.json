@@ -325,7 +325,7 @@
       "version": "6.4.3",
       "packageSha256": "a1d0149fd986fd34b6d35503d2c0d8d9f743c4dbaaf94fbc11812bc84b05884d"
     },
-    "bridgeSha256": "6e131a9a542a958b5c34a574daba0c376167370fe2f9b1cbe08977c7d61823cf",
+    "bridgeSha256": "8aae084a520add2b02699280ce153eb1cf5db06c456d90c4d41dfccc22a8ecbf",
     "files": [
       {
         "path": "build.mjs",
@@ -337,7 +337,7 @@
       },
       {
         "path": "native-assets.mjs",
-        "sha256": "28d585d2cb74151dad657ff944bbf47dc775cb4f13f9582bd0fbfa6cb1809887"
+        "sha256": "e81f77cc59a739df60d56c99257b84dc3baba13fc1c8e588a8b7660e5d811a4a"
       },
       {
         "path": "compose-native.test.mjs",
@@ -358,6 +358,14 @@
       "archiveSha256": "eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0",
       "arguments": ["-11", "-I", "3", "-p", "2", "-b", "1024", "-n", "-c"],
       "qualification": "Owned build-only source compilation, not an installed PWA dependency. Each output must decode to the exact complete input bytes; source archive, notices, compiler and executable provenance are retained. No four-phase Go build or runtime feature change."
+    },
+    "bridgeUnminifiedSha256": "6e131a9a542a958b5c34a574daba0c376167370fe2f9b1cbe08977c7d61823cf",
+    "runtimeMinifiedSha256": "3e61b3267aa67a553c289335805e5947e2f80935f782d3d6bcb30adb15674017",
+    "terser": {
+      "version": "5.51.2",
+      "packageSha256": "22ac1ee8fda1c4088a9d1615c5aacaa0562939d89dce2ff8bdfae7b3ff029067",
+      "licenseSha256": "901d0a7fcaccaae9917d165039c0473c354e5da2e0e94140dde67aad9ffb19da",
+      "options": "ecma2022/module;compress.passes2;mangle;preserve Copyright|license comments"
     }
   }
 }
