@@ -94,6 +94,17 @@ jobs:
           printf '%s\n' "$EXPECTED_HEAD" > "$OPENSESAME_AUDIT_DIR/source-head.txt"
       - name: Install the frozen dependency graph
         run: pnpm install --frozen-lockfile
+      - name: Name the runner's node for the bridge
+        # The env-spec bridge runs only a `node` nobody else could have
+        # replaced, and the hosted image's tool cache and /usr/local/bin are
+        # writable by others. OPENSESAME_NODE names the file the way an
+        # operator does (docs/operators/proxied-run-quickstart.md), as the
+        # Rust job in ci.yml does; no node fails the job.
+        shell: bash
+        run: |
+          set -euo pipefail
+          node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
+          echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
       - name: Execute the complete repository gate
         shell: bash
         run: |

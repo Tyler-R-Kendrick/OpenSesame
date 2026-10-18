@@ -79,33 +79,25 @@ impl Sandbox {
             .unwrap();
     }
 
-    /// A `PATH` whose first entry holds a `node` the env-spec bridge trusts:
-    /// an absolute directory of our own that group and others cannot write,
-    /// with the real `node` linked into it. The bridge refuses every
-    /// group-writable entry (e.g. `/usr/local/bin` on CI runners), so without
-    /// this the schema parse fails before the child runs.
-    fn trusted_path(&self) -> String {
-        let dir = self.path("trusted-node");
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
-        let link = dir.join("node");
-        if std::fs::symlink_metadata(&link).is_err() {
-            let system = std::env::var_os("PATH").unwrap_or_default();
-            let real = std::env::split_paths(&system)
-                .map(|d| d.join("node"))
-                .find(|c| {
-                    std::fs::metadata(c)
+    /// The machine's `node`, named the way an operator names it
+    /// (`OPENSESAME_NODE`). These runs are about the plugin and the child, not
+    /// about which `node` the bridge trusts: a hosted CI image keeps its own in
+    /// a world-writable directory, as a world-writable file, which the `PATH`
+    /// search refuses even through a symlink, while the operator's choice is
+    /// taken as named.
+    fn machine_node() -> PathBuf {
+        if let Some(named) = std::env::var_os("OPENSESAME_NODE") {
+            return PathBuf::from(named);
+        }
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        std::env::split_paths(&path)
+            .map(|dir| dir.join("node"))
+            .find(|candidate| {
+                candidate.is_absolute()
+                    && std::fs::metadata(candidate)
                         .is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
-                });
-            match real {
-                Some(node) => std::os::unix::fs::symlink(node, &link).unwrap(),
-                None => return std::env::var("PATH").unwrap_or_default(),
-            }
-        }
-        match std::env::var("PATH") {
-            Ok(rest) if !rest.is_empty() => format!("{}:{rest}", dir.display()),
-            _ => dir.display().to_string(),
-        }
+            })
+            .expect("these tests need a node on PATH or OPENSESAME_NODE")
     }
 
     fn run(&self, child: &[&str]) -> (Output, Duration) {
@@ -121,7 +113,7 @@ impl Sandbox {
             .env("OPENSESAME_STORE_DIR", self.path("store"))
             .env("OPENSESAME_STORE_PASSWORD", STORE_PASSWORD)
             .env("OPENSESAME_TOMBS_CONFIG", self.path("tombs.json"))
-            .env("PATH", self.trusted_path())
+            .env("OPENSESAME_NODE", Self::machine_node())
             .env_remove("OPENSESAME_PLUGIN_SURROGATE_PROXY")
             .output()
             .unwrap();

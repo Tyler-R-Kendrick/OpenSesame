@@ -1,6 +1,6 @@
 import type { SecretBackendItemSummary } from "@opensesame/app-core/lib/secret-backends/types.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
@@ -13,39 +13,64 @@ export const secretBackendBackupDependencies = {
   async backup(
     handle: SecretBackendHandle,
     name: string,
+    assertCurrent: () => void,
   ): Promise<SecretBackendItemSummary> {
+    assertCurrent();
     const { backUpVaultToSecretBackend } = await import(
       "@opensesame/app-core/lib/secret-backends/backup-transfer.js"
     );
-    return backUpVaultToSecretBackend(handle, name);
+    assertCurrent();
+    return backUpVaultToSecretBackend(handle, name, undefined, assertCurrent);
   },
   async restore(
     handle: SecretBackendHandle,
     reference: string,
     secret: string,
+    assertCurrent: () => void,
   ): Promise<number> {
+    assertCurrent();
     const { restoreVaultFromSecretBackend } = await import(
       "@opensesame/app-core/lib/secret-backends/backup-transfer.js"
     );
-    return restoreVaultFromSecretBackend(handle, reference, secret);
+    assertCurrent();
+    return restoreVaultFromSecretBackend(
+      handle,
+      reference,
+      secret,
+      undefined,
+      assertCurrent,
+    );
   },
 };
 
 type Props = { handle: SecretBackendHandle; onFlash: (flash: Flash) => void };
+function useBackupAction({ handle, onFlash }: Props) {
+  const backend = handle.backend.signal;
+  const session = handle.session.signal;
+  const signal = useMemo(() => {
+    const signals = [backend, session].filter(
+      (value): value is AbortSignal => value !== undefined,
+    );
+    return signals.length ? AbortSignal.any(signals) : undefined;
+  }, [backend, session]);
+  return useSecretBackendAction(onFlash, signal);
+}
 function RestoreForm({ handle, onFlash }: Props) {
-  const status = useSecretBackendAction(onFlash);
+  const status = useBackupAction({ handle, onFlash });
   const [reference, setReference] = useState("");
   const [secret, setSecret] = useState("");
   function restore(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const credential = secret;
     setSecret("");
-    void status.run(async () => {
+    void status.run(async (owner) => {
       const count = await secretBackendBackupDependencies.restore(
         handle,
         reference,
         credential,
+        owner.check,
       );
+      owner.check();
       return `${count} items restored from encrypted backup`;
     });
   }
@@ -89,13 +114,18 @@ function RestoreForm({ handle, onFlash }: Props) {
   );
 }
 function BackupForm({ handle, onFlash }: Props) {
-  const status = useSecretBackendAction(onFlash);
+  const status = useBackupAction({ handle, onFlash });
   const [name, setName] = useState("OpenSesame vault backup");
   const [reference, setReference] = useState("");
   function backup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void status.run(async () => {
-      const item = await secretBackendBackupDependencies.backup(handle, name);
+    void status.run(async (owner) => {
+      const item = await secretBackendBackupDependencies.backup(
+        handle,
+        name,
+        owner.check,
+      );
+      owner.check();
       setReference(item.id);
       return "Encrypted vault backup saved and verified";
     });

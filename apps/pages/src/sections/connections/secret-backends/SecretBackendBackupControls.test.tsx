@@ -11,10 +11,15 @@ import {
   secretBackendBackupDependencies as dependencies,
 } from "./SecretBackendBackupControls.js";
 
-function handle(writable = true) {
+function handle(
+  writable = true,
+  signal?: AbortSignal,
+  backendSignal?: AbortSignal,
+) {
   const backend: SecretBackend = {
     id: "fixture",
     name: "Fixture",
+    signal: backendSignal,
     capabilities: {
       list: true,
       get: true,
@@ -46,7 +51,7 @@ function handle(writable = true) {
     backend.capabilities.vaultBackup = { kind: "note", field: "notes" };
   return {
     backend,
-    session: { id: "one", backendId: "fixture", authenticatedAt: "" },
+    session: { id: "one", backendId: "fixture", authenticatedAt: "", signal },
   };
 }
 afterEach(() => {
@@ -108,6 +113,7 @@ it("shows verified backup success and the actual saved reference only after the 
   expect(dependencies.backup).toHaveBeenCalledWith(
     opened,
     "OpenSesame vault backup",
+    expect.any(Function),
   );
 });
 
@@ -166,5 +172,198 @@ it("restores only on explicit action and clears the transient backup unlock secr
     opened,
     "server-backup-17",
     "48291037",
+    expect.any(Function),
   );
+});
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  let reject: (error: Error) => void = () => {};
+  const promise = new Promise<T>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
+function heldTransfer(kind: "backup" | "restore", id = "held-backup") {
+  const backup = deferred<SecretBackendItemSummary>();
+  const restore = deferred<number>();
+  let current: (() => void) | undefined;
+  if (kind === "backup")
+    vi.spyOn(dependencies, "backup").mockImplementationOnce(
+      (_handle, _name, check) => {
+        current = check;
+        return backup.promise;
+      },
+    );
+  else
+    vi.spyOn(dependencies, "restore").mockImplementationOnce(
+      (_handle, _reference, _secret, check) => {
+        current = check;
+        return restore.promise;
+      },
+    );
+  return {
+    check() {
+      if (!current) throw new Error("Expected the actual action owner check");
+      current();
+    },
+    complete() {
+      if (kind === "backup") backup.resolve({ id, name: "Held", kind: "note" });
+      else restore.resolve(3);
+    },
+    reject() {
+      const error = new Error("Late transfer failure");
+      if (kind === "backup") backup.reject(error);
+      else restore.reject(error);
+    },
+  };
+}
+async function startTransfer(
+  user: ReturnType<typeof userEvent.setup>,
+  kind: "backup" | "restore",
+) {
+  if (kind === "restore") {
+    await user.type(screen.getByLabelText("Backup name or ID"), "held-backup");
+    await user.type(
+      screen.getByLabelText("Backup password or PIN"),
+      "48291037",
+    );
+  }
+  await user.click(
+    screen.getByRole("button", {
+      name:
+        kind === "backup"
+          ? "Back up encrypted vault"
+          : "Restore encrypted vault backup",
+    }),
+  );
+}
+
+it.each([
+  ["backup", "resolve"],
+  ["backup", "reject"],
+  ["restore", "resolve"],
+  ["restore", "reject"],
+] as const)(
+  "withdraws held %s on unmount before late %s",
+  async (kind, late) => {
+    const held = heldTransfer(kind);
+    const flash = vi.fn();
+    const view = render(
+      <SecretBackendBackupControls handle={handle()} onFlash={flash} />,
+    );
+    await startTransfer(userEvent.setup(), kind);
+    expect(() => held.check()).not.toThrow();
+    view.unmount();
+    expect(() => held.check()).toThrow("This action ended.");
+    await act(async () => {
+      if (late === "resolve") held.complete();
+      else held.reject();
+    });
+    render(<SecretBackendBackupControls handle={handle()} onFlash={flash} />);
+    expect(screen.queryByLabelText("Saved backup ID")).toBeNull();
+    expect(
+      screen.queryByRole("img", {
+        name: /saved and verified|restored from encrypted backup|Late transfer failure/,
+      }),
+    ).toBeNull();
+    expect(flash).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  ["backup", "session"],
+  ["restore", "session"],
+  ["backup", "backend"],
+  ["restore", "backend"],
+] as const)(
+  "withdraws held %s when its actual %s lifetime ends",
+  async (kind, lifetime) => {
+    const owner = new AbortController();
+    const held = heldTransfer(kind);
+    const flash = vi.fn();
+    render(
+      <SecretBackendBackupControls
+        handle={handle(
+          true,
+          lifetime === "session" ? owner.signal : undefined,
+          lifetime === "backend" ? owner.signal : undefined,
+        )}
+        onFlash={flash}
+      />,
+    );
+    await startTransfer(userEvent.setup(), kind);
+    expect(() => held.check()).not.toThrow();
+    act(() => owner.abort());
+    expect(() => held.check()).toThrow("This action ended.");
+    await act(async () => held.complete());
+    expect(screen.queryByLabelText("Saved backup ID")).toBeNull();
+    expect(
+      screen.queryByRole("img", {
+        name: /saved and verified|restored from encrypted backup/,
+      }),
+    ).toBeNull();
+    expect(screen.getByLabelText("Backup name")).toHaveProperty(
+      "disabled",
+      false,
+    );
+    expect(flash).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps a replacement session's pending backup independent of the old completion", async () => {
+  const first = handle(true, new AbortController().signal);
+  const second = handle(true, new AbortController().signal);
+  second.session.id = "replacement";
+  const flash = vi.fn();
+  const old = heldTransfer("backup", "old-reference");
+  const view = render(
+    <SecretBackendBackupControls
+      key={`backup-${first.session.id}`}
+      handle={first}
+      onFlash={flash}
+    />,
+  );
+  const user = userEvent.setup();
+  await startTransfer(user, "backup");
+  old.check();
+  view.rerender(
+    <SecretBackendBackupControls
+      key={`backup-${second.session.id}`}
+      handle={second}
+      onFlash={flash}
+    />,
+  );
+  expect(() => old.check()).toThrow("This action ended.");
+  const next = heldTransfer("backup", "new-reference");
+  await startTransfer(user, "backup");
+  await act(async () => old.complete());
+  next.check();
+  expect(screen.queryByLabelText("Saved backup ID")).toBeNull();
+  expect(screen.getByLabelText("Backup name")).toHaveProperty("disabled", true);
+  await act(async () => next.complete());
+  expect(await screen.findByLabelText("Saved backup ID")).toHaveProperty(
+    "value",
+    "new-reference",
+  );
+  expect(flash).not.toHaveBeenCalled();
+});
+
+it("refuses an already-ended provider session without starting either transfer", async () => {
+  const backup = vi.spyOn(dependencies, "backup");
+  const restore = vi.spyOn(dependencies, "restore");
+  const flash = vi.fn();
+  render(
+    <SecretBackendBackupControls
+      handle={handle(true, AbortSignal.abort())}
+      onFlash={flash}
+    />,
+  );
+  const user = userEvent.setup();
+  await startTransfer(user, "backup");
+  await startTransfer(user, "restore");
+  expect(backup).not.toHaveBeenCalled();
+  expect(restore).not.toHaveBeenCalled();
+  expect(flash).not.toHaveBeenCalled();
 });
