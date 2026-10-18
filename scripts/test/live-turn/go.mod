@@ -2,6 +2,8 @@ module opensesame/live-turn
 
 go 1.26.0
 
+toolchain go1.26.9
+
 require (
 	github.com/pion/logging v0.2.4
 	github.com/pion/turn/v4 v4.1.4
