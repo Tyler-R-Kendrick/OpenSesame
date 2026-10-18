@@ -241,8 +241,8 @@ export function bindNativeApiRuntime(activation: Activation): void {
         if (!cleanupRoutes.has(key)) cleanupRoutes.set(key, transport);
         return configured;
       },
-      test: (input) => testApi(input, authority.capture()),
-      verify: (id) => {
+      test: async (input) => testApi(input, authority.capture()),
+      verify: async (id) => {
         const transport = authority.capture();
         const provider = providerOf(id);
         if (provider === "s3") return verifyNativeS3(id, transport);
@@ -254,7 +254,7 @@ export function bindNativeApiRuntime(activation: Activation): void {
           ? verifyNativeLocalInstance(id, transport)
           : verifyNativeApiConnector(id, transport);
       },
-      invoke: (id, operation, input) =>
+      invoke: async (id, operation, input) =>
         invokeApi(id, operation, input, authority.capture()),
       cleanup: {
         classification: (configuration) =>
