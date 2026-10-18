@@ -26,13 +26,13 @@
   },
   "compiler": {
     "repository": "https://github.com/tailscale/go",
-    "commit": "7275f792d406d3c386cc807937a45a4a7b699d42",
-    "version": "go1.26.6",
+    "commit": "186053ab2af2ef8fc43f3c1d1150216e89d4aff0",
+    "version": "go1.27.2",
     "platform": "linux-amd64",
-    "archiveURL": "https://github.com/tailscale/go/releases/download/build-7275f792d406d3c386cc807937a45a4a7b699d42/linux-amd64.tar.gz",
-    "archiveSha256": "720e20bdb17a58acbad3896b3c55179a1cb4669350a3d235250ade5448b5d906",
+    "archiveURL": "https://github.com/tailscale/go/releases/download/build-186053ab2af2ef8fc43f3c1d1150216e89d4aff0/linux-amd64.tar.gz",
+    "archiveSha256": "87ae6c914d5c78a30fbdd5cb7ffc279beeeeef33f031459cf7d85678a46b50b0",
     "publishedReleaseDigestMatches": true,
-    "binarySha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e",
+    "binarySha256": "1c018d87636d28f54a645a46bcd5e701316a3669e6115ed81fc7ab134483a4b1",
     "licenseSha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
     "criticalFiles": [
       {
@@ -41,11 +41,11 @@
       },
       {
         "path": "VERSION",
-        "sha256": "19a1647c6e8fcfdd9b4ecc10d4c83303d4211738d01daed0a822558d96896c54"
+        "sha256": "b8491590f9ef7072d890b6a47475283d420379df6b0b34df9ea58b45731b280d"
       },
       {
         "path": "bin/go",
-        "sha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e"
+        "sha256": "1c018d87636d28f54a645a46bcd5e701316a3669e6115ed81fc7ab134483a4b1"
       }
     ]
   },
@@ -165,5 +165,71 @@
       "targets": "One to sixteen exact HTTPS origins, each with one to sixteen masked IP-prefix grants. DNS resolves once via original exit DNS; final literal IP must match its grant and have no peer/self route override."
     },
     "qualification": "Call only after the eight fixed nativeHttp overlays are staged. The original node uses its own captured dialer/backend/netmap/prefs; no JS-supplied raw socket. First-owned-CA scope only; reviewed new compiler/current constrained public bundle remains separate selection and must precede public-target activation. Driver composition and actual worker/controller/browser activation remain explicit later steps."
+  },
+  "previousCompiler": {
+    "repository": "https://github.com/tailscale/go",
+    "commit": "7275f792d406d3c386cc807937a45a4a7b699d42",
+    "version": "go1.26.6",
+    "platform": "linux-amd64",
+    "archiveURL": "https://github.com/tailscale/go/releases/download/build-7275f792d406d3c386cc807937a45a4a7b699d42/linux-amd64.tar.gz",
+    "archiveSha256": "720e20bdb17a58acbad3896b3c55179a1cb4669350a3d235250ade5448b5d906",
+    "publishedReleaseDigestMatches": true,
+    "binarySha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e",
+    "licenseSha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+    "criticalFiles": [
+      {
+        "path": "LICENSE",
+        "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+      },
+      {
+        "path": "VERSION",
+        "sha256": "19a1647c6e8fcfdd9b4ecc10d4c83303d4211738d01daed0a822558d96896c54"
+      },
+      {
+        "path": "bin/go",
+        "sha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e"
+      }
+    ]
+  },
+  "toolchainSelection": {
+    "status": "UNACTIVATED owned compiler/module selection; public constrained root pool remains separate.",
+    "selectedCompilerCommit": "186053ab2af2ef8fc43f3c1d1150216e89d4aff0",
+    "patchSha256": "745c11ce652ebff0b7b6114084158cb972e288814bb90f3c964345827e137453",
+    "beforeRevisionSha256": "ef84709d5ba3c76771e744088b60beee2874e3e147890867765264b651d44730",
+    "afterRevisionSha256": "7c588700c55b6663b74044d186b79df3970eb0fe44cfb5d177b846f490cf345a",
+    "originalFiles": {
+      "go.mod": "a83e830a7b4dffa80a6c2478b44758695d01c0a3e35e14b824a4e81824ca67d2",
+      "go.sum": "b52dcc94289be95d6b2f1d3f5766b308bc1f9d99425c6f6dbb8df6bdee148816",
+      "assert_ts_toolchain_match.go": "706034259edf1e58295742b97add7ca04781a8cff9027ac05641a7b2fb5f1844"
+    },
+    "module": "golang.org/x/crypto/x509roots/fallback",
+    "beforeVersion": "v0.0.0-20260113154411-7d0074ccc6f1",
+    "version": "v0.0.0-20261014201258-cf169cd0986f",
+    "sumLines": [
+      {
+        "before": "golang.org/x/crypto/x509roots/fallback v0.0.0-20260113154411-7d0074ccc6f1 h1:EBHQuS9qI8xJ96+YRgVV2ahFLUYbWpt1rf3wPfXN2wQ=",
+        "after": "golang.org/x/crypto/x509roots/fallback v0.0.0-20261014201258-cf169cd0986f h1:8ZNibFM9eOCl1u/iumJteD7A2qztZr4ifQGhBqlcBe8="
+      },
+      {
+        "before": "golang.org/x/crypto/x509roots/fallback v0.0.0-20260113154411-7d0074ccc6f1/go.mod h1:MEIPiCnxvQEjA4astfaKItNwEVZA5Ki+3+nyGbJ5N18=",
+        "after": "golang.org/x/crypto/x509roots/fallback v0.0.0-20261014201258-cf169cd0986f/go.mod h1:HPze8vhfG6fO06AM+VSvxRm4E3+5Yk375mgrJ5M2z1E="
+      }
+    ],
+    "qualification": "Keep original upstream go.mod/go.sum/assertion bytes; derive owned alternate module files by exact1requirement/2sumline replacement without reordering. Explicit go.toolchain.rev patch aligns reviewed compiler; never set mismatch environment or remove tailscale_go. Preserve current fallback bundle constraints when explicit public-pool construction is later activated.",
+    "files": [
+      {
+        "path": "select-toolchain.mjs",
+        "sha256": "8815ea544c57dd36068d98c526b3cedee2ac81be363cc85707e6bb26a9f4291c"
+      },
+      {
+        "path": "select-toolchain.test.mjs",
+        "sha256": "d34b4831a89e74abfce539aaa9ce7f75e9cbffc97b6e003c84966192780667ef"
+      },
+      {
+        "path": "native-toolchain.patch",
+        "sha256": "745c11ce652ebff0b7b6114084158cb972e288814bb90f3c964345827e137453"
+      }
+    ],
+    "testInput": "Source-backed selector tests require explicit verified PWA_NATIVE_HTTP_SOURCE; owned fixtures use os.tmpdir and clean up. No hardcoded scratch paths, fixture fallback or missing-source skip."
   }
 }
