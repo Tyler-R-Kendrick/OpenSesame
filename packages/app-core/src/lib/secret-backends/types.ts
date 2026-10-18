@@ -20,6 +20,10 @@ export type SecretBackendDraft = {
   /** Public provider application/version header; absent on legacy connections. */
   appVersion?: string;
   token: string;
+  /** Client-only inventory encryption material, distinct from HTTP authentication. */
+  encryptionKey?: string;
+  /** Public identity bound to the configured encrypted inventory. */
+  remoteStoreId?: string;
   vaultId: string;
   projectId: string;
   organizationId: string;

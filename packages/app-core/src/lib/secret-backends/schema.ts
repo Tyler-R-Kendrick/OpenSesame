@@ -1,3 +1,4 @@
+import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
 import { z } from "zod";
 import { bitwardenAccountIdentity } from "./bitwarden-native-protocol.js";
 import { secretBackendUrl } from "./http.js";
@@ -25,6 +26,8 @@ export const SecretBackendDraftSchema = z.object({
   identityUrl: text,
   appVersion: text,
   token: z.string().max(32768).default(""),
+  encryptionKey: z.string().max(44).default(""),
+  remoteStoreId: z.union([z.literal(""), z.string().uuid()]).default(""),
   vaultId: text,
   projectId: text,
   organizationId: text,
@@ -41,6 +44,7 @@ export const SecretBackendDraftSchema = z.object({
 export const SECRET_BACKEND_CREDENTIAL_FIELDS = [
   "token",
   "clientSecret",
+  "encryptionKey",
 ] as const;
 
 type Draft = z.infer<typeof SecretBackendDraftSchema>;
@@ -162,6 +166,29 @@ function requirePrivateCredentials(draft: Draft): void {
     );
 }
 
+function validateEncryptionKey(draft: Draft): void {
+  if (!draft.encryptionKey) return;
+  const key = draft.encryptionKey;
+  if (
+    !/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(key) ||
+    key === draft.token
+  )
+    throw new SecretBackendError(
+      "configuration",
+      "Enter a canonical 32-byte inventory encryption key, separate from the access token.",
+    );
+  const bytes = b64ToBytes(key);
+  try {
+    if (bytes.length !== 32 || bytesToB64(bytes) !== key)
+      throw new SecretBackendError(
+        "configuration",
+        "Enter a canonical 32-byte inventory encryption key.",
+      );
+  } finally {
+    bytes.fill(0);
+  }
+}
+
 function protectCredentialFields(draft: Draft): void {
   for (const field of SECRET_BACKEND_CREDENTIAL_FIELDS) {
     const secret = draft[field];
@@ -195,6 +222,7 @@ export function validateSecretBackendDraft(
   validateNativeBitwarden(draft, requireCredentials);
   validateTargets(draft);
   if (requireCredentials) requirePrivateCredentials(draft);
+  validateEncryptionKey(draft);
   protectCredentialFields(draft);
   return draft;
 }

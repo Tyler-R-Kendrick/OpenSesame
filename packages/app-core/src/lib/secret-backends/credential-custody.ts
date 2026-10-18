@@ -35,6 +35,7 @@ export function secretBackendCredentialTarget(
     (draft.accountEmail || draft.deviceIdentifier)
   )
     target.push(draft.accountEmail ?? "", draft.deviceIdentifier ?? "");
+  if (draft.remoteStoreId) target.push("remoteStoreId", draft.remoteStoreId);
   return JSON.stringify(target);
 }
 export function readSecretBackendCredentialItems(
@@ -64,6 +65,7 @@ export function readSecretBackendCredentials(
     ...draft,
     token: fields.get("token") ?? "",
     clientSecret: fields.get("clientSecret") ?? "",
+    encryptionKey: fields.get("encryptionKey") ?? "",
   };
 }
 export function stageSecretBackendCredentials(
@@ -77,8 +79,12 @@ export function stageSecretBackendCredentials(
       targetBinding: secretBackendCredentialTarget(draft),
       fields: SECRET_BACKEND_CREDENTIAL_FIELDS.map((field) => ({
         field,
-        label: field === "token" ? "Access token" : "Client secret",
-        value: draft[field],
+        label: {
+          token: "Access token",
+          clientSecret: "Client secret",
+          encryptionKey: "Encryption key",
+        }[field],
+        value: draft[field] ?? "",
       })),
     },
     tomb,
