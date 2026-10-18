@@ -35,7 +35,7 @@ export interface EncryptedRemoteBackend extends SecretBackend {
   ): Promise<SecretBackendSession>;
   /** Explicit creation only: authentication never initializes or overwrites missing data. */
   initialize(
-    config: EncryptedRemoteConfiguration,
+    config: SecretBackendConfiguration | EncryptedRemoteConfiguration,
   ): Promise<SecretBackendSession>;
 }
 type Context = EncryptedRemoteHistory & {
@@ -217,7 +217,16 @@ class EncryptedObjectBackend implements EncryptedRemoteBackend {
     initialize: boolean,
   ): Promise<SecretBackendSession> {
     this.transport.assertCurrent();
-    const parsed = remoteConfiguration(input);
+    const parsed = remoteConfiguration(
+      "objectUrl" in input
+        ? input
+        : {
+            objectUrl: input.baseUrl,
+            storeId: input.remoteStoreId ?? "",
+            encryptionKey: input.encryptionKey ?? "",
+            bearerToken: input.token || undefined,
+          },
+    );
     const { encryptionKey, ...target } = parsed;
     const configuration = Object.freeze({
       ...target,
@@ -320,7 +329,9 @@ class EncryptedObjectBackend implements EncryptedRemoteBackend {
   ) {
     return this.connect(config, false);
   }
-  initialize(config: EncryptedRemoteConfiguration) {
+  initialize(
+    config: SecretBackendConfiguration | EncryptedRemoteConfiguration,
+  ) {
     return this.connect(config, true);
   }
   getItem(name: string, session: SecretBackendSession) {

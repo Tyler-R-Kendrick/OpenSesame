@@ -108,6 +108,10 @@ export interface SecretBackend {
   authenticate(
     config: SecretBackendConfiguration,
   ): Promise<SecretBackendSession>;
+  /** Only an explicit initialization action may create a missing remote store. */
+  initialize?(
+    config: SecretBackendConfiguration,
+  ): Promise<SecretBackendSession>;
   getNotes(name: string, session: SecretBackendSession): Promise<string>;
   getItem(
     name: string,

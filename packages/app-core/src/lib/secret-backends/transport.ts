@@ -176,6 +176,14 @@ export function fenceSecretBackend(
       duringLease(transport, () => backend.getNotes(name, session)),
     disconnect: (session) => backend.disconnect(session),
   };
+  const initialize = backend.initialize;
+  if (initialize)
+    fenced.initialize = (config) =>
+      duringLease(
+        transport,
+        () => initialize.call(backend, config),
+        (session) => backend.disconnect(session),
+      );
   const create = backend.createItem;
   const update = backend.updateItem;
   const remove = backend.deleteItem;
