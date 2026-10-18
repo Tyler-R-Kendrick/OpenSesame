@@ -29,12 +29,16 @@ export type SecretBackendDraft = {
   clientSecret: string;
   passwordListId: string;
   fileFormat: string;
+  accountEmail?: string;
+  deviceIdentifier?: string;
 };
 
 /** File contents and decryption passwords exist for one explicit operation only. */
 export type SecretBackendConfiguration = SecretBackendDraft & {
   file?: File;
   filePassword?: string;
+  /** Native account unlock is never persisted with a connection. */
+  masterPassword?: string;
 };
 
 export type SecretBackendCapabilities = {

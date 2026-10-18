@@ -33,6 +33,8 @@ export const SecretBackendDraftSchema = z.object({
   clientSecret: z.string().max(32768).default(""),
   passwordListId: text,
   fileFormat: text,
+  accountEmail: text,
+  deviceIdentifier: text,
 });
 
 export const SECRET_BACKEND_CREDENTIAL_FIELDS = [
