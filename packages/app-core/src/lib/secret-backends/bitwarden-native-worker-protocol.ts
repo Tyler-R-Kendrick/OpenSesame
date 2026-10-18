@@ -111,3 +111,7 @@ export const NativeWorkerReply = z.discriminatedUnion("ok", [
     .strict(),
 ]);
 export type NativeWorkerReply = z.infer<typeof NativeWorkerReply>;
+
+export const NativeWorkerClosed = z
+  .object({ type: z.literal("native-worker-closed") })
+  .strict();
