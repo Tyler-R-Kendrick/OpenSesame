@@ -11,6 +11,11 @@ The Android wallet entry points are under `android/` (`minSdk` 29, `compileSdk`
 and `targetSdk` 36). Build with JDK 17 and Gradle 8.13 after configuring the
 production wallet-attestation backend:
 
+The Android and Compose compiler plugins use Kotlin 2.4.20, which fixes
+CVE-2026-53914 in KAPT cache loading. This app does not enable KAPT. The settings
+script pins R8 9.1.31 using its supported override because Kotlin 2.4 requires
+R8 9.1.29 or newer; AGP 8.13.1 and Gradle 8.13 remain supported.
+
 ```bash
 cd apps/android/android
 gradle :app:assembleDebug -PopensesameWalletBackendUrl=https://identity.example
