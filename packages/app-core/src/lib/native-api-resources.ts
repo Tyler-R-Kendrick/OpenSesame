@@ -160,6 +160,41 @@ function projectCloudflareZones(body: BoundaryValue): BoundaryValue {
     items: response.result.map((zone) => ({ id: zone.id, label: zone.name })),
   };
 }
+const spaces = z.object({
+  sys: z.object({ type: z.literal("Array") }),
+  total: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  skip: z.literal(0),
+  limit: z.literal(20),
+  items: z
+    .array(
+      z.object({
+        sys: z.object({
+          type: z.literal("Space"),
+          id: z.string().min(1).max(256).refine(printable),
+        }),
+        name: z.string().min(1).max(4096).refine(printable),
+      }),
+    )
+    .max(20),
+  error: z.never().optional(),
+  errors: z.never().optional(),
+});
+function projectContentfulSpaces(body: BoundaryValue): BoundaryValue {
+  const response = spaces.parse(body);
+  if (
+    response.total < response.items.length ||
+    new Set(response.items.map((space) => space.sys.id)).size !==
+      response.items.length
+  )
+    throw new NativeApiError("response");
+  return {
+    label: `Showing ${response.items.length} of ${response.total} spaces from first page`,
+    items: response.items.map((space) => ({
+      id: space.sys.id,
+      label: space.name,
+    })),
+  };
+}
 const resources: readonly Resource[] = [
   {
     providerId: "agentmail",
@@ -177,6 +212,17 @@ const resources: readonly Resource[] = [
       query: { count: 20, offset: 0, messagestream: "outbound" },
     },
     projectPostmarkMessages,
+  ),
+  jsonResource(
+    "List spaces",
+    {
+      providerId: "contentful",
+      operationId: "provider.spaces.read",
+      method: "GET",
+      path: "/spaces",
+      query: { limit: 20, skip: 0 },
+    },
+    projectContentfulSpaces,
   ),
   jsonResource(
     "List zones",
