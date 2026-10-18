@@ -10,6 +10,10 @@ import {
   updateBitwardenBlobItem,
 } from "./bitwarden-native-blob-item.js";
 import {
+  bitwardenNativeCapabilities,
+  bitwardenNativeUnlockInput,
+} from "./bitwarden-native-contract.js";
+import {
   nativeCipherWire,
   nativeItemError,
   nativePersonalCipher,
@@ -35,17 +39,7 @@ import {
   type SecretBackendSession,
 } from "./types.js";
 
-/** These operation inputs become part of the shared native configuration in its activation slice. */
-export type BitwardenNativeConfiguration = SecretBackendConfiguration & {
-  accountEmail: string;
-  masterPassword: string;
-  deviceIdentifier: string;
-};
-const unlockInput = z.object({
-  accountEmail: z.string().min(1).max(4096),
-  masterPassword: z.string().min(1).max(4096),
-  deviceIdentifier: z.string().uuid(),
-});
+export type { BitwardenNativeConfiguration } from "./bitwarden-native-contract.js";
 type NativeState = {
   account: BitwardenNativeAccount;
   folder: string;
@@ -147,17 +141,7 @@ async function get(
 class BitwardenNativeBackend implements SecretBackend {
   readonly id = "bitwarden-native";
   readonly name = "Bitwarden / Vaultwarden personal account";
-  readonly capabilities: SecretBackend["capabilities"] = {
-    itemKinds: ["note", "login", "secret"],
-    itemFields: ["username", "url", "notes", "secret"],
-    vaultBackup: { kind: "note", field: "notes", maxBytes: 480 * 1024 },
-    list: true,
-    get: true,
-    create: true,
-    update: true,
-    delete: true,
-    import: false,
-  };
+  readonly capabilities = bitwardenNativeCapabilities;
   readonly #sessions = createSecretBackendSessions<NativeState>(this.id);
   constructor(
     readonly transport: SecretBackendTransport,
@@ -166,7 +150,7 @@ class BitwardenNativeBackend implements SecretBackend {
   async authenticate(
     config: SecretBackendConfiguration,
   ): Promise<SecretBackendSession> {
-    const parsed = unlockInput.safeParse(config);
+    const parsed = bitwardenNativeUnlockInput.safeParse(config);
     if (!parsed.success)
       throw new SecretBackendError(
         "configuration",
