@@ -1,12 +1,12 @@
-name: Publish focused PWA integration queue
-run-name: Verify focused PWA queue 95d67a714b0ed29b
+name: Publish focused PWA integration slice
+run-name: Verify focused PWA slice 2d3619f943fb8433
 on:
   push:
     branches: ["work/verified-contents-1253-1792017664643"]
     paths: [".github/workflows/connector-pwa-slice.yml"]
 permissions: {}
 concurrency:
-  group: connector-pwa-slice-95d67a714b0ed29b
+  group: connector-pwa-slice-2d3619f943fb8433
   cancel-in-progress: false
 jobs:
   staging:
@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Create and independently verify isolated signed slices
+      - name: Create and independently verify isolated signed slice
         shell: python
         env:
           GH_TOKEN: ${{ github.token }}
@@ -38,9 +38,9 @@ jobs:
           REPOSITORY = 'Tyler-R-Kendrick/OpenSesame'
           API = 'https://api.github.com'
           PAYLOAD_PATH = '.github/connector-stack/payload.json'
-          PAYLOAD_SHA256 = '95d67a714b0ed29bfdd259777bf9de0b05ddc277030e8d773859cf7ffd4b76b5'
-          NEW_BASE = 'dd73c5ab57cf5863d701bc8471f2767a4a6de4a4'
-          FINAL_TREE = '6885122afe24f03cd2d3609aa59b9c8e3fc52122'
+          PAYLOAD_SHA256 = '2d3619f943fb843388e6a9a13930b7c594f06f6eaf13196f7977441f16cc3d79'
+          NEW_BASE = 'efcb304fca160539c7d4f4953e459cb3bbe95009'
+          FINAL_TREE = '9fff6f5f654cada773dae48a84578a32324fd5d7'
           SHA1 = re.compile(r'[0-9a-f]{40}\Z')
           SHA256 = re.compile(r'[0-9a-f]{64}\Z')
           STAGE_PREFIX = 'connector-signed-stage/' + PAYLOAD_SHA256[:16] + '/'
@@ -77,14 +77,12 @@ jobs:
               payload = json.loads(content)
               require(payload['schemaVersion'] == 1 and payload['repository'] == REPOSITORY, 'Payload scope mismatch')
               require(payload['newBase'] == NEW_BASE and payload['expectedTree'] == FINAL_TREE, 'Replay target mismatch')
-              require(2 <= len(payload['rows']) <= 4, 'Expected 2 to 4 receipt slices')
-              require(payload.get('receiptIdentity') == 'local ordinal receipts; not actual PR numbers', 'Receipt identity qualification missing')
-              require([row['pr'] for row in payload['rows']] == list(range(len(payload['rows']))), 'Expected ordered local receipt ordinals')
+              require(len(payload['rows']) == 1, 'Expected exactly 1 receipt slice')
               require(SHA256.fullmatch(payload['planSha256']), 'Invalid source plan digest')
               seen_prs, seen_branches, used_blobs = set(), set(), set()
               prior_tree = None
               for row in payload['rows']:
-                  require(type(row['pr']) is int and row['pr'] not in seen_prs, 'Duplicate or invalid receipt ordinal')
+                  require(type(row['pr']) is int and row['pr'] not in seen_prs, 'Duplicate or invalid PR')
                   seen_prs.add(row['pr'])
                   branch = row['branch']
                   require(type(branch) is str and branch and branch not in seen_branches, 'Duplicate or invalid lease branch')
@@ -226,7 +224,7 @@ jobs:
               leases = []
               for row in payload['rows']:
                   actual = api.ref(row['branch'])
-                  require(actual == row['oldHead'], 'Original head lease changed for receipt ' + str(row['pr']))
+                  require(actual == row['oldHead'], 'Original head lease changed for PR ' + str(row['pr']))
                   leases.append({'pr': row['pr'], 'branch': row['branch'], 'head': actual})
               return leases
           
@@ -317,7 +315,7 @@ jobs:
               base, _ = api.get('git/commits/' + NEW_BASE)
               require(base['sha'] == NEW_BASE and base['tree']['sha'] == payload['rows'][0]['parentTree'], 'New base tree mismatch')
               blobs = load_blobs(api, payload)  # All content verified before any staging ref is created.
-              checkpoint('preflight', {'receiptIdentity': payload['receiptIdentity'], 'repository': REPOSITORY, 'sourceCommit': source_commit,
+              checkpoint('preflight', {'repository': REPOSITORY, 'sourceCommit': source_commit,
                                       'payloadSha256': PAYLOAD_SHA256, 'newBase': NEW_BASE, 'leases': leases})
               parent, rows = NEW_BASE, []
               for row in payload['rows']:
@@ -332,21 +330,20 @@ jobs:
                       oid = existing  # Resume only after complete independent verification below.
                   verified = verify_commit(api, oid, parent, row)
                   require(api.ref(branch) == oid, 'Staging ref changed during verification')
-                  receipt = {'receiptIdentity': payload['receiptIdentity'], 'pr': row['pr'], 'originalBranch': row['branch'], 'originalHead': row['oldHead'],
+                  receipt = {'pr': row['pr'], 'originalBranch': row['branch'], 'originalHead': row['oldHead'],
                              'stagingBranch': branch, **verified}
                   checkpoint('pr-' + str(row['pr']), receipt)
                   rows.append(receipt)
                   parent = oid
               require(rows[-1]['tree'] == FINAL_TREE, 'Final source tree mismatch')
-              final = {'receiptIdentity': payload['receiptIdentity'], 'repository': REPOSITORY, 'payloadSha256': PAYLOAD_SHA256, 'sourceCommit': source_commit,
+              final = {'repository': REPOSITORY, 'payloadSha256': PAYLOAD_SHA256, 'sourceCommit': source_commit,
                        'newBase': NEW_BASE, 'finalCommit': parent, 'finalTree': FINAL_TREE, 'rows': rows,
                        'promotionPerformed': False, 'originalLeases': leases}
               checkpoint('complete', final)
               summary = os.environ.get('GITHUB_STEP_SUMMARY')
               if summary:
                   with open(summary, 'a', encoding='utf-8') as stream:
-                      stream.write('Verified ' + str(len(rows)) + ' separately signed staging commits; no PR branches or bases changed.\n\n')
-                      stream.write('Receipt IDs are local ordinals, not actual PR numbers.\n\n')
+                      stream.write('Verified 1 receipt staging commit; no PR branches or bases changed.\n\n')
                       stream.write('Final commit: `' + parent + '`\n\nFinal tree: `' + FINAL_TREE + '`\n')
           
           
