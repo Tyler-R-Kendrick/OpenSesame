@@ -44,6 +44,8 @@ export type S3FilesConfig = Readonly<{
   bucket: string;
   /** Where in the bucket the vault lives: `vaults/me`. Left out, the bucket's root. */
   prefix?: string | undefined;
+  /** Internal opt-in: concatenate the exact logical S3 prefix, without directory normalization. */
+  prefixMode?: "directory" | "literal" | undefined;
   credentials: S3Credentials;
   /** `path` (`host/bucket/key`, the default) or `virtual` (`bucket.host/key`). */
   addressing?: "path" | "virtual" | undefined;
@@ -123,6 +125,7 @@ type Target = Readonly<{
   send: typeof fetch;
   check: () => void;
   owner: AbortSignal | undefined;
+  literal: boolean;
 }>;
 
 function exchangeCall(
@@ -135,7 +138,10 @@ function exchangeCall(
       target.check();
       // The bucket itself (a listing) is addressed with no key.
       const key = call.path === "" ? "" : `${target.rootPrefix}${call.path}`;
-      const url = new URL(`${target.base}/${key}`);
+      const path = target.literal
+        ? key.split("/").map(encodeURIComponent).join("/")
+        : key;
+      const url = new URL(`${target.base}/${path}`);
       for (const [name, value] of call.query ?? []) {
         url.searchParams.set(name, value);
       }
@@ -182,6 +188,17 @@ function exchangeCall(
   });
 }
 
+function s3RootPrefix(config: S3FilesConfig): string {
+  const prefix = config.prefix ?? "";
+  if (config.prefixMode !== "literal") {
+    const directory = prefix.replace(/^\/+|\/+$/g, "");
+    return directory === "" ? "" : `${directory}/`;
+  }
+  if (prefix.split("/").some((part) => part === "." || part === ".."))
+    throw new TypeError("a literal S3 prefix cannot contain dot segments");
+  return prefix;
+}
+
 function makeWire(config: S3FilesConfig): Wire {
   const endpoint = new URL(config.endpoint);
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
@@ -199,8 +216,8 @@ function makeWire(config: S3FilesConfig): Wire {
     throw new TypeError("that is not a bucket name");
   }
   const virtual = config.addressing === "virtual";
-  const prefix = (config.prefix ?? "").replace(/^\/+|\/+$/g, "");
-  const rootPrefix = prefix === "" ? "" : `${prefix}/`;
+  const literal = config.prefixMode === "literal";
+  const rootPrefix = s3RootPrefix(config);
   const send = config.fetch ?? ((...args) => fetch(...args));
   const max = config.maxBytes ?? MAX_FILE_BYTES;
   if (!Number.isSafeInteger(max) || max <= 0) {
@@ -219,7 +236,11 @@ function makeWire(config: S3FilesConfig): Wire {
     current: (path) =>
       Effect.try({ try: check, catch: () => ownerRejected(path) }),
     call: (call) =>
-      exchangeCall(config, { base, rootPrefix, max, send, check, owner }, call),
+      exchangeCall(
+        config,
+        { base, rootPrefix, max, send, check, owner, literal },
+        call,
+      ),
   };
 }
 
