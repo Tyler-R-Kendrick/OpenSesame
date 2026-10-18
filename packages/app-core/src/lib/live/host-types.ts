@@ -9,9 +9,9 @@ import type { ConnectionPort } from "./connection-port.js";
 import type { DevicesState } from "./device-types.js";
 import type { HostPeer, LogEntry, ReadField, WriteField } from "./host-peer.js";
 import type { IcePhase } from "./ice-diagnostics.js";
-import type { Catalog, SeatKind, SeatRoute } from "./messages.js";
+import type { Catalog, JoinRequest, SeatKind, SeatRoute } from "./messages.js";
 import type { PeerTransport } from "./p2p.js";
-import type { SeatPeerTrust } from "./peer-trust-join.js";
+import type { SeatPeerTrust, TrustGuestFields } from "./peer-trust-join.js";
 import type { Carrier } from "./rendezvous.js";
 import type { LiveRoutes } from "./routes.js";
 
@@ -138,3 +138,36 @@ export const OPEN: ReadonlySet<GuestState> = new Set<GuestState>([
   "replied",
   "joined",
 ]);
+
+/** A seat for an asker whose request has just been seated. */
+export function askingSeat(
+  request: JoinRequest,
+  joiner: string,
+  kind: SeatKind,
+  route: SeatRoute,
+  askedAt: number,
+  trust: TrustGuestFields,
+  peerTrust: SeatPeerTrust | null,
+): HostSeat {
+  return {
+    guest: {
+      key: request.id,
+      name: request.name,
+      note: request.note,
+      state: "asking",
+      askedAt,
+      reply: null,
+      kind,
+      ...trust,
+    },
+    offer: request.offer,
+    greets: request.greets,
+    joiner,
+    kind,
+    route,
+    peer: null,
+    admitting: false,
+    timer: null,
+    peerTrust,
+  };
+}

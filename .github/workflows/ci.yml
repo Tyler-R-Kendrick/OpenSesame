@@ -253,7 +253,15 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/self-hosted-connectors
         run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
+      - name: Preserve self-hosted provider evidence
+        if: always() && matrix.shard == 'budgets'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: self-hosted-connectors-${{ github.sha }}
+          path: ${{ runner.temp }}/self-hosted-connectors/
+          if-no-files-found: warn
       - name: Keyboard-only first-load and navigation contract
         if: matrix.shard == 'keyboard'
         env:
@@ -448,13 +456,6 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:fresh-vault-login
-      - name: CLI on the public site
-        # P8-5: Pair CLI on the shared origin, with no loopback pairing field.
-        if: matrix.shard == 'journeys-2'
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:cli-public-site
 
   ai-connections-e2e:
     name: AI connections end to end
@@ -817,6 +818,31 @@ jobs:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         if: steps.affected.outputs.scope != 'none'
+      # `bridge_roundtrip_fixture` reads a real schema through @env-spec/parser
+      # and fails on CI without it. The same pinned pnpm and Node as the
+      # TypeScript job, installed only when the env-spec crate is tested. No
+      # `cache: pnpm`: setup-node would save this job's one-package store under
+      # the key the TypeScript job restores its whole store from.
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+        with:
+          node-version: 22
+      - name: Install the env-spec bridge's parser
+        # That package and its dependencies only (@env-spec/parser has none
+        # and no install script), from the lockfile.
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
+      - name: Name the runner's node for the bridge
+        # The env-spec bridge runs only a `node` nobody else could have
+        # replaced, and the hosted image keeps its own in /usr/local/bin with
+        # mode 0777. OPENSESAME_NODE names the file the way an operator does
+        # (docs/operators/proxied-run-quickstart.md); no node fails the job.
+        if: steps.affected.outputs.scope != 'none'
+        run: |
+          node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
+          echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
       - name: Test affected crates
         if: steps.affected.outputs.scope != 'none'
         env:

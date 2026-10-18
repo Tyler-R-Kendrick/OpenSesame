@@ -17,6 +17,7 @@ import {
   type Received,
   SEAT_GRACE_MS,
   type HostSeat as Seat,
+  askingSeat,
 } from "./host-types.js";
 import type { LiveLink } from "./link.js";
 import type { JoinRequest } from "./messages.js";
@@ -215,27 +216,15 @@ export class LiveHost {
         : { kind: "not-a-request" };
     }
     const key = request.id;
-    const seat: Seat = {
-      guest: {
-        key,
-        name: request.name,
-        note: request.note,
-        state: "asking",
-        askedAt: this.#now(),
-        reply: null,
-        kind,
-        ...judged.guest,
-      },
-      offer: request.offer,
-      greets: request.greets,
+    const seat = askingSeat(
+      request,
       joiner,
       kind,
       route,
-      peer: null,
-      admitting: false,
-      timer: null,
-      peerTrust: judged.peerTrust,
-    };
+      this.#now(),
+      judged.guest,
+      judged.peerTrust,
+    );
     this.#seats.set(key, seat);
     for (const id of judged.clashKeys) this.#set(id, { nameClash: true });
     this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
