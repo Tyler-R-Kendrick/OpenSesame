@@ -716,6 +716,9 @@ importers:
       '@gdp-ts/core':
         specifier: 0.1.0
         version: 0.1.0(oxlint@1.79.0)(typescript@5.8.3)
+      '@levischuck/tiny-cbor':
+        specifier: 0.2.11
+        version: 0.2.11
       '@modelcontextprotocol/sdk':
         specifier: 1.31.0
         version: 1.31.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
