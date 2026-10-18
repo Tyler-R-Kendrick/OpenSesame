@@ -9,7 +9,10 @@ import {
 } from "@opensesame/app-core/lib/hosted-model-authority.js";
 import { executeNativeApiRequest } from "@opensesame/app-core/lib/native-api-operations.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
-import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  captureNativeProviderAuthority,
+} from "@opensesame/app-core/lib/native-connector-transport.js";
 import type { Activation } from "../activation.js";
 import { anySignal, runUnlessAborted } from "../signals.js";
 function modelConnection(id: string): HostedModelConnection | null {
@@ -30,8 +33,12 @@ function modelConnection(id: string): HostedModelConnection | null {
   return connection;
 }
 export function bindNativeModelRuntime(activation: Activation): void {
-  const captured = nativeProviderTransport();
-  const fenced = (fence: HostedModelFence) => ({
+  const authority = captureNativeProviderAuthority();
+  const fenced = (
+    captured: NativeProviderTransport,
+    fence: HostedModelFence,
+  ) => ({
+    signal: fence.signal,
     assertCurrent() {
       fence.signal.throwIfAborted();
       fence.assertCurrent();
@@ -50,35 +57,31 @@ export function bindNativeModelRuntime(activation: Activation): void {
   });
   activation.onDispose(
     bindHostedModelAuthority({
-      fetch: captured.fetch,
-      assertCurrent: captured.assertCurrent,
+      fetch: (url, init) => authority.capture().fetch(url, init),
+      assertCurrent: authority.assertCurrent,
       read: (id) => {
-        captured.assertCurrent();
+        authority.assertCurrent();
         return modelConnection(id);
       },
       connections: () => {
-        captured.assertCurrent();
+        authority.assertCurrent();
         return readDeviceRows().flatMap((row) => {
           const view = modelConnection(row.connectionId);
           return view ? [view] : [];
         });
       },
       execute: (id, definition, body, project, fence) => {
+        const captured = fenced(authority.capture(), fence);
+        captured.assertCurrent();
         if (readAiConnection(id))
           return executeAiDelegatedRequest(
             id,
             definition,
             body,
             project,
-            fence,
+            captured,
           );
-        return executeNativeApiRequest(
-          id,
-          definition,
-          body,
-          project,
-          fenced(fence),
-        );
+        return executeNativeApiRequest(id, definition, body, project, captured);
       },
     }),
   );
