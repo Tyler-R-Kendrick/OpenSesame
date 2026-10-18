@@ -31,58 +31,16 @@ async function appearanceName(page) {
   return page.getByLabel("Connector name", { exact: true }).inputValue();
 }
 
-export async function nativeCasJourney(
-  page,
-  context,
-  harness,
-  authority,
-  fixture,
-  { base, observe },
-) {
-  harness.setStep("native-cross-tab-configuration-binding");
-  await nativeVisit(page, base, `connections/${fixture.providerId}`);
-  await page
-    .getByRole("heading", { name: fixture.name, exact: true })
-    .waitFor();
-  const submitLabel = `Verify and connect ${fixture.name}`;
-  if (
-    !(await page
-      .getByRole("button", { name: submitLabel, exact: true })
-      .count())
-  )
-    return;
-  const secondary = await context.newPage();
-  observe(secondary);
-  authority.state.expectedDocuments.add(page.url());
-  await secondary.goto(page.url());
-  await unlockWithPin(secondary);
-  const first = authority.alternate(fixture, "tab-a");
-  const second = authority.alternate(fixture, "tab-b");
-  await editAppearance(page, "Protocol connection tab-a");
-  await editAppearance(secondary, "Protocol connection tab-b");
-  await fillNativeApiFixture(page, first);
-  await fillNativeApiFixture(secondary, second);
-  const release = authority.pause(fixture.providerId);
-  try {
-    await page.getByRole("button", { name: submitLabel, exact: true }).click();
-    await secondary
-      .getByRole("button", { name: submitLabel, exact: true })
-      .click();
-    await page.waitForTimeout(200);
-  } finally {
-    release();
-  }
-  await expect(
-    page.getByRole("button", { name: submitLabel, exact: true }),
-  ).not.toHaveAttribute("aria-busy", "true");
-  await expect(
-    secondary.getByRole("button", { name: submitLabel, exact: true }),
-  ).not.toHaveAttribute("aria-busy", "true");
-  await nativeRevisionRefusal(page, secondary, harness.check);
-  await secondary.close();
+function recordCasPage(harness, providerId, phase, page) {
+  harness.setStep(`${providerId}-cas-${phase}`);
+  harness.record("CAS-PAGE", `${phase} ${page.url()}`);
+}
+
+async function verifyColdCasWinner(page, harness, authority, fixture) {
   authority.state.expectedDocuments.add(page.url());
   await page.reload();
   await unlockWithPin(page);
+  recordCasPage(harness, fixture.providerId, "cold-appearance", page);
   const name = await appearanceName(page);
   harness.check(
     ["Protocol connection tab-a", "Protocol connection tab-b"].includes(name),
@@ -107,4 +65,56 @@ export async function nativeCasJourney(
     calls[0]?.credentialProof === name.replace("Protocol connection ", ""),
     "public name and sealed credential remain atomically bound across competing edits",
   );
+}
+
+export async function nativeCasJourney(
+  page,
+  context,
+  harness,
+  authority,
+  fixture,
+  { base, observe },
+) {
+  harness.setStep(`${fixture.providerId}-cas-arrival`);
+  await nativeVisit(page, base, `connections/${fixture.providerId}`);
+  await page
+    .getByRole("heading", { name: fixture.name, exact: true })
+    .waitFor();
+  const submitLabel = `Verify and connect ${fixture.name}`;
+  await expect(
+    page.getByRole("button", { name: submitLabel, exact: true }),
+  ).toBeVisible();
+  const secondary = await context.newPage();
+  observe(secondary);
+  authority.state.expectedDocuments.add(page.url());
+  await secondary.goto(page.url());
+  await unlockWithPin(secondary);
+  const first = authority.alternate(fixture, "tab-a");
+  const second = authority.alternate(fixture, "tab-b");
+  recordCasPage(harness, fixture.providerId, "tab-a-appearance", page);
+  await editAppearance(page, "Protocol connection tab-a");
+  recordCasPage(harness, fixture.providerId, "tab-b-appearance", secondary);
+  await editAppearance(secondary, "Protocol connection tab-b");
+  await fillNativeApiFixture(page, first);
+  await fillNativeApiFixture(secondary, second);
+  harness.setStep(`${fixture.providerId}-cas-competing-edits`);
+  const release = authority.pause(fixture.providerId);
+  try {
+    await page.getByRole("button", { name: submitLabel, exact: true }).click();
+    await secondary
+      .getByRole("button", { name: submitLabel, exact: true })
+      .click();
+    await page.waitForTimeout(200);
+  } finally {
+    release();
+  }
+  await expect(
+    page.getByRole("button", { name: submitLabel, exact: true }),
+  ).not.toHaveAttribute("aria-busy", "true");
+  await expect(
+    secondary.getByRole("button", { name: submitLabel, exact: true }),
+  ).not.toHaveAttribute("aria-busy", "true");
+  await nativeRevisionRefusal(page, secondary, harness.check);
+  await secondary.close();
+  await verifyColdCasWinner(page, harness, authority, fixture);
 }
