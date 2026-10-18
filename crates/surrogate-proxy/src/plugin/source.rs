@@ -4,6 +4,11 @@
 //! [`StaticCredential`], a connection's own token the parent read from the
 //! person's sealed store.
 //!
+//! - **The tool it means:** the output of `gh auth token` is the credential, so
+//!   the bare name is found by `opensesame-trusted-exec`'s rule over the
+//!   snapshot, never by the child's own search: `OPENSESAME_GH` names the file,
+//!   or a `PATH` entry only root or the user can write to holds it. A `gh`
+//!   planted in a directory anyone can write is never run.
 //! - **Scrubbed environment:** `env_clear` plus a short whitelist a provider
 //!   CLI needs to find its own configuration and the OS keychain. Nothing
 //!   named `OPENSESAME_*` reaches the tool.
@@ -15,12 +20,16 @@
 //!   output *is* the credential.
 
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::io::Read;
 use std::process::{Child, Command, Stdio};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use opensesame_invoke_through::{source_tool, InvokeError, SourceToolSpec, TokenSource};
+use opensesame_trusted_exec::{
+    command_in, pass_in, Caller, Lookup, Pass, Platform, ResolveError, COMMON, COMMON_ON_WINDOWS,
+};
 use secrecy::{ExposeSecret, SecretString};
 use zeroize::Zeroizing;
 
@@ -30,29 +39,62 @@ const ACQUIRE_TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_CAPTURE_BYTES: usize = 16 * 1024;
 const POLL: Duration = Duration::from_millis(10);
 
-/// What a provider CLI may see of the plugin's environment.
-const ENV_WHITELIST: &[&str] = &[
-    "HOME",
-    "PATH",
-    "USER",
-    "LOGNAME",
-    "LANG",
-    "LC_ALL",
-    "TMPDIR",
-    "XDG_RUNTIME_DIR",
-    "XDG_CONFIG_HOME",
-    "DBUS_SESSION_BUS_ADDRESS",
-    "SystemRoot",
-    "SYSTEMROOT",
+/// What the tool is handed beyond `PATH` and the common set: who the user is,
+/// and where its configuration and the keychain are.
+const TOOL_ENV: [Pass; 7] = [
+    Pass::Name("USER"),
+    Pass::Name("LOGNAME"),
+    Pass::Name("XDG_RUNTIME_DIR"),
+    Pass::Name("XDG_CONFIG_HOME"),
+    Pass::Name("DBUS_SESSION_BUS_ADDRESS"),
+    Pass::Name("GH_CONFIG_DIR"),
+    Pass::Name("GH_HOST"),
 ];
+
+/// The variable that names the exact `gh` to run, as for the `opensesame` CLI.
+const GH_OVERRIDE: &str = "OPENSESAME_GH";
+
+/// Whether the tool, or finding it, reads `name`.
+fn admitted(name: &str) -> bool {
+    let named = |pass: &Pass| match *pass {
+        Pass::Name(want) => want.eq_ignore_ascii_case(name),
+        Pass::Prefix(start) => name.starts_with(start),
+    };
+    name.eq_ignore_ascii_case("PATH")
+        || name == GH_OVERRIDE
+        || COMMON
+            .iter()
+            .chain(&COMMON_ON_WINDOWS)
+            .chain(&TOOL_ENV)
+            .any(named)
+}
 
 /// The whitelist projection of `env`.
 #[must_use]
 pub fn scrubbed_env(env: &BTreeMap<String, String>) -> BTreeMap<String, String> {
-    ENV_WHITELIST
-        .iter()
-        .filter_map(|key| env.get(*key).map(|v| ((*key).to_owned(), v.clone())))
+    env.iter()
+        .filter(|(name, _)| admitted(name))
+        .map(|(name, value)| (name.clone(), value.clone()))
         .collect()
+}
+
+/// `spec`'s tool found by the trusted rule over `env`, with the built
+/// environment.
+fn command(spec: SourceToolSpec, env: &BTreeMap<String, String>) -> Result<Command, ResolveError> {
+    let lookup = Lookup {
+        vars: env
+            .iter()
+            .map(|(name, value)| (OsString::from(name), OsString::from(value)))
+            .collect(),
+        cwd: None,
+        platform: Platform::current(),
+        caller: Caller::current(),
+    };
+    let named = (spec.binary == "gh").then_some(GH_OVERRIDE);
+    let mut command = command_in(spec.binary, named, &lookup)?;
+    pass_in(&mut command, &TOOL_ENV, &lookup);
+    command.args(spec.args);
+    Ok(command)
 }
 
 /// A provider's local credential command, run once per brokered call.
@@ -120,10 +162,8 @@ impl TokenSource for StaticCredential {
 
 fn capture(spec: SourceToolSpec, env: &BTreeMap<String, String>) -> Result<SecretString, String> {
     let program = spec.binary;
-    let mut child = Command::new(program)
-        .args(spec.args)
-        .env_clear()
-        .envs(env)
+    let mut child = command(spec, env)
+        .map_err(|error| format!("{program} could not be started: {error}"))?
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -274,3 +314,6 @@ mod tests {
         assert!(!rendered.contains("PATH"), "{rendered}");
     }
 }
+
+#[cfg(all(test, unix))]
+mod trusted_tests;

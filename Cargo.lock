@@ -4732,6 +4732,7 @@ dependencies = [
  "opensesame-rotation-web",
  "opensesame-session-observe",
  "opensesame-transport-security",
+ "opensesame-trusted-exec",
  "rand_core 0.6.4",
  "rcgen 0.14.9",
  "rustls",
