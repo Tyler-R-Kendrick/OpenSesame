@@ -345,11 +345,11 @@
       },
       {
         "path": "compress-wasm.mjs",
-        "sha256": "4aa3ed9f0387d9c14a8b146e31f806855e3a7d405e32bfa490f3f6d643dc4411"
+        "sha256": "aa404d2be3b9660b0a8f6a74c14e91ce32b30d5762914add414f5684c7532e2c"
       },
       {
         "path": "compress-wasm.test.mjs",
-        "sha256": "2e2ccdb1b4ca6b9e04dfb6c07db288195f0ddfa37950486d1be25b81846ba5a7"
+        "sha256": "bd80b39e7e03a3751c50d354e35cb21eae6953a86f015437b554bd50872bddcb"
       },
       {
         "path": "task-resources.mjs",
@@ -378,6 +378,22 @@
       {
         "path": "apply-native-patch.test.mjs",
         "sha256": "048c85303f805f1886a7bca5c3a17e7bbdc3b37751a1bade700fd72555a65870"
+      },
+      {
+        "path": "compressor-archive.mjs",
+        "sha256": "2745bfaf85567c2084c4bee9bf95c1cd479472186675b1c0390c71ae1640f389"
+      },
+      {
+        "path": "compressor-archive.test.mjs",
+        "sha256": "23a33029386f78845e0cbf6559848ee24e0d5f43fac88164ad116d019acd1f75"
+      },
+      {
+        "path": "pigz-2.8.tar.gz",
+        "sha256": "eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0"
+      },
+      {
+        "path": "distribution-cache.mjs",
+        "sha256": "c75af141f5232b0a2bbf2e009691c1ed612907a367f8740dd80cccc208bda862"
       }
     ],
     "compressor": {

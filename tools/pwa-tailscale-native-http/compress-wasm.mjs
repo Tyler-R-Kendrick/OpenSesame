@@ -1,18 +1,21 @@
 /** Build-only, source-pinned lossless gzip. No compressor is shipped to the PWA. */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { writeFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { constants, writeFileSync } from "node:fs";
+import { mkdir, open, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { nativeBuildEnvironment } from "./compose-native.mjs";
+import {
+  compressorArchivePin,
+  readCompressorArchive,
+} from "./compressor-archive.mjs";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 export const compressorPin = Object.freeze({
-  version: "2.8",
-  archiveURL: "https://zlib.net/pigz/pigz-2.8.tar.gz",
-  archiveSha256:
-    "eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0",
+  version: compressorArchivePin.version,
+  archiveURL: compressorArchivePin.sourceURL,
+  archiveSha256: compressorArchivePin.sha256,
   arguments: Object.freeze([
     "-11",
     "-I",
@@ -100,6 +103,31 @@ export function verifyCompressedWasm(compressed, raw, expectedRawSha256) {
   return compressed;
 }
 
+/** Preserve bounded explicit test input before rejecting substitution; default is local. */
+async function stageCompressorArchive(archive, archivePath) {
+  if (!archivePath) {
+    await writeFile(archive, await readCompressorArchive(), { flag: "wx" });
+    return;
+  }
+  const handle = await open(
+    archivePath,
+    constants.O_RDONLY | constants.O_NOFOLLOW,
+  );
+  try {
+    const info = await handle.stat();
+    if (!info.isFile() || info.size < 1 || info.size > 1_048_576)
+      throw new Error(
+        "Native compressor supplied archive size differs from its official pin.",
+      );
+    const bytes = await handle.readFile();
+    if (bytes.length !== info.size || bytes.length > 1_048_576)
+      throw new Error("Native compressor supplied archive changed.");
+    await writeFile(archive, bytes, { flag: "wx" });
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function compressNativeWasm({
   raw,
   wasmSha256,
@@ -113,37 +141,8 @@ export async function compressNativeWasm({
   await mkdir(join(work, "tmp"));
   const env = nativeBuildEnvironment(work, "");
   const archive = join(work, "pigz-2.8.tar.gz");
-  if (archivePath) {
-    await writeFile(archive, await readFile(archivePath), { flag: "wx" });
-  } else {
-    await run(
-      "curl",
-      [
-        "--fail",
-        "--show-error",
-        "--location",
-        "--proto",
-        "=https",
-        "--tlsv1.2",
-        "--max-time",
-        "30",
-        "--max-filesize",
-        "1048576",
-        "--output",
-        archive,
-        compressorPin.archiveURL,
-      ],
-      work,
-      env,
-      35_000,
-    );
-  }
-  const archiveBytes = await readFile(archive);
-  if (
-    archiveBytes.length > 1_048_576 ||
-    hash(archiveBytes) !== compressorPin.archiveSha256
-  )
-    throw new Error("Native compressor archive differs from its official pin.");
+  await stageCompressorArchive(archive, archivePath);
+  await readCompressorArchive(archive);
   await run(
     "tar",
     ["-xzf", archive, "--no-same-owner", "--no-same-permissions"],
