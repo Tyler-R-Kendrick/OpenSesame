@@ -1,0 +1,267 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "enable": "Tailnet networking"
+        },
+        {
+          "visit": "settings/connections/tailscale"
+        },
+        {
+          "revealSelector": "section[aria-label=\"Tailscale browser node\"]"
+        },
+        {
+          "revealSelector": "section[aria-label=\"Tailscale browser node\"]"
+        },
+        {
+          "count": [
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+          ]
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+        },
+        {
+          "shot": "390-browser"
+        },
+        {
+          "selectOptional": {
+            "label": "Integration HTTP transport",
+            "value": "native"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Approved exit node ID",
+            "text": "example-approved-exit"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Integration origins and destination CIDRs",
+            "text": "https://api.example.test 203.0.113.0/24"
+          }
+        },
+        {
+          "revealSelector": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "count": [
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+          ]
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+        },
+        {
+          "shot": "390-native"
+        },
+        {
+          "selectOptional": {
+            "label": "Integration TLS trust",
+            "value": "operator"
+          }
+        },
+        {
+          "revealSelector": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "count": [
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+          ]
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+        },
+        {
+          "shot": "390-operator-ca"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "enable": "Tailnet networking"
+        },
+        {
+          "visit": "settings/connections/tailscale"
+        },
+        {
+          "revealSelector": "section[aria-label=\"Tailscale browser node\"]"
+        },
+        {
+          "revealSelector": "section[aria-label=\"Tailscale browser node\"]"
+        },
+        {
+          "count": [
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+          ]
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+        },
+        {
+          "shot": "1280-browser"
+        },
+        {
+          "selectOptional": {
+            "label": "Integration HTTP transport",
+            "value": "native"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Approved exit node ID",
+            "text": "example-approved-exit"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Integration origins and destination CIDRs",
+            "text": "https://api.example.test 203.0.113.0/24"
+          }
+        },
+        {
+          "revealSelector": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "count": [
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+          ]
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+        },
+        {
+          "shot": "1280-native"
+        },
+        {
+          "selectOptional": {
+            "label": "Integration TLS trust",
+            "value": "operator"
+          }
+        },
+        {
+          "revealSelector": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "count": [
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select",
+            "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+          ]
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block"
+        },
+        {
+          "metrics": "section[aria-label=\"Tailscale browser node\"] fieldset.cx-block input, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block select, section[aria-label=\"Tailscale browser node\"] fieldset.cx-block textarea"
+        },
+        {
+          "shot": "1280-operator-ca"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-browser",
+      "width": 390,
+      "title": "Browser node and integration HTTP transport \u2014 390 \u00d7 844",
+      "caption": "Same steps in two real signed PWA builds. Configuration appearance only; no device connection or native transport success is claimed.",
+      "before": "Native HTTP fieldsets 0; input/select/textarea 0/0/0. Fieldset: none; sideways scroll: false. Controls: none; sideways scroll: false.",
+      "after": "Native HTTP fieldsets 1; input/select/textarea 0/1/0. Fieldset: 358x129 type 14px; sideways scroll: false. Controls: 358x44 type 16px; sideways scroll: false."
+    },
+    {
+      "shot": "390-native",
+      "width": 390,
+      "title": "Explicit native route and destination scope \u2014 390 \u00d7 844",
+      "caption": "Same steps in two real signed PWA builds. Configuration appearance only; no device connection or native transport success is claimed.",
+      "before": "Native HTTP fieldsets 0; input/select/textarea 0/0/0. Fieldset: none; sideways scroll: false. Controls: none; sideways scroll: false.",
+      "after": "Native HTTP fieldsets 1; input/select/textarea 1/2/1. Fieldset: 358x492 type 14px; sideways scroll: false. Controls: 358x44 type 16px | 358x44 type 16px | 358x96 type 16px | 358x44 type 16px; sideways scroll: false."
+    },
+    {
+      "shot": "390-operator-ca",
+      "width": 390,
+      "title": "Operator certificate trust configuration \u2014 390 \u00d7 844",
+      "caption": "Same steps in two real signed PWA builds. Configuration appearance only; no device connection or native transport success is claimed. Phone limitation: the CA textarea is clipped below the footer in this screenshot; full-control supplemental capture remains outstanding. This pair does not demonstrate the full CA control.",
+      "before": "Native HTTP fieldsets 0; input/select/textarea 0/0/0. Fieldset: none; sideways scroll: false. Controls: none; sideways scroll: false.",
+      "after": "Native HTTP fieldsets 1; input/select/textarea 1/2/2. Fieldset: 358x659 type 14px; sideways scroll: false. Controls: 358x44 type 16px | 358x44 type 16px | 358x96 type 16px | 358x44 type 16px | 358x96 type 16px; sideways scroll: false."
+    },
+    {
+      "shot": "1280-browser",
+      "width": 1280,
+      "title": "Browser node and integration HTTP transport \u2014 1280 \u00d7 900",
+      "caption": "Same steps in two real signed PWA builds. Configuration appearance only; no device connection or native transport success is claimed.",
+      "before": "Native HTTP fieldsets 0; input/select/textarea 0/0/0. Fieldset: none; sideways scroll: false. Controls: none; sideways scroll: false.",
+      "after": "Native HTTP fieldsets 1; input/select/textarea 0/1/0. Fieldset: 640x129 type 14px; sideways scroll: false. Controls: 480x44 type 16px; sideways scroll: false."
+    },
+    {
+      "shot": "1280-native",
+      "width": 1280,
+      "title": "Explicit native route and destination scope \u2014 1280 \u00d7 900",
+      "caption": "Same steps in two real signed PWA builds. Configuration appearance only; no device connection or native transport success is claimed.",
+      "before": "Native HTTP fieldsets 0; input/select/textarea 0/0/0. Fieldset: none; sideways scroll: false. Controls: none; sideways scroll: false.",
+      "after": "Native HTTP fieldsets 1; input/select/textarea 1/2/1. Fieldset: 640x483 type 14px; sideways scroll: false. Controls: 480x44 type 16px | 480x34 type 14px | 640x96 type 16px | 480x44 type 16px; sideways scroll: false."
+    },
+    {
+      "shot": "1280-operator-ca",
+      "width": 1280,
+      "title": "Operator certificate trust configuration \u2014 1280 \u00d7 900",
+      "caption": "Same steps in two real signed PWA builds. Configuration appearance only; no device connection or native transport success is claimed.",
+      "before": "Native HTTP fieldsets 0; input/select/textarea 0/0/0. Fieldset: none; sideways scroll: false. Controls: none; sideways scroll: false.",
+      "after": "Native HTTP fieldsets 1; input/select/textarea 1/2/2. Fieldset: 640x650 type 14px; sideways scroll: false. Controls: 480x44 type 16px | 480x34 type 14px | 640x96 type 16px | 480x44 type 16px | 640x96 type 16px; sideways scroll: false."
+    }
+  ]
+}
