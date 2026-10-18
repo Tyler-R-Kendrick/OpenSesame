@@ -30,6 +30,7 @@ export async function readOriginRecord(
   maxBytes: number,
   original: () => void,
   requireDeviceSeal = false,
+  ownedEmpty?: OriginalOriginFileData,
 ): Promise<OriginRecord> {
   // Snapshot actual receivers before any caller callback at each delivered resource.
   const directory = captureOriginalOriginDirectoryData(root);
@@ -38,6 +39,7 @@ export async function readOriginRecord(
     original();
     directory.check();
     entry?.check();
+    ownedEmpty?.check();
   };
   check();
   let handle: FileSystemFileHandle;
@@ -69,6 +71,14 @@ export async function readOriginRecord(
     throw new Error("Storage record exceeds read limit.");
   if (requireDeviceSeal && !isSealedAtRest(text))
     throw new Error("Original device record is not sealed.");
+  // Only a newly created, identity-checked predecessor may still be unsealed.
+  if (!requireDeviceSeal && ownedEmpty && size === 0 && text === "") {
+    if (!(await ownedEmpty.same(handle)))
+      throw new Error("Storage entry changed.");
+    current();
+    checkPublicationLimit("", maxBytes);
+    return { handle, value: "", entry, ciphertext: text };
+  }
   const value = await openOriginFile(name, text);
   current();
   if (value === null) throw new Error("Storage record does not open.");

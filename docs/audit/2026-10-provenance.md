@@ -650,3 +650,28 @@ findings and before/after detection controls. The initial spread/strict-check
 failure and Cargo PATH diagnostic remain preserved. This uses the recorded
 fallback, not a new preflight claim. Actual CI is still pending; inherited/stale
 browser gates remain open.
+
+
+## 2026-10-17 — retired-credential thread recovery: physical browser storage
+
+Recovered published checkpoints from the stalled “Explore Retired Credential
+Traps” thread: #1170 was superseded by merged #826; #1229 is the last reported
+published browser bundle slice. The original request and selected settings were
+unavailable, as confirmed by the person. No claim is made that the old
+uncommitted work or temporary receipts were recovered. Inspection resumed from
+current main `495f1d42082dcd56b7a3d50bf39cfc645c2f7acd` in an isolated worktree.
+
+The authenticated coding preflight found no Grok subscription auth and no Kimi
+executable. Codex implementation and independent Codex review/test agents were
+the available fallback; neither unavailable CLI is credited with this work.
+This cut refuses physical vault records omitted from the registry and repairs
+first publication's recognition of its own still-empty, original file entry.
+It does not activate retired login, issue owner authority, or establish full
+client/native/mobile feature readiness.
+
+Native Chromium reproduced the old registry omission and the existing first
+publication failure. Seven additional registry controls and the original
+storage/CAS controls passed after the correction. Focused publication tests
+retain preexisting-empty, replacement, strict-seal and bounds refusals. Exact
+commands, source witnesses and broader gate outcomes belong to the PR evidence;
+these scoped results do not replace the repository or complete-feature gates.
