@@ -11,6 +11,8 @@ import {
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { composeNative, nativeBuildEnvironment } from "./compose-native.mjs";
+import { emitNativeAssets } from "./native-assets.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const pins = JSON.parse(await readFile(join(here, "source.json"), "utf8"));
@@ -29,6 +31,8 @@ const integrity = [];
 const owned = new Set();
 let interrupted = "";
 let nativeHttpStaged = false;
+let moduleFlags = "-p=2 -buildvcs=false";
+let verifyNative = null;
 
 async function digest(path) {
   return createHash("sha256")
@@ -50,6 +54,7 @@ async function sourcePins(stage) {
 async function criticalPins(stage) {
   await sourcePins(stage);
   await verifyFiles(compiler, pins.compiler.criticalFiles, stage);
+  if (verifyNative) await verifyNative();
   if (nativeHttpStaged) {
     await verifyFiles(here, pins.nativeHttp.files, `${stage}:overlay-source`);
     await verifyFiles(
@@ -84,58 +89,6 @@ async function freshOutput() {
   ])
     await mkdir(directory, { recursive: true });
   await checkDisk();
-}
-const inheritedNames = new Set([
-  "PATH",
-  "LANG",
-  "TZ",
-  "LC_ALL",
-  "LC_CTYPE",
-  "LC_COLLATE",
-  "LC_MESSAGES",
-  "LC_NUMERIC",
-  "LC_TIME",
-  "LC_MONETARY",
-  "LC_PAPER",
-  "LC_NAME",
-  "LC_ADDRESS",
-  "LC_TELEPHONE",
-  "LC_MEASUREMENT",
-  "LC_IDENTIFICATION",
-  "HTTP_PROXY",
-  "HTTPS_PROXY",
-  "ALL_PROXY",
-  "NO_PROXY",
-  "http_proxy",
-  "https_proxy",
-  "all_proxy",
-  "no_proxy",
-  "SSL_CERT_FILE",
-  "SSL_CERT_DIR",
-]);
-function environment(parent = process.env) {
-  const env = {};
-  for (const key of inheritedNames)
-    if (parent[key] !== undefined) env[key] = parent[key];
-  return Object.assign(env, {
-    GOMAXPROCS: "2",
-    GOMEMLIMIT: "2GiB",
-    GOFLAGS: "-p=2 -buildvcs=false",
-    GOTOOLCHAIN: "local",
-    GOENV: "off",
-    GOTELEMETRY: "off",
-    GOCACHE: join(output, "cache", "build"),
-    GOMODCACHE: join(output, "cache", "mod"),
-    GOPATH: join(output, "cache", "gopath"),
-    TMPDIR: join(output, "tmp"),
-    GOPROXY: "https://proxy.golang.org",
-    GOSUMDB: "sum.golang.org",
-    GOPRIVATE: "",
-    GONOPROXY: "",
-    GONOSUMDB: "",
-    VERSION_LONG: "",
-    VERSION_SHORT: "",
-  });
 }
 function live(state) {
   const child = state.child;
@@ -215,7 +168,7 @@ async function execute(program, args, name, verify = criticalPins) {
   }
   const child = spawn(program, args, {
     cwd: source,
-    env: environment(),
+    env: nativeBuildEnvironment(output, moduleFlags),
     detached: true,
     stdio: ["ignore", log.fd, log.fd],
   });
@@ -323,16 +276,26 @@ async function stageNativeHttp() {
     );
   nativeHttpStaged = true;
   await criticalPins("native-http-staged");
-  await execute(
-    join(compiler, "bin/go"),
-    ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/nativehttp"],
-    "native-http-host-test",
-  );
 }
 async function run() {
   await freshOutput();
   await extractInputs();
   await stageNativeHttp();
+  const composed = await composeNative({
+    here,
+    source,
+    output,
+    pins,
+    execute,
+    requireHash,
+  });
+  moduleFlags = composed.flags;
+  verifyNative = composed.verify;
+  await execute(
+    join(compiler, "bin/go"),
+    ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/nativehttp"],
+    "native-http-host-test",
+  );
   const baseline = await build("baseline");
   const repeated = await build("baseline-repeat");
   if (baseline.sha256 !== repeated.sha256)
@@ -342,14 +305,29 @@ async function run() {
   const expandedRepeat = await build("exit-feature-repeat");
   if (expanded.sha256 !== expandedRepeat.sha256)
     throw new Error("Feature build is not repeatable.");
+  const distribution = await emitNativeAssets({
+    here,
+    repositoryRoot: resolve(here, "../.."),
+    source,
+    compiler,
+    output: artifacts,
+    wasm: join(artifacts, "exit-feature.raw.wasm"),
+    wasmSha256: expanded.sha256,
+    pins,
+    requireHash,
+  });
+  await criticalPins("distribution-complete");
   const result = {
+    distribution,
     baseline,
     repeated,
     expanded,
     expandedRepeat,
     scope: pins.scope,
     integrity,
-    childEnvironmentNames: Object.keys(environment()).sort(),
+    childEnvironmentNames: Object.keys(
+      nativeBuildEnvironment(output, moduleFlags),
+    ).sort(),
     ownedGroupsRemaining: owned.size,
   };
   await writeFile(
@@ -361,7 +339,7 @@ attachSignals();
 try {
   await run();
   console.log(
-    "Raw compilation and owned host TLS tests complete; browser transport, peering and provider operations remain unrun.",
+    "Pinned native artifacts emitted; PWA activation and provider-operation verification remain required.",
   );
 } catch {
   process.exitCode = interrupted === "SIGINT" ? 130 : 1;

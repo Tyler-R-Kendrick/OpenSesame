@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Unactivated bounded native Go HTTPS core, owned host TLS test sources and official-source-derived raw js/wasm compile foundation. No binary committed; no browser transport, routing, DNS, peering or provider-operation success claim.",
+  "scope": "Pinned original-node native HTTPS composition and owned same-deployment assets; PWA worker/controller activation and public-provider proof remain separate.",
   "source": {
     "repository": "https://github.com/tailscale/tailscale",
     "commit": "b31d8a75af155bcf19853d1a66041782d13e56ae",
@@ -306,5 +306,40 @@
     "nodeHookAfterSha256": "5fba465c474d199d015e07a9c163d172661dfeae553526184a1bc8b0dac8c3f8",
     "license": "BSD-3-Clause; preserve upstream LICENSE copyright/conditions/disclaimer in source and binary distribution notices. Do not copy generated roots or reinterpret NSS constraints.",
     "qualification": "Imports fallback/bundle only; never parent fallback init, SystemCertPool or SetFallbackRoots. Explicit owned alternate modfile/sum selection and reviewed Go1.27.2 compiler are prerequisites. Stage exactly the two fixed public root files, not a generic directory loader; build/native-worker/public-provider activation is not claimed by this metadata."
+  },
+  "composition": {
+    "status": "Unactivated assets; no normal PWA provider-runtime completion claim.",
+    "modSha256": "7c23d4321c3e9609e818555d16c39cb4632efe9c7c486fa2791f870a88048149",
+    "sumSha256": "c8b78cd848ef3af9324602d9988034f2cdce5aae523f5c970b5b5fb9e9f21e8d",
+    "runtimeSha256": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14",
+    "thirdPartySha256": "9467842c7b63c53ca102a9485075ee375f3ac3a03b51764ed2d247d530df5fa2",
+    "zod": {
+      "version": "3.25.67",
+      "packageSha256": "b60783bbe1e3fe898d6d8a8ab9613df906cd2cb16f19ce95a74e4e71395d1093",
+      "licenseSha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8"
+    },
+    "vite": {
+      "version": "6.4.3",
+      "packageSha256": "a1d0149fd986fd34b6d35503d2c0d8d9f743c4dbaaf94fbc11812bc84b05884d"
+    },
+    "bridgeSha256": "eb3b9947a79c82ea8cde4e95ac2cf09544d25894314f679e44ee0948c98eea16",
+    "files": [
+      {
+        "path": "build.mjs",
+        "sha256": "6c0742219717daabfb40b2266ac2ed732df877616c797f68af2eacd7477f2452"
+      },
+      {
+        "path": "compose-native.mjs",
+        "sha256": "9276cbd4e4e1f168633f8bc9dd74cd04069d71e2daf58466e9a76cc40b93e2be"
+      },
+      {
+        "path": "native-assets.mjs",
+        "sha256": "28d585d2cb74151dad657ff944bbf47dc775cb4f13f9582bd0fbfa6cb1809887"
+      },
+      {
+        "path": "compose-native.test.mjs",
+        "sha256": "e04c873a47fb06a1b143f20a153fb03166409658160bed53003ede4319819fbd"
+      }
+    ]
   }
 }
