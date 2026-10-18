@@ -77,7 +77,7 @@ export function captureBrowserNodeTransport(
     return captured.fetch(request, { signal: anySignal(signals) });
   };
   const mutation = base.settleCredentialMutation;
-  return Object.freeze({
+  const transport: NativeProviderTransport = {
     ...base,
     capture: undefined,
     supportsNativeOrigin: (origin: string) => {
@@ -107,17 +107,15 @@ export function captureBrowserNodeTransport(
       const carried = route(input, init, false);
       return carried ?? base.fetch(input, init);
     },
-    ...(mutation
-      ? {
-          settleCredentialMutation: async (
-            input: RequestInfo | URL,
-            init?: RequestInit,
-          ) => {
-            base.assertCurrent();
-            const carried = route(input, init, true);
-            return carried ?? mutation(input, init);
-          },
-        }
-      : {}),
-  });
+  };
+  if (mutation)
+    transport.settleCredentialMutation = async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
+      base.assertCurrent();
+      const carried = route(input, init, true);
+      return carried ?? mutation(input, init);
+    };
+  return Object.freeze(transport);
 }

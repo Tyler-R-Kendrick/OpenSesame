@@ -74,7 +74,9 @@ async function perform(action: Action, editor: Editor, check: () => void) {
   }
   const identity = normalizeTailscaleNodeIdentity(editor);
   const nativeHTTP = nativeHTTPConfiguration(editor.nativeHTTPValues);
-  const configuration = { ...identity, ...(nativeHTTP ? { nativeHTTP } : {}) };
+  const configuration: TailscaleNodeConfiguration = nativeHTTP
+    ? { ...identity, nativeHTTP }
+    : identity;
   const saved = savedBrowserNodeConfiguration();
   if (
     saved &&

@@ -97,15 +97,17 @@ export function nativeHTTPConfiguration(
       const [origin = "", ...prefixes] = line.trim().split(/[\s,]+/);
       return { origin, prefixes };
     });
-  const result = TailscaleNativeHTTPConfiguration.safeParse({
+  const configuration = {
     version: 1,
     exitNodeID: values.exitNodeID,
     targets,
     trustMode: values.trustMode,
-    ...(values.trustMode === "operator"
-      ? { operatorCAPEM: values.operatorCAPEM }
-      : {}),
-  });
+  };
+  const result = TailscaleNativeHTTPConfiguration.safeParse(
+    values.trustMode === "operator"
+      ? { ...configuration, operatorCAPEM: values.operatorCAPEM }
+      : configuration,
+  );
   if (!result.success)
     throw new Error(
       "Complete the approved exit node, exact HTTPS origins, masked destination CIDRs and selected TLS trust configuration.",

@@ -55,19 +55,19 @@ it.each([
     const initial = screen.getByRole("textbox", { name: label });
     fireEvent.change(initial, { target: { value } });
     const edited = screen.getByRole("textbox", { name: label });
+    if (!(edited instanceof HTMLTextAreaElement))
+      throw new Error("Expected the edited textarea");
     expect(edited).toBe(initial);
     expect(screen.getByLabelText(label, { exact: true })).toBe(edited);
-    expect(
-      (edited as HTMLTextAreaElement).labels?.[0]?.textContent?.trim(),
-    ).toBe(label);
-    expect((edited as HTMLTextAreaElement).value).toBe(value);
+    expect(edited.labels?.[0]?.textContent?.trim()).toBe(label);
+    expect(edited.value).toBe(value);
     rendered.unmount();
     render(<Editor initial={{ [id]: value }} />);
     const restored = screen.getByRole("textbox", { name: label });
+    if (!(restored instanceof HTMLTextAreaElement))
+      throw new Error("Expected the restored textarea");
     expect(screen.getByLabelText(label, { exact: true })).toBe(restored);
-    expect(
-      (restored as HTMLTextAreaElement).labels?.[0]?.textContent?.trim(),
-    ).toBe(label);
-    expect((restored as HTMLTextAreaElement).value).toBe(value);
+    expect(restored.labels?.[0]?.textContent?.trim()).toBe(label);
+    expect(restored.value).toBe(value);
   },
 );
