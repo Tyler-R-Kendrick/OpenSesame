@@ -18,13 +18,14 @@
 //!    talk to the store (constitution C2(b)). Nothing enables itself.
 
 mod bitwarden;
+mod serve;
 
 use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use clap::{Subcommand, ValueEnum};
-use opensesame_pm_bridges::conflict::{keepassxc_socket_path, probe_unix_socket, SocketState};
+use opensesame_pm_bridges::conflict::{keepassxc_socket_path, probe_unix_socket};
 use opensesame_pm_bridges::manifest::{self, BridgeKind, Browser};
 use opensesame_pm_bridges::now_unix;
 use opensesame_pm_bridges::pairing::{
@@ -266,7 +267,7 @@ fn keepassxc(cmd: KeepassxcCmd) -> anyhow::Result<()> {
             socket,
             takeover,
             bin,
-        } => serve(socket, takeover, bin),
+        } => serve::run(socket, takeover, bin),
         KeepassxcCmd::Associations => associations(),
         KeepassxcCmd::Revoke { id } => revoke(&id),
     }
@@ -346,37 +347,6 @@ fn prompt_yes_no(prompt: &str) -> anyhow::Result<bool> {
         line.trim().to_ascii_lowercase().as_str(),
         "y" | "yes"
     ))
-}
-
-/// Run the bridge binary's UDS server as a child process.
-///
-/// The CLI does not link the bridge core: the serving surfaces are behind
-/// cargo features in `crates/pm-bridges`, and keeping them out of the CLI is
-/// what makes "default off" true at link time rather than only at runtime.
-fn serve(socket: Option<PathBuf>, takeover: bool, bin: Option<PathBuf>) -> anyhow::Result<()> {
-    let socket = socket.unwrap_or_else(keepassxc_socket_path);
-    match probe_unix_socket(&socket) {
-        SocketState::Live { .. } => {
-            anyhow::bail!("{}", probe_unix_socket(&socket).diagnostic(&socket));
-        }
-        SocketState::Stale if !takeover => {
-            anyhow::bail!("{}", probe_unix_socket(&socket).diagnostic(&socket));
-        }
-        _ => {}
-    }
-    let binary = bin.unwrap_or_else(|| manifest::default_binary_path(BridgeKind::KeepassXc));
-    let mut command = std::process::Command::new(&binary);
-    command.arg("serve").arg("--socket").arg(&socket);
-    if takeover {
-        command.arg("--takeover");
-    }
-    let status = command
-        .status()
-        .map_err(|e| anyhow::anyhow!("could not run {}: {e}", binary.display()))?;
-    if !status.success() {
-        anyhow::bail!("{} exited with {status}", binary.display());
-    }
-    Ok(())
 }
 
 fn associations() -> anyhow::Result<()> {

@@ -25,7 +25,7 @@
       "complexity": 1
     },
     "apps/cli/src/bridge.rs": {
-      "max-lines": 500
+      "max-lines": 470
     },
     "apps/cli/src/configs.rs": {
       "max-lines": 587
