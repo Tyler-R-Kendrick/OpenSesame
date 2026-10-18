@@ -78,11 +78,31 @@ describe("when a model provider opens the Add sheet", () => {
     expect(aiProviderSheetTarget({ ...open, provider: null })).toBeNull();
   });
 
-  it("does not open where the browser has no road for the key", () => {
+  it("opens the configured NVIDIA API route without verifying or sending a key", () => {
+    const runtime = connectorIntegration();
+    const target = aiProviderSheetTarget({
+      ...open,
+      provider: provider("nvidia"),
+      pathname: "/connections/nvidia",
+    });
+    expect(target?.provider.id).toBe("nvidia");
+    expect(target?.method.id).toBe("api-key");
+    expect(target?.method.available).toBe(true);
+    expect(target?.method.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "api_key",
+          secret: true,
+          required: true,
+        }),
+      ]),
+    );
+    expect(runtime.requests).toEqual([]);
+  });
+
+  it("keeps providers without a configured API-key contract on their page", () => {
     connectorIntegration();
-    // A configuration row names an endpoint of the person's own; a provider
-    // whose models list is public cannot prove a key.
-    for (const id of ["litellm", "nvidia", "google-vertex"]) {
+    for (const id of ["litellm", "google-vertex"]) {
       expect(
         aiProviderSheetTarget({
           ...open,
