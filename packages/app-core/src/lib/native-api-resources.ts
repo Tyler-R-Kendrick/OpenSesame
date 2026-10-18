@@ -121,6 +121,45 @@ function projectAlgoliaIndices(body: BoundaryValue): BoundaryValue {
     })),
   };
 }
+const zoneCount = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const zones = z.object({
+  success: z.literal(true),
+  errors: z.array(z.never()).max(0),
+  result: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(32).refine(printable),
+        name: z.string().min(1).max(253).refine(printable),
+      }),
+    )
+    .max(20),
+  result_info: z
+    .object({
+      page: z.literal(1).optional(),
+      per_page: z.literal(20).optional(),
+      count: zoneCount.optional(),
+      total_count: zoneCount.optional(),
+      total_pages: zoneCount.optional(),
+    })
+    .optional(),
+  error: z.never().optional(),
+});
+function projectCloudflareZones(body: BoundaryValue): BoundaryValue {
+  const response = zones.parse(body);
+  const info = response.result_info;
+  const count = response.result.length;
+  if (
+    new Set(response.result.map((zone) => zone.id)).size !== count ||
+    (info?.count !== undefined && info.count !== count) ||
+    (info?.total_count !== undefined && info.total_count < count) ||
+    (info?.total_pages === 0 && count > 0)
+  )
+    throw new NativeApiError("response");
+  return {
+    label: `Showing ${count} ${count === 1 ? "zone" : "zones"} from first page`,
+    items: response.result.map((zone) => ({ id: zone.id, label: zone.name })),
+  };
+}
 const resources: readonly Resource[] = [
   {
     providerId: "agentmail",
@@ -138,6 +177,17 @@ const resources: readonly Resource[] = [
       query: { count: 20, offset: 0, messagestream: "outbound" },
     },
     projectPostmarkMessages,
+  ),
+  jsonResource(
+    "List zones",
+    {
+      providerId: "cloudflare",
+      operationId: "provider.zones.read",
+      method: "GET",
+      path: "/client/v4/zones",
+      query: { page: 1, per_page: 20 },
+    },
+    projectCloudflareZones,
   ),
   jsonResource(
     "List indices",
