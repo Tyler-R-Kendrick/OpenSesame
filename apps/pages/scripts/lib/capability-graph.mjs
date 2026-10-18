@@ -35,6 +35,24 @@ export const MODULES_DIR = "apps/pages/src/modules/";
 
 const toPosix = (path) => path.replace(/\\/g, "/");
 
+/** Decode only canonical build-owned worker realms; malformed reserved IDs fail closed. */
+export function workerRealmSource(id) {
+  if (!id.startsWith("\0opensesame-worker")) return undefined;
+  const match = id.match(
+    /^\0opensesame-worker:([a-z0-9.-]+):([A-Za-z0-9_-]+)(\.(?:[cm]?js|tsx?|json))$/,
+  );
+  if (!match) throw new Error("Malformed worker realm module ID.");
+  const source = Buffer.from(match[2], "base64url").toString("utf8");
+  if (
+    Buffer.from(source).toString("base64url") !== match[2] ||
+    !/^(?:\/|[A-Za-z]:[\\/])/.test(source) ||
+    source.includes("\0") ||
+    !source.split(/[?#]/, 1)[0].endsWith(match[3])
+  )
+    throw new Error("Malformed worker realm source path.");
+  return source;
+}
+
 /**
  * Turn a Rollup module id into the repo-relative form the graph records:
  * `apps/pages/src/...`, `packages/...`, or `node_modules/<pkg>/...` (pnpm's
@@ -45,6 +63,8 @@ const toPosix = (path) => path.replace(/\\/g, "/");
 const APP_CORE = "packages/app-core/src/";
 
 export function normalizeModuleId(id, { repoRoot }) {
+  const workerSource = workerRealmSource(id);
+  if (workerSource) return normalizeModuleId(workerSource, { repoRoot });
   if (id.startsWith("\0")) return id.slice(1);
   if (id.startsWith("virtual:")) return id;
   const path = toPosix(id).replace(/[?#].*$/, "");
@@ -169,8 +189,9 @@ function fallbackClassification(normalized, directoryOwner) {
 }
 
 export function classifyModule(id, rules, { repoRoot }) {
-  const normalized = normalizeModuleId(id, { repoRoot });
-  if (id.startsWith("\0") || normalized.startsWith("virtual:")) {
+  const source = workerRealmSource(id) ?? id;
+  const normalized = normalizeModuleId(source, { repoRoot });
+  if (source.startsWith("\0") || normalized.startsWith("virtual:")) {
     return {
       id: normalized,
       classification: "core",
