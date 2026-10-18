@@ -26,11 +26,14 @@ function useBackendDraft(props: SecretBackendPanelProps) {
   const [saved, setSaved] = useState(() =>
     currentSecretBackend(props.provider.id, props.connection),
   );
-  const [draft, setDraft] = useState(
-    () =>
+  const [draft, setDraft] = useState<SecretBackendDraft>(() => {
+    const selected: SecretBackendDraft =
       (saved && dependencies.readSecretBackendConnection(saved.connectionId)) ||
-      dependencies.secretBackendDraft(props.provider.id),
-  );
+      dependencies.secretBackendDraft(props.provider.id);
+    return selected.mode === "bitwarden-api" && !selected.deviceIdentifier
+      ? { ...selected, deviceIdentifier: crypto.randomUUID() }
+      : selected;
+  });
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   return {
@@ -55,10 +58,19 @@ function configurationActions(
       if (key === "mode") {
         next.token = "";
         next.clientSecret = "";
+        if (value === "bitwarden-api") {
+          next.organizationId = "";
+          if (!next.deviceIdentifier)
+            next.deviceIdentifier = crypto.randomUUID();
+        }
       }
       return next;
     });
-    if (key === "mode" || key === "fileFormat") {
+    if (
+      key === "mode" ||
+      key === "fileFormat" ||
+      editor.draft.mode === "bitwarden-api"
+    ) {
       editor.setFile(null);
       editor.setPassword("");
     }
@@ -71,6 +83,7 @@ function configurationActions(
     );
     if (draft) {
       editor.setDraft(draft);
+      editor.setPassword("");
       status.clear();
     }
   }
@@ -82,6 +95,7 @@ function configurationActions(
         editor.saved?.connectionId,
       );
       editor.setSaved(saved);
+      if (editor.draft.mode === "bitwarden-api") editor.setPassword("");
       const draft = dependencies.readSecretBackendConnection(
         saved.connectionId,
       );
@@ -108,10 +122,12 @@ export function useSecretBackendConnection(props: SecretBackendPanelProps) {
   const editor = useBackendDraft(props);
   const status = useSecretBackendAction(props.onFlash);
   const session = useSecretBackendSession(status.clear);
-  const config = (): SecretBackendConfiguration => ({
-    ...editor.draft,
+  const config = (draft = editor.draft): SecretBackendConfiguration => ({
+    ...draft,
     file: editor.file ?? undefined,
-    filePassword: editor.password,
+    filePassword: draft.mode === "file-import" ? editor.password : undefined,
+    masterPassword:
+      draft.mode === "bitwarden-api" ? editor.password : undefined,
   });
   function probe() {
     void status.run(async (action) => {
@@ -139,13 +155,11 @@ export function useSecretBackendConnection(props: SecretBackendPanelProps) {
           ? dependencies.readSecretBackendConnection(savedId)
           : null;
         const input =
-          savedId && saved && saved.mode !== "file-import"
+          savedId &&
+          saved &&
+          !["file-import", "bitwarden-api"].includes(saved.mode)
             ? savedId
-            : {
-                ...(saved ?? editor.draft),
-                file: editor.file ?? undefined,
-                filePassword: editor.password,
-              };
+            : config(saved ?? editor.draft);
         const accepted = session.accept(
           attempt,
           await dependencies.connectSecretBackend(

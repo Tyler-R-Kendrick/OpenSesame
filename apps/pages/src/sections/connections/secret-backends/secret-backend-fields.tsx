@@ -46,7 +46,19 @@ const API_FIELDS = {
     token,
     { key: "vaultId", label: "Vault ID" },
   ],
-  "bitwarden-api": [endpoint],
+  "bitwarden-api": [
+    endpoint,
+    { key: "identityUrl", label: "Identity API URL" },
+    { key: "accountEmail", label: "Account email" },
+    {
+      key: "clientId",
+      label: "Personal API client ID",
+      placeholder: "user.00000000-0000-0000-0000-000000000000",
+    },
+    { key: "clientSecret", label: "Personal API client secret", secret: true },
+    { key: "deviceIdentifier", label: "Device identifier" },
+    { key: "vaultId", label: "Personal folder ID (optional)" },
+  ],
   "bitwarden-secrets": [
     endpoint,
     { key: "identityUrl", label: "Identity API URL" },
