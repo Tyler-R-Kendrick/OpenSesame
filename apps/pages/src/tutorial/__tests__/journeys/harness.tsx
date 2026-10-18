@@ -18,6 +18,7 @@
  * them is part of a support journey, and leaving them in would make every
  * story below a test of them as well.
  */
+import { defaultPrefs } from "@opensesame/app-core/lib/vault/prefs.js";
 import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
 import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
@@ -113,6 +114,7 @@ const journeyVault = {
   folders: [],
   header: null,
   status: "unlocked",
+  prefs: defaultPrefs,
 };
 Object.assign(vaultHooksSeams, {
   useVault: () => journeyVault,

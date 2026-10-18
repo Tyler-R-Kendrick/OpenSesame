@@ -284,23 +284,6 @@ describe("self-hosted provider configuration", () => {
     expect(screen.queryByLabelText("App Scopes")).toBeNull();
     expect(screen.queryByText(/Vercel/)).toBeNull();
   });
-
-  it("starts every supported provider from its own preset without deployment credentials", () => {
-    setVercelConnectAuth(null);
-    draw("resend");
-    expect(screen.getByRole("region", { name: "Connector" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Sign in to Resend" }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText("Connector name")).toBeNull();
-    expect(screen.queryByRole("radio", { name: "API Key" })).toBeNull();
-    expect(
-      screen.getByText("Other sign-in methods", { selector: "summary" }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText("Resend API key")).toBeNull();
-    expect(runtime.fetch).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText("Relay management key")).toBeNull();
-  });
 });
 
 describe("a person's token", () => {

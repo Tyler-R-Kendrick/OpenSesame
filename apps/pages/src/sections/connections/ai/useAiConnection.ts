@@ -34,7 +34,11 @@ function changeDraft<Key extends keyof AiConnectionDraft>(
     next.azure = undefined;
   if (next.azure) {
     next.authentication = "api-key";
-    if (next.azure.api === "dated-chat") next.family = "openai_chat";
+    if (next.azure.api === "dated-chat") {
+      next.family = "openai_chat";
+      if (current.azure?.api !== "dated-chat")
+        next.tokenParameter = "max_tokens";
+    }
   }
   if (
     (current.azure || next.azure) &&

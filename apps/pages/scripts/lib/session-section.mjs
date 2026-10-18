@@ -10,7 +10,13 @@ async function dismissVaultSwitcher(page) {
   if (!(await menu.isVisible().catch(() => false))) return;
   const backdrop = page.locator(".project-switcher__backdrop");
   if (await backdrop.isVisible().catch(() => false)) {
-    await backdrop.click({ position: { x: 4, y: 4 } });
+    // The backdrop can leave with the menu between seeing it and pressing
+    // it. That press timing out is not a failure to dismiss: use Escape.
+    try {
+      await backdrop.click({ position: { x: 4, y: 4 }, timeout: 5000 });
+    } catch {
+      await page.keyboard.press("Escape");
+    }
   } else {
     await page.keyboard.press("Escape");
   }

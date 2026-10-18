@@ -2,7 +2,7 @@ import {
   type Flash,
   errorText,
 } from "@opensesame/app-core/sections/connections/shared.js";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 export type SecretBackendActionOwner = Readonly<{
   signal: AbortSignal;
@@ -54,6 +54,19 @@ function pendingAction(
     subscribe: () =>
       ownerSignal?.addEventListener("abort", ownerEnded, { once: true }),
   };
+}
+
+/** Keep the actual provider and authenticated-session lifetimes stable across renders. */
+export function useSecretBackendOwnerSignal(
+  backend: AbortSignal | undefined,
+  session: AbortSignal | undefined,
+) {
+  return useMemo(() => {
+    const signals = [backend, session].filter(
+      (value): value is AbortSignal => value !== undefined,
+    );
+    return signals.length ? AbortSignal.any(signals) : undefined;
+  }, [backend, session]);
 }
 
 /** One mounted operation owns its mark and tray notice until completion or cancellation. */
