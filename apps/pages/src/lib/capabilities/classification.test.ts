@@ -45,6 +45,32 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(unmatched, `unclassified:\n${unmatched.join("\n")}`).toEqual([]);
   });
 
+  it("names only the custody metadata test family as core infrastructure", () => {
+    const custody = classify("src/lib/vault-credential-custody.ts");
+    expect(custody?.classification).toBe("core");
+    expect(custody?.capability).toBeNull();
+    expect(classify("src/lib/vault-credential-metadata.test.ts")).toMatchObject(
+      {
+        pattern: "src/lib/vault-credential-metadata.test",
+        classification: custody?.classification,
+        capability: null,
+      },
+    );
+    for (const path of [
+      "src/lib/vault-credential-metadata.ts",
+      "src/lib/vault-credential-metadatas.test.ts",
+      "src/lib/vault-credential-metadata-tests.ts",
+      "src/lib/vault-credential-metadata.testament.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+    expect(
+      classify("src/lib/secret-backends/encrypted-remote-continuity.ts"),
+    ).toMatchObject({
+      classification: "optional",
+      capability: "connectors.external",
+    });
+  });
+
   it("has unique patterns", () => {
     const patterns = SOURCE_CLASSIFICATION.map((rule) => rule.pattern);
     expect(new Set(patterns).size).toBe(patterns.length);

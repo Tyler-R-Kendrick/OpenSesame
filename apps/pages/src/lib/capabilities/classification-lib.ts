@@ -25,6 +25,7 @@ const CORE_INFRA = [
   "at-rest/", // every stored value's seal and the device key (ADR 0149)
   "vfs",
   "vault-credential-custody",
+  "vault-credential-metadata.test",
   "projects",
   "vaults",
   // Glyphs for vaults, people and organizations belong to the shell prompt (ADR 0165).
