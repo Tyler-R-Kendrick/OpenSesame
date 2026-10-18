@@ -12,6 +12,9 @@ opensesame-domain = { path = "../domain" }
 # workspace dependencies of its own, so the edge points the right way.
 opensesame-invoke-through = { path = "../invoke-through" }
 opensesame-sealed-store = { path = "../sealed-store" }
+# Provider CLIs are started by the trusted rule and handed only their own
+# variables (providers/cli.rs). std only, plus libc on Unix.
+opensesame-trusted-exec = { path = "../trusted-exec" }
 anyhow = { workspace = true }
 # `bytes`, `http` and `secrecy` are named only for the types the broker's
 # request takes; all three are already in the tree through invoke-through.
@@ -40,6 +43,8 @@ tempfile = "3.20.0"
 # A real TLS upstream for the constrained-HTTP end-to-end suite: disposable
 # PKI and a listener, never a normal dependency.
 opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+# The planted-PATH fixture for the provider CLI tests.
+opensesame-trusted-exec = { path = "../trusted-exec", features = ["testkit"] }
 axum = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }

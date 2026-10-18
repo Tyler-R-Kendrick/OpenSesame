@@ -3,11 +3,19 @@ use opensesame_domain::{
     AuthenticationMode as Auth, ExecutionTarget as Target, ProviderCapability as Capability,
     ProviderCategory as Category, ProviderDefinition, ProviderSupport,
 };
+use opensesame_trusted_exec::Lookup;
 use serde_json::Value;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+
+mod cli;
+mod probe;
+
+pub use probe::{probe_live, probe_local, ProviderProbe};
+#[cfg(test)]
+use probe::{probe_live_in, probe_local_in};
 
 const PERSONAL: &[Target] = &[Target::PersonalDaemon];
 const WORKLOAD: &[Target] = &[Target::WorkloadWorker];
@@ -498,158 +506,6 @@ pub fn find(id: &str) -> Option<ProviderDefinition> {
     catalog().into_iter().find(|provider| provider.id == id)
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct ProviderProbe {
-    pub available: bool,
-    pub adapter: String,
-    pub detail: String,
-    pub live: bool,
-}
-
-/// Harmless local readiness probe. This never reads a secret and never upgrades
-/// support status; provider-specific live tests remain a separate evidence gate.
-#[must_use]
-pub fn probe_local(provider: &ProviderDefinition) -> ProviderProbe {
-    if provider.adapter == "http:github-app" {
-        let has = |name: &str| std::env::var(name).map(|v| !v.is_empty()).unwrap_or(false);
-        let configured = has("GITHUB_APP_ID")
-            && (has("GITHUB_APP_PRIVATE_KEY") || has("GITHUB_APP_PRIVATE_KEY_PATH"));
-        return ProviderProbe {
-            available: configured,
-            adapter: provider.adapter.clone(),
-            detail: if configured {
-                "GitHub App credentials configured; lease via opensesame CLI".into()
-            } else {
-                "set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH to enable".into()
-            },
-            live: false,
-        };
-    }
-    let Some(executable) = provider.adapter.strip_prefix("cli:") else {
-        let builtin = matches!(
-            provider.adapter.as_str(),
-            "native:human-vault" | "native:e2ee-sync" | "native:env"
-        );
-        return ProviderProbe {
-            available: builtin,
-            adapter: provider.adapter.clone(),
-            detail: if builtin {
-                "built into this OpenSesame host".into()
-            } else {
-                "live integration probe required".into()
-            },
-            live: false,
-        };
-    };
-    match std::process::Command::new(executable)
-        .arg("--version")
-        .output()
-    {
-        Ok(output) => ProviderProbe {
-            available: output.status.success(),
-            adapter: provider.adapter.clone(),
-            detail: if output.status.success() {
-                format!("{executable} is installed")
-            } else {
-                format!("{executable} --version failed")
-            },
-            live: false,
-        },
-        Err(error) => ProviderProbe {
-            available: false,
-            adapter: provider.adapter.clone(),
-            detail: format!("{executable} is unavailable: {error}"),
-            live: false,
-        },
-    }
-}
-
-/// Harmless authenticated/runtime probe. Output is discarded and never enters
-/// logs or the response; a successful result is live evidence for this process,
-/// not a permanent support promotion.
-#[must_use]
-pub fn probe_live(provider: &ProviderDefinition) -> ProviderProbe {
-    let command: Option<(&str, &[&str])> = match provider.id.as_str() {
-        "age" => Some(("age", &["--version"])),
-        "aws-kms" | "aws-parameter-store" | "aws-secrets-manager" | "aws-sts" => {
-            Some(("aws", &["sts", "get-caller-identity", "--output", "json"]))
-        }
-        "azure-key-vault-keys"
-        | "azure-app-configuration"
-        | "azure-key-vault-secrets"
-        | "azure-access-token" => Some(("az", &["account", "show", "--output", "none"])),
-        "gcp-kms" | "gcp-secret-manager" | "gcp-iam" => {
-            Some(("gcloud", &["auth", "print-access-token"]))
-        }
-        "doppler" => Some(("doppler", &["me"])),
-        "vault" => Some(("vault", &["status", "-format=json"])),
-        "1password" => Some(("op", &["whoami", "--format=json"])),
-        "bitwarden" | "vaultwarden" => Some(("bw", &["sync", "--quiet"])),
-        "keychain" if cfg!(target_os = "macos") => Some(("security", &["list-keychains"])),
-        "sealed-local" | "encrypted-remote" | "plain" => {
-            return ProviderProbe {
-                available: true,
-                adapter: provider.adapter.clone(),
-                detail: "native runtime is ready".into(),
-                live: true,
-            };
-        }
-        _ => None,
-    };
-    let Some((executable, args)) = command else {
-        let mut probe = probe_local(provider);
-        probe.detail = if probe.available {
-            "adapter is ready; no non-secret live probe is implemented".into()
-        } else {
-            probe.detail
-        };
-        return probe;
-    };
-    match command_succeeds(executable, args) {
-        Ok(true) => ProviderProbe {
-            available: true,
-            adapter: provider.adapter.clone(),
-            detail: "live authentication/runtime probe passed".into(),
-            live: true,
-        },
-        Ok(false) => ProviderProbe {
-            available: false,
-            adapter: provider.adapter.clone(),
-            detail: "live authentication/runtime probe failed".into(),
-            live: false,
-        },
-        Err(_) => ProviderProbe {
-            available: false,
-            adapter: provider.adapter.clone(),
-            detail: format!("{executable} is unavailable"),
-            live: false,
-        },
-    }
-}
-
-fn command_succeeds(executable: &str, args: &[&str]) -> std::io::Result<bool> {
-    use std::process::Stdio;
-    use std::time::{Duration, Instant};
-    let mut child = std::process::Command::new(executable)
-        .args(args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()?;
-    let deadline = Instant::now() + Duration::from_secs(10);
-    loop {
-        if let Some(status) = child.try_wait()? {
-            return Ok(status.success());
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Ok(false);
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HumanProviderOperation {
     Read,
@@ -661,7 +517,15 @@ pub enum HumanProviderOperation {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HumanProviderPlan {
     Environment(String),
+    /// One of the provider CLIs in `providers/cli.rs`, chosen by this crate: run
+    /// by the trusted rule with only the variables that CLI reads.
     Command {
+        executable: String,
+        args: Vec<String>,
+    },
+    /// The program a `custom-command` connection names itself. It is the
+    /// person's choice, so it runs as written, by the name they gave.
+    Custom {
         executable: String,
         args: Vec<String>,
     },
@@ -857,19 +721,27 @@ pub fn crypto_plan(
 /// Returns an error when execution fails, output is invalid or oversized, or
 /// the destination cannot be created securely.
 pub fn execute_crypto_plan(plan: CryptoPlan) -> Result<(), ProviderExecutionError> {
-    if plan.output.exists() {
+    execute_crypto_plan_in(plan, &Lookup::capture())
+}
+
+fn execute_crypto_plan_in(plan: CryptoPlan, lookup: &Lookup) -> Result<(), ProviderExecutionError> {
+    let CryptoPlan {
+        executable,
+        args,
+        output: destination,
+        stdout_base64,
+    } = plan;
+    if destination.exists() {
         return Err(ProviderExecutionError::OutputExists(
-            plan.output.display().to_string(),
+            destination.display().to_string(),
         ));
     }
-    let output = std::process::Command::new(&plan.executable)
-        .args(&plan.args)
-        .output()
-        .map_err(|_| ProviderExecutionError::Unavailable(plan.executable))?;
+    let output =
+        cli::output(&executable, &args, lookup).map_err(ProviderExecutionError::Unavailable)?;
     if !output.status.success() {
         return Err(ProviderExecutionError::Failed);
     }
-    if plan.stdout_base64 {
+    if stdout_base64 {
         if output.stdout.len() > 10 * 1024 * 1024 {
             return Err(ProviderExecutionError::OutputTooLarge);
         }
@@ -883,16 +755,16 @@ pub fn execute_crypto_plan(plan: CryptoPlan) -> Result<(), ProviderExecutionErro
             options.mode(0o600);
         }
         options
-            .open(&plan.output)
+            .open(&destination)
             .and_then(|mut file| file.write_all(&decoded))
             .map_err(|error| ProviderExecutionError::WriteFailed(error.to_string()))?;
     }
     #[cfg(unix)]
-    if plan.output.exists() {
-        std::fs::set_permissions(&plan.output, std::fs::Permissions::from_mode(0o600))
+    if destination.exists() {
+        std::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o600))
             .map_err(|error| ProviderExecutionError::WriteFailed(error.to_string()))?;
     }
-    if !plan.output.exists() {
+    if !destination.exists() {
         return Err(ProviderExecutionError::WriteFailed(
             "provider did not create the output file".into(),
         ));
@@ -1345,7 +1217,7 @@ pub fn human_plan(
                         .collect()
                 })
                 .unwrap_or_default();
-            command(&executable, args)
+            HumanProviderPlan::Custom { executable, args }
         }
         _ => return Err(ProviderExecutionError::Unsupported(provider_id.into())),
     };
@@ -1360,26 +1232,39 @@ pub fn human_plan(
 /// Returns an error when the provider is unavailable, execution fails, or its
 /// output is invalid or oversized.
 pub fn execute_human_plan(plan: HumanProviderPlan) -> Result<String, ProviderExecutionError> {
+    execute_human_plan_in(plan, &Lookup::capture())
+}
+
+fn command_text(output: std::process::Output) -> Result<String, ProviderExecutionError> {
     const MAX_OUTPUT: usize = 10 * 1024 * 1024;
+    if !output.status.success() {
+        return Err(ProviderExecutionError::Failed);
+    }
+    if output.stdout.len() > MAX_OUTPUT {
+        return Err(ProviderExecutionError::OutputTooLarge);
+    }
+    String::from_utf8(output.stdout)
+        .map(|value| value.trim_end_matches(['\r', '\n']).to_owned())
+        .map_err(|_| ProviderExecutionError::InvalidOutput)
+}
+
+fn execute_human_plan_in(
+    plan: HumanProviderPlan,
+    lookup: &Lookup,
+) -> Result<String, ProviderExecutionError> {
     match plan {
         HumanProviderPlan::Environment(name) => std::env::var(&name).map_err(|_| {
             ProviderExecutionError::Unavailable(format!("environment variable {name}"))
         }),
-        HumanProviderPlan::Command { executable, args } => {
-            let output = std::process::Command::new(&executable)
+        HumanProviderPlan::Command { executable, args } => command_text(
+            cli::output(&executable, &args, lookup).map_err(ProviderExecutionError::Unavailable)?,
+        ),
+        HumanProviderPlan::Custom { executable, args } => command_text(
+            std::process::Command::new(&executable)
                 .args(args)
                 .output()
-                .map_err(|_| ProviderExecutionError::Unavailable(executable))?;
-            if !output.status.success() {
-                return Err(ProviderExecutionError::Failed);
-            }
-            if output.stdout.len() > MAX_OUTPUT {
-                return Err(ProviderExecutionError::OutputTooLarge);
-            }
-            String::from_utf8(output.stdout)
-                .map(|value| value.trim_end_matches(['\r', '\n']).to_owned())
-                .map_err(|_| ProviderExecutionError::InvalidOutput)
-        }
+                .map_err(|_| ProviderExecutionError::Unavailable(executable))?,
+        ),
         HumanProviderPlan::SealedStore {
             operation,
             store_dir,

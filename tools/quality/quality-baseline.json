@@ -294,7 +294,7 @@
       "max-lines": 515
     },
     "crates/connector-host/src/providers.rs": {
-      "max-lines": 1439
+      "max-lines": 1324
     },
     "crates/connector-host/src/wasm.rs": {
       "max-lines": 699
