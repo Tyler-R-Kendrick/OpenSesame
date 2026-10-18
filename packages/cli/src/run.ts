@@ -22,8 +22,13 @@ import {
   parseArgs,
 } from "./parse.js";
 import type { SessionDependencies } from "./session-commands.js";
+import { type CanaryCliDependencies, runVaultCanary } from "./vault-canary.js";
 import { type VaultDependencies, runVaultCommand } from "./vault-commands.js";
 import { type VaultItemDependencies, runVaultItems } from "./vault-items.js";
+import {
+  type RetiredCliDependencies,
+  runVaultRetired,
+} from "./vault-retired.js";
 import { type VaultSyncDependencies, runVaultSync } from "./vault-sync.js";
 
 function defaultIssuer(): string {
@@ -31,7 +36,9 @@ function defaultIssuer(): string {
 }
 
 interface RunDependencies
-  extends VaultDependencies,
+  extends CanaryCliDependencies,
+    RetiredCliDependencies,
+    VaultDependencies,
     VaultItemDependencies,
     VaultSyncDependencies,
     ParityDependencies,
@@ -95,6 +102,26 @@ async function dispatch(
   const { issuer, api, clientId, fetchImpl, deps } = ctx;
 
   switch (command.name) {
+    case "canary-serve": {
+      const { runAgentCanaryService } = await import(
+        "./agent-canary-service.js"
+      );
+      const service = await runAgentCanaryService(
+        command.pairingFile,
+        command.stateDirectory,
+      );
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          process.off("SIGINT", finish);
+          process.off("SIGTERM", finish);
+          resolve();
+        };
+        process.once("SIGINT", finish);
+        process.once("SIGTERM", finish);
+      });
+      await service.close();
+      return 0;
+    }
     case "parity":
       return runParity(command, deps);
     case "login": {
@@ -331,6 +358,10 @@ async function dispatch(
     case "vault-share":
       return runVaultItems(command, deps);
 
+    case "vault-canary":
+      return runVaultCanary(command, deps);
+    case "vault-retired":
+      return runVaultRetired(command, deps);
     case "vault-sync":
       return runVaultSync(command, deps);
 

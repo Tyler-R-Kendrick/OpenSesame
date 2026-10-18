@@ -12,6 +12,21 @@ use sha2::{Digest, Sha256};
 use std::{io, path::Path, sync::Arc};
 const LIMIT: usize = 16 * 1024 * 1024;
 pub(super) const GLOBAL_KEY: &str = "duress.enrollment-state.v1";
+pub(super) fn allowed_global_read(logical: &str) -> bool {
+    matches!(
+        logical,
+        "duress.enrollment-state.v1"
+            | "duress.enrollment-state.v1.__staging"
+            | "duress.enrollment-state.v1.__commit"
+    ) || (logical
+        .strip_prefix("opensesame-private/agent-canaries/")
+        .and_then(|v| v.strip_suffix(".v1"))
+        .is_some_and(|v| {
+            v.len() == 64
+                && v.bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        }))
+}
 pub(super) const GENERATION: &str = "opensesame-generation.v1.json";
 fn digest(text: &str) -> String {
     format!("{:x}", Sha256::digest(text.as_bytes()))
@@ -169,7 +184,7 @@ impl NativeNodeDataWriter {
             .strip_prefix("opensesame:vault-body:")
             .ok_or_else(refused)?;
         let prefix = format!("tomb/{tomb}/");
-        if logical_key != GLOBAL_KEY && !logical_key.starts_with(&prefix) {
+        if !allowed_global_read(logical_key) && !logical_key.starts_with(&prefix) {
             return Err(refused());
         }
         let leaf = modern_name(logical_key)?;

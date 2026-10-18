@@ -1,8 +1,6 @@
 //! Original named BODY-only encrypted DATA reader. No CRED, publication or Owner factory.
 use super::{
-    ciphertext_reads::{
-        binding, identity, modern_name, read_optional, validate, GENERATION, GLOBAL_KEY,
-    },
+    ciphertext_reads::{binding, identity, modern_name, read_optional, validate, GENERATION},
     existing_writer::exact_directory,
     gate, refused, tomb_name, HeldPrivateWriterLease, NativeNodeDataScope, NativeNodeDataState,
     PrivateDirectory,
@@ -55,6 +53,16 @@ impl NativeNodeDataState {
     }
 }
 impl NativeNodeDataReader {
+    /// Original bounded encrypted header/projection DATA under this actual named BODY lease.
+    /// # Errors
+    /// Refuses changed resources, unsupported layout and all inventory/file bounds.
+    pub fn read_authentication_projection(&self) -> io::Result<Vec<(String, Vec<u8>)>> {
+        let _operation = gate(&self.state.operations)?;
+        self.check()?;
+        let result = super::projection::projection(&self.vault)?;
+        self.check()?;
+        Ok(result)
+    }
     fn check(&self) -> io::Result<()> {
         self.state.check()?;
         self.body
@@ -103,7 +111,9 @@ impl NativeNodeDataReader {
     ) -> io::Result<Option<Vec<u8>>> {
         let _operation = gate(&self.state.operations)?;
         self.check()?;
-        if logical != GLOBAL_KEY && !logical.starts_with(&format!("tomb/{}/", self.tomb)) {
+        if !super::ciphertext_reads::allowed_global_read(logical)
+            && !logical.starts_with(&format!("tomb/{}/", self.tomb))
+        {
             return Err(refused());
         }
         let leaf = modern_name(logical)?;

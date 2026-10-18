@@ -7,10 +7,7 @@
 import { chmod, readFile, writeFile } from "node:fs/promises";
 import { configureHost } from "@opensesame/app-core/host.js";
 import type { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import {
-  createNodeHost,
-  defaultStateDir,
-} from "@opensesame/app-core/node/host.js";
+import { defaultStateDir } from "@opensesame/app-core/node/host.js";
 import { username } from "@opensesame/app-core/sections/vault-section-model.js";
 import {
   type VaultItem,
@@ -26,6 +23,7 @@ import { emit } from "./output.js";
 import type { ParsedCommand } from "./parse.js";
 import { readPasswordFromTty } from "./tty-password.js";
 import { writeClipboard } from "./vault-clipboard.js";
+import { createAvailableCliVaultHost } from "./vault-host.js";
 import { useVaultKv } from "./vault-kv.js";
 
 type ItemCommand = Extract<
@@ -70,7 +68,7 @@ type Store = VaultStore;
 async function openStore(deps: VaultItemDependencies): Promise<Store> {
   const stateDir = deps.stateDir ?? defaultStateDir();
   await useVaultKv(stateDir);
-  configureHost(createNodeHost({ stateDir }));
+  configureHost(await createAvailableCliVaultHost(stateDir));
   const { vaultStore } = await import(
     "@opensesame/app-core/lib/vault/store.js"
   );
