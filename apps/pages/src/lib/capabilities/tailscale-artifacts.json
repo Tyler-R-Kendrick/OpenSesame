@@ -6,11 +6,11 @@
     "gzipHash": "b0028a6153501ad9f3df3ab8baec5c947b8dafa28da860458ad909553c82cc2a",
     "wasmHash": "b7e9f68ef59fd163f43d85aab9df2b2cd53f98cfcdca6c6a1dc73277cd9ba75a",
     "runtimeHash": "3e61b3267aa67a553c289335805e5947e2f80935f782d3d6bcb30adb15674017",
-    "nativeHTTPHash": "8aae084a520add2b02699280ce153eb1cf5db06c456d90c4d41dfccc22a8ecbf"
+    "nativeHTTPHash": "e4f4f9f67492305cddde8903e146e2e9a3517dcb7cd7b459fe67dc7a9bce08dd"
   },
   "native": {
-    "sourceMetadataSha256": "1d452010be57cd1fa21f6ca9624ee258051061b854ea16e46d5e8c0318ec2163",
-    "manifestSha256": "a4a2d83f88e20d3fd3f36055b66261af17e682841ece3387958f09facd069527",
+    "sourceMetadataSha256": "e1ae976079f6ee34643780cae998bdc17591fb114b89068b982edae8c23e6551",
+    "manifestSha256": "8ef47909d12263729af9ef633890e3f51855793874e1fcfea680713075eb60ef",
     "sourceCommit": "b31d8a75af155bcf19853d1a66041782d13e56ae",
     "compilerCommit": "186053ab2af2ef8fc43f3c1d1150216e89d4aff0",
     "publicRootsVersion": "v0.0.0-20261014201258-cf169cd0986f"
@@ -18,7 +18,7 @@
   "assets": {
     "wasm": "tailscale/main-b0028a6153501ad9.wasm.gz",
     "runtime": "tailscale/go-runtime-3e61b3267aa67a55.js",
-    "nativeHTTP": "tailscale/native-http-8aae084a520add2b.js",
+    "nativeHTTP": "tailscale/native-http-e4f4f9f67492305c.js",
     "license": "tailscale/LICENSE.txt",
     "notices": "tailscale/OPEN-SOURCE-LICENSES.md"
   }

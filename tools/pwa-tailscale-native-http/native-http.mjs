@@ -23,16 +23,26 @@ const errorCode = z.enum([
   "response",
   "network",
 ]);
+// Decode the callable contract without invoking or replacing the original callback.
+const callableContract = z.function();
+const callableSchema = z.custom((value) => {
+  try {
+    callableContract.implement(value);
+    return true;
+  } catch {
+    return false;
+  }
+});
 const ownerSchema = z.object({
   generation: z.custom((value) => value !== undefined),
-  current: z.custom((value) => typeof value === "function"),
+  current: callableSchema,
   signal: z.instanceof(AbortSignal),
 });
 const portSchema = z.object({
-  begin: z.custom((value) => typeof value === "function"),
-  current: z.custom((value) => typeof value === "function"),
-  cancel: z.custom((value) => typeof value === "function"),
-  close: z.custom((value) => typeof value === "function"),
+  begin: callableSchema,
+  current: callableSchema,
+  cancel: callableSchema,
+  close: callableSchema,
 });
 function failure(code) {
   const parsed = errorCode.safeParse(code);

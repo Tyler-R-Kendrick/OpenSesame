@@ -117,11 +117,11 @@
       },
       {
         "path": "native-http.mjs",
-        "sha256": "643174a0a96ec1d3adc8340d98a9fbcd540f3576b149ea05653b537be2eac996"
+        "sha256": "82af0fe5feda9479f325e9ddfee48fff39f9675195eae7e5f80cd120a1d7440a"
       },
       {
         "path": "native-http.test.mjs",
-        "sha256": "17aabe3232595404e12169b1833bf175328b06979d97a68db6c9e2b8a6fccdb2"
+        "sha256": "64d2a5c5510281c9308882afb1b4314e82b11c41efa0eab0c56d083611a8d9a0"
       }
     ],
     "existingRuntimeImport": {
@@ -325,7 +325,7 @@
       "version": "6.4.3",
       "packageSha256": "a1d0149fd986fd34b6d35503d2c0d8d9f743c4dbaaf94fbc11812bc84b05884d"
     },
-    "bridgeSha256": "8aae084a520add2b02699280ce153eb1cf5db06c456d90c4d41dfccc22a8ecbf",
+    "bridgeSha256": "e4f4f9f67492305cddde8903e146e2e9a3517dcb7cd7b459fe67dc7a9bce08dd",
     "files": [
       {
         "path": "build.mjs",
@@ -367,7 +367,7 @@
       "arguments": ["-11", "-I", "3", "-p", "2", "-b", "1024", "-n", "-c"],
       "qualification": "Owned build-only source compilation, not an installed PWA dependency. Each output must decode to the exact complete input bytes; source archive, notices, compiler and executable provenance are retained. No four-phase Go build or runtime feature change."
     },
-    "bridgeUnminifiedSha256": "6e131a9a542a958b5c34a574daba0c376167370fe2f9b1cbe08977c7d61823cf",
+    "bridgeUnminifiedSha256": "de080700569e12ae54d4287874459509047fab2da901f1b1bda8d9ac60a8d245",
     "runtimeMinifiedSha256": "3e61b3267aa67a553c289335805e5947e2f80935f782d3d6bcb30adb15674017",
     "terser": {
       "version": "5.51.2",

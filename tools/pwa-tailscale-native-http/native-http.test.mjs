@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { bindNativeHTTP } from "./native-http.mjs";
 
 const STOPPED = "Native HTTPS authorization ended.";
@@ -24,20 +25,24 @@ function harness(t) {
   };
   const raw = {
     begin(id, request, token, publish) {
+      assert.equal(this, raw);
       if (behavior.throwBegin) throw new Error("private callback detail");
       calls.begun.push({ id, request, token, publish });
       return behavior.code;
     },
     current(id) {
+      assert.equal(this, raw);
       calls.currents.push(id);
       return false;
     },
     cancel(id) {
+      assert.equal(this, raw);
       calls.cancelled.push(id);
       if (behavior.throwCancel) throw new Error("private cancellation detail");
       return false;
     },
     close() {
+      assert.equal(this, raw);
       calls.closed++;
       behavior.onClose?.();
     },
@@ -319,5 +324,73 @@ test(
       },
     );
     assert.throws(() => bindNativeHTTP(raw, {}), { message: INPUT });
+  },
+);
+
+test(
+  "callable admission preserves foreign and unusual functions without invoking them",
+  bounds,
+  () => {
+    let calls = 0;
+    function original() {
+      calls++;
+    }
+    const foreign = runInNewContext("(() => true)");
+    const callables = [
+      original,
+      () => calls++,
+      async () => calls++,
+      function* () {
+        yield calls++;
+      },
+      async function* () {
+        yield calls++;
+      },
+      original.bind({}),
+      new Proxy(original, {}),
+      foreign,
+      class Constructor {},
+    ];
+    for (const callback of callables) {
+      const node = new AbortController();
+      const owner = { generation: {}, current: callback, signal: node.signal };
+      const raw = {
+        begin: callback,
+        current: callback,
+        cancel: callback,
+        close: original,
+      };
+      const bridge = bindNativeHTTP(raw, owner);
+      assert.equal(calls, 0, "admission never invokes any supplied function");
+      // Close uses its separately supplied inert callback, not any admitted method.
+      bridge.closeHTTP();
+      calls = 0;
+    }
+    for (const invalid of [
+      undefined,
+      null,
+      0,
+      "function",
+      {},
+      Object.create(Function.prototype),
+      { [Symbol.toStringTag]: "Function" },
+    ]) {
+      const node = new AbortController();
+      const owner = { generation: {}, current: original, signal: node.signal };
+      const raw = {
+        begin: original,
+        current: original,
+        cancel: original,
+        close: original,
+      };
+      assert.throws(() => bindNativeHTTP(raw, { ...owner, current: invalid }), {
+        message: INPUT,
+      });
+      for (const key of ["begin", "current", "cancel", "close"])
+        assert.throws(() => bindNativeHTTP({ ...raw, [key]: invalid }, owner), {
+          message: INPUT,
+        });
+      assert.equal(calls, 0, "invalid admission never invokes a callback");
+    }
   },
 );
