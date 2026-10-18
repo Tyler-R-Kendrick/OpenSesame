@@ -198,8 +198,41 @@ fn capture_child_env_is_still_scrubbed() {
     assert!(format!("{error}").contains("no credential"));
 }
 
+// ——— Windows spells PATH `Path` ———————————————————————————————————————
+
+#[test]
+fn a_windows_snapshot_keeps_its_path_under_the_name_windows_gives_it() {
+    let snapshot: BTreeMap<String, String> = [
+        ("Path", "C:\\Program Files\\GitHub CLI"),
+        ("USERPROFILE", "C:\\Users\\dummy"),
+        ("OPENSESAME_OPERATOR_TOKEN", "PLANTED-OPERATOR-TOKEN"),
+    ]
+    .into_iter()
+    .map(|(name, value)| (name.to_string(), value.to_string()))
+    .collect();
+    let kept = minimal_child_env_on(Platform::Windows, &snapshot);
+    assert!(kept.contains_key("Path"), "Path was dropped: {kept:?}");
+    assert!(kept.contains_key("USERPROFILE"));
+    assert!(!kept.contains_key("OPENSESAME_OPERATOR_TOKEN"));
+    // What the resolver reads is that same entry, so a probe finds a CLI.
+    let lookup = programs::lookup_on(Platform::Windows, &kept);
+    assert!(lookup.var("PATH").is_some(), "the resolver saw no PATH");
+}
+
+#[test]
+fn a_unix_snapshot_keeps_only_the_variable_named_path() {
+    let snapshot: BTreeMap<String, String> = [("Path", "/tmp/planted"), ("PATH", "/usr/bin")]
+        .into_iter()
+        .map(|(name, value)| (name.to_string(), value.to_string()))
+        .collect();
+    let kept = minimal_child_env_on(Platform::Unix, &snapshot);
+    assert!(kept.contains_key("PATH"));
+    assert!(!kept.contains_key("Path"), "a different variable was kept");
+}
+
 // ——— which CLI runs, and what each is handed ——————————————————————————
 
+#[cfg(unix)]
 mod trusted {
     use super::*;
     use opensesame_trusted_exec::testkit::Fixture;

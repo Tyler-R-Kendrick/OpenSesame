@@ -92,13 +92,14 @@ fn program(binary: &str) -> Option<&'static Program> {
 }
 
 /// Whether any probe may be handed `name`, or needs it to find a CLI: what
-/// [`super::minimal_child_env`] keeps of a snapshot.
-pub(super) fn admitted(name: &str) -> bool {
+/// [`super::minimal_child_env`] keeps of a snapshot taken on `platform`, which
+/// spells variable names its own way (Windows calls `PATH` `Path`).
+pub(super) fn admitted_on(platform: Platform, name: &str) -> bool {
     let named = |pass: &Pass| match *pass {
         Pass::Name(want) => want.eq_ignore_ascii_case(name),
         Pass::Prefix(start) => name.starts_with(start),
     };
-    name == "PATH"
+    platform.same_name(name, "PATH")
         || COMMON
             .iter()
             .chain(&COMMON_ON_WINDOWS)
@@ -110,13 +111,18 @@ pub(super) fn admitted(name: &str) -> bool {
 }
 
 fn lookup(env: &BTreeMap<String, String>) -> Lookup {
+    lookup_on(Platform::current(), env)
+}
+
+/// What `env` says, as `platform` reads names.
+pub(super) fn lookup_on(platform: Platform, env: &BTreeMap<String, String>) -> Lookup {
     Lookup {
         vars: env
             .iter()
             .map(|(name, value)| (OsString::from(name), OsString::from(value)))
             .collect(),
         cwd: None,
-        platform: Platform::current(),
+        platform,
         caller: Caller::current(),
     }
 }

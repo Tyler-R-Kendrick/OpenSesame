@@ -22,6 +22,7 @@
 //!   probe: the bytes never leave this module.
 
 use opensesame_connection_detect::{CommandRunner, CommandStatus, ProbeError};
+use opensesame_trusted_exec::Platform;
 use secrecy::SecretString;
 use std::collections::BTreeMap;
 use std::io::Read;
@@ -51,8 +52,16 @@ const WAIT_POLL_INTERVAL: Duration = Duration::from_millis(10);
 /// (`programs`). Everything else — in particular every `OPENSESAME_*`
 /// variable the daemon itself was started with — is withheld from children.
 pub fn minimal_child_env(env: &BTreeMap<String, String>) -> BTreeMap<String, String> {
+    minimal_child_env_on(Platform::current(), env)
+}
+
+/// [`minimal_child_env`] for a snapshot taken on `platform`.
+fn minimal_child_env_on(
+    platform: Platform,
+    env: &BTreeMap<String, String>,
+) -> BTreeMap<String, String> {
     env.iter()
-        .filter(|(name, _)| programs::admitted(name))
+        .filter(|(name, _)| programs::admitted_on(platform, name))
         .map(|(name, value)| (name.clone(), value.clone()))
         .collect()
 }
