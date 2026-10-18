@@ -90,7 +90,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Broad dependency changes run the full affected suites and the real
+    # Postgres contracts; the 30-minute limit cancelled passing tests.
+    timeout-minutes: 60
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
@@ -187,7 +189,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.bundle_matrix != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # This shard builds three verification profiles and walks every provider;
+    # its passing secret-backend checks reached the former 15-minute limit.
+    timeout-minutes: ${{ matrix.shard == 'native-public-protocol' && 30 || 15 }}
     strategy:
       fail-fast: false
       # The legs are listed once, in scripts/lib/ci-bundle-shards.json; `changes`

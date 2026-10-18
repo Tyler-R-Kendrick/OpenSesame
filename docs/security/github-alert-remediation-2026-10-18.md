@@ -19,6 +19,7 @@ Base inspected: `495f1d42082dcd56b7a3d50bf39cfc645c2f7acd`. Changes are in signe
 | [1528](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1528) | Patch 46 advisory IDs in Android build-only dependencies through a Netty BOM and scoped constraints |
 | [1550](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1550) | Remove remaining Rust advisory implementations: AWS-LC RSA, direct SQLite/Postgres drivers, metadata-only system D-Bus |
 | [1554](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1554) | WXT tinyglobby upgrade; remove optional ADB crypto/JKS dependencies and obsolete advisory exceptions |
+| [1556](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1556) | Repair actual default Kotlin autobuild discovery; pinned Gradle wrapper and generated-header attribution |
 
 Independent read-only investigation preceded fixes; fresh candidate reviews identified compatibility regressions that were corrected before shipping. Full repository verification and post-fix CodeQL results are recorded below when complete. No new alert suppressions were added.
 
@@ -93,3 +94,9 @@ Actual default Swift run [39136575096](https://github.com/Tyler-R-Kendrick/OpenS
 Before advanced CodeQL uploads can run, switch the repository's CodeQL setup from **default** to **advanced** in Code scanning settings. GitHub rejects advanced uploads while default setup is enabled. Changing Codex app scopes is not a remedy. Android and macOS builds must pass on their native GitHub runners; this Linux environment does not establish those results. The repository has no independent C/C++ translation unit; its generated FFI header is compiled through Swift.
 
 Keep the stack draft until required checks and full repository verification pass. Merge in stack order, run CodeQL on the resulting default-branch commit, and reconcile the remaining fixture and unused-subpackage advisories against the live dashboard. No claim of zero open GitHub alerts is made before that reconciliation.
+
+## Required CI timeout follow-up
+
+The earlier PR1499 TypeScript failure was an explicit 30-minute runner timeout: all 34 selected typecheck tasks and all five heavy test tasks passed before later scoped tests reached the limit. The earlier PR1500 required Bundle budgets check failed because its native-public-protocol shard exceeded 15 minutes; the actual size-budget shard passed, and each protocol command printed successful output before cancellation. These are distinct from compiler errors or bundle-size regressions.
+
+The follow-up gives the full TypeScript test job 60 minutes and only the native-public-protocol shard 30 minutes; every other bundle shard retains 15 minutes. Every command, gate, required aggregator and assertion remains intact. All 15 focused CI contract tests and actionlint pass. Successful completion of the newly published hosted runs remains required; increasing a deadline is not evidence that the previously cancelled downstream checks have passed.

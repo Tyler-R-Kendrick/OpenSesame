@@ -103,10 +103,17 @@ describe("the bundle job's shards", () => {
     expect(check).toContain("bundle tests result");
   });
 
-  it("keeps every shard well inside its own timeout, a fraction of the serial job's", () => {
-    const limit = Number(/timeout-minutes: (\d+)/.exec(bundle)?.[1]);
-    expect(limit).toBeGreaterThan(0);
-    expect(limit).toBeLessThanOrEqual(15);
+  it("gives the public protocol walks 30 minutes and keeps every other shard at 15", () => {
+    const deadline =
+      /timeout-minutes: \$\{\{ matrix\.shard == '([^']+)' && (\d+) \|\| (\d+) \}\}/.exec(
+        bundle,
+      );
+    expect(deadline).not.toBeNull();
+    const [, extendedShard, extendedMinutes, defaultMinutes] = deadline;
+    expect(extendedShard).toBe("native-public-protocol");
+    expect(Number(extendedMinutes)).toBe(30);
+    expect(Number(defaultMinutes)).toBe(15);
+    expect(legs().some((leg) => leg.shard === extendedShard)).toBe(true);
   });
 
   it("runs every gate in exactly one shard (verify:mobile in its viewport shards), and gives every shard something to run", () => {
