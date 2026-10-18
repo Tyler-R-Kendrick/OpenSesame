@@ -2867,8 +2867,19 @@ dependencies = [
 name = "opensesame-cli-app-integration"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
+ "ecdsa",
+ "hex",
+ "hkdf",
+ "hmac 0.12.1",
+ "p256",
+ "rand_core 0.6.4",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -2997,6 +3008,7 @@ dependencies = [
 name = "opensesame-env-spec"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "opensesame-domain",
  "serde",
  "serde_json",
@@ -3176,17 +3188,21 @@ dependencies = [
  "base64 0.22.1",
  "blake3",
  "chacha20poly1305",
+ "chrono",
  "getrandom 0.2.17",
  "hkdf",
  "hmac 0.12.1",
+ "libc",
  "pbkdf2 0.12.2",
  "rand 0.8.7",
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "subtle",
  "thiserror 2.0.20",
  "unicode-normalization",
  "uuid",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 
@@ -3468,6 +3484,7 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 2.0.20",
  "url",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 
@@ -4057,9 +4074,9 @@ dependencies = [
 
 [[package]]
 name = "quinn-proto"
-version = "0.11.16"
+version = "0.11.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f4bfc015262b9df63c8845072ce59068853ff5872180c2ce2f13038b970e560"
+checksum = "a9746dbde176634f4f2f1faf2404e30a31b2bc1e9cafb5329c95d8177a18c9fc"
 dependencies = [
  "bytes",
  "getrandom 0.4.3",
@@ -4433,9 +4450,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.45"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "aws-lc-rs",
  "log",
