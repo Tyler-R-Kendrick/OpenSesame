@@ -15,12 +15,14 @@ import {
 } from "@opensesame/app-core/lib/native-connector-store.js";
 import {
   type NativeProviderSocket,
+  type NativeProviderTransport,
   bindNativeProviderTransport,
 } from "@opensesame/app-core/lib/native-connector-transport.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import type { Activation } from "../activation.js";
 import { LeaseAbortedError, anySignal, runUnlessAborted } from "../signals.js";
 import { bindBridgeRuntime, carriedByBridge } from "./bridge-runtime.js";
+import { captureBrowserNodeTransport } from "./browser-node-transport.js";
 import { bindLinearRuntime } from "./linear-runtime.js";
 import { bindNativeApiRuntime } from "./native-api-runtime.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";
@@ -189,7 +191,7 @@ export function bindNativeRuntime(
   const assertCurrent = () => {
     if (signal.aborted || activation.disposed()) throw new LeaseAbortedError();
   };
-  const release = bindNativeProviderTransport({
+  const transport: NativeProviderTransport = {
     assertCurrent,
     signal,
     openWebSocket: (url, protocols, callerSignal) =>
@@ -245,7 +247,9 @@ export function bindNativeRuntime(
         ),
       );
     },
-  });
+  };
+  transport.capture = () => captureBrowserNodeTransport(transport, ctx);
+  const release = bindNativeProviderTransport(transport);
   bindBridgeRuntime(activation);
   const previous = nativeDeviceViewSeams.authorization;
   const projector = authorizationProjector(signal, activation);
