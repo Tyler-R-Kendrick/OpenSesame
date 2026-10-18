@@ -181,6 +181,8 @@ try {
     }
   }
   for (const name of [
+    "retired-factor-lifecycle",
+    "retired-lifecycle",
     "deleted-registry",
     "restored-registry",
     "orphan-header",
