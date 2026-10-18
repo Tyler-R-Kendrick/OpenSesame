@@ -64,7 +64,7 @@ function DraftFields({
     <FieldShell
       key={field.key}
       label={field.label}
-      value={draft[field.key]}
+      value={draft[field.key] ?? ""}
       type={field.secret ? "password" : "text"}
       placeholder={field.placeholder}
       autoComplete={field.secret ? "new-password" : "off"}
