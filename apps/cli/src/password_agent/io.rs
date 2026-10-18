@@ -1,11 +1,120 @@
 use super::Source;
+use opensesame_trusted_exec::{
+    command_in, pass_in, resolve_in, Lookup, Pass, CA_BUNDLE, PROXY, VERSION_MANAGERS,
+};
 use serde_json::{json, Value};
 use std::{
     io::{Read, Write},
     process::{Command, Stdio},
 };
+
+/// What the 1Password CLI and the OS keychain tools reach a desktop session
+/// and the keyring through.
+const DESKTOP: [Pass; 6] = [
+    Pass::Name("XDG_RUNTIME_DIR"),
+    Pass::Name("XDG_CONFIG_HOME"),
+    Pass::Name("DBUS_SESSION_BUS_ADDRESS"),
+    Pass::Name("DISPLAY"),
+    Pass::Name("WAYLAND_DISPLAY"),
+    Pass::Name("XAUTHORITY"),
+];
+
+/// One credential helper: the variable that names the exact file, if any, and
+/// what it is handed beyond `PATH` and the common set.
+struct Helper {
+    name: &'static str,
+    override_var: Option<&'static str>,
+    env: &'static [&'static [Pass]],
+}
+
+/// The only programs this module starts by name. None is handed the store
+/// password or any other `OPENSESAME_*`; `op` is handed its own `OP_*`
+/// variables (the service-account token is then set or removed by
+/// `credential::authenticate`, never inherited).
+const HELPERS: [Helper; 7] = [
+    Helper {
+        name: "op",
+        override_var: Some("OPENSESAME_OP_BIN"),
+        env: &[
+            &PROXY,
+            &CA_BUNDLE,
+            &VERSION_MANAGERS,
+            &DESKTOP,
+            &[Pass::Prefix("OP_")],
+        ],
+    },
+    Helper {
+        name: "powershell.exe",
+        override_var: None,
+        env: &[],
+    },
+    Helper {
+        name: "pbpaste",
+        override_var: None,
+        env: &[],
+    },
+    Helper {
+        name: "wl-paste",
+        override_var: None,
+        env: &[&[
+            Pass::Name("WAYLAND_DISPLAY"),
+            Pass::Name("XDG_RUNTIME_DIR"),
+            Pass::Name("XDG_SESSION_TYPE"),
+        ]],
+    },
+    Helper {
+        name: "xclip",
+        override_var: None,
+        env: &[&[Pass::Name("DISPLAY"), Pass::Name("XAUTHORITY")]],
+    },
+    Helper {
+        name: "osascript",
+        override_var: None,
+        env: &[],
+    },
+    Helper {
+        name: "secret-tool",
+        override_var: None,
+        env: &[&DESKTOP],
+    },
+];
+
+fn helper_spec(name: &str) -> anyhow::Result<&'static Helper> {
+    HELPERS
+        .iter()
+        .find(|helper| helper.name == name)
+        .ok_or_else(|| anyhow::anyhow!("Unsupported credential helper"))
+}
+
+/// The helper `name` as the file the trusted rule finds, in an environment of
+/// nothing but its own variables.
 pub(super) fn helper(name: &str) -> anyhow::Result<Command> {
-    let mut command = Command::new(program(name)?);
+    helper_in(name, &Lookup::capture())
+}
+
+fn helper_in(name: &str, lookup: &Lookup) -> anyhow::Result<Command> {
+    let spec = helper_spec(name)?;
+    let mut command = command_in(spec.name, spec.override_var, lookup)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+    for group in spec.env {
+        pass_in(&mut command, group, lookup);
+    }
+    scrub_startup(&mut command);
+    Ok(command)
+}
+
+/// The helper `name` as the same trusted file, for a run that hosts a command
+/// of the person's own (`op run -- …`): the child inherits this environment, so
+/// it is the person's, less the interpreter hooks.
+pub(super) fn host(name: &str) -> anyhow::Result<Command> {
+    host_in(name, &Lookup::capture())
+}
+
+fn host_in(name: &str, lookup: &Lookup) -> anyhow::Result<Command> {
+    let spec = helper_spec(name)?;
+    let mut command = resolve_in(spec.name, spec.override_var, lookup)
+        .map_err(|error| anyhow::anyhow!("{error}"))?
+        .command();
     scrub_startup(&mut command);
     Ok(command)
 }
@@ -176,54 +285,6 @@ pub(super) fn doctor() -> Value {
     }
     json!({"opensesame":env!("CARGO_PKG_VERSION"),"opInstalled":version.is_some(),"opVersion":version,"accounts":accounts,"auth":auth,"serviceAccountTokenPresent":std::env::var_os("OP_SERVICE_ACCOUNT_TOKEN").is_some(),"platform":std::env::consts::OS,"notes":notes})
 }
-/// Credential helpers are resolved only through absolute PATH directories.
-pub(super) fn program(name: &str) -> anyhow::Result<std::path::PathBuf> {
-    anyhow::ensure!(
-        [
-            "op",
-            "powershell.exe",
-            "pbpaste",
-            "wl-paste",
-            "xclip",
-            "osascript",
-            "secret-tool"
-        ]
-        .contains(&name),
-        "Unsupported credential helper"
-    );
-    let executable = if cfg!(windows)
-        && std::path::Path::new(name).extension() != Some(std::ffi::OsStr::new("exe"))
-    {
-        format!("{name}.exe")
-    } else {
-        name.to_owned()
-    };
-    let cwd = std::env::current_dir()
-        .ok()
-        .and_then(|p| p.canonicalize().ok());
-    for directory in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
-        if !directory.is_absolute() || directory.canonicalize().ok() == cwd {
-            continue;
-        }
-        let candidate = directory.join(&executable);
-        if !candidate.is_file() {
-            continue;
-        }
-        #[cfg(unix)]
-        if !executable_file(&candidate)? {
-            continue;
-        }
-        return Ok(candidate);
-    }
-    anyhow::bail!("Required credential helper was not found in absolute PATH directories")
-}
-
-#[cfg(unix)]
-fn executable_file(path: &std::path::Path) -> anyhow::Result<bool> {
-    use std::os::unix::fs::PermissionsExt;
-    Ok(path.metadata()?.permissions().mode() & 0o111 != 0)
-}
-
 /// Private bounded read: kill the helper at the deadline, suppress all diagnostics.
 pub(super) fn op_timeout(args: &[String], timeout: std::time::Duration) -> anyhow::Result<Vec<u8>> {
     let mut command = helper("op")?;
@@ -293,3 +354,6 @@ mod tests {
         assert!(!args[3].contains("WriteLine"));
     }
 }
+
+#[cfg(all(test, unix))]
+mod trusted_tests;
