@@ -56,6 +56,8 @@ export const DRIVER_GATES = {
   "verify-peer-trust-two-context.mjs": ["journeys"],
   // P8-3: ICE diagnostics line on joiner while connecting (journeys-2).
   "verify-peering-diagnostics.mjs": ["journeys"],
+  // P8-4: fresh-vault Passwords onboarding and a saved account (journeys-2).
+  "verify-fresh-vault-login.mjs": ["journeys"],
   // ADR 0181: the journeys shard runs the relay join walk.
   "verify-relay-join.mjs": ["journeys"],
   "verify-relay-join-live.mjs": ["journeys"],
