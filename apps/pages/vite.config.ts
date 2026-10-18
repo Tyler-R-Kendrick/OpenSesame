@@ -12,6 +12,7 @@ import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
 import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
+import { sharedWorkerGraph } from "./scripts/shared-worker-graph.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 import {
   tailscaleWasmAssets,
@@ -297,6 +298,7 @@ export default defineConfig({
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
     siopMetadata(),
+    sharedWorkerGraph(),
     tailscaleWasmAssets(),
     onePasswordWasmAssets(),
     {
