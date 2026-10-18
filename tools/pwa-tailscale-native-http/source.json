@@ -104,5 +104,31 @@
       }
     ],
     "qualification": "Stage only these eight pinned overlays into a fresh owned directory. Physical drain and the bounded operation registry are unactivated foundations exercised by actual owned host TLS tests, not node/worker browser activation. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not certify public trust, routes, DNS, exit selection, JS publication or provider integrations."
+  },
+  "nativeBridge": {
+    "status": "UNACTIVATED source boundary only; not staged, exported by a node, compiled as WASM, or integrated into a worker/provider.",
+    "goPackagePath": "cmd/tsconnect/nativehttp",
+    "goConstructor": "BindJS; only the owned original-node Go adapter supplies captured context, approved target dialer, explicit trust and current authority guard. No JS-supplied dialer/trust or browser-fetch fallback.",
+    "javascriptExport": "bindNativeHTTP; capture one original node generation and actual node/provider/caller authority signals.",
+    "files": [
+      {
+        "path": "nativehttp_js.go",
+        "sha256": "af9c44177e4128aaf41b85a87d65c41af40e4ce9519e225d058eb65906a2eed9"
+      },
+      {
+        "path": "native-http.mjs",
+        "sha256": "c050fa69e55b09f27eafc796d37765fd64655a75399d06d59c14774784396071"
+      },
+      {
+        "path": "native-http.test.mjs",
+        "sha256": "17aabe3232595404e12169b1833bf175328b06979d97a68db6c9e2b8a6fccdb2"
+      }
+    ],
+    "existingRuntimeImport": {
+      "package": "zod",
+      "version": "3.25.67",
+      "qualification": "Existing root lockfile dependency, no install or dependency change. The actual later worker bundle must verify its resolved graph."
+    },
+    "qualification": "Keep the existing eight fixed host overlays/staging unchanged. A separate fixed staging/node hook/worker slice must compile and exercise the actual JS/WASM boundary. JS unit controls prove only negative Promise ownership, not native TLS or a positive Go result. No provider/public-TLS activation."
   }
 }
