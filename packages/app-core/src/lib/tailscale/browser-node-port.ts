@@ -141,6 +141,42 @@ export type TailscaleNodeConfiguration = Readonly<{
   authKey?: string;
   nativeHTTP?: TailscaleNativeHTTPConfiguration;
 }>;
+/** Shared public identity validation for the persisted editor and actual browser-node controller. */
+export function normalizeTailscaleNodeIdentity(
+  input: Pick<TailscaleNodeConfiguration, "hostname" | "controlURL">,
+) {
+  if (
+    input.hostname.length > 63 ||
+    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(input.hostname)
+  )
+    throw new Error(
+      "Use a lowercase browser hostname with letters, digits and interior hyphens, up to 63 characters.",
+    );
+  let url: URL;
+  try {
+    url = new URL(input.controlURL);
+  } catch {
+    throw new Error(
+      "Use an HTTPS control server or an HTTP loopback test server.",
+    );
+  }
+  if (
+    (url.protocol !== "https:" &&
+      !(
+        url.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+      )) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    url.pathname !== "/"
+  )
+    throw new Error(
+      "Use an HTTPS control server or an HTTP loopback test server.",
+    );
+  return { hostname: input.hostname, controlURL: url.origin };
+}
 export type TailscaleNodeSnapshot = Readonly<{
   status: "stopped" | "starting" | "login" | "approval" | "connected" | "error";
   hostname: string;
