@@ -106,7 +106,7 @@
     "qualification": "Stage only these eight pinned overlays into a fresh owned directory. Physical drain and the bounded operation registry are unactivated foundations exercised by actual owned host TLS tests, not node/worker browser activation. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not certify public trust, routes, DNS, exit selection, JS publication or provider integrations."
   },
   "nativeBridge": {
-    "status": "UNACTIVATED source boundary only; not staged, exported by a node, compiled as WASM, or integrated into a worker/provider.",
+    "status": "UNACTIVATED in the PWA; actual Go1.27.2 native package and original-node WASM compilation now proved in separately pinned private receipts. No WASM execution, worker/provider or browser route proved.",
     "goPackagePath": "cmd/tsconnect/nativehttp",
     "goConstructor": "BindJS; only the owned original-node Go adapter supplies captured context, approved target dialer, explicit trust and current authority guard. No JS-supplied dialer/trust or browser-fetch fallback.",
     "javascriptExport": "bindNativeHTTP; capture one original node generation and actual node/provider/caller authority signals.",
@@ -129,6 +129,41 @@
       "version": "3.25.67",
       "qualification": "Existing root lockfile dependency, no install or dependency change. The actual later worker bundle must verify its resolved graph."
     },
-    "qualification": "Keep the existing eight fixed host overlays/staging unchanged. A separate fixed staging/node hook/worker slice must compile and exercise the actual JS/WASM boundary. JS unit controls prove only negative Promise ownership, not native TLS or a positive Go result. No provider/public-TLS activation."
+    "qualification": "The fixed original-node staging helper now stages this exact bridge; existing build.mjs composition remains a separate small source change. JS controls prove negative Promise ownership only. Actual compiled node and compiler selection receipts are separate and do not certify browser TLS/route/peering or provider success."
+  },
+  "nativeNode": {
+    "status": "UNACTIVATED in the PWA; exact original-node hook compiled as raw JS/WASM using reviewed Go1.27.2 in owned private staging. No browser/route/provider proof yet.",
+    "files": [
+      {
+        "path": "nodehttp_js.go",
+        "sha256": "16c407371eefc1b0335bee32e063708b39743999bafedd2a428d0d9ed0860e1b"
+      },
+      {
+        "path": "native-node.patch",
+        "sha256": "e05adced0eafc875e22d647d26a24b49c9fb4f71a71d16b08c1662383a4353f5"
+      }
+    ],
+    "stagingHelper": {
+      "path": "stage-native-node.mjs",
+      "sha256": "68ef04eb85b541608b3045b9e8768538f673a560dc3bee60dbea9db4c1f75507"
+    },
+    "patchTargets": [
+      {
+        "path": "cmd/tsconnect/wasm/wasm_js.go",
+        "beforeSha256": "3ce4f5554db771f5da26bb765c06c71a2115ca7d2e098b74638d28f3a109eccf",
+        "afterSha256": "244cba56f78c9dbfdbd03e0a069a091917488deff804c939fc46ef9700d39ce7"
+      },
+      {
+        "path": "net/tsdial/tsdial.go",
+        "beforeSha256": "6900ffd939e59db4195fe038345347696e6b602d921d8d7cac6034227f7fb9ac",
+        "afterSha256": "4bbe98a9e7686dc0d72666c346e3942b965dbe24c9e36b6ff302f6b11418ea99"
+      }
+    ],
+    "configuration": {
+      "exitNodeID": "Explicit original node stable exit ID; no automatic exit selection or LAN access.",
+      "operatorCAPEM": "One to eight explicit operator CA certificates,64KiB total. No system/public root union.",
+      "targets": "One to sixteen exact HTTPS origins, each with one to sixteen masked IP-prefix grants. DNS resolves once via original exit DNS; final literal IP must match its grant and have no peer/self route override."
+    },
+    "qualification": "Call only after the eight fixed nativeHttp overlays are staged. The original node uses its own captured dialer/backend/netmap/prefs; no JS-supplied raw socket. First-owned-CA scope only; reviewed new compiler/current constrained public bundle remains separate selection and must precede public-target activation. Driver composition and actual worker/controller/browser activation remain explicit later steps."
   }
 }

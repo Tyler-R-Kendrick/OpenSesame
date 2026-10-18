@@ -1,0 +1,67 @@
+--- a/cmd/tsconnect/wasm/wasm_js.go
++++ b/cmd/tsconnect/wasm/wasm_js.go
+@@ -173,7 +173,13 @@
+ 		hostname:   hostname,
+ 	}
+ 
++	nativePort := jsIPN.bindNativeHTTP(jsConfig.Get("nativeHTTP"))
++
+ 	return map[string]any{
++		"nativeHTTPPort": nativePort,
++		"nativeHTTPReady": js.FuncOf(func(js.Value, []js.Value) any {
++			return jsIPN.native != nil && jsIPN.native.current()
++		}),
+ 		"run": js.FuncOf(func(this js.Value, args []js.Value) any {
+ 			if len(args) != 1 {
+ 				log.Fatal(`Usage: run({
+@@ -226,6 +232,7 @@
+ }
+ 
+ type jsIPN struct {
++	native     *nodeHTTP
+ 	dialer     *tsdial.Dialer
+ 	srv        *ipnserver.Server
+ 	lb         *ipnlocal.LocalBackend
+@@ -268,6 +275,7 @@
+ 				jsCallbacks.Call("notifyPanicRecover", fmt.Sprint(r))
+ 			}
+ 		}()
++		i.observeNativeHTTP()
+ 		log.Printf("NOTIFY: %+v", n)
+ 		if n.State != nil {
+ 			notifyState(*n.State)
+@@ -326,6 +334,7 @@
+ 	go func() {
+ 		err := i.lb.Start(ipn.Options{
+ 			UpdatePrefs: &ipn.Prefs{
++				ExitNodeID:  i.nativeExitID(),
+ 				ControlURL:  i.controlURL,
+ 				RouteAll:    false,
+ 				WantRunning: true,
+@@ -354,6 +363,9 @@
+ }
+ 
+ func (i *jsIPN) logout() {
++	if i.native != nil {
++		i.native.cancel()
++	}
+ 	if i.lb.State() == ipn.NoState {
+ 		log.Printf("Backend not running")
+ 	}
+--- a/net/tsdial/tsdial.go
++++ b/net/tsdial/tsdial.go
+@@ -148,6 +148,14 @@
+ 	d.mu.Unlock()
+ }
+ 
++// NativeExitDNSReady reports whether the original dialer has an exit DNS path.
++// It reveals no endpoint and must not be used without independent route checks.
++func (d *Dialer) NativeExitDNSReady() bool {
++	d.mu.Lock()
++	defer d.mu.Unlock()
++	return d.exitDNSDoHBase != ""
++}
++
+ // SetExitDNSDoH sets (or clears) the exit node DNS DoH server base URL to use.
+ // The doh URL should contain the scheme, authority, and path, but without
+ // a '?' and/or query parameters.
