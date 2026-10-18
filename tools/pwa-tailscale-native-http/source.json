@@ -370,6 +370,14 @@
       {
         "path": "build-failure-cli.test.mjs",
         "sha256": "e7ae9fe63dea6a55127fe74c1a5c2ff0409a07e38a1df3ca55cdcefc3cbf43d6"
+      },
+      {
+        "path": "apply-native-patch.mjs",
+        "sha256": "fb9e47e9883d7066025fc5ae533f7253c7327c55aa5485441b83860ccee71f91"
+      },
+      {
+        "path": "apply-native-patch.test.mjs",
+        "sha256": "048c85303f805f1886a7bca5c3a17e7bbdc3b37751a1bade700fd72555a65870"
       }
     ],
     "compressor": {
