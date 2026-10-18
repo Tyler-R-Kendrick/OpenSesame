@@ -22,15 +22,21 @@ import {
   saveNativeConnector,
   updateNativeConnector,
 } from "@opensesame/app-core/lib/native-connector-store.js";
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createActivation } from "../activation.js";
 import { createTestContext } from "../test-context.js";
+import {
+  closeGenuineRuntimeFixture,
+  genuineRuntimeFixture,
+} from "./genuine-runtime.test-support.js";
 import { bindNativeApiRuntime } from "./native-api-runtime.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";
 import { bindNativeOAuthRuntime } from "./native-oauth-runtime.js";
 import { bindNativeRuntime } from "./native-runtime.js";
 
+beforeEach(genuineRuntimeFixture);
 installNativeApiTests();
+afterEach(closeGenuineRuntimeFixture);
 const googleDraft: NativeDriverInput = {
   providerId: "google",
   method: "oauth",

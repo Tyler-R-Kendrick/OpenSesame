@@ -2,6 +2,7 @@
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -187,6 +188,7 @@ describe("a key or a configuration seals on this device", () => {
 
 describe("a connector page that seals in the vault", () => {
   it("draws nothing for a guest or a locked vault", () => {
+    vaultStore.lock();
     draw("aws-kms");
     expect(screen.queryByRole("heading", { name: "Connect" })).toBeNull();
     expect(

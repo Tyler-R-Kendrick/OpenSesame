@@ -45,7 +45,7 @@ type MetadataScan = {
   keys: Set<string>;
   depth: number;
   expectsKey: boolean;
-  key?: string;
+  key?: string | undefined;
 };
 
 function readTopKey(

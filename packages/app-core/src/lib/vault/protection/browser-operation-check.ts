@@ -2,6 +2,7 @@ import type { VaultHeader } from "@opensesame/vault-core";
 /** Captured browser operation identity and cancellation, never an owner issuer. */
 import { originalVfsCheck } from "../../vfs-operation-check.js";
 import type { TombWriteTurn } from "../../vfs-write-order.js";
+import { bindOriginalHeaderPolicy } from "../store-header-binding-data.js";
 import { operationHeader } from "../store-operation-check.js";
 import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
 import { ProtectionError } from "./errors.js";
@@ -112,7 +113,7 @@ async function persistOriginalHeader(effect: HeaderEffect): Promise<void> {
   const {
     original,
     persistHeader,
-    next,
+    next: requested,
     scope,
     check,
     readHeader,
@@ -120,6 +121,14 @@ async function persistOriginalHeader(effect: HeaderEffect): Promise<void> {
     identity,
     turn,
   } = effect;
+  check();
+  const next = await bindOriginalHeaderPolicy(
+    readHeader(),
+    requested,
+    readRoot(),
+    Boolean(turn),
+    check,
+  );
   check();
   const before = identity.header;
   const writing = () => {

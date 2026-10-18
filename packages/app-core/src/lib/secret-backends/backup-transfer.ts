@@ -21,6 +21,7 @@ import {
 
 export type VaultBackupPort = Pick<
   VaultStore,
+  | "isGenuineSession"
   | "getSnapshot"
   | "onLock"
   | "flushPendingWrites"

@@ -132,10 +132,10 @@ it("generic notes are not backups, and guest or locked vaults cannot upload or r
   const before = fixture.server.requests.length;
   await expect(
     backUpVaultToSecretBackend(fixture.open, "Guest"),
-  ).rejects.toMatchObject({ code: "unsupported" });
+  ).rejects.toMatchObject({ code: "locked" });
   await expect(
     restoreVaultFromSecretBackend(fixture.open, item.id, runtimePassword),
-  ).rejects.toMatchObject({ code: "unsupported" });
+  ).rejects.toMatchObject({ code: "locked" });
   expect(fixture.server.requests).toHaveLength(before);
 });
 it("a source lock during upload prevents a successful verification result", async () => {

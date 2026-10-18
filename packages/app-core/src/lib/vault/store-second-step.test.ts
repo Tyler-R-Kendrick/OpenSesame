@@ -1,5 +1,10 @@
 import { WrongPasswordError, createItem } from "@opensesame/vault-core";
-import { accountTotp, parseTotp, totpCode } from "@opensesame/vault-core";
+import {
+  accountTotp,
+  parseTotp,
+  totpCode,
+  unwrapRawVaultKeyFromPassword,
+} from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
 import {
@@ -11,6 +16,7 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
+import { sealAuthenticatedManifest } from "./protection/manifest-auth.js";
 import { type SentCode, remoteCodeSeams } from "./remote-code.js";
 import { SELF_AUTHENTICATOR_TITLE } from "./self-authenticator.js";
 import { ATTEMPTS_KEY, VaultStore } from "./store.js";
@@ -326,6 +332,14 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
     if (!stored) throw new Error("expected a sealed header");
     const header = JSON.parse(stored);
     header.unlocks.totp.selfItemId = undefined;
+    // An actual pre-binding header has no full-factor digest to invalidate.
+    const root = await unwrapRawVaultKeyFromPassword(header, PASSWORD);
+    try {
+      const { factorConfiguration: _binding, ...legacy } = header.protection;
+      header.protection = await sealAuthenticatedManifest(root, legacy);
+    } finally {
+      root.fill(0);
+    }
     kvSet(tombFileKey(PERSONAL_TOMB, HEADER_PATH), JSON.stringify(header));
 
     const reopened = new VaultStore();
