@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { extname, isAbsolute, relative, resolve } from "node:path";
+import { extname, isAbsolute, relative, resolve, sep } from "node:path";
 
 const MIME = {
   ".html": "text/html",
@@ -18,7 +18,7 @@ function confinedFile(dist, rel) {
   const file = resolve(root, rel);
   const inside = (candidate) => {
     const rest = relative(root, candidate);
-    return rest !== ".." && !rest.startsWith("../") && !isAbsolute(rest);
+    return rest !== ".." && !rest.startsWith(`..${sep}`) && !isAbsolute(rest);
   };
   if (!inside(file) || (existsSync(file) && !inside(realpathSync(file))))
     throw new Error("Static path escapes build directory");
