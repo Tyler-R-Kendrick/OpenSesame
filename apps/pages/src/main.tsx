@@ -4,6 +4,7 @@ import { onBrowserReset } from "@opensesame/app-core/lib/browser-reset-channel.j
 import { captureLandingReset } from "@opensesame/app-core/lib/browser-reset-landing.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { registerDuressUiModule } from "@opensesame/app-core/lib/duress/feature/mode.js";
+import { staleAssetReload } from "@opensesame/app-core/lib/stale-asset-reload.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
@@ -11,6 +12,10 @@ import { bootCore } from "./bootstrap/boot.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { StaleBuildError, importAppRoot } from "./lib/load-shell.js";
 import { watchLinkedPairing } from "./lib/pairing-link.js";
+import {
+  installStaleAssetReload,
+  recoverStaleAsset,
+} from "./lib/stale-asset.js";
 import { bootTrayNotices } from "./lib/tray-boot.js";
 import { ResetGate } from "./screens/unlock/ResetGate.js";
 // The shell and the vault load behind the unlock gate (app-root.tsx), but
@@ -27,6 +32,7 @@ import "./sections/vault/path-field.css";
 import "./styles.css";
 
 bootTrayNotices();
+installStaleAssetReload();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");
@@ -109,11 +115,13 @@ void (async () => {
     ({ AppRoot } = await importAppRoot());
   } catch (caught) {
     if (caught instanceof StaleBuildError) {
-      root.textContent = caught.message;
+      const reloading = await recoverStaleAsset();
+      if (!reloading) root.textContent = caught.message;
       return;
     }
     throw caught;
   }
+  staleAssetReload.clear();
   createRoot(root).render(
     <StrictMode>
       <ResetGate>

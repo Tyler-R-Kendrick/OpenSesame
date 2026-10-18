@@ -6,6 +6,7 @@ import { MoreMenu } from "./MoreMenu.js";
 import { NavDrawer } from "./NavDrawer.js";
 import { sectionForPath, useSections } from "./RailRows.js";
 import { LockKey, SessionPrompt } from "./SessionPrompt.js";
+import { ShellUpdateMark } from "./ShellUpdateMark.js";
 import "./mobile-toolbar.css";
 
 const noSubscription = () => () => {};
@@ -34,6 +35,7 @@ export function MobileToolbar() {
         {section?.label ?? "OpenSesame"}
       </span>
       <LockKey />
+      <ShellUpdateMark />
       <MoreMenu />
     </header>
   );

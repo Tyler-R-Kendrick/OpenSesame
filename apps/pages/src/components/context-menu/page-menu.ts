@@ -6,6 +6,7 @@ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { focusCommandBar } from "../../lib/command-bar/focus.js";
 import { keymapLabel } from "../../lib/gestures.js";
 import { showKeymapHelp } from "../../lib/keymap-help.js";
+import { lockAfterDraft } from "../../lib/sw-update-guard.js";
 import type { MenuGroup, MenuItem } from "./menu-model.js";
 
 /** Write text the page produced (a link, a selection) — never a secret. */
@@ -87,7 +88,7 @@ export function shellGroup(): MenuItem[] {
     items.push({
       id: "lock",
       label: "Lock vault",
-      run: () => void vaultStore.lock(),
+      run: () => lockAfterDraft(vaultStore),
     });
   }
   return items;

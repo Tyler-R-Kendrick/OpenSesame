@@ -42,6 +42,7 @@ const GATES = [
   "verify:secret-backends",
   "verify:keyboard",
   "verify:push-worker",
+  "verify:sw-dirty-edit",
   "verify:mobile",
   "verify:local-iam",
   "verify:quorum-browser",
