@@ -650,6 +650,7 @@ findings and before/after detection controls. The initial spread/strict-check
 failure and Cargo PATH diagnostic remain preserved. This uses the recorded
 fallback, not a new preflight claim. Actual CI is still pending; inherited/stale
 browser gates remain open.
+
 ### Round 8 stack (P8-1–P8-4, 2026-10-17)
 
 Policy: Round 8 implementation edits via **Grok Build** (`grok-4.7`, subscription
