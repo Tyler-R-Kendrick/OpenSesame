@@ -8,17 +8,14 @@ import {
   isDeviceMessage,
 } from "./device-messages.js";
 import { Greeter } from "./greeting.js";
+import { GuestIce } from "./guest-ice.js";
+import { makeJoinRequestCode } from "./guest-request.js";
 import {
   CONNECTING_TIMEOUT_MS,
   FALLBACK_MS,
   type GuestOptions,
   type GuestStatus,
 } from "./guest-types.js";
-import {
-  ICE_CANDIDATE_KINDS_EMPTY,
-  type IceDiagnosticView,
-  explainIceFailure,
-} from "./ice-diagnostics.js";
 import {
   type Catalog,
   type ChannelMessage,
@@ -27,10 +24,14 @@ import {
   characters,
   cleanText,
 } from "./messages.js";
-import { DIRECT_ROUTING, type DialLink, type LiveChannel } from "./p2p.js";
-import { makeRequestCode, openReplyCode } from "./pairing.js";
 import {
-  joinRequestWithPeer,
+  DIRECT_ROUTING,
+  type DialLink,
+  type LiveChannel,
+  dialForRoute,
+} from "./p2p.js";
+import { openReplyCode } from "./pairing.js";
+import {
   replyHonorsPeer,
   requestView,
   sealRequestPeer,
@@ -62,15 +63,13 @@ export class LiveGuest {
   readonly #reposts = new Reposter();
   #device: ((message: DeviceMessage) => void) | null = null;
   #farewell: Promise<void> = Promise.resolve();
-  #connectingSince = 0;
-  #lastIce: IceDiagnosticView | null = null;
-  #iceStop: (() => void) | null = null;
-  readonly #now: () => number;
-  readonly #routing;
+  readonly #ice: GuestIce;
 
   constructor(private readonly options: GuestOptions) {
-    this.#now = options.now ?? Date.now;
-    this.#routing = options.routing ?? DIRECT_ROUTING;
+    this.#ice = new GuestIce(
+      options.routing ?? DIRECT_ROUTING,
+      options.now ?? Date.now,
+    );
   }
 
   get status(): GuestStatus {
@@ -112,19 +111,11 @@ export class LiveGuest {
     }
   }
 
-  /** The peer link a request offers, or null on a relay route (no offer). */
-  async #dial(): Promise<DialLink | null> {
-    const { transport, route } = this.options;
-    if (route === "relay") return null;
-    if (!transport) throw new Error("join_transport_required");
-    return transport.dial();
-  }
-
   async #ask(): Promise<string> {
-    const { link, code, name, note, kind, route } = this.options;
+    const { link, code, name, note, kind, route, transport } = this.options;
     const keys = this.#keys;
     if (!keys) return "";
-    const peer = await this.#dial();
+    const peer = await dialForRoute(route, transport);
     if (this.#over()) {
       // Left while the transport was dialing: `#finish` found no link.
       peer?.channel.catch(() => undefined);
@@ -149,22 +140,12 @@ export class LiveGuest {
         if (this.#peer === peer && !this.#relayed) this.#finish();
       },
     );
-    const request = await makeRequestCode(
+    const request = await makeJoinRequestCode(
       link,
       code,
       keys,
-      joinRequestWithPeer(
-        {
-          id: this.#id,
-          name: cleanText(name),
-          note: cleanText(note),
-          offer: peer?.handshake ?? "",
-          greets: true,
-          kind: kind ?? "person",
-          route: route ?? "peer",
-        },
-        sealed.peer,
-      ),
+      { id: this.#id, name, note, offer: peer?.handshake ?? "", kind, route },
+      sealed.peer,
     );
     if (this.#status.at === "preparing") {
       this.#bound = sealed.binding;
@@ -235,7 +216,11 @@ export class LiveGuest {
     }
     // The carriers stay open until the catalog comes: asking again uses them.
     this.#reposts.stop();
-    this.#beginConnecting(peer);
+    this.#ice.begin(
+      peer,
+      (status) => this.#to(status),
+      () => this.#status.at === "connecting",
+    );
     this.#connectTimer.set(() => {
       if (this.#status.at === "connecting") this.#giveUp();
     }, CONNECTING_TIMEOUT_MS);
@@ -382,35 +367,14 @@ export class LiveGuest {
     this.#to({ at: "connect_timeout" });
   }
 
-  #beginConnecting(peer: DialLink | null): void {
-    this.#iceStop?.();
-    this.#iceStop = null;
-    this.#connectingSince = this.#now();
-    this.#to({ at: "connecting", since: this.#connectingSince });
-    if (!peer?.onIce) return;
-    this.#iceStop = peer.onIce((view) => {
-      this.#lastIce = view;
-      if (this.#status.at === "connecting") {
-        this.#to({
-          at: "connecting",
-          since: this.#connectingSince,
-          ice: view,
-        });
-      }
-    });
-  }
-
   #finishUnreachable(timedOut: boolean): void {
-    const kinds = this.#lastIce?.candidates ?? ICE_CANDIDATE_KINDS_EMPTY;
-    const reason = explainIceFailure(this.#routing, kinds, timedOut).message;
-    this.#finish({ at: "unreachable", reason });
+    this.#finish({ at: "unreachable", reason: this.#ice.reason(timedOut) });
   }
 
   #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
     this.#relayed = false;
-    this.#iceStop?.();
-    this.#iceStop = null;
+    this.#ice.stop();
     // The goodbye is posted first and the carriers let go after it.
     this.#release(this.#drop());
     // The catalog goes with the status it rode on.
