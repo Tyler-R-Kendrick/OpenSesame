@@ -1,18 +1,12 @@
 /** Unactivated raw-WASM compile driver. Inputs are downloaded separately. */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  mkdir,
-  open,
-  readFile,
-  readdir,
-  statfs,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { composeNative, nativeBuildEnvironment } from "./compose-native.mjs";
 import { emitNativeAssets } from "./native-assets.mjs";
+import { assertNativeTaskResources } from "./task-resources.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const pins = JSON.parse(await readFile(join(here, "source.json"), "utf8"));
@@ -70,12 +64,9 @@ async function archivePins(stage) {
   integrity.push({ stage, archives: 2, pass: true });
 }
 async function checkDisk() {
-  const disk = await statfs(output, { bigint: true });
-  if ((disk.blocks - disk.bfree) * disk.bsize > 27n * 1024n ** 3n)
-    throw new Error(
-      "Private compile disk-use limit exceeded; inspect before cleanup.",
-    );
+  await assertNativeTaskResources(output);
 }
+
 async function freshOutput() {
   await mkdir(output, { recursive: true });
   if ((await readdir(output)).length)
@@ -134,14 +125,22 @@ function detachSignals() {
   process.off("SIGTERM", onTerm);
 }
 function monitor(state) {
+  let checking = false;
   return setInterval(() => {
-    void checkDisk().catch(() => {
-      if (!owned.has(state)) return;
-      state.failure = "Private compile disk-use limit exceeded.";
-      terminate(state);
-    });
+    if (checking) return;
+    checking = true;
+    void checkDisk()
+      .catch(() => {
+        if (!owned.has(state)) return;
+        state.failure = "Native task resource limit exceeded.";
+        terminate(state);
+      })
+      .finally(() => {
+        checking = false;
+      });
   }, 1000);
 }
+
 function settlement(state, name) {
   return new Promise((accept, reject) => {
     state.child.once("error", () =>
@@ -305,6 +304,7 @@ async function run() {
   const expandedRepeat = await build("exit-feature-repeat");
   if (expanded.sha256 !== expandedRepeat.sha256)
     throw new Error("Feature build is not repeatable.");
+  await checkDisk();
   const distribution = await emitNativeAssets({
     here,
     repositoryRoot: resolve(here, "../.."),
@@ -316,6 +316,7 @@ async function run() {
     pins,
     requireHash,
   });
+  await checkDisk();
   await criticalPins("distribution-complete");
   const result = {
     distribution,

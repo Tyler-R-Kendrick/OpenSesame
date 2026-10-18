@@ -329,7 +329,7 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "6c0742219717daabfb40b2266ac2ed732df877616c797f68af2eacd7477f2452"
+        "sha256": "aa2a8119f4c98b7a1d439b949b0460a2fcb5aecc84aea514916cc76e686f2ba1"
       },
       {
         "path": "compose-native.mjs",
