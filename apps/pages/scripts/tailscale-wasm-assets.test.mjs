@@ -23,7 +23,11 @@ test("ships exact source-built native WASM, isolated runtime, jitless bridge and
   assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Tailscale/);
   assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Go Authors/);
   assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Zod3 runtime/);
-  assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 15019);
+  assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 17892);
+  assertTailscaleHash(
+    assets.get(TAILSCALE_ASSETS.nativeHTTP),
+    TAILSCALE_SDK.nativeHTTPHash,
+  );
   assert.match(
     assets.get(TAILSCALE_ASSETS.nativeHTTP).toString(),
     /jitless:!0/,
