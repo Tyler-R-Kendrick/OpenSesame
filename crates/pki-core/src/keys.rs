@@ -13,7 +13,6 @@ use rcgen::{
     PKCS_ED25519, PKCS_RSA_SHA256,
 };
 
-use rsa::pkcs8::{EncodePrivateKey, LineEnding};
 use zeroize::Zeroizing;
 
 use crate::error::PkiError;
@@ -24,7 +23,8 @@ use crate::types::KeyAlgorithm;
 /// Not `Clone`, not `Serialize`, redacted `Debug` — see the module docs.
 pub struct KeyPair {
     algorithm: KeyAlgorithm,
-    inner: rcgen::KeyPair,
+    // rcgen implements Zeroize, but does not call it on drop itself.
+    inner: Zeroizing<rcgen::KeyPair>,
 }
 
 // The omitted field carries private key material. Printing it would defeat the
@@ -64,7 +64,7 @@ impl KeyPair {
 
     /// The underlying `rcgen` key pair, for certificate construction inside
     /// this crate only.
-    pub(crate) const fn rcgen(&self) -> &rcgen::KeyPair {
+    pub(crate) fn rcgen(&self) -> &rcgen::KeyPair {
         &self.inner
     }
 }
@@ -81,32 +81,27 @@ const fn rcgen_algorithm(algorithm: KeyAlgorithm) -> &'static RcgenSignatureAlgo
 
 /// Generates a fresh key pair for `algorithm`.
 ///
-/// RSA keys are generated with the `rsa` crate and re-imported through PKCS#8,
-/// because `rcgen`'s default `ring` backend can sign with an RSA key but
-/// cannot generate one.
+/// RSA generation and signing use the AWS-LC backend.
 ///
 /// # Errors
 /// Returns [`PkiError::KeyGeneration`] when the underlying backend refuses to
 /// produce or re-import a key.
 pub fn generate(algorithm: KeyAlgorithm) -> Result<KeyPair, PkiError> {
     let inner = match algorithm {
-        KeyAlgorithm::Rsa2048 => generate_rsa(2048)?,
-        KeyAlgorithm::Rsa4096 => generate_rsa(4096)?,
+        KeyAlgorithm::Rsa2048 => generate_rsa(rcgen::RsaKeySize::_2048)?,
+        KeyAlgorithm::Rsa4096 => generate_rsa(rcgen::RsaKeySize::_4096)?,
         other => rcgen::KeyPair::generate_for(rcgen_algorithm(other))
             .map_err(|_| PkiError::KeyGeneration)?,
     };
-    Ok(KeyPair { algorithm, inner })
+    Ok(KeyPair {
+        algorithm,
+        inner: Zeroizing::new(inner),
+    })
 }
 
-/// Generates an RSA key of `bits` and hands it to `rcgen` as PKCS#8.
-fn generate_rsa(bits: usize) -> Result<rcgen::KeyPair, PkiError> {
-    let mut rng = rand::thread_rng();
-    let private = rsa::RsaPrivateKey::new(&mut rng, bits).map_err(|_| PkiError::KeyGeneration)?;
-    let pem = private
-        .to_pkcs8_pem(LineEnding::LF)
-        .map_err(|_| PkiError::KeyGeneration)?;
-    rcgen::KeyPair::from_pkcs8_pem_and_sign_algo(&pem, &PKCS_RSA_SHA256)
-        .map_err(|_| PkiError::KeyGeneration)
+/// Generates an RSA key using the AWS-LC backend.
+fn generate_rsa(size: rcgen::RsaKeySize) -> Result<rcgen::KeyPair, PkiError> {
+    rcgen::KeyPair::generate_rsa_for(&PKCS_RSA_SHA256, size).map_err(|_| PkiError::KeyGeneration)
 }
 
 /// Imports an unencrypted PKCS#8 PEM private key as a key pair of
@@ -118,7 +113,10 @@ fn generate_rsa(bits: usize) -> Result<rcgen::KeyPair, PkiError> {
 pub fn from_pkcs8_pem(pem: &str, algorithm: KeyAlgorithm) -> Result<KeyPair, PkiError> {
     let inner = rcgen::KeyPair::from_pkcs8_pem_and_sign_algo(pem, rcgen_algorithm(algorithm))
         .map_err(|_| PkiError::InvalidPem)?;
-    Ok(KeyPair { algorithm, inner })
+    Ok(KeyPair {
+        algorithm,
+        inner: Zeroizing::new(inner),
+    })
 }
 
 #[cfg(test)]

@@ -14,6 +14,7 @@ members = [
   "crates/protocol-mcp",
   "crates/protocol-aauth",
   "crates/storage",
+  "crates/sql",
   "crates/authn",
   "crates/authz",
   "crates/xkeys",
@@ -123,7 +124,7 @@ serde_json = "1.0.140"
 serde_norway = "0.9.42"
 sha1 = "0.10.7"
 sha2 = "0.10.9"
-sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "chrono", "uuid", "migrate"] }
+sqlx = { package = "opensesame-sql", path = "crates/sql" }
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
 tower = "0.5.2"

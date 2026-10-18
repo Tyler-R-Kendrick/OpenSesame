@@ -93,41 +93,22 @@ pub fn platform_backend() -> Arc<dyn KeychainBackend> {
 }
 
 #[cfg(target_os = "linux")]
+#[path = "keychain/linux_metadata.rs"]
+mod linux_metadata;
+
+#[cfg(target_os = "linux")]
 mod imp {
     use super::{Arc, KeychainBackend, KeychainStore, ProbeError};
-    use secret_service::blocking::SecretService;
-    use secret_service::EncryptionType;
 
-    /// Linux Secret Service (D-Bus) backend.
-    ///
-    /// Locking behavior: the default collection is inspected **without ever
-    /// calling `unlock`**, so no unlock prompt is triggered and nothing waits
-    /// on one. A locked collection yields zero labels and is not an error —
-    /// the caller treats the absence as low signal, per the ADR. Every call
-    /// below is a plain D-Bus read of item metadata; `get_secret` is never
-    /// invoked, so no value ever crosses into this process.
+    /// Reads Linux Secret Service labels without opening a secret session or
+    /// requesting an unlock. Locked or unreadable lock state yields no labels.
     pub struct SecretServiceBackend;
 
     impl KeychainBackend for SecretServiceBackend {
         fn enumerate_labels(&self) -> Result<Vec<(KeychainStore, String)>, ProbeError> {
-            let service = SecretService::connect(EncryptionType::Dh)
+            let connection = dbus::blocking::Connection::new_session()
                 .map_err(|e| ProbeError::Keychain(format!("secret-service connect: {e}")))?;
-            let collection = service
-                .get_default_collection()
-                .map_err(|e| ProbeError::Keychain(format!("secret-service collection: {e}")))?;
-            if collection.is_locked().unwrap_or(true) {
-                return Ok(Vec::new());
-            }
-            let items = collection
-                .get_all_items()
-                .map_err(|e| ProbeError::Keychain(format!("secret-service items: {e}")))?;
-            // Label only. Attribute *values* and the secret stay unread.
-            Ok(items
-                .into_iter()
-                .filter_map(|item| item.get_label().ok())
-                .filter(|label| !label.is_empty())
-                .map(|label| (KeychainStore::SecretService, label))
-                .collect())
+            super::linux_metadata::enumerate_labels(&connection)
         }
     }
 

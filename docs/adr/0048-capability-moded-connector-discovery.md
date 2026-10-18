@@ -95,7 +95,7 @@ support, at what confidence."
 3. **Four probe families.** (a) env/dotfile — the ADR 0047 logic,
    unchanged. (b) MCP-config — names-only, exactly as ADR 0047 decision
    3. (c) OS keychain enumeration: Linux Secret Service via the
-   `secret-service` crate; macOS via `security-framework` matching known
+   `dbus` crate with metadata-only calls (no secret session); macOS via `security-framework` matching known
    service-name prefixes, with the documented caveat that enumeration is
    fine but any value read triggers an OS ACL prompt we neither trigger
    nor suppress; Windows via `CredEnumerateW` over target-name prefixes.
