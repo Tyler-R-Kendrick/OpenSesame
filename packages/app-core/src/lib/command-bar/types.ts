@@ -33,6 +33,12 @@ export const CLAIM_COMMAND_PATH = "/claim";
  */
 export const JOIN_COMMAND_PATH = "/join";
 
+/**
+ * Pair CLI. Not a core section: `identity.local-iam` contributes it, and a
+ * plan that excludes that capability has nowhere for the command to go.
+ */
+export const PAIR_CLI_COMMAND_PATH = "/identity/authorize?cli=1";
+
 /** Core destinations, claim, join, and every registered `command-path`. */
 export function commandSections(): readonly string[] {
   const paths: string[] = [
