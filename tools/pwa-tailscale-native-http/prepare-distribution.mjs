@@ -9,6 +9,7 @@ import {
   assertNativeSourceInputs,
   readNativeDistribution,
 } from "./distribution-cache.mjs";
+import { describePreparationFailure } from "./preparation-diagnostics.mjs";
 import { assertNativeTaskResources } from "./task-resources.mjs";
 const digestPattern = /^[a-f0-9]{64}$/;
 const inFlight = new Map();
@@ -61,7 +62,14 @@ async function verifyArchive(path, digest) {
   }
 }
 
-async function command(program, args, logPath, output, timeoutMs) {
+/** Internal build-tool command boundary; exported for actual owned-child failure tests. */
+export async function nativePreparationCommand(
+  program,
+  args,
+  logPath,
+  output,
+  timeoutMs,
+) {
   const taskRoot = resolve(output, "../..");
   await assertNativeTaskResources(taskRoot);
   const log = await open(logPath, "wx", 0o600);
@@ -70,10 +78,12 @@ async function command(program, args, logPath, output, timeoutMs) {
     stdio: ["ignore", log.fd, log.fd],
     env: nativeBuildEnvironment(output, ""),
   });
+  const observation = { reason: "exit", exitCode: null, signal: null };
   let interrupted = false;
   let completed = false;
   let force;
-  const stop = () => {
+  const stop = (reason) => {
+    if (!interrupted) observation.reason = reason;
     interrupted = true;
     if (!child.pid) return;
     try {
@@ -87,42 +97,56 @@ async function command(program, args, logPath, output, timeoutMs) {
       } catch {}
     }, 3000);
   };
-  process.on("SIGTERM", stop);
-  process.on("SIGINT", stop);
-  const deadline = setTimeout(stop, timeoutMs);
+  const terminated = () => stop("SIGTERM");
+  const interruptedByUser = () => stop("SIGINT");
+  process.on("SIGTERM", terminated);
+  process.on("SIGINT", interruptedByUser);
+  const deadline = setTimeout(() => stop("timeout"), timeoutMs);
   let checking = false;
   const monitoring = setInterval(() => {
     if (checking) return;
     checking = true;
     void assertNativeTaskResources(taskRoot)
       .catch(() => {
-        if (!completed) stop();
+        if (!completed) stop("resource");
       })
       .finally(() => {
         checking = false;
       });
   }, 1000);
+  let failure;
   try {
     await new Promise((accept, reject) => {
-      child.once("error", reject);
-      child.once("exit", (code) =>
+      child.once("error", (error) => {
+        observation.reason = "spawn";
+        reject(error);
+      });
+      child.once("exit", (code, signal) => {
+        observation.exitCode = code;
+        observation.signal = signal;
         code === 0 && !interrupted
           ? accept()
           : reject(
               new Error(
                 "Native asset preparation failed; retained build log contains the details.",
               ),
-            ),
-      );
+            );
+      });
     });
+  } catch (error) {
+    failure = error;
   } finally {
     completed = true;
     clearInterval(monitoring);
     clearTimeout(deadline);
     clearTimeout(force);
-    process.off("SIGTERM", stop);
-    process.off("SIGINT", stop);
+    process.off("SIGTERM", terminated);
+    process.off("SIGINT", interruptedByUser);
     await log.close();
+  }
+  if (failure) {
+    await describePreparationFailure(failure, output, logPath, observation);
+    throw failure;
   }
 }
 async function archive(pin, cache, work, label) {
@@ -137,7 +161,7 @@ async function archive(pin, cache, work, label) {
     return path;
   }
   const partial = join(work, `${label}.download`);
-  await command(
+  await nativePreparationCommand(
     "curl",
     [
       "--fail",
@@ -243,7 +267,7 @@ async function prepare(repositoryRoot, sourceSha256, distributionSha256) {
     const source = await archive(pins.source, archives, work, "source");
     const compiler = await archive(pins.compiler, archives, work, "compiler");
     const output = join(work, "build");
-    await command(
+    await nativePreparationCommand(
       process.execPath,
       [join(here, "build.mjs"), source, compiler, output],
       join(work, "build.log"),
