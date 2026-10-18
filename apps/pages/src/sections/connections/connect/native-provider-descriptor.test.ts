@@ -5,7 +5,7 @@ import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 
 describe("compiled provider credential variants", () => {
   it.each([true, false])(
-    "retains compiled variants without admitting a blocked browser route, runtime availability: %s",
+    "retains compiled variants and CORS advice without promoting unavailable runtime: %s",
     (available) => {
       const original = connectPlan("railway");
       if (!original) throw new Error("Expected compiled Railway provider");
@@ -25,8 +25,8 @@ describe("compiled provider credential variants", () => {
         mcp: { available: false, actor: "user" },
       });
       const api = descriptor.methods.find((entry) => entry.id === "api-key");
-      expect(api?.available).toBe(false);
-      expect(api?.unavailableReason).toContain("Railway only allows");
+      expect(api?.available).toBe(available);
+      expect(api?.instructions).toContain("browser access");
       expect(
         api?.fields
           .find((field) => field.id === "credential_variant")
@@ -60,7 +60,7 @@ it.each([
   { origin: "https://tyler-r-kendrick.github.io", admitted: false },
   { origin: "https://app.example", admitted: true },
 ])(
-  "applies MCP admission at $origin while retaining precise refused API and OAuth reasons",
+  "applies MCP admission at $origin while keeping API advice and OAuth refusal distinct",
   ({ origin, admitted }) => {
     const releaseOrigin = bindNativeBrowserPolicyOrigin(() => origin);
     try {
@@ -76,7 +76,7 @@ it.each([
         descriptor.methods
           .filter((method) => method.available)
           .map((method) => method.id),
-      ).toEqual(admitted ? ["mcp"] : []);
+      ).toEqual(admitted ? ["mcp", "api-key"] : ["api-key"]);
       expect(
         descriptor.methods.find((method) => method.id === "mcp")?.available,
       ).toBe(admitted);
@@ -86,7 +86,7 @@ it.each([
             ?.unavailableReason,
         ).toBe("Resend MCP is unavailable from this site's origin.");
       for (const method of descriptor.methods.filter(
-        (method) => method.id !== "mcp",
+        (method) => method.id === "oauth",
       ))
         expect(method.unavailableReason).toContain("Resend");
     } finally {

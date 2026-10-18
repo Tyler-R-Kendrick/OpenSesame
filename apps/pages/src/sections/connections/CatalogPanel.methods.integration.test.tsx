@@ -32,7 +32,7 @@ it("shows Adobe's MCP contract on the actual catalog tile instead of its legacy 
     document
       .getElementById("catalog-datadog")
       ?.querySelector(".conn-tile__kind")?.textContent,
-  ).toBe("API key (browser unavailable)");
+  ).toBe("API key");
   expect(connectPlan("adobe")?.methods.map((method) => method.kind)).toEqual([
     "mcp",
   ]);
@@ -70,14 +70,15 @@ it("uses compiled provider protocols across the full public catalog and keeps le
   expect(catalogMethodLabel(provider)).toBe("Email/password · OIDC");
 });
 
-it("keeps admitted Notion and MCP alternatives distinct from blocked browser API/OAuth badges", () => {
+it("keeps available API setup and MCP alternatives distinct from unsupported browser OAuth", () => {
   const providers = mergeVercelCatalog(getBundledProviders());
   const labels = Object.fromEntries(
     providers.map((provider) => [provider.id, catalogMethodLabel(provider)]),
   );
   expect(labels.notion).toContain("API key");
   expect(labels.notion).not.toContain("API key (browser unavailable)");
-  expect(labels.resend).toContain("API key (browser unavailable)");
+  expect(labels.resend).toContain("API key");
+  expect(labels.resend).not.toContain("API key (browser unavailable)");
   expect(labels.resend).toContain("OAuth (browser unavailable)");
   expect(labels.resend).toContain("MCP");
   expect(labels.adobe).toBe("MCP");
