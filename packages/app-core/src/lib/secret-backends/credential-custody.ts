@@ -30,6 +30,11 @@ export function secretBackendCredentialTarget(
   ];
   // Keep legacy bindings byte-identical; explicit headers bind new authority.
   if (draft.appVersion) target.push("appVersion", draft.appVersion);
+  if (
+    draft.mode === "bitwarden-api" &&
+    (draft.accountEmail || draft.deviceIdentifier)
+  )
+    target.push(draft.accountEmail ?? "", draft.deviceIdentifier ?? "");
   return JSON.stringify(target);
 }
 export function readSecretBackendCredentialItems(

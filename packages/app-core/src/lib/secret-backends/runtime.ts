@@ -114,6 +114,8 @@ function transientConfiguration(
   if (value.file) resolved.file = value.file;
   if (value.filePassword !== undefined)
     resolved.filePassword = value.filePassword;
+  if (value.masterPassword !== undefined)
+    resolved.masterPassword = value.masterPassword;
   return resolved;
 }
 async function authenticate(
