@@ -149,6 +149,7 @@ function handlePagesDevRequest(
 
 export default defineConfig({
   test: {
+    globalSetup: ["./scripts/tailscale-test-setup.mjs"],
     // The relay's suites under `server/` are `node --test` (`test:relay`).
     exclude: [...configDefaults.exclude, "server/**"],
     testTimeout: 20_000,
