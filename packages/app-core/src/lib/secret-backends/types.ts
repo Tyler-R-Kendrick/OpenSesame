@@ -1,5 +1,6 @@
 /** The browser's common secret-store port. A session contains no credential material. */
 export type SecretBackendMode =
+  | "encrypted-remote"
   | "local"
   | "file-import"
   | "credential-management"
