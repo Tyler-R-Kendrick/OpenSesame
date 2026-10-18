@@ -46,6 +46,7 @@ describe("dirty edits", () => {
     const order: string[] = [];
     registerDraftSaver("ok", async () => {
       order.push("ok");
+      return true;
     });
     registerDraftSaver("no", () => {
       order.push("no");

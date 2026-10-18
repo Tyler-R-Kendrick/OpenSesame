@@ -41,7 +41,7 @@ export function PasswordsOnboarding({
     setBusy(true);
     void commitPasswordsOnboarding(snapshot)
       .then(setNotice)
-      .catch((error: unknown) => {
+      .catch((error) => {
         setNotice(
           error instanceof Error
             ? error.message
