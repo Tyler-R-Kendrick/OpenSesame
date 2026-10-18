@@ -7,6 +7,7 @@ import {
   CLAIM_COMMAND_PATH,
   type InterpretResult,
   JOIN_COMMAND_PATH,
+  PAIR_CLI_COMMAND_PATH,
   commandSections,
 } from "./types.js";
 
@@ -25,8 +26,15 @@ const SECTION_ALIASES: ReadonlyArray<{
   { path: "/access", words: ["access", "grants", "approvals", "sessions"] },
   { path: "/identity", words: ["identity", "account", "sign in", "signin"] },
   {
-    path: "/identity/authorize?cli=1",
-    words: ["pair cli", "cli pair", "pair terminal cli", "authorize cli"],
+    path: PAIR_CLI_COMMAND_PATH,
+    words: [
+      "pair",
+      "cli",
+      "pair cli",
+      "cli pair",
+      "pair terminal cli",
+      "authorize cli",
+    ],
   },
   { path: "/settings", words: ["settings", "prefs", "preferences"] },
   {
@@ -203,16 +211,18 @@ function parseSlashOpen(body: string): AppCommand | null {
 }
 
 function parseSlashDestination(body: string): AppCommand | null {
-  const path = `/${body}`;
-  if (!SLASH_DESTINATION.test(path)) return null;
-  const exact = commandSections().find(
-    (section) => section.toLowerCase() === path.toLowerCase(),
-  );
-  if (exact) return { action: "navigate", path: exact };
+  // Aliases first, so `/pair`, `/cli`, and `/pair cli` resolve before the
+  // single-segment slash rule treats them as an unknown path.
   const alias = SECTION_ALIASES.find((entry) =>
     entry.words.includes(body.toLowerCase()),
   );
   if (alias) return { action: "navigate", path: alias.path };
+  const path = `/${body}`;
+  const exact = commandSections().find(
+    (section) => section.toLowerCase() === path.toLowerCase(),
+  );
+  if (exact) return { action: "navigate", path: exact };
+  if (!SLASH_DESTINATION.test(path)) return null;
   return { action: "navigate", path };
 }
 

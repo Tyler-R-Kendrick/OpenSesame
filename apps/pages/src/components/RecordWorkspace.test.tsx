@@ -119,6 +119,30 @@ it("keeps an editor open when the list cursor moves", () => {
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("alpha");
 });
 
+it("lists an add-on without counting it", () => {
+  render(
+    <MemoryRouter initialEntries={["/identity?view=devices"]}>
+      <RecordWorkspace
+        section="Identity"
+        title="Devices"
+        rootPath="/identity"
+        listPath="/identity?view=devices"
+        selectedId={null}
+        rows={[
+          { id: "dev_1", label: "Desk", extension: "device" },
+          { id: "pair-cli", label: "Pair CLI", counted: false },
+        ]}
+      />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole("treeitem", { name: "Pair CLI" })).toBeTruthy();
+  expect(screen.getByRole("treeitem", { name: "Desk.device" })).toBeTruthy();
+  expect(document.querySelector(".buffer__line")?.textContent).toBe(
+    "1 devices",
+  );
+  expect(document.querySelector(".vault__status-meta")?.textContent).toBe("1");
+});
+
 it("keeps notice registration mounted before any record is selected", () => {
   start();
   expect(screen.getByTestId("notice").textContent).toBe("Notice registration");

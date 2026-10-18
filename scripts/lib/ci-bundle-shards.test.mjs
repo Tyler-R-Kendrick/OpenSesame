@@ -58,6 +58,7 @@ const GATES = [
   "verify:peer-trust-two-context",
   "verify:peering-diagnostics",
   "verify:fresh-vault-login",
+  "verify:cli-public-site",
 ];
 
 /** The shards a step's `if:` selects: the union of its `||` clauses. */
