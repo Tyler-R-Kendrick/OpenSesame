@@ -2,28 +2,29 @@ use super::*;
 
 use std::collections::BTreeSet;
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 
-fn dir(mode: u32) -> tempfile::TempDir {
+pub(super) fn dir(mode: u32) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(mode)).unwrap();
     dir
 }
 
-fn plant(dir: &Path, mode: u32) -> PathBuf {
+pub(super) fn plant(dir: &Path, mode: u32) -> PathBuf {
     let node = dir.join("node");
     std::fs::write(&node, "#!/bin/sh\n").unwrap();
     std::fs::set_permissions(&node, std::fs::Permissions::from_mode(mode)).unwrap();
     node
 }
 
-fn os(pairs: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
+pub(super) fn os(pairs: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
     pairs
         .iter()
         .map(|(n, v)| (OsString::from(n), OsString::from(v)))
         .collect()
 }
 
-fn host(path: &OsStr, platform: Platform, cwd: Option<&Path>) -> Host {
+pub(super) fn host(path: &OsStr, platform: Platform, cwd: Option<&Path>) -> Host {
     let mut vars = os(&[
         ("HOME", "/home/dummy"),
         ("OPENSESAME_STORE_PASSWORD", "dummy"),
@@ -33,10 +34,16 @@ fn host(path: &OsStr, platform: Platform, cwd: Option<&Path>) -> Host {
         vars,
         cwd: cwd.map(Path::to_path_buf),
         platform,
+        caller: Caller::current(),
     }
 }
 
-fn joined(parts: &[&Path]) -> OsString {
+/// The owner of `path` as `stat` reports it.
+fn owner_of(path: &Path) -> Owner {
+    Owner::from(&std::fs::metadata(path).unwrap())
+}
+
+pub(super) fn joined(parts: &[&Path]) -> OsString {
     std::env::join_paths(parts).unwrap()
 }
 
@@ -85,23 +92,53 @@ fn empty_relative_missing_and_non_directory_entries_are_skipped_with_their_reaso
 }
 
 #[test]
-fn a_directory_group_or_others_can_write_is_skipped_on_unix() {
-    for (mode, trusted) in [
-        (0o700, true),
-        (0o755, true),
-        (0o775, false),
-        (0o770, false),
-        (0o757, false),
-        (0o777, false),
-        (0o1777, false),
+fn a_directory_only_the_caller_and_its_groups_can_write_is_searched_on_unix() {
+    // Created here, so owned by this user and group: the layouts of a package
+    // manager under `umask 002` (`user:user 0775`) and of root's own (0755).
+    for (mode, skipped) in [
+        (0o700, None),
+        (0o755, None),
+        (0o775, None),
+        (0o770, None),
+        (0o757, Some(Skip::WritableByOthers)),
+        (0o777, Some(Skip::WritableByOthers)),
+        (0o1777, Some(Skip::WritableByOthers)),
     ] {
         let d = dir(mode);
         let path = joined(&[d.path()]);
         let found = search(&path, &host(&path, Platform::Unix, None));
-        assert_eq!(found.trusted.len() == 1, trusted, "mode {mode:o}");
-        if !trusted {
-            assert_eq!(found.skipped[0].1, Skip::WritableByOthers, "mode {mode:o}");
-        }
+        assert_eq!(
+            found.trusted.len(),
+            usize::from(skipped.is_none()),
+            "{mode:o}"
+        );
+        assert_eq!(found.skipped.first().map(|(_, s)| *s), skipped, "{mode:o}");
+    }
+}
+
+#[test]
+fn the_real_stat_reaches_the_decision_for_owner_and_group() {
+    let d = dir(0o775);
+    let (path, owner) = (joined(&[d.path()]), owner_of(d.path()));
+    // Someone else is asking: a directory this user owns is not theirs.
+    if owner.uid != 0 {
+        let mut other = host(&path, Platform::Unix, None);
+        other.caller = Caller {
+            euid: owner.uid + 1,
+            groups: vec![owner.gid],
+        };
+        let found = search(&path, &other);
+        assert_eq!(found.skipped[0].1, Skip::OwnedBy(owner.uid));
+    }
+    // A caller outside the directory's group, with the group able to write it.
+    if owner.gid != 0 {
+        let mut outsider = host(&path, Platform::Unix, None);
+        outsider.caller = Caller {
+            euid: owner.uid,
+            groups: vec![owner.gid + 1],
+        };
+        let found = search(&path, &outsider);
+        assert_eq!(found.skipped[0].1, Skip::GroupWritable(owner.gid));
     }
 }
 
@@ -129,9 +166,37 @@ fn the_first_executable_file_called_node_wins() {
         .iter()
         .map(|d| d.path().to_path_buf())
         .collect();
-    assert_eq!(find_node(&trusted, Platform::Unix), Some(want));
-    assert_eq!(find_node(&trusted[..2], Platform::Unix), None);
-    assert_eq!(find_node(&[], Platform::Unix), None);
+    let on = host(OsStr::new(""), Platform::Unix, None);
+    assert_eq!(find_node(&trusted, &on).node, Some(want));
+    assert_eq!(find_node(&trusted[..2], &on).node, None);
+    assert_eq!(find_node(&[], &on).node, None);
+}
+
+#[test]
+fn a_node_anyone_can_write_is_passed_over_and_recorded() {
+    let (world, group, fine) = (dir(0o700), dir(0o700), dir(0o700));
+    let rejected_world = plant(world.path(), 0o777);
+    let accepted_group = plant(group.path(), 0o775); // `user:user 0775` is fine
+    plant(fine.path(), 0o755);
+    let on = host(OsStr::new(""), Platform::Unix, None);
+    let found = find_node(
+        &[world.path().to_path_buf(), group.path().to_path_buf()],
+        &on,
+    );
+    assert_eq!(found.node, Some(accepted_group));
+    assert_eq!(found.rejected, [(rejected_world, Skip::WritableByOthers)]);
+    // A caller that is not the file's owner does not run it, and it is said.
+    let owner = owner_of(&group.path().join("node"));
+    if owner.uid != 0 {
+        let mut other = host(OsStr::new(""), Platform::Unix, None);
+        other.caller = Caller {
+            euid: owner.uid + 1,
+            groups: vec![],
+        };
+        let found = find_node(&[group.path().to_path_buf()], &other);
+        assert_eq!(found.node, None);
+        assert_eq!(found.rejected[0].1, Skip::OwnedBy(owner.uid));
+    }
 }
 
 #[test]
@@ -243,7 +308,7 @@ fn no_node_is_an_error_that_says_what_was_skipped_and_never_falls_back() {
         "PATH has none",
         "\"\" empty entry",
         "\".\" relative",
-        "writable by group or others",
+        "writable by others",
     ] {
         assert!(err.contains(want), "{want:?} not in: {err}");
     }
@@ -254,13 +319,23 @@ fn no_node_is_an_error_that_says_what_was_skipped_and_never_falls_back() {
         .unwrap_err()
         .to_string();
     assert!(err.contains("holds a `node`"), "{err}");
+    // A directory that is fine holding a `node` that is not: both are named.
+    let bad = dir(0o700);
+    let node = plant(bad.path(), 0o757);
+    let path = joined(&[bad.path()]);
+    let err = node_command_for(&host(&path, Platform::Unix, None))
+        .unwrap_err()
+        .to_string();
+    let said = format!("node \"{}\" writable by others", node.display());
+    assert!(err.contains(&said), "{said} not in: {err}");
     // No PATH at all.
-    let none = Host {
+    let unset = Host {
         vars: os(&[("HOME", "/home/dummy")]),
         cwd: None,
         platform: Platform::Unix,
+        caller: Caller::current(),
     };
-    let err = node_command_for(&none).unwrap_err().to_string();
+    let err = node_command_for(&unset).unwrap_err().to_string();
     assert!(err.contains("PATH is not set"), "{err}");
 }
 

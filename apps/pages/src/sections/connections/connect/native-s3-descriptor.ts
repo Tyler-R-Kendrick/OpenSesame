@@ -74,7 +74,7 @@ export function nativeS3Descriptor(
           },
         ],
         instructions:
-          "Allow this site's origin to use GET with Authorization, x-amz-date, x-amz-content-sha256 and, for temporary credentials, x-amz-security-token in your bucket's CORS policy. Connection verification checks ListObjectsV2 permission for this bucket and prefix.",
+          "Allow this site's origin to use GET and PUT with Authorization, Content-Type, If-None-Match, x-amz-date, x-amz-content-sha256 and, for temporary credentials, x-amz-security-token in your bucket's CORS policy. Connection verification checks ListObjectsV2 permission for this bucket and prefix. Encrypted backup and restore also require PutObject and GetObject permission within that prefix.",
       },
     ],
     actions: [],

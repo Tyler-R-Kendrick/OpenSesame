@@ -6,7 +6,10 @@ import {
   deviceConnection,
   saveDeviceConnectorConfigurationDurable,
 } from "./device-connectors.js";
-import { reserveLinearAuthorizationWindow } from "./linear-auth-reservation.js";
+import {
+  type LinearAuthorizationReservation,
+  reserveLinearAuthorizationWindow,
+} from "./linear-auth-reservation.js";
 import { beginLinearAuthorization } from "./linear-auth.js";
 import {
   checkLinearEdit,
@@ -115,11 +118,30 @@ function needsConsentWindow(
       (id && readDeviceSecrets()[id]?.linear_webhook_intent),
   );
 }
+type LinearAuthorizationObserver = (
+  reservation: LinearAuthorizationReservation,
+) => (() => void) | undefined;
+
+function observeLinearAuthorization(
+  reservation: LinearAuthorizationReservation | null,
+  observer?: LinearAuthorizationObserver,
+) {
+  const assertUiCurrent = reservation ? observer?.(reservation) : undefined;
+  const assertCurrent = () => {
+    reservation?.assertCurrent();
+    assertUiCurrent?.();
+  };
+  return {
+    assertCurrent,
+    reservation: reservation ? { ...reservation, assertCurrent } : undefined,
+  };
+}
 export async function configureLinearConnector(
   state: DraftState,
   options: SelfHostedConnectorOptions,
   id?: string,
   onPersisted?: (connectionId: string) => void,
+  onAuthorizationReserved?: LinearAuthorizationObserver,
 ): Promise<Connection> {
   const problems = linearConnectorProblems(state, options, id);
   if (problems.length) throw new Error(problems.join(". "));
@@ -132,8 +154,15 @@ export async function configureLinearConnector(
     ? reserveLinearAuthorizationWindow()
     : null;
   try {
+    const guarded = observeLinearAuthorization(
+      reservation,
+      onAuthorizationReserved,
+    );
+    const { assertCurrent } = guarded;
+    assertCurrent();
     const before = linearSnapshot(id);
     const key = await verifyLinearKey(state, options, runtime, id);
+    assertCurrent();
     if (id && linearSnapshot(id) !== before)
       throw new Error(
         "Linear configuration changed in another tab; reload before saving",
@@ -142,18 +171,22 @@ export async function configureLinearConnector(
       id && previous
         ? await prepareLinearEdit(id, previous, state, options, runtime)
         : before;
+    assertCurrent();
     const saved = await saveDeviceConnectorConfigurationDurable(
       () => linearSaveInput(state, options, runtime, key, expected, id),
       id,
+      assertCurrent,
     );
+    assertCurrent();
     onPersisted?.(saved.connectionId);
+    assertCurrent();
     // Edits can revoke a broader grant or add webhook cleanup obligations.
     const actor = nextLinearActor(state, options, runtime);
     if (actor)
       await beginLinearAuthorization(
         saved.connectionId,
         actor,
-        reservation ?? undefined,
+        guarded.reservation,
       );
     else await configureLinearWebhooks(saved.connectionId);
     const connection = deviceConnection(saved.connectionId);

@@ -325,9 +325,10 @@
           "2026-10-10: 172 -> 175 for Settings > Trusted contacts (ADR 0187): the module's frame, circles, guarding and recovery stylesheets, plus its panels' shared rules, are lazy and load with the capability. The tree merged with main at 115a39a measures 175 KiB; the hardened profiles exclude the module and are unchanged.",
           "2026-10-11: 175 -> 177 for ADR 0192: the Add sheet's test row and the Keys panel (rows, the choice buttons, the shown-once key as wrapping text) add one stylesheet and a few rules, ~1.2 KiB minified. Base fb491073 measures 174.9 KiB and this branch 176.1; the budget keeps ~0.5% headroom.",
           "2026-10-11: 177 -> 178 for the self-review fixes to ADR 0192: the mint sheet's budget and lifetime become native radio groups with visible legends (a fieldset, a legend and a transparent radio filling each choice, with its focus ring), about 0.5 KiB minified. A fresh build measures 177 KiB; CI is expected at the same, and the ceiling keeps 1 KiB. JavaScript, gzip and the profile budgets are covered in the notes above.",
-          "2026-10-11: 178 -> 180 for the optional vault.environments capability (ADR 0194): the sheet's tabs, key rows and schema block are one lazy stylesheet (environments.css, 2.5 KiB) that loads with the capability. The tree merged with main at 9d513996 measures 180 KiB; the hardened profiles exclude the module and are unchanged."
+          "2026-10-11: 178 -> 180 for the optional vault.environments capability (ADR 0194): the sheet's tabs, key rows and schema block are one lazy stylesheet (environments.css, 2.5 KiB) that loads with the capability. The tree merged with main at 9d513996 measures 180 KiB; the hardened profiles exclude the module and are unchanged.",
+          "2026-10-18: 180 -> 181 for P8-6 (F7): the shell update presence mark at the end of the brand rail and in the mobile toolbar adds three rules to styles.css. The tree merged with main at 17f597fe measures 184957 bytes of CSS (180.6 KiB, gate rounds to KiB) against main's 184788; raise only to the measured minimum. JavaScript, gzip, total and the hardened profile ceilings are unchanged."
         ],
-        "css": 180,
+        "css": 181,
         "largestAsset": 12800
       }
     }

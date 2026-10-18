@@ -4030,6 +4030,7 @@ dependencies = [
 name = "opensesame-env-spec"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "opensesame-domain",
  "serde",
  "serde_json",

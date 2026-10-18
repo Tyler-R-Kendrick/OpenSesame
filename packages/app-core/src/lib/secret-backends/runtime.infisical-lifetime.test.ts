@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { flushActivityLog } from "../activity-log.js";
 import { deviceConnection } from "../device-connectors.js";
 import { kvFlush } from "../kv.js";
 import { vaultStore } from "../vault/store.js";
@@ -29,6 +30,7 @@ const empty = () => Response.json({ secrets: [] });
 
 async function flush() {
   await vaultStore.flushPendingWrites();
+  await flushActivityLog();
   await vfsFlush();
   await kvFlush();
 }

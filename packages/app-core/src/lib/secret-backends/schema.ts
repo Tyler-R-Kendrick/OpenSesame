@@ -20,6 +20,7 @@ export const SecretBackendDraftSchema = z.object({
   ]),
   baseUrl: text,
   identityUrl: text,
+  appVersion: text,
   token: z.string().max(32768).default(""),
   vaultId: text,
   projectId: text,
@@ -38,6 +39,7 @@ export const SECRET_BACKEND_CREDENTIAL_FIELDS = [
 ] as const;
 
 type Draft = z.infer<typeof SecretBackendDraftSchema>;
+type DraftInput = z.input<typeof SecretBackendDraftSchema>;
 
 function validateProtocol(draft: Draft): void {
   const preset = secretBackendPreset(draft.providerId);
@@ -136,7 +138,7 @@ function protectCredentialFields(draft: Draft): void {
 }
 
 export function validateSecretBackendDraft(
-  value: Draft,
+  value: DraftInput,
   requireCredentials = true,
 ) {
   const result = SecretBackendDraftSchema.safeParse(value);
@@ -154,7 +156,7 @@ export function validateSecretBackendDraft(
   return draft;
 }
 
-export function publicSecretBackendDraft(value: Draft) {
+export function publicSecretBackendDraft(value: DraftInput) {
   const draft = SecretBackendDraftSchema.parse(value);
   for (const field of SECRET_BACKEND_CREDENTIAL_FIELDS) draft[field] = "";
   return draft;

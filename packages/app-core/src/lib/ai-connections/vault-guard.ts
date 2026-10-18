@@ -14,6 +14,7 @@ export async function captureAiVault() {
   }
   const lifetime = new AbortController();
   const unsubscribe = vaultStore.onLock(() => lifetime.abort());
+  let closed = false;
   return {
     tomb: current.tomb,
     signal: lifetime.signal,
@@ -21,8 +22,10 @@ export async function captureAiVault() {
       guard.current();
       lifetime.signal.throwIfAborted();
     },
-    close() {
-      lifetime.abort();
+    close(completed = false) {
+      if (closed) return;
+      closed = true;
+      if (!completed) lifetime.abort();
       unsubscribe();
       guard.close();
     },
