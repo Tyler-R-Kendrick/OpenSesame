@@ -58,6 +58,7 @@ export function secretBackendDraft(providerId: string): SecretBackendDraft {
 
 export function secretBackendModeLabel(mode: SecretBackendMode) {
   const labels = {
+    "encrypted-remote": "Encrypted remote object",
     local: "This device's vault",
     "file-import": "Import an export file",
     "credential-management": "Browser password credentials",
@@ -68,6 +69,6 @@ export function secretBackendModeLabel(mode: SecretBackendMode) {
     "bitwarden-secrets": "Bitwarden Secrets Manager",
     infisical: "Infisical Secrets API",
     passwordstate: "Passwordstate API",
-  } as const satisfies Record<SecretBackendMode, string>;
+  } as const satisfies Record<SecretBackendMode | "encrypted-remote", string>;
   return labels[mode];
 }

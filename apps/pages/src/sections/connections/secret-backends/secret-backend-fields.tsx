@@ -18,6 +18,16 @@ type Field = {
 const endpoint: Field = { key: "baseUrl", label: "API base URL" };
 const token: Field = { key: "token", label: "Access token", secret: true };
 const API_FIELDS = {
+  "encrypted-remote": [
+    { key: "baseUrl", label: "Encrypted object HTTPS URL" },
+    { key: "remoteStoreId", label: "Encrypted store UUID" },
+    {
+      key: "encryptionKey",
+      label: "Inventory encryption key (base64, 32 bytes)",
+      secret: true,
+    },
+    { key: "token", label: "Object bearer token (optional)", secret: true },
+  ],
   "proton-pass": [
     {
       key: "baseUrl",
@@ -78,7 +88,7 @@ const API_FIELDS = {
     { key: "token", label: "API key", secret: true },
     { key: "passwordListId", label: "Password list ID" },
   ],
-} satisfies Partial<Record<SecretBackendMode, Field[]>>;
+} satisfies Partial<Record<SecretBackendMode | "encrypted-remote", Field[]>>;
 
 function DraftFields({
   draft,
