@@ -18,3 +18,11 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.4.20" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.20" apply false
 }
+
+// Provide the standard JVM compilation entry point from the repository launcher.
+// These tasks compile production and test Kotlin without packaging native libraries.
+tasks.register("testClasses") {
+    group = "build"
+    description = "Compile Android production and unit-test classes."
+    dependsOn(":app:compileDebugKotlin", ":app:compileDebugUnitTestKotlin")
+}

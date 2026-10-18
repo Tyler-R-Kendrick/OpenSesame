@@ -20,6 +20,17 @@ Root buildscript constraints select patched Netty, Bouncy Castle, Commons
 Compress, jose4j, and JDOM dependencies for the Android build plugin. Their
 advisory inventory is in [the build dependency review](../../docs/security/android-build-advisories-2026-10-18.md).
 
+The repository-root launcher pins Gradle 8.13 and delegates to this Android
+project. With JDK 17 and Android SDK 36 configured, compile production and
+unit-test classes from the repository root:
+
+```bash
+sh gradlew testClasses
+```
+
+This compilation uses the checked-in UniFFI bindings; packaging and running
+the native boundary tests still require the native libraries described below.
+
 ```bash
 cd apps/android/android
 gradle :app:assembleDebug -PopensesameWalletBackendUrl=https://identity.example

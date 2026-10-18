@@ -80,6 +80,14 @@ These dispositions are review evidence, not bulk GitHub alert dismissal. Reposit
 
 A fresh REST read of Dependabot, code-scanning and secret-scanning lists still returns HTTP403. An alternate GraphQL query reports zero Dependabot records even across all states; without the REST inventory this is not accepted as closure evidence. Main advanced independently to 540bdb4ce3c682bb3de2b265c4e592225f4c1e42; these branches retain their reviewed stack bases and have not overwritten unrelated main changes.
 
+## Default Kotlin autobuild follow-up
+
+The root Gradle 8.13 wrapper delegates to the actual Android project. Its standard testClasses entry point compiles production and unit-test Kotlin using the checked-in bindings. The wrapper binary matches the verified upstream distribution; the distribution SHA-256 is pinned. Actual CodeQL 2.27.2 default autobuild, without a manual command or task override, succeeds and extracts all ten tracked Kotlin files plus BuildConfig.java. The 124 security-extended query plans complete successfully with zero findings. The same 46 extractor modeling warnings remain; three Gradle build scripts account for the 10/13 coverage denominator. Starting the launcher at mode 0644 also succeeds because CodeQL grants owner-execute before invoking it. Independent review found no actionable defect.
+
+The exact generated UniFFI declaration-only C header is marked linguist-generated. There are no tracked handwritten C/C++ translation units. GitHub must recompute language/configuration state after merge; this attribution does not itself prove an existing C++ scanner configuration has been removed.
+
+Actual default Swift run [39136575096](https://github.com/Tyler-R-Kendrick/OpenSesame/actions/runs/39136575096) uses the full repository source root on macOS 26 but builds only WalletEnvelopeCore (three of thirteen Swift files). The prepared manual iOS workflow supplies the Rust framework and actual simulator build; default setup does not invoke that entry point. Full Swift coverage still requires activation of that workflow or a separately validated complete discoverable iOS project.
+
 ## Activation and completion criteria
 
 Before advanced CodeQL uploads can run, switch the repository's CodeQL setup from **default** to **advanced** in Code scanning settings. GitHub rejects advanced uploads while default setup is enabled. Changing Codex app scopes is not a remedy. Android and macOS builds must pass on their native GitHub runners; this Linux environment does not establish those results. The repository has no independent C/C++ translation unit; its generated FFI header is compiled through Swift.
