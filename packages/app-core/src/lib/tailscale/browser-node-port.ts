@@ -1,6 +1,8 @@
+import {
+  b64ToBytes as base64ToBytes,
+  bytesToB64 as bytesToBase64,
+} from "@opensesame/vault-core/bytes.js";
 import { z } from "zod";
-import { base64ToBytes, bytesToBase64 } from "../native-base64.js";
-import type { NativeProviderTransport } from "../native-connector-transport.js";
 
 function nativeOrigin(text: string): boolean {
   try {
@@ -127,10 +129,9 @@ export const TailscaleNativeHTTPConfiguration = z.discriminatedUnion(
 export type TailscaleNativeHTTPConfiguration = z.infer<
   typeof TailscaleNativeHTTPConfiguration
 >;
-export type TailscaleNativeHTTPPort = Pick<
-  NativeProviderTransport,
-  "fetch" | "assertCurrent"
-> & {
+export type TailscaleNativeHTTPPort = {
+  fetch: typeof fetch;
+  assertCurrent: () => void;
   readonly signal: AbortSignal;
 };
 
