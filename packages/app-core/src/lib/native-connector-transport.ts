@@ -7,6 +7,10 @@ export type NativeProviderSocket = {
 /** Optional provider runtime supplies lease-fenced egress; imports never enable networking. */
 export type NativeProviderTransport = {
   fetch: typeof fetch;
+  /** Capture one original configured networking authority for a provider session. */
+  capture?: () => NativeProviderTransport;
+  /** Exact HTTPS origin covered by this captured original native route and egress grant. */
+  supportsNativeOrigin?: (origin: string) => boolean;
   /** HTTP-only activations omit this; callers must refuse before sending. */
   openWebSocket?: (
     url: URL,
@@ -42,6 +46,12 @@ export function bindNativeProviderTransport(
 }
 
 export function nativeProviderTransport(): NativeProviderTransport {
-  active.assertCurrent();
-  return active;
+  const original = active;
+  original.assertCurrent();
+  const captured = original.capture?.() ?? original;
+  original.assertCurrent();
+  if (active !== original)
+    throw new Error("The native provider activation changed during capture.");
+  captured.assertCurrent();
+  return captured;
 }
