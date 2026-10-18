@@ -329,7 +329,7 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "aa2a8119f4c98b7a1d439b949b0460a2fcb5aecc84aea514916cc76e686f2ba1"
+        "sha256": "8fd02c52c5567af3d14f540669a152392b601640c06cd3f8604529ac817aba9a"
       },
       {
         "path": "compose-native.mjs",
@@ -366,6 +366,10 @@
       {
         "path": "build-failure-context.test.mjs",
         "sha256": "bde68db32c22110709fd0c89b0f158fda8bf6674344672fdb9402fc862dbcc46"
+      },
+      {
+        "path": "build-failure-cli.test.mjs",
+        "sha256": "e7ae9fe63dea6a55127fe74c1a5c2ff0409a07e38a1df3ca55cdcefc3cbf43d6"
       }
     ],
     "compressor": {

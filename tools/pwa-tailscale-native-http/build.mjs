@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { composeNative, nativeBuildEnvironment } from "./compose-native.mjs";
 import { emitNativeAssets } from "./native-assets.mjs";
+import { nativeBuildFailureContext } from "./preparation-diagnostics.mjs";
 import { assertNativeTaskResources } from "./task-resources.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -27,6 +28,8 @@ let interrupted = "";
 let nativeHttpStaged = false;
 let moduleFlags = "-p=2 -buildvcs=false";
 let verifyNative = null;
+let buildStage = "initialization";
+let lastCommand = null;
 
 async function digest(path) {
   return createHash("sha256")
@@ -143,10 +146,18 @@ function monitor(state) {
 
 function settlement(state, name) {
   return new Promise((accept, reject) => {
-    state.child.once("error", () =>
-      reject(new Error(`${name} could not start.`)),
-    );
-    state.child.once("exit", (code) => {
+    state.child.once("error", (error) => {
+      state.observation.spawnCode = error.code;
+      state.observation.reason = "spawn";
+      reject(error);
+    });
+    state.child.once("exit", (code, signal) => {
+      state.observation.exitCode = code;
+      state.observation.signal = signal;
+      state.observation.reason =
+        state.failure === "Native task resource limit exceeded."
+          ? "resource"
+          : interrupted || "exit";
       clearKill(state);
       if (code === 0 && !state.failure && !interrupted) accept();
       else
@@ -157,6 +168,7 @@ function settlement(state, name) {
   });
 }
 async function execute(program, args, name, verify = criticalPins) {
+  buildStage = name;
   if (interrupted) throw new Error("Private compile interrupted.");
   await checkDisk();
   await verify(`${name}:before`);
@@ -171,21 +183,36 @@ async function execute(program, args, name, verify = criticalPins) {
     detached: true,
     stdio: ["ignore", log.fd, log.fd],
   });
-  const state = { child, killTimer: null, failure: "" };
+  lastCommand = { phase: name, exitCode: null, signal: null, spawnCode: null };
+  const state = {
+    child,
+    killTimer: null,
+    failure: "",
+    observation: lastCommand,
+  };
   owned.add(state);
   const poll = monitor(state);
+  let failure;
   try {
     await settlement(state, name);
+  } catch (error) {
+    failure = error;
   } finally {
     clearInterval(poll);
     clearKill(state);
     owned.delete(state);
     try {
       await verify(`${name}:after`);
-    } finally {
+    } catch (error) {
+      failure ??= error;
+    }
+    try {
       await log.close();
+    } catch (error) {
+      failure ??= error;
     }
   }
+  if (failure) throw failure;
 }
 const helper = String.raw`package main
 import ("encoding/json";"os";"tailscale.com/cmd/tsconnect/wasmbuild")
@@ -277,9 +304,13 @@ async function stageNativeHttp() {
   await criticalPins("native-http-staged");
 }
 async function run() {
+  buildStage = "fresh-output";
   await freshOutput();
+  buildStage = "extract-inputs";
   await extractInputs();
+  buildStage = "native-http-staging";
   await stageNativeHttp();
+  buildStage = "compose-native";
   const composed = await composeNative({
     here,
     source,
@@ -342,12 +373,13 @@ try {
   console.log(
     "Pinned native artifacts emitted; PWA activation and provider-operation verification remain required.",
   );
-} catch {
+} catch (error) {
   process.exitCode = interrupted === "SIGINT" ? 130 : 1;
   if (interrupted === "SIGTERM") process.exitCode = 143;
   console.error(
     "Private raw build failed or was interrupted; inspect its private logs.",
   );
+  console.error(nativeBuildFailureContext(error, buildStage, lastCommand));
 } finally {
   for (const state of owned) terminate(state);
   detachSignals();
