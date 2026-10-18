@@ -189,8 +189,11 @@ it("refuses an action from an old rendered revision, then accepts the newly disp
   );
   expect(onFlash).toHaveBeenCalledTimes(1);
 });
-it("refuses blocked Datadog configuration before entering credentials, HTTP or storage", async () => {
+it("allows Datadog setup with advice but refuses an actual denied fetch without storing a connection", async () => {
   const fixture = connectorIntegration();
+  fixture.route.respond = async () => {
+    throw new TypeError("Endpoint browser request denied");
+  };
   render(
     <MemoryRouter>
       <NativeConnectorPanels
@@ -201,17 +204,33 @@ it("refuses blocked Datadog configuration before entering credentials, HTTP or s
       />
     </MemoryRouter>,
   );
-  expect(screen.queryByRole("radio", { name: "API Key" })).toBeNull();
-  // Nothing else can be done here, so the reason is open without a click.
-  expect(screen.getByText(/Datadog rejected browser access/)).toBeTruthy();
-  expect(
-    screen.getByRole("img", { name: "Datadog: Provider blocks browsers" }),
-  ).toBeTruthy();
-  expect(screen.queryByLabelText("Datadog API key")).toBeNull();
-  expect(
-    screen.queryByRole("button", { name: "Verify and connect Datadog" }),
-  ).toBeNull();
-  expect(fixture.requests).toHaveLength(0);
+  expect(screen.getByText(/Test the configured endpoint/)).toBeTruthy();
+  await userEvent.selectOptions(
+    screen.getByLabelText("Datadog site"),
+    "datadoghq.com",
+  );
+  await userEvent.type(
+    screen.getByLabelText("Datadog API key"),
+    "private-datadog-key",
+  );
+  await userEvent.type(
+    screen.getByLabelText("Application key"),
+    "private-application-key",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Verify and connect Datadog" }),
+  );
+  await screen.findByRole("img", { name: /Could not reach the provider/ });
+  expect(fixture.requests).toHaveLength(1);
+  expect(fixture.requests[0]?.url).toBe(
+    "https://api.datadoghq.com/api/v2/validate_keys",
+  );
+  expect(fixture.requests[0]?.headers.get("DD-API-KEY")).toBe(
+    "private-datadog-key",
+  );
+  expect(fixture.requests[0]?.headers.get("DD-APPLICATION-KEY")).toBe(
+    "private-application-key",
+  );
   expect(readDeviceRows()).toEqual([]);
 });
 it("keeps the saved Notion binding and credential when a replacement key fails real verification", async () => {

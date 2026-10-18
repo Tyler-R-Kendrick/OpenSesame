@@ -135,21 +135,20 @@ describe("what a person has left to do", () => {
 });
 
 describe("browser admission", () => {
-  it("refuses an API key the browser cannot reach, until the bridge holds the host", async () => {
-    expect(nativeBrowserMethodPolicy("plivo", "api-key").available).toBe(false);
+  it("keeps API setup available independently of optional bridge host grants", async () => {
+    expect(nativeBrowserMethodPolicy("plivo", "api-key").available).toBe(true);
     expect(nativeBrowserMethodPolicy("sendgrid", "api-key").available).toBe(
-      false,
+      true,
     );
     bind({ granted: ["api.plivo.com"] });
     await refreshNativeBridge();
-    expect(nativeBrowserMethodPolicy("plivo", "api-key")).toEqual({
-      available: true,
-      reason: null,
-      evidenceUrls: [],
-    });
-    // A host the person has not allowed is still refused.
+    const admitted = nativeBrowserMethodPolicy("plivo", "api-key");
+    expect(admitted).toMatchObject({ available: true, reason: null });
+    expect(admitted.advice).toBeTruthy();
+    expect(admitted.evidenceUrls.length).toBeGreaterThan(0);
+    // Direct setup does not claim this optional bridge carries an ungranted host.
     expect(nativeBrowserMethodPolicy("sendgrid", "api-key").available).toBe(
-      false,
+      true,
     );
   });
 
@@ -159,10 +158,11 @@ describe("browser admission", () => {
     expect(nativeBrowserMethodPolicy("zapier", "mcp").available).toBe(false);
   });
 
-  it("treats a provider recorded as refusing browsers as refused, with its own evidence, until the bridge holds its host", async () => {
+  it("retains documented API advice independently of optional bridge availability", async () => {
     const refused = nativeBrowserMethodPolicy("stepfun", "api-key");
-    expect(refused.available).toBe(false);
-    expect(refused.reason).toContain("StepFun");
+    expect(refused.available).toBe(true);
+    expect(refused.advice).toBeTruthy();
+    expect(refused.reason).toBeNull();
     expect(refused.evidenceUrls.length).toBeGreaterThan(0);
     bind({ granted: ["api.stepfun.ai"] });
     await refreshNativeBridge();

@@ -40,6 +40,7 @@
     "@ai-sdk/provider": "3.0.14",
     "@azure/msal-browser": "5.22.0",
     "@bitwarden/sdk-wasm": "0.1.0",
+    "@bufbuild/protobuf": "2.15.0",
     "@cfworker/json-schema": "4.1.1",
     "@effect/platform-node-shared": "4.0.2",
     "@gdp-ts/core": "0.1.0",

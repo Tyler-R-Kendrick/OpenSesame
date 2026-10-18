@@ -1,6 +1,8 @@
 /** Optional provider runtime supplies lease-fenced egress; imports never enable networking. */
 export type NativeProviderTransport = {
   fetch: typeof fetch;
+  /** The original activation lifetime; captured callers never adopt a later lease. */
+  readonly signal?: AbortSignal;
   assertCurrent: () => void;
   /** Credential minting already sent to a provider must settle for durable compensation. */
   settleCredentialMutation?: typeof fetch;

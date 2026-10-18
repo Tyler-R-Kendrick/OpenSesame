@@ -241,14 +241,19 @@ export async function updateLinearRecord(
     record: DeviceConfiguration,
     runtime: LinearRuntime,
   ) => Promise<DeviceConfiguration>,
+  beforeCommit?: () => void,
 ): Promise<Connection> {
-  await updateDeviceConfigurationDurable(id, async (record) => {
-    if (record.row.providerId !== "linear")
-      throw new Error("This is not a Linear connector");
-    return update(
-      record,
-      parseLinearRuntime(record.row.fields[LINEAR_RUNTIME]),
-    );
-  });
+  await updateDeviceConfigurationDurable(
+    id,
+    async (record) => {
+      if (record.row.providerId !== "linear")
+        throw new Error("This is not a Linear connector");
+      return update(
+        record,
+        parseLinearRuntime(record.row.fields[LINEAR_RUNTIME]),
+      );
+    },
+    beforeCommit,
+  );
   return requireLinearConnection(id);
 }

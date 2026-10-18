@@ -110,6 +110,12 @@ impl Sandbox {
         if let Some(parser) = &self.parser {
             command.env("OPENSESAME_ENV_PARSE", parser);
         }
+        // The environment is cleared on purpose; the operator's choice of
+        // `node` (a CI image's own sits where PATH is not trusted) is not part
+        // of what is being kept out.
+        if let Some(node) = std::env::var_os("OPENSESAME_NODE") {
+            command.env("OPENSESAME_NODE", node);
+        }
         // A person's terminal starts `opensesame` with the default action for
         // every signal. A test launched from a background job or under `nohup`
         // would hand it ignored ones, which an exec keeps: put them back.
