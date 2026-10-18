@@ -675,3 +675,31 @@ storage/CAS controls passed after the correction. Focused publication tests
 retain preexisting-empty, replacement, strict-seal and bounds refusals. Exact
 commands, source witnesses and broader gate outcomes belong to the PR evidence;
 these scoped results do not replace the repository or complete-feature gates.
+
+
+## 2026-10-18: recovered retired credentials and controlled canaries
+
+Producer: Codex orchestrator and workflow subagents in an isolated recovery
+worktree. The previous stuck thread and its ephemeral uncommitted files were
+not resumed. Published history, portable contracts and current source were
+inspected; missing Client-vault integration was reconstructed with honest
+boundaries (ADR 0207). No Grok or Kimi authorship is claimed. The repository
+coding preflight reports no Grok subscription authentication and no Kimi
+executable in this environment. Commits use GitHub `createCommitOnBranch`
+without an author override, as required by §9.
+
+The prerequisite physical-registry recovery is PR #1489. Feature integration
+covers fresh primary plus configured factors, durable retired-password
+classification, isolated synthetic sessions, inverse credential exclusions,
+controlled canary signing/receiver custody, and installed Node Client delivery.
+The Rust Host sealed-store and native OpenID4VC wallets are separate products.
+Managed Chromium policy prevents installing the extension runner; build and
+URL controls are bounded evidence, not an exercised installed-extension flow.
+Actual before/after desktop and phone images and the native-browser receipt
+are preserved in `docs/audit/evidence/2026-10-18-retired-credentials/`.
+
+Verification is recorded with the final feature review, including failures and
+reruns; focused passes alone do not certify the full feature. The normal
+bundle allowance is deliberate feature growth permitted by the bundle policy,
+reviewed independently after complete shipped-output measurement. Hardened
+budgets and structural, ownership and security gates are not relaxed.
