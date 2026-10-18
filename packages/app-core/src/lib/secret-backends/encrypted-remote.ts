@@ -1,8 +1,11 @@
 import {
   type EncryptedRemoteConfiguration,
+  EncryptedRemoteConflictError,
+  type EncryptedRemoteHistory,
   type EncryptedRemoteIdentity,
   type EncryptedRemoteStore,
   MAX_REMOTE_BYTES,
+  checkedRemoteRevision,
   openRemoteStore,
   remoteConfiguration,
   remoteEncryptionKey,
@@ -10,6 +13,7 @@ import {
   remoteStrongEtag,
   sealRemoteStore,
 } from "./encrypted-remote-codec.js";
+import type { EncryptedRemoteContinuity } from "./encrypted-remote-continuity.js";
 /** Actual encrypted-object CRUD; conditional writes never overwrite a concurrent winner. */
 import { SecretBackendHttpError } from "./http.js";
 import { createSecretBackendSessions } from "./sessions.js";
@@ -34,23 +38,12 @@ export interface EncryptedRemoteBackend extends SecretBackend {
     config: EncryptedRemoteConfiguration,
   ): Promise<SecretBackendSession>;
 }
-type Context = {
+type Context = EncryptedRemoteHistory & {
   configuration: EncryptedRemoteIdentity & { readonly bearerToken?: string };
   key: CryptoKey;
   signal: AbortSignal;
-  highest: number;
-  lastEnvelope?: string;
 };
 type Snapshot = { store: EncryptedRemoteStore; etag: string; envelope: string };
-export class EncryptedRemoteConflictError extends SecretBackendError {
-  constructor() {
-    super(
-      "stale",
-      "The encrypted store changed. Reload it before writing again.",
-    );
-    this.name = "EncryptedRemoteConflictError";
-  }
-}
 function conflict(): EncryptedRemoteConflictError {
   return new EncryptedRemoteConflictError();
 }
@@ -129,21 +122,6 @@ async function responseStatus(
     "The encrypted object request was refused.",
   );
 }
-function checkedRevision(
-  held: Context,
-  store: EncryptedRemoteStore,
-  envelope: string,
-): void {
-  if (
-    store.revision < held.highest ||
-    (store.revision === held.highest &&
-      held.lastEnvelope !== undefined &&
-      held.lastEnvelope !== envelope)
-  )
-    throw conflict();
-  held.highest = store.revision;
-  held.lastEnvelope = envelope;
-}
 class EncryptedObjectBackend implements EncryptedRemoteBackend {
   readonly id = "encrypted-remote";
   readonly name = "Encrypted Remote Store";
@@ -162,7 +140,10 @@ class EncryptedObjectBackend implements EncryptedRemoteBackend {
   private readonly transport: SecretBackendTransport;
   private readonly sessions =
     createSecretBackendSessions<Context>("encrypted-remote");
-  constructor(original: SecretBackendTransport) {
+  constructor(
+    original: SecretBackendTransport,
+    private readonly continuity?: EncryptedRemoteContinuity,
+  ) {
     this.transport = guardSecretBackendTransport(original);
     this.signal = this.transport.signal;
   }
@@ -222,7 +203,13 @@ class EncryptedObjectBackend implements EncryptedRemoteBackend {
     current(this.transport, held);
     const store = await openRemoteStore(envelope, held.configuration, held.key);
     current(this.transport, held);
-    checkedRevision(held, store, envelope);
+    await this.continuity?.observe(
+      held.configuration,
+      store.revision,
+      envelope,
+    );
+    current(this.transport, held);
+    checkedRemoteRevision(held, store, envelope);
     return { store, etag: tag, envelope };
   }
   private async connect(
@@ -391,6 +378,9 @@ class EncryptedObjectBackend implements EncryptedRemoteBackend {
 }
 export function createEncryptedRemoteBackend(
   transport: SecretBackendTransport,
+  continuity?: EncryptedRemoteContinuity,
 ): EncryptedRemoteBackend {
-  return new EncryptedObjectBackend(transport);
+  return new EncryptedObjectBackend(transport, continuity);
 }
+
+export { EncryptedRemoteConflictError } from "./encrypted-remote-codec.js";

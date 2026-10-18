@@ -1,4 +1,5 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import type { CredentialItem } from "@opensesame/vault-core";
 import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
 /** OpenSesame's encrypted object contract v1; names and values remain inside AEAD. */
 import { gcmOpen, gcmSeal } from "@opensesame/vault-core/gcm.js";
@@ -227,4 +228,106 @@ export function remoteStrongEtag(header: string | null): string {
       "This object endpoint must expose a strong ETag and honor conditional PUT requests.",
     );
   return value;
+}
+
+export type EncryptedRemoteHistory = { highest: number; lastEnvelope?: string };
+export function checkedRemoteRevision(
+  held: EncryptedRemoteHistory,
+  store: EncryptedRemoteStore,
+  envelope: string,
+): void {
+  if (
+    store.revision < held.highest ||
+    (store.revision === held.highest &&
+      held.lastEnvelope !== undefined &&
+      held.lastEnvelope !== envelope)
+  )
+    throw new EncryptedRemoteConflictError();
+  held.highest = store.revision;
+  held.lastEnvelope = envelope;
+}
+
+export class EncryptedRemoteConflictError extends SecretBackendError {
+  constructor() {
+    super(
+      "stale",
+      "The encrypted store changed. Reload it before writing again.",
+    );
+    this.name = "EncryptedRemoteConflictError";
+  }
+}
+
+export const ENCRYPTED_REMOTE_CONTINUITY_FIELD =
+  "opensesame-encrypted-inventory-continuity";
+const Checkpoint = z
+  .object({
+    format: z.literal("opensesame.encrypted-inventory-continuity"),
+    version: z.literal(1),
+    objectUrl: z.string().url().max(4096),
+    storeId: z.string().uuid(),
+    revision: z.number().int().nonnegative().safe(),
+    digest: z.union([z.literal(""), z.string().regex(/^[A-Za-z0-9+/]{43}=$/)]),
+  })
+  .strict()
+  .refine((value) => (value.revision === 0) === (value.digest === ""));
+export type EncryptedRemoteCheckpoint = z.infer<typeof Checkpoint>;
+type Checkpoint = EncryptedRemoteCheckpoint;
+type KeyField = CredentialItem["fields"][number];
+export function encryptedRemoteContinuityError(): SecretBackendError {
+  return new SecretBackendError(
+    "stale",
+    "The encrypted inventory continuity record is missing, changed or older than the stored revision.",
+  );
+}
+export function encryptedRemoteContinuityField(
+  value: EncryptedRemoteCheckpoint,
+): KeyField {
+  return {
+    id: ENCRYPTED_REMOTE_CONTINUITY_FIELD,
+    name: "Encrypted inventory continuity",
+    hidden: true,
+    value: JSON.stringify(value),
+  };
+}
+/** Created during explicit configuration staging; it never creates a remote object. */
+export function encryptedRemoteContinuitySeed(
+  identity: EncryptedRemoteIdentity,
+): KeyField {
+  return encryptedRemoteContinuityField(
+    Checkpoint.parse({
+      format: "opensesame.encrypted-inventory-continuity",
+      version: 1,
+      objectUrl: identity.objectUrl,
+      storeId: identity.storeId,
+      revision: 0,
+      digest: "",
+    }),
+  );
+}
+export function readEncryptedRemoteContinuity(
+  item: CredentialItem,
+  identity: EncryptedRemoteIdentity,
+): Checkpoint {
+  const fields = item.fields.filter(
+    (row) => row.id === ENCRYPTED_REMOTE_CONTINUITY_FIELD,
+  );
+  const saved = fields[0];
+  if (fields.length !== 1 || !saved?.hidden)
+    throw encryptedRemoteContinuityError();
+  const result = Checkpoint.safeParse(JSON.parse(saved.value));
+  if (
+    !result.success ||
+    result.data.objectUrl !== identity.objectUrl ||
+    result.data.storeId !== identity.storeId
+  )
+    throw encryptedRemoteContinuityError();
+  return result.data;
+}
+
+export function nextEncryptedRemoteContinuity(
+  before: EncryptedRemoteCheckpoint,
+  revision: number,
+  digest: string,
+): EncryptedRemoteCheckpoint {
+  return Checkpoint.parse({ ...before, revision, digest });
 }
