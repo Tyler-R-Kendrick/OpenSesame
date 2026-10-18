@@ -13,6 +13,11 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import {
+  nativeHTTPDraft,
+  nextNativeHTTPDraft,
+} from "./tailscale-native-http-values.js";
+import { useBrowserNodeEditorActions } from "./useBrowserNodeEditorActions.js";
 const idle: TailscaleNodeSnapshot = {
   status: "stopped",
   hostname: "",
@@ -106,21 +111,37 @@ export function useTailscaleBrowserNode(ready: boolean) {
   const [failure, setFailure] = useState("");
   const peer = useTailscalePeerProbe(node);
   const [hasSaved, setHasSaved] = useState(false);
+  const [nativeHTTPValues, setNativeHTTPValues] = useState(nativeHTTPDraft);
   // Restore public fields before Connect becomes interactable.
   useLayoutEffect(() => {
-    if (!ready) return;
+    if (!ready || node !== tailscaleBrowserNode()) return;
     const saved = savedBrowserNodeConfiguration();
     setHasSaved(!!saved);
+    setNativeHTTPValues(nativeHTTPDraft(saved?.nativeHTTP));
     if (saved) {
       setHostname(saved.hostname);
       setControlURL(saved.controlURL);
     }
-  }, [ready]);
+  }, [ready, node]);
   useEffect(() => {
     if (state.status === "stopped" || state.status === "error") {
       setAuthKey("");
     }
   }, [state.status]);
+  const actions = useBrowserNodeEditorActions({
+    ready,
+    node,
+    hostname,
+    controlURL,
+    authKey,
+    nativeHTTPValues,
+    setFailure,
+    setHasSaved,
+    setHostname,
+    setAuthKey,
+    setNativeHTTPValues,
+    clearPeer: peer.clear,
+  });
   return {
     node,
     state,
@@ -137,26 +158,10 @@ export function useTailscaleBrowserNode(ready: boolean) {
     probe: peer.probe,
     hasSaved,
     active: state.status !== "stopped" && state.status !== "error",
-    start: () => {
-      setFailure("");
-      peer.clear();
-      void node
-        ?.start({ hostname, controlURL, authKey })
-        .then(() => setHasSaved(true))
-        .catch((error: Error) => setFailure(error.message))
-        .finally(() => setAuthKey(""));
-    },
-    forget: () => {
-      setFailure("");
-      peer.clear();
-      void node
-        ?.forget()
-        .then(() => {
-          setHasSaved(false);
-          setHostname(`opensesame-${crypto.randomUUID().slice(0, 12)}`);
-        })
-        .catch((error: Error) => setFailure(error.message));
-    },
+    ...actions,
+    nativeHTTPValues,
+    setNativeHTTPValue: (id: string, value: string) =>
+      setNativeHTTPValues((values) => nextNativeHTTPDraft(values, id, value)),
     testPeer: () => {
       setFailure("");
       peer.testPeer();

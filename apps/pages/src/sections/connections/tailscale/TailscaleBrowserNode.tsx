@@ -5,6 +5,7 @@ import { FormCommit } from "../../../components/FormCommit.js";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconTrash, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { TailscaleNativeHTTPFields } from "./TailscaleNativeHTTPFields.js";
 import {
   type BrowserNodeEditor,
   useTailscaleBrowserNode,
@@ -15,14 +16,14 @@ function NodeFields({ model }: { model: BrowserNodeEditor }) {
       <FieldShell
         label="Browser node hostname"
         value={model.hostname}
-        disabled={model.active}
+        disabled={model.active || model.busy}
         onValueChange={model.setHostname}
       />
       <FieldShell
         label="Tailscale control server"
         value={model.controlURL}
         type="url"
-        disabled={model.active}
+        disabled={model.active || model.busy}
         onValueChange={model.setControlURL}
       />
       <details className="conn-client-alt">
@@ -32,10 +33,15 @@ function NodeFields({ model }: { model: BrowserNodeEditor }) {
           value={model.authKey}
           type="password"
           autoComplete="off"
-          disabled={model.active}
+          disabled={model.active || model.busy}
           onValueChange={model.setAuthKey}
         />
       </details>
+      <TailscaleNativeHTTPFields
+        values={model.nativeHTTPValues}
+        onChange={model.setNativeHTTPValue}
+        disabled={model.active || model.busy}
+      />
       <p>
         The official Tailscale client runs inside this PWA. Sign in to join this
         browser node, or supply a provider-issued auth key. Private node state
@@ -115,6 +121,7 @@ function ForgetNode({ model }: { model: BrowserNodeEditor }) {
           : "Forget local browser node"
       }
       armed={armed}
+      disabled={model.busy}
       onClick={() => {
         if (!armed) {
           setArmed(true);
@@ -155,13 +162,21 @@ export function TailscaleBrowserNode({
           />
         ) : null}
         <FormCommit
+          label="Save browser node configuration"
+          disabled={!ready || model.busy}
+          onClick={model.save}
+        />
+        <FormCommit
           label="Connect browser node"
-          disabled={!model.node || !ready || !online || model.active}
+          disabled={
+            !model.node || !ready || !online || model.active || model.busy
+          }
         >
           <ForgetNode model={model} />
           {model.active ? (
             <IconKey
               label="Disconnect browser node"
+              disabled={model.busy}
               onClick={() => model.node?.stop()}
             >
               <IconX size={17} />
