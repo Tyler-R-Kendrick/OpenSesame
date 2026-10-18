@@ -263,3 +263,46 @@ export async function describePreparationFailure(error, work, logPath, state) {
     // Refused paths, disk pressure, or read/write failures never replace the original failure.
   }
 }
+
+/** Failure-only inner-driver context; preserve the initiating Error and cause. */
+export function nativeBuildFailureContext(error, stage, command) {
+  try {
+    const code = error instanceof Error ? error.code : null;
+    const metadata = {
+      schemaVersion: 1,
+      scope: "native-build-driver-only",
+      stage: /^[a-z-]{1,80}$/.test(stage) ? stage : "unknown",
+      lastCommand: command
+        ? {
+            phase: /^[a-z-]{1,80}$/.test(command.phase)
+              ? command.phase
+              : "unknown",
+            reason: reasons.has(command.reason) ? command.reason : "unknown",
+            exitCode: Number.isSafeInteger(command.exitCode)
+              ? command.exitCode
+              : null,
+            signal: signals.has(command.signal) ? command.signal : null,
+            spawnCode: codes.has(command.spawnCode) ? command.spawnCode : null,
+          }
+        : null,
+      errorCode: [
+        ...codes,
+        "ENOSPC",
+        "EIO",
+        "EEXIST",
+        "ENOTDIR",
+        "ENOSYS",
+        "EMFILE",
+      ].includes(code)
+        ? code
+        : null,
+    };
+    const stack =
+      error instanceof Error
+        ? (error.stack ?? error.message)
+        : "Native build failed with an unknown error.";
+    return `Native build driver diagnostics (not a compiler proof):\n${JSON.stringify(metadata)}\n${bounded(redactPreparationLog(stack), 4096)}`;
+  } catch {
+    return "Native build driver diagnostics unavailable; original failure retained.";
+  }
+}

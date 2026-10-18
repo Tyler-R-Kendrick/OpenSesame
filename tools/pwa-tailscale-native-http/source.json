@@ -358,6 +358,14 @@
       {
         "path": "task-resources.test.mjs",
         "sha256": "ca28d6790d5034e23afc1c9fc75daf52de68766f65121d884e8b1a3b2f8aea92"
+      },
+      {
+        "path": "preparation-diagnostics.mjs",
+        "sha256": "b9fbcde14455a5f874958a1a69a9a04673ca46a19c4eab9c22e87746c2988735"
+      },
+      {
+        "path": "build-failure-context.test.mjs",
+        "sha256": "bde68db32c22110709fd0c89b0f158fda8bf6674344672fdb9402fc862dbcc46"
       }
     ],
     "compressor": {
