@@ -231,5 +231,32 @@
       }
     ],
     "testInput": "Source-backed selector tests require explicit verified PWA_NATIVE_HTTP_SOURCE; owned fixtures use os.tmpdir and clean up. No hardcoded scratch paths, fixture fallback or missing-source skip."
+  },
+  "privateLogging": {
+    "status": "Owned browser node remote logging disabled using upstream supported Config.Disabled, before startup banner/entry buffering/upload. No transport/authority/security assertion change.",
+    "patchSha256": "122bcde01b17e366c295d1719a75223346a08ebef3fb75a0a5c9dbc28c0e9a02",
+    "beforeSha256": "244cba56f78c9dbfdbd03e0a069a091917488deff804c939fc46ef9700d39ce7",
+    "afterSha256": "9e60d5b63ce8f4e374d31d64886bf601364e744f7f195f1e55db70a8e855d9af",
+    "sourceSemantics": {
+      "configPath": "logtail/config.go",
+      "sha256": "0d010f243185e90c275c1e631bd390feaad6e0c80e09abbd724722a0c2768cea",
+      "implementationPath": "logtail/logtail.go",
+      "implementationSha256": "8506e648fc31336e71cade79310984b11c643308cc09eccc2e81e9117772f7ac"
+    },
+    "qualification": "Apply exact original-node hook first, then this one-field patch. Explicit remote-logtail privacy correction; no global browser fetch patch, fake upload success or reliance on ignored TS_DISABLE_LOGTAIL environment. Original logtail attempt and NeedsLogin-only failed proof retained. Native HTTPS/provider/route guards remain byte-identical.",
+    "files": [
+      {
+        "path": "stage-private-logging.mjs",
+        "sha256": "b4c927ce264ad3a36770cb96edbd797b854a746255ee40c1285e8b7a75cee251"
+      },
+      {
+        "path": "stage-private-logging.test.mjs",
+        "sha256": "febf5b2816328ef30ef9ea9551e89072e64474a70c46acc530a9331f2c4a2956"
+      },
+      {
+        "path": "disable-logtail.patch",
+        "sha256": "122bcde01b17e366c295d1719a75223346a08ebef3fb75a0a5c9dbc28c0e9a02"
+      }
+    ]
   }
 }
