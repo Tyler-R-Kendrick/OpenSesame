@@ -22,16 +22,20 @@ may hold the store passphrase, and the bridge never receives it
 
 Amended 2026-10-17: that rule, and the `OPENSESAME_NODE` override, now live in
 [`opensesame-trusted-exec`](../../crates/trusted-exec), and the programs
-`opensesame` starts by a fixed name are being moved onto it in two steps. The
-first covers `git`, `gpg`, `gh`, SOPS, the age plugin, `ps`, `tailscale`, the
-browser openers and `node`; the second the daemon's discovery CLIs, `tomb`, the
+`opensesame` starts by a fixed name were moved onto it in two steps. The first
+covered `git`, `gpg`, `gh`, SOPS, the age plugin, `ps`, `tailscale`, the browser
+openers and `node`; the second the daemon's discovery CLIs, `tomb`, the
 enrollment prompts, `opensesame-id`, the connector-host provider CLIs, the
-surrogate-proxy plugin's token source and the password-agent helpers. Each is
-found through its own `OPENSESAME_<PROGRAM>` variable or a trusted `PATH` entry
-whose every parent directory only its owner can change, is run by its real
-path, and starts from an empty environment plus an allowlist written beside its
-spawn ([audit](../security/audits/2026-10-17-external-program-spawns.md), which
-says which are covered where).
+surrogate-proxy plugin's token source and the password-agent helpers, and the
+keepassxc bridge now runs the binary beside `opensesame` or the one `--bin`
+names, never a name left to `PATH`. Each is found through its own
+`OPENSESAME_<PROGRAM>` variable or a trusted `PATH` entry whose every parent
+directory only its owner can change, is run by its real path, and starts from an
+empty environment plus an allowlist written beside its spawn. What a person
+names on purpose (`dev run`'s command, a `custom-command` program, the
+password-agent commands a policy names) keeps its own rules
+([audit](../security/audits/2026-10-17-external-program-spawns.md), which lists
+each program and says what is not covered).
 
 ## Context
 Varlock / `@env-spec` provide a durable, MIT-licensed developer config surface (`.env.schema`) with schema/value separation, shaped placeholders, and a credential-proxy preview. OpenSesame already centers agent authority on ConnectionRef + Intent (ADR 0005). Reinventing a custom env DSL would violate anti-NIH; cloning Varlock’s HTTPS MITM as the primary broker would inherit protocol limits and a weak same-UID security boundary.
