@@ -10,6 +10,7 @@ import type {
   VaultHeader,
 } from "@opensesame/vault-core";
 import { z } from "zod";
+import { pagesRetiredHeaderDomain } from "./context-v2-header-domain.js";
 import { assertUnambiguousJson } from "./json-preflight.js";
 import { assertPagesHeaderIntegerProfile } from "./pages-header-integers.js";
 
@@ -244,7 +245,8 @@ const headerSchema = z.strictObject({
 function unavailable(): never {
   throw new Error("Retired credential context is unavailable.");
 }
-type PublicHeader = z.infer<typeof headerSchema>;
+export type PagesRetiredParsedHeader = z.infer<typeof headerSchema>;
+type PublicHeader = PagesRetiredParsedHeader;
 function sameWrap(
   a: z.infer<typeof blob>,
   b: z.infer<typeof blob> | undefined,
@@ -356,7 +358,7 @@ export function readPagesRetiredCredentialHeader(
     consistentManifest(header);
     consistentPrimaries(header);
     consistentPasskeys(header);
-    return header;
+    return pagesRetiredHeaderDomain(header);
   } catch {
     return unavailable();
   }

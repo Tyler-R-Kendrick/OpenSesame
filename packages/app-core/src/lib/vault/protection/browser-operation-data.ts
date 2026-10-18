@@ -110,6 +110,8 @@ export function committedEnrollmentBody(
 export type LifecycleOperation<T> = (
   operations: typeof import("./browser-lifecycle-ops.js"),
   pinned: LifecycleHost & {
+    /** Actual captured producer check; follows only its own admitted root/header transitions. */
+    check(): void;
     withRootWriteTurn(work: () => Promise<void>): Promise<void>;
   },
 ) => Promise<T>;

@@ -3,8 +3,11 @@
  * Digest-only CodeSlotStatus stays for UI; sealed EnrollmentState drives selectTrigger.
  */
 
+import { host } from "../../../host.js";
+import { withCurrentCredentialRetiredGuard } from "../../vault/current-credential-retired-guard.js";
 import type { PresentationClass } from "../access/context.js";
 import { createIndependentCompartmentKey } from "../crypto/slots.js";
+import { codeOpensDuressTrigger } from "../store/duress-code-probe.js";
 import type { JournalWriteResult } from "../store/journal.js";
 import { codeOpensDeviceVault } from "../store/ordinary-unlock-probe.js";
 import {
@@ -45,6 +48,8 @@ export type SealUnlockTriggerInput = Readonly<{
    */
   opensOrdinaryUnlock?: (code: string) => Promise<boolean>;
 }>;
+
+const originalSealedEnrollments = new WeakMap<EnrollmentState, string>();
 
 function asPresentation(value: string): PresentationClass {
   if (
@@ -123,10 +128,12 @@ export async function sealUnlockTriggerFromCeremony(
     autoRehearse: true,
   });
 
-  return { ...enrolled, armed: false };
+  const sealed = { ...enrolled, armed: false };
+  originalSealedEnrollments.set(sealed, JSON.stringify(sealed));
+  return sealed;
 }
 
-type Options = Readonly<{ requireDurable?: boolean }>;
+type Options = Readonly<{ requireDurable?: boolean; code?: string }>;
 const defaultOptions = {} satisfies Options;
 
 export async function armPersistedUnlockEnrollment(
@@ -140,10 +147,44 @@ export async function armPersistedUnlockEnrollment(
       message: "No sealed triggers to arm.",
     };
   }
-  return persistEnrollmentStateForUnlock(
-    { ...state, armed: true },
-    { requireDurable: options.requireDurable ?? true },
-  );
+  const installed = host();
+  if (
+    !installed.physicalDeviceRecords &&
+    !installed.originFiles &&
+    !installed.physicalVaultAuthentication &&
+    !installed.physicalCurrentCredentialCatalogue &&
+    !installed.physicalVaultPublication
+  ) {
+    return persistEnrollmentStateForUnlock(
+      { ...state, armed: true },
+      { requireDurable: options.requireDurable ?? true },
+    );
+  }
+  const witness = originalSealedEnrollments.get(state);
+  const code = options.code;
+  if (!witness || code === undefined)
+    throw new Error(
+      "Repeat the original duress enrollment ceremony before arming.",
+    );
+  const original = () => {
+    if (JSON.stringify(state) !== witness)
+      throw new Error("The original duress enrollment changed.");
+  };
+  original();
+  const next = structuredClone(state);
+  return withCurrentCredentialRetiredGuard(code, original, async (check) => {
+    if (!(await codeOpensDuressTrigger(code, next)))
+      throw new Error(
+        "The original duress code does not open its sealed trigger.",
+      );
+    check();
+    const result = await persistEnrollmentStateForUnlock(
+      { ...next, armed: true },
+      { requireDurable: options.requireDurable ?? true },
+    );
+    check();
+    return result;
+  });
 }
 
 /** Disarm, waiting for storage: a code that comes back on reload was not removed. */

@@ -46,6 +46,7 @@ beforeEach(async () => {
     kvDelete(tombFileKey(tomb, INDEX_PATH));
     kvDelete(tombFileKey(tomb, ACTIVITY_LOG_PATH));
   }
+  vaultStore.loadActiveProjectScope();
 });
 
 afterEach(() => {

@@ -1,12 +1,15 @@
 import { deviceProviderRevokers } from "@opensesame/app-core/lib/device-connectors.js";
 import { modelMemoryBackend } from "@opensesame/app-core/lib/hosted-model.test-support.js";
-import { kvForgetAll } from "@opensesame/app-core/lib/kv.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { nativeConnectorController } from "../../sections/connections/connect/native-connector-controller.js";
 import { createActivation } from "../activation.js";
 import { createTestContext } from "../test-context.js";
+import {
+  closeGenuineRuntimeFixture,
+  genuineRuntimeFixture,
+} from "./genuine-runtime.test-support.js";
 import { bindNativeApiRuntime } from "./native-api-runtime.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";
 import { bindNativeRuntime } from "./native-runtime.js";
@@ -49,12 +52,13 @@ function activate() {
   disposers.push(activation.dispose);
   return { activation, fetcher };
 }
-beforeEach(() => {
-  kvForgetAll();
+beforeEach(async () => {
+  await genuineRuntimeFixture();
   modelMemoryBackend();
 });
-afterEach(() => {
+afterEach(async () => {
   for (const dispose of disposers.splice(0).reverse()) dispose();
+  await closeGenuineRuntimeFixture();
   vi.restoreAllMocks();
 });
 

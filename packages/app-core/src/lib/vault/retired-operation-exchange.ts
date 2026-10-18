@@ -1,8 +1,9 @@
 /** Primitive UI exchange only. The actual private Store owns each handle and its authentication task. */
 import { z } from "zod";
 import type { projectRetiredCredentialInspection } from "../retired-credentials/inspection-v2.js";
-import { readRetiredRecordChange } from "../retired-credentials/record-change-v2.js";
-import type { RetiredRecordChange } from "../retired-credentials/record-change-v2.js";
+import { readRetiredRecordChange } from "../retired-credentials/record-change-request-v2.js";
+import type { RetiredRecordChange } from "../retired-credentials/record-change-request-v2.js";
+import type { OriginalCommandDrainRecorder } from "./original-command-retirement-data.js";
 
 const secondStep = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("totp"), code: z.string().max(64) }),
@@ -64,6 +65,9 @@ function deferred<T>() {
   void promise.catch(() => {});
   return { promise, resolve, reject };
 }
+interface RetiredDisposalOutcome {
+  readonly failures: readonly unknown[];
+}
 /** No constructor input can establish primary provenance, factors, locks or authority. */
 export class RetiredOperationExchange<T extends object = RetiredCommandResult> {
   // SAFETY: Object.freeze creates this empty opaque challenge identifier; the contract requires checked private Store WeakMap membership on every use.
@@ -77,6 +81,30 @@ export class RetiredOperationExchange<T extends object = RetiredCommandResult> {
   #sendReply: ReturnType<typeof deferred<RetiredRemoteCodeStatus>> | undefined;
   #closed = false;
   #task: Promise<void> | undefined;
+  #cancelled = false;
+  readonly #drainFailures: unknown[] = [];
+  #omittedDrainFailures = 0;
+  recordDrainFailure: OriginalCommandDrainRecorder = (cause) => {
+    if (this.#drainFailures.length < 128) this.#drainFailures.push(cause);
+    else
+      this.#omittedDrainFailures = Math.min(
+        Number.MAX_SAFE_INTEGER,
+        this.#omittedDrainFailures + 1,
+      );
+  };
+  #drainOutcome(): RetiredDisposalOutcome {
+    return {
+      failures: this.#omittedDrainFailures
+        ? [
+            ...this.#drainFailures,
+            new Error(
+              `${this.#omittedDrainFailures} additional disposal failures exceeded the diagnostic bound.`,
+            ),
+          ]
+        : [...this.#drainFailures],
+    };
+  }
+
   readonly #timer: ReturnType<typeof setTimeout>;
   readonly #originalSignal: AbortSignal;
   readonly #callerSignal: AbortSignal | undefined;
@@ -104,9 +132,25 @@ export class RetiredOperationExchange<T extends object = RetiredCommandResult> {
     } catch (error) {
       // A rejected pre-handle begin must still await its own accepted producer work.
       await this.#task?.catch(() => {});
-      throw error;
+      this.#refuseCancelledOutcome(error);
     }
   };
+  #refuseCancelledOutcome(cause: unknown): never {
+    if (this.#cancelled && this.#drainFailures.length)
+      throw new AggregateError(
+        [cause, ...this.#drainOutcome().failures],
+        "Original cancellation and disposal failed.",
+      );
+    throw cause;
+  }
+  async #finishedResult(): Promise<T> {
+    try {
+      return await this.#finished.promise;
+    } catch (cause) {
+      await this.#task?.catch(() => {});
+      this.#refuseCancelledOutcome(cause);
+    }
+  }
   offer = (
     routes: readonly ("totp" | "email" | "sms" | "recovery")[],
   ): void => {
@@ -163,7 +207,7 @@ export class RetiredOperationExchange<T extends object = RetiredCommandResult> {
     const request = Object.freeze(secondStep.parse(input));
     this.#submitted = true;
     this.#message.resolve({ kind: "complete", request });
-    return this.#finished.promise;
+    return this.#finishedResult();
   };
   /** Result handoff only; original task, cancellation and TTL remain active until final producer drain. */
   present = (result: T): void => {
@@ -192,12 +236,18 @@ export class RetiredOperationExchange<T extends object = RetiredCommandResult> {
     this.#callerSignal?.removeEventListener("abort", this.#abort);
   }
   cancel = (): void => {
+    this.#cancelled = true;
     this.controller.abort();
     this.fail(new Error("Original retired credential operation ended."));
   };
   drain = async (): Promise<void> => {
     this.cancel();
     await this.#task?.catch(() => {});
+    if (this.#drainFailures.length)
+      throw new AggregateError(
+        this.#drainOutcome().failures,
+        "Original operation disposal failed.",
+      );
   };
 }
 

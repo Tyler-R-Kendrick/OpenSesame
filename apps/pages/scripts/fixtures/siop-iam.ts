@@ -1,4 +1,5 @@
 import "./install-browser-host.js";
+import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
 import {
   configureLocalApplication,
   readLocalApplications,
@@ -19,6 +20,7 @@ const DEFAULT_REDIRECTS = ["https://rp.example.test/callback"];
  * default relying party, and whichever real servers a journey names.
  */
 export async function seed(redirectUris: string[] = DEFAULT_REDIRECTS) {
+  await atRestReady();
   await vaultStore.create("Cedar-lantern-47-river!");
   const tomb = vaultStore.activeTomb();
   async function change(command: LocalDirectoryChange) {

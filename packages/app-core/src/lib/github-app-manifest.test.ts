@@ -7,7 +7,10 @@ import { createTestHost } from "../test-host.js";
 import { memoryStorage as memoryStorageFixture } from "./browser-reset.fixture.js";
 import { applyConnectCallbackBase } from "./connect-callback.js";
 import { hasAuthResponse } from "./federation.js";
-import { allowGithub } from "./github-app-authority.test-support.js";
+import {
+  allowGithub,
+  openGithubTestOwner,
+} from "./github-app-authority.test-support.js";
 import {
   buildGithubAppRegistration,
   claimGithubAppCode,
@@ -158,6 +161,7 @@ describe("github app secret never rests in web storage", () => {
 
   afterEach(() => {
     forgetLocalGithubApp();
+    vaultStore.lock();
     configureHost(createTestHost());
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -191,6 +195,7 @@ describe("github app secret never rests in web storage", () => {
   });
 
   it("seals into an open vault and drops the memory copy at once", async () => {
+    await openGithubTestOwner();
     vaultAs({ status: "unlocked", tomb: "personal", guest: false });
     const addItems = vi
       .spyOn(vaultStore, "saveItems")

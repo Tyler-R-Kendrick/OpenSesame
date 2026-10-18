@@ -52,7 +52,7 @@ Object.assign(unlockMethodsSeams, {
     return {
       credential: overlapCast({ rawId: randomBytes(16).buffer }),
       prfOutput,
-      prfSalt: randomBytes(16),
+      prfSalt: randomBytes(32),
       userId: randomBytes(16),
     };
   },

@@ -25,7 +25,7 @@
     "test:integration": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["VITEST_MAX_WORKERS"]
+      "env": ["VITEST_MAX_WORKERS", "PLAYWRIGHT_CHROMIUM"]
     },
     "test:e2e": {
       "dependsOn": ["^build"],
