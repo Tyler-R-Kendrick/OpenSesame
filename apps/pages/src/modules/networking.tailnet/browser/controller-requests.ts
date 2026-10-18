@@ -1,0 +1,296 @@
+import type {
+  TailscaleNativeHTTPConfiguration,
+  TailscaleNativeHTTPPort,
+} from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
+import { anySignal } from "../../signals.js";
+import { type HostEvent, NativeHTTPRequest } from "./protocol.js";
+
+type Pending = {
+  complete(message: HostEvent): void;
+  fail(): void;
+};
+/** One original worker, node session and saved route/trust grant. Never ambient fetch. */
+export class BrowserNodeRequests {
+  private lifetime = new AbortController();
+  private next = 0;
+  private pending = new Map<number, Pending>();
+  private readiness = new Set<(ready: boolean) => void>();
+  constructor(
+    private readonly worker: Pick<Worker, "postMessage">,
+    private readonly check: () => void,
+    private readonly connected: () => boolean,
+    private readonly approvePeer: (url: string) => boolean,
+    private readonly stop: () => void,
+    private readonly nativeEnabled: boolean,
+  ) {}
+  private assertCurrent = () => {
+    this.lifetime.signal.throwIfAborted();
+    this.check();
+    if (!this.connected())
+      throw new Error("Connect the original browser node first.");
+  };
+  receive(message: HostEvent): boolean {
+    if (message.kind === "nativeHTTPReady") {
+      for (const resolve of [...this.readiness]) resolve(message.ready);
+      return true;
+    }
+    if (
+      message.kind !== "nativeHTTP" &&
+      message.kind !== "nativeHTTPError" &&
+      message.kind !== "get"
+    )
+      return false;
+    this.pending.get(message.id)?.complete(message);
+    return true;
+  }
+  close(): void {
+    this.worker.postMessage({ kind: "closeHTTP" });
+    this.lifetime.abort();
+    for (const pending of [...this.pending.values()]) pending.fail();
+    this.pending.clear();
+    for (const resolve of [...this.readiness]) resolve(false);
+    this.readiness.clear();
+  }
+  get(url: string): Promise<{ status: number; text: string }> {
+    this.lifetime.signal.throwIfAborted();
+    this.check();
+    if (!this.connected() || !this.approvePeer(url))
+      return Promise.reject(
+        new Error(
+          "Connect a browser node and allow this tailnet service first.",
+        ),
+      );
+    const id = ++this.next;
+    return new Promise((resolve, reject) => {
+      const finish = () => {
+        clearTimeout(timer);
+        this.pending.delete(id);
+      };
+      const timer = setTimeout(() => {
+        finish();
+        this.stop();
+        reject(
+          new Error(
+            "Tailscale peer request timed out; the browser node was disconnected.",
+          ),
+        );
+      }, 30_000);
+      this.pending.set(id, {
+        fail: () => {
+          finish();
+          reject(new Error("Tailscale node stopped."));
+        },
+        complete: (message) => {
+          if (message.kind !== "get") return;
+          finish();
+          try {
+            this.assertCurrent();
+            resolve({ status: message.status, text: message.text });
+          } catch {
+            reject(new Error("The original Tailscale node changed."));
+          }
+        },
+      });
+      this.worker.postMessage({ kind: "get", id, url });
+    });
+  }
+  capture(owner: AbortSignal): TailscaleNativeHTTPPort {
+    this.assertCurrent();
+    owner.throwIfAborted();
+    if (!this.nativeEnabled)
+      throw new Error(
+        "Configure native HTTPS routing and trust for this browser node.",
+      );
+    const signal = anySignal([this.lifetime.signal, owner]);
+    const assertCurrent = () => {
+      signal.throwIfAborted();
+      this.assertCurrent();
+    };
+    return Object.freeze({
+      signal,
+      assertCurrent,
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        assertCurrent();
+        const request = new Request(input, init);
+        const caller = anySignal([
+          signal,
+          request.signal,
+          AbortSignal.timeout(30_000),
+        ]);
+        caller.throwIfAborted();
+        if (
+          request.credentials === "include" ||
+          request.integrity ||
+          request.keepalive
+        )
+          throw new Error(
+            "Native HTTPS uses explicit headers, without browser cookies, integrity or keepalive.",
+          );
+        const body = await readBody(request, caller);
+        assertCurrent();
+        caller.throwIfAborted();
+        const value = NativeHTTPRequest.parse({
+          method: request.method,
+          url: request.url,
+          headers: [...request.headers],
+          body,
+        });
+        await this.ready(caller);
+        assertCurrent();
+        caller.throwIfAborted();
+        return this.request(value, caller, assertCurrent);
+      },
+    });
+  }
+  private ready(signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const finish = (ready: boolean) => {
+        signal.removeEventListener("abort", abort);
+        this.readiness.delete(finish);
+        if (ready && !signal.aborted) resolve();
+        else
+          reject(
+            new Error(
+              "Native HTTPS is not ready on the original browser node.",
+            ),
+          );
+      };
+      const abort = () => finish(false);
+      this.readiness.add(finish);
+      signal.addEventListener("abort", abort, { once: true });
+      if (signal.aborted) finish(false);
+      else this.worker.postMessage({ kind: "nativeHTTPReady" });
+    });
+  }
+  private request(
+    request: ReturnType<typeof NativeHTTPRequest.parse>,
+    signal: AbortSignal,
+    check: () => void,
+  ): Promise<Response> {
+    check();
+    signal.throwIfAborted();
+    if (this.pending.size >= 4)
+      return Promise.reject(
+        new Error("Native HTTPS request capacity reached."),
+      );
+    const id = ++this.next;
+    return new Promise((resolve, reject) => {
+      const finish = () => {
+        signal.removeEventListener("abort", abort);
+        this.pending.delete(id);
+      };
+      const abort = () => {
+        finish();
+        this.worker.postMessage({ kind: "cancelHTTP", id });
+        reject(new Error("The original native HTTPS request ended."));
+      };
+      this.pending.set(id, {
+        fail: abort,
+        complete: (message) => {
+          if (message.kind === "get") return;
+          finish();
+          try {
+            check();
+            signal.throwIfAborted();
+            if (
+              message.kind !== "nativeHTTP" ||
+              message.result.url !== request.url
+            )
+              throw new Error(
+                "Native HTTPS failed on the original browser node.",
+              );
+            const result = message.result;
+            const empty =
+              request.method === "HEAD" ||
+              [204, 205, 304].includes(result.status);
+            if (empty && result.body.length)
+              throw new Error("Unexpected native HTTPS response body.");
+            const response = new Response(
+              empty ? null : result.body.slice().buffer,
+              {
+                status: result.status,
+                statusText: result.statusText,
+                headers: result.headers,
+              },
+            );
+            Object.defineProperty(response, "url", { value: result.url });
+            check();
+            signal.throwIfAborted();
+            resolve(response);
+          } catch {
+            reject(
+              new Error("Native HTTPS failed on the original browser node."),
+            );
+          }
+        },
+      });
+      signal.addEventListener("abort", abort, { once: true });
+      if (signal.aborted) abort();
+      else this.worker.postMessage({ kind: "nativeHTTP", id, request });
+    });
+  }
+}
+async function readBody(
+  request: Request,
+  signal: AbortSignal,
+): Promise<Uint8Array> {
+  const reader = request.body?.getReader();
+  if (!reader) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const abort = () => {
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener("abort", abort, { once: true });
+  try {
+    while (true) {
+      signal.throwIfAborted();
+      const value = await reader.read();
+      signal.throwIfAborted();
+      if (value.done) break;
+      size += value.value.byteLength;
+      if (size > 1_048_576)
+        throw new Error("Native HTTPS request body exceeds its limit.");
+      chunks.push(value.value.slice());
+    }
+    const body = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      body.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return body;
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    signal.removeEventListener("abort", abort);
+    reader.releaseLock();
+  }
+}
+
+export function nativeWorkerOptions(
+  native: TailscaleNativeHTTPConfiguration | undefined,
+  assets: Record<string, unknown>,
+  base: URL,
+) {
+  const asset = assets.nativeHTTP;
+  if (native && typeof asset !== "string")
+    throw new Error("This deployment is missing its native HTTPS asset.");
+  return {
+    nativeHTTP: native
+      ? {
+          exitNodeID: native.exitNodeID,
+          targets: native.targets,
+          trustMode: native.trustMode,
+          ...(native.trustMode === "operator"
+            ? { operatorCAPEM: native.operatorCAPEM }
+            : {}),
+        }
+      : undefined,
+    asset:
+      typeof asset === "string"
+        ? { nativeHTTP: new URL(asset, base).href }
+        : {},
+  };
+}
