@@ -4,8 +4,10 @@ import { constants } from "node:fs";
 import { lstat, open } from "node:fs/promises";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
+import { string } from "zod/v4/mini";
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const digestPattern = /^[a-f0-9]{64}$/;
+const PublicRootsVersion = string();
 async function exactFile(path, expected, max = 1_048_576) {
   if (
     !digestPattern.test(expected?.sha256 ?? "") ||
@@ -149,7 +151,7 @@ export async function readNativeDistribution(
   if (
     !/^[a-f0-9]{40}$/.test(manifest.sourceCommit ?? "") ||
     !/^[a-f0-9]{40}$/.test(manifest.compilerCommit ?? "") ||
-    typeof manifest.publicRootsVersion !== "string"
+    !PublicRootsVersion.safeParse(manifest.publicRootsVersion).success
   )
     throw new Error("Native distribution provenance is missing.");
   const assets = new Map();
