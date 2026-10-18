@@ -1,5 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { z } from "zod";
+import {
+  createAiFixtureProducer,
+  sendAiFixtureFrames,
+} from "./ai-fixture-producer.mjs";
+import { AI_EXCHANGE_HEADER } from "./ai-request-lifecycle.mjs";
 
 export const AI_FIXTURE_KEY = "ai-browser-fixture-key";
 export const AI_FIXTURE_MODEL = "fixture-model";
@@ -168,6 +174,7 @@ function cors(request, response, origins) {
   if (origin && origins.has(origin))
     response.setHeader("access-control-allow-origin", origin);
   response.setHeader("vary", "Origin");
+  response.setHeader("access-control-expose-headers", AI_EXCHANGE_HEADER);
   response.setHeader("access-control-allow-methods", "POST, OPTIONS");
   response.setHeader(
     "access-control-allow-headers",
@@ -175,34 +182,21 @@ function cors(request, response, origins) {
   );
 }
 
-function sendFrames(response, frames, timers, index = 0) {
-  if (response.destroyed) return;
-  const frame = frames[index];
-  response.write(
-    `data: ${frame === "[DONE]" ? frame : JSON.stringify(frame)}\n\n`,
-  );
-  if (index === frames.length - 1) {
-    response.end();
-    return;
-  }
-  const timer = setTimeout(() => {
-    timers.delete(timer);
-    sendFrames(response, frames, timers, index + 1);
-  }, 15);
-  timers.add(timer);
-}
-function deliver(response, family, text, stream, state, row) {
+function deliver(response, family, text, stream, state, row, producer) {
   const frames = streamFrames(family, text);
   const pending = state.pending;
   if (pending && pending.path === row.path && pending.stream === stream) {
     state.pending = null;
     pending.id = row.id;
-    pending.started = true;
     response.on("close", () => {
       pending.closed = !response.writableEnded;
+      state.observer?.closed(pending, pending.closed);
     });
-    pending.release = () =>
-      response.end(
+    pending.release = () => {
+      if (pending.released) return;
+      pending.released = true;
+      state.observer?.release(pending);
+      producer.end(
         stream
           ? frames
               .slice(1)
@@ -213,18 +207,36 @@ function deliver(response, family, text, stream, state, row) {
               .join("")
           : JSON.stringify(jsonReply(family, text)),
       );
-    if (stream) response.write(`data: ${JSON.stringify(frames[0])}\n\n`);
+    };
+    Promise.resolve()
+      .then(() => state.observer?.bindHold(pending, row.correlation))
+      .then(() => {
+        pending.started = true;
+      })
+      .catch(() => {
+        state.errors.push({ id: row.id, status: "hold-binding" });
+        response.destroy();
+      });
+    response.flushHeaders();
+    if (stream) producer.write(`data: ${JSON.stringify(frames[0])}\n\n`);
     return;
   }
-  if (stream) sendFrames(response, frames, state.timers);
-  else response.end(JSON.stringify(jsonReply(family, text)));
+  if (stream) sendAiFixtureFrames(producer, frames, state.timers);
+  else producer.end(JSON.stringify(jsonReply(family, text)));
 }
 function requestStatus(row, allowed, body, target) {
   if (!row.family || row.method !== "POST") return 404;
   if (!allowed) return 401;
-  return validBody(row.family, body, target?.model ?? AI_FIXTURE_MODEL)
-    ? 200
-    : 400;
+  if (!validBody(row.family, body, target?.model ?? AI_FIXTURE_MODEL))
+    return 400;
+  // This fixed dated target uses the documented legacy Chat cap.
+  if (
+    row.path ===
+      "/azure/byo-chat/openai/deployments/byo-chat-deployment/chat/completions?api-version=2024-06-01" &&
+    ("max_completion_tokens" in body || "max_output_tokens" in body)
+  )
+    return 400;
+  return 200;
 }
 function accept(request, response, raw, state) {
   const url = new URL(request.url ?? "/", `http://127.0.0.1:${state.port}`);
@@ -247,6 +259,7 @@ function accept(request, response, raw, state) {
   );
   const row = {
     id: `request-${state.requests.length + 1}`,
+    correlation: `${state.nonce}:request-${state.requests.length + 1}`,
     path,
     family,
     method: request.method,
@@ -266,11 +279,14 @@ function accept(request, response, raw, state) {
   const text = target
     ? `Fixture Azure ${target.model} answer`
     : `Fixture ${family} answer`;
+  const producer = createAiFixtureProducer(response, row.correlation);
+  state.producers.push(producer.fact);
   response.writeHead(200, {
     "content-type": stream ? "text/event-stream" : "application/json",
     "cache-control": "no-store",
+    [AI_EXCHANGE_HEADER]: row.correlation,
   });
-  deliver(response, family, text, stream, state, row);
+  deliver(response, family, text, stream, state, row, producer);
 }
 function fixtureHandler(state) {
   return (request, response) => {
@@ -299,18 +315,23 @@ function fixtureHandler(state) {
 export async function createAiConnectionHttpFixture({
   port = 41912,
   appOrigin = "http://127.0.0.1:41911",
+  observer,
 } = {}) {
   const requests = [];
   const preflights = [];
+  const producers = [];
   const errors = [];
   const bodies = new Map();
   const timers = new Set();
   const origins = new Set([appOrigin, "http://localhost:41911"]);
   const state = {
+    nonce: randomUUID(),
+    observer,
     port,
     origins,
     requests,
     preflights,
+    producers,
     errors,
     bodies,
     timers,
@@ -322,11 +343,15 @@ export async function createAiConnectionHttpFixture({
     server.once("error", reject);
     server.listen(port, "127.0.0.1", resolve);
   });
+  state.port = z
+    .object({ port: z.number().int().positive() })
+    .parse(server.address()).port;
   return {
-    origin: `http://127.0.0.1:${port}`,
-    baseUrl: `http://127.0.0.1:${port}/custom/v1`,
+    origin: `http://127.0.0.1:${state.port}`,
+    baseUrl: `http://127.0.0.1:${state.port}/custom/v1`,
     requests,
     preflights,
+    producers,
     errors,
     bodies,
     holdNext(path, stream) {
@@ -337,8 +362,14 @@ export async function createAiConnectionHttpFixture({
         stream,
         started: false,
         closed: false,
+        released: false,
         id: null,
         release() {},
+      };
+      observer?.reserve(pending);
+      pending.armCancellation = (reason) => {
+        if (!observer) throw new Error("Cancellation observer missing");
+        observer.arm(pending, reason);
       };
       state.pending = pending;
       holds.add(pending);

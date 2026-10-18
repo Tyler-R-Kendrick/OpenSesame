@@ -68,6 +68,14 @@ function fields(fixture, entry) {
     baseUrl: entry.mount ? `${fixture.origin}${entry.mount}` : fixture.baseUrl,
   };
 }
+async function datedTokenParameter(page, select = false) {
+  const summary = page.getByText("Connection setup", { exact: true });
+  if ((await summary.locator("..").getAttribute("open")) === null)
+    await summary.click();
+  const field = page.getByLabel("Output token parameter", { exact: true });
+  if (select) await field.selectOption("max_tokens");
+  await expect(field).toHaveValue("max_tokens");
+}
 async function configure(page, fixture, entry, name, check, width) {
   const form = fields(fixture, entry);
   await page.getByLabel("Connection name", { exact: true }).fill(name);
@@ -81,6 +89,7 @@ async function configure(page, fixture, entry, name, check, width) {
       .getByLabel("Authentication", { exact: true })
       .selectOption("api-key");
   await page.getByLabel(form.keyLabel, { exact: true }).fill(form.key);
+  if (entry.dated) await datedTokenParameter(page, true);
   const before = fixture.requests.length;
   await page
     .getByRole("button", { name: "Test AI connection", exact: true })
@@ -115,7 +124,7 @@ async function configure(page, fixture, entry, name, check, width) {
 
 async function chooseAndColdReload(
   page,
-  { base, fixture, entry, name, width, check },
+  { base, fixture, entry, name, width, check, beforeReload },
 ) {
   const form = fields(fixture, entry);
   await visit(page, base, "settings/features");
@@ -136,6 +145,7 @@ async function chooseAndColdReload(
     selected.startsWith("connection:"),
     `${width}: ${entry.providerId}/${entry.family} inference selection names the saved connection`,
   );
+  await beforeReload();
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPin(page);
   await visit(page, base, "settings/features");
@@ -160,6 +170,7 @@ async function chooseAndColdReload(
     form.model,
   );
   await expect(page.getByLabel(form.keyLabel, { exact: true })).toHaveValue("");
+  if (entry.dated) await datedTokenParameter(page);
   return selected;
 }
 
@@ -188,7 +199,7 @@ async function verifyToken(page, { base, fixture, entry, name, width, check }) {
   await open(page, base, entry.providerId);
 }
 
-async function infer(page, { fixture, entry, width, check }) {
+async function infer(page, { fixture, entry, width, check, beforeReload }) {
   const region = page.getByRole("region", {
     name: "Model inference",
     exact: true,
@@ -223,6 +234,9 @@ async function infer(page, { fixture, entry, width, check }) {
       `${width}: ${entry.providerId}/${entry.family} ${stream ? "genuine SSE" : "JSON"} inference uses the saved exact endpoint and auth`,
     );
   }
+  // The next case navigates away, unmounting the workspace whose lifetime
+  // signal would abort a just-completed stream before it finishes natively.
+  await beforeReload();
 }
 
 /** Caller supplies an unlocked real PIN vault, the built app, and the live fixture. */
@@ -232,6 +246,7 @@ export async function verifyAiConnections({
   fixture,
   width,
   check,
+  beforeReload,
 }) {
   await enableBackendConnections(page, base);
   await addCapabilities(page, ["On-device model"]);
@@ -240,7 +255,7 @@ export async function verifyAiConnections({
     const name = `AI ${entry.providerId} ${entry.family} ${width}`;
     await open(page, base, entry.providerId);
     await configure(page, fixture, entry, name, check, width);
-    const context = { base, fixture, entry, name, width, check };
+    const context = { base, fixture, entry, name, width, check, beforeReload };
     await chooseAndColdReload(page, context);
     await verifyToken(page, context);
     await infer(page, context);
@@ -254,8 +269,9 @@ export async function verifyAiConnections({
     `${width}: all six configurations across four inference protocols passed the fixture's independent request validation`,
   );
   await verifyAzureAiLifecycle(
-    { page, base, fixture, width, check },
+    { page, base, fixture, width, check, beforeReload },
     {
+      beforeReload,
       visit,
       open,
       configure,

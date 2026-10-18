@@ -12,138 +12,19 @@
 //! Node when there is one.
 #![cfg(unix)]
 
+mod support;
+
 use std::collections::BTreeSet;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::{Mutex, PoisonError};
+use std::path::Path;
+use std::sync::PoisonError;
 
-use opensesame_env_spec::parse_schema_file;
+use support::{names, Sandbox, EMPTY_DOCUMENT, PASSPHRASE, SHELL_OWN, WRITING_OR_FORKING};
 
-/// Set in the subject process only: the schema it parses.
-const SUBJECT_SCHEMA: &str = "OPENSESAME_TEST_SUBJECT_SCHEMA";
-const PASSPHRASE: &str = "store-passphrase-for-tests";
-/// Held while a script is written and while a subject is started. A process
-/// forked on one thread while another has a script open for writing keeps that
-/// descriptor until it execs, and running the script meanwhile fails with
-/// `Text file busy`.
-static WRITING_OR_FORKING: Mutex<()> = Mutex::new(());
-const EMPTY_DOCUMENT: &str = r#"{"schema_path":"s","parser":"stand-in","items":[]}"#;
-
-/// The subject: parses the schema the parent named and says how it went. A
-/// plain run of this test file has no schema named and does nothing.
+/// The subject the other tests start this binary as.
 #[test]
 fn subject() {
-    let Some(schema) = std::env::var_os(SUBJECT_SCHEMA) else {
-        return;
-    };
-    match parse_schema_file(Path::new(&schema)) {
-        Ok(doc) => println!("SUBJECT ok items={}", doc.items.len()),
-        Err(e) => println!("SUBJECT err {e}"),
-    }
-}
-
-struct Sandbox {
-    root: tempfile::TempDir,
-}
-
-impl Sandbox {
-    fn new() -> Self {
-        let root = tempfile::tempdir().unwrap();
-        for (dir, mode) in [
-            ("work/bin", 0o700),
-            ("safe", 0o700),
-            ("unsafe", 0o777),
-            ("out", 0o700),
-        ] {
-            let path = root.path().join(dir);
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
-        }
-        std::fs::write(root.path().join("work/x.env.schema"), "# stand-in\n").unwrap();
-        std::fs::write(root.path().join("work/parse.mjs"), "// stand-in\n").unwrap();
-        Self { root }
-    }
-
-    fn path(&self, name: &str) -> PathBuf {
-        self.root.path().join(name)
-    }
-
-    /// A `node` that records the environment it was started with in
-    /// `out/<label>.env`, then answers as the bridge would.
-    fn plant(&self, dir: &str, label: &str) {
-        let script = format!(
-            "#!/bin/sh\n/usr/bin/env > '{}'\nprintf '%s' '{EMPTY_DOCUMENT}'\n",
-            self.path("out").join(format!("{label}.env")).display()
-        );
-        let node = self.path(dir).join("node");
-        let _guard = WRITING_OR_FORKING
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        std::fs::write(&node, script).unwrap();
-        std::fs::set_permissions(&node, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
-
-    /// What `label`'s `node` recorded, or `None` when it never ran.
-    fn recorded(&self, label: &str) -> Option<String> {
-        std::fs::read_to_string(self.path("out").join(format!("{label}.env"))).ok()
-    }
-
-    /// Starts the subject in `work/`, holding the passphrase and a spread of
-    /// other variables, with `path` as its `PATH`. Returns what it printed.
-    fn subject(&self, path: &str) -> String {
-        let _guard = WRITING_OR_FORKING
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        let output = Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", "subject", "--nocapture", "--test-threads=1"])
-            .env_clear()
-            .current_dir(self.path("work"))
-            .env("PATH", path)
-            .env("HOME", "/home/dummy")
-            .env("TMPDIR", "/tmp")
-            .env("LANG", "C.UTF-8")
-            .env("LC_ALL", "C")
-            .env(SUBJECT_SCHEMA, self.path("work/x.env.schema"))
-            .env("OPENSESAME_ENV_PARSE", self.path("work/parse.mjs"))
-            .env("OPENSESAME_STORE_PASSWORD", PASSPHRASE)
-            .env("OPENSESAME_OPERATOR_TOKEN", "operator-token-for-tests")
-            .env("NODE_PATH", "/nonexistent/modules")
-            .env("NODE_OPTIONS", "--no-warnings")
-            .env("npm_config_registry", "https://registry.invalid")
-            .env("GITHUB_TOKEN", "ghp_dummy_marker_0123456789abcdef")
-            .env("AWS_SECRET_ACCESS_KEY", "dummy-aws-secret")
-            .env("DB_PASSWORD", "dummy-db-password")
-            .env("SERVICE_API_KEY", "dummy-api-key")
-            .env(
-                "HTTPS_PROXY",
-                "http://user:dummy-proxy-pass@proxy.invalid:3128",
-            )
-            .output()
-            .unwrap();
-        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-        // libtest prints `test subject ... ` ahead of what the test printed.
-        let said = stdout.lines().find_map(|line| {
-            line.split_once("SUBJECT ")
-                .map(|(_, said)| said.trim().to_owned())
-        });
-        said.unwrap_or_else(|| {
-            panic!(
-                "the subject did not report: {stdout}{}",
-                String::from_utf8_lossy(&output.stderr)
-            )
-        })
-    }
-}
-
-fn names(recorded: &str) -> BTreeSet<String> {
-    // The shell the recording `node` runs under adds a few of its own.
-    const SHELL_OWN: [&str; 4] = ["PWD", "OLDPWD", "SHLVL", "_"];
-    recorded
-        .lines()
-        .filter_map(|line| line.split_once('=').map(|(name, _)| name.to_owned()))
-        .filter(|name| !SHELL_OWN.contains(&name.as_str()))
-        .collect()
+    support::subject_body();
 }
 
 /// A `node` is planted where a bare `node` lookup would find it, ahead of the
@@ -185,6 +66,42 @@ fn a_node_behind_a_relative_path_entry_never_runs() {
 #[test]
 fn a_node_in_a_directory_others_can_write_never_runs() {
     planted_node_never_runs("{unsafe}:{safe}", "unsafe");
+}
+
+/// The layout a CI image or a package manager under `umask 002` produces: an
+/// absolute directory this user owns, group-writable by this user's own group.
+/// It holds the only node, behind a planted one in an empty entry.
+#[test]
+fn a_directory_its_own_group_can_write_is_trusted() {
+    let sandbox = Sandbox::new();
+    std::fs::set_permissions(sandbox.path("safe"), std::fs::Permissions::from_mode(0o775)).unwrap();
+    sandbox.plant("safe", "trusted");
+    sandbox.plant("work", "planted");
+    let path = format!(":./bin:{}", sandbox.path("safe").display());
+    let said = sandbox.subject(&path);
+    assert_eq!(said, "ok items=0", "PATH={path}");
+    assert!(
+        sandbox.recorded("trusted").is_some(),
+        "the node in the 0775 directory did not run"
+    );
+    assert!(sandbox.recorded("planted").is_none());
+}
+
+/// A node nobody but its owner can replace is what runs; one anyone can
+/// write is not, even in a directory that is fine.
+#[test]
+fn a_world_writable_node_file_is_not_run() {
+    let sandbox = Sandbox::new();
+    sandbox.plant("safe", "trusted");
+    std::fs::set_permissions(
+        sandbox.path("safe/node"),
+        std::fs::Permissions::from_mode(0o757),
+    )
+    .unwrap();
+    let said = sandbox.subject(&sandbox.path("safe").display().to_string());
+    assert!(said.starts_with("err "), "{said}");
+    assert!(said.contains("writable by others"), "{said}");
+    assert!(sandbox.recorded("trusted").is_none());
 }
 
 #[test]
@@ -235,11 +152,32 @@ fn a_real_node_still_parses_under_the_reduced_environment() {
             .map(|dir| dir.join("node"))
             .find(|node| dir_is_absolute_and_has(node))
     }) else {
+        // On CI a skip is a pass nobody can tell from a real one.
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "CI has no node on PATH, so the real-Node test would be vacuous"
+        );
         eprintln!("skip: no node on PATH");
         return;
     };
     let sandbox = Sandbox::new();
-    std::os::unix::fs::symlink(&real, sandbox.path("safe").join("node")).unwrap();
+    // The runner-like layout, with the real thing behind it: 0775 in the user's
+    // own group. A shim rather than a symlink, because the node the machine has
+    // may be one the rule refuses (a hosted CI image leaves its own world-writable);
+    // what is under test is that real Node parses under the reduced environment.
+    std::fs::set_permissions(sandbox.path("safe"), std::fs::Permissions::from_mode(0o775)).unwrap();
+    {
+        let shim = sandbox.path("safe").join("node");
+        let _guard = WRITING_OR_FORKING
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        std::fs::write(
+            &shim,
+            format!("#!/bin/sh\nexec '{}' \"$@\"\n", real.display()),
+        )
+        .unwrap();
+        std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
     let dump = sandbox.path("out/real-node-env.json");
     std::fs::write(
         sandbox.path("work/parse.mjs"),
@@ -253,8 +191,12 @@ fn a_real_node_still_parses_under_the_reduced_environment() {
     .unwrap();
     let said = sandbox.subject(&format!(":./bin:{}", sandbox.path("safe").display()));
     assert_eq!(said, "ok items=0");
-    let keys: BTreeSet<String> = serde_json::from_str(&std::fs::read_to_string(&dump).unwrap())
-        .expect("the stand-in bridge wrote its environment's names");
+    let keys: BTreeSet<String> =
+        serde_json::from_str::<BTreeSet<String>>(&std::fs::read_to_string(&dump).unwrap())
+            .expect("the stand-in bridge wrote its environment's names")
+            .into_iter()
+            .filter(|name| !SHELL_OWN.contains(&name.as_str()))
+            .collect();
     let allowed: BTreeSet<String> = ["HOME", "LANG", "LC_ALL", "PATH", "TMPDIR"]
         .map(String::from)
         .into();

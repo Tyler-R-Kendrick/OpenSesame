@@ -45,6 +45,21 @@ function nativeAuthorizationLease(
   };
 }
 
+function selectNativeAuthorization(
+  connectionId: string | undefined,
+  selected: { current: string | undefined },
+  current: { current: PendingAuthorization | null },
+  withdraw: { current: () => void },
+) {
+  const previous = selected.current;
+  selected.current = connectionId;
+  const ticket = current.current?.ticket;
+  ticket?.selectConnection?.(connectionId);
+  const replaced = previous && previous !== connectionId;
+  if (ticket?.selectConnection ? !ticket.current() : replaced)
+    withdraw.current();
+}
+
 export function useNativeAuthorization(
   providerId: string,
   connectionId?: string,
@@ -92,13 +107,7 @@ export function useNativeAuthorization(
   }, [owner]);
   const selected = useRef(connectionId);
   useLayoutEffect(() => {
-    const previous = selected.current;
-    selected.current = connectionId;
-    const ticket = current.current?.ticket;
-    ticket?.selectConnection?.(connectionId);
-    const replaced = previous && previous !== connectionId;
-    if (ticket?.selectConnection ? !ticket.current() : replaced)
-      withdraw.current();
+    selectNativeAuthorization(connectionId, selected, current, withdraw);
   });
   const onAuthorization = useCallback(
     (ticket: NativeAuthorizationTicket) => {
@@ -134,9 +143,15 @@ export function useNativeAuthorization(
     },
     [owner],
   );
+  const captureUiCurrent = useCallback(() => {
+    const lease = mount.current;
+    return () =>
+      lease !== null && mount.current === lease && latest.current === owner;
+  }, [owner]);
   return {
     generation,
     onAuthorization,
+    captureUiCurrent,
     authorization:
       pending?.owner === owner && pending.ticket.current()
         ? pending.ticket

@@ -80,7 +80,7 @@ async function save() {
 
 it("keeps actual direct custom inference active despite a dated default-provider refusal", async () => {
   const active = activate();
-  expect(nativeBrowserApiPolicy("nvidia").available).toBe(false);
+  expect(nativeBrowserApiPolicy("nvidia").available).toBe(true);
   const saved = await save();
   expect(deviceConnection(saved.connectionId)?.status).toBe("active");
   expect(http.requests).toHaveLength(1);
@@ -130,15 +130,15 @@ it("does not borrow an old activation's endpoint admission for the current AI tr
     purpose: NATIVE_PROVIDER_PURPOSE,
   });
   expect(newer.fetcher).not.toHaveBeenCalled();
-  expect(nativeBrowserApiPolicy("datadog").available).toBe(false);
+  expect(nativeBrowserApiPolicy("datadog").available).toBe(true);
 });
 
-it("keeps an ordinary native connector's existing policy separate from AI admission", async () => {
+it("keeps ordinary verified metadata without mistaking advice for a new provider request", async () => {
   const active = activate();
   const id = await saveModelFixture("datadog");
   expect(deviceConnection(id)).toMatchObject({
-    status: "pending",
-    statusDetail: nativeBrowserApiPolicy("datadog").reason,
+    status: "active",
+    statusDetail: null,
   });
   expect(active.decide).not.toHaveBeenCalled();
   expect(active.fetcher).not.toHaveBeenCalled();

@@ -12,5 +12,10 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
 
+# Who is asking (`geteuid`, `getegid`, `getgroups`), for the PATH trust rule in
+# `src/node_bridge/trust.rs`. Already in the daemon's tree (mio, getrandom).
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
 [dev-dependencies]
 tempfile = { workspace = true }

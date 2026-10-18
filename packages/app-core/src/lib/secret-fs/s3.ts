@@ -29,6 +29,8 @@ import type { SecretFsError } from "./errors.js";
 import { checkPath, revisionOf } from "./files.js";
 import type { SecretFiles } from "./files.js";
 import { keysOf, moreAfter } from "./s3-listing.js";
+import { s3Exchange } from "./s3-response.js";
+import type { S3Reply } from "./s3-response.js";
 import { EMPTY_PAYLOAD, signS3 } from "./s3-sigv4.js";
 import type { S3Credentials } from "./s3-sigv4.js";
 
@@ -49,6 +51,8 @@ export type S3FilesConfig = Readonly<{
   fetch?: typeof fetch | undefined;
   maxBytes?: number | undefined;
   now?: (() => Date) | undefined;
+  signal?: AbortSignal | undefined;
+  assertCurrent?: (() => void) | undefined;
 }>;
 
 const BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
@@ -78,17 +82,6 @@ function refusal(path: string, status: number): SecretFsError {
   });
 }
 
-async function readBounded(
-  response: Response,
-  max: number,
-): Promise<Uint8Array> {
-  const declared = Number(response.headers.get("content-length") ?? 0);
-  if (declared > max) throw new RangeError("response too large");
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > max) throw new RangeError("response too large");
-  return bytes;
-}
-
 type Call = Readonly<{
   method: "GET" | "PUT" | "DELETE";
   /** The object's path within the vault, or "" for the bucket. */
@@ -101,12 +94,93 @@ type Call = Readonly<{
 type Wire = Readonly<{
   max: number;
   rootPrefix: string;
-  call: (call: Call) => Effect.Effect<Response, SecretFsUnavailable>;
-  body: (
-    path: string,
-    response: Response,
-  ) => Effect.Effect<Uint8Array, SecretFsUnavailable>;
+  current: (path: string) => Effect.Effect<void, SecretFsRejected>;
+  call: (call: Call) => Effect.Effect<S3Reply, SecretFsError>;
 }>;
+
+function ownerCheck(config: S3FilesConfig): () => void {
+  const signal = config.signal;
+  const assertCurrent = config.assertCurrent;
+  return () => {
+    if (signal?.aborted) throw new Error("bucket owner ended");
+    assertCurrent?.();
+    if (signal?.aborted) throw new Error("bucket owner ended");
+  };
+}
+
+function ownerRejected(path: string): SecretFsRejected {
+  return new SecretFsRejected({
+    path,
+    kind: "permission",
+    reason: "the bucket operation is no longer current",
+  });
+}
+
+type Target = Readonly<{
+  base: string;
+  rootPrefix: string;
+  max: number;
+  send: typeof fetch;
+  check: () => void;
+  owner: AbortSignal | undefined;
+}>;
+
+function exchangeCall(
+  config: S3FilesConfig,
+  target: Target,
+  call: Call,
+): Effect.Effect<S3Reply, SecretFsError> {
+  return Effect.tryPromise({
+    try: async (signal) => {
+      target.check();
+      // The bucket itself (a listing) is addressed with no key.
+      const key = call.path === "" ? "" : `${target.rootPrefix}${call.path}`;
+      const url = new URL(`${target.base}/${key}`);
+      for (const [name, value] of call.query ?? []) {
+        url.searchParams.set(name, value);
+      }
+      const signed = signS3({
+        method: call.method,
+        url,
+        headers: call.headers,
+        payloadHash:
+          call.body === undefined
+            ? EMPTY_PAYLOAD
+            : bytesToHex(sha256(call.body)),
+        region: config.region,
+        credentials: config.credentials,
+        now: config.now?.(),
+      });
+      return s3Exchange({
+        send: target.send,
+        url: signed.url,
+        signal,
+        owner: target.owner,
+        check: target.check,
+        max: target.max,
+        retain: call.method === "GET",
+        init: {
+          method: call.method,
+          body: call.body ?? null,
+          cache: "no-store",
+          redirect: "error",
+          headers: signed.headers,
+        },
+      });
+    },
+    catch: () => {
+      try {
+        target.check();
+      } catch {
+        return ownerRejected(call.path);
+      }
+      return new SecretFsUnavailable({
+        path: call.path,
+        reason: "the bucket's answer did not arrive whole",
+      });
+    },
+  });
+}
 
 function makeWire(config: S3FilesConfig): Wire {
   const endpoint = new URL(config.endpoint);
@@ -129,6 +203,11 @@ function makeWire(config: S3FilesConfig): Wire {
   const rootPrefix = prefix === "" ? "" : `${prefix}/`;
   const send = config.fetch ?? ((...args) => fetch(...args));
   const max = config.maxBytes ?? MAX_FILE_BYTES;
+  if (!Number.isSafeInteger(max) || max <= 0) {
+    throw new TypeError("a bucket response bound is a positive safe integer");
+  }
+  const check = ownerCheck(config);
+  const owner = config.signal;
   const origin = virtual
     ? `${endpoint.protocol}//${config.bucket}.${endpoint.host}`
     : endpoint.origin;
@@ -137,51 +216,10 @@ function makeWire(config: S3FilesConfig): Wire {
   return {
     max,
     rootPrefix,
+    current: (path) =>
+      Effect.try({ try: check, catch: () => ownerRejected(path) }),
     call: (call) =>
-      Effect.tryPromise({
-        try: (signal) => {
-          // The bucket itself (a listing) is addressed with no key.
-          const key = call.path === "" ? "" : `${rootPrefix}${call.path}`;
-          const url = new URL(`${base}/${key}`);
-          for (const [name, value] of call.query ?? []) {
-            url.searchParams.set(name, value);
-          }
-          const signed = signS3({
-            method: call.method,
-            url,
-            headers: call.headers,
-            payloadHash:
-              call.body === undefined
-                ? EMPTY_PAYLOAD
-                : bytesToHex(sha256(call.body)),
-            region: config.region,
-            credentials: config.credentials,
-            now: config.now?.(),
-          });
-          return send(signed.url, {
-            method: call.method,
-            body: call.body ?? null,
-            signal,
-            cache: "no-store",
-            redirect: "error",
-            headers: signed.headers,
-          });
-        },
-        catch: () =>
-          new SecretFsUnavailable({
-            path: call.path,
-            reason: "the bucket could not be reached",
-          }),
-      }),
-    body: (path, response) =>
-      Effect.tryPromise({
-        try: () => readBounded(response, max),
-        catch: () =>
-          new SecretFsUnavailable({
-            path,
-            reason: "the bucket's answer did not arrive whole",
-          }),
-      }),
+      exchangeCall(config, { base, rootPrefix, max, send, check, owner }, call),
   };
 }
 
@@ -190,12 +228,15 @@ const readFile =
   (path) =>
     Effect.gen(function* () {
       yield* checkPath(path);
+      yield* wire.current(path);
       const response = yield* wire.call({ method: "GET", path });
       if (!response.ok) return yield* refusal(path, response.status);
-      const bytes = yield* wire.body(path, response);
+      const bytes = response.bytes;
       // The revision is the content's, so it is computed here and the bucket's
       // claim is not trusted: a store that lies only fails the next write.
-      return { bytes, revision: revisionOf(bytes) };
+      const revision = revisionOf(bytes);
+      yield* wire.current(path);
+      return { bytes, revision };
     });
 
 /** What the object is now, for a conflict to name and a conditional put to hold. */
@@ -204,9 +245,10 @@ const currentOf = (wire: Wire, path: string) =>
     const response = yield* wire.call({ method: "GET", path });
     if (response.status === 404) return null;
     if (!response.ok) return yield* refusal(path, response.status);
-    const bytes = yield* wire.body(path, response);
+    const bytes = response.bytes;
+    yield* wire.current(path);
     return {
-      etag: unquote(response.headers.get("etag")),
+      etag: unquote(response.etag),
       revision: revisionOf(bytes),
     };
   });
@@ -216,6 +258,7 @@ const writeFile =
   (path, bytes, options) =>
     Effect.gen(function* () {
       yield* checkPath(path);
+      yield* wire.current(path);
       if (bytes.byteLength > wire.max) {
         return yield* new SecretFsRejected({
           path,
@@ -233,6 +276,7 @@ const writeFile =
       if (expected === null) headers.set("if-none-match", "*");
       else if (expected !== undefined) {
         const current = yield* currentOf(wire, path);
+        yield* wire.current(path);
         if (current === null || current.revision !== expected) {
           return yield* conflict(current?.revision ?? null);
         }
@@ -249,10 +293,13 @@ const writeFile =
         const now = yield* currentOf(wire, path).pipe(
           Effect.orElseSucceed(() => null),
         );
+        yield* wire.current(path);
         return yield* conflict(now?.revision ?? null);
       }
       if (!response.ok) return yield* refusal(path, response.status);
-      return revisionOf(bytes);
+      const revision = revisionOf(bytes);
+      yield* wire.current(path);
+      return revision;
     });
 
 const removeFile =
@@ -260,10 +307,12 @@ const removeFile =
   (path) =>
     Effect.gen(function* () {
       yield* checkPath(path);
+      yield* wire.current(path);
       const response = yield* wire.call({ method: "DELETE", path });
       if (!response.ok && response.status !== 404) {
         return yield* refusal(path, response.status);
       }
+      yield* wire.current(path);
     });
 
 const listFiles =
@@ -271,6 +320,7 @@ const listFiles =
   (prefix) =>
     Effect.gen(function* () {
       const under = yield* checkPath(prefix, { allowEmpty: true });
+      yield* wire.current(under);
       const found: string[] = [];
       let token: string | null = null;
       for (let page = 0; page < MAX_LIST_PAGES; page += 1) {
@@ -281,7 +331,7 @@ const listFiles =
         if (token !== null) query.push(["continuation-token", token]);
         const response = yield* wire.call({ method: "GET", path: "", query });
         if (!response.ok) return yield* refusal(under, response.status);
-        const xml = new TextDecoder().decode(yield* wire.body(under, response));
+        const xml = new TextDecoder().decode(response.bytes);
         for (const key of keysOf(xml)) {
           if (!key.startsWith(wire.rootPrefix)) continue;
           const path = key.slice(wire.rootPrefix.length);
@@ -293,6 +343,7 @@ const listFiles =
           );
           if (inside && valid) found.push(path);
         }
+        yield* wire.current(under);
         token = moreAfter(xml);
         if (token === null) return found.sort();
       }
