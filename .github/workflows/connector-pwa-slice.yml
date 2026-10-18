@@ -6,7 +6,7 @@ on:
     paths: [".github/workflows/connector-pwa-slice.yml"]
 permissions: {}
 concurrency:
-  group: connector-pwa-slice-887d3582913d72aa
+  group: connector-pwa-slice-887d3582913d72aa-amd64
   cancel-in-progress: false
 jobs:
   staging:
