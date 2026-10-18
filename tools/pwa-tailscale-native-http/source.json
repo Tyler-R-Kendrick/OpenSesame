@@ -136,7 +136,7 @@
     "files": [
       {
         "path": "nodehttp_js.go",
-        "sha256": "16c407371eefc1b0335bee32e063708b39743999bafedd2a428d0d9ed0860e1b"
+        "sha256": "5fba465c474d199d015e07a9c163d172661dfeae553526184a1bc8b0dac8c3f8"
       },
       {
         "path": "native-node.patch",
@@ -162,9 +162,10 @@
     "configuration": {
       "exitNodeID": "Explicit original node stable exit ID; no automatic exit selection or LAN access.",
       "operatorCAPEM": "One to eight explicit operator CA certificates,64KiB total. No system/public root union.",
-      "targets": "One to sixteen exact HTTPS origins, each with one to sixteen masked IP-prefix grants. DNS resolves once via original exit DNS; final literal IP must match its grant and have no peer/self route override."
+      "targets": "One to sixteen exact HTTPS origins, each with one to sixteen masked IP-prefix grants. DNS resolves once via original exit DNS; final literal IP must match its grant and have no peer/self route override.",
+      "trustMode": "Explicit public uses only the pinned constrained NSS bundle and rejects any operatorCAPEM field. Omitted/operator keeps existing bounded operator-only trust. Never union either mode with system roots."
     },
-    "qualification": "Call only after the eight fixed nativeHttp overlays are staged. The original node uses its own captured dialer/backend/netmap/prefs; no JS-supplied raw socket. First-owned-CA scope only; reviewed new compiler/current constrained public bundle remains separate selection and must precede public-target activation. Driver composition and actual worker/controller/browser activation remain explicit later steps."
+    "qualification": "Stage the existing eight fixed nativeHttp overlays plus explicit publicTrust.files and fixed JS bridge before this node hook. Original node/dialer/netmap/prefs, origin/IP/lease guards remain captured. Public/operator trust stay disjoint. Build-driver and PWA worker/controller composition remain separately reviewed activation steps."
   },
   "previousCompiler": {
     "repository": "https://github.com/tailscale/go",
@@ -258,5 +259,52 @@
         "sha256": "122bcde01b17e366c295d1719a75223346a08ebef3fb75a0a5c9dbc28c0e9a02"
       }
     ]
+  },
+  "publicTrust": {
+    "status": "Explicit public pool constructor/node mode; runtime/browser activation remains separate until actual proof.",
+    "module": "golang.org/x/crypto/x509roots/fallback",
+    "version": "v0.0.0-20261014201258-cf169cd0986f",
+    "commit": "cf169cd0986fa0e2e0963ee5f8d234885f869750",
+    "sum": "h1:8ZNibFM9eOCl1u/iumJteD7A2qztZr4ifQGhBqlcBe8=",
+    "goModSum": "h1:HPze8vhfG6fO06AM+VSvxRm4E3+5Yk375mgrJ5M2z1E=",
+    "roots": 120,
+    "constrainedRoots": 1,
+    "constraintSemantics": "Original NSS per-root callbacks are passed to x509.CertPool.AddCertWithConstraint. Izenpe distrustAfter2026-04-15T23:59:59Z applies to every supplied chain certificate NotBefore. No flattened DER-only pool.",
+    "files": [
+      {
+        "path": "public-roots.go",
+        "sha256": "76e930b465f6574ec61b3f09b5685c8477eda4e1513d6ea030a99fe2c5389eb1"
+      },
+      {
+        "path": "public-roots_test.go",
+        "sha256": "857fe03bbec99609357f943d00049206b0ad8cf816657c986c93f24b0a9c3cb4"
+      }
+    ],
+    "moduleFiles": [
+      {
+        "path": "bundle/roots.go",
+        "sha256": "692c7dcd059312d358c409d18fe2ea4a0f43d5f8968c940cce3ab811ac44080e"
+      },
+      {
+        "path": "bundle/bundle.go",
+        "sha256": "fed9543dcf8a701f9397d8be713b611e2551dfe72c0ac330443e95c902060e32"
+      },
+      {
+        "path": "bundle/bundle.der",
+        "sha256": "4f13b21a3f9a37e5d775d326eaab7c481481b811b89b67326293415997ec7f5c"
+      },
+      {
+        "path": "go.mod",
+        "sha256": "a28132572ab7a286be033b3852de145f25ee0d6a94f73d01ca221fdf6b7be825"
+      },
+      {
+        "path": "LICENSE",
+        "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+      }
+    ],
+    "nodeHookBeforeSha256": "16c407371eefc1b0335bee32e063708b39743999bafedd2a428d0d9ed0860e1b",
+    "nodeHookAfterSha256": "5fba465c474d199d015e07a9c163d172661dfeae553526184a1bc8b0dac8c3f8",
+    "license": "BSD-3-Clause; preserve upstream LICENSE copyright/conditions/disclaimer in source and binary distribution notices. Do not copy generated roots or reinterpret NSS constraints.",
+    "qualification": "Imports fallback/bundle only; never parent fallback init, SystemCertPool or SetFallbackRoots. Explicit owned alternate modfile/sum selection and reviewed Go1.27.2 compiler are prerequisites. Stage exactly the two fixed public root files, not a generic directory loader; build/native-worker/public-provider activation is not claimed by this metadata."
   }
 }

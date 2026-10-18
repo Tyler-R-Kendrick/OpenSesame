@@ -70,6 +70,20 @@ func nativeOperatorRoots(value js.Value) (*x509.CertPool, bool) {
 	return pool, count > 0
 }
 
+// Public and operator trust are explicit disjoint choices. Never silently add
+// operator CAs to the public pool, or install fallback roots process-wide.
+func nativeTrust(value js.Value) (*x509.CertPool, bool) {
+	mode := value.Get("trustMode")
+	if mode.IsUndefined() || mode.Type() == js.TypeString && mode.String() == "operator" {
+		return nativeOperatorRoots(value.Get("operatorCAPEM"))
+	}
+	if mode.Type() != js.TypeString || mode.String() != "public" || !value.Get("operatorCAPEM").IsUndefined() {
+		return nil, false
+	}
+	roots, err := nativehttp.PublicRoots()
+	return roots, err == nil
+}
+
 func nativeAuthority(value js.Value) (string, bool) {
 	text, ok := nativeText(value, 2048)
 	if !ok {
@@ -144,7 +158,7 @@ func (i *jsIPN) bindNativeHTTP(value js.Value) (port map[string]any) {
 	if !ok || exit == "" || strings.TrimSpace(exit) != exit {
 		return nil
 	}
-	roots, trusted := nativeOperatorRoots(value.Get("operatorCAPEM"))
+	roots, trusted := nativeTrust(value)
 	targets, configured := nativeTargets(value.Get("targets"))
 	if !trusted || !configured {
 		return nil
