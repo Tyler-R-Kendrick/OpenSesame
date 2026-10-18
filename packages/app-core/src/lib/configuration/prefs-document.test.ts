@@ -19,6 +19,13 @@ describe("prefs document", () => {
       false,
     );
     expect(parsePrefsSource("theme: dark\nprefsRevision: 99\n").ok).toBe(false);
+    expect(
+      validatePrefsDocument({ theme: "dark", legacyIdentityNoticeSeen: true })
+        .ok,
+    ).toBe(false);
+    expect(
+      parsePrefsSource("theme: dark\nlegacyIdentityNoticeSeen: true\n").ok,
+    ).toBe(false);
   });
 
   it("keeps exact source when serializing then leaving the mapping alone", () => {
