@@ -69,6 +69,6 @@ export function secretBackendModeLabel(mode: SecretBackendMode) {
     "bitwarden-secrets": "Bitwarden Secrets Manager",
     infisical: "Infisical Secrets API",
     passwordstate: "Passwordstate API",
-  } as const satisfies Record<SecretBackendMode | "encrypted-remote", string>;
+  } as const satisfies Record<SecretBackendMode, string>;
   return labels[mode];
 }

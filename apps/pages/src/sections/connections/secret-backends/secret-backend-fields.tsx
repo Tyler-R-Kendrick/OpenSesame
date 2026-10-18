@@ -88,7 +88,7 @@ const API_FIELDS = {
     { key: "token", label: "API key", secret: true },
     { key: "passwordListId", label: "Password list ID" },
   ],
-} satisfies Partial<Record<SecretBackendMode | "encrypted-remote", Field[]>>;
+} satisfies Partial<Record<SecretBackendMode, Field[]>>;
 
 function DraftFields({
   draft,
