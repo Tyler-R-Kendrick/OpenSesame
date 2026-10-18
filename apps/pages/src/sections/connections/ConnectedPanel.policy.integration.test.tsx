@@ -28,26 +28,22 @@ installConnectorIntegration();
 declareConnectionsTutorial();
 
 it.each(["datadog", "railway"])(
-  "projects a previously verified %s record as unavailable without altering its sealed authority",
+  "retains previously verified %s metadata and setup advice without fabricating a new provider check",
   async (providerId) => {
     const fixture = connectorIntegration();
     const saved = await savePriorApiProof(providerId);
     const before = loadNativeConnectorRecord(saved.connectionId);
-    const reason = nativeBrowserApiPolicy(
+    const advice = nativeBrowserApiPolicy(
       providerId,
       saved.configuration.parameters,
-    ).reason;
-    if (!reason) throw new Error("Expected audited browser refusal");
+    ).advice;
+    if (!advice) throw new Error("Expected historical browser advice");
     const connection = deviceConnection(saved.connectionId);
-    expect(connection?.status).toBe("pending");
-    expect(connection?.statusDetail).toBe(reason);
+    expect(connection?.status).toBe("active");
+    expect(connection?.statusDetail).toBeNull();
     expect(connection?.refreshable).toBe(false);
     const provider = integrationProvider(providerId);
-    expect(nativeConnectorHeaderStatus(connection, provider)).toEqual({
-      tone: "warn",
-      label: "Browser route unavailable",
-      sentence: reason,
-    });
+    expect(nativeConnectorHeaderStatus(connection, provider)?.tone).toBe("ok");
     const connections = listDeviceConnections();
     render(
       <MemoryRouter>
@@ -76,15 +72,15 @@ it.each(["datadog", "railway"])(
       .closest("section");
     if (!connected) throw new Error("Missing Connected section");
     expect(
-      within(connected).queryByText(saved.configuration.displayName),
+      within(connected).getByText(saved.configuration.displayName),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("region", { name: "Needs attention" }),
     ).toBeNull();
     expect(
-      screen.getByRole("region", { name: "Needs attention" }).textContent,
-    ).toContain(reason);
-    expect(connectedPageItems([], connections)).toEqual([]);
-    expect(screen.getByRole("img", { name: reason })).toBeTruthy();
-    expect(screen.getByText("Verification pending")).toBeTruthy();
-    expect(screen.queryByText("Verified")).toBeNull();
+      connectedPageItems([], connections).map((item) => item.id),
+    ).toContain(saved.connectionId);
+    expect(screen.getByText((text) => text.includes(advice))).toBeTruthy();
     expect(
       screen.getByRole("button", {
         name: "Remove connector",
@@ -93,7 +89,7 @@ it.each(["datadog", "railway"])(
     expect(fixture.requests).toHaveLength(0);
     expect(loadNativeConnectorRecord(saved.connectionId)).toEqual(before);
     await fixture.reload();
-    expect(deviceConnection(saved.connectionId)?.statusDetail).toBe(reason);
+    expect(deviceConnection(saved.connectionId)?.status).toBe("active");
     expect(loadNativeConnectorRecord(saved.connectionId)?.privateState).toEqual(
       before?.privateState,
     );
@@ -103,7 +99,7 @@ it.each(["datadog", "railway"])(
   },
 );
 
-it("keeps provider cleanup and reported expiry visible after the browser route becomes blocked", async () => {
+it("keeps provider cleanup and reported expiry authoritative despite nonblocking CORS advice", async () => {
   connectorIntegration();
   const saved = await savePriorApiProof("railway");
   const expiredAt = Date.now() - 1000;
