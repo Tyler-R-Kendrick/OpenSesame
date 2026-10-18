@@ -21,14 +21,16 @@ import { deliveryGate } from "./browser-operation-loading.fixture.js";
 
 type Realm = typeof import("./browser-operation-loading.realm.js");
 const originalCallable = z.function();
-const originalPrototype = z.object({
+const originalInstanceOperations = z.object({
   create: z.custom<Realm["VaultStore"]["prototype"]["create"]>(
     (value) => originalCallable.safeParse(value).success,
   ),
-  unlock: z.custom<Realm["VaultStore"]["prototype"]["unlock"]>(
+  saveItem: z.custom<Realm["VaultStore"]["prototype"]["saveItem"]>(
     (value) => originalCallable.safeParse(value).success,
   ),
-  saveItem: z.custom<Realm["VaultStore"]["prototype"]["saveItem"]>(
+});
+const originalPrototype = z.object({
+  unlock: z.custom<Realm["VaultStore"]["prototype"]["unlock"]>(
     (value) => originalCallable.safeParse(value).success,
   ),
   createGuest: z.custom<Realm["VaultStore"]["prototype"]["createGuest"]>(
@@ -166,6 +168,9 @@ afterAll(async () => {
 
 async function owner(): Promise<VaultStore> {
   const store = new realm.VaultStore();
+  const originalOperations = originalInstanceOperations.parse(store);
+  expect(originalOperations.create).toBe(store.create);
+  expect(originalOperations.saveItem).toBe(store.saveItem);
   stores.push(store);
   await store.create(PASSWORD);
   await store.protection.ensureProtectionProjected();

@@ -9,9 +9,14 @@ import {
   updateNativeConnector,
 } from "@opensesame/app-core/lib/native-connector-store.js";
 import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
+import { afterEach as afterGenuine, beforeEach as beforeGenuine } from "vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createActivation } from "../activation.js";
 import { createTestContext } from "../test-context.js";
+import {
+  closeGenuineRuntimeFixture,
+  genuineRuntimeFixture,
+} from "./genuine-runtime.test-support.js";
 import { bindNativeRuntime } from "./native-runtime.js";
 
 afterEach(() => vi.restoreAllMocks());
@@ -381,3 +386,6 @@ it.each([
     }
   },
 );
+
+beforeGenuine(genuineRuntimeFixture);
+afterGenuine(closeGenuineRuntimeFixture);

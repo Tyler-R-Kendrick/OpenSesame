@@ -1,4 +1,3 @@
-import { overlapCast } from "@opensesame/os-domain";
 import {
   type AccountItem,
   DEFAULT_RULES,
@@ -12,11 +11,14 @@ import {
   unwrapRawVaultKeyFromPassword,
   vaultSealBinding,
 } from "@opensesame/vault-core";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
+import { webLocksDouble } from "../__tests__/web-locks-double.js";
 import { atRestBinding, openAtRest } from "../at-rest/cipher.js";
+import { atRestKeyNow } from "../at-rest/key.js";
 import { forgetAtRestKeyForTest } from "../at-rest/key.js";
+import { makeOpfs } from "../duress/wipe/fake-opfs.test-support.js";
 import { kvForgetAll } from "../kv.js";
 import { BODY_PATH, PERSONAL_TOMB, readSealedFile, vfsFlush } from "../vfs.js";
 import { VaultStore } from "./store.js";
@@ -33,28 +35,6 @@ const SECRETS = [
   "JBSWY3DPEHPK3PXP",
   OPRF_KEY,
 ];
-
-function originFiles(files: Map<string, string>): FileSystemDirectoryHandle {
-  const root = {
-    getFileHandle: async (name: string, options?: { create?: boolean }) => {
-      if (!files.has(name) && !options?.create)
-        throw new DOMException("Missing", "NotFoundError");
-      return {
-        getFile: async () => new Blob([files.get(name) ?? ""]),
-        createWritable: async () => ({
-          write: async (text: string) => {
-            files.set(name, text);
-          },
-          close: async () => {},
-        }),
-      };
-    },
-    removeEntry: async (name: string) => {
-      files.delete(name);
-    },
-  };
-  return overlapCast(root);
-}
 
 async function richAccount(): Promise<AccountItem> {
   const account = createItem("account", "Shared account IDs");
@@ -117,15 +97,19 @@ async function persistCustomer(rootByte: number, account: AccountItem) {
   await vfsFlush();
   kvForgetAll();
   forgetAtRestKeyForTest();
-  const files = new Map<string, string>();
+  const opfs = makeOpfs();
+  const files = opfs.files;
   const root = new Uint8Array(32).fill(rootByte);
-  const handle = originFiles(files);
+  vi.stubGlobal("navigator", {
+    storage: { getDirectory: async () => opfs },
+    locks: webLocksDouble(),
+  });
   configureHost(
     createTestHost({
-      originFiles: () => Promise.resolve(handle),
       atRestKeys: { loadSync: () => root, load: async () => root },
     }),
   );
+  atRestKeyNow();
   const store = new VaultStore();
   await store.create(PASSWORD);
   await store.saveItem(account);
@@ -145,6 +129,7 @@ afterEach(async () => {
   await vfsFlush();
   kvForgetAll();
   forgetAtRestKeyForTest();
+  vi.unstubAllGlobals();
   configureHost(createTestHost());
 });
 

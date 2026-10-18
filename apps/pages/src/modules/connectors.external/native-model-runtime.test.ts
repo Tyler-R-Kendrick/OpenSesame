@@ -4,14 +4,20 @@ import {
   modelMemoryBackend,
   saveModelFixture,
 } from "@opensesame/app-core/lib/hosted-model.test-support.js";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createActivation } from "../activation.js";
 import { createTestContext } from "../test-context.js";
+import {
+  closeGenuineRuntimeFixture,
+  genuineRuntimeFixture,
+} from "./genuine-runtime.test-support.js";
 import { bindNativeModelRuntime } from "./native-model-runtime.js";
 import { bindNativeRuntime } from "./native-runtime.js";
 const releases: (() => void)[] = [];
-afterEach(() => {
+beforeEach(genuineRuntimeFixture);
+afterEach(async () => {
   for (const release of releases.splice(0).reverse()) release();
+  await closeGenuineRuntimeFixture();
   vi.restoreAllMocks();
 });
 function activate(answer: string) {

@@ -1,3 +1,7 @@
+import {
+  ENROLLMENT_STATE_KEY,
+  journalKeysOf,
+} from "../lib/duress/store/boot-keys.js";
 /** Browser physical ciphertext producers. They issue DATA only, never owner or factors-complete authority. */
 import { createOriginalOriginStorageProfile } from "../lib/original-origin-storage.js";
 import type { PhysicalAuthenticationPort } from "../lib/vault/physical-authentication-port.js";
@@ -18,6 +22,7 @@ import {
 } from "./physical-vault-inventory-data.js";
 import { readBrowserPhysicalTombData } from "./physical-vault-name-data.js";
 
+const ORIGINAL_DURESS_KEYS = journalKeysOf(ENROLLMENT_STATE_KEY);
 const HEADER_BOUND = 65536;
 const BODY_BOUND = 8 << 20;
 function unavailable(): never {
@@ -85,7 +90,11 @@ function deviceRecordPort(capture: OriginCapture): PhysicalDeviceRecordPort {
         close: source.close,
         revalidateRoot: source.revalidateRoot,
         readOriginalStateIdentity: source.readOriginalStateIdentity,
-        read: (key, bound) => source.read(deviceKey(key), bound),
+        read: (key, bound) =>
+          source.read(
+            ORIGINAL_DURESS_KEYS.includes(key) ? key : deviceKey(key),
+            bound,
+          ),
         async captureRetiredCredentialInventory() {
           const inventory = [];
           const physical = await captureBrowserPhysicalInventoryData(source);

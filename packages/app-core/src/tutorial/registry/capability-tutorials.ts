@@ -11,6 +11,8 @@ export const CAPABILITY_TUTORIALS = {
   "vaults.travel": "vaults.travel",
   "vaults.travel_items": "vaults.travel",
   "vaults.duress_code": "vaults.duress-code",
+  "vault.retired_credentials.manage": "settings.security.review",
+  "vault.agent_canaries.manage": "settings.security.review",
   "vault.protectors.manage": "settings.security.review",
   "vault.protectors.rotate": "settings.security.review",
   "device.browser_reset": "vaults.switch",

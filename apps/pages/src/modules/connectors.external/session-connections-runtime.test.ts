@@ -1,12 +1,17 @@
-/** @vitest-environment jsdom */
 /**
  * External connectors lends the app's connections to a live session while it
  * is active, and takes the lending back when it is not (ADR 0196).
  */
 import { connectionPort } from "@opensesame/app-core/lib/live/connection-port.js";
+/** @vitest-environment jsdom */
+import { afterEach as afterGenuine, beforeEach as beforeGenuine } from "vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import { createActivation } from "../activation.js";
 import { createTestContext } from "../test-context.js";
+import {
+  closeGenuineRuntimeFixture,
+  genuineRuntimeFixture,
+} from "./genuine-runtime.test-support.js";
 import { bindProviderRuntime } from "./native-runtime.js";
 import { bindSessionConnections } from "./session-connections-runtime.js";
 
@@ -54,3 +59,6 @@ describe("the session connection port", () => {
     expect(connectionPort()).toBeNull();
   });
 });
+
+beforeGenuine(genuineRuntimeFixture);
+afterGenuine(closeGenuineRuntimeFixture);

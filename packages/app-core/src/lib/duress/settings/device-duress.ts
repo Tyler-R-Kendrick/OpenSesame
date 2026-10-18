@@ -185,6 +185,7 @@ export async function enableDuressCode(input: {
     );
     const armed = await armPersistedUnlockEnrollment(sealed, {
       requireDurable: input.requireDurable ?? true,
+      code: input.code,
     });
     if (!armed.ok) return { ok: false, code: "not_durable" };
     return { ok: true };

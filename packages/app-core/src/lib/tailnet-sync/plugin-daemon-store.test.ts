@@ -61,6 +61,7 @@ let stop: () => void = () => {};
 beforeEach(async () => {
   await vfsFlush();
   wipePersonalTomb();
+  vaultStore.loadActiveProjectScope();
 });
 
 afterEach(() => {

@@ -12,12 +12,18 @@ import { writeLastVaultId } from "../last-vault.js";
 import { GUEST_TOMB, lockTomb } from "../vfs.js";
 import { guestVaultScope } from "./store-scope.js";
 import { discardVaultBody, wipeTombOnDestroy } from "./tomb-migration.js";
-export type GuestCreationOptions = { resume?: boolean; decoy?: boolean };
+export type GuestCreationOptions = {
+  resume?: boolean;
+  decoy?: boolean;
+  scratch?: true;
+};
 export function selectGuestScope(options?: GuestCreationOptions) {
   // Guests run in GUEST_TOMB, apart from member tombs; a decoy never wipes a
   // guest tomb that holds its own key: it runs in a scratch tomb.
   markDecoySession(options?.decoy === true);
-  const scratch = options?.decoy === true && guestTombIsSealed();
+  const scratch =
+    options?.decoy === true &&
+    (options.scratch === true || guestTombIsSealed());
   return scratch ? decoyScratchScope() : guestVaultScope();
 }
 export async function prepareGuestMaterial(
