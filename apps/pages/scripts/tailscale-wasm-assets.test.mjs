@@ -5,18 +5,30 @@ import {
   TAILSCALE_SDK,
   assertTailscaleHash,
   attachTailscaleAssets,
-  extractTailscaleRuntime,
   loadTailscaleAssets,
   tailscaleWorkerFileName,
 } from "./tailscale-wasm-assets.mjs";
-test("ships the exact pinned official WASM and intact isolated Go runtime with both licenses", () => {
-  const assets = loadTailscaleAssets();
-  assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6600192);
-  assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8016);
-  assert.match(assets.get(TAILSCALE_ASSETS.runtime), /globalThis\.Go=class/);
-  assert.doesNotMatch(assets.get(TAILSCALE_ASSETS.runtime), /document\./);
-  assert.match(assets.get(TAILSCALE_ASSETS.license), /Tailscale/);
-  assert.match(assets.get(TAILSCALE_ASSETS.license), /Go Authors/);
+test("ships exact source-built native WASM, isolated runtime, jitless bridge and complete notices", async () => {
+  const assets = await loadTailscaleAssets();
+  assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6721046);
+  assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8078);
+  assert.match(
+    assets.get(TAILSCALE_ASSETS.runtime).toString(),
+    /globalThis\.Go\s*=\s*class/,
+  );
+  assert.doesNotMatch(
+    assets.get(TAILSCALE_ASSETS.runtime).toString(),
+    /document\./,
+  );
+  assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Tailscale/);
+  assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Go Authors/);
+  assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Zod3 runtime/);
+  assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 15019);
+  assert.match(
+    assets.get(TAILSCALE_ASSETS.nativeHTTP).toString(),
+    /jitless:!0/,
+  );
+  assert.equal(assets.get(TAILSCALE_ASSETS.notices).length, 16084);
   assertTailscaleHash(
     assets.get(TAILSCALE_ASSETS.runtime),
     TAILSCALE_SDK.runtimeHash,
@@ -71,9 +83,13 @@ test("approved networking cache owns the actual emitted dedicated worker before 
     /exactly one emitted dedicated worker/,
   );
 });
-test("refuses modified/unpinned JavaScript before any AST extraction or build emission", () => {
+test("refuses modified/unpinned JavaScript and WASM before build emission", () => {
   assert.throws(
-    () => extractTailscaleRuntime("(()=>{globalThis.Go=class{}})();"),
+    () =>
+      assertTailscaleHash(
+        "(()=>{globalThis.Go=class{}})();",
+        TAILSCALE_SDK.runtimeHash,
+      ),
     /digest/,
   );
   assert.throws(

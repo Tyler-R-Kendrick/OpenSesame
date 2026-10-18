@@ -1,10 +1,9 @@
-/** Pin and extract the official browser client without xterm's main-document UI. */
+/** Ship the source-built original-node browser client and its verified native HTTPS bridge. */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import ts from "typescript";
+import { prepareNativeDistribution } from "../../../tools/pwa-tailscale-native-http/prepare-distribution.mjs";
 import { composeState } from "./lib/capability-compose-state.mjs";
 
 const manifest = JSON.parse(
@@ -32,57 +31,45 @@ export function assertTailscaleHash(bytes, expected) {
       "Pinned Tailscale artifact digest differs; review the SDK upgrade.",
     );
 }
-/** Preserve the complete upstream statement byte-for-byte; never rewrite Go glue. */
-export function extractTailscaleRuntime(source) {
-  assertTailscaleHash(source, TAILSCALE_SDK.jsHash);
-  const ast = ts.createSourceFile(
-    "pkg.js",
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.JS,
+/** Every normal Vite caller prepares and verifies the mandatory source-built native graph. */
+export async function loadTailscaleAssets() {
+  const result = await prepareNativeDistribution(
+    fileURLToPath(new URL("../../..", import.meta.url)),
+    manifest.native.sourceMetadataSha256,
+    manifest.native.manifestSha256,
   );
-  const statements = ast.statements.filter(
-    (node) =>
-      ts.isExpressionStatement(node) &&
-      node.getText(ast).includes("globalThis.Go=class"),
+  const records = {
+    ...result.manifest.assets,
+    license: result.manifest.license,
+    notices: result.manifest.upstreamNotices,
+  };
+  if (
+    result.assets.size !== Object.keys(TAILSCALE_ASSETS).length ||
+    result.manifest.sourceCommit !== manifest.native.sourceCommit ||
+    result.manifest.compilerCommit !== manifest.native.compilerCommit
+  )
+    throw new Error("Native Tailscale distribution provenance differs.");
+  for (const [kind, path] of Object.entries(TAILSCALE_ASSETS)) {
+    if (records[kind]?.path !== path || !result.assets.has(path))
+      throw new Error("Native Tailscale deployment asset mapping differs.");
+  }
+  assertTailscaleHash(
+    result.assets.get(TAILSCALE_ASSETS.wasm),
+    TAILSCALE_SDK.gzipHash,
   );
-  if (statements.length !== 1)
-    throw new Error("Unexpected Tailscale Go runtime statement count.");
-  const runtime = statements[0].getText(ast);
-  assertTailscaleHash(runtime, TAILSCALE_SDK.runtimeHash);
-  return runtime;
-}
-export function loadTailscaleAssets() {
-  const require = createRequire(import.meta.url);
-  const root = dirname(require.resolve("@tailscale/connect/package.json"));
-  const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-  if (manifest.version !== TAILSCALE_SDK.version)
-    throw new Error("Unpinned Tailscale SDK version.");
-  const gzip = readFileSync(join(root, "main.wasm.gz"));
-  assertTailscaleHash(gzip, TAILSCALE_SDK.gzipHash);
-  assertTailscaleHash(gunzipSync(gzip), TAILSCALE_SDK.wasmHash);
-  const runtime = extractTailscaleRuntime(
-    readFileSync(join(root, "pkg.js"), "utf8"),
+  assertTailscaleHash(
+    result.assets.get(TAILSCALE_ASSETS.runtime),
+    TAILSCALE_SDK.runtimeHash,
   );
-  const license = [
-    "Official @tailscale/connect browser WASM client",
-    `Version: ${TAILSCALE_SDK.version}`,
-    "Go runtime: go1.26.6",
-    readFileSync(
-      new URL("./vendor/tailscale-connect.LICENSE", import.meta.url),
-      "utf8",
-    ),
-    readFileSync(
-      new URL("./vendor/go-runtime.LICENSE", import.meta.url),
-      "utf8",
-    ),
-  ].join("\n\n");
-  return new Map([
-    [TAILSCALE_ASSETS.wasm, gzip],
-    [TAILSCALE_ASSETS.runtime, runtime],
-    [TAILSCALE_ASSETS.license, license],
-  ]);
+  assertTailscaleHash(
+    result.assets.get(TAILSCALE_ASSETS.nativeHTTP),
+    TAILSCALE_SDK.nativeHTTPHash,
+  );
+  assertTailscaleHash(
+    gunzipSync(result.assets.get(TAILSCALE_ASSETS.wasm)),
+    TAILSCALE_SDK.wasmHash,
+  );
+  return result.assets;
 }
 export function tailscaleWasmAssets() {
   let enabled = false;
@@ -95,9 +82,9 @@ export function tailscaleWasmAssets() {
       enabled = !state.isExcluded("networking.tailnet");
       base = config.base ?? "/";
     },
-    configureServer(server) {
+    async configureServer(server) {
       if (!enabled) return;
-      assets ??= loadTailscaleAssets();
+      assets ??= await loadTailscaleAssets();
       server.middlewares.use((req, res, next) => {
         const path = req.url?.split("?")[0]?.slice(base.length);
         const value = assets.get(path);
@@ -109,9 +96,9 @@ export function tailscaleWasmAssets() {
         res.end(value);
       });
     },
-    generateBundle(_options, bundle) {
+    async generateBundle(_options, bundle) {
       if (!enabled) return;
-      assets ??= loadTailscaleAssets();
+      assets ??= await loadTailscaleAssets();
       for (const [fileName, source] of assets)
         this.emitFile({ type: "asset", fileName, source });
       attachTailscaleAssets(bundle);

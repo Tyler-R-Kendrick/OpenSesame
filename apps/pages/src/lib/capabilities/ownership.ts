@@ -115,6 +115,8 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   [tailscaleArtifacts.assets.wasm]: "networking.tailnet",
   [tailscaleArtifacts.assets.runtime]: "networking.tailnet",
   [tailscaleArtifacts.assets.license]: "networking.tailnet",
+  [tailscaleArtifacts.assets.nativeHTTP]: "networking.tailnet",
+  [tailscaleArtifacts.assets.notices]: "networking.tailnet",
   "icon.svg": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,
@@ -149,6 +151,8 @@ export const GENERATED_PUBLIC_FILES: Readonly<Record<string, string>> =
     [tailscaleArtifacts.assets.wasm]: "scripts/tailscale-wasm-assets.mjs",
     [tailscaleArtifacts.assets.runtime]: "scripts/tailscale-wasm-assets.mjs",
     [tailscaleArtifacts.assets.license]: "scripts/tailscale-wasm-assets.mjs",
+    [tailscaleArtifacts.assets.nativeHTTP]: "scripts/tailscale-wasm-assets.mjs",
+    [tailscaleArtifacts.assets.notices]: "scripts/tailscale-wasm-assets.mjs",
     "auth/native-client.json": "scripts/native-client-metadata-plugin.mjs",
     ".well-known/**": "scripts/write-authenticator-associations.mjs",
     // Emitted during the Vite build, for every deployment that can say which
