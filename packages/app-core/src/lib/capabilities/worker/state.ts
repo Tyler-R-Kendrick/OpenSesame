@@ -8,9 +8,12 @@
  */
 
 import type { DistributionContract } from "@opensesame/capability-composition";
+import { resetDirtyEdits } from "../../dirty-edit.js";
+import { staleAssetReload } from "../../stale-asset-reload.js";
 import type {
   CompositionSnapshotForWorker,
   PendingTransition,
+  ReloadCause,
   WorkerStatus,
 } from "./types.js";
 
@@ -45,6 +48,11 @@ export type ControllerState = {
   afterTakeover: (() => void) | null;
   /** The page has already been told to reload for a new release. */
   reloadStarted: boolean;
+  /**
+   * A reload is owed and held. Cleared when the page reloads, when the new
+   * worker turns out to be the same release, or when a forced reload starts.
+   */
+  updateOwed: ReloadCause | null;
   reconciling: Promise<void>;
   /** The highest `?r=` this page has asked a script for. */
   asked: number;
@@ -63,6 +71,7 @@ const INITIAL_STATUS: WorkerStatus = {
   offlineStatus: "online-only",
   savedModuleIds: [],
   transition: null,
+  updateReady: false,
   diagnostics: [],
 };
 
@@ -84,6 +93,7 @@ function initialFields(): ControllerState {
     takeover: null,
     afterTakeover: null,
     reloadStarted: false,
+    updateOwed: null,
     reconciling: Promise.resolve(),
     asked: 0,
     recoveries: 0,
@@ -115,6 +125,9 @@ export function resetWorkerController(): void {
   state.recheckCancel?.();
   Object.assign(state, initialFields());
   notify();
+  // After the owed reload is gone, so releasing an edit cannot start one.
+  resetDirtyEdits();
+  staleAssetReload.clear();
 }
 
 export function subscribeWorkerStatus(listener: () => void): () => void {
