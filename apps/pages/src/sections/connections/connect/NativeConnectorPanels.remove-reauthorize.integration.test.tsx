@@ -296,6 +296,10 @@ it("withdraws existing A consent when selecting existing same-provider B", async
   expect(screen.queryByRole("button", { name: "Cancel sign-in" })).toBeNull();
 });
 
+function expectOpenPopup(windows: ReturnType<typeof mount>) {
+  expect(windows[0]?.close).not.toHaveBeenCalled();
+}
+
 function heldConfigure() {
   const driver = nativeConnectorDriver("oidc", "vault");
   const configure = driver.configure;
@@ -343,11 +347,15 @@ it.each(["own", "existing B", "new B", "removed"] as const)(
       await waitFor(() => expect(trace.at(-1)?.selected).toBe(ids[1]));
       expect(windows[0]?.close).toHaveBeenCalled();
     } else if (selection === "new B") {
+      await waitFor(() => expect(trace.at(-1)?.selected).toBe(id));
+      expectOpenPopup(windows);
       const b = await act(async () => configuredRecord());
+      await waitFor(() => expect(trace.at(-1)?.selected).toBeNull());
+      expectOpenPopup(windows);
       await userEvent.click(button("Reload actual connection list"));
       await userEvent.click(button("Select latest actual connection"));
       await waitFor(() => expect(trace.at(-1)?.selected).toBe(b));
-      expect(windows[0]?.close).not.toHaveBeenCalled();
+      expect(windows[0]?.close).toHaveBeenCalledOnce();
     } else {
       await userEvent.click(button("Reload actual connection list"));
       await waitFor(() => expect(trace.at(-1)?.selected).toBe(id));

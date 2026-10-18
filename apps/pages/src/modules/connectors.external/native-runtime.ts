@@ -132,6 +132,7 @@ export function bindNativeRuntime(
   };
   const release = bindNativeProviderTransport({
     assertCurrent,
+    signal,
     settleCredentialMutation: async (url, init) => {
       assertCurrent();
       // The coordinator journals its exchange intent before this call. Once

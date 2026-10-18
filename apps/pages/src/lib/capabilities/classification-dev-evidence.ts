@@ -8,6 +8,16 @@ import { core } from "./classification-rule.js";
 
 export const DEV_EVIDENCE_RULES = [
   core(
+    "src/lib/ai-completion-observation.ts",
+    null,
+    "internal observation types and optional seam have no runtime imports or credentials",
+  ),
+  core(
+    "src/verification/ai-completion-verifier.ts",
+    null,
+    "explicit AI verifier build entry observes only the neutral seam; absent from normal builds",
+  ),
+  core(
     "src/dev/",
     null,
     "LockV5Demo dev route for lock-v5 geometry reference (Vite dev only)",

@@ -62,10 +62,7 @@ it("uses the common BYO form to expose four genuinely different API families", a
     "Anthropic Messages",
     "Gemini Generate Content",
   ]);
-  await userEvent.selectOptions(
-    screen.getByLabelText("API family"),
-    "anthropic_messages",
-  );
+  await choose("API family", "anthropic_messages");
   expect(state.onChange).toHaveBeenCalledWith("family", "anthropic_messages");
   expect(screen.getByLabelText("API base URL")).toHaveProperty(
     "value",
@@ -117,84 +114,109 @@ async function replace(label: string, value: string) {
   await userEvent.type(screen.getByLabelText(label), value);
 }
 
-it("controls native v1 and dated Chat drafts through Test and Save without stale results", async () => {
-  const state = await controlled();
-  expect(screen.getByLabelText("Azure resource endpoint")).toHaveProperty(
-    "value",
-    "",
-  );
-  expect(screen.getByLabelText("Deployment ID")).toHaveProperty("value", "");
-  expect(screen.getByLabelText("Azure API mode")).toHaveProperty("value", "v1");
-  expect(screen.queryByLabelText("Authentication")).toBeNull();
-  expect(screen.queryByLabelText("Endpoint type")).toBeNull();
-  expect(action()).toHaveProperty("disabled", true);
-  await enterAzure();
-  await userEvent.click(action());
-  expect(
-    await screen.findByRole("img", { name: "Model inference verified" }),
-  ).toBeTruthy();
-  expect(state.test).toHaveBeenLastCalledWith(
-    expect.objectContaining({
-      providerId: "azure-openai",
-      baseUrl: endpoint,
-      model: "deployment-01",
-      apiKey: secret,
-      azure: { api: "v1", credential: "api-key" },
-    }),
-    undefined,
-  );
-  await userEvent.selectOptions(
-    screen.getByLabelText("API family"),
-    "openai_responses",
-  );
-  await userEvent.selectOptions(
-    screen.getByLabelText("Azure API mode"),
-    "dated-chat",
-  );
-  expect(screen.getByLabelText("API family")).toHaveProperty(
-    "value",
-    "openai_chat",
-  );
-  expect(
-    screen.getByRole("option", { name: "OpenAI Responses" }),
-  ).toHaveProperty("disabled", true);
-  expect(
-    screen.queryByRole("img", { name: "Model inference verified" }),
-  ).toBeNull();
-  expect(screen.getByLabelText("Azure API key")).toHaveProperty("value", "");
-  await userEvent.type(
-    screen.getByLabelText("Azure API version"),
-    "2024-02-31",
-  );
-  await userEvent.type(screen.getByLabelText("Azure API key"), secret);
-  expect(action()).toHaveProperty("disabled", true);
-  await replace("Azure API version", "2024-10-21");
-  await userEvent.type(screen.getByLabelText("Azure API key"), secret);
-  await userEvent.click(action());
-  await waitFor(() => expect(state.test).toHaveBeenCalledTimes(2));
-  expect(state.test.mock.lastCall?.[0].azure).toEqual({
-    api: "dated-chat",
-    apiVersion: "2024-10-21",
-    credential: "api-key",
-  });
-  await userEvent.selectOptions(screen.getByLabelText("Azure API mode"), "v1");
-  expect(screen.queryByLabelText("Azure API version")).toBeNull();
-  await userEvent.selectOptions(
-    screen.getByLabelText("API family"),
-    "openai_responses",
-  );
+async function choose(label: string, value: string) {
+  await userEvent.selectOptions(screen.getByLabelText(label), value);
+}
+async function datedOverride(state: Awaited<ReturnType<typeof controlled>>) {
+  await userEvent.click(screen.getByText("Connection setup"));
+  await choose("Output token parameter", "max_completion_tokens");
+  await replace("Azure API version", "2024-06-01");
+  await choose("Azure authentication", "entra-token");
+  await choose("Azure authentication", "api-key");
+  await replace("Connection name", "Dated explicit override");
   await userEvent.type(screen.getByLabelText("Azure API key"), secret);
   await userEvent.click(action("Save AI connection"));
-  await waitFor(() => expect(state.save).toHaveBeenCalledOnce());
-  expect(state.save.mock.lastCall?.[0]).toMatchObject({
-    family: "openai_responses",
-    azure: { api: "v1", credential: "api-key" },
-    apiKey: secret,
-  });
-  expect(state.save.mock.lastCall?.[0].azure).not.toHaveProperty("apiVersion");
-  expect(screen.getByLabelText("Azure API key")).toHaveProperty("value", "");
-  expect(document.body.textContent).not.toContain(secret);
-});
+  await waitFor(() => expect(state.save).toHaveBeenCalledTimes(2));
+  expect(state.save.mock.lastCall?.[0].tokenParameter).toBe(
+    "max_completion_tokens",
+  );
+}
+
+it.each(["azure-openai", "byo-ai"])(
+  "controls %s v1 and dated Chat drafts through Test and Save without stale results",
+  async (providerId) => {
+    const state = await controlled(providerId);
+    if (providerId === "byo-ai") await choose("Endpoint type", "azure");
+    expect(screen.getByLabelText("Azure resource endpoint")).toHaveProperty(
+      "value",
+      "",
+    );
+    expect(screen.getByLabelText("Deployment ID")).toHaveProperty("value", "");
+    expect(screen.getByLabelText("Azure API mode")).toHaveProperty(
+      "value",
+      "v1",
+    );
+    expect(screen.queryByLabelText("Authentication")).toBeNull();
+    if (providerId === "azure-openai")
+      expect(screen.queryByLabelText("Endpoint type")).toBeNull();
+    expect(action()).toHaveProperty("disabled", true);
+    await enterAzure();
+    await userEvent.click(action());
+    expect(
+      await screen.findByRole("img", { name: "Model inference verified" }),
+    ).toBeTruthy();
+    expect(state.test).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        providerId,
+        tokenParameter: "max_completion_tokens",
+        baseUrl: endpoint,
+        model: "deployment-01",
+        apiKey: secret,
+        azure: { api: "v1", credential: "api-key" },
+      }),
+      undefined,
+    );
+    await choose("API family", "openai_responses");
+    await choose("Azure API mode", "dated-chat");
+    expect(screen.getByLabelText("API family")).toHaveProperty(
+      "value",
+      "openai_chat",
+    );
+    expect(
+      screen.getByRole("option", { name: "OpenAI Responses" }),
+    ).toHaveProperty("disabled", true);
+    expect(
+      screen.queryByRole("img", { name: "Model inference verified" }),
+    ).toBeNull();
+    expect(screen.getByLabelText("Azure API key")).toHaveProperty("value", "");
+    await userEvent.type(
+      screen.getByLabelText("Azure API version"),
+      "2024-02-31",
+    );
+    await userEvent.type(screen.getByLabelText("Azure API key"), secret);
+    expect(action()).toHaveProperty("disabled", true);
+    await replace("Azure API version", "2024-10-21");
+    await userEvent.type(screen.getByLabelText("Azure API key"), secret);
+    await userEvent.click(action());
+    await waitFor(() => expect(state.test).toHaveBeenCalledTimes(2));
+    expect(state.test.mock.lastCall?.[0].azure).toEqual({
+      api: "dated-chat",
+      apiVersion: "2024-10-21",
+      credential: "api-key",
+    });
+    expect(state.test.mock.lastCall?.[0].tokenParameter).toBe("max_tokens");
+    await userEvent.click(action("Save AI connection"));
+    await waitFor(() => expect(state.save).toHaveBeenCalledOnce());
+    expect(state.save.mock.lastCall?.[0].tokenParameter).toBe("max_tokens");
+    await datedOverride(state);
+    await choose("Azure API mode", "v1");
+    expect(screen.queryByLabelText("Azure API version")).toBeNull();
+    await choose("API family", "openai_responses");
+    await userEvent.type(screen.getByLabelText("Azure API key"), secret);
+    await userEvent.click(action("Save AI connection"));
+    await waitFor(() => expect(state.save).toHaveBeenCalledTimes(3));
+    expect(state.save.mock.lastCall?.[0]).toMatchObject({
+      family: "openai_responses",
+      azure: { api: "v1", credential: "api-key" },
+      apiKey: secret,
+    });
+    expect(state.save.mock.lastCall?.[0].azure).not.toHaveProperty(
+      "apiVersion",
+    );
+    expect(screen.getByLabelText("Azure API key")).toHaveProperty("value", "");
+    expect(document.body.textContent).not.toContain(secret);
+  },
+);
 
 it.each(["anthropic_messages", "gemini_generate_content"])(
   "composes BYO Azure and clears it for %s",
@@ -204,14 +226,8 @@ it.each(["anthropic_messages", "gemini_generate_content"])(
       "value",
       "standard",
     );
-    await userEvent.selectOptions(
-      screen.getByLabelText("Endpoint type"),
-      "azure",
-    );
-    await userEvent.selectOptions(
-      screen.getByLabelText("Azure authentication"),
-      "entra-token",
-    );
+    await choose("Endpoint type", "azure");
+    await choose("Azure authentication", "entra-token");
     expect(screen.getByLabelText("Entra access token")).toHaveProperty(
       "type",
       "password",
@@ -227,7 +243,7 @@ it.each(["anthropic_messages", "gemini_generate_content"])(
       apiKey: secret,
       azure: { api: "v1", credential: "entra-token" },
     });
-    await userEvent.selectOptions(screen.getByLabelText("API family"), family);
+    await choose("API family", family);
     expect(screen.queryByLabelText("Azure API mode")).toBeNull();
     expect(screen.getByLabelText("API key")).toHaveProperty("value", "");
     expect(screen.getByLabelText("Model ID")).toBeTruthy();
@@ -250,10 +266,7 @@ it("keeps saved Forget/workspace visible while target edits require a replacemen
   await replace("Connection name", "Renamed Azure");
   await replace("Azure resource endpoint", `${endpoint}/`);
   expect(action()).toHaveProperty("disabled", false);
-  await userEvent.selectOptions(
-    screen.getByLabelText("Azure authentication"),
-    "entra-token",
-  );
+  await choose("Azure authentication", "entra-token");
   expect(screen.getByLabelText("Entra access token")).toHaveProperty(
     "value",
     "",
@@ -300,10 +313,7 @@ it("disables every field and action while a controlled Test is pending", async (
 it("clears an entered key when choosing supplied Entra authentication and redacts failures", async () => {
   const state = await controlled();
   await enterAzure();
-  await userEvent.selectOptions(
-    screen.getByLabelText("Azure authentication"),
-    "entra-token",
-  );
+  await choose("Azure authentication", "entra-token");
   expect(screen.getByLabelText("Entra access token")).toHaveProperty(
     "value",
     "",
@@ -315,10 +325,7 @@ it("clears an entered key when choosing supplied Entra authentication and redact
   await waitFor(() => expect(state.flash).toHaveBeenCalledOnce());
   expect(document.body.textContent).not.toContain(secret);
   expect(JSON.stringify(state.flash.mock.calls)).not.toContain(secret);
-  await userEvent.selectOptions(
-    screen.getByLabelText("Azure API mode"),
-    "dated-chat",
-  );
+  await choose("Azure API mode", "dated-chat");
   expect(screen.queryByRole("img", { name: /Refused/ })).toBeNull();
 });
 
