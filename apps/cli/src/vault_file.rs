@@ -11,6 +11,8 @@
 //! the same local-vault commands the Pages app offers; this binary forwards
 //! them to `opensesame-id`, which holds the vault core.
 
+mod node;
+
 use std::{
     io::IsTerminal,
     path::{Path, PathBuf},
@@ -222,7 +224,9 @@ fn id_cli_in(lookup: &Lookup) -> anyhow::Result<std::process::Command> {
 
 /// Item commands run in `opensesame-id`, which shares the Pages vault core.
 fn forward(args: &[String]) -> anyhow::Result<()> {
-    let mut command = id_cli_in(&Lookup::capture())?;
+    let lookup = Lookup::capture();
+    let mut command = id_cli_in(&lookup)?;
+    let _node = node::provide(&mut command, &lookup)?;
     let program = command.get_program().to_string_lossy().into_owned();
     let status = command
         .args(args)
