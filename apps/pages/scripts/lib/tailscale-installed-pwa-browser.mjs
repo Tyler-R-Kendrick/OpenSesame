@@ -39,7 +39,9 @@ export function emittedTailnetWorker(dist) {
   if (!owner) throw new Error("Built graph has no Tailscale controller owner");
   const text = fs.readFileSync(path.join(dist, owner.file), "utf8");
   const files = graph.assets.filter(
-    (asset) => asset.file.endsWith(".js") && text.includes(asset.file),
+    (asset) =>
+      /^assets\/tailscale-node-[A-Za-z0-9_-]+\.js$/.test(asset.file) &&
+      text.includes(asset.file),
   );
   if (files.length !== 1)
     throw new Error(
