@@ -72,6 +72,28 @@ fn a_keyed_store_without_its_passphrase_is_locked() {
     assert_eq!(wrong.open().err(), Some(SourceError::Locked));
 }
 
+#[test]
+fn an_unkeyed_store_never_opens_a_zero_key_native_entry() {
+    let dir = tempfile::tempdir().unwrap();
+    init_store(dir.path(), &[]).unwrap();
+    let blob = opensesame_sealed_store::seal_osseal(
+        b"injected-secret\nurl: https://example.com/\n",
+        &opensesame_sealed_store::ItemDataKey([0; 32]),
+        "Web/example.com",
+        1,
+    )
+    .unwrap();
+    std::fs::create_dir(dir.path().join("Web")).unwrap();
+    std::fs::write(dir.path().join("Web/example.com.osseal"), blob).unwrap();
+    let source = SealedSource::at(dir.path().to_path_buf(), "");
+    let reader = source.open().unwrap();
+    assert_eq!(
+        reader.read("Web/example.com").err(),
+        Some(SourceError::Locked)
+    );
+    assert!(!dir.path().join(".opensesame-revisions.json").exists());
+}
+
 /// An account the vault wrote: sites and methods in the trailer's JSON, and no
 /// password in the file when an algorithm computes it (ADR 0174).
 fn account_entry(path: &str, secret: &str, method: &serde_json::Value) -> (String, Entry) {

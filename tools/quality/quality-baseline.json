@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 419,
-    "violations": 646,
-    "oversizedLines": 213062
+    "files": 418,
+    "violations": 645,
+    "oversizedLines": 212435
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -499,9 +499,6 @@
     },
     "crates/sealed-store/src/git.rs": {
       "max-lines": 432
-    },
-    "crates/sealed-store/src/store.rs": {
-      "max-lines": 627
     },
     "crates/session-observe/src/lease.rs": {
       "max-lines": 625
