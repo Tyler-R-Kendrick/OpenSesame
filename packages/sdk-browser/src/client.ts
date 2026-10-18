@@ -24,10 +24,7 @@ import type {
   Session,
   TokenResponse,
 } from "./types.js";
-
-function trimSlash(url: string): string {
-  return url.replace(/\/+$/u, "");
-}
+import { stripTrailingSlashes as trimSlash } from "./url-normalization.js";
 
 function resolvePageOrigin(
   config: OpenSesameBrowserConfig,

@@ -99,3 +99,11 @@ describe("what copying an account without a password gives", () => {
     expect(credentialLine(account([password, apiKey("k1")]))).toBeNull();
   });
 });
+
+it("handles adversarial header suffixes without changing header spelling", () => {
+  expect(headerName(`X-${" ".repeat(200_000)}!`)).toBe(
+    `X-${" ".repeat(200_000)}!`,
+  );
+  expect(headerName(` X-Key ${":".repeat(200_000)} `)).toBe("X-Key");
+  expect(headerName("X-Key: :")).toBe("X-Key:");
+});

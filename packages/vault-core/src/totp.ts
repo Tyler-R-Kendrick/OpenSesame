@@ -22,7 +22,7 @@ export class TotpParseError extends Error {
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 export function decodeBase32(input: string): Uint8Array {
-  const clean = input.replace(/[\s-]/g, "").replace(/=+$/, "").toUpperCase();
+  const clean = normalizeBase32(input);
   if (!clean) throw new TotpParseError("the secret is empty");
   let bits = 0;
   let value = 0;
@@ -258,7 +258,7 @@ export function totpSetupUri(raw: string, opts: TotpSetupOptions = {}): string {
     return trimmed;
   }
   const config = parseTotp(trimmed);
-  const secret = trimmed.replace(/[\s-]/g, "").replace(/=+$/, "").toUpperCase();
+  const secret = normalizeBase32(trimmed);
   const label = encodeURIComponent(opts.label ?? "OpenSesame");
   const params = new URLSearchParams({
     secret,
@@ -268,4 +268,11 @@ export function totpSetupUri(raw: string, opts: TotpSetupOptions = {}): string {
   });
   if (opts.issuer) params.set("issuer", opts.issuer);
   return `otpauth://totp/${label}?${params.toString()}`;
+}
+
+function normalizeBase32(input: string): string {
+  const compact = input.replace(/[\s-]/g, "");
+  let end = compact.length;
+  while (end > 0 && compact[end - 1] === "=") end -= 1;
+  return compact.slice(0, end).toUpperCase();
 }

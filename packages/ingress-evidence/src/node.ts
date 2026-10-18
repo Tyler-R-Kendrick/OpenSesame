@@ -57,10 +57,18 @@ function fail(code: VerifyErrorCode, detail: string): never {
 }
 
 function parseAnchors(trustPem: string): X509Certificate[] {
-  const blocks =
-    trustPem.match(
-      /-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g,
-    ) ?? [];
+  const blocks: string[] = [];
+  const beginMarker = "-----BEGIN CERTIFICATE-----";
+  const endMarker = "-----END CERTIFICATE-----";
+  let offset = 0;
+  while (offset < trustPem.length) {
+    const begin = trustPem.indexOf(beginMarker, offset);
+    if (begin < 0) break;
+    const end = trustPem.indexOf(endMarker, begin + beginMarker.length);
+    if (end < 0) break;
+    offset = end + endMarker.length;
+    blocks.push(trustPem.slice(begin, offset));
+  }
   if (blocks.length === 0)
     fail("malformed_configuration", "trust bundle holds no certificate");
   return blocks.map((block) => {

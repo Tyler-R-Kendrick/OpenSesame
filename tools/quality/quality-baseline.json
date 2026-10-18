@@ -18,7 +18,7 @@
   "totals": {
     "files": 418,
     "violations": 645,
-    "oversizedLines": 212422
+    "oversizedLines": 212361
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -720,7 +720,7 @@
       "max-lines": 1617
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
-      "max-lines": 412,
+      "max-lines": 411,
       "max-lines-per-function": 1
     },
     "packages/ceremony-kit/src/interaction-url.ts": {
@@ -854,7 +854,7 @@
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/interactions/byo.ts": {
-      "max-lines": 436
+      "max-lines": 431
     },
     "packages/control-plane/src/interactions/federated.ts": {
       "max-lines": 842
@@ -874,7 +874,7 @@
     },
     "packages/control-plane/src/interactions/registry.ts": {
       "complexity": 2,
-      "max-lines": 744
+      "max-lines": 741
     },
     "packages/control-plane/src/interactions/saml.ts": {
       "complexity": 2,
@@ -1013,7 +1013,7 @@
     },
     "packages/control-plane/src/services/better-auth-bridge.ts": {
       "complexity": 1,
-      "max-lines": 424,
+      "max-lines": 418,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/services/identity-link.ts": {
@@ -1055,7 +1055,7 @@
       "max-lines-per-function": 1
     },
     "packages/database/src/repos/interfaces.ts": {
-      "max-lines": 856
+      "max-lines": 849
     },
     "packages/database/src/repos/memory.ts": {
       "max-lines": 1718
@@ -1236,7 +1236,7 @@
     },
     "packages/sdk-browser/src/client.ts": {
       "complexity": 1,
-      "max-lines": 543,
+      "max-lines": 540,
       "max-lines-per-function": 1
     },
     "packages/sdk-browser/src/edge-cases.test.ts": {
@@ -1288,7 +1288,7 @@
       "max-lines": 437
     },
     "packages/support-agent/src/turn.ts": {
-      "max-lines": 508
+      "max-lines": 472
     },
     "packages/trust-broker/src/approval.ts": {
       "complexity": 1

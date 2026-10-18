@@ -14,8 +14,8 @@ import type { AppContext } from "../context.js";
 import {
   ByoRegistrationError,
   type ByoRegistrationErrorCode,
-  INVALID_ISSUER_MESSAGE,
   assertSafeUpstreamUrl,
+  checkedByoIssuer,
   upstreamFetch,
 } from "./byo-fence.js";
 import { normalizeIssuer } from "./registry.js";
@@ -94,8 +94,6 @@ const REGISTRATION_UNSUPPORTED_MESSAGE =
 const RATE_LIMITED_MESSAGE =
   "Too many provider registrations from here. Try again in a few minutes.";
 
-/** Longer than any real issuer; a URL this long is not one. */
-const MAX_ISSUER_LENGTH = 512;
 /** Client identifiers and secrets an IdP hands a human to paste back. */
 const MAX_CLIENT_FIELD_LENGTH = 512;
 const DISCOVERY_TIMEOUT_MS = 5_000;
@@ -344,10 +342,7 @@ async function register(
   input: ByoRegistrationInput,
   fingerprint: string,
 ): Promise<ByoUpstream> {
-  const issuer = normalizeIssuer(input.issuer ?? "");
-  if (!issuer || issuer.length > MAX_ISSUER_LENGTH) {
-    throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
-  }
+  const issuer = checkedByoIssuer(input.issuer ?? "");
   const issuerUrl = assertSafeUpstreamUrl(ctx, issuer);
 
   // The budget sits in front of the store lookup as well as the network: a

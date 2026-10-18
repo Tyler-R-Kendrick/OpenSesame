@@ -297,3 +297,25 @@ describe("previews", () => {
     ).toBe("Example Savings · checking");
   });
 });
+
+it("compares title suffixes with ASCII-only trimming and rejects oversized titles", () => {
+  const registry = builtinRegistry();
+  const first = communityDefinition(
+    "suffix-first",
+    "https://first.test",
+  ).replace("Community type", `Community${" ".repeat(20)}!`);
+  expect(registry.install(first, "vault")).toMatchObject({ ok: true });
+  const duplicate = communityDefinition("suffix-second", "https://first.test")
+    .replace("Community type", ` Community${" ".repeat(20)}! `)
+    .replace('".ct"', '".other"')
+    .replace("Community types", "Other types");
+  expect(registry.install(duplicate, "vault")).toMatchObject({
+    ok: false,
+    errors: [{ code: "name", path: "spec.title" }],
+  });
+  const oversized = communityDefinition(
+    "oversized",
+    "https://first.test",
+  ).replace("Community type", `Community${" ".repeat(200_000)}!`);
+  expect(registry.install(oversized, "vault").ok).toBe(false);
+});

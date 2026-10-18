@@ -141,7 +141,10 @@ const ALIAS_PATHS: Record<(typeof MTLS_ENDPOINT_ALIASES)[number], string> = {
 export function mtlsDiscovery(
   transport: MtlsTransport | undefined,
 ): JsonObject | undefined {
-  const base = transport?.endpointAliasBase?.replace(/\/+$/, "");
+  const base =
+    transport?.endpointAliasBase === undefined
+      ? undefined
+      : stripTrailingSlashes(transport.endpointAliasBase);
   if (!base) return undefined;
   const aliases: JsonObject = {};
   for (const name of MTLS_ENDPOINT_ALIASES) {
@@ -239,4 +242,11 @@ export function combineExtraClientMetadata(
       }
     },
   };
+}
+
+/** Remove a slash suffix in linear time, including on malformed input. */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }

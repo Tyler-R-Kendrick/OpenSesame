@@ -81,7 +81,10 @@ export function mergeOtpauthIntoTrailer(
   trailer: string,
   otpauth: string | null | undefined,
 ): string {
-  const without = stripOtpauthFromTrailer(trailer).replace(/\n+$/u, "");
+  const stripped = stripOtpauthFromTrailer(trailer);
+  let end = stripped.length;
+  while (end > 0 && stripped[end - 1] === "\n") end -= 1;
+  const without = stripped.slice(0, end);
   if (!otpauth?.trim()) {
     return without ? `${without}\n` : "";
   }

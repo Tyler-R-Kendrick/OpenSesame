@@ -14,7 +14,7 @@ export const ID_TOKEN_ALGORITHMS = ["RS256", "ES256"] as const;
 export type IdTokenAlgorithm = (typeof ID_TOKEN_ALGORITHMS)[number];
 
 export function trimSlash(url: string): string {
-  return url.replace(/\/+$/u, "");
+  return stripTrailingSlashes(url);
 }
 
 export function hasRequiredScopes(
@@ -151,4 +151,11 @@ export function mapJwtVerifyError(error: Error | undefined): AuthError {
   return new AuthError("invalid_token", "Token verification failed", {
     cause: error,
   });
+}
+
+/** Remove a slash suffix in linear time, including on malformed input. */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }

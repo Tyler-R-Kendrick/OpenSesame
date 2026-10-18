@@ -101,7 +101,12 @@ export function directoryOf(plural: string, id: string): string {
  * about U+FEFF, and the two planes must refuse the same installs.
  */
 function titleKey(title: string): string {
-  return title.replaceAll(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").toLowerCase();
+  let start = 0;
+  let end = title.length;
+  const asciiSpace = (char: string) => "\t\n\f\r ".includes(char);
+  while (start < end && asciiSpace(title[start] ?? "")) start += 1;
+  while (end > start && asciiSpace(title[end - 1] ?? "")) end -= 1;
+  return title.slice(start, end).toLowerCase();
 }
 
 /** Compare two `major.minor.patch` versions: negative, zero or positive. */

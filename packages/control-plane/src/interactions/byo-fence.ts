@@ -5,6 +5,7 @@ import {
   assertPublicUpstreamUrl,
   guardedFetch,
 } from "../services/guarded-fetch.js";
+import { normalizeIssuer } from "./issuer-normalization.js";
 
 /**
  * The network fence for bring-your-own upstreams (D5), split out of `./byo.ts`
@@ -113,4 +114,16 @@ export async function upstreamFetch(
     if (!(error instanceof UnsafeUpstreamError)) throw error;
     throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
   }
+}
+
+/** Bound untrusted input before issuer normalization or network work. */
+export function checkedByoIssuer(rawIssuer: string): string {
+  const maxIssuerLength = 512;
+  if (rawIssuer.length > maxIssuerLength) {
+    throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
+  }
+  const issuer = normalizeIssuer(rawIssuer);
+  if (!issuer)
+    throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
+  return issuer;
 }
