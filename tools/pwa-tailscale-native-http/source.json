@@ -342,7 +342,22 @@
       {
         "path": "compose-native.test.mjs",
         "sha256": "e04c873a47fb06a1b143f20a153fb03166409658160bed53003ede4319819fbd"
+      },
+      {
+        "path": "compress-wasm.mjs",
+        "sha256": "4aa3ed9f0387d9c14a8b146e31f806855e3a7d405e32bfa490f3f6d643dc4411"
+      },
+      {
+        "path": "compress-wasm.test.mjs",
+        "sha256": "2e2ccdb1b4ca6b9e04dfb6c07db288195f0ddfa37950486d1be25b81846ba5a7"
       }
-    ]
+    ],
+    "compressor": {
+      "version": "2.8",
+      "archiveURL": "https://zlib.net/pigz/pigz-2.8.tar.gz",
+      "archiveSha256": "eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0",
+      "arguments": ["-11", "-I", "3", "-p", "2", "-b", "1024", "-n", "-c"],
+      "qualification": "Owned build-only source compilation, not an installed PWA dependency. Each output must decode to the exact complete input bytes; source archive, notices, compiler and executable provenance are retained. No four-phase Go build or runtime feature change."
+    }
   }
 }
