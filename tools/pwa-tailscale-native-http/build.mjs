@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { nativePatchCommand } from "./apply-native-patch.mjs";
 import { composeNative, nativeBuildEnvironment } from "./compose-native.mjs";
 import { emitNativeAssets } from "./native-assets.mjs";
 import { nativeBuildFailureContext } from "./preparation-diagnostics.mjs";
@@ -177,7 +178,8 @@ async function execute(program, args, name, verify = criticalPins) {
     await log.close();
     throw new Error("Private compile interrupted before child start.");
   }
-  const child = spawn(program, args, {
+  const command = nativePatchCommand(program, args);
+  const child = spawn(command.program, command.args, {
     cwd: source,
     env: nativeBuildEnvironment(output, moduleFlags),
     detached: true,

@@ -226,7 +226,7 @@
       },
       {
         "path": "select-toolchain.test.mjs",
-        "sha256": "d34b4831a89e74abfce539aaa9ce7f75e9cbffc97b6e003c84966192780667ef"
+        "sha256": "a00bda2591f1c498c19b86c845e05a9a6ad1235dd091073a85fe916d05a7b622"
       },
       {
         "path": "native-toolchain.patch",
@@ -329,7 +329,7 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "8fd02c52c5567af3d14f540669a152392b601640c06cd3f8604529ac817aba9a"
+        "sha256": "6c4e109474ff5ca5f61e7e82ab566faf1e7bee91248004fd1ca1f890293420cf"
       },
       {
         "path": "compose-native.mjs",

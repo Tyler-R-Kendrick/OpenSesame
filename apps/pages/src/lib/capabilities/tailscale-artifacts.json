@@ -9,7 +9,7 @@
     "nativeHTTPHash": "e4f4f9f67492305cddde8903e146e2e9a3517dcb7cd7b459fe67dc7a9bce08dd"
   },
   "native": {
-    "sourceMetadataSha256": "08154c4c94e0a9668430b0b53b3e016fbe66fa07a2be0925bd27c7453af62a04",
+    "sourceMetadataSha256": "0bb16fe4339e50fdcd55f9b7bd9cf7e7819d48c88a80756b635ae5d00cf8dad6",
     "manifestSha256": "8ef47909d12263729af9ef633890e3f51855793874e1fcfea680713075eb60ef",
     "sourceCommit": "b31d8a75af155bcf19853d1a66041782d13e56ae",
     "compilerCommit": "186053ab2af2ef8fc43f3c1d1150216e89d4aff0",

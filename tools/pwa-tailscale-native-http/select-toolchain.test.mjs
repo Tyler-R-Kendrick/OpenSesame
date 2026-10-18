@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { rm } from "node:fs/promises";
 import {
@@ -14,6 +14,7 @@ import { resolve } from "node:path";
 import { join } from "node:path";
 import { after } from "node:test";
 import test from "node:test";
+import { nativePatchCommand } from "./apply-native-patch.mjs";
 import { selectNativeToolchain } from "./select-toolchain.mjs";
 
 const sourceInput = process.env.PWA_NATIVE_HTTP_SOURCE;
@@ -54,11 +55,16 @@ async function fixture() {
       assert.equal(await digest(path), expected),
     execute: async (program, args, name, verify) => {
       await verify();
-      const result = spawnSync(program, args, {
-        cwd: source,
-        env: { PATH: process.env.PATH, LANG: "C.UTF-8" },
-        timeout: 5000,
-        encoding: "utf8",
+      const command = nativePatchCommand(program, args);
+      const result = await new Promise((accept) => {
+        const child = spawn(command.program, command.args, {
+          cwd: source,
+          env: { PATH: process.env.PATH, LANG: "C.UTF-8" },
+          timeout: 5000,
+          stdio: "ignore",
+        });
+        child.once("error", (error) => accept({ error, status: null }));
+        child.once("close", (status) => accept({ error: undefined, status }));
       });
       commands.push({ name, status: result.status });
       assert.equal(result.error, undefined);
