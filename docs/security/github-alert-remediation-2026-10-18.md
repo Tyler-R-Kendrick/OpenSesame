@@ -18,6 +18,7 @@ Base inspected: `495f1d42082dcd56b7a3d50bf39cfc645c2f7acd`. Changes are in signe
 | [1524](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1524) | Kotlin Android/Compose 2.4.20, supported R8 9.1.31 override, and JVM 17 compiler-options migration |
 | [1528](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1528) | Patch 46 advisory IDs in Android build-only dependencies through a Netty BOM and scoped constraints |
 | [1550](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1550) | Remove remaining Rust advisory implementations: AWS-LC RSA, direct SQLite/Postgres drivers, metadata-only system D-Bus |
+| [1554](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1554) | WXT tinyglobby upgrade; remove optional ADB crypto/JKS dependencies and obsolete advisory exceptions |
 
 Independent read-only investigation preceded fixes; fresh candidate reviews identified compatibility regressions that were corrected before shipping. Full repository verification and post-fix CodeQL results are recorded below when complete. No new alert suppressions were added.
 
