@@ -46,7 +46,13 @@ pub struct Fixture {
 }
 
 fn write_script(path: &Path, body: &str, mode: u32) {
-    std::fs::write(path, format!("#!/bin/sh\n{body}\n")).expect("write stub");
+    // Sync before close: a stub exec'd the moment after it is written can
+    // otherwise meet `ETXTBSY` on a busy CI filesystem.
+    let mut file = std::fs::File::create(path).expect("write stub");
+    std::io::Write::write_all(&mut file, format!("#!/bin/sh\n{body}\n").as_bytes())
+        .and_then(|()| file.sync_all())
+        .expect("write stub");
+    drop(file);
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).expect("chmod stub");
 }
 

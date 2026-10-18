@@ -46,8 +46,10 @@ pub(super) fn provide(command: &mut Command, lookup: &Lookup) -> anyhow::Result<
     Ok(Some(dir))
 }
 
-/// Windows starts no script through `env`, so there is nothing to do.
+/// Windows starts no script through `env`, so there is nothing to do. The
+/// signature matches the Unix one, which can fail.
 #[cfg(not(unix))]
+#[allow(clippy::unnecessary_wraps)]
 pub(super) fn provide(_: &mut Command, _: &Lookup) -> anyhow::Result<Option<TempDir>> {
     Ok(None)
 }
