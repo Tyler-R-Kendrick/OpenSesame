@@ -90,6 +90,17 @@ fn capture_vaults(
         return Ok(vaults);
     };
     for (tomb, directory) in &catalogue.names {
+        // The installed CLI keeps its non-authoritative registry next to physical vault directories.
+        // Only this exact regular file is metadata; a same-named directory is still a real scope.
+        if tomb == "tombs.json" && !directory {
+            let mut metadata =
+                HeldPrivateRead::open(Arc::clone(&catalogue.directory), Path::new(tomb), 65536)?;
+            metadata.validate()?;
+            continue;
+        }
+        if vaults.len() >= MAX_TOMBS {
+            return Err(refused());
+        }
         tomb_name(tomb)?;
         if !directory {
             return Err(refused());
@@ -118,7 +129,7 @@ impl NativeNodeCredentialLease {
             .map(|root| Snapshot::capture(root, MAX_NAMES))
             .transpose()?;
         let catalogue = optional_child(&self.state.root, "vault")?
-            .map(|root| Snapshot::capture(root, MAX_TOMBS))
+            .map(|root| Snapshot::capture(root, MAX_TOMBS + 1))
             .transpose()?;
         let vaults = capture_vaults(
             catalogue.as_ref(),

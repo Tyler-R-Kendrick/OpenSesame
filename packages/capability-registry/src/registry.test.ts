@@ -132,6 +132,8 @@ describe("agent-surface parity rules", () => {
       "sealed_store.pass",
       "configs.values.read",
       "vault.totp.seed",
+      "vault.retired_credentials.manage",
+      "vault.agent_canaries.manage",
     ]) {
       const capability = CAPABILITIES.find((c) => c.id === id);
       expect(capability, `registry lost exclusion entry ${id}`).toBeDefined();

@@ -199,3 +199,23 @@ fn actual_later_case_alias_creation_retires_original_absent_parent_observation()
         }
     }
 }
+#[test]
+fn installed_cli_registry_file_never_hides_a_physical_vault_scope() {
+    let (_temp, _path, root) = fixture();
+    root.create_child(Path::new("origin-files")).unwrap();
+    let catalogue = root.create_child(Path::new("vault")).unwrap();
+    write_new(
+        &catalogue,
+        Path::new("tombs.json"),
+        br#"{"declared":"none"}"#,
+    )
+    .unwrap();
+    catalogue
+        .create_child(Path::new("physical-undeclared"))
+        .unwrap();
+    let state = NativeNodeDataState::capture(root).unwrap();
+    let credential = state.credential_writer().unwrap();
+    let inventory = credential.capture_device_inventory().unwrap();
+    assert_eq!(inventory.tombs().unwrap(), vec!["physical-undeclared"]);
+    inventory.validate().unwrap();
+}

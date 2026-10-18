@@ -25,13 +25,11 @@ import {
   type DrivePairing,
   parsePairingCode,
 } from "@opensesame/app-core/lib/tailnet-sync/pairing.js";
-import {
-  createNodeHost,
-  defaultStateDir,
-} from "@opensesame/app-core/node/host.js";
+import { defaultStateDir } from "@opensesame/app-core/node/host.js";
 import { emit } from "./output.js";
 import type { ParsedCommand } from "./parse.js";
 import { readPasswordFromTty } from "./tty-password.js";
+import { createAvailableCliVaultHost } from "./vault-host.js";
 import { useVaultKv } from "./vault-kv.js";
 
 type SyncCommand = Extract<ParsedCommand, { name: "vault-sync" }>;
@@ -66,7 +64,7 @@ export async function syncVault(
   const transport = deps.transport ?? defaultTransport;
   const given = pairingFrom(command.code);
   await useVaultKv(stateDir);
-  configureHost(createNodeHost({ stateDir }));
+  configureHost(await createAvailableCliVaultHost(stateDir));
   const { vaultStore } = await import(
     "@opensesame/app-core/lib/vault/store.js"
   );
