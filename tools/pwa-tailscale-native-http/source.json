@@ -117,7 +117,7 @@
       },
       {
         "path": "native-http.mjs",
-        "sha256": "c050fa69e55b09f27eafc796d37765fd64655a75399d06d59c14774784396071"
+        "sha256": "643174a0a96ec1d3adc8340d98a9fbcd540f3576b149ea05653b537be2eac996"
       },
       {
         "path": "native-http.test.mjs",
@@ -127,7 +127,9 @@
     "existingRuntimeImport": {
       "package": "zod",
       "version": "3.25.67",
-      "qualification": "Existing root lockfile dependency, no install or dependency change. The actual later worker bundle must verify its resolved graph."
+      "qualification": "Existing root lockfile dependency, no install or dependency change. The actual later worker bundle must verify its resolved graph.",
+      "entryPoint": "zod/v4/mini",
+      "initialization": "z.config({ jitless: true }) before schemas; no dynamic-code schema compilation in the isolated worker."
     },
     "qualification": "The fixed original-node staging helper now stages this exact bridge; existing build.mjs composition remains a separate small source change. JS controls prove negative Promise ownership only. Actual compiled node and compiler selection receipts are separate and do not certify browser TLS/route/peering or provider success."
   },
@@ -316,13 +318,14 @@
     "zod": {
       "version": "3.25.67",
       "packageSha256": "b60783bbe1e3fe898d6d8a8ab9613df906cd2cb16f19ce95a74e4e71395d1093",
-      "licenseSha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8"
+      "licenseSha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8",
+      "entryPoint": "zod/v4/mini"
     },
     "vite": {
       "version": "6.4.3",
       "packageSha256": "a1d0149fd986fd34b6d35503d2c0d8d9f743c4dbaaf94fbc11812bc84b05884d"
     },
-    "bridgeSha256": "eb3b9947a79c82ea8cde4e95ac2cf09544d25894314f679e44ee0948c98eea16",
+    "bridgeSha256": "6e131a9a542a958b5c34a574daba0c376167370fe2f9b1cbe08977c7d61823cf",
     "files": [
       {
         "path": "build.mjs",

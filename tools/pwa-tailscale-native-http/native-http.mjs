@@ -1,4 +1,5 @@
-import { z } from "zod";
+import * as z from "zod/v4/mini";
+z.config({ jitless: true });
 
 /** Original-node Promise publication owner for the unactivated Go BindJS port. */
 const MAX_ID = Number.MAX_SAFE_INTEGER;
@@ -23,15 +24,15 @@ const errorCode = z.enum([
   "network",
 ]);
 const ownerSchema = z.object({
-  generation: z.unknown().refine((value) => value !== undefined),
-  current: z.function(),
+  generation: z.custom((value) => value !== undefined),
+  current: z.custom((value) => typeof value === "function"),
   signal: z.instanceof(AbortSignal),
 });
 const portSchema = z.object({
-  begin: z.function(),
-  current: z.function(),
-  cancel: z.function(),
-  close: z.function(),
+  begin: z.custom((value) => typeof value === "function"),
+  current: z.custom((value) => typeof value === "function"),
+  cancel: z.custom((value) => typeof value === "function"),
+  close: z.custom((value) => typeof value === "function"),
 });
 function failure(code) {
   const parsed = errorCode.safeParse(code);
