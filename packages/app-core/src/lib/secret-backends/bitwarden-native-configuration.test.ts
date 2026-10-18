@@ -93,13 +93,13 @@ it("binds saved personal API credentials to the exact native account and device 
     { accountEmail: "another@owned.example" },
     { deviceIdentifier: "00000000-0000-4000-8000-000000000003" },
   ]) {
-    expect(
+    expect(() =>
       resolveSecretBackendConfiguration(
         { ...publicDraft, ...changed },
         saved.connectionId,
         tomb,
-      ).clientSecret,
-    ).toBe("");
+      ),
+    ).toThrow();
     expect(secretBackendCredentialTarget({ ...input, ...changed })).not.toBe(
       secretBackendCredentialTarget(input),
     );

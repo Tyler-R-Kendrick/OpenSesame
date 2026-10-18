@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bitwardenAccountIdentity } from "./bitwarden-native-protocol.js";
 import { secretBackendUrl } from "./http.js";
 import { secretBackendPreset } from "./presets.js";
 import { protonConfiguration, splitProtonPat } from "./proton-pass-protocol.js";
@@ -88,6 +89,33 @@ function validateNativeProton(draft: Draft, requireCredentials: boolean): void {
   }
 }
 
+function validateNativeBitwarden(
+  draft: Draft,
+  requireCredentials: boolean,
+): void {
+  if (draft.mode !== "bitwarden-api") return;
+  secretBackendUrl(draft.identityUrl);
+  bitwardenAccountIdentity({
+    baseUrl: draft.baseUrl,
+    identityUrl: draft.identityUrl,
+    email: draft.accountEmail,
+    deviceIdentifier: draft.deviceIdentifier,
+    clientId: draft.clientId,
+    clientSecret:
+      !requireCredentials && !draft.clientSecret
+        ? "unresolved"
+        : draft.clientSecret,
+  });
+  if (
+    draft.organizationId ||
+    (draft.vaultId && !z.string().uuid().safeParse(draft.vaultId).success)
+  )
+    throw new SecretBackendError(
+      "configuration",
+      "Choose a personal account and an optional personal folder ID.",
+    );
+}
+
 function validateTargets(draft: Draft): void {
   if (draft.mode === "onepassword-connect" && !draft.vaultId.trim())
     throw new SecretBackendError(
@@ -164,6 +192,7 @@ export function validateSecretBackendDraft(
   validateProtocol(draft);
   validateNativeOnePassword(draft);
   validateNativeProton(draft, requireCredentials);
+  validateNativeBitwarden(draft, requireCredentials);
   validateTargets(draft);
   if (requireCredentials) requirePrivateCredentials(draft);
   protectCredentialFields(draft);
