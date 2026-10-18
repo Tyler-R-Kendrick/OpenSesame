@@ -42,6 +42,9 @@ let PASSTHROUGH;
 let NATS;
 let NTFY;
 let TLS;
+let afterJoinerConnects;
+/** Runs around `joinerConnects` so ICE UI can be read while connecting (P8-3). */
+let whileJoinerConnects;
 
 /**
  * The joiner's name. It has a space in it, which base64url never does, so
@@ -66,6 +69,8 @@ export function bindWalk(walk) {
     NATS,
     NTFY,
     TLS,
+    afterJoinerConnects = null,
+    whileJoinerConnects = null,
   } = walk);
 }
 
@@ -116,7 +121,10 @@ export async function direct(browser, owner) {
     /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) && joinerSas === ownerSas,
     "both sides show the same session SAS",
   );
-  await joinerConnects(joiner.page, reply);
+  const connect = () => joinerConnects(joiner.page, reply);
+  if (whileJoinerConnects) await whileJoinerConnects(joiner, connect);
+  else await connect();
+  if (afterJoinerConnects) await afterJoinerConnects(joiner);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   // What a browser put in a description itself is its own doing; what the
   // app sealed beside it must be loopback (live-sdp-privacy.mjs).

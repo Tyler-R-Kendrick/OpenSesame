@@ -442,6 +442,13 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:peer-trust-two-context
+      - name: Peering diagnostics
+        # Two contexts on the static dist: ICE line while connecting (P8-3).
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peering-diagnostics
 
   ai-connections-e2e:
     name: AI connections end to end
