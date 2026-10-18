@@ -81,8 +81,16 @@
       {
         "path": "nativehttp_security_test.go",
         "sha256": "f0ba8d3c0f15cfdd1f5703db662df9c6d5e9a6ebebb08566398304a5e9930343"
+      },
+      {
+        "path": "draining.go",
+        "sha256": "4614e8c67e76c69a2b60e1688c90c8d174b630ad821c126fdf09c2e05f725541"
+      },
+      {
+        "path": "draining_test.go",
+        "sha256": "506e4a7440c5fdf4f675639a7a2d25ef7a87d26c084a17315d12fd0566667b31"
       }
     ],
-    "qualification": "Stage only these three pinned overlays into a fresh owned directory. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not activate browser transport or certify public trust, routes, DNS, exit selection or provider integrations."
+    "qualification": "Stage only these five pinned overlays into a fresh owned directory. The physical-drain helper is an unactivated prerequisite for operation registry accounting; it is exercised with actual Do by owned host TLS tests. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not activate browser transport or certify public trust, routes, DNS, exit selection or provider integrations."
   }
 }
