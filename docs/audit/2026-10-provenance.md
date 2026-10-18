@@ -660,3 +660,49 @@ correction. **Cursor tier 3** authored P8-2 harness fix `a1c7a7ce9` (and cherry-
 **accepted** that harness change without redo. Grok redo commit `7d146efb6` on P8-4
 after audit **redo** of `11a508953`. P8-1 feature commits via Grok Build; post-Grok
 bundle/ceremony-kit fixes on P8-1 by Tyler Kendrick (tier 3), as listed on PR #1457.>>>>>>> 3cf7f205c (docs(audit): record Round 8 Grok/Kimi/tier-3 provenance)
+
+
+
+## 2026-10-17 — retired-credential thread recovery: physical browser storage
+
+Recovered published checkpoints from the stalled “Explore Retired Credential
+Traps” thread: #1170 was superseded by merged #826; #1229 is the last reported
+published browser bundle slice. The original request and selected settings were
+unavailable, as confirmed by the person. No claim is made that the old
+uncommitted work or temporary receipts were recovered. Inspection resumed from
+current main `495f1d42082dcd56b7a3d50bf39cfc645c2f7acd` in an isolated worktree.
+
+The authenticated coding preflight found no Grok subscription auth and no Kimi
+executable. Codex implementation and independent Codex review/test agents were
+the available fallback; neither unavailable CLI is credited with this work.
+This cut refuses physical vault records omitted from the registry and repairs
+first publication's recognition of its own still-empty, original file entry.
+It does not activate retired login, issue owner authority, or establish full
+client/native/mobile feature readiness.
+
+Native Chromium reproduced the old registry omission and the existing first
+publication failure. Seven additional registry controls and the original
+storage/CAS controls passed after the correction. Focused publication tests
+retain preexisting-empty, replacement, strict-seal and bounds refusals. Exact
+commands, source witnesses and broader gate outcomes belong to the PR evidence;
+these scoped results do not replace the repository or complete-feature gates.
+
+
+### Retired recovery: peering diagnostic observation correction
+
+Codex and a workflow subagent reproduced an independent test-driver race in
+real Chromium: a visible ICE row could unmount before a later locator text
+read. The driver now captures visibility and text in one browser turn, retains
+the existing 45-second deadline and validation, and runs a real-browser
+regression before its existing diagnostic walk. Empty and invalid diagnostics
+remain failures. This is a test-only correction, not an established diagnosis
+of the earlier CI failure; the unchanged local direct-join reproduction was
+blocked by Chromium producing no ICE candidates. The original CI failure and
+local trace are retained. No production authentication or transport changed.
+
+This recovery retains the existing normal bundle limits of 7355 KiB JavaScript
+and 2240 KiB gzip, plus every hardened limit. The proposed allowance increase
+was rejected and never applied; lossless generated-catalog packing passed the
+existing gate instead. Earlier wording about feature-growth allowance does
+not authorize a new budget increase. Grok subscription authentication and Kimi
+remain unavailable as recorded above; no alternative-model authorship claimed.

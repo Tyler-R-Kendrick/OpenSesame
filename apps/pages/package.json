@@ -22,7 +22,7 @@
     "verify:live-join": "node scripts/verify-live-join.mjs",
     "verify:live-local-pair": "node scripts/verify-live-local-pair.mjs",
     "verify:peer-trust-two-context": "node scripts/verify-peer-trust-two-context.mjs",
-    "verify:peering-diagnostics": "node scripts/verify-peering-diagnostics.mjs",
+    "verify:peering-diagnostics": "node scripts/verify-peering-diagnostic-observation.mjs && node scripts/verify-peering-diagnostics.mjs",
     "verify:fresh-vault-login": "node scripts/verify-fresh-vault-login.mjs",
     "verify:cli-public-site": "node scripts/verify-cli-public-site.mjs",
     "verify:relay-join": "node scripts/verify-relay-join.mjs",
