@@ -7,7 +7,11 @@ import type {
 } from "@opensesame/app-core/lib/secret-backends/types.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useState } from "react";
-import { useSecretBackendAction } from "./useSecretBackendAction.js";
+import {
+  type SecretBackendActionOwner,
+  useSecretBackendAction,
+  useSecretBackendOwnerSignal,
+} from "./useSecretBackendAction.js";
 
 export type SecretBackendHandle = {
   backend: SecretBackend;
@@ -53,45 +57,29 @@ function useWorkspaceDraft() {
     },
   };
 }
-export function useSecretBackendWorkspace(
-  handle: SecretBackendHandle,
-  onFlash: (flash: Flash) => void,
+type WorkspaceDraft = ReturnType<typeof useWorkspaceDraft>;
+type WorkspaceStatus = ReturnType<typeof useSecretBackendAction>;
+async function refreshItems(
+  { backend, session }: SecretBackendHandle,
+  state: WorkspaceDraft,
+  owner: SecretBackendActionOwner,
 ) {
-  const status = useSecretBackendAction(onFlash);
-  const state = useWorkspaceDraft();
-  const { selected, confirming, setSelected, setConfirming, setNotes, close } =
-    state;
+  owner.check();
+  if (!backend.capabilities.list) return;
+  const items = await backend.listItems(session);
+  owner.check();
+  state.setItems(items);
+}
+function workspaceMutations(
+  handle: SecretBackendHandle,
+  state: WorkspaceDraft,
+  status: WorkspaceStatus,
+) {
   const { backend, session } = handle;
-  const refresh = async () => {
-    if (backend.capabilities.list)
-      state.setItems(await backend.listItems(session));
-  };
-  function list() {
-    void status.run(async () => {
-      await refresh();
-      return "Backend items loaded";
-    });
-  }
-  function read(reference: string) {
-    if (!reference.trim()) return;
-    void status.run(async () => {
-      const item = await backend.getItem(reference, session);
-      close();
-      setSelected(item);
-      return "Backend item loaded";
-    });
-  }
-  function readNotes(reference: string) {
-    if (!reference.trim()) return;
-    void status.run(async () => {
-      const value = await backend.getNotes(reference, session);
-      close();
-      setNotes(value);
-      return "Backend notes loaded";
-    });
-  }
+  const { selected, confirming, setConfirming, close } = state;
   function save(input: SecretBackendItemInput) {
-    void status.run(async () => {
+    void status.run(async (owner) => {
+      owner.check();
       if (selected) {
         if (!backend.capabilities.update || !backend.updateItem)
           throw new Error("This backend does not update items.");
@@ -101,7 +89,9 @@ export function useSecretBackendWorkspace(
           throw new Error("This backend does not create items.");
         await backend.createItem(input, session);
       }
-      await refresh();
+      owner.check();
+      await refreshItems(handle, state, owner);
+      owner.check();
       close();
       return "Backend item saved";
     });
@@ -112,31 +102,78 @@ export function useSecretBackendWorkspace(
       setConfirming(true);
       return;
     }
-    void status.run(async () => {
+    void status.run(async (owner) => {
+      owner.check();
       if (!backend.capabilities.delete || !backend.deleteItem)
         throw new Error("This backend does not delete items.");
       await backend.deleteItem(selected.id, session);
-      await refresh();
+      owner.check();
+      await refreshItems(handle, state, owner);
+      owner.check();
       close();
       return "Backend item deleted";
     });
   }
+  return { save, remove };
+}
+export function useSecretBackendWorkspace(
+  handle: SecretBackendHandle,
+  onFlash: (flash: Flash) => void,
+) {
+  const signal = useSecretBackendOwnerSignal(
+    handle.backend.signal,
+    handle.session.signal,
+  );
+  const status = useSecretBackendAction(onFlash, signal);
+  const state = useWorkspaceDraft();
+  const { setSelected, setNotes, close } = state;
+  const { backend, session } = handle;
+  function list() {
+    void status.run(async (owner) => {
+      await refreshItems(handle, state, owner);
+      owner.check();
+      return "Backend items loaded";
+    });
+  }
+  function read(reference: string) {
+    if (!reference.trim()) return;
+    void status.run(async (owner) => {
+      owner.check();
+      const item = await backend.getItem(reference, session);
+      owner.check();
+      close();
+      setSelected(item);
+      return "Backend item loaded";
+    });
+  }
+  function readNotes(reference: string) {
+    if (!reference.trim()) return;
+    void status.run(async (owner) => {
+      owner.check();
+      const value = await backend.getNotes(reference, session);
+      owner.check();
+      close();
+      setNotes(value);
+      return "Backend notes loaded";
+    });
+  }
   function importItems() {
-    void status.run(async () => {
+    void status.run(async (owner) => {
+      owner.check();
       if (!backend.capabilities.import || !backend.importToLocal)
         throw new Error("This backend does not import items.");
       const report = await backend.importToLocal(session);
+      owner.check();
       return `${report.imported} items imported; ${report.skipped} skipped${report.warnings.length ? `; ${report.warnings.join("; ")}` : ""}`;
     });
   }
   return {
     ...status,
     ...state,
+    ...workspaceMutations(handle, state, status),
     list,
     read,
     readNotes,
-    save,
-    remove,
     importItems,
   };
 }
