@@ -163,6 +163,7 @@ describe("an unsaved edit", () => {
     const order: string[] = [];
     registerDraftSaver("item", async () => {
       order.push("save");
+      return true;
     });
     holdDirtyEdit("item");
     const container = await tabBooted(CORE_URL);

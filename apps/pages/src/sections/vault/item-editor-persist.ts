@@ -74,6 +74,11 @@ function splitList(value: string): string[] {
     .filter(Boolean);
 }
 
+type PreparedEditorDraft = {
+  next: VaultItem;
+  deliveryId: string | undefined;
+};
+
 /**
  * Validate, issue, and settle before the vault write. A certificate that
  * fails to seal stays in memory so the retry does not mint another one.
@@ -81,7 +86,7 @@ function splitList(value: string): string[] {
 async function prepareEditorDraft(
   located: VaultItem,
   input: EditorPersistInput,
-): Promise<{ next: VaultItem; deliveryId: string | undefined }> {
+): Promise<PreparedEditorDraft> {
   let next = located;
   let deliveryId = input.pendingDeliveryId;
   if (next.kind === "account") await validateWebsitePatterns(next.uris);
