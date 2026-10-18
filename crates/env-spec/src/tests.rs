@@ -100,14 +100,36 @@ fn bridge_roundtrip_fixture() {
     assert!(path.exists(), "fixture missing at {}", path.display());
     // The bridge's own way of finding `node`, so a `node` it would refuse
     // (one only a relative or writable `PATH` entry holds) skips here too.
-    let node_ok = node_command().is_ok_and(|mut node| node.arg("--version").output().is_ok());
-    if !node_ok {
-        eprintln!("skip bridge_roundtrip_fixture: no usable node");
+    let probe = node_command()
+        .map_err(|e| e.to_string())
+        .and_then(|mut node| {
+            node.arg("--version")
+                .output()
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        });
+    if let Err(why) = probe {
+        // A skip that CI cannot tell from a pass would hide a runner whose
+        // node the bridge refuses: there, no node is a failure.
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "CI has no usable node, so bridge_roundtrip_fixture would be vacuous: {why}"
+        );
+        eprintln!("skip bridge_roundtrip_fixture: no usable node ({why})");
         return;
     }
     let doc = match parse_schema_file(&path) {
         Ok(doc) => doc,
         Err(EnvSpecError::Bridge(msg)) if msg.contains("ERR_MODULE_NOT_FOUND") => {
+            // The same on CI: the Rust job installs the parser, so its absence
+            // there is a broken install step, not a reason to pass.
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "CI has not installed the env-spec bridge's dependencies \
+                 (pnpm install --frozen-lockfile --ignore-scripts \
+                 --filter @opensesame/env-spec-bridge...), so \
+                 bridge_roundtrip_fixture would be vacuous: {msg}"
+            );
             eprintln!("skip bridge_roundtrip_fixture: env-spec-bridge deps not installed ({msg})");
             return;
         }

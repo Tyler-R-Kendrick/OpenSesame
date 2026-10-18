@@ -49,60 +49,64 @@ export async function saveLinearConsent(
       linearConfiguration(id).options.workspace,
       identity.organization,
     );
-    await updateLinearRecord(id, async (record, runtime) => {
-      assertCurrent?.();
-      const latest = linearConfiguration(id);
-      if (
-        transaction.actor === "app" &&
-        runtime.recovery?.phase === "configure" &&
-        !latest.options.appScopes.includes("admin") &&
-        grant.scopes.includes("admin")
-      )
-        throw new Error(
-          "Linear retained temporary admin permission; authorize only the configured app scopes",
-        );
-      if (
-        transaction.fingerprint !==
-        linearFingerprint(latest.state, latest.options)
-      )
-        throw new Error("Linear configuration changed during authorization");
-      const other = runtime[transaction.actor === "app" ? "user" : "app"];
-      if (
-        runtime.recovery &&
-        runtime.recovery.workspaceId !== identity.organization.id
-      )
-        throw new Error(
-          "Reconnect the original Linear workspace to recover its webhook",
-        );
-      if (other && other.workspaceId !== identity.organization.id)
-        throw new Error(
-          "App and user consent must authorize the same Linear workspace",
-        );
-      return linearPublicRecord(
-        {
-          ...record,
-          secrets: {
-            ...record.secrets,
-            [grantKey(transaction.actor)]: JSON.stringify({
+    await updateLinearRecord(
+      id,
+      async (record, runtime) => {
+        assertCurrent?.();
+        const latest = linearConfiguration(id);
+        if (
+          transaction.actor === "app" &&
+          runtime.recovery?.phase === "configure" &&
+          !latest.options.appScopes.includes("admin") &&
+          grant.scopes.includes("admin")
+        )
+          throw new Error(
+            "Linear retained temporary admin permission; authorize only the configured app scopes",
+          );
+        if (
+          transaction.fingerprint !==
+          linearFingerprint(latest.state, latest.options)
+        )
+          throw new Error("Linear configuration changed during authorization");
+        const other = runtime[transaction.actor === "app" ? "user" : "app"];
+        if (
+          runtime.recovery &&
+          runtime.recovery.workspaceId !== identity.organization.id
+        )
+          throw new Error(
+            "Reconnect the original Linear workspace to recover its webhook",
+          );
+        if (other && other.workspaceId !== identity.organization.id)
+          throw new Error(
+            "App and user consent must authorize the same Linear workspace",
+          );
+        return linearPublicRecord(
+          {
+            ...record,
+            secrets: {
+              ...record.secrets,
+              [grantKey(transaction.actor)]: JSON.stringify({
+                kind: "oauth",
+                ...grant,
+              }),
+            },
+          },
+          {
+            ...runtime,
+            [transaction.actor]: {
+              accountLabel: identity.viewer.name,
+              workspaceId: identity.organization.id,
+              workspaceName: identity.organization.name,
+              workspaceKey: identity.organization.urlKey,
+              grantedScopes: grant.scopes,
+              expiresAt: grant.expiresAt,
               kind: "oauth",
-              ...grant,
-            }),
+            },
           },
-        },
-        {
-          ...runtime,
-          [transaction.actor]: {
-            accountLabel: identity.viewer.name,
-            workspaceId: identity.organization.id,
-            workspaceName: identity.organization.name,
-            workspaceKey: identity.organization.urlKey,
-            grantedScopes: grant.scopes,
-            expiresAt: grant.expiresAt,
-            kind: "oauth",
-          },
-        },
-      );
-    });
+        );
+      },
+      assertCurrent,
+    );
   } catch (error) {
     try {
       await cleanupRejectedLinearGrant(

@@ -8,7 +8,6 @@ import {
   subscribeDeviceRows,
 } from "@opensesame/app-core/lib/device-connector-records.js";
 import { deviceConnectorView } from "@opensesame/app-core/lib/device-connector-view.js";
-import { isDeviceConnectorId } from "@opensesame/app-core/lib/device-connectors.js";
 import {
   type TailscaleNodeSnapshot,
   subscribeTailscaleBrowserNode,
@@ -25,19 +24,9 @@ export function currentTailscaleConnections(
 ): Connection[] | null {
   if (!rows) return null;
   const retained = rows.filter(
-    (row) =>
-      !(
-        row.providerId === "tailscale" &&
-        isDeviceConnectorId(row.connectionId) &&
-        row.connectionRef === `local/connector/${row.connectionId}`
-      ),
+    (row) => row.connectionRef !== `local/connector/${row.connectionId}`,
   );
-  return [
-    ...retained,
-    ...readDeviceRows()
-      .filter((row) => row.providerId === "tailscale")
-      .map(deviceConnectorView),
-  ];
+  return [...retained, ...readDeviceRows().map(deviceConnectorView)];
 }
 
 export function useTailscaleConnectionState(
