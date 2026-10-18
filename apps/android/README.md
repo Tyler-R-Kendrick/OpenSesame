@@ -16,6 +16,10 @@ CVE-2026-53914 in KAPT cache loading. This app does not enable KAPT. The setting
 script pins R8 9.1.31 using its supported override because Kotlin 2.4 requires
 R8 9.1.29 or newer; AGP 8.13.1 and Gradle 8.13 remain supported.
 
+Root buildscript constraints select patched Netty, Bouncy Castle, Commons
+Compress, jose4j, and JDOM dependencies for the Android build plugin. Their
+advisory inventory is in [the build dependency review](../../docs/security/android-build-advisories-2026-10-18.md).
+
 ```bash
 cd apps/android/android
 gradle :app:assembleDebug -PopensesameWalletBackendUrl=https://identity.example
