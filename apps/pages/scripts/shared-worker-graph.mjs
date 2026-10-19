@@ -26,7 +26,7 @@ function privateSource(file, realm) {
   )
     return true;
   return realm === "tailscale-node"
-    ? /\/src\/modules\/networking\.tailnet\/browser\/(?:worker|protocol|sdk|worker-egress)\.ts$/.test(
+    ? /\/(?:src\/modules\/networking\.tailnet\/browser\/(?:worker|protocol|sdk|worker-egress)|packages\/app-core\/src\/lib\/tailscale\/(?:browser-node-peer-http|browser-node-port))\.ts$/.test(
         path,
       )
     : /\/packages\/app-core\/src\/lib\/secret-backends\/[^/]+\.(?:ts|json)$/.test(
