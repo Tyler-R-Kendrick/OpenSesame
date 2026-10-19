@@ -41,7 +41,7 @@ describe("compiled provider credential variants", () => {
   );
 });
 
-it("distinguishes unsupported public OAuth from confidential-client requirements", () => {
+it("exposes configured WorkOS fields without promoting a missing runtime", () => {
   const plan = connectPlan("workos");
   if (!plan) throw new Error("Expected compiled WorkOS provider");
   const descriptor = nativeProviderDescriptor(plan, {
@@ -52,7 +52,10 @@ it("distinguishes unsupported public OAuth from confidential-client requirements
   });
   const oauth = descriptor.methods.find((method) => method.id === "oauth");
   expect(oauth?.available).toBe(false);
-  expect(oauth?.unavailableReason).toContain("public OAuth");
+  expect(oauth?.unavailableReason).toContain("External connectors");
+  expect(oauth?.fields.some((field) => field.id === "token_auth_method")).toBe(
+    true,
+  );
   expect(oauth?.unavailableReason).not.toContain("client secret");
 });
 

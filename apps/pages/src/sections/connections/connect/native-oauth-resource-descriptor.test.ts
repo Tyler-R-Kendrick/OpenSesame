@@ -1,0 +1,210 @@
+import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
+import { expect, it } from "vitest";
+import { nativeOAuthClientConfigured } from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
+import { nativeBrowserOAuthDescriptor } from "./native-browser-oauth-descriptor.js";
+import {
+  nativeInitialValues,
+  nativeMethodForEdit,
+} from "./native-connector-edit-values.js";
+import {
+  nativeFieldValues,
+  nativeNextValues,
+  nativeVisibleFields,
+} from "./native-connector-ui-values.js";
+import { nativeUiView } from "./native-connector-ui.test-support.js";
+import { nativeOAuthResourceDescriptor } from "./native-oauth-resource-descriptor.js";
+import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
+import { nativePolicyMethod } from "./native-provider-policy.js";
+const callbackUrl = "https://operator.example/auth/native-connector.html";
+function preset(id = "box") {
+  const plan = connectPlan(id);
+  const method = plan?.methods.find((entry) => entry.kind === "oauth");
+  if (!plan || method?.kind !== "oauth" || !method.preset)
+    throw new Error("Missing real compiled OAuth preset");
+  return { plan, preset: method.preset };
+}
+it("derives standard configurable native OAuth from the actual confidential provider preset", () => {
+  const f = preset();
+  const descriptor = nativeProviderDescriptor(f.plan, {
+    callbackUrl,
+    apiKey: { available: false },
+    oauth: { available: true },
+    mcp: { available: false, actor: "user" },
+  });
+  const method = descriptor.methods.find((row) => row.id === "oauth");
+  expect(method).toEqual(
+    nativePolicyMethod(
+      f.plan.id,
+      nativeOAuthResourceDescriptor(f.preset, callbackUrl, true),
+    ),
+  );
+  expect(
+    method?.fields
+      .filter((row) => row.secret)
+      .every((row) => row.id === "client_secret"),
+  ).toBe(true);
+  expect(
+    method?.fields.find((row) => row.id === "token_endpoint")?.defaultValue,
+  ).toBe(f.preset.tokenEndpoint);
+  expect(method?.fields.find((row) => row.id === "redirect_uri")).toMatchObject(
+    { displayOnly: true, readOnly: true, defaultValue: callbackUrl },
+  );
+  expect(method?.scopeGroups[0]?.choices).toEqual(f.preset.scopes);
+});
+it.each([
+  "google",
+  "dropbox",
+  "spotify",
+  "auth0",
+  "twitch",
+  "openrouter",
+  "vercel",
+  "microsoft",
+])("preserves the mature %s public-profile descriptor exactly", (id) => {
+  const plan = connectPlan(id);
+  if (!plan) throw new Error("Missing public provider plan");
+  const f = { plan };
+  const profile = nativeBrowserOAuthProfile(id);
+  if (!profile) throw new Error("Missing mature public profile");
+  const descriptor = nativeProviderDescriptor(f.plan, {
+    callbackUrl,
+    apiKey: { available: false },
+    oauth: { available: true, profile },
+    mcp: { available: false, actor: "user" },
+  });
+  expect(descriptor.methods.find((row) => row.id === "oauth")).toEqual(
+    nativePolicyMethod(
+      f.plan.id,
+      nativeBrowserOAuthDescriptor(f.plan, profile, callbackUrl),
+    ),
+  );
+});
+it("requires resubmitting the secret after editing an exact saved endpoint binding", () => {
+  const method = nativeOAuthResourceDescriptor(
+    preset().preset,
+    callbackUrl,
+    true,
+  );
+  const view = nativeUiView();
+  view.configuration.method = "oauth";
+  view.configuration.clientId = "operator-app";
+  view.configuration.parameters = {
+    issuer: "https://issuer.example",
+    authorization_endpoint: "https://issuer.example/auth",
+    token_endpoint: "https://issuer.example/token",
+    resource: "https://api.example/projects",
+    token_auth_method: "client_secret_basic",
+  };
+  const same = nativeInitialValues(method, view);
+  expect(
+    nativeMethodForEdit(method, view, same)
+      .fields.filter((row) => row.secret)
+      .every((row) => !row.required),
+  ).toBe(true);
+  const changed = { ...same, resource: "https://different.example/projects" };
+  expect(
+    nativeMethodForEdit(method, view, changed)
+      .fields.filter((row) => row.secret)
+      .every((row) => row.required),
+  ).toBe(true);
+  expect(nativeInitialValues(method, view).client_secret).toBe("");
+});
+
+it.each(["resend", "workos"])(
+  "offers genuine CIMD and registered client modes with unique visible fields for %s",
+  (id) => {
+    const f = preset(id);
+    const profile = nativeBrowserOAuthProfile(id);
+    if (!profile) throw new Error("Missing public profile");
+    const descriptor = nativeProviderDescriptor(f.plan, {
+      callbackUrl,
+      apiKey: { available: false },
+      oauth: { available: true, profile },
+      mcp: { available: false, actor: "user" },
+    });
+    const method = descriptor.methods.find((row) => row.id === "oauth");
+    if (!method) throw new Error("Missing common OAuth form");
+    let values = nativeInitialValues(method);
+    expect(values.token_auth_method).toBe("cimd");
+    expect(
+      nativeVisibleFields(method.fields, values).find(
+        (row) => row.id === "client_id",
+      )?.readOnly,
+    ).toBe(true);
+    for (const mode of [
+      "none",
+      "client_secret_basic",
+      "client_secret_post",
+      "cimd",
+    ]) {
+      values = nativeNextValues(
+        method.fields,
+        values,
+        "token_auth_method",
+        mode,
+      );
+      const visible = nativeVisibleFields(method.fields, values);
+      expect(new Set(visible.map((row) => row.id)).size).toBe(visible.length);
+      expect(visible.some((row) => row.secret)).toBe(
+        mode === "client_secret_basic" || mode === "client_secret_post",
+      );
+      expect(visible.some((row) => row.id === "resource")).toBe(
+        mode !== "cimd",
+      );
+      expect(
+        visible.find((row) => row.id === "client_id")?.readOnly === true,
+      ).toBe(mode === "cimd");
+      if (mode !== "cimd")
+        values.client_secret = "ephemeral unsaved credential";
+      else expect(nativeFieldValues(method.fields, values, true)).toEqual({});
+    }
+  },
+);
+it("restores a strict registered target's selected mode without revealing its secret", () => {
+  const f = preset("workos");
+  const profile = nativeBrowserOAuthProfile("workos");
+  if (!profile) throw new Error("Missing WorkOS profile");
+  const descriptor = nativeProviderDescriptor(f.plan, {
+    callbackUrl,
+    apiKey: { available: false },
+    oauth: { available: true, profile },
+    mcp: { available: false, actor: "user" },
+  });
+  const method = descriptor.methods.find((row) => row.id === "oauth");
+  if (!method) throw new Error("Missing OAuth form");
+  const view = nativeUiView();
+  view.configuration.method = "oauth";
+  view.configuration.clientId = "operator-client";
+  view.configuration.parameters = {
+    issuer: "https://issuer.example",
+    authorization_endpoint: "https://issuer.example/auth",
+    token_endpoint: "https://issuer.example/token",
+    resource: "https://issuer.example/resource",
+    token_auth_method: "client_secret_post",
+  };
+  const values = nativeInitialValues(method, view);
+  expect(values.token_auth_method).toBe("client_secret_post");
+  expect(values.client_id).toBe("operator-client");
+  expect(values.client_secret).toBe("");
+  expect(
+    nativeVisibleFields(method.fields, values).filter(
+      (field) => field.id === "client_id",
+    ),
+  ).toHaveLength(1);
+});
+
+it.each<Record<string, string>>([
+  { redirect_uri: callbackUrl },
+  { token_auth_method: "none" },
+  { issuer: "https://issuer.example" },
+])(
+  "refuses a malformed saved registered target before selecting any public driver: %j",
+  (parameters) => {
+    const view = nativeUiView();
+    view.configuration.method = "oauth";
+    view.configuration.clientId = "operator-registered";
+    view.configuration.parameters = parameters;
+    expect(() => nativeOAuthClientConfigured(view.configuration)).toThrow();
+  },
+);

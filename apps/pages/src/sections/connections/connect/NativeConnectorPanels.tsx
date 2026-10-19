@@ -15,6 +15,7 @@ import type { Flash } from "@opensesame/app-core/sections/connections/shared.js"
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
+import { nativeOAuthClientConfigured } from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
@@ -116,10 +117,10 @@ function primaryActions(
   view: NativeConnectorView,
   name: string,
 ): readonly NativeActionDescriptor[] {
-  const resources = nativeApiResourceActions(
-    view.providerId,
-    view.configuration.method,
-  );
+  const configured = nativeOAuthClientConfigured(view.configuration);
+  const resources = configured
+    ? [{ id: "provider.resource.read", label: "Read configured API resource" }]
+    : nativeApiResourceActions(view.providerId, view.configuration.method);
   const actions = resources.length
     ? resources
     : [{ id: "provider.read", label: `Check ${name} access` }];

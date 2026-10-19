@@ -5,10 +5,8 @@ import { EgressDenied } from "@opensesame/app-core/lib/capabilities/egress.js";
 import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { nativeDeviceViewSeams } from "@opensesame/app-core/lib/device-connector-view.js";
-import {
-  bindNativeBrowserPolicyOrigin,
-  nativeBrowserMethodPolicy,
-} from "@opensesame/app-core/lib/native-browser-policy.js";
+import { bindNativeBrowserPolicyOrigin } from "@opensesame/app-core/lib/native-browser-policy.js";
+import { nativeConfigurationBrowserPolicy } from "@opensesame/app-core/lib/native-configuration-policy.js";
 import {
   loadNativeConnectorRecord,
   readNativeConnector,
@@ -78,7 +76,7 @@ function grantExpiry(view: NativeConnectorView): string | null {
 function connectionPolicy(id: string, view: NativeConnectorView) {
   const ai = aiConnectionProjection(id);
   if (ai === "ordinary")
-    return nativeBrowserMethodPolicy(
+    return nativeConfigurationBrowserPolicy(
       view.providerId,
       view.configuration.method,
       view.configuration.parameters,
