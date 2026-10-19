@@ -232,3 +232,53 @@ it("clears a hidden bearer when switching to explicit anonymous and preserves pu
   ).toHaveProperty("value", "");
   expect(f.rows).toEqual([]);
 });
+
+it("selects the actual public MCP permissions contract before consent without claiming verification", async () => {
+  const f = await setup("anonymous");
+  render(
+    <NativeConnectorForm
+      descriptor={f.descriptor}
+      controller={f.controller}
+      onFlash={vi.fn()}
+      onChanged={vi.fn()}
+    />,
+  );
+  expect(
+    screen.getByRole("radio", {
+      name: "Bring Your Own OAuth App",
+    }),
+  ).toHaveProperty("checked", true);
+  expect(
+    screen.queryByLabelText("MCP permissions", { selector: "summary" }),
+  ).toBeNull();
+  fireEvent.click(screen.getByRole("radio", { name: "MCP" }));
+  fireEvent.change(
+    screen.getByLabelText("MCP authentication", { exact: true }),
+    {
+      target: { value: "oauth" },
+    },
+  );
+  expect(screen.getByRole("radio", { name: "MCP" })).toHaveProperty(
+    "checked",
+    true,
+  );
+  expect(
+    screen.getByLabelText("MCP authentication", { exact: true }),
+  ).toHaveProperty("value", "oauth");
+  fireEvent.click(screen.getByText("Sign-in options", { selector: "summary" }));
+  const permissions = screen.getByLabelText("MCP permissions", {
+    selector: "summary",
+  });
+  fireEvent.click(permissions);
+  expect(permissions.closest("details")).toHaveProperty("open", true);
+  const openid = screen.getByRole("checkbox", { name: "openid" });
+  fireEvent.click(openid);
+  expect(openid).toHaveProperty("checked", true);
+  expect(
+    screen.queryByRole("img", { name: "Adobe access verified" }),
+  ).toBeNull();
+  expect(f.rows).toEqual([]);
+  expect(f.browserFetch).not.toHaveBeenCalled();
+  expect(f.popup).not.toHaveBeenCalled();
+  expect(f.authorize).not.toHaveBeenCalled();
+});
