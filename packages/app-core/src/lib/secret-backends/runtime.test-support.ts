@@ -32,24 +32,24 @@ export async function runtimeFixture() {
   await kvFlush();
   kvForgetAll();
   const files = new Map<string, string>();
-  const handles = new Map<string, object>();
+  const created = new Set<string>();
   let atomicWrite: (() => Promise<void>) | undefined;
   const root = {
     async getFileHandle(name: string, options?: { create?: boolean }) {
       if (!files.has(name) && !options?.create)
         throw new DOMException("Missing", "NotFoundError");
       if (!files.has(name)) {
-        files.set(name, "");
-        handles.delete(name);
+        created.add(name);
       }
-      const existing = handles.get(name);
-      if (existing) return existing;
       const handle = {
+        __opfsName: name,
         async isSameEntry(other: RuntimeEntryIdentity): Promise<boolean> {
-          return other === handle;
+          return (
+            (other as { __opfsName?: string }).__opfsName === name
+          );
         },
         async getFile() {
-          if (!files.has(name) || handles.get(name) !== handle)
+          if (!files.has(name) && !created.has(name))
             throw new DOMException("Missing", "NotFoundError");
           return {
             size: new TextEncoder().encode(files.get(name) ?? "").length,
@@ -65,23 +65,23 @@ export async function runtimeFixture() {
             },
             async close() {
               files.set(name, staged);
+              created.delete(name);
             },
             async abort() {},
           };
         },
       };
-      handles.set(name, handle);
       return handle;
     },
     async isSameEntry(other: RuntimeEntryIdentity): Promise<boolean> {
       return other === root;
     },
     async *keys() {
-      yield* files.keys();
+      yield* new Set([...files.keys(), ...created]);
     },
     async removeEntry(name: string) {
       files.delete(name);
-      handles.delete(name);
+      created.delete(name);
     },
   };
   vi.stubGlobal("navigator", {

@@ -39,11 +39,15 @@ overrides:
   js-yaml@3.15.2>argparse: 2.0.1
   promptfoo>jks-js: '-'
   '@devicefarmer/adbkit>node-forge': '-'
+  '@xmldom/xmldom@^0.9.10': 0.9.12
 
 patchedDependencies:
   '@devicefarmer/adbkit@3.3.8':
     hash: 5nj4xxjiguzmcbnbkwdwftl6qy
     path: patches/@devicefarmer__adbkit@3.3.8.patch
+  '@levischuck/tiny-cbor@0.2.11':
+    hash: qiuqelumuxy5dg4ji2yenmqlgm
+    path: patches/@levischuck__tiny-cbor@0.2.11.patch
   '@simple-git/argv-parser@2.0.1':
     hash: wbmb7dwhiv66et2i6bbymnlkhi
     path: patches/@simple-git__argv-parser@2.0.1.patch
@@ -717,7 +721,7 @@ importers:
         version: 0.1.0(oxlint@1.79.0)(typescript@5.8.3)
       '@levischuck/tiny-cbor':
         specifier: 0.2.11
-        version: 0.2.11
+        version: 0.2.11(patch_hash=qiuqelumuxy5dg4ji2yenmqlgm)
       '@modelcontextprotocol/sdk':
         specifier: 1.31.0
         version: 1.31.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
@@ -10785,7 +10789,7 @@ packages:
     resolution: {integrity: sha512-hNiMqDG28WKzpEgKY+kn06272c7Mx0A8NB+Hx706Uwbb2obNnxKc+g4NyBkw6gcbBJaYM5GpK8iKKJv02Vwbmw==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
-      '@xmldom/xmldom': 0.8.15
+      '@xmldom/xmldom': 0.9.12
       xpath: ^0.0.34
 
   xml-crypto@6.1.2:
@@ -13221,7 +13225,7 @@ snapshots:
 
   '@ldapjs/protocol@1.2.1': {}
 
-  '@levischuck/tiny-cbor@0.2.11': {}
+  '@levischuck/tiny-cbor@0.2.11(patch_hash=qiuqelumuxy5dg4ji2yenmqlgm)': {}
 
   '@libsql/client@0.17.4':
     dependencies:
@@ -14296,7 +14300,7 @@ snapshots:
   '@simplewebauthn/server@13.3.2':
     dependencies:
       '@hexagon/base64': 1.1.28
-      '@levischuck/tiny-cbor': 0.2.11
+      '@levischuck/tiny-cbor': 0.2.11(patch_hash=qiuqelumuxy5dg4ji2yenmqlgm)
       '@peculiar/asn1-android': 2.10.0
       '@peculiar/asn1-ecc': 2.10.0
       '@peculiar/asn1-rsa': 2.10.0

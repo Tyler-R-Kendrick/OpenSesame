@@ -178,12 +178,14 @@
       "source-map-js": "1.2.2",
       "js-yaml@3.15.2>argparse": "2.0.1",
       "promptfoo>jks-js": "-",
-      "@devicefarmer/adbkit>node-forge": "-"
+      "@devicefarmer/adbkit>node-forge": "-",
+      "@xmldom/xmldom@^0.9.10": "0.9.12"
     },
     "patchedDependencies": {
       "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch",
       "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch",
-      "@devicefarmer/adbkit@3.3.8": "patches/@devicefarmer__adbkit@3.3.8.patch"
+      "@devicefarmer/adbkit@3.3.8": "patches/@devicefarmer__adbkit@3.3.8.patch",
+      "@levischuck/tiny-cbor@0.2.11": "patches/@levischuck__tiny-cbor@0.2.11.patch"
     }
   }
 }
