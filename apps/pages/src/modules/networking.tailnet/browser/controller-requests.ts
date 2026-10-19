@@ -2,6 +2,10 @@ import type { TailscaleHTTPRouteConfiguration } from "@opensesame/app-core/lib/t
 import type { TailscaleNativeHTTPPort } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { anySignal } from "../../signals.js";
+import {
+  NativeStreamRequest,
+  wantsNativeStream,
+} from "./controller-native-stream.js";
 import { type HostEvent, NativeHTTPRequest } from "./protocol.js";
 
 type Pending = {
@@ -36,6 +40,8 @@ export class BrowserNodeRequests {
     if (
       message.kind !== "nativeHTTP" &&
       message.kind !== "nativeHTTPError" &&
+      message.kind !== "nativeHTTPStream" &&
+      message.kind !== "nativeHTTPChunk" &&
       message.kind !== "get"
     )
       return false;
@@ -137,7 +143,9 @@ export class BrowserNodeRequests {
         await this.ready(caller);
         assertCurrent();
         caller.throwIfAborted();
-        return this.request(value, caller, assertCurrent);
+        return wantsNativeStream(request)
+          ? this.stream(value, caller, assertCurrent)
+          : this.request(value, caller, assertCurrent);
       },
     });
   }
@@ -160,6 +168,30 @@ export class BrowserNodeRequests {
       if (signal.aborted) finish(false);
       else this.worker.postMessage({ kind: "nativeHTTPReady" });
     });
+  }
+  private stream(
+    request: ReturnType<typeof NativeHTTPRequest.parse>,
+    signal: AbortSignal,
+    check: () => void,
+  ): Promise<Response> {
+    check();
+    signal.throwIfAborted();
+    if (this.pending.size >= 4)
+      return Promise.reject(
+        new Error("Native HTTPS request capacity reached."),
+      );
+    const id = ++this.next;
+    const stream = new NativeStreamRequest({
+      id,
+      request,
+      signal,
+      check,
+      post: (message) => this.worker.postMessage(message),
+      retire: () => this.pending.delete(id),
+    });
+    this.pending.set(id, stream);
+    stream.start();
+    return stream.response;
   }
   private request(
     request: ReturnType<typeof NativeHTTPRequest.parse>,
