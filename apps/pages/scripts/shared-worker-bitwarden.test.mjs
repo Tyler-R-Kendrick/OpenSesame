@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { build } from "vite";
 import { afterAll, it as test } from "vitest";
 import { bitwardenWorkerAssets } from "./bitwarden-worker-assets.mjs";
@@ -131,11 +131,17 @@ test("real BWS worker shares pure Zod while preserving private SDK state and eve
   );
   assert.ok(host.viteMetadata.importedAssets.has(worker.fileName));
   assert.ok(host.viteMetadata.importedAssets.has(pure[0].fileName));
-  const raw = values.find(
-    (value) => value.type === "asset" && value.fileName.endsWith(".wasm"),
+  const compressed = values.find(
+    (value) => value.type === "asset" && value.fileName.endsWith(".gz"),
   );
-  assert.ok(raw && host.viteMetadata.importedAssets.has(raw.fileName));
-  assert.deepEqual(Buffer.from(raw.source), await readFile(wasm));
+  assert.ok(
+    compressed && host.viteMetadata.importedAssets.has(compressed.fileName),
+  );
+  assert.ok(!values.some((value) => value.fileName.endsWith(".wasm")));
+  assert.deepEqual(
+    gunzipSync(Buffer.from(compressed.source)),
+    await readFile(wasm),
+  );
   for (const dependency of host.viteMetadata.importedAssets)
     assert.ok(candidate[dependency]);
   assert.ok(
