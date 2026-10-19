@@ -148,7 +148,9 @@ class NativeBrowserBackend implements SecretBackend {
   }
   async disconnect(session: SecretBackendSession): Promise<void> {
     try {
-      this.#sessions.read(session).client.dispose();
+      const { client } = this.#sessions.read(session);
+      this.#sessions.remove(session);
+      client.dispose();
     } catch {
       /* Ended handles retain no worker owner. */
     } finally {

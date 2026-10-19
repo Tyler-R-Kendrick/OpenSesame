@@ -19,6 +19,8 @@ import type {
   NativeWorkerValue,
 } from "./bitwarden-native-worker-protocol.js";
 import { createBitwardenNativeWorkerRuntime } from "./bitwarden-native-worker-runtime.js";
+import { disposeSecretBackendProbe } from "./runtime-admission.js";
+import { secretBackendSessionClosure } from "./sessions.js";
 import {
   type SecretBackendTransport,
   guardSecretBackendTransport,
@@ -220,4 +222,60 @@ it("closes the exact client when a valid IPC value has the wrong operation shape
   });
   expect(owner.signal.aborted).toBe(true);
   expect(session.signal?.aborted).toBe(true);
+});
+
+it.each([false, true])(
+  "completes intentional native probe disposal without reporting provider loss modern=%s",
+  async (modern) => {
+    const fixture = await nativeHttpFixture(modern);
+    closures.push(fixture.close);
+    const backend = createBitwardenNativeBrowserBackend(
+      fixture.transport,
+      runtimeClient,
+    );
+    const session = await backend.authenticate(configuration(fixture));
+    closures.push(() => backend.disconnect(session));
+    const lease = new AbortController();
+    await disposeSecretBackendProbe(
+      { backend, session },
+      {
+        signal: lease.signal,
+        current: () => !lease.signal.aborted,
+        check: () => lease.signal.throwIfAborted(),
+        close: () => lease.abort(),
+      },
+    );
+    expect(secretBackendSessionClosure(session)).toBe("removed");
+    expect(session.signal?.aborted).toBe(true);
+    expect(lease.signal.aborted).toBe(false);
+    await expect(backend.listItems(session)).rejects.toMatchObject({
+      code: "authentication",
+    });
+  },
+);
+
+it("keeps actual native provider loss distinct from intentional probe cleanup", async () => {
+  const fixture = await nativeHttpFixture(true);
+  closures.push(fixture.close);
+  const backend = createBitwardenNativeBrowserBackend(
+    fixture.transport,
+    runtimeClient,
+  );
+  const session = await backend.authenticate(configuration(fixture));
+  closures.push(() => backend.disconnect(session));
+  fixture.controller.abort();
+  expect(secretBackendSessionClosure(session)).toBe("provider-ended");
+  const lease = new AbortController();
+  await expect(
+    disposeSecretBackendProbe(
+      { backend, session },
+      {
+        signal: lease.signal,
+        current: () => !lease.signal.aborted,
+        check: () => lease.signal.throwIfAborted(),
+        close: () => lease.abort(),
+      },
+    ),
+  ).rejects.toMatchObject({ code: "stale" });
+  expect(secretBackendSessionClosure(session)).toBe("provider-ended");
 });
