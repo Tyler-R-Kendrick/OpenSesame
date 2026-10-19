@@ -25,12 +25,21 @@ const MIME = {
  * `runtimeConfig` is what the deployment's `os-runtime-config.json` says, when
  * the walk needs a deployment that says something.
  */
-export function serve(dist, base, runtimeConfig = null) {
+export function serve(dist, base, runtimeConfig = null, hooks = null) {
   const server = http.createServer((request, response) => {
     const { pathname } = new URL(request.url ?? "/", "http://localhost");
     const rel = pathname.startsWith(base)
       ? pathname.slice(base.length)
       : pathname.slice(1);
+    if (rel === "sw.js" && hooks?.serviceWorker) {
+      const file = path.join(dist, rel);
+      const body = hooks.serviceWorker(fs.readFileSync(file));
+      response.writeHead(200, {
+        "content-type": "text/javascript",
+        "cache-control": "no-store",
+      });
+      return response.end(body);
+    }
     if (rel === "os-runtime-config.json" && runtimeConfig !== null) {
       response.writeHead(200, {
         "content-type": "application/json",

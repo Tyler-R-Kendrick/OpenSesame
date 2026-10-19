@@ -37,6 +37,11 @@ export type Notice = {
   /** Re-attempt the failed work from the tray. */
   retry?: (() => void) | undefined;
   retryLabel?: string;
+  /**
+   * A second act, drawn as its own icon key. Not sealed in tray history:
+   * a reload keeps the words and the route, and this act is gone.
+   */
+  act?: NoticeAct | undefined;
   /** An in-app route the notice points at, opened from the tray. */
   open?: NoticeOpen;
   createdAt: string;
@@ -44,6 +49,9 @@ export type Notice = {
 
 /** Where a notice leads: a route of this app and the key's accessible name. */
 export type NoticeOpen = { to: string; label: string };
+
+/** An icon key on a tray card. The closure is not sealed in tray history. */
+export type NoticeAct = { label: string; run: () => void };
 
 export type StatusNoticeInput = {
   id: string;
@@ -54,6 +62,7 @@ export type StatusNoticeInput = {
   ceremonyLabel?: string;
   retry?: (() => void) | undefined;
   retryLabel?: string;
+  act?: NoticeAct;
   open?: NoticeOpen;
 };
 
@@ -100,7 +109,7 @@ function pushNoticeDefault(
   return notice;
 }
 
-/** The same words, to the letter: only a retry closure may differ. */
+/** The same words, to the letter: only a retry or act closure may differ. */
 function sameWords(existing: Notice, input: StatusNoticeInput): boolean {
   return (
     existing.tone === input.tone &&
@@ -117,10 +126,11 @@ function sameWords(existing: Notice, input: StatusNoticeInput): boolean {
 function setStatusNoticeDefault(input: StatusNoticeInput): Notice {
   const existing = notices.find((notice) => notice.id === input.id);
   if (existing && sameWords(existing, input)) {
-    // Same words — only the retry closure may have changed. Swap it in place
-    // so the click calls the fresh one, without an emit that would loop the
-    // effect that mirrors a page condition into this store.
+    // Same words — only the retry or act closure may have changed. Swap them
+    // in place so the click calls the fresh one, without an emit that would
+    // loop the effect that mirrors a page condition into this store.
     existing.retry = input.retry;
+    existing.act = input.act;
     return existing;
   }
   const notice: Notice = {
