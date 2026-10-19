@@ -701,12 +701,15 @@ export async function createMockUpstreamIdp(
 
       sendJson(res, 404, { error: "not_found" }, config.issuer);
     } catch (err) {
+      // Exception text (and any stack in it) stays server-side; the wire
+      // answer is the generic OAuth server_error only.
+      console.error(err);
       sendJson(
         res,
         500,
         {
           error: "server_error",
-          error_description: err instanceof Error ? err.message : String(err),
+          error_description: "Internal reference IdP error.",
         },
         config.issuer,
       );

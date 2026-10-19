@@ -35,13 +35,27 @@ export function freePort() {
   });
 }
 
+const SERVED_DIST_FILES = new Set(["siop-metadata.json", "index.html"]);
+
 /** Serve two files of `dist/` and nothing else, over loopback http. */
 export async function serveDist(dist) {
+  const root = path.resolve(dist);
   const server = http.createServer((request, response) => {
-    const name = request.url?.split("?")[0]?.replace(/^\//, "") ?? "";
-    const file = path.join(dist, name);
+    const raw = request.url?.split("?")[0]?.replace(/^\//, "") ?? "";
+    let name = "";
+    try {
+      name = decodeURIComponent(raw);
+    } catch {
+      name = "";
+    }
+    // Allowlist by basename first, then confine the resolved path under
+    // `dist/`; no filesystem call happens until both checks pass.
+    const base = path.basename(name);
+    const file = path.resolve(root, base);
     const served =
-      (name === "siop-metadata.json" || name === "index.html") &&
+      SERVED_DIST_FILES.has(base) &&
+      base === name &&
+      file.startsWith(root + path.sep) &&
       fs.existsSync(file);
     if (!served) {
       response.writeHead(404, { "content-type": "text/plain" });

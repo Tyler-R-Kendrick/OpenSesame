@@ -316,3 +316,34 @@ describe("negative controls: a wrong setting fails the way the provider would", 
     expect(check.verified).toMatchObject({ status: 401, ok: false });
   });
 });
+
+describe("create refusals stay generic on the wire", () => {
+  it("records schema detail in refusals, never in the response", async () => {
+    const plan = connectPlans().find(isConnectable);
+    assertPlan(plan);
+    const emulator = new ConnectEmulator(plan, () =>
+      Promise.resolve(new Response("{}")),
+    );
+    const reply = await emulator.handle(
+      new Request(`${CONNECT_ORIGIN}/v1/connect/connectors`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bogus: "<script>" }),
+      }),
+    );
+    expect(reply.status).toBe(400);
+    expect(reply.headers.get("content-type")).toBe("application/json");
+    expect(reply.headers.get("x-content-type-options")).toBe("nosniff");
+    const body = await reply.text();
+    expect(body).toContain(
+      "Connector create body was refused by the Connect schema.",
+    );
+    expect(body).not.toContain("<script>");
+    expect(emulator.refusals).toHaveLength(1);
+    expect(emulator.refusals[0]).not.toBe(body);
+  });
+});
+
+function assertPlan(plan: ConnectPlan | undefined): asserts plan is ConnectPlan {
+  if (!plan) throw new Error("conformance cases are empty");
+}
