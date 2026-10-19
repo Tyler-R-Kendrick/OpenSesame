@@ -6,6 +6,7 @@ import { createServer } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
+import { localVaultSessionGuard } from "@opensesame/app-core/lib/secret-backends/local-vault-port.js";
 import {
   deferred,
   runtimeFixture,
@@ -39,6 +40,21 @@ export const stripeDraft = {
   credentials: { api_key: stripeKey },
 };
 
+const stripeContract: PaymentOracleContract = {
+  origin: stripeOrigin,
+  authorization: `Bearer ${stripeKey}`,
+  headers: { "stripe-version": "2026-09-30.endive" },
+  absentHeaders: ["stripe-account"],
+  reply: stripeBalance,
+};
+type PaymentOracleContract = {
+  origin: string;
+  authorization: string;
+  headers: Record<string, string>;
+  absentHeaders: string[];
+  reply: BoundaryValue;
+};
+
 function certificate() {
   const directory = mkdtempSync(join(tmpdir(), "stripe-native-balance-"));
   execFileSync(
@@ -66,21 +82,26 @@ function certificate() {
 function routeOracle(
   tls: ReturnType<typeof certificate>,
   expectedPath: string,
+  contract: PaymentOracleContract,
 ) {
   const requests: { authorized: boolean; path: string; emptyBody: boolean }[] =
     [];
   let respond = (response: ServerResponse) =>
-    response.end(JSON.stringify(stripeBalance));
+    response.end(JSON.stringify(contract.reply));
   const server = createServer(tls, async (request, response) => {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const authorized =
       request.method === "GET" &&
       request.url === expectedPath &&
-      request.headers.authorization === `Bearer ${stripeKey}` &&
-      request.headers["stripe-version"] === "2026-09-30.endive" &&
-      request.headers.cookie === undefined &&
-      request.headers["stripe-account"] === undefined;
+      request.headers.authorization === contract.authorization &&
+      Object.entries(contract.headers).every(
+        ([name, value]) => request.headers[name] === value,
+      ) &&
+      contract.absentHeaders.every(
+        (name) => request.headers[name] === undefined,
+      ) &&
+      request.headers.cookie === undefined;
     const emptyBody = Buffer.concat(chunks).length === 0;
     requests.push({ authorized, path: request.url ?? "", emptyBody });
     response.setHeader("content-type", "application/json");
@@ -114,36 +135,66 @@ function routeOracle(
   };
 }
 
+/** Match the production controller's captured vault-owner transport lifetime. */
+function bindOracleOwner(lifetime: AbortController) {
+  const owner = localVaultSessionGuard(vaultStore);
+  // The real browser-node controller terminates its transport on owner withdrawal.
+  const releaseOwner = vaultStore.subscribe(() => {
+    try {
+      owner.current();
+    } catch {
+      lifetime.abort();
+    }
+  });
+  return () => {
+    releaseOwner();
+    owner.close();
+  };
+}
+
+function oracleFetch(
+  ca: Uint8Array,
+  port: number,
+  contract: PaymentOracleContract,
+  signal: AbortSignal,
+) {
+  const fetcher = tlsFetch(ca);
+  return vi.fn<typeof globalThis.fetch>(async (input, init) => {
+    const source = new Request(input, init);
+    const request = new Request(source, {
+      signal: AbortSignal.any([source.signal, signal]),
+    });
+    signal.throwIfAborted();
+    if (new URL(request.url).origin !== contract.origin)
+      throw new Error("Unexpected provider origin");
+    const response = await fetcher(
+      new URL(
+        new URL(request.url).pathname + new URL(request.url).search,
+        `https://127.0.0.1:${port}`,
+      ),
+      request,
+    );
+    signal.throwIfAborted();
+    return response;
+  });
+}
+
 /** Independent HTTPS route/auth oracle behind the real captured native transport boundary. */
-export async function stripeOracle(expectedPath = "/v1/balance") {
+export async function stripeOracle(
+  expectedPath = "/v1/balance",
+  contract: PaymentOracleContract = stripeContract,
+) {
   const storage = await runtimeFixture();
   const tls = certificate();
-  const oracle = routeOracle(tls, expectedPath);
+  const oracle = routeOracle(tls, expectedPath, contract);
   const { server } = oracle;
   await once(server.listen(0, "127.0.0.1"), "listening");
   const address = server.address();
   if (!address || !(address instanceof Object))
     throw new Error("TLS oracle address missing");
-  const fetcher = tlsFetch(tls.cert);
   const lifetime = new AbortController();
-  const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
-    const source = new Request(input, init);
-    const request = new Request(source, {
-      signal: AbortSignal.any([source.signal, lifetime.signal]),
-    });
-    lifetime.signal.throwIfAborted();
-    if (new URL(request.url).origin !== stripeOrigin)
-      throw new Error("Unexpected provider origin");
-    const response = await fetcher(
-      new URL(
-        new URL(request.url).pathname + new URL(request.url).search,
-        `https://127.0.0.1:${address.port}`,
-      ),
-      request,
-    );
-    lifetime.signal.throwIfAborted();
-    return response;
-  });
+  const releaseOwner = bindOracleOwner(lifetime);
+  const fetch = oracleFetch(tls.cert, address.port, contract, lifetime.signal);
   const snapshot: ReturnType<TailscaleBrowserNode["snapshot"]> = {
     status: "connected",
     hostname: "stripe-browser",
@@ -177,7 +228,7 @@ export async function stripeOracle(expectedPath = "/v1/balance") {
         version: 1,
         exitNodeID: "approved-exit",
         trustMode: "public",
-        targets: [{ origin: stripeOrigin, prefixes: ["203.0.113.0/24"] }],
+        targets: [{ origin: contract.origin, prefixes: ["203.0.113.0/24"] }],
       }),
     },
     vaultStore.getSnapshot().tomb,
@@ -202,6 +253,7 @@ export async function stripeOracle(expectedPath = "/v1/balance") {
     activation,
     lifetime,
     async close() {
+      releaseOwner();
       activation.dispose();
       lifetime.abort();
       release();

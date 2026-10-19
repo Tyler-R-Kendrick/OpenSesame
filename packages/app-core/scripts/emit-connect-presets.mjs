@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderPackedJsonRows } from "./pack-json.mjs";
+import { razorpayReadContract } from "./readonly-razorpay.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const spec = (name) =>
@@ -58,14 +59,10 @@ const CATEGORY_OVERRIDE = {
   tailscale: "networking",
 };
 
-/** Payment writes and agent card issuing remain refused; Stripe has one read-only contract. */
+/** Payment writes remain refused; only explicit bounded read contracts are admitted. */
 const REFUSED = new Set(["stripe", "stripe-issuing", "razorpay", "agentcard"]);
 
-/**
- * Refused on Connect: payment rails, and the catalog's card-issuing rows
- * (category `wallet`), whose keys reach a spend only through the wallet's
- * leases and conserved ledger (ADR 0123) — never as a raw delegated key.
- */
+/** Spending and issuing remain outside the connector's read-only authority. */
 function refused(id, row) {
   return REFUSED.has(id) || row?.category === "wallet";
 }
@@ -308,20 +305,21 @@ function stripeReadContract(id, apiKey) {
 }
 
 function planFor(id, service, row, oauth, apiKey) {
-  const stripeRead = stripeReadContract(id, apiKey);
+  const safeRead =
+    stripeReadContract(id, apiKey) ||
+    (id === "razorpay" && razorpayReadContract(apiKey));
   return {
     id,
     name: service?.name ?? row?.display_name ?? id,
     docsUrl: docsFor(service, row, oauth, apiKey),
     category: categoryFor(id, service, row),
     registry: Boolean(service),
-    refused: refused(id, row) && !stripeRead,
-    methods:
-      id === "stripe" || id === "stripe-issuing"
-        ? stripeRead
-          ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
-          : []
-        : methodsFor(service, oauth, apiKey),
+    refused: refused(id, row) && !safeRead,
+    methods: ["stripe", "stripe-issuing", "razorpay"].includes(id)
+      ? safeRead
+        ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
+        : []
+      : methodsFor(service, oauth, apiKey),
   };
 }
 

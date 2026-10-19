@@ -6852,6 +6852,41 @@
       "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
       "sources": ["https://docs.z.ai/guides/overview/pricing"],
       "template_params": []
+    },
+    {
+      "service": "razorpay",
+      "key_url": "https://dashboard.razorpay.com/app/keys",
+      "key_prefix": "rzp_",
+      "service_urls": ["https://api.razorpay.com"],
+      "basic": {
+        "username": "{key}",
+        "password": "{key_secret}"
+      },
+      "additional_credentials": [
+        {
+          "name": "key_secret",
+          "label": "Key Secret",
+          "placeholder": "",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.razorpay.com/v1/payments?count=20&skip=0",
+        "required_fields": ["entity", "count", "items"],
+        "success": [
+          {
+            "field": "entity",
+            "equals": "collection"
+          }
+        ]
+      },
+      "instructions": "Enter your Key ID in Razorpay API key and your Key Secret below. Both credentials are sealed in this vault. Test and live keys use the same endpoint. This connection only reads the first 20 payment summaries; it cannot capture payments, create refunds or change payment data.",
+      "docs_url": "https://razorpay.com/docs/api/payments/fetch-all/",
+      "sources": [
+        "https://github.com/razorpay/razorpay-node/blob/b9e8527225a7322ba2671a3bc0b848fd019d2d8c/lib/resources/payments.js"
+      ]
     }
   ]
 }

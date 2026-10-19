@@ -16,6 +16,19 @@ const PARAMETER_VALUES = {
 };
 
 const DOCUMENTED_PROBE_REPLIES = {
+  razorpay: {
+    entity: "collection",
+    count: 1,
+    items: [
+      {
+        entity: "payment",
+        id: "pay_contract",
+        status: "captured",
+        currency: "INR",
+        amount: 1500,
+      },
+    ],
+  },
   "stripe-issuing": {
     object: "list",
     url: "/v1/issuing/cards",
@@ -115,6 +128,25 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
+  razorpay: {
+    id: "provider.payments.read",
+    label: "List payments",
+    method: "GET",
+    url: "https://api.razorpay.com/v1/payments?count=20&skip=0",
+    headers: {},
+    absentHeaders: ["x-razorpay-account"],
+    reply: DOCUMENTED_PROBE_REPLIES.razorpay,
+    result: {
+      label: "Showing 1 payments from first page; amounts in minor units",
+      items: [
+        {
+          id: "pay_contract",
+          label: "pay_contract — captured (INR 1500 minor units)",
+        },
+      ],
+    },
+    excludedText: [],
+  },
   "stripe-issuing": {
     id: "provider.issuing-cards.read",
     label: "List Issuing cards",
@@ -249,8 +281,8 @@ function setField(root, path, value) {
 
 function verificationReply(id, verification) {
   const documented = DOCUMENTED_PROBE_REPLIES[id];
-  // Stripe's strict read contracts need typed arrays and booleans, never placeholder strings.
-  if (id === "stripe" || id === "stripe-issuing")
+  // Strict payment reads need their documented typed collections, not string placeholders.
+  if (id === "stripe" || id === "stripe-issuing" || id === "razorpay")
     return structuredClone(documented);
   if (
     !documented &&

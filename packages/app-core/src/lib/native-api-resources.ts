@@ -7,6 +7,7 @@ import {
   type NativeApiOperationDefinition,
   executeNativeApiRequest,
 } from "./native-api-operations.js";
+import { projectNativeRazorpayPayments } from "./native-api-razorpay.js";
 import { projectNativeStripeIssuingCards } from "./native-api-stripe-issuing.js";
 import { projectNativeStripeBalance } from "./native-api-stripe.js";
 import type { NativeApiReadResult } from "./native-api-verify.js";
@@ -198,6 +199,17 @@ function projectContentfulSpaces(body: BoundaryValue): BoundaryValue {
   };
 }
 const resources: readonly Resource[] = [
+  jsonResource(
+    "List payments",
+    {
+      providerId: "razorpay",
+      operationId: "provider.payments.read",
+      method: "GET",
+      path: "/v1/payments",
+      query: { count: 20, skip: 0 },
+    },
+    projectNativeRazorpayPayments,
+  ),
   jsonResource(
     "List Issuing cards",
     {
