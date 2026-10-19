@@ -5,7 +5,7 @@ import {
   browserOAuthScopes,
   requiredBrowserOAuthProfile,
 } from "./native-browser-oauth-profile.js";
-import { assertNativeBrowserOAuthPolicy } from "./native-browser-policy.js";
+import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 /** Public configuration is persisted separately from issued provider grants. */
 import type { NativeDriverInput } from "./native-connector-drivers.js";
 import {
@@ -19,7 +19,10 @@ import {
   saveNativeConnector,
   updateNativeConnector,
 } from "./native-connector-store.js";
-import { nativeProviderTransport } from "./native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  nativeProviderTransport,
+} from "./native-connector-transport.js";
 import { nativeOAuthGuard } from "./native-oauth-session.js";
 
 async function oauthFingerprint(
@@ -121,10 +124,11 @@ function assertNoAuthorization(saved: NativeConnectorRecord): void {
 }
 export async function configureNativeBrowserOAuthConnector(
   input: NativeDriverInput,
+  transport: NativeProviderTransport = nativeProviderTransport(),
 ) {
-  assertNativeBrowserOAuthPolicy(input.providerId);
-  const transport = nativeProviderTransport();
+  transport.assertCurrent();
   const configuration = oauthConfiguration(input);
+  assertNativeConfigurationPolicy(configuration, transport);
   configuration.fingerprint = await oauthFingerprint(configuration);
   transport.assertCurrent();
   const saved = existingConfiguration(input, configuration);
@@ -138,6 +142,7 @@ export async function configureNativeBrowserOAuthConnector(
         privateState: emptyNativePrivate(),
       },
       classification,
+      transport.assertCurrent,
     );
   return updateNativeConnector(
     saved.connectionId,
@@ -148,5 +153,6 @@ export async function configureNativeBrowserOAuthConnector(
       record.configuration = configuration;
       return record;
     },
+    transport.assertCurrent,
   );
 }
