@@ -89,6 +89,7 @@ export function createInfisicalLifetime(
         current();
         return result;
       } catch (error) {
+        current();
         if (
           error instanceof SecretBackendHttpError &&
           (error.status === 401 ||
