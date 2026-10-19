@@ -3,6 +3,10 @@ import type {
   NativeOAuthDeviceConsentRequest,
 } from "../lib/native-oauth-browser-port.js";
 import {
+  nativeAuthFormFields,
+  submitNativeAuthForm,
+} from "./native-auth-form.js";
+import {
   type NativeAuthBroadcast,
   type NativeAuthCode,
   type NativeAuthWireCode,
@@ -28,6 +32,9 @@ export type NativeAuthRedirectConsentRequest = Pick<
   AuthRequest,
   "authorizationUrl" | "state" | "expiresAt"
 >;
+export type NativeAuthFormConsentRequest = AuthRequest & {
+  fields: Readonly<Record<string, string>>;
+};
 export type NativeAuthPopup = {
   wait: (request: NativeAuthReturnRequest) => Promise<NativeAuthCode>;
   waitWebMessage: (
@@ -38,6 +45,9 @@ export type NativeAuthPopup = {
   ) => NativeOAuthDeviceConsent;
   showRedirectConsent: (
     request: NativeAuthRedirectConsentRequest,
+  ) => NativeOAuthDeviceConsent;
+  showFormConsent: (
+    request: NativeAuthFormConsentRequest,
   ) => NativeOAuthDeviceConsent;
   cancel: () => void;
 };
@@ -57,7 +67,8 @@ function validateRequest(
   if (
     (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) ||
     url.username ||
-    url.password
+    url.password ||
+    !Number.isFinite(request.expiresAt)
   )
     throw new Error("Invalid provider authorization URL");
   const now = Date.now();
@@ -269,15 +280,54 @@ function showDeviceConsent(
     throw error;
   }
 }
-/** Reserve during the click, before discovery/auth_url network requests await. */
-export function reserveNativeAuthPopup(): NativeAuthPopup {
-  const popup = window.open(
-    "about:blank",
-    "_blank",
-    "popup,width=600,height=720",
-  );
-  if (!popup)
-    throw new Error("Allow the provider sign-in window and try again");
+function showFormConsent(
+  session: PopupSession,
+  request: NativeAuthFormConsentRequest,
+): NativeOAuthDeviceConsent {
+  try {
+    const owned = {
+      authorizationUrl: request.authorizationUrl,
+      state: request.state,
+      expiresAt: request.expiresAt,
+      signal: request.signal,
+    };
+    startSession(session, owned, 5 * 60_000);
+    const assertCurrent = () => {
+      if (session.cancelled || owned.signal?.aborted)
+        throw new Error("Provider authorization was cancelled");
+      if (Date.now() >= owned.expiresAt)
+        throw new Error("Provider authorization request expired");
+    };
+    const fields = nativeAuthFormFields(request.fields, owned.authorizationUrl);
+    assertCurrent();
+    const lifetime = new AbortController();
+    const close = () => {
+      clearTimeout(deadline);
+      owned.signal?.removeEventListener("abort", abort);
+      session.cancelWait = null;
+      closeSessionPopup(session);
+    };
+    const abort = () => {
+      lifetime.abort();
+      close();
+    };
+    const deadline = setTimeout(
+      abort,
+      Math.max(0, owned.expiresAt - Date.now()),
+    );
+    session.cancelWait = abort;
+    owned.signal?.addEventListener("abort", abort, { once: true });
+    session.popup.opener = null;
+    session.isolated = true;
+    assertCurrent();
+    submitNativeAuthForm(session.popup, owned.authorizationUrl, fields);
+    return { signal: lifetime.signal, close };
+  } catch (error) {
+    cancelSession(session);
+    throw error;
+  }
+}
+function popupReservation(popup: Window): NativeAuthPopup {
   const session: PopupSession = {
     popup,
     isolated: false,
@@ -291,5 +341,32 @@ export function reserveNativeAuthPopup(): NativeAuthPopup {
     waitWebMessage: (request) => waitForWebMessage(session, request),
     showDeviceConsent: (request) => showDeviceConsent(session, request),
     showRedirectConsent: (request) => showRedirectConsent(session, request),
+    showFormConsent: (request) => showFormConsent(session, request),
   };
+}
+const handedOff = new WeakSet<Window>();
+/** The host port reserved this exact window in the click before the browser protocol module loaded. */
+export function resumeNativeAuthPopup(popup: Window): NativeAuthPopup {
+  if (
+    handedOff.has(popup) ||
+    popup.closed ||
+    popup.opener !== window ||
+    popup.location.href !== "about:blank"
+  )
+    throw new Error(
+      "Provider sign-in requires its original unused browser window",
+    );
+  handedOff.add(popup);
+  return popupReservation(popup);
+}
+/** Reserve during the click, before discovery/auth_url network requests await. */
+export function reserveNativeAuthPopup(): NativeAuthPopup {
+  const popup = window.open(
+    "about:blank",
+    "_blank",
+    "popup,width=600,height=720",
+  );
+  if (!popup)
+    throw new Error("Allow the provider sign-in window and try again");
+  return popupReservation(popup);
 }
