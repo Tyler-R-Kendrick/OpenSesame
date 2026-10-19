@@ -8,6 +8,7 @@ import { encryptedBackupRoundTrip } from "./lib/secret-backend-backup-browser.mj
 import { startBitwardenFixture } from "./lib/secret-backend-bitwarden-fixture.mjs";
 import { startSecretBackendAppServer } from "./lib/secret-backend-browser-server.mjs";
 import {
+  backendCrud,
   connectBackend,
   disconnectBackend,
   enableBackendConnections,
