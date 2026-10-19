@@ -1,8 +1,5 @@
 import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
-import {
-  type CliAppPasskeyReady,
-  loadCliAppPasskeyReady,
-} from "@opensesame/app-core/lib/cli-app-integration/webauthn-credential.js";
+import type { CliAppPasskeyReady } from "@opensesame/app-core/lib/cli-app-integration/webauthn-credential.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import { useEffect, useState } from "react";
@@ -39,9 +36,6 @@ function pageOrigin(): string | null {
 
 export { CLI_AUTHORIZE_LOAD_BLOCKED, CLI_AUTHORIZE_LOAD_UNREADABLE };
 
-const LOAD_BLOCKED = CLI_AUTHORIZE_LOAD_BLOCKED;
-const LOAD_UNREADABLE = CLI_AUTHORIZE_LOAD_UNREADABLE;
-
 const PENDING_POLL_MS = 5000;
 
 /** The deployment fence in `localNetworkFetch` refuses with a SecurityError. */
@@ -50,7 +44,7 @@ function isDeploymentBlocked(error: DOMException | null): boolean {
 }
 
 function blockedCopy(error: DOMException | null, fallback: string): string {
-  return isDeploymentBlocked(error) ? LOAD_BLOCKED : fallback;
+  return isDeploymentBlocked(error) ? CLI_AUTHORIZE_LOAD_BLOCKED : fallback;
 }
 
 const cliAuthorizePendingBodySchema = z.object({
@@ -87,7 +81,8 @@ type PendingLoad = {
 async function loadPending(): Promise<PendingLoad> {
   const origin = daemonOrigin();
   const headers = authHeaders();
-  if (!origin || !headers) return { row: null, loadError: LOAD_UNREADABLE };
+  if (!origin || !headers)
+    return { row: null, loadError: CLI_AUTHORIZE_LOAD_UNREADABLE };
   try {
     const res = await localNetworkFetch(
       `${origin}/v1/cli/app-integration/pending`,
@@ -98,7 +93,7 @@ async function loadPending(): Promise<PendingLoad> {
         headers,
       },
     );
-    if (!res.ok) return { row: null, loadError: LOAD_UNREADABLE };
+    if (!res.ok) return { row: null, loadError: CLI_AUTHORIZE_LOAD_UNREADABLE };
     const body = cliAuthorizePendingBodySchema.safeParse(await res.json());
     if (!body.success) return { row: null, loadError: null };
     const entry = body.data.pending[0];
@@ -119,7 +114,7 @@ async function loadPending(): Promise<PendingLoad> {
       row: null,
       loadError: blockedCopy(
         error instanceof DOMException ? error : null,
-        LOAD_UNREADABLE,
+        CLI_AUTHORIZE_LOAD_UNREADABLE,
       ),
     };
   }
@@ -135,9 +130,16 @@ export function useCliAuthorizePanel() {
 
   useEffect(() => {
     let cancelled = false;
-    void loadCliAppPasskeyReady().then((ready) => {
-      if (!cancelled) setPasskeyReady(ready);
-    });
+    void import(
+      "@opensesame/app-core/lib/cli-app-integration/webauthn-credential.js"
+    )
+      .then((mod) => mod.loadCliAppPasskeyReady())
+      .then((ready) => {
+        if (!cancelled) setPasskeyReady(ready);
+      })
+      .catch(() => {
+        if (!cancelled) setPasskeyReady("unsupported");
+      });
     return () => {
       cancelled = true;
     };
