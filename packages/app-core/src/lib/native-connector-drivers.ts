@@ -39,6 +39,7 @@ export type NativeConnectorDriver = {
     connectionId: string,
     operationId: string,
     input: Record<string, string>,
+    signal?: AbortSignal,
   ) => Promise<NativeDriverResult>;
 };
 

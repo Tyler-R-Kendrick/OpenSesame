@@ -88,7 +88,7 @@ export const nativeMcpConnectorDriver: NativeConnectorDriver = {
   configure: configureNativeMcpConnector,
   verify: verifyNativeMcpConnector,
   authorize: beginNativeMcpAuthorization,
-  invoke,
+  invoke: (id, operationId, input) => invoke(id, operationId, input),
 };
 
 export {

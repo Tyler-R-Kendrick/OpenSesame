@@ -107,6 +107,7 @@ export type NativeConnectorController = {
   invoke: (
     operationId: string,
     input: Record<string, string>,
+    signal?: AbortSignal,
   ) => Promise<SafeActionResult>;
   retry: (recoveryId: string) => Promise<NativeConnectorView>;
   revocationInstructions?: (recoveryId: string) => {

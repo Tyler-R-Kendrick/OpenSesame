@@ -39,6 +39,7 @@ import {
 } from "@opensesame/app-core/lib/native-s3.js";
 import { readNativeVaultToken } from "@opensesame/app-core/lib/native-vault-token-read.js";
 import type { Activation } from "../activation.js";
+import { LeaseAbortedError, anySignal } from "../signals.js";
 import { nativeVaultSecretItems } from "./native-vault-kv-output.js";
 
 function instance(providerId: string): providerId is "vault" | "openbao" {
@@ -214,6 +215,38 @@ async function invokeInstance(
     items: facts.policies.map((policy) => ({ id: policy, label: policy })),
   };
 }
+/** One caller adds cancellation to the same original route; no request recaptures. */
+async function invokeOwnedApi(
+  id: string,
+  operation: string,
+  input: Record<string, string>,
+  capture: () => NativeProviderTransport,
+  caller: AbortSignal,
+) {
+  if (caller.aborted) throw new LeaseAbortedError();
+  const original = capture();
+  const signals = [caller];
+  if (original.signal) signals.push(original.signal);
+  const signal = anySignal(signals);
+  const assertCurrent = () => {
+    try {
+      original.assertCurrent();
+      signal.throwIfAborted();
+    } catch {
+      throw new LeaseAbortedError("This provider operation ended.");
+    }
+  };
+  const transport = { ...original, signal, assertCurrent };
+  assertCurrent();
+  try {
+    const result = await invokeApi(id, operation, input, transport);
+    assertCurrent();
+    return result;
+  } catch (error) {
+    assertCurrent();
+    throw error;
+  }
+}
 export function bindNativeApiRuntime(activation: Activation): void {
   const authority = captureNativeProviderAuthority();
   const cleanupRoutes = new Map<string, NativeProviderTransport>();
@@ -254,8 +287,10 @@ export function bindNativeApiRuntime(activation: Activation): void {
           ? verifyNativeLocalInstance(id, transport)
           : verifyNativeApiConnector(id, transport);
       },
-      invoke: async (id, operation, input) =>
-        invokeApi(id, operation, input, authority.capture()),
+      invoke: async (id, operation, input, signal) =>
+        signal === undefined
+          ? invokeApi(id, operation, input, authority.capture())
+          : invokeOwnedApi(id, operation, input, authority.capture, signal),
       cleanup: {
         classification: (configuration) =>
           apiCleanup(authority.capture()).classification(configuration),
