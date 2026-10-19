@@ -1,6 +1,15 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 /** Shared model authority port. Provider implementations are installed by their capability. */
-import type { AiInferenceFamily } from "./ai-connections/types.js";
+export type CallProtocol =
+  | "openai_chat"
+  | "anthropic_messages"
+  | "gemini_generate_content";
+export type AiInferenceFamily =
+  | CallProtocol
+  | "openai_responses"
+  | "bedrock_converse"
+  | "replicate_predictions"
+  | "elevenlabs_scribe";
 export type HostedModelTransport = {
   fetch: typeof fetch;
   assertCurrent: () => void;

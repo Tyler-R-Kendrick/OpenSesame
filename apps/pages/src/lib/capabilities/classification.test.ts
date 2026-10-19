@@ -103,6 +103,84 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       expect(classify(path), path).toBeNull();
   });
 
+  it("shares only the principal generation leaf while ambient acquisition stays optional", () => {
+    expect(classify("src/lib/auth-generation.ts")).toMatchObject({
+      pattern: "src/lib/auth-generation.ts",
+      classification: "shared",
+      capability: null,
+    });
+    for (const path of [
+      "src/lib/auth-generation-helper.ts",
+      "src/lib/auth-generation.test.ts",
+      "src/lib/auth-generations.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+    for (const path of [
+      "src/lib/ambient-auth/generation.ts",
+      "src/lib/ambient-auth/controller.ts",
+      "src/lib/ambient-auth/oidc.ts",
+    ])
+      expect(classify(path), path).toMatchObject({
+        classification: "optional",
+        capability: "identity.ambient-sso",
+      });
+  });
+  it("owns only the exact shell update and draft-retirement files", () => {
+    for (const name of [
+      "dirty-forms.ts",
+      "dirty-forms.test.tsx",
+      "load-shell.ts",
+      "load-shell.test.ts",
+      "shell-update.ts",
+      "shell-update.test.ts",
+      "stale-asset.ts",
+      "sw-update-guard.ts",
+      "dirty-edit.ts",
+      "dirty-edit.test.ts",
+      "stale-asset-reload.ts",
+    ]) {
+      expect(classify(`src/lib/${name}`), name).toMatchObject({
+        pattern: `src/lib/${name}`,
+        classification: "core",
+        capability: "shell.navigation",
+      });
+    }
+    for (const name of [
+      "dirty-formats.ts",
+      "dirty-editing.ts",
+      "load-shell-helper.ts",
+      "shell-updates.ts",
+      "stale-asset-reloads.ts",
+      "sw-update-guards.ts",
+    ])
+      expect(classify(`src/lib/${name}`), name).toBeNull();
+  });
+
+  it("keeps the Passwords offer optional and the native S3 fixture exactly scoped", () => {
+    expect(classify("src/lib/pwa-offer-passwords-onboarding.ts")).toMatchObject(
+      {
+        pattern: "src/lib/pwa-offer-passwords-onboarding.ts",
+        classification: "optional",
+        capability: "vault.derived-records",
+      },
+    );
+    expect(classify("src/lib/test/native-s3-backup-fixtures.ts")).toMatchObject(
+      {
+        pattern: "src/lib/test/native-s3-backup-fixtures.ts",
+        classification: "optional",
+        capability: "connectors.external",
+      },
+    );
+    for (const path of [
+      "src/lib/pwa-offer-passwords-onboarding-helper.ts",
+      "src/lib/pwa-offer-passwords-onboardings.ts",
+      "src/lib/test/native-s3-backup-fixture.ts",
+      "src/lib/test/native-s3-backup-fixtures-other.ts",
+      "src/lib/test/unowned-provider-fixtures.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+  });
+
   it("has unique patterns", () => {
     const patterns = SOURCE_CLASSIFICATION.map((rule) => rule.pattern);
     expect(new Set(patterns).size).toBe(patterns.length);
