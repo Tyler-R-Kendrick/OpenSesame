@@ -110,3 +110,37 @@ it("keeps officially browser-supported Notion API configuration available", () =
     descriptor.methods.find((method) => method.id === "api-key")?.available,
   ).toBe(true);
 });
+
+it("offers explicit MCP credential modes when published public OAuth metadata is incomplete, without inventing an auth contract", () => {
+  const plan = connectPlan("hugging-face");
+  if (!plan) throw new Error("Missing real incomplete MCP contract");
+  const descriptor = nativeProviderDescriptor(plan, {
+    callbackUrl: "https://operator.example/auth/native-connector.html",
+    apiKey: { available: false },
+    oauth: { available: true, registeredAvailable: true },
+    mcp: { available: true, actor: "user" },
+  });
+  const method = descriptor.methods.find((row) => row.id === "mcp");
+  expect(method?.fields[0]).toMatchObject({
+    id: "mcp_authentication",
+    defaultValue: "",
+  });
+  expect(method?.fields[0]?.choices?.map((row) => row.id)).toEqual([
+    "bearer",
+    "header",
+    "anonymous",
+  ]);
+  expect(
+    method?.fields.some(
+      (field) =>
+        field.id === "mcp_url" &&
+        field.defaultValue === "https://huggingface.co/mcp?login&gradio=none",
+    ),
+  ).toBe(true);
+  expect(
+    method?.fields.some(
+      (field) =>
+        field.id === "token_endpoint" || field.id === "authorization_endpoint",
+    ),
+  ).toBe(false);
+});

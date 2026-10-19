@@ -10,6 +10,7 @@ import {
   type NativeProviderTransport,
   nativeProviderTransport,
 } from "./native-connector-transport.js";
+import { configuredMcpTarget } from "./native-mcp-configured-config.js";
 import { nativeMcpProviderMetadata } from "./native-mcp-profile.js";
 function actualTargets(
   providerId: string,
@@ -36,6 +37,11 @@ function actualTargets(
       : null;
   }
   if (method === "mcp") {
+    if (
+      "mcp_authentication" in parameters &&
+      parameters.mcp_authentication !== "oauth"
+    )
+      return { resourceEndpoint: configuredMcpTarget(parameters).mcp_url };
     const metadata = nativeMcpProviderMetadata(providerId, parameters.mcp_url);
     return metadata.status === "ok"
       ? {

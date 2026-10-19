@@ -5,7 +5,9 @@ import { type ConnectPlan, connectPlan } from "./connect-plan.js";
 import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
 import {
   type NativeBrowserPolicyCarrier,
+  type NativeMethodPolicyCarrier,
   nativePolicyCarrierCurrent,
+  nativeResourcePolicyCarrierCurrent,
 } from "./native-policy-carrier.js";
 
 const ruleSchema = z.object({
@@ -91,11 +93,21 @@ function apiEvidence(providerId: string): NativeBrowserPolicyDecision {
   };
 }
 
+function methodCarrierCurrent(
+  method: string,
+  carrier?: NativeMethodPolicyCarrier,
+): boolean {
+  if (!carrier) return false;
+  return "tokenEndpoint" in carrier
+    ? nativePolicyCarrierCurrent(carrier)
+    : method === "mcp" && nativeResourcePolicyCarrierCurrent(carrier);
+}
+
 export function nativeBrowserMethodPolicy(
   providerId: string,
   method: ConnectPlan["methods"][number]["kind"] | "native-local" | "oidc",
   parameters: Readonly<Record<string, string>> = {},
-  carrier?: NativeBrowserPolicyCarrier,
+  carrier?: NativeMethodPolicyCarrier,
 ): NativeBrowserPolicyDecision {
   const selected =
     method === "api-key" ? publicDefaults(providerId, parameters) : parameters;
@@ -111,7 +123,7 @@ export function nativeBrowserMethodPolicy(
   if (rule) {
     if (
       (method === "oauth" || method === "mcp") &&
-      nativePolicyCarrierCurrent(carrier)
+      methodCarrierCurrent(method, carrier)
     )
       return AVAILABLE;
     if (method === "api-key")
@@ -143,13 +155,13 @@ export function nativeBrowserOAuthPolicy(
 }
 export function nativeBrowserMcpPolicy(
   providerId: string,
-  carrier?: NativeBrowserPolicyCarrier,
+  carrier?: NativeMethodPolicyCarrier,
 ): NativeBrowserPolicyDecision {
   return nativeBrowserMethodPolicy(providerId, "mcp", {}, carrier);
 }
 export function assertNativeBrowserMcpPolicy(
   providerId: string,
-  carrier?: NativeBrowserPolicyCarrier,
+  carrier?: NativeMethodPolicyCarrier,
 ): void {
   const decision = nativeBrowserMcpPolicy(providerId, carrier);
   if (!decision.available)

@@ -72,9 +72,15 @@ export function nativeDraftMethod(
   view: NativeConnectorView | null | undefined,
   values: NativeFieldValues,
 ): NativeMethodDescriptor {
+  const configured =
+    method.id === "mcp" &&
+    ["bearer", "header", "anonymous"].includes(values.mcp_authentication ?? "");
+  const current = configured
+    ? { ...method, authorizeFirst: false, scopeGroups: [] }
+    : method;
   return nativePolicyMethod(
     providerId,
-    nativeMethodForEdit(method, view, values),
+    nativeMethodForEdit(current, view, values),
     nativeFieldValues(method.fields, values, false),
   );
 }

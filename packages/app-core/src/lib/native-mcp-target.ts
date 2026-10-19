@@ -88,7 +88,7 @@ export function admitNativeMcpRequest(
   method: string,
 ): void {
   if (
-    destination.href === binding.endpoint &&
+    destination.href === nativeMcpUrl(binding.endpoint).href &&
     ["GET", "POST", "DELETE"].includes(method)
   )
     return;

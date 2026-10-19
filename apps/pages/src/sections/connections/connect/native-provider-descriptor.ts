@@ -13,6 +13,7 @@ import type {
   NativeMethodDescriptor,
   NativeScopeGroup,
 } from "./native-connector-ui.js";
+import { configuredMcpDescriptor } from "./native-mcp-configured-descriptor.js";
 import {
   type NativeOAuthResourceOptions,
   nativeOAuthResourceDescriptor,
@@ -289,7 +290,13 @@ function providerMethods(
     if (method.kind === "oauth")
       methods.push(publicOAuthDescriptor(plan, availability, method));
     if (method.kind === "mcp")
-      methods.push(mcpDescriptor(method, availability.mcp));
+      methods.push(
+        configuredMcpDescriptor(
+          plan.id,
+          method.mcp,
+          mcpDescriptor(method, availability.mcp),
+        ),
+      );
   }
   if (!methods.some((method) => method.id === "oauth")) {
     const additional = additionalOAuthMethod(plan, availability);

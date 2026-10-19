@@ -145,7 +145,7 @@ function useNativeForm(props: Props) {
         icon: image.icon,
         parameters: nativeFieldValues(method.fields, values, false),
         credentials,
-        requestedScopes: scopes,
+        requestedScopes: nativeScopeDefaults(method, scopes),
         targetIds: nativeEditTargetIds(method, view),
       });
       if (!attempt.current()) return;
