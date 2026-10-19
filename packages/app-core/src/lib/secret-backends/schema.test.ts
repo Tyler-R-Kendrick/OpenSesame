@@ -47,12 +47,50 @@ describe("shared browser secret backend configuration", () => {
     expect(() =>
       validateSecretBackendDraft({
         ...secretBackendDraft("proton-pass"),
+        mode: "file-import",
         fileFormat: "generic-csv",
       }),
     ).toThrow();
     expect(
-      validateSecretBackendDraft(secretBackendDraft("proton-pass")).fileFormat,
+      validateSecretBackendDraft({
+        ...secretBackendDraft("proton-pass"),
+        mode: "file-import",
+      }).fileFormat,
     ).toBe("protonpass-json");
+  });
+
+  it("defaults Proton to the real native protocol and admits the same protocol through BYO", () => {
+    expect(secretBackendDraft("proton-pass").mode).toBe("proton-pass");
+    const token = `pst_${"P".repeat(64)}::${Buffer.from(new Uint8Array(32).fill(17)).toString("base64url")}`;
+    const config = {
+      ...secretBackendDraft("proton-pass"),
+      baseUrl: "https://pass-api.proton.me/api",
+      token,
+      vaultId: "scoped-share",
+      appVersion: "web-opensesame@2.0.0",
+    };
+    expect(validateSecretBackendDraft(config).appVersion).toBe(
+      config.appVersion,
+    );
+    expect(
+      validateSecretBackendDraft({
+        ...config,
+        providerId: "byo-secret-backend",
+      }).mode,
+    ).toBe("proton-pass");
+    const projected = publicSecretBackendDraft(config);
+    expect(projected.token).toBe("");
+    expect(projected.appVersion).toBe(config.appVersion);
+    for (const invalid of [
+      { ...config, appVersion: "" },
+      { ...config, vaultId: ".." },
+      { ...config, token: "not-a-scoped-token" },
+      { ...config, token: "", clientId: config.appVersion },
+    ])
+      expect(() => validateSecretBackendDraft(invalid)).toThrow();
+    expect(
+      validateSecretBackendDraft({ ...config, token: "" }, false).token,
+    ).toBe("");
   });
 
   it("requires connection-specific targets and credentials", () => {

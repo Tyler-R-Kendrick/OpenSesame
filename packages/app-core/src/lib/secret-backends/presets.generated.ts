@@ -14,6 +14,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
       "bitwarden-secrets",
       "infisical",
       "passwordstate",
+      "proton-pass",
     ],
     defaultMode: "local",
     docsUrl: "https://developer.mozilla.org/en-US/docs/Web/API/File_API",
@@ -171,11 +172,11 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
   {
     providerId: "proton-pass",
     label: "Proton Pass",
-    modes: ["file-import"],
-    defaultMode: "file-import",
-    docsUrl: "https://proton.me/support/pass-export",
+    modes: ["proton-pass", "file-import"],
+    defaultMode: "proton-pass",
+    docsUrl: "https://github.com/protonpass/pass-cli",
     setup:
-      "Choose your Proton Pass unencrypted JSON or ZIP export. The file is parsed locally, previewed and copied only when you import. No file is uploaded and no CLI runs.",
+      "Use a scoped whole-vault personal access token and its PAT share ID. Paste the complete token including the local key after ::. The public protocol client/version defaults to cli-pass@2.4.2, matching the official CLI; change it if your API deployment requires another supported version. This header is not a credential. Editor access enables writes; items decrypt on this device. Exports remain an optional import method.",
     fileFormats: [
       {
         id: "protonpass-json",
