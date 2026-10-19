@@ -98,32 +98,38 @@ export function resolveIdentityConnectionSecrets(
 export function writeIdentityConnection(
   draft: IdentityConnectionDraft,
   existingId?: string,
+  beforeCommit?: () => void,
 ): Promise<Connection> {
-  return saveDeviceConnectorConfigurationDurable(() => {
-    const current = resolveIdentityConnectionSecrets(draft, existingId);
-    if (existingId && !readIdentityConnection(existingId))
-      throw new Error("Saved identity connection not found");
-    const secrets: Record<string, string> = {};
-    for (const field of IDENTITY_SECRET_FIELDS)
-      if (current[field]) secrets[field] = current[field];
-    return {
-      providerId: current.providerId,
-      displayName: current.name,
-      scopes:
-        current.protocol === "oidc"
-          ? current.scope.split(/\s+/).filter(Boolean)
-          : [],
-      fields: {
-        [FIELD]: JSON.stringify(publicIdentityDraft(current)),
-        [REVISION]: Array.from(
-          crypto.getRandomValues(new Uint8Array(24)),
-          (byte) => byte.toString(16).padStart(2, "0"),
-        ).join(""),
-        self_hosted_configuration: "identity-v1",
-      },
-      secrets,
-    };
-  }, existingId);
+  return saveDeviceConnectorConfigurationDurable(
+    () => {
+      beforeCommit?.();
+      const current = resolveIdentityConnectionSecrets(draft, existingId);
+      if (existingId && !readIdentityConnection(existingId))
+        throw new Error("Saved identity connection not found");
+      const secrets: Record<string, string> = {};
+      for (const field of IDENTITY_SECRET_FIELDS)
+        if (current[field]) secrets[field] = current[field];
+      return {
+        providerId: current.providerId,
+        displayName: current.name,
+        scopes:
+          current.protocol === "oidc"
+            ? current.scope.split(/\s+/).filter(Boolean)
+            : [],
+        fields: {
+          [FIELD]: JSON.stringify(publicIdentityDraft(current)),
+          [REVISION]: Array.from(
+            crypto.getRandomValues(new Uint8Array(24)),
+            (byte) => byte.toString(16).padStart(2, "0"),
+          ).join(""),
+          self_hosted_configuration: "identity-v1",
+        },
+        secrets,
+      };
+    },
+    existingId,
+    beforeCommit,
+  );
 }
 export function deleteIdentityConnection(
   connectionId: string,

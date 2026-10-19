@@ -156,7 +156,9 @@ export async function projectIdentityTrust(
   draft: IdentityConnectionDraft | null,
   connectionId: string,
   legacy: OperatorIdp | null = null,
+  beforeCommit?: () => void,
 ): Promise<void> {
+  beforeCommit?.();
   const current = loadSettings();
   const methods = signInMethods(current);
   const providers = remainingProviders(methods.providers, connectionId, legacy);
@@ -165,5 +167,8 @@ export async function projectIdentityTrust(
     assertNoIssuerConflict(draft, next, providers);
     providers.push(next);
   }
-  await saveSettingsDurable({ ...current, signIn: { ...methods, providers } });
+  await saveSettingsDurable(
+    { ...current, signIn: { ...methods, providers } },
+    beforeCommit,
+  );
 }
