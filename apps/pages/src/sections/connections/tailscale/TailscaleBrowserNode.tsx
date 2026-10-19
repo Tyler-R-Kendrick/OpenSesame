@@ -11,19 +11,20 @@ import {
   useTailscaleBrowserNode,
 } from "./useTailscaleBrowserNode.js";
 function NodeFields({ model }: { model: BrowserNodeEditor }) {
+  const disabled = !model.ready || model.active || model.busy;
   return (
     <>
       <FieldShell
         label="Browser node hostname"
         value={model.hostname}
-        disabled={model.active || model.busy}
+        disabled={disabled}
         onValueChange={model.setHostname}
       />
       <FieldShell
         label="Tailscale control server"
         value={model.controlURL}
         type="url"
-        disabled={model.active || model.busy}
+        disabled={disabled}
         onValueChange={model.setControlURL}
       />
       <details className="conn-client-alt">
@@ -33,14 +34,14 @@ function NodeFields({ model }: { model: BrowserNodeEditor }) {
           value={model.authKey}
           type="password"
           autoComplete="off"
-          disabled={model.active || model.busy}
+          disabled={disabled}
           onValueChange={model.setAuthKey}
         />
       </details>
       <TailscaleNativeHTTPFields
         values={model.nativeHTTPValues}
         onChange={model.setNativeHTTPValue}
-        disabled={model.active || model.busy}
+        disabled={disabled}
       />
       <p>
         The official Tailscale client runs inside this PWA. Sign in to join this

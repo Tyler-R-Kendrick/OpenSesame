@@ -112,9 +112,9 @@ export function useTailscaleBrowserNode(ready: boolean) {
   const peer = useTailscalePeerProbe(node);
   const [hasSaved, setHasSaved] = useState(false);
   const [nativeHTTPValues, setNativeHTTPValues] = useState(nativeHTTPDraft);
-  // Restore public fields before Connect becomes interactable.
+  // Public metadata restores when ready; later runtime binding must preserve edits.
   useLayoutEffect(() => {
-    if (!ready || node !== tailscaleBrowserNode()) return;
+    if (!ready) return;
     const saved = savedBrowserNodeConfiguration();
     setHasSaved(!!saved);
     setNativeHTTPValues(nativeHTTPDraft(saved?.nativeHTTP));
@@ -122,7 +122,7 @@ export function useTailscaleBrowserNode(ready: boolean) {
       setHostname(saved.hostname);
       setControlURL(saved.controlURL);
     }
-  }, [ready, node]);
+  }, [ready]);
   useEffect(() => {
     if (state.status === "stopped" || state.status === "error") {
       setAuthKey("");
@@ -143,6 +143,7 @@ export function useTailscaleBrowserNode(ready: boolean) {
     clearPeer: peer.clear,
   });
   return {
+    ready,
     node,
     state,
     hostname,
