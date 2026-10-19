@@ -674,3 +674,9 @@ orchestration loop killed at ~83m with empty stdout log); Cursor ran
 `/tmp/p8-evidence-round8`; commit `25df77af0` on `cursor/p8-evidence-galleries-8ad8`;
 galleries under `docs/evidence/2026-10-17-p8-1-portable-drop-profiles/` and
 `docs/evidence/2026-10-17-p8-2-peer-trust-profiles/`.
+
+**B8-1 (F11a)** — Grok Build `grok-4.7`; commit `6da1361bc` on `cursor/b8-1-siop-ambient-notice-8ad8`; PR #1470 stacked on P8-6.
+
+**P3 (F9/F10)** — Grok Build `grok-4.7`; commit `0c8a032ef` on `cursor/p3-danger-travel-drop-8ad8`; PR #1472 stacked on B8-1.
+
+**D8-1 (F6)** — Grok Build `grok-4.7`; commit `30aef4fca` on `cursor/d8-1-cli-approval-webauthn-8ad8`; TS + `cargo test -p opensesame-cli-app-integration` (54) PASS locally; **runtime verify blocked** (no live daemon ceremony in cloud agent).

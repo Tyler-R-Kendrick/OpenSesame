@@ -85,7 +85,9 @@ pub fn verify_passkey_assertion(
         return None;
     }
     let new_count = sign_count(&auth_data)?;
-    if new_count <= stored.sign_count {
+    // A counter that stays 0 is a counterless authenticator (WebAuthn), not a replay.
+    let counterless = new_count == 0 && stored.sign_count == 0;
+    if !counterless && new_count <= stored.sign_count {
         return None;
     }
     let client_hash = Sha256::digest(&client_data_bytes);

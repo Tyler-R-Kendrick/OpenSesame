@@ -11,7 +11,7 @@ use crate::device_crypto::{
     is_registration_code_shaped, pairing_confirm_message, parse_verifying_key_spki_b64,
     verify_p256_sha256,
 };
-use crate::pairing_code::{digest_hex, find_digest, pairing_id, registration_code, same, secret};
+use crate::pairing_code::{digest_hex, find_digest, pairing_id, registration_code, secret};
 use crate::root_trust::RootTrustRecord;
 
 pub use crate::pairing_code::{
@@ -66,6 +66,27 @@ pub enum PairingError {
     ClientSuppliedSpkiRejected,
     #[error("the daemon root trust key is not enrolled")]
     RootKeyNotEnrolled,
+}
+
+impl PairingError {
+    /// Stable HTTP `error` code. Each variant keeps its own code.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::InvalidOrigin => "invalid_origin",
+            Self::Full => "too_many_pairings",
+            Self::Unknown => "pairing_unknown",
+            Self::Expired => "pairing_expired",
+            Self::WrongOrigin => "pairing_wrong_origin",
+            Self::NotConfirmed => "pairing_confirm_required",
+            Self::RegistrationRequired => "pairing_registration_required",
+            Self::RegistrationMismatch => "pairing_registration_mismatch",
+            Self::InvalidProof => "invalid_proof",
+            Self::ArkEnrollmentRequired => "ark_enrollment_required",
+            Self::ClientSuppliedSpkiRejected => "client_supplied_spki_rejected",
+            Self::RootKeyNotEnrolled => "root_key_not_enrolled",
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -340,45 +361,6 @@ impl CliAppIntegrationPairings {
             pin_proof_failures: 0,
         });
         Ok(issued)
-    }
-
-    /// Challenge for the unlocked PWA to sign during pairing confirm (origin must match).
-    #[must_use]
-    pub fn pairing_challenge_for_confirm(
-        &self,
-        code: &str,
-        origin: &str,
-        now: u64,
-    ) -> Option<[u8; PAIRING_CHALLENGE_LEN]> {
-        if !is_secret_shaped(code) {
-            return None;
-        }
-        let digest = digest_hex(code);
-        self.pending
-            .iter()
-            .find(|p| {
-                same(p.code_sha256.as_str(), digest.as_str())
-                    && p.expires_at > now
-                    && p.origin == origin
-            })
-            .map(|p| p.pairing_challenge)
-    }
-
-    #[cfg(any(test, feature = "test-seams"))]
-    #[must_use]
-    pub fn pairing_challenge_for_code(
-        &self,
-        code: &str,
-        now: u64,
-    ) -> Option<[u8; PAIRING_CHALLENGE_LEN]> {
-        if !is_secret_shaped(code) {
-            return None;
-        }
-        let digest = digest_hex(code);
-        self.pending
-            .iter()
-            .find(|p| same(p.code_sha256.as_str(), digest.as_str()) && p.expires_at > now)
-            .map(|p| p.pairing_challenge)
     }
 }
 

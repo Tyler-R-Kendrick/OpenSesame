@@ -40,6 +40,8 @@ function pendingExpired(createdAtMs: number, clock: () => number): boolean {
 
 const ENSURE_RATE_WINDOW_MS = 60_000;
 const ENSURE_RATE_MAX = 8;
+/** Oldest pending rows stay. A further distinct request is refused. */
+const MAX_PENDING_REQUESTS = 8;
 
 /** In-memory CLI app-integration state (daemon and unit tests). */
 export class CliAppIntegrationStore {
@@ -67,7 +69,6 @@ export class CliAppIntegrationStore {
     reference?: string | undefined,
   ): EnsureResult {
     this.expirePending();
-    this.refuseAmbiguousPending();
     if (this.ensureRateLimited(terminalSessionId)) {
       return { status: "denied" };
     }
@@ -98,6 +99,9 @@ export class CliAppIntegrationStore {
         return { status: "pending", requestId: row.requestId };
       }
     }
+    if (this.pending.size >= MAX_PENDING_REQUESTS) {
+      return { status: "denied" };
+    }
     const requestId = `clr_${++this.nextRequest}`;
     this.pending.set(requestId, {
       requestId,
@@ -112,14 +116,21 @@ export class CliAppIntegrationStore {
   listPending(): readonly PendingRequest[] {
     this.expireIdle();
     this.expirePending();
-    this.refuseAmbiguousPending();
     const probe = cliAppIntegrationPolicy.daemonPinProbeVerb;
-    return [...this.pending.values()].filter((row) => row.verb !== probe);
+    return [...this.pending.values()]
+      .filter((row) => row.verb !== probe)
+      .sort((a, b) => {
+        if (a.createdAtMs !== b.createdAtMs) {
+          return a.createdAtMs - b.createdAtMs;
+        }
+        if (a.requestId < b.requestId) return -1;
+        if (a.requestId > b.requestId) return 1;
+        return 0;
+      });
   }
 
   approve(requestId: string, terminalSessionId: string): EnsureResult {
     this.expireIdle();
-    this.refuseAmbiguousPending();
     const row = this.pending.get(requestId);
     if (!row || row.terminalSessionId !== terminalSessionId) {
       return { status: "wrongSession" };
@@ -186,12 +197,6 @@ export class CliAppIntegrationStore {
       if (pendingExpired(row.createdAtMs, this.clock)) {
         this.pending.delete(id);
       }
-    }
-  }
-
-  private refuseAmbiguousPending(): void {
-    if (this.pending.size > 1) {
-      this.pending.clear();
     }
   }
 

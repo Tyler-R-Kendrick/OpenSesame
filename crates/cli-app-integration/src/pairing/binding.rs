@@ -3,7 +3,7 @@
 use super::{
     is_device_public_key_shaped, is_secret_shaped, is_vault_session_root_digest_shaped,
     CliAppIntegrationPairings, PairedBinding, PairingError, WebAuthnCredential,
-    WebAuthnRegistration, MAX_PIN_PROOF_FAILURES,
+    WebAuthnRegistration, MAX_PIN_PROOF_FAILURES, PAIRING_CHALLENGE_LEN,
 };
 use crate::device_crypto::webauthn_register_challenge_digest;
 use crate::pairing_code::{digest_hex, same};
@@ -75,9 +75,11 @@ impl CliAppIntegrationPairings {
             .trim()
             .strip_prefix("oschip2:passkey:")
             .ok_or(PairingError::InvalidProof)?;
-        if verify_passkey_assertion(proof_tail, &challenge, &stored).is_none() {
-            return Err(PairingError::InvalidProof);
-        }
+        let verified_sign_count = verify_passkey_assertion(proof_tail, &challenge, &stored)
+            .ok_or(PairingError::InvalidProof)?;
+        // `registration.sign_count` is the client body. Storing it would let a
+        // caller reset the counter after a higher assertion count was verified.
+        let _client_sign_count = registration.sign_count;
         let Some(page) = self.paired.iter_mut().find(|page| {
             page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
         }) else {
@@ -86,7 +88,7 @@ impl CliAppIntegrationPairings {
         page.webauthn = Some(WebAuthnCredential {
             credential_id_b64: credential_id_b64.to_string(),
             public_key_spki_b64: public_key_spki_b64.to_string(),
-            sign_count: registration.sign_count,
+            sign_count: verified_sign_count,
         });
         Ok(())
     }
@@ -155,6 +157,9 @@ impl CliAppIntegrationPairings {
         let Some(webauthn) = page.webauthn.as_mut() else {
             return false;
         };
+        if sign_count == 0 && webauthn.sign_count == 0 {
+            return true;
+        }
         if sign_count <= webauthn.sign_count {
             return false;
         }
@@ -184,5 +189,44 @@ impl CliAppIntegrationPairings {
         self.paired.retain(|page| {
             !(page.origin == origin && same(page.token_sha256.as_str(), token_digest_hex))
         });
+    }
+
+    /// Challenge for the unlocked PWA to sign during pairing confirm (origin must match).
+    #[must_use]
+    pub fn pairing_challenge_for_confirm(
+        &self,
+        code: &str,
+        origin: &str,
+        now: u64,
+    ) -> Option<[u8; PAIRING_CHALLENGE_LEN]> {
+        if !is_secret_shaped(code) {
+            return None;
+        }
+        let digest = digest_hex(code);
+        self.pending
+            .iter()
+            .find(|p| {
+                same(p.code_sha256.as_str(), digest.as_str())
+                    && p.expires_at > now
+                    && p.origin == origin
+            })
+            .map(|p| p.pairing_challenge)
+    }
+
+    #[cfg(any(test, feature = "test-seams"))]
+    #[must_use]
+    pub fn pairing_challenge_for_code(
+        &self,
+        code: &str,
+        now: u64,
+    ) -> Option<[u8; PAIRING_CHALLENGE_LEN]> {
+        if !is_secret_shaped(code) {
+            return None;
+        }
+        let digest = digest_hex(code);
+        self.pending
+            .iter()
+            .find(|p| same(p.code_sha256.as_str(), digest.as_str()) && p.expires_at > now)
+            .map(|p| p.pairing_challenge)
     }
 }

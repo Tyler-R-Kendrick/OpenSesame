@@ -34,16 +34,16 @@ fn pin_probe_verb_is_omitted_from_pending_list() {
 }
 
 #[test]
-fn more_than_one_pending_clears_the_queue() {
+fn pending_queue_keeps_rows_and_coalesces_a_terminal() {
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);
     store.ensure(ensure_params("term-a", "read"));
     store.ensure(ensure_params("term-b", "read"));
-    assert!(store.list_pending().is_empty());
+    assert_eq!(store.list_pending().len(), 2);
     let (status, second) = store.ensure(ensure_params("term-a", "read"));
     assert_eq!(status, "pending");
     assert!(second.is_some());
-    assert_eq!(store.list_pending().len(), 1);
+    assert_eq!(store.list_pending().len(), 2);
 }
 
 #[test]
