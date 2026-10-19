@@ -4,21 +4,37 @@
  * key on the rerooted tree returns to the vault.
  */
 
-/** A vault switcher left open covers the session tree on desktop. */
-async function dismissVaultSwitcher(page) {
+/** How many times to dismiss before the menu's own wait fails the walk. */
+const DISMISS_TRIES = 3;
+/** A press or a click that has not closed the list by now is tried again. */
+const DISMISS_STEP_MS = 1_000;
+
+function menuHidden(menu, timeout) {
+  return menu
+    .waitFor({ state: "hidden", timeout })
+    .then(() => true)
+    .catch(() => false);
+}
+
+/**
+ * A vault switcher left open covers the session tree on desktop.
+ *
+ * Escape first, then the backdrop's corner, the way a person dismisses the
+ * list. The corner click is what flakes: the node detaches or will not sit
+ * still while the list is already leaving, and one click waits out its
+ * timeout. A miss is tried again. Still up after that, the wait fails the walk.
+ */
+export async function dismissVaultSwitcher(page) {
   const menu = page.locator(".project-switcher__menu");
   if (!(await menu.isVisible().catch(() => false))) return;
-  const backdrop = page.locator(".project-switcher__backdrop");
-  if (await backdrop.isVisible().catch(() => false)) {
-    // The backdrop can leave with the menu between seeing it and pressing
-    // it. That press timing out is not a failure to dismiss: use Escape.
-    try {
-      await backdrop.click({ position: { x: 4, y: 4 }, timeout: 5000 });
-    } catch {
-      await page.keyboard.press("Escape");
-    }
-  } else {
+  for (let attempt = 0; attempt < DISMISS_TRIES; attempt += 1) {
     await page.keyboard.press("Escape");
+    if (await menuHidden(menu, DISMISS_STEP_MS)) return;
+    await page
+      .locator(".project-switcher__backdrop")
+      .click({ position: { x: 4, y: 4 }, timeout: DISMISS_STEP_MS })
+      .catch(() => {});
+    if (await menuHidden(menu, DISMISS_STEP_MS)) return;
   }
   await menu.waitFor({ state: "hidden", timeout: 5000 });
 }
