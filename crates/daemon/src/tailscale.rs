@@ -10,17 +10,16 @@
 //!   that eth IP (loopback-only leave Serve hanging). Do not prefer eth when
 //!   loopback works — Windows Tailscale Serve often hangs proxying to eth.
 
+use opensesame_trusted_exec::Lookup;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::Mutex;
 use std::time::Duration;
 
+mod exec;
+
 const SERVE_TIMEOUT: Duration = Duration::from_secs(5);
-const WINDOWS_CANDIDATES: &[&str] = &[
-    "/mnt/c/Program Files/Tailscale/tailscale.exe",
-    "/mnt/c/Program Files (x86)/Tailscale/tailscale.exe",
-];
 
 static LAST_SERVE_ENABLE_URL: Mutex<Option<String>> = Mutex::new(None);
 static LAST_SERVE_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -83,31 +82,10 @@ pub fn parse_serve_enable_url(text: &str) -> Option<String> {
     None
 }
 
+/// The Tailscale CLI: `OPENSESAME_TAILSCALE`, a trusted `PATH` entry's, or a
+/// Windows install seen from WSL (`exec::locate_in`).
 pub fn resolve_tailscale_bin() -> Option<PathBuf> {
-    if let Ok(path) = which("tailscale") {
-        return Some(path);
-    }
-    if let Ok(path) = which("tailscale.exe") {
-        return Some(path);
-    }
-    for candidate in WINDOWS_CANDIDATES {
-        let path = PathBuf::from(candidate);
-        if path.is_file() {
-            return Some(path);
-        }
-    }
-    None
-}
-
-fn which(name: &str) -> Result<PathBuf, ()> {
-    let path = std::env::var_os("PATH").ok_or(())?;
-    for dir in std::env::split_paths(&path) {
-        let candidate = dir.join(name);
-        if candidate.is_file() {
-            return Ok(candidate);
-        }
-    }
-    Err(())
+    exec::locate_in(&Lookup::capture()).ok()
 }
 
 fn is_wsl() -> bool {
@@ -126,7 +104,7 @@ fn is_windows_tailscale(bin: &Path) -> bool {
 
 /// IPv4 Windows Tailscale should dial when the daemon runs inside WSL2.
 pub fn wsl_host_reachable_ipv4() -> Option<String> {
-    let output = Command::new("hostname").arg("-I").output().ok()?;
+    let output = exec::system("hostname")?.arg("-I").output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -200,7 +178,7 @@ fn run_command(
     args: &[&str],
     timeout: Duration,
 ) -> Result<std::process::Output, String> {
-    let child = Command::new(bin)
+    let child = exec::command_for(bin, &Lookup::capture())?
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -217,13 +195,15 @@ fn run_command(
         Err(_) => {
             #[cfg(unix)]
             {
-                let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
+                if let Some(mut kill) = exec::system("kill") {
+                    let _ = kill.args(["-9", &pid.to_string()]).status();
+                }
             }
             #[cfg(windows)]
             {
-                let _ = Command::new("taskkill")
-                    .args(["/PID", &pid.to_string(), "/F"])
-                    .status();
+                if let Some(mut taskkill) = exec::system("taskkill") {
+                    let _ = taskkill.args(["/PID", &pid.to_string(), "/F"]).status();
+                }
             }
             // Prefer partial output if the join completes quickly after kill.
             match rx.recv_timeout(Duration::from_secs(2)) {
@@ -250,7 +230,11 @@ fn combined_text(output: &std::process::Output) -> String {
 pub fn info() -> TailscaleInfo {
     let Some(bin) = resolve_tailscale_bin() else {
         return TailscaleInfo {
-            last_error: Some("tailscale CLI not found on PATH or Windows install path".into()),
+            last_error: Some(
+                "tailscale CLI not found on a trusted PATH entry or the Windows install path \
+                 (name it with OPENSESAME_TAILSCALE)"
+                    .into(),
+            ),
             ..TailscaleInfo::default()
         };
     };
