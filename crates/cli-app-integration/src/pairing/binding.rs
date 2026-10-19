@@ -77,9 +77,9 @@ impl CliAppIntegrationPairings {
             .ok_or(PairingError::InvalidProof)?;
         let verified_sign_count = verify_passkey_assertion(proof_tail, &challenge, &stored)
             .ok_or(PairingError::InvalidProof)?;
-        // `registration.sign_count` is the client body. Storing it would let a
-        // caller reset the counter after a higher assertion count was verified.
-        let _client_sign_count = registration.sign_count;
+        // `registration.sign_count` is the client body and is deliberately not
+        // stored: keeping it would let a caller reset the counter after a
+        // higher assertion count was verified.
         let Some(page) = self.paired.iter_mut().find(|page| {
             page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
         }) else {
