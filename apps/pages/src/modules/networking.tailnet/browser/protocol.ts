@@ -34,6 +34,19 @@ export const NativeHTTPResponse = z
       .refine((value) => value.byteLength <= 4_194_304),
   })
   .strict();
+export const NativeHTTPStreamHead = NativeHTTPResponse.omit({ body: true });
+export const NativeHTTPStreamChunk = z
+  .object({
+    sequence: OperationID,
+    body: z
+      .instanceof(Uint8Array)
+      .refine(
+        (value) =>
+          value.buffer instanceof ArrayBuffer && value.byteLength <= 32768,
+      ),
+    eof: z.boolean(),
+  })
+  .strict();
 const nativeTargets = z
   .array(
     z
@@ -78,6 +91,8 @@ export const NativeHTTPConfiguration = z.union([
 ]);
 export type NativeRequest = z.infer<typeof NativeHTTPRequest>;
 export type NativeResponse = z.infer<typeof NativeHTTPResponse>;
+export type NativeStreamHead = z.infer<typeof NativeHTTPStreamHead>;
+export type NativeStreamChunk = z.infer<typeof NativeHTTPStreamChunk>;
 export type NativeConfiguration = z.infer<typeof NativeHTTPConfiguration>;
 export const Configuration = z.object({
   hostname: z
@@ -102,6 +117,20 @@ export const WorkerMessage = z.discriminatedUnion("kind", [
     id: OperationID,
     request: NativeHTTPRequest,
   }),
+  z
+    .object({
+      kind: z.literal("nativeHTTPStream"),
+      id: OperationID,
+      request: NativeHTTPRequest,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("pullHTTP"),
+      id: OperationID,
+      sequence: OperationID,
+    })
+    .strict(),
   z.object({ kind: z.literal("cancelHTTP"), id: OperationID }),
   z.object({ kind: z.literal("closeHTTP") }),
   z.object({ kind: z.literal("start"), config: Configuration }),
@@ -125,6 +154,20 @@ export const HostMessage = z.discriminatedUnion("kind", [
     id: OperationID,
     result: NativeHTTPResponse,
   }),
+  z
+    .object({
+      kind: z.literal("nativeHTTPStream"),
+      id: OperationID,
+      result: NativeHTTPStreamHead,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("nativeHTTPChunk"),
+      id: OperationID,
+      result: NativeHTTPStreamChunk,
+    })
+    .strict(),
   z.object({ kind: z.literal("nativeHTTPError"), id: OperationID }),
   z.object({
     kind: z.literal("decision"),

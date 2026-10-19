@@ -2,6 +2,8 @@ import type {
   NativeConfiguration,
   NativeRequest,
   NativeResponse,
+  NativeStreamChunk,
+  NativeStreamHead,
 } from "./protocol.js";
 
 export type NativeHTTPClient = {
@@ -11,6 +13,12 @@ export type NativeHTTPClient = {
     request: NativeRequest,
     signal: AbortSignal,
   ): Promise<NativeResponse>;
+  nativeHTTPStream?(
+    id: number,
+    request: NativeRequest,
+    signal: AbortSignal,
+  ): Promise<NativeStreamHead>;
+  pullHTTP?(id: number, sequence: number): Promise<NativeStreamChunk>;
   cancelHTTP(id: number): boolean;
   closeHTTP(): boolean;
 };
@@ -26,6 +34,12 @@ type NativePublisher = (
   value: NativeResponse | null,
   code: string,
 ) => boolean;
+type NativeStreamPublisher = (
+  token: NativeToken,
+  id: number,
+  value: NativeStreamHead | NativeStreamChunk | null,
+  code: string,
+) => boolean;
 type NativeRawPort = {
   begin(
     id: number,
@@ -33,6 +47,13 @@ type NativeRawPort = {
     token: NativeToken,
     publish: NativePublisher,
   ): string;
+  beginStream?(
+    id: number,
+    request: NativeRequest,
+    token: NativeToken,
+    publish: NativeStreamPublisher,
+  ): string;
+  pull?(id: number, sequence: number, token: NativeToken): string;
   current(id: number): boolean;
   cancel(id: number): boolean;
   close(): void;
@@ -47,6 +68,12 @@ type NativeBridge = {
       request: NativeRequest,
       owner: { generation: object; signal: AbortSignal; current(): boolean },
     ): Promise<NativeResponse>;
+    nativeHTTPStream(
+      id: number,
+      request: NativeRequest,
+      owner: { generation: object; signal: AbortSignal; current(): boolean },
+    ): Promise<NativeStreamHead>;
+    pullHTTP(id: number, sequence: number): Promise<NativeStreamChunk>;
     cancelHTTP(id: number): boolean;
     closeHTTP(): boolean;
   };
@@ -152,6 +179,14 @@ async function nativeBinding(
         current: () => current() && !signal.aborted,
       });
     },
+    nativeHTTPStream(id, request, signal) {
+      return binding.nativeHTTPStream(id, request, {
+        generation,
+        signal,
+        current: () => current() && !signal.aborted,
+      });
+    },
+    pullHTTP: binding.pullHTTP,
     cancelHTTP: binding.cancelHTTP,
     closeHTTP() {
       if (closed) return acknowledged;

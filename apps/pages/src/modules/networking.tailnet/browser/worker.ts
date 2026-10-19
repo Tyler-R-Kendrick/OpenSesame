@@ -1,17 +1,13 @@
 /** Official Go/WireGuard runs in this terminable, privately governed realm. */
 import "./worker-csp.js";
-import {
-  type HostEvent,
-  NativeHTTPResponse,
-  type NativeRequest,
-  WorkerMessage,
-} from "./protocol.js";
+import { type HostEvent, WorkerMessage } from "./protocol.js";
 import {
   type BrowserNodeAssets,
   type BrowserNodeClient,
   loadBrowserNode,
 } from "./sdk.js";
 import { installWorkerEgress } from "./worker-egress.js";
+import { WorkerNativeHTTP } from "./worker-native-http.js";
 type WorkerDependencies = {
   load: typeof loadBrowserNode;
   egress: typeof installWorkerEgress;
@@ -21,9 +17,10 @@ export class BrowserNodeWorker {
   private client: BrowserNodeClient | null = null;
   private sequence = 0;
   private started = false;
-  private nativeClosed = false;
-  private nativeHigh = 0;
-  private nativePending = new Map<number, AbortController>();
+  private readonly native = new WorkerNativeHTTP(
+    () => this.client?.nativeHTTP,
+    (message) => this.post(message),
+  );
   private decisions = new Map<number, (value: boolean) => void>();
   constructor(
     private readonly post: (message: HostEvent) => void,
@@ -32,85 +29,9 @@ export class BrowserNodeWorker {
       egress: installWorkerEgress,
     },
   ) {}
-  private cancelNative(id: number) {
-    this.nativeHigh = Math.max(this.nativeHigh, id);
-    const caller = this.nativePending.get(id);
-    this.nativePending.delete(id);
-    caller?.abort();
-    this.client?.nativeHTTP?.cancelHTTP(id);
-  }
-  private closeNative() {
-    this.nativeClosed = true;
-    for (const [id, caller] of this.nativePending) {
-      this.nativePending.delete(id);
-      caller.abort();
-    }
-    return this.client?.nativeHTTP?.closeHTTP() ?? true;
-  }
   private panic() {
-    this.closeNative();
+    this.native.close();
     this.post({ kind: "error" });
-  }
-  private nativeCurrent(id: number, caller: AbortController) {
-    return (
-      this.nativePending.get(id) === caller &&
-      !caller.signal.aborted &&
-      !this.nativeClosed
-    );
-  }
-  private nativeFailure(id: number, caller: AbortController) {
-    if (this.nativePending.get(id) !== caller) return;
-    this.nativePending.delete(id);
-    this.post({ kind: "nativeHTTPError", id });
-  }
-  private nativeRequest(id: number, request: NativeRequest) {
-    if (id <= this.nativeHigh) {
-      this.post({ kind: "nativeHTTPError", id });
-      return;
-    }
-    this.nativeHigh = id;
-    const port = this.client?.nativeHTTP;
-    if (!port || this.nativeClosed || this.nativePending.size >= 4) {
-      port?.cancelHTTP(id);
-      this.post({ kind: "nativeHTTPError", id });
-      return;
-    }
-    const ready = port.ready;
-    const caller = new AbortController();
-    const captured = { ...request, body: request.body.slice() };
-    this.nativePending.set(id, caller);
-    let operation: Promise<Awaited<ReturnType<typeof port.nativeHTTP>>>;
-    try {
-      operation = port.nativeHTTP(id, captured, caller.signal);
-    } catch {
-      this.nativePending.delete(id);
-      this.post({ kind: "nativeHTTPError", id });
-      return;
-    }
-    void operation
-      .then((result) => {
-        if (!this.nativeCurrent(id, caller)) return;
-        const parsed = NativeHTTPResponse.safeParse(result);
-        if (!parsed.success) {
-          this.nativeFailure(id, caller);
-          return;
-        }
-        const value = { ...parsed.data, body: parsed.data.body.slice() };
-        const authorized =
-          parsed.data.url === captured.url &&
-          this.client?.nativeHTTP === port &&
-          ready();
-        // The synchronous Go guard can withdraw/cancel reentrantly. No callback
-        // or await lies between this exact-entry fence and original publication.
-        if (!this.nativeCurrent(id, caller)) return;
-        if (!authorized) {
-          this.nativeFailure(id, caller);
-          return;
-        }
-        this.nativePending.delete(id);
-        this.post({ kind: "nativeHTTP", id, result: value });
-      })
-      .catch(() => this.nativeFailure(id, caller));
   }
 
   private decide(url: string, method: string): Promise<boolean> {
@@ -138,7 +59,7 @@ export class BrowserNodeWorker {
       this.panic(),
     );
     this.client = client;
-    if (this.nativeClosed) client.nativeHTTP?.closeHTTP();
+    if (this.native.closed) client.nativeHTTP?.closeHTTP();
     client.run({
       notifyState: (state) => {
         this.post({ kind: "state", state });
@@ -163,25 +84,7 @@ export class BrowserNodeWorker {
     const parsed = WorkerMessage.safeParse(event.data);
     if (!parsed.success) return;
     const message = parsed.data;
-    if (message.kind === "nativeHTTPReady") {
-      this.post({
-        kind: "nativeHTTPReady",
-        ready: !this.nativeClosed && this.client?.nativeHTTP?.ready() === true,
-      });
-      return;
-    }
-    if (message.kind === "nativeHTTP") {
-      this.nativeRequest(message.id, message.request);
-      return;
-    }
-    if (message.kind === "cancelHTTP") {
-      this.cancelNative(message.id);
-      return;
-    }
-    if (message.kind === "closeHTTP") {
-      this.post({ kind: "closeHTTP", closed: this.closeNative() });
-      return;
-    }
+    if (this.native.receive(message)) return;
     if (message.kind === "decision") {
       this.decisions.get(message.id)?.(message.allowed);
       this.decisions.delete(message.id);
