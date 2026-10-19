@@ -9,6 +9,7 @@ import { azureAcKeyFlows } from "./native-azure-ac.js";
 import { gcpIamKeyFlows, gcpKeyFlows } from "./native-gcp.js";
 import { infisicalKeyFlows } from "./native-infisical.js";
 import type { NativeKeyFlows } from "./native-key-driver.js";
+import { snowflakeKeyFlows } from "./native-snowflake.js";
 import { stsKeyFlows } from "./native-sts.js";
 
 export const NATIVE_KEY_DRIVERS: readonly NativeKeyFlows[] = [
@@ -19,6 +20,7 @@ export const NATIVE_KEY_DRIVERS: readonly NativeKeyFlows[] = [
   gcpIamKeyFlows,
   acmeKeyFlows,
   infisicalKeyFlows,
+  snowflakeKeyFlows,
 ];
 
 export function nativeKeyDriverFor(providerId: string): NativeKeyFlows | null {
