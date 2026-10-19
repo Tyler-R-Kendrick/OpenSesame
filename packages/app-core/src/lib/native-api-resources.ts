@@ -4,12 +4,10 @@ import { z } from "zod";
 import { readNativeAgentMailInboxes } from "./native-agentmail.js";
 import { NativeApiError } from "./native-api-http.js";
 import { projectNativeLithicCards } from "./native-api-lithic.js";
-import {
-  type NativeApiOperationDefinition,
-  executeNativeApiRequest,
-} from "./native-api-operations.js";
+import { nativePrimaryCollections } from "./native-api-primary-collections.js";
 import { projectNativePrivacyCards } from "./native-api-privacy.js";
 import { projectNativeRazorpayPayments } from "./native-api-razorpay.js";
+import { type Resource, jsonResource } from "./native-api-resource.js";
 import { projectNativeStripeIssuingCards } from "./native-api-stripe-issuing.js";
 import { projectNativeStripeBalance } from "./native-api-stripe.js";
 import type { NativeApiReadResult } from "./native-api-verify.js";
@@ -18,40 +16,6 @@ import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { zodJitless } from "./zod-jitless.js";
 
 zodJitless();
-type ResourceReader = (
-  id: string,
-  input: Record<string, string>,
-  transport: NativeProviderTransport,
-) => Promise<NativeApiReadResult>;
-type Resource = {
-  providerId: string;
-  id: string;
-  label: string;
-  read: ResourceReader;
-};
-const resultSchema = z.object({
-  label: z.string(),
-  items: z.array(z.object({ id: z.string(), label: z.string() })).max(100),
-});
-function jsonResource(
-  label: string,
-  definition: NativeApiOperationDefinition,
-  project: (body: BoundaryValue) => BoundaryValue,
-): Resource {
-  return {
-    providerId: definition.providerId,
-    id: definition.operationId,
-    label,
-    async read(id, input, transport) {
-      transport.assertCurrent();
-      if (Object.keys(input).length)
-        throw new Error(`${label} does not accept request fields`);
-      return resultSchema.parse(
-        await executeNativeApiRequest(id, definition, {}, project, transport),
-      );
-    },
-  };
-}
 function printable(value: string): boolean {
   return [...value].every((character) => {
     const code = character.charCodeAt(0);
@@ -221,6 +185,7 @@ function projectDatadogMonitors(body: BoundaryValue): BoundaryValue {
   };
 }
 const resources: readonly Resource[] = [
+  ...nativePrimaryCollections,
   jsonResource(
     "List cards",
     {
