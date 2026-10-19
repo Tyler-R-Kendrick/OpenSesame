@@ -82,7 +82,7 @@ async function createRegistered({ harness }, page, label, authority) {
 async function expireRegistered({ harness }, page, label, authority, oldId) {
   harness.setStep(`${label}-expired-app-original-workspace`);
   const oldGrant = revokeGrant(authority, "registered-initial");
-  await page.clock.setSystemTime(new Date(Date.now() + 2 * 60 * 60 * 1000));
+  await page.clock.setFixedTime(new Date(Date.now() + 2 * 60 * 60 * 1000));
   try {
     await page
       .getByRole("button", { name: "Read Linear issues", exact: true })
@@ -97,7 +97,7 @@ async function expireRegistered({ harness }, page, label, authority, oldId) {
     );
   } finally {
     // Expiry is the fault under test; fresh consent must use the current wall clock.
-    await page.clock.setSystemTime(new Date());
+    await page.clock.setFixedTime(new Date());
   }
   const popup = await beginLinearConsent(
     harness,
