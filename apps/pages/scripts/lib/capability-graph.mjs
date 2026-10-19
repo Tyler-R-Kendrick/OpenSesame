@@ -39,7 +39,7 @@ const toPosix = (path) => path.replace(/\\/g, "/");
 export function workerRealmSource(id) {
   if (!id.startsWith("\0opensesame-worker")) return undefined;
   const match = id.match(
-    /^\0opensesame-worker:([a-z0-9.-]+):([A-Za-z0-9_-]+)(\.(?:[cm]?js|tsx?|json))$/,
+    /^\0opensesame-worker:([a-z0-9.-]+):([A-Za-z0-9_-]+)(\.(?:[cm]?js|tsx?|json|wasm))$/,
   );
   if (!match) throw new Error("Malformed worker realm module ID.");
   const source = Buffer.from(match[2], "base64url").toString("utf8");

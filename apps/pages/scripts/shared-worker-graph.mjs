@@ -3,6 +3,7 @@ import { readFile, realpath } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import ts from "typescript";
 import { transformWithEsbuild } from "vite";
+import { bitwardenWorkerAssets } from "./bitwarden-worker-assets.mjs";
 import { workerRealmSource } from "./lib/capability-graph.mjs";
 
 const PREFIX = "\0opensesame-worker:";
@@ -14,7 +15,8 @@ function original(id) {
   if (!file) return undefined;
   return { realm: id.slice(PREFIX.length).split(":", 1)[0], file };
 }
-function privateSource(file, realm) {
+function privateSource(file, realm, sdk) {
+  if (sdk?.owns(file, realm)) return true;
   const path = file.replaceAll("\\", "/");
   if (/\/node_modules\/(?:hash-wasm|@levischuck\/tiny-cbor)\//.test(path))
     return true;
@@ -34,8 +36,8 @@ function privateSource(file, realm) {
       );
 }
 
-function mintModule(minted, realm, file) {
-  if (file !== resolve(file) || !privateSource(file, realm))
+function mintModule(minted, realm, file, sdk) {
+  if (file !== resolve(file) || !privateSource(file, realm, sdk))
     throw new Error("Worker module needs a canonical private source.");
   const id = virtual(realm, file);
   minted.add(id);
@@ -46,7 +48,7 @@ function ownedRealm(id, minted) {
     throw new Error("Unowned worker realm module ID.");
   return original(id);
 }
-async function resolvePrivate(ctx, source, importer, minted, pureRoots) {
+async function resolvePrivate(ctx, source, importer, minted, pureRoots, sdk) {
   const parent = ownedRealm(importer, minted);
   if (source.startsWith("\0opensesame-worker")) {
     const target = ownedRealm(source, minted);
@@ -55,34 +57,37 @@ async function resolvePrivate(ctx, source, importer, minted, pureRoots) {
     return source;
   }
   if (!parent) return;
-  const found = await ctx.resolve(source, parent.file, { skipSelf: true });
+  let found = await ctx.resolve(source, parent.file, { skipSelf: true });
+  if (found)
+    found = { ...found, id: sdk?.resolve(found.id, parent.realm) ?? found.id };
   if (!found || found.external)
     throw new Error(`Unresolved private worker import: ${source}`);
   if (pure.test(found.id.replaceAll("\\", "/"))) {
     pureRoots.add(found.id);
     return found;
   }
-  if (!privateSource(found.id, parent.realm))
+  if (!privateSource(found.id, parent.realm, sdk))
     throw new Error(
       `Worker import crosses its private runtime boundary: ${found.id}`,
     );
   if (found.id.startsWith("\0") || /[?#]/.test(found.id))
     throw new Error("Unsupported private worker module transformation.");
-  return { ...found, id: mintModule(minted, parent.realm, found.id) };
+  return { ...found, id: mintModule(minted, parent.realm, found.id, sdk) };
 }
-async function loadPrivate(ctx, id, minted) {
+async function loadPrivate(ctx, id, minted, sdk) {
   const source = ownedRealm(id, minted);
   if (source) {
     if (
       (await realpath(source.file)) !== source.file ||
       source.file !== resolve(source.file) ||
-      !privateSource(source.file, source.realm)
+      !privateSource(source.file, source.realm, sdk)
     )
       throw new Error(
         "Worker module source is not its canonical private file.",
       );
     ctx.addWatchFile(source.file);
-    const code = await readFile(source.file, "utf8");
+    const code =
+      sdk?.load(ctx, source.file) ?? (await readFile(source.file, "utf8"));
     return /\.tsx?$/.test(source.file)
       ? transformWithEsbuild(code, source.file, { target: "es2022" })
       : code;
@@ -203,6 +208,7 @@ function workerClosure(bundle, file, minted, seen = new Set()) {
   for (const next of [
     ...(output.viteMetadata?.importedCss ?? []),
     ...(output.viteMetadata?.importedAssets ?? []),
+    ...(output.referencedFiles ?? []),
   ]) {
     if (!bundle[next]) throw new Error("Worker closure asset is absent.");
     seen.add(next);
@@ -263,6 +269,11 @@ function defaultWorkers(root) {
       name: "bitwarden-native.worker",
     },
     {
+      owner: resolve(backend, "bitwarden-wasm-loader.ts"),
+      specifier: "./bitwarden-secrets.worker.ts",
+      name: "bitwarden-secrets.worker",
+    },
+    {
       owner: resolve(backend, "onepassword-sdk-loader.ts"),
       specifier: "./onepassword-sdk.worker.ts",
       name: "onepassword-sdk.worker",
@@ -287,11 +298,13 @@ export function sharedWorkerGraph({ workers } = {}) {
   const minted = new Set();
   const pureRoots = new Set();
   let plans = workers;
+  let sdk;
   return {
     name: "opensesame-shared-worker-graph",
     apply: "build",
     enforce: "pre",
     buildStart() {
+      sdk = bitwardenWorkerAssets(plans);
       pureRoots.clear();
       minted.clear();
       refs.clear();
@@ -308,10 +321,10 @@ export function sharedWorkerGraph({ workers } = {}) {
         );
     },
     resolveId(source, importer) {
-      return resolvePrivate(this, source, importer, minted, pureRoots);
+      return resolvePrivate(this, source, importer, minted, pureRoots, sdk);
     },
     load(id) {
-      return loadPrivate(this, id, minted);
+      return loadPrivate(this, id, minted, sdk);
     },
     transform(code, id) {
       return transformWorkerURLs(this, code, id, plans, refs, owners, minted);
