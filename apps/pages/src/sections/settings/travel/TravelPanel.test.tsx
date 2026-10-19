@@ -97,6 +97,20 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     expect(sheet.querySelectorAll('[role="switch"]')).toHaveLength(1);
   });
 
+  it("names the sealed non-guest vaults the door list contains", () => {
+    // N8-11 had no shot. Travel counts sealed non-guest vaults. The door
+    // lists every device vault, guest and empty included.
+    origin.vaults = [
+      vault("personal", "open"),
+      vault(WORK, "locked", "Work"),
+      vault("prj_empty", "empty", "Draft"),
+      { ...vault("guest", "locked", "Guest"), kind: "guest" },
+    ];
+    render(<TravelPanel />);
+    expect(deviceVaults()).toHaveLength(4);
+    expect(screen.getByText("2 vaults on this device")).toBeTruthy();
+  });
+
   it("draws no way to leave while the open vault is the only one: packing would refuse", () => {
     origin.vaults = [vault("personal", "open")];
     render(<TravelPanel />);
