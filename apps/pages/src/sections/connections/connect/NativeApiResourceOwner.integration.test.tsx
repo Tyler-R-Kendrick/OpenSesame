@@ -11,8 +11,10 @@ import { configureNativeApiConnector } from "@opensesame/app-core/lib/native-api
 import { bindNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-binding.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, expect, it, vi } from "vitest";
 import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
@@ -161,18 +163,18 @@ async function saved() {
     read: () => driver.invoke(view.connectionId, "provider.messages.read", {}),
   };
 }
-function mount(onFlash = vi.fn()) {
-  render(
+function mount(onFlash = vi.fn(), onChanged = vi.fn()) {
+  const view = render(
     <MemoryRouter>
       <NativeConnectorPanels
         provider={integrationProvider("postmark")}
         connection={null}
         onFlash={onFlash}
-        onChanged={() => {}}
+        onChanged={onChanged}
       />
     </MemoryRouter>,
   );
-  return onFlash;
+  return { ...view, onFlash, onChanged };
 }
 it.each([false, true])(
   "caller-owned API resource physically drains before15s, generic binder=%s",
@@ -245,3 +247,99 @@ it("generic binder preserves legacy invocation arity when caller is omitted", as
     {},
   );
 });
+
+it.each(["unmount", "provider", "vault", "activation"])(
+  "actual mounted saved action drains within2s on %s, before unchanged15s deadline",
+  async (withdrawal) => {
+    const o = await oracle();
+    const ui = mount();
+    await userEvent.type(screen.getByLabelText("Postmark API key"), apiKey);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Verify and connect Postmark" }),
+    );
+    const action = await screen.findByRole("button", {
+      name: "List outbound messages",
+    });
+    ui.onFlash.mockClear();
+    ui.onChanged.mockClear();
+    const arrived = deferred();
+    const state = { closed: false };
+    o.hold((response) => {
+      response.once("close", () => {
+        state.closed = true;
+      });
+      response.write('{"TotalCount":1,"Messages":[');
+      arrived.resolve();
+    });
+    await userEvent.click(action);
+    await arrived.promise;
+    await delay(250);
+    expect(state.closed).toBe(false);
+    expect(action.getAttribute("aria-busy")).toBe("true");
+    const started = performance.now();
+    await act(async () => {
+      if (withdrawal === "unmount") ui.unmount();
+      if (withdrawal === "provider")
+        ui.rerender(
+          <MemoryRouter>
+            <NativeConnectorPanels
+              provider={integrationProvider("algolia")}
+              connection={null}
+              onFlash={ui.onFlash}
+              onChanged={ui.onChanged}
+            />
+          </MemoryRouter>,
+        );
+      if (withdrawal === "vault") vaultStore.lock({ recordLastVault: false });
+      if (withdrawal === "activation") o.fixture.activation.dispose();
+    });
+    await waitFor(() => expect(state.closed).toBe(true), {
+      timeout: 2000,
+      interval: 10,
+    });
+    expect(performance.now() - started).toBeLessThan(2000);
+    await delay(25);
+    expect(ui.onFlash).not.toHaveBeenCalled();
+    expect(ui.onChanged).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("Showing 2 of 194 messages in outbound stream"),
+    ).toBeNull();
+    expect(o.requests).toHaveLength(2);
+    expect(
+      o.requests.every((request) => request.authorized && request.emptyBody),
+    ).toBe(true);
+    cleanup();
+  },
+);
+
+it.each([401, 500])(
+  "actual mounted provider HTTP%s remains an error with a current action owner",
+  async (status) => {
+    const o = await oracle();
+    const ui = mount();
+    await userEvent.type(screen.getByLabelText("Postmark API key"), apiKey);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Verify and connect Postmark" }),
+    );
+    const action = await screen.findByRole("button", {
+      name: "List outbound messages",
+    });
+    ui.onFlash.mockClear();
+    ui.onChanged.mockClear();
+    o.reply({ error: apiKey }, status);
+    await userEvent.click(action);
+    await waitFor(() => expect(ui.onFlash).toHaveBeenCalledOnce());
+    expect(ui.onFlash).toHaveBeenCalledWith({
+      tone: "err",
+      text:
+        status === 401
+          ? "Provider authorization was refused; verify or replace the saved credential"
+          : "Provider did not return the expected response",
+    });
+    expect(ui.onChanged).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByText("Showing 2 of 194 messages in outbound stream"),
+    ).toBeNull();
+    expect(ui.container.textContent).not.toContain(apiKey);
+  },
+);
