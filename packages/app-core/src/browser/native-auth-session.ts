@@ -73,8 +73,7 @@ function validateRequest(
   )
     throw new Error("Invalid provider authorization URL");
   const remaining = request.expiresAt - Date.now();
-  if (remaining <= 0)
-    throw new Error("Provider authorization request expired");
+  if (remaining <= 0) throw new Error("Provider authorization request expired");
   if (remaining > maxLifetime + CLOCK_STEP_BACK_MS)
     throw new Error("Provider authorization request exceeds allowed lifetime");
 }
