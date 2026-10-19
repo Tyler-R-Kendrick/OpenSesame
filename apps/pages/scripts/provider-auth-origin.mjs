@@ -7,6 +7,7 @@ import path from "node:path";
 const MIME = {
   ".html": "text/html",
   ".js": "text/javascript",
+  ".mjs": "text/javascript",
   ".css": "text/css",
   ".json": "application/json",
   ".wasm": "application/wasm",
