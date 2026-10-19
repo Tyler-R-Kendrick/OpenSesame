@@ -10,7 +10,7 @@ import {
 } from "./tailscale-wasm-assets.mjs";
 test("ships exact source-built native WASM, isolated runtime, jitless bridge and complete notices", async () => {
   const assets = await loadTailscaleAssets();
-  assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6732550);
+  assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6746017);
   assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8078);
   assert.match(
     assets.get(TAILSCALE_ASSETS.runtime).toString(),
@@ -23,7 +23,7 @@ test("ships exact source-built native WASM, isolated runtime, jitless bridge and
   assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Tailscale/);
   assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Go Authors/);
   assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Zod3 runtime/);
-  assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 17892);
+  assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 23988);
   assertTailscaleHash(
     assets.get(TAILSCALE_ASSETS.nativeHTTP),
     TAILSCALE_SDK.nativeHTTPHash,
