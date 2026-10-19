@@ -4,15 +4,16 @@
 //! output is a `ConnectionRef` — never a provider token (ADR 0005).
 
 mod browser;
+mod local_cli;
 
 use anyhow::{anyhow, bail, Context};
 use browser::open_url;
 use clap::{Parser, Subcommand};
+use local_cli::local_cli_status;
 use serde_json::{json, Value};
 use std::{
     env, fs,
     io::{self, IsTerminal, Read, Write},
-    process::Command,
     time::{Duration, Instant},
 };
 
@@ -1326,22 +1327,6 @@ fn warn_passkey_fallback() {
     eprintln!(
         "If the browser asks for a passkey, this CLI is not your phone or YubiKey. Use TOTP, email, or approve on your phone, then return here."
     );
-}
-
-/// Opt-in local doctor for CLIs we can probe without reading the user's disk.
-fn local_cli_status(service: &str) -> Option<String> {
-    let (bin, args): (&str, &[&str]) = match service {
-        "github" => ("gh", &["auth", "status"]),
-        "vercel" => ("vercel", &["whoami"]),
-        _ => return None,
-    };
-    let output = Command::new(bin).args(args).output().ok()?;
-    Some(summarize_cli_probe(
-        bin,
-        output.status.success(),
-        &String::from_utf8_lossy(&output.stdout),
-        &String::from_utf8_lossy(&output.stderr),
-    ))
 }
 
 fn summarize_cli_probe(bin: &str, ok: bool, stdout: &str, stderr: &str) -> String {

@@ -11,12 +11,12 @@
 //! revision counter — the old ciphertext blob is written back verbatim.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use opensesame_human_vault::ItemDataKey;
 
 use crate::envelope::open_osseal;
 use crate::git::auto_commit;
+use crate::git_exec::git;
 use crate::path::{confined_write, logical_to_relative};
 use crate::{Entry, StoreError, StoreRoot};
 
@@ -56,7 +56,7 @@ fn require_git_repo(root: &Path) -> Result<(), StoreError> {
 }
 
 fn git_log(root: &Path, rel: &Path) -> Result<Vec<HistoryEntry>, StoreError> {
-    let output = Command::new("git")
+    let output = git()?
         .args(["log", "--format=%H%x09%ct%x09%s", "--"])
         .arg(rel)
         .current_dir(root)
@@ -130,7 +130,7 @@ fn blob_at(root: &Path, rev: &str, name: &str) -> Result<Option<CommittedBlob>, 
             .to_str()
             .ok_or_else(|| StoreError::InvalidPath("non-utf8 path".into()))?
             .replace('\\', "/");
-        let output = Command::new("git")
+        let output = git()?
             .args(["show", &format!("{rev}:{rel_str}")])
             .current_dir(root)
             .output()

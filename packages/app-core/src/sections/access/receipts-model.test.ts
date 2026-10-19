@@ -6,6 +6,7 @@ import {
   outcomeChip,
   receiptLabel,
   receiptTarget,
+  receiptWords,
 } from "./receipts-model.js";
 
 const base = {
@@ -55,6 +56,24 @@ it("names the thing a receipt is about only when its metadata does", () => {
     receiptTarget({ ...event, metadata: { targetType: "application" } }),
   ).toBe(null);
   expect(receiptTarget({ ...event, metadata: undefined })).toBe(null);
+});
+
+it("words one refused drop with the wrong-code count it carries", () => {
+  const refused: AuditEvent = {
+    ...base,
+    eventType: "access.drop.refused",
+    outcome: "denied",
+  };
+  expect(receiptWords(refused)).toBe("Drop refused");
+  expect(receiptWords({ ...refused, metadata: { count: 1 } })).toBe(
+    "Refused · 1 wrong code",
+  );
+  expect(receiptWords({ ...refused, metadata: { count: 3 } })).toBe(
+    "Refused · 3 wrong codes",
+  );
+  expect(receiptWords({ ...refused, metadata: { count: 0 } })).toBe(
+    "Drop refused",
+  );
 });
 
 it("marks a refusal as a warning and a failure as an error", () => {

@@ -17,6 +17,7 @@ import {
   type Received,
   SEAT_GRACE_MS,
   type HostSeat as Seat,
+  askingSeat,
 } from "./host-types.js";
 import type { LiveLink } from "./link.js";
 import type { JoinRequest } from "./messages.js";
@@ -215,27 +216,15 @@ export class LiveHost {
         : { kind: "not-a-request" };
     }
     const key = request.id;
-    const seat: Seat = {
-      guest: {
-        key,
-        name: request.name,
-        note: request.note,
-        state: "asking",
-        askedAt: this.#now(),
-        reply: null,
-        kind,
-        ...judged.guest,
-      },
-      offer: request.offer,
-      greets: request.greets,
+    const seat = askingSeat(
+      request,
       joiner,
       kind,
       route,
-      peer: null,
-      admitting: false,
-      timer: null,
-      peerTrust: judged.peerTrust,
-    };
+      this.#now(),
+      judged.guest,
+      judged.peerTrust,
+    );
     this.#seats.set(key, seat);
     for (const id of judged.clashKeys) this.#set(id, { nameClash: true });
     this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
@@ -277,6 +266,12 @@ export class LiveHost {
         if (seat.peer === peer) this.#drop(key, "gone");
       },
       onLog: (entry) => this.#record(entry),
+      onConnection: (connection) => {
+        if (seat.peer !== peer) return;
+        const guest = this.#seats.get(key)?.guest;
+        if (!guest || guest.state !== "replied") return;
+        this.#set(key, { connection: connection ?? undefined });
+      },
     });
     return peer;
   }
@@ -333,7 +328,7 @@ export class LiveHost {
       }
       // The window to connect runs from the reply, not from the request.
       this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
-      this.#set(key, { state: "replied", reply });
+      this.#set(key, { state: "replied", reply, connection: undefined });
       this.options.post?.(reply);
     } catch {
       peer.close();

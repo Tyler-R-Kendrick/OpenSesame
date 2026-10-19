@@ -19,6 +19,12 @@ export type VaultPrefs = {
    * migration (e.g. retiring the old 15-minute auto-lock default).
    */
   prefsRevision?: number;
+  /**
+   * Set once this vault has been told that Self-issued OpenID or Ambient
+   * single sign-on is still approved. System-owned, like `prefsRevision`.
+   * Absent means the notice has not been shown. Never turns the features off.
+   */
+  legacyIdentityNoticeSeen?: boolean | undefined;
 };
 
 /** Current prefs schema revision — bump when shipping a one-time prefs migrate. */
@@ -55,6 +61,9 @@ export function normalizeVaultPrefs(
   }
   if (!isBoolean(merged.signOutOnLock)) {
     merged.signOutOnLock = false;
+  }
+  if (!isBoolean(merged.legacyIdentityNoticeSeen)) {
+    merged.legacyIdentityNoticeSeen = undefined;
   }
   if (
     !isNumber(merged.autoLockMinutes) ||

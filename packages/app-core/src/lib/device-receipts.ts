@@ -132,6 +132,8 @@ export type ReceiptRef = ReceiptSubject &
     organizationId?: string;
     /** The resource a share names. An id, never its label. */
     resourceId?: string;
+    /** Wrong codes already counted on one drop refusal. A number, never a code. */
+    count?: number;
   }>;
 
 /** Receipts decided, not yet in the trail, held for this tab's vault. */
@@ -167,6 +169,7 @@ function metadataOf(ref: ReceiptRef): JsonObject {
   if (ref.organizationId) metadata.organizationId = ref.organizationId;
   if (ref.claimId) metadata.claimId = ref.claimId;
   if (ref.resourceId) metadata.resourceId = ref.resourceId;
+  if (ref.count !== undefined) metadata.count = ref.count;
   return metadata;
 }
 

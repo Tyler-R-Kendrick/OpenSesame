@@ -1,12 +1,15 @@
 import type { SecretBackendItemSummary } from "@opensesame/app-core/lib/secret-backends/types.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconDownload, IconUpload } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import { useSecretBackendAction } from "./useSecretBackendAction.js";
+import {
+  useSecretBackendAction,
+  useSecretBackendOwnerSignal,
+} from "./useSecretBackendAction.js";
 import type { SecretBackendHandle } from "./useSecretBackendWorkspace.js";
 
 export const secretBackendBackupDependencies = {
@@ -45,14 +48,10 @@ export const secretBackendBackupDependencies = {
 
 type Props = { handle: SecretBackendHandle; onFlash: (flash: Flash) => void };
 function useBackupAction({ handle, onFlash }: Props) {
-  const backend = handle.backend.signal;
-  const session = handle.session.signal;
-  const signal = useMemo(() => {
-    const signals = [backend, session].filter(
-      (value): value is AbortSignal => value !== undefined,
-    );
-    return signals.length ? AbortSignal.any(signals) : undefined;
-  }, [backend, session]);
+  const signal = useSecretBackendOwnerSignal(
+    handle.backend.signal,
+    handle.session.signal,
+  );
   return useSecretBackendAction(onFlash, signal);
 }
 function RestoreForm({ handle, onFlash }: Props) {

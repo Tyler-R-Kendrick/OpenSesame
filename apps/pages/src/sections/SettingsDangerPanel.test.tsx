@@ -63,8 +63,21 @@ describe("SettingsDangerPanel", () => {
     );
     render(<SettingsDangerPanel />);
     expect(screen.getByText(/1 item in the trash/)).toBeTruthy();
-    expect(screen.getByText(/· 1 item/)).toBeTruthy();
+    expect(screen.getByText(/· 1 item \(1 in trash\)/)).toBeTruthy();
     expect(screen.getByText("Billing")).toBeTruthy();
     expect(screen.queryByText(/Password/)).toBeNull();
+  });
+
+  it("counts live items and trash the way the rail does", () => {
+    // Live remainder (2 − 1) is the rail vault count. Trash stays its own line.
+    const live = createItem("note", "Live");
+    const gone = {
+      ...createItem("note", "Gone"),
+      deletedAt: "2026-09-01T00:00:00.000Z",
+    };
+    vault.items = [live, gone];
+    render(<SettingsDangerPanel />);
+    expect(screen.getByText(/2 items \(1 in trash\)/)).toBeTruthy();
+    expect(screen.getByText(/1 item in the trash/)).toBeTruthy();
   });
 });

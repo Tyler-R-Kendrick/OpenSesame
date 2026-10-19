@@ -22,6 +22,8 @@ import type { DeviceBroker } from "./device-broker.js";
 import { isDeviceMessage, isDeviceRequest } from "./device-messages.js";
 import type { SeatDevices } from "./device-types.js";
 import { GREETINGS_MAX } from "./greeting.js";
+import type { GuestConnection } from "./host-types.js";
+import { iceStatusLabel } from "./ice-diagnostics.js";
 import {
   type Catalog,
   type ChannelMessage,
@@ -81,6 +83,8 @@ export type HostPeerOptions = Readonly<{
    * that fails does not end it, since the joiner may still arrive there.
    */
   relayed?: boolean;
+  /** ICE progress while the joiner connects after a reply (P8-3). */
+  onConnection?: (connection: GuestConnection | null) => void;
 }>;
 
 /**
@@ -132,6 +136,12 @@ export class HostPeer {
     }
     this.#peer = peer;
     peer.onFailed(() => this.#peerFailed());
+    peer.onIce?.((view) => {
+      this.options.onConnection?.({
+        phase: view.phase,
+        detail: iceStatusLabel(view),
+      });
+    });
     peer.channel.then(
       (channel) => {
         // The joiner already moved the seat to the relay: the late peer
@@ -146,6 +156,10 @@ export class HostPeer {
 
   /** The peer route failed: the seat ends, unless a relay may still carry it. */
   #peerFailed(): void {
+    this.options.onConnection?.({
+      phase: "failed",
+      detail: "No route to the joiner's browser",
+    });
     if (this.options.relayed !== true) this.#closedByPeer();
   }
 
@@ -205,6 +219,10 @@ export class HostPeer {
     }
     if (this.#grace) clearTimeout(this.#grace);
     this.#grace = null;
+    this.options.onConnection?.({
+      phase: "connected",
+      detail: "Connected over a direct path",
+    });
     this.#channel = channel;
     channel.onClose(() => {
       if (this.#channel === channel) this.#closedByPeer();

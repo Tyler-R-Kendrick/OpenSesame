@@ -17,6 +17,7 @@ import { createLocalShare, revokeLocalShare } from "./local-share-grants.js";
 import {
   flushSharingReceipts,
   noteDropOpened,
+  noteDropRefused,
   resetSharingReceiptsForTest,
 } from "./sharing-receipts.js";
 import {
@@ -267,6 +268,8 @@ it("records sender refused when a tracked send cannot be presented", async () =>
   expect(blob).toContain(session.claimId);
   expect(blob).toContain("vault.drop.refused");
   expect(blob).toContain("access.drop.refused");
+  expect(blob).toContain("Drop refused");
+  expect(blob).not.toContain("wrong code");
 });
 
 it("records a drop open on the sending vault when another vault presents", async () => {
@@ -354,4 +357,31 @@ it("does not receipt a system share, and a missing revoke writes nothing", async
   expect(blob).not.toContain("share.granted");
   expect(blob).not.toContain("share.revoked");
   expect(blob).not.toContain(LABEL);
+});
+
+it("keeps one refused receipt while the wrong-code count rises", async () => {
+  const tomb = await unlock();
+  const { session } = await sealedClaim();
+  recordOutboundDrop({
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
+    name: "tally",
+    expiresAt: session.expiresAt,
+    sourceItemId: "item_tally",
+    tomb,
+  });
+  noteDropRefused(session.claimId);
+  noteDropRefused(session.claimId);
+  for (let i = 0; i < 5; i += 1) {
+    await expect(
+      presentLocalDropClaim(session.bearerToken, "WRONG-CODE"),
+    ).rejects.toThrow();
+  }
+  const blob = await trails(tomb);
+  expect(blob.match(/vault\.drop\.refused/gu)).toHaveLength(1);
+  expect(blob.match(/access\.drop\.refused/gu)).toHaveLength(1);
+  expect(blob.match(/access\.drop\.locked_out/gu)).toHaveLength(1);
+  expect(blob).toContain("Refused · 5 wrong codes");
+  expect(blob).toContain('"count":5');
+  expect(blob).not.toContain(session.userCode);
 });

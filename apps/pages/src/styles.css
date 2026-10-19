@@ -861,6 +861,20 @@ input[type="radio"] {
   flex: none;
 }
 
+/* A presence mark takes the end of the brand. Install stays beside it. */
+.rail__brand .rail__presence {
+  margin-left: auto;
+  flex: none;
+}
+
+.rail__brand .rail__presence + .rail__install {
+  margin-left: 0;
+}
+
+.mobile-toolbar .rail__presence {
+  flex: none;
+}
+
 .topbar .rail__install {
   margin-inline: 0.2rem;
   flex: none;

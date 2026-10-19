@@ -144,8 +144,9 @@ export function SettingsDangerPanel() {
   const [emptyArmed, setEmptyArmed] = useState(false);
   const [purgeArmedId, setPurgeArmedId] = useState<string | null>(null);
   const listed = listedItems(items);
-  const count = `${listed.length} ${listed.length === 1 ? "item" : "items"}`;
   const trashed = listed.filter(isTrashed);
+  const noun = listed.length === 1 ? "item" : "items";
+  const count = `${listed.length} ${noun} (${trashed.length} in trash)`;
   const trashCount = `${trashed.length} ${
     trashed.length === 1 ? "item" : "items"
   }`;

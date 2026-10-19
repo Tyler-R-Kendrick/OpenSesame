@@ -69,7 +69,7 @@ import {
   writeManifestItems,
   writeSavedItems,
 } from "./item-writes.js";
-import { emitVaultLock } from "./lock-events.js";
+import { emitVaultLock, lockAfterIdle } from "./lock-events.js";
 import {
   adoptedMasterWrap,
   headerWithNewPassword,
@@ -1592,7 +1592,7 @@ export class VaultStore {
   touch = this.#preferences.touch.bind(this.#preferences);
 
   #armIdleTimer(): void {
-    this.#preferences.arm(this.#vaultKey !== null, () => this.lock());
+    this.#preferences.arm(this.#vaultKey !== null, () => lockAfterIdle(this));
   }
 }
 
