@@ -3747,7 +3747,7 @@
         "url": "https://api.buildkite.com/v2/access-token",
         "account_field": "uuid"
       },
-      "instructions": "In Buildkite open **Personal Settings → API Access Tokens**, click **New API Access Token**, pick the organization, tick only **read_user** (plus read scopes you need), and copy it (shown once).",
+      "instructions": "Create a Buildkite personal API access token for your organization with read_pipelines for pipeline inventory. Token verification uses /v2/access-token. Enter the organization slug below to list its pipelines; no write scope is needed.",
       "docs_url": "https://buildkite.com/docs/apis/rest-api#authentication",
       "probe_status": 401,
       "confidence": "high",
@@ -3756,7 +3756,15 @@
         "https://buildkite.com/docs/apis/rest-api#authentication",
         "https://buildkite.com/docs/apis/rest-api/access-token"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "organization_slug",
+          "label": "Buildkite organization slug",
+          "placeholder": "my-organization",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "calendly",
@@ -3840,7 +3848,7 @@
         "url": "https://circleci.com/api/v2/me",
         "account_field": "login"
       },
-      "instructions": "In CircleCI open **User Settings → Personal API Tokens**, click **Create New Token**, name it and copy it (shown once).",
+      "instructions": "Create a CircleCI personal API token in User Settings → Personal API Tokens. Project tokens are not supported by API v2. To list pipelines, enter the project slug as vcs/org/repository; GitLab and GitHub App projects use circleci/organization-ID/project-ID from their settings.",
       "docs_url": "https://circleci.com/docs/guides/toolkit/managing-api-tokens/",
       "probe_status": 401,
       "confidence": "high",
@@ -3849,7 +3857,15 @@
         "https://circleci.com/docs/guides/toolkit/managing-api-tokens/",
         "https://circleci.com/docs/api/v2/index.html"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "project_slug",
+          "label": "CircleCI project slug",
+          "placeholder": "gh/my-organization/my-repository",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "clerk",
@@ -4283,7 +4299,7 @@
         "url": "https://api.digitalocean.com/v2/account",
         "account_field": "account.email"
       },
-      "instructions": "In DigitalOcean open **API → Tokens**, click **Generate New Token**, name it, set an expiry, choose **Custom Scopes** with **account:read**, and copy it (shown once).",
+      "instructions": "In DigitalOcean open API → Tokens and generate a personal access token with Custom Scopes: account:read for account verification and droplet:read for droplet inventory. Set an expiry and copy the token once. No write scope is needed.",
       "docs_url": "https://docs.digitalocean.com/reference/api/create-personal-access-token/",
       "probe_status": 401,
       "confidence": "high",

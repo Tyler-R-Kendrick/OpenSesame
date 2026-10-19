@@ -4,6 +4,7 @@ import { z } from "zod";
 import { readNativeAgentMailInboxes } from "./native-agentmail.js";
 import { projectNativeAgentcardOrganization } from "./native-api-agentcard.js";
 import { nativeCatalogResources } from "./native-api-catalog-resources.js";
+import { nativeCiCloudResources } from "./native-api-ci-cloud-resources.js";
 import { NativeApiError } from "./native-api-http.js";
 import { projectNativeLithicCards } from "./native-api-lithic.js";
 import { projectNativeMarqetaUsers } from "./native-api-marqeta.js";
@@ -209,6 +210,7 @@ const resources: readonly Resource[] = [
     },
     projectNativeMarqetaUsers,
   ),
+  ...nativeCiCloudResources,
   ...nativePrimaryCollections,
   ...nativeCatalogResources,
   jsonResource(
