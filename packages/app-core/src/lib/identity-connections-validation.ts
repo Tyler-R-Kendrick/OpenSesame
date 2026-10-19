@@ -6,6 +6,7 @@ import {
   identityConnectionUsesBroker,
   identityEndpoint,
 } from "./identity-connections-schema.js";
+import { nativeSamlConfigurationProblems } from "./identity-saml-config.js";
 
 function oidcProblems(draft: IdentityConnectionDraft): string[] {
   const problems: string[] = [];
@@ -45,16 +46,6 @@ function brokerProblems(draft: IdentityConnectionDraft): string[] {
     problems.push("Select an organization you own");
   return problems;
 }
-function samlProblems(draft: IdentityConnectionDraft): string[] {
-  const problems: string[] = [];
-  if (!draft.samlEntityId.trim())
-    problems.push("Enter the SAML identity provider entity ID");
-  if (!draft.samlMetadataXml && !identityEndpoint(draft.samlMetadataUrl))
-    problems.push("Enter an HTTPS SAML metadata URL or metadata XML");
-  if (draft.samlMetadataXml && draft.samlMetadataUrl)
-    problems.push("Choose metadata URL or XML, not both");
-  return problems;
-}
 function ldapUrlProblem(value: string): string[] {
   try {
     const url = new URL(value);
@@ -92,7 +83,7 @@ function ldapProblems(draft: IdentityConnectionDraft): string[] {
 }
 const protocolProblems = {
   oidc: oidcProblems,
-  saml: samlProblems,
+  saml: nativeSamlConfigurationProblems,
   ldap: ldapProblems,
   "better-auth": nativeProblems,
   supabase: nativeProblems,

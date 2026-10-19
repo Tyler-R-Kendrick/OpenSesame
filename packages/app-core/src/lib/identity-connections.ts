@@ -1,3 +1,8 @@
+import {
+  beginSavedNativeSaml,
+  captureSamlConfiguration,
+  saveConfiguredNativeSaml,
+} from "../browser/identity-saml-dispatch.js";
 /** One configurable identity road, composed by partner presets and the BYO surface. */
 import type { Connection } from "./connections.js";
 import { deviceConnection } from "./device-connectors.js";
@@ -39,7 +44,7 @@ import {
 } from "./identity-connections-trust.js";
 import { requireValidIdentityConnection } from "./identity-connections-validation.js";
 import type { OrgSignInOrganization } from "./org-signin.js";
-import { signInMethods } from "./settings.js";
+import { type OperatorIdp, signInMethods } from "./settings.js";
 export { readInitialIdentityDraft } from "./identity-connections-trust.js";
 
 export {
@@ -103,12 +108,6 @@ async function configureBroker(draft: IdentityConnectionDraft): Promise<void> {
       clientId: draft.clientId,
       clientSecret: draft.clientSecret,
     });
-  } else if (draft.protocol === "saml") {
-    await client.saveSaml(org, {
-      entityId: draft.samlEntityId,
-      metadataUrl: draft.samlMetadataUrl,
-      metadataXml: draft.samlMetadataXml,
-    });
   } else if (draft.protocol === "ldap") {
     await client.saveLdap(org, {
       url: draft.ldapUrl,
@@ -129,28 +128,65 @@ async function configureBroker(draft: IdentityConnectionDraft): Promise<void> {
 }
 
 /** Test is read-only: no saved account, configuration, tokens, or grants are minted. */
+async function checkIdentityConfiguration(
+  draft: IdentityConnectionDraft,
+  saml: ReturnType<typeof captureSamlConfiguration> | null,
+): Promise<void> {
+  if (saml) {
+    await saml.check(draft);
+    saml.assertCurrent();
+  } else if (identityConnectionUsesBroker(draft)) await configureBroker(draft);
+  else if (draft.protocol === "oidc") await testIdentityOidc(draft.issuer);
+  else await testIdentitySession(draft);
+}
+
 export async function testIdentityConnection(
   input: IdentityConnectionDraft,
   existingId?: string,
 ): Promise<IdentityConnectionTest> {
-  const draft = resolveIdentityConnectionSecrets(
-    normalizeIdentityConnectionDraft(input),
-    existingId,
-  );
-  requireValidIdentityConnection(draft);
-  if (draft.protocol === "better-auth" || draft.protocol === "supabase")
-    return testIdentitySession(draft);
-  if (identityConnectionUsesBroker(draft)) {
-    const org = await organization(draft);
-    if (draft.protocol === "oidc") return testIdentityOidc(draft.issuer);
-    const { identityEnterpriseClient } = await import(
-      "./identity-enterprise.js"
+  const saml =
+    input.protocol === "saml"
+      ? captureSamlConfiguration(input.samlMetadataUrl, existingId)
+      : null;
+  try {
+    const draft = resolveIdentityConnectionSecrets(
+      normalizeIdentityConnectionDraft(input),
+      existingId,
     );
-    return {
-      message: await identityEnterpriseClient().check(org, draft.protocol),
-    };
+    requireValidIdentityConnection(draft);
+    if (saml) {
+      const result = await saml.check(draft);
+      saml.assertCurrent();
+      return result;
+    }
+    if (draft.protocol === "better-auth" || draft.protocol === "supabase")
+      return testIdentitySession(draft);
+    if (identityConnectionUsesBroker(draft)) {
+      const org = await organization(draft);
+      if (draft.protocol === "oidc") return testIdentityOidc(draft.issuer);
+      const { identityEnterpriseClient } = await import(
+        "./identity-enterprise.js"
+      );
+      return {
+        message: await identityEnterpriseClient().check(org, draft.protocol),
+      };
+    }
+    return testIdentityOidc(draft.issuer);
+  } finally {
+    await saml?.release();
   }
-  return testIdentityOidc(draft.issuer);
+}
+
+function clearSavedIdentitySession(
+  id: string,
+  legacy: OperatorIdp | null,
+): void {
+  const session = loadSession();
+  if (
+    session?.upstreamId === `identity:${id}` ||
+    (legacy && session?.upstreamId === `operator:${legacy.issuer}`)
+  )
+    clearSession();
 }
 
 /** Configure a real adapter and persist it before adding its public sign-in method. */
@@ -158,39 +194,42 @@ export async function saveIdentityConnection(
   input: IdentityConnectionDraft,
   existingId?: string,
 ): Promise<Connection> {
-  const draft = resolveIdentityConnectionSecrets(
-    normalizeIdentityConnectionDraft(input),
-    existingId,
-  );
-  requireValidIdentityConnection(draft);
-  if (existingId && !readIdentityConnection(existingId))
-    throw new Error("Saved identity connection not found");
-  const legacy = captureLegacyIdentityMigration(draft, existingId);
-  assertIdentityTrustAvailable(draft, existingId ?? "", legacy);
-  const previous = existingId ? getIdentityConnectionRuntime(existingId) : null;
-  // Configuration checks cannot masquerade as successful authentication.
-  if (identityConnectionUsesBroker(draft)) await configureBroker(draft);
-  else if (draft.protocol === "oidc") await testIdentityOidc(draft.issuer);
-  else await testIdentitySession(draft);
-  const connection = await writeIdentityConnection(draft, existingId);
+  const saml =
+    input.protocol === "saml"
+      ? captureSamlConfiguration(input.samlMetadataUrl, existingId)
+      : null;
   try {
-    await projectIdentityTrust(draft, connection.connectionId, legacy);
-  } catch (error) {
-    // Public trust and the sealed ledger are separate files. A failed trust
-    // projection must not leave a new unusable connection behind.
-    if (previous)
-      await writeIdentityConnection(previous, connection.connectionId);
-    else await deleteIdentityConnection(connection.connectionId);
-    throw error;
+    const draft = resolveIdentityConnectionSecrets(
+      normalizeIdentityConnectionDraft(input),
+      existingId,
+    );
+    requireValidIdentityConnection(draft);
+    if (existingId && !readIdentityConnection(existingId))
+      throw new Error("Saved identity connection not found");
+    if (saml) return await saveConfiguredNativeSaml(draft, existingId, saml);
+    const legacy = captureLegacyIdentityMigration(draft, existingId);
+    assertIdentityTrustAvailable(draft, existingId ?? "", legacy);
+    const previous = existingId
+      ? getIdentityConnectionRuntime(existingId)
+      : null;
+    // Configuration checks cannot masquerade as successful authentication.
+    await checkIdentityConfiguration(draft, saml);
+    const connection = await writeIdentityConnection(draft, existingId);
+    try {
+      await projectIdentityTrust(draft, connection.connectionId, legacy);
+    } catch (error) {
+      // Public trust and the sealed ledger are separate files. A failed trust
+      // projection must not leave a new unusable connection behind.
+      if (previous)
+        await writeIdentityConnection(previous, connection.connectionId);
+      else await deleteIdentityConnection(connection.connectionId);
+      throw error;
+    }
+    clearSavedIdentitySession(connection.connectionId, legacy);
+    return deviceConnection(connection.connectionId) ?? connection;
+  } finally {
+    await saml?.release();
   }
-  // An edit invalidates this connection's previous account authentication.
-  const session = loadSession();
-  if (
-    session?.upstreamId === `identity:${connection.connectionId}` ||
-    (legacy && session?.upstreamId === `operator:${legacy.issuer}`)
-  )
-    clearSession();
-  return deviceConnection(connection.connectionId) ?? connection;
 }
 
 export type IdentityConnectionSignInOptions = {
@@ -202,6 +241,13 @@ export async function beginIdentityConnectionSignIn(
   connectionId: string,
   options: IdentityConnectionSignInOptions = {},
 ): Promise<void> {
+  if (
+    signInMethods().providers.some(
+      (provider) =>
+        provider.connectionId === connectionId && provider.protocol === "saml",
+    )
+  )
+    return beginSavedNativeSaml(connectionId);
   await hydrateIdentityConnections();
   const draft = getIdentityConnectionRuntime(connectionId);
   if (!draft) throw new Error("Saved identity connection not found");
