@@ -154,7 +154,13 @@ try {
     });
     await page.setViewportSize({ width, height: 900 });
     page.on("request", (r) => {
-      if (!r.url().startsWith(origin))
+      let sameOrigin = false;
+      try {
+        sameOrigin = new URL(r.url()).origin === origin;
+      } catch {
+        sameOrigin = false;
+      }
+      if (!sameOrigin)
         requests.push({ step: h.step(), method: r.method(), url: r.url() });
     });
     page.on("requestfailed", (r) =>

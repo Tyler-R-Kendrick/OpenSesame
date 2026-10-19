@@ -12,7 +12,7 @@ export function title(text) {
   return heading
     .replace(/^ADR[ -]?\d{4}\s*[:—–-]\s*/u, "")
     .replace(/\s+—\s+\d{4}-\d{2}-\d{2}$/u, "")
-    .replace(/\|/gu, "\\|");
+    .replace(/([\\|])/gu, "\\$1");
 }
 
 /**

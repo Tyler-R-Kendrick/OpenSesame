@@ -208,6 +208,8 @@ describe("every connector acquires a person's token", () => {
 
     const check = await checkConnectorToken(connection.connectionId, PERSON);
     const issued = [...provider.issued, ...provider.apiKeys];
+    // A truncated SHA-256 fingerprint, only to recognise the same token
+    // without logging it — not password storage or verification.
     const fingerprints = issued.map((token) =>
       createHash("sha256").update(token).digest("hex").slice(0, 12),
     );
