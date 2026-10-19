@@ -115,7 +115,7 @@
         "sha256": "fd1a4751d38a3acc61a16e2bf92a6d773314541e1b5dab967ce72fdfdacd415c"
       }
     ],
-    "qualification": "Stage only these eleven pinned overlays into a fresh owned directory. Physical drain and the bounded operation registry are unactivated foundations exercised by actual owned host TLS tests, not node/worker browser activation. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not certify public trust, routes, DNS, exit selection, JS publication or provider integrations. Streaming primitives are not yet connected to the syscall/js bridge or Worker; Go source, formatting or host tests do not prove actual PWA streaming."
+    "qualification": "Stage only these eleven pinned overlays into a fresh owned directory. Physical drain and the bounded operation registry are unactivated foundations exercised by actual owned host TLS tests, not node/worker browser activation. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not certify public trust, routes, DNS, exit selection, JS publication or provider integrations. Pull streaming is connected to the fixed syscall/js and SDK bridge; Worker/controller and actual compiled PWA streaming acceptance remain separate. Go source, formatting, host or SDK fixture tests do not prove actual PWA streaming."
   },
   "nativeBridge": {
     "status": "UNACTIVATED in the PWA; actual Go1.27.2 native package and original-node WASM compilation now proved in separately pinned private receipts. No WASM execution, worker/provider or browser route proved.",
@@ -125,15 +125,31 @@
     "files": [
       {
         "path": "nativehttp_js.go",
-        "sha256": "af9c44177e4128aaf41b85a87d65c41af40e4ce9519e225d058eb65906a2eed9"
+        "sha256": "08c9880bae8e7d81f08f55d5296f34264b10b3f64927c39a776d11a6d98479a3"
       },
       {
         "path": "native-http.mjs",
-        "sha256": "82af0fe5feda9479f325e9ddfee48fff39f9675195eae7e5f80cd120a1d7440a"
+        "sha256": "24d2b6594afd2526ffc496980a0683f8c77fceb4043470d14a88523e49294270"
       },
       {
         "path": "native-http.test.mjs",
         "sha256": "64d2a5c5510281c9308882afb1b4314e82b11c41efa0eab0c56d083611a8d9a0"
+      },
+      {
+        "path": "streaming_js.go",
+        "sha256": "f10c27400e191ace9166f1b9ecd7055db6ff87320261dc32631d1f4ff3bdd5d0"
+      },
+      {
+        "path": "native-http-stream.mjs",
+        "sha256": "571a3d20ada6e24a642ffe18b4f28c9aa4ea539c4aab99dcfe82caf2cb1c66f7"
+      },
+      {
+        "path": "native-http-stream.test.mjs",
+        "sha256": "2749a175d3b66ac13aec6ba54147535065c684e99ea3530fd71b0560f6c849dd"
+      },
+      {
+        "path": "native-http-stream.test-support.mjs",
+        "sha256": "cdcb36030ec279481ca6e41cb0e9630f277409bc692dd0cf1d5dedde6c5c4600"
       }
     ],
     "existingRuntimeImport": {
@@ -175,7 +191,7 @@
     ],
     "stagingHelper": {
       "path": "stage-native-node.mjs",
-      "sha256": "754666c182ad3cf6595b08ed98f269163f738890fab869713f3cac3ef0144dea"
+      "sha256": "7ce907501db8356139aaeda6ca3cd548c8f53c674bc4b219047601c32483a0d6"
     },
     "patchTargets": [
       {
@@ -202,7 +218,7 @@
       "routeMode": "Only explicit peer selects original authorized stable peer host routes. Legacy omitted routeMode preserves existing exit path; no exit/subnet/default/self/fallback.",
       "peerID": "Explicit original stable peer ID, disjoint from exitNodeID. First ready self/peer keys, addresses, exact selected host routes and authorization are permanently captured; withdrawal cancels original context."
     },
-    "qualification": "Stage the existing eight fixed nativeHttp overlays plus explicit publicTrust.files and fixed JS bridge before this node hook. Original node/dialer/netmap/prefs, origin/IP/lease guards remain captured. Public/operator trust stay disjoint. Build-driver and PWA worker/controller composition remain separately reviewed activation steps."
+    "qualification": "Stage the existing eleven fixed nativeHttp overlays plus explicit publicTrust.files and both fixed Go JS bridges before this node hook. Original node/dialer/netmap/prefs, origin/IP/lease guards remain captured. Public/operator trust stay disjoint. Build-driver and PWA worker/controller composition remain separately reviewed activation steps."
   },
   "previousCompiler": {
     "repository": "https://github.com/tailscale/go",
@@ -360,7 +376,7 @@
       "version": "6.4.3",
       "packageSha256": "a1d0149fd986fd34b6d35503d2c0d8d9f743c4dbaaf94fbc11812bc84b05884d"
     },
-    "bridgeSha256": "e4f4f9f67492305cddde8903e146e2e9a3517dcb7cd7b459fe67dc7a9bce08dd",
+    "bridgeSha256": "2f1fa90dc075cd2d9869d7991603bc93c3f4908712b635c886f35062f725558a",
     "files": [
       {
         "path": "build.mjs",
@@ -368,7 +384,7 @@
       },
       {
         "path": "compose-native.mjs",
-        "sha256": "22e201ed34d04334a75d3f88ca1b4d1359df030d6354ea365be94539acc8e9ac"
+        "sha256": "0cca86891f899da38f3c23e2201486a14a9cf885ce2e530ff3d772466719c95e"
       },
       {
         "path": "native-assets.mjs",
@@ -376,7 +392,7 @@
       },
       {
         "path": "compose-native.test.mjs",
-        "sha256": "6499c6b13b8fc398ff501971c2b28e2ef97facc3023e6dff909febca41a01b3c"
+        "sha256": "f0a5ed8c9643a3c47433ad5c63e05b54a8459663c93bf0b4d7e20a1aa829daa9"
       },
       {
         "path": "compress-wasm.mjs",
@@ -438,7 +454,7 @@
       "arguments": ["-11", "-I", "3", "-p", "2", "-b", "1024", "-n", "-c"],
       "qualification": "Owned build-only source compilation, not an installed PWA dependency. Each output must decode to the exact complete input bytes; source archive, notices, compiler and executable provenance are retained. No four-phase Go build or runtime feature change."
     },
-    "bridgeUnminifiedSha256": "de080700569e12ae54d4287874459509047fab2da901f1b1bda8d9ac60a8d245",
+    "bridgeUnminifiedSha256": "903c084b8ebb058e968adc5cab043fe5fa19a0af924042c1df19021b3ea6207f",
     "runtimeMinifiedSha256": "3e61b3267aa67a553c289335805e5947e2f80935f782d3d6bcb30adb15674017",
     "terser": {
       "version": "5.51.2",

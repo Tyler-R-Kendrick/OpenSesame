@@ -6,6 +6,10 @@ const bridgeNames = [
   "nativehttp_js.go",
   "native-http.mjs",
   "native-http.test.mjs",
+  "streaming_js.go",
+  "native-http-stream.mjs",
+  "native-http-stream.test.mjs",
+  "native-http-stream.test-support.mjs",
 ];
 const nodeNames = [
   "nodehttp_js.go",
@@ -66,11 +70,12 @@ export async function stageNativeNode({
     requireHash,
     "beforeSha256",
   );
-  await copyFile(
-    join(here, "nativehttp_js.go"),
-    join(source, "cmd/tsconnect/nativehttp/nativehttp_js.go"),
-    constants.COPYFILE_EXCL,
-  );
+  for (const name of ["nativehttp_js.go", "streaming_js.go"])
+    await copyFile(
+      join(here, name),
+      join(source, "cmd/tsconnect/nativehttp", name),
+      constants.COPYFILE_EXCL,
+    );
   for (const file of pins.nativeNode.files) {
     if (!file.path.endsWith(".go")) continue;
     await copyFile(
@@ -82,10 +87,11 @@ export async function stageNativeNode({
   const verify = async () => {
     for (const file of [...pins.nativeBridge.files, ...pins.nativeNode.files])
       await requireHash(join(here, file.path), file.sha256);
-    await requireHash(
-      join(source, "cmd/tsconnect/nativehttp/nativehttp_js.go"),
-      pins.nativeBridge.files[0].sha256,
-    );
+    for (const name of ["nativehttp_js.go", "streaming_js.go"])
+      await requireHash(
+        join(source, "cmd/tsconnect/nativehttp", name),
+        pins.nativeBridge.files.find((file) => file.path === name).sha256,
+      );
     for (const file of pins.nativeNode.files) {
       if (!file.path.endsWith(".go")) continue;
       await requireHash(stagedNativeNodePath(source, file.path), file.sha256);

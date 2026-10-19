@@ -1,4 +1,5 @@
 import * as z from "zod/v4/mini";
+import { NativeHTTPPull } from "./native-http-stream.mjs";
 z.config({ jitless: true });
 
 /** Original-node Promise publication owner for the unactivated Go BindJS port. */
@@ -43,6 +44,8 @@ const portSchema = z.object({
   current: callableSchema,
   cancel: callableSchema,
   close: callableSchema,
+  beginStream: z.optional(callableSchema),
+  pull: z.optional(callableSchema),
 });
 function failure(code) {
   const parsed = errorCode.safeParse(code);
@@ -63,6 +66,8 @@ function capturePort(raw) {
     current: parsed.current.bind(raw),
     cancel: parsed.cancel.bind(raw),
     close: parsed.close.bind(raw),
+    beginStream: parsed.beginStream?.bind(raw),
+    pull: parsed.pull?.bind(raw),
   });
 }
 
@@ -79,6 +84,7 @@ class NativeHTTPBinding {
     this.high = 0;
     this.closed = false;
     this.publish = this.publish.bind(this);
+    this.stream = new NativeHTTPPull(this, { failure, safeID, errorCode });
     this.closeHTTP = this.closeHTTP.bind(this);
     this.captured.signal.addEventListener("abort", this.closeHTTP, {
       once: true,
@@ -129,7 +135,8 @@ class NativeHTTPBinding {
   }
   publish(token, id, result, code) {
     const entry = this.tokens.get(token);
-    if (!entry || entry.token !== token || entry.id !== id) return false;
+    if (!entry || entry.token !== token || entry.id !== id || entry.stream)
+      return false;
     if (!this.authorityCurrent(entry)) return this.withdraw(entry);
     if (code) {
       if (!this.remove(entry)) return false;
@@ -147,7 +154,7 @@ class NativeHTTPBinding {
       return this.withdraw(entry, "network");
     }
   }
-  admit(id, request, authority, resolve, reject) {
+  admit(id, request, authority, resolve, reject, callbacks) {
     let authorityOwner;
     try {
       authorityOwner = captureOwner(authority);
@@ -175,6 +182,7 @@ class NativeHTTPBinding {
       abort: null,
       timer: undefined,
     };
+    callbacks.prepare?.(entry);
     entry.abort = () => this.withdraw(entry);
     this.pending.set(id, entry);
     this.tokens.set(token, entry);
@@ -187,7 +195,7 @@ class NativeHTTPBinding {
     try {
       // Reserve occurs synchronously inside Go before its Run goroutine starts.
       const result = errorCode.safeParse(
-        this.port.begin(id, request, token, this.publish),
+        callbacks.begin(id, request, token, callbacks.publish),
       );
       if (!result.success) this.withdraw(entry, "network");
       else if (result.data && this.remove(entry)) reject(failure(result.data));
@@ -195,7 +203,7 @@ class NativeHTTPBinding {
       this.withdraw(entry, "network");
     }
   }
-  nativeHTTP(id, request, authority) {
+  request(id, request, authority, callbacks) {
     if (!safeID(id) || id <= this.high) return Promise.reject(failure("id"));
     this.high = id;
     if (this.closed) return Promise.reject(failure("stopped"));
@@ -204,8 +212,14 @@ class NativeHTTPBinding {
       return Promise.reject(failure("capacity"));
     }
     return new Promise((resolve, reject) =>
-      this.admit(id, request, authority, resolve, reject),
+      this.admit(id, request, authority, resolve, reject, callbacks),
     );
+  }
+  nativeHTTP(id, request, authority) {
+    return this.request(id, request, authority, {
+      begin: this.port.begin,
+      publish: this.publish,
+    });
   }
   cancelHTTP(id) {
     if (!safeID(id) || this.closed) return false;
@@ -237,5 +251,7 @@ export function bindNativeHTTP(raw, owner) {
     nativeHTTP: binding.nativeHTTP.bind(binding),
     cancelHTTP: binding.cancelHTTP.bind(binding),
     closeHTTP: binding.closeHTTP,
+    nativeHTTPStream: binding.stream.open.bind(binding.stream),
+    pullHTTP: binding.stream.pull.bind(binding.stream),
   });
 }

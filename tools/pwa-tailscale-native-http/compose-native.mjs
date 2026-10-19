@@ -40,10 +40,11 @@ async function verifyComposition({ here, source, output, pins, requireHash }) {
   ];
   for (const file of expected)
     await requireHash(join(here, file.path), file.sha256);
-  await requireHash(
-    join(source, "cmd/tsconnect/nativehttp/nativehttp_js.go"),
-    pins.nativeBridge.files[0].sha256,
-  );
+  for (const name of ["nativehttp_js.go", "streaming_js.go"])
+    await requireHash(
+      join(source, "cmd/tsconnect/nativehttp", name),
+      pins.nativeBridge.files.find((file) => file.path === name).sha256,
+    );
   for (const file of pins.nativeNode.files) {
     if (!file.path.endsWith(".go")) continue;
     await requireHash(stagedNativeNodePath(source, file.path), file.sha256);

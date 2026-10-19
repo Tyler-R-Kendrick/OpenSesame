@@ -15,6 +15,7 @@ type jsHTTPBridge struct {
 	dial     Dial
 	roots    *x509.CertPool
 	guard    Guard
+	streams  map[uint64]*jsHTTPStream
 }
 
 // BindJS binds one original node generation. Only the owned Go node adapter may
@@ -28,16 +29,20 @@ func BindJS(ctx context.Context, dial Dial, roots *x509.CertPool, guard Guard) (
 	begin := js.FuncOf(bridge.begin)
 	current := js.FuncOf(bridge.current)
 	cancel := js.FuncOf(bridge.cancel)
+	beginStream := js.FuncOf(bridge.beginStream)
+	pull := js.FuncOf(bridge.pull)
 	var closeBridge js.Func
 	closeBridge = js.FuncOf(func(js.Value, []js.Value) any {
 		bridge.registry.Close()
 		begin.Release()
 		current.Release()
 		cancel.Release()
+		beginStream.Release()
+		pull.Release()
 		closeBridge.Release() // Release while executing is supported by syscall/js.
 		return nil
 	})
-	return map[string]any{"begin": begin, "current": current, "cancel": cancel, "close": closeBridge}, nil
+	return map[string]any{"begin": begin, "current": current, "cancel": cancel, "close": closeBridge, "beginStream": beginStream, "pull": pull}, nil
 }
 
 func jsOperationID(value js.Value) (uint64, bool) {
@@ -159,13 +164,13 @@ func jsErrorCode(err error) string {
 	}
 }
 
-func (bridge *jsHTTPBridge) begin(_ js.Value, args []js.Value) any {
+func (bridge *jsHTTPBridge) reserveJS(args []js.Value) (*Operation, error) {
 	if len(args) == 0 {
-		return "input"
+		return nil, errInput
 	}
 	id, valid := jsOperationID(args[0])
 	if !valid {
-		return "id"
+		return nil, errOperationID
 	}
 	request, err := Request{}, errInput
 	if len(args) == 4 && args[2].Type() == js.TypeObject && !args[2].IsNull() && args[3].Type() == js.TypeFunction {
@@ -175,9 +180,13 @@ func (bridge *jsHTTPBridge) begin(_ js.Value, args []js.Value) any {
 		// Existing validation consumes a new valid ID without cancelling an
 		// original live entry on a malformed duplicate request.
 		_, rejected := bridge.registry.Reserve(bridge.ctx, id, Request{}, bridge.dial, bridge.roots, bridge.guard)
-		return jsErrorCode(rejected)
+		return nil, rejected
 	}
-	op, err := bridge.registry.Reserve(bridge.ctx, id, request, bridge.dial, bridge.roots, bridge.guard)
+	return bridge.registry.Reserve(bridge.ctx, id, request, bridge.dial, bridge.roots, bridge.guard)
+}
+
+func (bridge *jsHTTPBridge) begin(_ js.Value, args []js.Value) any {
+	op, err := bridge.reserveJS(args)
 	if err != nil {
 		return jsErrorCode(err)
 	}
@@ -195,7 +204,7 @@ func (bridge *jsHTTPBridge) current(_ js.Value, args []js.Value) any {
 	}
 	bridge.registry.mu.Lock()
 	op := bridge.registry.ops[id]
-	publishable := op != nil && op.phase == publishing
+	publishable := op != nil && (op.phase == publishing || op.stream != nil && bridge.streams[id] != nil)
 	bridge.registry.mu.Unlock()
 	return publishable && op.Current()
 }

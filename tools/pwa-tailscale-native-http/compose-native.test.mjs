@@ -129,11 +129,38 @@ test("fixed composition patches actual source while preserving original manifest
     [
       ...pins.nativeHttp.files.map((file) => file.path),
       "nativehttp_js.go",
+      "streaming_js.go",
       "public-roots.go",
       "public-roots_test.go",
     ].sort(),
   );
   await writeFile(join(scope.output, "native.sum"), "changed");
+  await assert.rejects(selected.verify(), /Pinned source changed/);
+});
+
+test("pull bridge staging fixes paths, verifies bytes and preserves occupied destinations", async () => {
+  const wrongPath = await fixture();
+  wrongPath.pins.nativeBridge.files[3].path = "../streaming_js.go";
+  await assert.rejects(composeNative(wrongPath), /fixed scope/);
+  const wrongBytes = await fixture();
+  wrongBytes.pins.nativeBridge.files[3].sha256 = "0".repeat(64);
+  await assert.rejects(composeNative(wrongBytes), /Pinned source changed/);
+  const occupied = await fixture();
+  const destination = join(
+    occupied.source,
+    "cmd/tsconnect/nativehttp/streaming_js.go",
+  );
+  await writeFile(destination, "preserved sentinel");
+  await assert.rejects(composeNative(occupied), { code: "EEXIST" });
+  assert.equal(await readFile(destination, "utf8"), "preserved sentinel");
+  const staged = await fixture();
+  const selected = await composeNative(staged);
+  const target = join(
+    staged.source,
+    "cmd/tsconnect/nativehttp/streaming_js.go",
+  );
+  assert.equal(hash(await readFile(target)), pins.nativeBridge.files[3].sha256);
+  await writeFile(target, "changed pull bridge");
   await assert.rejects(selected.verify(), /Pinned source changed/);
 });
 
