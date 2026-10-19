@@ -71,9 +71,7 @@ describe("http response hygiene", () => {
     });
     expect(header(captured, "content-type")).toBe("application/json");
     expect(header(captured, "x-content-type-options")).toBe("nosniff");
-    expect(JSON.parse(captured.body).error).toBe(
-      "<script>alert(1)</script>",
-    );
+    expect(JSON.parse(captured.body).error).toBe("<script>alert(1)</script>");
   });
 
   it("ships HTML forms under a no-load content security policy", () => {

@@ -344,6 +344,8 @@ describe("create refusals stay generic on the wire", () => {
   });
 });
 
-function assertPlan(plan: ConnectPlan | undefined): asserts plan is ConnectPlan {
+function assertPlan(
+  plan: ConnectPlan | undefined,
+): asserts plan is ConnectPlan {
   if (!plan) throw new Error("conformance cases are empty");
 }
