@@ -15,12 +15,11 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
       "infisical",
       "passwordstate",
       "proton-pass",
-      "encrypted-remote",
     ],
     defaultMode: "local",
     docsUrl: "https://developer.mozilla.org/en-US/docs/Web/API/File_API",
     setup:
-      "Choose the native protocol for your secret backend. Bitwarden-compatible personal vaults use your API and identity URLs, personal account credentials and a temporary master password; encryption runs in a dedicated browser worker. Native 1Password uses a scoped service account token. Each method shares this configuration form and the common item and vault-backup interface.",
+      "Choose a local vault, an export file, browser credentials, a native SDK, or a documented HTTP protocol. Use a 1Password service account token for native SDK access. HTTP connections use your supplied endpoint and credential; allow this browser origin through CORS. No local process is started.",
     fileFormats: [
       {
         id: "bitwarden-json",
@@ -108,7 +107,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
     defaultMode: "bitwarden-api",
     docsUrl: "https://bitwarden.com/help/bitwarden-apis/",
     setup:
-      "Connect directly to your personal Bitwarden account with its API and identity URLs, account email, personal API client ID and secret. Unlock locally with your master password for each connection. A dedicated browser worker decrypts and encrypts vault items on this device; the password is never saved with the connection. Select a personal folder if needed. Regional and self-hosted endpoints are configurable.",
+      "Use a configured Vault Management API endpoint, Secrets Manager machine account, or export file. Vault Management is an existing bw serve service (or a protected same-origin endpoint); the PWA calls HTTP and starts no process. The organization Public API does not expose vault items.",
     fileFormats: [
       {
         id: "bitwarden-json",
@@ -127,7 +126,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
     defaultMode: "bitwarden-api",
     docsUrl: "https://github.com/dani-garcia/vaultwarden/wiki",
     setup:
-      "Use your Vaultwarden API URL ending in /api and identity URL ending in /identity. Enter your account email and personal API credentials, then supply your master password for this connection. The dedicated browser worker unlocks and encrypts your personal vault directly; no CLI or additional service is used. A personal folder ID is optional.",
+      "Use a Vault Management API service signed into your Vaultwarden server, or import a Bitwarden-compatible export. The Vaultwarden server URL itself is not the decrypted Vault Management API.",
     fileFormats: [
       {
         id: "bitwarden-json",
@@ -184,16 +183,5 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
         label: "Proton Pass JSON or ZIP",
       },
     ],
-  },
-  {
-    providerId: "encrypted-remote",
-    label: "Encrypted Remote Store",
-    modes: ["encrypted-remote"],
-    defaultMode: "encrypted-remote",
-    docsUrl:
-      "https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/encrypt",
-    setup:
-      "Use one HTTPS object URL through direct browser access with CORS for GET and PUT, or through an explicitly configured native browser node route. The endpoint must return strong ETags and honor conditional writes; direct browser access must expose ETag through CORS. Supply a stable store UUID, a canonical base64 32-byte inventory encryption key and an optional separate bearer token. Save first. Connect reads an existing encrypted inventory; Initialize empty encrypted remote is a separate explicit action and never replaces an existing object. Keep a sealed backup of the key and its continuity record.",
-    fileFormats: [],
   },
 ];
