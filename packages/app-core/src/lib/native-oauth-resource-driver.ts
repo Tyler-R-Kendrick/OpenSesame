@@ -5,7 +5,10 @@ import type { NativeConnectorDriver } from "./native-connector-drivers.js";
 import type { NativeCleanupOutcome } from "./native-connector-lifecycle.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { invokeNativeMcpAction } from "./native-mcp-connectors.js";
-import { nativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
+import {
+  nativeOAuthBrowserPort,
+  optionalNativeOAuthBrowserPort,
+} from "./native-oauth-browser-port.js";
 import {
   type NativeOAuthClientOwner,
   assertNativeOAuthClientOwner,
@@ -38,13 +41,20 @@ export type NativeOAuthResourceDriverPorts = {
     original?: NativeProviderTransport,
   ): NativeOAuthResourceOwner | Promise<NativeOAuthResourceOwner>;
 };
-function resourceOperations(ports: NativeOAuthResourceDriverPorts) {
+function resourceOperations(
+  ports: NativeOAuthResourceDriverPorts,
+  consent = false,
+) {
   return async <T>(
     action: (owner: NativeOAuthClientOwner) => Promise<T>,
     caller?: AbortSignal,
     original?: NativeProviderTransport,
   ): Promise<T> => {
     caller?.throwIfAborted();
+    const guard = consent
+      ? optionalNativeOAuthBrowserPort()?.captureAuthorizationGuard?.()
+      : undefined;
+    guard?.();
     const pending = original
       ? ports.capture(caller, original)
       : caller
@@ -53,7 +63,11 @@ function resourceOperations(ports: NativeOAuthResourceDriverPorts) {
     const capture = await pending;
     try {
       caller?.throwIfAborted();
-      const original = captureNativeAuthorizationTransport(capture.transport);
+      const original = consent
+        ? captureNativeAuthorizationTransport(capture.transport, () =>
+            guard?.(),
+          )
+        : capture.transport;
       const signal = caller
         ? AbortSignal.any([
             caller,
@@ -65,10 +79,16 @@ function resourceOperations(ports: NativeOAuthResourceDriverPorts) {
         original.assertCurrent();
         signal?.throwIfAborted();
       };
-      const owner = {
-        ...capture,
-        transport: { ...original, signal, assertCurrent },
+      const transport: NativeProviderTransport = {
+        ...original,
+        fetch: original.fetch.bind(original),
+        signal,
+        assertCurrent,
       };
+      if (original.settleCredentialMutation)
+        transport.settleCredentialMutation =
+          original.settleCredentialMutation.bind(original);
+      const owner = { ...capture, transport };
       assertNativeOAuthClientOwner(owner);
       return await action(owner);
     } finally {
@@ -90,6 +110,7 @@ export function createNativeOAuthResourceDriver(
   ports: NativeOAuthResourceDriverPorts,
 ): NativeConnectorDriver {
   const owned = resourceOperations(ports);
+  const consentOwned = resourceOperations(ports, true);
   return {
     supports: ports.supports,
     configure: (input) =>
@@ -97,10 +118,10 @@ export function createNativeOAuthResourceDriver(
         if (!input.parameters.resource) throw new NativeOAuthError("callback");
         return configureNativeOAuthClient(input, owner);
       }),
-    authorize: (id, actor = "user") =>
-      owned(async (owner) => {
+    authorize: (id, actor = "user") => {
+      const browser = nativeOAuthBrowserPort();
+      return consentOwned(async (owner) => {
         if (actor !== "user") throw new NativeOAuthError("scope");
-        const browser = nativeOAuthBrowserPort();
         const url = await beginNativeOAuthClient(id, owner);
         const record = requireNativeOAuthRecord(id);
         const pending = record.privateState.pending.user;
@@ -123,7 +144,8 @@ export function createNativeOAuthResourceDriver(
           );
           throw error;
         }
-      }),
+      });
+    },
     verify: (id) =>
       owned(async (owner) => (await verifyResource(id, owner)).view),
     invoke: (id, operation, input, signal) =>

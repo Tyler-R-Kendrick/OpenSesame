@@ -1,6 +1,5 @@
 /** Twitch refresh codes are single-use; preserve both the old access token and the rotated pair. */
 import { randomString } from "@opensesame/sdk-browser";
-import { captureNativeAuthorizationTransport } from "./native-authorization-transport.js";
 import {
   browserOAuthClassification,
   browserOAuthScopes,
@@ -193,7 +192,7 @@ export async function refreshNativeTwitchAuthorization(
   initial: NativeConnectorRecord,
   baseTransport: NativeProviderTransport,
 ): Promise<void> {
-  const transport = captureNativeAuthorizationTransport(baseTransport);
+  const transport = baseTransport;
   transport.assertCurrent();
   const old = initial.privateState.grants.user;
   if (
