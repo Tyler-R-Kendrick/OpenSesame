@@ -1,12 +1,12 @@
 name: Publish focused PWA integration slice
-run-name: Verify focused PWA slice fcc2c8b812ca3c77
+run-name: Verify focused PWA slice 8c7cd4d34e4ea375
 on:
   push:
     branches: ["work/verified-contents-1253-1792017664643"]
     paths: [".github/workflows/connector-pwa-slice.yml"]
 permissions: {}
 concurrency:
-  group: connector-pwa-slice-fcc2c8b812ca3c77
+  group: connector-pwa-slice-8c7cd4d34e4ea375
   cancel-in-progress: false
 jobs:
   staging:
@@ -38,9 +38,9 @@ jobs:
           REPOSITORY = 'Tyler-R-Kendrick/OpenSesame'
           API = 'https://api.github.com'
           PAYLOAD_PATH = '.github/connector-stack/payload.json'
-          PAYLOAD_SHA256 = 'fcc2c8b812ca3c776c573f528ddfc793cdb7f3c35367f6d947995ba57e3c656e'
-          NEW_BASE = 'aed2b6196f277141be020e8f105216594d6a1aa5'
-          FINAL_TREE = '5d232fcbfbc08aaec4ba5821df3bea62624ef208'
+          PAYLOAD_SHA256 = '8c7cd4d34e4ea37585ce387711da3fc93a11611e49374849969f07987df58654'
+          NEW_BASE = '10d62a9ee5c36df371e4b1bc2287ff8cfc9942e8'
+          FINAL_TREE = 'f7d092e0cd940dea537af56cdf54ba423b29c05b'
           SHA1 = re.compile(r'[0-9a-f]{40}\Z')
           SHA256 = re.compile(r'[0-9a-f]{64}\Z')
           STAGE_PREFIX = 'connector-signed-stage/' + PAYLOAD_SHA256[:16] + '/'
