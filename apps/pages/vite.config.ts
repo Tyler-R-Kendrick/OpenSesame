@@ -11,6 +11,7 @@ import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { bundleChunk } from "./scripts/lib/bundle-chunk.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
+import { nativeSamlCallbackPlugin } from "./scripts/native-saml-callback-plugin.mjs";
 import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { sharedWorkerGraph } from "./scripts/shared-worker-graph.mjs";
@@ -264,6 +265,7 @@ export default defineConfig({
       },
     },
     nativeClientMetadataPlugin(base),
+    nativeSamlCallbackPlugin(),
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
     siopMetadata(),
