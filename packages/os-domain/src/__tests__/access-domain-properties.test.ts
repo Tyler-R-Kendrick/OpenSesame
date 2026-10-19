@@ -122,6 +122,7 @@ describe("access domain forest properties", () => {
       let { forest, created } = build(seed, 16);
       if (created.length === 0) continue;
       const random = lcg(seed + 1000);
+      expectWalksTerminate(forest, seed);
       for (let attempt = 0; attempt < 8; attempt += 1) {
         const subject = created[Math.floor(random() * created.length)];
         if (subject === undefined) continue;
@@ -148,7 +149,11 @@ describe("access domain forest properties", () => {
         }
         forest = refusal === undefined ? moved : forest;
         expect(() => assertAcyclic(forest), `seed ${seed}`).not.toThrow();
-        expectWalksTerminate(forest, seed);
+        // A refusal leaves the forest unchanged, so the parent walks already
+        // checked after build (and after the last accepted move) still hold.
+        // Repeating them is the CPU that timed this property out while
+        // typecheck shared the runner. The cycle oracle above is unchanged.
+        if (refusal === undefined) expectWalksTerminate(forest, seed);
       }
     }
   });
