@@ -7,7 +7,8 @@ import { bitwardenWorkerAssets } from "./bitwarden-worker-assets.mjs";
 import { workerRealmSource } from "./lib/capability-graph.mjs";
 
 const PREFIX = "\0opensesame-worker:";
-const pure = /\/node_modules\/(?:zod|@noble\/(?:ciphers|hashes))\//;
+const pure =
+  /\/node_modules\/(?:zod|@noble\/(?:ciphers|hashes)|hash-wasm|@levischuck\/tiny-cbor)\//;
 const virtual = (realm, file) =>
   `${PREFIX}${realm}:${Buffer.from(file).toString("base64url")}${extname(file)}`;
 function original(id) {
@@ -18,8 +19,6 @@ function original(id) {
 function privateSource(file, realm, sdk) {
   if (sdk?.owns(file, realm)) return true;
   const path = file.replaceAll("\\", "/");
-  if (/\/node_modules\/(?:hash-wasm|@levischuck\/tiny-cbor)\//.test(path))
-    return true;
   if (/\/packages\/os-domain\/src\//.test(path)) return true;
   if (
     /\/packages\/(?:os-domain\/src\/json|vault-core\/src\/bytes|app-core\/src\/lib\/zod-jitless)\.ts$/.test(
@@ -171,7 +170,7 @@ function purePartitions(ctx, roots, previous) {
     if (isolated.has(id) || !pure.test(id.replaceAll("\\", "/"))) continue;
     const normalized = id.replaceAll("\\", "/");
     const match = normalized.match(
-      /\/node_modules\/(zod|@noble\/(?:ciphers|hashes))\//,
+      /\/node_modules\/(zod|@noble\/(?:ciphers|hashes)|hash-wasm|@levischuck\/tiny-cbor)\//,
     );
     const packageRoot = normalized.slice(0, match.index + match[0].length);
     const identity = createHash("sha256")
