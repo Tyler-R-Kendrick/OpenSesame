@@ -15,7 +15,10 @@ import type { Flash } from "@opensesame/app-core/sections/connections/shared.js"
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
-import { nativeOAuthClientConfigured } from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
+import {
+  nativeOAuthClientConfigured,
+  supportsNativeOAuthResource,
+} from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
@@ -95,6 +98,9 @@ export function nativeSettingsDescriptor(
     callbackUrl,
     apiKey: { available: hasNativeConnectorDriver("api-key", provider.id) },
     oauth: {
+      registeredAvailable:
+        hasNativeConnectorDriver("oauth", provider.id) &&
+        supportsNativeOAuthResource(provider.id),
       available:
         hasNativeConnectorDriver("oauth", provider.id) &&
         (provider.id !== "google" || nativeGoogleBrowserAvailable()),

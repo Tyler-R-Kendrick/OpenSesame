@@ -126,7 +126,8 @@ function exchangeForm(
   else form.set("client_id", target.clientId);
   if (target.token_auth_method === "client_secret_post")
     form.set("client_secret", secret ?? "");
-  if (target.resource) form.set("resource", target.resource);
+  if (target.resource && target.resource_parameter !== "omit")
+    form.set("resource", target.resource);
   return { form, basic };
 }
 const RejectedExchange = z

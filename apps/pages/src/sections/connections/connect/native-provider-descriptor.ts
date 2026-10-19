@@ -27,6 +27,7 @@ export type BrowserProviderAvailability = {
   apiKey: { available: boolean; reason?: string };
   oauth: {
     available: boolean;
+    registeredAvailable?: boolean;
     reason?: string;
     preset?: OauthPreset;
     profile?: NativeBrowserOAuthProfile;
@@ -213,6 +214,17 @@ function publicOAuthDescriptor(
         )
       : publicMethod;
   }
+  if (
+    profile?.mode === "google-token" &&
+    preset &&
+    availability.oauth.registeredAvailable
+  )
+    return nativeOAuthResourceDescriptor(
+      preset,
+      availability.callbackUrl,
+      true,
+      "omit",
+    );
   if (profile)
     return oauthDescriptor(
       method,
@@ -242,7 +254,7 @@ function providerMethods(
       methods.push(mcpDescriptor(method, availability.mcp));
   }
   const publicOAuth =
-    availability.oauth.available &&
+    (availability.oauth.available || availability.oauth.registeredAvailable) &&
     (availability.oauth.profile || availability.oauth.preset);
   if (publicOAuth && !plan.methods.some((method) => method.kind === "oauth"))
     methods.push(

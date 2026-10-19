@@ -49,6 +49,7 @@ export const NativeOAuthClientTarget = z
     token_endpoint: secureEndpoint,
     resource: secureEndpoint.optional(),
     resource_protocol: z.enum(["json", "mcp"]).optional(),
+    resource_parameter: z.enum(["send", "omit"]).optional(),
     token_auth_method: z.enum([
       "none",
       "client_secret_basic",
@@ -345,7 +346,8 @@ export async function beginNativeOAuthClient(
     code_challenge_method: "S256",
     scope: pending.scopes.join(" "),
   });
-  if (target.resource) query.set("resource", target.resource);
+  if (target.resource && target.resource_parameter !== "omit")
+    query.set("resource", target.resource);
   url.search = query.toString();
   await updateNativeConnector(
     id,

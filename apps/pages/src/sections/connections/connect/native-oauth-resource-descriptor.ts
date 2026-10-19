@@ -19,10 +19,30 @@ function publicEndpoint(
     defaultValue: value && !/[{}]/.test(value) ? value : undefined,
   };
 }
+function resourceParameterFields(value?: "send" | "omit"): NativeField[] {
+  return value
+    ? [
+        {
+          id: "resource_parameter",
+          label: "Authorization resource parameter",
+          kind: "choice",
+          secret: false,
+          required: true,
+          defaultValue: value,
+          choices: [
+            { id: "send", label: "Send the configured API resource" },
+            { id: "omit", label: "Use scopes without a resource parameter" },
+          ],
+          help: "Select the authorization-server contract. The configured API resource is always checked before this connection is verified.",
+        },
+      ]
+    : [];
+}
 export function nativeOAuthResourceDescriptor(
   preset: OauthPreset,
   callbackUrl: string,
   available: boolean,
+  resourceParameter?: "send" | "omit",
 ): NativeMethodDescriptor {
   const secret = (
     method: "client_secret_basic" | "client_secret_post",
@@ -90,6 +110,7 @@ export function nativeOAuthResourceDescriptor(
           { id: "client_secret_post", label: "Client secret in request body" },
         ],
       },
+      ...resourceParameterFields(resourceParameter),
       secret("client_secret_basic"),
       secret("client_secret_post"),
     ],
