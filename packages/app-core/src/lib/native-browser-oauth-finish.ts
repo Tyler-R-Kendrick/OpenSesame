@@ -10,7 +10,7 @@ import {
   exchangeNativeBrowserCode,
 } from "./native-browser-oauth-token.js";
 import { verifyNativeBrowserOAuth } from "./native-browser-oauth-verify.js";
-import { assertNativeBrowserOAuthPolicy } from "./native-browser-policy.js";
+import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 import { retryNativeConnectorCleanup } from "./native-connector-lifecycle.js";
 import type { NativeGrant, NativePending } from "./native-connector-schema.js";
 import {
@@ -158,8 +158,13 @@ export async function retainAndVerifyNativeBrowserToken(
   }
 }
 type UnclaimedNativeCallback = { connectionId: string; state: string };
-export async function finishNativeBrowserAuthorization(search: string) {
-  const browser = nativeOAuthBrowserPort();
+export async function finishNativeBrowserAuthorization(
+  search: string,
+  original: NativeProviderTransport = nativeProviderTransport(),
+  browser = nativeOAuthBrowserPort(),
+) {
+  const transport = captureNativeAuthorizationTransport(original);
+  transport.assertCurrent();
   let unclaimed: UnclaimedNativeCallback | null = null;
   try {
     const callback = parseNativeOAuthCallback(search);
@@ -167,14 +172,11 @@ export async function finishNativeBrowserAuthorization(search: string) {
     const found = findNativeOAuthPending(callback.state);
     if (!found || found.record.configuration.method !== "oauth")
       throw new NativeOAuthError("callback");
-    assertNativeBrowserOAuthPolicy(found.record.configuration.providerId);
+    assertNativeConfigurationPolicy(found.record.configuration, transport);
     unclaimed = {
       connectionId: found.record.connectionId,
       state: found.pending.state,
     };
-    const transport = captureNativeAuthorizationTransport(
-      nativeProviderTransport(),
-    );
     await verifyNativeBrowserCimd(
       found.record.configuration,
       found.pending.redirectUri,

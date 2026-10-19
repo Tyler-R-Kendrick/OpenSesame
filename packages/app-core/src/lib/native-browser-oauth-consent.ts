@@ -9,10 +9,13 @@ import {
   browserOAuthScopes,
   requiredBrowserOAuthProfile,
 } from "./native-browser-oauth-profile.js";
-import { assertNativeBrowserOAuthPolicy } from "./native-browser-policy.js";
+import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 import type { NativePending } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
-import { nativeProviderTransport } from "./native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  nativeProviderTransport,
+} from "./native-connector-transport.js";
 import { nativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
@@ -25,17 +28,16 @@ import { nativeVercelAuthorizationUrl } from "./native-vercel-auth.js";
 export async function beginNativeBrowserAuthorization(
   id: string,
   actor = "user",
+  original: NativeProviderTransport = nativeProviderTransport(),
 ): Promise<void> {
   const record = requireNativeOAuthRecord(id);
-  assertNativeBrowserOAuthPolicy(record.configuration.providerId);
   if (
     record.configuration.method !== "oauth" ||
     record.privateState.recovery.length
   )
     throw new NativeOAuthError("cleanup");
-  const transport = captureNativeAuthorizationTransport(
-    nativeProviderTransport(),
-  );
+  const transport = captureNativeAuthorizationTransport(original);
+  assertNativeConfigurationPolicy(record.configuration, transport);
   const browser = nativeOAuthBrowserPort();
   const profile = requiredBrowserOAuthProfile(record.configuration.providerId);
   if (profile.mode === "google-token")
@@ -104,19 +106,25 @@ export async function beginNativeBrowserAuthorization(
       current.privateState.verification = null;
       return current;
     },
+    transport.assertCurrent,
   );
-  const callback = await launchNativeBrowserConsent(id, pending, url.href);
-  if (callback) await finishNativeBrowserAuthorization(callback);
+  const callback = await launchNativeBrowserConsent(
+    id,
+    pending,
+    url.href,
+    transport,
+    browser,
+  );
+  if (callback)
+    await finishNativeBrowserAuthorization(callback, transport, browser);
 }
 async function launchNativeBrowserConsent(
   id: string,
   pending: NativePending,
   fallbackUrl: string,
+  transport: NativeProviderTransport,
+  browser: ReturnType<typeof nativeOAuthBrowserPort>,
 ): Promise<string | null> {
-  const transport = captureNativeAuthorizationTransport(
-    nativeProviderTransport(),
-  );
-  const browser = nativeOAuthBrowserPort();
   try {
     transport.assertCurrent();
     const authorizationUrl =
@@ -127,6 +135,7 @@ async function launchNativeBrowserConsent(
       return await browser.authorize(authorizationUrl, {
         state: pending.state,
         expiresAt: pending.expiresAt,
+        signal: transport.signal,
       });
     browser.navigate(authorizationUrl);
     return null;

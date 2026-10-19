@@ -47,7 +47,7 @@ export function bindNativeOAuthRuntime(activation: Activation): void {
       googleToken: requestNativeGoogleToken,
     }),
   );
-  const oauth = createNativeBrowserOAuthDriver();
+  const oauth = createNativeBrowserOAuthDriver(transport);
   const browserOAuth = {
     ...oauth,
     configure: (input: NativeDriverInput) => {
