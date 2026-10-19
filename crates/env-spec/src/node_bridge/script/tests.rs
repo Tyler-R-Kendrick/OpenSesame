@@ -4,7 +4,7 @@ use std::ffi::OsString;
 use std::os::unix::fs::{symlink, PermissionsExt};
 
 use super::super::tests::into_a_strangers_group;
-use super::super::trust::Caller;
+use super::super::Caller;
 
 fn host(vars: &[(&str, &Path)]) -> Host {
     Host {

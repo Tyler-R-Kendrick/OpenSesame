@@ -45,6 +45,8 @@ pub(crate) use opensesame_trusted_exec::{Platform, LOCALE};
 use crate::EnvSpecError;
 
 mod operator;
+mod script;
+pub(crate) use script::script;
 
 /// Variable names the bridge may inherit, besides the `PATH` built here.
 const PASSED: [&str; 3] = ["HOME", "TMPDIR", "LANG"];

@@ -32,7 +32,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::trust::{self, Owner};
+use opensesame_trusted_exec::trust::{self, Owner};
 use super::{Host, Platform};
 use crate::EnvSpecError;
 
