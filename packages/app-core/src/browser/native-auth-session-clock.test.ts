@@ -115,7 +115,7 @@ it("still refuses a request minted for longer than its lifetime", async () => {
   const popup = browser();
   await expect(
     reserveNativeAuthPopup().wait(minted(Date.now(), LIFETIME + 60_000)),
-  ).rejects.toThrow("Invalid or expired");
+  ).rejects.toThrow("exceeds allowed lifetime");
   expect(popup.location.replace).not.toHaveBeenCalled();
   expect(popup.close).toHaveBeenCalledOnce();
 });

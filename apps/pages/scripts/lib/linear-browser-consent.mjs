@@ -127,7 +127,6 @@ export async function beginLinearConsent(harness, page, label, action) {
     observation = observeConsent(harness, page, original);
     let opened;
     try {
-      await observation.status("status-before-click");
       // Bind the popup to this click — context-wide "page" events can catch a stray tab.
       popup = await openLinearConsentPopup(page, button, (next) => {
         opened = next;
