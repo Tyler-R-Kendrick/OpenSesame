@@ -24,6 +24,7 @@ import {
   tailscaleWasmAssets,
   tailscaleWorkerFileName,
 } from "./scripts/tailscale-wasm-assets.mjs";
+import { vercelOidcNamespace } from "./scripts/vercel-oidc-namespace.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /**
@@ -262,6 +263,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    vercelOidcNamespace(fileURLToPath(new URL("../..", import.meta.url))),
     process.env.OPENSESAME_AI_COMPLETION_VERIFY === "1" && {
       name: "ai-completion-verifier-entry",
       apply: "build",
