@@ -18,7 +18,7 @@
   "totals": {
     "files": 416,
     "violations": 643,
-    "oversizedLines": 211778
+    "oversizedLines": 211776
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -576,7 +576,7 @@
     },
     "packages/app-core/src/lib/federation.ts": {
       "complexity": 2,
-      "max-lines": 896,
+      "max-lines": 894,
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/github-app-presence.ts": {

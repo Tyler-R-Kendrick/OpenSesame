@@ -43,13 +43,24 @@ export function configuredIdentityNonce(
 }
 /** A configured connection's audience and issuer are live trust, not remembered token metadata. */
 export function configuredIdentitySessionTrusted(
-  identity: Pick<UpstreamIdentity, "upstreamId" | "issuer" | "audience">,
+  identity: Pick<
+    UpstreamIdentity,
+    "upstreamId" | "issuer" | "audience" | "assertionFormat"
+  >,
 ): boolean {
-  if (!identity.upstreamId.startsWith("identity:")) return true;
+  if (!identity.upstreamId.startsWith("identity:"))
+    return identity.assertionFormat !== "saml";
   const id = identity.upstreamId.slice("identity:".length);
   const provider = signInMethods().providers.find(
     (entry) => entry.connectionId === id,
   );
+  if (provider?.protocol === "saml")
+    return (
+      identity.assertionFormat === "saml" &&
+      provider.issuer === identity.issuer &&
+      provider.clientId === identity.audience
+    );
+  if (identity.assertionFormat === "saml") return false;
   return Boolean(
     provider &&
       provider.issuer.replace(/\/+$/, "") ===
@@ -66,10 +77,22 @@ export function applyConfiguredIdentityNonce(
 }
 
 export function assertConfiguredIdentitySessionTrusted(
-  identity: Pick<UpstreamIdentity, "upstreamId" | "issuer" | "audience">,
+  identity: Pick<
+    UpstreamIdentity,
+    "upstreamId" | "issuer" | "audience" | "assertionFormat"
+  >,
 ): void {
   if (!configuredIdentitySessionTrusted(identity))
     throw new Error(
       "Identity configuration changed during sign-in; start again",
     );
+}
+
+/** Native SAML has no persisted token-restoration path, even if mutable JSON omits its format. */
+export function configuredSamlIdentity(upstreamId: string): boolean {
+  if (!upstreamId.startsWith("identity:")) return false;
+  const id = upstreamId.slice("identity:".length);
+  return signInMethods().providers.some(
+    (entry) => entry.connectionId === id && entry.protocol === "saml",
+  );
 }

@@ -2,11 +2,9 @@ import { isLoopbackOrigin } from "@opensesame/static-auth";
 import { env, staticAuthRelease } from "../host.js";
 import { page, pageOrigin } from "../ports.js";
 /**
- * Origin-brokered sign-in for static relying parties (ADR 0034).
- *
- * This deployment cannot mint tokens. It relays an upstream id_token to an RP
- * origin the human has approved, via postMessage — never "*".
- * Wire contract: docs/architecture/federated-signin.md §2–§5.
+ * Approved loopback passthrough of an existing upstream assertion (ADR 0034).
+ * Forwards that assertion through an exact-origin postMessage.
+ * Native SAML identity stays local and supplies no OIDC assertion.
  */
 
 import { originClientId } from "./federation-origin.js";
@@ -418,6 +416,8 @@ export function buildSuccessMessage(
   identity: UpstreamIdentity,
 ): SignInSuccess {
   if (!originMayUseBroker(request.origin)) throw new Error("loopback_only");
+  if (identity.assertionFormat === "saml")
+    throw new Error("upstream_assertion_format_mismatch");
   return {
     type: "opensesame:signin",
     state: request.state,
