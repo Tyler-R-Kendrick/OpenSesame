@@ -11,7 +11,8 @@ import {
   bedrockConnectionTarget,
   bedrockCredential,
 } from "./bedrock-target.js";
-import { aiConnectionFamilies, aiConnectionPreset } from "./presets.js";
+import { aiConnectionFamilies, aiConnectionRuntimePreset } from "./presets.js";
+import { replicatePredictionTarget } from "./replicate-types.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
 import {
   VertexAiTargetSchema,
@@ -24,6 +25,7 @@ export const AiConnectionDraftSchema = z
     providerId: z.string().min(1).max(100),
     name: z.string().trim().min(1).max(200),
     family: z.enum([
+      "replicate_predictions",
       "bedrock_converse",
       "openai_chat",
       "openai_responses",
@@ -87,19 +89,22 @@ export function validateAiConnection<Value>(
       "Check the AI connection fields.",
     );
   const draft = result.data;
-  const preset = aiConnectionPreset(draft.providerId);
+  const preset = aiConnectionRuntimePreset(draft.providerId);
   const supportedFamily =
-    draft.family === "bedrock_converse"
-      ? ["aws-bedrock", "byo-ai"].includes(draft.providerId)
-      : aiConnectionFamilies(draft.providerId).some(
-          (family) => family.id === draft.family,
-        );
+    draft.family === "replicate_predictions"
+      ? ["replicate", "byo-ai"].includes(draft.providerId)
+      : draft.family === "bedrock_converse"
+        ? ["aws-bedrock", "byo-ai"].includes(draft.providerId)
+        : aiConnectionFamilies(draft.providerId).some(
+            (family) => family.id === draft.family,
+          );
   if (!preset || !supportedFamily)
     throw new AiConnectionError(
       "configuration",
       "Choose a protocol supported by this provider.",
     );
   draft.baseUrl = aiConnectionBase(draft.baseUrl).href.replace(/\/$/, "");
+  validateReplicateTarget(draft);
   azureConnectionTarget(draft);
   if (
     draft.family === "gemini_generate_content" &&
@@ -113,6 +118,28 @@ export function validateAiConnection<Value>(
   return draft;
 }
 
+function validateReplicateTarget(draft: AiConnectionDraft): void {
+  if (draft.family !== "replicate_predictions") {
+    if (draft.providerId === "replicate")
+      throw new AiConnectionError(
+        "configuration",
+        "Choose the Replicate predictions family for this provider.",
+      );
+    return;
+  }
+  if (
+    !["replicate", "byo-ai"].includes(draft.providerId) ||
+    draft.authentication !== "api-key" ||
+    draft.azure ||
+    draft.vertex ||
+    draft.bedrock
+  )
+    throw new AiConnectionError(
+      "configuration",
+      "Choose one Replicate prediction target with an API token.",
+    );
+  replicatePredictionTarget(draft.model);
+}
 function normalizeVertexCredential(draft: AiConnectionDraft): boolean {
   const vertex = vertexConnectionTarget(draft);
   if (vertex)

@@ -5,6 +5,8 @@ import type {
 import { inferBedrockAi } from "./bedrock-inference.js";
 import { aiConnectionFetch, readAiJson } from "./http.js";
 import { aiInferenceAnswer, aiInferenceRequest } from "./protocol.js";
+import { inferReplicateAi } from "./replicate-inference.js";
+import type { ReplicateInput } from "./replicate-types.js";
 import { readAiTextStream } from "./stream.js";
 import {
   type AiConnectionDraft,
@@ -27,6 +29,8 @@ export async function inferAiConnection(
       "configuration",
       "Use the model saved with this connection.",
     );
+  if (draft.family === "replicate_predictions")
+    return inferReplicateAi(draft, input, transport, check, onText);
   if (draft.family === "bedrock_converse")
     return inferBedrockAi(
       { ...draft, family: "bedrock_converse" },
@@ -80,7 +84,29 @@ export function probeAiConnection(
   draft: AiConnectionDraft,
   transport: AiConnectionTransport,
   check: () => void,
+  predictionInput?: ReplicateInput,
 ) {
+  if (draft.family === "replicate_predictions") {
+    if (predictionInput === undefined)
+      throw new AiConnectionError(
+        "configuration",
+        "Supply explicit model-specific prediction input to test or save this connection.",
+      );
+    return inferAiConnection(
+      draft,
+      {
+        model: draft.model,
+        messages: [{ role: "user", content: JSON.stringify(predictionInput) }],
+      },
+      transport,
+      check,
+    );
+  }
+  if (predictionInput !== undefined)
+    throw new AiConnectionError(
+      "configuration",
+      "Prediction input belongs only to the prediction protocol.",
+    );
   return inferAiConnection(
     draft,
     {

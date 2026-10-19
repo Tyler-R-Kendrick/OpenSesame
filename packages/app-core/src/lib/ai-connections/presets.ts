@@ -81,8 +81,20 @@ export function isAiConnectionProvider(providerId: string): boolean {
   return aiConnectionPreset(providerId) !== null;
 }
 
+/** Internal verified-runtime defaults; public picker exposure waits for complete UI. */
+export function aiConnectionRuntimePreset(providerId: string) {
+  if (providerId === "replicate")
+    return {
+      providerId,
+      name: "Replicate",
+      family: "replicate_predictions" as const,
+      baseUrl: "https://api.replicate.com/v1",
+    };
+  return aiConnectionPreset(providerId);
+}
+
 export function aiConnectionDraft(providerId: string): AiConnectionDraft {
-  const preset = aiConnectionPreset(providerId);
+  const preset = aiConnectionRuntimePreset(providerId);
   if (!preset) throw new Error("This provider has no supported AI protocol.");
   return {
     ...preset,

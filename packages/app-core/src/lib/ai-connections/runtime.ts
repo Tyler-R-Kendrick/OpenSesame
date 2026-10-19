@@ -13,7 +13,8 @@ import { aiConnectionBinding, validateAiConnection } from "./configuration.js";
 import { capturedAiCredentials, resolvedAiConnection } from "./credentials.js";
 import { aiCompletionSeams } from "./http.js";
 import { inferAiConnection, probeAiConnection } from "./inference.js";
-import { aiConnectionPreset } from "./presets.js";
+import { aiConnectionRuntimePreset } from "./presets.js";
+import type { ReplicateInput } from "./replicate-types.js";
 import {
   AI_CONNECTION_CLASSIFICATION,
   aiConnectionRecord,
@@ -103,6 +104,7 @@ function assertCurrentOperation(
 export async function testAiConnection(
   supplied: AiConnectionDraft,
   id?: string,
+  predictionInput?: ReplicateInput,
 ): Promise<string> {
   const port = captureAiConnectionTransport();
   const guard = await aiVaultSeams.capture();
@@ -125,7 +127,7 @@ export async function testAiConnection(
       : () => guard.check();
     const check = () => assertCurrentOperation(guard, transport, unchanged);
     owner = check;
-    await probeAiConnection(draft, transport, check);
+    await probeAiConnection(draft, transport, check, predictionInput);
     check();
     completed = true;
     return "Model inference verified";
@@ -140,6 +142,7 @@ export async function testAiConnection(
 export async function saveAiConnection(
   supplied: AiConnectionDraft,
   id?: string,
+  predictionInput?: ReplicateInput,
 ) {
   const port = captureAiConnectionTransport();
   const guard = await aiVaultSeams.capture();
@@ -166,7 +169,7 @@ export async function saveAiConnection(
       : () => guard.check();
     const check = () => assertCurrentOperation(guard, transport, unchanged);
     owner = check;
-    await probeAiConnection(draft, transport, check);
+    await probeAiConnection(draft, transport, check, predictionInput);
     const capture = await stageVaultCredentials(
       {
         name: draft.name,
@@ -238,7 +241,7 @@ export async function performSavedAiInference(
       {
         family: "AI",
         // Saved protocol support is independent from the public form catalog.
-        accepts: (providerId) => aiConnectionPreset(providerId) !== null,
+        accepts: (providerId) => aiConnectionRuntimePreset(providerId) !== null,
         classification: AI_CONNECTION_CLASSIFICATION,
       },
       id,
