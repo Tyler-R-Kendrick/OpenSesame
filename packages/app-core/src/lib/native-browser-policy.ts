@@ -3,6 +3,10 @@ import { z } from "zod";
 import { authoredDisposition } from "./browser-disposition.js";
 import { type ConnectPlan, connectPlan } from "./connect-plan.js";
 import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
+import {
+  type NativeBrowserPolicyCarrier,
+  nativePolicyCarrierCurrent,
+} from "./native-policy-carrier.js";
 
 const ruleSchema = z.object({
   provider_id: z.string(),
@@ -91,6 +95,7 @@ export function nativeBrowserMethodPolicy(
   providerId: string,
   method: ConnectPlan["methods"][number]["kind"] | "native-local" | "oidc",
   parameters: Readonly<Record<string, string>> = {},
+  carrier?: NativeBrowserPolicyCarrier,
 ): NativeBrowserPolicyDecision {
   const selected =
     method === "api-key" ? publicDefaults(providerId, parameters) : parameters;
@@ -104,6 +109,11 @@ export function nativeBrowserMethodPolicy(
       ),
   );
   if (rule) {
+    if (
+      (method === "oauth" || method === "mcp") &&
+      nativePolicyCarrierCurrent(carrier)
+    )
+      return AVAILABLE;
     if (method === "api-key")
       return {
         available: true,
@@ -127,21 +137,29 @@ export function nativeBrowserApiPolicy(
 }
 export function nativeBrowserOAuthPolicy(
   providerId: string,
+  carrier?: NativeBrowserPolicyCarrier,
 ): NativeBrowserPolicyDecision {
-  return nativeBrowserMethodPolicy(providerId, "oauth");
+  return nativeBrowserMethodPolicy(providerId, "oauth", {}, carrier);
 }
 export function nativeBrowserMcpPolicy(
   providerId: string,
+  carrier?: NativeBrowserPolicyCarrier,
 ): NativeBrowserPolicyDecision {
-  return nativeBrowserMethodPolicy(providerId, "mcp");
+  return nativeBrowserMethodPolicy(providerId, "mcp", {}, carrier);
 }
-export function assertNativeBrowserMcpPolicy(providerId: string): void {
-  const decision = nativeBrowserMcpPolicy(providerId);
+export function assertNativeBrowserMcpPolicy(
+  providerId: string,
+  carrier?: NativeBrowserPolicyCarrier,
+): void {
+  const decision = nativeBrowserMcpPolicy(providerId, carrier);
   if (!decision.available)
     throw new Error(decision.reason ?? "Browser MCP is unavailable");
 }
-export function assertNativeBrowserOAuthPolicy(providerId: string): void {
-  const decision = nativeBrowserOAuthPolicy(providerId);
+export function assertNativeBrowserOAuthPolicy(
+  providerId: string,
+  carrier?: NativeBrowserPolicyCarrier,
+): void {
+  const decision = nativeBrowserOAuthPolicy(providerId, carrier);
   if (!decision.available)
     throw new Error(decision.reason ?? "Browser OAuth is unavailable");
 }
