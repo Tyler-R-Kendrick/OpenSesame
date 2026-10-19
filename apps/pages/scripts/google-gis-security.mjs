@@ -6,8 +6,14 @@ export function googleGisSources(profile, approved, headerSecurity) {
   const network = profile?.instancePolicy?.network;
   if (network?.externalServices !== "allow") return disabled;
   const origins = network.allowedServiceOrigins ?? [];
-  if (origins.length && !origins.includes("https://accounts.google.com"))
-    return disabled;
+  const googleAllowed = origins.some((candidate) => {
+    try {
+      return new URL(candidate).origin === "https://accounts.google.com";
+    } catch {
+      return false;
+    }
+  });
+  if (origins.length && !googleAllowed) return disabled;
   return {
     script: ["https://accounts.google.com/gsi/client"],
     frame: ["https://accounts.google.com"],

@@ -16,6 +16,12 @@ use crate::error::{BrokerError, Result};
 use crate::store::{self, SecretConfigRow};
 use crate::sync_target::SyncSecretSource;
 
+/// Ceiling on keys accepted by one `put_config_secrets` call. The gateway
+/// body limit (256 KiB) and the per-value cap already bound a single PUT,
+/// but the broker API is callable in-process, so the intake bounds its own
+/// batch — and the result allocation it pre-sizes from the batch length.
+const MAX_SECRETS_PER_PUT: usize = 1024;
+
 /// Metadata-only wire view. Mirrors `SecretConfig` in
 /// `packages/os-domain/src/types.ts` plus host bookkeeping fields.
 #[derive(Debug, Clone, Serialize)]
@@ -566,6 +572,11 @@ impl crate::ConnectionBroker {
     ) -> Result<Vec<ConfigKeyMeta>> {
         if secrets.is_empty() {
             return Err(BrokerError::Invalid("no secrets provided".into()));
+        }
+        if secrets.len() > MAX_SECRETS_PER_PUT {
+            return Err(BrokerError::Invalid(format!(
+                "too many secrets in one put (max {MAX_SECRETS_PER_PUT})"
+            )));
         }
         let key = *self.sealing_key()?;
         let config = store::get_secret_config(&self.pool, organization_id, config_id)

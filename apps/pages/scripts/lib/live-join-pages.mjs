@@ -94,7 +94,7 @@ export function livePages({ harness, origin, dist, out, passthrough, named }) {
   /** A screenshot, named for the pair walking. */
   async function shot(page, name) {
     const pair = named("").trim();
-    const prefix = pair ? `${pair.replace(">", "-to-")}-` : "";
+    const prefix = pair ? `${pair.replaceAll(">", "-to-")}-` : "";
     await page.screenshot({ path: path.join(out, `${prefix}${name}.png`) });
   }
 

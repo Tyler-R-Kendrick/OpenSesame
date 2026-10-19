@@ -51,6 +51,8 @@ test.each([
   { approved: false },
   { allow: false },
   { listed: ["https://attacker.example"] },
+  { listed: ["https://accounts.google.com.evil.example"] },
+  { listed: ["https://accounts.google.com@evil.example"] },
   { enforced: true },
 ])(
   "GIS stays denied without the owning capability, Google egress, or compatible opener policy: %j",

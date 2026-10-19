@@ -171,10 +171,27 @@ function degraded(): boolean {
   return state.identity.health === "unreachable" || state.identity.strikes > 0;
 }
 
+/** Uniform index in [0, max) without modulo bias (rejection sampling). */
+function randomIndex(max: number): number {
+  if (!Number.isInteger(max) || max <= 0) {
+    throw new Error("randomIndex needs a positive bound");
+  }
+  const limit = Math.floor(2 ** 32 / max) * max;
+  const buf = new Uint32Array(1);
+  const view = new DataView(buf.buffer);
+  let value: number;
+  do {
+    crypto.getRandomValues(buf);
+    value = view.getUint32(0);
+  } while (value >= limit);
+  return value % max;
+}
+
 function jittered(ms: number): number {
   const spread = ms * JITTER;
-  const random = (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) / 2 ** 32;
-  return Math.round(ms - spread + random * spread * 2);
+  const low = Math.ceil(ms - spread);
+  const high = Math.floor(ms + spread);
+  return low + randomIndex(high - low + 1);
 }
 
 function nextDelay(): number {

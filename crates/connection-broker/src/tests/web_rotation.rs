@@ -438,6 +438,20 @@ mod delegation_tests {
     }
 
     #[tokio::test]
+    async fn mint_refuses_more_items_than_the_offer_ceiling() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let mut request = one_item(&connection);
+        request.items = vec![request.items[0].clone(); 17];
+        let refused = broker
+            .mint_delegation_offer(&organization, OWNER, request, PEPPER)
+            .await
+            .expect_err("an offer over the item ceiling must be refused");
+        assert_eq!(refused.code(), "invalid_request");
+    }
+
+    #[tokio::test]
     async fn contract_mint_present_claim_delegates_a_connection() {
         let (_db, broker) = broker_with(delegable_config()).await;
         let organization = OrganizationId::new();

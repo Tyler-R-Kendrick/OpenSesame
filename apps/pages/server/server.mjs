@@ -38,6 +38,21 @@ function writeBodyTooLarge(res) {
   res.end("body_too_large");
 }
 
+/**
+ * Send a handler outcome whose body may reflect request or upstream text.
+ * The body is JSON by construction in the handlers that use this, and it
+ * must never be reinterpreted as HTML: pin the content type here, after
+ * any handler-supplied headers, and forbid sniffing.
+ */
+function writeJsonOutcome(res, outcome) {
+  res.writeHead(outcome.status, {
+    ...outcome.headers,
+    "content-type": "application/json; charset=utf-8",
+    "x-content-type-options": "nosniff",
+  });
+  res.end(outcome.body);
+}
+
 export function handleRelayRequest(req, res) {
   const url = new URL(req.url ?? "/", "http://relay.invalid");
   const proto = req.headers["x-forwarded-proto"] ?? "http";
@@ -154,8 +169,7 @@ export function handleRelayRequest(req, res) {
                 : url.pathname === "/api/github-app/webhook-pending"
                   ? await handleGithubAppWebhookPending(body, origin)
                   : await handleGithubAppInstallations(body, origin);
-      res.writeHead(outcome.status, outcome.headers);
-      res.end(outcome.body);
+      writeJsonOutcome(res, outcome);
       return;
     }
 
@@ -184,8 +198,7 @@ export function handleRelayRequest(req, res) {
         return;
       }
       const outcome = await handleGitBackupPut(body, origin);
-      res.writeHead(outcome.status, outcome.headers);
-      res.end(outcome.body);
+      writeJsonOutcome(res, outcome);
       return;
     }
     if (MANAGE_PATHS.has(url.pathname)) {

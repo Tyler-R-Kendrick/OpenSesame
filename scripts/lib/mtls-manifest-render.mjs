@@ -13,7 +13,7 @@ export function summarizeRows(steps) {
       ? `${s.tests.passed}p/${s.tests.failed}f/${s.tests.ignored ?? 0}i`
       : "-";
     lines.push(
-      `| \`${s.id}\` | ${s.claim_id} | ${s.scenario_ids.join(", ") || "-"} | **${s.result}** | ${t} | ${s.exit_code ?? "-"} | ${s.duration_ms} ms | ${(s.reason ?? s.observed ?? "").replace(/\|/g, "\\|")} |`,
+      `| \`${s.id}\` | ${s.claim_id} | ${s.scenario_ids.join(", ") || "-"} | **${s.result}** | ${t} | ${s.exit_code ?? "-"} | ${s.duration_ms} ms | ${(s.reason ?? s.observed ?? "").replace(/([\\|])/g, "\\$1")} |`,
     );
   }
   return lines.join("\n");

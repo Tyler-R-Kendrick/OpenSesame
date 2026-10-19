@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { assertSafeReturnTo } from "./federation-callback.js";
+import {
+  assertSafeReturnTo,
+  parseAuthCallback,
+} from "./federation-callback.js";
+
+describe("parseAuthCallback error descriptions", () => {
+  it("strips spliced tags so no live markup survives sanitization", () => {
+    const spliced = encodeURIComponent("<scr<script>ipt>alert</script>");
+    const parsed = parseAuthCallback(
+      `?error=access_denied&error_description=${spliced}`,
+    );
+    expect(parsed.kind).toBe("error");
+    if (parsed.kind !== "error") return;
+    expect(parsed.description).toBe("iptalert");
+    expect(parsed.description).not.toContain("<script");
+    expect(parsed.description).not.toContain("<");
+    expect(parsed.description).not.toContain(">");
+  });
+});
 
 describe("assertSafeReturnTo", () => {
   it("OIDC-RETURN: refuses absolute and protocol-relative URLs", () => {

@@ -255,6 +255,9 @@ async function checkMinted(pages, link, { secret, url, turn, label }) {
     /^\d+:osl$/.test(minted?.username ?? ""),
     `${label}: the link carries a minted credential (${minted?.username})`,
   );
+  // TURN REST (coturn use-auth-secret) defines the credential as
+  // base64(HMAC-SHA1(username, secret)); HMAC-SHA1 is the wire protocol the
+  // server verifies, not a choice this check can upgrade unilaterally.
   const expected = createHmac("sha1", secret)
     .update(minted?.username ?? "")
     .digest("base64");

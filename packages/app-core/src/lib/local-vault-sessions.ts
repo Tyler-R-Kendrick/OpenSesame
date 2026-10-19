@@ -75,11 +75,27 @@ function text(value: BoundaryValue, max: number): value is string {
   return isString(value) && value.length > 0 && value.length <= max;
 }
 
+/** Uniform index in [0, max) without modulo bias (rejection sampling). */
+function randomIndex(max: number): number {
+  if (!Number.isInteger(max) || max <= 0) {
+    throw new Error("randomIndex needs a positive bound");
+  }
+  const limit = Math.floor(2 ** 32 / max) * max;
+  const buf = new Uint32Array(1);
+  const view = new DataView(buf.buffer);
+  let value: number;
+  do {
+    crypto.getRandomValues(buf);
+    value = view.getUint32(0);
+  } while (value >= limit);
+  return value % max;
+}
+
 function mintCode(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
-  return [...bytes]
-    .map((byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length])
-    .join("");
+  return Array.from(
+    { length: 6 },
+    () => CODE_ALPHABET[randomIndex(CODE_ALPHABET.length)],
+  ).join("");
 }
 
 function isSubject(value: BoundaryValue): value is SessionSubject {

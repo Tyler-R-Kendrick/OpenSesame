@@ -152,9 +152,27 @@ describe("createOpenSesameVerifier", () => {
       .setIssuedAt()
       .setExpirationTime("5m")
       .sign(privateKey);
-    // jose fetches the JWKS itself, so we only assert the document was consulted
-    // and the URI it named was used rather than {issuer}/jwks being guessed.
-    await verifier.verifyAccessToken(token).catch(() => undefined);
+    // jose fetches the JWKS itself with the global fetch, so make that fetch
+    // deterministic instead of depending on a live service on 127.0.0.1:8788.
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith("/.well-known/openid-configuration")) {
+        return new Response(
+          JSON.stringify({ issuer: ISSUER, jwks_uri: `${ISSUER}/oidc/keys` }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify(jwks), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+    try {
+      await verifier.verifyAccessToken(token);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
     expect(asked[0]).toBe(`${ISSUER}/.well-known/openid-configuration`);
     expect(asked.some((u) => u.endsWith("/jwks"))).toBe(false);
   });

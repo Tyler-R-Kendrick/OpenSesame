@@ -53,11 +53,11 @@ async function createFixture() {
   );
   await writeFile(
     host,
-    `export {credential} from ${JSON.stringify(credentials)};export const hostValue=value=>value+1;`,
+    'export {credential} from "./packages/app-core/src/browser/secret-backend-credentials.ts";export const hostValue=value=>value+1;',
   );
   await writeFile(
     consumer,
-    `import {credential,hostValue} from ${JSON.stringify(host)};export const consume=value=>[credential(value),hostValue(value)];`,
+    'import {credential,hostValue} from "./host.ts";export const consume=value=>[credential(value),hostValue(value)];',
   );
   return { dir, facade, credentials, entry, host, consumer };
 }
@@ -104,11 +104,16 @@ function graphRecorder(entry, accept) {
   };
 }
 
+const AI_LOADER =
+  "globalThis.loadAI=()=>import('../../../../../packages/app-core/src/lib/command-bar/interpret-generate-object.ts');";
+const FIXTURE_LOADERS =
+  "globalThis.loadCredential=()=>import('../../../../../host.ts');globalThis.loadConsumer=()=>import('../../../../../consumer.ts');";
+
 async function buildFixture(partitionFacade, includeAI = true) {
-  const { dir, facade, entry, host, consumer } = fixture;
+  const { dir, facade, entry } = fixture;
   await writeFile(
     entry,
-    `${includeAI ? `globalThis.loadAI=()=>import(${JSON.stringify(facade)});` : ""}globalThis.loadCredential=()=>import(${JSON.stringify(host)});globalThis.loadConsumer=()=>import(${JSON.stringify(consumer)});`,
+    includeAI ? AI_LOADER + FIXTURE_LOADERS : FIXTURE_LOADERS,
   );
   let graph;
   const result = await build({

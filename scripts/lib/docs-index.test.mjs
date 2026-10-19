@@ -25,6 +25,11 @@ describe("docs index", () => {
     );
   });
 
+  it("escapes backslashes as well as pipes for a table cell", () => {
+    expect(title("# A | B\n")).toBe(String.raw`A \| B`);
+    expect(title(`${String.raw`# A \| B`}\n`)).toBe(String.raw`A \\\| B`);
+  });
+
   it("reads the status in each of the three spellings", () => {
     expect(status("# T\n\n## Status\nAccepted\n")).toBe("Accepted");
     expect(status("# T\n\nStatus: proposed\n")).toBe("Proposed");

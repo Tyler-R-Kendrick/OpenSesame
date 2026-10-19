@@ -8,6 +8,7 @@
 // tag is one the tailnet's policy owns, and routes are ones the device
 // advertised. What it records: every call, so the harness can say exactly
 // what reached Tailscale.
+import { randomBytes, randomInt } from "node:crypto";
 import http from "node:http";
 
 export const TAILNET = "example.com";
@@ -21,7 +22,7 @@ function device(fields) {
   const hostname = fields.hostname;
   return {
     addresses: ["100.64.0.1"],
-    id: String(Math.floor(Math.random() * 1e11)),
+    id: String(randomInt(0, 100_000_000_000)),
     user: "amelie@example.com",
     name: `${hostname.toLowerCase().replaceAll(/[^a-z0-9-]/g, "-")}.${DOMAIN}`,
     clientVersion: "1.82.0",
@@ -177,7 +178,7 @@ function routeKeys(tailnet, method, rest, body, response) {
       keys: tailnet.keys.map((k) => ({ id: k.id, keyType: "auth" })),
     });
   if (method === "POST" && rest.length === 0) {
-    const id = `k${Math.random().toString(36).slice(2, 10).toUpperCase()}CNTRL`;
+    const id = `k${randomBytes(4).toString("hex").toUpperCase()}CNTRL`;
     const created = new Date();
     const key = {
       id,

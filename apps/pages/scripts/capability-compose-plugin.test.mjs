@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, test } from "vitest";
-import { capabilityCompose } from "./capability-compose-plugin.mjs";
+import {
+  capabilityCompose,
+  jsStringLiteral,
+} from "./capability-compose-plugin.mjs";
 import {
   CATALOG,
   compose,
@@ -109,6 +112,23 @@ describe("virtual modules", () => {
     assert.equal(a, b);
     const c = (await compose(tree, { mode: "hardened" })).distribution;
     assert.notEqual(a, c);
+  });
+});
+
+describe("generated module-table literals", () => {
+  test("round-trip hostile ids without breaking out of the literal", () => {
+    for (const value of [
+      "plain/module",
+      'quote"and\\backslash',
+      "x</script><script>alert(1)</script>",
+      "line\u2028separator\u2029",
+      "new\nline",
+    ]) {
+      const literal = jsStringLiteral(value);
+      assert.equal(JSON.parse(literal), value);
+      assert.doesNotMatch(literal, /<\/script>/);
+      assert.doesNotMatch(literal, /[\u2028\u2029\n]/);
+    }
   });
 });
 

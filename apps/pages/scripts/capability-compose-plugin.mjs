@@ -136,11 +136,25 @@ function installManualChunks(build, state) {
   }
 }
 
+/**
+ * A value as a JavaScript string literal for generated module source.
+ * `JSON.stringify` already escapes quotes, backslashes and control
+ * characters; additionally escape `<` (so the literal can never open a
+ * `</script>` sequence if the module is ever inlined) and the JS line
+ * terminators U+2028/U+2029.
+ */
+export function jsStringLiteral(value) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 function moduleTableSource(state, command) {
   const lines = state.table.map((m) => {
     const specifier =
       command === "serve" ? `/@fs${toPosix(m.absolute)}` : toPosix(m.absolute);
-    return `  ${JSON.stringify(m.id)}: () => import(${JSON.stringify(specifier)}),`;
+    return `  ${jsStringLiteral(m.id)}: () => import(${jsStringLiteral(specifier)}),`;
   });
   return `export const MODULE_TABLE = Object.freeze({\n${lines.join("\n")}\n});\n`;
 }
