@@ -233,6 +233,10 @@ function backupControls(
     (["github", "codeberg"].includes(view.providerId) &&
       !!target.backup_owner &&
       !!target.backup_repo &&
+      !!target.backup_branch) ||
+    (view.providerId === "gitlab" &&
+      view.configuration.method === "api-key" &&
+      !!target.backup_project &&
       !!target.backup_branch);
   return supported && nativeVerified(view) ? (
     <NativeVaultBackupControls

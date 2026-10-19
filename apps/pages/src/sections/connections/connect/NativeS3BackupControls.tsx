@@ -7,6 +7,8 @@ import {
   nativeGithubBackupTarget,
   openNativeGithubBackup,
 } from "@opensesame/app-core/lib/native-github-backup.js";
+import { nativeGitlabBackupTarget } from "@opensesame/app-core/lib/native-gitlab-backup-target.js";
+import { openNativeGitlabBackup } from "@opensesame/app-core/lib/native-gitlab-backup.js";
 import { openNativeS3Backup } from "@opensesame/app-core/lib/native-s3-backup.js";
 import type { SecretBackendBackupHandle } from "@opensesame/app-core/lib/secret-backends/backup-transfer.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
@@ -28,6 +30,11 @@ type BackupOpeners = Readonly<
   >
 >;
 const openers = {
+  gitlab: (id, parameters, options) => {
+    const target = nativeGitlabBackupTarget(parameters);
+    if (!target) throw new Error("Configure a GitLab backup project first.");
+    return openNativeGitlabBackup(id, target, options);
+  },
   s3: (id, _parameters, options) => openNativeS3Backup(id, options),
   codeberg: (id, parameters, options) => {
     const target = nativeCodebergBackupTarget(parameters);
@@ -70,6 +77,7 @@ export function NativeVaultBackupControls({
 }) {
   const { connectionId, revision, fingerprint, providerId } = view;
   const {
+    backup_project = "",
     backup_owner = "",
     backup_repo = "",
     backup_branch = "",
@@ -90,13 +98,16 @@ export function NativeVaultBackupControls({
         if (
           providerId !== "s3" &&
           providerId !== "github" &&
-          providerId !== "codeberg"
+          providerId !== "codeberg" &&
+          providerId !== "gitlab"
         )
           throw new Error("No native backup adapter is configured.");
         const opener = openers[providerId];
         const next = await opener(
           connectionId,
-          { backup_owner, backup_repo, backup_branch },
+          providerId === "gitlab"
+            ? { backup_project, backup_branch }
+            : { backup_owner, backup_repo, backup_branch },
           {
             vault: vaultStore,
             signal: lifetime.signal,
@@ -127,6 +138,7 @@ export function NativeVaultBackupControls({
     revision,
     fingerprint,
     providerId,
+    backup_project,
     backup_owner,
     backup_repo,
     backup_branch,
