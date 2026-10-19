@@ -9,6 +9,7 @@ import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { bundleChunk } from "./scripts/lib/bundle-chunk.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
 import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
@@ -46,38 +47,6 @@ const osDomainAuthorityTemplates = fileURLToPath(
 const osDomainWallet = fileURLToPath(
   new URL("../../packages/os-domain/src/wallet/index.ts", import.meta.url),
 );
-
-/**
- * Keep the client renderer out of the entry chunk. A hardened profile's
- * largest asset is `main`, and react-dom is what puts it over the 693 KiB
- * ceiling. `onlyExplicitManualChunks` (capability-compose) keeps each name
- * to the files matched here, so the entry imports the renderer instead of
- * carrying its source.
- */
-function bundleChunk(id: string): string | undefined {
-  const path = id.split("\\").join("/");
-  if (
-    path.includes("/node_modules/react-dom/") ||
-    path.includes("/node_modules/react/") ||
-    path.includes("/node_modules/scheduler/")
-  ) {
-    return "react-dom";
-  }
-  if (
-    path.includes("/node_modules/react-router/") ||
-    path.includes("/node_modules/react-router-dom/")
-  ) {
-    return "react-router";
-  }
-  // The device-identity and device-inbox walks import this chunk by the
-  // file name `device-identity-host-*.js`. A pure chunk under
-  // `experimentalMinChunkSize` is folded into a neighbour, and the name
-  // disappears (`assets/undefined`). Manual chunks are not folded.
-  if (path.includes("/lib/device-identity-host.ts")) {
-    return "device-identity-host";
-  }
-  return undefined;
-}
 
 function redirectBareBase(
   req: import("node:http").IncomingMessage,
