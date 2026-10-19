@@ -19,7 +19,6 @@ import { bindNativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 import { oauthDraft } from "./native-oauth.test-support.js";
 import { tlsFetch } from "./native-s3-backup.test-support.js";
 import { runtimeFixture } from "./secret-backends/runtime.test-support.js";
-
 export const codebergBackupToken = "codeberg-owned-backup-issued-secret";
 export const codebergBackupTarget = {
   owner: "owned-user",
@@ -52,6 +51,8 @@ type State = {
   refresh: string;
   exchanges: number;
   refreshes: number;
+  callback: string;
+  received: { path: string; status: number }[];
 };
 export function gitBlob(bytes: Buffer): string {
   return createHash("sha1")
@@ -149,7 +150,7 @@ function tokenResponse(state: State, body: string, response: ServerResponse) {
   expect(form.get("client_id")).toBe("public-browser-client");
   if (form.get("grant_type") === "authorization_code") {
     expect(form.get("code")).toBe("single-use-codeberg-code");
-    expect(form.get("redirect_uri")).toBe(callback);
+    expect(form.get("redirect_uri")).toBe(state.callback);
     expect(
       createHash("sha256")
         .update(form.get("code_verifier") ?? "")
@@ -200,7 +201,9 @@ async function receive(
   if (state.hold === row.method) {
     state.held = row;
     state.heldResponse = response;
-    response.writeHead(200, { "content-type": "application/json" });
+    response.writeHead(row.method === "POST" ? 201 : 200, {
+      "content-type": "application/json",
+    });
     response.flushHeaders();
     response.write("{");
     return;
@@ -251,7 +254,7 @@ function certificate() {
 }
 function browserPort(state: State) {
   return bindNativeOAuthBrowserPort({
-    redirectUri: callback,
+    redirectUri: state.callback,
     navigate: () => {
       throw new Error("Unexpected full-page navigation");
     },
@@ -270,10 +273,13 @@ function browserPort(state: State) {
     },
   });
 }
-export async function nativeCodebergBackupFixture() {
-  const local = await runtimeFixture();
-  const { directory, cert, key } = certificate();
-  const state: State = {
+type CodebergFixtureOptions = {
+  authorize?: boolean;
+  backupTarget?: boolean;
+  redirectUri?: string;
+};
+function initialState(options: CodebergFixtureOptions): State {
+  return {
     files: new Map(),
     snapshots: new Map(),
     head: "",
@@ -288,7 +294,27 @@ export async function nativeCodebergBackupFixture() {
     refresh: "codeberg-issued-refresh",
     exchanges: 0,
     refreshes: 0,
+    callback: options.redirectUri ?? callback,
+    received: [],
   };
+}
+function backupDraft(options: CodebergFixtureOptions) {
+  const draft = oauthDraft("codeberg");
+  if (options.backupTarget !== false)
+    draft.parameters = {
+      ...draft.parameters,
+      backup_owner: "owned-user",
+      backup_repo: "sealed-vault",
+      backup_branch: "backup/encrypted",
+    };
+  return draft;
+}
+export async function nativeCodebergBackupFixture(
+  options: CodebergFixtureOptions = {},
+) {
+  const local = await runtimeFixture();
+  const { directory, cert, key } = certificate();
+  const state = initialState(options);
   commit(state);
   const server = createServer({ key, cert }, (request, response) => {
     void receive(request, response, state).catch((error: Error) => {
@@ -323,22 +349,27 @@ export async function nativeCodebergBackupFixture() {
       });
       url.hostname = "127.0.0.1";
       url.port = String(port);
-      return send(url, init);
+      return send(url, init).then((response) => {
+        state.received.push({
+          path: url.pathname + url.search,
+          status: response.status,
+        });
+        return response;
+      });
     },
   };
-  const draft = oauthDraft("codeberg");
-  draft.parameters = {
-    ...draft.parameters,
-    backup_owner: "owned-user",
-    backup_repo: "sealed-vault",
-    backup_branch: "backup/encrypted",
-  };
+  const draft = backupDraft(options);
   const browserRelease = browserPort(state);
   const browserFetch = vi
     .spyOn(globalThis, "fetch")
     .mockRejectedValue(new Error("Uncaptured browser Fetch forbidden"));
   const saved = await configureNativeBrowserOAuthConnector(draft, transport);
-  await beginNativeBrowserAuthorization(saved.connectionId, "user", transport);
+  if (options.authorize !== false)
+    await beginNativeBrowserAuthorization(
+      saved.connectionId,
+      "user",
+      transport,
+    );
   return {
     local,
     state,
@@ -348,6 +379,7 @@ export async function nativeCodebergBackupFixture() {
     saved,
     draft,
     browserFetch,
+    bindConsent: () => browserPort(state),
     async close() {
       browserRelease();
       provider.abort();

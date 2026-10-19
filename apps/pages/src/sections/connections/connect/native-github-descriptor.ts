@@ -1,5 +1,6 @@
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
+import { nativeGitBackupFields } from "./native-git-backup-fields.js";
 
 /** Personal tokens use GitHub's public browser API; App provisioning remains separate. */
 export function nativeGithubDescriptor(
@@ -29,29 +30,9 @@ export function nativeGithubDescriptor(
             secret: true,
             required: true,
           },
-          {
-            id: "backup_owner",
-            label: "Backup repository owner",
-            kind: "text",
-            secret: false,
-            required: false,
-            help: "For vault backups, supply owner, repository and an existing branch. The token needs Contents read/write access.",
-          },
-          {
-            id: "backup_repo",
-            label: "Backup repository name",
-            kind: "text",
-            secret: false,
-            required: false,
-          },
-          {
-            id: "backup_branch",
-            label: "Backup repository branch",
-            kind: "text",
-            secret: false,
-            required: false,
-            help: "Use an existing branch. Encrypted backup envelopes are limited to 512 KiB.",
-          },
+          ...nativeGitBackupFields(
+            "The token needs Contents read/write access.",
+          ),
         ],
         scopeGroups: [],
         links: [

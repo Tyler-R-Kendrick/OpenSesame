@@ -1,6 +1,9 @@
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
+import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import { bindNativeBrowserPolicyOrigin } from "@opensesame/app-core/lib/native-browser-policy.js";
 import { describe, expect, it } from "vitest";
+import { nativeGithubDescriptor } from "./native-github-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 
 describe("compiled provider credential variants", () => {
@@ -143,4 +146,48 @@ it("offers explicit MCP credential modes when published public OAuth metadata is
         field.id === "token_endpoint" || field.id === "authorization_endpoint",
     ),
   ).toBe(false);
+});
+
+it("composes the same optional encrypted backup target fields for Codeberg OAuth and GitHub token flows", () => {
+  const plan = connectPlan("codeberg");
+  const profile = nativeBrowserOAuthProfile("codeberg");
+  const github = catalogProvider("github");
+  if (!plan || !profile || !github)
+    throw new Error("Missing native provider contracts");
+  const descriptor = nativeProviderDescriptor(plan, {
+    callbackUrl: "https://app.example/auth/native-connector.html",
+    apiKey: { available: false },
+    oauth: { available: true, profile },
+    mcp: { available: false, actor: "user" },
+  });
+  const oauth = descriptor.methods.find((method) => method.id === "oauth");
+  const fields = oauth?.fields.filter((field) =>
+    field.id.startsWith("backup_"),
+  );
+  expect(
+    fields?.map((field) => ({
+      id: field.id,
+      label: field.label,
+      kind: field.kind,
+      secret: field.secret,
+      required: field.required,
+    })),
+  ).toEqual(
+    nativeGithubDescriptor(github, true)
+      .methods[0]?.fields.filter((field) => field.id.startsWith("backup_"))
+      .map((field) => ({
+        id: field.id,
+        label: field.label,
+        kind: field.kind,
+        secret: field.secret,
+        required: field.required,
+      })),
+  );
+  expect(fields?.map((field) => field.id)).toEqual([
+    "backup_owner",
+    "backup_repo",
+    "backup_branch",
+  ]);
+  expect(oauth?.scopeGroups).toEqual([]);
+  expect(oauth?.instructions).toContain("without granular permission scopes");
 });

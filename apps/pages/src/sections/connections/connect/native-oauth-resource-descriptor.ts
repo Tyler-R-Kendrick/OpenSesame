@@ -237,23 +237,26 @@ export function nativePublicApplicationDescriptor(
               })),
         ),
     ],
-    scopeGroups: publicMethod.scopeGroups.length
-      ? publicMethod.scopeGroups.map((group) => ({
-          ...group,
-          choices: [
-            ...new Map(
-              [
-                ...(
-                  registered.scopeGroups.find(
-                    (row) => row.actor === group.actor,
-                  )?.choices ?? []
-                ).map((choice) => ({ ...choice, default: false })),
-                ...group.choices,
-              ].map((choice) => [choice.name, choice]),
-            ).values(),
-          ],
-        }))
-      : registered.scopeGroups,
+    scopeGroups:
+      profile.id === "codeberg"
+        ? publicMethod.scopeGroups
+        : publicMethod.scopeGroups.length
+          ? publicMethod.scopeGroups.map((group) => ({
+              ...group,
+              choices: [
+                ...new Map(
+                  [
+                    ...(
+                      registered.scopeGroups.find(
+                        (row) => row.actor === group.actor,
+                      )?.choices ?? []
+                    ).map((choice) => ({ ...choice, default: false })),
+                    ...group.choices,
+                  ].map((choice) => [choice.name, choice]),
+                ).values(),
+              ],
+            }))
+          : registered.scopeGroups,
     instructions: `${publicMethod.instructions}\n${registered.instructions}`,
     links: [...(publicMethod.links ?? []), ...(registered.links ?? [])],
   };

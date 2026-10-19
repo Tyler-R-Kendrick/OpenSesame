@@ -1,4 +1,6 @@
+import { nativeCodebergBackupTarget } from "@opensesame/app-core/lib/native-codeberg-backup-target.js";
 /** Mount the shared backup forms for this exact verified native bucket. */
+import { openNativeCodebergBackup } from "@opensesame/app-core/lib/native-codeberg-backup.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import {
@@ -27,6 +29,12 @@ type BackupOpeners = Readonly<
 >;
 const openers = {
   s3: (id, _parameters, options) => openNativeS3Backup(id, options),
+  codeberg: (id, parameters, options) => {
+    const target = nativeCodebergBackupTarget(parameters);
+    if (!target)
+      throw new Error("Configure a Codeberg backup repository first.");
+    return openNativeCodebergBackup(id, target, options);
+  },
   github: (id, parameters, options) => {
     const target = nativeGithubBackupTarget(parameters);
     if (!target) throw new Error("Configure a GitHub backup repository first.");
@@ -79,7 +87,11 @@ export function NativeVaultBackupControls({
     async function open() {
       try {
         check();
-        if (providerId !== "s3" && providerId !== "github")
+        if (
+          providerId !== "s3" &&
+          providerId !== "github" &&
+          providerId !== "codeberg"
+        )
           throw new Error("No native backup adapter is configured.");
         const opener = openers[providerId];
         const next = await opener(
