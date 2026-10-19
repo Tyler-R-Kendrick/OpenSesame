@@ -9,19 +9,15 @@ import { afterAll, it as test } from "vitest";
 import { sharedWorkerGraph } from "./shared-worker-graph.mjs";
 
 const repo = fileURLToPath(new URL("../../..", import.meta.url));
-const entry = join(
+const owner = join(
   repo,
-  "apps/pages/src/modules/networking.tailnet/browser/worker.ts",
+  "apps/pages/scripts/fixtures/shared-worker-entry-csp-owner.ts",
 );
+const specifier = "../../src/modules/networking.tailnet/browser/worker.ts";
 const dir = await mkdtemp(join(tmpdir(), "opensesame-worker-entry-csp-"));
 afterAll(() => rm(dir, { recursive: true, force: true }));
 
 async function bundledEntry() {
-  const owner = join(dir, "owner.ts");
-  await writeFile(
-    owner,
-    `export const start=()=>new Worker(new URL(${JSON.stringify(entry)},import.meta.url),{type:'module'});`,
-  );
   let bundle;
   await build({
     configFile: false,
@@ -30,7 +26,7 @@ async function bundledEntry() {
     logLevel: "silent",
     plugins: [
       sharedWorkerGraph({
-        workers: [{ owner, specifier: entry, name: "tailscale-node" }],
+        workers: [{ owner, specifier, name: "tailscale-node" }],
       }),
       {
         name: "capture-shipped-entry",
