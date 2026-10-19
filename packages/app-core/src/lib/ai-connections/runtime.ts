@@ -19,7 +19,7 @@ import {
   aiConnectionRecord,
   commitAiConnection,
 } from "./store.js";
-import { aiConnectionTransport } from "./transport.js";
+import { captureAiConnectionTransport } from "./transport.js";
 import {
   type AiConnectionDraft,
   AiConnectionError,
@@ -104,11 +104,13 @@ export async function testAiConnection(
   supplied: AiConnectionDraft,
   id?: string,
 ): Promise<string> {
+  const port = captureAiConnectionTransport();
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
   try {
-    const port = aiConnectionTransport();
+    port.assertCurrent();
+    guard.check();
     const transport = {
       ...port,
       signal: AbortSignal.any([port.signal, guard.signal]),
@@ -139,11 +141,13 @@ export async function saveAiConnection(
   supplied: AiConnectionDraft,
   id?: string,
 ) {
+  const port = captureAiConnectionTransport();
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
   try {
-    const port = aiConnectionTransport();
+    port.assertCurrent();
+    guard.check();
     const transport = {
       ...port,
       signal: AbortSignal.any([port.signal, guard.signal]),
@@ -214,11 +218,13 @@ export async function performSavedAiInference(
   runtime?: Pick<HostedModelRuntime, "signal" | "assertCurrent">,
   onText?: (text: string) => void,
 ) {
+  const port = captureAiConnectionTransport();
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
   try {
-    const port = aiConnectionTransport();
+    port.assertCurrent();
+    guard.check();
     const signals = [port.signal, guard.signal];
     if (runtime) signals.push(runtime.signal);
     const transport = { ...port, signal: AbortSignal.any(signals) };

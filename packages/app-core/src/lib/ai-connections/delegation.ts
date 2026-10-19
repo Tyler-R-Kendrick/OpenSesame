@@ -22,7 +22,7 @@ import {
 } from "./configuration.js";
 import { aiConnectionHeaders } from "./protocol.js";
 import { AI_CONNECTION_CLASSIFICATION, readAiConnection } from "./store.js";
-import { aiConnectionTransport } from "./transport.js";
+import { captureAiConnectionTransport } from "./transport.js";
 import { AiConnectionError } from "./types.js";
 import { aiVaultSeams } from "./vault-guard.js";
 
@@ -165,9 +165,10 @@ export async function executeAiDelegatedRequest(
   project: (body: BoundaryValue) => BoundaryValue,
   fence: HostedModelFence,
 ): Promise<BoundaryValue> {
+  const port = captureAiConnectionTransport();
   const guard = await aiVaultSeams.capture();
   try {
-    const port = aiConnectionTransport();
+    port.assertCurrent();
     const signal = AbortSignal.any([guard.signal, port.signal, fence.signal]);
     const baseCheck = () => {
       guard.check();
