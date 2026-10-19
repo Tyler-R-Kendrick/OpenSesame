@@ -1,6 +1,5 @@
 import { subscribeDeviceRows } from "./device-connector-records.js";
 /** Configured MCP proves protocol/tool access without fabricating OAuth authorization. */
-import { captureNativeAuthorizationTransport } from "./native-authorization-transport.js";
 import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 import type { NativeConnectorDriver } from "./native-connector-drivers.js";
 import {
@@ -255,7 +254,7 @@ function configuredMcpOperations(ports: ConfiguredMcpPorts) {
     const captured = await pending;
     try {
       signal?.throwIfAborted();
-      const original = captureNativeAuthorizationTransport(captured.transport);
+      const original = captured.transport;
       if (!original.signal) throw new NativeMcpError("disposed");
       const lifetime = AbortSignal.any([
         ...(original.signal ? [original.signal] : []),

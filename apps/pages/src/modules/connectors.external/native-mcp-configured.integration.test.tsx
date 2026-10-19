@@ -1,5 +1,7 @@
+/** @vitest-environment jsdom */
 /** Actual mounted common UI/SDK/owned TLS with a typed original node carrier; not WASM acceptance. */
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+import { captureNativeAuthorizationTransport } from "@opensesame/app-core/lib/native-authorization-transport.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { registerNativeProviderCleanup } from "@opensesame/app-core/lib/native-connector-lifecycle.js";
 import { loadNativeConnectorRecord } from "@opensesame/app-core/lib/native-connector-store.js";
@@ -10,7 +12,7 @@ import {
   bindConfiguredMcpNode,
   configuredMcpFixture,
 } from "@opensesame/app-core/lib/native-mcp-configured.test-support.js";
-import { bindNativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
+import { nativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
@@ -48,19 +50,7 @@ async function setup(mode: McpCredentialMode) {
   bindNativeRuntime(ctx, activation);
   bindNativeOAuthRuntime(activation);
   closes.push(activation.dispose);
-  const authorize = vi.fn(async () => {
-    throw new Error("No OAuth authorization in credential/anonymous modes");
-  });
-  closes.push(
-    bindNativeOAuthBrowserPort({
-      redirectUri: nativeCallbackUrl(),
-      authorize,
-      navigate: () => {
-        throw new Error("No navigation");
-      },
-      scrubCallback: () => {},
-    }),
-  );
+  const authorize = vi.spyOn(nativeOAuthBrowserPort(), "authorize");
   const driver = nativeConnectorDriver("mcp", "adobe");
   closes.push(registerNativeProviderCleanup("adobe", driver.cleanup));
   const popup = vi.spyOn(window, "open").mockReturnValue(null);
@@ -79,6 +69,10 @@ it.each(["bearer", "header", "anonymous"] as const)(
   "uses the actual shared %s mode, sealed credential and MCP tools without OAuth or browser fallback",
   async (mode) => {
     const f = await setup(mode);
+    expect(() =>
+      captureNativeAuthorizationTransport(f.owner.transport),
+    ).toThrow("Reserve a fresh provider sign-in window first");
+    expect(f.rows).toEqual([]);
     const views: NativeConnectorView[] = [];
     const failures: string[] = [];
     const mounted = render(
@@ -139,8 +133,10 @@ it.each(["bearer", "header", "anonymous"] as const)(
     await expect
       .poll(() => failures[0] ?? views.at(-1)?.status)
       .toBe("connected");
-    const view = f.controller.load();
-    if (!view) throw new Error("Missing genuinely verified connection");
+    if (!f.controller.load())
+      throw new Error("Missing genuinely verified connection");
+    const view = await f.controller.verify();
+    expect(view.status).toBe("connected");
     expect(view.configuration.method).toBe("mcp");
     expect(view.configuration.requestedScopes).toEqual({});
     expect(view.grants).toEqual([]);
