@@ -50,6 +50,7 @@ const gates = (...names) => new Set(names);
 
 /** A shard's gate: `mobile-390` is the `mobile` gate, `journeys-1` the `journeys` one. */
 export function gateOfShard(shard) {
+  if (shard === "native-secret-backends") return "native-public-protocol";
   if (shard.startsWith("mobile-")) return "mobile";
   return shard.startsWith("journeys-") ? "journeys" : shard;
 }

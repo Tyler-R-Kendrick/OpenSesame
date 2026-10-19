@@ -6,7 +6,7 @@ import {
   TABLETS,
 } from "../../apps/pages/scripts/lib/mobile-contract.mjs";
 import { repoRootFromHere } from "./ci-changed-areas.mjs";
-import { loadShards } from "./ci-gates.mjs";
+import { DRIVER_GATES, bundleMatrix, loadShards } from "./ci-gates.mjs";
 
 const root = repoRootFromHere();
 const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
@@ -194,4 +194,48 @@ it("runs the self-hosted connector contract in budgets with the static build and
     "PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome",
   );
   expect(matching[0].text).toContain("VITE_BASE: /OpenSesame/");
+});
+
+it("selects both native protocol legs for secret backend and public protocol changes", () => {
+  for (const driver of [
+    "verify-secret-backends.mjs",
+    "verify-native-public-protocol.mjs",
+  ])
+    expect(
+      bundleMatrix(DRIVER_GATES[driver], legs()).map((leg) => leg.shard),
+    ).toEqual(["native-public-protocol", "native-secret-backends"]);
+});
+
+it("runs the unchanged whole secret backend profile and driver in an independent leg", () => {
+  const all = steps();
+  for (const command of [
+    "build:secret-backends-verify",
+    "verify:secret-backends",
+  ])
+    expect(
+      shardsOf(
+        all.find((step) => step.text.includes(command)).when,
+        legs().map((leg) => leg.shard),
+      ),
+    ).toEqual(["native-secret-backends"]);
+  const secret = all.find((step) =>
+    step.text.includes("verify:secret-backends"),
+  );
+  expect(secret.text).toContain(
+    "pnpm --filter @opensesame/pages build:secret-backends-verify\n          pnpm --filter @opensesame/pages verify:secret-backends",
+  );
+  expect(secret.text).toContain("PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome");
+  expect(secret.text).toContain("VITE_BASE: /OpenSesame/");
+  for (const command of [
+    "verify:native-public-protocol",
+    "verify:provider-auth",
+    "build:identity-verify",
+    "verify:identity-connections",
+  ])
+    expect(
+      shardsOf(
+        all.find((step) => step.text.includes(command)).when,
+        legs().map((leg) => leg.shard),
+      ),
+    ).toEqual(["native-public-protocol"]);
 });
