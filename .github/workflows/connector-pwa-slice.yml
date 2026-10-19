@@ -1,12 +1,12 @@
 name: Publish focused PWA integration slice
-run-name: Verify focused PWA slice cdbd1e4344a27de7
+run-name: Verify repaired PWA prefix cbcd17b95c11117f
 on:
   push:
     branches: ["work/verified-contents-1253-1792017664643"]
     paths: [".github/workflows/connector-pwa-slice.yml"]
 permissions: {}
 concurrency:
-  group: connector-pwa-slice-cdbd1e4344a27de7
+  group: connector-restack-first4-cbcd17b95c11117f
   cancel-in-progress: false
 jobs:
   staging:
@@ -38,9 +38,9 @@ jobs:
           REPOSITORY = 'Tyler-R-Kendrick/OpenSesame'
           API = 'https://api.github.com'
           PAYLOAD_PATH = '.github/connector-stack/payload.json'
-          PAYLOAD_SHA256 = 'cdbd1e4344a27de7b7b3484ba783a9de9496d536e22fa185c4cc0fb0908a74fd'
-          NEW_BASE = '504468a60d902601d5a9bfb155b906213d65fe05'
-          FINAL_TREE = '723b8ee8e96b42a82c85e4143309da749dda0346'
+          PAYLOAD_SHA256 = 'cbcd17b95c11117ffd2c0346708d7a6c35f918a4c33d71c82bdab96e0e98affb'
+          NEW_BASE = '5502b859a08b1e91d6bc3a11e823831f4f23937c'
+          FINAL_TREE = '715a9f3601fa3f9f621ee7dcecc42863ee7a6188'
           SHA1 = re.compile(r'[0-9a-f]{40}\Z')
           SHA256 = re.compile(r'[0-9a-f]{64}\Z')
           STAGE_PREFIX = 'connector-signed-stage/' + PAYLOAD_SHA256[:16] + '/'
@@ -77,7 +77,7 @@ jobs:
               payload = json.loads(content)
               require(payload['schemaVersion'] == 1 and payload['repository'] == REPOSITORY, 'Payload scope mismatch')
               require(payload['newBase'] == NEW_BASE and payload['expectedTree'] == FINAL_TREE, 'Replay target mismatch')
-              require(len(payload['rows']) == 1, 'Expected exactly 1 receipt slice')
+              require([r['pr'] for r in payload['rows']] == [1661, 1662, 1663, 1664], 'Expected exact ordered first4')
               require(SHA256.fullmatch(payload['planSha256']), 'Invalid source plan digest')
               seen_prs, seen_branches, used_blobs = set(), set(), set()
               prior_tree = None
@@ -224,6 +224,7 @@ jobs:
               leases = []
               for row in payload['rows']:
                   actual = api.ref(row['branch'])
+                  require(api.ref(row['oldBaseBranch']) == row['oldBase'], 'Original base lease changed')
                   require(actual == row['oldHead'], 'Original head lease changed for PR ' + str(row['pr']))
                   leases.append({'pr': row['pr'], 'branch': row['branch'], 'head': actual})
               return leases
@@ -336,6 +337,7 @@ jobs:
                   rows.append(receipt)
                   parent = oid
               require(rows[-1]['tree'] == FINAL_TREE, 'Final source tree mismatch')
+              require(read_leases(api, payload) == leases, 'Original head/base leases changed during signing')
               final = {'repository': REPOSITORY, 'payloadSha256': PAYLOAD_SHA256, 'sourceCommit': source_commit,
                        'newBase': NEW_BASE, 'finalCommit': parent, 'finalTree': FINAL_TREE, 'rows': rows,
                        'promotionPerformed': False, 'originalLeases': leases}
@@ -343,7 +345,7 @@ jobs:
               summary = os.environ.get('GITHUB_STEP_SUMMARY')
               if summary:
                   with open(summary, 'a', encoding='utf-8') as stream:
-                      stream.write('Verified 1 receipt staging commit; no PR branches or bases changed.\n\n')
+                      stream.write('Verified 4 separately signed staging commits; no PR branches or bases changed.\n\n')
                       stream.write('Final commit: `' + parent + '`\n\nFinal tree: `' + FINAL_TREE + '`\n')
           
           
