@@ -119,6 +119,17 @@ const entry=load(root);
 await entry.link((source,parent)=>load(new URL(source,'file:///'+parent.identifier).pathname.slice(1)));
 await entry.evaluate();
 assert.equal(context.hostOnly,undefined);
+if(context.streamRegistry) {
+ const messages=[];
+ const registry=new context.streamRegistry(()=>undefined,message=>messages.push(message));
+ assert.equal(registry.receive({kind:"nativeHTTPReady"}),true);
+ assert.equal(messages.length,1);
+ assert.equal(messages[0].kind,"nativeHTTPReady");
+ assert.equal(messages[0].ready,false);
+ assert.equal(Object.keys(messages[0]).sort().join(","),"kind,ready");
+ assert.equal(registry.close(),true);
+ assert.equal(registry.closed,true);
+}
 assert.equal(context.__zod_globalConfig.jitless,true);
 assert.equal(context.message({kind:'nativeHTTPReady'}),true);
 assert.equal(context.message({kind:'cancelHTTP',id:0}),false);
@@ -218,3 +229,52 @@ test.each(["browser-node-peer-http.ts", "browser-node-port.ts"])(
     );
   },
 );
+
+const streamRegistry = join(
+  repo,
+  "apps/pages/src/modules/networking.tailnet/browser/worker-native-http.ts",
+);
+test("shipped native stream registry stays in the isolated tailscale Worker graph", async () => {
+  const { bundle, work } = await fixture({
+    extraImport: `import {WorkerNativeHTTP} from ${JSON.stringify(streamRegistry)};globalThis.streamRegistry=WorkerNativeHTTP;`,
+  });
+  const root = Object.values(bundle).find(
+    (value) =>
+      value.type === "asset" &&
+      value.fileName.startsWith("assets/tailscale-node-"),
+  );
+  assert.ok(root?.opensesameWorkerChunk);
+  const files = Object.keys(root.opensesameWorkerChunk.modules).map(
+    workerRealmSource,
+  );
+  assert.ok(files.includes(streamRegistry));
+  assert.ok(files.includes(protocol));
+  assert.ok(
+    !files.some(
+      (file) =>
+        file?.endsWith("/controller-native-stream.ts") ||
+        file?.endsWith("/controller-requests.ts"),
+    ),
+  );
+  await evaluateProtocol(bundle, root, work);
+});
+test.each(["controller-native-stream.ts", "controller-requests.ts"])(
+  "stream helper admission does not admit its adjacent host consumer: %s",
+  async (file) => {
+    await assert.rejects(
+      fixture({
+        extraImport: `import ${JSON.stringify(join(dirname(streamRegistry), file))};`,
+      }),
+      /Worker import crosses its private runtime boundary/,
+    );
+  },
+);
+test("the native stream registry stays excluded from password Worker realms", async () => {
+  await assert.rejects(
+    fixture({
+      realm: "onepassword-sdk.worker",
+      extraImport: `import ${JSON.stringify(streamRegistry)};`,
+    }),
+    /Worker import crosses its private runtime boundary/,
+  );
+});
