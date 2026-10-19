@@ -349,3 +349,28 @@ it("a completed response for a different URL cannot satisfy the captured request
   await settle();
   expect(sent).toEqual([{ kind: "nativeHTTPError", id: 1 }]);
 });
+
+it("a peer configuration without an original Go port cannot become ready or send credentials", async () => {
+  await load(false);
+  loader.mockResolvedValueOnce({ ...client, nativeHTTP: undefined });
+  const peer = Configuration.parse({
+    ...config,
+    nativeHTTP: {
+      routeMode: "peer",
+      peerID: "n-approved-peer",
+      trustMode: "public",
+      targets: [
+        { origin: "https://provider.example", prefixes: ["100.64.0.1/32"] },
+      ],
+    },
+  });
+  send({ kind: "start", config: peer });
+  await vi.waitFor(() => expect(client.run).toHaveBeenCalledTimes(1));
+  send({ kind: "nativeHTTPReady" });
+  expect(sent).toContainEqual({ kind: "nativeHTTPReady", ready: false });
+  send({ kind: "nativeHTTP", id: 51, request: request() });
+  await settle();
+  expect(sent).toContainEqual({ kind: "nativeHTTPError", id: 51 });
+  expect(client.nativeHTTP.nativeHTTP).not.toHaveBeenCalled();
+  expect(client.fetch).not.toHaveBeenCalled();
+});

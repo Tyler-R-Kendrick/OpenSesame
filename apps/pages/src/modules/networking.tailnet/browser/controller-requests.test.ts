@@ -1,4 +1,5 @@
 import { rootCertificates } from "node:tls";
+import { TailscalePeerHTTPConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-peer-http.js";
 import { TailscaleNativeHTTPConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { expect, it, vi } from "vitest";
 import type { z } from "zod";
@@ -6,7 +7,11 @@ import {
   BrowserNodeRequests,
   nativeWorkerOptions,
 } from "./controller-requests.js";
-import type { HostEvent, WorkerMessage } from "./protocol.js";
+import {
+  type HostEvent,
+  NativeHTTPConfiguration,
+  type WorkerMessage,
+} from "./protocol.js";
 class WorkerPort {
   sent: z.infer<typeof WorkerMessage>[] = [];
   postMessage(value: z.infer<typeof WorkerMessage>) {
@@ -291,5 +296,97 @@ it("preserves operator trust fields and rejects nonstring native asset values wi
   expect(options.nativeHTTP).not.toHaveProperty("version");
   expect(options.asset).toEqual({
     nativeHTTP: "https://app.example/OpenSesame/tailscale/native-fixture.js",
+  });
+});
+
+it("projects public/operator peer routes losslessly without an exit, persistence version or readiness claim", () => {
+  const base = new URL("https://app.example/OpenSesame/");
+  const targets = [
+    { origin: "https://byo.example.test", prefixes: ["100.64.0.1/32"] },
+  ];
+  const certificate = rootCertificates[0];
+  if (!certificate) throw new Error("Missing real CA fixture");
+  for (const trust of [
+    { trustMode: "public" },
+    { trustMode: "operator", operatorCAPEM: certificate },
+  ]) {
+    const config = TailscalePeerHTTPConfiguration.parse({
+      version: 2,
+      routeMode: "peer",
+      peerID: "n-approved-peer",
+      targets,
+      ...trust,
+    });
+    const options = nativeWorkerOptions(
+      config,
+      { nativeHTTP: "tailscale/native.js" },
+      base,
+    );
+    const expected = {
+      routeMode: "peer",
+      peerID: "n-approved-peer",
+      targets,
+      ...trust,
+    };
+    expect(options.nativeHTTP).toEqual(expected);
+    expect(NativeHTTPConfiguration.parse(options.nativeHTTP)).toEqual(expected);
+    expect(options.nativeHTTP).not.toHaveProperty("exitNodeID");
+    expect(options.nativeHTTP).not.toHaveProperty("version");
+    expect(options.nativeHTTP).not.toHaveProperty("ready");
+    expect(() => nativeWorkerOptions(config, {}, base)).toThrow("missing");
+  }
+});
+it("rejects mixed, widened and fabricated peer authority at the actual Worker boundary", () => {
+  const peer = {
+    routeMode: "peer",
+    peerID: "n-approved-peer",
+    trustMode: "public",
+    targets: [
+      { origin: "https://byo.example.test", prefixes: ["100.64.0.1/32"] },
+    ],
+  };
+  for (const invalid of [
+    { ...peer, peerID: "" },
+    { ...peer, exitNodeID: "n-unselected-exit" },
+    { ...peer, routeMode: "exit" },
+    { ...peer, ready: true },
+    { ...peer, online: true },
+    { ...peer, nodeKey: "untrusted-key" },
+    { ...peer, allowExitFallback: true },
+    {
+      ...peer,
+      targets: [
+        { origin: "https://byo.example.test", prefixes: ["0.0.0.0/0"] },
+      ],
+    },
+    {
+      ...peer,
+      targets: [
+        { origin: "https://retarget.test/path", prefixes: ["100.64.0.1/32"] },
+      ],
+    },
+  ])
+    expect(NativeHTTPConfiguration.safeParse(invalid).success).toBe(false);
+});
+it("the cross-version Worker parser captures a validated clone before source peer retargeting", () => {
+  const input = {
+    routeMode: "peer",
+    peerID: "n-approved-peer",
+    trustMode: "public",
+    targets: [
+      { origin: "https://byo.example.test", prefixes: ["100.64.0.1/32"] },
+    ],
+  };
+  const parsed = NativeHTTPConfiguration.parse(input);
+  input.peerID = "n-later-peer";
+  input.targets[0].origin = "https://retarget.example.test";
+  input.targets[0].prefixes[0] = "0.0.0.0/0";
+  expect(parsed).toEqual({
+    routeMode: "peer",
+    peerID: "n-approved-peer",
+    trustMode: "public",
+    targets: [
+      { origin: "https://byo.example.test", prefixes: ["100.64.0.1/32"] },
+    ],
   });
 });

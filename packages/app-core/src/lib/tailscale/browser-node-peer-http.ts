@@ -40,3 +40,15 @@ export const TailscaleHTTPRouteConfiguration = z.union([
 export type TailscaleHTTPRouteConfiguration = z.infer<
   typeof TailscaleHTTPRouteConfiguration
 >;
+
+/** Worker configuration omits only persistence version; routing/trust stay strict. */
+export const TailscalePeerHTTPWorkerConfiguration = z.discriminatedUnion(
+  "trustMode",
+  [
+    TailscalePeerHTTPConfiguration.options[0].omit({ version: true }).strict(),
+    TailscalePeerHTTPConfiguration.options[1].omit({ version: true }).strict(),
+  ],
+);
+export type TailscalePeerHTTPWorkerConfiguration = z.infer<
+  typeof TailscalePeerHTTPWorkerConfiguration
+>;

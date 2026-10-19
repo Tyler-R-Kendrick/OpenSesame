@@ -1,3 +1,4 @@
+import { TailscalePeerHTTPWorkerConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-peer-http.js";
 import { z } from "zod";
 const OperationID = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
 const Header = z.tuple([z.string().max(32768), z.string().max(32768)]);
@@ -44,7 +45,21 @@ const nativeTargets = z
   )
   .min(1)
   .max(16);
+// Pages uses Zod 3; retain its existing parser and compose the shared Zod 4
+// validator through data, returning its clone rather than mixing schema engines.
+const PeerHTTPConfiguration = z.unknown().transform((value, context) => {
+  const parsed = TailscalePeerHTTPWorkerConfiguration.safeParse(value);
+  if (!parsed.success) {
+    context.addIssue({
+      code: "custom",
+      message: "Invalid peer HTTPS configuration.",
+    });
+    return z.NEVER;
+  }
+  return parsed.data;
+});
 export const NativeHTTPConfiguration = z.union([
+  PeerHTTPConfiguration,
   z
     .object({
       exitNodeID: z.string().min(1).max(256),
