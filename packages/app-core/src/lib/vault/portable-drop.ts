@@ -46,14 +46,27 @@ function wrongCodeWords(triesLeft: number): string {
   return `${base} No tries left.`;
 }
 
+/** Uniform index in [0, max) without modulo bias (rejection sampling). */
+function randomIndex(max: number): number {
+  if (!Number.isInteger(max) || max <= 0) {
+    throw new Error("randomIndex needs a positive bound");
+  }
+  const limit = Math.floor(2 ** 32 / max) * max;
+  const buf = new Uint32Array(1);
+  const view = new DataView(buf.buffer);
+  let value: number;
+  do {
+    crypto.getRandomValues(buf);
+    value = view.getUint32(0);
+  } while (value >= limit);
+  return value % max;
+}
+
 function mintUserCode(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
   let out = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    // SAFETY: bytes[i] is defined for i < length.
-    const b = bytes[i] ?? 0;
-    out += alphabet[b % alphabet.length] ?? "A";
+  for (let i = 0; i < 8; i += 1) {
+    out += alphabet[randomIndex(alphabet.length)] ?? "A";
     if (i === 3) out += "-";
   }
   return out;
