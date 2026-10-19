@@ -44,6 +44,7 @@ import {
   nativeProviderTransport,
 } from "./native-connector-transport.js";
 import type { NativeConnectorView } from "./native-connector-view.js";
+import { verifyNativeGitlabBackupTarget } from "./native-gitlab-backup-target.js";
 
 export type NativeApiConfigureInput = {
   providerId: string;
@@ -122,6 +123,7 @@ async function providerVerification(
   transport: NativeProviderTransport,
 ) {
   assertNativeApiBrowserTarget(target);
+  await verifyNativeGitlabBackupTarget(target, credentials, transport);
   const request = nativeApiVerificationRequest(target, credentials);
   const body = await nativeApiHttp(request, transport);
   validateNativeApiInventory(target.providerId, body);

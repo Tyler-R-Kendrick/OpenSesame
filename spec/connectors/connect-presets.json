@@ -4573,16 +4573,33 @@
         "url": "https://gitlab.com/api/v4/user",
         "account_field": "username"
       },
-      "instructions": "In GitLab open **Avatar → Edit profile → Access tokens**, create a legacy personal access token, set a name and expiry, select **read_user** for account verification and **read_api** to list your project memberships, and copy it (shown once). This connection only lists project IDs and names; it does not back up repositories or change projects.",
+      "instructions": "In GitLab open **Avatar → Edit profile → Access tokens**, create a legacy personal access token and copy it (shown once). Use **read_user** for account verification and **read_api** to list project memberships. For encrypted vault backups, select **api**, provide both the project and an existing writable branch, and grant the account repository write access. Backup files contain only the sealed OpenSesame vault; the API key stays in the on-device vault.",
       "docs_url": "https://docs.gitlab.com/user/profile/personal_access_tokens/",
       "probe_status": 401,
       "confidence": "high",
       "notes": "PRIVATE-TOKEN: <token> header is equivalent to Authorization: Bearer. Self-managed instances use their own host.",
       "sources": [
         "https://docs.gitlab.com/user/profile/personal_access_tokens/",
-        "https://docs.gitlab.com/api/users/"
+        "https://docs.gitlab.com/api/users/",
+        "https://docs.gitlab.com/api/repository_files/",
+        "https://docs.gitlab.com/api/branches/"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "backup_project",
+          "label": "Backup project (optional)",
+          "placeholder": "group/project or numeric project ID",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_branch",
+          "label": "Backup branch (optional)",
+          "placeholder": "main",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "gmicloud",
