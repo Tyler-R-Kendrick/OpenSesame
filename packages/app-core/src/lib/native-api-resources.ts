@@ -7,6 +7,7 @@ import {
   type NativeApiOperationDefinition,
   executeNativeApiRequest,
 } from "./native-api-operations.js";
+import { projectNativeStripeIssuingCards } from "./native-api-stripe-issuing.js";
 import { projectNativeStripeBalance } from "./native-api-stripe.js";
 import type { NativeApiReadResult } from "./native-api-verify.js";
 import type { NativeMethod } from "./native-connector-schema.js";
@@ -197,6 +198,18 @@ function projectContentfulSpaces(body: BoundaryValue): BoundaryValue {
   };
 }
 const resources: readonly Resource[] = [
+  jsonResource(
+    "List Issuing cards",
+    {
+      providerId: "stripe-issuing",
+      operationId: "provider.issuing-cards.read",
+      method: "GET",
+      path: "/v1/issuing/cards",
+      query: { limit: 20 },
+      headers: { "Stripe-Version": "2026-09-30.endive" },
+    },
+    projectNativeStripeIssuingCards,
+  ),
   jsonResource(
     "Read account balance",
     {

@@ -144,15 +144,12 @@ describe("connector plans", () => {
     const stripe = connectPlan("stripe");
     expect(stripe?.refused).toBe(false);
     expect(stripe?.methods.map((method) => method.kind)).toEqual(["api-key"]);
-    for (const id of [
-      "razorpay",
-      "agentcard",
-      "lithic",
-      "marqeta",
-      "privacy",
-      "stripe-issuing",
-    ])
+    for (const id of ["razorpay", "agentcard", "lithic", "marqeta", "privacy"])
       expect(connectPlan(id)?.refused, id).toBe(true);
+    expect(connectPlan("stripe-issuing")?.refused).toBe(false);
+    expect(
+      connectPlan("stripe-issuing")?.methods.map((method) => method.kind),
+    ).toEqual(["api-key"]);
     expect(connectPlan("resend")?.refused).toBe(false);
   });
 
@@ -185,6 +182,61 @@ describe("connector plans", () => {
       expect(stripe?.methods).toEqual([]);
     },
   );
+
+  it.each([
+    "missing",
+    "write",
+    "host",
+    "path",
+    "expand",
+    "version",
+    "header",
+    "scheme",
+    "catalog",
+  ])("retains refusal for altered Issuing read metadata %s", (change) => {
+    const verify = {
+      method: "GET",
+      url: "https://api.stripe.com/v1/issuing/cards?limit=20",
+      headers: { "Stripe-Version": "2026-09-30.endive" },
+    };
+    if (change === "write") verify.method = "POST";
+    if (change === "host")
+      verify.url = "https://other.test/v1/issuing/cards?limit=20";
+    if (change === "path")
+      verify.url = "https://api.stripe.com/v1/issuing/cardholders?limit=20";
+    if (change === "expand") verify.url += "&expand[]=data.number";
+    if (change === "version") verify.headers["Stripe-Version"] = "invalid";
+    const catalog = {
+      providers: [
+        {
+          id: "stripe-issuing",
+          category: change === "catalog" ? "developer" : "wallet",
+          auth: { kind: "api_key" },
+        },
+      ],
+    };
+    const plans = renderPlanJson(
+      services,
+      {
+        oauth: [],
+        api_key: [
+          {
+            service: "stripe-issuing",
+            header: change === "header" ? "X-Other" : "Authorization",
+            scheme: change === "scheme" ? "Basic" : "Bearer",
+            verify:
+              change === "missing" || change === "catalog" ? null : verify,
+          },
+        ],
+      },
+      catalog,
+    );
+    const plan = plans
+      .map((row) => JSON.parse(row))
+      .find((row) => row.id === "stripe-issuing");
+    expect(plan.refused).toBe(true);
+    expect(plan.methods).toEqual([]);
+  });
 
   it("fills and reports placeholders", () => {
     expect(

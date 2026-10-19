@@ -59,7 +59,7 @@ const CATEGORY_OVERRIDE = {
 };
 
 /** Payment writes and agent card issuing remain refused; Stripe has one read-only contract. */
-const REFUSED = new Set(["stripe", "razorpay", "agentcard"]);
+const REFUSED = new Set(["stripe", "stripe-issuing", "razorpay", "agentcard"]);
 
 /**
  * Refused on Connect: payment rails, and the catalog's card-issuing rows
@@ -288,11 +288,19 @@ function categoryFor(id, service, row) {
   );
 }
 
-function stripeBalanceContract(id, apiKey) {
+function stripeReadContract(id, apiKey) {
+  const url =
+    id === "stripe"
+      ? "https://api.stripe.com/v1/balance"
+      : id === "stripe-issuing"
+        ? "https://api.stripe.com/v1/issuing/cards?limit=20"
+        : null;
   return (
-    id === "stripe" &&
+    url !== null &&
     apiKey?.verify?.method === "GET" &&
-    apiKey.verify.url === "https://api.stripe.com/v1/balance" &&
+    apiKey.verify.url === url &&
+    (id !== "stripe-issuing" ||
+      apiKey.verify.headers?.["Stripe-Version"] === "2026-09-30.endive") &&
     apiKey.auth?.kind === "header" &&
     apiKey.auth.header === "Authorization" &&
     apiKey.auth.scheme === "Bearer"
@@ -300,17 +308,17 @@ function stripeBalanceContract(id, apiKey) {
 }
 
 function planFor(id, service, row, oauth, apiKey) {
-  const stripeBalance = stripeBalanceContract(id, apiKey);
+  const stripeRead = stripeReadContract(id, apiKey);
   return {
     id,
     name: service?.name ?? row?.display_name ?? id,
     docsUrl: docsFor(service, row, oauth, apiKey),
     category: categoryFor(id, service, row),
     registry: Boolean(service),
-    refused: refused(id, row) && !stripeBalance,
+    refused: refused(id, row) && !stripeRead,
     methods:
-      id === "stripe"
-        ? stripeBalance
+      id === "stripe" || id === "stripe-issuing"
+        ? stripeRead
           ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
           : []
         : methodsFor(service, oauth, apiKey),

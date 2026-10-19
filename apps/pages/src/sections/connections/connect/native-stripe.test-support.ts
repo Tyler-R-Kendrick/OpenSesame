@@ -63,7 +63,10 @@ function certificate() {
   };
 }
 
-function routeOracle(tls: ReturnType<typeof certificate>) {
+function routeOracle(
+  tls: ReturnType<typeof certificate>,
+  expectedPath: string,
+) {
   const requests: { authorized: boolean; path: string; emptyBody: boolean }[] =
     [];
   let respond = (response: ServerResponse) =>
@@ -73,7 +76,7 @@ function routeOracle(tls: ReturnType<typeof certificate>) {
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const authorized =
       request.method === "GET" &&
-      request.url === "/v1/balance" &&
+      request.url === expectedPath &&
       request.headers.authorization === `Bearer ${stripeKey}` &&
       request.headers["stripe-version"] === "2026-09-30.endive" &&
       request.headers.cookie === undefined &&
@@ -112,10 +115,10 @@ function routeOracle(tls: ReturnType<typeof certificate>) {
 }
 
 /** Independent HTTPS route/auth oracle behind the real captured native transport boundary. */
-export async function stripeOracle() {
+export async function stripeOracle(expectedPath = "/v1/balance") {
   const storage = await runtimeFixture();
   const tls = certificate();
-  const oracle = routeOracle(tls);
+  const oracle = routeOracle(tls, expectedPath);
   const { server } = oracle;
   await once(server.listen(0, "127.0.0.1"), "listening");
   const address = server.address();
@@ -133,7 +136,7 @@ export async function stripeOracle() {
       throw new Error("Unexpected provider origin");
     const response = await fetcher(
       new URL(
-        new URL(request.url).pathname,
+        new URL(request.url).pathname + new URL(request.url).search,
         `https://127.0.0.1:${address.port}`,
       ),
       request,
@@ -141,21 +144,22 @@ export async function stripeOracle() {
     lifetime.signal.throwIfAborted();
     return response;
   });
+  const snapshot: ReturnType<TailscaleBrowserNode["snapshot"]> = {
+    status: "connected",
+    hostname: "stripe-browser",
+    controlURL: "https://controlplane.tailscale.com",
+    authURL: "",
+    addresses: ["100.64.0.3"],
+    peerCount: 1,
+    failure: "",
+  };
   const node: TailscaleBrowserNode = {
     captureNativeHTTP: () => ({
       fetch,
       signal: lifetime.signal,
       assertCurrent: () => lifetime.signal.throwIfAborted(),
     }),
-    snapshot: () => ({
-      status: "connected",
-      hostname: "stripe-browser",
-      controlURL: "https://controlplane.tailscale.com",
-      authURL: "",
-      addresses: ["100.64.0.3"],
-      peerCount: 1,
-      failure: "",
-    }),
+    snapshot: () => snapshot,
     subscribe: () => () => {},
     start: async () => {},
     stop: () => lifetime.abort(),

@@ -6341,17 +6341,26 @@
       "scheme": "Bearer",
       "basic": null,
       "key_prefix": "rk_",
-      "service_urls": ["https://api.stripe.com/v1"],
+      "service_urls": ["https://api.stripe.com"],
       "verify": {
         "method": "GET",
-        "url": "https://api.stripe.com/v1/issuing/cards?limit=1",
-        "account_field": null
+        "url": "https://api.stripe.com/v1/issuing/cards?limit=20",
+        "headers": {
+          "Stripe-Version": "2026-09-30.endive"
+        },
+        "required_fields": ["object", "data", "has_more", "url"],
+        "success": [
+          {
+            "field": "object",
+            "equals": "list"
+          }
+        ]
       },
-      "instructions": "In the Stripe Dashboard open **Developers → API keys**, click **Create restricted key**, set **Issuing Cards** and **Issuing Cardholders** to **Read**, leave the rest **None**, and copy it (`rk_live_…`/`rk_test_…`).",
-      "docs_url": "https://docs.stripe.com/issuing",
+      "instructions": "Create a restricted Stripe key with Issuing Cards Read permission. This connection only lists the first 20 Issuing card summaries; it cannot create or modify cards, spend money or read card numbers/CVC. Issuing must be enabled on the account. The key is sealed in this vault and must be re-entered when changed.",
+      "docs_url": "https://docs.stripe.com/api/issuing/cards/list",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "Secret keys (sk_) also work; restricted keys (rk_) are least privilege. Issuing must be enabled on the account.",
+      "notes": "Fixed read-only Issuing card inventory through the common native transport. No cardholder permission, expansions, card retrieval or write operation is requested.",
       "sources": [
         "https://docs.stripe.com/issuing",
         "https://docs.stripe.com/keys"

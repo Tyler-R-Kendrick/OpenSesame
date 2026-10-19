@@ -16,6 +16,20 @@ const PARAMETER_VALUES = {
 };
 
 const DOCUMENTED_PROBE_REPLIES = {
+  "stripe-issuing": {
+    object: "list",
+    url: "/v1/issuing/cards",
+    has_more: false,
+    data: [
+      {
+        object: "issuing.card",
+        id: "ic_contract",
+        status: "active",
+        type: "virtual",
+        currency: "usd",
+      },
+    ],
+  },
   // https://docs.agentmail.to/api-reference/inboxes/list
   agentmail: {
     count: 1,
@@ -101,6 +115,20 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
+  "stripe-issuing": {
+    id: "provider.issuing-cards.read",
+    label: "List Issuing cards",
+    method: "GET",
+    url: "https://api.stripe.com/v1/issuing/cards?limit=20",
+    headers: { "Stripe-Version": "2026-09-30.endive" },
+    absentHeaders: ["stripe-account"],
+    reply: DOCUMENTED_PROBE_REPLIES["stripe-issuing"],
+    result: {
+      label: "Showing 1 Issuing cards",
+      items: [{ id: "ic_contract", label: "ic_contract — active (virtual)" }],
+    },
+    excludedText: [],
+  },
   stripe: {
     id: "provider.balance.read",
     label: "Read account balance",
@@ -221,8 +249,9 @@ function setField(root, path, value) {
 
 function verificationReply(id, verification) {
   const documented = DOCUMENTED_PROBE_REPLIES[id];
-  // Stripe's strict balance contract needs typed arrays and booleans, never placeholder strings.
-  if (id === "stripe") return structuredClone(documented);
+  // Stripe's strict read contracts need typed arrays and booleans, never placeholder strings.
+  if (id === "stripe" || id === "stripe-issuing")
+    return structuredClone(documented);
   if (
     !documented &&
     !verification.accountField &&
