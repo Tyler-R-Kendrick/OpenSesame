@@ -23,7 +23,6 @@ import { execFileSync } from "node:child_process";
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isShippedBrowserSource } from "../lib/browser-shipped-source.mjs";
 import { typescriptComponents } from "../lib/workspace-graph.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -165,7 +164,12 @@ function transitiveDeps(components, name, seen = new Set()) {
  */
 function shippedSources(dir) {
   return globSync("src/**/*.{ts,tsx,js,mjs}", { cwd: join(root, dir) })
-    .filter(isShippedBrowserSource)
+    .filter(
+      (f) =>
+        !/\.(test|spec|test-support)\.[cm]?[jt]sx?$/.test(f) &&
+        !/__tests__|\/test\//.test(f) &&
+        !/^src\/node\//.test(f),
+    )
     .sort();
 }
 
