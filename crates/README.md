@@ -79,6 +79,7 @@ re-export the libraries below them behind a stable surface
 | [`vault-item-types`](vault-item-types) | Item-type parser and registry; embeds the definitions in [`marketplace/item-types/builtin`](../marketplace/item-types/builtin) except the five credential types. |
 | [`kdbx-bridge`](kdbx-bridge) | KeePass KDBX 4 read/write mapped onto the sealed store. |
 | [`env-spec`](env-spec) | Consumes `.env.schema` JSON to resolve developer environments without printing values. |
+| [`trusted-exec`](trusted-exec) | Which file a fixed program name (`git`, `gpg`, `gh`, `node`, ...) starts and the environment it is given: a trusted `PATH` entry or the operator's exact file, and an allowlist beside every spawn. |
 | [`event-seal`](event-seal) | Seals the Host's event and audit rows at rest under a key derived from the Host sealing key: one process-wide sealer ([ADR 0157](../docs/adr/0157-logs-and-events-carry-no-secrets.md)). |
 | [`sealed-log`](sealed-log) | An encrypted, rotating log file: every line sealed on its own under a key kept apart from it ([ADR 0157](../docs/adr/0157-logs-and-events-carry-no-secrets.md)). |
 

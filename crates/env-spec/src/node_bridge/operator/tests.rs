@@ -1,8 +1,11 @@
 use super::*;
 
 use std::collections::BTreeSet;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+
+use crate::EnvSpecError;
 
 use super::super::tests::{dir, host, joined, plant};
 use super::super::{node_command_for, Host, Platform};

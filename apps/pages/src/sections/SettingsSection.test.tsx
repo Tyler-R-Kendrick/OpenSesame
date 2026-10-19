@@ -323,7 +323,9 @@ describe("SettingsSection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Delete this vault/i }),
     );
-    expect(screen.getByText(/2 items will be unrecoverable/)).toBeTruthy();
+    expect(
+      screen.getByText(/2 items \(0 in trash\) will be unrecoverable/),
+    ).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
     expect(store.destroy).not.toHaveBeenCalled();
     await userEvent.click(

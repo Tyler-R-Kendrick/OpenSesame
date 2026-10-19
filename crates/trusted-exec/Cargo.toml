@@ -1,0 +1,18 @@
+[package]
+name = "opensesame-trusted-exec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Which file a fixed program name starts, and the environment it is given"
+
+[features]
+# A planted-PATH fixture for other crates' tests: a stub that must never run, a
+# trusted stub that records its environment, and a hostile parent environment.
+testkit = []
+
+[dependencies]
+
+# Who is asking (`geteuid`, `getegid`, `getgroups`), for the PATH trust rule in
+# `src/trust.rs`. Already in the daemon's tree (mio, getrandom).
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
