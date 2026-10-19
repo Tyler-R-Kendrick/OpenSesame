@@ -154,10 +154,11 @@ export function nativeOAuthMcpResource(
   const binding: NativeMcpBinding = {
     providerId: record.configuration.providerId,
     fingerprint: grant.fingerprint,
-    endpoint: target.resource ?? "",
+    endpoint: target.mcp_endpoint ?? target.resource ?? "",
     resource: target.resource ?? "",
     issuer: target.issuer,
-    transport: "streamable-http",
+    transport: target.mcp_transport ?? "streamable-http",
+    ssePostEndpoint: target.mcp_post_endpoint,
   };
   const session = new NativeMcpSession(binding, {
     fetch: transport.fetch,

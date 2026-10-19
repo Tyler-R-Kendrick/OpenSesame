@@ -17,16 +17,13 @@ import {
 } from "@opensesame/app-core/lib/native-oauth-client-config.js";
 import { NativeOAuthError } from "@opensesame/app-core/lib/native-oauth-errors.js";
 import { createNativeOAuthResourceDriver } from "@opensesame/app-core/lib/native-oauth-resource-driver.js";
+import { configuredNativeOAuthPreset } from "@opensesame/app-core/lib/native-oauth-resource-preset.js";
 import { captureSecretBackendVault } from "@opensesame/app-core/lib/secret-backends/runtime-owners.js";
 
 type Authority = ReturnType<typeof captureNativeProviderAuthority>;
 export function supportsNativeOAuthResource(id: string): boolean {
   const plan = connectPlan(id);
-  return (
-    !!plan &&
-    !plan.refused &&
-    plan.methods.some((method) => method.kind === "oauth" && !!method.preset)
-  );
+  return !!plan && !plan.refused && configuredNativeOAuthPreset(plan) !== null;
 }
 /** A partial registered target is invalid, never permission to adopt a public profile. */
 export function nativeOAuthClientConfigured(
@@ -40,24 +37,26 @@ export function nativeOAuthClientConfigured(
   )
     return false;
   const target = nativeOAuthClientTarget(configuration);
-  if (
-    !target.resource ||
-    (target.resource_protocol && target.resource_protocol !== "json")
-  )
-    throw new NativeOAuthError("callback");
+  if (!target.resource) throw new NativeOAuthError("callback");
   return true;
 }
 function registeredInput(input: NativeDriverInput): boolean {
-  const { client_id, redirect_uri, ...target } = input.parameters;
+  const { client_id, redirect_uri, ...supplied } = input.parameters;
+  const target = Object.fromEntries(
+    Object.entries(supplied).filter(
+      ([key, value]) =>
+        ![
+          "resource_protocol",
+          "mcp_endpoint",
+          "mcp_transport",
+          "mcp_post_endpoint",
+        ].includes(key) || value !== "",
+    ),
+  );
   if (!NativeOAuthClientTarget.keyof().options.some((key) => key in target))
     return false;
   const parsed = NativeOAuthClientTarget.parse(target);
-  if (
-    !client_id ||
-    !parsed.resource ||
-    (parsed.resource_protocol && parsed.resource_protocol !== "json")
-  )
-    throw new NativeOAuthError("callback");
+  if (!client_id || !parsed.resource) throw new NativeOAuthError("callback");
   return true;
 }
 function captureOwner(
@@ -122,8 +121,15 @@ export function composeNativeOAuthResourceDriver(
     return forConfiguration(view.configuration);
   };
   const configure = (input: NativeDriverInput) => {
-    if (input.parameters.token_auth_method === "cimd") {
-      if (nativeBrowserOAuthProfile(input.providerId)?.mode !== "cimd")
+    if (
+      ["cimd", "provider"].includes(input.parameters.token_auth_method ?? "")
+    ) {
+      const profile = nativeBrowserOAuthProfile(input.providerId);
+      if (
+        !profile ||
+        (profile.mode === "cimd") !==
+          (input.parameters.token_auth_method === "cimd")
+      )
         throw new NativeOAuthError("callback");
       const { token_auth_method, ...parameters } = input.parameters;
       return publicDriver.configure({ ...input, parameters });

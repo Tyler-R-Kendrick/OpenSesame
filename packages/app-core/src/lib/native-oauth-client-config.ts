@@ -15,6 +15,7 @@ import {
   updateNativeConnector,
 } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
+import { validateNativeMcpBinding } from "./native-mcp-target.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
   nativeOAuthGuard,
@@ -28,20 +29,17 @@ import {
   stageVaultCredentials,
 } from "./vault-credential-custody.js";
 
-const secureEndpoint = z
+const secureUrl = z
   .string()
   .url()
   .max(4096)
   .refine((value) => {
     const url = new URL(value);
     return (
-      url.protocol === "https:" &&
-      !url.username &&
-      !url.password &&
-      !url.search &&
-      !url.hash
+      url.protocol === "https:" && !url.username && !url.password && !url.hash
     );
   });
+const secureEndpoint = secureUrl.refine((value) => !new URL(value).search);
 export const NativeOAuthClientTarget = z
   .object({
     issuer: secureEndpoint,
@@ -50,6 +48,9 @@ export const NativeOAuthClientTarget = z
     resource: secureEndpoint.optional(),
     resource_protocol: z.enum(["json", "mcp"]).optional(),
     resource_parameter: z.enum(["send", "omit"]).optional(),
+    mcp_endpoint: secureUrl.optional(),
+    mcp_transport: z.enum(["streamable-http", "sse"]).optional(),
+    mcp_post_endpoint: secureEndpoint.optional(),
     token_auth_method: z.enum([
       "none",
       "client_secret_basic",
@@ -93,6 +94,24 @@ export function nativeOAuthClientTarget(configuration: NativeConfiguration) {
     configuration.method !== "oauth" ||
     !configuration.clientId ||
     !redirect_uri
+  )
+    throw new NativeOAuthError("callback");
+  if (target.resource_protocol === "mcp") {
+    if (target.mcp_transport === "sse" && !target.mcp_post_endpoint)
+      throw new NativeOAuthError("callback");
+    validateNativeMcpBinding({
+      providerId: configuration.providerId,
+      fingerprint: configuration.fingerprint,
+      resource: target.resource ?? "",
+      endpoint: target.mcp_endpoint ?? target.resource ?? "",
+      issuer: target.issuer,
+      transport: target.mcp_transport ?? "streamable-http",
+      ssePostEndpoint: target.mcp_post_endpoint,
+    });
+  } else if (
+    target.mcp_endpoint ||
+    target.mcp_transport ||
+    target.mcp_post_endpoint
   )
     throw new NativeOAuthError("callback");
   return {
@@ -139,7 +158,13 @@ async function configuration(
   const { client_id, ...supplied } = input.parameters;
   const parameters = Object.fromEntries(
     Object.entries(supplied).filter(
-      ([key, value]) => key !== "resource_protocol" || value !== "",
+      ([key, value]) =>
+        ![
+          "resource_protocol",
+          "mcp_transport",
+          "mcp_post_endpoint",
+          "mcp_endpoint",
+        ].includes(key) || value !== "",
     ),
   );
   NativeOAuthClientTarget.parse(parameters);

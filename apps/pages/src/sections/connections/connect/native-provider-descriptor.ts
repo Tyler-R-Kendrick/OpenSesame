@@ -6,6 +6,7 @@ import type {
   OauthPreset,
 } from "@opensesame/app-core/lib/connect-plan.js";
 import type { NativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
+import { configuredNativeOAuthPreset } from "@opensesame/app-core/lib/native-oauth-resource-preset.js";
 import { nativeBrowserOAuthDescriptor } from "./native-browser-oauth-descriptor.js";
 import type {
   NativeConnectorDescriptor,
@@ -13,8 +14,9 @@ import type {
   NativeScopeGroup,
 } from "./native-connector-ui.js";
 import {
-  nativeCimdApplicationDescriptor,
+  type NativeOAuthResourceOptions,
   nativeOAuthResourceDescriptor,
+  nativePublicApplicationDescriptor,
 } from "./native-oauth-resource-descriptor.js";
 import {
   providerApiKeyFields,
@@ -196,21 +198,29 @@ function publicOAuthDescriptor(
   availability: BrowserProviderAvailability,
   method: Extract<ConnectMethod, { kind: "oauth" }>,
 ): NativeMethodDescriptor {
-  const preset = availability.oauth.preset ?? method.preset;
+  const configured = configuredNativeOAuthPreset(plan);
+  const preset =
+    availability.oauth.preset ?? method.preset ?? configured?.preset;
   const profile = availability.oauth.profile;
+  const options: NativeOAuthResourceOptions = configured ?? {};
   if (availability.oauth.available && profile) {
     const publicMethod = nativeBrowserOAuthDescriptor(
       plan,
       profile,
       availability.callbackUrl,
     );
-    return profile.mode === "cimd" && preset
-      ? nativeCimdApplicationDescriptor(
+    return preset
+      ? nativePublicApplicationDescriptor(
           preset,
           availability.callbackUrl,
           true,
           publicMethod,
           profile,
+          {
+            ...options,
+            resourceParameter:
+              profile.mode === "google-token" ? "omit" : undefined,
+          },
         )
       : publicMethod;
   }
@@ -223,7 +233,7 @@ function publicOAuthDescriptor(
       preset,
       availability.callbackUrl,
       true,
-      "omit",
+      { resourceParameter: "omit" },
     );
   if (profile)
     return oauthDescriptor(
@@ -240,6 +250,34 @@ function publicOAuthDescriptor(
   return oauthDescriptor(method, availability.oauth, availability.callbackUrl);
 }
 
+function additionalOAuthMethod(
+  plan: ConnectPlan,
+  availability: BrowserProviderAvailability,
+): NativeMethodDescriptor | null {
+  if (availability.oauth.available && availability.oauth.profile)
+    return publicOAuthDescriptor(plan, availability, {
+      kind: "oauth",
+      preset: availability.oauth.preset ?? null,
+    });
+  const configured = configuredNativeOAuthPreset(plan);
+  if (configured)
+    return nativeOAuthResourceDescriptor(
+      configured.preset,
+      availability.callbackUrl,
+      availability.oauth.registeredAvailable ?? availability.oauth.available,
+      configured,
+    );
+  if (
+    (availability.oauth.available || availability.oauth.registeredAvailable) &&
+    (availability.oauth.profile || availability.oauth.preset)
+  )
+    return publicOAuthDescriptor(plan, availability, {
+      kind: "oauth",
+      preset: availability.oauth.preset ?? null,
+    });
+  return null;
+}
+
 function providerMethods(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
@@ -253,16 +291,10 @@ function providerMethods(
     if (method.kind === "mcp")
       methods.push(mcpDescriptor(method, availability.mcp));
   }
-  const publicOAuth =
-    (availability.oauth.available || availability.oauth.registeredAvailable) &&
-    (availability.oauth.profile || availability.oauth.preset);
-  if (publicOAuth && !plan.methods.some((method) => method.kind === "oauth"))
-    methods.push(
-      publicOAuthDescriptor(plan, availability, {
-        kind: "oauth",
-        preset: availability.oauth.preset ?? null,
-      }),
-    );
+  if (!methods.some((method) => method.id === "oauth")) {
+    const additional = additionalOAuthMethod(plan, availability);
+    if (additional) methods.unshift(additional);
+  }
   return methods;
 }
 

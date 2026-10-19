@@ -1,5 +1,6 @@
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
+import { configuredNativeOAuthPreset } from "@opensesame/app-core/lib/native-oauth-resource-preset.js";
 import { expect, it } from "vitest";
 import { nativeOAuthClientConfigured } from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
 import { nativeBrowserOAuthDescriptor } from "./native-browser-oauth-descriptor.js";
@@ -13,7 +14,10 @@ import {
   nativeVisibleFields,
 } from "./native-connector-ui-values.js";
 import { nativeUiView } from "./native-connector-ui.test-support.js";
-import { nativeOAuthResourceDescriptor } from "./native-oauth-resource-descriptor.js";
+import {
+  nativeOAuthResourceDescriptor,
+  nativePublicApplicationDescriptor,
+} from "./native-oauth-resource-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 import { nativePolicyMethod } from "./native-provider-policy.js";
 const callbackUrl = "https://operator.example/auth/native-connector.html";
@@ -73,12 +77,35 @@ it.each([
     oauth: { available: true, profile },
     mcp: { available: false, actor: "user" },
   });
-  expect(descriptor.methods.find((row) => row.id === "oauth")).toEqual(
-    nativePolicyMethod(
-      f.plan.id,
-      nativeBrowserOAuthDescriptor(f.plan, profile, callbackUrl),
-    ),
+  const configured = configuredNativeOAuthPreset(f.plan);
+  const publicMethod = nativeBrowserOAuthDescriptor(
+    f.plan,
+    profile,
+    callbackUrl,
   );
+  const expected = configured
+    ? nativePublicApplicationDescriptor(
+        configured.preset,
+        callbackUrl,
+        true,
+        publicMethod,
+        profile,
+        {
+          ...configured,
+          resourceParameter:
+            profile.mode === "google-token" ? "omit" : undefined,
+        },
+      )
+    : publicMethod;
+  const method = descriptor.methods.find((row) => row.id === "oauth");
+  expect(method).toEqual(nativePolicyMethod(f.plan.id, expected));
+  if (!method) throw new Error("Missing composed form");
+  const values = nativeInitialValues(method);
+  expect(
+    nativeVisibleFields(method.fields, values)
+      .filter((field) => field.id !== "token_auth_method")
+      .map((field) => field.id),
+  ).toEqual(publicMethod.fields.map((field) => field.id));
 });
 it("requires resubmitting the secret after editing an exact saved endpoint binding", () => {
   const method = nativeOAuthResourceDescriptor(
@@ -208,3 +235,44 @@ it.each<Record<string, string>>([
     expect(() => nativeOAuthClientConfigured(view.configuration)).toThrow();
   },
 );
+
+it("initializes nested MCP defaults through the real public-to-registered mode change and clears hidden secrets", () => {
+  const plan = connectPlan("vercel");
+  const profile = nativeBrowserOAuthProfile("vercel");
+  if (!plan || !profile) throw new Error("Missing real Vercel contract");
+  const descriptor = nativeProviderDescriptor(plan, {
+    callbackUrl,
+    apiKey: { available: false },
+    oauth: { available: true, registeredAvailable: true, profile },
+    mcp: { available: false, actor: "user" },
+  });
+  const method = descriptor.methods.find((row) => row.id === "oauth");
+  if (!method) throw new Error("Missing registered mode");
+  let values = nativeInitialValues(method);
+  expect(values.token_auth_method).toBe("provider");
+  values = nativeNextValues(
+    method.fields,
+    values,
+    "token_auth_method",
+    "client_secret_post",
+  );
+  expect(values.resource_protocol).toBe("");
+  values = nativeNextValues(method.fields, values, "resource_protocol", "mcp");
+  expect(values).toMatchObject({
+    resource_protocol: "mcp",
+    mcp_transport: "streamable-http",
+    mcp_endpoint: "https://mcp.vercel.com",
+  });
+  const visible = nativeVisibleFields(method.fields, values);
+  expect(new Set(visible.map((field) => field.id)).size).toBe(visible.length);
+  values.client_secret = "unsaved ephemeral value";
+  values = nativeNextValues(
+    method.fields,
+    values,
+    "token_auth_method",
+    "provider",
+  );
+  expect(nativeFieldValues(method.fields, values, true)).toEqual({});
+  expect(values).not.toHaveProperty("mcp_endpoint");
+  expect(values).not.toHaveProperty("client_secret");
+});

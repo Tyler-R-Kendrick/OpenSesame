@@ -124,6 +124,8 @@ function primaryActions(
   name: string,
 ): readonly NativeActionDescriptor[] {
   const configured = nativeOAuthClientConfigured(view.configuration);
+  if (configured && view.configuration.parameters.resource_protocol === "mcp")
+    return [];
   const resources = configured
     ? [{ id: "provider.resource.read", label: "Read configured API resource" }]
     : nativeApiResourceActions(view.providerId, view.configuration.method);
@@ -234,6 +236,14 @@ function backupControls(
   ) : null;
 }
 
+function usesMcp(view: NativeConnectorView) {
+  return (
+    view.configuration.method === "mcp" ||
+    (nativeOAuthClientConfigured(view.configuration) &&
+      view.configuration.parameters.resource_protocol === "mcp")
+  );
+}
+
 export function NativeConnectorPanels({
   provider,
   connection,
@@ -320,7 +330,7 @@ export function NativeConnectorPanels({
             authorization={pending.authorization}
           />
           {backupControls(view, onFlash)}
-          {view.configuration.method === "mcp" ? (
+          {usesMcp(view) ? (
             <NativeMcpTools
               view={view}
               controller={controller}

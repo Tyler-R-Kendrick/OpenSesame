@@ -38,11 +38,69 @@ function resourceParameterFields(value?: "send" | "omit"): NativeField[] {
       ]
     : [];
 }
+export type NativeOAuthResourceOptions = {
+  resourceParameter?: "send" | "omit";
+  protocol?: "mcp";
+  endpoint?: string;
+  transport?: "streamable-http" | "sse";
+  postEndpoint?: string;
+};
+function mcpFields(options: NativeOAuthResourceOptions): NativeField[] {
+  const when = { fieldId: "resource_protocol", value: "mcp" };
+  return [
+    {
+      id: "resource_protocol",
+      label: "Resource API protocol",
+      kind: "choice",
+      secret: false,
+      required: false,
+      defaultValue: options.protocol,
+      choices: [
+        { id: "json", label: "JSON HTTP API" },
+        { id: "mcp", label: "MCP" },
+      ],
+      help: "MCP verifies initialization and advertised tools before connecting. JSON verifies an actual resource read.",
+    },
+    {
+      id: "mcp_endpoint",
+      label: "MCP server endpoint",
+      kind: "url",
+      secret: false,
+      required: true,
+      defaultValue: options.endpoint,
+      when,
+      help: "The exact MCP request URL; the API resource above remains its OAuth audience. Never put credentials in a URL.",
+    },
+    {
+      id: "mcp_transport",
+      label: "MCP transport",
+      kind: "choice",
+      secret: false,
+      required: true,
+      defaultValue: options.transport ?? "streamable-http",
+      when,
+      choices: [
+        { id: "streamable-http", label: "Streamable HTTP" },
+        { id: "sse", label: "Legacy SSE" },
+      ],
+    },
+    {
+      id: "mcp_post_endpoint",
+      label: "MCP messages endpoint",
+      kind: "url",
+      secret: false,
+      required: false,
+      defaultValue: options.postEndpoint,
+      when,
+      help: "Required for Legacy SSE. Pin the provider's exact same-origin messages path; a server announcement cannot expand this destination.",
+    },
+  ];
+}
 export function nativeOAuthResourceDescriptor(
   preset: OauthPreset,
   callbackUrl: string,
   available: boolean,
-  resourceParameter?: "send" | "omit",
+  options: NativeOAuthResourceOptions = {},
 ): NativeMethodDescriptor {
   const secret = (
     method: "client_secret_basic" | "client_secret_post",
@@ -110,7 +168,8 @@ export function nativeOAuthResourceDescriptor(
           { id: "client_secret_post", label: "Client secret in request body" },
         ],
       },
-      ...resourceParameterFields(resourceParameter),
+      ...resourceParameterFields(options.resourceParameter),
+      ...mcpFields(options),
       secret("client_secret_basic"),
       secret("client_secret_post"),
     ],
@@ -124,23 +183,25 @@ export function nativeOAuthResourceDescriptor(
 }
 
 /** Reuse common conditional fields; only one variant of each field ID is visible. */
-export function nativeCimdApplicationDescriptor(
+export function nativePublicApplicationDescriptor(
   preset: OauthPreset,
   callbackUrl: string,
   available: boolean,
   publicMethod: NativeMethodDescriptor,
   profile: NativeBrowserOAuthProfile,
+  options: NativeOAuthResourceOptions = {},
 ): NativeMethodDescriptor {
   const registered = nativeOAuthResourceDescriptor(
     preset,
     callbackUrl,
     available,
+    options,
   );
   const selector = registered.fields.find(
     (field) => field.id === "token_auth_method",
   );
-  if (!selector || profile.mode !== "cimd")
-    throw new Error("Expected a CIMD application contract");
+  if (!selector) throw new Error("Expected an OAuth application contract");
+  const mode = profile.mode === "cimd" ? "cimd" : "provider";
   const methods = ["none", "client_secret_basic", "client_secret_post"];
   return {
     ...registered,
@@ -149,15 +210,21 @@ export function nativeCimdApplicationDescriptor(
       {
         ...selector,
         label: "OAuth application",
-        defaultValue: "cimd",
+        defaultValue: mode,
         choices: [
-          { id: "cimd", label: "Provider-managed metadata (CIMD)" },
+          {
+            id: mode,
+            label:
+              profile.mode === "cimd"
+                ? "Provider-managed metadata (CIMD)"
+                : publicMethod.label,
+          },
           ...(selector.choices ?? []),
         ],
       },
       ...publicMethod.fields.map((field) => ({
         ...field,
-        when: { fieldId: "token_auth_method", value: "cimd" },
+        when: { fieldId: "token_auth_method", value: mode },
       })),
       ...registered.fields
         .filter((field) => field.id !== "token_auth_method")
@@ -170,6 +237,23 @@ export function nativeCimdApplicationDescriptor(
               })),
         ),
     ],
+    scopeGroups: publicMethod.scopeGroups.length
+      ? publicMethod.scopeGroups.map((group) => ({
+          ...group,
+          choices: [
+            ...new Map(
+              [
+                ...(
+                  registered.scopeGroups.find(
+                    (row) => row.actor === group.actor,
+                  )?.choices ?? []
+                ).map((choice) => ({ ...choice, default: false })),
+                ...group.choices,
+              ].map((choice) => [choice.name, choice]),
+            ).values(),
+          ],
+        }))
+      : registered.scopeGroups,
     instructions: `${publicMethod.instructions}\n${registered.instructions}`,
     links: [...(publicMethod.links ?? []), ...(registered.links ?? [])],
   };

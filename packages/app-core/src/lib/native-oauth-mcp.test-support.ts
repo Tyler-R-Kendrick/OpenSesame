@@ -27,6 +27,7 @@ export type McpClientMethod =
   | "client_secret_post";
 type State = {
   challenge: string;
+  scope: string;
   resource: string;
   redirect: string;
   format: "json" | "sse";
@@ -134,7 +135,7 @@ function token(
       refresh_token: MCP_REFRESH,
       token_type: "Bearer",
       expires_in: 3600,
-      scope: "read:tools",
+      scope: state.scope,
     }),
   );
 }
@@ -312,6 +313,7 @@ function mcpHandler(
 export async function oauthMcpFixture(
   method: McpClientMethod = "none",
   format: "json" | "sse" = "json",
+  approvedScope: "read:tools" | "openid profile" = "read:tools",
 ) {
   const local = await runtimeFixture();
   const tls = tlsCertificate();
@@ -319,6 +321,7 @@ export async function oauthMcpFixture(
   const faults: string[] = [];
   const state: State = {
     challenge: "",
+    scope: approvedScope,
     resource: "",
     redirect: "https://operator.example/auth/native-connector.html",
     format,

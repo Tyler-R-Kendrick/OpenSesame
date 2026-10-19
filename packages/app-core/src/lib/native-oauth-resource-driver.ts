@@ -4,6 +4,7 @@ import { cancelNativeBrowserConsent } from "./native-browser-oauth-cancel.js";
 import type { NativeConnectorDriver } from "./native-connector-drivers.js";
 import type { NativeCleanupOutcome } from "./native-connector-lifecycle.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
+import { invokeNativeMcpAction } from "./native-mcp-connectors.js";
 import { nativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 import {
   type NativeOAuthClientOwner,
@@ -15,6 +16,11 @@ import {
 } from "./native-oauth-client-config.js";
 import { exchangeNativeOAuthClient } from "./native-oauth-client-exchange.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
+import {
+  invokeNativeOAuthMcpTool,
+  listNativeOAuthMcpTools,
+  verifyNativeOAuthMcpResource,
+} from "./native-oauth-mcp-operations.js";
 import { verifyNativeOAuthResource } from "./native-oauth-resource.js";
 import {
   requireNativeOAuthRecord,
@@ -70,6 +76,16 @@ function resourceOperations(ports: NativeOAuthResourceDriverPorts) {
     }
   };
 }
+function isMcp(id: string) {
+  return (
+    nativeOAuthClientTarget(requireNativeOAuthRecord(id).configuration)
+      .resource_protocol === "mcp"
+  );
+}
+const verifyResource = (id: string, owner: NativeOAuthClientOwner) =>
+  isMcp(id)
+    ? verifyNativeOAuthMcpResource(id, owner)
+    : verifyNativeOAuthResource(id, owner);
 export function createNativeOAuthResourceDriver(
   ports: NativeOAuthResourceDriverPorts,
 ): NativeConnectorDriver {
@@ -98,7 +114,7 @@ export function createNativeOAuthResourceDriver(
             signal: owner.transport.signal,
           });
           await exchangeNativeOAuthClient(callback, owner);
-          await verifyNativeOAuthResource(id, owner);
+          await verifyResource(id, owner);
         } catch (error) {
           await cancelNativeBrowserConsent(
             id,
@@ -109,9 +125,15 @@ export function createNativeOAuthResourceDriver(
         }
       }),
     verify: (id) =>
-      owned(async (owner) => (await verifyNativeOAuthResource(id, owner)).view),
+      owned(async (owner) => (await verifyResource(id, owner)).view),
     invoke: (id, operation, input, signal) =>
       owned(async (owner) => {
+        if (isMcp(id))
+          return invokeNativeMcpAction(operation, input, {
+            list: () => listNativeOAuthMcpTools(id, owner),
+            call: (name, args) =>
+              invokeNativeOAuthMcpTool(id, name, args, owner),
+          });
         if (operation !== "provider.resource.read" || Object.keys(input).length)
           throw new NativeOAuthError("scope");
         const result = await verifyNativeOAuthResource(id, owner);
