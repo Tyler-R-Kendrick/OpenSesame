@@ -10,6 +10,7 @@ mod entry;
 mod envelope;
 mod generate;
 mod git;
+mod git_exec;
 mod gpg;
 mod history;
 mod manifest;

@@ -57,6 +57,7 @@ members = [
   "crates/task-bus",
   "crates/pki-core",
   "crates/transport-security",
+  "crates/trusted-exec",
   "crates/spiffe-source",
   "crates/ingress-evidence",
   "crates/nats-callout",
