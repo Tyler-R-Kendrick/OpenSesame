@@ -411,7 +411,9 @@ jobs:
         if: matrix.shard == 'customer-crypto'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-        run: pnpm verify:customer-vault-browser
+        run: |
+          pnpm verify:customer-vault-browser
+          pnpm --filter @opensesame/pages exec node --test --test-isolation=none --test-concurrency=1 --test-timeout=20000 scripts/verify-kdbx-native-dom.mjs
       - name: Native provider configuration and encrypted reloads
         if: matrix.shard == 'native-connectors'
         env:

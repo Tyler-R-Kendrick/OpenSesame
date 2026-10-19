@@ -10,6 +10,7 @@ import { bundleChunk } from "./scripts/bundle-chunk.mjs";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { kdbxNativeDOM } from "./scripts/kdbx-native-dom-plugin.mjs";
 import { writePrivateSnapshot } from "./scripts/lib/private-files.mjs";
 import { mcpBrowserValidator } from "./scripts/mcp-browser-validator.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
@@ -285,6 +286,7 @@ export default defineConfig({
     },
     mcpBrowserValidator(fileURLToPath(new URL("../..", import.meta.url))),
     samlBrowserCrypto(fileURLToPath(new URL("../..", import.meta.url))),
+    kdbxNativeDOM(fileURLToPath(new URL("../..", import.meta.url))),
     nativeClientMetadataPlugin(base),
     nativeSamlCallbackPlugin(),
     githubAppRelayPlugin(),
