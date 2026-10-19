@@ -106,6 +106,12 @@ export async function readAiTextStream(
   check: () => void,
   signal: AbortSignal,
 ): Promise<string> {
+  if (family === "bedrock_converse")
+    throw new AiConnectionError(
+      "configuration",
+      "Bedrock Converse uses a finite response, not this text-stream protocol.",
+    );
+
   if (
     !response.headers
       .get("content-type")

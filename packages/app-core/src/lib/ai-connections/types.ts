@@ -1,6 +1,10 @@
 import type { CallProtocol } from "../model-keys/protocols.js";
+import type { BedrockAiTarget } from "./bedrock-target.js";
 import type { VertexAiTarget } from "./vertex-target.js";
-export type AiInferenceFamily = CallProtocol | "openai_responses";
+export type AiInferenceFamily =
+  | CallProtocol
+  | "openai_responses"
+  | "bedrock_converse";
 
 /** Azure target metadata is public; the supplied key or Entra token is not. */
 export type AzureOpenAiTarget =
@@ -24,6 +28,7 @@ export type AiConnectionDraft = {
   /** Unactivated until strict configuration and persistence support this target. */
   azure?: AzureOpenAiTarget;
   vertex?: VertexAiTarget;
+  bedrock?: BedrockAiTarget;
 };
 
 export type AiConnectionTransport = {

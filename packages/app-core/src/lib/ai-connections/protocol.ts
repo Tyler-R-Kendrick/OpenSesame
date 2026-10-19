@@ -26,6 +26,11 @@ export function aiInferenceRequest(
   input: HostedModelInput,
   stream = false,
 ) {
+  if (draft.family === "bedrock_converse")
+    throw new AiConnectionError(
+      "configuration",
+      "Bedrock Converse requires its signed finite request adapter.",
+    );
   const base = aiConnectionBase(draft.baseUrl);
   const azure = azureInferenceUrl(draft, base);
   const provider =
@@ -59,6 +64,11 @@ export function aiInferenceRequest(
 }
 
 export function aiConnectionHeaders(draft: AiConnectionDraft): Headers {
+  if (draft.family === "bedrock_converse")
+    throw new AiConnectionError(
+      "configuration",
+      "Bedrock credentials must be signed, never sent as an API key.",
+    );
   const azure = azureConnectionHeaders(draft);
   if (azure) return azure;
   const headers = new Headers({ "content-type": "application/json" });
@@ -92,6 +102,11 @@ export function aiInferenceAnswer(
   family: AiInferenceFamily,
   value: BoundaryValue,
 ): string {
+  if (family === "bedrock_converse")
+    throw new AiConnectionError(
+      "configuration",
+      "Read Bedrock Converse through its finite response adapter.",
+    );
   if (family === "openai_responses") {
     const response = z
       .object({
