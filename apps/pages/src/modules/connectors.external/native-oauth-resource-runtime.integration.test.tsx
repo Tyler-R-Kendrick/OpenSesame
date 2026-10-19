@@ -1,3 +1,5 @@
+/** @vitest-environment jsdom */
+/** @vitest-environment-options {"url":"https://opensesame.example.test"} */
 import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { nativeDeviceViewSeams } from "@opensesame/app-core/lib/device-connector-view.js";
@@ -27,7 +29,6 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-/** @vitest-environment jsdom */
 import { afterEach, expect, it } from "vitest";
 import { NativeConnectorForm } from "../../sections/connections/connect/NativeConnectorForm.js";
 import { nativeConnectorController } from "../../sections/connections/connect/native-connector-controller.js";
@@ -321,14 +322,13 @@ it.each([
     );
   },
 );
-
 it("preserves genuine WorkOS CIMD selection and its legacy saved bytes", async () => {
   const f = await setup("workos", "none");
   const plan = connectPlan("workos");
   const profile = nativeBrowserOAuthProfile("workos");
   if (!plan || !profile) throw new Error("Missing WorkOS contract");
   const descriptor = nativeProviderDescriptor(plan, {
-    callbackUrl: nativeCallbackUrl(),
+    callbackUrl: f.state.redirectUri,
     apiKey: { available: false },
     oauth: { available: true, profile },
     mcp: { available: false, actor: "user" },
@@ -346,7 +346,7 @@ it("preserves genuine WorkOS CIMD selection and its legacy saved bytes", async (
     requestedScopes: { user: [...profile.requiredScopes] },
   });
   expect(view.configuration.clientId).toBe(
-    new URL("native-client.json", nativeCallbackUrl()).href,
+    new URL("native-client.json", f.state.redirectUri).href,
   );
   expect(view.configuration.parameters).toEqual({});
   expect(nativeOAuthClientConfigured(view.configuration)).toBe(false);

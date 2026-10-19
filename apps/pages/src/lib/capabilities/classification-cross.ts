@@ -21,7 +21,7 @@
  * tie with the same prefix in `classification-lib.ts` or `-sections.ts`.
  */
 
-import { optional, shared } from "./classification-rule.js";
+import { core, optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
 const S = "src/sections/identity/";
@@ -192,6 +192,16 @@ export const CROSS_RULES = [
     `${L}connector-action-capability`,
     "connectors.external",
     "connector catalogue actions derived from actual browser routes and verified connections",
+  ),
+  optional(
+    `${L}connector-action-configurable.test`,
+    "connectors.external",
+    "connector configuration action regression tests",
+  ),
+  core(
+    `${L}operator-saml-config.test`,
+    "settings.core",
+    "SAML public trust settings regression tests",
   ),
   optional(
     `${L}browser-disposition`,
