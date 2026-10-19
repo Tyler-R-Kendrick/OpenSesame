@@ -92,7 +92,7 @@
       },
       {
         "path": "operations.go",
-        "sha256": "a01fc67ca8fe048c84f6cce9a2b48c1053ef09615d1cd472356cca7cb9d80856"
+        "sha256": "6bdb6c6397f9fa824a0a0615cd4e71f6519cf2cd113cfd0aa1d2afde1d21da38"
       },
       {
         "path": "operations_test.go",
@@ -101,9 +101,21 @@
       {
         "path": "operations_tls_test.go",
         "sha256": "d053cf6f7cc73ac425530431ee12086b6e7a2cae02ee755a71ff381f2625daef"
+      },
+      {
+        "path": "streaming.go",
+        "sha256": "717429cc2e7fc8d8b92bd1320c61d48f15190c575210a416916678c033e16e47"
+      },
+      {
+        "path": "streaming_test.go",
+        "sha256": "1797eaf26993a30703d7a9af3325b1cfdf782fcfc9150de4c522043d91079780"
+      },
+      {
+        "path": "streaming_drain_test.go",
+        "sha256": "fd1a4751d38a3acc61a16e2bf92a6d773314541e1b5dab967ce72fdfdacd415c"
       }
     ],
-    "qualification": "Stage only these eight pinned overlays into a fresh owned directory. Physical drain and the bounded operation registry are unactivated foundations exercised by actual owned host TLS tests, not node/worker browser activation. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not certify public trust, routes, DNS, exit selection, JS publication or provider integrations."
+    "qualification": "Stage only these eleven pinned overlays into a fresh owned directory. Physical drain and the bounded operation registry are unactivated foundations exercised by actual owned host TLS tests, not node/worker browser activation. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not certify public trust, routes, DNS, exit selection, JS publication or provider integrations. Streaming primitives are not yet connected to the syscall/js bridge or Worker; Go source, formatting or host tests do not prove actual PWA streaming."
   },
   "nativeBridge": {
     "status": "UNACTIVATED in the PWA; actual Go1.27.2 native package and original-node WASM compilation now proved in separately pinned private receipts. No WASM execution, worker/provider or browser route proved.",
@@ -352,7 +364,7 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "6c4e109474ff5ca5f61e7e82ab566faf1e7bee91248004fd1ca1f890293420cf"
+        "sha256": "c3ca5600b595d52029b6c902a64e5253eabc4540b4aba5ed42ce0a93e414dd83"
       },
       {
         "path": "compose-native.mjs",
@@ -364,7 +376,7 @@
       },
       {
         "path": "compose-native.test.mjs",
-        "sha256": "9d06a0549a115824749faf163b57bf219e9bbc0a4747a30e2ec6ad535f996185"
+        "sha256": "6499c6b13b8fc398ff501971c2b28e2ef97facc3023e6dff909febca41a01b3c"
       },
       {
         "path": "compress-wasm.mjs",

@@ -52,6 +52,7 @@ type Operation struct {
 	phase    operationPhase
 	stopped  bool
 	response Response
+	stream   *streamResponse
 	retired  chan struct{}
 }
 
@@ -84,6 +85,7 @@ func (registry *Registry) retireLocked(op *Operation) operationCleanup {
 	cleanup := operationCleanup{op.stop, op.cancel}
 	op.stop, op.cancel = nil, nil
 	op.input, op.response = Request{}, Response{}
+	op.stream = nil
 	return cleanup
 }
 
@@ -244,7 +246,7 @@ func (op *Operation) Borrow() (Response, error) {
 	if !op.registry.liveLocked(op) {
 		return Response{}, errStopped
 	}
-	if op.phase != ready {
+	if op.phase != ready || op.stream != nil {
 		return Response{}, errUsed
 	}
 	op.phase = publishing

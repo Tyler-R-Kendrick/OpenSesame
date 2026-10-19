@@ -200,9 +200,17 @@ test("real compiled WASM, compiler shim and bundled bridge emit exact hash-named
     gunzipSync(await read(result.assets.wasm)),
     await readFile(wasm),
   );
-  assert.deepEqual(
-    await read(result.assets.runtime),
-    await readFile(join(compiler, "lib/wasm/wasm_exec.js")),
+  assert.equal(
+    hash(await readFile(join(compiler, "lib/wasm/wasm_exec.js"))),
+    scope.pins.composition.runtimeSha256,
+  );
+  assert.equal(
+    hash(await read(result.assets.runtime)),
+    scope.pins.composition.runtimeMinifiedSha256,
+  );
+  assert.equal(
+    hash(await read(result.assets.nativeHTTP)),
+    scope.pins.composition.bridgeSha256,
   );
   for (const asset of [
     ...Object.values(result.assets),
