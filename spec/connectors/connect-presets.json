@@ -4942,24 +4942,57 @@
       "basic": null,
       "key_prefix": null,
       "service_urls": [
-        "https://api.lithic.com/v1",
-        "https://sandbox.lithic.com/v1"
+        "https://sandbox.lithic.com/v1",
+        "https://api.lithic.com/v1"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.lithic.com/v1/cards?page_size=1",
+        "url": "https://sandbox.lithic.com/v1/cards?page_size=20",
+        "headers": {
+          "api-version": "2026-07-01"
+        },
         "account_field": null
       },
-      "instructions": "Sign in to [Lithic](https://app.lithic.com/settings) and copy the API key from **Settings** (Sandbox key by default; a Production key appears once production is enabled).",
+      "instructions": "Copy an API key from [Lithic Settings](https://app.lithic.com/settings). Select **Sandbox** for a sandbox key or **Production** for a production key. Only the first 20 card identifiers, states and types are read; card details and payment writes are unavailable.",
       "docs_url": "https://docs.lithic.com/docs/api-basics",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "Raw key in Authorization. Sandbox keys work only against https://sandbox.lithic.com/v1.",
+      "notes": "Raw Authorization key, explicitly selected environment, api-version 2026-07-01. GET first-page non-PCI card inventory only.",
       "sources": [
         "https://docs.lithic.com/docs/get-api-key.md",
-        "https://docs.lithic.com/docs/api-basics.md"
+        "https://docs.lithic.com/docs/api-basics.md",
+        "https://docs.lithic.com/docs/api-versioning.md",
+        "https://docs.lithic.com/reference/getcards.md"
       ],
-      "template_params": []
+      "template_params": [],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Sandbox",
+          "description": "Use only your sandbox API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox.lithic.com/v1/cards?page_size=20",
+            "headers": {
+              "api-version": "2026-07-01"
+            },
+            "account_field": null
+          }
+        },
+        {
+          "id": "production",
+          "label": "Production",
+          "description": "Use only your production API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://api.lithic.com/v1/cards?page_size=20",
+            "headers": {
+              "api-version": "2026-07-01"
+            },
+            "account_field": null
+          }
+        }
+      ]
     },
     {
       "service": "llmgateway",

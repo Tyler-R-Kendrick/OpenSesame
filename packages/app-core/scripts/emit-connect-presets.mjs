@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderPackedJsonRows } from "./pack-json.mjs";
+import { lithicReadContract } from "./readonly-lithic.mjs";
 import { razorpayReadContract } from "./readonly-razorpay.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -60,7 +61,13 @@ const CATEGORY_OVERRIDE = {
 };
 
 /** Payment writes remain refused; only explicit bounded read contracts are admitted. */
-const REFUSED = new Set(["stripe", "stripe-issuing", "razorpay", "agentcard"]);
+const REFUSED = new Set([
+  "stripe",
+  "stripe-issuing",
+  "razorpay",
+  "lithic",
+  "agentcard",
+]);
 
 /** Spending and issuing remain outside the connector's read-only authority. */
 function refused(id, row) {
@@ -307,7 +314,8 @@ function stripeReadContract(id, apiKey) {
 function planFor(id, service, row, oauth, apiKey) {
   const safeRead =
     stripeReadContract(id, apiKey) ||
-    (id === "razorpay" && razorpayReadContract(apiKey));
+    (id === "razorpay" && razorpayReadContract(apiKey)) ||
+    (id === "lithic" && lithicReadContract(apiKey));
   return {
     id,
     name: service?.name ?? row?.display_name ?? id,
@@ -315,7 +323,7 @@ function planFor(id, service, row, oauth, apiKey) {
     category: categoryFor(id, service, row),
     registry: Boolean(service),
     refused: refused(id, row) && !safeRead,
-    methods: ["stripe", "stripe-issuing", "razorpay"].includes(id)
+    methods: ["stripe", "stripe-issuing", "razorpay", "lithic"].includes(id)
       ? safeRead
         ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
         : []

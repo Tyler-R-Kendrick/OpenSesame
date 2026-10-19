@@ -5,6 +5,11 @@ import {
 } from "../../../../scripts/lib/json-boundary.mjs";
 import { NATIVE_CONNECT_PLAN_JSON as CONNECT_PLAN_JSON } from "./native-browser-catalog-projection.mjs";
 
+import {
+  LITHIC_PROBE_REPLY,
+  LITHIC_READ,
+} from "./native-browser-lithic-fixture.mjs";
+
 const PARAMETER_VALUES = {
   application_id: "contractapp",
   company_domain: "contractcompany",
@@ -16,6 +21,7 @@ const PARAMETER_VALUES = {
 };
 
 const DOCUMENTED_PROBE_REPLIES = {
+  lithic: LITHIC_PROBE_REPLY,
   razorpay: {
     entity: "collection",
     count: 1,
@@ -128,6 +134,7 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
+  lithic: LITHIC_READ,
   datadog: {
     id: "provider.monitors.read",
     label: "List monitors",
@@ -296,7 +303,12 @@ function setField(root, path, value) {
 function verificationReply(id, verification) {
   const documented = DOCUMENTED_PROBE_REPLIES[id];
   // Strict payment reads need their documented typed collections, not string placeholders.
-  if (id === "stripe" || id === "stripe-issuing" || id === "razorpay")
+  if (
+    id === "stripe" ||
+    id === "stripe-issuing" ||
+    id === "razorpay" ||
+    id === "lithic"
+  )
     return structuredClone(documented);
   if (
     !documented &&
@@ -348,6 +360,10 @@ export function nativeApiFixture(plan, variantId) {
   const { parameters, credentials } = fixtureCredentials(plan, preset, variant);
   const reply = verificationReply(plan.id, preset.verify);
   if (!reply) return null;
+  const read = DOCUMENTED_READS[plan.id]
+    ? structuredClone(DOCUMENTED_READS[plan.id])
+    : null;
+  if (read && plan.id === "lithic") read.url = preset.verify.url;
   return {
     providerId: plan.id,
     name: plan.name,
@@ -356,9 +372,7 @@ export function nativeApiFixture(plan, variantId) {
     parameters,
     credentials,
     reply,
-    read: DOCUMENTED_READS[plan.id]
-      ? structuredClone(DOCUMENTED_READS[plan.id])
-      : null,
+    read,
   };
 }
 

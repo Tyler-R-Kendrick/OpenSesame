@@ -11,13 +11,11 @@ import {
   assertNativeApiEditable,
 } from "./native-api-authority.js";
 import { NativeApiError, nativeApiHttp } from "./native-api-http.js";
+import { validateNativeApiInventory } from "./native-api-inventory.js";
 import {
   invalidateNativeApiProof,
   requireNativeApiBrowserAccess,
 } from "./native-api-proof.js";
-import { parseNativeRazorpayPayments } from "./native-api-razorpay.js";
-import { parseNativeStripeIssuingCards } from "./native-api-stripe-issuing.js";
-import { parseNativeStripeBalance } from "./native-api-stripe.js";
 import {
   type NativeApiTarget,
   nativeApiCredentials,
@@ -126,10 +124,7 @@ async function providerVerification(
   assertNativeApiBrowserTarget(target);
   const request = nativeApiVerificationRequest(target, credentials);
   const body = await nativeApiHttp(request, transport);
-  if (target.providerId === "razorpay") parseNativeRazorpayPayments(body);
-  if (target.providerId === "stripe") parseNativeStripeBalance(body);
-  if (target.providerId === "stripe-issuing")
-    parseNativeStripeIssuingCards(body);
+  validateNativeApiInventory(target.providerId, body);
   if (!target.profile.verify)
     throw new Error("Provider verification is unavailable");
   return {

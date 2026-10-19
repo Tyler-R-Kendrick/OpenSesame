@@ -3,6 +3,7 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import { readNativeAgentMailInboxes } from "./native-agentmail.js";
 import { NativeApiError } from "./native-api-http.js";
+import { projectNativeLithicCards } from "./native-api-lithic.js";
 import {
   type NativeApiOperationDefinition,
   executeNativeApiRequest,
@@ -219,6 +220,18 @@ function projectDatadogMonitors(body: BoundaryValue): BoundaryValue {
   };
 }
 const resources: readonly Resource[] = [
+  jsonResource(
+    "List cards",
+    {
+      providerId: "lithic",
+      operationId: "provider.cards.read",
+      method: "GET",
+      path: "/v1/cards",
+      query: { page_size: 20 },
+      headers: { "api-version": "2026-07-01" },
+    },
+    projectNativeLithicCards,
+  ),
   jsonResource(
     "List monitors",
     {
