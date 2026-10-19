@@ -6,7 +6,7 @@ import { inferBedrockAi } from "./bedrock-inference.js";
 import { aiConnectionFetch, readAiJson } from "./http.js";
 import { aiInferenceAnswer, aiInferenceRequest } from "./protocol.js";
 import { inferReplicateAi } from "./replicate-inference.js";
-import type { ReplicateInput } from "./replicate-types.js";
+import type { ReplicateInput, ReplicateRunOptions } from "./replicate-types.js";
 import { readAiTextStream } from "./stream.js";
 import {
   type AiConnectionDraft,
@@ -23,6 +23,7 @@ export async function inferAiConnection(
   transport: AiConnectionTransport,
   check: () => void,
   onText?: (text: string) => void,
+  predictionOptions: ReplicateRunOptions = {},
 ): Promise<HostedModelResult> {
   if (input.model !== draft.model)
     throw new AiConnectionError(
@@ -30,7 +31,14 @@ export async function inferAiConnection(
       "Use the model saved with this connection.",
     );
   if (draft.family === "replicate_predictions")
-    return inferReplicateAi(draft, input, transport, check, onText);
+    return inferReplicateAi(
+      draft,
+      input,
+      transport,
+      check,
+      onText,
+      predictionOptions,
+    );
   if (draft.family === "bedrock_converse")
     return inferBedrockAi(
       { ...draft, family: "bedrock_converse" },
@@ -85,6 +93,7 @@ export function probeAiConnection(
   transport: AiConnectionTransport,
   check: () => void,
   predictionInput?: ReplicateInput,
+  predictionOptions: ReplicateRunOptions = {},
 ) {
   if (draft.family === "replicate_predictions") {
     if (predictionInput === undefined)
@@ -100,6 +109,8 @@ export function probeAiConnection(
       },
       transport,
       check,
+      undefined,
+      predictionOptions,
     );
   }
   if (predictionInput !== undefined)

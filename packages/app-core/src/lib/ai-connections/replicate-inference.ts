@@ -6,7 +6,7 @@ import type {
   HostedModelResult,
 } from "../hosted-model-protocol.js";
 import { runReplicatePrediction } from "./replicate-run.js";
-import type { ReplicateInput } from "./replicate-types.js";
+import type { ReplicateInput, ReplicateRunOptions } from "./replicate-types.js";
 import {
   type AiConnectionDraft,
   AiConnectionError,
@@ -50,6 +50,7 @@ export async function inferReplicateAi(
   transport: AiConnectionTransport,
   check: () => void,
   onText?: (text: string) => void,
+  predictionOptions: ReplicateRunOptions = {},
 ): Promise<HostedModelResult> {
   check();
   transport.assertCurrent();
@@ -68,6 +69,7 @@ export async function inferReplicateAi(
     replicateOperationInput(input),
     transport,
     check,
+    predictionOptions,
   );
   const answer = isString(prediction.output)
     ? prediction.output
