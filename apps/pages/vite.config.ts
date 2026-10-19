@@ -10,6 +10,7 @@ import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { bundleChunk } from "./scripts/lib/bundle-chunk.mjs";
+import { mcpBrowserValidator } from "./scripts/mcp-browser-validator.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
 import { nativeSamlCallbackPlugin } from "./scripts/native-saml-callback-plugin.mjs";
 import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
@@ -264,6 +265,7 @@ export default defineConfig({
         },
       },
     },
+    mcpBrowserValidator(fileURLToPath(new URL("../..", import.meta.url))),
     nativeClientMetadataPlugin(base),
     nativeSamlCallbackPlugin(),
     githubAppRelayPlugin(),
