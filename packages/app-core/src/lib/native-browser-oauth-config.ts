@@ -5,6 +5,7 @@ import {
   browserOAuthScopes,
   requiredBrowserOAuthProfile,
 } from "./native-browser-oauth-profile.js";
+import { nativeCodebergBackupTarget } from "./native-codeberg-backup-target.js";
 import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 /** Public configuration is persisted separately from issued provider grants. */
 import type { NativeDriverInput } from "./native-connector-drivers.js";
@@ -44,6 +45,12 @@ async function oauthFingerprint(
     .map((value) => value.toString(16).padStart(2, "0"))
     .join("");
 }
+function validateBackupTarget(
+  providerId: string,
+  parameters: Record<string, string>,
+) {
+  if (providerId === "codeberg") nativeCodebergBackupTarget(parameters);
+}
 function oauthConfiguration(input: NativeDriverInput): NativeConfiguration {
   const profile = requiredBrowserOAuthProfile(input.providerId);
   const { client_id: suppliedClientId, ...parameters } = input.parameters;
@@ -73,6 +80,7 @@ function oauthConfiguration(input: NativeDriverInput): NativeConfiguration {
     throw new Error("Unknown browser provider parameter");
   if (Object.keys(input.requestedScopes).some((actor) => actor !== "user"))
     throw new Error("This provider supports delegated user permissions only");
+  validateBackupTarget(profile.id, parameters);
   const configuration: NativeConfiguration = {
     version: 1,
     providerId: input.providerId,
