@@ -2,7 +2,6 @@
 
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use opensesame_kdbx_bridge::{export_kdbx, import_kdbx, ExportOptions, ImportOptions};
@@ -15,6 +14,8 @@ use opensesame_sealed_store::{
 };
 mod mutations;
 pub use mutations::{cmd_generate, cmd_rotate, cmd_update, UpdateCliOpts};
+
+mod tomb_exec;
 
 pub fn require_reveal(reveal: bool) -> anyhow::Result<()> {
     crate::cli_app_integration::require_pass_reveal(reveal)
@@ -529,17 +530,6 @@ pub fn cmd_tomb_use(name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn which_tomb() -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path) {
-        let candidate = dir.join("tomb");
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
 /// Build argv for `tomb open|close` (no sudo).
 pub fn linux_tomb_args(open: bool, volume: &Path, key: &Path, mount: &Path) -> Vec<String> {
     if open {
@@ -564,14 +554,12 @@ pub fn cmd_open(name: Option<&str>) -> anyhow::Result<()> {
         save_tomb_registry(&cfg, &reg).map_err(|e| anyhow::anyhow!("{e}"))?;
     }
     if resolved.entry.backend == TombBackend::LinuxTomb {
-        let tomb = which_tomb().ok_or_else(|| {
-            anyhow::anyhow!("tomb binary not found on PATH; install Tomb or use a portable tomb")
-        })?;
+        let mut tomb = tomb_exec::tomb()?;
         let volume = resolved
             .volume
             .ok_or_else(|| anyhow::anyhow!("linux-tomb entry needs a volume path"))?;
         let args = linux_tomb_args(true, &volume, &resolved.key, &resolved.store);
-        let status = Command::new(&tomb).args(&args).status()?;
+        let status = tomb.args(&args).status()?;
         if !status.success() {
             anyhow::bail!("tomb open failed with {status}");
         }
@@ -585,11 +573,9 @@ pub fn cmd_close(name: Option<&str>) -> anyhow::Result<()> {
     let reg = load_tomb_registry(&cfg).map_err(|e| anyhow::anyhow!("{e}"))?;
     let resolved = resolve_tomb_paths(&reg, name).map_err(|e| anyhow::anyhow!("{e}"))?;
     if resolved.entry.backend == TombBackend::LinuxTomb {
-        let tomb = which_tomb().ok_or_else(|| {
-            anyhow::anyhow!("tomb binary not found on PATH; install Tomb or use a portable tomb")
-        })?;
+        let mut tomb = tomb_exec::tomb()?;
         let args = linux_tomb_args(false, Path::new(""), Path::new(""), &resolved.store);
-        let status = Command::new(&tomb).args(&args).status()?;
+        let status = tomb.args(&args).status()?;
         if !status.success() {
             anyhow::bail!("tomb close failed with {status}");
         }

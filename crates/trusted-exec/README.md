@@ -5,7 +5,8 @@ Which file a fixed program name starts, and what that program is given
 [ADR 0006](../../docs/adr/0006-env-spec-delivery-modes.md)).
 
 `opensesame` starts `git`, `gpg`, `gh`, `node`, `tailscale`, `age-plugin-yubikey`,
-`ps` and a browser opener by name, from a process that may hold the sealed
+`ps`, `tomb`, `opensesame-id`, the daemon's discovery CLIs, the enrollment
+prompt and a browser opener by name, from a process that may hold the sealed
 store's password, the Host's connection key and provider tokens. Every such
 spawn goes through this crate:
 

@@ -4,17 +4,16 @@
 
 This audit is split across two pull requests that merge in order.
 
-- **This one** covers `git`, `gpg`, `gh` and the doctor's `vercel`, SOPS,
-  `age-plugin-yubikey`, `ps`, `tailscale`, `hostname`, `kill`, `taskkill` and
-  the browser openers, plus `node` for the env-spec bridge, which it moves onto
-  the same rule. It is the follow-up the
+- **The first (#1471)** covers `git`, `gpg`, `gh` and the doctor's `vercel`,
+  SOPS, `age-plugin-yubikey`, `ps`, `tailscale`, `hostname`, `kill`, `taskkill`
+  and the browser openers, plus `node` for the env-spec bridge, which it moves
+  onto the same rule. It is the follow-up the
   [2026-10-13 audit](2026-10-13-env-spec-bridge-environment.md) left under Not
   fixed.
-- **The next one** covers the daemon's discovery runner and invoke-through token
-  source, `tomb`, the enrollment prompts, `opensesame-id`, the connector-host
-  provider CLIs, the surrogate-proxy plugin's token source, the password-agent
-  helpers and the keepassxc bridge. [Not covered here](#not-covered-by-this-change)
-  says which are which.
+- **The second (#1478)** covers the daemon's discovery runner and invoke-through
+  token source, `tomb`, the enrollment prompts, `opensesame-id`, the
+  connector-host provider CLIs, the surrogate-proxy plugin's token source, the
+  password-agent helpers and the keepassxc bridge.
 
 ## Invariant
 
@@ -86,6 +85,15 @@ the rule the env-spec bridge already used for `node`:
 | `hostname`, `kill`, `taskkill` | `crates/daemon/src/tailscale.rs`; `kill` also in `apps/cli/src/daemon_cmd.rs` (`daemon stop`) | none | Nothing. |
 | `xdg-open`, `open`, `explorer.exe` | `apps/cli/src/connect/browser.rs` | none | `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `DBUS_SESSION_BUS_ADDRESS`, `XDG_*`, `BROWSER`, and on WSL `WSL_INTEROP`, `WSL_DISTRO_NAME`, `WSLENV`. With no opener of its own, WSL opens the page with Windows' `explorer.exe` at its fixed path (`/mnt/c/Windows/explorer.exe`), as the Tailscale CLI does: WSL mounts Windows drives writable by everyone, so their `PATH` entries never pass. |
 | `node` | `crates/env-spec/src/node_bridge.rs` | `OPENSESAME_NODE` | As in the 2026-10-13 audit, now resolved by the shared crate: exactly `PATH`, `HOME`, `TMPDIR`, `LANG`, the `LC_*` variables, the version-manager variables below (on Windows `SystemRoot`, `PATHEXT`, `COMSPEC`). |
+| CLI probes and the invoke-through token source (`gh`, `glab`, `aws`, `gcloud`, `op`, `kubectl`, `pass`, …) | `crates/daemon/src/runner/programs.rs` (used by `ScrubbedCommandRunner` in `runner.rs`, and by presence in `cli_probe.rs`) | `OPENSESAME_GH` for `gh`; none for the others | Found over the snapshot the runner holds (on Windows its `Path` is the `PATH`, as that platform spells it), so a snapshot without `PATH` runs nothing and a CLI in a directory anyone can write is neither offered nor run. Every CLI: `USER`, `LOGNAME`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS` (the keychain), as ADR 0048's allowlist already gave. Each adds where its own configuration is: `gh` `GH_CONFIG_DIR`, `GH_HOST`, `XDG_CONFIG_HOME`; `glab` `GLAB_CONFIG_DIR`, `XDG_CONFIG_HOME`; `aws` `AWS_CONFIG_FILE`, `AWS_SHARED_CREDENTIALS_FILE`, `AWS_PROFILE` (never the keys); `gcloud` `CLOUDSDK_CONFIG`; `op` `OP_CONFIG_DIR`, `XDG_CONFIG_HOME`; `kubectl` `KUBECONFIG`. `pass` still gets no `PASSWORD_STORE_DIR`, as its probe documents. |
+| `tomb` | `apps/cli/src/store/tomb_exec.rs` (`opensesame tomb open` and `close`) | `OPENSESAME_TOMB` | `GNUPGHOME`, `GPG_AGENT_INFO`, `GPG_TTY`, `TERM`, `DISPLAY`, `XAUTHORITY`, `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS` (the gpg-sealed key's pinentry), `SUDO_ASKPASS` (mounting without a terminal). |
+| `osascript`, `systemd-ask-password`, `zenity`, `powershell.exe` | `apps/cli/src/enroll_entry.rs` (the root-trust enrollment prompt) | none | `zenity`: `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`; `powershell.exe`: `APPDATA`, `LOCALAPPDATA`; the others nothing. No trusted prompt is the same as no prompt: enrollment is refused. |
+| `opensesame-id` | `apps/cli/src/vault_file.rs` (the `opensesame vault` item commands: `new`, `list`, `import`, `export`, `set`, `copy`, `share`) | `OPENSESAME_ID_BIN`, now held to the override rule (an absolute executable file; a bare name is refused) | `OPENSESAME_STATE_DIR` (its vault), `TERM` (its password prompt), `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR` (`vault copy`'s clipboard tool). Not `NODE_OPTIONS` or any other `NODE_*`, nor the store password. It is a `#!/usr/bin/env node` script and its child sees only trusted `PATH` entries, so a `node` that only lives in a directory anyone can write is named with `OPENSESAME_NODE`: a private directory holding one link, `node`, goes first on the child's `PATH` until the command ends, and the open directory itself is never searched. |
+| Provider CLIs: `age`, `aws`, `az`, `bao`, `bw`, `bws`, `doppler`, `foks`, `gcloud`, `gh`, `infisical`, `keepassxc-cli`, `op`, `pass`, `pass-cli`, `security`, `vault`, `ykman` | `crates/connector-host/src/providers.rs` and `providers/cli.rs`: the readiness and live probes, crypto plans and human plans, run by the Host's provider test route, the worker's health probe and the human CLI | `OPENSESAME_<NAME>_BIN` for each (`OPENSESAME_AWS_BIN`, `OPENSESAME_KEEPASSXC_CLI_BIN`, …); `gh` keeps `OPENSESAME_GH`, the variable the CLI already uses | The [provider CLI table](#provider-clis) below. Never any `OPENSESAME_*`. A catalog adapter or plan that names a CLI off the table fails a test. |
+| `gh` (the surrogate-proxy plugin's token source) | `crates/surrogate-proxy/src/plugin/source.rs` | `OPENSESAME_GH` | `USER`, `LOGNAME`, `XDG_RUNTIME_DIR`, `XDG_CONFIG_HOME`, `DBUS_SESSION_BUS_ADDRESS`, `GH_CONFIG_DIR`, `GH_HOST`. Not `GH_TOKEN`: the output of `gh auth token` is the credential. |
+| `op`, `secret-tool`, `osascript`, `powershell.exe`, `pbpaste`, `wl-paste`, `xclip` | `apps/cli/src/password_agent/io.rs` (`helper`) | `OPENSESAME_OP_BIN` for `op`; none for the others | `op`: the `OP_*` family (the service-account token is then set or removed by `credential::authenticate`, never inherited), the desktop and keyring variables, version-manager, proxy and CA variables. `secret-tool`: the desktop and keyring variables. `wl-paste`: `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`, `XDG_SESSION_TYPE`. `xclip`: `DISPLAY`, `XAUTHORITY`. Never the store password or any `OPENSESAME_*`. |
+| `op run -- …` | `apps/cli/src/password_agent/consume.rs` (`run_assignments`, `env run`) | `OPENSESAME_OP_BIN` | `op run` hosts a command of the person's own and hands it its environment, so it is started in the person's environment, less interpreter hooks (`NODE_OPTIONS`, `LD_PRELOAD`, …), as before. What changed is which `op` it is: the trusted file. |
+| `opensesame-keepassxc-bridge` | `apps/cli/src/bridge/serve.rs` (`opensesame bridge keepassxc serve`) | `--bin <absolute path>` | The bridge is the sibling binary installed with this `opensesame`, started like `daemon start` starts `opensesame` itself, and it reads the store password from the environment this command was given. It is the file `--bin` names (an absolute executable file) or the one beside `current_exe()`. The bare-name fallback, which a `PATH` search answered, is gone. |
 
 **Version managers.** `node`, `gh`, `vercel` and the tools a shim stands for
 are often `volta`, `asdf` or `mise` shims, which need to be told where they
@@ -98,6 +106,34 @@ not under the program it points to.
 (`apps/cli/src/github.rs`, `crates/connection-broker/src/installation.rs`,
 `crates/gateway/src/backup.rs`) are inside `#[cfg(test)]`, where they mint a
 throwaway RSA key, so there is no `OPENSESAME_OPENSSL`.
+
+### Provider CLIs
+
+Each is started by the file `OPENSESAME_<NAME>_BIN` names, or the trusted
+`PATH` entry that holds it, with `PATH`, the common set and the version-manager
+variables, plus these. The network CLIs also get the proxy and CA variables.
+Credentials a CLI reads are passed on purpose: it is the connection's own CLI.
+The lists come from each CLI's documented variables; the real CLIs were not run.
+
+| CLI | Own variables |
+| --- | --- |
+| `age`, `keepassxc-cli`, `security` | none |
+| `aws` | `AWS_*` (profile, region, endpoint and the key variables) |
+| `az` | `AZURE_*`, `REQUESTS_CA_BUNDLE` |
+| `bao` | `BAO_*`, `VAULT_*` |
+| `bw` | `BW_*`, `BITWARDENCLI_APPDATA_DIR`, `NODE_EXTRA_CA_CERTS` (not `NODE_OPTIONS`) |
+| `bws` | `BWS_*` |
+| `doppler`, `foks`, `infisical` | `DOPPLER_*`, `FOKS_*`, `INFISICAL_*`, and the keyring variables (`XDG_RUNTIME_DIR`, `XDG_CONFIG_HOME`, `DBUS_SESSION_BUS_ADDRESS`, `DISPLAY`, `WAYLAND_DISPLAY`) |
+| `gcloud` | `CLOUDSDK_*`, `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, `GOOGLE_CLOUD_QUOTA_PROJECT` |
+| `gh` (the `github-oauth` lease, `gh auth token --hostname`) | `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GH_HOST`, `GH_CONFIG_DIR` and the keyring variables; not `GITHUB_APP_*` |
+| `op` | `OP_*` and the keyring variables |
+| `pass` | `PASSWORD_STORE_*` and what gpg forwards for a pinentry (`GNUPGHOME`, `GPG_AGENT_INFO`, `GPG_TTY`, `TERM`, `DISPLAY`, `XAUTHORITY`, `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`) |
+| `pass-cli` | `PROTON_PASS_*` and the keyring variables |
+| `vault` | `VAULT_*` |
+| `ykman` | `XDG_RUNTIME_DIR` (the smart-card daemon's socket) |
+
+A `custom-command` connection names its own program, which is the person's
+choice and runs as written by the name they gave (`HumanProviderPlan::Custom`).
 
 ## Tests
 
@@ -141,40 +177,84 @@ Each program family has a test that fails on the code before the change:
   `/mnt/c` entries. Before the change, the daemon's `resolve_tailscale_bin`
   returned the planted `tailscale` from a 0777 directory ahead of the trusted
   one (shown with a test against the old file, not committed).
+- `crates/daemon/src/runner/tests.rs` runs the discovery runner and the token
+  source over a planted snapshot, and `cli_probe.rs` checks presence. Before
+  the change: a planted `gh` and `kubectl` were offered ("planted CLIs were
+  offered: [... github ... High ...]"), the token source captured the planted
+  `gh`'s empty output instead of the trusted one's token ("gh printed no
+  credential"), a CLI was handed none of its own configuration and
+  `OPENSESAME_GH` was ignored ("the planted gh ran"), and a snapshot with no
+  `PATH` still ran `sh`. The existing runner tests now give their snapshot
+  `PATH=/usr/bin:/bin`.
+- `tomb`, the enrollment prompts and `opensesame-id` were each shown with a
+  test against the old file, not committed: "which_tomb took the planted
+  tomb", "the planted zenity ran", "the planted opensesame-id ran". The
+  committed tests use the fixture through `tomb_exec`, `prompt_in` and
+  `id_cli_in`.
+- An independent review of that work found more spawns and two defects, each
+  now a test run first against the old behaviour (the old call put back in
+  place for the run, then taken out):
+  - **Provider CLIs** (`providers/cli/tests.rs`, 11 tests): 8 failed. The old
+    bare-name call ran the planted CLI from a directory anyone can write
+    ("the planted vault ran", "the planted aws ran", "the planted age ran"),
+    and a CLI the override variable named, or that was not found, came back as
+    a successful run instead of an error naming the variable
+    ("called `Result::unwrap_err()` on an `Ok` value"). The tests also pin that
+    each CLI hears its own family (`VAULT_ADDR` reaches `vault`, never `bw`),
+    that no catalog adapter and no plan names a CLI off the table (this found
+    `gh`, for the `github-oauth` lease, which the first draft of the table
+    lacked), and that a `custom-command` program is not on the table.
+  - **The plugin's `gh auth token`** (`source/trusted_tests.rs`, 6 tests): 5
+    failed, the first with "the planted gh ran".
+  - **Password-agent helpers** (`io/trusted_tests.rs`, 8 tests): 7 failed, with
+    "the planted op ran" and "the trusted stub recorded" (the planted helper ran
+    instead, as the review's `r6` showed with a copy of the old walk), and an
+    unusable `OPENSESAME_OP_BIN` returned a command.
+  - **The keepassxc bridge** (`bridge/serve/tests.rs`, 4 tests): 4 failed with
+    `Ok("opensesame-keepassxc-bridge")` where an error was expected, and "left:
+    opensesame-keepassxc-bridge, right: /…/opensesame-keepassxc-bridge" for the
+    bridge beside `opensesame`.
+  - **`OPENSESAME_NODE` for `opensesame-id`** (`vault_file/node/tests.rs`, 4
+    tests): 3 failed (no link directory, no error for a bad value). The first
+    version of the fix also failed its own test, which asserts the link
+    directory is private: `tempfile` made it 0755, so it is created 0700.
+  - **The tomb hint** named `OPENSESAME_TOMB` twice, once from the shared
+    not-found message and once added by hand ("left: 2, right: 1").
+  - **Windows `Path`** (`runner/tests.rs`): the discovery runner kept only a
+    variable named exactly `PATH`, and a Windows snapshot says `Path`
+    ("Path was dropped"). The module of fixture tests there is `cfg(unix)`, as
+    the fixture is, so the daemon's test target no longer needs it on Windows.
 - env-spec keeps all of its tests and messages, and adds two: no trusted entry
   means no `PATH`, and a shim's data directories reach `node`.
 
 ## Not covered by this change
 
-These start a program by a fixed name too. They are not operator-named; the
-earlier text of this audit filed some of them there by mistake. They are the next
-pull request in the stack, where each gets the same rule:
+Programs a person or operator names on purpose keep their own rules: the
+command `dev run` starts, a `custom-command` connection's program, the
+`local_authority` executable, the password-agent commands a person's policy
+names (`consume`, `os_child`, `os_broker`) and the plugin binary the pin
+verifies. `opensesame` re-running its own `current_exe()` is not a name at all.
 
-- the daemon's discovery runner (`crates/daemon/src/runner.rs`) and the
-  invoke-through token source that captures `gh auth token`;
-- `tomb`, the enrollment prompts (`osascript`, `systemd-ask-password`,
-  `zenity`, `powershell.exe`) and `opensesame-id` (`apps/cli`);
-- the connector-host provider CLIs (`age`, `aws`, `az`, `bao`, `bw`, `bws`,
-  `doppler`, `foks`, `gcloud`, `infisical`, `keepassxc-cli`, `op`, `pass`,
-  `pass-cli`, `vault`, `ykman`, `security`), which the Host, the worker and the
-  CLI run;
-- the surrogate-proxy plugin's `gh auth token`;
-- the password-agent helpers (`op`, `xclip`, `wl-paste`, `secret-tool`, …) and
-  the keepassxc bridge's bare-name fallback.
+Three things are decided, not missing:
 
-What a person or operator names on purpose, and so keeps its own rules: the
-command `dev run` starts, the `local_authority` executable, the password-agent
-commands a person's policy names (`consume`, `os_child`, `os_broker`) and the
-plugin binary the pin verifies. `opensesame` re-running its own
-`current_exe()` is not a name at all.
+- `op run` hosts a command of the person's own and hands it its environment, so
+  it runs in the person's environment less interpreter hooks. Only which `op`
+  it is changed.
+- The keepassxc bridge is a sibling binary run in the environment the person
+  gave `opensesame bridge keepassxc serve`; the rule fixes which file it is.
+- A provider CLI is given the credentials it reads (`AWS_*` for `aws`, …).
+  Those are the connection's own, and the Host's keys are not among them.
 
 ## Limits
 
 - Linux only. The Windows rules are unit tests of the decision functions and a
-  Windows-target `clippy --all-targets` check of the crates this change touched;
-  nothing ran on Windows. The macOS `ps` call is compiled only on macOS (its
-  builder and test run here). WSL interop with the cleared environment was not
-  run.
+  Windows-target `clippy --all-targets` check of `opensesame-trusted-exec`,
+  `opensesame-env-spec` and `opensesame-cli-app-integration`; nothing ran on
+  Windows. The daemon, connector-host and surrogate-proxy trees need a C
+  toolchain for the Windows target, so their Windows builds were checked by
+  reading and, for `apps/cli`, by CI's Native CLI (Windows) job. The macOS `ps`
+  call is compiled only on macOS (its builder and test run here). WSL interop
+  with the cleared environment was not run.
 - **On Windows the rule is location only.** Any absolute `PATH` directory that
   is not the working directory is trusted, and the file is not checked. The
   default ACL of a folder created under `C:\` gives Authenticated Users modify,
@@ -183,7 +263,13 @@ plugin binary the pin verifies. `opensesame` re-running its own
 - The credential helper, pinentry and keyring variables are passed by reading
   how those programs find their state; a libsecret helper, a graphical pinentry
   and gh's keyring were not exercised, and a version manager's shim was run
-  under a test stub only.
+  under a test stub only. The same holds for each discovery CLI's
+  configuration variables (`GLAB_CONFIG_DIR`, `CLOUDSDK_CONFIG`,
+  `OP_CONFIG_DIR`, ...) and for the provider CLI table above: the real CLIs
+  were not run, and a variable a CLI reads that is missing from its row is a
+  failure to authenticate, not a leak.
+- `OPENSESAME_ID_BIN` used to accept any value, including a bare name searched
+  on `PATH`; it now takes an absolute executable file only.
 - An operator who relied on `GIT_SSH_COMMAND`, `GIT_SSH` or `GIT_ASKPASS` for the
   store's remote now sets `core.sshCommand` or a credential helper in git's own
   configuration instead.

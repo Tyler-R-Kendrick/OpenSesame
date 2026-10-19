@@ -16,22 +16,22 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 419,
-    "violations": 646,
-    "oversizedLines": 213030
+    "files": 417,
+    "violations": 644,
+    "oversizedLines": 212104
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
       "complexity": 1
     },
     "apps/cli/src/bridge.rs": {
-      "max-lines": 500
+      "max-lines": 470
     },
     "apps/cli/src/configs.rs": {
       "max-lines": 587
     },
     "apps/cli/src/connect.rs": {
-      "max-lines": 1451
+      "max-lines": 1436
     },
     "apps/cli/src/main.rs": {
       "max-lines": 1586
@@ -40,7 +40,7 @@
       "max-lines": 466
     },
     "apps/cli/src/store.rs": {
-      "max-lines": 945
+      "max-lines": 931
     },
     "apps/pages/server/github-app.mjs": {
       "complexity": 3,
@@ -139,7 +139,7 @@
       "complexity": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 674
+      "max-lines": 677
     },
     "apps/pages/src/sections/VaultSection.tsx": {
       "max-lines-per-function": 1
@@ -294,7 +294,7 @@
       "max-lines": 515
     },
     "crates/connector-host/src/providers.rs": {
-      "max-lines": 1439
+      "max-lines": 1324
     },
     "crates/connector-host/src/wasm.rs": {
       "max-lines": 699
@@ -306,7 +306,7 @@
       "max-lines": 418
     },
     "crates/daemon/src/cli_probe.rs": {
-      "max-lines": 700
+      "max-lines": 695
     },
     "crates/daemon/src/invoke_through.rs": {
       "max-lines": 801
@@ -317,11 +317,8 @@
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
     },
-    "crates/daemon/src/runner.rs": {
-      "max-lines": 476
-    },
     "crates/daemon/src/tailscale.rs": {
-      "max-lines": 439
+      "max-lines": 423
     },
     "crates/domain/src/authority.rs": {
       "max-lines": 689
@@ -496,9 +493,6 @@
     },
     "crates/sealed-store/src/attachment.rs": {
       "max-lines": 1185
-    },
-    "crates/sealed-store/src/git.rs": {
-      "max-lines": 432
     },
     "crates/sealed-store/src/store.rs": {
       "max-lines": 627
@@ -684,7 +678,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1573
+      "max-lines": 1602
     },
     "packages/app-core/src/lib/vault/unlock-methods-extra.test.ts": {
       "max-lines": 404

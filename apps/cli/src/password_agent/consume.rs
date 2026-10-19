@@ -47,7 +47,7 @@ pub(super) fn run_assignments(
     if !grant_approved {
         crate::cli_app_integration::ensure_reveal("run", None)?;
     }
-    let mut args = super::io::helper("op")?;
+    let mut args = super::io::host("op")?;
     args.arg("run");
     for assignment in assignments {
         let (name, reference) = core::assignment(assignment)?;
@@ -122,7 +122,7 @@ pub(super) fn env(cmd: Env) -> anyhow::Result<()> {
             core::validate_run_template(&content)?;
             let mut snapshot = tempfile::NamedTempFile::new()?;
             snapshot.write_all(content.as_bytes())?;
-            let mut op = super::io::helper("op")?;
+            let mut op = super::io::host("op")?;
             op.arg("run")
                 .arg(format!("--env-file={}", snapshot.path().display()));
             let status = launch(op, &command)?;

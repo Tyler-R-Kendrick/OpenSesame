@@ -27,9 +27,6 @@ You need:
   value that is empty, relative or not an executable file stops the run naming
   the variable instead of searching `PATH`.
 - The plugin binary `opensesame-surrogate-proxy` and its sha256.
-  A [release kit](release-kit.md) has `opensesame`, the plugin and the bundled
-  bridge, with the bridge beside the binary where `opensesame` looks for it,
-  so neither a checkout nor `node_modules` is needed.
 - A Vercel token. Use a dummy one while you try this out.
 
 ## 1. Install the plugin and switch it on
@@ -235,14 +232,18 @@ it never falls back to `PATH`.
 
 | Variable | Program |
 | --- | --- |
-| `OPENSESAME_NODE` | `node`, for the schema bridge |
+| `OPENSESAME_NODE` | `node`, for the schema bridge and for `opensesame-id` (which finds it through a private link, so a `node` in a directory anyone can write is never added to its `PATH`) |
 | `OPENSESAME_GIT` | `git`, for the sealed store's commits, history and `pass backup` |
 | `OPENSESAME_GPG` | `gpg`, for `.gpg` entries |
-| `OPENSESAME_GH` | `gh`, for `gh auth token` and the connect doctor |
+| `OPENSESAME_GH` | `gh`, for `gh auth token` (the backup push, the surrogate-proxy plugin's token source), the connect doctor and the daemon's discovery |
 | `OPENSESAME_SOPS_BIN` | SOPS (the only way it is found) |
 | `OPENSESAME_AGE_PLUGIN_YUBIKEY` | `age-plugin-yubikey` |
 | `OPENSESAME_PS` | `ps`, on macOS |
 | `OPENSESAME_TAILSCALE` | the Tailscale CLI the daemon uses |
+| `OPENSESAME_TOMB` | `tomb`, for `opensesame tomb open` and `close` |
+| `OPENSESAME_ID_BIN` | `opensesame-id`, for the `opensesame vault` item commands (now an absolute path to the file, like the rest) |
+| `OPENSESAME_OP_BIN` | `op`, for the password agent |
+| `OPENSESAME_<NAME>_BIN` | each provider CLI the Host, the worker and the CLI run: `AWS`, `AZ`, `BAO`, `BW`, `BWS`, `DOPPLER`, `FOKS`, `GCLOUD`, `INFISICAL`, `KEEPASSXC_CLI`, `OP`, `PASS`, `PASS_CLI`, `SECURITY`, `VAULT`, `YKMAN` and `AGE` |
 
 The program is run by its real path, and every directory above it has to be
 one only you and root can change (or root's sticky one, like `/tmp`); a program
@@ -252,8 +253,11 @@ Each starts with an empty environment plus what it needs: `git` gets your git
 configuration, ssh agent, proxy and CA settings (including `GIT_SSL_CAINFO`)
 but no other `GIT_*` of yours, not `GIT_SSH_COMMAND` among them (put an ssh
 command in `core.sshCommand`), and none
-of them gets `OPENSESAME_*` secrets, `GITHUB_APP_*` or cloud credentials. The
-full list is the
+of them gets `OPENSESAME_*` secrets or `GITHUB_APP_*`. A provider CLI gets the
+variables it reads to authenticate (`AWS_*` for `aws`, `VAULT_*` for `vault`, and
+so on) and nothing of another's. `opensesame bridge keepassxc serve` runs the
+bridge beside `opensesame` or the one `--bin` names, never a name found on
+`PATH`. The full list is the
 [2026-10-17 audit](../security/audits/2026-10-17-external-program-spawns.md).
 
 ## What this does not do

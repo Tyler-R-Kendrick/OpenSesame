@@ -33,10 +33,8 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
   caller, cannot be written by others, and are group-writable only by root's
   group or one of the caller's own (`root:root 0775` and `user:user 0775` pass,
   `root:othergroup 0775` and `0777` do not; Windows: absolute, existing, not the
-  current directory), and the `node` itself (after symlinks) is held to the same
-  rule: owned by root or the caller, not writable by others, group-writable only
-  by root's group or one of the caller's, and so is the directory a link to it
-  resolves into. So an empty or relative entry cannot run a `node`
+  current directory), and the `node` itself must be owned by root or the caller
+  and not world-writable. So an empty or relative entry cannot run a `node`
   planted in the working directory, and it is run by its absolute path. Its
   environment is built, not inherited: `PATH` (those entries), `HOME`,
   `TMPDIR`, `LANG`, the `LC_*` locale variables and, on Windows, `SystemRoot`,
@@ -47,36 +45,19 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
   so and names every entry or file it skipped and why ("writable by others",
   "group-writable by group 1234 which is not one of yours", "owned by uid
   1001"); the inherited `PATH` is not a fallback.
-- The script `node` runs is `OPENSESAME_ENV_PARSE` when set, used as named;
-  else `opensesame-env-parse.mjs` in the directory of the running executable
-  after symlinks, where a [release kit](../../docs/operators/release-kit.md)
-  ships the bundled bridge; else the checkout's
-  `packages/env-spec-bridge/bin/opensesame-env-parse.mjs`. The file beside the
-  executable must pass the same rule as a `node` on `PATH`: the directory it is
-  named in, the one it resolves into and the file itself owned by root or the
-  caller, not writable by others and group-writable only by root's group or one
-  of the caller's. A file there that fails, a link to nothing or a directory of
-  that name is an error that says which path and why
-  (`EnvSpecError::BridgeScript`), never a fall-through to the checkout's copy.
-  The checkout copy is held to the same rule (a release binary carries the path
-  it was built from, and a file another user put there is refused). With none
-  beside the executable, no override and no checkout copy (a release binary run
-  on its own, which still names the runner it was built on), the error says where
-  it looked. The check is by path and covers no directory above
-  the two it reads; on Windows a bridge is only checked to be a regular file.
 - Placeholder suffixes are random per projection.
 
 ## Surface
 
 | Item | What it is |
 |---|---|
-| `parse_schema_file(path)` | Runs the bridge (`OPENSESAME_ENV_PARSE`, else the trusted `opensesame-env-parse.mjs` beside the executable, else the checkout's) under `node_command` |
+| `parse_schema_file(path)` | Runs `node packages/env-spec-bridge/bin/opensesame-env-parse.mjs <path>` under `node_command`; `OPENSESAME_ENV_PARSE` overrides the script path |
 | `node_command()` | The one way to start Node here: `OPENSESAME_NODE`, else the trusted `node` on `PATH`, and the minimal environment above, ready for the script's arguments |
 | `parse_schema_json(json)` | Parses bridge output already in hand |
 | `schema_summary(doc)` | Per item: key, sensitive / required / public flags, resolver name, whether a value is present — never the value |
 | `resolve_for_delivery(doc, policy, agent)` | `Vec<ResolvedEnvEntry>` with delivery mode, connection ref, projection, `omitted` and `warning` |
 | `EnvSpecDocument`, `EnvSpecItem`, `EnvDecorator`, `EnvResolver`, `EnvResolverArg` | The bridge's JSON shapes |
-| `EnvSpecError` | `Io`, `Json`, `Bridge`, `Domain`, `Scope`, `Node` (no usable `node` on `PATH`), `NodeOverride` (`OPENSESAME_NODE` cannot be used), `BridgeScript` (the bridge beside the executable may not be run, or there is none to run) |
+| `EnvSpecError` | `Io`, `Json`, `Bridge`, `Domain`, `Scope`, `Node` (no usable `node` on `PATH`), `NodeOverride` (`OPENSESAME_NODE` cannot be used) |
 | `web_login`, `WebLogin`, `LOGIN_RESOLVER` | The `opensesameLogin(...)` resolver: a sealed-store path and one form submission, never the password; the entry resolves omitted and only the optional `surrogate-proxy` plugin delivers anything for it (ADR 0150 §6.3) |
 | `is_bounded_prefix`, `is_http_method`; `ResolvedEnvEntry::path_prefixes` | The `paths=` and `methods=` a connection entry may declare to bound its surrogate (ADR 0150 §8) |
 
@@ -91,14 +72,10 @@ pnpm --filter @opensesame/env-spec-bridge test
 parses, with a planted `node` in its working directory, an empty and a relative
 `PATH` entry, a directory others can write, a `0775` directory of its own group
 (trusted), and a spread of dummy secrets in its environment, and reads what the
-`node` it ran was handed. `src/node_bridge/trust/tests.rs` is the table of
-owner, group and mode combinations the trust rule decides.
-`tests/bridge_beside_binary.rs` copies the test binary into a kit directory
-beside a bridge and runs the copy, so `current_exe()` is the copy: a trusted
-bridge there is the one `node` is handed, a world-writable one is refused with
-the reason, `OPENSESAME_ENV_PARSE` still wins, and with none the checkout's copy
-runs. `src/node_bridge/script/tests.rs` covers the directory, symlink and
-resolved-executable cases.
+`node` it ran was handed. The trust rule and the `OPENSESAME_NODE` rule are
+[`opensesame-trusted-exec`](../trusted-exec)'s, the ones every program
+`opensesame` starts by name follows; its `src/trust/tests.rs` is the table of
+owner, group and mode combinations the rule decides.
 
 `bridge_roundtrip_fixture` parses
 [`tests/fixtures/demo.env.schema`](../../tests/fixtures/demo.env.schema)
