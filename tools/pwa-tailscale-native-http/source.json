@@ -138,16 +138,24 @@
     "files": [
       {
         "path": "nodehttp_js.go",
-        "sha256": "5fba465c474d199d015e07a9c163d172661dfeae553526184a1bc8b0dac8c3f8"
+        "sha256": "d169264ad57b5b2db4aa3ca116f9658d70049c3dff8055942ac0fe8ad90fd5d5"
       },
       {
         "path": "native-node.patch",
-        "sha256": "e05adced0eafc875e22d647d26a24b49c9fb4f71a71d16b08c1662383a4353f5"
+        "sha256": "20188547d026db1fe259e10dd46f2bd5f1ddb05cef321fdc3f16b81d360fc02a"
+      },
+      {
+        "path": "nodepeer.go",
+        "sha256": "6695ee45938ff9a2113a4f5daf2961d6ed1798e210b6b0a972ae4239f9696633"
+      },
+      {
+        "path": "nodepeer_test.go",
+        "sha256": "25950159bb5b760f7d29f34a1918dc702136a5cd2ff7eb771962022d9a937192"
       }
     ],
     "stagingHelper": {
       "path": "stage-native-node.mjs",
-      "sha256": "68ef04eb85b541608b3045b9e8768538f673a560dc3bee60dbea9db4c1f75507"
+      "sha256": "19ebca118325e4b9c62d7497621dfd436605405589ecfadd6d56b0fef55de0ea"
     },
     "patchTargets": [
       {
@@ -158,14 +166,16 @@
       {
         "path": "net/tsdial/tsdial.go",
         "beforeSha256": "6900ffd939e59db4195fe038345347696e6b602d921d8d7cac6034227f7fb9ac",
-        "afterSha256": "4bbe98a9e7686dc0d72666c346e3942b965dbe24c9e36b6ff302f6b11418ea99"
+        "afterSha256": "44bbb77a40ada4cc9de0bf3d42fae7113d912e4871892bb629052e9db012852a"
       }
     ],
     "configuration": {
       "exitNodeID": "Explicit original node stable exit ID; no automatic exit selection or LAN access.",
       "operatorCAPEM": "One to eight explicit operator CA certificates,64KiB total. No system/public root union.",
-      "targets": "One to sixteen exact HTTPS origins, each with one to sixteen masked IP-prefix grants. DNS resolves once via original exit DNS; final literal IP must match its grant and have no peer/self route override.",
-      "trustMode": "Explicit public uses only the pinned constrained NSS bundle and rejects any operatorCAPEM field. Omitted/operator keeps existing bounded operator-only trust. Never union either mode with system roots."
+      "targets": "One to sixteen exact HTTPS origins with masked grants. Exit retains original DNS/exit guards. Explicit peer uses original LocalBackend-owned MagicDNS/ExtraRecords once, then actual selected direct peer single-IP route and literal dial; no ambient/exit DNS fallback.",
+      "trustMode": "Explicit public uses only the pinned constrained NSS bundle and rejects any operatorCAPEM field. Omitted/operator keeps existing bounded operator-only trust. Never union either mode with system roots.",
+      "routeMode": "Only explicit peer selects original authorized stable peer host routes. Legacy omitted routeMode preserves existing exit path; no exit/subnet/default/self/fallback.",
+      "peerID": "Explicit original stable peer ID, disjoint from exitNodeID. First ready self/peer keys, addresses, exact selected host routes and authorization are permanently captured; withdrawal cancels original context."
     },
     "qualification": "Stage the existing eight fixed nativeHttp overlays plus explicit publicTrust.files and fixed JS bridge before this node hook. Original node/dialer/netmap/prefs, origin/IP/lease guards remain captured. Public/operator trust stay disjoint. Build-driver and PWA worker/controller composition remain separately reviewed activation steps."
   },
@@ -333,7 +343,7 @@
       },
       {
         "path": "compose-native.mjs",
-        "sha256": "9276cbd4e4e1f168633f8bc9dd74cd04069d71e2daf58466e9a76cc40b93e2be"
+        "sha256": "affe065edb3eaffaeaf0d1d1caf54586fe1b145dd423ba25f7f42d8a52bbf1bb"
       },
       {
         "path": "native-assets.mjs",

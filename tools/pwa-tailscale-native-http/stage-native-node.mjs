@@ -7,7 +7,12 @@ const bridgeNames = [
   "native-http.mjs",
   "native-http.test.mjs",
 ];
-const nodeNames = ["nodehttp_js.go", "native-node.patch"];
+const nodeNames = [
+  "nodehttp_js.go",
+  "native-node.patch",
+  "nodepeer.go",
+  "nodepeer_test.go",
+];
 const patchTargets = ["cmd/tsconnect/wasm/wasm_js.go", "net/tsdial/tsdial.go"];
 
 function requirePaths(files, expected) {
@@ -50,11 +55,14 @@ export async function stageNativeNode({
     join(source, "cmd/tsconnect/nativehttp/nativehttp_js.go"),
     constants.COPYFILE_EXCL,
   );
-  await copyFile(
-    join(here, "nodehttp_js.go"),
-    join(source, "cmd/tsconnect/wasm/nodehttp_js.go"),
-    constants.COPYFILE_EXCL,
-  );
+  for (const file of pins.nativeNode.files) {
+    if (!file.path.endsWith(".go")) continue;
+    await copyFile(
+      join(here, file.path),
+      join(source, "cmd/tsconnect/wasm", file.path),
+      constants.COPYFILE_EXCL,
+    );
+  }
   const verify = async () => {
     for (const file of [...pins.nativeBridge.files, ...pins.nativeNode.files])
       await requireHash(join(here, file.path), file.sha256);
@@ -62,10 +70,13 @@ export async function stageNativeNode({
       join(source, "cmd/tsconnect/nativehttp/nativehttp_js.go"),
       pins.nativeBridge.files[0].sha256,
     );
-    await requireHash(
-      join(source, "cmd/tsconnect/wasm/nodehttp_js.go"),
-      pins.nativeNode.files[0].sha256,
-    );
+    for (const file of pins.nativeNode.files) {
+      if (!file.path.endsWith(".go")) continue;
+      await requireHash(
+        join(source, "cmd/tsconnect/wasm", file.path),
+        file.sha256,
+      );
+    }
   };
   await execute(
     "patch",

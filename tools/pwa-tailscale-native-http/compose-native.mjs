@@ -44,10 +44,13 @@ async function verifyComposition({ here, source, output, pins, requireHash }) {
     join(source, "cmd/tsconnect/nativehttp/nativehttp_js.go"),
     pins.nativeBridge.files[0].sha256,
   );
-  await requireHash(
-    join(source, "cmd/tsconnect/wasm/nodehttp_js.go"),
-    pins.nativeNode.files[0].sha256,
-  );
+  for (const file of pins.nativeNode.files) {
+    if (!file.path.endsWith(".go")) continue;
+    await requireHash(
+      join(source, "cmd/tsconnect/wasm", file.path),
+      file.sha256,
+    );
+  }
   for (const file of pins.publicTrust.files)
     await requireHash(
       join(source, "cmd/tsconnect/nativehttp", file.path),

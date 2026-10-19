@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"syscall/js"
+	"time"
 
 	"tailscale.com/cmd/tsconnect/nativehttp"
 	"tailscale.com/ipn"
@@ -26,6 +27,7 @@ type nodeHTTP struct {
 	node    *jsIPN
 	ctx     context.Context
 	cancel  context.CancelFunc
+	peer    *nativePeerAuthority
 	exit    tailcfg.StableNodeID
 	targets map[string][]netip.Prefix
 	ready   atomic.Bool
@@ -154,17 +156,20 @@ func (i *jsIPN) bindNativeHTTP(value js.Value) (port map[string]any) {
 	if value.Type() != js.TypeObject || value.IsNull() {
 		return nil
 	}
-	exit, ok := nativeText(value.Get("exitNodeID"), 256)
-	if !ok || exit == "" || strings.TrimSpace(exit) != exit {
+	exit, peer, ok := nativeHTTPRoute(value)
+	if !ok {
 		return nil
 	}
 	roots, trusted := nativeTrust(value)
 	targets, configured := nativeTargets(value.Get("targets"))
-	if !trusted || !configured {
+	if !trusted || !configured || peer != "" && !nativePeerTargets(targets) {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &nodeHTTP{node: i, ctx: ctx, cancel: cancel, exit: tailcfg.StableNodeID(exit), targets: targets}
+	if peer != "" {
+		h.peer = newNativePeerAuthority(ctx, peer, cancel)
+	}
 	port, err := nativehttp.BindJS(ctx, h.dial, roots, h.current)
 	if err != nil {
 		cancel()
@@ -220,6 +225,9 @@ func (h *nodeHTTP) routeCurrent() bool {
 func (h *nodeHTTP) current() bool {
 	if h.ctx.Err() != nil {
 		return false
+	}
+	if h.peer != nil {
+		return h.peerCurrent()
 	}
 	if h.routeCurrent() {
 		h.ready.Store(true)
@@ -284,17 +292,87 @@ func (h *nodeHTTP) dial(ctx context.Context, network, address string) (net.Conn,
 	if len(prefixes) == 0 {
 		return nil, errNativeAuthority
 	}
-	ipp, viaTailnet, err := h.node.dialer.UserDialPlan(ctx, network, address)
-	if err != nil || !viaTailnet || !nativeIPGranted(ipp.Addr(), prefixes) || !h.exitDestination(ipp.Addr()) || !h.current() {
+	plan := h.node.dialer.UserDialPlan
+	if h.peer != nil {
+		plan = h.node.dialer.NativePeerDialPlan
+	}
+	ipp, viaTailnet, err := plan(ctx, network, address)
+	if err != nil || !viaTailnet || !nativeIPGranted(ipp.Addr(), prefixes) || !h.destinationAllowed(ipp.Addr()) || !h.current() {
 		return nil, errNativeAuthority
 	}
 	conn, err := h.node.dialer.UserDial(ctx, network, ipp.String())
 	if err != nil {
 		return nil, errNativeAuthority
 	}
-	if ctx.Err() != nil || !h.current() || !h.exitDestination(ipp.Addr()) {
+	if ctx.Err() != nil || !h.current() || !h.destinationAllowed(ipp.Addr()) {
 		conn.Close()
 		return nil, errNativeAuthority
 	}
 	return conn, nil
+}
+
+func nativeHTTPRoute(value js.Value) (exit, peer tailcfg.StableNodeID, ok bool) {
+	field := "exitNodeID"
+	mode := value.Get("routeMode")
+	if !mode.IsUndefined() {
+		if mode.Type() != js.TypeString || mode.String() != "peer" || !value.Get("exitNodeID").IsUndefined() {
+			return "", "", false
+		}
+		field = "peerID"
+	} else if !value.Get("peerID").IsUndefined() {
+		return "", "", false
+	}
+	id, valid := nativeText(value.Get(field), 256)
+	if !valid || id == "" || strings.TrimSpace(id) != id {
+		return "", "", false
+	}
+	if field == "peerID" {
+		if strings.IndexFunc(id, func(r rune) bool { return r <= 32 || r == 127 }) >= 0 {
+			return "", "", false
+		}
+		return "", tailcfg.StableNodeID(id), true
+	}
+	return tailcfg.StableNodeID(id), "", true
+}
+
+func nativePeerTargets(targets map[string][]netip.Prefix) bool {
+	for _, prefixes := range targets {
+		for _, prefix := range prefixes {
+			if !nativePeerPrefix(prefix) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (h *nodeHTTP) peerRoute(ip netip.Addr) (nativePeerRoute, bool) {
+	selected, found := h.node.lb.PeerForIP(ip)
+	return nativePeerRoute{selected.Node, selected.Route, selected.IsSelf}, found
+}
+
+func (h *nodeHTTP) peerCurrent() bool {
+	prefs := h.node.lb.Prefs()
+	running := h.node.lb.State() == ipn.Running && prefs.Valid() &&
+		prefs.ExitNodeID() == "" && !prefs.ExitNodeAllowLANAccess() && !prefs.RouteAll()
+	return h.peer.current(h.node.lb.NetMapWithPeers(), running, h.peerRoute, time.Now())
+}
+
+func (h *nodeHTTP) destinationAllowed(ip netip.Addr) bool {
+	if h.peer == nil {
+		return h.exitDestination(ip)
+	}
+	if !nativePeerIP(ip) || !h.peerCurrent() {
+		return false
+	}
+	nm := h.node.lb.NetMapWithPeers()
+	if nm == nil {
+		return false
+	}
+	peer, found := nm.PeerWithStableID(h.peer.selected)
+	if !found {
+		return false
+	}
+	selected, valid := h.peerRoute(ip)
+	return nativePeerRouteMatches(ip, peer, selected, valid, nm.TKAEnabled, time.Now())
 }
