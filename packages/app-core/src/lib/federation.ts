@@ -29,7 +29,6 @@ import {
   upstreamIdentityDisplayName as displayNameDefault,
   readNativeFederationSession,
 } from "./federation-native-session.js";
-import { isOperatorIdpIssuer } from "./federation-operator.js";
 import {
   originCallbackUri,
   originClientId,
