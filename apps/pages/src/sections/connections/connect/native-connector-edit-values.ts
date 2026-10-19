@@ -83,9 +83,17 @@ export function nativeMethodForEdit(
   inputMethod: NativeMethodDescriptor,
   view: NativeConnectorView | null | undefined,
   values: NativeFieldValues,
+  scopes?: Readonly<Record<string, readonly string[]>>,
 ): NativeMethodDescriptor {
   const method = nativeMethodInstructions(inputMethod, values);
   if (!view || !nativeVerified(view) || view.configuration.method !== method.id)
+    return method;
+  if (
+    method.id === "oauth" &&
+    scopes &&
+    JSON.stringify(scopes) !==
+      JSON.stringify(view.configuration.requestedScopes)
+  )
     return method;
   const saved = nativeFieldValues(
     method.fields,

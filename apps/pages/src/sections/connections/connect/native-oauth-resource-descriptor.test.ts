@@ -136,6 +136,26 @@ it("requires resubmitting the secret after editing an exact saved endpoint bindi
       .every((row) => row.required),
   ).toBe(true);
   expect(nativeInitialValues(method, view).client_secret).toBe("");
+  const scopes = view.configuration.requestedScopes;
+  expect(
+    nativeMethodForEdit(method, view, same, scopes).fields.find(
+      (field) => field.secret,
+    )?.help,
+  ).toContain("Leave blank");
+  const changedScopes = { user: [...(scopes.user ?? []), "new:permission"] };
+  const changedMethod = nativeMethodForEdit(method, view, same, changedScopes);
+  expect(
+    changedMethod.fields
+      .filter((field) => field.secret)
+      .every((field) => field.required),
+  ).toBe(true);
+  expect(
+    changedMethod.fields.some(
+      (field) =>
+        field.secret &&
+        field.help?.includes("Leave blank to keep the saved credential."),
+    ),
+  ).toBe(false);
 });
 
 it.each(["resend", "workos"])(

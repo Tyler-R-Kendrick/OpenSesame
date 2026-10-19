@@ -115,8 +115,9 @@ function useNativeForm(props: Props) {
   const image = useNativePreferences(descriptor.name, view);
   const { name } = image;
   const selectedMethod = available.find((item) => item.id === methodId);
+  const providerId = descriptor.providerId;
   const method = selectedMethod
-    ? nativeDraftMethod(descriptor.providerId, selectedMethod, view, values)
+    ? nativeDraftMethod(providerId, selectedMethod, view, values, scopes)
     : undefined;
 
   function choose(next: NativeMethodDescriptor) {

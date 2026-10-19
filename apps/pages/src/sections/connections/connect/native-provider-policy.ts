@@ -71,6 +71,7 @@ export function nativeDraftMethod(
   method: NativeMethodDescriptor,
   view: NativeConnectorView | null | undefined,
   values: NativeFieldValues,
+  scopes?: Readonly<Record<string, readonly string[]>>,
 ): NativeMethodDescriptor {
   const configured =
     method.id === "mcp" &&
@@ -80,7 +81,7 @@ export function nativeDraftMethod(
     : method;
   return nativePolicyMethod(
     providerId,
-    nativeMethodForEdit(current, view, values),
+    nativeMethodForEdit(current, view, values, scopes),
     nativeFieldValues(method.fields, values, false),
   );
 }
