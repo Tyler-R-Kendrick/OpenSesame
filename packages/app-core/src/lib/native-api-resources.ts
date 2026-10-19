@@ -8,6 +8,7 @@ import {
   type NativeApiOperationDefinition,
   executeNativeApiRequest,
 } from "./native-api-operations.js";
+import { projectNativePrivacyCards } from "./native-api-privacy.js";
 import { projectNativeRazorpayPayments } from "./native-api-razorpay.js";
 import { projectNativeStripeIssuingCards } from "./native-api-stripe-issuing.js";
 import { projectNativeStripeBalance } from "./native-api-stripe.js";
@@ -220,6 +221,17 @@ function projectDatadogMonitors(body: BoundaryValue): BoundaryValue {
   };
 }
 const resources: readonly Resource[] = [
+  jsonResource(
+    "List cards",
+    {
+      providerId: "privacy",
+      operationId: "provider.cards.read",
+      method: "GET",
+      path: "/v1/cards",
+      query: { page: 1, page_size: 20 },
+    },
+    projectNativePrivacyCards,
+  ),
   jsonResource(
     "List cards",
     {

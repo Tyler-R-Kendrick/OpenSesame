@@ -5928,24 +5928,46 @@
       "basic": null,
       "key_prefix": null,
       "service_urls": [
-        "https://api.privacy.com/v1",
-        "https://sandbox.privacy.com/v1"
+        "https://sandbox.privacy.com/v1",
+        "https://api.privacy.com/v1"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.privacy.com/v1/cards?page_size=1",
+        "url": "https://sandbox.privacy.com/v1/cards?page=1&page_size=20",
         "account_field": null
       },
-      "instructions": "Sign in to [Privacy.com](https://app.privacy.com/account), open **Account**, scroll to **API Key**, and copy (or regenerate) the key. Write access requires an Issuing key from api@privacy.com; reading cards does not.",
+      "instructions": "Copy an API key from [Privacy Account](https://app.privacy.com/account). Select **Sandbox** for a sandbox key or **Production** for a production key. Only the first 20 card identifiers, states and types are read; card details and payment writes are unavailable.",
       "docs_url": "https://developers.privacy.com/reference/get_cards-1",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "Header is 'Authorization: api-key <key>' — scheme 'api-key' is outside the Bearer/Basic/Token set. No header → 403 (nginx); a bad key → 401. Sandbox: sandbox.privacy.com.",
+      "notes": "Authorization: api-key <key>, explicitly selected environment, v1 endpoint. Read-only first-page card inventory; no custom version header.",
       "sources": [
         "https://developers.privacy.com/reference/get_cards-1.md",
         "https://developers.privacy.com/llms.txt"
       ],
-      "template_params": []
+      "template_params": [],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Sandbox",
+          "description": "Use only your sandbox API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox.privacy.com/v1/cards?page=1&page_size=20",
+            "account_field": null
+          }
+        },
+        {
+          "id": "production",
+          "label": "Production",
+          "description": "Use only your production API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://api.privacy.com/v1/cards?page=1&page_size=20",
+            "account_field": null
+          }
+        }
+      ]
     },
     {
       "service": "railway",

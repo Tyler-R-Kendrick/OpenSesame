@@ -20,6 +20,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderPackedJsonRows } from "./pack-json.mjs";
 import { lithicReadContract } from "./readonly-lithic.mjs";
+import { privacyReadContract } from "./readonly-privacy.mjs";
 import { razorpayReadContract } from "./readonly-razorpay.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -66,6 +67,7 @@ const REFUSED = new Set([
   "stripe-issuing",
   "razorpay",
   "lithic",
+  "privacy",
   "agentcard",
 ]);
 
@@ -315,7 +317,8 @@ function planFor(id, service, row, oauth, apiKey) {
   const safeRead =
     stripeReadContract(id, apiKey) ||
     (id === "razorpay" && razorpayReadContract(apiKey)) ||
-    (id === "lithic" && lithicReadContract(apiKey));
+    (id === "lithic" && lithicReadContract(apiKey)) ||
+    (id === "privacy" && privacyReadContract(apiKey));
   return {
     id,
     name: service?.name ?? row?.display_name ?? id,
@@ -323,7 +326,13 @@ function planFor(id, service, row, oauth, apiKey) {
     category: categoryFor(id, service, row),
     registry: Boolean(service),
     refused: refused(id, row) && !safeRead,
-    methods: ["stripe", "stripe-issuing", "razorpay", "lithic"].includes(id)
+    methods: [
+      "stripe",
+      "stripe-issuing",
+      "razorpay",
+      "lithic",
+      "privacy",
+    ].includes(id)
       ? safeRead
         ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
         : []

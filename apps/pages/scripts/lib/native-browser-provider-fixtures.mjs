@@ -10,6 +10,11 @@ import {
   LITHIC_READ,
 } from "./native-browser-lithic-fixture.mjs";
 
+import {
+  PRIVACY_PROBE_REPLY,
+  PRIVACY_READ,
+} from "./native-browser-privacy-fixture.mjs";
+
 const PARAMETER_VALUES = {
   application_id: "contractapp",
   company_domain: "contractcompany",
@@ -21,6 +26,7 @@ const PARAMETER_VALUES = {
 };
 
 const DOCUMENTED_PROBE_REPLIES = {
+  privacy: PRIVACY_PROBE_REPLY,
   lithic: LITHIC_PROBE_REPLY,
   razorpay: {
     entity: "collection",
@@ -134,6 +140,7 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
+  privacy: PRIVACY_READ,
   lithic: LITHIC_READ,
   datadog: {
     id: "provider.monitors.read",
@@ -307,7 +314,8 @@ function verificationReply(id, verification) {
     id === "stripe" ||
     id === "stripe-issuing" ||
     id === "razorpay" ||
-    id === "lithic"
+    id === "lithic" ||
+    id === "privacy"
   )
     return structuredClone(documented);
   if (
@@ -363,7 +371,8 @@ export function nativeApiFixture(plan, variantId) {
   const read = DOCUMENTED_READS[plan.id]
     ? structuredClone(DOCUMENTED_READS[plan.id])
     : null;
-  if (read && plan.id === "lithic") read.url = preset.verify.url;
+  if (read && (plan.id === "lithic" || plan.id === "privacy"))
+    read.url = preset.verify.url;
   return {
     providerId: plan.id,
     name: plan.name,

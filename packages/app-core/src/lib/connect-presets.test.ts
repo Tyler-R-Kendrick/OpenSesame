@@ -144,7 +144,7 @@ describe("connector plans", () => {
     const stripe = connectPlan("stripe");
     expect(stripe?.refused).toBe(false);
     expect(stripe?.methods.map((method) => method.kind)).toEqual(["api-key"]);
-    for (const id of ["agentcard", "marqeta", "privacy"])
+    for (const id of ["agentcard", "marqeta"])
       expect(connectPlan(id)?.refused, id).toBe(true);
     expect(connectPlan("stripe-issuing")?.refused).toBe(false);
     expect(
