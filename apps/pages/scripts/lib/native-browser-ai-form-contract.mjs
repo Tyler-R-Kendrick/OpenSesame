@@ -35,6 +35,7 @@ async function sharedAiLayout(page, form) {
 function sharedAiDefaultFields(preset) {
   const azure = preset.azure;
   const prediction = preset.family === "replicate_predictions";
+  const speech = preset.family === "elevenlabs_scribe";
   const key = azure
     ? azure.credential === "api-key"
       ? "Azure API key"
@@ -44,10 +45,10 @@ function sharedAiDefaultFields(preset) {
     ["Connection name", preset.name],
     ["API family", preset.family],
     [azure ? "Azure resource endpoint" : "API base URL", preset.baseUrl],
-    [azure ? "Deployment ID" : "Model ID", ""],
+    [azure ? "Deployment ID" : "Model ID", preset.model ?? ""],
     [key, ""],
   ];
-  if (!prediction)
+  if (!prediction && !speech)
     fields.push([
       azure ? "Azure authentication" : "Authentication",
       azure?.credential ?? "api-key",
@@ -93,9 +94,9 @@ async function sharedAiDefaults(form, row, preset, check) {
     `${row.id}: supported inference API families are explicit`,
   );
   const prediction = preset.family === "replicate_predictions";
-  const authentication = prediction
-    ? []
-    : await selectOptions(form, defaults.auth);
+  const speech = preset.family === "elevenlabs_scribe";
+  const finite = prediction || speech;
+  const authentication = finite ? [] : await selectOptions(form, defaults.auth);
   if (prediction)
     check(
       (await form
@@ -104,14 +105,15 @@ async function sharedAiDefaults(form, row, preset, check) {
       `${row.id}: finite model-specific verification JSON starts empty`,
     );
   check(
-    prediction
+    finite
       ? (await form.getByLabel("Authentication", { exact: true }).count()) === 0
       : JSON.stringify(authentication) ===
           JSON.stringify(
             preset.azure ? ["api-key", "entra-token"] : ["api-key", "none"],
           ),
-    `${row.id}: ${prediction ? "prediction requires its API token without an unauthenticated mode" : "published authentication choices are explicit"}`,
+    `${row.id}: ${prediction ? "prediction requires its API token without an unauthenticated mode" : speech ? "transcription requires its API key without an unauthenticated mode" : "published authentication choices are explicit"}`,
   );
+  if (speech) await speechInputDefaults(form, row, check);
   const apiKeyType = await form
     .getByLabel(defaults.key, { exact: true })
     .getAttribute("type");
@@ -129,6 +131,19 @@ async function sharedAiDefaults(form, row, preset, check) {
     apiKeyType,
     actionsDisabled,
   };
+}
+
+async function speechInputDefaults(form, row, check) {
+  check(
+    (await form
+      .getByLabel("Verification audio", { exact: true })
+      .getAttribute("type")) === "file",
+    `${row.id}: transcription requires local audio verification input`,
+  );
+  check(
+    (await form.getByLabel("Prompt", { exact: true }).count()) === 0,
+    `${row.id}: transcription does not invent a text prompt`,
+  );
 }
 
 async function sharedAiModeDefaults(form, row, preset, check) {

@@ -51,7 +51,7 @@ function mount(
   return { ...rendered, draft, onChange, onSave, onTest };
 }
 
-it("uses the common BYO form to expose six genuinely different API families", async () => {
+it("uses the common BYO form to expose seven genuinely different API families", async () => {
   const state = mount("byo-ai");
   const options = within(screen.getByLabelText("API family")).getAllByRole(
     "option",
@@ -63,6 +63,7 @@ it("uses the common BYO form to expose six genuinely different API families", as
     "Anthropic Messages",
     "Gemini Generate Content",
     "Replicate predictions",
+    "ElevenLabs Scribe transcription",
   ]);
   await choose("API family", "anthropic_messages");
   expect(state.onChange).toHaveBeenCalledWith("family", "anthropic_messages");

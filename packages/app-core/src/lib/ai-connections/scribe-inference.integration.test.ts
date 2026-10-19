@@ -141,11 +141,14 @@ describe("finite Scribe transcription over independently owned verified TLS", ()
       expect(local.records).toHaveLength(0);
     },
   );
-  it("does not activate the provider or family before complete configuration/UI", () => {
-    expect(aiConnectionPreset("elevenlabs")).toBeNull();
-    expect(
-      aiConnectionFamilies("byo-ai").map((family) => family.id),
-    ).not.toContain("elevenlabs_scribe");
+  it("exposes the completed native and BYO transcription configuration from one catalog", () => {
+    expect(aiConnectionPreset("elevenlabs")).toMatchObject({
+      family: "elevenlabs_scribe",
+      baseUrl: "https://api.elevenlabs.io/v1",
+    });
+    expect(aiConnectionFamilies("byo-ai").map((family) => family.id)).toContain(
+      "elevenlabs_scribe",
+    );
   });
   it("physically closes a held TLS stream on original owner withdrawal without a late answer", async () => {
     const local = await fixture();

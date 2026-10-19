@@ -56,6 +56,21 @@ export function PredictionInput({
 }
 export function AiConnectionSetup({ draft, busy, onChange }: Fields) {
   const tokenParameterId = useId();
+  if (draft.family === "elevenlabs_scribe")
+    return (
+      <details className="conn-client-alt">
+        <summary>Connection setup</summary>
+        <p>
+          Choose a local sample to test or save this transcription connection.
+          Both actions send audio only to the configured endpoint and consume
+          its transcript; service charges may apply. Audio is transient and
+          cleared after saving or locking. The API key is saved as a Token
+          credential in the current vault. Use the configured native Tailscale
+          HTTP transport, or permit this browser origin and headers for a direct
+          browser connection.
+        </p>
+      </details>
+    );
   if (draft.family === "replicate_predictions")
     return (
       <p>

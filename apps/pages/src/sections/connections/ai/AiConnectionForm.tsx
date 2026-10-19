@@ -12,6 +12,7 @@ import { IconKey } from "../../../components/IconKey.js";
 import { IconPlay, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 
+import { type AudioFieldProps, AudioSampleField } from "./AudioFields.js";
 import { BedrockConnectionFields } from "./BedrockConnectionFields.js";
 import {
   VertexConnectionFields,
@@ -24,7 +25,7 @@ import {
   predictionInputReady,
 } from "./PredictionFields.js";
 
-export type AiConnectionFormProps = {
+export type AiConnectionFormProps = AudioFieldProps & {
   draft: AiConnectionDraft;
   busy: boolean;
   saved: boolean;
@@ -56,9 +57,11 @@ function connectionReady(draft: AiConnectionDraft, retained: boolean): boolean {
 export function AiConnectionForm(props: AiConnectionFormProps) {
   const { draft, busy, onChange } = props;
   const prediction = draft.family === "replicate_predictions";
+  const speech = draft.family === "elevenlabs_scribe";
   const ready =
     connectionReady(draft, props.canRetainCredential ?? props.saved) &&
-    (!prediction || predictionInputReady(draft, props.predictionInput ?? ""));
+    (!prediction || predictionInputReady(draft, props.predictionInput ?? "")) &&
+    (!speech || Boolean(props.sampleAudio));
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (ready && !busy) props.onSave();
@@ -79,6 +82,9 @@ export function AiConnectionForm(props: AiConnectionFormProps) {
       <EndpointFields draft={draft} busy={busy} onChange={onChange} />
       <CredentialFields {...props} />
       <AiConnectionSetup draft={draft} busy={busy} onChange={onChange} />
+      {speech ? (
+        <AudioSampleField {...props} busy={busy} label="Verification audio" />
+      ) : null}
       {prediction ? (
         <PredictionInput
           label="Prediction verification input JSON"
@@ -87,27 +93,38 @@ export function AiConnectionForm(props: AiConnectionFormProps) {
           onChange={props.onPredictionInput}
         />
       ) : null}
-      <FormCommit
-        label="Save AI connection"
-        disabled={busy || !ready}
-        busy={busy}
-      >
-        <IconKey
-          label="Test AI connection"
-          disabled={busy || !ready}
-          onClick={props.onTest}
-        >
-          <IconPlay size={16} />
-        </IconKey>
-        {prediction && busy && props.onCancel ? (
-          <IconKey label="Cancel prediction" onClick={props.onCancel}>
-            <IconX size={16} />
-          </IconKey>
-        ) : null}
-        {props.failure ? <StatusMark tone="err" label={props.failure} /> : null}
-        {props.result ? <StatusMark tone="ok" label={props.result} /> : null}
-      </FormCommit>
+      <AiConnectionCommit {...props} ready={ready} />
     </form>
+  );
+}
+function AiConnectionCommit(props: AiConnectionFormProps & { ready: boolean }) {
+  const { busy, ready } = props;
+  const speech = props.draft.family === "elevenlabs_scribe";
+  const prediction = props.draft.family === "replicate_predictions";
+  return (
+    <FormCommit
+      label="Save AI connection"
+      disabled={busy || !ready}
+      busy={busy}
+    >
+      <IconKey
+        label="Test AI connection"
+        disabled={busy || !ready}
+        onClick={props.onTest}
+      >
+        <IconPlay size={16} />
+      </IconKey>
+      {(prediction || speech) && busy && props.onCancel ? (
+        <IconKey
+          label={speech ? "Cancel transcription" : "Cancel prediction"}
+          onClick={props.onCancel}
+        >
+          <IconX size={16} />
+        </IconKey>
+      ) : null}
+      {props.failure ? <StatusMark tone="err" label={props.failure} /> : null}
+      {props.result ? <StatusMark tone="ok" label={props.result} /> : null}
+    </FormCommit>
   );
 }
 function FamilyFields({ draft, busy, onChange }: Fields) {
@@ -229,7 +246,10 @@ function CredentialFields(
   props: Fields & Pick<AiConnectionFormProps, "saved">,
 ) {
   const authId = useId();
-  if (props.draft.family === "replicate_predictions")
+  if (
+    props.draft.family === "replicate_predictions" ||
+    props.draft.family === "elevenlabs_scribe"
+  )
     return <SecretField {...props} />;
   if (props.draft.family === "bedrock_converse")
     return <BedrockConnectionFields {...props} />;

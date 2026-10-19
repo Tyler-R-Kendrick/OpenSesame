@@ -23,16 +23,19 @@ const draft: AiConnectionDraft = {
   tokenParameter: "max_tokens",
 };
 it.each(["elevenlabs", "byo-ai"])(
-  "validates internal %s speech without exposing a second preset catalog",
+  "validates public %s speech through the single shared preset catalog",
   (providerId) => {
     expect(validateAiConnection({ ...draft, providerId })).toEqual({
       ...draft,
       providerId,
     });
-    expect(aiConnectionPreset("elevenlabs")).toBeNull();
-    expect(
-      aiConnectionFamilies("byo-ai").map((family) => family.id),
-    ).not.toContain("elevenlabs_scribe");
+    expect(aiConnectionPreset("elevenlabs")).toMatchObject({
+      family: "elevenlabs_scribe",
+      baseUrl: "https://api.elevenlabs.io/v1",
+    });
+    expect(aiConnectionFamilies("byo-ai").map((family) => family.id)).toContain(
+      "elevenlabs_scribe",
+    );
     expect(
       validateAiConnection({ ...draft, providerId, apiKey: "" }, false).apiKey,
     ).toBe("");
