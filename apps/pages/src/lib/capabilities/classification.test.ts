@@ -45,6 +45,17 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(unmatched, `unclassified:\n${unmatched.join("\n")}`).toEqual([]);
   });
 
+  it("keeps the auth-generation fence shared with core identity", () => {
+    expect(classify("src/lib/ambient-auth/generation.ts")).toMatchObject({
+      classification: "shared",
+      capability: null,
+    });
+    expect(classify("src/lib/ambient-auth/controller.ts")).toMatchObject({
+      classification: "optional",
+      capability: "identity.ambient-sso",
+    });
+  });
+
   it("names only the custody metadata test family as core infrastructure", () => {
     const custody = classify("src/lib/vault-credential-custody.ts");
     expect(custody?.classification).toBe("core");

@@ -16,6 +16,9 @@ import { classify } from "./classification.js";
 const repo = path.resolve(__dirname, "../../../../..");
 const ROOTS = ["apps/pages/src", "packages/app-core/src"];
 const IMPORT = /(?:from\s+|import\s*\(\s*|import\s+)["']([^"']+)["']/g;
+// `import type` is erased before any build or test run; it cannot pull an
+// optional capability's runtime into a shared chunk.
+const TYPE_ONLY = /\b(?:import|export)\s+type\b[^;]*?from\s*["'][^"']+["'];?/gs;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -64,7 +67,8 @@ describe("shared code owns no optional feature", () => {
     for (const root of ROOTS) {
       for (const file of sourceFiles(path.join(repo, root))) {
         if (classify(ruleRelative(file))?.classification !== "shared") continue;
-        for (const match of readFileSync(file, "utf8").matchAll(IMPORT)) {
+        const source = readFileSync(file, "utf8").replace(TYPE_ONLY, "");
+        for (const match of source.matchAll(IMPORT)) {
           const specifier = match[1];
           if (specifier === undefined) continue;
           const target = resolveImport(file, specifier);
