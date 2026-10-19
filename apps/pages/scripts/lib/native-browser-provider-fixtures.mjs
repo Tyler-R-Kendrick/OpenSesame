@@ -16,6 +16,17 @@ const PARAMETER_VALUES = {
 };
 
 const DOCUMENTED_PROBE_REPLIES = {
+  // https://docs.agentmail.to/api-reference/inboxes/list
+  agentmail: {
+    count: 1,
+    inboxes: [
+      {
+        inbox_id: "owned-inbox",
+        email: "owned@example.test",
+        display_name: "Protocol authority AgentMail inbox",
+      },
+    ],
+  },
   algolia: {
     items: [
       {
