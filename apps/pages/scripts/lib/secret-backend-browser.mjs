@@ -108,6 +108,18 @@ export async function fillNativeBackend(page, fixture, mode, width) {
     .getByLabel("Connection name", { exact: true })
     .fill(`${fixture.name} ${width}`);
   await page.getByLabel("API base URL", { exact: true }).fill(fixture.origin);
+  if (mode === "bitwarden-api") {
+    const credentials = fixture.credentials;
+    for (const [label, value] of [
+      ["API base URL", credentials.baseUrl],
+      ["Identity API URL", credentials.identityUrl],
+      ["Account email", credentials.email],
+      ["Personal API client ID", credentials.clientId],
+      ["Personal API client secret", credentials.clientSecret],
+      ["Device identifier", credentials.deviceIdentifier],
+    ])
+      await page.getByLabel(label, { exact: true }).fill(value);
+  }
   if (mode === "onepassword-connect") {
     await page.getByLabel("Access token", { exact: true }).fill(FIXTURE_TOKEN);
     await page
@@ -150,7 +162,7 @@ export async function savedBackendReload(
     `${fixture.name} ${width}`,
   );
   await expect(page.getByLabel("API base URL", { exact: true })).toHaveValue(
-    fixture.origin,
+    fixture.credentials?.baseUrl ?? fixture.origin,
   );
   await expect(
     page.getByRole("region", { name: "Secret backend items", exact: true }),
