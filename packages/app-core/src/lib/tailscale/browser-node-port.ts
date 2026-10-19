@@ -3,6 +3,7 @@ import {
   bytesToB64 as bytesToBase64,
 } from "@opensesame/vault-core/bytes.js";
 import { z } from "zod";
+import type { TailscaleHTTPRouteConfiguration } from "./browser-node-peer-http.js";
 
 function nativeOrigin(text: string): boolean {
   try {
@@ -140,7 +141,7 @@ export type TailscaleNodeConfiguration = Readonly<{
   hostname: string;
   controlURL: string;
   authKey?: string;
-  nativeHTTP?: TailscaleNativeHTTPConfiguration;
+  nativeHTTP?: TailscaleHTTPRouteConfiguration;
 }>;
 /** Shared public identity validation for the persisted editor and actual browser-node controller. */
 export function normalizeTailscaleNodeIdentity(

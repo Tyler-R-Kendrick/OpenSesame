@@ -10,6 +10,7 @@ import {
   runtimePassword,
 } from "../secret-backends/runtime.test-support.js";
 import { vaultStore } from "../vault/store.js";
+import { TailscalePeerHTTPConfiguration } from "./browser-node-peer-http.js";
 import {
   TailscaleNativeHTTPConfiguration,
   normalizeTailscaleNodeIdentity,
@@ -183,4 +184,62 @@ it("rejects malformed routes and owner withdrawal before publishing configuratio
     ),
   ).rejects.toThrow();
   expect(readDeviceRows()).toEqual(before);
+});
+
+it("cold-reloads explicit peer authority and rejects the old peer record after retarget while retaining sealed node keys", async () => {
+  const tomb = vaultStore.getSnapshot().tomb;
+  const peer = TailscalePeerHTTPConfiguration.parse({
+    version: 2,
+    routeMode: "peer",
+    peerID: "n-original-peer",
+    trustMode: "public",
+    targets: [
+      { origin: "https://byo.example.test", prefixes: ["100.64.0.1/32"] },
+    ],
+  });
+  const initial = await configureBrowserNodeState(
+    { ...identity, nativeHTTP: peer },
+    tomb,
+    check,
+  );
+  await writeBrowserNodeState(
+    initial,
+    {},
+    { machine: "original-private-peer-key" },
+    check,
+  );
+  const credential = browserNodeCredentialFingerprint(initial);
+  await vaultStore.flushPendingWrites();
+  await kvFlush();
+  vaultStore.lock();
+  await kvFlush();
+  kvForgetAll();
+  await kvHydrate([...DEVICE_CONNECTOR_KEYS]);
+  expect(savedBrowserNodeConfiguration()?.nativeHTTP).toEqual(peer);
+  await vaultStore.unlock(runtimePassword);
+  const reopened = await openBrowserNodeState(
+    { ...identity, nativeHTTP: peer },
+    tomb,
+    check,
+  );
+  expect(reopened.record.reference).toBe(initial.reference);
+  expect(browserNodeCredentialFingerprint(reopened.record)).toBe(credential);
+  const replacement = { ...peer, peerID: "n-replacement-peer" };
+  const changed = await configureBrowserNodeState(
+    { ...identity, nativeHTTP: replacement },
+    tomb,
+    check,
+  );
+  expect(changed.reference).toBe(initial.reference);
+  expect(browserNodeCredentialFingerprint(changed)).toBe(credential);
+  expect(readBrowserNodeState(changed)).toEqual({
+    machine: "original-private-peer-key",
+  });
+  expect(() => readBrowserNodeState(initial)).toThrow();
+  await expect(
+    openBrowserNodeState({ ...identity, nativeHTTP: peer }, tomb, check),
+  ).rejects.toThrow("Update the saved native HTTPS");
+  const disabled = await configureBrowserNodeState(identity, tomb, check);
+  expect(disabled.nativeHTTP).toBeUndefined();
+  expect(browserNodeCredentialFingerprint(disabled)).toBe(credential);
 });

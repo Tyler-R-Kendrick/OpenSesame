@@ -177,9 +177,10 @@ it("connects the exact saved typed route and withdraws the original node before 
   save();
   await saved();
   expect(original.stop).toHaveBeenCalledTimes(1);
-  expect(
-    nodeState.savedBrowserNodeConfiguration()?.nativeHTTP?.exitNodeID,
-  ).toBe("replacement-exit");
+  expect(nodeState.savedBrowserNodeConfiguration()?.nativeHTTP).toMatchObject({
+    version: 1,
+    exitNodeID: "replacement-exit",
+  });
   expect(
     (
       await nodeState.openBrowserNodeState(
@@ -208,7 +209,7 @@ it("validates before publishing and removes operator CA fields when public trust
   await saved();
   expect(nodeState.savedBrowserNodeConfiguration()).toBeNull();
   expect(
-    screen.getByRole("img", { name: /Complete the approved exit node/ }),
+    screen.getByRole("img", { name: /Complete the approved route identity/ }),
   ).toBeTruthy();
   field(
     "Integration origins and destination CIDRs",
@@ -255,3 +256,80 @@ it.each(["lock", "node"] as const)(
     expect(nodeState.savedBrowserNodeConfiguration()).toBeNull();
   },
 );
+
+it("saves shared peer controls, restores exact CA/peer fields cold, and withdraws the original node on peer retarget", async () => {
+  const original = node();
+  render(<TailscaleBrowserNode ready online />);
+  field("Integration HTTP transport", "native");
+  field("Native HTTPS route", "peer");
+  expect(screen.queryByLabelText("Approved exit node ID")).toBeNull();
+  field("Approved peer stable ID", "n-original-peer");
+  field(
+    "Integration origins and destination CIDRs",
+    "https://byo.example.test 100.64.0.1/32",
+  );
+  field("Integration TLS trust", "operator");
+  field("Operator CA certificates (PEM)", rootCertificates[0] ?? "");
+  save();
+  await saved();
+  expect(original.start).not.toHaveBeenCalled();
+  const config = configuration();
+  expect(config.nativeHTTP).toMatchObject({
+    version: 2,
+    routeMode: "peer",
+    peerID: "n-original-peer",
+  });
+  const tomb = vaultStore.getSnapshot().tomb;
+  const stored = await nodeState.openBrowserNodeState(config, tomb, check);
+  await nodeState.writeBrowserNodeState(
+    stored.record,
+    stored.state,
+    { machine: "same-original-private-key" },
+    check,
+  );
+  const credential = nodeState.browserNodeCredentialFingerprint(stored.record);
+  await vaultStore.flushPendingWrites();
+  await kvFlush();
+  cleanup();
+  vaultStore.lock();
+  await kvFlush();
+  kvForgetAll();
+  await kvHydrate([...DEVICE_CONNECTOR_KEYS]);
+  await vaultStore.unlock(runtimePassword);
+  render(<TailscaleBrowserNode ready online />);
+  expect(screen.getByLabelText("Native HTTPS route")).toHaveProperty(
+    "value",
+    "peer",
+  );
+  expect(screen.getByLabelText("Approved peer stable ID")).toHaveProperty(
+    "value",
+    "n-original-peer",
+  );
+  expect(
+    screen.getByLabelText("Operator CA certificates (PEM)"),
+  ).toHaveProperty("value", rootCertificates[0]);
+  expect(screen.queryByLabelText("Approved exit node ID")).toBeNull();
+  expect(screen.getByLabelText("Optional node auth key")).toHaveProperty(
+    "value",
+    "",
+  );
+  vi.mocked(original.stop).mockClear();
+  field("Approved peer stable ID", "n-replacement-peer");
+  save();
+  await saved();
+  expect(original.stop).toHaveBeenCalledTimes(1);
+  expect(original.start).not.toHaveBeenCalled();
+  const reopened = await nodeState.openBrowserNodeState(
+    configuration(),
+    tomb,
+    check,
+  );
+  expect(reopened.record.reference).toBe(stored.record.reference);
+  expect(nodeState.browserNodeCredentialFingerprint(reopened.record)).toBe(
+    credential,
+  );
+  expect(nodeState.readBrowserNodeState(reopened.record)).toEqual({
+    machine: "same-original-private-key",
+  });
+  expect(() => nodeState.readBrowserNodeState(stored.record)).toThrow();
+});

@@ -69,3 +69,48 @@ it("refuses malformed or widening route input before it can be saved", () => {
     expect(() => nativeHTTPConfiguration({ ...draft, ...change })).toThrow();
   }
 });
+
+it("round-trips explicit peer routes and clears a hidden peer or exit identity on route changes", () => {
+  const peer = {
+    version: 2 as const,
+    routeMode: "peer" as const,
+    peerID: "n-original-peer",
+    trustMode: "public" as const,
+    targets: [
+      { origin: "https://byo.example.test", prefixes: ["100.64.0.1/32"] },
+    ],
+  };
+  expect(nativeHTTPConfiguration(nativeHTTPDraft(peer))).toEqual(peer);
+  const operator = {
+    ...peer,
+    trustMode: "operator" as const,
+    operatorCAPEM: rootCertificates[0] ?? "",
+  };
+  expect(nativeHTTPConfiguration(nativeHTTPDraft(operator))).toEqual(operator);
+  const exitDraft = nextNativeHTTPDraft(
+    nativeHTTPDraft(peer),
+    "routeMode",
+    "exit",
+  );
+  expect(exitDraft).not.toHaveProperty("peerID");
+  const peerDraft = nextNativeHTTPDraft(
+    { ...exitDraft, exitNodeID: "n-old-exit" },
+    "routeMode",
+    "peer",
+  );
+  expect(peerDraft).not.toHaveProperty("exitNodeID");
+  expect(peerDraft.peerID).toBe("");
+  expect(() => nativeHTTPConfiguration(peerDraft)).toThrow();
+  expect(() =>
+    nativeHTTPConfiguration({
+      ...nativeHTTPDraft(peer),
+      routeMode: "fallback",
+    }),
+  ).toThrow();
+  expect(() =>
+    nativeHTTPConfiguration({
+      ...nativeHTTPDraft(peer),
+      targets: "https://byo.example.test 0.0.0.0/0",
+    }),
+  ).toThrow();
+});

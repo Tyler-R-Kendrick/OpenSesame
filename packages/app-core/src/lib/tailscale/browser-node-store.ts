@@ -15,8 +15,8 @@ import {
   stageVaultCredentials,
 } from "../vault-credential-custody.js";
 import { vaultStore } from "../vault/store.js";
+import { TailscaleHTTPRouteConfiguration } from "./browser-node-peer-http.js";
 import {
-  TailscaleNativeHTTPConfiguration,
   type TailscaleNodeConfiguration,
   normalizeTailscaleNodeIdentity,
 } from "./browser-node-port.js";
@@ -27,7 +27,7 @@ const Metadata = z
     controlURL: z.string().url(),
     reference: z.string(),
     tomb: z.string(),
-    nativeHTTP: TailscaleNativeHTTPConfiguration.optional(),
+    nativeHTTP: TailscaleHTTPRouteConfiguration.optional(),
   })
   .strict();
 const State = z.record(z.string(), z.string().max(1_000_000));
@@ -58,7 +58,7 @@ export async function openBrowserNodeState(
   const nativeHTTP =
     config.nativeHTTP === undefined
       ? undefined
-      : TailscaleNativeHTTPConfiguration.parse(config.nativeHTTP);
+      : TailscaleHTTPRouteConfiguration.parse(config.nativeHTTP);
   const identity = { hostname: config.hostname, controlURL: config.controlURL };
   await initializeVaultCredentialCustody();
   check();
@@ -155,7 +155,7 @@ export async function configureBrowserNodeState(
   const nativeHTTP =
     config.nativeHTTP === undefined
       ? undefined
-      : TailscaleNativeHTTPConfiguration.parse(config.nativeHTTP);
+      : TailscaleHTTPRouteConfiguration.parse(config.nativeHTTP);
   check();
   const stored = await openBrowserNodeState(identity, tomb, check);
   check();
@@ -183,14 +183,14 @@ export function savedBrowserNodeConfiguration(): Omit<
 /** Change public routing/trust without replacing the original private node keys. */
 export async function updateBrowserNodeNativeHTTP(
   original: TailscaleNodeRecord,
-  next: TailscaleNativeHTTPConfiguration | undefined,
+  next: TailscaleHTTPRouteConfiguration | undefined,
   check: () => void,
 ): Promise<TailscaleNodeRecord> {
   const record = Metadata.parse(original);
   const nativeHTTP =
     next === undefined
       ? undefined
-      : TailscaleNativeHTTPConfiguration.parse(next);
+      : TailscaleHTTPRouteConfiguration.parse(next);
   const row = savedNodeRow(record.tomb);
   if (!row) throw new Error("The saved Tailscale browser node changed.");
   const receipt = browserNodePublicFingerprint(record, row.connectionId);

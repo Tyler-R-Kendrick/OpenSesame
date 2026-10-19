@@ -1,4 +1,4 @@
-import { TailscaleNativeHTTPConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
+import { TailscaleHTTPRouteConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-peer-http.js";
 import { nativeNextValues } from "../connect/native-connector-ui-values.js";
 import type {
   NativeField,
@@ -21,8 +21,30 @@ export const nativeHTTPModeFields: readonly NativeField[] = [
 ];
 export const nativeHTTPRouteFields: readonly NativeField[] = [
   {
+    id: "routeMode",
+    label: "Native HTTPS route",
+    kind: "choice",
+    secret: false,
+    required: true,
+    defaultValue: "exit",
+    choices: [
+      { id: "peer", label: "Approved tailnet peer" },
+      { id: "exit", label: "Approved exit node" },
+    ],
+  },
+  {
+    id: "peerID",
+    label: "Approved peer stable ID",
+    kind: "text",
+    secret: false,
+    required: true,
+    when: { fieldId: "routeMode", value: "peer" },
+    help: "Use the stable node ID of the exact peer serving these HTTPS origins.",
+  },
+  {
     id: "exitNodeID",
     label: "Approved exit node ID",
+    when: { fieldId: "routeMode", value: "exit" },
     kind: "text",
     secret: false,
     required: true,
@@ -34,7 +56,7 @@ export const nativeHTTPRouteFields: readonly NativeField[] = [
     kind: "textarea",
     secret: false,
     required: true,
-    help: "One HTTPS origin per line, followed by its allowed destination CIDRs. Example: https://api.example.com 203.0.113.0/24, 2001:db8::/32",
+    help: "One HTTPS origin per line, followed by allowed destination CIDRs. Peer example: https://byo.example.com 100.64.0.1/32. Exit example: https://api.example.com 203.0.113.0/24.",
   },
   {
     id: "trustMode",
@@ -58,11 +80,13 @@ export const nativeHTTPRouteFields: readonly NativeField[] = [
   },
 ];
 export function nativeHTTPDraft(
-  config?: TailscaleNativeHTTPConfiguration,
+  config?: TailscaleHTTPRouteConfiguration,
 ): NativeFieldValues {
   return {
     mode: config ? "native" : "browser",
-    exitNodeID: config?.exitNodeID ?? "",
+    routeMode: config?.version === 2 ? "peer" : "exit",
+    peerID: config?.version === 2 ? config.peerID : "",
+    exitNodeID: config?.version === 1 ? config.exitNodeID : "",
     trustMode: config?.trustMode ?? "public",
     operatorCAPEM: config?.trustMode === "operator" ? config.operatorCAPEM : "",
     targets:
@@ -86,7 +110,7 @@ export function nextNativeHTTPDraft(
 }
 export function nativeHTTPConfiguration(
   values: NativeFieldValues,
-): TailscaleNativeHTTPConfiguration | undefined {
+): TailscaleHTTPRouteConfiguration | undefined {
   if (values.mode === "browser") return undefined;
   if (values.mode !== "native")
     throw new Error("Choose an integration HTTP transport.");
@@ -97,20 +121,25 @@ export function nativeHTTPConfiguration(
       const [origin = "", ...prefixes] = line.trim().split(/[\s,]+/);
       return { origin, prefixes };
     });
+  if (values.routeMode && !["peer", "exit"].includes(values.routeMode))
+    throw new Error("Choose an approved peer or exit route.");
+  const route =
+    values.routeMode === "peer"
+      ? { version: 2, routeMode: "peer", peerID: values.peerID }
+      : { version: 1, exitNodeID: values.exitNodeID };
   const configuration = {
-    version: 1,
-    exitNodeID: values.exitNodeID,
+    ...route,
     targets,
     trustMode: values.trustMode,
   };
-  const result = TailscaleNativeHTTPConfiguration.safeParse(
+  const result = TailscaleHTTPRouteConfiguration.safeParse(
     values.trustMode === "operator"
       ? { ...configuration, operatorCAPEM: values.operatorCAPEM }
       : configuration,
   );
   if (!result.success)
     throw new Error(
-      "Complete the approved exit node, exact HTTPS origins, masked destination CIDRs and selected TLS trust configuration.",
+      "Complete the approved route identity, exact HTTPS origins, allowed destination CIDRs and selected TLS trust configuration.",
     );
   return result.data;
 }
