@@ -474,6 +474,14 @@ impl ConnectionBroker {
         items: Vec<OfferItemSpec>,
         now: DateTime<Utc>,
     ) -> Result<Vec<PreparedMintItem>> {
+        // Bound the allocation by the same ceiling `validate_mint_request`
+        // enforces at the entry point, checked here so the capacity below
+        // can never be sized by an unchecked caller-supplied length.
+        if items.len() > MAX_ITEMS {
+            return Err(BrokerError::Invalid(format!(
+                "an offer carries at most {MAX_ITEMS} items"
+            )));
+        }
         let mut prepared = Vec::with_capacity(items.len());
         for item in items {
             prepared.push(
