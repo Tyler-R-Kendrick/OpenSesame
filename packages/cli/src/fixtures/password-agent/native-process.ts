@@ -6,12 +6,15 @@ import { join, resolve } from "node:path";
 import { z } from "zod";
 import { envWithFakeCliAppIntegrationDaemon } from "../cli-app-integration-fake-daemon.js";
 type ProcessResult = { code: number; stdout: string; stderr: string };
-export async function nativeProcessFixture() {
-  const ROOT = resolve(import.meta.dirname, "../../../../..");
-  async function cli(
+function nativeCommand(
+  directory: string,
+  env: NodeJS.ProcessEnv,
+  root: string,
+) {
+  return async function cli(
     args: string[],
     input?: string,
-    cwd = ROOT,
+    cwd = root,
   ): Promise<ProcessResult> {
     // The binary starts its helpers with a built environment, so the fake
     // helpers cannot inherit PARITY_*; they read this file instead (see the
@@ -51,7 +54,10 @@ export async function nativeProcessFixture() {
       );
       child.stdin.end(input);
     });
-  }
+  };
+}
+export async function nativeProcessFixture() {
+  const ROOT = resolve(import.meta.dirname, "../../../../..");
   async function calls() {
     return (await readFile(log, "utf8"))
       .trim()
@@ -110,7 +116,7 @@ export async function nativeProcessFixture() {
     directory,
     database,
     env,
-    cli,
+    cli: nativeCommand(directory, env, ROOT),
     calls,
     closeFakeDaemon: close,
   };
