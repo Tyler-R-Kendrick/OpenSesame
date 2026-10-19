@@ -3,6 +3,7 @@
  * screen — no React, no DOM — so any shell can drive the same behaviour.
  */
 import { type JsonObject, isString } from "@opensesame/os-domain";
+import { refusalWords } from "../../lib/sharing-receipts-tally.js";
 
 export type AuditEvent = {
   id: string;
@@ -73,6 +74,18 @@ export function outcomeChip(outcome: string): string {
 
 export function receiptLabel(eventType: string): string {
   return RECEIPT_LABELS.get(eventType) ?? eventType;
+}
+
+/** Label plus a wrong-code tally, when the one refused receipt carries one. */
+export function receiptWords(event: AuditEvent): string {
+  if (event.eventType !== "access.drop.refused") {
+    return receiptLabel(event.eventType);
+  }
+  const count = event.metadata?.count;
+  if (typeof count === "number" && Number.isInteger(count) && count >= 1) {
+    return refusalWords(count);
+  }
+  return receiptLabel(event.eventType);
 }
 
 /** The thing a receipt is about, when its metadata names one. */

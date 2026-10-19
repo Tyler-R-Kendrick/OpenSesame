@@ -8,6 +8,7 @@ import {
   CLAIM_COMMAND_PATH,
   type CommandField,
   JOIN_COMMAND_PATH,
+  PAIR_CLI_COMMAND_PATH,
 } from "./types.js";
 
 export type SlashSuggestion = {
@@ -50,11 +51,13 @@ const VERBS: readonly SlashSuggestion[] = [
   { id: "copy-url", insert: "/copy url ", label: "Copy link", run: false },
 ];
 
-/** A short name a verb answers to, typed after the slash: `/?` for search. */
-const ALIASES: ReadonlyMap<string, string> = new Map([
-  ["search", "/?"],
+/** Short names a command answers to, typed after the slash: `/?` for search. */
+const ALIASES: ReadonlyMap<string, readonly string[]> = new Map([
+  ["search", ["/?"]],
   // A drop link opens on the claim ceremony.
-  [`go:${CLAIM_COMMAND_PATH}`, "/drop"],
+  [`go:${CLAIM_COMMAND_PATH}`, ["/drop"]],
+  // Pair CLI is contributed, so these only match while that row is listed.
+  [`go:${PAIR_CLI_COMMAND_PATH}`, ["/pair", "/cli", "/pair cli"]],
 ]);
 
 const LEAD_VERBS = new Set(["help", "search", "open", "copy-password"]);
@@ -165,10 +168,10 @@ function destination(section: SlashSection): SlashSuggestion {
 function matchesCommand(row: SlashSuggestion, lower: string): boolean {
   const insert = row.insert.trim().toLowerCase();
   const label = row.label.toLowerCase();
-  const alias = ALIASES.get(row.id);
+  const aliases = ALIASES.get(row.id) ?? [];
   return (
     insert.startsWith(lower) ||
-    alias?.startsWith(lower) ||
+    aliases.some((alias) => alias.startsWith(lower)) ||
     label.startsWith(lower.slice(1)) ||
     `/${label}`.startsWith(lower)
   );

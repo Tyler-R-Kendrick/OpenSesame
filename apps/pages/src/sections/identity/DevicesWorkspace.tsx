@@ -4,7 +4,7 @@ import { ReloadKey } from "../../components/IconKey.js";
 import { RecordWorkspace } from "../../components/RecordWorkspace.js";
 import { useDevices } from "./LocalDevicesPanel.js";
 import { LocalIdentityNotices } from "./LocalIdentityNotices.js";
-import { deviceWorkspaceRows } from "./device-workspace-rows.js";
+import { deviceWorkspaceListRows } from "./device-workspace-rows.js";
 import { DevicesWorkspaceBody } from "./devices-workspace-detail.js";
 import { identityRecordId } from "./identity-record-selection.js";
 
@@ -52,7 +52,7 @@ export function DevicesWorkspace({
     },
   };
   const deviceIds = new Set((devices ?? []).map((device) => device.id));
-  const rows = deviceWorkspaceRows(devices ?? [], {
+  const rows = deviceWorkspaceListRows(devices ?? [], {
     tailnet: !!tailnet,
     approval: !!approval,
   }).map((row) => ({
@@ -60,6 +60,7 @@ export function DevicesWorkspace({
     label: row.label,
     extension: deviceIds.has(row.id) ? "device" : "",
     to: row.href,
+    counted: row.counted,
   }));
   return (
     <RecordWorkspace

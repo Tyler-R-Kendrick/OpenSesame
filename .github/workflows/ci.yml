@@ -281,7 +281,15 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/self-hosted-connectors
         run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
+      - name: Preserve self-hosted provider evidence
+        if: always() && matrix.shard == 'budgets'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: self-hosted-connectors-${{ github.sha }}
+          path: ${{ runner.temp }}/self-hosted-connectors/
+          if-no-files-found: warn
       - name: Keyboard-only first-load and navigation contract
         if: matrix.shard == 'keyboard'
         env:
@@ -300,6 +308,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:push-worker
+      - name: Service worker reload waits for a dirty edit
+        if: matrix.shard == 'budgets'
+        # A guest with an unsaved item must see the waiting release instead of
+        # losing the edit. Lock, idle, and a missing chunk still reload.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:sw-dirty-edit
       - name: Phone and tablet layout and touch contract
         if: startsWith(matrix.shard, 'mobile-')
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
@@ -462,6 +478,27 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:peer-trust-two-context
+      - name: Peering diagnostics
+        # Two contexts on the static dist: ICE line while connecting (P8-3).
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peering-diagnostics
+      - name: Fresh vault Passwords onboarding
+        # P8-4: the walker rebuilds dist with its opt-in, then saves an account.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:fresh-vault-login
+      - name: CLI on the public site
+        # P8-5: Pair CLI on the shared origin, with no loopback pairing field.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:cli-public-site
 
   ai-connections-e2e:
     name: AI connections end to end

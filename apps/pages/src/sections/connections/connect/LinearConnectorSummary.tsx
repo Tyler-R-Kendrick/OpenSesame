@@ -1,5 +1,9 @@
 import type { Connection } from "@opensesame/app-core/lib/connections.js";
 import {
+  type LinearAuthorizationReservation,
+  reserveLinearAuthorizationWindow,
+} from "@opensesame/app-core/lib/linear-auth-reservation.js";
+import {
   beginLinearAuthorization,
   readLinearConnector,
 } from "@opensesame/app-core/lib/linear-connectors.js";
@@ -19,6 +23,8 @@ import { LinearActorSummary } from "./LinearActorSummary.js";
 import { LinearCancelSignIn } from "./LinearCancelSignIn.js";
 import { LinearWebhookRetry } from "./LinearRecoveryControls.js";
 import { LinearWebhookSummary } from "./LinearWebhookSummary.js";
+import { linearAuthorization } from "./linear-authorization-ui.js";
+import type { NativeAuthorizationSink } from "./native-connector-controller.js";
 
 function LinearSummaryHeader({
   active,
@@ -63,26 +69,56 @@ function LinearSummaryHeader({
   );
 }
 
-function useLinearSummaryActions(
-  connectorId: string,
-  onFlash: (flash: Flash) => void,
-  onChanged: () => void,
-) {
-  const [busy, setBusy] = useState(false);
-  const [authorizing, setAuthorizing] = useState(false);
+type LinearSummaryProps = {
+  connection: Connection;
+  onFlash: (flash: Flash) => void;
+  onChanged: () => void;
+  onAuthorization?: NativeAuthorizationSink;
+  captureUiCurrent?: () => () => boolean;
+};
+
+function useLinearSummaryActions(props: LinearSummaryProps) {
+  const {
+    connection: { connectionId: connectorId },
+    onFlash,
+    onChanged,
+  } = props;
+  const [removing, setRemoving] = useState(false);
+  const [pending, setPending] = useState<(() => boolean) | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const authorizing = !!pending?.();
+  const busy = removing || authorizing;
 
   async function authorize(actor: "app" | "user") {
-    setBusy(true);
-    setAuthorizing(true);
+    if (busy) return;
+    const current = props.captureUiCurrent?.() ?? (() => true);
+    if (!current()) return;
+    const authorization = linearAuthorization(
+      connectorId,
+      props.onAuthorization,
+    );
+    let reservation: LinearAuthorizationReservation | undefined;
+    setPending(() => current);
     try {
-      await beginLinearAuthorization(connectorId, actor);
+      reservation = reserveLinearAuthorizationWindow();
+      const assertCurrent = authorization.reserve(reservation);
+      authorization.bind(connectorId);
+      await beginLinearAuthorization(connectorId, actor, {
+        ...reservation,
+        assertCurrent,
+      });
     } catch (error) {
-      onFlash({ tone: "err", text: errorText(error) });
+      if (current()) onFlash({ tone: "err", text: errorText(error) });
     } finally {
-      setBusy(false);
-      setAuthorizing(false);
-      onChanged();
+      try {
+        authorization.finish();
+      } finally {
+        reservation?.release();
+      }
+      if (current()) {
+        setPending(null);
+        onChanged();
+      }
     }
   }
 
@@ -91,7 +127,7 @@ function useLinearSummaryActions(
       setConfirming(true);
       return;
     }
-    setBusy(true);
+    setRemoving(true);
     try {
       await revokeSelfHostedConnectorDurable(connectorId);
       onFlash({
@@ -102,7 +138,7 @@ function useLinearSummaryActions(
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });
     } finally {
-      setBusy(false);
+      setRemoving(false);
       setConfirming(false);
     }
   }
@@ -110,19 +146,12 @@ function useLinearSummaryActions(
   return { busy, authorizing, confirming, authorize, remove };
 }
 
-export function LinearConnectorSummary({
-  connection,
-  onFlash,
-  onChanged,
-}: {
-  connection: Connection;
-  onFlash: (flash: Flash) => void;
-  onChanged: () => void;
-}) {
+export function LinearConnectorSummary(props: LinearSummaryProps) {
+  const { connection, onFlash, onChanged } = props;
   const saved = readSelfHostedConnector(connection.connectionId);
   const authorization = readLinearConnector(connection.connectionId);
   const { busy, authorizing, confirming, authorize, remove } =
-    useLinearSummaryActions(connection.connectionId, onFlash, onChanged);
+    useLinearSummaryActions(props);
   if (!saved) return null;
 
   return (
@@ -155,7 +184,9 @@ export function LinearConnectorSummary({
             onChanged={onChanged}
           />
         ))}
-        <LinearCancelSignIn authorizing={authorizing} />
+        {props.onAuthorization ? null : (
+          <LinearCancelSignIn authorizing={authorizing} />
+        )}
         {authorization?.webhook ? (
           <LinearWebhookSummary
             connectorId={connection.connectionId}

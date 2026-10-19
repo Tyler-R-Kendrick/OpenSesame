@@ -3753,6 +3753,7 @@ dependencies = [
  "opensesame-storage",
  "opensesame-tailnet-admin",
  "opensesame-transport-security",
+ "opensesame-trusted-exec",
  "opensesame-vault-item-types",
  "opensesame-worker",
  "p256",
@@ -3786,6 +3787,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac 0.12.1",
+ "opensesame-trusted-exec",
  "p256",
  "rand_core 0.6.4",
  "serde",
@@ -3968,6 +3970,7 @@ dependencies = [
  "opensesame-sealed-store",
  "opensesame-tailnet-admin",
  "opensesame-tailscale-authn",
+ "opensesame-trusted-exec",
  "opensesame-uds-authn",
  "p256",
  "rand_core 0.6.4",
@@ -4030,8 +4033,8 @@ dependencies = [
 name = "opensesame-env-spec"
 version = "0.1.0"
 dependencies = [
- "libc",
  "opensesame-domain",
+ "opensesame-trusted-exec",
  "serde",
  "serde_json",
  "tempfile",
@@ -4623,6 +4626,7 @@ dependencies = [
  "libc",
  "opensesame-authenticator-core",
  "opensesame-human-vault",
+ "opensesame-trusted-exec",
  "proptest",
  "rand 0.8.7",
  "regex",
@@ -4847,6 +4851,13 @@ dependencies = [
  "tracing-subscriber",
  "x509-parser 0.18.1",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-trusted-exec"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

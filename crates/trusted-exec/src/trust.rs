@@ -1,4 +1,4 @@
-//! Who could have put this directory, or this `node`, where it is.
+//! Who could have put this directory, or this program, where it is.
 //!
 //! A `PATH` entry is trusted on Unix when its owner is root or the user running
 //! `opensesame`, others cannot write it, and, if its group can, that group is
@@ -6,17 +6,56 @@
 //! the caller (or root) can change, and still takes the layouts package managers
 //! and CI images really produce: `root:root 0775`, or `user:user 0775` under the
 //! user-private-group `umask 002` that `nvm`, `volta` and Homebrew inherit. It
-//! refuses what a planted `node` needs: a directory another user owns, anyone
+//! refuses what a planted program needs: a directory another user owns, anyone
 //! can write, or a group the caller is not in can write.
+//!
+//! The program file gets the same questions as a directory: another owner, any
+//! writer outside the caller's own groups, anyone at all. And so does every
+//! directory above it (`chain.rs`): a directory only its owner may rename
+//! entries of is safe, one anyone can write is not, unless it is sticky and
+//! root's (`/tmp`, `/nix/store`), where an entry can be renamed only by its
+//! own owner, who is checked in turn.
 //!
 //! The decisions are pure functions of a stat result and the caller, so the
 //! table in `trust/tests.rs` pins them without needing other users on the host.
 
 use std::path::{Path, PathBuf};
 
-/// Why a `PATH` entry, or the `node` in it, is not used.
+/// What is wrong with a directory or a file, apart from where it is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Skip {
+pub enum Cause {
+    /// Owned by a user who is neither root nor the caller.
+    OwnedBy(u32),
+    WritableByOthers,
+    /// Writable by a group the caller is not in (and that is not root's).
+    GroupWritable(u32),
+}
+
+impl Cause {
+    fn reason(self) -> String {
+        match self {
+            Self::OwnedBy(uid) => format!("owned by uid {uid}"),
+            Self::WritableByOthers => "writable by others".into(),
+            Self::GroupWritable(gid) => {
+                format!("group-writable by group {gid} which is not one of yours")
+            }
+        }
+    }
+}
+
+impl From<Cause> for Skip {
+    fn from(cause: Cause) -> Self {
+        match cause {
+            Cause::OwnedBy(uid) => Self::OwnedBy(uid),
+            Cause::WritableByOthers => Self::WritableByOthers,
+            Cause::GroupWritable(gid) => Self::GroupWritable(gid),
+        }
+    }
+}
+
+/// Why a `PATH` entry, or the program in it, is not used.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Skip {
     Empty,
     Relative,
     NotADirectory,
@@ -26,30 +65,38 @@ pub(crate) enum Skip {
     /// Owned by a user who is neither root nor the caller.
     OwnedBy(u32),
     CurrentDirectory,
+    /// A directory above it could be renamed or replaced by someone else.
+    Under {
+        ancestor: PathBuf,
+        cause: Cause,
+    },
 }
 
 impl Skip {
-    pub(crate) fn reason(self) -> String {
+    /// What the error says about an entry skipped for this reason.
+    #[must_use]
+    pub fn reason(&self) -> String {
         match self {
             Self::Empty => "empty entry".into(),
             Self::Relative => "relative".into(),
             Self::NotADirectory => "missing or not a directory".into(),
             Self::WritableByOthers => "writable by others".into(),
-            Self::GroupWritable(gid) => {
-                format!("group-writable by group {gid} which is not one of yours")
-            }
-            Self::OwnedBy(uid) => format!("owned by uid {uid}"),
+            Self::GroupWritable(gid) => Cause::GroupWritable(*gid).reason(),
+            Self::OwnedBy(uid) => Cause::OwnedBy(*uid).reason(),
             Self::CurrentDirectory => "the current directory".into(),
+            Self::Under { ancestor, cause } => {
+                format!("is under \"{}\", {}", ancestor.display(), cause.reason())
+            }
         }
     }
 }
 
 /// The part of a `stat` the decisions read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Owner {
-    pub(crate) uid: u32,
-    pub(crate) gid: u32,
-    pub(crate) mode: u32,
+pub struct Owner {
+    pub uid: u32,
+    pub gid: u32,
+    pub mode: u32,
 }
 
 #[cfg(unix)]
@@ -77,14 +124,16 @@ impl From<&std::fs::Metadata> for Owner {
 
 /// Who is asking: the effective user and the groups it is in.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct Caller {
-    pub(crate) euid: u32,
-    pub(crate) groups: Vec<u32>,
+pub struct Caller {
+    pub euid: u32,
+    pub groups: Vec<u32>,
 }
 
 impl Caller {
+    /// The effective user of this process and every group it is in.
     #[cfg(unix)]
-    pub(crate) fn current() -> Self {
+    #[must_use]
+    pub fn current() -> Self {
         // SAFETY: `geteuid` and `getegid` take nothing. `getgroups` fills the
         // buffer it is handed, which is sized by its own answer to a first
         // call with no buffer, and is read only up to the count it returns.
@@ -107,8 +156,10 @@ impl Caller {
         }
     }
 
+    /// Nobody in particular: Windows decides by location, not ownership.
     #[cfg(not(unix))]
-    pub(crate) fn current() -> Self {
+    #[must_use]
+    pub fn current() -> Self {
         Self::default()
     }
 
@@ -124,29 +175,46 @@ impl Caller {
 
 const OTHERS_WRITE: u32 = 0o002;
 const GROUP_WRITE: u32 = 0o020;
+const STICKY: u32 = 0o1000;
 
 /// Why a `PATH` directory with this owner is not searched, if it is not.
-pub(crate) fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
+#[must_use]
+pub fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
+    writers(owner, caller).map(Skip::from)
+}
+
+/// Who could change something owned this way, besides root and the caller.
+fn writers(owner: Owner, caller: &Caller) -> Option<Cause> {
     if !caller.trusts_owner(owner.uid) {
-        Some(Skip::OwnedBy(owner.uid))
+        Some(Cause::OwnedBy(owner.uid))
     } else if owner.mode & OTHERS_WRITE != 0 {
-        Some(Skip::WritableByOthers)
+        Some(Cause::WritableByOthers)
     } else if owner.mode & GROUP_WRITE != 0 && !caller.trusts_group(owner.gid) {
-        Some(Skip::GroupWritable(owner.gid))
+        Some(Cause::GroupWritable(owner.gid))
     } else {
         None
     }
 }
 
-/// Why this `node` file (after symlinks) is not run, if it is not: owned by
-/// root or the caller, and not writable by everyone.
-pub(crate) fn file(owner: Owner, caller: &Caller) -> Option<Skip> {
-    if !caller.trusts_owner(owner.uid) {
-        Some(Skip::OwnedBy(owner.uid))
-    } else if owner.mode & OTHERS_WRITE != 0 {
-        Some(Skip::WritableByOthers)
-    } else {
+/// Why this program file (after symlinks) is not run, if it is not: owned by
+/// root or the caller, and writable by nobody outside the caller's own groups.
+#[must_use]
+pub fn file(owner: Owner, caller: &Caller) -> Option<Skip> {
+    writers(owner, caller).map(Skip::from)
+}
+
+/// Why a directory *above* a program or a `PATH` entry cannot be relied on,
+/// if it cannot: the same questions as [`directory`], except that one that
+/// is sticky and root's is fine however it is writable, since a sticky
+/// directory lets only an entry's own owner (or root) rename it, and the
+/// entry below is checked in turn.
+#[must_use]
+pub fn ancestor(owner: Owner, caller: &Caller) -> Option<Cause> {
+    let sticky_root = owner.uid == 0 && owner.mode & STICKY != 0;
+    if sticky_root {
         None
+    } else {
+        writers(owner, caller)
     }
 }
 
@@ -157,14 +225,6 @@ pub(crate) fn is_cwd(dir: &Path, cwd: Option<&Path>) -> bool {
         (Ok(a), Ok(b)) => a == b,
         _ => dir == cwd,
     }
-}
-
-/// The first `node` an entry of `trusted` holds that may be run.
-#[derive(Debug, Default)]
-pub(crate) struct NodeSearch {
-    pub(crate) node: Option<PathBuf>,
-    /// Executables called `node` that were passed over, and why.
-    pub(crate) rejected: Vec<(PathBuf, Skip)>,
 }
 
 #[cfg(test)]

@@ -27,6 +27,7 @@ import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { Notices } from "./components/Notices.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
+import { useSwUpdateHost } from "./lib/sw-update-guard.js";
 import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
@@ -346,6 +347,7 @@ function VaultApp() {
  */
 export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   usePaneEscape();
+  useSwUpdateHost();
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
   const routes = resolved.useRouteContributions();
@@ -353,7 +355,6 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const { status } = resolved.useVault();
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   useEffect(() => activatePlan(compositionStore), []);
-
   if (
     import.meta.env.DEV &&
     DevLockV5Demo &&

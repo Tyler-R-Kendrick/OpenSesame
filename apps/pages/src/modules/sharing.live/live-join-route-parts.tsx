@@ -33,6 +33,7 @@ import {
 } from "./LiveJoinFields.js";
 import { RequestStep } from "./LiveJoinPairing.js";
 import { CarrierMarks, RoutesChoice } from "./LiveJoinRoutes.js";
+import { ConnectingProgress, standing } from "./LiveJoinStanding.js";
 import { useLandWhenSettled } from "./live-focus.js";
 import {
   type Standing,
@@ -51,54 +52,6 @@ import {
 
 /** A fresh request after a timed-out attempt (ADR 0186). */
 const ASK_AGAIN = "Ask to join again";
-
-/** The glyph and sentence for where an ask stands. */
-function standing(status: GuestStatus): Standing {
-  switch (status.at) {
-    case "preparing":
-      return {
-        tone: "idle",
-        label: "Making your request code",
-        tray: "Making your request code",
-      };
-    case "request":
-      return {
-        tone: "idle",
-        label: "Waiting for the owner's reply code",
-        tray: "Waiting for the owner's reply code",
-      };
-    case "connecting":
-      return {
-        tone: "idle",
-        label: "Connecting to the owner's browser",
-        tray: "Connecting to the owner's browser",
-      };
-    case "connect_timeout":
-      return {
-        tone: "err",
-        label: "Connection timed out",
-        tray: "Connection timed out — ask again, or check your network",
-      };
-    case "joined":
-      return {
-        tone: "ok",
-        label: `Joined ${status.catalog.title}`,
-        tray: `Joined ${status.catalog.title}`,
-      };
-    case "unreachable":
-      return {
-        tone: "err",
-        label: "No route to the owner's browser",
-        tray: "No route to the owner's browser",
-      };
-    default:
-      return {
-        tone: "idle",
-        label: "The session ended",
-        tray: "The session ended",
-      };
-  }
-}
 
 /** What the joiner has typed, and the ask it adds up to. */
 function useAsk(held: LiveLink | null) {
@@ -282,7 +235,7 @@ export function LiveJoinSession() {
   const mark = status ? standing(status) : null;
   useEffect(() => {
     if (status?.at === "unreachable") {
-      reportLiveOutcome("Live session", "No route to the owner's browser");
+      reportLiveOutcome("Live session", status.reason);
     }
     if (status?.at === "ended") {
       reportLiveOutcome("Live session", mark?.tray || LIVE_SESSION_ENDED_TRAY);
@@ -306,6 +259,9 @@ export function LiveJoinSession() {
       </div>
       {opened.status.at === "request" ? (
         <RequestWaiting guest={opened.guest} status={opened.status} />
+      ) : null}
+      {opened.status.at === "connecting" ? (
+        <ConnectingProgress guest={opened.guest} status={opened.status} />
       ) : null}
       {opened.status.at === "connect_timeout" ? (
         <div className="go-row">
