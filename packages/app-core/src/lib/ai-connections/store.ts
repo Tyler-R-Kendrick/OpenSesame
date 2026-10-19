@@ -23,6 +23,10 @@ import {
   validateAiConnection,
 } from "./configuration.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
+import {
+  VertexAiTargetSchema,
+  vertexConnectionTarget,
+} from "./vertex-target.js";
 
 export const AI_CONNECTION_CONTRACT = "ai-connection-v1";
 export const AI_CONNECTION_CLASSIFICATION = {
@@ -35,6 +39,7 @@ export const AI_CONNECTION_CLASSIFICATION = {
     "vault_tomb",
     "token_parameter",
     "azure_target",
+    "vertex_target",
   ],
   privateCredentials: ["ai_credential_reference", "ai_credential_digest"],
 };
@@ -61,6 +66,21 @@ function readAzureTarget(value: string | undefined) {
   }
 }
 
+function readVertexTarget(value: string | undefined) {
+  if (value === undefined) return {};
+  try {
+    if (!value || value.length > 512) throw new Error("Invalid target size");
+    const target = VertexAiTargetSchema.safeParse(JSON.parse(value));
+    if (!target.success) throw new Error("Invalid target metadata");
+    return { vertex: target.data };
+  } catch {
+    throw new AiConnectionError(
+      "configuration",
+      "The saved Vertex target is invalid. Configure and verify this connection again.",
+    );
+  }
+}
+
 export function readAiConnection(id: string): AiConnectionDraft | null {
   const record = aiConnectionRecord(id);
   if (!record) return null;
@@ -76,6 +96,7 @@ export function readAiConnection(id: string): AiConnectionDraft | null {
       tokenParameter: parameters.token_parameter,
       apiKey: "",
       ...readAzureTarget(parameters.azure_target),
+      ...readVertexTarget(parameters.vertex_target),
     },
     false,
   );
@@ -126,6 +147,13 @@ function connectionRecord(
     token_parameter: draft.tokenParameter,
   };
   if (azure !== undefined) parameters.azure_target = azure;
+  const vertex = vertexConnectionTarget(draft);
+  if (vertex)
+    parameters.vertex_target = JSON.stringify({
+      project: vertex.project,
+      location: vertex.location,
+      credential: vertex.credential,
+    });
   return verifiedNativeKey(
     AI_CONNECTION_CLASSIFICATION,
     id,

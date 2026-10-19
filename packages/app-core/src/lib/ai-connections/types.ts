@@ -1,4 +1,5 @@
 import type { CallProtocol } from "../model-keys/protocols.js";
+import type { VertexAiTarget } from "./vertex-target.js";
 export type AiInferenceFamily = CallProtocol | "openai_responses";
 
 /** Azure target metadata is public; the supplied key or Entra token is not. */
@@ -22,6 +23,7 @@ export type AiConnectionDraft = {
   tokenParameter: "max_tokens" | "max_completion_tokens";
   /** Unactivated until strict configuration and persistence support this target. */
   azure?: AzureOpenAiTarget;
+  vertex?: VertexAiTarget;
 };
 
 export type AiConnectionTransport = {

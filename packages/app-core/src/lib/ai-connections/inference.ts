@@ -10,6 +10,8 @@ import {
   AiConnectionError,
   type AiConnectionTransport,
 } from "./types.js";
+import { inferVertexAi } from "./vertex-inference.js";
+import { vertexConnectionTarget } from "./vertex-target.js";
 
 /** Both connection testing and active inference execute the actual chosen family. */
 export async function inferAiConnection(
@@ -24,6 +26,9 @@ export async function inferAiConnection(
       "configuration",
       "Use the model saved with this connection.",
     );
+  const vertex = vertexConnectionTarget(draft);
+  if (vertex)
+    return inferVertexAi({ ...draft, vertex }, input, transport, check, onText);
   const request = aiInferenceRequest(draft, input, onText !== undefined);
   const response = await aiConnectionFetch(
     draft,

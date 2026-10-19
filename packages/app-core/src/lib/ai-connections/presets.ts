@@ -28,6 +28,18 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "google-vertex")
+    return {
+      providerId,
+      name: "Google Vertex AI",
+      family: "gemini_generate_content" as const,
+      baseUrl: "https://us-central1-aiplatform.googleapis.com/v1",
+      vertex: {
+        project: "",
+        location: "us-central1",
+        credential: "service-account",
+      } as const,
+    };
   if (providerId === "azure-openai")
     return {
       providerId,
@@ -54,7 +66,10 @@ export function aiConnectionPreset(providerId: string) {
 }
 
 export function isAiConnectionProvider(providerId: string): boolean {
-  return aiConnectionPreset(providerId) !== null;
+  // The complete Vertex form lands before its catalog route is advertised.
+  return (
+    providerId !== "google-vertex" && aiConnectionPreset(providerId) !== null
+  );
 }
 
 export function aiConnectionDraft(providerId: string): AiConnectionDraft {

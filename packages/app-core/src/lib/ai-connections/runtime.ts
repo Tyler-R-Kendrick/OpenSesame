@@ -13,7 +13,7 @@ import { aiConnectionBinding, validateAiConnection } from "./configuration.js";
 import { capturedAiCredentials, resolvedAiConnection } from "./credentials.js";
 import { aiCompletionSeams } from "./http.js";
 import { inferAiConnection, probeAiConnection } from "./inference.js";
-import { isAiConnectionProvider } from "./presets.js";
+import { aiConnectionPreset } from "./presets.js";
 import {
   AI_CONNECTION_CLASSIFICATION,
   aiConnectionRecord,
@@ -237,7 +237,8 @@ export async function performSavedAiInference(
     requireNativeKey(
       {
         family: "AI",
-        accepts: isAiConnectionProvider,
+        // Saved protocol support is independent from the public form catalog.
+        accepts: (providerId) => aiConnectionPreset(providerId) !== null,
         classification: AI_CONNECTION_CLASSIFICATION,
       },
       id,
