@@ -274,6 +274,7 @@ export async function presentLocalDropClaim(
   }
   if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
     const attempts = record.attempts + 1;
+    noteDropRefused(claimId, attempts);
     const triesLeft = MAX_DROP_CLAIM_ATTEMPTS - attempts;
     if (attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
       lockOutLocalDropClaim(record, claimId, persist, attempts);
