@@ -1,4 +1,5 @@
 /** Official Go/WireGuard runs in this terminable, privately governed realm. */
+import "./worker-csp.js";
 import {
   type HostEvent,
   NativeHTTPResponse,
