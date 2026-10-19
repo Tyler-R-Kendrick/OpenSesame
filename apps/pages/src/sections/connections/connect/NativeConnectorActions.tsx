@@ -1,7 +1,6 @@
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useLayoutEffect, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { LeaseAbortedError } from "../../../modules/signals.js";
@@ -26,6 +25,7 @@ import type {
   NativeConnectorDescriptor,
   SafeActionResult,
 } from "./native-connector-ui.js";
+import { useNativeActionWithdrawal } from "./useNativeActionWithdrawal.js";
 
 function NativeActionResults({
   result,
@@ -80,57 +80,6 @@ function clearedActionSecrets(
         .map((field) => [field.id, ""]),
     ),
   };
-}
-
-function nativeActionVaultScope() {
-  const state = vaultStore.getSnapshot();
-  return JSON.stringify([
-    state.status,
-    state.tomb,
-    state.guest,
-    state.awaitingSecondStep,
-    state.decoy,
-  ]);
-}
-
-function useNativeActionWithdrawal(
-  controller: NativeConnectorController,
-  enabled: boolean,
-  pending: ReturnType<typeof useSecretBackendAction>,
-  setResult: (value: SafeActionResult | null) => void,
-) {
-  const { busy, clear } = pending;
-  const lifetime = useMemo(
-    () => ({ controller, end: clear }),
-    [controller, clear],
-  );
-  useLayoutEffect(() => {
-    if (!enabled) {
-      setResult(null);
-      if (busy) clear();
-    }
-  }, [enabled, busy, clear, setResult]);
-  useLayoutEffect(() => {
-    setResult(null);
-    let scope = nativeActionVaultScope();
-    const end = () => {
-      lifetime.end();
-      setResult(null);
-    };
-    const stopLock = vaultStore.onLock(end);
-    const stopSnapshot = vaultStore.subscribe(() => {
-      const next = nativeActionVaultScope();
-      if (scope !== next) {
-        scope = next;
-        end();
-      }
-    });
-    return () => {
-      stopLock();
-      stopSnapshot();
-      lifetime.end();
-    };
-  }, [lifetime, setResult]);
 }
 
 function useNativeActionModel({
