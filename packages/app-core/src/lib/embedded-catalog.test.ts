@@ -10,7 +10,7 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, identity and browser secret backend provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(142);
+    expect(ids).toHaveLength(141);
     for (const id of [
       "webcrypto",
       "aws-kms",
@@ -28,7 +28,6 @@ describe("embedded connector catalog", () => {
       "vercel",
       "linear",
       "tailscale",
-      "cloudflare-wallet",
       "google-wallet",
       "apple-wallet",
       "samsung-wallet",

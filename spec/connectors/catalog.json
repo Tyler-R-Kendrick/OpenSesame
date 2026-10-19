@@ -3040,40 +3040,6 @@
       ]
     },
     {
-      "id": "cloudflare-wallet",
-      "display_name": "Cloudflare Wallet",
-      "category": "wallet",
-      "docs_url": "https://developers.cloudflare.com/",
-      "provenance_url": "https://developers.cloudflare.com/",
-      "auth": {
-        "kind": "configuration"
-      },
-      "connection_configuration_fields": [
-        {
-          "name": "account_id",
-          "secret": false,
-          "required": true
-        },
-        {
-          "name": "wallet_id",
-          "secret": false,
-          "required": true
-        },
-        {
-          "name": "api_token",
-          "secret": true,
-          "required": true
-        }
-      ],
-      "scopes": [],
-      "egress": {
-        "scheme": "none",
-        "authorities": [],
-        "path_prefixes": []
-      },
-      "operations": ["wallet.configure"]
-    },
-    {
       "id": "google-wallet",
       "display_name": "Google Wallet",
       "category": "wallet",

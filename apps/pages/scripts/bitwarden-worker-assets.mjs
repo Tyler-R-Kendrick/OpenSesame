@@ -1,8 +1,12 @@
-/** Admit only the exact maintained BWS browser glue and its pinned raw WASM. */
+/** Admit only the exact maintained BWS browser glue and its pinned gzip-delivered WASM. */
 import { createHash } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { gzipSync } from "node:zlib";
+import artifact from "../../../packages/app-core/src/lib/secret-backends/bitwarden-wasm-artifact.json" with {
+  type: "json",
+};
 
 const realm = "bitwarden-secrets.worker";
 const pins = new Map([
@@ -42,7 +46,18 @@ export function bitwardenWorkerAssets(workers) {
     throw new Error("BWS worker SDK package/version differs.");
   const wasm = join(root, wasmName);
   const glue = join(root, "bitwarden_wasm_bg.js");
-  pinned(wasmName);
+  const raw = pinned(wasmName);
+  const compressed = gzipSync(raw, { level: 9 });
+  for (const [bytes, pin] of [
+    [raw, artifact.raw],
+    [compressed, artifact.compressed],
+  ]) {
+    if (
+      bytes.length !== pin.bytes ||
+      createHash("sha256").update(bytes).digest("hex") !== pin.hash
+    )
+      throw new Error("BWS worker WASM transport pin differs.");
+  }
   pinned("bitwarden_wasm_bg.js");
   return {
     owns(file, target) {
@@ -56,8 +71,8 @@ export function bitwardenWorkerAssets(workers) {
       if (file !== wasm) return undefined;
       const reference = context.emitFile({
         type: "asset",
-        name: wasmName,
-        source: pinned(wasmName),
+        name: `${wasmName}.gz`,
+        source: compressed,
       });
       return `export default import.meta.ROLLUP_FILE_URL_${reference};`;
     },

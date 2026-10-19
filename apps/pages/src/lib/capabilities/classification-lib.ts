@@ -72,10 +72,7 @@ const CORE_INFRA = [
   "dirty-edit",
   "dirty-forms",
   "shell-update",
-  "stale-asset",
   "sw-update-guard",
-  // The shell chunk itself, told the same way when a deploy replaces it.
-  "load-shell",
   "urls",
   "agent-page-dump",
   "local-network-fetch",
@@ -205,16 +202,6 @@ export const LIB_RULES = [
     "vault.passwords",
     "sealed parts of a file item",
   ),
-  core(
-    `${L}pwa-offer-passwords-onboarding`,
-    null,
-    "build-time opt-in for fresh-vault Passwords onboarding",
-  ),
-  core(
-    `${L}test/native-s3-backup-fixtures`,
-    null,
-    "shared native S3 backup fixture for its integration suite",
-  ),
   ...each(L, CORE_INFRA, (p) =>
     core(p, null, "storage, focus, theme and shell infrastructure"),
   ),
@@ -256,6 +243,10 @@ export const LIB_RULES = [
   ),
   core(`${L}guest-connections`, "vault.local-unlock", "tomb"),
   core(`${L}idp-registry`, "vault.local-unlock", "tomb IdPs"),
+  shared(
+    `${L}auth-generation.ts`,
+    "principal generation shared by native and ambient sign-in",
+  ),
   shared(`${L}origin-file-publication-read`, "device-sealed record reads"),
   shared(`${L}original-origin-storage`, "sealed origin data"),
   shared(

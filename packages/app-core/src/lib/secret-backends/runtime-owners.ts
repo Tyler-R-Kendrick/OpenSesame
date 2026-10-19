@@ -2,6 +2,7 @@ import {
   awaitSecretBackendOwner,
   secretBackendVaultGuard,
 } from "./runtime-guard.js";
+import { captureSecretBackendTransport } from "./transport.js";
 import { SecretBackendError } from "./types.js";
 
 type PendingOwner = Readonly<{ signal: AbortSignal; close(): void }>;
@@ -35,6 +36,14 @@ export async function captureSecretBackendVault(callerSignal?: AbortSignal) {
     guard.close();
     throw error;
   }
+}
+
+/** Both original owners are selected before custody or ledger hydration can yield. */
+export async function captureSecretBackendAttempt(callerSignal?: AbortSignal) {
+  if (callerSignal?.aborted) throw ended();
+  const capturing = captureSecretBackendVault(callerSignal);
+  const transport = captureSecretBackendTransport();
+  return { guard: await capturing, transport };
 }
 
 export function secretBackendGeneration(id: string): number {

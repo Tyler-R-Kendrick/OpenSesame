@@ -91,6 +91,12 @@ it("tests inference against the configured serving endpoint without saving", asy
         apiKey: SECRET,
       }),
       undefined,
+      undefined,
+      expect.objectContaining({
+        prediction: expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        }),
+      }),
     ),
   );
   expect(readDeviceRows()).toHaveLength(0);

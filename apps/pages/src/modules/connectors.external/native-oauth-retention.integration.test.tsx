@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { DEVICE_CONNECTOR_KEYS } from "@opensesame/app-core/lib/device-connector-records.js";
 import {

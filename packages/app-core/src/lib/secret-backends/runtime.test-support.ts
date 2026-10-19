@@ -36,7 +36,7 @@ export async function runtimeFixture() {
   let atomicWrite: (() => Promise<void>) | undefined;
   const root = {
     async getFileHandle(name: string, options?: { create?: boolean }) {
-      if (!files.has(name) && !options?.create)
+      if (!files.has(name) && !created.has(name) && !options?.create)
         throw new DOMException("Missing", "NotFoundError");
       if (!files.has(name)) {
         created.add(name);

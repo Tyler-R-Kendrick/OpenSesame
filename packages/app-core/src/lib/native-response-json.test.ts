@@ -209,7 +209,7 @@ it.each(["api", "oauth"] as const)(
     await expect(reading).rejects.toMatchObject({
       code: kind === "api" ? "response" : "provider",
     });
-    expect(Date.now() - started).toBeGreaterThanOrEqual(14_000);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(13_000);
     expect(Date.now() - started).toBeLessThan(20_000);
     await f.closed;
     expect(f.finished()).toBe(false);

@@ -1,0 +1,64 @@
+{
+  "frames": [
+    {
+      "phase": "before",
+      "width": 1280,
+      "height": 900,
+      "path": "/tmp/opensesame-evidence/wallet-removal-pair-revealed-2452/before/1280-wallet-provider-removal.png",
+      "sha256": "e4674a470d671e50006044a32103f9ea7a46d65a93aa704216b07f0777094615",
+      "cardCount": 8,
+      "cardHeightCSS": 54,
+      "listHeightCSS": 182,
+      "horizontalOverflow": false,
+      "visualInspection": "All named cards readable; no sticky occlusion. No image editing/cropping."
+    },
+    {
+      "phase": "before",
+      "width": 390,
+      "height": 844,
+      "path": "/tmp/opensesame-evidence/wallet-removal-pair-revealed-2452/before/390-wallet-provider-removal.png",
+      "sha256": "9a4888adebab7909c02b4066e4dfcf3e2a2935d3500cefb9398461954d127959",
+      "cardCount": 8,
+      "cardHeightCSS": 54,
+      "listHeightCSS": 502,
+      "horizontalOverflow": false,
+      "visualInspection": "All named cards readable; no sticky occlusion. No image editing/cropping."
+    },
+    {
+      "phase": "after",
+      "width": 1280,
+      "height": 900,
+      "path": "/tmp/opensesame-evidence/wallet-removal-pair-revealed-2452/after/1280-wallet-provider-removal.png",
+      "sha256": "4caed4849db80dad174e4359c6aacd7ed0d3e933a3071e5c802ef3b89eb3fadb",
+      "cardCount": 7,
+      "cardHeightCSS": 54,
+      "listHeightCSS": 182,
+      "horizontalOverflow": false,
+      "visualInspection": "All named cards readable; no sticky occlusion. No image editing/cropping."
+    },
+    {
+      "phase": "after",
+      "width": 390,
+      "height": 844,
+      "path": "/tmp/opensesame-evidence/wallet-removal-pair-revealed-2452/after/390-wallet-provider-removal.png",
+      "sha256": "8353af1b34aa9bd10d5ef14c021006b34552d31658a65b7502c76b7b6d100063",
+      "cardCount": 7,
+      "cardHeightCSS": 54,
+      "listHeightCSS": 438,
+      "horizontalOverflow": false,
+      "visualInspection": "All named cards readable; no sticky occlusion. No image editing/cropping."
+    }
+  ],
+  "afterOrderedNames": [
+    "Google Wallet",
+    "Apple Wallet",
+    "Samsung Wallet",
+    "Privacy.com",
+    "Lithic",
+    "Marqeta",
+    "Stripe Issuing"
+  ],
+  "sourceDelta": "Exactly authorized8 Cloudflare-removal paths between actual35 and43 snapshots; no KDBX.",
+  "beforeAggregateAccepted": false,
+  "afterAggregateAccepted": false
+}

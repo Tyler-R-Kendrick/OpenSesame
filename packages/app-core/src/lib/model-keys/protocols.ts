@@ -22,15 +22,13 @@ import {
   isString,
   isTypeofObject,
 } from "@opensesame/os-domain";
+import type { CallProtocol } from "../hosted-model-authority.js";
 import { refuse } from "./errors.js";
 import { withinSendLimits } from "./request-limits.js";
 import { anthropicTools, geminiTools, openaiTools } from "./tools.js";
 import { LIMITS, type ModelAction } from "./vocabulary.js";
 
-export type CallProtocol =
-  | "openai_chat"
-  | "anthropic_messages"
-  | "gemini_generate_content";
+export type { CallProtocol } from "../hosted-model-authority.js";
 
 export type CallOperation = "invoke" | "list";
 

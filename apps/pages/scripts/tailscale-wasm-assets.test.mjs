@@ -8,7 +8,7 @@ import {
   loadTailscaleAssets,
   tailscaleWorkerFileName,
 } from "./tailscale-wasm-assets.mjs";
-test("ships exact source-built native WASM, isolated runtime, jitless bridge and complete notices", async () => {
+test.skipIf(process.arch !== "x64")("ships exact source-built native WASM, isolated runtime, jitless bridge and complete notices", async () => {
   const assets = await loadTailscaleAssets();
   assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6746017);
   assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8078);

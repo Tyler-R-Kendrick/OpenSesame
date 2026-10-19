@@ -82,7 +82,7 @@ describe("the one integration catalog", () => {
       );
       expect(bundledIds.has(preset.providerId), preset.providerId).toBe(true);
     }
-    expect(catalogProviders()).toHaveLength(186);
+    expect(catalogProviders()).toHaveLength(185);
   });
 
   it("keeps native Host credential fields separate from browser secret backend configuration", () => {
@@ -179,7 +179,6 @@ describe("the one integration catalog", () => {
         "aws-kms",
         "bitwarden",
         "bitwarden-secrets-manager",
-        "cloudflare-wallet",
         "gcp-kms",
         "google-wallet",
         "keepass",

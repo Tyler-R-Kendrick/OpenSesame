@@ -9,6 +9,28 @@ const SIGNIN = "identity.brokered-signin";
 const UNLOCK = "vault.local-unlock";
 
 export const SHELL_RULES = [
+  ...each(
+    "src/lib/",
+    [
+      "dirty-forms.ts",
+      "dirty-forms.test.tsx",
+      "load-shell.ts",
+      "load-shell.test.ts",
+      "shell-update.ts",
+      "shell-update.test.ts",
+      "stale-asset.ts",
+      "sw-update-guard.ts",
+      "dirty-edit.ts",
+      "dirty-edit.test.ts",
+      "stale-asset-reload.ts",
+    ],
+    (p) => core(p, SHELL, "shell boot, unsaved edits and safe release reload"),
+  ),
+  optional(
+    "src/lib/pwa-offer-passwords-onboarding.ts",
+    "vault.derived-records",
+    "build-time offer for the optional Passwords capability",
+  ),
   // --- executable roots ----------------------------------------------------
   core("index.html", SHELL, "the one primary HTML entry"),
   core(

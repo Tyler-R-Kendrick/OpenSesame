@@ -283,3 +283,36 @@ it("rejects a held consumed result after saved revision changes and never dispat
   expect(sent).not.toHaveBeenCalled();
   expect(o.requests).toHaveLength(3);
 });
+
+it("admits only the documented deep-object page limit while keeping malformed query and credential guards", async () => {
+  const o = await oracle();
+  o.reply((_request, response) => response.end('{"label":"Bounded read"}'));
+  expect(await execute(o, { query: { "page[limit]": 20 } })).toEqual({
+    label: "Bounded read",
+  });
+  const last = o.requests.at(-1);
+  const url = new URL(last?.path ?? "", "https://oracle.test");
+  expect(last?.authorized).toBe(true);
+  expect(url.searchParams.getAll("page[limit]")).toEqual(["20"]);
+  expect(url.searchParams.getAll("api_key")).toEqual([operationKey]);
+  const count = o.requests.length;
+  for (const name of [
+    "page[foo]",
+    "page[limit][nested]",
+    "page[limit]\n",
+    "api_key",
+    "__proto__",
+    "constructor",
+  ])
+    await expect(execute(o, { query: { [name]: 20 } })).rejects.toThrow();
+  for (const value of [
+    operationKey,
+    encodeURIComponent(operationKey),
+    "20\n",
+    "x".repeat(1025),
+  ])
+    await expect(
+      execute(o, { query: { "page[limit]": value } }),
+    ).rejects.toThrow();
+  expect(o.requests).toHaveLength(count);
+});

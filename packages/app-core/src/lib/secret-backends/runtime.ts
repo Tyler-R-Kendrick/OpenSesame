@@ -15,7 +15,7 @@ import {
 } from "./runtime-guard.js";
 import {
   advanceSecretBackendGeneration as advance,
-  captureSecretBackendVault,
+  captureSecretBackendAttempt,
   registerPendingSecretBackend,
   secretBackendGeneration,
 } from "./runtime-owners.js";
@@ -29,6 +29,7 @@ import {
   secretBackendRuntimeConfiguration,
   writeSecretBackendConnection,
 } from "./store.js";
+import type { SecretBackendTransport } from "./transport.js";
 import {
   type SecretBackendConfiguration,
   type SecretBackendDraft,
@@ -121,6 +122,7 @@ function transientConfiguration(
 async function authenticate(
   config: SecretBackendConfiguration,
   lease: ReturnType<typeof lifecycle>,
+  originalTransport: SecretBackendTransport,
   savedConnectionId?: string,
   initialize = false,
 ): Promise<OpenBackend> {
@@ -136,6 +138,7 @@ async function authenticate(
       lease.check,
       lease.signal,
       savedConnectionId,
+      originalTransport,
     ),
     lease.signal,
   );
@@ -242,7 +245,7 @@ async function openSecretBackend(
   callerSignal?: AbortSignal,
   initialize = false,
 ): Promise<OpenBackend> {
-  const guard = await captureSecretBackendVault(callerSignal);
+  const { guard, transport } = await captureSecretBackendAttempt(callerSignal);
   let retained = false;
   let close = guard.close;
   let releasePending = () => {};
@@ -274,7 +277,7 @@ async function openSecretBackend(
     const input = isSavedConnectionId(value)
       ? config
       : transientConfiguration(value, config);
-    const raw = await authenticate(input, lease, id, initialize);
+    const raw = await authenticate(input, lease, transport, id, initialize);
     const held = holdSecretBackend(raw, lease, (entry) =>
       releaseBackend(id, entry),
     );
@@ -313,7 +316,7 @@ export async function probeSecretBackend(
   existingId?: string,
   callerSignal?: AbortSignal,
 ): Promise<void> {
-  const guard = await captureSecretBackendVault(callerSignal);
+  const { guard, transport } = await captureSecretBackendAttempt(callerSignal);
   let close = guard.close;
   let releasePending = () => {};
   try {
@@ -342,6 +345,7 @@ export async function probeSecretBackend(
     const raw = await authenticate(
       transientConfiguration(draft, config),
       lease,
+      transport,
       existingId,
     );
     await disposeSecretBackendProbe(raw, lease);

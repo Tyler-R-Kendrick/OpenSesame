@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
   nativeCatalogResources,
+  projectDovetailProjects,
   projectGitLabProjects,
   projectNetlifySites,
   projectNewsSources,
@@ -21,7 +22,7 @@ const site = { id: "site_owned", name: "Documentation" };
 const workspace = { id: "tea_owned", name: "Team", type: "team" };
 const source = { id: "owned-news", name: "Newsroom" };
 const project = { id: 17, name: "Client" };
-it("exposes four actual product reads through the original API-key registry", () => {
+it("exposes actual product reads through the original API-key registry", () => {
   for (const resource of nativeCatalogResources) {
     expect(nativeApiResourceActions(resource.providerId, "api-key")).toEqual([
       { id: resource.id, label: resource.label },
@@ -291,4 +292,78 @@ it("rejects raw and encoded saved header-key reflections through the unchanged e
       ),
     ).rejects.toMatchObject({ code: "response" });
   }
+});
+
+const dovetailProject = {
+  id: "research-1",
+  title: "Research",
+  type: "project",
+  deleted: false,
+};
+const dovetailPage = { total_count: 1, has_more: false, next_cursor: null };
+it("projects active Dovetail titles without author, content, URL, deleted rows or cursor", () => {
+  expect(
+    projectDovetailProjects({
+      data: [
+        {
+          ...dovetailProject,
+          author: { name: "private-person" },
+          url: "javascript:private",
+        },
+        {
+          ...dovetailProject,
+          id: "deleted",
+          deleted: true,
+          title: "private-deleted",
+        },
+      ],
+      page: {
+        total_count: 100,
+        has_more: true,
+        next_cursor: "https://untrusted.example",
+      },
+    }),
+  ).toEqual({
+    label: "Showing 1 active projects from first page",
+    items: [{ id: "research-1", label: "Research" }],
+  });
+  expect(
+    projectDovetailProjects({
+      data: [{ ...dovetailProject, title: "" }],
+      page: dovetailPage,
+    }),
+  ).toMatchObject({ items: [{ label: "(Untitled project)" }] });
+  expect(
+    projectDovetailProjects({
+      data: [],
+      page: { ...dovetailPage, total_count: 0 },
+    }),
+  ).toMatchObject({ items: [] });
+});
+it.each([
+  {
+    data: [dovetailProject, dovetailProject],
+    page: { ...dovetailPage, total_count: 2 },
+  },
+  { data: [{ ...dovetailProject, id: "bad\nid" }], page: dovetailPage },
+  { data: [{ ...dovetailProject, title: "bad\nname" }], page: dovetailPage },
+  { data: [{ ...dovetailProject, type: "note" }], page: dovetailPage },
+  { data: [{ ...dovetailProject, deleted: "false" }], page: dovetailPage },
+  { data: [dovetailProject], page: { ...dovetailPage, total_count: 0 } },
+  { data: [dovetailProject], page: { ...dovetailPage, has_more: true } },
+  {
+    data: [dovetailProject],
+    page: { ...dovetailPage, next_cursor: "unexpected" },
+  },
+  { data: [dovetailProject], page: dovetailPage, errors: [] },
+  { data: [dovetailProject], page: dovetailPage, error: "denied" },
+  {
+    data: Array.from({ length: 21 }, (_, i) => ({
+      ...dovetailProject,
+      id: String(i),
+    })),
+    page: { ...dovetailPage, total_count: 21 },
+  },
+])("rejects malformed or contradictory Dovetail replies %#", (body) => {
+  expect(() => projectDovetailProjects(body)).toThrow();
 });

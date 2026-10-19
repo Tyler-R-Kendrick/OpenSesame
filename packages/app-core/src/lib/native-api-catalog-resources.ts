@@ -1,6 +1,7 @@
 /** Provider catalogs compose the same closed request and bounded collection helpers. */
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
+import { NativeApiError } from "./native-api-http.js";
 import {
   jsonResource,
   projectResourceCollection,
@@ -65,7 +66,92 @@ export function projectGitLabProjects(body: BoundaryValue): BoundaryValue {
     "first-page",
   );
 }
+const dovetail = z.object({
+  data: z
+    .array(
+      z.object({
+        id: resourceId,
+        title: resourceText.or(z.literal("")),
+        type: z.literal("project"),
+        deleted: z.boolean(),
+      }),
+    )
+    .max(20),
+  page: z.object({
+    total_count: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    has_more: z.boolean(),
+    next_cursor: resourceText.nullable(),
+  }),
+  error: z.never().optional(),
+  errors: z.never().optional(),
+});
+/** First page only: deleted projects and private content never reach the result. */
+export function projectDovetailProjects(body: BoundaryValue): BoundaryValue {
+  const response = dovetail.parse(body);
+  if (
+    response.page.total_count < response.data.length ||
+    response.page.has_more !== (response.page.next_cursor !== null) ||
+    new Set(response.data.map((project) => project.id)).size !==
+      response.data.length
+  )
+    throw new NativeApiError("response");
+  return projectResourceCollection(
+    response.data
+      .filter((project) => !project.deleted)
+      .map((project) => ({
+        id: project.id,
+        label: project.title || "(Untitled project)",
+      })),
+    "active projects",
+    "first-page",
+  );
+}
+const lemma = z.object({
+  data: z
+    .array(
+      z.object({
+        id: resourceId.refine((id) => /^entity_[A-Za-z0-9_-]+$/.test(id)),
+        name: resourceText,
+      }),
+    )
+    .max(20),
+  has_next: z.boolean(),
+  cursor: resourceText.nullable(),
+  error: z.never().optional(),
+  errors: z.never().optional(),
+});
+export function projectLemmaEntities(body: BoundaryValue): BoundaryValue {
+  const response = lemma.parse(body);
+  if (response.has_next !== (response.cursor !== null))
+    throw new NativeApiError("response");
+  return projectResourceCollection(
+    response.data.map((entity) => ({ id: entity.id, label: entity.name })),
+    "entities",
+    "first-page",
+  );
+}
 export const nativeCatalogResources = [
+  jsonResource(
+    "List entities",
+    {
+      providerId: "lemma",
+      operationId: "provider.entities.read",
+      method: "GET",
+      path: "/v0/entities",
+    },
+    projectLemmaEntities,
+  ),
+  jsonResource(
+    "List projects",
+    {
+      providerId: "dovetail",
+      operationId: "provider.projects.read",
+      method: "GET",
+      path: "/api/v1/projects",
+      query: { "page[limit]": 20 },
+    },
+    projectDovetailProjects,
+  ),
   jsonResource(
     "List sites",
     {

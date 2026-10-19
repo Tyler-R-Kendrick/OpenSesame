@@ -1,0 +1,10 @@
+{
+  "raw": {
+    "bytes": 2013908,
+    "hash": "3722dfbef74f28d49c8e70aeeb532a4be21a1884abcc6292f0d1a58b0c612861"
+  },
+  "compressed": {
+    "bytes": 695804,
+    "hash": "f0e0ea75c37389e76591d63f4e18c668737809c3c6843fb9a89fc64fc593747f"
+  }
+}

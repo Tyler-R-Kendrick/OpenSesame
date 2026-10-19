@@ -23,6 +23,7 @@ async function main(): Promise<void> {
   if (!url) {
     console.error("DATABASE_URL is required for db:reset");
     process.exit(1);
+    return;
   }
   await resetDatabase(url);
 }

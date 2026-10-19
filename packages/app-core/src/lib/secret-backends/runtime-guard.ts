@@ -1,3 +1,4 @@
+import { vaultStore } from "../vault/store.js";
 import { localVaultSessionGuard } from "./local-vault-port.js";
 import {
   type SecretBackend,
@@ -6,7 +7,6 @@ import {
 } from "./types.js";
 
 export async function secretBackendVaultGuard() {
-  const { vaultStore } = await import("../vault/store.js");
   const guard = localVaultSessionGuard(vaultStore);
   const snapshot = guard.current();
   const lifetime = new AbortController();

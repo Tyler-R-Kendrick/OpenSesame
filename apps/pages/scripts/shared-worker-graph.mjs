@@ -1,13 +1,30 @@
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
-import { dirname, extname, resolve } from "node:path";
+import { basename, dirname, extname, resolve } from "node:path";
 import ts from "typescript";
-import { transformWithEsbuild } from "vite";
+import { searchForWorkspaceRoot, transformWithEsbuild } from "vite";
 import { bitwardenWorkerAssets } from "./bitwarden-worker-assets.mjs";
 import { workerRealmSource } from "./lib/capability-graph.mjs";
 
 const PREFIX = "\0opensesame-worker:";
-const pure = /\/node_modules\/(?:zod|@noble\/(?:ciphers|hashes))\//;
+const purePackages =
+  /\/node_modules\/(?:zod|@noble\/(?:ciphers|hashes)|hash-wasm|@levischuck\/tiny-cbor)\//;
+const closedLeaves = [
+  "packages/vault-core/src/bytes.ts",
+  "packages/app-core/src/lib/zod-jitless.ts",
+  ...[
+    "wasm-gzip-asset",
+    "bitwarden-worker-protocol",
+    "bitwarden-native-worker-protocol",
+    "bitwarden-native-contract",
+    "bitwarden-native-network-protocol",
+  ].map((name) => `packages/app-core/src/lib/secret-backends/${name}.ts`),
+];
+function pureSources(root) {
+  const workspace = searchForWorkspaceRoot(root);
+  const closed = new Set(closedLeaves.map((file) => resolve(workspace, file)));
+  return { closed, test: (id) => purePackages.test(id) || closed.has(id) };
+}
 const virtual = (realm, file) =>
   `${PREFIX}${realm}:${Buffer.from(file).toString("base64url")}${extname(file)}`;
 function original(id) {
@@ -18,8 +35,6 @@ function original(id) {
 function privateSource(file, realm, sdk) {
   if (sdk?.owns(file, realm)) return true;
   const path = file.replaceAll("\\", "/");
-  if (/\/node_modules\/(?:hash-wasm|@levischuck\/tiny-cbor)\//.test(path))
-    return true;
   if (/\/packages\/os-domain\/src\//.test(path)) return true;
   if (
     /\/packages\/(?:os-domain\/src\/json|vault-core\/src\/bytes|app-core\/src\/lib\/zod-jitless)\.ts$/.test(
@@ -48,7 +63,18 @@ function ownedRealm(id, minted) {
     throw new Error("Unowned worker realm module ID.");
   return original(id);
 }
-async function resolvePrivate(ctx, source, importer, minted, pureRoots, sdk) {
+async function resolvedImport(ctx, source, importer, parent, sdk) {
+  const found = await ctx.resolve(source, parent?.file ?? importer, {
+    skipSelf: true,
+  });
+  if (!found || found.external)
+    throw new Error(`Unresolved private worker import: ${source}`);
+  return parent
+    ? { ...found, id: sdk?.resolve(found.id, parent.realm) ?? found.id }
+    : found;
+}
+async function resolvePrivate(ctx, source, importer, state) {
+  const { minted, pureRoots, sdk, pure } = state;
   const parent = ownedRealm(importer, minted);
   if (source.startsWith("\0opensesame-worker")) {
     const target = ownedRealm(source, minted);
@@ -56,16 +82,25 @@ async function resolvePrivate(ctx, source, importer, minted, pureRoots, sdk) {
       throw new Error("Private worker realms cannot import each other.");
     return source;
   }
-  if (!parent) return;
-  let found = await ctx.resolve(source, parent.file, { skipSelf: true });
-  if (found)
-    found = { ...found, id: sdk?.resolve(found.id, parent.realm) ?? found.id };
-  if (!found || found.external)
-    throw new Error(`Unresolved private worker import: ${source}`);
+  const shared = pure.closed.has(importer);
+  if (!parent && !shared) return;
+  const found = await resolvedImport(ctx, source, importer, parent, sdk);
+  if (
+    parent &&
+    pure.closed.has(found.id) &&
+    !privateSource(found.id, parent.realm, sdk)
+  )
+    throw new Error(
+      "Closed Worker codec is outside its original realm authority.",
+    );
   if (pure.test(found.id.replaceAll("\\", "/"))) {
     pureRoots.add(found.id);
     return found;
   }
+  if (shared)
+    throw new Error(
+      `Closed Worker codec imports unreviewed source: ${found.id}`,
+    );
   if (!privateSource(found.id, parent.realm, sdk))
     throw new Error(
       `Worker import crosses its private runtime boundary: ${found.id}`,
@@ -145,13 +180,13 @@ function transformWorkerURLs(ctx, code, id, workers, refs, owners, minted) {
   return edits.length ? { code: transformed, map: null } : undefined;
 }
 
-function hostModules(chunk, minted) {
+function hostModules(chunk, minted, pure) {
   return Object.keys(chunk.modules).filter(
     (id) => !minted.has(id) && !pure.test(id.replaceAll("\\", "/")),
   );
 }
-function hostModuleError(chunk, minted, label) {
-  const modules = hostModules(chunk, minted);
+function hostModuleError(chunk, minted, label, pure) {
+  const modules = hostModules(chunk, minted, pure);
   return new Error(
     `${label}: ${chunk.fileName}; host modules (${modules.length}): ${modules
       .slice(0, 8)
@@ -159,7 +194,7 @@ function hostModuleError(chunk, minted, label) {
       .join(", ")}`,
   );
 }
-function purePartitions(ctx, roots, previous) {
+function purePartitions(ctx, roots, previous, pure) {
   if (previous && !(previous instanceof Function))
     throw new Error(
       "Worker dependency partitions need the existing manual-chunk function.",
@@ -171,23 +206,25 @@ function purePartitions(ctx, roots, previous) {
     if (isolated.has(id) || !pure.test(id.replaceAll("\\", "/"))) continue;
     const normalized = id.replaceAll("\\", "/");
     const match = normalized.match(
-      /\/node_modules\/(zod|@noble\/(?:ciphers|hashes))\//,
+      /\/node_modules\/(zod|@noble\/(?:ciphers|hashes)|hash-wasm|@levischuck\/tiny-cbor)\//,
     );
-    const packageRoot = normalized.slice(0, match.index + match[0].length);
+    const packageRoot = match
+      ? normalized.slice(0, match.index + match[0].length)
+      : normalized;
     const identity = createHash("sha256")
       .update(packageRoot)
       .digest("hex")
       .slice(0, 8);
     isolated.set(
       id,
-      `native-worker-${match[1].replaceAll("/", "-").replace("@", "")}-${identity}`,
+      `native-worker-${(match?.[1] ?? basename(normalized, ".ts")).replaceAll("/", "-").replace("@", "")}-${identity}`,
     );
     const info = ctx.getModuleInfo(id);
     if (info) pending.push(...info.importedIds, ...info.dynamicallyImportedIds);
   }
   return (id, api) => isolated.get(id) ?? previous?.(id, api);
 }
-function workerClosure(bundle, file, minted, seen = new Set()) {
+function workerClosure(bundle, file, minted, pure, seen = new Set()) {
   if (seen.has(file)) return seen;
   const output = bundle[file];
   if (!output || output.type !== "chunk")
@@ -201,10 +238,11 @@ function workerClosure(bundle, file, minted, seen = new Set()) {
       output,
       minted,
       "Worker closure unexpectedly includes host modules",
+      pure,
     );
   seen.add(file);
   for (const next of [...output.imports, ...output.dynamicImports])
-    workerClosure(bundle, next, minted, seen);
+    workerClosure(bundle, next, minted, pure, seen);
   for (const next of [
     ...(output.viteMetadata?.importedCss ?? []),
     ...(output.viteMetadata?.importedAssets ?? []),
@@ -216,7 +254,7 @@ function workerClosure(bundle, file, minted, seen = new Set()) {
   return seen;
 }
 
-function attachWorkerClosures(ctx, bundle, owners, minted) {
+function attachWorkerClosures(ctx, bundle, owners, minted, pure) {
   const privateChunks = Object.values(bundle).filter(
     (out) =>
       out.type === "chunk" &&
@@ -232,6 +270,7 @@ function attachWorkerClosures(ctx, bundle, owners, minted) {
         chunk,
         minted,
         "Worker-private chunk unexpectedly contains host/shared modules",
+        pure,
       );
   }
   for (const chunk of Object.values(bundle)) {
@@ -240,7 +279,12 @@ function attachWorkerClosures(ctx, bundle, owners, minted) {
       for (const ref of owners.get(id) ?? []) {
         chunk.viteMetadata ??= {};
         chunk.viteMetadata.importedAssets ??= new Set();
-        for (const file of workerClosure(bundle, ctx.getFileName(ref), minted))
+        for (const file of workerClosure(
+          bundle,
+          ctx.getFileName(ref),
+          minted,
+          pure,
+        ))
           chunk.viteMetadata.importedAssets.add(file);
       }
     }
@@ -289,9 +333,7 @@ function defaultWorkers(root) {
   ];
 }
 
-/** Private worker realms share only pure dependency modules with the host graph.
- * @returns {import("vite").Plugin}
- */
+/** Share audited library/codec bytes, not realm instances. @returns {import("vite").Plugin} */
 export function sharedWorkerGraph({ workers } = {}) {
   const refs = new Map();
   const owners = new Map();
@@ -299,6 +341,7 @@ export function sharedWorkerGraph({ workers } = {}) {
   const pureRoots = new Set();
   let plans = workers;
   let sdk;
+  let pure;
   return {
     name: "opensesame-shared-worker-graph",
     apply: "build",
@@ -311,6 +354,7 @@ export function sharedWorkerGraph({ workers } = {}) {
       owners.clear();
     },
     configResolved(config) {
+      pure = pureSources(config.root);
       plans ??= defaultWorkers(config.root);
       if (
         new Set(plans.map((plan) => plan.name)).size !== plans.length ||
@@ -321,7 +365,12 @@ export function sharedWorkerGraph({ workers } = {}) {
         );
     },
     resolveId(source, importer) {
-      return resolvePrivate(this, source, importer, minted, pureRoots, sdk);
+      return resolvePrivate(this, source, importer, {
+        minted,
+        pureRoots,
+        sdk,
+        pure,
+      });
     },
     load(id) {
       return loadPrivate(this, id, minted, sdk);
@@ -332,13 +381,18 @@ export function sharedWorkerGraph({ workers } = {}) {
     outputOptions(options) {
       return {
         ...options,
-        manualChunks: purePartitions(this, pureRoots, options.manualChunks),
+        manualChunks: purePartitions(
+          this,
+          pureRoots,
+          options.manualChunks,
+          pure,
+        ),
       };
     },
     generateBundle: {
       order: "pre",
       handler(_options, bundle) {
-        attachWorkerClosures(this, bundle, owners, minted);
+        attachWorkerClosures(this, bundle, owners, minted, pure);
       },
     },
   };
