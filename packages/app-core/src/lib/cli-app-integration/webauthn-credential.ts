@@ -5,7 +5,12 @@
  */
 
 import { z } from "zod";
-import type { WebStorage } from "../../ports.js";
+import {
+  type WebStorage,
+  credentials as hostCredentials,
+  maybePage,
+  publicKeyCredentialApi,
+} from "../../ports.js";
 import {
   b64urlDecode,
   b64urlEncode,
@@ -100,19 +105,17 @@ async function storage(): Promise<WebStorage> {
 export function cliAppWebAuthnSupported(
   credentials: CredentialCeremony | null = defaultCredentials(),
 ): boolean {
-  const Cred = (globalThis as { PublicKeyCredential?: unknown })
-    .PublicKeyCredential;
   return (
-    typeof Cred === "function" &&
+    typeof publicKeyCredentialApi() === "function" &&
     typeof credentials?.create === "function" &&
     typeof credentials?.get === "function"
   );
 }
 
 function defaultCredentials(): CredentialCeremony | null {
-  const credentials = globalThis.navigator?.credentials;
-  if (!credentials?.create || !credentials.get) return null;
-  return credentials;
+  const container = hostCredentials();
+  if (!container?.create || !container.get) return null;
+  return container;
 }
 
 export function readCliAppWebAuthnCredential(): CliAppWebAuthnCredential | null {
@@ -185,7 +188,7 @@ function webauthnDomFailure(error: unknown): CliAppPasskeyFailure {
 }
 
 function pageRpId(): string | null {
-  const host = globalThis.location?.hostname;
+  const host = maybePage()?.location.hostname;
   return host ? host : null;
 }
 
