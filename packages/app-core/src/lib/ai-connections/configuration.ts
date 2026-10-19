@@ -6,6 +6,11 @@ import {
   AzureOpenAiTargetSchema,
   azureConnectionTarget,
 } from "./azure-protocol.js";
+import {
+  BedrockAiTargetSchema,
+  bedrockConnectionTarget,
+  bedrockCredential,
+} from "./bedrock-target.js";
 import { aiConnectionFamilies, aiConnectionPreset } from "./presets.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
 import {
@@ -19,6 +24,7 @@ export const AiConnectionDraftSchema = z
     providerId: z.string().min(1).max(100),
     name: z.string().trim().min(1).max(200),
     family: z.enum([
+      "bedrock_converse",
       "openai_chat",
       "openai_responses",
       "anthropic_messages",
@@ -38,6 +44,7 @@ export const AiConnectionDraftSchema = z
       .default("max_completion_tokens"),
     azure: AzureOpenAiTargetSchema.optional(),
     vertex: VertexAiTargetSchema.optional(),
+    bedrock: BedrockAiTargetSchema.optional(),
   })
   .strict();
 
@@ -81,12 +88,13 @@ export function validateAiConnection<Value>(
     );
   const draft = result.data;
   const preset = aiConnectionPreset(draft.providerId);
-  if (
-    !preset ||
-    !aiConnectionFamilies(draft.providerId).some(
-      (family) => family.id === draft.family,
-    )
-  )
+  const supportedFamily =
+    draft.family === "bedrock_converse"
+      ? ["aws-bedrock", "byo-ai"].includes(draft.providerId)
+      : aiConnectionFamilies(draft.providerId).some(
+          (family) => family.id === draft.family,
+        );
+  if (!preset || !supportedFamily)
     throw new AiConnectionError(
       "configuration",
       "Choose a protocol supported by this provider.",
@@ -130,11 +138,52 @@ function normalizeVertexCredential(draft: AiConnectionDraft): boolean {
   }
   return privateDocument;
 }
+function configuredBedrock(draft: AiConnectionDraft) {
+  if (draft.family === "bedrock_converse")
+    return bedrockConnectionTarget({ ...draft, family: "bedrock_converse" });
+  if (draft.bedrock || draft.providerId === "aws-bedrock")
+    throw new AiConnectionError(
+      "configuration",
+      "Choose the Bedrock Converse family for this target.",
+    );
+  return null;
+}
+function normalizeBedrockCredential(draft: AiConnectionDraft): boolean {
+  const target = configuredBedrock(draft);
+  if (!target) return false;
+  if (draft.apiKey) {
+    const credential = bedrockCredential(draft.apiKey);
+    const publicFields = [
+      draft.name,
+      draft.baseUrl,
+      draft.model,
+      JSON.stringify(target),
+    ];
+    if (
+      [
+        credential.accessKeyId,
+        credential.secretAccessKey,
+        credential.sessionToken ?? "",
+      ].some(
+        (secret) =>
+          secret.length >= 4 &&
+          publicFields.some((value) => value.includes(secret)),
+      )
+    )
+      throw new AiConnectionError(
+        "configuration",
+        "Keep AWS credentials out of public connection fields.",
+      );
+    draft.apiKey = JSON.stringify(credential);
+  }
+  return true;
+}
 function validateCredential(
   draft: AiConnectionDraft,
   requireKey: boolean,
 ): void {
-  const privateDocument = normalizeVertexCredential(draft);
+  const bedrockDocument = normalizeBedrockCredential(draft);
+  const privateDocument = normalizeVertexCredential(draft) || bedrockDocument;
   if (!privateDocument && draft.apiKey && !/^[!-~]+$/.test(draft.apiKey))
     throw new AiConnectionError(
       "configuration",
@@ -180,13 +229,17 @@ export function aiConnectionBinding(draft: AiConnectionDraft): string {
       ]
     : legacy;
   const vertex = vertexConnectionTarget(draft);
+  const vertexBinding = vertex
+    ? [
+        ...publicBinding,
+        ["google-vertex", vertex.project, vertex.location, vertex.credential],
+      ]
+    : publicBinding;
+  const bedrock = configuredBedrock(draft);
   return JSON.stringify(
-    vertex
-      ? [
-          ...publicBinding,
-          ["google-vertex", vertex.project, vertex.location, vertex.credential],
-        ]
-      : publicBinding,
+    bedrock
+      ? [...vertexBinding, ["aws-bedrock", bedrock.region, bedrock.credential]]
+      : vertexBinding,
   );
 }
 

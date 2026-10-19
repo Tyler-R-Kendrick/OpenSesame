@@ -17,6 +17,7 @@ import {
   AzureOpenAiTargetSchema,
   azureConnectionTarget,
 } from "./azure-protocol.js";
+import { BedrockAiTargetSchema } from "./bedrock-target.js";
 import {
   aiConnectionBinding,
   aiCredentialDigest,
@@ -40,6 +41,7 @@ export const AI_CONNECTION_CLASSIFICATION = {
     "token_parameter",
     "azure_target",
     "vertex_target",
+    "bedrock_target",
   ],
   privateCredentials: ["ai_credential_reference", "ai_credential_digest"],
 };
@@ -81,6 +83,20 @@ function readVertexTarget(value: string | undefined) {
   }
 }
 
+function readBedrockTarget(value: string | undefined) {
+  if (value === undefined) return {};
+  try {
+    if (!value || value.length > 512) throw new Error("Invalid target size");
+    const target = BedrockAiTargetSchema.safeParse(JSON.parse(value));
+    if (!target.success) throw new Error("Invalid target metadata");
+    return { bedrock: target.data };
+  } catch {
+    throw new AiConnectionError(
+      "configuration",
+      "The saved Bedrock target is invalid. Configure and verify this connection again.",
+    );
+  }
+}
 export function readAiConnection(id: string): AiConnectionDraft | null {
   const record = aiConnectionRecord(id);
   if (!record) return null;
@@ -97,6 +113,7 @@ export function readAiConnection(id: string): AiConnectionDraft | null {
       apiKey: "",
       ...readAzureTarget(parameters.azure_target),
       ...readVertexTarget(parameters.vertex_target),
+      ...readBedrockTarget(parameters.bedrock_target),
     },
     false,
   );
@@ -153,6 +170,11 @@ function connectionRecord(
       project: vertex.project,
       location: vertex.location,
       credential: vertex.credential,
+    });
+  if (draft.bedrock)
+    parameters.bedrock_target = JSON.stringify({
+      region: draft.bedrock.region,
+      credential: draft.bedrock.credential,
     });
   return verifiedNativeKey(
     AI_CONNECTION_CLASSIFICATION,

@@ -2,6 +2,7 @@ import type {
   HostedModelInput,
   HostedModelResult,
 } from "../hosted-model-protocol.js";
+import { inferBedrockAi } from "./bedrock-inference.js";
 import { aiConnectionFetch, readAiJson } from "./http.js";
 import { aiInferenceAnswer, aiInferenceRequest } from "./protocol.js";
 import { readAiTextStream } from "./stream.js";
@@ -25,6 +26,14 @@ export async function inferAiConnection(
     throw new AiConnectionError(
       "configuration",
       "Use the model saved with this connection.",
+    );
+  if (draft.family === "bedrock_converse")
+    return inferBedrockAi(
+      { ...draft, family: "bedrock_converse" },
+      input,
+      transport,
+      check,
+      onText,
     );
   const vertex = vertexConnectionTarget(draft);
   if (vertex)

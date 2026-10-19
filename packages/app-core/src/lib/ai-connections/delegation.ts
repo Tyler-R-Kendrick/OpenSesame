@@ -37,7 +37,8 @@ function delegationState(id: string) {
   if (
     !draft ||
     draft.authentication !== "api-key" ||
-    draft.family === "openai_responses"
+    draft.family === "openai_responses" ||
+    draft.family === "bedrock_converse"
   )
     return unavailable();
   const api = modelApiOf(draft.providerId);

@@ -1,5 +1,6 @@
 import { modelApiOf } from "../ai-model-provider.js";
 import { catalogProvider } from "../connector-catalog.js";
+import { bedrockResourceBase } from "./bedrock-target.js";
 import type { AiConnectionDraft, AiInferenceFamily } from "./types.js";
 
 export const AI_CONNECTION_FAMILIES = [
@@ -28,6 +29,16 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "aws-bedrock") {
+    const bedrock = { region: "us-east-1", credential: "sigv4" } as const;
+    return {
+      providerId,
+      name: "Amazon Bedrock",
+      family: "bedrock_converse" as const,
+      baseUrl: bedrockResourceBase(bedrock),
+      bedrock,
+    };
+  }
   if (providerId === "google-vertex")
     return {
       providerId,
@@ -66,7 +77,9 @@ export function aiConnectionPreset(providerId: string) {
 }
 
 export function isAiConnectionProvider(providerId: string): boolean {
-  return aiConnectionPreset(providerId) !== null;
+  return (
+    providerId !== "aws-bedrock" && aiConnectionPreset(providerId) !== null
+  );
 }
 
 export function aiConnectionDraft(providerId: string): AiConnectionDraft {
