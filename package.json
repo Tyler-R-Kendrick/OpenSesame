@@ -179,7 +179,8 @@
       "js-yaml@3.15.2>argparse": "2.0.1",
       "promptfoo>jks-js": "-",
       "@devicefarmer/adbkit>node-forge": "-",
-      "@xmldom/xmldom@^0.9.10": "0.9.12"
+      "@xmldom/xmldom@^0.9.10": "0.9.12",
+      "@noble/hashes@2.0.1": "2.4.0"
     },
     "patchedDependencies": {
       "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch",
