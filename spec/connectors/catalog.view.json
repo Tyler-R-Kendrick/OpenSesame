@@ -4507,48 +4507,6 @@
       "configured": false,
       "connection_configuration_fields": [
         {
-          "name": "account_id",
-          "required": true,
-          "secret": false
-        },
-        {
-          "name": "wallet_id",
-          "required": true,
-          "secret": false
-        },
-        {
-          "name": "api_token",
-          "required": true,
-          "secret": true
-        }
-      ],
-      "display_name": "Cloudflare Wallet",
-      "docs_url": "https://developers.cloudflare.com/",
-      "egress": {
-        "authorities": [],
-        "path_prefixes": [],
-        "scheme": "none"
-      },
-      "id": "cloudflare-wallet",
-      "integration_configuration_fields": [],
-      "missing_config": [],
-      "operations": [
-        "wallet.configure"
-      ],
-      "provenance_url": "https://developers.cloudflare.com/",
-      "scopes": [],
-      "supports_refresh": false
-    },
-    {
-      "aliases": [],
-      "auth_kind": "configuration",
-      "auto_configurable": false,
-      "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
-      "category": "wallet",
-      "configured": false,
-      "connection_configuration_fields": [
-        {
           "name": "issuer_id",
           "required": true,
           "secret": false
