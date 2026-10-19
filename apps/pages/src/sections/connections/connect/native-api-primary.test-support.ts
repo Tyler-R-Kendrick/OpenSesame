@@ -30,7 +30,8 @@ export type PrimaryContract = {
   id: string;
   name: string;
   origin: string;
-  authorization: string;
+  authorization?: string;
+  headers?: Record<string, string>;
   parameters: Record<string, string>;
   verifyPath: string;
   readPath: string;
@@ -144,6 +145,9 @@ function routeOracle(
       request.method === "GET" &&
       [contract.verifyPath, contract.readPath].includes(request.url ?? "") &&
       request.headers.authorization === contract.authorization &&
+      Object.entries(contract.headers ?? {}).every(
+        ([name, value]) => request.headers[name] === value,
+      ) &&
       (contract.id !== "bamboohr" ||
         request.headers.accept === "application/json") &&
       request.headers.cookie === undefined;

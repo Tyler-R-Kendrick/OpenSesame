@@ -4573,7 +4573,7 @@
         "url": "https://gitlab.com/api/v4/user",
         "account_field": "username"
       },
-      "instructions": "In GitLab open **Avatar → Edit profile → Access tokens**, click **Add new token**, set a name and expiry, tick only **read_user** (add **read_api** if needed), and copy the token (shown once).",
+      "instructions": "In GitLab open **Avatar → Edit profile → Access tokens**, create a legacy personal access token, set a name and expiry, select **read_user** for account verification and **read_api** to list your project memberships, and copy it (shown once). This connection only lists project IDs and names; it does not back up repositories or change projects.",
       "docs_url": "https://docs.gitlab.com/user/profile/personal_access_tokens/",
       "probe_status": 401,
       "confidence": "high",
