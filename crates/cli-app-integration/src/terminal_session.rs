@@ -53,10 +53,39 @@ pub fn parse_linux_proc_stat(raw: &str) -> Option<(u64, u32)> {
     Some((session_id, tty_nr))
 }
 
+/// The variable that names the exact `ps` to run.
+#[cfg(any(target_os = "macos", all(test, unix)))]
+const PS_OVERRIDE: &str = "OPENSESAME_PS";
+
+/// `ps`, found by the trusted rule or `OPENSESAME_PS`, handed `PATH` (the
+/// trusted entries) and the common set only: it reads the process table, not
+/// the environment, so none of this process's secrets go with it. When no `ps`
+/// can be trusted the refusal says which variable names one.
+#[cfg(any(target_os = "macos", all(test, unix)))]
+fn ps_in(
+    lookup: &opensesame_trusted_exec::Lookup,
+) -> Result<std::process::Command, opensesame_trusted_exec::ResolveError> {
+    opensesame_trusted_exec::command_in("ps", Some(PS_OVERRIDE), lookup)
+}
+
+/// Says once why `ps` was refused, so a session id that cannot be looked up
+/// is not a silent failure.
+#[cfg(target_os = "macos")]
+fn say_ps_refused(error: &opensesame_trusted_exec::ResolveError) {
+    static SAID: std::sync::Once = std::sync::Once::new();
+    SAID.call_once(|| eprintln!("warning: the terminal session cannot be told apart: {error}"));
+}
+
 #[cfg(target_os = "macos")]
 fn macos_session_id_from_pid(pid: u32) -> Option<String> {
-    use std::process::Command;
-    let output = Command::new("ps")
+    let mut ps = match ps_in(&opensesame_trusted_exec::Lookup::capture()) {
+        Ok(ps) => ps,
+        Err(error) => {
+            say_ps_refused(&error);
+            return None;
+        }
+    };
+    let output = ps
         .args(["-p", &pid.to_string(), "-o", "sid=,tty="])
         .output()
         .ok()?;
@@ -88,6 +117,28 @@ mod tests {
         let b = stable_session_id(99, 34816);
         assert_eq!(a, b);
         assert_ne!(a, stable_session_id(99, 34817));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ps_is_the_trusted_one_or_the_file_opensesame_ps_names() {
+        use opensesame_trusted_exec::testkit::Fixture;
+        let fixture = Fixture::new("ps");
+        let mut ps = ps_in(&fixture.lookup(&[])).expect("trusted ps");
+        assert!(ps.args(["-p", "1"]).status().unwrap().success());
+        let _ = fixture.assert_clean();
+        let chosen = fixture.scratch("chosen").join("ps");
+        fixture.stub_recorder(&chosen);
+        let value = chosen.display().to_string();
+        let named = ps_in(&fixture.lookup(&[(PS_OVERRIDE, &value)])).unwrap();
+        assert_eq!(named.get_program(), chosen.as_os_str());
+        let refused = ps_in(&fixture.lookup(&[(PS_OVERRIDE, "ps")])).unwrap_err();
+        assert!(
+            refused
+                .to_string()
+                .starts_with("OPENSESAME_PS must be an absolute path"),
+            "{refused}"
+        );
     }
 
     #[cfg(target_os = "linux")]

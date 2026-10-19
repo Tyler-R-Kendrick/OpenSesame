@@ -129,6 +129,18 @@ fn a_node_file_must_be_owned_by_root_or_the_caller_and_not_world_writable() {
             owner(1001, 1001, 0o755),
             Some(Skip::OwnedBy(1001)),
         ),
+        // A group the caller is not in can rewrite it: refused, as a directory is.
+        (
+            "root:othergroup 0775",
+            owner(0, 5000, 0o775),
+            Some(Skip::GroupWritable(5000)),
+        ),
+        (
+            "user:othergroup 0775",
+            owner(1000, 5000, 0o775),
+            Some(Skip::GroupWritable(5000)),
+        ),
+        ("root:a supplementary group 0775", owner(0, 27, 0o775), None),
     ];
     for (label, stat, want) in table {
         assert_eq!(file(stat, &caller()), want, "{label}");
