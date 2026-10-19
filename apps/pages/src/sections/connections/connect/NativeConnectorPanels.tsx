@@ -22,7 +22,7 @@ import {
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
-import { NativeS3BackupControls } from "./NativeS3BackupControls.js";
+import { NativeVaultBackupControls } from "./NativeS3BackupControls.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
 import type {
@@ -227,8 +227,15 @@ function backupControls(
   view: NativeConnectorView,
   onFlash: (flash: Flash) => void,
 ) {
-  return view.providerId === "s3" && nativeVerified(view) ? (
-    <NativeS3BackupControls
+  const target = view.configuration.parameters;
+  const supported =
+    view.providerId === "s3" ||
+    (view.providerId === "github" &&
+      !!target.backup_owner &&
+      !!target.backup_repo &&
+      !!target.backup_branch);
+  return supported && nativeVerified(view) ? (
+    <NativeVaultBackupControls
       key={`${view.connectionId}/${view.revision}/${view.fingerprint}`}
       view={view}
       onFlash={onFlash}
