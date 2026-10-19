@@ -1,0 +1,507 @@
+{
+  "date": "2026-10-19",
+  "title": "Tailscale peer routing in the shared connection form",
+  "status": "ACTUAL_STATIC_COMPARISON_WITH_SEPARATE_OWNED_TLS_FUNCTIONAL_EVIDENCE",
+  "images": [
+    {
+      "file": "tailscale-1280-route-before.png",
+      "phase": "before",
+      "state": "route",
+      "widthCSS": 1280,
+      "heightCSS": 900,
+      "deviceScaleFactor": 1,
+      "widthPixels": 1280,
+      "heightPixels": 900,
+      "bytes": 65553,
+      "sha256": "473bbe1a3034859b8144a2a6efc5288ecf11932bfdbdc19735494d96ff5afef4"
+    },
+    {
+      "file": "tailscale-1280-route-after.png",
+      "phase": "after",
+      "state": "route",
+      "widthCSS": 1280,
+      "heightCSS": 900,
+      "deviceScaleFactor": 1,
+      "widthPixels": 1280,
+      "heightPixels": 900,
+      "bytes": 71480,
+      "sha256": "40b77ad55dcaf7d2db6c276942be0d2e3ef4345e87d2d69d7f9ae96ee7fe88a4"
+    },
+    {
+      "file": "tailscale-1280-ca-before.png",
+      "phase": "before",
+      "state": "ca",
+      "widthCSS": 1280,
+      "heightCSS": 900,
+      "deviceScaleFactor": 1,
+      "widthPixels": 1280,
+      "heightPixels": 900,
+      "bytes": 75666,
+      "sha256": "c03f2d8b3a1aa562fe04775e95c05aaccf229a58892ac679bb96f65428a8f705"
+    },
+    {
+      "file": "tailscale-1280-ca-after.png",
+      "phase": "after",
+      "state": "ca",
+      "widthCSS": 1280,
+      "heightCSS": 900,
+      "deviceScaleFactor": 1,
+      "widthPixels": 1280,
+      "heightPixels": 900,
+      "bytes": 77986,
+      "sha256": "ac2ae92043ddaead4f40e6dc4a596a314a5b2aab1fd5cc27ad3bb7a7e200f850"
+    },
+    {
+      "file": "tailscale-390-route-before.png",
+      "phase": "before",
+      "state": "route",
+      "widthCSS": 390,
+      "heightCSS": 844,
+      "deviceScaleFactor": 3,
+      "widthPixels": 1170,
+      "heightPixels": 2532,
+      "bytes": 150843,
+      "sha256": "7e5fc2650bd87828b26fb84e850c3d1bf91d478aee3188d7a2804a55d88062bc"
+    },
+    {
+      "file": "tailscale-390-route-after.png",
+      "phase": "after",
+      "state": "route",
+      "widthCSS": 390,
+      "heightCSS": 844,
+      "deviceScaleFactor": 3,
+      "widthPixels": 1170,
+      "heightPixels": 2532,
+      "bytes": 134416,
+      "sha256": "bb9ae0e211fb44b2017fe484bde9762850e40e7463df62cceefab50578de81ba"
+    },
+    {
+      "file": "tailscale-390-ca-before.png",
+      "phase": "before",
+      "state": "ca",
+      "widthCSS": 390,
+      "heightCSS": 844,
+      "deviceScaleFactor": 3,
+      "widthPixels": 1170,
+      "heightPixels": 2532,
+      "bytes": 170090,
+      "sha256": "7bb1ae722822f5308fd9783dd9c379ca1c72361167c9ca7601d8426df1326005"
+    },
+    {
+      "file": "tailscale-390-ca-after.png",
+      "phase": "after",
+      "state": "ca",
+      "widthCSS": 390,
+      "heightCSS": 844,
+      "deviceScaleFactor": 3,
+      "widthPixels": 1170,
+      "heightPixels": 2532,
+      "bytes": 170210,
+      "sha256": "b484eb30bb567dfa84cfdb5878271cdb12cf3788efe4b53ac3aa20562a47f65e"
+    }
+  ],
+  "pairs": [
+    {
+      "width": 1280,
+      "height": 900,
+      "deviceScaleFactor": 1,
+      "state": "route",
+      "before": "tailscale-1280-route-before.png",
+      "after": "tailscale-1280-route-after.png"
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "deviceScaleFactor": 1,
+      "state": "ca",
+      "before": "tailscale-1280-ca-before.png",
+      "after": "tailscale-1280-ca-after.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 3,
+      "state": "route",
+      "before": "tailscale-390-route-before.png",
+      "after": "tailscale-390-route-after.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 3,
+      "state": "ca",
+      "before": "tailscale-390-ca-before.png",
+      "after": "tailscale-390-ca-after.png"
+    }
+  ],
+  "measurements": [
+    {
+      "widthCSS": 1280,
+      "state": "route",
+      "beforeMeasuredControls": 7,
+      "afterMeasuredControls": 8,
+      "beforeRouteSelectorCount": 0,
+      "afterRouteSelectorCount": 1,
+      "afterRouteValue": "peer",
+      "afterPeerInputCSS": {
+        "x": 280,
+        "y": 418.40625,
+        "width": 480,
+        "height": 34
+      },
+      "beforeExitInputCSS": {
+        "x": 280,
+        "y": 583.8125,
+        "width": 480,
+        "height": 34
+      },
+      "originCIDRTextareaCSSBefore": {
+        "x": 280,
+        "y": 690.90625,
+        "width": 640,
+        "height": 96
+      },
+      "originCIDRTextareaCSSAfter": {
+        "x": 280,
+        "y": 525.5,
+        "width": 640,
+        "height": 96
+      }
+    },
+    {
+      "widthCSS": 1280,
+      "state": "ca",
+      "beforeMeasuredControls": 8,
+      "afterMeasuredControls": 9,
+      "beforeRouteSelectorCount": 0,
+      "afterRouteSelectorCount": 1,
+      "afterRouteValue": "peer",
+      "afterPeerInputCSS": {
+        "x": 280,
+        "y": 88.40625,
+        "width": 480,
+        "height": 34
+      },
+      "beforeExitInputCSS": {
+        "x": 280,
+        "y": 87.8125,
+        "width": 480,
+        "height": 34
+      },
+      "originCIDRTextareaCSSBefore": {
+        "x": 280,
+        "y": 194.90625,
+        "width": 640,
+        "height": 96
+      },
+      "originCIDRTextareaCSSAfter": {
+        "x": 280,
+        "y": 195.5,
+        "width": 640,
+        "height": 96
+      }
+    },
+    {
+      "widthCSS": 390,
+      "state": "route",
+      "beforeMeasuredControls": 7,
+      "afterMeasuredControls": 8,
+      "beforeRouteSelectorCount": 0,
+      "afterRouteSelectorCount": 1,
+      "afterRouteValue": "peer",
+      "afterPeerInputCSS": {
+        "x": 16,
+        "y": 425.546875,
+        "width": 358,
+        "height": 44
+      },
+      "beforeExitInputCSS": {
+        "x": 16,
+        "y": 717.953125,
+        "width": 358,
+        "height": 44
+      },
+      "originCIDRTextareaCSSBefore": {
+        "x": 16,
+        "y": 834.546875,
+        "width": 358,
+        "height": 96
+      },
+      "originCIDRTextareaCSSAfter": {
+        "x": 16,
+        "y": 542.140625,
+        "width": 358,
+        "height": 96
+      }
+    },
+    {
+      "widthCSS": 390,
+      "state": "ca",
+      "beforeMeasuredControls": 8,
+      "afterMeasuredControls": 9,
+      "beforeRouteSelectorCount": 0,
+      "afterRouteSelectorCount": 1,
+      "afterRouteValue": "peer",
+      "afterPeerInputCSS": {
+        "x": 16,
+        "y": 35.546875,
+        "width": 358,
+        "height": 44
+      },
+      "beforeExitInputCSS": {
+        "x": 16,
+        "y": 34.953125,
+        "width": 358,
+        "height": 44
+      },
+      "originCIDRTextareaCSSBefore": {
+        "x": 16,
+        "y": 151.546875,
+        "width": 358,
+        "height": 96
+      },
+      "originCIDRTextareaCSSAfter": {
+        "x": 16,
+        "y": 152.140625,
+        "width": 358,
+        "height": 96
+      }
+    }
+  ],
+  "before": {
+    "compiledHead": "2eaa4e8fe959fb872fe7a3f7b0c9b176ca301983",
+    "captureHelperHead": "e610d6a60dba8e6ee57aaf23ff90c4540cd82765",
+    "historicalStaticOnly": true,
+    "observation": {
+      "sha256": "23131451f96ae89c4de8f644425b7a0e514aecb6ec8ffd2899564ca913b0b311",
+      "bytes": 81525
+    },
+    "guardReceipt": {
+      "sha256": "6789fd58d4961ea1dcf4b45801f48942d1cc87c462e5570fcec46eb17e8f3536",
+      "bytes": 2648
+    },
+    "guardSeconds": 17.775613023986807
+  },
+  "after": {
+    "compiledHead": "76f1beaba4f77f81e3fafd48ca903e9f5e740fd2",
+    "tree": "0e668479918f415a14b89e62c2f7c79b35a78258",
+    "parent": "6b4720e89dee00e0ca2f0139a759a5ec3cbf6759",
+    "sourceE": "e961d5ae1c78240ca80199ff10794690cca8d94d9a0e9109709ec7406c7685d1",
+    "nativeManifest": "3aca0e302d91b6241d089af9526296c6ca232ab19b614a1e9eede5838ca232be",
+    "buildReceipt": {
+      "sha256": "164cbcead1f18ee0fa2a5db61c9ad6cacfd878a1089b2025d8b96385978ebc7d",
+      "bytes": 45261
+    },
+    "buildInventory": {
+      "sha256": "1d92829aba49fc821901f9239248af261ebcec111156b0e4216faf25370285fd",
+      "bytes": 42054
+    },
+    "observation": {
+      "sha256": "20b87b9718c6e0c16ece9825f516a68479b4eb2624ddf7d03ac98486073c9e58",
+      "bytes": 83074
+    },
+    "guardReceipt": {
+      "sha256": "566890cb13e74e339e9d242b436acef77b01788657536e6cabb91e9331f34efa",
+      "bytes": 2727
+    },
+    "guardSeconds": 18.294260056994972,
+    "rawObservationCaptionErratum": "Raw observation.qualification retains inherited SourceD wording. Its compiledHead, image publication fields, actual2262 build receipt and SourceE asset provenance identify76f1/SourceE. Original record remains unchanged."
+  },
+  "captureScope": {
+    "staticConfigurationOnly": true,
+    "saved": false,
+    "providerCredentialSubmitted": false,
+    "nodeStarted": false,
+    "screenshotsEdited": false,
+    "imagesCroppedMaskedOrComposed": false,
+    "naturalScrollPositionsDiffer": true,
+    "beforeAfterNotImmediateParentCommits": true,
+    "beforeAfterSameTailnetSettingsRoute": true
+  },
+  "functionalEvidence": {
+    "status": "TEN_ACTUAL_BROWSER_CASES_PASS",
+    "indexSHA256": "61ec11c1ebed31dafe3249fba3f7375f55055695b3721a94fd323253df3ae391",
+    "compiledHead": "76f1beaba4f77f81e3fafd48ca903e9f5e740fd2",
+    "compiledTree": "0e668479918f415a14b89e62c2f7c79b35a78258",
+    "caseCount": 10,
+    "totalChecks": 300,
+    "cases": [
+      {
+        "providerId": "algolia",
+        "viewportWidthCSS": 1280,
+        "passed": true,
+        "checks": 30,
+        "seconds": 42.601064037997276,
+        "resultsSHA256": "fb07552921388dc1d5a8240bc0597116aff3e5b03c33a439a37e7495921a5016",
+        "guardReceiptSHA256": "84296df80587e2fb0c7bf60976d654a3b3e663c2a3479e7b58f5ae670661b80d",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "algolia",
+        "viewportWidthCSS": 390,
+        "passed": true,
+        "checks": 30,
+        "seconds": 44.114544265001314,
+        "resultsSHA256": "8e867252d399c11da394ec86f5af4687c45337c6eaa4d837e1c7d41da0c358cb",
+        "guardReceiptSHA256": "ec7d51a0ed17b9339815f1ede222704bb966fa2271b173ba17a9895156ad0077",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "postmark",
+        "viewportWidthCSS": 1280,
+        "passed": true,
+        "checks": 30,
+        "seconds": 44.61293565300002,
+        "resultsSHA256": "512a5ed71267a53ae580f201501ec15721596ae3064e56edb9acfd99ac8bb888",
+        "guardReceiptSHA256": "f2aeacfd866586bcae2287ed6e5bb2729e393777605e2ef716d9fb3fcd04b95a",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "postmark",
+        "viewportWidthCSS": 390,
+        "passed": true,
+        "checks": 30,
+        "seconds": 42.035070780999376,
+        "resultsSHA256": "690f187c809ee891c4f87e7478f2243b9d144953641a1fa49ada8a2533914a9a",
+        "guardReceiptSHA256": "4ccbf0a0b9bc93a0b0e07134552028cfd4e4d241174981192ca601c799954467",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "cloudflare",
+        "viewportWidthCSS": 1280,
+        "passed": true,
+        "checks": 30,
+        "seconds": 44.93371138900693,
+        "resultsSHA256": "3fc29283f8740cdd2af31a1a77b02c9aa982edfe412c4625d79a2252bb436b1d",
+        "guardReceiptSHA256": "442514a6e01c6122006d03b981b6fd00e24fd5c25e91de70864c2e591ff2e667",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "cloudflare",
+        "viewportWidthCSS": 390,
+        "passed": true,
+        "checks": 30,
+        "seconds": 42.56011562599451,
+        "resultsSHA256": "eefea69e43367adefd705e0d137ae64ef3b7ab30176b8f6a237b90753932fe28",
+        "guardReceiptSHA256": "e800e7cc9240f6a07b20c9c9842f2fca76964a8d70222fe2e1424c29a16149de",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "contentful",
+        "viewportWidthCSS": 1280,
+        "passed": true,
+        "checks": 30,
+        "seconds": 44.85149855801137,
+        "resultsSHA256": "fb56f8ff51aeadbcaee61db1775b58c81e6c501877e22da793e152a0a45bfccc",
+        "guardReceiptSHA256": "cce7b5e66d2b432533aa34659e8ca644fe55af8a04f3fb88087b2d0ba216466a",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "contentful",
+        "viewportWidthCSS": 390,
+        "passed": true,
+        "checks": 30,
+        "seconds": 42.87510998699872,
+        "resultsSHA256": "5e0cfd7033e1ed46509832cf883b4c7190d22ecebc1f4f6840cdaeb2d88770bf",
+        "guardReceiptSHA256": "41635b0b71559c5cc78fa1393cecb109574f023d50fd6b16fab5923b993ea868",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "agentmail",
+        "viewportWidthCSS": 1280,
+        "passed": true,
+        "checks": 30,
+        "seconds": 43.740619778996916,
+        "resultsSHA256": "8470dc5d15fd7175d4d8681a04f5fdfde9ef2c8f86a5cf81b56f6b8d6ace5d45",
+        "guardReceiptSHA256": "7e5f86b405a0328b7f119f0a4ffd02392a217aa9036de6ce5a50fcb0df64baa4",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      },
+      {
+        "providerId": "agentmail",
+        "viewportWidthCSS": 390,
+        "passed": true,
+        "checks": 30,
+        "seconds": 44.992014121002285,
+        "resultsSHA256": "12b1fef65333ad58f2005ca7e0bb2815c6f35ff7c0f462a4162cc404c6da60dc",
+        "guardReceiptSHA256": "d5ca91dc20b9c31771a92c6c042f2afd932cba639b49afc10afc3f284ac6f995",
+        "wholeBoundSeconds": 180,
+        "phaseBoundSeconds": 45,
+        "normalOwnedClosure": true,
+        "forcedCleanupUsed": false,
+        "sourceArtifactAndInputsUnchanged": true,
+        "errors": 0,
+        "hostedAccountClaim": false
+      }
+    ],
+    "qualification": "Five independent provider protocols, each desktop1280 and phone390. Real emitted PWA Worker/source-built WASM and owned native tailnet TLS peer; not live hosted SaaS accounts. Each separate case keeps its original180s whole/45s phase; no aggregate180s claim. Static photos do not establish operations. Earlier failed attempts remain retained separately.",
+    "observedFlow": [
+      "Saved peer route and sealed provider configuration",
+      "Locked and unlocked cold reload before provider resource read",
+      "Actual common resource result consumed through original native TLS route",
+      "Held actual TLS request open>=250ms then UI owner withdrawal physically closes socket<2s",
+      "Ordinary peering survives without original Worker reconnect",
+      "Exact executable asset closure and zero browser/network/provider errors"
+    ],
+    "allIntegrationsClaim": false,
+    "publicNativeCISelectionClaim": false,
+    "otherCIQualification": "A green SourceE CI result does not certify native-public protocols because that job was not selected. The earlierPR1630 Bitwarden initial-test failure remains outside these ten cases."
+  },
+  "privacy": {
+    "authKeysOrPrivateKeysIncluded": false,
+    "certificateInImages": "Public fixture CA certificate only; no private key."
+  }
+}

@@ -45,6 +45,64 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(unmatched, `unclassified:\n${unmatched.join("\n")}`).toEqual([]);
   });
 
+  it("names only the custody metadata test family as core infrastructure", () => {
+    const custody = classify("src/lib/vault-credential-custody.ts");
+    expect(custody?.classification).toBe("core");
+    expect(custody?.capability).toBeNull();
+    expect(classify("src/lib/vault-credential-metadata.test.ts")).toMatchObject(
+      {
+        pattern: "src/lib/vault-credential-metadata.test",
+        classification: custody?.classification,
+        capability: null,
+      },
+    );
+    for (const path of [
+      "src/lib/vault-credential-metadata.ts",
+      "src/lib/vault-credential-metadatas.test.ts",
+      "src/lib/vault-credential-metadata-tests.ts",
+      "src/lib/vault-credential-metadata.testament.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+    expect(
+      classify("src/lib/secret-backends/encrypted-remote-continuity.ts"),
+    ).toMatchObject({
+      classification: "optional",
+      capability: "connectors.external",
+    });
+  });
+
+  it("owns only the configurable connector action test family", () => {
+    const owner = classify("src/lib/connector-action-capability.test.ts");
+    const configurable = classify(
+      "src/lib/connector-action-configurable.test.ts",
+    );
+    expect(configurable).toMatchObject({
+      pattern: "src/lib/connector-action-configurable.test",
+      capability: "connectors.external",
+      classification: owner?.classification,
+    });
+    for (const path of [
+      "src/lib/connector-action-configurable.ts",
+      "src/lib/connector-action-configurable.testament.ts",
+      "src/lib/connector-action-configurables.test.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+  });
+
+  it("owns only the SAML public settings regression test family", () => {
+    expect(classify("src/lib/operator-saml-config.test.ts")).toMatchObject({
+      pattern: "src/lib/operator-saml-config.test",
+      classification: "core",
+      capability: "settings.core",
+    });
+    for (const path of [
+      "src/lib/operator-saml-config.ts",
+      "src/lib/operator-saml-config.testament.ts",
+      "src/lib/operator-saml-configuration.test.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+  });
+
   it("has unique patterns", () => {
     const patterns = SOURCE_CLASSIFICATION.map((rule) => rule.pattern);
     expect(new Set(patterns).size).toBe(patterns.length);

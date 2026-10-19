@@ -172,30 +172,40 @@ function sizeLimit(size: number): void {
     );
 }
 
-async function readBytes(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
+async function readBoundedJson(
+  response: Response,
+  signal: AbortSignal,
+): Promise<BoundaryValue> {
+  const copy = response.clone();
+  const reader = copy.body?.getReader();
+  if (!reader) return null;
   let size = 0;
-  for (;;) {
-    const part = await reader.read();
-    if (part.done) break;
-    size += part.value.byteLength;
-    try {
+  let complete = false;
+  try {
+    for (;;) {
+      const part = await reader.read();
+      if (part.done) {
+        complete = true;
+        break;
+      }
+      size += part.value.byteLength;
       sizeLimit(size);
+    }
+    signal.throwIfAborted();
+    try {
+      const parsed: BoundaryValue = await response.json();
+      signal.throwIfAborted();
+      return parsed;
     } catch (error) {
-      await reader.cancel();
+      signal.throwIfAborted();
+      if (size === 0 && error instanceof SyntaxError) return null;
       throw error;
     }
-    chunks.push(part.value);
+  } finally {
+    if (!complete)
+      await Promise.allSettled([reader.cancel(), response.body?.cancel()]);
+    reader.releaseLock();
   }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
 }
 
 async function readReply(
@@ -205,21 +215,15 @@ async function readReply(
   await checkStatus(response, signal);
   if (response.status === 204) return null;
   sizeLimit(Number(response.headers.get("content-length") ?? 0));
-  const reader = response.body?.getReader();
-  if (!reader) return null;
+  if (!response.body) return null;
   try {
-    const bytes = await readBytes(reader);
-    if (bytes.length === 0) return null;
-    const parsed: BoundaryValue = JSON.parse(new TextDecoder().decode(bytes));
-    return parsed;
+    return await readBoundedJson(response, signal);
   } catch (error) {
     if (error instanceof SecretBackendError) throw error;
     throw new SecretBackendError(
       "response",
       "The backend returned an unreadable response.",
     );
-  } finally {
-    reader.releaseLock();
   }
 }
 

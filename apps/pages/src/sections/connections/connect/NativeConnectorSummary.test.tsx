@@ -66,7 +66,11 @@ it("refreshes the status immediately when an actual operation requires reauthori
       expect.objectContaining({ status: "reauthorize" }),
     ),
   );
-  expect(controller.invoke).toHaveBeenCalledWith("indexes.list", {});
+  expect(controller.invoke).toHaveBeenCalledWith(
+    "indexes.list",
+    {},
+    expect.any(AbortSignal),
+  );
   expect(
     await screen.findByRole("img", {
       name: "Algolia refused this authorization.",

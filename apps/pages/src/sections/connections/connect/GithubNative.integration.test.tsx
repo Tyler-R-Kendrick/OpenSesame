@@ -41,6 +41,9 @@ it("admits Github's actual browser token driver without offering confidential Ap
   expect(descriptor?.methods.map((method) => method.id)).toEqual(["api-key"]);
   expect(descriptor?.methods[0]?.fields.map((field) => field.id)).toEqual([
     "api_key",
+    "backup_owner",
+    "backup_repo",
+    "backup_branch",
   ]);
   expect(catalogConnectorAction(provider, null)).toMatchObject({
     kind: "connect",

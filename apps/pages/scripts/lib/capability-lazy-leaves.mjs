@@ -68,6 +68,13 @@ const LAZY_LEAVES = [
   ["/src/tutorial/agents/provider/", "support.remote-ai", "agent-provider"],
   ["/packages/webmcp/src/", "agents.webmcp", "webmcp-sdk"],
   // The SDKs behind the agents, which Rollup fused the same way.
+  // The named SDK facade is pure: keep its owned zero-byte module in a lazy entry
+  // instead of allowing the minimum chunk floor to merge it into another owner.
+  [
+    "/packages/app-core/src/lib/command-bar/interpret-generate-object.ts",
+    "support.local-ai",
+    "local-ai-sdk-entry",
+  ],
   ["/node_modules/ai/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ai-sdk/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ag-ui/client/", "support.remote-ai", "vendor-ag-ui"],

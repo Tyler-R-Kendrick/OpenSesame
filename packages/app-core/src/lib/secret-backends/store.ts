@@ -120,7 +120,7 @@ export function resolveSecretBackendConfiguration(
     );
   if (previous && sameCredentialTarget(previous, draft)) {
     for (const field of SECRET_BACKEND_CREDENTIAL_FIELDS)
-      if (!draft[field]) draft[field] = previous[field];
+      if (!draft[field]) draft[field] = previous[field] ?? "";
   }
   return validateSecretBackendDraft(draft);
 }
@@ -167,9 +167,12 @@ export async function writeSecretBackendConnection(
     resolved,
     vaultTomb,
     beforeCommit,
+    oldItems,
   );
-  const publicationCheck = () =>
+  const publicationCheck = () => {
     assertVaultCredentials(staged, vaultTomb, beforeCommit);
+    staged.checkContinuity();
+  };
   let saved: Connection;
   try {
     saved = await saveDeviceConnectorConfigurationDurable(

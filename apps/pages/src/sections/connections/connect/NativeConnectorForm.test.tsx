@@ -1,5 +1,11 @@
 /** @vitest-environment jsdom */
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
@@ -201,4 +207,105 @@ it("does not load a saved secret into an editable field", () => {
     "value",
     "app-1",
   );
+});
+
+function configurableDescriptor(policy = false) {
+  const descriptor = nativeUiDescriptor();
+  descriptor.methods = descriptor.methods
+    .filter((method) => method.id === "api-key")
+    .map((method) => ({
+      ...method,
+      available: false,
+      configurable: true,
+      unavailableKind: policy ? ("policy" as const) : undefined,
+    }));
+  return descriptor;
+}
+it.each([false, true])(
+  "opens only the compiled editor without admitting connection for saved=%s",
+  async (saved) => {
+    const controller = nativeUiController();
+    const onChanged = vi.fn();
+    const onFlash = vi.fn();
+    const rendered = render(
+      <NativeConnectorForm
+        descriptor={configurableDescriptor()}
+        controller={controller}
+        view={saved ? nativeUiView() : undefined}
+        onChanged={onChanged}
+        onFlash={onFlash}
+      />,
+    );
+    await enterCredentials();
+    const connect = screen.getByRole("button", {
+      name: "Verify and connect Algolia",
+    });
+    expect(connect).toHaveProperty("disabled", true);
+    await userEvent.click(connect);
+    const form = rendered.container.querySelector("form");
+    if (!form) throw new Error("Actual compiled form missing");
+    fireEvent.submit(form);
+    expect(controller.configure).not.toHaveBeenCalled();
+    expect(controller.connect).not.toHaveBeenCalled();
+    expect(controller.authorize).not.toHaveBeenCalled();
+    expect(controller.verify).not.toHaveBeenCalled();
+    expect(controller.invoke).not.toHaveBeenCalled();
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(onFlash).not.toHaveBeenCalled();
+  },
+);
+it("does not open a product-policy-refused editor even when configurable is present", () => {
+  const controller = nativeUiController();
+  render(
+    <NativeConnectorForm
+      descriptor={configurableDescriptor(true)}
+      controller={controller}
+      onChanged={vi.fn()}
+      onFlash={vi.fn()}
+    />,
+  );
+  expect(screen.queryByLabelText("Algolia application ID")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Verify and connect Algolia" }),
+  ).toBeNull();
+  expect(controller.configure).not.toHaveBeenCalled();
+  expect(controller.connect).not.toHaveBeenCalled();
+  expect(controller.invoke).not.toHaveBeenCalled();
+});
+it("switches configurable editors while both actual authorization routes remain unavailable", async () => {
+  const descriptor = nativeUiDescriptor();
+  for (const method of descriptor.methods) {
+    method.available = false;
+    method.configurable = true;
+    if (method.id === "oauth")
+      method.fields = [
+        {
+          id: "client_id",
+          label: "Operator OAuth client ID",
+          kind: "text",
+          secret: false,
+          required: true,
+        },
+      ];
+  }
+  const controller = nativeUiController();
+  render(
+    <NativeConnectorForm
+      descriptor={descriptor}
+      controller={controller}
+      onChanged={vi.fn()}
+      onFlash={vi.fn()}
+    />,
+  );
+  expect(screen.getByLabelText("Operator OAuth client ID")).toBeTruthy();
+  await userEvent.click(screen.getByRole("radio", { name: "Algolia API key" }));
+  expect(screen.getByLabelText("Algolia application ID")).toBeTruthy();
+  expect(screen.queryByLabelText("Operator OAuth client ID")).toBeNull();
+  await enterCredentials();
+  expect(
+    screen.getByRole("button", { name: "Verify and connect Algolia" }),
+  ).toHaveProperty("disabled", true);
+  expect(controller.configure).not.toHaveBeenCalled();
+  expect(controller.connect).not.toHaveBeenCalled();
+  expect(controller.invoke).not.toHaveBeenCalled();
 });

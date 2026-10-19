@@ -18,6 +18,30 @@ type Field = {
 const endpoint: Field = { key: "baseUrl", label: "API base URL" };
 const token: Field = { key: "token", label: "Access token", secret: true };
 const API_FIELDS = {
+  "encrypted-remote": [
+    { key: "baseUrl", label: "Encrypted object HTTPS URL" },
+    { key: "remoteStoreId", label: "Encrypted store UUID" },
+    {
+      key: "encryptionKey",
+      label: "Inventory encryption key (base64, 32 bytes)",
+      secret: true,
+    },
+    { key: "token", label: "Object bearer token (optional)", secret: true },
+  ],
+  "proton-pass": [
+    {
+      key: "baseUrl",
+      label: "API base URL",
+      placeholder: "https://pass-api.proton.me/api",
+    },
+    { key: "token", label: "Personal access token", secret: true },
+    { key: "vaultId", label: "PAT-scoped share ID" },
+    {
+      key: "appVersion",
+      label: "Accepted application/version header",
+      placeholder: "accepted-client@version",
+    },
+  ],
   "onepassword-sdk": [
     {
       key: "baseUrl",
@@ -32,7 +56,19 @@ const API_FIELDS = {
     token,
     { key: "vaultId", label: "Vault ID" },
   ],
-  "bitwarden-api": [endpoint],
+  "bitwarden-api": [
+    endpoint,
+    { key: "identityUrl", label: "Identity API URL" },
+    { key: "accountEmail", label: "Account email" },
+    {
+      key: "clientId",
+      label: "Personal API client ID",
+      placeholder: "user.00000000-0000-0000-0000-000000000000",
+    },
+    { key: "clientSecret", label: "Personal API client secret", secret: true },
+    { key: "deviceIdentifier", label: "Device identifier" },
+    { key: "vaultId", label: "Personal folder ID (optional)" },
+  ],
   "bitwarden-secrets": [
     endpoint,
     { key: "identityUrl", label: "Identity API URL" },

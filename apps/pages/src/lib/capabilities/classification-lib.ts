@@ -25,6 +25,7 @@ const CORE_INFRA = [
   "at-rest/", // every stored value's seal and the device key (ADR 0149)
   "vfs",
   "vault-credential-custody",
+  "vault-credential-metadata.test",
   "projects",
   "vaults",
   // Glyphs for vaults, people and organizations belong to the shell prompt (ADR 0165).
@@ -68,13 +69,6 @@ const CORE_INFRA = [
   "bounded-response",
   // A lazy chunk a newer deploy replaced, told as a stale page (ADR 0188).
   "chunk-load",
-  "dirty-edit",
-  "dirty-forms",
-  "shell-update",
-  "stale-asset",
-  "sw-update-guard",
-  // The shell chunk itself, told the same way when a deploy replaces it.
-  "load-shell",
   "urls",
   "agent-page-dump",
   "local-network-fetch",
@@ -203,11 +197,6 @@ export const LIB_RULES = [
     `${L}file-parts-store`,
     "vault.passwords",
     "sealed parts of a file item",
-  ),
-  core(
-    `${L}pwa-offer-passwords-onboarding`,
-    null,
-    "build-time opt-in for fresh-vault Passwords onboarding",
   ),
   ...each(L, CORE_INFRA, (p) =>
     core(p, null, "storage, focus, theme and shell infrastructure"),

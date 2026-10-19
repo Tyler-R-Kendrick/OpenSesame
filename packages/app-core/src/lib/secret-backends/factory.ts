@@ -39,8 +39,22 @@ async function localBackend(mode: LocalBackendMode, check: () => void) {
 async function httpBackend(
   mode: HttpBackendMode,
   transport: SecretBackendTransport,
+  savedConnectionId?: string,
 ): Promise<SecretBackend> {
   switch (mode) {
+    case "encrypted-remote": {
+      const module = await import("./encrypted-remote-saved.js");
+      transport.assertCurrent();
+      return module.createSavedEncryptedRemoteBackend(
+        transport,
+        savedConnectionId,
+      );
+    }
+    case "proton-pass": {
+      const module = await import("./proton-pass-backend.js");
+      transport.assertCurrent();
+      return module.createProtonPassBackend(transport);
+    }
     case "onepassword-sdk": {
       const [module, loader] = await Promise.all([
         import("./onepassword-sdk.js"),
@@ -57,9 +71,9 @@ async function httpBackend(
       return module.createOnePasswordConnectBackend(transport.fetch);
     }
     case "bitwarden-api": {
-      const module = await import("./bitwarden.js");
+      const module = await import("./bitwarden-native-browser.js");
       transport.assertCurrent();
-      return module.createBitwardenApiBackend(transport.fetch);
+      return module.createBitwardenNativeBrowserBackend(transport);
     }
     case "bitwarden-secrets": {
       const module = await import("./bitwarden-secrets.js");
@@ -88,6 +102,7 @@ export async function createSecretBackend(
   mode: SecretBackendMode,
   assertCurrent?: () => void,
   ownerSignal?: AbortSignal,
+  savedConnectionId?: string,
 ): Promise<SecretBackend> {
   const check = () => {
     if (ownerSignal?.aborted)
@@ -108,6 +123,8 @@ export async function createSecretBackend(
         assertCurrent: check,
       });
     }
+    case "encrypted-remote":
+    case "proton-pass":
     case "onepassword-sdk":
     case "onepassword-connect":
     case "bitwarden-api":
@@ -119,7 +136,7 @@ export async function createSecretBackend(
         assertCurrent,
         ownerSignal,
       );
-      const backend = await httpBackend(mode, transport);
+      const backend = await httpBackend(mode, transport, savedConnectionId);
       transport.assertCurrent();
       return fenceSecretBackend(backend, transport);
     }

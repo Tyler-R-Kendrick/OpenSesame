@@ -329,15 +329,17 @@ export function nativeConnectorController(
         ),
       );
     },
-    invoke: async (operationId, input) => {
+    invoke: async (operationId, input, signal) => {
+      signal?.throwIfAborted();
       const view = required();
       if (view.status !== "connected")
         throw new Error("Verify this provider connection before using it");
-      return nativeConnectorDriver(view.configuration.method, plan.id).invoke(
-        view.connectionId,
-        operationId,
-        input,
-      );
+      const driver = nativeConnectorDriver(view.configuration.method, plan.id);
+      const result = await (signal === undefined
+        ? driver.invoke(view.connectionId, operationId, input)
+        : driver.invoke(view.connectionId, operationId, input, signal));
+      signal?.throwIfAborted();
+      return result;
     },
     ...nativeRecoveryControls(state),
   };

@@ -66,13 +66,13 @@ async function verifyPeeringCeremony(page, width) {
     "Admin API access token",
     "Registered client ID",
   ])
-    await expect(panel.getByLabel(name, { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel(name, { exact: true })).toHaveCount(0);
   for (const name of [
     "Register app with Tailscale",
     "Authorize a device with Tailscale",
   ])
     await expect(
-      panel.getByRole("button", { name, exact: true, includeHidden: true }),
+      page.getByRole("button", { name, exact: true, includeHidden: true }),
     ).toHaveCount(0);
   h.check(
     true,

@@ -5,24 +5,28 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
+import {
+  nativeOAuthClientConfigured,
+  supportsNativeOAuthResource,
+} from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
-import { NativeS3BackupControls } from "./NativeS3BackupControls.js";
+import { NativeVaultBackupControls } from "./NativeS3BackupControls.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
 import type {
-  NativeConnectorCallbacks,
-  NativeConnectorController,
+  NativeActionDescriptor,
   NativeConnectorDescriptor,
 } from "./native-connector-ui.js";
 import { nativeDeviceProviderDescriptor } from "./native-device-provider-descriptor.js";
@@ -94,6 +98,9 @@ export function nativeSettingsDescriptor(
     callbackUrl,
     apiKey: { available: hasNativeConnectorDriver("api-key", provider.id) },
     oauth: {
+      registeredAvailable:
+        hasNativeConnectorDriver("oauth", provider.id) &&
+        supportsNativeOAuthResource(provider.id),
       available:
         hasNativeConnectorDriver("oauth", provider.id) &&
         (provider.id !== "google" || nativeGoogleBrowserAvailable()),
@@ -112,6 +119,27 @@ export function nativeSettingsDescriptor(
   return descriptor;
 }
 
+function primaryActions(
+  view: NativeConnectorView,
+  name: string,
+): readonly NativeActionDescriptor[] {
+  const configured = nativeOAuthClientConfigured(view.configuration);
+  if (configured && view.configuration.parameters.resource_protocol === "mcp")
+    return [];
+  const resources = configured
+    ? [{ id: "provider.resource.read", label: "Read configured API resource" }]
+    : nativeApiResourceActions(view.providerId, view.configuration.method);
+  const actions = resources.length
+    ? resources
+    : [{ id: "provider.read", label: `Check ${name} access` }];
+  return actions.map((action) => ({
+    ...action,
+    available: true,
+    fields: [],
+    resultOrigins: [],
+  }));
+}
+
 function actions(
   descriptor: NativeConnectorDescriptor,
   view: NativeConnectorView | null,
@@ -127,13 +155,7 @@ function actions(
     actions:
       view && view.configuration.method !== "mcp"
         ? [
-            {
-              id: "provider.read",
-              label: `Check ${descriptor.name} access`,
-              available: true,
-              fields: [],
-              resultOrigins: [],
-            },
+            ...primaryActions(view, descriptor.name),
             ...(["vault", "openbao"].includes(descriptor.providerId)
               ? [
                   {
@@ -201,53 +223,36 @@ function actions(
   };
 }
 
-// Removal bumps the revision before deleting, which supersedes the
-// summary attempt that would report it; publish the disappearance here.
-function usePublishConnectorDisappearance(
-  view: NativeConnectorView | null,
-  changed: (next: NativeConnectorView | null) => void,
-) {
-  const hadView = useRef(false);
-  const publish = useRef(changed);
-  publish.current = changed;
-  useEffect(() => {
-    if (view) hadView.current = true;
-    else if (hadView.current) {
-      hadView.current = false;
-      publish.current(null);
-    }
-  }, [view]);
-}
-
-function mcpTools(options: {
-  view: NativeConnectorView;
-  controller: NativeConnectorController;
-  callbacks: NativeConnectorCallbacks;
-  disabled: boolean;
-}) {
-  const { view, controller, callbacks, disabled } = options;
-  return view.configuration.method === "mcp" ? (
-    <NativeMcpTools
-      view={view}
-      controller={controller}
-      onFlash={callbacks.onFlash}
-      onChanged={callbacks.onChanged}
-      disabled={disabled}
-    />
-  ) : null;
-}
-
 function backupControls(
   view: NativeConnectorView,
   onFlash: (flash: Flash) => void,
 ) {
-  return view.providerId === "s3" && nativeVerified(view) ? (
-    <NativeS3BackupControls
+  const target = view.configuration.parameters;
+  const supported =
+    view.providerId === "s3" ||
+    (["github", "codeberg"].includes(view.providerId) &&
+      !!target.backup_owner &&
+      !!target.backup_repo &&
+      !!target.backup_branch) ||
+    (view.providerId === "gitlab" &&
+      view.configuration.method === "api-key" &&
+      !!target.backup_project &&
+      !!target.backup_branch);
+  return supported && nativeVerified(view) ? (
+    <NativeVaultBackupControls
       key={`${view.connectionId}/${view.revision}/${view.fingerprint}`}
       view={view}
       onFlash={onFlash}
     />
   ) : null;
+}
+
+function usesMcp(view: NativeConnectorView) {
+  return (
+    view.configuration.method === "mcp" ||
+    (nativeOAuthClientConfigured(view.configuration) &&
+      view.configuration.parameters.resource_protocol === "mcp")
+  );
 }
 
 export function NativeConnectorPanels({
@@ -290,12 +295,13 @@ export function NativeConnectorPanels({
   if (!descriptor) return null;
   const current = actions(descriptor, view);
   // A road that opens or closes (the bridge arriving, a host allowed in it) is a new form.
-  const roads = current.methods.map((m) => (m.available ? 1 : 0)).join("");
+  const roads = current.methods
+    .map((method) => (method.available ? 1 : 0))
+    .join("");
   const changed = (_next: NativeConnectorView | null) => {
     refresh((version) => version + 1);
     onChanged();
   };
-  usePublishConnectorDisappearance(view, changed);
   const form = (
     <NativeConnectorForm
       key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}/${pending.generation}`}
@@ -335,12 +341,15 @@ export function NativeConnectorPanels({
             authorization={pending.authorization}
           />
           {backupControls(view, onFlash)}
-          {mcpTools({
-            view,
-            controller,
-            callbacks: { onFlash, onChanged: changed },
-            disabled: !!pending.authorization,
-          })}
+          {usesMcp(view) ? (
+            <NativeMcpTools
+              view={view}
+              controller={controller}
+              onFlash={onFlash}
+              onChanged={changed}
+              disabled={!!pending.authorization}
+            />
+          ) : null}
         </>
       ) : null}
     </div>

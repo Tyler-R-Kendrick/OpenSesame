@@ -14,6 +14,8 @@ export function captureNativeAuthorizationTransport(
   const mutation = base.settleCredentialMutation;
   const captured: NativeProviderTransport = {
     assertCurrent,
+    signal: base.signal,
+    supportsNativeOrigin: base.supportsNativeOrigin,
     fetch: (input, init) => {
       assertCurrent();
       return base.fetch(input, init);

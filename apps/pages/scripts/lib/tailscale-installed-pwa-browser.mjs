@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect } from "@playwright/test";
+import ts from "typescript";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 import {
   addCapabilities,
@@ -27,24 +28,124 @@ const artifacts = JSON.parse(
     "utf8",
   ),
 );
-export function emittedTailnetWorker(dist) {
+function ownedBuiltFile(dist, file) {
+  if (!/^assets\/[A-Za-z0-9_.-]+\.js$/.test(file))
+    throw new Error("Built worker/controller path is not an owned asset");
+  const target = path.join(fs.realpathSync(dist), file);
+  const entry = fs.lstatSync(target);
+  if (
+    !entry.isFile() ||
+    entry.isSymbolicLink() ||
+    fs.realpathSync(target) !== target
+  )
+    throw new Error("Built worker/controller must be a regular owned file");
+  return target;
+}
+function workerURL(node) {
+  if (
+    !ts.isNewExpression(node) ||
+    !ts.isIdentifier(node.expression) ||
+    node.expression.text !== "Worker"
+  )
+    return null;
+  let value = node.arguments?.[0];
+  if (
+    value &&
+    ts.isPropertyAccessExpression(value) &&
+    value.name.text === "href"
+  )
+    value = value.expression;
+  if (
+    !value ||
+    !ts.isNewExpression(value) ||
+    !ts.isIdentifier(value.expression) ||
+    value.expression.text !== "URL"
+  )
+    return null;
+  return value;
+}
+function workerAssetReference(node, source, ownerURL, base) {
+  const value = workerURL(node);
+  if (!value) return null;
+  const [literal, origin] = value.arguments ?? [];
+  if (
+    !literal ||
+    !ts.isStringLiteralLike(literal) ||
+    !origin ||
+    origin.getText(source) !== "import.meta.url"
+  )
+    return null;
+  const reference = literal.text;
+  if (
+    /[%\\?#]/.test(reference) ||
+    /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(reference) ||
+    reference.split("/").includes("..")
+  )
+    return null;
+  const url = new URL(reference, ownerURL);
+  return url.origin === base.origin && url.pathname.startsWith(base.pathname)
+    ? url.pathname.slice(base.pathname.length)
+    : null;
+}
+function emittedWorkerReferences(text, owner, deploymentBase) {
+  if (!/^\/(?:[A-Za-z0-9_-]+\/)*$/.test(deploymentBase))
+    throw new Error("Built worker deployment base must be an owned path");
+  const base = new URL(deploymentBase, "https://artifact.invalid");
+  const ownerURL = new URL(owner, base);
+  const source = ts.createSourceFile(
+    owner,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  if (source.parseDiagnostics.length)
+    throw new Error("Built controller is not valid JavaScript");
+  const references = new Set();
+  const visit = (node) => {
+    const reference = workerAssetReference(node, source, ownerURL, base);
+    if (reference) references.add(reference);
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return references;
+}
+export function emittedTailnetWorker(
+  dist,
+  deploymentBase = process.env.VITE_BASE ?? "/OpenSesame/",
+) {
   const graph = JSON.parse(
     fs.readFileSync(path.join(dist, "capability-graph.json"), "utf8"),
   );
-  const owner = graph.chunks.find((chunk) =>
+  const owners = graph.chunks.filter((chunk) =>
     chunk.modules.some((module) =>
       module.id.endsWith("networking.tailnet/browser/controller.ts"),
     ),
   );
-  if (!owner) throw new Error("Built graph has no Tailscale controller owner");
-  const text = fs.readFileSync(path.join(dist, owner.file), "utf8");
+  if (!owners.length)
+    throw new Error("Built graph has no Tailscale controller owner");
+  if (owners.length !== 1)
+    throw new Error("Built graph has ambiguous Tailscale controller owners");
+  const owner = owners[0];
+  const text = fs.readFileSync(ownedBuiltFile(dist, owner.file), "utf8");
+  const references = emittedWorkerReferences(text, owner.file, deploymentBase);
+  const declared = (graph.workers ?? []).filter(
+    (worker) =>
+      worker.capability === "networking.tailnet" &&
+      worker.variant === "module:tailscale-node" &&
+      worker.present === true,
+  );
   const files = graph.assets.filter(
-    (asset) => asset.file.endsWith(".js") && text.includes(asset.file),
+    (asset) =>
+      /^assets\/tailscale-node-[A-Za-z0-9_-]+\.js$/.test(asset.file) &&
+      references.has(asset.file) &&
+      declared.filter((worker) => worker.file === asset.file).length === 1,
   );
   if (files.length !== 1)
     throw new Error(
       "Built controller must reference exactly one emitted dedicated worker",
     );
+  ownedBuiltFile(dist, files[0].file);
   return files[0].file;
 }
 async function observeCachePlans(page) {

@@ -1,7 +1,9 @@
 /** Public node metadata hydration is separate from current vault or provider authority. */
+import { DEVICE_CONNECTOR_KEYS } from "@opensesame/app-core/lib/device-connector-records.js";
+import { kvHydrate } from "@opensesame/app-core/lib/kv.js";
+import { initializeVaultCredentialCustody } from "@opensesame/app-core/lib/vault-credential-custody.js";
 import { useEffect, useState } from "react";
 import { useVault } from "../../../lib/vault/hooks.js";
-import { hydrateTailscaleDeviceRows } from "./tailscale-hydration.js";
 
 export function useTailscaleBrowserNodeReady() {
   const { tomb, status, guest, awaitingSecondStep } = useVault();
@@ -11,7 +13,10 @@ export function useTailscaleBrowserNodeReady() {
   } | null>(null);
   useEffect(() => {
     let current = true;
-    void hydrateTailscaleDeviceRows(tomb).then(
+    void Promise.all([
+      initializeVaultCredentialCustody(),
+      kvHydrate([...DEVICE_CONNECTOR_KEYS]),
+    ]).then(
       () => {
         if (current) setLoaded({ tomb, failure: "" });
       },

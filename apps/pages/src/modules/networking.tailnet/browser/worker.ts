@@ -1,86 +1,122 @@
 /** Official Go/WireGuard runs in this terminable, privately governed realm. */
-import { WorkerMessage } from "./protocol.js";
-import { type BrowserNodeClient, loadBrowserNode } from "./sdk.js";
+import "./worker-csp.js";
+import { type HostEvent, WorkerMessage } from "./protocol.js";
+import {
+  type BrowserNodeAssets,
+  type BrowserNodeClient,
+  loadBrowserNode,
+} from "./sdk.js";
 import { installWorkerEgress } from "./worker-egress.js";
-let client: BrowserNodeClient | null = null;
-let sequence = 0;
-let started = false;
-const decisions = new Map<number, (value: boolean) => void>();
-function decide(url: string, method: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const id = ++sequence;
-    const timer = setTimeout(() => {
-      decisions.delete(id);
-      resolve(false);
-    }, 30_000);
-    decisions.set(id, (allowed) => {
-      clearTimeout(timer);
-      resolve(allowed);
-    });
-    globalThis.postMessage({ kind: "decision", id, url, method });
-  });
-}
-async function start(
-  config: Parameters<typeof loadBrowserNode>[0],
-  assets: { runtime: string; wasm: string },
-): Promise<void> {
-  installWorkerEgress(decide, Object.values(assets));
-  client = await loadBrowserNode(config, assets, () =>
-    globalThis.postMessage({ kind: "error" }),
+import { WorkerNativeHTTP } from "./worker-native-http.js";
+type WorkerDependencies = {
+  load: typeof loadBrowserNode;
+  egress: typeof installWorkerEgress;
+};
+/** One owned realm/client; injection substitutes only the existing SDK boundary in tests. */
+export class BrowserNodeWorker {
+  private client: BrowserNodeClient | null = null;
+  private sequence = 0;
+  private started = false;
+  private readonly native = new WorkerNativeHTTP(
+    () => this.client?.nativeHTTP,
+    (message) => this.post(message),
   );
-  client.run({
-    notifyState: (state) => {
-      globalThis.postMessage({ kind: "state", state });
-      if (state === "NeedsLogin" && config.authKey)
-        setTimeout(() => client?.login(), 0);
+  private decisions = new Map<number, (value: boolean) => void>();
+  constructor(
+    private readonly post: (message: HostEvent) => void,
+    private readonly dependencies: WorkerDependencies = {
+      load: loadBrowserNode,
+      egress: installWorkerEgress,
     },
-    notifyNetMap: (value) => globalThis.postMessage({ kind: "netmap", value }),
-    notifyBrowseToURL: (url) => globalThis.postMessage({ kind: "auth", url }),
-    notifyPanicRecover: () => globalThis.postMessage({ kind: "error" }),
-  });
-}
-globalThis.addEventListener("message", (event: MessageEvent) => {
-  const parsed = WorkerMessage.safeParse(event.data);
-  if (!parsed.success) return;
-  const message = parsed.data;
-  if (message.kind === "decision") {
-    decisions.get(message.id)?.(message.allowed);
-    decisions.delete(message.id);
-    return;
+  ) {}
+  private panic() {
+    this.native.close();
+    this.post({ kind: "error" });
   }
-  if (message.kind === "login") {
-    client?.login();
-    return;
+
+  private decide(url: string, method: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const id = ++this.sequence;
+      const timer = setTimeout(() => {
+        this.decisions.delete(id);
+        resolve(false);
+      }, 30000);
+      this.decisions.set(id, (allowed) => {
+        clearTimeout(timer);
+        resolve(allowed);
+      });
+      this.post({ kind: "decision", id, url, method });
+    });
   }
-  if (message.kind === "get") {
-    void client
-      ?.fetch(message.url)
+  private async start(
+    config: Parameters<typeof loadBrowserNode>[0],
+    assets: BrowserNodeAssets,
+  ) {
+    const ownedAssets = [assets.runtime, assets.wasm];
+    if (assets.nativeHTTP) ownedAssets.push(assets.nativeHTTP);
+    this.dependencies.egress(this.decide.bind(this), ownedAssets);
+    const client = await this.dependencies.load(config, assets, () =>
+      this.panic(),
+    );
+    this.client = client;
+    if (this.native.closed) client.nativeHTTP?.closeHTTP();
+    client.run({
+      notifyState: (state) => {
+        this.post({ kind: "state", state });
+        if (state === "NeedsLogin" && config.authKey)
+          setTimeout(() => client.login(), 0);
+      },
+      notifyNetMap: (value) => this.post({ kind: "netmap", value }),
+      notifyBrowseToURL: (url) => this.post({ kind: "auth", url }),
+      notifyPanicRecover: () => this.panic(),
+    });
+  }
+  private get(id: number, url: string) {
+    void this.client
+      ?.fetch(url)
       .then(async (response) => {
         const text = await response.text();
-        globalThis.postMessage({
-          kind: "get",
-          id: message.id,
-          status: response.status,
-          text,
-        });
+        this.post({ kind: "get", id, status: response.status, text });
       })
-      .catch(() => globalThis.postMessage({ kind: "error" }));
-    return;
+      .catch(() => this.post({ kind: "error" }));
   }
-  if (started) return;
-  started = true;
-  const state = message.config.state;
-  const config = {
-    ...message.config,
-    stateStorage: {
-      getState: (id: string) => state[id] ?? "",
-      setState: (id: string, value: string) => {
-        state[id] = value;
-        globalThis.postMessage({ kind: "storage", state });
+  receive(event: MessageEvent) {
+    const parsed = WorkerMessage.safeParse(event.data);
+    if (!parsed.success) return;
+    const message = parsed.data;
+    if (this.native.receive(message)) return;
+    if (message.kind === "decision") {
+      this.decisions.get(message.id)?.(message.allowed);
+      this.decisions.delete(message.id);
+      return;
+    }
+    if (message.kind === "login") {
+      this.client?.login();
+      return;
+    }
+    if (message.kind === "get") {
+      this.get(message.id, message.url);
+      return;
+    }
+    if (this.started) return;
+    this.started = true;
+    const state = message.config.state;
+    const config = {
+      ...message.config,
+      stateStorage: {
+        getState: (id: string) => state[id] ?? "",
+        setState: (id: string, value: string) => {
+          state[id] = value;
+          this.post({ kind: "storage", state });
+        },
       },
-    },
-  };
-  void start(config, message.config.assets).catch(() =>
-    globalThis.postMessage({ kind: "error" }),
-  );
-});
+    };
+    void this.start(config, message.config.assets).catch(() => this.panic());
+  }
+}
+const worker = new BrowserNodeWorker((message) =>
+  globalThis.postMessage(message),
+);
+globalThis.addEventListener("message", (event: MessageEvent) =>
+  worker.receive(event),
+);

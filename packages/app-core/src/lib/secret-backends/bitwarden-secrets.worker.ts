@@ -1,4 +1,5 @@
-import type * as BrowserSdk from "@bitwarden/sdk-wasm/bitwarden_wasm_bg.js";
+import * as bindings from "@bitwarden/sdk-wasm/bitwarden_wasm_bg.js";
+import wasmURL from "@bitwarden/sdk-wasm/bitwarden_wasm_bg.wasm?url";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import type { BitwardenSdkSettings } from "./bitwarden-wasm-loader.js";
@@ -12,14 +13,10 @@ import {
 import { secretBackendUrl } from "./http.js";
 import { SecretBackendError } from "./types.js";
 
-type BitwardenBrowserBindings = typeof BrowserSdk;
+type BitwardenBrowserBindings = typeof bindings;
 async function initialize(): Promise<BitwardenBrowserBindings> {
   // Load the maintained WASM and its glue, excluding the package's Node entry and JS fallback.
-  const [bindings, asset] = await Promise.all([
-    import("@bitwarden/sdk-wasm/bitwarden_wasm_bg.js"),
-    import("@bitwarden/sdk-wasm/bitwarden_wasm_bg.wasm?url"),
-  ]);
-  const response = await fetch(asset.default, {
+  const response = await fetch(wasmURL, {
     credentials: "omit",
     redirect: "error",
   });

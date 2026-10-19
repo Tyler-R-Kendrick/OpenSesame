@@ -16,6 +16,17 @@ import {
 } from "./identity-connections-schema.js";
 import { kvHydrate } from "./kv.js";
 const FIELD = "identity_configuration";
+const REVISION = "identity_configuration_revision";
+
+/** Public lifecycle marker only: editing even identical bytes retires an initiating configuration. */
+export function identityConnectionRevision(
+  connectionId: string,
+): string | null {
+  const row = readDeviceRows().find(
+    (entry) => entry.connectionId === connectionId,
+  );
+  return row?.fields[REVISION] ?? row?.updatedAt ?? null;
+}
 
 /** Safe for an edit form: private write-only fields are always blank. */
 export function readIdentityConnection(
@@ -65,6 +76,8 @@ function sameTarget(
     "brokerUrl",
     "organizationId",
     "samlEntityId",
+    "samlMetadataUrl",
+    "samlSigningCertificate",
     "ldapUrl",
     "ldapBindDn",
   ] as const;
@@ -85,28 +98,38 @@ export function resolveIdentityConnectionSecrets(
 export function writeIdentityConnection(
   draft: IdentityConnectionDraft,
   existingId?: string,
+  beforeCommit?: () => void,
 ): Promise<Connection> {
-  return saveDeviceConnectorConfigurationDurable(() => {
-    const current = resolveIdentityConnectionSecrets(draft, existingId);
-    if (existingId && !readIdentityConnection(existingId))
-      throw new Error("Saved identity connection not found");
-    const secrets: Record<string, string> = {};
-    for (const field of IDENTITY_SECRET_FIELDS)
-      if (current[field]) secrets[field] = current[field];
-    return {
-      providerId: current.providerId,
-      displayName: current.name,
-      scopes:
-        current.protocol === "oidc"
-          ? current.scope.split(/\s+/).filter(Boolean)
-          : [],
-      fields: {
-        [FIELD]: JSON.stringify(publicIdentityDraft(current)),
-        self_hosted_configuration: "identity-v1",
-      },
-      secrets,
-    };
-  }, existingId);
+  return saveDeviceConnectorConfigurationDurable(
+    () => {
+      beforeCommit?.();
+      const current = resolveIdentityConnectionSecrets(draft, existingId);
+      if (existingId && !readIdentityConnection(existingId))
+        throw new Error("Saved identity connection not found");
+      const secrets: Record<string, string> = {};
+      for (const field of IDENTITY_SECRET_FIELDS)
+        if (current[field]) secrets[field] = current[field];
+      return {
+        providerId: current.providerId,
+        displayName: current.name,
+        scopes:
+          current.protocol === "oidc"
+            ? current.scope.split(/\s+/).filter(Boolean)
+            : [],
+        fields: {
+          [FIELD]: JSON.stringify(publicIdentityDraft(current)),
+          [REVISION]: Array.from(
+            crypto.getRandomValues(new Uint8Array(24)),
+            (byte) => byte.toString(16).padStart(2, "0"),
+          ).join(""),
+          self_hosted_configuration: "identity-v1",
+        },
+        secrets,
+      };
+    },
+    existingId,
+    beforeCommit,
+  );
 }
 export function deleteIdentityConnection(
   connectionId: string,
@@ -129,11 +152,7 @@ export async function assertIdentityConnectionUnchanged(
 ): Promise<void> {
   await hydrateIdentityConnections();
   const current = getIdentityConnectionRuntime(connectionId);
-  if (
-    !current ||
-    JSON.stringify(publicIdentityDraft(current)) !==
-      JSON.stringify(publicIdentityDraft(expected))
-  )
+  if (!current || JSON.stringify(current) !== JSON.stringify(expected))
     throw new Error(
       "Identity configuration changed during sign-in; start again",
     );

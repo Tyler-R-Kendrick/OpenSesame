@@ -114,24 +114,45 @@ function transientConfiguration(
   if (value.file) resolved.file = value.file;
   if (value.filePassword !== undefined)
     resolved.filePassword = value.filePassword;
+  if (value.masterPassword !== undefined)
+    resolved.masterPassword = value.masterPassword;
   return resolved;
 }
 async function authenticate(
   config: SecretBackendConfiguration,
   lease: ReturnType<typeof lifecycle>,
+  savedConnectionId?: string,
+  initialize = false,
 ): Promise<OpenBackend> {
   lease.check();
+  if (initialize && config.mode !== "encrypted-remote")
+    throw new SecretBackendError(
+      "unsupported",
+      "Only encrypted remote objects support explicit initialization.",
+    );
   const backend = await awaitSecretBackendOwner(
     secretBackendRuntimeSeams.createBackend(
       config.mode,
       lease.check,
       lease.signal,
+      savedConnectionId,
     ),
     lease.signal,
   );
   lease.check();
+  if (initialize && (config.mode !== "encrypted-remote" || !backend.initialize))
+    throw new SecretBackendError(
+      "unsupported",
+      "This backend does not support explicit empty-store initialization.",
+    );
+  const operation = initialize ? backend.initialize : backend.authenticate;
+  if (!operation)
+    throw new SecretBackendError(
+      "unsupported",
+      "Initialization is unavailable.",
+    );
   const session = await awaitSecretBackendOwner(
-    backend.authenticate(config),
+    operation.call(backend, config),
     lease.signal,
     (late) => backend.disconnect(late),
   );
@@ -184,10 +205,42 @@ export async function saveSecretBackendConnection(
   }
 }
 
-export async function connectSecretBackend(
+export function connectSecretBackend(
   value: SecretBackendConfiguration | string,
   existingId?: string,
   callerSignal?: AbortSignal,
+): Promise<OpenBackend> {
+  return openSecretBackend(value, existingId, callerSignal);
+}
+function assertUnchangedConfiguration(
+  config: SecretBackendDraft,
+  id: string | undefined,
+  tomb: string,
+  before: string | null,
+): void {
+  if (!id) return;
+  if (
+    !before ||
+    JSON.stringify(resolveSecretBackendConfiguration(config, id, tomb)) !==
+      before
+  )
+    throw new SecretBackendError(
+      "stale",
+      "Save configuration changes before connecting.",
+    );
+}
+/** Separate explicit creation: never invoked by connect or probe. */
+export function initializeSecretBackend(
+  connectionId: string,
+  callerSignal?: AbortSignal,
+): Promise<OpenBackend> {
+  return openSecretBackend(connectionId, undefined, callerSignal, true);
+}
+async function openSecretBackend(
+  value: SecretBackendConfiguration | string,
+  existingId?: string,
+  callerSignal?: AbortSignal,
+  initialize = false,
 ): Promise<OpenBackend> {
   const guard = await captureSecretBackendVault(callerSignal);
   let retained = false;
@@ -211,17 +264,7 @@ export async function connectSecretBackend(
         "Saved secret backend not found.",
       );
     const before = id ? signature(id, guard.tomb) : null;
-    if (
-      id &&
-      (!before ||
-        JSON.stringify(
-          resolveSecretBackendConfiguration(config, id, guard.tomb),
-        ) !== before)
-    )
-      throw new SecretBackendError(
-        "stale",
-        "Save configuration changes before connecting.",
-      );
+    assertUnchangedConfiguration(config, id, guard.tomb, before);
     const generation = id ? advance(id) : 0;
     const lease = lifecycle(guard, id, before, generation);
     close = lease.close;
@@ -231,7 +274,7 @@ export async function connectSecretBackend(
     const input = isSavedConnectionId(value)
       ? config
       : transientConfiguration(value, config);
-    const raw = await authenticate(input, lease);
+    const raw = await authenticate(input, lease, id, initialize);
     const held = holdSecretBackend(raw, lease, (entry) =>
       releaseBackend(id, entry),
     );
@@ -299,6 +342,7 @@ export async function probeSecretBackend(
     const raw = await authenticate(
       transientConfiguration(draft, config),
       lease,
+      existingId,
     );
     await disposeSecretBackendProbe(raw, lease);
   } finally {

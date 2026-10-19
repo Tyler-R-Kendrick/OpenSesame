@@ -13,13 +13,14 @@ import { aiConnectionBinding, validateAiConnection } from "./configuration.js";
 import { capturedAiCredentials, resolvedAiConnection } from "./credentials.js";
 import { aiCompletionSeams } from "./http.js";
 import { inferAiConnection, probeAiConnection } from "./inference.js";
-import { isAiConnectionProvider } from "./presets.js";
+import { aiConnectionPreset } from "./presets.js";
+import type { ReplicateInput, ReplicateRunOptions } from "./replicate-types.js";
 import {
   AI_CONNECTION_CLASSIFICATION,
   aiConnectionRecord,
   commitAiConnection,
 } from "./store.js";
-import { aiConnectionTransport } from "./transport.js";
+import { captureAiConnectionTransport } from "./transport.js";
 import {
   type AiConnectionDraft,
   AiConnectionError,
@@ -99,20 +100,62 @@ function assertCurrentOperation(
   transport.signal.throwIfAborted();
 }
 
+function captureInferenceCaller(
+  runtime?: Pick<HostedModelRuntime, "signal" | "assertCurrent">,
+) {
+  if (!runtime) return undefined;
+  const signal = runtime.signal;
+  const method = runtime.assertCurrent;
+  const unchanged = () => {
+    if (runtime.signal !== signal || runtime.assertCurrent !== method)
+      throw new AiConnectionError(
+        "stale",
+        "The AI caller changed. Restart the operation.",
+      );
+  };
+  const assertCurrent = () => {
+    unchanged();
+    signal.throwIfAborted();
+    method.call(runtime);
+    unchanged();
+    signal.throwIfAborted();
+  };
+  assertCurrent();
+  return { signal, assertCurrent };
+}
+
+/** Caller ownership ends authentication; explicit prediction cancellation does not. */
+export type AiConnectionOperationOptions = {
+  signal?: AbortSignal;
+  prediction?: ReplicateRunOptions;
+};
+function operationTransport(
+  port: AiConnectionTransport,
+  vaultSignal: AbortSignal,
+  callerSignal?: AbortSignal,
+): AiConnectionTransport {
+  const signals = [port.signal, vaultSignal];
+  if (callerSignal) signals.push(callerSignal);
+  return { ...port, signal: AbortSignal.any(signals) };
+}
+
 /** A real inference probe saves nothing and releases its vault session. */
 export async function testAiConnection(
   supplied: AiConnectionDraft,
   id?: string,
+  predictionInput?: ReplicateInput,
+  options: AiConnectionOperationOptions = {},
 ): Promise<string> {
+  const port = captureAiConnectionTransport();
+  const callerSignal = options.signal;
+  const prediction = { ...options.prediction };
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
   try {
-    const port = aiConnectionTransport();
-    const transport = {
-      ...port,
-      signal: AbortSignal.any([port.signal, guard.signal]),
-    };
+    port.assertCurrent();
+    guard.check();
+    const transport = operationTransport(port, guard.signal, callerSignal);
     const { draft, previous } = await reviewedDraft(supplied, guard.tomb, id);
     const unchanged = previous
       ? savedGuard(
@@ -123,7 +166,13 @@ export async function testAiConnection(
       : () => guard.check();
     const check = () => assertCurrentOperation(guard, transport, unchanged);
     owner = check;
-    await probeAiConnection(draft, transport, check);
+    await probeAiConnection(
+      draft,
+      transport,
+      check,
+      predictionInput,
+      prediction,
+    );
     check();
     completed = true;
     return "Model inference verified";
@@ -138,16 +187,19 @@ export async function testAiConnection(
 export async function saveAiConnection(
   supplied: AiConnectionDraft,
   id?: string,
+  predictionInput?: ReplicateInput,
+  options: AiConnectionOperationOptions = {},
 ) {
+  const port = captureAiConnectionTransport();
+  const callerSignal = options.signal;
+  const prediction = { ...options.prediction };
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
   try {
-    const port = aiConnectionTransport();
-    const transport = {
-      ...port,
-      signal: AbortSignal.any([port.signal, guard.signal]),
-    };
+    port.assertCurrent();
+    guard.check();
+    const transport = operationTransport(port, guard.signal, callerSignal);
     const { draft, previous } = await reviewedDraft(supplied, guard.tomb, id);
     const oldCapture =
       previous && aiConnectionRecord(previous.connectionId)
@@ -162,7 +214,13 @@ export async function saveAiConnection(
       : () => guard.check();
     const check = () => assertCurrentOperation(guard, transport, unchanged);
     owner = check;
-    await probeAiConnection(draft, transport, check);
+    await probeAiConnection(
+      draft,
+      transport,
+      check,
+      predictionInput,
+      prediction,
+    );
     const capture = await stageVaultCredentials(
       {
         name: draft.name,
@@ -213,15 +271,18 @@ export async function performSavedAiInference(
   input: HostedModelInput,
   runtime?: Pick<HostedModelRuntime, "signal" | "assertCurrent">,
   onText?: (text: string) => void,
+  predictionOptions: ReplicateRunOptions = {},
 ) {
+  const caller = captureInferenceCaller(runtime);
+  const port = captureAiConnectionTransport();
+  const prediction = { ...predictionOptions };
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
   try {
-    const port = aiConnectionTransport();
-    const signals = [port.signal, guard.signal];
-    if (runtime) signals.push(runtime.signal);
-    const transport = { ...port, signal: AbortSignal.any(signals) };
+    port.assertCurrent();
+    guard.check();
+    const transport = operationTransport(port, guard.signal, caller?.signal);
     const record = aiConnectionRecord(id);
     if (!record || !record.privateState.verification)
       throw new AiConnectionError(
@@ -231,7 +292,7 @@ export async function performSavedAiInference(
     requireNativeKey(
       {
         family: "AI",
-        accepts: isAiConnectionProvider,
+        accepts: (providerId) => aiConnectionPreset(providerId) !== null,
         classification: AI_CONNECTION_CLASSIFICATION,
       },
       id,
@@ -243,7 +304,7 @@ export async function performSavedAiInference(
       record.configuration.fingerprint,
     );
     const check = () =>
-      assertCurrentOperation(guard, transport, unchanged, runtime);
+      assertCurrentOperation(guard, transport, unchanged, caller);
     owner = check;
     const draft = await resolvedAiConnection(record, guard.tomb);
     check();
@@ -253,6 +314,7 @@ export async function performSavedAiInference(
       transport,
       check,
       onText,
+      prediction,
     );
     check();
     completed = true;

@@ -2,6 +2,7 @@ import { secretBackendPreset } from "@opensesame/app-core/lib/secret-backends/pr
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FailureNotice } from "../../../components/FailureNotice.js";
+import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconKey, ReloadKey } from "../../../components/IconKey.js";
 import { IconSignOut, IconTrash, IconX } from "../../../components/Icons.js";
@@ -95,6 +96,16 @@ function ConfigurationPanel({
         onProbe={editor.probe}
         onReload={editor.reload}
       >
+        {editor.draft.mode === "bitwarden-api" ? (
+          <FieldShell
+            label="Master password (this connection only)"
+            value={editor.password}
+            type="password"
+            autoComplete="off"
+            disabled={editor.busy || !!editor.active}
+            onValueChange={editor.setPassword}
+          />
+        ) : null}
         {editor.draft.mode === "file-import" ? (
           <SecretBackendFileFields
             draft={editor.draft}
@@ -143,6 +154,13 @@ function SessionPanel({ editor }: { editor: SecretBackendConnectionEditor }) {
             busy={editor.busy}
             onClick={editor.connect}
           />
+          {editor.draft.mode === "encrypted-remote" ? (
+            <FormCommit
+              label="Initialize empty encrypted remote"
+              disabled={editor.busy || !editor.saved}
+              onClick={editor.initialize}
+            />
+          ) : null}
         </div>
       ) : null}
     </section>
@@ -174,7 +192,12 @@ export function SecretBackendPanels(props: SecretBackendPanelProps) {
       vaultStore.onLock(() => {
         setFile(null);
         setPassword("");
-        setDraft((draft) => ({ ...draft, token: "", clientSecret: "" }));
+        setDraft((draft) => ({
+          ...draft,
+          token: "",
+          clientSecret: "",
+          encryptionKey: "",
+        }));
         clear();
       }),
     [setFile, setPassword, setDraft, clear],

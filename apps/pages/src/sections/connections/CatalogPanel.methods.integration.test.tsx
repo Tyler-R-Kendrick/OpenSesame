@@ -70,7 +70,7 @@ it("uses compiled provider protocols across the full public catalog and keeps le
   expect(catalogMethodLabel(provider)).toBe("Email/password · OIDC");
 });
 
-it("keeps available API setup and MCP alternatives distinct from unsupported browser OAuth", () => {
+it("names compiled protocols before any connection target or native carrier exists", () => {
   const providers = mergeVercelCatalog(getBundledProviders());
   const labels = Object.fromEntries(
     providers.map((provider) => [provider.id, catalogMethodLabel(provider)]),
@@ -79,7 +79,8 @@ it("keeps available API setup and MCP alternatives distinct from unsupported bro
   expect(labels.notion).not.toContain("API key (browser unavailable)");
   expect(labels.resend).toContain("API key");
   expect(labels.resend).not.toContain("API key (browser unavailable)");
-  expect(labels.resend).toContain("OAuth (browser unavailable)");
+  expect(labels.resend).toContain("OAuth");
+  expect(labels.resend).not.toContain("browser unavailable");
   expect(labels.resend).toContain("MCP");
   expect(labels.adobe).toBe("MCP");
 });

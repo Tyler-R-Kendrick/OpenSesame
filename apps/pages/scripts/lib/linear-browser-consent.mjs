@@ -116,54 +116,28 @@ function observeConsent(harness, page, original) {
 export async function beginLinearConsent(harness, page, label, action) {
   const original = page.url();
   const button = page.getByRole("button", { name: action, exact: true });
-  let popup;
-  let observation;
-  // A reserved consent window can be released when its preparation ends
-  // against a superseded attempt; one fresh click starts the real consent.
-  for (let attempt = 1; ; attempt += 1) {
-    observation = observeConsent(harness, page, original);
-    try {
-      await observation.status("status-before-click");
-      // Bind the popup to this click — context-wide "page" events can catch a stray tab.
-      [popup] = await Promise.all([
-        page.waitForEvent("popup", {
-          timeout: CONSENT_POPUP_TIMEOUT_MS,
-          predicate: (popup) => {
-            observation.bind(popup);
-            return true;
-          },
-        }),
-        button.click(),
-      ]);
-      if (popup.isClosed()) {
-        throw new Error(
-          `${label}: consent popup closed before Linear authorize URL`,
-        );
-      }
-      await popup.waitForURL("https://linear.app/oauth/authorize?**", {
-        timeout: CONSENT_POPUP_TIMEOUT_MS,
-        waitUntil: "domcontentloaded",
-      });
-      break;
-    } catch (error) {
-      observation.note("consent-error");
-      observation.stop();
-      const ended =
-        (await page
-          .getByRole("button", { name: "Cancel sign-in", exact: true })
-          .count()) === 0;
-      if (attempt >= 2 || !ended || !popup?.isClosed())
-        throw new Error(
-          `${label}: consent window closed before Linear authorize URL: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
-            .locator("body")
-            .innerText()
-            .then((text) => text.slice(-1200))}`,
-          { cause: error },
-        );
-      await expect(button).toBeEnabled({ timeout: 10_000 });
-    }
-  }
+  const observation = observeConsent(harness, page, original);
   try {
+    // Bind the popup to this click — context-wide "page" events can catch a stray tab.
+    const [popup] = await Promise.all([
+      page.waitForEvent("popup", {
+        timeout: CONSENT_POPUP_TIMEOUT_MS,
+        predicate: (popup) => {
+          observation.bind(popup);
+          return true;
+        },
+      }),
+      button.click(),
+    ]);
+    if (popup.isClosed()) {
+      throw new Error(
+        `${label}: consent popup closed before Linear authorize URL`,
+      );
+    }
+    await popup.waitForURL("https://linear.app/oauth/authorize?**", {
+      timeout: CONSENT_POPUP_TIMEOUT_MS,
+      waitUntil: "domcontentloaded",
+    });
     await popup
       .getByText("Test-only OAuth consent transport.", { exact: true })
       .waitFor();
@@ -185,11 +159,11 @@ export async function beginLinearConsent(harness, page, label, action) {
     observation.note("consent-ready");
     return popup;
   } catch (error) {
-    observation?.note("consent-error");
-    await observation?.status("status-after-error");
+    observation.note("consent-error");
+    await observation.status("status-after-error");
     throw error;
   } finally {
-    observation?.stop();
+    observation.stop();
   }
 }
 

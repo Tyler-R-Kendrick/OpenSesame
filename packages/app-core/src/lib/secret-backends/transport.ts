@@ -7,6 +7,10 @@ import {
 /** A single approved activation; capturing it never borrows a later lease. */
 export type SecretBackendTransport = Readonly<{
   fetch: SecretBackendFetch;
+  /** Capture one original configured node/route before backend authentication. */
+  capture?: () => SecretBackendTransport;
+  /** A live exact-origin grant from that captured route, never static provider metadata. */
+  supportsNativeOrigin?: (origin: string) => boolean;
   assertCurrent(): void;
   signal: AbortSignal;
 }>;
@@ -45,9 +49,15 @@ export function bindSecretBackendTransport(
 
 /** Only HTTP modes need the optional capability; local ports do not call this. */
 export function secretBackendTransport(): SecretBackendTransport {
-  active.assertCurrent();
-  if (active.signal.aborted) throw stale();
-  return active;
+  const original = active;
+  original.assertCurrent();
+  if (original.signal.aborted) throw stale();
+  const captured = original.capture?.() ?? original;
+  original.assertCurrent();
+  if (active !== original || original.signal.aborted) throw stale();
+  captured.assertCurrent();
+  if (captured.signal.aborted) throw stale();
+  return captured;
 }
 
 /** Operation owners may add vault and saved-configuration checks to the approved network port. */
@@ -58,6 +68,7 @@ export function guardSecretBackendTransport(
 ): SecretBackendTransport {
   const fetcher = transport.fetch.bind(transport);
   const capturedCheck = transport.assertCurrent.bind(transport);
+  const supportsNativeOrigin = transport.supportsNativeOrigin?.bind(transport);
   const signal = ownerSignal
     ? AbortSignal.any([transport.signal, ownerSignal])
     : transport.signal;
@@ -67,7 +78,7 @@ export function guardSecretBackendTransport(
     guard?.();
     if (signal.aborted) throw stale();
   };
-  return {
+  const guarded: SecretBackendTransport = {
     signal,
     assertCurrent,
     fetch: async (input, init) => {
@@ -81,6 +92,20 @@ export function guardSecretBackendTransport(
       });
       assertCurrent();
       return response;
+    },
+  };
+  if (!supportsNativeOrigin) return guarded;
+  return {
+    ...guarded,
+    supportsNativeOrigin: (origin) => {
+      try {
+        assertCurrent();
+        const supported = supportsNativeOrigin(origin);
+        assertCurrent();
+        return supported;
+      } catch {
+        return false;
+      }
     },
   };
 }
@@ -151,6 +176,14 @@ export function fenceSecretBackend(
       duringLease(transport, () => backend.getNotes(name, session)),
     disconnect: (session) => backend.disconnect(session),
   };
+  const initialize = backend.initialize;
+  if (initialize)
+    fenced.initialize = (config) =>
+      duringLease(
+        transport,
+        () => initialize.call(backend, config),
+        (session) => backend.disconnect(session),
+      );
   const create = backend.createItem;
   const update = backend.updateItem;
   const remove = backend.deleteItem;

@@ -199,7 +199,7 @@ async function verifyToken(page, { base, fixture, entry, name, width, check }) {
   await open(page, base, entry.providerId);
 }
 
-async function infer(page, { fixture, entry, width, check, beforeReload }) {
+async function infer(page, { fixture, entry, width, check }) {
   const region = page.getByRole("region", {
     name: "Model inference",
     exact: true,
@@ -234,9 +234,6 @@ async function infer(page, { fixture, entry, width, check, beforeReload }) {
       `${width}: ${entry.providerId}/${entry.family} ${stream ? "genuine SSE" : "JSON"} inference uses the saved exact endpoint and auth`,
     );
   }
-  // The next case navigates away, unmounting the workspace whose lifetime
-  // signal would abort a just-completed stream before it finishes natively.
-  await beforeReload();
 }
 
 /** Caller supplies an unlocked real PIN vault, the built app, and the live fixture. */

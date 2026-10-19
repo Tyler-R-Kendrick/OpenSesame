@@ -204,7 +204,11 @@ it("allows Datadog setup with advice but refuses an actual denied fetch without 
       />
     </MemoryRouter>,
   );
-  expect(screen.getByText(/Test the configured endpoint/)).toBeTruthy();
+  expect(
+    screen.getByText(
+      /Test the connection using the configured native Tailscale HTTP transport/,
+    ),
+  ).toBeTruthy();
   await userEvent.selectOptions(
     screen.getByLabelText("Datadog site"),
     "datadoghq.com",

@@ -374,8 +374,16 @@ export function shouldAutoConnect(
 }
 
 /** Persist a public identity trust projection before reporting configuration changes complete. */
-export async function saveSettingsDurable(next: PagesSettings): Promise<void> {
+export async function saveSettingsDurable(
+  next: PagesSettings,
+  beforeCommit?: () => void,
+): Promise<void> {
+  beforeCommit?.();
   assertGuestMayNotChangeTrustAnchors(loadSettings(), next, defaultsForPage());
-  await kvSetDurable(PERSIST_KEY, JSON.stringify(persistRecord(next)));
+  await kvSetDurable(
+    PERSIST_KEY,
+    JSON.stringify(persistRecord(next)),
+    beforeCommit,
+  );
   emitSettings();
 }

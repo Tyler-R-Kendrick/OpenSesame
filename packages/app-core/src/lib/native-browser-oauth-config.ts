@@ -5,7 +5,8 @@ import {
   browserOAuthScopes,
   requiredBrowserOAuthProfile,
 } from "./native-browser-oauth-profile.js";
-import { assertNativeBrowserOAuthPolicy } from "./native-browser-policy.js";
+import { nativeCodebergBackupTarget } from "./native-codeberg-backup-target.js";
+import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 /** Public configuration is persisted separately from issued provider grants. */
 import type { NativeDriverInput } from "./native-connector-drivers.js";
 import {
@@ -19,7 +20,10 @@ import {
   saveNativeConnector,
   updateNativeConnector,
 } from "./native-connector-store.js";
-import { nativeProviderTransport } from "./native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  nativeProviderTransport,
+} from "./native-connector-transport.js";
 import { nativeOAuthGuard } from "./native-oauth-session.js";
 
 async function oauthFingerprint(
@@ -40,6 +44,12 @@ async function oauthFingerprint(
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
     .map((value) => value.toString(16).padStart(2, "0"))
     .join("");
+}
+function validateBackupTarget(
+  providerId: string,
+  parameters: Record<string, string>,
+) {
+  if (providerId === "codeberg") nativeCodebergBackupTarget(parameters);
 }
 function oauthConfiguration(input: NativeDriverInput): NativeConfiguration {
   const profile = requiredBrowserOAuthProfile(input.providerId);
@@ -70,6 +80,7 @@ function oauthConfiguration(input: NativeDriverInput): NativeConfiguration {
     throw new Error("Unknown browser provider parameter");
   if (Object.keys(input.requestedScopes).some((actor) => actor !== "user"))
     throw new Error("This provider supports delegated user permissions only");
+  validateBackupTarget(profile.id, parameters);
   const configuration: NativeConfiguration = {
     version: 1,
     providerId: input.providerId,
@@ -121,10 +132,11 @@ function assertNoAuthorization(saved: NativeConnectorRecord): void {
 }
 export async function configureNativeBrowserOAuthConnector(
   input: NativeDriverInput,
+  transport: NativeProviderTransport = nativeProviderTransport(),
 ) {
-  assertNativeBrowserOAuthPolicy(input.providerId);
-  const transport = nativeProviderTransport();
+  transport.assertCurrent();
   const configuration = oauthConfiguration(input);
+  assertNativeConfigurationPolicy(configuration, transport);
   configuration.fingerprint = await oauthFingerprint(configuration);
   transport.assertCurrent();
   const saved = existingConfiguration(input, configuration);
@@ -138,6 +150,7 @@ export async function configureNativeBrowserOAuthConnector(
         privateState: emptyNativePrivate(),
       },
       classification,
+      transport.assertCurrent,
     );
   return updateNativeConnector(
     saved.connectionId,
@@ -148,5 +161,6 @@ export async function configureNativeBrowserOAuthConnector(
       record.configuration = configuration;
       return record;
     },
+    transport.assertCurrent,
   );
 }

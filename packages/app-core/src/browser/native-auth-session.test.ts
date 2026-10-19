@@ -394,7 +394,7 @@ describe("provider-native device consent", () => {
         ...deviceRequest(),
         expiresAt: Date.now() + 31 * 60_000,
       }),
-    ).toThrow("Invalid or expired");
+    ).toThrow("exceeds allowed lifetime");
     expect(initiating.popup.location.replace).not.toHaveBeenCalled();
   });
 });

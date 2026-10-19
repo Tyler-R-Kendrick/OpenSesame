@@ -4,11 +4,16 @@ import type { NativeProviderTransport } from "./native-connector-transport.js";
 
 export function bindNativeConnectorDriver(
   driver: NativeConnectorDriver,
-  transport: NativeProviderTransport,
+  transport: Pick<NativeProviderTransport, "assertCurrent">,
 ): NativeConnectorDriver {
-  const guard = async <T>(action: () => Promise<T>): Promise<T> => {
+  const guard = async <T>(
+    action: () => Promise<T>,
+    signal?: AbortSignal,
+  ): Promise<T> => {
     transport.assertCurrent();
+    signal?.throwIfAborted();
     const result = await action();
+    signal?.throwIfAborted();
     transport.assertCurrent();
     return result;
   };
@@ -17,8 +22,14 @@ export function bindNativeConnectorDriver(
     supports: driver.supports,
     configure: (input) => guard(() => driver.configure(input)),
     verify: (id) => guard(() => driver.verify(id)),
-    invoke: (id, operation, input) =>
-      guard(() => driver.invoke(id, operation, input)),
+    invoke: (id, operation, input, signal) =>
+      guard(
+        () =>
+          signal === undefined
+            ? driver.invoke(id, operation, input)
+            : driver.invoke(id, operation, input, signal),
+        signal,
+      ),
     authorize: driver.authorize
       ? (id, actor) =>
           guard(() =>
@@ -30,6 +41,15 @@ export function bindNativeConnectorDriver(
           )
       : undefined,
     cleanup: {
+      capture: cleanup.capture
+        ? (id) => {
+            transport.assertCurrent();
+            const captured = cleanup.capture?.(id);
+            transport.assertCurrent();
+            if (!captured) throw new Error("Provider cleanup capture changed");
+            return captured;
+          }
+        : undefined,
       classification: (configuration) => {
         transport.assertCurrent();
         return cleanup.classification(configuration);
@@ -42,10 +62,13 @@ export function bindNativeConnectorDriver(
           : (slots ?? []);
       },
       prepare: cleanup.prepare
-        ? (id) =>
-            guard(() =>
-              cleanup.prepare ? cleanup.prepare(id) : Promise.resolve(),
-            )
+        ? (id, original) =>
+            guard(() => {
+              if (!cleanup.prepare) return Promise.resolve();
+              return original === undefined
+                ? cleanup.prepare(id)
+                : cleanup.prepare(id, original);
+            })
         : undefined,
       cleanup: (obligation, context) =>
         guard(() => cleanup.cleanup(obligation, context)),

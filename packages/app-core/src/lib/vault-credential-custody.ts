@@ -45,7 +45,13 @@ export type VaultCredentialRead = Readonly<{
 export type VaultCredentialInput = Readonly<{
   name: string;
   targetBinding: string;
-  fields: readonly Readonly<{ field: string; label: string; value: string }>[];
+  fields: readonly Readonly<{
+    field: string;
+    label: string;
+    value: string;
+    /** Protocol-owned metadata is sealed with this exact staged credential. */
+    metadata?: readonly CredentialItem["fields"][number][];
+  }>[];
 }>;
 export class VaultCredentialCustodyError extends Error {
   constructor(
@@ -112,6 +118,17 @@ function checkedReference(raw: string, allowedFields: readonly string[]) {
   }
   return reference;
 }
+/** Parsed role metadata only; admission still requires readVaultCredentials and its exact reference. */
+export function vaultCredentialField(item: CredentialItem): string | null {
+  try {
+    const fields = item.fields.filter((field) => field.id === MARKER_FIELD_ID);
+    const binding = fields[0];
+    if (fields.length !== 1 || !binding?.hidden) return null;
+    return Marker.parse(JSON.parse(binding.value)).field;
+  } catch {
+    return null;
+  }
+}
 /** The caller declares its fields; another target and arbitrary token items are refused. */
 export function readVaultCredentials(
   rawReference: string,
@@ -169,6 +186,14 @@ export async function stageVaultCredentials(
       { id, type: "token", token: field.value, expiresAt: "" },
       `${field.label} · ${input.name}`.slice(0, FIELD_LIMITS.name),
     );
+    for (const metadata of field.metadata ?? []) {
+      if (
+        metadata.id === MARKER_FIELD_ID ||
+        item.fields.some((existing) => existing.id === metadata.id)
+      )
+        return unavailable();
+      item.fields.push(structuredClone(metadata));
+    }
     const binding = JSON.stringify(
       Marker.parse({
         format: "opensesame-vault-credential",

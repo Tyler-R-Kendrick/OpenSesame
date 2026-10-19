@@ -1,16 +1,14 @@
 /** Unactivated raw-WASM compile driver. Inputs are downloaded separately. */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  mkdir,
-  open,
-  readFile,
-  readdir,
-  statfs,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { nativePatchCommand } from "./apply-native-patch.mjs";
+import { composeNative, nativeBuildEnvironment } from "./compose-native.mjs";
+import { emitNativeAssets } from "./native-assets.mjs";
+import { nativeBuildFailureContext } from "./preparation-diagnostics.mjs";
+import { assertNativeTaskResources } from "./task-resources.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const pins = JSON.parse(await readFile(join(here, "source.json"), "utf8"));
@@ -29,6 +27,10 @@ const integrity = [];
 const owned = new Set();
 let interrupted = "";
 let nativeHttpStaged = false;
+let moduleFlags = "-p=2 -buildvcs=false";
+let verifyNative = null;
+let buildStage = "initialization";
+let lastCommand = null;
 
 async function digest(path) {
   return createHash("sha256")
@@ -50,6 +52,7 @@ async function sourcePins(stage) {
 async function criticalPins(stage) {
   await sourcePins(stage);
   await verifyFiles(compiler, pins.compiler.criticalFiles, stage);
+  if (verifyNative) await verifyNative();
   if (nativeHttpStaged) {
     await verifyFiles(here, pins.nativeHttp.files, `${stage}:overlay-source`);
     await verifyFiles(
@@ -65,12 +68,9 @@ async function archivePins(stage) {
   integrity.push({ stage, archives: 2, pass: true });
 }
 async function checkDisk() {
-  const disk = await statfs(output, { bigint: true });
-  if ((disk.blocks - disk.bfree) * disk.bsize > 27n * 1024n ** 3n)
-    throw new Error(
-      "Private compile disk-use limit exceeded; inspect before cleanup.",
-    );
+  await assertNativeTaskResources(output);
 }
+
 async function freshOutput() {
   await mkdir(output, { recursive: true });
   if ((await readdir(output)).length)
@@ -84,58 +84,6 @@ async function freshOutput() {
   ])
     await mkdir(directory, { recursive: true });
   await checkDisk();
-}
-const inheritedNames = new Set([
-  "PATH",
-  "LANG",
-  "TZ",
-  "LC_ALL",
-  "LC_CTYPE",
-  "LC_COLLATE",
-  "LC_MESSAGES",
-  "LC_NUMERIC",
-  "LC_TIME",
-  "LC_MONETARY",
-  "LC_PAPER",
-  "LC_NAME",
-  "LC_ADDRESS",
-  "LC_TELEPHONE",
-  "LC_MEASUREMENT",
-  "LC_IDENTIFICATION",
-  "HTTP_PROXY",
-  "HTTPS_PROXY",
-  "ALL_PROXY",
-  "NO_PROXY",
-  "http_proxy",
-  "https_proxy",
-  "all_proxy",
-  "no_proxy",
-  "SSL_CERT_FILE",
-  "SSL_CERT_DIR",
-]);
-function environment(parent = process.env) {
-  const env = {};
-  for (const key of inheritedNames)
-    if (parent[key] !== undefined) env[key] = parent[key];
-  return Object.assign(env, {
-    GOMAXPROCS: "2",
-    GOMEMLIMIT: "2GiB",
-    GOFLAGS: "-p=2 -buildvcs=false",
-    GOTOOLCHAIN: "local",
-    GOENV: "off",
-    GOTELEMETRY: "off",
-    GOCACHE: join(output, "cache", "build"),
-    GOMODCACHE: join(output, "cache", "mod"),
-    GOPATH: join(output, "cache", "gopath"),
-    TMPDIR: join(output, "tmp"),
-    GOPROXY: "https://proxy.golang.org",
-    GOSUMDB: "sum.golang.org",
-    GOPRIVATE: "",
-    GONOPROXY: "",
-    GONOSUMDB: "",
-    VERSION_LONG: "",
-    VERSION_SHORT: "",
-  });
 }
 function live(state) {
   const child = state.child;
@@ -181,20 +129,36 @@ function detachSignals() {
   process.off("SIGTERM", onTerm);
 }
 function monitor(state) {
+  let checking = false;
   return setInterval(() => {
-    void checkDisk().catch(() => {
-      if (!owned.has(state)) return;
-      state.failure = "Private compile disk-use limit exceeded.";
-      terminate(state);
-    });
+    if (checking) return;
+    checking = true;
+    void checkDisk()
+      .catch(() => {
+        if (!owned.has(state)) return;
+        state.failure = "Native task resource limit exceeded.";
+        terminate(state);
+      })
+      .finally(() => {
+        checking = false;
+      });
   }, 1000);
 }
+
 function settlement(state, name) {
   return new Promise((accept, reject) => {
-    state.child.once("error", () =>
-      reject(new Error(`${name} could not start.`)),
-    );
-    state.child.once("exit", (code) => {
+    state.child.once("error", (error) => {
+      state.observation.spawnCode = error.code;
+      state.observation.reason = "spawn";
+      reject(error);
+    });
+    state.child.once("exit", (code, signal) => {
+      state.observation.exitCode = code;
+      state.observation.signal = signal;
+      state.observation.reason =
+        state.failure === "Native task resource limit exceeded."
+          ? "resource"
+          : interrupted || "exit";
       clearKill(state);
       if (code === 0 && !state.failure && !interrupted) accept();
       else
@@ -205,6 +169,7 @@ function settlement(state, name) {
   });
 }
 async function execute(program, args, name, verify = criticalPins) {
+  buildStage = name;
   if (interrupted) throw new Error("Private compile interrupted.");
   await checkDisk();
   await verify(`${name}:before`);
@@ -213,27 +178,43 @@ async function execute(program, args, name, verify = criticalPins) {
     await log.close();
     throw new Error("Private compile interrupted before child start.");
   }
-  const child = spawn(program, args, {
+  const command = nativePatchCommand(program, args);
+  const child = spawn(command.program, command.args, {
     cwd: source,
-    env: environment(),
+    env: nativeBuildEnvironment(output, moduleFlags),
     detached: true,
     stdio: ["ignore", log.fd, log.fd],
   });
-  const state = { child, killTimer: null, failure: "" };
+  lastCommand = { phase: name, exitCode: null, signal: null, spawnCode: null };
+  const state = {
+    child,
+    killTimer: null,
+    failure: "",
+    observation: lastCommand,
+  };
   owned.add(state);
   const poll = monitor(state);
+  let failure;
   try {
     await settlement(state, name);
+  } catch (error) {
+    failure = error;
   } finally {
     clearInterval(poll);
     clearKill(state);
     owned.delete(state);
     try {
       await verify(`${name}:after`);
-    } finally {
+    } catch (error) {
+      failure ??= error;
+    }
+    try {
       await log.close();
+    } catch (error) {
+      failure ??= error;
     }
   }
+  if (failure) throw failure;
 }
 const helper = String.raw`package main
 import ("encoding/json";"os";"tailscale.com/cmd/tsconnect/wasmbuild")
@@ -299,13 +280,23 @@ async function stageNativeHttp() {
     "nativehttp.go",
     "nativehttp_test.go",
     "nativehttp_security_test.go",
+    "draining.go",
+    "draining_test.go",
+    "operations.go",
+    "operations_test.go",
+    "operations_tls_test.go",
+    "streaming.go",
+    "streaming_test.go",
+    "streaming_drain_test.go",
   ];
   if (
     !Array.isArray(files) ||
     files.length !== names.length ||
     files.some((file, index) => file?.path !== names[index])
   )
-    throw new Error("Only the three fixed native HTTP overlays may be staged.");
+    throw new Error(
+      "Only the eleven fixed native HTTP overlays may be staged.",
+    );
   for (const file of files)
     await requireHash(join(here, file.path), file.sha256);
   const directory = join(source, "cmd/tsconnect/nativehttp");
@@ -318,16 +309,30 @@ async function stageNativeHttp() {
     );
   nativeHttpStaged = true;
   await criticalPins("native-http-staged");
+}
+async function run() {
+  buildStage = "fresh-output";
+  await freshOutput();
+  buildStage = "extract-inputs";
+  await extractInputs();
+  buildStage = "native-http-staging";
+  await stageNativeHttp();
+  buildStage = "compose-native";
+  const composed = await composeNative({
+    here,
+    source,
+    output,
+    pins,
+    execute,
+    requireHash,
+  });
+  moduleFlags = composed.flags;
+  verifyNative = composed.verify;
   await execute(
     join(compiler, "bin/go"),
     ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/nativehttp"],
     "native-http-host-test",
   );
-}
-async function run() {
-  await freshOutput();
-  await extractInputs();
-  await stageNativeHttp();
   const baseline = await build("baseline");
   const repeated = await build("baseline-repeat");
   if (baseline.sha256 !== repeated.sha256)
@@ -337,14 +342,31 @@ async function run() {
   const expandedRepeat = await build("exit-feature-repeat");
   if (expanded.sha256 !== expandedRepeat.sha256)
     throw new Error("Feature build is not repeatable.");
+  await checkDisk();
+  const distribution = await emitNativeAssets({
+    here,
+    repositoryRoot: resolve(here, "../.."),
+    source,
+    compiler,
+    output: artifacts,
+    wasm: join(artifacts, "exit-feature.raw.wasm"),
+    wasmSha256: expanded.sha256,
+    pins,
+    requireHash,
+  });
+  await checkDisk();
+  await criticalPins("distribution-complete");
   const result = {
+    distribution,
     baseline,
     repeated,
     expanded,
     expandedRepeat,
     scope: pins.scope,
     integrity,
-    childEnvironmentNames: Object.keys(environment()).sort(),
+    childEnvironmentNames: Object.keys(
+      nativeBuildEnvironment(output, moduleFlags),
+    ).sort(),
     ownedGroupsRemaining: owned.size,
   };
   await writeFile(
@@ -356,14 +378,15 @@ attachSignals();
 try {
   await run();
   console.log(
-    "Raw compilation and owned host TLS tests complete; browser transport, peering and provider operations remain unrun.",
+    "Pinned native artifacts emitted; PWA activation and provider-operation verification remain required.",
   );
-} catch {
+} catch (error) {
   process.exitCode = interrupted === "SIGINT" ? 130 : 1;
   if (interrupted === "SIGTERM") process.exitCode = 143;
   console.error(
     "Private raw build failed or was interrupted; inspect its private logs.",
   );
+  console.error(nativeBuildFailureContext(error, buildStage, lastCommand));
 } finally {
   for (const state of owned) terminate(state);
   detachSignals();

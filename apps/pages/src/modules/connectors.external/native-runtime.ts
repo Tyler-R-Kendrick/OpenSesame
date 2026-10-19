@@ -1,21 +1,26 @@
 /** Native browser providers share the owning capability's lease and declared egress purpose. */
 import { aiConnectionProjection } from "@opensesame/app-core/lib/ai-connections/projection.js";
 import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
+import { EgressDenied } from "@opensesame/app-core/lib/capabilities/egress.js";
 import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { nativeDeviceViewSeams } from "@opensesame/app-core/lib/device-connector-view.js";
-import {
-  bindNativeBrowserPolicyOrigin,
-  nativeBrowserMethodPolicy,
-} from "@opensesame/app-core/lib/native-browser-policy.js";
+import { bindNativeBrowserPolicyOrigin } from "@opensesame/app-core/lib/native-browser-policy.js";
+import { nativeConfigurationBrowserPolicy } from "@opensesame/app-core/lib/native-configuration-policy.js";
 import {
   loadNativeConnectorRecord,
   readNativeConnector,
 } from "@opensesame/app-core/lib/native-connector-store.js";
-import { bindNativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
+import {
+  type NativeProviderSocket,
+  type NativeProviderTransport,
+  bindNativeProviderTransport,
+} from "@opensesame/app-core/lib/native-connector-transport.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import type { Activation } from "../activation.js";
 import { LeaseAbortedError, anySignal, runUnlessAborted } from "../signals.js";
 import { bindBridgeRuntime, carriedByBridge } from "./bridge-runtime.js";
+import { captureBrowserNodeTransport } from "./browser-node-transport.js";
 import { bindLinearRuntime } from "./linear-runtime.js";
 import { bindNativeApiRuntime } from "./native-api-runtime.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";
@@ -71,7 +76,7 @@ function grantExpiry(view: NativeConnectorView): string | null {
 function connectionPolicy(id: string, view: NativeConnectorView) {
   const ai = aiConnectionProjection(id);
   if (ai === "ordinary")
-    return nativeBrowserMethodPolicy(
+    return nativeConfigurationBrowserPolicy(
       view.providerId,
       view.configuration.method,
       view.configuration.parameters,
@@ -118,6 +123,60 @@ function authorizationProjector(
   };
 }
 
+function openNativeSocket(
+  ctx: ApprovedCapabilityContext,
+  url: URL,
+  protocols: readonly string[],
+  signal: AbortSignal,
+  ownerCurrent: () => void,
+): NativeProviderSocket {
+  const href = url.href;
+  const decide = ctx.egress.decideWebSocket;
+  if (!decide) throw new Error("This capability has no WebSocket transport");
+  const meta = {
+    capability: "connectors.external",
+    purpose: NATIVE_PROVIDER_PURPOSE,
+  };
+  let withdrawn = false;
+  const assertCurrent = () => {
+    ownerCurrent();
+    signal.throwIfAborted();
+    if (withdrawn) throw new LeaseAbortedError();
+    const decision = decide(href, meta);
+    if (!decision.ok)
+      throw new EgressDenied(
+        decision.code,
+        "connectors.external",
+        decision.destination,
+      );
+  };
+  assertCurrent();
+  const socket = new WebSocket(href, [...protocols]);
+  const withdraw = () => {
+    if (withdrawn) return;
+    withdrawn = true;
+    socket.close(1000, "Operation ended");
+  };
+  const unsubscribe = compositionStore.subscribe(() => {
+    try {
+      assertCurrent();
+    } catch {
+      withdraw();
+    }
+  });
+  signal.addEventListener("abort", withdraw, { once: true });
+  socket.addEventListener(
+    "close",
+    () => {
+      signal.removeEventListener("abort", withdraw);
+      unsubscribe();
+    },
+    { once: true },
+  );
+  if (signal.aborted) withdraw();
+  return { socket, assertCurrent };
+}
+
 export function bindNativeRuntime(
   ctx: ApprovedCapabilityContext,
   activation: Activation,
@@ -130,9 +189,17 @@ export function bindNativeRuntime(
   const assertCurrent = () => {
     if (signal.aborted || activation.disposed()) throw new LeaseAbortedError();
   };
-  const release = bindNativeProviderTransport({
+  const transport: NativeProviderTransport = {
     assertCurrent,
     signal,
+    openWebSocket: (url, protocols, callerSignal) =>
+      openNativeSocket(
+        ctx,
+        url,
+        protocols,
+        callerSignal ? anySignal([signal, callerSignal]) : signal,
+        assertCurrent,
+      ),
     settleCredentialMutation: async (url, init) => {
       assertCurrent();
       // The coordinator journals its exchange intent before this call. Once
@@ -178,7 +245,9 @@ export function bindNativeRuntime(
         ),
       );
     },
-  });
+  };
+  transport.capture = () => captureBrowserNodeTransport(transport, ctx);
+  const release = bindNativeProviderTransport(transport);
   bindBridgeRuntime(activation);
   const previous = nativeDeviceViewSeams.authorization;
   const projector = authorizationProjector(signal, activation);

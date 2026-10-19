@@ -20,7 +20,7 @@
  * Usage: node scripts/build-workers.mjs        (from apps/pages)
  */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, loadConfigFromFile } from "vite";
@@ -73,7 +73,23 @@ function shellManifest() {
     throw new Error(`build-workers: ${shell} is missing; run vite build first`);
   }
   const revision = createHash("md5").update(readFileSync(shell)).digest("hex");
-  return [{ url: "index.html", revision }];
+  const assets = join(dist, "assets");
+  const callbacks = existsSync(assets)
+    ? readdirSync(assets).filter((name) =>
+        /^native-saml-[A-Za-z0-9_-]{8,64}\.js$/.test(name),
+      )
+    : [];
+  if (callbacks.length > 1)
+    throw new Error("build-workers: ambiguous native SAML callbacks");
+  return [
+    { url: "index.html", revision },
+    ...callbacks.map((name) => ({
+      url: `assets/${name}`,
+      revision: createHash("md5")
+        .update(readFileSync(join(assets, name)))
+        .digest("hex"),
+    })),
+  ];
 }
 
 function assertCoreWorkerHasNoPush() {

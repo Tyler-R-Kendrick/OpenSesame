@@ -7,6 +7,7 @@ import {
   nativePublicUrl,
   nativeVerified,
 } from "./native-connector-ui-values.js";
+import { nativeMethodConfigurable } from "./native-connector-ui.js";
 import type {
   NativeConnectorDescriptor,
   NativeMethodDescriptor,
@@ -44,8 +45,10 @@ export function NativeMethodPicker({
   onMethod: (method: NativeMethodDescriptor) => void;
 }) {
   const name = useId();
-  const choices = descriptor.methods.filter((choice) => choice.available);
-  const unavailable = descriptor.methods.filter((choice) => !choice.available);
+  const choices = descriptor.methods.filter(nativeMethodConfigurable);
+  const unavailable = descriptor.methods.filter(
+    (choice) => !nativeMethodConfigurable(choice),
+  );
   return (
     <>
       {choices.length > 1 ? (

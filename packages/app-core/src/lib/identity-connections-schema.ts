@@ -1,5 +1,6 @@
 /** Shared configuration for identity adapters; passwords used to sign in are never configuration. */
 import { z } from "zod";
+import { SAML_NATIVE_FIELDS } from "./identity-saml-config.js";
 import { isLoopbackUrl } from "./urls.js";
 
 export const IdentityProtocolSchema = z.enum([
@@ -29,6 +30,7 @@ export const IdentityConnectionDraftSchema = z
     samlMetadataUrl: z.string().max(2048),
     samlMetadataXml: z.string().max(262144),
     samlEntityId: z.string().max(2048),
+    ...SAML_NATIVE_FIELDS,
     ldapUrl: z.string().max(2048),
     ldapBaseDn: z.string().max(2048),
     ldapBindDn: z.string().max(2048),
@@ -80,6 +82,8 @@ export function normalizeIdentityConnectionDraft(
     "organizationSlug",
     "samlMetadataUrl",
     "samlEntityId",
+    "samlNameIdFormat",
+    "samlAuthnContext",
     "ldapUrl",
     "ldapBaseDn",
     "ldapBindDn",
@@ -113,6 +117,7 @@ export const IDENTITY_SECRET_FIELDS = [
   "clientSecret",
   "ldapBindPassword",
   "samlMetadataXml",
+  "samlSigningPrivateKeyPkcs8",
 ] as const;
 export function publicIdentityDraft(
   draft: IdentityConnectionDraft,
@@ -122,5 +127,6 @@ export function publicIdentityDraft(
     clientSecret: "",
     ldapBindPassword: "",
     samlMetadataXml: "",
+    samlSigningPrivateKeyPkcs8: "",
   };
 }

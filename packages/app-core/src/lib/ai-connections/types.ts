@@ -1,5 +1,11 @@
 import type { CallProtocol } from "../model-keys/protocols.js";
-export type AiInferenceFamily = CallProtocol | "openai_responses";
+import type { BedrockAiTarget } from "./bedrock-target.js";
+import type { VertexAiTarget } from "./vertex-target.js";
+export type AiInferenceFamily =
+  | CallProtocol
+  | "openai_responses"
+  | "bedrock_converse"
+  | "replicate_predictions";
 
 /** Azure target metadata is public; the supplied key or Entra token is not. */
 export type AzureOpenAiTarget =
@@ -22,9 +28,13 @@ export type AiConnectionDraft = {
   tokenParameter: "max_tokens" | "max_completion_tokens";
   /** Unactivated until strict configuration and persistence support this target. */
   azure?: AzureOpenAiTarget;
+  vertex?: VertexAiTarget;
+  bedrock?: BedrockAiTarget;
 };
 
 export type AiConnectionTransport = {
+  /** Acquire one route snapshot at an explicit workflow boundary, before credentials. */
+  capture?: () => AiConnectionTransport;
   fetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   assertCurrent(): void;
   signal: AbortSignal;
@@ -45,4 +55,14 @@ export class AiConnectionError extends Error {
     super(message);
     this.name = "AiConnectionError";
   }
+}
+
+/** Finite protocols cannot borrow the generic request or text-stream builders. */
+export function textAiFamily(family: AiInferenceFamily) {
+  if (family === "bedrock_converse" || family === "replicate_predictions")
+    throw new AiConnectionError(
+      "configuration",
+      "Use this family's signed or finite protocol adapter.",
+    );
+  return family;
 }

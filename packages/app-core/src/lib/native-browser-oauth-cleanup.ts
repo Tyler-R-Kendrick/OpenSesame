@@ -211,7 +211,8 @@ async function revokeAutomaticGrant(
 export async function cleanupNativeBrowserOAuth(
   obligation: NativeRecovery,
   context: NativeCleanupContext,
-  transport: NativeProviderTransport = nativeProviderTransport(),
+  transport: NativeProviderTransport = context.transport ??
+    nativeProviderTransport(),
 ): Promise<NativeCleanupOutcome> {
   assertCleanupSettled(obligation, context);
   if (obligation.providerId === "discord")
@@ -230,6 +231,7 @@ export async function cleanupNativeBrowserOAuth(
   return "provider-revoked";
 }
 export const nativeBrowserOAuthCleanup: NativeProviderCleanup = {
+  capture: () => nativeProviderTransport(),
   classification: browserOAuthClassification,
   prepare: retryRetainedNativeOAuthGrants,
   cleanup: cleanupNativeBrowserOAuth,

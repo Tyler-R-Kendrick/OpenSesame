@@ -11,8 +11,7 @@ import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import {
   NativeCancelSignIn,
-  useNativeFormFeedback,
-  useNativeRevisionSync,
+  useNativeSignInUiLifetime,
 } from "./NativeCancelSignIn.js";
 import { NativeConnectorFields } from "./NativeConnectorFields.js";
 import {
@@ -37,6 +36,7 @@ import {
   nativeScopeDefaults,
   nativeVerified,
 } from "./native-connector-ui-values.js";
+import { nativeMethodConfigurable } from "./native-connector-ui.js";
 import type {
   NativeConnectorCallbacks,
   NativeConnectorController,
@@ -65,6 +65,22 @@ function useNativePreferences(
   return { name, setName, icon, setIcon, iconBusy, setIconBusy };
 }
 
+function useNativeFormFeedback(props: Props) {
+  const { authorization } = props;
+  const lifetime = useNativeSignInUiLifetime(props);
+  const [busyOwner, setBusyOwner] = useState<object | null>(null);
+  const busy = busyOwner === lifetime.owner || !!authorization?.current();
+  const [failureState, setFailureState] = useState<{
+    owner: object;
+    text: string;
+  } | null>(null);
+  const failure =
+    failureState?.owner === lifetime.owner ? failureState.text : "";
+  const setFailure = (text: string) =>
+    setFailureState({ owner: lifetime.owner, text });
+  return { lifetime, busy, setBusyOwner, failure, setFailure };
+}
+
 function nativeFormReady(
   method: NativeMethodDescriptor | undefined,
   values: Record<string, string>,
@@ -81,11 +97,11 @@ function nativeFormReady(
   );
 }
 
-function useNativeFormState(
-  descriptor: Props["descriptor"],
-  view: Props["view"],
-  busy: boolean,
-) {
+function useNativeForm(props: Props) {
+  const { descriptor, controller, view, onChanged, onFlash } = props;
+  const { lifetime, busy, setBusyOwner, failure, setFailure } =
+    useNativeFormFeedback(props);
+  const available = descriptor.methods.filter(nativeMethodConfigurable);
   const initial = nativeInitialMethod(descriptor, view);
   const [methodId, setMethodId] = useState(initial?.id);
   const [values, setValues] = useState(() =>
@@ -97,31 +113,16 @@ function useNativeFormState(
       : {},
   );
   const image = useNativePreferences(descriptor.name, view);
-  useNativeRevisionSync(descriptor, view, busy || image.iconBusy, {
-    setMethodId,
-    setValues,
-    setScopes,
-    setName: image.setName,
-    setIcon: image.setIcon,
-  });
-  return { methodId, setMethodId, values, setValues, scopes, setScopes, image };
-}
-
-function useNativeForm(props: Props) {
-  const { descriptor, controller, view, onChanged, onFlash } = props;
-  const { lifetime, busy, setBusyOwner, failure, setFailure } =
-    useNativeFormFeedback(props);
-  const available = descriptor.methods.filter((item) => item.available);
-  const { methodId, setMethodId, values, setValues, scopes, setScopes, image } =
-    useNativeFormState(descriptor, view, busy);
   const { name } = image;
   const selectedMethod = available.find((item) => item.id === methodId);
+  const providerId = descriptor.providerId;
   const method = selectedMethod
-    ? nativeDraftMethod(descriptor.providerId, selectedMethod, view, values)
+    ? nativeDraftMethod(providerId, selectedMethod, view, values, scopes)
     : undefined;
 
   function choose(next: NativeMethodDescriptor) {
-    if (view || !next.available || busy || image.iconBusy) return;
+    if (view || !nativeMethodConfigurable(next) || busy || image.iconBusy)
+      return;
     setMethodId(next.id);
     setValues(nativeInitialValues(next, view));
     setScopes(nativeScopeDefaults(next));
@@ -145,7 +146,7 @@ function useNativeForm(props: Props) {
         icon: image.icon,
         parameters: nativeFieldValues(method.fields, values, false),
         credentials,
-        requestedScopes: scopes,
+        requestedScopes: nativeScopeDefaults(method, scopes),
         targetIds: nativeEditTargetIds(method, view),
       });
       if (!attempt.current()) return;

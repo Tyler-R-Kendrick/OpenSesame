@@ -70,10 +70,17 @@ describe("audited browser-only policy", () => {
         });
         expect(decision.advice).toContain(authored.checked_date);
         expect(decision.advice).toContain(authored.audited_origin);
+        expect(decision.advice).toContain(
+          "configured native Tailscale HTTP transport",
+        );
+        expect(decision.advice).toContain(
+          "For direct browser requests, the endpoint must permit this site's origin and required headers.",
+        );
       } else
         expect(decision).toMatchObject({
           available: false,
           reason: rule.reason,
+          evidenceUrls: rule.evidence_urls,
         });
     }
   });

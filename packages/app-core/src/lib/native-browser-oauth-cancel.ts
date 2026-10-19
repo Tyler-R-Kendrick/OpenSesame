@@ -1,5 +1,6 @@
 /** A dismissed consent window removes only its own unexchanged pending request. */
 import { browserOAuthClassification } from "./native-browser-oauth-profile.js";
+import type { NativeFieldClassification } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
 import {
   nativeOAuthGuard,
@@ -8,6 +9,7 @@ import {
 export async function cancelNativeBrowserConsent(
   id: string,
   state: string,
+  classification?: NativeFieldClassification,
 ): Promise<void> {
   const record = requireNativeOAuthRecord(id);
   const actor = Object.keys(record.privateState.pending).find(
@@ -17,7 +19,7 @@ export async function cancelNativeBrowserConsent(
   await updateNativeConnector(
     id,
     nativeOAuthGuard(record),
-    browserOAuthClassification(record.configuration),
+    classification ?? browserOAuthClassification(record.configuration),
     (current) => {
       if (current.privateState.pending[actor]?.state !== state) return current;
       const { [actor]: _cancelled, ...remaining } =

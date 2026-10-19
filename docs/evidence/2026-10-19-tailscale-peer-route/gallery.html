@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tailscale peer route — 2026-10-19</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;margin:2rem auto;padding:0 1rem;max-width:1500px;color:#161616;background:#fafafa}h1{font-size:1.6rem}.pair{display:grid;grid-template-columns:1fr 1fr;gap:1rem}figure{margin:0}img{width:100%;height:auto;display:block;border:1px solid #ccc}figcaption{font-weight:600;margin:.5rem 0}section{margin:2rem 0}@media(max-width:650px){.pair{grid-template-columns:1fr}}</style>
+<main><h1>Tailscale peer routing</h1><p>2026-10-19 · Original captures from two real builds. Static configuration only; no node join or provider operation occurred in these photographs.</p><p>The shared form gains one route selector and keeps the existing origin/CIDR and TLS trust controls. Natural scroll positions differ. <a href="README.md">Provenance and limits</a> · <a href="evidence.json">Measurements and image hashes</a></p>
+<section><h2>Desktop — route controls</h2><div class="pair">
+<figure><figcaption>Before</figcaption><a href="tailscale-1280-route-before.png"><img src="tailscale-1280-route-before.png" alt="Desktop — route controls before" loading="lazy"></a></figure>
+<figure><figcaption>After</figcaption><a href="tailscale-1280-route-after.png"><img src="tailscale-1280-route-after.png" alt="Desktop — route controls after" loading="lazy"></a></figure>
+</div></section>
+<section><h2>Phone — route controls</h2><div class="pair">
+<figure><figcaption>Before</figcaption><a href="tailscale-390-route-before.png"><img src="tailscale-390-route-before.png" alt="Phone — route controls before" loading="lazy"></a></figure>
+<figure><figcaption>After</figcaption><a href="tailscale-390-route-after.png"><img src="tailscale-390-route-after.png" alt="Phone — route controls after" loading="lazy"></a></figure>
+</div></section>
+<section><h2>Desktop — operator CA</h2><div class="pair">
+<figure><figcaption>Before</figcaption><a href="tailscale-1280-ca-before.png"><img src="tailscale-1280-ca-before.png" alt="Desktop — operator CA before" loading="lazy"></a></figure>
+<figure><figcaption>After</figcaption><a href="tailscale-1280-ca-after.png"><img src="tailscale-1280-ca-after.png" alt="Desktop — operator CA after" loading="lazy"></a></figure>
+</div></section>
+<section><h2>Phone — operator CA</h2><div class="pair">
+<figure><figcaption>Before</figcaption><a href="tailscale-390-ca-before.png"><img src="tailscale-390-ca-before.png" alt="Phone — operator CA before" loading="lazy"></a></figure>
+<figure><figcaption>After</figcaption><a href="tailscale-390-ca-after.png"><img src="tailscale-390-ca-after.png" alt="Phone — operator CA after" loading="lazy"></a></figure>
+</div></section>
+<p>Separate owned TLS protocol browser runs passed 300 checks in ten cases on the after build; see README and evidence.json for exact scope, timings and receipt hashes. These static photographs do not establish hosted-account or catalog-wide integration success.</p></main></html>

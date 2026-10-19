@@ -1,5 +1,27 @@
 /** Install only inside the disposable SDK Worker, before instantiating Go. */
 export type WorkerDecision = (url: string, method: string) => Promise<boolean>;
+/** Chromium exposes an empty stream for HEAD; Go netcheck never reads that stream. */
+async function completedWorkerFetch(
+  nativeFetch: typeof fetch,
+  request: Request,
+): Promise<Response> {
+  const response = await nativeFetch(request, {
+    redirect: "error",
+    credentials: "omit",
+  });
+  if (request.method !== "HEAD") return response;
+  request.signal.throwIfAborted();
+  // Preserve native URL/type/status/headers and a readable body for the Go caller.
+  const returned = response.clone();
+  try {
+    await response.arrayBuffer();
+    request.signal.throwIfAborted();
+    return returned;
+  } catch (error) {
+    void returned.body?.cancel().catch(() => undefined);
+    throw error;
+  }
+}
 export function installWorkerEgress(
   decide: WorkerDecision,
   assets: readonly string[],
@@ -11,7 +33,7 @@ export function installWorkerEgress(
       const request = new Request(input, init);
       const url = new URL(request.url);
       if (assets.includes(url.href))
-        return nativeFetch(request, { redirect: "error", credentials: "omit" });
+        return completedWorkerFetch(nativeFetch, request);
       if (
         !["https:", "http:"].includes(url.protocol) ||
         url.username ||
@@ -19,7 +41,7 @@ export function installWorkerEgress(
         !(await decide(url.href, request.method))
       )
         throw new Error("Tailscale HTTP destination denied.");
-      return nativeFetch(request, { redirect: "error", credentials: "omit" });
+      return completedWorkerFetch(nativeFetch, request);
     },
   });
   Object.defineProperty(globalThis, "WebSocket", {

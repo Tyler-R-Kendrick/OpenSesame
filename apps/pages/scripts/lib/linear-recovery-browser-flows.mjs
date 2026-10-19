@@ -82,18 +82,23 @@ async function createRegistered({ harness }, page, label, authority) {
 async function expireRegistered({ harness }, page, label, authority, oldId) {
   harness.setStep(`${label}-expired-app-original-workspace`);
   const oldGrant = revokeGrant(authority, "registered-initial");
-  await page.clock.setSystemTime(new Date(Date.now() + 2 * 60 * 60 * 1000));
-  await page
-    .getByRole("button", { name: "Read Linear issues", exact: true })
-    .click();
-  await incomplete(page).waitFor();
-  harness.check(
-    authority.calls.some(
-      ({ path, form }) =>
-        path === "/oauth/token" && form?.refresh_token === oldGrant.refresh,
-    ),
-    `${label}: expired OAuth refresh refusal requires reconnection`,
-  );
+  await page.clock.setFixedTime(new Date(Date.now() + 2 * 60 * 60 * 1000));
+  try {
+    await page
+      .getByRole("button", { name: "Read Linear issues", exact: true })
+      .click();
+    await incomplete(page).waitFor();
+    harness.check(
+      authority.calls.some(
+        ({ path, form }) =>
+          path === "/oauth/token" && form?.refresh_token === oldGrant.refresh,
+      ),
+      `${label}: expired OAuth refresh refusal requires reconnection`,
+    );
+  } finally {
+    // Expiry is the fault under test; fresh consent must use the current wall clock.
+    await page.clock.setFixedTime(new Date());
+  }
   const popup = await beginLinearConsent(
     harness,
     page,

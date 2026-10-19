@@ -76,7 +76,7 @@ describe("generated provider authentication contracts", () => {
       "X-Algolia-Application-Id": "{application_id}",
     });
     expect(keyPreset("algolia").verify?.url).toBe(
-      "https://{application_id}-dsn.algolia.net/1/indexes",
+      "https://{application_id}-dsn.algolia.net/1/indexes?page=0&hitsPerPage=20",
     );
   });
 

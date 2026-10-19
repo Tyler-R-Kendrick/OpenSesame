@@ -1,8 +1,10 @@
 /** The browser's common secret-store port. A session contains no credential material. */
 export type SecretBackendMode =
+  | "encrypted-remote"
   | "local"
   | "file-import"
   | "credential-management"
+  | "proton-pass"
   | "onepassword-sdk"
   | "onepassword-connect"
   | "bitwarden-api"
@@ -19,6 +21,10 @@ export type SecretBackendDraft = {
   /** Public provider application/version header; absent on legacy connections. */
   appVersion?: string;
   token: string;
+  /** Client-only inventory encryption material, distinct from HTTP authentication. */
+  encryptionKey?: string;
+  /** Public identity bound to the configured encrypted inventory. */
+  remoteStoreId?: string;
   vaultId: string;
   projectId: string;
   organizationId: string;
@@ -28,12 +34,16 @@ export type SecretBackendDraft = {
   clientSecret: string;
   passwordListId: string;
   fileFormat: string;
+  accountEmail?: string;
+  deviceIdentifier?: string;
 };
 
 /** File contents and decryption passwords exist for one explicit operation only. */
 export type SecretBackendConfiguration = SecretBackendDraft & {
   file?: File;
   filePassword?: string;
+  /** Native account unlock is never persisted with a connection. */
+  masterPassword?: string;
 };
 
 export type SecretBackendCapabilities = {
@@ -97,6 +107,10 @@ export interface SecretBackend {
   readonly signal?: AbortSignal;
   readonly capabilities: SecretBackendCapabilities;
   authenticate(
+    config: SecretBackendConfiguration,
+  ): Promise<SecretBackendSession>;
+  /** Only an explicit initialization action may create a missing remote store. */
+  initialize?(
     config: SecretBackendConfiguration,
   ): Promise<SecretBackendSession>;
   getNotes(name: string, session: SecretBackendSession): Promise<string>;

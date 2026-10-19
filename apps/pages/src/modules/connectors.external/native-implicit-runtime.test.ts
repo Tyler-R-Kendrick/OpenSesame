@@ -26,6 +26,9 @@ async function consent() {
     waitWebMessage: unavailable,
     showDeviceConsent: () => ({ signal: cancelled.signal, close }),
     showRedirectConsent: () => ({ signal: cancelled.signal, close }),
+    showFormConsent: () => {
+      throw new Error("This test uses the encrypted bearer route");
+    },
     cancel: () => cancelled.abort(),
   };
   const authorization = await nativeImplicitAuthorization(

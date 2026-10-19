@@ -38,8 +38,18 @@ export function SecretBackendItemForm(props: Props) {
   useLayoutEffect(() => {
     if (editing || keyboardIsIdle()) landFocus(firstControl(root.current));
   }, [editing]);
-  const [draft, setDraft] = useState<SecretBackendItemInput>(
-    () => item ?? emptyItem(props.itemKinds),
+  const [draft, setDraft] = useState<SecretBackendItemInput>(() =>
+    item
+      ? {
+          name: item.name,
+          notes: item.notes,
+          secret: item.secret,
+          kind: item.kind,
+          username: item.username,
+          url: item.url,
+          fields: item.fields ? { ...item.fields } : undefined,
+        }
+      : emptyItem(props.itemKinds),
   );
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

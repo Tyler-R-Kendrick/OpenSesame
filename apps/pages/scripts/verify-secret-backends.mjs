@@ -12,11 +12,9 @@ import {
   connectBackend,
   disconnectBackend,
   enableBackendConnections,
-  fillNativeBackend,
   newBackendPage,
   openBackend,
   saveBackend,
-  savedBackendReload,
 } from "./lib/secret-backend-browser.mjs";
 import {
   secretsManagerBrowser,
@@ -25,7 +23,6 @@ import {
 } from "./lib/secret-backend-bws-browser.mjs";
 import { startConnectFixture } from "./lib/secret-backend-connect-fixture.mjs";
 import { browserCredentialFlow } from "./lib/secret-backend-credential-browser.mjs";
-import { verifyBackendVaultCredential } from "./lib/secret-backend-custody-browser.mjs";
 import {
   officialOnePasswordHandoff,
   offlineBackendImports,
@@ -35,6 +32,7 @@ import {
   INFISICAL_CLIENT,
   startInfisicalFixture,
 } from "./lib/secret-backend-infisical-fixture.mjs";
+import { nativeConnections } from "./lib/secret-backend-native-browser.mjs";
 import { coldOfflineBackendImport } from "./lib/secret-backend-offline-pwa.mjs";
 import { startPasswordstateFixture } from "./lib/secret-backend-passwordstate-fixture.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -131,67 +129,7 @@ async function inventory(page, width) {
     );
   }
 }
-async function nativeConnections(page, width) {
-  for (const [index, providerId] of [
-    "1password",
-    "infisical",
-    "passwordstate",
-    "bitwarden",
-  ].entries()) {
-    const fixture = fixtures[index];
-    const preset = presets.find((entry) => entry.providerId === providerId);
-    setStep(`${width}-${providerId}-native-http`);
-    await openBackend(page, base, preset);
-    const mode =
-      providerId === "1password" ? "onepassword-connect" : preset.defaultMode;
-    await page
-      .getByLabel("Connection method", { exact: true })
-      .selectOption(mode);
-    await fillNativeBackend(page, fixture, mode, width);
-    await saveBackend(page);
-    await savedBackendReload(page, {
-      base,
-      preset,
-      fixture,
-      width,
-      check: h.check,
-    });
-    if (providerId !== "bitwarden")
-      await verifyBackendVaultCredential(page, {
-        base,
-        preset,
-        fixture,
-        width,
-        check: h.check,
-        field: providerId === "infisical" ? "Client secret" : "Access token",
-        value:
-          providerId === "infisical" ? INFISICAL_CLIENT.secret : FIXTURE_TOKEN,
-      });
-    await page
-      .getByRole("button", { name: "Test secret backend", exact: true })
-      .click();
-    await page
-      .getByRole("img", {
-        name: "Secret backend connection verified",
-        exact: true,
-      })
-      .waitFor({ timeout: 30_000 });
-    await connectBackend(page);
-    await backendCrud(page, {
-      name: `browser-${providerId}-${width}`,
-      kind: providerId === "infisical" ? "secret" : "login",
-      origin,
-      width,
-      check: h.check,
-    });
-    await snapshot(page, `${width}-${providerId}-crud`);
-    await disconnectBackend(page);
-    h.check(
-      fixture.items.size === 0,
-      `${width}: ${providerId} CRUD leaves the real HTTP fixture empty after deletion`,
-    );
-  }
-}
+
 try {
   for (const start of [
     startConnectFixture,
@@ -214,7 +152,15 @@ try {
     await sealWithPin(page);
     await enableBackendConnections(page, base);
     await inventory(page, width);
-    await nativeConnections(page, width);
+    await nativeConnections(page, {
+      width,
+      fixtures,
+      presets,
+      base,
+      origin,
+      h,
+      snapshot,
+    });
     setStep(`${width}-official-bws-worker-wasm`);
     await secretsManagerBrowser(page, {
       base,
@@ -332,9 +278,9 @@ for (const fixture of fixtures) {
   h.check(
     operations.length > 0 &&
       operations.every(
-        (request) => request.credentialValid || request.serviceUnlocked,
+        (request) => request.credentialValid || request.publicPrelogin,
       ),
-    `${fixture.name}: real socket operations carried valid protocol authentication or the declared unlocked Vault Management session`,
+    `${fixture.name}: real socket operations used valid protocol authentication or the native public prelogin route`,
   );
   const preflights = fixture.requests.filter(
     (request) => request.method === "OPTIONS",
@@ -348,7 +294,9 @@ for (const fixture of fixtures) {
     fixture.requests.every((request) => request.originAllowed),
     `${fixture.name}: every socket request carried the exact configured app origin`,
   );
-  for (const method of ["GET", "POST", "DELETE"])
+  for (const method of fixture.nativePersonal
+    ? ["GET", "POST"]
+    : ["GET", "POST", "DELETE"])
     h.check(
       fixture.requests.some((request) => request.method === method),
       `${fixture.name}: socket received ${method}`,
@@ -359,6 +307,15 @@ for (const fixture of fixtures) {
     ),
     `${fixture.name}: socket received the protocol's real update method`,
   );
+  if (fixture.nativePersonal)
+    h.check(
+      fixture.requests.some(
+        (request) =>
+          request.method === "PUT" &&
+          /^\/api\/ciphers\/[^/]+\/delete$/.test(request.path),
+      ),
+      `${fixture.name}: native personal-vault delete uses authenticated PUT trash`,
+    );
   h.failures.push(...fixture.errors);
 }
 for (const entry of h.log.filter((entry) =>

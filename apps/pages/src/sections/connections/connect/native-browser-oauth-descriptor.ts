@@ -9,6 +9,8 @@ import type {
   NativeMethodDescriptor,
 } from "./native-connector-ui.js";
 
+import { nativeGitBackupFields } from "./native-git-backup-fields.js";
+
 function fields(
   profile: NativeBrowserOAuthProfile,
   callbackUrl: string,
@@ -144,13 +146,20 @@ export function nativeBrowserOAuthDescriptor(
         "Required to verify the provider account for this connection.",
       default: true,
     });
+  const inputFields = fields(profile, callbackUrl);
+  if (profile.id === "codeberg")
+    inputFields.push(
+      ...nativeGitBackupFields(
+        "Your Codeberg account must have repository write access.",
+      ),
+    );
   return {
     id: "oauth",
     authorizeFirst: true,
     available: true,
     label: methodLabel(profile),
     instructions: methodInstructions(profile),
-    fields: fields(profile, callbackUrl),
+    fields: inputFields,
     scopeGroups: permissions.size
       ? [
           {

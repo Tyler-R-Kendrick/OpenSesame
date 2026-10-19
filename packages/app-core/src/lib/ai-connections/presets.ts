@@ -1,12 +1,15 @@
 import { modelApiOf } from "../ai-model-provider.js";
 import { catalogProvider } from "../connector-catalog.js";
+import { bedrockResourceBase } from "./bedrock-target.js";
 import type { AiConnectionDraft, AiInferenceFamily } from "./types.js";
 
 export const AI_CONNECTION_FAMILIES = [
+  { id: "bedrock_converse", label: "Amazon Bedrock Converse" },
   { id: "openai_chat", label: "OpenAI Chat Completions" },
   { id: "openai_responses", label: "OpenAI Responses" },
   { id: "anthropic_messages", label: "Anthropic Messages" },
   { id: "gemini_generate_content", label: "Gemini Generate Content" },
+  { id: "replicate_predictions", label: "Replicate predictions" },
 ] as const;
 
 export function isAiConnectionFamily(
@@ -28,6 +31,35 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "replicate")
+    return {
+      providerId,
+      name: "Replicate",
+      family: "replicate_predictions" as const,
+      baseUrl: "https://api.replicate.com/v1",
+    };
+  if (providerId === "aws-bedrock") {
+    const bedrock = { region: "us-east-1", credential: "sigv4" } as const;
+    return {
+      providerId,
+      name: "Amazon Bedrock",
+      family: "bedrock_converse" as const,
+      baseUrl: bedrockResourceBase(bedrock),
+      bedrock,
+    };
+  }
+  if (providerId === "google-vertex")
+    return {
+      providerId,
+      name: "Google Vertex AI",
+      family: "gemini_generate_content" as const,
+      baseUrl: "https://us-central1-aiplatform.googleapis.com/v1",
+      vertex: {
+        project: "",
+        location: "us-central1",
+        credential: "service-account",
+      } as const,
+    };
   if (providerId === "azure-openai")
     return {
       providerId,

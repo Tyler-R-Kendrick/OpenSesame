@@ -1,9 +1,13 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   beginNativeBrowserAuthorization,
   configureNativeBrowserOAuthConnector,
   finishNativeBrowserAuthorization,
 } from "./native-browser-oauth-connectors.js";
+import { nativeBrowserOAuthVerificationEndpoint } from "./native-browser-oauth-resources.js";
+import { nativeBrowserOAuthPolicy } from "./native-browser-policy.js";
+import { nativeConfigurationBrowserPolicy } from "./native-configuration-policy.js";
+import type { NativeProviderTransport } from "./native-connector-transport.js";
 import {
   installNativeOAuthTests,
   oauthAuthority,
@@ -11,6 +15,21 @@ import {
   oauthDraft,
 } from "./native-oauth.test-support.js";
 
+function expectProviderResourceRequest(
+  provider: ReturnType<typeof oauthAuthority>,
+  id: string,
+) {
+  const request = provider.fetch.mock.calls[1];
+  if (!request) throw new Error("Actual provider resource request missing");
+  const [endpoint, init] = request;
+  if (!init) throw new Error("Actual provider resource options missing");
+  expect(String(endpoint)).toBe(nativeBrowserOAuthVerificationEndpoint(id));
+  expect(init.method).toBe(id === "dropbox" ? "POST" : "GET");
+  expect(init.body).toBe(id === "dropbox" ? "null" : undefined);
+  expect(new Headers(init.headers).get("content-type")).toBe(
+    id === "dropbox" ? "application/json" : null,
+  );
+}
 installNativeOAuthTests();
 it.each([
   {
@@ -65,6 +84,7 @@ it.each([
         "client_secret",
       ),
     ).toBe(false);
+    expectProviderResourceRequest(provider, profile.id);
     expect(view.status).toBe("connected");
     expect(view.identity?.id).toBe(profile.expectedId);
     expect(view.grants[0]?.grantedScopes).toEqual([profile.scopes]);
@@ -132,3 +152,164 @@ it.each(["microsoft", "microsoft-teams"])(
     ]);
   },
 );
+
+function configuredCarrier() {
+  let current = true;
+  const lifetime = new AbortController();
+  const allowed = new Set([
+    "https://token.example",
+    "https://resource.example",
+  ]);
+  const fetch = vi.fn(async () => {
+    throw new Error("Policy inspection must not fetch");
+  });
+  const supportsNativeOrigin = vi.fn((origin: string) => allowed.has(origin));
+  const transport: NativeProviderTransport = {
+    fetch,
+    signal: lifetime.signal,
+    supportsNativeOrigin,
+    assertCurrent: () => {
+      if (!current) throw new Error("Original owner ended");
+    },
+  };
+  return {
+    transport,
+    fetch,
+    supportsNativeOrigin,
+    allowed,
+    lifetime,
+    withdraw: () => {
+      current = false;
+    },
+  };
+}
+const configuredTargets = {
+  token_endpoint: "https://token.example/token",
+  resource: "https://resource.example/data",
+};
+it("admits only the original carrier covering both configured token and resource origins without network", () => {
+  const c = configuredCarrier();
+  expect(nativeBrowserOAuthPolicy("resend").available).toBe(false);
+  expect(
+    nativeConfigurationBrowserPolicy(
+      "resend",
+      "oauth",
+      configuredTargets,
+      c.transport,
+    ).available,
+  ).toBe(true);
+  expect(c.supportsNativeOrigin.mock.calls.map(([origin]) => origin)).toEqual([
+    "https://token.example",
+    "https://resource.example",
+  ]);
+  const ordinary: NativeProviderTransport = {
+    fetch: c.fetch,
+    assertCurrent: c.transport.assertCurrent,
+    signal: c.lifetime.signal,
+  };
+  expect(
+    nativeConfigurationBrowserPolicy(
+      "resend",
+      "oauth",
+      { ...configuredTargets, supportsNativeOrigin: "true" },
+      ordinary,
+    ).available,
+  ).toBe(false);
+  expect(
+    nativeConfigurationBrowserPolicy(
+      "resend",
+      "oauth",
+      { token_endpoint: configuredTargets.token_endpoint },
+      c.transport,
+    ).available,
+  ).toBe(false);
+  expect(
+    nativeConfigurationBrowserPolicy(
+      "resend",
+      "oauth",
+      { resource: configuredTargets.resource },
+      c.transport,
+    ).available,
+  ).toBe(false);
+  expect(c.fetch).not.toHaveBeenCalled();
+});
+it.each(["https://token.example", "https://resource.example"])(
+  "refuses missing original %s route without inspecting or fetching a later carrier",
+  (origin) => {
+    const c = configuredCarrier();
+    c.allowed.delete(origin);
+    expect(
+      nativeConfigurationBrowserPolicy(
+        "resend",
+        "oauth",
+        configuredTargets,
+        c.transport,
+      ).available,
+    ).toBe(false);
+    expect(c.fetch).not.toHaveBeenCalled();
+  },
+);
+const invalidConfiguredTargets = [
+  { token_endpoint: "https://token.example/token", resource: "" },
+  { token_endpoint: "", resource: "https://resource.example/data" },
+  { ...configuredTargets, token_endpoint: "http://token.example/token" },
+  {
+    ...configuredTargets,
+    token_endpoint: "https://user:secret@token.example/token",
+  },
+  { ...configuredTargets, resource: "https://resource.example/data#fragment" },
+];
+it.each(invalidConfiguredTargets)(
+  "refuses incomplete or invalid configured targets %j",
+  (parameters) => {
+    const c = configuredCarrier();
+    expect(
+      nativeConfigurationBrowserPolicy(
+        "resend",
+        "oauth",
+        parameters,
+        c.transport,
+      ).available,
+    ).toBe(false);
+    expect(c.fetch).not.toHaveBeenCalled();
+  },
+);
+it.each(["owner", "abort", "during-inspection"])(
+  "refuses original carrier %s withdrawal before returning admission",
+  (cause) => {
+    const c = configuredCarrier();
+    if (cause === "owner") c.withdraw();
+    else if (cause === "abort") c.lifetime.abort();
+    else
+      c.transport.supportsNativeOrigin = () => {
+        c.withdraw();
+        return true;
+      };
+    expect(
+      nativeConfigurationBrowserPolicy(
+        "resend",
+        "oauth",
+        configuredTargets,
+        c.transport,
+      ).available,
+    ).toBe(false);
+    expect(c.fetch).not.toHaveBeenCalled();
+  },
+);
+it("derives the existing Resend profile targets from the same endpoint map used by real verification", () => {
+  const c = configuredCarrier();
+  c.allowed.clear();
+  c.allowed.add("https://api.resend.com");
+  expect(
+    nativeConfigurationBrowserPolicy("resend", "oauth", {}, c.transport)
+      .available,
+  ).toBe(true);
+  expect(nativeBrowserOAuthVerificationEndpoint("resend")).toBe(
+    "https://api.resend.com/domains",
+  );
+  expect(c.supportsNativeOrigin.mock.calls.map(([origin]) => origin)).toEqual([
+    "https://api.resend.com",
+    "https://api.resend.com",
+  ]);
+  expect(c.fetch).not.toHaveBeenCalled();
+});

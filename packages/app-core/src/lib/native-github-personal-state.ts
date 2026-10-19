@@ -17,7 +17,7 @@ import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { nativeGithubOrigin } from "./native-github-personal-http.js";
 
 export const nativeGithubPersonalClassification = {
-  publicParameters: [],
+  publicParameters: ["backup_owner", "backup_repo", "backup_branch"],
   privateCredentials: ["api_key"],
 };
 export function requireNativeGithubPersonal(id: string, authorized = false) {

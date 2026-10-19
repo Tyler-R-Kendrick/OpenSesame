@@ -1,7 +1,8 @@
 /** Partner experiences compose the same identity protocols and configuration. */
-import type {
-  IdentityConnectionDraft,
-  IdentityProtocol,
+import {
+  type IdentityConnectionDraft,
+  IdentityConnectionDraftSchema,
+  type IdentityProtocol,
 } from "./identity-connections-schema.js";
 
 export type IdentityConnectionPreset = {
@@ -28,7 +29,7 @@ export function identityConnectionDraft(
 ): IdentityConnectionDraft {
   const preset = identityConnectionPreset(providerId);
   if (!preset) throw new Error("Unknown identity integration");
-  return {
+  return IdentityConnectionDraftSchema.parse({
     providerId,
     name: preset.label,
     protocol: preset.protocols[0] ?? "oidc",
@@ -56,5 +57,5 @@ export function identityConnectionDraft(
     ldapSubjectAttribute: "entryUUID",
     ldapEmailAttribute: "mail",
     ldapNameAttribute: "cn",
-  };
+  });
 }

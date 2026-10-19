@@ -24,6 +24,13 @@ import {
 import { FederationError } from "./federation-error.js";
 import { isOperatorIdpIssuer } from "./federation-operator.js";
 import {
+  type UpstreamIdentity,
+  advanceFederationSessionGeneration,
+  upstreamIdentityDisplayName as displayNameDefault,
+  readNativeFederationSession,
+} from "./federation-native-session.js";
+import { isOperatorIdpIssuer } from "./federation-operator.js";
+import {
   originCallbackUri,
   originClientId,
   redirectUri,
@@ -190,19 +197,7 @@ export type OidcDiscovery = {
   jwks_uri: string;
 };
 
-export type UpstreamIdentity = {
-  issuer: string;
-  upstreamId: string;
-  idToken: string;
-  /** Per-origin and stable; the identity this app knows the human by. */
-  pairwiseSub: string;
-  audience: string;
-  jwksUri: string;
-  expiresAt: number;
-  email?: string | undefined;
-  name?: string | undefined;
-  picture?: string | undefined;
-};
+export type { UpstreamIdentity } from "./federation-native-session.js";
 
 export function decodeJwtClaims(token: string): JsonObject {
   const payload = token.split(".")[1];
@@ -810,6 +805,11 @@ export function clearAuthResponseFromUrl(): void {
  * revocation after that takes effect only when `exp` passes.
  */
 export function saveSession(identity: UpstreamIdentity): void {
+  if (identity.assertionFormat === "saml")
+    throw new Error(
+      "Native SAML evidence must remain in its verified browser session",
+    );
+  advanceFederationSessionGeneration();
   writeFederationSessionJson(JSON.stringify(identity));
   rememberLastSignIn(identity.upstreamId);
 }
@@ -823,6 +823,8 @@ function issuerIsTrusted(issuer: string): boolean {
 }
 
 function loadSessionDefault(): UpstreamIdentity | null {
+  const native = readNativeFederationSession();
+  if (native) return native;
   const raw = readFederationSessionJson();
   if (!raw) return null;
   const identity = readStoredSessionSync(raw, issuerIsTrusted);
@@ -834,11 +836,8 @@ function loadSessionDefault(): UpstreamIdentity | null {
 }
 
 function clearSessionDefault(): void {
+  advanceFederationSessionGeneration();
   clearFederationSessionJson();
-}
-
-function displayNameDefault(identity: UpstreamIdentity): string {
-  return identity.name ?? identity.email ?? identity.pairwiseSub;
 }
 
 async function completeSignInWired(): Promise<CompletedSignIn | null> {

@@ -15,6 +15,7 @@
  * service worker cannot load a script it did not ship with (P-NOLOAD).
  */
 
+import { SamlPostCommandSchema } from "@opensesame/app-core/browser/saml/post-wire.js";
 import { isString } from "@opensesame/os-domain";
 import { parseCacheName } from "./cache-names.js";
 import { cleanupCaches } from "./cleanup.js";
@@ -32,6 +33,7 @@ import {
   releaseIdFromManifest,
   shellEntry,
 } from "./release.js";
+import { createSamlPostIngress } from "./saml-post.js";
 
 export type CoreWorkerOptions = Readonly<{
   /** `core-only` or `push`; the last cache-name segment. */
@@ -47,6 +49,21 @@ export type CoreWorker = Readonly<{
   /** Release ids kept alive for windows that were open at activation. */
   retained: ReadonlySet<string>;
 }>;
+
+/** A missing callback means this distribution excludes native SAML. Never guess an asset URL. */
+function samlCallbackScript(
+  manifest: readonly ManifestEntry[],
+  scopeUrl: string,
+): string | null {
+  const matches = manifest
+    .map((entry) => (isString(entry) ? entry : entry.url))
+    .filter((entry) =>
+      /^assets\/native-saml-[A-Za-z0-9_-]{8,64}\.js$/.test(entry),
+    );
+  if (matches.length > 1)
+    throw new Error("Release contains ambiguous SAML callbacks");
+  return matches.length === 1 ? new URL(matches[0], scopeUrl).href : null;
+}
 
 /** Window client ids that existed when this worker activated. */
 type Takeover = { clientIds: Set<string>; retained: Set<string> };
@@ -169,6 +186,14 @@ export function installCoreWorker(
   });
   const takeover: Takeover = { clientIds: new Set(), retained: new Set() };
   const plans = new PlanCoordinator(ctx);
+  const callbackScriptUrl = samlCallbackScript(options.manifest, ctx.scopeUrl);
+  const saml = callbackScriptUrl
+    ? createSamlPostIngress({
+        scopeUrl: ctx.scopeUrl,
+        callbackScriptUrl,
+        clients: sw.clients,
+      })
+    : null;
 
   sw.addEventListener("install", (event) => {
     event.waitUntil(
@@ -179,13 +204,17 @@ export function installCoreWorker(
     event.waitUntil(activate(ctx, takeover));
   });
   sw.addEventListener("fetch", (event) => {
-    handleFetch(ctx, event);
+    const post = saml?.respond(event);
+    if (post) event.respondWith(post);
+    else handleFetch(ctx, event);
   });
   sw.addEventListener("message", (event) => {
     const data = event.data;
     if (isWorkerHello(data)) event.waitUntil(hello(ctx, event, takeover));
     else if (data && isString(data.type) && data.type === "PLAN_ASSETS")
       event.waitUntil(plans.handle(event));
+    else if (saml && SamlPostCommandSchema.safeParse(data).success)
+      event.waitUntil(saml.message(event));
     // Any other type is ignored (ownership.md §4.7).
   });
   return { ctx, retained: takeover.retained };

@@ -1,18 +1,32 @@
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
 import { z } from "zod";
+import { parseGcpServiceAccount } from "../native-gcp-auth.js";
 import {
   AzureOpenAiTargetSchema,
   azureConnectionTarget,
 } from "./azure-protocol.js";
+import {
+  BedrockAiTargetSchema,
+  bedrockConnectionTarget,
+  bedrockCredential,
+} from "./bedrock-target.js";
 import { aiConnectionFamilies, aiConnectionPreset } from "./presets.js";
+import { replicatePredictionTarget } from "./replicate-types.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
+import {
+  VertexAiTargetSchema,
+  vertexConnectionTarget,
+  vertexInferenceUrl,
+} from "./vertex-target.js";
 
 export const AiConnectionDraftSchema = z
   .object({
     providerId: z.string().min(1).max(100),
     name: z.string().trim().min(1).max(200),
     family: z.enum([
+      "replicate_predictions",
+      "bedrock_converse",
       "openai_chat",
       "openai_responses",
       "anthropic_messages",
@@ -31,6 +45,8 @@ export const AiConnectionDraftSchema = z
       .enum(["max_tokens", "max_completion_tokens"])
       .default("max_completion_tokens"),
     azure: AzureOpenAiTargetSchema.optional(),
+    vertex: VertexAiTargetSchema.optional(),
+    bedrock: BedrockAiTargetSchema.optional(),
   })
   .strict();
 
@@ -74,17 +90,21 @@ export function validateAiConnection<Value>(
     );
   const draft = result.data;
   const preset = aiConnectionPreset(draft.providerId);
-  if (
-    !preset ||
-    !aiConnectionFamilies(draft.providerId).some(
-      (family) => family.id === draft.family,
-    )
-  )
+  const supportedFamily =
+    draft.family === "replicate_predictions"
+      ? ["replicate", "byo-ai"].includes(draft.providerId)
+      : draft.family === "bedrock_converse"
+        ? ["aws-bedrock", "byo-ai"].includes(draft.providerId)
+        : aiConnectionFamilies(draft.providerId).some(
+            (family) => family.id === draft.family,
+          );
+  if (!preset || !supportedFamily)
     throw new AiConnectionError(
       "configuration",
       "Choose a protocol supported by this provider.",
     );
   draft.baseUrl = aiConnectionBase(draft.baseUrl).href.replace(/\/$/, "");
+  validateReplicateTarget(draft);
   azureConnectionTarget(draft);
   if (
     draft.family === "gemini_generate_content" &&
@@ -94,7 +114,104 @@ export function validateAiConnection<Value>(
       "configuration",
       "Enter a Gemini model identifier without path segments.",
     );
-  if (draft.apiKey && !/^[!-~]+$/.test(draft.apiKey))
+  validateCredential(draft, requireKey);
+  return draft;
+}
+
+function validateReplicateTarget(draft: AiConnectionDraft): void {
+  if (draft.family !== "replicate_predictions") {
+    if (draft.providerId === "replicate")
+      throw new AiConnectionError(
+        "configuration",
+        "Choose the Replicate predictions family for this provider.",
+      );
+    return;
+  }
+  if (
+    !["replicate", "byo-ai"].includes(draft.providerId) ||
+    draft.authentication !== "api-key" ||
+    draft.azure ||
+    draft.vertex ||
+    draft.bedrock
+  )
+    throw new AiConnectionError(
+      "configuration",
+      "Choose one Replicate prediction target with an API token.",
+    );
+  replicatePredictionTarget(draft.model);
+}
+function normalizeVertexCredential(draft: AiConnectionDraft): boolean {
+  const vertex = vertexConnectionTarget(draft);
+  if (vertex)
+    vertexInferenceUrl({ ...draft, vertex }, aiConnectionBase(draft.baseUrl));
+  const privateDocument = vertex?.credential === "service-account";
+  if (privateDocument && draft.apiKey) {
+    const account = parseGcpServiceAccount(draft.apiKey);
+    if (
+      [draft.name, draft.baseUrl, draft.model, JSON.stringify(vertex)].some(
+        (value) => value.includes(account.privateKey),
+      )
+    )
+      throw new AiConnectionError(
+        "configuration",
+        "Keep the private key out of public connection fields.",
+      );
+    draft.apiKey = JSON.stringify({
+      type: "service_account",
+      client_email: account.clientEmail,
+      project_id: account.projectId,
+      private_key: account.privateKey,
+    });
+  }
+  return privateDocument;
+}
+function configuredBedrock(draft: AiConnectionDraft) {
+  if (draft.family === "bedrock_converse")
+    return bedrockConnectionTarget({ ...draft, family: "bedrock_converse" });
+  if (draft.bedrock || draft.providerId === "aws-bedrock")
+    throw new AiConnectionError(
+      "configuration",
+      "Choose the Bedrock Converse family for this target.",
+    );
+  return null;
+}
+function normalizeBedrockCredential(draft: AiConnectionDraft): boolean {
+  const target = configuredBedrock(draft);
+  if (!target) return false;
+  if (draft.apiKey) {
+    const credential = bedrockCredential(draft.apiKey);
+    const publicFields = [
+      draft.name,
+      draft.baseUrl,
+      draft.model,
+      JSON.stringify(target),
+    ];
+    if (
+      [
+        credential.accessKeyId,
+        credential.secretAccessKey,
+        credential.sessionToken ?? "",
+      ].some(
+        (secret) =>
+          secret.length >= 4 &&
+          publicFields.some((value) => value.includes(secret)),
+      )
+    )
+      throw new AiConnectionError(
+        "configuration",
+        "Keep AWS credentials out of public connection fields.",
+      );
+    draft.apiKey = JSON.stringify(credential);
+  }
+  return true;
+}
+function validateCredential(
+  draft: AiConnectionDraft,
+  requireKey: boolean,
+): void {
+  const bedrockDocument = normalizeBedrockCredential(draft);
+  const privateDocument = normalizeVertexCredential(draft) || bedrockDocument;
+  if (!privateDocument && draft.apiKey && !/^[!-~]+$/.test(draft.apiKey))
     throw new AiConnectionError(
       "configuration",
       "Enter an API key without spaces or control characters.",
@@ -115,7 +232,6 @@ export function validateAiConnection<Value>(
       "configuration",
       "Keep the API key out of public connection fields.",
     );
-  return draft;
 }
 
 export function aiConnectionBinding(draft: AiConnectionDraft): string {
@@ -128,18 +244,29 @@ export function aiConnectionBinding(draft: AiConnectionDraft): string {
     draft.tokenParameter,
   ];
   const target = azureConnectionTarget(draft);
+  const publicBinding = target
+    ? [
+        ...legacy,
+        [
+          "azure-openai",
+          target.api,
+          target.api === "dated-chat" ? target.apiVersion : null,
+          target.credential,
+        ],
+      ]
+    : legacy;
+  const vertex = vertexConnectionTarget(draft);
+  const vertexBinding = vertex
+    ? [
+        ...publicBinding,
+        ["google-vertex", vertex.project, vertex.location, vertex.credential],
+      ]
+    : publicBinding;
+  const bedrock = configuredBedrock(draft);
   return JSON.stringify(
-    target
-      ? [
-          ...legacy,
-          [
-            "azure-openai",
-            target.api,
-            target.api === "dated-chat" ? target.apiVersion : null,
-            target.credential,
-          ],
-        ]
-      : legacy,
+    bedrock
+      ? [...vertexBinding, ["aws-bedrock", bedrock.region, bedrock.credential]]
+      : vertexBinding,
   );
 }
 

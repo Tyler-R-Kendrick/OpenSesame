@@ -6,7 +6,10 @@ import {
   registerNativeConnectorDriver,
 } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
-import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  captureNativeProviderAuthority,
+} from "@opensesame/app-core/lib/native-connector-transport.js";
 import { nativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import { parseNativeOAuthCallback } from "@opensesame/app-core/lib/native-oauth-session.js";
 import { completeNativeVaultOidc } from "@opensesame/app-core/lib/native-vault-auth.js";
@@ -45,7 +48,7 @@ function validateInput(input: NativeDriverInput): void {
 
 async function configureVault(
   input: NativeDriverInput,
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ) {
   validateInput(input);
   if (input.providerId !== "vault" && input.providerId !== "openbao")
@@ -64,91 +67,164 @@ async function configureVault(
     },
     transport,
   );
+  transport.assertCurrent();
   const view = readNativeConnector(id);
   if (!view) throw new Error("The Vault sign-in request was not saved");
   return view;
 }
-export function bindNativeVaultRuntime(activation: Activation): void {
-  const transport = nativeProviderTransport();
-  const cleanup = {
-    vault: nativeVaultCleanup("vault", transport),
-    openbao: nativeVaultCleanup("openbao", transport),
+type Authority = ReturnType<typeof captureNativeProviderAuthority>;
+function vaultCleanupRoutes(authority: Authority, activation: Activation) {
+  const routes = new Map<
+    string,
+    {
+      fingerprint: string;
+      transport: NativeProviderTransport;
+    }
+  >();
+  activation.onDispose(() => routes.clear());
+  return {
+    assertCurrent(id: string) {
+      authority.assertCurrent();
+      routes.get(id)?.transport.assertCurrent();
+    },
+    remember(id: string, transport: NativeProviderTransport) {
+      transport.assertCurrent();
+      const previous = routes.get(id);
+      previous?.transport.assertCurrent();
+      const fingerprint = readNativeConnector(id)?.fingerprint;
+      if (!fingerprint || (previous && previous.fingerprint !== fingerprint))
+        throw new Error("Vault cleanup belongs to another configuration");
+      if (!previous) routes.set(id, { fingerprint, transport });
+    },
+    transport(id: string, expectedFingerprint?: string) {
+      authority.assertCurrent();
+      const previous = routes.get(id);
+      const transport = previous?.transport ?? authority.capture();
+      transport.assertCurrent();
+      const fingerprint =
+        expectedFingerprint ?? readNativeConnector(id)?.fingerprint;
+      if (!fingerprint || (previous && previous.fingerprint !== fingerprint))
+        throw new Error("Vault cleanup belongs to another configuration");
+      if (!previous) routes.set(id, { fingerprint, transport });
+      return transport;
+    },
   };
+}
+async function authorizeVault(
+  id: string,
+  transport: NativeProviderTransport,
+  routes: ReturnType<typeof vaultCleanupRoutes>,
+) {
+  const browser = nativeOAuthBrowserPort();
+  if (!browser.authorize)
+    throw new Error("This browser cannot receive provider sign-in");
+  const consent = await authorizeNativeVault(
+    id,
+    browser.redirectUri,
+    transport,
+  );
+  routes.remember(id, transport);
+  let search: string;
+  try {
+    search = await browser.authorize(consent.authorizationUrl, consent);
+  } catch (error) {
+    await cancelNativeVaultOidc(id, consent.state);
+    throw error;
+  }
+  const callback = parseNativeOAuthCallback(search);
+  if (callback.error || !callback.code) {
+    await cancelNativeVaultOidc(id, consent.state);
+    throw new Error("Provider sign-in was cancelled");
+  }
+  await completeNativeVaultOidc(
+    id,
+    { state: callback.state, code: callback.code },
+    transport,
+  );
+  transport.assertCurrent();
+}
+async function invokeVault(
+  id: string,
+  operation: string,
+  input: Record<string, string>,
+  transport: NativeProviderTransport,
+) {
+  if (operation === "provider.read" && !Object.keys(input).length) {
+    const facts = await checkNativeVaultAccess(id, transport);
+    return {
+      label: "Provider access verified",
+      items: [{ id: "user", label: facts.tokenLabel }],
+    };
+  }
+  if (
+    operation !== "provider.secret.read" ||
+    Object.keys(input).some((key) => !["mount", "path"].includes(key))
+  )
+    throw new Error("Select a supported Vault operation");
+  const secret = await readNativeVaultInstance(
+    id,
+    { mount: input.mount ?? "secret", path: input.path ?? "" },
+    transport,
+  );
+  return {
+    label: `Secret version ${secret.metadata.version}`,
+    items: nativeVaultSecretItems(secret.data),
+  };
+}
+function vaultRuntimeCleanup(
+  authority: Authority,
+  routes: ReturnType<typeof vaultCleanupRoutes>,
+): NativeConnectorDriver["cleanup"] {
+  return {
+    classification: (configuration) => {
+      const providerId = configuration.providerId;
+      if (providerId !== "vault" && providerId !== "openbao")
+        throw new Error("This cleanup belongs to another provider");
+      return nativeVaultCleanup(providerId, authority.capture()).classification(
+        configuration,
+      );
+    },
+    credentialSlots: [],
+    prepare: async (id) => {
+      const transport = routes.transport(id);
+      await nativeVaultCleanup(instance(id), transport).prepare?.(id);
+      transport.assertCurrent();
+    },
+    cleanup: (obligation, context) => {
+      const transport = routes.transport(
+        context.connectionId,
+        context.configuration.fingerprint,
+      );
+      const providerId = context.configuration.providerId;
+      if (providerId !== "vault" && providerId !== "openbao")
+        throw new Error("This cleanup belongs to another provider");
+      return nativeVaultCleanup(providerId, transport).cleanup(
+        obligation,
+        context,
+      );
+    },
+  };
+}
+export function bindNativeVaultRuntime(activation: Activation): void {
+  const authority = captureNativeProviderAuthority();
+  const routes = vaultCleanupRoutes(authority, activation);
   const driver: NativeConnectorDriver = {
     supports: (id) => id === "vault" || id === "openbao",
-    configure: (input) => configureVault(input, transport),
-    authorize: async (id) => {
-      const browser = nativeOAuthBrowserPort();
-      if (!browser.authorize)
-        throw new Error("This browser cannot receive provider sign-in");
-      const consent = await authorizeNativeVault(
-        id,
-        browser.redirectUri,
-        transport,
-      );
-      let search: string;
-      try {
-        search = await browser.authorize(consent.authorizationUrl, consent);
-      } catch (error) {
-        await cancelNativeVaultOidc(id, consent.state);
-        throw error;
-      }
-      const callback = parseNativeOAuthCallback(search);
-      if (callback.error || !callback.code) {
-        await cancelNativeVaultOidc(id, consent.state);
-        throw new Error("Provider sign-in was cancelled");
-      }
-      await completeNativeVaultOidc(
-        id,
-        { state: callback.state, code: callback.code },
-        transport,
-      );
+    configure: (input) => configureVault(input, authority.capture()),
+    authorize: (id) => {
+      const transport = authority.capture();
+      routes.assertCurrent(id);
+      return authorizeVault(id, transport, routes);
     },
-    verify: (id) => verifyNativeVault(id, transport),
-    invoke: async (id, operation, input) => {
-      if (operation === "provider.read" && !Object.keys(input).length) {
-        const facts = await checkNativeVaultAccess(id, transport);
-        return {
-          label: "Provider access verified",
-          items: [{ id: "user", label: facts.tokenLabel }],
-        };
-      }
-      if (
-        operation !== "provider.secret.read" ||
-        Object.keys(input).some((key) => !["mount", "path"].includes(key))
-      )
-        throw new Error("Select a supported Vault operation");
-      const secret = await readNativeVaultInstance(
-        id,
-        { mount: input.mount ?? "secret", path: input.path ?? "" },
-        transport,
-      );
-      return {
-        label: `Secret version ${secret.metadata.version}`,
-        items: nativeVaultSecretItems(secret.data),
-      };
-    },
-    cleanup: {
-      classification: (configuration) => {
-        const providerId = configuration.providerId;
-        if (providerId !== "vault" && providerId !== "openbao")
-          throw new Error("This cleanup belongs to another provider");
-        return cleanup[providerId].classification(configuration);
-      },
-      credentialSlots: [],
-      prepare: async (id) => cleanup[instance(id)].prepare?.(id),
-      cleanup: (obligation, context) => {
-        const providerId = context.configuration.providerId;
-        if (providerId !== "vault" && providerId !== "openbao")
-          throw new Error("This cleanup belongs to another provider");
-        return cleanup[providerId].cleanup(obligation, context);
-      },
-    },
+    verify: (id) => verifyNativeVault(id, authority.capture()),
+    invoke: (id, operation, input) =>
+      invokeVault(id, operation, input, authority.capture()),
+    cleanup: vaultRuntimeCleanup(authority, routes),
   };
   activation.onDispose(
     registerNativeConnectorDriver(
       "oidc",
-      bindNativeConnectorDriver(driver, transport),
+      bindNativeConnectorDriver(driver, authority),
     ),
   );
 }

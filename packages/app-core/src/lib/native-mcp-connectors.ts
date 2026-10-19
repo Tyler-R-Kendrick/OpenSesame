@@ -1,6 +1,10 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 /** Native provider dispatcher; MCP tools remain exactly what its resource advertises. */
-import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+} from "@opensesame/os-domain";
 import type { NativeConnectorDriver } from "./native-connector-drivers.js";
 import { beginNativeMcpAuthorization } from "./native-mcp-authorization.js";
 import { supportsCompiledNativeMcpProvider } from "./native-mcp-availability.js";
@@ -35,14 +39,21 @@ export function supportsNativeMcpProvider(providerId: string): boolean {
   return supportsCompiledNativeMcpProvider(providerId);
 }
 
-async function invoke(
-  id: string,
+export type NativeMcpActionPort = {
+  list: () => ReturnType<typeof listNativeMcpTools>;
+  call: (
+    name: string,
+    args: JsonObject,
+  ) => ReturnType<typeof invokeNativeMcpTool>;
+};
+
+export async function invokeNativeMcpAction(
   operationId: string,
   input: Record<string, string>,
-  transport?: NativeProviderTransport,
+  port: NativeMcpActionPort,
 ) {
   if (operationId === "mcp.tools.list" && Object.keys(input).length === 0) {
-    const discovery = await listNativeMcpTools(id, transport);
+    const discovery = await port.list();
     return {
       label: discovery.server.name,
       items: discovery.tools.map((tool) => ({
@@ -66,12 +77,7 @@ async function invoke(
   }
   if (!isJsonObject(args))
     throw new NativeMcpError("arguments", 0, "json-object");
-  const result = await invokeNativeMcpTool(
-    id,
-    operationId.slice("mcp.tool:".length),
-    args,
-    transport,
-  );
+  const result = await port.call(operationId.slice("mcp.tool:".length), args);
   const parsed = CallToolResultSchema.parse(result);
   const text = parsed.content.filter((content) => content.type === "text");
   return {
@@ -82,13 +88,24 @@ async function invoke(
     })),
   };
 }
+async function invoke(
+  id: string,
+  operationId: string,
+  input: Record<string, string>,
+  transport?: NativeProviderTransport,
+) {
+  return invokeNativeMcpAction(operationId, input, {
+    list: () => listNativeMcpTools(id, transport),
+    call: (name, args) => invokeNativeMcpTool(id, name, args, transport),
+  });
+}
 export const nativeMcpConnectorDriver: NativeConnectorDriver = {
   cleanup: nativeMcpCleanup,
   supports: supportsNativeMcpProvider,
   configure: configureNativeMcpConnector,
   verify: verifyNativeMcpConnector,
   authorize: beginNativeMcpAuthorization,
-  invoke,
+  invoke: (id, operationId, input) => invoke(id, operationId, input),
 };
 
 export {

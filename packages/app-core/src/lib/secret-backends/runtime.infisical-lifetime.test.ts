@@ -128,7 +128,6 @@ it("withdraws idle issued-token admission before held cleanup without rewriting 
   expect(deviceConnection(connectionId)?.status).toBe("active");
   expect(open.signal).not.toBe(open.session.signal);
   expect(Object.isFrozen(open.session)).toBe(true);
-  await flush();
   const files = [...fixture.files];
   const observed = observeWithdrawal(open, backend);
   const calls = fixture.fetcher.mock.calls.length;

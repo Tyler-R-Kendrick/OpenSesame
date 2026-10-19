@@ -129,8 +129,8 @@ it("retained old instance drivers and revokers refuse to borrow a new capability
   if (!revoke) throw new Error("Missing revoker fixture");
   old.activation.dispose();
   const fresh = activate();
-  expect(() => driver.configure(input)).toThrow();
-  expect(() => driver.verify(saved.connectionId)).toThrow();
+  await expect(driver.configure(input)).rejects.toThrow();
+  await expect(driver.verify(saved.connectionId)).rejects.toThrow();
   await expect(
     driver.invoke(saved.connectionId, "provider.read", {}),
   ).rejects.toThrow();

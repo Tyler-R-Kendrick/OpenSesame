@@ -6,6 +6,7 @@ import {
   nativeVerified,
   nativeVisibleFields,
 } from "./native-connector-ui-values.js";
+import { nativeMethodConfigurable } from "./native-connector-ui.js";
 import type {
   NativeConnectorDescriptor,
   NativeFieldValues,
@@ -18,11 +19,13 @@ export function nativeInitialMethod(
 ) {
   if (view)
     return descriptor.methods.find(
-      (method) => method.available && method.id === view.configuration.method,
+      (method) =>
+        nativeMethodConfigurable(method) &&
+        method.id === view.configuration.method,
     );
   for (const id of ["oidc", "oauth", "mcp", "api-key", "native-local"]) {
     const method = descriptor.methods.find(
-      (entry) => entry.available && entry.id === id,
+      (entry) => nativeMethodConfigurable(entry) && entry.id === id,
     );
     if (method) return method;
   }
@@ -80,9 +83,17 @@ export function nativeMethodForEdit(
   inputMethod: NativeMethodDescriptor,
   view: NativeConnectorView | null | undefined,
   values: NativeFieldValues,
+  scopes?: Readonly<Record<string, readonly string[]>>,
 ): NativeMethodDescriptor {
   const method = nativeMethodInstructions(inputMethod, values);
   if (!view || !nativeVerified(view) || view.configuration.method !== method.id)
+    return method;
+  if (
+    method.id === "oauth" &&
+    scopes &&
+    JSON.stringify(scopes) !==
+      JSON.stringify(view.configuration.requestedScopes)
+  )
     return method;
   const saved = nativeFieldValues(
     method.fields,

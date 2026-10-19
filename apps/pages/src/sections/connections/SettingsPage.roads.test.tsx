@@ -141,7 +141,7 @@ describe("a key or a configuration seals on this device", () => {
     ).toBeTruthy();
   });
 
-  it("composes browser peering with OAuth management, without the legacy daemon refusal or a duplicate generic form", () => {
+  it("composes only browser peering without OAuth management, the legacy daemon refusal or a duplicate generic form", () => {
     draw("tailscale");
     expect(
       screen.getAllByRole("region", { name: "Tailscale browser node" }),
@@ -160,25 +160,31 @@ describe("a key or a configuration seals on this device", () => {
       "Provisioned node attributes",
       "Redirect URI to register",
       "Returned OAuth app JSON",
+      "Admin API access token",
       "Issued device auth key",
       "Tailnet",
     ])
-      expect(screen.getByLabelText(field, { exact: true })).toBeTruthy();
+      expect(screen.queryByLabelText(field, { exact: true })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Connect browser node" }),
     ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", {
+        name: /Download registration request|Register app with Tailscale|Save returned Tailscale app|Prepare device key handoff/,
+      }),
+    ).toBeNull();
     expect(
       screen.queryByText(/device enrollment requires tailscaled/),
     ).toBeNull();
     expect(screen.queryByLabelText("Auth key (required)")).toBeNull();
     expect(
-      screen.getByRole("region", {
+      screen.queryByRole("region", {
         name: "Tailscale OAuth app configuration",
       }),
-    ).toBeTruthy();
+    ).toBeNull();
     expect(
-      screen.getByRole("region", { name: "Tailscale device provisioning" }),
-    ).toBeTruthy();
+      screen.queryByRole("region", { name: "Tailscale device provisioning" }),
+    ).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Save configuration" }),
     ).toBeNull();

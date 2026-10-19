@@ -12,8 +12,8 @@ import {
   type NativeOAuthVerification,
   verifyNativeBrowserOAuth,
 } from "./native-browser-oauth-verify.js";
-import { assertNativeBrowserOAuthPolicy } from "./native-browser-policy.js";
 import { listNativeCodebergRepositories } from "./native-codeberg-provider.js";
+import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 /** Provider-specific public authorization implements the native driver contract. */
 import type { NativeConnectorDriver } from "./native-connector-drivers.js";
 import type { NativeGrant, NativePending } from "./native-connector-schema.js";
@@ -24,6 +24,7 @@ import {
 } from "./native-connector-store.js";
 import {
   type NativeProviderTransport,
+  captureNativeProviderAuthority,
   nativeProviderTransport,
 } from "./native-connector-transport.js";
 import { beginNativeDiscordAuthorization } from "./native-discord-consent.js";
@@ -42,16 +43,22 @@ import { configureNativeBrowserOAuthConnector } from "./native-browser-oauth-con
 export async function beginNativeBrowserAuthorization(
   id: string,
   actor = "user",
+  transport: NativeProviderTransport = nativeProviderTransport(),
 ): Promise<void> {
   const record = requireNativeOAuthRecord(id);
-  assertNativeBrowserOAuthPolicy(record.configuration.providerId);
+  assertNativeConfigurationPolicy(record.configuration, transport);
   if (record.configuration.providerId === "discord")
-    return beginNativeDiscordAuthorization(id, actor);
+    return beginNativeDiscordAuthorization(id, actor, transport);
   if (record.configuration.providerId === "twitch")
-    return beginNativeTwitchDeviceAuthorization(id, actor);
+    return beginNativeTwitchDeviceAuthorization(
+      id,
+      actor,
+      undefined,
+      transport,
+    );
   if (record.configuration.providerId === "google")
-    return beginNativeGoogleAuthorization(id, actor);
-  return beginPkce(id, actor);
+    return beginNativeGoogleAuthorization(id, actor, transport);
+  return beginPkce(id, actor, transport);
 }
 function persistVerification(
   record: NativeConnectorRecord,
@@ -92,13 +99,17 @@ function persistVerification(
       };
       return current;
     },
+    transport.assertCurrent,
   );
 }
-export async function verifyNativeBrowserOAuthConnector(id: string) {
-  const transport = nativeProviderTransport();
+export async function verifyNativeBrowserOAuthConnector(
+  id: string,
+  transport: NativeProviderTransport = nativeProviderTransport(),
+) {
+  transport.assertCurrent();
   const redirectUri = nativeOAuthRedirectUri();
   let record = requireNativeOAuthRecord(id);
-  assertNativeBrowserOAuthPolicy(record.configuration.providerId);
+  assertNativeConfigurationPolicy(record.configuration, transport);
   if (
     record.configuration.method !== "oauth" ||
     record.privateState.recovery.length ||
@@ -153,6 +164,7 @@ export async function verifyNativeBrowserOAuthConnector(id: string) {
           }));
           return current;
         },
+        transport.assertCurrent,
       );
     }
     throw error;
@@ -177,7 +189,9 @@ export async function invokeNativeBrowserOAuthConnector(
   id: string,
   operationId: string,
   input: Record<string, string> = {},
+  transport: NativeProviderTransport = nativeProviderTransport(),
 ) {
+  transport.assertCurrent();
   if (
     ![
       "provider.read",
@@ -191,29 +205,83 @@ export async function invokeNativeBrowserOAuthConnector(
   if (!held || !["connected", "reauthorize"].includes(held.status))
     throw new NativeOAuthError("expired");
   assertNativeOAuthOperationProvider(held.providerId, operationId);
-  const view = await verifyNativeBrowserOAuthConnector(id);
+  const view = await verifyNativeBrowserOAuthConnector(id, transport);
   if (operationId === "provider.guilds.read") {
     const grant = requireNativeOAuthRecord(id).privateState.grants.user;
     if (!grant) throw new NativeOAuthError("expired");
-    return listNativeDiscordGuilds(grant, nativeProviderTransport());
+    return listNativeDiscordGuilds(grant, transport);
   }
   if (operationId === "provider.repositories.read") {
     const grant = requireNativeOAuthRecord(id).privateState.grants.user;
     if (!grant) throw new NativeOAuthError("expired");
-    return listNativeCodebergRepositories(grant, nativeProviderTransport());
+    return listNativeCodebergRepositories(grant, transport);
   }
   return {
     label: view.identity?.label ?? "Provider account verified",
     items: [],
   };
 }
-export function createNativeBrowserOAuthDriver(): NativeConnectorDriver {
+function operationTransport(
+  base: NativeProviderTransport,
+  caller?: AbortSignal,
+): NativeProviderTransport {
+  const signal = AbortSignal.any([
+    ...(base.signal ? [base.signal] : []),
+    ...(caller ? [caller] : []),
+  ]);
+  const assertCurrent = () => {
+    base.assertCurrent();
+    signal.throwIfAborted();
+  };
+  assertCurrent();
+  return Object.freeze({
+    ...base,
+    signal,
+    assertCurrent,
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+      assertCurrent();
+      return base.fetch(input, {
+        ...init,
+        signal: AbortSignal.any([
+          signal,
+          ...(input instanceof Request ? [input.signal] : []),
+          ...(init?.signal ? [init.signal] : []),
+        ]),
+      });
+    },
+  });
+}
+export function createNativeBrowserOAuthDriver(
+  authority = captureNativeProviderAuthority(),
+): NativeConnectorDriver {
   return {
     supports: (id) => nativeBrowserOAuthProfile(id) !== null,
-    cleanup: nativeBrowserOAuthCleanup,
-    configure: configureNativeBrowserOAuthConnector,
-    authorize: beginNativeBrowserAuthorization,
-    verify: verifyNativeBrowserOAuthConnector,
-    invoke: invokeNativeBrowserOAuthConnector,
+    cleanup: {
+      ...nativeBrowserOAuthCleanup,
+      capture: () => operationTransport(authority.capture()),
+    },
+    configure: async (input) =>
+      configureNativeBrowserOAuthConnector(
+        input,
+        operationTransport(authority.capture()),
+      ),
+    authorize: async (id, actor) =>
+      beginNativeBrowserAuthorization(
+        id,
+        actor,
+        operationTransport(authority.capture()),
+      ),
+    verify: async (id) =>
+      verifyNativeBrowserOAuthConnector(
+        id,
+        operationTransport(authority.capture()),
+      ),
+    invoke: async (id, operation, input, signal) =>
+      invokeNativeBrowserOAuthConnector(
+        id,
+        operation,
+        input,
+        operationTransport(authority.capture(), signal),
+      ),
   };
 }

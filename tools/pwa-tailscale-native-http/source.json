@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Unactivated bounded native Go HTTPS core, owned host TLS test sources and official-source-derived raw js/wasm compile foundation. No binary committed; no browser transport, routing, DNS, peering or provider-operation success claim.",
+  "scope": "Pinned original-node native HTTPS composition and owned same-deployment assets; PWA worker/controller activation and public-provider proof remain separate.",
   "source": {
     "repository": "https://github.com/tailscale/tailscale",
     "commit": "b31d8a75af155bcf19853d1a66041782d13e56ae",
@@ -26,13 +26,13 @@
   },
   "compiler": {
     "repository": "https://github.com/tailscale/go",
-    "commit": "7275f792d406d3c386cc807937a45a4a7b699d42",
-    "version": "go1.26.6",
+    "commit": "186053ab2af2ef8fc43f3c1d1150216e89d4aff0",
+    "version": "go1.27.2",
     "platform": "linux-amd64",
-    "archiveURL": "https://github.com/tailscale/go/releases/download/build-7275f792d406d3c386cc807937a45a4a7b699d42/linux-amd64.tar.gz",
-    "archiveSha256": "720e20bdb17a58acbad3896b3c55179a1cb4669350a3d235250ade5448b5d906",
+    "archiveURL": "https://github.com/tailscale/go/releases/download/build-186053ab2af2ef8fc43f3c1d1150216e89d4aff0/linux-amd64.tar.gz",
+    "archiveSha256": "87ae6c914d5c78a30fbdd5cb7ffc279beeeeef33f031459cf7d85678a46b50b0",
     "publishedReleaseDigestMatches": true,
-    "binarySha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e",
+    "binarySha256": "1c018d87636d28f54a645a46bcd5e701316a3669e6115ed81fc7ab134483a4b1",
     "licenseSha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
     "criticalFiles": [
       {
@@ -41,11 +41,11 @@
       },
       {
         "path": "VERSION",
-        "sha256": "19a1647c6e8fcfdd9b4ecc10d4c83303d4211738d01daed0a822558d96896c54"
+        "sha256": "b8491590f9ef7072d890b6a47475283d420379df6b0b34df9ea58b45731b280d"
       },
       {
         "path": "bin/go",
-        "sha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e"
+        "sha256": "1c018d87636d28f54a645a46bcd5e701316a3669e6115ed81fc7ab134483a4b1"
       }
     ]
   },
@@ -81,8 +81,386 @@
       {
         "path": "nativehttp_security_test.go",
         "sha256": "f0ba8d3c0f15cfdd1f5703db662df9c6d5e9a6ebebb08566398304a5e9930343"
+      },
+      {
+        "path": "draining.go",
+        "sha256": "4614e8c67e76c69a2b60e1688c90c8d174b630ad821c126fdf09c2e05f725541"
+      },
+      {
+        "path": "draining_test.go",
+        "sha256": "506e4a7440c5fdf4f675639a7a2d25ef7a87d26c084a17315d12fd0566667b31"
+      },
+      {
+        "path": "operations.go",
+        "sha256": "6bdb6c6397f9fa824a0a0615cd4e71f6519cf2cd113cfd0aa1d2afde1d21da38"
+      },
+      {
+        "path": "operations_test.go",
+        "sha256": "0f8aef0a6b6fad954664ea175184429dbdcf51e3062c06d3ea17e2543ae0a8ad"
+      },
+      {
+        "path": "operations_tls_test.go",
+        "sha256": "d053cf6f7cc73ac425530431ee12086b6e7a2cae02ee755a71ff381f2625daef"
+      },
+      {
+        "path": "streaming.go",
+        "sha256": "717429cc2e7fc8d8b92bd1320c61d48f15190c575210a416916678c033e16e47"
+      },
+      {
+        "path": "streaming_test.go",
+        "sha256": "1797eaf26993a30703d7a9af3325b1cfdf782fcfc9150de4c522043d91079780"
+      },
+      {
+        "path": "streaming_drain_test.go",
+        "sha256": "fd1a4751d38a3acc61a16e2bf92a6d773314541e1b5dab967ce72fdfdacd415c"
       }
     ],
-    "qualification": "Stage only these three pinned overlays into a fresh owned directory. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not activate browser transport or certify public trust, routes, DNS, exit selection or provider integrations."
+    "qualification": "Stage only these eleven pinned overlays into a fresh owned directory. Physical drain and the bounded operation registry are unactivated foundations exercised by actual owned host TLS tests, not node/worker browser activation. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not certify public trust, routes, DNS, exit selection, JS publication or provider integrations. Pull streaming is connected to the fixed syscall/js and SDK bridge; Worker/controller and actual compiled PWA streaming acceptance remain separate. Go source, formatting, host or SDK fixture tests do not prove actual PWA streaming."
+  },
+  "nativeBridge": {
+    "status": "UNACTIVATED in the PWA; actual Go1.27.2 native package and original-node WASM compilation now proved in separately pinned private receipts. No WASM execution, worker/provider or browser route proved.",
+    "goPackagePath": "cmd/tsconnect/nativehttp",
+    "goConstructor": "BindJS; only the owned original-node Go adapter supplies captured context, approved target dialer, explicit trust and current authority guard. No JS-supplied dialer/trust or browser-fetch fallback.",
+    "javascriptExport": "bindNativeHTTP; capture one original node generation and actual node/provider/caller authority signals.",
+    "files": [
+      {
+        "path": "nativehttp_js.go",
+        "sha256": "08c9880bae8e7d81f08f55d5296f34264b10b3f64927c39a776d11a6d98479a3"
+      },
+      {
+        "path": "native-http.mjs",
+        "sha256": "24d2b6594afd2526ffc496980a0683f8c77fceb4043470d14a88523e49294270"
+      },
+      {
+        "path": "native-http.test.mjs",
+        "sha256": "64d2a5c5510281c9308882afb1b4314e82b11c41efa0eab0c56d083611a8d9a0"
+      },
+      {
+        "path": "streaming_js.go",
+        "sha256": "f10c27400e191ace9166f1b9ecd7055db6ff87320261dc32631d1f4ff3bdd5d0"
+      },
+      {
+        "path": "native-http-stream.mjs",
+        "sha256": "571a3d20ada6e24a642ffe18b4f28c9aa4ea539c4aab99dcfe82caf2cb1c66f7"
+      },
+      {
+        "path": "native-http-stream.test.mjs",
+        "sha256": "2749a175d3b66ac13aec6ba54147535065c684e99ea3530fd71b0560f6c849dd"
+      },
+      {
+        "path": "native-http-stream.test-support.mjs",
+        "sha256": "cdcb36030ec279481ca6e41cb0e9630f277409bc692dd0cf1d5dedde6c5c4600"
+      }
+    ],
+    "existingRuntimeImport": {
+      "package": "zod",
+      "version": "3.25.67",
+      "qualification": "Existing root lockfile dependency, no install or dependency change. The actual later worker bundle must verify its resolved graph.",
+      "entryPoint": "zod/v4/mini",
+      "initialization": "z.config({ jitless: true }) before schemas; no dynamic-code schema compilation in the isolated worker."
+    },
+    "qualification": "The fixed original-node staging helper now stages this exact bridge; existing build.mjs composition remains a separate small source change. JS controls prove negative Promise ownership only. Actual compiled node and compiler selection receipts are separate and do not certify browser TLS/route/peering or provider success."
+  },
+  "nativeNode": {
+    "status": "UNACTIVATED in the PWA; exact original-node hook compiled as raw JS/WASM using reviewed Go1.27.2 in owned private staging. No browser/route/provider proof yet.",
+    "files": [
+      {
+        "path": "nodehttp_js.go",
+        "sha256": "d169264ad57b5b2db4aa3ca116f9658d70049c3dff8055942ac0fe8ad90fd5d5"
+      },
+      {
+        "path": "native-node.patch",
+        "sha256": "cefc688e60359533459c0675ce3e1a1ae49f1eea9baf0440f61c1f26e5ff1749"
+      },
+      {
+        "path": "nodepeer.go",
+        "sha256": "6695ee45938ff9a2113a4f5daf2961d6ed1798e210b6b0a972ae4239f9696633"
+      },
+      {
+        "path": "nodepeer_test.go",
+        "sha256": "25950159bb5b760f7d29f34a1918dc702136a5cd2ff7eb771962022d9a937192"
+      },
+      {
+        "path": "native-extra-dns.go",
+        "sha256": "4ab259dc73d0a77dfb2bb7911b47ac0ab4b0b65d1ea55312815107c6bf7a0cc2"
+      },
+      {
+        "path": "native-extra-dns_test.go",
+        "sha256": "9181339725c8b6ae955134a5ddcfcf1b8c9b9bdb8b89a589d9dc687a0d3099e0"
+      }
+    ],
+    "stagingHelper": {
+      "path": "stage-native-node.mjs",
+      "sha256": "7ce907501db8356139aaeda6ca3cd548c8f53c674bc4b219047601c32483a0d6"
+    },
+    "patchTargets": [
+      {
+        "path": "cmd/tsconnect/wasm/wasm_js.go",
+        "beforeSha256": "3ce4f5554db771f5da26bb765c06c71a2115ca7d2e098b74638d28f3a109eccf",
+        "afterSha256": "244cba56f78c9dbfdbd03e0a069a091917488deff804c939fc46ef9700d39ce7"
+      },
+      {
+        "path": "net/tsdial/tsdial.go",
+        "beforeSha256": "6900ffd939e59db4195fe038345347696e6b602d921d8d7cac6034227f7fb9ac",
+        "afterSha256": "44bbb77a40ada4cc9de0bf3d42fae7113d912e4871892bb629052e9db012852a"
+      },
+      {
+        "path": "ipn/ipnlocal/node_backend.go",
+        "beforeSha256": "6e5bd3f1091437cbbbdc3256d2c4e22b95e4373595ed140d38c9d589a542881b",
+        "afterSha256": "a0832d65b115e3c3cb763a5b2833f80efd7e13d3d4db81f7219461202c7a8cf2"
+      }
+    ],
+    "configuration": {
+      "exitNodeID": "Explicit original node stable exit ID; no automatic exit selection or LAN access.",
+      "operatorCAPEM": "One to eight explicit operator CA certificates,64KiB total. No system/public root union.",
+      "targets": "One to sixteen exact HTTPS origins with masked grants. Exit retains original DNS/exit guards. Explicit peer uses original LocalBackend-owned MagicDNS/ExtraRecords once, then actual selected direct peer single-IP route and literal dial; no ambient/exit DNS fallback.",
+      "trustMode": "Explicit public uses only the pinned constrained NSS bundle and rejects any operatorCAPEM field. Omitted/operator keeps existing bounded operator-only trust. Never union either mode with system roots.",
+      "routeMode": "Only explicit peer selects original authorized stable peer host routes. Legacy omitted routeMode preserves existing exit path; no exit/subnet/default/self/fallback.",
+      "peerID": "Explicit original stable peer ID, disjoint from exitNodeID. First ready self/peer keys, addresses, exact selected host routes and authorization are permanently captured; withdrawal cancels original context."
+    },
+    "qualification": "Stage the existing eleven fixed nativeHttp overlays plus explicit publicTrust.files and both fixed Go JS bridges before this node hook. Original node/dialer/netmap/prefs, origin/IP/lease guards remain captured. Public/operator trust stay disjoint. Build-driver and PWA worker/controller composition remain separately reviewed activation steps."
+  },
+  "previousCompiler": {
+    "repository": "https://github.com/tailscale/go",
+    "commit": "7275f792d406d3c386cc807937a45a4a7b699d42",
+    "version": "go1.26.6",
+    "platform": "linux-amd64",
+    "archiveURL": "https://github.com/tailscale/go/releases/download/build-7275f792d406d3c386cc807937a45a4a7b699d42/linux-amd64.tar.gz",
+    "archiveSha256": "720e20bdb17a58acbad3896b3c55179a1cb4669350a3d235250ade5448b5d906",
+    "publishedReleaseDigestMatches": true,
+    "binarySha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e",
+    "licenseSha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+    "criticalFiles": [
+      {
+        "path": "LICENSE",
+        "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+      },
+      {
+        "path": "VERSION",
+        "sha256": "19a1647c6e8fcfdd9b4ecc10d4c83303d4211738d01daed0a822558d96896c54"
+      },
+      {
+        "path": "bin/go",
+        "sha256": "e584fecf1a0a28b4d22747045356c9985128672433776c4c76df6b35703d658e"
+      }
+    ]
+  },
+  "toolchainSelection": {
+    "status": "UNACTIVATED owned compiler/module selection; public constrained root pool remains separate.",
+    "selectedCompilerCommit": "186053ab2af2ef8fc43f3c1d1150216e89d4aff0",
+    "patchSha256": "745c11ce652ebff0b7b6114084158cb972e288814bb90f3c964345827e137453",
+    "beforeRevisionSha256": "ef84709d5ba3c76771e744088b60beee2874e3e147890867765264b651d44730",
+    "afterRevisionSha256": "7c588700c55b6663b74044d186b79df3970eb0fe44cfb5d177b846f490cf345a",
+    "originalFiles": {
+      "go.mod": "a83e830a7b4dffa80a6c2478b44758695d01c0a3e35e14b824a4e81824ca67d2",
+      "go.sum": "b52dcc94289be95d6b2f1d3f5766b308bc1f9d99425c6f6dbb8df6bdee148816",
+      "assert_ts_toolchain_match.go": "706034259edf1e58295742b97add7ca04781a8cff9027ac05641a7b2fb5f1844"
+    },
+    "module": "golang.org/x/crypto/x509roots/fallback",
+    "beforeVersion": "v0.0.0-20260113154411-7d0074ccc6f1",
+    "version": "v0.0.0-20261014201258-cf169cd0986f",
+    "sumLines": [
+      {
+        "before": "golang.org/x/crypto/x509roots/fallback v0.0.0-20260113154411-7d0074ccc6f1 h1:EBHQuS9qI8xJ96+YRgVV2ahFLUYbWpt1rf3wPfXN2wQ=",
+        "after": "golang.org/x/crypto/x509roots/fallback v0.0.0-20261014201258-cf169cd0986f h1:8ZNibFM9eOCl1u/iumJteD7A2qztZr4ifQGhBqlcBe8="
+      },
+      {
+        "before": "golang.org/x/crypto/x509roots/fallback v0.0.0-20260113154411-7d0074ccc6f1/go.mod h1:MEIPiCnxvQEjA4astfaKItNwEVZA5Ki+3+nyGbJ5N18=",
+        "after": "golang.org/x/crypto/x509roots/fallback v0.0.0-20261014201258-cf169cd0986f/go.mod h1:HPze8vhfG6fO06AM+VSvxRm4E3+5Yk375mgrJ5M2z1E="
+      }
+    ],
+    "qualification": "Keep original upstream go.mod/go.sum/assertion bytes; derive owned alternate module files by exact1requirement/2sumline replacement without reordering. Explicit go.toolchain.rev patch aligns reviewed compiler; never set mismatch environment or remove tailscale_go. Preserve current fallback bundle constraints when explicit public-pool construction is later activated.",
+    "files": [
+      {
+        "path": "select-toolchain.mjs",
+        "sha256": "8815ea544c57dd36068d98c526b3cedee2ac81be363cc85707e6bb26a9f4291c"
+      },
+      {
+        "path": "select-toolchain.test.mjs",
+        "sha256": "a00bda2591f1c498c19b86c845e05a9a6ad1235dd091073a85fe916d05a7b622"
+      },
+      {
+        "path": "native-toolchain.patch",
+        "sha256": "745c11ce652ebff0b7b6114084158cb972e288814bb90f3c964345827e137453"
+      }
+    ],
+    "testInput": "Source-backed selector tests require explicit verified PWA_NATIVE_HTTP_SOURCE; owned fixtures use os.tmpdir and clean up. No hardcoded scratch paths, fixture fallback or missing-source skip."
+  },
+  "privateLogging": {
+    "status": "Owned browser node remote logging disabled using upstream supported Config.Disabled, before startup banner/entry buffering/upload. No transport/authority/security assertion change.",
+    "patchSha256": "122bcde01b17e366c295d1719a75223346a08ebef3fb75a0a5c9dbc28c0e9a02",
+    "beforeSha256": "244cba56f78c9dbfdbd03e0a069a091917488deff804c939fc46ef9700d39ce7",
+    "afterSha256": "9e60d5b63ce8f4e374d31d64886bf601364e744f7f195f1e55db70a8e855d9af",
+    "sourceSemantics": {
+      "configPath": "logtail/config.go",
+      "sha256": "0d010f243185e90c275c1e631bd390feaad6e0c80e09abbd724722a0c2768cea",
+      "implementationPath": "logtail/logtail.go",
+      "implementationSha256": "8506e648fc31336e71cade79310984b11c643308cc09eccc2e81e9117772f7ac"
+    },
+    "qualification": "Apply exact original-node hook first, then this one-field patch. Explicit remote-logtail privacy correction; no global browser fetch patch, fake upload success or reliance on ignored TS_DISABLE_LOGTAIL environment. Original logtail attempt and NeedsLogin-only failed proof retained. Native HTTPS/provider/route guards remain byte-identical.",
+    "files": [
+      {
+        "path": "stage-private-logging.mjs",
+        "sha256": "b4c927ce264ad3a36770cb96edbd797b854a746255ee40c1285e8b7a75cee251"
+      },
+      {
+        "path": "stage-private-logging.test.mjs",
+        "sha256": "febf5b2816328ef30ef9ea9551e89072e64474a70c46acc530a9331f2c4a2956"
+      },
+      {
+        "path": "disable-logtail.patch",
+        "sha256": "122bcde01b17e366c295d1719a75223346a08ebef3fb75a0a5c9dbc28c0e9a02"
+      }
+    ]
+  },
+  "publicTrust": {
+    "status": "Explicit public pool constructor/node mode; runtime/browser activation remains separate until actual proof.",
+    "module": "golang.org/x/crypto/x509roots/fallback",
+    "version": "v0.0.0-20261014201258-cf169cd0986f",
+    "commit": "cf169cd0986fa0e2e0963ee5f8d234885f869750",
+    "sum": "h1:8ZNibFM9eOCl1u/iumJteD7A2qztZr4ifQGhBqlcBe8=",
+    "goModSum": "h1:HPze8vhfG6fO06AM+VSvxRm4E3+5Yk375mgrJ5M2z1E=",
+    "roots": 120,
+    "constrainedRoots": 1,
+    "constraintSemantics": "Original NSS per-root callbacks are passed to x509.CertPool.AddCertWithConstraint. Izenpe distrustAfter2026-04-15T23:59:59Z applies to every supplied chain certificate NotBefore. No flattened DER-only pool.",
+    "files": [
+      {
+        "path": "public-roots.go",
+        "sha256": "76e930b465f6574ec61b3f09b5685c8477eda4e1513d6ea030a99fe2c5389eb1"
+      },
+      {
+        "path": "public-roots_test.go",
+        "sha256": "857fe03bbec99609357f943d00049206b0ad8cf816657c986c93f24b0a9c3cb4"
+      }
+    ],
+    "moduleFiles": [
+      {
+        "path": "bundle/roots.go",
+        "sha256": "692c7dcd059312d358c409d18fe2ea4a0f43d5f8968c940cce3ab811ac44080e"
+      },
+      {
+        "path": "bundle/bundle.go",
+        "sha256": "fed9543dcf8a701f9397d8be713b611e2551dfe72c0ac330443e95c902060e32"
+      },
+      {
+        "path": "bundle/bundle.der",
+        "sha256": "4f13b21a3f9a37e5d775d326eaab7c481481b811b89b67326293415997ec7f5c"
+      },
+      {
+        "path": "go.mod",
+        "sha256": "a28132572ab7a286be033b3852de145f25ee0d6a94f73d01ca221fdf6b7be825"
+      },
+      {
+        "path": "LICENSE",
+        "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+      }
+    ],
+    "nodeHookBeforeSha256": "16c407371eefc1b0335bee32e063708b39743999bafedd2a428d0d9ed0860e1b",
+    "nodeHookAfterSha256": "5fba465c474d199d015e07a9c163d172661dfeae553526184a1bc8b0dac8c3f8",
+    "license": "BSD-3-Clause; preserve upstream LICENSE copyright/conditions/disclaimer in source and binary distribution notices. Do not copy generated roots or reinterpret NSS constraints.",
+    "qualification": "Imports fallback/bundle only; never parent fallback init, SystemCertPool or SetFallbackRoots. Explicit owned alternate modfile/sum selection and reviewed Go1.27.2 compiler are prerequisites. Stage exactly the two fixed public root files, not a generic directory loader; build/native-worker/public-provider activation is not claimed by this metadata."
+  },
+  "composition": {
+    "status": "Unactivated assets; no normal PWA provider-runtime completion claim.",
+    "modSha256": "7c23d4321c3e9609e818555d16c39cb4632efe9c7c486fa2791f870a88048149",
+    "sumSha256": "c8b78cd848ef3af9324602d9988034f2cdce5aae523f5c970b5b5fb9e9f21e8d",
+    "runtimeSha256": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14",
+    "thirdPartySha256": "9467842c7b63c53ca102a9485075ee375f3ac3a03b51764ed2d247d530df5fa2",
+    "zod": {
+      "version": "3.25.67",
+      "packageSha256": "b60783bbe1e3fe898d6d8a8ab9613df906cd2cb16f19ce95a74e4e71395d1093",
+      "licenseSha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8",
+      "entryPoint": "zod/v4/mini"
+    },
+    "vite": {
+      "version": "6.4.3",
+      "packageSha256": "a1d0149fd986fd34b6d35503d2c0d8d9f743c4dbaaf94fbc11812bc84b05884d"
+    },
+    "bridgeSha256": "2f1fa90dc075cd2d9869d7991603bc93c3f4908712b635c886f35062f725558a",
+    "files": [
+      {
+        "path": "build.mjs",
+        "sha256": "c3ca5600b595d52029b6c902a64e5253eabc4540b4aba5ed42ce0a93e414dd83"
+      },
+      {
+        "path": "compose-native.mjs",
+        "sha256": "0cca86891f899da38f3c23e2201486a14a9cf885ce2e530ff3d772466719c95e"
+      },
+      {
+        "path": "native-assets.mjs",
+        "sha256": "e81f77cc59a739df60d56c99257b84dc3baba13fc1c8e588a8b7660e5d811a4a"
+      },
+      {
+        "path": "compose-native.test.mjs",
+        "sha256": "f0a5ed8c9643a3c47433ad5c63e05b54a8459663c93bf0b4d7e20a1aa829daa9"
+      },
+      {
+        "path": "compress-wasm.mjs",
+        "sha256": "aa404d2be3b9660b0a8f6a74c14e91ce32b30d5762914add414f5684c7532e2c"
+      },
+      {
+        "path": "compress-wasm.test.mjs",
+        "sha256": "bd80b39e7e03a3751c50d354e35cb21eae6953a86f015437b554bd50872bddcb"
+      },
+      {
+        "path": "task-resources.mjs",
+        "sha256": "09739ab37170b2f6ae152ba74828ed2ab6fdaee444609eeeae915990f57a14ac"
+      },
+      {
+        "path": "task-resources.test.mjs",
+        "sha256": "ca28d6790d5034e23afc1c9fc75daf52de68766f65121d884e8b1a3b2f8aea92"
+      },
+      {
+        "path": "preparation-diagnostics.mjs",
+        "sha256": "b9fbcde14455a5f874958a1a69a9a04673ca46a19c4eab9c22e87746c2988735"
+      },
+      {
+        "path": "build-failure-context.test.mjs",
+        "sha256": "bde68db32c22110709fd0c89b0f158fda8bf6674344672fdb9402fc862dbcc46"
+      },
+      {
+        "path": "build-failure-cli.test.mjs",
+        "sha256": "e7ae9fe63dea6a55127fe74c1a5c2ff0409a07e38a1df3ca55cdcefc3cbf43d6"
+      },
+      {
+        "path": "apply-native-patch.mjs",
+        "sha256": "14c6b8edd70ca256658d551a6957070a0aac616ea9b4e2a5a7374358c1b823b4"
+      },
+      {
+        "path": "apply-native-patch.test.mjs",
+        "sha256": "2b75c643228adddd17f0237e8612675052c0b1845dd3c8dd8e09820ad28a6bfc"
+      },
+      {
+        "path": "compressor-archive.mjs",
+        "sha256": "2745bfaf85567c2084c4bee9bf95c1cd479472186675b1c0390c71ae1640f389"
+      },
+      {
+        "path": "compressor-archive.test.mjs",
+        "sha256": "23a33029386f78845e0cbf6559848ee24e0d5f43fac88164ad116d019acd1f75"
+      },
+      {
+        "path": "pigz-2.8.tar.gz",
+        "sha256": "eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0"
+      },
+      {
+        "path": "distribution-cache.mjs",
+        "sha256": "c75af141f5232b0a2bbf2e009691c1ed612907a367f8740dd80cccc208bda862"
+      }
+    ],
+    "compressor": {
+      "version": "2.8",
+      "archiveURL": "https://zlib.net/pigz/pigz-2.8.tar.gz",
+      "archiveSha256": "eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0",
+      "arguments": ["-11", "-I", "3", "-p", "2", "-b", "1024", "-n", "-c"],
+      "qualification": "Owned build-only source compilation, not an installed PWA dependency. Each output must decode to the exact complete input bytes; source archive, notices, compiler and executable provenance are retained. No four-phase Go build or runtime feature change."
+    },
+    "bridgeUnminifiedSha256": "903c084b8ebb058e968adc5cab043fe5fa19a0af924042c1df19021b3ea6207f",
+    "runtimeMinifiedSha256": "3e61b3267aa67a553c289335805e5947e2f80935f782d3d6bcb30adb15674017",
+    "terser": {
+      "version": "5.51.2",
+      "packageSha256": "22ac1ee8fda1c4088a9d1615c5aacaa0562939d89dce2ff8bdfae7b3ff029067",
+      "licenseSha256": "901d0a7fcaccaae9917d165039c0473c354e5da2e0e94140dde67aad9ffb19da",
+      "options": "ecma2022/module;compress.passes2;mangle;preserve Copyright|license comments"
+    }
   }
 }

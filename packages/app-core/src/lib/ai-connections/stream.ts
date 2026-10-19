@@ -1,7 +1,11 @@
 import { isJsonObject, isString } from "@opensesame/os-domain";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { aiCompletionSeams } from "./http.js";
-import { AiConnectionError, type AiInferenceFamily } from "./types.js";
+import {
+  AiConnectionError,
+  type AiInferenceFamily,
+  textAiFamily,
+} from "./types.js";
 
 function malformed(): AiConnectionError {
   return new AiConnectionError(
@@ -106,6 +110,8 @@ export async function readAiTextStream(
   check: () => void,
   signal: AbortSignal,
 ): Promise<string> {
+  textAiFamily(family);
+
   if (
     !response.headers
       .get("content-type")
@@ -120,7 +126,6 @@ export async function readAiTextStream(
   let answer = "";
   let bytes = 0;
   let completed = false;
-  let drained = false;
   const abort = () => {
     void reader.cancel().catch(() => undefined);
   };
@@ -148,10 +153,7 @@ export async function readAiTextStream(
       const next = await reader.read();
       check();
       signal.throwIfAborted();
-      if (next.done) {
-        drained = true;
-        break;
-      }
+      if (next.done) break;
       bytes += next.value.byteLength;
       if (bytes > 4 * 1024 * 1024) throw malformed();
       pending = (
@@ -171,9 +173,7 @@ export async function readAiTextStream(
     check();
   } finally {
     signal.removeEventListener("abort", abort);
-    // A drained body is already complete; cancelling it can still abort the
-    // underlying request in some browsers, so retire it without cancellation.
-    if (!drained) await reader.cancel().catch(() => undefined);
+    await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
   aiCompletionSeams.observe?.({

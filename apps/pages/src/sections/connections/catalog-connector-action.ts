@@ -10,6 +10,7 @@ import { readLinearConnector } from "@opensesame/app-core/lib/linear-store.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
+import { nativeMethodConfigurable } from "./connect/native-connector-ui.js";
 
 function specializedRoute(providerId: string): boolean {
   return (
@@ -45,6 +46,7 @@ export function catalogConnectorAction(
   const routes = descriptor?.methods.map((method) => ({
     method: method.id,
     available: method.available,
+    configurable: nativeMethodConfigurable(method),
   })) ?? [
     {
       method: "specialized" as const,

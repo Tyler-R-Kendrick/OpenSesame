@@ -74,7 +74,6 @@ function observeRequest(state, context, label, request) {
     responseAt: null,
     terminalAt: null,
     status: null,
-    failure: null,
     correlation: null,
     terminal: null,
     terminalSeq: null,
@@ -113,8 +112,6 @@ function observeResponse(state, response) {
 }
 function observeTerminal(state, request, terminal) {
   const row = nativeRow(state, request);
-  if (terminal === "failed")
-    row.failure = (request.failure()?.errorText ?? "unknown").slice(0, 128);
   if (row.terminal) reject(state, `duplicate-native-terminal:${row.id}`);
   row.terminal = terminal;
   row.terminalAt = Date.now();
@@ -321,7 +318,6 @@ function snapshot(state) {
     responseAt: row.responseAt,
     terminalAt: row.terminalAt,
     status: row.status,
-    failure: row.failure,
     correlation: row.correlation,
     terminal: row.terminal,
     disposition:

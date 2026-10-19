@@ -34,29 +34,44 @@ export async function aiConnectionFetch(
   check: () => void,
   body?: ReturnType<typeof aiInferenceRequest>["body"],
 ): Promise<Response> {
-  const base = aiConnectionBase(draft.baseUrl);
-  if (url.origin !== base.origin || !url.pathname.startsWith(base.pathname))
-    throw new AiConnectionError(
-      "configuration",
-      "The AI request must stay within its configured endpoint.",
-    );
-  check();
-  transport.assertCurrent();
-  transport.signal.throwIfAborted();
+  assertAiRequest(draft, url, transport, check);
+  const request: AiProtocolRequest = {
+    method: body === undefined ? "GET" : "POST",
+    headers: aiConnectionHeaders(draft),
+  };
+  if (body !== undefined) request.body = JSON.stringify(body);
+  return aiProtocolFetch(draft, url, request, transport, check);
+}
+
+type AiProtocolRequest = {
+  method: "GET" | "POST";
+  headers: HeadersInit;
+  body?: string | ArrayBuffer;
+};
+
+/** Binary and JSON protocols share the same captured authority and HTTP policy. */
+export async function aiProtocolFetch(
+  draft: Pick<AiConnectionDraft, "baseUrl">,
+  url: URL,
+  request: AiProtocolRequest,
+  transport: AiConnectionTransport,
+  check: () => void,
+): Promise<Response> {
+  assertAiRequest(draft, url, transport, check);
   const signal = AbortSignal.any([
     transport.signal,
     AbortSignal.timeout(60_000),
   ]);
   const init: RequestInit = {
-    method: body === undefined ? "GET" : "POST",
-    headers: aiConnectionHeaders(draft),
+    method: request.method,
+    headers: request.headers,
     signal,
     credentials: "omit",
     redirect: "error",
     cache: "no-store",
     referrerPolicy: "no-referrer",
   };
-  if (body !== undefined) init.body = JSON.stringify(body);
+  if (request.body !== undefined) init.body = request.body;
   let response: Response;
   try {
     response = await transport.fetch(url, init);
@@ -95,17 +110,13 @@ export async function readAiJson(
     );
   const chunks: Uint8Array[] = [];
   let length = 0;
-  let drained = false;
   let value: BoundaryValue = null;
   try {
     for (;;) {
       check();
       const next = await reader.read();
       check();
-      if (next.done) {
-        drained = true;
-        break;
-      }
+      if (next.done) break;
       length += next.value.byteLength;
       if (length > 512 * 1024)
         throw new AiConnectionError(
@@ -129,8 +140,7 @@ export async function readAiJson(
       );
     }
   } finally {
-    // Retire a drained body without cancellation (see readAiTextStream).
-    if (!drained) await reader.cancel().catch(() => undefined);
+    await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
   aiCompletionSeams.observe?.({
@@ -141,4 +151,21 @@ export async function readAiJson(
     format: "json",
   });
   return value;
+}
+
+function assertAiRequest(
+  draft: Pick<AiConnectionDraft, "baseUrl">,
+  url: URL,
+  transport: AiConnectionTransport,
+  check: () => void,
+): void {
+  const base = aiConnectionBase(draft.baseUrl);
+  if (url.origin !== base.origin || !url.pathname.startsWith(base.pathname))
+    throw new AiConnectionError(
+      "configuration",
+      "The AI request must stay within its configured endpoint.",
+    );
+  check();
+  transport.assertCurrent();
+  transport.signal.throwIfAborted();
 }

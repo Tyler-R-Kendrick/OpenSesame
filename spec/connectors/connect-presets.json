@@ -3213,6 +3213,54 @@
   ],
   "api_key": [
     {
+      "service": "agentcard",
+      "key_url": "https://docs.agentcard.sh/api-reference/access-tokens/create",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.agentcard.sh"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.agentcard.sh/api/v2",
+        "account_field": "organization_id"
+      },
+      "instructions": "Supply a **platform access token** minted from your own client credentials using the [official access-token endpoint](https://docs.agentcard.sh/api-reference/access-tokens/create). It expires after one hour; replace it when authorization expires. Do not enter a user connection token or a member-card token. The same HTTPS host serves test and production; the token decides the mode. This connection only reads your platform organization and mode, never cards, card credentials or payment writes. Both token minting and renewal remain explicit in your own Agentcard account.",
+      "docs_url": "https://docs.agentcard.sh/api-reference/access-tokens/introspect",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Platform Bearer only; fixed GET /api/v2 with api_v2, organization_id and test_mode required. No member/card endpoints, token minting, refresh or environment fallback.",
+      "sources": [
+        "https://docs.agentcard.sh/api-reference/overview.md",
+        "https://docs.agentcard.sh/api-reference/access-tokens/introspect.md"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "stripe",
+      "key_url": "https://dashboard.stripe.com/apikeys",
+      "key_prefix": "rk_",
+      "service_urls": ["https://api.stripe.com"],
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "instructions": "Use a restricted API key with Balance Read permission. This connection only reads available and pending account balances; it cannot create charges, refunds, payouts or cards. The key is sealed in this vault and must be re-entered when changed.",
+      "docs_url": "https://docs.stripe.com/api/balance/balance_retrieve",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.stripe.com/v1/balance",
+        "headers": {
+          "Stripe-Version": "2026-09-30.endive"
+        },
+        "required_fields": ["object", "available", "pending", "livemode"],
+        "success": [
+          {
+            "field": "object",
+            "equals": "balance"
+          }
+        ]
+      }
+    },
+    {
       "service": "302ai",
       "key_url": "https://doc.302.ai",
       "header": "Authorization",
@@ -3349,13 +3397,13 @@
       ],
       "verify": {
         "method": "GET",
-        "url": "https://{application_id}-dsn.algolia.net/1/indexes",
+        "url": "https://{application_id}-dsn.algolia.net/1/indexes?page=0&hitsPerPage=20",
         "account_field": null,
         "headers": {
           "X-Algolia-Application-Id": "{application_id}"
         }
       },
-      "instructions": "In the Algolia dashboard open **Settings → API Keys**. Copy the **Application ID**, then under **All API Keys** click **New API Key** and grant only the `listIndexes` ACL (add `search` if needed). Copy the key.",
+      "instructions": "In the Algolia dashboard open **Settings → API Keys**. Copy the **Application ID**, then under **All API Keys** click **New API Key** and grant only the `listIndexes` ACL (add `search` if needed). Copy the key. If an existing connection asks to be configured again after an update, re-enter its API key and select Verify and connect Algolia. Its saved connection and sealed key stay intact until verification succeeds.",
       "docs_url": "https://www.algolia.com/doc/rest-api/search/",
       "probe_status": 403,
       "confidence": "medium",
@@ -3699,7 +3747,7 @@
         "url": "https://api.buildkite.com/v2/access-token",
         "account_field": "uuid"
       },
-      "instructions": "In Buildkite open **Personal Settings → API Access Tokens**, click **New API Access Token**, pick the organization, tick only **read_user** (plus read scopes you need), and copy it (shown once).",
+      "instructions": "Create a Buildkite personal API access token for your organization with read_pipelines for pipeline inventory. Token verification uses /v2/access-token. Enter the organization slug below to list its pipelines; no write scope is needed.",
       "docs_url": "https://buildkite.com/docs/apis/rest-api#authentication",
       "probe_status": 401,
       "confidence": "high",
@@ -3708,7 +3756,15 @@
         "https://buildkite.com/docs/apis/rest-api#authentication",
         "https://buildkite.com/docs/apis/rest-api/access-token"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "organization_slug",
+          "label": "Buildkite organization slug",
+          "placeholder": "my-organization",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "calendly",
@@ -3792,7 +3848,7 @@
         "url": "https://circleci.com/api/v2/me",
         "account_field": "login"
       },
-      "instructions": "In CircleCI open **User Settings → Personal API Tokens**, click **Create New Token**, name it and copy it (shown once).",
+      "instructions": "Create a CircleCI personal API token in User Settings → Personal API Tokens. Project tokens are not supported by API v2. To list pipelines, enter the project slug as vcs/org/repository; GitLab and GitHub App projects use circleci/organization-ID/project-ID from their settings.",
       "docs_url": "https://circleci.com/docs/guides/toolkit/managing-api-tokens/",
       "probe_status": 401,
       "confidence": "high",
@@ -3801,7 +3857,15 @@
         "https://circleci.com/docs/guides/toolkit/managing-api-tokens/",
         "https://circleci.com/docs/api/v2/index.html"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "project_slug",
+          "label": "CircleCI project slug",
+          "placeholder": "gh/my-organization/my-repository",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "clerk",
@@ -4235,7 +4299,7 @@
         "url": "https://api.digitalocean.com/v2/account",
         "account_field": "account.email"
       },
-      "instructions": "In DigitalOcean open **API → Tokens**, click **Generate New Token**, name it, set an expiry, choose **Custom Scopes** with **account:read**, and copy it (shown once).",
+      "instructions": "In DigitalOcean open API → Tokens and generate a personal access token with Custom Scopes: account:read for account verification and droplet:read for droplet inventory. Set an expiry and copy the token once. No write scope is needed.",
       "docs_url": "https://docs.digitalocean.com/reference/api/create-personal-access-token/",
       "probe_status": 401,
       "confidence": "high",
@@ -4525,16 +4589,33 @@
         "url": "https://gitlab.com/api/v4/user",
         "account_field": "username"
       },
-      "instructions": "In GitLab open **Avatar → Edit profile → Access tokens**, click **Add new token**, set a name and expiry, tick only **read_user** (add **read_api** if needed), and copy the token (shown once).",
+      "instructions": "In GitLab open **Avatar → Edit profile → Access tokens**, create a legacy personal access token and copy it (shown once). Use **read_user** for account verification and **read_api** to list project memberships. For encrypted vault backups, select **api**, provide both the project and an existing writable branch, and grant the account repository write access. Backup files contain only the sealed OpenSesame vault; the API key stays in the on-device vault.",
       "docs_url": "https://docs.gitlab.com/user/profile/personal_access_tokens/",
       "probe_status": 401,
       "confidence": "high",
       "notes": "PRIVATE-TOKEN: <token> header is equivalent to Authorization: Bearer. Self-managed instances use their own host.",
       "sources": [
         "https://docs.gitlab.com/user/profile/personal_access_tokens/",
-        "https://docs.gitlab.com/api/users/"
+        "https://docs.gitlab.com/api/users/",
+        "https://docs.gitlab.com/api/repository_files/",
+        "https://docs.gitlab.com/api/branches/"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "backup_project",
+          "label": "Backup project (optional)",
+          "placeholder": "group/project or numeric project ID",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_branch",
+          "label": "Backup branch (optional)",
+          "placeholder": "main",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "gmicloud",
@@ -4918,24 +4999,57 @@
       "basic": null,
       "key_prefix": null,
       "service_urls": [
-        "https://api.lithic.com/v1",
-        "https://sandbox.lithic.com/v1"
+        "https://sandbox.lithic.com/v1",
+        "https://api.lithic.com/v1"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.lithic.com/v1/cards?page_size=1",
+        "url": "https://sandbox.lithic.com/v1/cards?page_size=20",
+        "headers": {
+          "api-version": "2026-07-01"
+        },
         "account_field": null
       },
-      "instructions": "Sign in to [Lithic](https://app.lithic.com/settings) and copy the API key from **Settings** (Sandbox key by default; a Production key appears once production is enabled).",
+      "instructions": "Copy an API key from [Lithic Settings](https://app.lithic.com/settings). Select **Sandbox** for a sandbox key or **Production** for a production key. Only the first 20 card identifiers, states and types are read; card details and payment writes are unavailable.",
       "docs_url": "https://docs.lithic.com/docs/api-basics",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "Raw key in Authorization. Sandbox keys work only against https://sandbox.lithic.com/v1.",
+      "notes": "Raw Authorization key, explicitly selected environment, api-version 2026-07-01. GET first-page non-PCI card inventory only.",
       "sources": [
         "https://docs.lithic.com/docs/get-api-key.md",
-        "https://docs.lithic.com/docs/api-basics.md"
+        "https://docs.lithic.com/docs/api-basics.md",
+        "https://docs.lithic.com/docs/api-versioning.md",
+        "https://docs.lithic.com/reference/getcards.md"
       ],
-      "template_params": []
+      "template_params": [],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Sandbox",
+          "description": "Use only your sandbox API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox.lithic.com/v1/cards?page_size=20",
+            "headers": {
+              "api-version": "2026-07-01"
+            },
+            "account_field": null
+          }
+        },
+        {
+          "id": "production",
+          "label": "Production",
+          "description": "Use only your production API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://api.lithic.com/v1/cards?page_size=20",
+            "headers": {
+              "api-version": "2026-07-01"
+            },
+            "account_field": null
+          }
+        }
+      ]
     },
     {
       "service": "llmgateway",
@@ -5011,7 +5125,7 @@
       "service": "marqeta",
       "key_url": "https://app.marqeta.com/development",
       "header": "Authorization",
-      "scheme": "Basic",
+      "scheme": null,
       "basic": {
         "username": "{key}",
         "password": "{admin_access_token}"
@@ -5019,20 +5133,24 @@
       "key_prefix": null,
       "service_urls": [
         "https://sandbox-api.marqeta.com/v3",
-        "https://api.marqeta.com/v3"
+        "https://{program_host}/v3"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://sandbox-api.marqeta.com/v3/users?count=1",
+        "url": "https://sandbox-api.marqeta.com/v3/users?count=10&start_index=0&fields=token%2Cactive",
         "account_field": null
       },
-      "instructions": "Sign in to the [Marqeta developer dashboard](https://app.marqeta.com/development); your sandbox **Application token** and **Admin access token** are shown there. Production credentials come from Marqeta.",
+      "instructions": "Copy the **Application token**, **Admin access token** and API base URL from your [Marqeta dashboard](https://app.marqeta.com/development). Select **Public sandbox** or **Program API**. For Program API enter only the hostname from that base URL, without https://, a port or /v3. The original approved native route must allow that exact HTTPS origin. Only the first 10 user identifiers and active status, when returned, are read; no personal details, card data or writes are requested.",
       "docs_url": "https://www.marqeta.com/docs/developer-guides/core-api-quick-start",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "HTTP Basic requires the application token as username and the separate admin access token as password; both are secrets. Sandbox credentials work only on sandbox-api.marqeta.com. Production hosts are program-specific. Connect remains refused for wallet issuing (ADR 0086/0123).",
+      "notes": "HTTP Basic Application token/Admin access token; both sealed. Fixed /v3/users first page with fields=token,active. Program HTTPS origin explicitly configured and fingerprinted; no universal production-host fallback.",
       "sources": [
-        "https://www.marqeta.com/docs/developer-guides/core-api-quick-start.md"
+        "https://www.marqeta.com/docs/developer-guides/core-api-quick-start.md",
+        "https://www.marqeta.com/docs/core-api/authentication.md",
+        "https://www.marqeta.com/docs/core-api/users/list-users.md",
+        "https://www.marqeta.com/docs/core-api/field-filtering.md",
+        "https://www.marqeta.com/docs/core-api/sorting-and-pagination.md"
       ],
       "template_params": [],
       "additional_credentials": [
@@ -5042,6 +5160,37 @@
           "placeholder": "",
           "required": true,
           "secret": true
+        }
+      ],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Public sandbox",
+          "description": "Use the application and admin tokens for the public sandbox.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox-api.marqeta.com/v3/users?count=10&start_index=0&fields=token%2Cactive",
+            "account_field": null
+          }
+        },
+        {
+          "id": "program",
+          "label": "Program API",
+          "description": "Use the exact program API host and its application/admin tokens from your dashboard.",
+          "verify": {
+            "method": "GET",
+            "url": "https://{program_host}/v3/users?count=10&start_index=0&fields=token%2Cactive",
+            "account_field": null
+          },
+          "template_params": [
+            {
+              "name": "program_host",
+              "label": "Program API host (from dashboard)",
+              "placeholder": "your-program-api.example.com",
+              "required": true,
+              "secret": false
+            }
+          ]
         }
       ]
     },
@@ -5871,24 +6020,46 @@
       "basic": null,
       "key_prefix": null,
       "service_urls": [
-        "https://api.privacy.com/v1",
-        "https://sandbox.privacy.com/v1"
+        "https://sandbox.privacy.com/v1",
+        "https://api.privacy.com/v1"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.privacy.com/v1/cards?page_size=1",
+        "url": "https://sandbox.privacy.com/v1/cards?page=1&page_size=20",
         "account_field": null
       },
-      "instructions": "Sign in to [Privacy.com](https://app.privacy.com/account), open **Account**, scroll to **API Key**, and copy (or regenerate) the key. Write access requires an Issuing key from api@privacy.com; reading cards does not.",
+      "instructions": "Copy an API key from [Privacy Account](https://app.privacy.com/account). Select **Sandbox** for a sandbox key or **Production** for a production key. Only the first 20 card identifiers, states and types are read; card details and payment writes are unavailable.",
       "docs_url": "https://developers.privacy.com/reference/get_cards-1",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "Header is 'Authorization: api-key <key>' — scheme 'api-key' is outside the Bearer/Basic/Token set. No header → 403 (nginx); a bad key → 401. Sandbox: sandbox.privacy.com.",
+      "notes": "Authorization: api-key <key>, explicitly selected environment, v1 endpoint. Read-only first-page card inventory; no custom version header.",
       "sources": [
         "https://developers.privacy.com/reference/get_cards-1.md",
         "https://developers.privacy.com/llms.txt"
       ],
-      "template_params": []
+      "template_params": [],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Sandbox",
+          "description": "Use only your sandbox API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox.privacy.com/v1/cards?page=1&page_size=20",
+            "account_field": null
+          }
+        },
+        {
+          "id": "production",
+          "label": "Production",
+          "description": "Use only your production API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://api.privacy.com/v1/cards?page=1&page_size=20",
+            "account_field": null
+          }
+        }
+      ]
     },
     {
       "service": "railway",
@@ -6317,17 +6488,26 @@
       "scheme": "Bearer",
       "basic": null,
       "key_prefix": "rk_",
-      "service_urls": ["https://api.stripe.com/v1"],
+      "service_urls": ["https://api.stripe.com"],
       "verify": {
         "method": "GET",
-        "url": "https://api.stripe.com/v1/issuing/cards?limit=1",
-        "account_field": null
+        "url": "https://api.stripe.com/v1/issuing/cards?limit=20",
+        "headers": {
+          "Stripe-Version": "2026-09-30.endive"
+        },
+        "required_fields": ["object", "data", "has_more", "url"],
+        "success": [
+          {
+            "field": "object",
+            "equals": "list"
+          }
+        ]
       },
-      "instructions": "In the Stripe Dashboard open **Developers → API keys**, click **Create restricted key**, set **Issuing Cards** and **Issuing Cardholders** to **Read**, leave the rest **None**, and copy it (`rk_live_…`/`rk_test_…`).",
-      "docs_url": "https://docs.stripe.com/issuing",
+      "instructions": "Create a restricted Stripe key with Issuing Cards Read permission. This connection only lists the first 20 Issuing card summaries; it cannot create or modify cards, spend money or read card numbers/CVC. Issuing must be enabled on the account. The key is sealed in this vault and must be re-entered when changed.",
+      "docs_url": "https://docs.stripe.com/api/issuing/cards/list",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "Secret keys (sk_) also work; restricted keys (rk_) are least privilege. Issuing must be enabled on the account.",
+      "notes": "Fixed read-only Issuing card inventory through the common native transport. No cardholder permission, expansions, card retrieval or write operation is requested.",
       "sources": [
         "https://docs.stripe.com/issuing",
         "https://docs.stripe.com/keys"
@@ -6819,6 +6999,41 @@
       "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
       "sources": ["https://docs.z.ai/guides/overview/pricing"],
       "template_params": []
+    },
+    {
+      "service": "razorpay",
+      "key_url": "https://dashboard.razorpay.com/app/keys",
+      "key_prefix": "rzp_",
+      "service_urls": ["https://api.razorpay.com"],
+      "basic": {
+        "username": "{key}",
+        "password": "{key_secret}"
+      },
+      "additional_credentials": [
+        {
+          "name": "key_secret",
+          "label": "Key Secret",
+          "placeholder": "",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.razorpay.com/v1/payments?count=20&skip=0",
+        "required_fields": ["entity", "count", "items"],
+        "success": [
+          {
+            "field": "entity",
+            "equals": "collection"
+          }
+        ]
+      },
+      "instructions": "Enter your Key ID in Razorpay API key and your Key Secret below. Both credentials are sealed in this vault. Test and live keys use the same endpoint. This connection only reads the first 20 payment summaries; it cannot capture payments, create refunds or change payment data.",
+      "docs_url": "https://razorpay.com/docs/api/payments/fetch-all/",
+      "sources": [
+        "https://github.com/razorpay/razorpay-node/blob/b9e8527225a7322ba2671a3bc0b848fd019d2d8c/lib/resources/payments.js"
+      ]
     }
   ]
 }

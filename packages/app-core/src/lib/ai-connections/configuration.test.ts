@@ -141,7 +141,10 @@ describe("common AI configuration", () => {
       family: "openai_chat",
       baseUrl: "https://api.groq.com/openai/v1",
     });
-    expect(aiConnectionPreset("replicate")).toBeNull();
+    expect(aiConnectionPreset("replicate")).toMatchObject({
+      family: "replicate_predictions",
+      baseUrl: "https://api.replicate.com/v1",
+    });
     expect(() =>
       validateAiConnection({
         ...draft(),

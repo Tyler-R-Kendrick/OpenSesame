@@ -6,13 +6,16 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { configDefaults } from "vitest/config";
 import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-policy.ts";
-import { bundleChunk } from "./scripts/bundle-chunk.mjs";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { bundleChunk } from "./scripts/lib/bundle-chunk.mjs";
+import { mcpBrowserValidator } from "./scripts/mcp-browser-validator.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
+import { nativeSamlCallbackPlugin } from "./scripts/native-saml-callback-plugin.mjs";
 import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
+import { sharedWorkerGraph } from "./scripts/shared-worker-graph.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 import {
   tailscaleWasmAssets,
@@ -45,18 +48,6 @@ const osDomainAuthorityTemplates = fileURLToPath(
 );
 const osDomainWallet = fileURLToPath(
   new URL("../../packages/os-domain/src/wallet/index.ts", import.meta.url),
-);
-/**
- * app-core already depends on this copy. @scure/bip32 and nostr-tools pin
- * curves 2.0.1, which emits a second secp256k1 (Point, getPublicKey, sign
- * and verify with `prehash: false`, schnorr). One resolution keeps a single
- * copy. Those callers use the surface 2.4.0 still exports.
- */
-const nobleCurves = fileURLToPath(
-  new URL(
-    "../../packages/app-core/node_modules/@noble/curves",
-    import.meta.url,
-  ),
 );
 
 function redirectBareBase(
@@ -130,6 +121,7 @@ function handlePagesDevRequest(
 
 export default defineConfig({
   test: {
+    globalSetup: ["./scripts/tailscale-test-setup.mjs"],
     // The relay's suites under `server/` are `node --test` (`test:relay`).
     exclude: [...configDefaults.exclude, "server/**"],
     testTimeout: 20_000,
@@ -150,7 +142,6 @@ export default defineConfig({
       "@opensesame/os-domain/authority-templates": osDomainAuthorityTemplates,
       "@opensesame/os-domain/wallet": osDomainWallet,
       "@opensesame/os-domain": osDomainBrowser,
-      "@noble/curves": nobleCurves,
     },
   },
   optimizeDeps: {
@@ -172,6 +163,12 @@ export default defineConfig({
     },
   },
   build: {
+    modulePreload: {
+      // Browser module imports load their full graph; retain entry HTML hints and
+      // Vite's separately awaited CSS without repeating JS tables per leaf.
+      resolveDependencies: (_url, dependencies, { hostType }) =>
+        hostType === "html" ? dependencies : [],
+    },
     // Compress the shipped offline PWA without changing its capability graph.
     minify: "terser",
     terserOptions: {
@@ -268,10 +265,13 @@ export default defineConfig({
         },
       },
     },
+    mcpBrowserValidator(fileURLToPath(new URL("../..", import.meta.url))),
     nativeClientMetadataPlugin(base),
+    nativeSamlCallbackPlugin(),
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
     siopMetadata(),
+    sharedWorkerGraph(),
     tailscaleWasmAssets(),
     onePasswordWasmAssets(),
     {

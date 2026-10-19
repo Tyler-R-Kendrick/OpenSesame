@@ -40,6 +40,7 @@ const browser = await harness.launch();
 const expectedFailures = [];
 const results = [];
 let activePage;
+let activeContext;
 try {
   for (const [label, device] of [
     ["desktop", { viewport: { width: 1366, height: 1000 } }],
@@ -47,6 +48,7 @@ try {
   ]) {
     const { page, context } = await harness.newPage(browser, { device });
     activePage = page;
+    activeContext = context;
     const authority = await routeNativeApiAuthority(context, harness);
     await routeNativeInstanceAuthority(context, authority, harness);
     expectedFailures.push(nativeExpectedFailures(harness, page, authority));
@@ -128,15 +130,29 @@ try {
     await context.close();
   }
 } catch (error) {
-  harness.failures.push(String(error));
-  if (activePage && !activePage.isClosed()) {
-    fs.writeFileSync(
-      path.join(out, "failure.txt"),
-      await activePage.locator("body").innerText(),
-    );
-    await activePage
+  harness.failures.push(`[${harness.step()}] ${String(error)}`);
+  const pages = activeContext?.pages() ?? (activePage ? [activePage] : []);
+  for (const [index, page] of pages.entries()) {
+    if (page.isClosed()) continue;
+    const name = index === 0 ? "failure" : `failure-tab-${index + 1}`;
+    try {
+      fs.writeFileSync(
+        path.join(out, `${name}.json`),
+        `${JSON.stringify({ step: harness.step(), url: page.url() }, null, 2)}\n`,
+      );
+    } catch (captureError) {
+      harness.record("FAILURE-CAPTURE", String(captureError));
+    }
+    await page
+      .locator("body")
+      .innerText({ timeout: 10_000 })
+      .then((text) => fs.writeFileSync(path.join(out, `${name}.txt`), text))
+      .catch((captureError) =>
+        harness.record("FAILURE-CAPTURE", String(captureError)),
+      );
+    await page
       .screenshot({
-        path: path.join(out, "failure.png"),
+        path: path.join(out, `${name}.png`),
         fullPage: false,
         animations: "disabled",
         timeout: 10_000,
@@ -146,7 +162,11 @@ try {
       );
   }
 } finally {
-  await browser.close();
+  await browser
+    .close()
+    .catch((closeError) =>
+      harness.failures.push(`[browser cleanup] ${String(closeError)}`),
+    );
 }
 const hard = harness.log.filter(
   (entry) =>
@@ -162,10 +182,14 @@ const hard = harness.log.filter(
 const hosted = harness.log.filter((entry) =>
   /api\.vercel\.com\/v1\/connect|\/api\/connect/.test(entry.detail),
 );
-fs.writeFileSync(
-  path.join(out, "receipt.json"),
-  `${JSON.stringify({ authority: "synthetic documented upstream protocol; no live credentials", results, failures: harness.failures, hard, hosted, checks: harness.log.filter((entry) => ["PASS", "FAIL"].includes(entry.kind)) }, null, 2)}\n`,
-);
+try {
+  fs.writeFileSync(
+    path.join(out, "receipt.json"),
+    `${JSON.stringify({ lastStep: harness.step(), casPages: harness.log.filter((entry) => entry.kind === "CAS-PAGE"), authority: "synthetic documented upstream protocol; no live credentials", results, failures: harness.failures, hard, hosted, checks: harness.log.filter((entry) => ["PASS", "FAIL"].includes(entry.kind)) }, null, 2)}\n`,
+  );
+} catch (captureError) {
+  harness.failures.push(`[receipt capture] ${String(captureError)}`);
+}
 if (harness.failures.length || hard.length || hosted.length) {
   for (const failure of harness.failures) console.error(failure);
   for (const entry of [...hard, ...hosted])

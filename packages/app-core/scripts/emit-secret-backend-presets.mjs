@@ -11,9 +11,11 @@ const spec = JSON.parse(
   ),
 );
 const modes = new Set([
+  "encrypted-remote",
   "local",
   "file-import",
   "credential-management",
+  "proton-pass",
   "onepassword-sdk",
   "onepassword-connect",
   "bitwarden-api",

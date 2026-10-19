@@ -5,7 +5,7 @@ import {
   browserOAuthScopes,
   requiredBrowserOAuthProfile,
 } from "./native-browser-oauth-profile.js";
-import { assertNativeBrowserOAuthPolicy } from "./native-browser-policy.js";
+import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 import { retryNativeConnectorCleanup } from "./native-connector-lifecycle.js";
 import type { NativePending } from "./native-connector-schema.js";
 import { loadNativeConnectorRecord } from "./native-connector-store.js";
@@ -118,9 +118,9 @@ export async function beginNativeTwitchDeviceAuthorization(
   id: string,
   actor = "user",
   wait: NativeTwitchDeviceWait = waitNativeTwitchDevice,
+  original: NativeProviderTransport = nativeProviderTransport(),
 ): Promise<void> {
   const record = requireNativeTwitchDevice(id);
-  assertNativeBrowserOAuthPolicy("twitch");
   if (
     actor !== "user" ||
     Object.keys(record.privateState.pending).length ||
@@ -130,9 +130,8 @@ export async function beginNativeTwitchDeviceAuthorization(
   const browser = nativeOAuthBrowserPort();
   if (!browser.deviceConsent)
     throw new Error("This browser cannot display device authorization");
-  const transport = captureNativeAuthorizationTransport(
-    nativeProviderTransport(),
-  );
+  const transport = captureNativeAuthorizationTransport(original);
+  assertNativeConfigurationPolicy(record.configuration, transport);
   const scopes = browserOAuthScopes(
     requiredBrowserOAuthProfile("twitch"),
     record.configuration,

@@ -3,6 +3,12 @@ import { z } from "zod";
 import { authoredDisposition } from "./browser-disposition.js";
 import { type ConnectPlan, connectPlan } from "./connect-plan.js";
 import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
+import {
+  type NativeBrowserPolicyCarrier,
+  type NativeMethodPolicyCarrier,
+  nativePolicyCarrierCurrent,
+  nativeResourcePolicyCarrierCurrent,
+} from "./native-policy-carrier.js";
 
 const ruleSchema = z.object({
   provider_id: z.string(),
@@ -82,15 +88,26 @@ function apiEvidence(providerId: string): NativeBrowserPolicyDecision {
     available: true,
     reason: null,
     advice:
-      "Published evidence reports browser access restrictions at this provider's hosted endpoint. Test the configured endpoint; it must permit this site's origin and required headers.",
+      "Published evidence reports browser access restrictions at this provider's hosted endpoint. Test the connection using the configured native Tailscale HTTP transport. For direct browser requests, the endpoint must permit this site's origin and required headers.",
     evidenceUrls: row.sources.map((source) => source.url),
   };
+}
+
+function methodCarrierCurrent(
+  method: string,
+  carrier?: NativeMethodPolicyCarrier,
+): boolean {
+  if (!carrier) return false;
+  return "tokenEndpoint" in carrier
+    ? nativePolicyCarrierCurrent(carrier)
+    : method === "mcp" && nativeResourcePolicyCarrierCurrent(carrier);
 }
 
 export function nativeBrowserMethodPolicy(
   providerId: string,
   method: ConnectPlan["methods"][number]["kind"] | "native-local" | "oidc",
   parameters: Readonly<Record<string, string>> = {},
+  carrier?: NativeMethodPolicyCarrier,
 ): NativeBrowserPolicyDecision {
   const selected =
     method === "api-key" ? publicDefaults(providerId, parameters) : parameters;
@@ -104,11 +121,16 @@ export function nativeBrowserMethodPolicy(
       ),
   );
   if (rule) {
+    if (
+      (method === "oauth" || method === "mcp") &&
+      methodCarrierCurrent(method, carrier)
+    )
+      return AVAILABLE;
     if (method === "api-key")
       return {
         available: true,
         reason: null,
-        advice: `The ${policy.checked_date} probe from ${policy.audited_origin} did not allow browser access to this provider's hosted endpoint. Test the configured endpoint; it must permit this site's origin and required headers.`,
+        advice: `The ${policy.checked_date} probe from ${policy.audited_origin} did not allow browser access to this provider's hosted endpoint. Test the connection using the configured native Tailscale HTTP transport. For direct browser requests, the endpoint must permit this site's origin and required headers.`,
         evidenceUrls: [...rule.evidence_urls],
       };
     return {
@@ -127,21 +149,29 @@ export function nativeBrowserApiPolicy(
 }
 export function nativeBrowserOAuthPolicy(
   providerId: string,
+  carrier?: NativeBrowserPolicyCarrier,
 ): NativeBrowserPolicyDecision {
-  return nativeBrowserMethodPolicy(providerId, "oauth");
+  return nativeBrowserMethodPolicy(providerId, "oauth", {}, carrier);
 }
 export function nativeBrowserMcpPolicy(
   providerId: string,
+  carrier?: NativeMethodPolicyCarrier,
 ): NativeBrowserPolicyDecision {
-  return nativeBrowserMethodPolicy(providerId, "mcp");
+  return nativeBrowserMethodPolicy(providerId, "mcp", {}, carrier);
 }
-export function assertNativeBrowserMcpPolicy(providerId: string): void {
-  const decision = nativeBrowserMcpPolicy(providerId);
+export function assertNativeBrowserMcpPolicy(
+  providerId: string,
+  carrier?: NativeMethodPolicyCarrier,
+): void {
+  const decision = nativeBrowserMcpPolicy(providerId, carrier);
   if (!decision.available)
     throw new Error(decision.reason ?? "Browser MCP is unavailable");
 }
-export function assertNativeBrowserOAuthPolicy(providerId: string): void {
-  const decision = nativeBrowserOAuthPolicy(providerId);
+export function assertNativeBrowserOAuthPolicy(
+  providerId: string,
+  carrier?: NativeBrowserPolicyCarrier,
+): void {
+  const decision = nativeBrowserOAuthPolicy(providerId, carrier);
   if (!decision.available)
     throw new Error(decision.reason ?? "Browser OAuth is unavailable");
 }

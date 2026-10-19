@@ -6,7 +6,6 @@ import {
   NATIVE_CANONICAL_PROVIDERS,
   NATIVE_SHARED_AI_PRESETS,
 } from "./native-browser-catalog-projection.mjs";
-import { waitForModelProviderSheetKeyField } from "./native-browser-catalog-sheet-contract.mjs";
 import { addCapabilities } from "./pages-journey.mjs";
 
 export async function nativeVisit(page, base, route) {
@@ -95,9 +94,8 @@ async function nativeSheetContract(page, row, sheet, { check, phone }) {
     (await dialog.count()) === 1,
     `${row.id}: a model provider's first connection opens the Add sheet`,
   );
-  await waitForModelProviderSheetKeyField(dialog);
   check(
-    await dialog
+    await sheet
       .locator('input[type="password"]')
       .evaluateAll(
         (inputs) =>
@@ -124,12 +122,8 @@ async function nativeSheetContract(page, row, sheet, { check, phone }) {
     ),
     `${row.id}: the Add sheet has no arbitrary endpoint or client-secret control`,
   );
-  // textContent, not innerText: the shared form keeps its custody note in
-  // a collapsed setup section, which innerText would omit.
-  const dialogText = (await dialog.textContent()) ?? "";
   check(
-    dialogText.includes("sealed on this device") ||
-      dialogText.includes("saved as a Token credential in the current vault"),
+    (await dialog.innerText()).includes("sealed on this device"),
     `${row.id}: the Add sheet says where the key is kept`,
   );
   const layout = await nativeSheetLayout(page);

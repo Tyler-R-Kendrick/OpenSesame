@@ -12,6 +12,7 @@ import {
   VIRTUAL_MODULES,
   isUnclassified,
   parseHtmlEntry,
+  workerRealmSource,
 } from "./capability-graph.mjs";
 import { secretBackendSdkChunk } from "./capability-lazy-leaves.mjs";
 import { itemTypePackChunk } from "./item-type-pack-chunks.mjs";
@@ -46,7 +47,8 @@ function chunkRecord(file, output, classify) {
     onDemand: Object.keys(output.modules).some(
       (id) =>
         itemTypePackChunk(id) !== undefined ||
-        secretBackendSdkChunk(id, classify(id)) !== undefined,
+        secretBackendSdkChunk(workerRealmSource(id) ?? id, classify(id)) !==
+          undefined,
     ),
     imports: [...new Set(output.imports)].sort(),
     dynamicImports: [...new Set(output.dynamicImports)].sort(),
@@ -66,12 +68,32 @@ function collectOutputs(bundle, state, base, classify) {
   const chunks = [];
   const assets = [];
   const entries = [];
+  const moduleWorkers = [];
   for (const [file, output] of Object.entries(bundle).sort(([a], [b]) =>
     a < b ? -1 : 1,
   )) {
     if (output.type === "chunk") {
       chunks.push(chunkRecord(file, output, classify));
       continue;
+    }
+    if (output.opensesameWorkerChunk) {
+      const worker = output.opensesameWorkerChunk;
+      if (
+        worker.code !== output.source ||
+        worker.fileName !== file ||
+        !Object.keys(worker.modules).some((id) => workerRealmSource(id))
+      )
+        throw new Error("Worker asset bytes or source metadata differ.");
+      chunks.push(chunkRecord(file, worker, classify));
+      if (worker.isEntry) {
+        if (!workerRealmSource(worker.facadeModuleId))
+          throw new Error("Worker asset needs its original entry source.");
+        moduleWorkers.push({
+          variant: `module:${worker.name}`,
+          file,
+          capability: classify(worker.facadeModuleId).capability,
+        });
+      }
     }
     if (file.endsWith(".html") && typeof output.source === "string") {
       const owner = state.htmlEntries.find((e) => e.path === file);
@@ -90,7 +112,7 @@ function collectOutputs(bundle, state, base, classify) {
           : output.source.byteLength,
     });
   }
-  return { chunks, assets, entries };
+  return { chunks, assets, entries, moduleWorkers };
 }
 
 /** Every core→optional import edge, and whether it went through MODULE_TABLE. */
@@ -137,7 +159,7 @@ export function buildGraph(ctx, bundle, state, base) {
     }
     return entry;
   };
-  const { chunks, assets, entries } = collectOutputs(
+  const { chunks, assets, entries, moduleWorkers } = collectOutputs(
     bundle,
     state,
     base,
@@ -156,11 +178,14 @@ export function buildGraph(ctx, bundle, state, base) {
     entries,
     chunks,
     assets,
-    workers: state.workers.map((v) => ({
-      variant: v.id,
-      file: v.scriptPath,
-      capability: v.capability,
-    })),
+    workers: [
+      ...state.workers.map((v) => ({
+        variant: v.id,
+        file: v.scriptPath,
+        capability: v.capability,
+      })),
+      ...moduleWorkers,
+    ],
     publicFiles: state.publicFiles.map((p) => ({
       file: p.path,
       capability: p.capability,

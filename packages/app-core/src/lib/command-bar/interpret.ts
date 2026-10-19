@@ -30,7 +30,7 @@ async function generateObjectFn(): Promise<GenerateObject> {
   if (interpretSeams.generateObject !== null) {
     return interpretSeams.generateObject;
   }
-  const mod = await import("ai");
+  const mod = await import("./interpret-generate-object.js");
   return mod.generateObject;
 }
 
