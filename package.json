@@ -176,7 +176,8 @@
       "simple-git": "4.0.1",
       "@simple-git/argv-parser": "2.0.1",
       "source-map-js": "1.2.2",
-      "js-yaml@3.15.2>argparse": "2.0.1"
+      "js-yaml@3.15.2>argparse": "2.0.1",
+      "@xmldom/xmldom@^0.9.10": "0.9.12"
     },
     "patchedDependencies": {
       "@levischuck/tiny-cbor@0.2.11": "patches/@levischuck__tiny-cbor@0.2.11.patch",

@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",
+    "@peculiar/x509": "1.14.3",
     "@types/node": "22.15.29",
     "@types/react": "19.2.7",
     "@types/whatwg-url": "13.0.0",
@@ -32,7 +33,8 @@
     "fast-check": "4.9.0",
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "xml-crypto": "6.1.2"
   },
   "dependencies": {
     "@1password/sdk-core": "0.5.0",
@@ -80,6 +82,8 @@
     "jose": "6.2.8",
     "kdbxweb": "2.1.1",
     "whatwg-url": "14.2.0",
+    "xml-core": "1.2.6",
+    "xmldsigjs": "2.8.8",
     "yaml": "2.9.1",
     "zod": "4.4.3"
   }
