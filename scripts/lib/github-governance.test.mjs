@@ -79,6 +79,64 @@ describe("repository governance default-branch rules", () => {
   });
 });
 
+const tags = JSON.parse(
+  readFileSync(new URL("ops/github/release-tags.json", root), "utf8"),
+);
+
+describe("repository governance release tags", () => {
+  it("lets only a repository admin create, move or delete a v* tag", () => {
+    expect(tags.target).toBe("tag");
+    expect(tags.enforcement).toBe("active");
+    expect(tags.name).not.toBe(policy.name);
+    expect(tags.conditions.ref_name).toEqual({
+      include: ["refs/tags/v*"],
+      exclude: [],
+    });
+    expect(tags.rules.map((rule) => rule.type).sort()).toEqual([
+      "creation",
+      "deletion",
+      "update",
+    ]);
+    // Role 5 is admin: the owner cuts the release, nobody else may.
+    expect(tags.bypass_actors).toEqual([
+      { actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "always" },
+    ]);
+  });
+
+  it("is owned and compared like the default-branch ruleset", () => {
+    expect(rulesetAction(null, tags)).toBe("create");
+    expect(rulesetAction({ ...tags, id: 2, _links: {} }, tags)).toBe("none");
+    expect(rulesetAction({ ...tags, enforcement: "disabled" }, tags)).toBe(
+      "update",
+    );
+    expect(() => rulesetAction(policy, tags)).toThrow("ownership");
+    // GitHub may answer an `update` rule with parameters nobody sent
+    // (update_allows_fetch_and_merge on the branch form), which is not drift.
+    const echoed = tags.rules.map((rule) =>
+      rule.type === "update"
+        ? { ...rule, parameters: { update_allows_fetch_and_merge: false } }
+        : rule,
+    );
+    expect(rulesetAction({ ...tags, rules: echoed, id: 2 }, tags)).toBe("none");
+    // The same latitude is not given to the default-branch rules.
+    const branchEchoed = policy.rules.map((rule) =>
+      rule.type === "pull_request"
+        ? { ...rule, parameters: { ...rule.parameters, extra: true } }
+        : rule,
+    );
+    expect(
+      rulesetAction({ ...policy, rules: branchEchoed, id: 1 }, policy),
+    ).toBe("update");
+    // Both rulesets are told apart by name in one listing.
+    const live = [
+      { ...policy, id: 1 },
+      { ...tags, id: 2 },
+    ];
+    expect(selectRuleset(live, tags.name).id).toBe(2);
+    expect(selectRuleset(live, policy.name).id).toBe(1);
+  });
+});
+
 describe("repository governance pages and workflows", () => {
   it("restricts Pages to the default branch, including tag/name confusion", () => {
     const branches = [

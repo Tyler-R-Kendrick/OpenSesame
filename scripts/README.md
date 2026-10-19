@@ -15,7 +15,7 @@ repository root).
 | [`test/`](test) | Cross-cutting suites, smoke tests and evidence gates | `pnpm test:*`, `pnpm verify:*`, `pnpm verify` |
 | [`mtls/`](mtls) | The optional-mTLS suites and their pinned fixtures | `pnpm test:mtls*` |
 | [`wallet/`](wallet) | Wallet spending-authority harness ([README](wallet/README.md)) | `pnpm wallet:*` |
-| [`release/`](release) | Pages release, commit-signature check, signed-stack replay, connector and marketplace pins | CI, Deploy Pages, a terminal ([README](release/README.md)) |
+| [`release/`](release) | Pages release, the release kit's archives, commit-signature check, signed-stack replay, connector and marketplace pins | CI, Deploy Pages, a terminal ([README](release/README.md)) |
 | [`dev/`](dev) | Local development launchers and git hook setup | `pnpm dev:cli`, `dev:host`, `dev:daemon`, `dev:live-nats`, `pnpm setup:hooks`, `pnpm --filter @opensesame/pages dev` |
 | [`security/`](security) | The fail-closed advisory gate and dependency regression tests | `pnpm audit:osv`, `pnpm quality:test` |
 | [`lib/`](lib) | Pure logic shared by the entry points, with Vitest tests beside it | `pnpm quality:test` |
@@ -106,6 +106,8 @@ the others report on the terminal (`deepsec` keeps its state under
 | `pin-connect-services.mjs` | Re-pins [`spec/connectors/connect-services.json`](../spec/connectors/connect-services.json): Vercel Connect's public service registry and each MCP server's live OAuth discovery (`lib/oauth-discovery.mjs`). |
 | `pin-marketplace.mjs` | Re-pins the SHA-256 of every item type in [`.opensesame/marketplace.json`](../.opensesame/marketplace.json). |
 | `land-signed-stack.mjs` | Replays a local branch stack as GitHub-verified commits ([README](release/README.md)). |
+| `kit-archive.sh` | Release kit: packs the binaries and the bundled bridge into reproducible archives and writes `SHA256SUMS` ([docs/operators/release-kit.md](../docs/operators/release-kit.md)). |
+| `tag-check.sh` | Release kit: refuses a tag that is not the workspace version or not on `main`, and peels an annotated tag to its commit, before any build starts. |
 
 ## dev/
 

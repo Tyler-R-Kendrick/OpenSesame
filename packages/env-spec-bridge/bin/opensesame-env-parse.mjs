@@ -3,7 +3,8 @@
  * Parse .env.schema via official @env-spec/parser; emit JSON for OpenSesame Rust.
  * Never prints resolved secret plaintext — only schema AST + resolver references.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { parseEnvSpecDotEnvFile } from "@env-spec/parser";
 
 function decValue(v) {
@@ -115,6 +116,18 @@ export function main(args = process.argv.slice(2), error = console.error) {
   return 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run as the script, not imported. `import.meta.url` is the file's real path
+// as a URL (a space is %20, a symlink is resolved), so `argv[1]` is put in the
+// same form before they are compared.
+function invokedAsScript(script = process.argv[1]) {
+  if (!script) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(script)).href;
+  } catch {
+    return false;
+  }
+}
+
+if (invokedAsScript()) {
   process.exitCode = main();
 }

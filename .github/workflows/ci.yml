@@ -90,9 +90,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ubuntu-latest
-    # Broad dependency changes run the full affected suites and the real
-    # Postgres contracts; the 30-minute limit cancelled passing tests.
-    timeout-minutes: 60
+    # A lockfile or manifest change runs every package (scope=all): 18 minutes
+    # on a push to main, over 28 on a slower runner. ci-full-run.test.mjs.
+    timeout-minutes: 45
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
@@ -189,9 +189,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.bundle_matrix != '[]'
     runs-on: ubuntu-latest
-    # This shard builds three verification profiles and walks every provider;
-    # its passing secret-backend checks reached the former 15-minute limit.
-    timeout-minutes: ${{ matrix.shard == 'native-public-protocol' && 30 || 15 }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       # The legs are listed once, in scripts/lib/ci-bundle-shards.json; `changes`
@@ -412,11 +410,6 @@ jobs:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         if: matrix.shard == 'journeys-1'
-      - name: Install Linux keychain build and test dependencies
-        if: matrix.shard == 'journeys-1'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
       - name: Build opensesame-cli
         if: matrix.shard == 'journeys-1'
         # Same cargo limits as the Rust tests job, so the link stays inside
@@ -838,11 +831,6 @@ jobs:
         run: |
           node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
           echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
-      - name: Install Linux keychain build and test dependencies
-        if: steps.affected.outputs.scope != 'none'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
       - name: Test affected crates
         if: steps.affected.outputs.scope != 'none'
         env:
