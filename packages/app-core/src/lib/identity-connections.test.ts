@@ -325,18 +325,19 @@ it("projects multiple brokered organizations and ordinary members can begin sign
   vi.spyOn(enterprise, "identityEnterpriseClient").mockReturnValue({
     ...client,
     listOrganizations: list,
-    saveSaml: vi.fn(async () => "Saved"),
+    saveOidc: vi.fn(async () => "Saved"),
   });
   const saved = [];
   for (const org of orgs) {
     saved.push(
       await saveIdentityConnection({
         ...identityConnectionDraft("byo-identity"),
-        protocol: "saml",
+        protocol: "oidc",
         brokerUrl: broker,
         organizationId: org.id,
-        samlEntityId: `urn:${org.slug}`,
-        samlMetadataUrl: `https://${org.slug}.example.com/metadata`,
+        issuer,
+        clientId: "organization-client",
+        clientSecret: "public synthetic organization fixture",
       }),
     );
   }

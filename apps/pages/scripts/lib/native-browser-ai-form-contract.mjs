@@ -1,5 +1,10 @@
 /** Configuration coverage only: no credentials, inference or provider auth. */
 import { TOUCH_FLOOR } from "./mobile-contract.mjs";
+import {
+  cloudAiDefaults,
+  selectOptions,
+  sharedDisabledActions,
+} from "./native-browser-ai-cloud-contract.mjs";
 
 async function sharedAiLayout(page, form) {
   const read = () =>
@@ -9,7 +14,7 @@ async function sharedAiLayout(page, form) {
         width: innerWidth,
         document: document.documentElement.scrollWidth,
         right: scope.getBoundingClientRect().right,
-        controls: [...scope.querySelectorAll("input, select, button")]
+        controls: [...scope.querySelectorAll("input, textarea, select, button")]
           .filter((control) => control.getClientRects().length > 0)
           .map((control) => ({
             name: control.getAttribute("aria-label") ?? control.tagName,
@@ -29,6 +34,8 @@ async function sharedAiLayout(page, form) {
 
 function sharedAiDefaultFields(preset) {
   const azure = preset.azure;
+  const prediction = preset.family === "replicate_predictions";
+  const speech = preset.family === "elevenlabs_scribe";
   const key = azure
     ? azure.credential === "api-key"
       ? "Azure API key"
@@ -38,13 +45,14 @@ function sharedAiDefaultFields(preset) {
     ["Connection name", preset.name],
     ["API family", preset.family],
     [azure ? "Azure resource endpoint" : "API base URL", preset.baseUrl],
-    [azure ? "Deployment ID" : "Model ID", ""],
-    [
-      azure ? "Azure authentication" : "Authentication",
-      azure?.credential ?? "api-key",
-    ],
+    [azure ? "Deployment ID" : "Model ID", preset.model ?? ""],
     [key, ""],
   ];
+  if (!prediction && !speech)
+    fields.push([
+      azure ? "Azure authentication" : "Authentication",
+      azure?.credential ?? "api-key",
+    ]);
   if (azure) fields.push(["Azure API mode", azure.api]);
   if (azure?.api === "dated-chat")
     fields.push(["Azure API version", azure.apiVersion]);
@@ -56,6 +64,8 @@ function sharedAiDefaultFields(preset) {
 }
 
 async function sharedAiDefaults(form, row, preset, check) {
+  if (preset.vertex || preset.bedrock)
+    return cloudAiDefaults(form, row, preset, check);
   const defaults = sharedAiDefaultFields(preset);
   const fields = {};
   for (const [label, expected] of defaults.fields) {
@@ -78,25 +88,32 @@ async function sharedAiDefaults(form, row, preset, check) {
         ? { blank: value === "", configurable }
         : { value, configurable };
   }
-  const families = await form
-    .getByLabel("API family", { exact: true })
-    .locator("option")
-    .evaluateAll((options) => options.map((option) => option.value));
+  const families = await selectOptions(form, "API family");
   check(
     JSON.stringify(families) === JSON.stringify(preset.families),
     `${row.id}: supported inference API families are explicit`,
   );
-  const authentication = await form
-    .getByLabel(defaults.auth, { exact: true })
-    .locator("option")
-    .evaluateAll((options) => options.map((option) => option.value));
+  const prediction = preset.family === "replicate_predictions";
+  const speech = preset.family === "elevenlabs_scribe";
+  const finite = prediction || speech;
+  const authentication = finite ? [] : await selectOptions(form, defaults.auth);
+  if (prediction)
+    check(
+      (await form
+        .getByLabel("Prediction verification input JSON", { exact: true })
+        .inputValue()) === "",
+      `${row.id}: finite model-specific verification JSON starts empty`,
+    );
   check(
-    JSON.stringify(authentication) ===
-      JSON.stringify(
-        preset.azure ? ["api-key", "entra-token"] : ["api-key", "none"],
-      ),
-    `${row.id}: ${preset.azure ? "API key and Entra token authentication" : "API key and unauthenticated endpoints"} are selectable`,
+    finite
+      ? (await form.getByLabel("Authentication", { exact: true }).count()) === 0
+      : JSON.stringify(authentication) ===
+          JSON.stringify(
+            preset.azure ? ["api-key", "entra-token"] : ["api-key", "none"],
+          ),
+    `${row.id}: ${prediction ? "prediction requires its API token without an unauthenticated mode" : speech ? "transcription requires its API key without an unauthenticated mode" : "published authentication choices are explicit"}`,
   );
+  if (speech) await speechInputDefaults(form, row, check);
   const apiKeyType = await form
     .getByLabel(defaults.key, { exact: true })
     .getAttribute("type");
@@ -104,14 +121,7 @@ async function sharedAiDefaults(form, row, preset, check) {
     apiKeyType === "password",
     `${row.id}: the blank API key is write-only`,
   );
-  const actionsDisabled = {};
-  for (const name of ["Test AI connection", "Save AI connection"]) {
-    const disabled = await form
-      .getByRole("button", { name, exact: true })
-      .isDisabled();
-    check(disabled, `${row.id}: ${name} requires a complete configuration`);
-    actionsDisabled[name] = disabled;
-  }
+  const actionsDisabled = await sharedDisabledActions(form, row, check);
   const apiModes = await sharedAiModeDefaults(form, row, preset, check);
   return {
     fields,
@@ -123,12 +133,22 @@ async function sharedAiDefaults(form, row, preset, check) {
   };
 }
 
+async function speechInputDefaults(form, row, check) {
+  check(
+    (await form
+      .getByLabel("Verification audio", { exact: true })
+      .getAttribute("type")) === "file",
+    `${row.id}: transcription requires local audio verification input`,
+  );
+  check(
+    (await form.getByLabel("Prompt", { exact: true }).count()) === 0,
+    `${row.id}: transcription does not invent a text prompt`,
+  );
+}
+
 async function sharedAiModeDefaults(form, row, preset, check) {
   if (!preset.azure) return undefined;
-  const modes = await form
-    .getByLabel("Azure API mode", { exact: true })
-    .locator("option")
-    .evaluateAll((options) => options.map((option) => option.value));
+  const modes = await selectOptions(form, "Azure API mode");
   check(
     JSON.stringify(modes) === JSON.stringify(["v1", "dated-chat"]),
     `${row.id}: Azure exposes explicit v1 and dated Chat modes`,
@@ -140,6 +160,34 @@ async function sharedAiModeDefaults(form, row, preset, check) {
       `${row.id}: v1 does not collect an unrelated dated API version`,
     );
   return modes;
+}
+
+function custodyPatterns(preset) {
+  if (preset.vertex)
+    return [
+      /private key stays in this browser/,
+      /Only the issued access token reaches the configured model endpoint/,
+      /write-only credential is saved in the owning vault/,
+    ];
+  if (preset.bedrock)
+    return [
+      /Credentials stay sealed in the owning vault/,
+      /approved PWA network transport/,
+      /permission to invoke this model/,
+    ];
+  if (preset.family === "replicate_predictions")
+    return [
+      /model owner\/name or an immutable version/,
+      /model-specific JSON input/,
+      /wait for terminal output/,
+      /Verification input is transient and is not saved/,
+      /API token stays in the owning vault/,
+    ];
+  return [
+    /Token credential/,
+    /current vault/,
+    /only to the configured endpoint/,
+  ];
 }
 
 export async function nativeAiFormContract(
@@ -175,14 +223,15 @@ export async function nativeAiFormContract(
       `${row.id}: shared AI page keeps its provider heading`,
     );
   const observed = await sharedAiDefaults(form, row, preset, check);
-  const setup = form.locator("details").filter({ hasText: "Connection setup" });
-  const wasOpen = (await setup.getAttribute("open")) !== null;
+  const prediction = preset.family === "replicate_predictions";
+  const setup = prediction
+    ? form.locator("p").filter({ hasText: "Enter the model owner/name" })
+    : form.locator("details").filter({ hasText: "Connection setup" });
+  const wasOpen = prediction || (await setup.getAttribute("open")) !== null;
   if (!wasOpen) await setup.locator("summary").click();
   const custody = await setup.innerText();
   check(
-    /Token credential/.test(custody) &&
-      /current vault/.test(custody) &&
-      /only to the configured endpoint/.test(custody),
+    custodyPatterns(preset).every((pattern) => pattern.test(custody)),
     `${row.id}: visible setup explains vault custody and endpoint authority`,
   );
   const layout = await sharedAiLayout(page, form);

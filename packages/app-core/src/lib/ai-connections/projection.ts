@@ -15,6 +15,7 @@ import {
   validateAiConnection,
 } from "./configuration.js";
 import { isAiConnectionProvider } from "./presets.js";
+import { isAiSpeechProvider } from "./speech-target.js";
 import {
   AI_CONNECTION_CLASSIFICATION,
   AI_CONNECTION_CONTRACT,
@@ -27,7 +28,8 @@ export type AiConnectionProjection = "ordinary" | "pending" | "verified";
 const EMPTY_CAPTURE = { items: [] };
 const KEY_SPEC = {
   family: "AI",
-  accepts: isAiConnectionProvider,
+  accepts: (providerId: string) =>
+    isAiConnectionProvider(providerId) || isAiSpeechProvider(providerId),
   classification: AI_CONNECTION_CLASSIFICATION,
 };
 function captureCredentials(

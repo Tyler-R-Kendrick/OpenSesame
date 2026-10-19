@@ -22,6 +22,7 @@ import {
   type SecretBackendActionOwner,
   useSecretBackendAction,
 } from "../secret-backends/useSecretBackendAction.js";
+import { useLocalAudioInput } from "./AudioFields.js";
 import { replicateVerificationInput } from "./PredictionFields.js";
 
 export const aiConnectionUiDependencies = {
@@ -45,10 +46,11 @@ function changeDraft<Key extends keyof AiConnectionDraft>(
     next.azure = undefined;
   changeVertexDraft(current, next, field);
   changeBedrockDraft(current, next, field);
-  if (next.family === "replicate_predictions") next.authentication = "api-key";
+  if (["replicate_predictions", "elevenlabs_scribe"].includes(next.family))
+    next.authentication = "api-key";
   if (
-    (current.family === "replicate_predictions" ||
-      next.family === "replicate_predictions") &&
+    (["replicate_predictions", "elevenlabs_scribe"].includes(current.family) ||
+      ["replicate_predictions", "elevenlabs_scribe"].includes(next.family)) &&
     ["family", "baseUrl", "model", "authentication"].includes(field)
   )
     next.apiKey = "";
@@ -224,16 +226,20 @@ export function useAiConnection(
   );
   const [savedId, setSavedId] = useState(connectionId);
   const [predictionInput, setPredictionInput] = useState("");
+  const audio = useLocalAudioInput();
+  const clearAudio = audio.clear;
   const withdraw = useCallback(() => {
     setDraft((current) => ({ ...current, apiKey: "" }));
     setPredictionInput("");
-  }, []);
+    clearAudio();
+  }, [clearAudio]);
   const pending = useAiOperation(onFlash, withdraw);
   function onChange<Key extends keyof AiConnectionDraft>(
     field: Key,
     value: AiConnectionDraft[Key],
   ) {
     pending.clear();
+    clearAudio();
     setDraft((current) => changeDraft(current, field, value));
     if (["family", "baseUrl", "model", "authentication"].includes(field))
       setPredictionInput("");
@@ -244,7 +250,14 @@ export function useAiConnection(
         draft.family === "replicate_predictions"
           ? replicateVerificationInput(draft, predictionInput)
           : undefined;
-      const options = { signal: owner.signal, prediction: { signal } };
+      const options = {
+        signal: owner.signal,
+        prediction: { signal },
+        audio:
+          draft.family === "elevenlabs_scribe"
+            ? audio.fields.sampleAudio
+            : undefined,
+      };
       try {
         if (!save)
           return await aiConnectionUiDependencies.test(
@@ -275,20 +288,10 @@ export function useAiConnection(
       }
     });
   }
-  async function onForget() {
-    if (!savedId) return;
-    await pending.runAi(async (owner) => {
-      await aiConnectionUiDependencies.remove(savedId);
-      owner.check();
-      setSavedId(undefined);
-      window.dispatchEvent(new Event("opensesame:ai-connections-changed"));
-      onSaved?.();
-      return "AI connection forgotten";
-    });
-  }
   return {
     ...pending,
     draft,
+    ...aiAudioControls(audio, pending, draft.family === "elevenlabs_scribe"),
     savedId,
     predictionInput,
     onPredictionInput: (value: string) => {
@@ -300,6 +303,52 @@ export function useAiConnection(
     onChange,
     onSave: () => void run(true),
     onTest: () => void run(false),
-    onForget: () => void onForget(),
+    onForget: () =>
+      void forgetAiConnection(
+        savedId,
+        pending,
+        () => {
+          setSavedId(undefined);
+          withdraw();
+        },
+        onSaved,
+      ),
+  };
+}
+
+async function forgetAiConnection(
+  id: string | undefined,
+  pending: Pick<ReturnType<typeof useAiOperation>, "runAi">,
+  onForgot: () => void,
+  onSaved?: () => void,
+) {
+  if (!id) return;
+  await pending.runAi(async (owner) => {
+    await aiConnectionUiDependencies.remove(id);
+    owner.check();
+    onForgot();
+    window.dispatchEvent(new Event("opensesame:ai-connections-changed"));
+    onSaved?.();
+    return "AI connection forgotten";
+  });
+}
+
+function aiAudioControls(
+  audio: ReturnType<typeof useLocalAudioInput>,
+  pending: Pick<ReturnType<typeof useAiOperation>, "clear" | "onCancel">,
+  speech: boolean,
+) {
+  return {
+    ...audio.fields,
+    onSampleAudio: (file: File | undefined) => {
+      pending.clear();
+      audio.fields.onSampleAudio(file);
+    },
+    onCancel: () => {
+      if (speech) {
+        pending.clear();
+        audio.clear();
+      } else pending.onCancel();
+    },
   };
 }

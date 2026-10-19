@@ -11,6 +11,7 @@ import {
   readNativeConnector,
 } from "./native-connector-store.js";
 import { openNativeS3Backup } from "./native-s3-backup.js";
+import { nativeS3BackupFixture } from "./native-s3-backup.test-support.js";
 import { configureNativeS3, nativeS3Cleanup } from "./native-s3.js";
 import {
   type SecretBackendBackupHandle,
@@ -21,7 +22,6 @@ import {
   deferred,
   runtimePassword,
 } from "./secret-backends/runtime.test-support.js";
-import { nativeS3BackupFixture } from "./test/native-s3-backup-fixtures.js";
 import { unwrapExportedVaultKey } from "./vault/offline-backup-file.js";
 import { bodyPortOf } from "./vault/store-device-key.js";
 import { vaultStore } from "./vault/store.js";

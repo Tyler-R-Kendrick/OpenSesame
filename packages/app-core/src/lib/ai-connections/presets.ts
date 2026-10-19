@@ -10,6 +10,7 @@ export const AI_CONNECTION_FAMILIES = [
   { id: "anthropic_messages", label: "Anthropic Messages" },
   { id: "gemini_generate_content", label: "Gemini Generate Content" },
   { id: "replicate_predictions", label: "Replicate predictions" },
+  { id: "elevenlabs_scribe", label: "ElevenLabs Scribe transcription" },
 ] as const;
 
 export function isAiConnectionFamily(
@@ -31,6 +32,14 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "elevenlabs")
+    return {
+      providerId,
+      name: "ElevenLabs",
+      family: "elevenlabs_scribe" as const,
+      baseUrl: "https://api.elevenlabs.io/v1",
+      model: "scribe_v2",
+    };
   if (providerId === "replicate")
     return {
       providerId,
@@ -94,7 +103,7 @@ export function aiConnectionDraft(providerId: string): AiConnectionDraft {
   if (!preset) throw new Error("This provider has no supported AI protocol.");
   return {
     ...preset,
-    model: "",
+    model: preset.family === "elevenlabs_scribe" ? preset.model : "",
     authentication: "api-key",
     apiKey: "",
     tokenParameter: ["openai", "byo-ai", "azure-openai"].includes(providerId)

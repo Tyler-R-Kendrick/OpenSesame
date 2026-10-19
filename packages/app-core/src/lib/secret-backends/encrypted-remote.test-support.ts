@@ -358,6 +358,5 @@ export async function freshLocalVault(files: Map<string, string>, pin: string) {
   await kvFlush();
   kvForgetAll();
   files.clear();
-  vaultStore.rehydrate();
   await vaultStore.createWithPin(pin);
 }

@@ -2,9 +2,9 @@ import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { deviceConnection } from "@opensesame/app-core/lib/device-connectors.js";
 import { bindNativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
+import { nativeS3BackupFixture } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
 import { configureNativeS3 } from "@opensesame/app-core/lib/native-s3.js";
 import { runtimePassword } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
-import { nativeS3BackupFixture } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 import { createItem, readVaultFile } from "@opensesame/vault-core";

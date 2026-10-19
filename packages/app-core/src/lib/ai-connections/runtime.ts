@@ -12,9 +12,15 @@ import {
 import { aiConnectionBinding, validateAiConnection } from "./configuration.js";
 import { capturedAiCredentials, resolvedAiConnection } from "./credentials.js";
 import { aiCompletionSeams } from "./http.js";
-import { inferAiConnection, probeAiConnection } from "./inference.js";
+import {
+  captureAiSpeechAudio,
+  inferAiConnection,
+  probeAiConnection,
+} from "./inference.js";
+import type { AiAudioInput } from "./media.js";
 import { aiConnectionPreset } from "./presets.js";
 import type { ReplicateInput, ReplicateRunOptions } from "./replicate-types.js";
+import { isAiSpeechProvider } from "./speech-target.js";
 import {
   AI_CONNECTION_CLASSIFICATION,
   aiConnectionRecord,
@@ -128,6 +134,7 @@ function captureInferenceCaller(
 export type AiConnectionOperationOptions = {
   signal?: AbortSignal;
   prediction?: ReplicateRunOptions;
+  audio?: AiAudioInput;
 };
 function operationTransport(
   port: AiConnectionTransport,
@@ -149,6 +156,7 @@ export async function testAiConnection(
   const port = captureAiConnectionTransport();
   const callerSignal = options.signal;
   const prediction = { ...options.prediction };
+  const audio = captureAiSpeechAudio(options.audio);
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
@@ -172,6 +180,7 @@ export async function testAiConnection(
       check,
       predictionInput,
       prediction,
+      audio,
     );
     check();
     completed = true;
@@ -193,6 +202,7 @@ export async function saveAiConnection(
   const port = captureAiConnectionTransport();
   const callerSignal = options.signal;
   const prediction = { ...options.prediction };
+  const audio = captureAiSpeechAudio(options.audio);
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
@@ -220,6 +230,7 @@ export async function saveAiConnection(
       check,
       predictionInput,
       prediction,
+      audio,
     );
     const capture = await stageVaultCredentials(
       {
@@ -276,6 +287,8 @@ export async function performSavedAiInference(
   const caller = captureInferenceCaller(runtime);
   const port = captureAiConnectionTransport();
   const prediction = { ...predictionOptions };
+  const audio = captureAiSpeechAudio(input.media);
+  const supplied = audio === undefined ? input : { ...input, media: audio };
   const guard = await aiVaultSeams.capture();
   let completed = false;
   let owner: (() => void) | undefined;
@@ -292,7 +305,9 @@ export async function performSavedAiInference(
     requireNativeKey(
       {
         family: "AI",
-        accepts: (providerId) => aiConnectionPreset(providerId) !== null,
+        accepts: (providerId) =>
+          aiConnectionPreset(providerId) !== null ||
+          isAiSpeechProvider(providerId),
         classification: AI_CONNECTION_CLASSIFICATION,
       },
       id,
@@ -310,7 +325,7 @@ export async function performSavedAiInference(
     check();
     const result = await inferAiConnection(
       draft,
-      input,
+      supplied,
       transport,
       check,
       onText,

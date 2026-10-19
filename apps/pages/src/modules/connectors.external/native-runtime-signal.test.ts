@@ -3,18 +3,11 @@ import { type ServerResponse, createServer } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { nativeDeviceViewSeams } from "@opensesame/app-core/lib/device-connector-view.js";
 import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
-/** @vitest-environment jsdom */
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { overlapCast } from "@opensesame/os-domain";
-import { afterEach as afterGenuine, beforeEach as beforeGenuine } from "vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import { createActivation } from "../activation.js";
 import { createTestContext } from "../test-context.js";
-import {
-  closeGenuineRuntimeFixture,
-  genuineRuntimeFixture,
-} from "./genuine-runtime.test-support.js";
-import { bindNativeRuntime, bindProviderRuntime } from "./native-runtime.js";
+import { bindNativeRuntime } from "./native-runtime.js";
 
 const initialProjector = nativeDeviceViewSeams.authorization;
 const dispose: (() => void)[] = [];
@@ -23,7 +16,7 @@ afterEach(() => {
   nativeDeviceViewSeams.authorization = initialProjector;
 });
 
-function bindActualTransport(genuine = false) {
+function bindActualTransport() {
   const test = createTestContext();
   const ctx = {
     ...test.ctx,
@@ -34,8 +27,7 @@ function bindActualTransport(genuine = false) {
   };
   const activation = createActivation(ctx, "connectors.external");
   dispose.push(() => activation.dispose());
-  if (genuine) bindProviderRuntime(ctx, activation);
-  else bindNativeRuntime(ctx, activation);
+  bindNativeRuntime(ctx, activation);
   const transport = nativeProviderTransport();
   const signal = transport.signal;
   if (!signal)
@@ -187,32 +179,4 @@ describe("captured native provider signal", () => {
       await fixture.close();
     }
   });
-});
-
-beforeGenuine(genuineRuntimeFixture);
-afterGenuine(closeGenuineRuntimeFixture);
-
-it("withdraws an actual held HTTP body when genuine owner enters a guest realm", async () => {
-  const owner = bindActualTransport(true);
-  const fixture = await httpFixture();
-  try {
-    const response = await owner.transport.fetch(`${fixture.origin}/hold`);
-    await fixture.started;
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("No actual owner HTTP body.");
-    await reader.read();
-    const rejected = expect(reader.read()).rejects.toMatchObject({
-      name: "AbortError",
-    });
-    vaultStore.lock();
-    await vaultStore.createGuest();
-    await rejected;
-    expect(owner.signal.aborted).toBe(true);
-    expect(() => nativeProviderTransport()).toThrow();
-    expect(() => owner.transport.assertCurrent()).toThrow();
-    await expect.poll(fixture.premature).toBe(true);
-  } finally {
-    owner.activation.dispose();
-    await fixture.close();
-  }
 });

@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs";
 import { accountFilePassword } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { kvFlush, kvForgetAll } from "../kv.js";
 import { VaultStore } from "../vault/store.js";
-import { vfsFlush } from "../vfs.js";
 import { createFileImportBackend } from "./file-import.js";
 import {
   bitwardenExport,
@@ -15,17 +13,11 @@ import { secretBackendDraft } from "./presets.js";
 
 let store: VaultStore;
 beforeEach(async () => {
-  await vfsFlush();
-  await kvFlush();
-  kvForgetAll();
   store = new VaultStore();
-  await store.create("controlled genuine backend fixture password");
+  await store.createGuest();
 });
-afterEach(async () => {
-  await store.flushPendingWrites();
+afterEach(() => {
   store.lock();
-  await vfsFlush();
-  await kvFlush();
   vi.restoreAllMocks();
 });
 function config(providerId: string, fileFormat: string, file: File) {

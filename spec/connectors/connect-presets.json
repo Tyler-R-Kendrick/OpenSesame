@@ -5090,10 +5090,10 @@
       "service_urls": ["https://api.mailgun.net", "https://api.eu.mailgun.net"],
       "verify": {
         "method": "GET",
-        "url": "https://{api_host}/v3/domains",
+        "url": "https://{api_host}/v4/domains?limit=20&skip=0",
         "account_field": "items.0.name"
       },
-      "instructions": "In Mailgun open **Settings → API Security**, click **Add new key**, name it, and copy the private API key (shown once). EU accounts use api.eu.mailgun.net.",
+      "instructions": "In Mailgun open **Settings → API Security**, click **Add new key**, name it, and copy the private API key (shown once). EU accounts use api.eu.mailgun.net. The native domain inventory uses the current v4 Domains API and reads only the first 20 domains in the selected region.",
       "docs_url": "https://documentation.mailgun.com/docs/mailgun/api-reference/authentication",
       "probe_status": 401,
       "confidence": "high",
@@ -5498,11 +5498,11 @@
       "service_urls": ["https://console.neon.tech/api/v2"],
       "verify": {
         "method": "GET",
-        "url": "https://console.neon.tech/api/v2/projects?limit=20",
+        "url": "https://console.neon.tech/api/v2/projects?limit=20&org_id={org_id}",
         "account_field": null,
         "required_fields": ["projects"]
       },
-      "instructions": "In the Neon Console open your avatar → **Account settings → API keys**, click **Create new API key**, name it and copy it (shown once).",
+      "instructions": "In the Neon Console open your avatar → **Account settings → API keys**, click **Create new API key**, name it and copy it (shown once). Enter the organization ID from the Neon Console. Personal API keys require it; organization API keys must belong to that same organization. Project inventory is limited to the first 20 accessible projects.",
       "docs_url": "https://neon.com/docs/manage/api-keys",
       "probe_status": 401,
       "confidence": "medium",
@@ -5512,7 +5512,15 @@
         "https://neon.com/docs/manage/api-keys",
         "https://api-docs.neon.tech/reference/listprojects"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "org_id",
+          "label": "Neon organization ID",
+          "placeholder": "org-spring-garden-12345",
+          "required": true,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "netlify",
@@ -7033,6 +7041,50 @@
       "docs_url": "https://razorpay.com/docs/api/payments/fetch-all/",
       "sources": [
         "https://github.com/razorpay/razorpay-node/blob/b9e8527225a7322ba2671a3bc0b848fd019d2d8c/lib/resources/payments.js"
+      ]
+    },
+    {
+      "service": "bitbucket",
+      "key_url": "https://id.atlassian.com/manage-profile/security/api-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "key_prefix": null,
+      "service_urls": ["https://api.bitbucket.org/2.0"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.bitbucket.org/2.0/user",
+        "account_field": "uuid"
+      },
+      "instructions": "Create a scoped Bitbucket API token with read:user:bitbucket and read:repository:bitbucket. Add write:repository:bitbucket for encrypted vault backups. Paste the API token here; it is sealed in this vault. For backups, optionally supply all three repository fields and an existing branch. Browser requests use your approved native HTTPS route when configured. No OAuth app or app password is used by this method.",
+      "docs_url": "https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/",
+      "confidence": "high",
+      "sources": [
+        "https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/",
+        "https://developer.atlassian.com/cloud/bitbucket/rest/api-group-users/",
+        "https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/"
+      ],
+      "template_params": [
+        {
+          "name": "backup_owner",
+          "label": "Backup repository owner (optional)",
+          "placeholder": "workspace-slug",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_repo",
+          "label": "Backup repository name (optional)",
+          "placeholder": "sealed-vault",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_branch",
+          "label": "Backup branch (optional)",
+          "placeholder": "backup/encrypted",
+          "required": false,
+          "secret": false
+        }
       ]
     }
   ]

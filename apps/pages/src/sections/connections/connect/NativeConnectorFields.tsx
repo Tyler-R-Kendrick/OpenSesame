@@ -45,7 +45,7 @@ function NativeFieldControl({
           id={id}
           className="cx-textarea"
           value={value}
-          maxLength={100_000}
+          maxLength={field.maxLength ?? 100_000}
           readOnly={field.readOnly}
           onChange={(event) => onChange(event.target.value)}
         />

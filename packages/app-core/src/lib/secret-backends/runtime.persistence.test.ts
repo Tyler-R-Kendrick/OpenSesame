@@ -158,17 +158,17 @@ it("saved private credentials cannot be spent, edited, probed or removed from a 
   await vaultStore.createGuest();
   fixture.fetcher.mockClear();
   await expect(connectSecretBackend(saved.connectionId)).rejects.toMatchObject({
-    code: "locked",
+    code: "stale",
   });
   await expect(
     probeSecretBackend(remoteDraft(), saved.connectionId),
-  ).rejects.toMatchObject({ code: "locked" });
+  ).rejects.toMatchObject({ code: "stale" });
   await expect(
     deleteSecretBackendConnection(saved.connectionId),
-  ).rejects.toMatchObject({ code: "locked" });
+  ).rejects.toMatchObject({ code: "stale" });
   await expect(
     saveSecretBackendConnection(remoteDraft(), saved.connectionId),
-  ).rejects.toMatchObject({ code: "locked" });
+  ).rejects.toMatchObject({ code: "unsupported" });
   expect(fixture.fetcher).not.toHaveBeenCalled();
   vaultStore.lock();
   vaultStore.loadActiveProjectScope();

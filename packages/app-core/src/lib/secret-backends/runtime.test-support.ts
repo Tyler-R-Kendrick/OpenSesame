@@ -9,10 +9,6 @@ import { secretBackendDraft } from "./presets.js";
 import { bindSecretBackendTransport } from "./transport.js";
 import type { SecretBackendFetch } from "./types.js";
 
-interface RuntimeEntryIdentity {
-  isSameEntry(other: RuntimeEntryIdentity): Promise<boolean>;
-}
-
 export const runtimePassword = "correct horse battery staple runtime fixture";
 export const ledgerFile =
   "opensesame-pages-opensesame.self-hosted-connectors.v1.json";
@@ -32,25 +28,13 @@ export async function runtimeFixture() {
   await kvFlush();
   kvForgetAll();
   const files = new Map<string, string>();
-  const created = new Set<string>();
   let atomicWrite: (() => Promise<void>) | undefined;
   const root = {
     async getFileHandle(name: string, options?: { create?: boolean }) {
       if (!files.has(name) && !options?.create)
         throw new DOMException("Missing", "NotFoundError");
-      if (!files.has(name)) {
-        created.add(name);
-      }
-      const handle = {
-        __opfsName: name,
-        async isSameEntry(other: RuntimeEntryIdentity): Promise<boolean> {
-          return (
-            (other as { __opfsName?: string }).__opfsName === name
-          );
-        },
+      return {
         async getFile() {
-          if (!files.has(name) && !created.has(name))
-            throw new DOMException("Missing", "NotFoundError");
           return {
             size: new TextEncoder().encode(files.get(name) ?? "").length,
             text: async () => files.get(name) ?? "",
@@ -65,23 +49,14 @@ export async function runtimeFixture() {
             },
             async close() {
               files.set(name, staged);
-              created.delete(name);
             },
             async abort() {},
           };
         },
       };
-      return handle;
-    },
-    async isSameEntry(other: RuntimeEntryIdentity): Promise<boolean> {
-      return other === root;
-    },
-    async *keys() {
-      yield* new Set([...files.keys(), ...created]);
     },
     async removeEntry(name: string) {
       files.delete(name);
-      created.delete(name);
     },
   };
   vi.stubGlobal("navigator", {

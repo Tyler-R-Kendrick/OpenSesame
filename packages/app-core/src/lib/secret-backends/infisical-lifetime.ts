@@ -89,13 +89,13 @@ export function createInfisicalLifetime(
         current();
         return result;
       } catch (error) {
+        current();
         if (
           error instanceof SecretBackendHttpError &&
           (error.status === 401 ||
             (error.status === 403 && error.responseKind === "token-error"))
         )
           close();
-        else if (signal.aborted) current();
         throw error;
       }
     },

@@ -7,8 +7,8 @@ import {
   data,
   failure,
   gate,
-} from "./test/s3-response-fixtures.js";
-import type { Plan, Row } from "./test/s3-response-fixtures.js";
+} from "./s3-response.test-support.js";
+import type { Plan, Row } from "./s3-response.test-support.js";
 
 const opened: Array<Awaited<ReturnType<typeof bucket>>> = [];
 async function fixture(plans: Parameters<typeof bucket>[0]) {

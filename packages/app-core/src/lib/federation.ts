@@ -30,6 +30,13 @@ import {
   readNativeFederationSession,
 } from "./federation-native-session.js";
 import {
+  type UpstreamIdentity,
+  advanceFederationSessionGeneration,
+  upstreamIdentityDisplayName as displayNameDefault,
+  readNativeFederationSession,
+} from "./federation-native-session.js";
+import { isOperatorIdpIssuer } from "./federation-operator.js";
+import {
   originCallbackUri,
   originClientId,
   redirectUri,

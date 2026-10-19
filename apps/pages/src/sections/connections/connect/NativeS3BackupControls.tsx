@@ -1,3 +1,5 @@
+import { nativeBitbucketBackupTarget } from "@opensesame/app-core/lib/native-bitbucket-backup-authority.js";
+import { openNativeBitbucketBackup } from "@opensesame/app-core/lib/native-bitbucket-backup.js";
 import { nativeCodebergBackupTarget } from "@opensesame/app-core/lib/native-codeberg-backup-target.js";
 /** Mount the shared backup forms for this exact verified native bucket. */
 import { openNativeCodebergBackup } from "@opensesame/app-core/lib/native-codeberg-backup.js";
@@ -30,6 +32,12 @@ type BackupOpeners = Readonly<
   >
 >;
 const openers = {
+  bitbucket: (id, parameters, options) => {
+    const target = nativeBitbucketBackupTarget(parameters);
+    if (!target)
+      throw new Error("Configure a Bitbucket backup repository first.");
+    return openNativeBitbucketBackup(id, target, options);
+  },
   gitlab: (id, parameters, options) => {
     const target = nativeGitlabBackupTarget(parameters);
     if (!target) throw new Error("Configure a GitLab backup project first.");
@@ -99,7 +107,8 @@ export function NativeVaultBackupControls({
           providerId !== "s3" &&
           providerId !== "github" &&
           providerId !== "codeberg" &&
-          providerId !== "gitlab"
+          providerId !== "gitlab" &&
+          providerId !== "bitbucket"
         )
           throw new Error("No native backup adapter is configured.");
         const opener = openers[providerId];

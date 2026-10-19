@@ -34,7 +34,7 @@ installNativeApiTests();
 type BlockedCase = { providerId: string; parameters: Record<string, string> };
 const blocked: BlockedCase[] = [
   { providerId: "resend", parameters: {} },
-  { providerId: "neon", parameters: {} },
+  { providerId: "neon", parameters: { org_id: "org-spring-garden-12345" } },
   { providerId: "datadog", parameters: {} },
   { providerId: "datadog", parameters: { site: "datadoghq.eu" } },
   { providerId: "typeform", parameters: { api_host: "api.typeform.com" } },

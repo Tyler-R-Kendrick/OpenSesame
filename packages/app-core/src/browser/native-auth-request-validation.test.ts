@@ -52,7 +52,7 @@ it.each([1, 599999, 600000])(
     expect(vi.getTimerCount()).toBe(0);
   },
 );
-it.each([-1, 0, 630001])(
+it.each([-1, 0, 600001])(
   "rejects %ims at the original request bounds with exact fixed reason",
   async (offset) => {
     const opened = browser();
@@ -80,7 +80,7 @@ it.each([1, 1799999, 1800000])(
     expect(vi.getTimerCount()).toBe(0);
   },
 );
-it.each([-1, 0, 1830001])(
+it.each([-1, 0, 1800001])(
   "rejects %ims at the unchanged device/redirect bounds",
   (offset) => {
     const opened = browser();

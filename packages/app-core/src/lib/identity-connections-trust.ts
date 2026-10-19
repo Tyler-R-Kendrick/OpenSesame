@@ -72,6 +72,15 @@ function providerProjection(
   draft: IdentityConnectionDraft,
   connectionId: string,
 ): OperatorIdp {
+  if (draft.protocol === "saml")
+    return {
+      providerId: draft.providerId,
+      label: draft.name,
+      connectionId,
+      protocol: "saml",
+      issuer: draft.samlEntityId,
+      clientId: draft.clientId,
+    };
   if (identityConnectionUsesBroker(draft))
     return {
       providerId: draft.providerId,
@@ -127,7 +136,9 @@ function assertNoIssuerConflict(
     providers.some(
       (idp) =>
         !idp.providerHint &&
-        idp.issuer.replace(/\/+$/, "") === next.issuer.replace(/\/+$/, ""),
+        (idp.protocol === "saml" || next.protocol === "saml"
+          ? idp.issuer === next.issuer
+          : idp.issuer.replace(/\/+$/, "") === next.issuer.replace(/\/+$/, "")),
     )
   )
     throw new Error(

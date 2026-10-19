@@ -28,6 +28,7 @@ import {
   safeProviderText,
   verifyNativeApiResponse,
 } from "./native-api-verify.js";
+import { verifyNativeBitbucketBackupTarget } from "./native-bitbucket-backup-authority.js";
 import {
   type NativeConfiguration,
   emptyNativePrivate,
@@ -124,6 +125,7 @@ async function providerVerification(
 ) {
   assertNativeApiBrowserTarget(target);
   await verifyNativeGitlabBackupTarget(target, credentials, transport);
+  await verifyNativeBitbucketBackupTarget(target, credentials, transport);
   const request = nativeApiVerificationRequest(target, credentials);
   const body = await nativeApiHttp(request, transport);
   validateNativeApiInventory(target.providerId, body);

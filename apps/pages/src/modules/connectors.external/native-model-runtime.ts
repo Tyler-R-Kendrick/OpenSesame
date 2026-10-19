@@ -26,6 +26,7 @@ function modelConnection(id: string): HostedModelConnection | null {
     method: view.configuration.method,
   };
   if (ai) {
+    connection.family = ai.family;
     connection.model = ai.model;
     connection.endpoint = ai.baseUrl;
     connection.name = ai.name;

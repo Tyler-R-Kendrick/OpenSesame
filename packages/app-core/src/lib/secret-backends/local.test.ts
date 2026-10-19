@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { kvFlush, kvForgetAll } from "../kv.js";
 import { kvGet } from "../kv.js";
 import { VaultStore } from "../vault/store.js";
-import { vfsFlush } from "../vfs.js";
 import { BODY_PATH, tombFileKey } from "../vfs.js";
 import { createFileImportBackend } from "./file-import.js";
 import { bitwardenExport } from "./file-import.test-support.js";
@@ -11,18 +9,10 @@ import { secretBackendDraft } from "./presets.js";
 
 let store: VaultStore;
 beforeEach(async () => {
-  await vfsFlush();
-  await kvFlush();
-  kvForgetAll();
   store = new VaultStore();
-  await store.create("controlled genuine backend fixture password");
+  await store.createGuest();
 });
-afterEach(async () => {
-  await store.flushPendingWrites();
-  store.lock();
-  await vfsFlush();
-  await kvFlush();
-});
+afterEach(() => store.lock());
 
 it("stores actual sealed vault items and CRUD works without plaintext storage", async () => {
   const backend = createLocalVaultBackend(store);
@@ -66,9 +56,6 @@ it("stores actual sealed vault items and CRUD works without plaintext storage", 
 
 it("a durable vault reloads the saved login through its existing password credential model", async () => {
   store.lock();
-  await vfsFlush();
-  await kvFlush();
-  kvForgetAll();
   const password = "correct horse battery staple for backend test";
   const durable = new VaultStore();
   await durable.create(password);

@@ -230,7 +230,7 @@ function backupControls(
   const target = view.configuration.parameters;
   const supported =
     view.providerId === "s3" ||
-    (["github", "codeberg"].includes(view.providerId) &&
+    (["github", "codeberg", "bitbucket"].includes(view.providerId) &&
       !!target.backup_owner &&
       !!target.backup_repo &&
       !!target.backup_branch) ||

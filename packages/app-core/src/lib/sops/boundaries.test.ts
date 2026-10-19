@@ -172,22 +172,13 @@ describe("SB-069 a vault import lands whole or not at all", () => {
   // (`sections/settings/sops/useVaultSecrets.boundary.test.ts`).
   it("the store's batch write is one change", () => {
     const store = readFileSync(join(coreSrc, "lib/vault/store.ts"), "utf8");
-    expect(store).toMatch(/saveItems = this\.#itemOperations\.saveItems;/u);
-    expect(store).toMatch(/#itemOperations = createStoreItemOperations\(/u);
-    expect(store).toMatch(/writes: \(check\) => this\.#writes\(check\)/u);
-    const operations = readFileSync(
-      join(coreSrc, "lib/vault/store-item-operations.ts"),
-      "utf8",
-    );
-    const saveStart = operations.indexOf("\n    saveItems:");
-    const nextStart = operations.indexOf("\n    trashItem:", saveStart);
+    const saveStart = store.indexOf("\n  saveItems(");
+    const writesStart = store.indexOf("\n  #writes(", saveStart);
     expect(saveStart).toBeGreaterThan(0);
-    expect(nextStart).toBeGreaterThan(saveStart);
-    const saveItems = operations.slice(saveStart, nextStart);
-    expect(saveItems).toMatch(
-      /writeSavedItems\(host\.writes\(check\), items, folder\)/u,
-    );
-    expect(saveItems).not.toMatch(/host\.mutate/u);
+    expect(writesStart).toBeGreaterThan(saveStart);
+    const saveItems = store.slice(saveStart, writesStart);
+    expect(saveItems).toMatch(/return writeSavedItems\(/u);
+    expect(saveItems).not.toMatch(/#mutate/u);
     const writes = readFileSync(
       join(coreSrc, "lib/vault/item-writes.ts"),
       "utf8",

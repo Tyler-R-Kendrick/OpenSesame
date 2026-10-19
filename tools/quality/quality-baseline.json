@@ -16,31 +16,31 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 417,
-    "violations": 644,
-    "oversizedLines": 212104
+    "files": 416,
+    "violations": 643,
+    "oversizedLines": 211776
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
       "complexity": 1
     },
     "apps/cli/src/bridge.rs": {
-      "max-lines": 470
+      "max-lines": 500
     },
     "apps/cli/src/configs.rs": {
       "max-lines": 587
     },
     "apps/cli/src/connect.rs": {
-      "max-lines": 1436
+      "max-lines": 1451
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 1586
+      "max-lines": 1585
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
     },
     "apps/cli/src/store.rs": {
-      "max-lines": 931
+      "max-lines": 945
     },
     "apps/pages/server/github-app.mjs": {
       "complexity": 3,
@@ -227,9 +227,6 @@
     "crates/ceremony/src/capture.rs": {
       "max-lines": 506
     },
-    "crates/cli-app-integration/src/root_enroll/protocol_tests.rs": {
-      "max-lines": 463
-    },
     "crates/connection-broker/src/catalog.rs": {
       "max-lines": 763
     },
@@ -294,31 +291,28 @@
       "max-lines": 515
     },
     "crates/connector-host/src/providers.rs": {
-      "max-lines": 1324
+      "max-lines": 1439
     },
     "crates/connector-host/src/wasm.rs": {
       "max-lines": 699
     },
-    "crates/daemon/src/cli_app_integration/root_enroll_tests.rs": {
-      "max-lines": 431
-    },
-    "crates/daemon/src/cli_app_integration/tests/persona_r7.rs": {
-      "max-lines": 418
-    },
     "crates/daemon/src/cli_probe.rs": {
-      "max-lines": 695
+      "max-lines": 700
     },
     "crates/daemon/src/invoke_through.rs": {
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1335
+      "max-lines": 1332
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
     },
+    "crates/daemon/src/runner.rs": {
+      "max-lines": 476
+    },
     "crates/daemon/src/tailscale.rs": {
-      "max-lines": 423
+      "max-lines": 439
     },
     "crates/domain/src/authority.rs": {
       "max-lines": 689
@@ -494,6 +488,9 @@
     "crates/sealed-store/src/attachment.rs": {
       "max-lines": 1185
     },
+    "crates/sealed-store/src/git.rs": {
+      "max-lines": 432
+    },
     "crates/sealed-store/src/store.rs": {
       "max-lines": 627
     },
@@ -579,7 +576,7 @@
     },
     "packages/app-core/src/lib/federation.ts": {
       "complexity": 2,
-      "max-lines": 896,
+      "max-lines": 894,
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/github-app-presence.ts": {
@@ -620,7 +617,7 @@
       "max-lines": 518
     },
     "packages/app-core/src/lib/vault/drop.test.ts": {
-      "max-lines": 494
+      "max-lines": 526
     },
     "packages/app-core/src/lib/vault/export/cxf.ts": {
       "complexity": 1,

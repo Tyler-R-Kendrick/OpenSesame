@@ -13,6 +13,7 @@ import {
 } from "./bedrock-target.js";
 import { aiConnectionFamilies, aiConnectionPreset } from "./presets.js";
 import { replicatePredictionTarget } from "./replicate-types.js";
+import { validateAiSpeechConnection } from "./speech-target.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
 import {
   VertexAiTargetSchema,
@@ -26,6 +27,7 @@ export const AiConnectionDraftSchema = z
     name: z.string().trim().min(1).max(200),
     family: z.enum([
       "replicate_predictions",
+      "elevenlabs_scribe",
       "bedrock_converse",
       "openai_chat",
       "openai_responses",
@@ -90,15 +92,18 @@ export function validateAiConnection<Value>(
     );
   const draft = result.data;
   const preset = aiConnectionPreset(draft.providerId);
+  const speech = draft.family === "elevenlabs_scribe";
+  if (speech) validateAiSpeechConnection(draft, requireKey);
   const supportedFamily =
-    draft.family === "replicate_predictions"
+    speech ||
+    (draft.family === "replicate_predictions"
       ? ["replicate", "byo-ai"].includes(draft.providerId)
       : draft.family === "bedrock_converse"
         ? ["aws-bedrock", "byo-ai"].includes(draft.providerId)
         : aiConnectionFamilies(draft.providerId).some(
             (family) => family.id === draft.family,
-          );
-  if (!preset || !supportedFamily)
+          ));
+  if ((!preset && !speech) || !supportedFamily)
     throw new AiConnectionError(
       "configuration",
       "Choose a protocol supported by this provider.",

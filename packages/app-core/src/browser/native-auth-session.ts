@@ -52,19 +52,6 @@ export type NativeAuthPopup = {
   cancel: () => void;
 };
 
-/**
- * How far the wall clock may step back between minting a request and opening
- * its window. `Date.now()` is not monotonic, and a caller that mints the
- * whole lifetime would otherwise be refused here. Every wait is still capped
- * at the lifetime via `remainingLifetime`, so this lengthens nothing.
- */
-const CLOCK_STEP_BACK_MS = 30_000;
-
-/** How long the window may still wait, never past the profile's lifetime. */
-function remainingLifetime(request: AuthRequest, maxLifetime: number): number {
-  return Math.min(request.expiresAt - Date.now(), maxLifetime);
-}
-
 function validateRequest(
   request: AuthRequest,
   maxLifetime = 10 * 60_000,
@@ -87,7 +74,7 @@ function validateRequest(
   const now = Date.now();
   if (request.expiresAt <= now)
     throw new Error("Provider authorization request expired");
-  if (request.expiresAt > now + maxLifetime + CLOCK_STEP_BACK_MS)
+  if (request.expiresAt > now + maxLifetime)
     throw new Error("Provider authorization request exceeds allowed lifetime");
 }
 
@@ -152,10 +139,7 @@ function waitForCode(
       else reject(new Error("Provider authorization was cancelled or expired"));
     };
     const abort = () => finish();
-    const deadline = setTimeout(
-      abort,
-      remainingLifetime(request, 10 * 60_000),
-    );
+    const deadline = setTimeout(abort, request.expiresAt - Date.now());
     session.cancelWait = abort;
     request.signal?.addEventListener("abort", abort, { once: true });
     stopListening = listen((response) => {
@@ -263,10 +247,7 @@ function showRedirectConsent(
       lifetime.abort();
       close();
     };
-    const deadline = setTimeout(
-      abort,
-      remainingLifetime(request, 30 * 60_000),
-    );
+    const deadline = setTimeout(abort, request.expiresAt - Date.now());
     session.cancelWait = abort;
     session.popup.opener = null;
     session.isolated = true;

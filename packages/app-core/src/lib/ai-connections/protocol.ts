@@ -61,6 +61,11 @@ export function aiInferenceRequest(
 }
 
 export function aiConnectionHeaders(draft: AiConnectionDraft): Headers {
+  if (draft.family === "elevenlabs_scribe")
+    throw new AiConnectionError(
+      "configuration",
+      "Scribe audio requires its finite multipart transcription adapter.",
+    );
   if (draft.family === "replicate_predictions")
     throw new AiConnectionError(
       "configuration",
@@ -104,6 +109,11 @@ export function aiInferenceAnswer(
   family: AiInferenceFamily,
   value: BoundaryValue,
 ): string {
+  if (family === "elevenlabs_scribe")
+    throw new AiConnectionError(
+      "configuration",
+      "Read Scribe transcription through its finite audio adapter.",
+    );
   if (family === "replicate_predictions")
     throw new AiConnectionError(
       "configuration",

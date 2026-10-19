@@ -1,3 +1,4 @@
+import { beginSavedNativeSaml } from "@opensesame/app-core/browser/identity-saml-dispatch.js";
 import { clearAuthOutcome } from "@opensesame/app-core/lib/auth-outcome.js";
 import type { TrustedUpstream } from "@opensesame/app-core/lib/federation.js";
 import { operatorUpstream } from "@opensesame/app-core/lib/federation.js";
@@ -14,6 +15,7 @@ import { IdentityConnectionSignIn } from "../../components/IdentityConnectionSig
 
 export type ConfiguredIdentity = { id: string; draft: IdentityConnectionDraft };
 export const configuredIdentityDependencies = {
+  beginSavedNativeSaml,
   beginIdentityConnectionSignIn,
   hydrateIdentityConnections,
   readIdentityConnection,
@@ -33,6 +35,11 @@ export function startConfiguredIdentity(
   const id = idp.connectionId;
   if (!id) {
     handlers.start(() => handlers.legacy(operatorUpstream(idp)));
+    return;
+  }
+  if (idp.protocol === "saml") {
+    const pending = configuredIdentityDependencies.beginSavedNativeSaml(id);
+    handlers.start(() => pending);
     return;
   }
   handlers.start(async () => {

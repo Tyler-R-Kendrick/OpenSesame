@@ -176,7 +176,14 @@ export async function connectedHarnessProviderIds(): Promise<string[]> {
 function savedConnectionOptions(): ModelSlugOption[] {
   const options: ModelSlugOption[] = [];
   for (const row of hostedModelAuthority()?.connections() ?? []) {
-    if (row.status !== "connected" || !row.model || !row.endpoint) continue;
+    if (
+      row.status !== "connected" ||
+      !row.model ||
+      !row.endpoint ||
+      row.family === "elevenlabs_scribe" ||
+      row.family === "replicate_predictions"
+    )
+      continue;
     options.push({
       value: `connection:${row.connectionId}`,
       label: `${row.name ?? row.providerId} · ${row.model}`,

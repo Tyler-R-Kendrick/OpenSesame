@@ -4,10 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import { localStore, maybePage, sessionStore } from "../ports.js";
 import { createTestHost } from "../test-host.js";
-import {
-  allowGithub,
-  openGithubTestOwner,
-} from "./github-app-authority.test-support.js";
+import { allowGithub } from "./github-app-authority.test-support.js";
 import {
   claimGithubAppCode,
   verifyGithubAppInstallations,
@@ -71,18 +68,15 @@ function ceremony() {
   );
 }
 
-beforeEach(async () => {
+beforeEach(() => {
   configureHost(createTestHost());
   allowGithub();
   vi.stubGlobal("crypto", webcrypto);
-  await openGithubTestOwner();
   vault();
 });
-afterEach(async () => {
+afterEach(() => {
   forgetLocalGithubApp();
   vi.restoreAllMocks();
-  await vaultStore.flushPendingWrites();
-  vaultStore.lock();
   vi.unstubAllGlobals();
 });
 

@@ -4,17 +4,9 @@ import { SecretBackendError } from "./types.js";
 /** The existing vault owns sealing, second-step checks, and durable writes. */
 export type LocalVaultPort = Pick<
   VaultStore,
-  | "getSnapshot"
-  | "saveItem"
-  | "trashItem"
-  | "applyImport"
-  | "onLock"
-  | "isGenuineSession"
+  "getSnapshot" | "saveItem" | "trashItem" | "applyImport" | "onLock"
 >;
-export type VaultSessionPort = Pick<
-  VaultStore,
-  "getSnapshot" | "onLock" | "isGenuineSession"
->;
+export type VaultSessionPort = Pick<VaultStore, "getSnapshot" | "onLock">;
 
 export async function localVaultPort(
   port?: LocalVaultPort,
@@ -24,13 +16,7 @@ export async function localVaultPort(
 
 export function requireUnlockedVault(port: VaultSessionPort) {
   const snapshot = port.getSnapshot();
-  if (
-    !port.isGenuineSession() ||
-    snapshot.guest ||
-    snapshot.decoy ||
-    snapshot.status !== "unlocked" ||
-    snapshot.awaitingSecondStep
-  )
+  if (snapshot.status !== "unlocked" || snapshot.awaitingSecondStep)
     throw new SecretBackendError(
       "locked",
       "Unlock the destination vault first.",

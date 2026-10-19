@@ -29,17 +29,3 @@ export function allowGithub() {
   });
   return { revoke: () => minted.abort("withdrawn"), network };
 }
-
-/** Genuine local crypto owner; public snapshot doubles alone cannot authorize credential egress. */
-export async function openGithubTestOwner() {
-  const { vaultStore } = await import("./vault/store.js");
-  const { vfsFlush } = await import("./vfs.js");
-  const { kvFlush, kvForgetAll } = await import("./kv.js");
-  await vaultStore.flushPendingWrites();
-  vaultStore.lock();
-  await vfsFlush();
-  await kvFlush();
-  kvForgetAll();
-  vaultStore.loadActiveProjectScope();
-  await vaultStore.create("genuine GitHub registration owner fixture 53947");
-}

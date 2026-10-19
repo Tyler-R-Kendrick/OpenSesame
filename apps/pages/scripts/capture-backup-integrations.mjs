@@ -1,9 +1,9 @@
 /** Two-build evidence for password-manager connections and their shared BYO controls. */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sealWithPin } from "./lib/pages-journey.mjs";
-import { privateSharedTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -21,7 +21,7 @@ const out = path.resolve(
 );
 const raw = path.join(
   process.env.PAGES_CAPTURE_RAW ??
-    privateSharedTempDir("opensesame-backup-evidence"),
+    path.join(os.tmpdir(), "opensesame-backup-evidence"),
   phase,
 );
 fs.mkdirSync(raw, { recursive: true });

@@ -1,4 +1,7 @@
 import { useId } from "react";
+import { NativeInputFields } from "../connect/NativeConnectorFields.js";
+import { SelectField } from "../connect/fields.js";
+import type { NativeField } from "../connect/native-connector-ui.js";
 import {
   IdentityDraftFields,
   type IdentityFieldProps,
@@ -7,8 +10,87 @@ import {
   OIDC_FIELDS,
   OIDC_OPTIONS,
   SAML_FIELDS,
+  SAML_OPTIONS,
   TOKEN_FIELDS,
 } from "./identity-field-definitions.js";
+
+const SAML_METADATA_FIELDS = [
+  {
+    id: "samlMetadataXml",
+    label: "Metadata XML (alternative to URL)",
+    kind: "textarea",
+    secret: false,
+    required: false,
+    maxLength: 262144,
+    help: "Paste IdP metadata or use its URL. Saved XML is write-only; leave it blank to keep an unchanged connection.",
+  },
+] as const satisfies readonly NativeField[];
+const SAML_SIGNING_FIELDS = [
+  {
+    id: "samlSigningPrivateKeyPkcs8",
+    label: "SP signing private key (PKCS8 PEM)",
+    kind: "text",
+    secret: true,
+    required: false,
+    help: "Optional unless the IdP requires signed requests. Leave blank to keep the key for an unchanged connection.",
+  },
+  {
+    id: "samlSigningCertificate",
+    label: "SP signing certificate (PEM)",
+    kind: "textarea",
+    secret: false,
+    required: false,
+    maxLength: 16384,
+    help: "Use the certificate matching the private key. Changing the metadata URL or certificate requires re-entering that key.",
+  },
+] as const satisfies readonly NativeField[];
+function SamlFields(props: IdentityFieldProps) {
+  const changed: IdentityFieldProps["onChange"] = (key, value) => {
+    if (value && key === "samlMetadataXml")
+      props.onChange("samlMetadataUrl", "");
+    if (value && key === "samlMetadataUrl")
+      props.onChange("samlMetadataXml", "");
+    props.onChange(key, value);
+  };
+  const nativeChanged = (id: string, value: string) => {
+    const field = [...SAML_METADATA_FIELDS, ...SAML_SIGNING_FIELDS].find(
+      (entry) => entry.id === id,
+    );
+    if (field) changed(field.id, value);
+  };
+  return (
+    <>
+      <IdentityDraftFields {...props} onChange={changed} fields={SAML_FIELDS} />
+      <fieldset className="cx-form" disabled={props.busy}>
+        <NativeInputFields
+          fields={SAML_METADATA_FIELDS}
+          values={props.draft}
+          onChange={nativeChanged}
+        />
+        <details className="conn-client-alt">
+          <summary>SAML options</summary>
+          <div className="cx-form">
+            <IdentityDraftFields {...props} fields={SAML_OPTIONS} />
+            <SelectField
+              label="Require fresh authentication"
+              value={props.draft.samlForceAuthentication}
+              options={[
+                { id: "false", label: "No" },
+                { id: "true", label: "Yes" },
+              ]}
+              onChange={(value) => changed("samlForceAuthentication", value)}
+            />
+            <NativeInputFields
+              fields={SAML_SIGNING_FIELDS}
+              values={props.draft}
+              onChange={nativeChanged}
+            />
+          </div>
+        </details>
+      </fieldset>
+    </>
+  );
+}
 
 function OidcFields(props: IdentityFieldProps) {
   return (
@@ -84,7 +166,7 @@ export function IdentityProtocolFields(props: IdentityFieldProps) {
     case "oidc":
       return <OidcFields {...props} />;
     case "saml":
-      return <IdentityDraftFields {...props} fields={SAML_FIELDS} />;
+      return <SamlFields {...props} />;
     case "ldap":
       return <LdapFields {...props} />;
     default:

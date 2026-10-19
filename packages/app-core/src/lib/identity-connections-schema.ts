@@ -106,7 +106,6 @@ export function identityConnectionUsesBroker(
   draft: IdentityConnectionDraft,
 ): boolean {
   return (
-    draft.protocol === "saml" ||
     draft.protocol === "ldap" ||
     (draft.protocol === "oidc" &&
       (!!draft.clientSecret || !!draft.organizationId))
