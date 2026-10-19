@@ -69,6 +69,10 @@ jobs:
           toolchain: 1.88.0
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
+      - name: Install Linux keychain build and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
       - name: Install the repository contract tool
         shell: bash
         run: |

@@ -67,7 +67,7 @@ function decodeHeader(jwt: string): IdJagHeader {
 }
 
 function normalizeIssuer(value: string): string {
-  return value.replace(/\/+$/u, "");
+  return stripTrailingSlashes(value);
 }
 
 function assertIdJagHeader(
@@ -250,3 +250,10 @@ export function isIdJagAssertionType(value: string): boolean {
 }
 
 export { ID_JAG_ASSERTION_TYPE };
+
+/** Remove a slash suffix in linear time, including on malformed input. */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
+}

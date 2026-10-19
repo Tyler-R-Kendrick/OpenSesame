@@ -56,8 +56,15 @@ function defaultFrom(config: ControlPlaneConfig): string {
 }
 
 function addressFromMailbox(from: string): string {
-  const angled = from.match(/<([^>]+)>/);
-  return angled?.[1]?.trim() || from.trim();
+  let begin = from.indexOf("<");
+  while (begin >= 0) {
+    const end = from.indexOf(">", begin + 1);
+    if (end < 0) break;
+    if (end > begin + 1)
+      return from.slice(begin + 1, end).trim() || from.trim();
+    begin = from.indexOf("<", end + 1);
+  }
+  return from.trim();
 }
 
 type HttpEsp = {

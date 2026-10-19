@@ -186,6 +186,7 @@ mod tests {
             KeyAlgorithm::EcdsaP384,
             KeyAlgorithm::Ed25519,
             KeyAlgorithm::Rsa2048,
+            KeyAlgorithm::Rsa4096,
         ] {
             let key = keys::generate(algorithm).unwrap();
             let pem = generate_csr(&subject(), &sans(), &key).unwrap();

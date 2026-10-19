@@ -9,12 +9,13 @@ use opensesame_human_vault::ItemDataKey;
 
 use crate::envelope::{open_osseal, seal_osseal};
 use crate::git::auto_commit;
-use crate::path::{
-    confined_read, confined_remove, confined_write, logical_to_relative, relative_to_logical,
-};
+use crate::path::{confined_read, confined_remove, confined_write, logical_to_relative};
 use crate::recipients::Recipients;
 use crate::store_lock::StoreLock;
 use crate::{age_fmt, gpg, Entry, StoreError, StoreRoot};
+
+#[path = "store_entry_operations.rs"]
+mod entry_operations;
 
 const KEY_FILE: &str = ".opensesame-key";
 const REVISION_FILE: &str = ".opensesame-revisions.json";
@@ -76,41 +77,6 @@ pub fn unlock_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, Sto
     let (idk, _contents, _vrk) = unlock_key_file_with_password(root, password)
         .map_err(|e| StoreError::Crypto(e.to_string()))?;
     Ok(idk)
-}
-
-fn collect_entry_names(
-    dir: &Path,
-    root: &Path,
-    prefix: &str,
-    names: &mut Vec<String>,
-) -> Result<(), StoreError> {
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if entry.file_name().to_string_lossy().starts_with('.') {
-            continue;
-        }
-        if path.is_dir() {
-            collect_entry_names(&path, root, prefix, names)?;
-            continue;
-        }
-        let Ok(relative) = path.strip_prefix(root) else {
-            continue;
-        };
-        let Some(extension) = relative.extension().and_then(|value| value.to_str()) else {
-            continue;
-        };
-        if !matches!(extension, "osseal" | "gpg" | "age") {
-            continue;
-        }
-        let Ok(logical) = relative_to_logical(relative) else {
-            continue;
-        };
-        if prefix.is_empty() || logical == prefix || logical.starts_with(&format!("{prefix}/")) {
-            names.push(logical);
-        }
-    }
-    Ok(())
 }
 
 impl StoreRoot {
@@ -226,9 +192,25 @@ impl StoreRoot {
         entry: &Entry,
         key: &ItemDataKey,
     ) -> Result<(), StoreError> {
+        self.insert_or_replace_with_optional_key(name, entry, Some(key))
+    }
+
+    /// Insert or replace an entry, retaining an existing entry's format.
+    /// Native writes require an unlocked key; foreign formats use recipients.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::NotInitialized`] when a native key is required,
+    /// or an error when validation, encryption, locking or IO fails.
+    pub fn insert_or_replace_with_optional_key(
+        &self,
+        name: &str,
+        entry: &Entry,
+        key: Option<&ItemDataKey>,
+    ) -> Result<(), StoreError> {
         let existing = self.find_existing(name).ok();
         let keep_format = existing.as_ref().map(|(_, h)| *h);
-        self.write_entry(name, entry, key, keep_format)?;
+        self.write_entry_with_optional_key(name, entry, key, keep_format)?;
         let msg = if existing.is_some() {
             COMMIT_EDIT
         } else {
@@ -258,12 +240,26 @@ impl StoreRoot {
         key: &ItemDataKey,
         format: Option<FormatHint>,
     ) -> Result<(), StoreError> {
-        // Held until the ciphertext is on disk: see `store_lock`.
-        let _lock = StoreLock::for_sealing(&self.path, name, key)?;
-        let plaintext = entry.render().into_bytes();
+        self.write_entry_with_optional_key(name, entry, Some(key), format)
+    }
+
+    fn write_entry_with_optional_key(
+        &self,
+        name: &str,
+        entry: &Entry,
+        key: Option<&ItemDataKey>,
+        format: Option<FormatHint>,
+    ) -> Result<(), StoreError> {
         let format = format.unwrap_or_else(|| self.preferred_write_format());
+        if format == FormatHint::Osseal && key.is_none() {
+            return Err(StoreError::NotInitialized(self.path.clone()));
+        }
+        // Held until the ciphertext is on disk: see `store_lock`.
+        let _lock = StoreLock::for_writing(&self.path, name, key)?;
+        let plaintext = entry.render().into_bytes();
         match format {
             FormatHint::Osseal => {
+                let key = key.ok_or_else(|| StoreError::NotInitialized(self.path.clone()))?;
                 let rel = Self::entry_relative(name, "osseal")?;
                 let path = self.path.join(&rel);
                 let revision = self.next_revision(name, &path, key)?;
@@ -310,113 +306,56 @@ impl StoreRoot {
         key: &ItemDataKey,
         age_identity: Option<&str>,
     ) -> Result<Entry, StoreError> {
+        self.show_with_optional_key(name, Some(key), age_identity)
+    }
+
+    /// Show an entry with an optional unlocked native key and age identity.
+    /// GPG and age entries use their own decryption credentials. A native
+    /// entry must have a key; absence never selects a fallback key or format.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::NotInitialized`] for a native entry without a key,
+    /// or an error when path validation, decryption or the underlying IO fails.
+    pub fn show_with_optional_key(
+        &self,
+        name: &str,
+        key: Option<&ItemDataKey>,
+        age_identity: Option<&str>,
+    ) -> Result<Entry, StoreError> {
         let (path, hint) = self.find_existing(name)?;
-        let mut legacy_osseal = false;
         let rel = path
             .strip_prefix(&self.path)
             .map_err(|_| StoreError::InvalidPath("path escapes store root".into()))?;
-        let plaintext = match hint {
+        let (plaintext, rebind_key) = match hint {
             FormatHint::Osseal => {
+                let key = key.ok_or_else(|| StoreError::NotInitialized(self.path.clone()))?;
                 let expected = self.revisions()?.get(name).copied();
                 let opened = open_osseal(&confined_read(&self.path, rel)?, key, name, expected)?;
                 if !opened.legacy && expected.is_none() {
                     self.record_revision(name, opened.revision)?;
                 }
-                legacy_osseal = opened.legacy;
-                opened.plaintext
+                (opened.plaintext, opened.legacy.then_some(key))
             }
-            FormatHint::Gpg => gpg::decrypt_gpg(&confined_read(&self.path, rel)?)?,
+            FormatHint::Gpg => (gpg::decrypt_gpg(&confined_read(&self.path, rel)?)?, None),
             FormatHint::Age => {
                 let id = age_identity.ok_or_else(|| {
                     StoreError::Age("OPENSESAME_AGE_IDENTITY required for .age entries".into())
                 })?;
-                age_fmt::decrypt_age(&confined_read(&self.path, rel)?, id)?
+                (
+                    age_fmt::decrypt_age(&confined_read(&self.path, rel)?, id)?,
+                    None,
+                )
             }
         };
         let text =
             String::from_utf8(plaintext).map_err(|e| StoreError::Crypto(format!("utf8: {e}")))?;
         let entry = Entry::parse(&text);
-        if legacy_osseal {
+        if let Some(key) = rebind_key {
             self.write_entry(name, &entry, key, Some(FormatHint::Osseal))?;
             auto_commit(&self.path, COMMIT_REBIND)?;
         }
         Ok(entry)
-    }
-
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when validation or the underlying operation fails.
-    pub fn rm(&self, name: &str) -> Result<(), StoreError> {
-        let (path, _) = self.find_existing(name)?;
-        let rel = path
-            .strip_prefix(&self.path)
-            .map_err(|_| StoreError::InvalidPath("path escapes store root".into()))?;
-        let _lock = StoreLock::shared(&self.path)?;
-        confined_remove(&self.path, rel)?;
-        auto_commit(&self.path, COMMIT_REMOVE)?;
-        Ok(())
-    }
-
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when validation or the underlying operation fails.
-    pub fn ls(&self, prefix: &str) -> Result<Vec<String>, StoreError> {
-        let prefix = prefix.trim().trim_matches('/');
-        let mut names = Vec::new();
-        if !self.path.exists() {
-            return Ok(names);
-        }
-        collect_entry_names(&self.path, &self.path, prefix, &mut names)?;
-        names.sort();
-        Ok(names)
-    }
-
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when validation or the underlying operation fails.
-    pub fn find(&self, query: &str) -> Result<Vec<String>, StoreError> {
-        let q = query.to_lowercase();
-        Ok(self
-            .ls("")?
-            .into_iter()
-            .filter(|n| n.to_lowercase().contains(&q))
-            .collect())
-    }
-
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when validation or the underlying operation fails.
-    pub fn cp(
-        &self,
-        from: &str,
-        to: &str,
-        key: &ItemDataKey,
-        age_identity: Option<&str>,
-    ) -> Result<(), StoreError> {
-        let entry = self.show_with_age_identity(from, key, age_identity)?;
-        self.insert(to, &entry, key)?;
-        Ok(())
-    }
-
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when validation or the underlying operation fails.
-    pub fn mv(
-        &self,
-        from: &str,
-        to: &str,
-        key: &ItemDataKey,
-        age_identity: Option<&str>,
-    ) -> Result<(), StoreError> {
-        let entry = self.show_with_age_identity(from, key, age_identity)?;
-        self.insert(to, &entry, key)?;
-        self.rm(from)?;
-        Ok(())
     }
 }
 
@@ -431,197 +370,5 @@ pub fn list_names(store_dir: &Path, prefix: &str) -> Result<Vec<String>, StoreEr
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn insert_show_ls_rm() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = init_store(dir.path(), &[]).unwrap();
-        let key = ItemDataKey([9u8; 32]);
-        root.insert(
-            "Dev/token",
-            &Entry {
-                secret: "abc".into(),
-                trailer: String::new(),
-                otp: None,
-            },
-            &key,
-        )
-        .unwrap();
-        assert_eq!(root.show("Dev/token", &key).unwrap().secret, "abc");
-        assert!(root.ls("Dev").unwrap().iter().any(|n| n.contains("token")));
-        root.rm("Dev/token").unwrap();
-        assert!(root.show("Dev/token", &key).is_err());
-    }
-
-    #[test]
-    fn dotted_names_keep_their_final_label() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = init_store(dir.path(), &[]).unwrap();
-        let key = ItemDataKey([4u8; 32]);
-        for (name, secret) in [("Email/github.com", "a"), ("Email/github.org", "b")] {
-            root.insert(
-                name,
-                &Entry {
-                    secret: secret.into(),
-                    trailer: String::new(),
-                    otp: None,
-                },
-                &key,
-            )
-            .unwrap();
-        }
-        // Distinct files — `.com` is part of the name, not an extension.
-        assert!(dir.path().join("Email/github.com.osseal").exists());
-        assert!(dir.path().join("Email/github.org.osseal").exists());
-        assert_eq!(root.show("Email/github.com", &key).unwrap().secret, "a");
-        assert_eq!(root.show("Email/github.org", &key).unwrap().secret, "b");
-        let names = root.ls("Email").unwrap();
-        assert!(names.contains(&"Email/github.com".to_string()));
-        assert!(names.contains(&"Email/github.org".to_string()));
-    }
-
-    #[test]
-    fn passphrase_wrap_round_trip() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = init_store(dir.path(), &["alice".into()]).unwrap();
-        let key = init_store_key(dir.path(), b"correct horse").unwrap();
-        root.insert(
-            "x",
-            &Entry {
-                secret: "v".into(),
-                trailer: String::new(),
-                otp: None,
-            },
-            &key,
-        )
-        .unwrap();
-        let unlocked = unlock_store_key(dir.path(), b"correct horse").unwrap();
-        assert_eq!(root.show("x", &unlocked).unwrap().secret, "v");
-        assert!(unlock_store_key(dir.path(), b"wrong").is_err());
-    }
-
-    #[test]
-    fn rejects_ciphertext_moved_to_another_entry() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = init_store(dir.path(), &[]).unwrap();
-        let key = ItemDataKey([5u8; 32]);
-        for name in ["Dev/a", "Dev/b"] {
-            root.insert(
-                name,
-                &Entry {
-                    secret: name.into(),
-                    trailer: String::new(),
-                    otp: None,
-                },
-                &key,
-            )
-            .unwrap();
-        }
-        fs::copy(
-            dir.path().join("Dev/a.osseal"),
-            dir.path().join("Dev/b.osseal"),
-        )
-        .unwrap();
-        assert!(root.show("Dev/b", &key).is_err());
-    }
-
-    #[test]
-    fn rejects_an_older_revision() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = init_store(dir.path(), &[]).unwrap();
-        let key = ItemDataKey([6u8; 32]);
-        let entry = |secret: &str| Entry {
-            secret: secret.into(),
-            trailer: String::new(),
-            otp: None,
-        };
-        root.insert("Dev/a", &entry("one"), &key).unwrap();
-        let old = fs::read(dir.path().join("Dev/a.osseal")).unwrap();
-        root.insert_or_replace("Dev/a", &entry("two"), &key)
-            .unwrap();
-        fs::write(dir.path().join("Dev/a.osseal"), old).unwrap();
-        assert!(root.show("Dev/a", &key).is_err());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn refuses_intermediate_and_final_symlinks() {
-        use std::os::unix::fs::symlink;
-
-        let dir = tempfile::tempdir().unwrap();
-        let outside = tempfile::tempdir().unwrap();
-        let root = init_store(dir.path(), &[]).unwrap();
-        let key = ItemDataKey([7u8; 32]);
-        let entry = Entry {
-            secret: "never outside".into(),
-            trailer: String::new(),
-            otp: None,
-        };
-
-        symlink(outside.path(), dir.path().join("Dev")).unwrap();
-        assert!(root.insert("Dev/token", &entry, &key).is_err());
-        assert!(!outside.path().join("token.osseal").exists());
-
-        fs::remove_file(dir.path().join("Dev")).unwrap();
-        fs::create_dir(dir.path().join("Dev")).unwrap();
-        symlink(
-            outside.path().join("target"),
-            dir.path().join("Dev/token.osseal"),
-        )
-        .unwrap();
-        assert!(root.insert("Dev/token", &entry, &key).is_err());
-        assert!(!outside.path().join("target").exists());
-    }
-
-    /// A backup remote carries the whole commit history. If a subject line
-    /// names the entry, the repository publishes the folder tree, the item
-    /// names, and how often each one changes — the exact metadata that made
-    /// stolen password-manager vaults triageable, sitting next to ciphertext
-    /// that never opened.
-    #[test]
-    fn commit_subjects_never_name_the_entry() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = init_store(dir.path(), &[]).unwrap();
-        crate::git::ensure_git_repo(dir.path()).unwrap();
-        let key = ItemDataKey([9u8; 32]);
-
-        // Distinctive enough that a substring hit cannot be a coincidence.
-        let planted = "XZQPLANTED/api-token";
-        let entry = |secret: &str| Entry {
-            secret: secret.into(),
-            trailer: String::new(),
-            otp: None,
-        };
-
-        root.insert(planted, &entry("first"), &key).unwrap();
-        root.insert_or_replace(planted, &entry("second"), &key)
-            .unwrap();
-        root.rm(planted).unwrap();
-
-        let log = std::process::Command::new("git")
-            .args(["log", "--format=%B"])
-            .current_dir(dir.path())
-            .output()
-            .unwrap();
-        let subjects = String::from_utf8(log.stdout).unwrap();
-
-        assert!(
-            !subjects.contains("XZQPLANTED"),
-            "entry name leaked into commit history: {subjects}"
-        );
-        assert!(
-            !subjects.contains("api-token"),
-            "entry name leaked into commit history: {subjects}"
-        );
-        // The operation is still legible without naming the target.
-        assert!(subjects.contains(COMMIT_ADD));
-        assert!(subjects.contains(COMMIT_EDIT));
-        assert!(subjects.contains(COMMIT_REMOVE));
-
-        // Restore writes its own subject from history.rs; it must stay
-        // name-free too, or the leak returns through a different verb.
-        assert_eq!(COMMIT_RESTORE, "seal: restore entry");
-    }
-}
+#[path = "store_tests.rs"]
+mod tests;

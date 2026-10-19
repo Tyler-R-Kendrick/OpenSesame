@@ -1,3 +1,4 @@
+import { privateTempDir } from "./lib/private-files.mjs";
 /**
  * verify:trusted-contacts — Settings › Trusted contacts walked through the
  * real screens by five browsers (ADR 0187).
@@ -35,8 +36,9 @@ const base = "/OpenSesame/";
 const width = Number(process.env.WIDTH ?? 1280);
 const out =
   process.env.PAGES_VERIFY_OUT ??
-  `/tmp/opensesame-trusted-contacts-verification/${width}`;
+  privateTempDir(`opensesame-trusted-contacts-${width}-`);
 fs.mkdirSync(out, { recursive: true });
+console.log(`Evidence: ${out}`);
 for (const old of fs.readdirSync(out)) {
   if (old.startsWith("failed-")) fs.rmSync(`${out}/${old}`);
 }

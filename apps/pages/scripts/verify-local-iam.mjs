@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
+import { privateTempDir } from "./lib/private-files.mjs";
 
 import { localAccessJourney } from "./lib/local-access-journey.mjs";
 import { localDevicesJourney } from "./lib/local-devices-journey.mjs";
@@ -15,13 +16,15 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 const origin = "https://tyler-r-kendrick.github.io";
 const rp = "https://rp.example.test";
 const issuerUrl = `${origin}/OpenSesame/identity/authorize`;
+const out = process.env.PAGES_VERIFY_OUT ?? privateTempDir("local-iam-");
+console.log(`Evidence: ${out}`);
 const harness = createHarness({
   dist:
     process.env.PAGES_VERIFY_DIST ??
     fileURLToPath(new URL("../dist", import.meta.url)),
   origin,
   base: "/OpenSesame/",
-  out: "/tmp/local-iam",
+  out,
 });
 const captures = reviewCaptureDir();
 const {
@@ -175,7 +178,7 @@ try {
           await page.locator("output").getAttribute("data-proof"),
         );
       await page
-        .screenshot({ path: `/tmp/local-iam-failure-${index}-${tab}.png` })
+        .screenshot({ path: `${out}/failure-${index}-${tab}.png` })
         .catch(() => console.warn("Failure screenshot unavailable"));
     }
   }

@@ -59,9 +59,7 @@ tailnet-admin-test-upstream = ["opensesame-tailnet-admin/upstream-override"]
 # Platform keychain backends for connector discovery (ADR 0048 §3c, §5).
 # Budgeted additions only: labels are enumerated, values are never read.
 [target.'cfg(target_os = "linux")'.dependencies]
-secret-service = { version = "5.1.0", default-features = false, features = [
-    "rt-tokio-crypto-rust",
-] }
+dbus = "0.9.12"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3.2.0"

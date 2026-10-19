@@ -99,8 +99,8 @@ function identityTypesOf(config: AuthMdConfig): string[] {
 export function renderAuthMd(config: AuthMdConfig): string {
   assertSafeConfig("authMd", config);
   const caps = capabilitiesOf(config);
-  const as = config.authorizationServer.replace(/\/+$/u, "");
-  const resource = `${config.protectedResource.replace(/\/+$/u, "")}/`;
+  const as = stripTrailingSlashes(config.authorizationServer);
+  const resource = `${stripTrailingSlashes(config.protectedResource)}/`;
   const identityPath = config.agentRegisterPath ?? AGENT_IDENTITY_PATH;
   const claimPath = AGENT_CLAIM_PATH;
   const types = identityTypesOf(config);
@@ -331,7 +331,7 @@ export function renderAgentCard(config: AgentCardConfig): JsonObject {
       ],
     },
     documentationUrl:
-      config.documentationUrl ?? `${config.url.replace(/\/+$/u, "")}/auth.md`,
+      config.documentationUrl ?? `${stripTrailingSlashes(config.url)}/auth.md`,
   };
   assertSafeConfig("agentCard.output", card);
   return card;
@@ -343,4 +343,11 @@ export function advertisedIdentityTypes(caps: AgentAuthCapability): string[] {
   if (caps.serviceAuth) types.push("service_auth");
   if (caps.providerAssertion) types.push("identity_assertion");
   return types;
+}
+
+/** Remove a slash suffix in linear time, including on malformed input. */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }

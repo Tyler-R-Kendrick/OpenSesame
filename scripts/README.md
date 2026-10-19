@@ -17,7 +17,7 @@ repository root).
 | [`wallet/`](wallet) | Wallet spending-authority harness ([README](wallet/README.md)) | `pnpm wallet:*` |
 | [`release/`](release) | Pages release, commit-signature check, signed-stack replay, connector and marketplace pins | CI, Deploy Pages, a terminal ([README](release/README.md)) |
 | [`dev/`](dev) | Local development launchers and git hook setup | `pnpm dev:cli`, `dev:host`, `dev:daemon`, `dev:live-nats`, `pnpm setup:hooks`, `pnpm --filter @opensesame/pages dev` |
-| [`security/`](security) | The dependency-backport ledger and regression tests for patched and upgraded dependencies | `pnpm audit:osv`, `pnpm quality:test` |
+| [`security/`](security) | The fail-closed advisory gate and dependency regression tests | `pnpm audit:osv`, `pnpm quality:test` |
 | [`lib/`](lib) | Pure logic shared by the entry points, with Vitest tests beside it | `pnpm quality:test` |
 
 Keep an entry point thin: parse arguments, call into `lib/`, set the exit
@@ -124,8 +124,8 @@ the others report on the terminal (`deepsec` keeps its state under
 
 | File | Used by |
 |---|---|
-| `verified-backports.mjs`, `dependency-backports.json` | `audit:osv`: an npm finding for `braces` or `node-forge` counts as remediated only when the lockfile binding, the patch in [`patches/`](../patches) and the installed sources all match the recorded advisory, version and SHA-256s. |
-| `*.test.mjs` | `quality:test` (`node --test scripts/security/*.test.mjs`): attack regressions for the backports and the `js-yaml`, `shell-quote`/`source-map-js` and `simple-git` upgrades ([`patches/simple-git-parser-residual.md`](../patches/simple-git-parser-residual.md)). |
+| `assert-no-advisories.mjs` | `audit:osv`: accepts only an empty findings array; every advisory and malformed report fails the gate. The removed `braces` and `node-forge` dependencies have no advisory exceptions. |
+| `*.test.mjs` | `quality:test` (`node --test scripts/security/*.test.mjs`): advisory gate, removed-dependency and ADB transport regressions, and the `js-yaml`, `shell-quote`/`source-map-js` and `simple-git` upgrades ([`patches/simple-git-parser-residual.md`](../patches/simple-git-parser-residual.md)). |
 
 ## Adding a script
 

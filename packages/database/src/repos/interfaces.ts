@@ -1,3 +1,5 @@
+import { normalizeIssuer } from "./issuer-normalization.js";
+export { normalizeIssuer } from "./issuer-normalization.js";
 import { randomUUID } from "node:crypto";
 import {
   type AgentAccessTokenRecord,
@@ -131,15 +133,6 @@ export interface ExternalIdentityRepository {
     emailNormalized: string,
   ): Promise<ExternalIdentity | null>;
   deleteById(id: string, uow?: UnitOfWork): Promise<boolean>;
-}
-
-/**
- * Trailing-slash-normalized issuer, the form every issuer comparison uses.
- * `https://idp.example/` and `https://idp.example` are the same issuer, and a
- * store that disagreed would mint a second upstream for the second spelling.
- */
-export function normalizeIssuer(issuer: string): string {
-  return issuer.trim().replace(/\/+$/, "");
 }
 
 /**

@@ -4,7 +4,6 @@
 //   PLAYWRIGHT_CHROMIUM=/path/to/chrome \
 //     pnpm --filter @opensesame/pages verify:access-pathbar
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
@@ -14,6 +13,7 @@ import {
   capabilityOnSwitch,
 } from "./lib/always-on.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
+import { privateTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -129,7 +129,10 @@ const book = JSON.stringify({
     },
   ],
 });
-const bookPath = path.join(os.tmpdir(), "access-book.json");
+const bookPath = path.join(
+  privateTempDir("opensesame-access-book-"),
+  "access-book.json",
+);
 fs.writeFileSync(bookPath, book);
 await toolbar.getByLabel("Import grants").setInputFiles(bookPath);
 await expect(

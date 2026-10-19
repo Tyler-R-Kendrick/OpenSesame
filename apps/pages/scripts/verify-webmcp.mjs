@@ -6,6 +6,7 @@ import { chooseInSetup } from "./lib/capability-walk-contract.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { nativeWebMcp } from "./lib/native-webmcp.mjs";
 import { sealLocalOnly } from "./lib/pages-journey.mjs";
+import { privateTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -54,7 +55,7 @@ const harness = createHarness({
   dist: path.resolve(import.meta.dirname, "../dist"),
   origin,
   base,
-  out: process.env.PAGES_VERIFY_OUT ?? "/tmp/opensesame-webmcp",
+  out: process.env.PAGES_VERIFY_OUT ?? privateTempDir("opensesame-webmcp-"),
 });
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,

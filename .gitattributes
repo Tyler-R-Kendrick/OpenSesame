@@ -1,0 +1,2 @@
+# UniFFI generates this declaration-only C header from the Rust library.
+apps/android/ios/Sources/OpenSesameAuthenticatorCore/opensesame_authenticator_coreFFI.h linguist-generated=true

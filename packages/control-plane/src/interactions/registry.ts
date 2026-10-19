@@ -1,3 +1,5 @@
+import { normalizeIssuer } from "./issuer-normalization.js";
+export { normalizeIssuer } from "./issuer-normalization.js";
 import { readFileSync } from "node:fs";
 import type { ControlPlaneConfig } from "../config.js";
 import { loadManifestProviders } from "./manifest-providers.js";
@@ -186,11 +188,6 @@ const BUILT_IN_PROVIDERS: ReadonlyMap<string, BuiltInProvider> = new Map([
     },
   ],
 ]);
-
-/** Trailing slashes are not part of an issuer's identity. */
-export function normalizeIssuer(issuer: string): string {
-  return issuer.trim().replace(/\/+$/, "");
-}
 
 function issuerHost(issuer: string): string {
   try {

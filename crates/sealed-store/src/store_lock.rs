@@ -115,9 +115,23 @@ impl StoreLock {
         name: &str,
         key: &ItemDataKey,
     ) -> Result<Self, StoreError> {
+        Self::for_writing(root, name, Some(key))
+    }
+
+    /// Foreign-format writes need the same path and rotation guards, but an
+    /// unkeyed store has no native root to authenticate.
+    pub(crate) fn for_writing(
+        root: &Path,
+        name: &str,
+        key: Option<&ItemDataKey>,
+    ) -> Result<Self, StoreError> {
         refuse_reserved_name(name)?;
         let lock = Self::shared(root)?;
-        ensure_current_root(root, key)?;
+        if let Some(key) = key {
+            ensure_current_root(root, key)?;
+        } else if root.join(KEY_FILE_NAME).exists() {
+            return Err(StoreError::NotInitialized(root.to_path_buf()));
+        }
         Ok(lock)
     }
 }

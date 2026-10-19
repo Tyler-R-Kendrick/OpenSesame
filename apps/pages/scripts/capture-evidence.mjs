@@ -1,3 +1,4 @@
+import { privateSharedTempDir } from "./lib/private-files.mjs";
 /**
  * Visual evidence for a UI change: the same screens from the base build and
  * from the branch, laid side by side so a reviewer never has to run the app.
@@ -27,7 +28,6 @@
  */
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stubJourneyBridge } from "./lib/capture-bridge-steps.mjs";
@@ -71,8 +71,7 @@ const journey = JSON.parse(fs.readFileSync(journeyPath, "utf8"));
 const root = path.resolve(path.dirname(journeyPath), journey.out ?? ".");
 // Raw captures stay out of the repository; only the composed sheets are evidence.
 const shots = path.join(
-  os.tmpdir(),
-  "opensesame-evidence",
+  privateSharedTempDir("opensesame-evidence"),
   path.basename(journeyPath, ".json"),
 );
 const base = process.env.VITE_BASE ?? "/OpenSesame/";

@@ -1,3 +1,4 @@
+import { privateTempDir } from "./lib/private-files.mjs";
 /**
  * The touch journey (DESIGN.md § Touch).
  *
@@ -44,9 +45,12 @@ import { touchCopyStop } from "./lib/touch-copy-contract.mjs";
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const dist = fileURLToPath(new URL("../dist", import.meta.url));
-const out = "/tmp/opensesame-mobile-verification";
+const out =
+  process.env.PAGES_VERIFY_OUT ??
+  privateTempDir("opensesame-mobile-verification-");
 const harness = createHarness({ dist, origin, base, out });
 fs.mkdirSync(out, { recursive: true });
+console.log(`Evidence: ${out}`);
 
 async function audit(page, label) {
   await page.waitForTimeout(350);

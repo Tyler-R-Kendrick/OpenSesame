@@ -303,7 +303,7 @@ export function loadConfig(
     trustedUpstreamIssuers: mergeProviderIssuers(
       (env.OPENSESAME_TRUSTED_UPSTREAMS ?? "")
         .split(",")
-        .map((s) => s.trim().replace(/\/+$/, ""))
+        .map((s) => normalizeIssuer(s.trim()))
         .filter(Boolean),
       providers,
     ),
@@ -339,9 +339,9 @@ export function loadConfig(
   // All three must be present together: a client id without a secret is the
   // origin-profile case (handled by derivation), and a secret without an
   // issuer has nobody it may legitimately be sent to.
-  const upstreamIssuer = (env.OPENSESAME_UPSTREAM_ISSUER ?? "")
-    .trim()
-    .replace(/\/+$/, "");
+  const upstreamIssuer = normalizeIssuer(
+    (env.OPENSESAME_UPSTREAM_ISSUER ?? "").trim(),
+  );
   const upstreamClientId = (env.OPENSESAME_UPSTREAM_CLIENT_ID ?? "").trim();
   const upstreamClientSecret = env.OPENSESAME_UPSTREAM_CLIENT_SECRET ?? "";
   if (upstreamIssuer && upstreamClientId && upstreamClientSecret) {

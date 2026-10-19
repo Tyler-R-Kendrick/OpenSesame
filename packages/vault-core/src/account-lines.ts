@@ -12,7 +12,10 @@ const DEFAULT_HEADER = "X-Api-Key";
 
 /** The header name as written, without a stray colon, or the usual one. */
 export function headerName(header: string): string {
-  const name = header.trim().replace(/\s*:+$/u, "");
+  const trimmed = header.trim();
+  let end = trimmed.length;
+  while (end > 0 && trimmed[end - 1] === ":") end -= 1;
+  const name = end < trimmed.length ? trimmed.slice(0, end).trimEnd() : trimmed;
   return name === "" ? DEFAULT_HEADER : name;
 }
 

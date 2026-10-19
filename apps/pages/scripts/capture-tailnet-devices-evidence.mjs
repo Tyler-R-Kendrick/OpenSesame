@@ -14,10 +14,10 @@
 // Shots land where `capture-evidence.mjs compose` reads them, with a
 // `measurements.json` of what the browser counted on each screen.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPin } from "./lib/pages-journey.mjs";
+import { privateSharedTempDir } from "./lib/private-files.mjs";
 import {
   deviceManagementOn,
   pairByLink,
@@ -30,8 +30,13 @@ if (side !== "before" && side !== "after") {
   console.error("usage: capture-tailnet-devices-evidence.mjs <before|after>");
   process.exit(2);
 }
-const out = path.join(os.tmpdir(), "opensesame-evidence", "journey", side);
+const out = path.join(
+  privateSharedTempDir("opensesame-evidence"),
+  "journey",
+  side,
+);
 fs.mkdirSync(out, { recursive: true });
+console.log(`Evidence: ${out}`);
 const stack = await startStack({
   out,
   dist: process.env.EVIDENCE_DIST,

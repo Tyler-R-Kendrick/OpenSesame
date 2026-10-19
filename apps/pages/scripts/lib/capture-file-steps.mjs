@@ -4,11 +4,11 @@
  * the picker the key opens is answered with that file, the way a person
  * chooses an export. `press` is `capture-evidence.mjs`'s tap-or-click.
  */
-import { writeFileSync } from "node:fs";
-import os from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { importSteps } from "./capture-import-steps.mjs";
+import { privateTempDir } from "./private-files.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 
@@ -49,10 +49,26 @@ export function fileSteps({ press }) {
         await page.waitForTimeout(1500);
         return;
       }
-      const file = path.join(os.tmpdir(), name);
-      writeFileSync(file, Buffer.alloc(bytes, 0x20));
-      await input.setInputFiles(file);
-      await page.waitForTimeout(1500);
+      if (
+        !name ||
+        path.basename(name) !== name ||
+        name === "." ||
+        name === ".." ||
+        name.includes("\\")
+      )
+        throw new Error("setFile requires a plain file name");
+      const dir = privateTempDir("opensesame-capture-file-");
+      try {
+        const file = path.join(dir, name);
+        writeFileSync(file, Buffer.alloc(bytes, 0x20), {
+          flag: "wx",
+          mode: 0o600,
+        });
+        await input.setInputFiles(file);
+        await page.waitForTimeout(1500);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     },
   };
 }

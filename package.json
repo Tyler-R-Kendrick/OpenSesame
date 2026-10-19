@@ -140,7 +140,7 @@
     "typescript": "5.8.3",
     "vite": "6.4.3",
     "vitest": "4.1.11",
-    "wxt": "0.20.6",
+    "wxt": "0.20.19",
     "zod": "3.25.67"
   },
   "pnpm": {
@@ -177,14 +177,13 @@
       "@simple-git/argv-parser": "2.0.1",
       "source-map-js": "1.2.2",
       "js-yaml@3.15.2>argparse": "2.0.1",
-      "@xmldom/xmldom@^0.9.10": "0.9.12"
+      "promptfoo>jks-js": "-",
+      "@devicefarmer/adbkit>node-forge": "-"
     },
     "patchedDependencies": {
-      "@levischuck/tiny-cbor@0.2.11": "patches/@levischuck__tiny-cbor@0.2.11.patch",
-      "braces@3.0.3": "patches/braces@3.0.3.patch",
-      "node-forge@1.4.0": "patches/node-forge@1.4.0.patch",
       "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch",
-      "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch"
+      "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch",
+      "@devicefarmer/adbkit@3.3.8": "patches/@devicefarmer__adbkit@3.3.8.patch"
     }
   }
 }

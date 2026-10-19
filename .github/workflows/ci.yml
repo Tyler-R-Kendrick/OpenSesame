@@ -90,14 +90,18 @@ jobs:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Broad dependency changes run the full affected suites and the real
+    # Postgres contracts; the 30-minute limit cancelled passing tests.
+    timeout-minutes: 60
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
       postgres:
-        # Same Docker Official Image and immutable digest, from its original registry.
-        # Registry metadata is identical; hosted-runner delivery still needs validation.
-        image: docker.io/library/postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+        # Same Docker Official Image digest, served by Google's Docker Hub
+        # mirror. Anonymous Docker Hub pulls exhaust the shared hosted-runner
+        # quota, and the public ECR mirror now answers `toomanyrequests: Data
+        # limit exceeded` for the same pool.
+        image: mirror.gcr.io/library/postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
         env:
           POSTGRES_USER: opensesame
           POSTGRES_PASSWORD: opensesame
@@ -185,7 +189,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.bundle_matrix != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # This shard builds three verification profiles and walks every provider;
+    # its passing secret-backend checks reached the former 15-minute limit.
+    timeout-minutes: ${{ matrix.shard == 'native-public-protocol' && 30 || 15 }}
     strategy:
       fail-fast: false
       # The legs are listed once, in scripts/lib/ci-bundle-shards.json; `changes`
@@ -349,6 +355,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:encrypted-search
+      - name: Portable drop opens on a second browser
+        if: matrix.shard == 'static'
+        # P8-1: a guest with no Identity API seals a secret. The card says any
+        # browser with the link, and the fragment carries the bearer, the drop
+        # key and the sealed packet. The query string stays empty. A second
+        # context, with its own storage, opens that link, enters the user code,
+        # and reads the payload. The bearer has already left the address.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:portable-drop
       - name: Unlock methods and second steps
         if: matrix.shard == 'auth'
         # ADR 0091: key first, then scan, then a code; lock → PIN → code.
@@ -377,12 +394,6 @@ jobs:
           pnpm --filter @opensesame/pages verify:provider-auth
           pnpm --filter @opensesame/pages build:identity-verify
           pnpm --filter @opensesame/pages verify:identity-connections
-      - name: Secret backends and encrypted offline vaults
-        if: matrix.shard == 'native-secret-backends'
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: |
           pnpm --filter @opensesame/pages build:secret-backends-verify
           pnpm --filter @opensesame/pages verify:secret-backends
       - name: Experience journeys
@@ -401,6 +412,11 @@ jobs:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         if: matrix.shard == 'journeys-1'
+      - name: Install Linux keychain build and test dependencies
+        if: matrix.shard == 'journeys-1'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
       - name: Build opensesame-cli
         if: matrix.shard == 'journeys-1'
         # Same cargo limits as the Rust tests job, so the link stays inside
@@ -427,6 +443,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:live-local-pair
+      - name: Peer-trust peering diagnostics
+        # Two contexts on the static dist: distinct SAS, a verified paste,
+        # a crossed signal refused, a changed key blocked, duplicate names marked.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peer-trust-two-context
 
   ai-connections-e2e:
     name: AI connections end to end
@@ -789,6 +813,36 @@ jobs:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         if: steps.affected.outputs.scope != 'none'
+      # `bridge_roundtrip_fixture` reads a real schema through @env-spec/parser
+      # and fails on CI without it. The same pinned pnpm and Node as the
+      # TypeScript job, installed only when the env-spec crate is tested. No
+      # `cache: pnpm`: setup-node would save this job's one-package store under
+      # the key the TypeScript job restores its whole store from.
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+        with:
+          node-version: 22
+      - name: Install the env-spec bridge's parser
+        # That package and its dependencies only (@env-spec/parser has none
+        # and no install script), from the lockfile.
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
+      - name: Name the runner's node for the bridge
+        # The env-spec bridge runs only a `node` nobody else could have
+        # replaced, and the hosted image keeps its own in /usr/local/bin with
+        # mode 0777. OPENSESAME_NODE names the file the way an operator does
+        # (docs/operators/proxied-run-quickstart.md); no node fails the job.
+        if: steps.affected.outputs.scope != 'none'
+        run: |
+          node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
+          echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
+      - name: Install Linux keychain build and test dependencies
+        if: steps.affected.outputs.scope != 'none'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
       - name: Test affected crates
         if: steps.affected.outputs.scope != 'none'
         env:
