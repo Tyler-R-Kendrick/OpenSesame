@@ -1465,6 +1465,12 @@ CI lives in `.github/workflows/`:
   native mobile code; the `mTLS` job is not a required check. A docs-only diff
   passes the three checks without those suites. An unrecognized path runs
   every suite.
+  A draft pull request runs no suite and the three checks fail on it until it
+  is marked ready for review. `TypeScript tests` and `Rust tests` run on a
+  self-hosted `[self-hosted, linux, ARM64, os-devbox]` runner only when the
+  repository variable `CI_SELF_HOSTED_ARM64` is `true` and the actor is the
+  owner on a same-repository branch; every browser job stays GitHub-hosted
+  (they pin `/usr/bin/google-chrome`, which has no Linux ARM64 build).
   The ruleset also requires an up-to-date PR and squash auto-merge; this
   personal-account repository does not support merge queues. Verify
   actual settings with `node ops/github/governance.mjs --verify`.
@@ -1539,6 +1545,13 @@ one who opens pull requests.
 One logical slice per commit. A multi-slice task is a stack: the first pull
 request targets `main`, and each next pull request targets the previous
 branch.
+
+Only the bottom of a stack runs CI. Open every pull request above it as a
+draft: a draft runs no suite, and the three required checks fail on it by
+design so a draft's head SHA can never read green. Mark a pull request ready
+for review (`ready_for_review` starts CI) only once the one below has merged
+and you have restacked it. Push at checkpoints, not per file: each push to an
+open, non-draft pull request restarts CI.
 
 Commits are created with GitHub's GraphQL `createCommitOnBranch` so the
 committer is GitHub and the ruleset sees a verified signature. A local
