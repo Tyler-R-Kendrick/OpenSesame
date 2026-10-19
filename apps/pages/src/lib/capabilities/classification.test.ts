@@ -71,6 +71,38 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     });
   });
 
+  it("owns only the configurable connector action test family", () => {
+    const owner = classify("src/lib/connector-action-capability.test.ts");
+    const configurable = classify(
+      "src/lib/connector-action-configurable.test.ts",
+    );
+    expect(configurable).toMatchObject({
+      pattern: "src/lib/connector-action-configurable.test",
+      capability: "connectors.external",
+      classification: owner?.classification,
+    });
+    for (const path of [
+      "src/lib/connector-action-configurable.ts",
+      "src/lib/connector-action-configurable.testament.ts",
+      "src/lib/connector-action-configurables.test.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+  });
+
+  it("owns only the SAML public settings regression test family", () => {
+    expect(classify("src/lib/operator-saml-config.test.ts")).toMatchObject({
+      pattern: "src/lib/operator-saml-config.test",
+      classification: "core",
+      capability: "settings.core",
+    });
+    for (const path of [
+      "src/lib/operator-saml-config.ts",
+      "src/lib/operator-saml-config.testament.ts",
+      "src/lib/operator-saml-configuration.test.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+  });
+
   it("has unique patterns", () => {
     const patterns = SOURCE_CLASSIFICATION.map((rule) => rule.pattern);
     expect(new Set(patterns).size).toBe(patterns.length);

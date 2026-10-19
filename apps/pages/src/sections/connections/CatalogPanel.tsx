@@ -8,7 +8,6 @@ import type {
 import type { ConnectorCardAction } from "@opensesame/app-core/lib/connector-action-capability.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
-import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
 import { catalogTileNote } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
 import { type ReactNode, useEffect } from "react";
@@ -43,17 +42,6 @@ export function authKindLabel(provider: Provider): string {
   return "OAuth";
 }
 
-/** Catalog badges describe provider protocols; managed configuration is a mode. */
-function browserProtocolLabel(
-  providerId: string,
-  method: "api-key" | "oauth",
-  label: string,
-): string {
-  return nativeBrowserMethodPolicy(providerId, method).available
-    ? label
-    : `${label} (browser unavailable)`;
-}
-
 /** A model provider's tile also says which API it speaks (ADR 0192). */
 function withModelProtocol(provider: Provider, label: string): string {
   const protocol =
@@ -70,10 +58,8 @@ export function catalogMethodLabel(provider: Provider): string {
   if (!plan) return withModelProtocol(provider, authKindLabel(provider));
   const labels = plan.methods.flatMap((method) => {
     if (method.kind === "mcp") return ["MCP"];
-    if (method.kind === "oauth" && method.preset)
-      return [browserProtocolLabel(provider.id, "oauth", "OAuth")];
-    if (method.kind === "api-key" && method.preset)
-      return [browserProtocolLabel(provider.id, "api-key", "API key")];
+    if (method.kind === "oauth" && method.preset) return ["OAuth"];
+    if (method.kind === "api-key" && method.preset) return ["API key"];
     return [];
   });
   return withModelProtocol(
