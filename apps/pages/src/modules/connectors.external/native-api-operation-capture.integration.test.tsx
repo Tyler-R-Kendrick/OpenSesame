@@ -219,8 +219,9 @@ it.each(["route", "lease", "activation"])(
     const rejected = expect(pending).rejects.toThrow();
     await entered.promise;
     if (reason === "route") {
-      const nativeHTTP = stored.record.nativeHTTP;
-      if (!nativeHTTP) throw new Error("Missing native route");
+      const nativeHTTP = TailscaleNativeHTTPConfiguration.parse(
+        stored.record.nativeHTTP,
+      );
       await updateBrowserNodeNativeHTTP(
         stored.record,
         { ...nativeHTTP, exitNodeID: "other-exit" },

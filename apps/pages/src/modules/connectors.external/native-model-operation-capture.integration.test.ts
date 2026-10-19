@@ -188,8 +188,9 @@ it.each(["node", "route", "activation", "lease"])(
     let replacement: ReturnType<typeof node> | undefined;
     if (reason === "node") replacement = node();
     else if (reason === "route") {
-      const nativeHTTP = stored.record.nativeHTTP;
-      if (!nativeHTTP) throw new Error("Missing original route");
+      const nativeHTTP = TailscaleNativeHTTPConfiguration.parse(
+        stored.record.nativeHTTP,
+      );
       await updateBrowserNodeNativeHTTP(
         stored.record,
         { ...nativeHTTP, exitNodeID: "other-exit" },
