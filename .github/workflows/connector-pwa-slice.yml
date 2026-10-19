@@ -355,3 +355,5 @@ jobs:
                   message = str(error) if isinstance(error, Refusal) else 'Malformed input or unexpected publisher failure'
                   print(json.dumps({'publisherFailure': message}), file=sys.stderr)
                   sys.exit(1)
+
+# Retrigger the exact frozen signed slice after the GitHub Actions incident.
