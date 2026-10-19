@@ -1,12 +1,16 @@
+import { z } from "zod";
 import type {
   HostedModelInput,
   HostedModelResult,
 } from "../hosted-model-protocol.js";
 import { inferBedrockAi } from "./bedrock-inference.js";
 import { aiConnectionFetch, readAiJson } from "./http.js";
+import { type AiAudioInput, validateAiAudio } from "./media.js";
 import { aiInferenceAnswer, aiInferenceRequest } from "./protocol.js";
 import { inferReplicateAi } from "./replicate-inference.js";
 import type { ReplicateInput, ReplicateRunOptions } from "./replicate-types.js";
+import { inferSpeechAi } from "./speech-inference.js";
+import { validateAiSpeechConnection } from "./speech-target.js";
 import { readAiTextStream } from "./stream.js";
 import {
   type AiConnectionDraft,
@@ -29,6 +33,35 @@ export async function inferAiConnection(
     throw new AiConnectionError(
       "configuration",
       "Use the model saved with this connection.",
+    );
+  if (draft.family === "elevenlabs_scribe") {
+    if (onText)
+      throw new AiConnectionError(
+        "configuration",
+        "Scribe returns a finite transcript, not a text stream.",
+      );
+    const { media, ...fields } = input;
+    try {
+      z.object({ model: z.literal(draft.model), messages: z.tuple([]) })
+        .strict()
+        .parse(fields);
+    } catch {
+      throw new AiConnectionError(
+        "configuration",
+        "Supply local audio without a prompt or text-generation parameters.",
+      );
+    }
+    return inferSpeechAi(
+      validateAiSpeechConnection(draft),
+      validateAiAudio(media),
+      transport,
+      check,
+    );
+  }
+  if (input.media !== undefined)
+    throw new AiConnectionError(
+      "configuration",
+      "Local audio belongs only to the transcription protocol.",
     );
   if (draft.family === "replicate_predictions")
     return inferReplicateAi(
@@ -94,7 +127,26 @@ export function probeAiConnection(
   check: () => void,
   predictionInput?: ReplicateInput,
   predictionOptions: ReplicateRunOptions = {},
+  audio?: AiAudioInput,
 ) {
+  if (draft.family === "elevenlabs_scribe") {
+    if (predictionInput !== undefined || audio === undefined)
+      throw new AiConnectionError(
+        "configuration",
+        "Supply explicit local audio to test or save this transcription connection.",
+      );
+    return inferAiConnection(
+      draft,
+      { model: draft.model, messages: [], media: audio },
+      transport,
+      check,
+    );
+  }
+  if (audio !== undefined)
+    throw new AiConnectionError(
+      "configuration",
+      "Local audio belongs only to the transcription protocol.",
+    );
   if (draft.family === "replicate_predictions") {
     if (predictionInput === undefined)
       throw new AiConnectionError(
@@ -128,4 +180,13 @@ export function probeAiConnection(
     transport,
     check,
   );
+}
+
+/** Snapshot transient audio before private vault hydration can yield to another caller. */
+export function captureAiSpeechAudio(
+  audio?: AiAudioInput,
+): AiAudioInput | undefined {
+  if (audio === undefined) return undefined;
+  const valid = validateAiAudio(audio);
+  return { ...valid, bytes: new Uint8Array(valid.bytes) };
 }

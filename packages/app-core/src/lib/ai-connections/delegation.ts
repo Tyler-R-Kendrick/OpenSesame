@@ -39,7 +39,8 @@ function delegationState(id: string) {
     draft.authentication !== "api-key" ||
     draft.family === "openai_responses" ||
     draft.family === "bedrock_converse" ||
-    draft.family === "replicate_predictions"
+    draft.family === "replicate_predictions" ||
+    draft.family === "elevenlabs_scribe"
   )
     return unavailable();
   const api = modelApiOf(draft.providerId);

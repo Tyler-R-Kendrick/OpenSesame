@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { aiConnectionBase } from "./configuration.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
 
-/** Base connection fields only; this does not activate a picker or saved family. */
+/** Base fields only; this does not activate a picker or another preset catalog. */
 export type AiSpeechTarget = Pick<
   AiConnectionDraft,
   "providerId" | "baseUrl" | "model" | "authentication" | "apiKey"
@@ -15,26 +14,57 @@ const Target = z
     authentication: z.literal("api-key"),
     apiKey: z
       .string()
-      .min(1)
       .max(16384)
-      .regex(/^[\x21-\x7e]+$/),
+      .regex(/^[\x21-\x7e]*$/),
   })
   .strict();
-export function validateAiSpeechTarget(value: AiSpeechTarget): AiSpeechTarget {
+export function isAiSpeechProvider(providerId: string): boolean {
+  return providerId === "elevenlabs" || providerId === "byo-ai";
+}
+/** Endpoint normalization remains owned by configuration and the finite request builder. */
+export function validateAiSpeechTarget(
+  value: AiSpeechTarget,
+  requireKey = true,
+): AiSpeechTarget {
   const parsed = Target.safeParse(value);
-  if (!parsed.success)
+  if (!parsed.success || (requireKey && !parsed.data.apiKey))
     throw new AiConnectionError(
       "configuration",
       "Choose a Scribe transcription target with its model and API key.",
     );
   const valid = parsed.data;
-  const base = aiConnectionBase(valid.baseUrl);
   if (
+    valid.apiKey &&
     [valid.baseUrl, valid.model].some((field) => field.includes(valid.apiKey))
   )
     throw new AiConnectionError(
       "configuration",
       "Keep the API key out of public transcription fields.",
     );
-  return { ...valid, baseUrl: base.href };
+  return valid;
+}
+export function validateAiSpeechConnection(
+  draft: AiConnectionDraft,
+  requireKey = true,
+): AiSpeechTarget {
+  if (
+    draft.family !== "elevenlabs_scribe" ||
+    draft.azure ||
+    draft.vertex ||
+    draft.bedrock
+  )
+    throw new AiConnectionError(
+      "configuration",
+      "Choose a single Scribe transcription target without another protocol's credentials.",
+    );
+  return validateAiSpeechTarget(
+    {
+      providerId: draft.providerId,
+      baseUrl: draft.baseUrl,
+      model: draft.model,
+      authentication: draft.authentication,
+      apiKey: draft.apiKey,
+    },
+    requireKey,
+  );
 }

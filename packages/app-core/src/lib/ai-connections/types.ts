@@ -5,7 +5,8 @@ export type AiInferenceFamily =
   | CallProtocol
   | "openai_responses"
   | "bedrock_converse"
-  | "replicate_predictions";
+  | "replicate_predictions"
+  | "elevenlabs_scribe";
 
 /** Azure target metadata is public; the supplied key or Entra token is not. */
 export type AzureOpenAiTarget =
@@ -59,7 +60,11 @@ export class AiConnectionError extends Error {
 
 /** Finite protocols cannot borrow the generic request or text-stream builders. */
 export function textAiFamily(family: AiInferenceFamily) {
-  if (family === "bedrock_converse" || family === "replicate_predictions")
+  if (
+    family === "bedrock_converse" ||
+    family === "replicate_predictions" ||
+    family === "elevenlabs_scribe"
+  )
     throw new AiConnectionError(
       "configuration",
       "Use this family's signed or finite protocol adapter.",
