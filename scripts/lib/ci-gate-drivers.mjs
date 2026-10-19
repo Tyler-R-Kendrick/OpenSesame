@@ -58,6 +58,7 @@ export const DRIVER_GATES = {
   "verify-peer-trust-two-context.mjs": ["journeys"],
   // P8-3: ICE diagnostics line on joiner while connecting (journeys-2).
   "verify-peering-diagnostics.mjs": ["journeys"],
+  "verify-peering-diagnostic-observation.mjs": ["journeys"],
   // P8-4: fresh-vault Passwords onboarding and a saved account (journeys-2).
   "verify-fresh-vault-login.mjs": ["journeys"],
   // P8-5: CLI pairing on the public static site (journeys-2).

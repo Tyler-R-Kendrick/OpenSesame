@@ -70,3 +70,23 @@ it("rejects missing fragments and does not reinterpret decoded public content", 
   );
   expect(unpackGeneratedJson("~0~", ["~1~", "null"])).toBe("~1~");
 });
+
+it("shares frequent URL and prose fragments without changing any public row bytes", () => {
+  const rows = Array.from({ length: 12 }, (_, index) =>
+    JSON.stringify({
+      id: `provider-${index}`,
+      instructions: `Open the provider settings page and copy the token for account ${index}: 雪`,
+      endpoint: `https://providers.example.test/service/${index}/api`,
+    }),
+  );
+  const packed = packJsonRows(rows);
+  expect(
+    packed.dictionary.some((fragment) =>
+      fragment.includes("provider settings"),
+    ),
+  ).toBe(true);
+  expect(
+    packed.rows.map((row) => unpackGeneratedJson(row, packed.dictionary)),
+  ).toEqual(rows);
+  expect(packJsonRows(rows)).toEqual(packed);
+});

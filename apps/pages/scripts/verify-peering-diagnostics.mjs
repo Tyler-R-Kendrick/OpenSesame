@@ -16,6 +16,7 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
+import { observePeeringDiagnostic } from "./lib/peering-diagnostic-observation.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -102,25 +103,21 @@ bindWalk({
   NATS: null,
   NTFY: null,
   whileJoinerConnects: async (joiner, connect) => {
-    const ice = joiner.page.locator('[data-testid="live-join-ice"]');
-    const tray = joiner.page.locator("#live-status .vault-row__meta");
-    const seenIce = ice
-      .waitFor({ state: "visible", timeout: 45_000 })
-      .then(() => "ice-row")
-      .catch(() => null);
-    const seenTray = tray
-      .waitFor({
-        state: "visible",
-        timeout: 45_000,
-      })
-      .then(async () => {
-        const text = (await tray.textContent()) ?? "";
-        return /Checking|Gathering|Connected|route/i.test(text) ? "tray" : null;
-      })
+    const seenIce = observePeeringDiagnostic(
+      joiner.page,
+      '[data-testid="live-join-ice"]',
+    ).catch(() => null);
+    const seenTray = observePeeringDiagnostic(
+      joiner.page,
+      "#live-status .vault-row__meta",
+    )
+      .then((text) =>
+        /Checking|Gathering|Connected|route/i.test(text) ? text : null,
+      )
       .catch(() => null);
     await connect();
-    const via = (await seenIce) ?? (await seenTray);
-    if (!via) {
+    const text = (await seenIce) ?? (await seenTray);
+    if (text === null) {
       const states = await peerStates(joiner.page).catch(() => null);
       const hadConnecting = states?.states?.some((row) =>
         String(row).startsWith("connecting@"),
@@ -131,8 +128,6 @@ bindWalk({
         );
       }
     } else {
-      const text =
-        via === "ice-row" ? await ice.textContent() : await tray.textContent();
       if (!text || !/Checking|Gathering|Connected|route|\d+s/i.test(text)) {
         failures.push(`joiner ICE line missing detail: ${text ?? "(empty)"}`);
       }

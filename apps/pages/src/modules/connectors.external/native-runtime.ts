@@ -17,7 +17,8 @@ import {
   bindNativeProviderTransport,
 } from "@opensesame/app-core/lib/native-connector-transport.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
-import type { Activation } from "../activation.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { type Activation, createActivation } from "../activation.js";
 import { LeaseAbortedError, anySignal, runUnlessAborted } from "../signals.js";
 import { bindBridgeRuntime, carriedByBridge } from "./bridge-runtime.js";
 import { captureBrowserNodeTransport } from "./browser-node-transport.js";
@@ -187,7 +188,12 @@ export function bindNativeRuntime(
   const lifetime = new AbortController();
   const signal = anySignal([ctx.lease.signal, lifetime.signal]);
   const assertCurrent = () => {
-    if (signal.aborted || activation.disposed()) throw new LeaseAbortedError();
+    if (
+      signal.aborted ||
+      activation.disposed() ||
+      !vaultStore.isGenuineSession()
+    )
+      throw new LeaseAbortedError();
   };
   const transport: NativeProviderTransport = {
     assertCurrent,
@@ -261,6 +267,39 @@ export function bindNativeRuntime(
 }
 
 export function bindProviderRuntime(
+  ctx: ApprovedCapabilityContext,
+  activation: Activation,
+): void {
+  let session: Activation | undefined;
+  const retire = () => {
+    session?.dispose();
+    session = undefined;
+  };
+  const sync = () => {
+    if (activation.disposed() || !vaultStore.isGenuineSession()) {
+      retire();
+      return;
+    }
+    if (session) return;
+    const owned = createActivation(ctx, "connectors.external:owner");
+    session = owned;
+    try {
+      bindGenuineProviderRuntime(ctx, owned);
+    } catch (error) {
+      retire();
+      throw error;
+    }
+  };
+  const stopLock = vaultStore.onLock(retire);
+  const stopChanges = vaultStore.subscribe(sync);
+  activation.onDispose(() => {
+    stopLock();
+    stopChanges();
+    retire();
+  });
+  sync();
+}
+function bindGenuineProviderRuntime(
   ctx: ApprovedCapabilityContext,
   activation: Activation,
 ): void {

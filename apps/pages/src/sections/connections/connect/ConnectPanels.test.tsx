@@ -42,7 +42,7 @@ Object.assign(vaultHooksSeams, {
 });
 
 const KEY = "k".repeat(40);
-let runtime: ReturnType<typeof activateNativePanelRuntime>;
+let runtime: Awaited<ReturnType<typeof activateNativePanelRuntime>>;
 
 function provider(id: string): Provider {
   // Match the merged catalog used by Connections.
@@ -103,8 +103,8 @@ function reply(body: JsonValue) {
   });
 }
 
-beforeEach(() => {
-  runtime = activateNativePanelRuntime();
+beforeEach(async () => {
+  runtime = await activateNativePanelRuntime();
   setVercelConnectAuth({ token: "vercel_token" });
 });
 

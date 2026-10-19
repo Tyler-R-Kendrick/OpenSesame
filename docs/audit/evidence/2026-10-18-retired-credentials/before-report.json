@@ -1,0 +1,37 @@
+{
+  "label": "before",
+  "dist": "/tmp/retired-ui-before-a896cae-20261018-v8",
+  "browser": "151.0.7922.173",
+  "profiles": [
+    {
+      "name": "desktop",
+      "width": 1280,
+      "height": 900,
+      "retiredPanels": 0,
+      "measured": [],
+      "images": [
+        {
+          "file": "/tmp/retired-ui-evidence-before-20261018/before-desktop-security.png",
+          "sha256": "7d2668c9ae6c21cd437d673274ba14f7b99f5083678c910c05e0cc516a6f34bc"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "retiredPanels": 0,
+      "measured": [],
+      "images": [
+        {
+          "file": "/tmp/retired-ui-evidence-before-20261018/before-phone-security.png",
+          "sha256": "db82760ebdba2e40fd9147169466cc318879c75f7e15016700463e84168d9705"
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "qualification": "Actual production Vite build and real PIN setup/native browser storage. Phone is viewport emulation; service workers blocked and external networking denied. No ownership/authentication or storage doubles.",
+  "status": "PASS"
+}

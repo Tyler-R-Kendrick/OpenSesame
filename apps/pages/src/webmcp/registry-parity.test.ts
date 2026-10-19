@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { settingsTabs } from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import {
   HELP_TOPICS,
   guideGoalIds,
@@ -47,6 +48,7 @@ const routeSources = [
 const KNOWN_ROUTES = new Set<string>([
   "/",
   ...SECTION_PATHS,
+  ...settingsTabs.map((tab) => `/settings/${tab.id}`),
   ...routeSources.flatMap((source) => [
     ...Array.from(
       source.matchAll(/\bpath="(\/[^"?:*]+)"/g),

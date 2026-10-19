@@ -1,7 +1,7 @@
 /** Genuine projection crypto completion holds; no owner or MAC verdict is supplied. */
 import * as vaultCore from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { kvDelete, kvGet } from "../../kv.js";
+import { kvDelete, kvGet, kvSet } from "../../kv.js";
 import { writeLastVaultId } from "../../last-vault.js";
 import {
   BODY_PATH,
@@ -66,14 +66,27 @@ function physical() {
 }
 
 async function unprojectedOwner() {
-  const store = new VaultStore();
-  stores.push(store);
-  await store.create(PASSWORD);
-  expect(store.getSnapshot().header?.protection).toBeUndefined();
+  const material = await vaultCore.createVault(PASSWORD);
   const item = vaultCore.createItem("note", "projection continuity payload");
   item.notes = "retained across a refused stale header projection";
-  await store.saveItem(item);
-  await vfsFlush();
+  try {
+    kvSet(HEADER_KEY, JSON.stringify(material.header));
+    kvSet(
+      BODY_KEY,
+      JSON.stringify(
+        await vaultCore.sealJson(
+          material.vaultKey,
+          { v: 1, rev: 0, items: [item], folders: [] },
+          vaultCore.vaultSealBinding(PERSONAL_TOMB, BODY_PATH),
+        ),
+      ),
+    );
+  } finally {
+    material.rawVaultKey.fill(0);
+  }
+  const store = new VaultStore();
+  stores.push(store);
+  expect(store.getSnapshot().header?.protection).toBeUndefined();
   return { store, item };
 }
 
@@ -116,7 +129,7 @@ it("refuses a delayed genuine projection after a same-Store password change, pre
   const { store, item } = await unprojectedOwner();
   const before = physical();
   const delivery = holdFirstSealCompletion();
-  const pending = track(store.protection.ensureProtectionProjected());
+  const pending = track(store.unlock(PASSWORD));
   const refusal = expect(pending).rejects.toMatchObject({
     code: "stale_operation",
   });
@@ -142,7 +155,7 @@ it("refuses a delayed genuine projection after a same-Store password change, pre
 it("allows two queued genuine projections and preserves their authenticated idempotent header and real payload", async () => {
   const { store, item } = await unprojectedOwner();
   const delivery = holdFirstSealCompletion();
-  const first = track(store.protection.ensureProtectionProjected());
+  const first = track(store.unlock(PASSWORD));
   await delivery.entered;
   const second = track(store.protection.ensureProtectionProjected());
   try {

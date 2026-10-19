@@ -20,6 +20,7 @@ import {
   kvSet,
   kvSetDurable,
 } from "./kv.js";
+import { vaultStore } from "./vault/store.js";
 
 const PUBLIC_KEY = "opensesame.device-connectors.v1";
 const SECRET_KEY = "opensesame.device-connector-secrets.v1";
@@ -52,12 +53,26 @@ interface SecretStore {
 }
 
 const rowListeners = new Set<() => void>();
+let releaseRealm: (() => void) | undefined;
 
 /** Observe committed public metadata without exposing the private record. */
 export function subscribeDeviceRows(listener: () => void): () => void {
+  if (rowListeners.size === 0) {
+    let synthetic = vaultStore.isSyntheticSession();
+    releaseRealm = vaultStore.subscribe(() => {
+      const current = vaultStore.isSyntheticSession();
+      if (current === synthetic) return;
+      synthetic = current;
+      notifyDeviceRows();
+    });
+  }
   rowListeners.add(listener);
   return () => {
     rowListeners.delete(listener);
+    if (rowListeners.size === 0) {
+      releaseRealm?.();
+      releaseRealm = undefined;
+    }
   };
 }
 
@@ -161,6 +176,12 @@ function readLegacyRows(): PublicRow[] {
 
 /** Public readers never include the private half of an atomic configuration. */
 export function readDeviceRows(): PublicRow[] {
+  if (vaultStore.isSyntheticSession()) return [];
+  return readStoredRows();
+}
+
+/** Internal durable cleanup must still settle the original ledger. */
+function readStoredRows(): PublicRow[] {
   const atomic = readAtomic();
   const rows = readLegacyRows().filter((row) => !(row.connectionId in atomic));
   for (const entry of Object.values(atomic)) {
@@ -195,6 +216,7 @@ function readLegacySecrets(): SecretStore {
 }
 
 export function readDeviceSecrets(): SecretStore {
+  if (vaultStore.isSyntheticSession()) return {};
   const map = readLegacySecrets();
   for (const [id, entry] of Object.entries(readAtomic())) {
     if (entry && Object.keys(entry.secrets).length > 0) map[id] = entry.secrets;
@@ -305,7 +327,7 @@ export function removeDeviceConfigurationDurable(
   beforeCommit?: () => void,
 ): Promise<boolean> {
   return withConfigurationLock(async () => {
-    const row = readDeviceRows().find((entry) => entry.connectionId === id);
+    const row = readStoredRows().find((entry) => entry.connectionId === id);
     if (!row || row.fields.self_hosted_configuration === undefined)
       return false;
     const records = readAtomic();

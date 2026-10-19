@@ -1,3 +1,7 @@
+import {
+  ENROLLMENT_STATE_KEY,
+  journalKeysOf,
+} from "../lib/duress/store/boot-keys.js";
 /** Browser physical ciphertext producers. They issue DATA only, never owner or factors-complete authority. */
 import { createOriginalOriginStorageProfile } from "../lib/original-origin-storage.js";
 import type { PhysicalAuthenticationPort } from "../lib/vault/physical-authentication-port.js";
@@ -13,10 +17,12 @@ import type {
 import type { PhysicalDeviceRecordPort } from "../lib/vault/physical-device-record-port.js";
 import type { PhysicalVaultPublicationPort } from "../lib/vault/physical-vault-publication-port.js";
 import {
-  readBrowserPhysicalRegistryData,
-  readBrowserPhysicalTombData,
-} from "./physical-vault-name-data.js";
+  captureBrowserPhysicalInventoryData,
+  revalidateBrowserPhysicalInventoryData,
+} from "./physical-vault-inventory-data.js";
+import { readBrowserPhysicalTombData } from "./physical-vault-name-data.js";
 
+const ORIGINAL_DURESS_KEYS = journalKeysOf(ENROLLMENT_STATE_KEY);
 const HEADER_BOUND = 65536;
 const BODY_BOUND = 8 << 20;
 function unavailable(): never {
@@ -84,11 +90,15 @@ function deviceRecordPort(capture: OriginCapture): PhysicalDeviceRecordPort {
         close: source.close,
         revalidateRoot: source.revalidateRoot,
         readOriginalStateIdentity: source.readOriginalStateIdentity,
-        read: (key, bound) => source.read(deviceKey(key), bound),
+        read: (key, bound) =>
+          source.read(
+            ORIGINAL_DURESS_KEYS.includes(key) ? key : deviceKey(key),
+            bound,
+          ),
         async captureRetiredCredentialInventory() {
           const inventory = [];
-          const wire = await source.read("tombs.v1", 32768);
-          for (const tomb of readBrowserPhysicalRegistryData(wire)) {
+          const physical = await captureBrowserPhysicalInventoryData(source);
+          for (const tomb of physical.tombs) {
             const record = await source.readRecord(
               tombKey(tomb, "retired-credentials.v2"),
               32768,
@@ -105,7 +115,7 @@ function deviceRecordPort(capture: OriginCapture): PhysicalDeviceRecordPort {
               );
             }
           }
-          if ((await source.read("tombs.v1", 32768)) !== wire) unavailable();
+          await revalidateBrowserPhysicalInventoryData(source, physical);
           source.check();
           return Object.freeze(inventory);
         },
@@ -127,51 +137,63 @@ function cataloguePort(
   return Object.freeze({
     async capture(original) {
       const source = await capture(original);
-      const wire = await source.read("tombs.v1", 32768);
-      const identity = await source.readOriginalStateIdentity();
-      const scopes = Object.freeze(
-        readBrowserPhysicalRegistryData(wire).map((tomb) =>
-          Object.freeze({
-            tomb,
-            physicalIdentity: `${identity}:${tomb}`,
-          }),
-        ),
-      );
-      const issued = new Set<PhysicalCurrentCredentialScope>(scopes);
-      const snapshot = Object.freeze({ physicalIdentity: identity, scopes });
-      const revalidate = async (
-        expected: PhysicalCurrentCredentialCatalogueSnapshot,
-      ) => {
-        source.check();
-        if (expected !== snapshot) unavailable();
-        if ((await source.read("tombs.v1", 32768)) !== wire) unavailable();
-        await source.revalidateRoot();
-        source.check();
-      };
-      const reader: PhysicalCurrentCredentialCatalogueReader = {
-        check: source.check,
-        close: source.close,
-        async read() {
-          await revalidate(snapshot);
-          return snapshot;
-        },
-        revalidate,
-        async captureScope(
-          scope: PhysicalCurrentCredentialScope,
-          scopeOriginal: () => void,
-        ) {
-          if (!issued.has(scope)) unavailable();
-          await revalidate(snapshot);
-          return captureCatalogueScope(
-            capture,
-            source,
-            scope,
-            scopeOriginal,
-            () => revalidate(snapshot),
+      try {
+        const physical = await captureBrowserPhysicalInventoryData(source);
+        const identity = await source.readOriginalStateIdentity();
+        const scopes = Object.freeze(
+          physical.tombs.map((tomb) =>
+            Object.freeze({
+              tomb,
+              physicalIdentity: `${identity}:${tomb}`,
+            }),
+          ),
+        );
+        const issued = new Set<PhysicalCurrentCredentialScope>(scopes);
+        const snapshot = Object.freeze({ physicalIdentity: identity, scopes });
+        const revalidate = async (
+          expected: PhysicalCurrentCredentialCatalogueSnapshot,
+        ) => {
+          source.check();
+          if (expected !== snapshot) unavailable();
+          await revalidateBrowserPhysicalInventoryData(source, physical);
+          await source.revalidateRoot();
+          source.check();
+        };
+        const reader: PhysicalCurrentCredentialCatalogueReader = {
+          check: source.check,
+          close: source.close,
+          async read() {
+            await revalidate(snapshot);
+            return snapshot;
+          },
+          revalidate,
+          async captureScope(
+            scope: PhysicalCurrentCredentialScope,
+            scopeOriginal: () => void,
+          ) {
+            if (!issued.has(scope)) unavailable();
+            await revalidate(snapshot);
+            return captureCatalogueScope(
+              capture,
+              source,
+              scope,
+              scopeOriginal,
+              () => revalidate(snapshot),
+            );
+          },
+        };
+        return Object.freeze(reader);
+      } catch (cause) {
+        try {
+          await source.close();
+        } catch (cleanup) {
+          throw new AggregateError(
+            [cause, cleanup],
+            "Original browser catalogue capture failed.",
           );
-        },
-      };
-      return Object.freeze(reader);
+        }
+        throw cause;
+      }
     },
   });
 }

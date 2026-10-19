@@ -7,16 +7,23 @@
  */
 
 import { vi } from "vitest";
+import { configureHost } from "../../../host.js";
+import { createTestHost } from "../../../test-host.js";
+import { webLocksDouble } from "../../__tests__/web-locks-double.js";
+import { atRestKeyNow } from "../../at-rest/key.js";
 
 export type FakeFileHandle = {
+  isSameEntry(other: FakeFileHandle): Promise<boolean>;
   getFile(): Promise<{ size: number; text(): Promise<string> }>;
   createWritable(): Promise<{
     write(value: string): Promise<void>;
     close(): Promise<void>;
+    abort(): Promise<void>;
   }>;
 };
 
 export type FakeOpfs = {
+  isSameEntry(other: FakeOpfs): Promise<boolean>;
   files: Map<string, string>;
   getFileHandle(
     name: string,
@@ -28,17 +35,32 @@ export type FakeOpfs = {
 
 export function makeOpfs(): FakeOpfs {
   const files = new Map<string, string>();
-  return {
+  const handles = new Map<string, FakeFileHandle>();
+  const root: FakeOpfs = {
     files,
+    async isSameEntry(other) {
+      return other === root;
+    },
     async getFileHandle(name, options) {
       if (!files.has(name)) {
         if (!options?.create) throw new DOMException("gone", "NotFoundError");
         files.set(name, "");
+        handles.delete(name);
       }
-      return {
+      const prior = handles.get(name);
+      if (prior) return prior;
+      const handle: FakeFileHandle = {
+        async isSameEntry(other) {
+          return other === handle;
+        },
         async getFile() {
+          if (!files.has(name) || handles.get(name) !== handle)
+            throw new DOMException("gone", "NotFoundError");
           const text = files.get(name) ?? "";
-          return { size: text.length, text: async () => text };
+          return {
+            size: new TextEncoder().encode(text).length,
+            text: async () => text,
+          };
         },
         async createWritable() {
           return {
@@ -46,23 +68,31 @@ export function makeOpfs(): FakeOpfs {
               files.set(name, value);
             },
             async close() {},
+            async abort() {},
           };
         },
       };
+      handles.set(name, handle);
+      return handle;
     },
     async removeEntry(name) {
       if (!files.has(name)) throw new DOMException("gone", "NotFoundError");
       files.delete(name);
+      handles.delete(name);
     },
     async *keys() {
       for (const name of [...files.keys()]) yield name;
     },
   };
+  return root;
 }
 
 /** Make `root` the origin's file system until `vi.unstubAllGlobals()`. */
 export function installOpfs(root: FakeOpfs): void {
   vi.stubGlobal("navigator", {
     storage: { getDirectory: () => Promise.resolve(root) },
+    locks: webLocksDouble(),
   });
+  configureHost(createTestHost());
+  atRestKeyNow();
 }

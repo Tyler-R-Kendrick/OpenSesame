@@ -1,4 +1,11 @@
 /** Lossless build-time packing; generated plans and policy keep their exact JSON. */
+function noteStringFragments(serialized, note) {
+  const words = serialized.split(/(?<=[ /.,:;_-])/);
+  for (let start = 0; start < words.length; start++) {
+    for (let count = 2; count <= 6 && start + count <= words.length; count++)
+      note(words.slice(start, start + count).join(""));
+  }
+}
 function candidates(rows) {
   const counts = new Map();
   const note = (fragment) => {
@@ -18,7 +25,10 @@ function candidates(rows) {
         note(`${prefix}${JSON.stringify(item)}`);
         visit(item);
       }
-    } else note(JSON.stringify(value));
+    } else {
+      note(JSON.stringify(value));
+      if (rows.length > 1) noteStringFragments(JSON.stringify(value), note);
+    }
   };
   for (const row of rows) visit(JSON.parse(row));
   return [...counts.entries()]
@@ -44,7 +54,14 @@ export function packJsonRows(rows) {
       0,
     );
     const saved = (fragment.length - marker.length) * occurrences;
-    if (saved <= JSON.stringify(fragment).length + 3) continue;
+    // Sparse substitutions shorten source but disturb gzip's repeated text.
+    // Row catalogs share common prose/URL fragments across many providers;
+    // keep the original single-document policy encoding unchanged.
+    if (
+      (rows.length > 1 && occurrences < 9) ||
+      saved <= JSON.stringify(fragment).length + 3
+    )
+      continue;
     packed = packed.map((row) => row.split(fragment).join(marker));
     dictionary.push(fragment);
   }

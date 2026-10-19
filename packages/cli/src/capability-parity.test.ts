@@ -11,6 +11,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 // argument grammar. Renaming a verb without a registry update fails here.
 const grammar = [
   readFileSync(join(here, "parse.ts"), "utf8"),
+  readFileSync(join(here, "cli-help.ts"), "utf8"),
+  readFileSync(join(here, "parse-vault-retired.ts"), "utf8"),
+  readFileSync(join(here, "parse-vault-canary.ts"), "utf8"),
   readFileSync(join(here, "run.ts"), "utf8"),
   readFileSync(join(here, "parity-parse.ts"), "utf8"),
   readFileSync(join(here, "parity-commands.ts"), "utf8"),

@@ -650,3 +650,86 @@ findings and before/after detection controls. The initial spread/strict-check
 failure and Cargo PATH diagnostic remain preserved. This uses the recorded
 fallback, not a new preflight claim. Actual CI is still pending; inherited/stale
 browser gates remain open.
+### Round 8 stack (P8-1–P8-4, 2026-10-17)
+
+Policy: Round 8 implementation edits via **Grok Build** (`grok-4.7`, subscription
+`~/.grok/auth.json`); Cursor orchestrator commits, tests, and PR provenance only.
+**Kimi K3** authored the first P8-4 commit (`11a508953`) before the Grok-only
+correction. **Cursor tier 3** authored P8-2 harness fix `a1c7a7ce9` (and cherry-pick
+`79f7d53ad` on P8-3); Grok Build review session `01a147fc-8297-7f82-ba33-40cdd2710b2e`
+**accepted** that harness change without redo. Grok redo commit `7d146efb6` on P8-4
+after audit **redo** of `11a508953`. P8-1 feature commits via Grok Build; post-Grok
+bundle/ceremony-kit fixes on P8-1 by Tyler Kendrick (tier 3), as listed on PR #1457.>>>>>>> 3cf7f205c (docs(audit): record Round 8 Grok/Kimi/tier-3 provenance)
+
+
+## 2026-10-17 — retired-credential thread recovery: physical browser storage
+
+Recovered published checkpoints from the stalled “Explore Retired Credential
+Traps” thread: #1170 was superseded by merged #826; #1229 is the last reported
+published browser bundle slice. The original request and selected settings were
+unavailable, as confirmed by the person. No claim is made that the old
+uncommitted work or temporary receipts were recovered. Inspection resumed from
+current main `495f1d42082dcd56b7a3d50bf39cfc645c2f7acd` in an isolated worktree.
+
+The authenticated coding preflight found no Grok subscription auth and no Kimi
+executable. Codex implementation and independent Codex review/test agents were
+the available fallback; neither unavailable CLI is credited with this work.
+This cut refuses physical vault records omitted from the registry and repairs
+first publication's recognition of its own still-empty, original file entry.
+It does not activate retired login, issue owner authority, or establish full
+client/native/mobile feature readiness.
+
+Native Chromium reproduced the old registry omission and the existing first
+publication failure. Seven additional registry controls and the original
+storage/CAS controls passed after the correction. Focused publication tests
+retain preexisting-empty, replacement, strict-seal and bounds refusals. Exact
+commands, source witnesses and broader gate outcomes belong to the PR evidence;
+these scoped results do not replace the repository or complete-feature gates.
+
+
+## 2026-10-18: recovered retired credentials and controlled canaries
+
+Producer: Codex orchestrator and workflow subagents in an isolated recovery
+worktree. The previous stuck thread and its ephemeral uncommitted files were
+not resumed. Published history, portable contracts and current source were
+inspected; missing Client-vault integration was reconstructed with honest
+boundaries (ADR 0207). No Grok or Kimi authorship is claimed. The repository
+coding preflight reports no Grok subscription authentication and no Kimi
+executable in this environment. Commits use GitHub `createCommitOnBranch`
+without an author override, as required by §9.
+
+The prerequisite physical-registry recovery is PR #1489. Feature integration
+covers fresh primary plus configured factors, durable retired-password
+classification, isolated synthetic sessions, inverse credential exclusions,
+controlled canary signing/receiver custody, and installed Node Client delivery.
+The Rust Host sealed-store and native OpenID4VC wallets are separate products.
+Managed Chromium policy prevents installing the extension runner; build and
+URL controls are bounded evidence, not an exercised installed-extension flow.
+Actual before/after desktop and phone images and the native-browser receipt
+are preserved in `docs/audit/evidence/2026-10-18-retired-credentials/`.
+
+Verification is recorded with the final feature review, including failures and
+reruns; focused passes alone do not certify the full feature. The normal
+bundle allowance is deliberate feature growth permitted by the bundle policy,
+reviewed independently after complete shipped-output measurement. Hardened
+budgets and structural, ownership and security gates are not relaxed.
+
+
+### Retired recovery: peering diagnostic observation correction
+
+Codex and a workflow subagent reproduced an independent test-driver race in
+real Chromium: a visible ICE row could unmount before a later locator text
+read. The driver now captures visibility and text in one browser turn, retains
+the existing 45-second deadline and validation, and runs a real-browser
+regression before its existing diagnostic walk. Empty and invalid diagnostics
+remain failures. This is a test-only correction, not an established diagnosis
+of the earlier CI failure; the unchanged local direct-join reproduction was
+blocked by Chromium producing no ICE candidates. The original CI failure and
+local trace are retained. No production authentication or transport changed.
+
+This recovery retains the existing normal bundle limits of 7355 KiB JavaScript
+and 2240 KiB gzip, plus every hardened limit. The proposed allowance increase
+was rejected and never applied; lossless generated-catalog packing passed the
+existing gate instead. Earlier wording about feature-growth allowance does
+not authorize a new budget increase. Grok subscription authentication and Kimi
+remain unavailable as recorded above; no alternative-model authorship claimed.

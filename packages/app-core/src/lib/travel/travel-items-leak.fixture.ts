@@ -88,6 +88,7 @@ export async function clearTomb(): Promise<void> {
   }
   resetPasswordHistoryForTest();
   resetHistoryBackupMemory();
+  vaultStore.rehydrate();
 }
 
 /** The owner's vault key, derived from the master password the way unlock does. */

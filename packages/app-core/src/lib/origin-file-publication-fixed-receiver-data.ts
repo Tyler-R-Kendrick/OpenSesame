@@ -95,3 +95,15 @@ export type OriginalOriginStreamAbortData = ReturnType<
 export type OriginalOriginStreamData = ReturnType<
   typeof captureOriginalOriginStreamData
 >;
+
+/** Captured enumeration receiver DATA; write-only captures need no iterator. */
+export function captureOriginalOriginDirectoryNamesData(
+  root: FileSystemDirectoryHandle,
+) {
+  const keys = root.keys;
+  const fixedKeys: typeof keys = bindOriginal(keys, root);
+  const check = () => {
+    if (root.keys !== keys) changed();
+  };
+  return Object.freeze({ keys: fixedKeys, check });
+}

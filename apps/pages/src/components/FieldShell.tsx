@@ -29,6 +29,7 @@ export function FieldShell({
   type = "text",
   placeholder,
   autoComplete,
+  maxLength,
   inputMode,
   lead,
   tail,
@@ -53,6 +54,7 @@ export function FieldShell({
   type?: "text" | "url" | "password" | "email";
   placeholder?: string;
   autoComplete?: string;
+  maxLength?: number;
   /** A numeric or telephone keyboard on a phone, for codes and numbers. */
   inputMode?: "numeric" | "tel" | "email";
   lead?: ReactNode;
@@ -92,6 +94,7 @@ export function FieldShell({
           value={value}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          maxLength={maxLength}
           // Codes and secrets are not prose: no capital, no correction.
           autoCapitalize={mono ? "off" : undefined}
           spellCheck={mono ? false : undefined}

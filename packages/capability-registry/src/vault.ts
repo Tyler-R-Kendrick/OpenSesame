@@ -10,6 +10,7 @@ import { vaultFileCapabilities } from "./vault-files.js";
 import { vaultInteropCapabilities } from "./vault-interop.js";
 import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
 import { vaultProtectionCapabilities } from "./vault-protection.js";
+import { retiredCanaryCapabilities } from "./vault-retired-canaries.js";
 import { vaultTravelCapabilities } from "./vault-travel.js";
 
 /**
@@ -29,4 +30,5 @@ export const vaultCapabilities: readonly Capability[] = [
   ...vaultTravelCapabilities,
   ...vaultDuressCapabilities,
   ...vaultProtectionCapabilities,
+  ...retiredCanaryCapabilities,
 ];

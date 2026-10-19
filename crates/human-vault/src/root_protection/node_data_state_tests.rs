@@ -239,3 +239,51 @@ fn actual_nested_try_body_keeps_original_credential_while_busy_and_never_upgrade
     state.seal().unwrap();
     assert!(next.try_capture_existing_writer("selected").is_err());
 }
+
+#[test]
+fn original_projection_reader_and_manifest_last_publication_preserve_exact_source() {
+    let (_temporary, root) = fixture();
+    let vaults = root.open_child(Path::new("vault")).unwrap();
+    let vault = vaults.open_child(Path::new("selected")).unwrap();
+    write_new(&vault, Path::new("header.json"), br#"{"header":"sealed"}"#).unwrap();
+    write_new(
+        &vault,
+        Path::new("vault.json"),
+        br#"{"manifest":"sealed-before"}"#,
+    )
+    .unwrap();
+    let state = NativeNodeDataState::capture(root).unwrap();
+    let credential = state.credential_writer().unwrap();
+    let writer = credential.capture_existing_writer("selected").unwrap();
+    let before = writer.read_authentication_projection().unwrap();
+    let publications = vec![
+        (
+            "secrets/generation-first.json".into(),
+            br#"{"sealed":"new-document"}"#.to_vec(),
+        ),
+        (
+            "vault.json".into(),
+            br#"{"manifest":"sealed-after"}"#.to_vec(),
+        ),
+    ];
+    assert!(writer
+        .publish_authentication_projection(&before, &[("header.json".into(), b"invalid".to_vec())])
+        .is_err());
+    assert_eq!(writer.read_authentication_projection().unwrap(), before);
+    writer
+        .publish_authentication_projection(&before, &publications)
+        .unwrap();
+    assert!(writer
+        .publish_authentication_projection(&before, &publications)
+        .is_err());
+    let after = writer.read_authentication_projection().unwrap();
+    assert!(after
+        .iter()
+        .any(|(name, data)| name == "secrets/generation-first.json" && data == &publications[0].1));
+    writer
+        .publish_authentication_header(br#"{"header":"sealed"}"#, br#"{"header":"sealed-next"}"#)
+        .unwrap();
+    assert!(writer
+        .publish_authentication_header(br#"{"header":"sealed"}"#, b"wrong stale source")
+        .is_err());
+}
