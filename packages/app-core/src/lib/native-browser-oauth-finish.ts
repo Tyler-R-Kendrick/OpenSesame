@@ -145,7 +145,7 @@ export async function retainAndVerifyNativeBrowserToken(
       transport,
       { revision: record.revision, grant: retained },
     );
-    if (view.recovery.length) return retryNativeConnectorCleanup(id);
+    if (view.recovery.length) return retryNativeConnectorCleanup(id, transport);
     return view;
   } catch (error) {
     try {
@@ -153,7 +153,7 @@ export async function retainAndVerifyNativeBrowserToken(
     } catch {
       throw error;
     }
-    await retryNativeConnectorCleanup(id).catch(() => undefined);
+    await retryNativeConnectorCleanup(id, transport).catch(() => undefined);
     throw error;
   }
 }

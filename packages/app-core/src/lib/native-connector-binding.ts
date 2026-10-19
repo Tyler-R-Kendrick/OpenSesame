@@ -41,6 +41,15 @@ export function bindNativeConnectorDriver(
           )
       : undefined,
     cleanup: {
+      capture: cleanup.capture
+        ? (id) => {
+            transport.assertCurrent();
+            const captured = cleanup.capture?.(id);
+            transport.assertCurrent();
+            if (!captured) throw new Error("Provider cleanup capture changed");
+            return captured;
+          }
+        : undefined,
       classification: (configuration) => {
         transport.assertCurrent();
         return cleanup.classification(configuration);
@@ -53,10 +62,13 @@ export function bindNativeConnectorDriver(
           : (slots ?? []);
       },
       prepare: cleanup.prepare
-        ? (id) =>
-            guard(() =>
-              cleanup.prepare ? cleanup.prepare(id) : Promise.resolve(),
-            )
+        ? (id, original) =>
+            guard(() => {
+              if (!cleanup.prepare) return Promise.resolve();
+              return original === undefined
+                ? cleanup.prepare(id)
+                : cleanup.prepare(id, original);
+            })
         : undefined,
       cleanup: (obligation, context) =>
         guard(() => cleanup.cleanup(obligation, context)),

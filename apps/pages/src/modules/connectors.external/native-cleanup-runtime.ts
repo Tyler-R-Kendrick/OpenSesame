@@ -12,7 +12,7 @@ import {
 } from "@opensesame/app-core/lib/native-connector-lifecycle.js";
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import { loadNativeConnectorRecord } from "@opensesame/app-core/lib/native-connector-store.js";
-import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
+import { captureNativeProviderAuthority } from "@opensesame/app-core/lib/native-connector-transport.js";
 import type { Activation } from "../activation.js";
 
 const METHODS: readonly NativeMethod[] = [
@@ -27,7 +27,7 @@ export function bindNativeCleanupRuntime(
   activation: Activation,
   extraProviderIds: readonly string[] = [],
 ): void {
-  const transport = nativeProviderTransport();
+  const transport = captureNativeProviderAuthority();
   const ids = new Set([
     ...connectPlans().map((plan) => plan.id),
     ...extraProviderIds,
@@ -49,14 +49,25 @@ export function bindNativeCleanupRuntime(
     };
     activation.onDispose(
       registerNativeProviderCleanup(providerId, {
-        prepare: async (connectionId) => {
+        capture: (connectionId) => {
           transport.assertCurrent();
           const record = loadNativeConnectorRecord(connectionId);
           if (!record || record.configuration.providerId !== providerId)
             throw new Error("Provider cleanup belongs to another connection");
-          await driver(record.configuration.method).cleanup.prepare?.(
-            connectionId,
+          return (
+            driver(record.configuration.method).cleanup.capture?.(
+              connectionId,
+            ) ?? transport.capture()
           );
+        },
+        prepare: async (connectionId, original) => {
+          transport.assertCurrent();
+          const record = loadNativeConnectorRecord(connectionId);
+          if (!record || record.configuration.providerId !== providerId)
+            throw new Error("Provider cleanup belongs to another connection");
+          const prepare = driver(record.configuration.method).cleanup.prepare;
+          if (original) await prepare?.(connectionId, original);
+          else await prepare?.(connectionId);
           transport.assertCurrent();
         },
         credentialSlots: (configuration, grant) => {

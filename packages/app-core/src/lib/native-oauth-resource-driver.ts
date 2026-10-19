@@ -3,6 +3,7 @@ import { captureNativeAuthorizationTransport } from "./native-authorization-tran
 import { cancelNativeBrowserConsent } from "./native-browser-oauth-cancel.js";
 import type { NativeConnectorDriver } from "./native-connector-drivers.js";
 import type { NativeCleanupOutcome } from "./native-connector-lifecycle.js";
+import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { nativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 import {
   type NativeOAuthClientOwner,
@@ -28,15 +29,21 @@ export type NativeOAuthResourceDriverPorts = {
   /** Capture the original authority synchronously, then await only its custody work. */
   capture(
     signal?: AbortSignal,
+    original?: NativeProviderTransport,
   ): NativeOAuthResourceOwner | Promise<NativeOAuthResourceOwner>;
 };
 function resourceOperations(ports: NativeOAuthResourceDriverPorts) {
   return async <T>(
     action: (owner: NativeOAuthClientOwner) => Promise<T>,
     caller?: AbortSignal,
+    original?: NativeProviderTransport,
   ): Promise<T> => {
     caller?.throwIfAborted();
-    const pending = caller ? ports.capture(caller) : ports.capture();
+    const pending = original
+      ? ports.capture(caller, original)
+      : caller
+        ? ports.capture(caller)
+        : ports.capture();
     const capture = await pending;
     try {
       caller?.throwIfAborted();
@@ -123,21 +130,34 @@ export function createNativeOAuthResourceDriver(
       }, signal),
     cleanup: {
       classification: nativeOAuthClientClassification,
-      prepare: (id) =>
-        owned(async (owner) => {
-          assertNativeOAuthClientOwner(owner);
-          await retryRetainedNativeOAuthGrants(id);
-        }),
+      prepare: (id, original) =>
+        owned(
+          async (owner) => {
+            assertNativeOAuthClientOwner(owner);
+            await retryRetainedNativeOAuthGrants(id);
+          },
+          undefined,
+          original,
+        ),
       cleanup: (obligation, context) =>
-        owned<NativeCleanupOutcome>(async (owner) => {
-          assertNativeOAuthClientOwner(owner);
-          const record = requireNativeOAuthRecord(context.connectionId);
-          if (record.privateState.credentials.oauth_client_vault !== owner.tomb)
-            throw new NativeOAuthError("expired");
-          if (!obligation.grant && obligation.credentials?.phase === "exchange")
-            throw new NativeOAuthError("cleanup");
-          return "local-credential-forgotten";
-        }),
+        owned<NativeCleanupOutcome>(
+          async (owner) => {
+            assertNativeOAuthClientOwner(owner);
+            const record = requireNativeOAuthRecord(context.connectionId);
+            if (
+              record.privateState.credentials.oauth_client_vault !== owner.tomb
+            )
+              throw new NativeOAuthError("expired");
+            if (
+              !obligation.grant &&
+              obligation.credentials?.phase === "exchange"
+            )
+              throw new NativeOAuthError("cleanup");
+            return "local-credential-forgotten";
+          },
+          undefined,
+          context.transport,
+        ),
     },
   };
 }

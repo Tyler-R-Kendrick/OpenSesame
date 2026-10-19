@@ -256,7 +256,10 @@ export function createNativeBrowserOAuthDriver(
 ): NativeConnectorDriver {
   return {
     supports: (id) => nativeBrowserOAuthProfile(id) !== null,
-    cleanup: nativeBrowserOAuthCleanup,
+    cleanup: {
+      ...nativeBrowserOAuthCleanup,
+      capture: () => operationTransport(authority.capture()),
+    },
     configure: async (input) =>
       configureNativeBrowserOAuthConnector(
         input,

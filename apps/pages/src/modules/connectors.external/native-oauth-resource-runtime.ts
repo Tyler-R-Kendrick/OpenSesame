@@ -7,7 +7,10 @@ import type {
 } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConfiguration } from "@opensesame/app-core/lib/native-connector-schema.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
-import type { captureNativeProviderAuthority } from "@opensesame/app-core/lib/native-connector-transport.js";
+import type {
+  NativeProviderTransport,
+  captureNativeProviderAuthority,
+} from "@opensesame/app-core/lib/native-connector-transport.js";
 import {
   NativeOAuthClientTarget,
   nativeOAuthClientTarget,
@@ -61,9 +64,11 @@ function captureOwner(
   authority: Authority,
   redirectUri: string,
   caller?: AbortSignal,
+  captured?: NativeProviderTransport,
 ) {
   caller?.throwIfAborted();
-  const original = authority.capture();
+  authority.assertCurrent();
+  const original = captured ?? authority.capture();
   const signal = AbortSignal.any([
     ...(original.signal ? [original.signal] : []),
     ...(caller ? [caller] : []),
@@ -98,7 +103,8 @@ export function composeNativeOAuthResourceDriver(
 ): NativeConnectorDriver {
   const configured = createNativeOAuthResourceDriver({
     supports: supportsNativeOAuthResource,
-    capture: (signal) => captureOwner(authority, redirectUri, signal),
+    capture: (signal, original) =>
+      captureOwner(authority, redirectUri, signal, original),
   });
   const forConfiguration = (configuration: NativeConfiguration) => {
     if (nativeOAuthClientConfigured(configuration)) {
@@ -143,6 +149,8 @@ export function composeNativeOAuthResourceDriver(
     invoke: (id, operation, input, signal) =>
       forConnection(id).invoke(id, operation, input, signal),
     cleanup: {
+      capture: (id) =>
+        forConnection(id).cleanup.capture?.(id) ?? authority.capture(),
       classification: (configuration) =>
         forConfiguration(configuration).cleanup.classification(configuration),
       credentialSlots: (configuration, grant) => {
@@ -150,8 +158,13 @@ export function composeNativeOAuthResourceDriver(
           forConfiguration(configuration).cleanup.credentialSlots ?? [];
         return "call" in slots ? slots(configuration, grant) : slots;
       },
-      prepare: (id) =>
-        forConnection(id).cleanup.prepare?.(id) ?? Promise.resolve(),
+      prepare: (id, original) => {
+        const prepare = forConnection(id).cleanup.prepare;
+        return (
+          (original === undefined ? prepare?.(id) : prepare?.(id, original)) ??
+          Promise.resolve()
+        );
+      },
       cleanup: (obligation, context) =>
         forConfiguration(context.configuration).cleanup.cleanup(
           obligation,
