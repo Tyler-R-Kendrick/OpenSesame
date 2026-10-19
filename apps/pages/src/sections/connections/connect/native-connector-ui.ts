@@ -38,6 +38,8 @@ export type NativeMethodDescriptor = {
   available: boolean;
   /** Compiled editor remains reachable before transport admission; never authorizes Connect. */
   configurable?: boolean;
+  /** Original executable method gate before browser-origin policy; editing cannot enable it. */
+  runtimeAvailable?: boolean;
   unavailableReason?: string;
   /** Why it is unavailable, as a closed reason a tile can name (never prose). */
   unavailableKind?: BrowserUnavailableKind;

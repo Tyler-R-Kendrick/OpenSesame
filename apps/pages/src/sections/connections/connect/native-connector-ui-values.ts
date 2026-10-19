@@ -1,4 +1,4 @@
-import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
+import { nativeConfigurationBrowserPolicy } from "@opensesame/app-core/lib/native-configuration-policy.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import type {
   NativeField,
@@ -108,7 +108,7 @@ export function nativeVerified(view: NativeConnectorView): boolean {
   return (
     view.status === "connected" &&
     view.verifiedAt !== null &&
-    nativeBrowserMethodPolicy(
+    nativeConfigurationBrowserPolicy(
       view.providerId,
       view.configuration.method,
       view.configuration.parameters,
