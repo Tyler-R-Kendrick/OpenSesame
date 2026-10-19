@@ -47,7 +47,11 @@ it("offers direct setup without an extension and reports actual denied fetch wit
     throw new TypeError("Direct browser request denied");
   };
   render(panel());
-  expect(screen.getByText(/Test the configured endpoint/)).toBeTruthy();
+  expect(
+    screen.getByText(
+      /Test the connection using the configured native Tailscale HTTP transport/,
+    ),
+  ).toBeTruthy();
   expect(screen.queryByRole("link", { name: /connector bridge/i })).toBeNull();
   await userEvent.type(
     screen.getByLabelText("SendGrid API key"),

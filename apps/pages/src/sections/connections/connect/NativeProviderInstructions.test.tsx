@@ -79,7 +79,9 @@ it("changes contextual Railway sign-in help with the selected credential type", 
     nativePolicyMethod("railway", nativePolicyMethod("railway", method)),
   ).toEqual(method);
   expect(
-    method.instructions?.match(/Test the configured endpoint/g),
+    method.instructions?.match(
+      /Test the connection using the configured native Tailscale HTTP transport/g,
+    ),
   ).toHaveLength(1);
   render(<ReadOnlyContractFields method={method} />);
   const help = screen.getByText("Sign-in help", { selector: "summary" });
