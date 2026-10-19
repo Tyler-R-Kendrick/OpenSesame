@@ -66,10 +66,7 @@ export function aiConnectionPreset(providerId: string) {
 }
 
 export function isAiConnectionProvider(providerId: string): boolean {
-  // The complete Vertex form lands before its catalog route is advertised.
-  return (
-    providerId !== "google-vertex" && aiConnectionPreset(providerId) !== null
-  );
+  return aiConnectionPreset(providerId) !== null;
 }
 
 export function aiConnectionDraft(providerId: string): AiConnectionDraft {

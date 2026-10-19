@@ -25,7 +25,7 @@ function configured(): VertexAiDraft {
 it("uses the existing Gemini family and strictly normalizes only the private service-account document", () => {
   const value = validateAiConnection(configured());
   expect(value.family).toBe("gemini_generate_content");
-  expect(isAiConnectionProvider("google-vertex")).toBe(false);
+  expect(isAiConnectionProvider("google-vertex")).toBe(true);
   expect(isAiConnectionProvider("byo-ai")).toBe(true);
   expect(aiConnectionFamilies("google-vertex").map((item) => item.id)).toEqual([
     "gemini_generate_content",

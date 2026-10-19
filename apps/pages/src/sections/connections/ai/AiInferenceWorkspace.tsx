@@ -9,6 +9,7 @@ import { StatusMark } from "../../../components/StatusMark.js";
 export function AiInferenceWorkspace({
   connectionId,
 }: { connectionId: string }) {
+  const supportsStreaming = !readAiConnection(connectionId)?.vertex;
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("");
   const [failure, setFailure] = useState("");
@@ -37,7 +38,9 @@ export function AiInferenceWorkspace({
           signal: lifetime.signal,
           assertCurrent: () => lifetime.signal.throwIfAborted(),
         },
-        stream ? (text) => setAnswer((current) => current + text) : undefined,
+        stream && supportsStreaming
+          ? (text) => setAnswer((current) => current + text)
+          : undefined,
       );
       if (!lifetime.signal.aborted) setAnswer(result.answer);
     } catch (error) {
@@ -68,15 +71,19 @@ export function AiInferenceWorkspace({
           disabled={busy}
           onValueChange={setPrompt}
         />
-        <label>
-          <input
-            type="checkbox"
-            checked={stream}
-            disabled={busy}
-            onChange={(event) => setStream(event.target.checked)}
-          />{" "}
-          Stream response
-        </label>
+        {supportsStreaming ? (
+          <label>
+            <input
+              type="checkbox"
+              checked={stream}
+              disabled={busy}
+              onChange={(event) => setStream(event.target.checked)}
+            />{" "}
+            Stream response
+          </label>
+        ) : (
+          <p>Responses appear when the request completes.</p>
+        )}
         <FormCommit
           label="Send prompt"
           disabled={busy || !prompt.trim()}

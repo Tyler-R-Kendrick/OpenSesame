@@ -12,6 +12,12 @@ import { IconKey } from "../../../components/IconKey.js";
 import { IconPlay } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 
+import {
+  VertexConnectionFields,
+  VertexConnectionHelp,
+  VertexEndpointChoice,
+} from "./VertexConnectionFields.js";
+
 export type AiConnectionFormProps = {
   draft: AiConnectionDraft;
   busy: boolean;
@@ -113,6 +119,7 @@ function FamilyFields({ draft, busy, onChange }: Fields) {
           ))}
         </select>
       </div>
+      <VertexEndpointChoice draft={draft} busy={busy} onChange={onChange} />
       {draft.providerId === "byo-ai" && openai ? (
         <div className="field">
           <label htmlFor={targetId}>Endpoint type</label>
@@ -139,9 +146,16 @@ function EndpointFields({ draft, busy, onChange }: Fields) {
   return (
     <>
       <FieldShell
-        label={draft.azure ? "Azure resource endpoint" : "API base URL"}
+        label={
+          draft.vertex
+            ? "Vertex API base URL"
+            : draft.azure
+              ? "Azure resource endpoint"
+              : "API base URL"
+        }
         value={draft.baseUrl}
-        type={draft.azure ? "url" : undefined}
+        type={draft.azure || draft.vertex ? "url" : undefined}
+        readOnly={draft.providerId === "google-vertex"}
         placeholder={
           draft.azure
             ? "https://your-resource.openai.azure.com"
@@ -191,6 +205,7 @@ function CredentialFields(
   props: Fields & Pick<AiConnectionFormProps, "saved">,
 ) {
   const authId = useId();
+  if (props.draft.vertex) return <VertexConnectionFields {...props} />;
   if (props.draft.azure)
     return (
       <>
@@ -288,6 +303,7 @@ function AzureCredentialFields({ draft, busy, onChange }: Fields) {
 }
 function AiConnectionSetup({ draft, busy, onChange }: Fields) {
   const tokenParameterId = useId();
+  if (draft.vertex) return <VertexConnectionHelp draft={draft} />;
   return (
     <details className="conn-client-alt">
       <summary>Connection setup</summary>

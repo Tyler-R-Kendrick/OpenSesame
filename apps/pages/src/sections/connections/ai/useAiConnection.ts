@@ -10,6 +10,7 @@ import {
 } from "@opensesame/app-core/lib/ai-connections/runtime.js";
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import type { AiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/types.js";
+import { vertexResourceBase } from "@opensesame/app-core/lib/ai-connections/vertex-target.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useEffect, useRef, useState } from "react";
 
@@ -32,6 +33,7 @@ function changeDraft<Key extends keyof AiConnectionDraft>(
   const next = { ...current, [field]: value };
   if (!["openai_chat", "openai_responses"].includes(next.family))
     next.azure = undefined;
+  changeVertexDraft(current, next, field);
   if (next.azure) {
     next.authentication = "api-key";
     if (next.azure.api === "dated-chat") {
@@ -46,6 +48,30 @@ function changeDraft<Key extends keyof AiConnectionDraft>(
   )
     next.apiKey = "";
   return next;
+}
+function changeVertexDraft(
+  current: AiConnectionDraft,
+  next: AiConnectionDraft,
+  field: keyof AiConnectionDraft,
+) {
+  if (next.family !== "gemini_generate_content") next.vertex = undefined;
+  if (next.vertex) {
+    next.authentication = "api-key";
+    const automatic =
+      field === "vertex" &&
+      (!next.baseUrl ||
+        Boolean(
+          current.vertex &&
+            current.baseUrl === vertexResourceBase(current.vertex),
+        ));
+    if (next.providerId === "google-vertex" || automatic)
+      next.baseUrl = vertexResourceBase(next.vertex);
+  }
+  if (
+    (current.vertex || next.vertex) &&
+    ["vertex", "family", "baseUrl", "model"].includes(field)
+  )
+    next.apiKey = "";
 }
 function canRetainCredential(draft: AiConnectionDraft, id?: string): boolean {
   if (!id) return false;
