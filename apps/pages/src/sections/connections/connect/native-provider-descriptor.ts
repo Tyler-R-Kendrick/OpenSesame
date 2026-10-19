@@ -13,6 +13,10 @@ import type {
   NativeScopeGroup,
 } from "./native-connector-ui.js";
 import {
+  nativeCimdApplicationDescriptor,
+  nativeOAuthResourceDescriptor,
+} from "./native-oauth-resource-descriptor.js";
+import {
   providerApiKeyFields,
   providerParameterField,
 } from "./native-provider-fields.js";
@@ -191,11 +195,35 @@ function publicOAuthDescriptor(
   availability: BrowserProviderAvailability,
   method: Extract<ConnectMethod, { kind: "oauth" }>,
 ): NativeMethodDescriptor {
-  if (availability.oauth.available && availability.oauth.profile)
-    return nativeBrowserOAuthDescriptor(
+  const preset = availability.oauth.preset ?? method.preset;
+  const profile = availability.oauth.profile;
+  if (availability.oauth.available && profile) {
+    const publicMethod = nativeBrowserOAuthDescriptor(
       plan,
-      availability.oauth.profile,
+      profile,
       availability.callbackUrl,
+    );
+    return profile.mode === "cimd" && preset
+      ? nativeCimdApplicationDescriptor(
+          preset,
+          availability.callbackUrl,
+          true,
+          publicMethod,
+          profile,
+        )
+      : publicMethod;
+  }
+  if (profile)
+    return oauthDescriptor(
+      method,
+      availability.oauth,
+      availability.callbackUrl,
+    );
+  if (preset)
+    return nativeOAuthResourceDescriptor(
+      preset,
+      availability.callbackUrl,
+      availability.oauth.available,
     );
   return oauthDescriptor(method, availability.oauth, availability.callbackUrl);
 }
