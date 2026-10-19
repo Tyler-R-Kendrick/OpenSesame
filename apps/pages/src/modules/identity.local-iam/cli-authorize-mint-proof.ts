@@ -6,6 +6,16 @@ import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-in
 import type { VaultHeader } from "@opensesame/vault-core";
 import { WrongPasswordError } from "@opensesame/vault-core";
 
+export class CliAuthorizeRefusal extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "CliAuthorizeRefusal";
+    this.code = code;
+  }
+}
+
 export type CliAuthorizeRow = readonly [
   requestId: string,
   terminalSessionId: string,
@@ -46,11 +56,10 @@ export async function mintCliAuthorizePasskeyProof(
   const crypto = await import(
     "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
   );
-  const {
-    approvalChallengeDigestV3,
-    formatCliAppHumanProofPasskey,
-    b64urlEncode,
-  } = crypto;
+  const { approvalChallengeDigestV3 } = crypto;
+  const { assertStoredCliAppPasskey } = await import(
+    "@opensesame/app-core/lib/cli-app-integration/webauthn-credential.js"
+  );
   const challenge = await approvalChallengeDigestV3({
     daemonIntegrationId: binding.daemonIntegrationId,
     requestId: binding.requestId,
@@ -61,29 +70,11 @@ export async function mintCliAuthorizePasskeyProof(
     peerPid: binding.peerPid,
     peerStartTime: binding.peerStartTime,
   });
-  const assertion = await navigator.credentials.get({
-    publicKey: {
-      challenge,
-      timeout: 60_000,
-      userVerification: "required",
-    },
-  });
-  if (!assertion || !(assertion instanceof PublicKeyCredential)) {
-    throw new WrongPasswordError("Passkey confirmation was cancelled.");
+  const assertion = await assertStoredCliAppPasskey(challenge);
+  if (!assertion.ok) {
+    throw new CliAuthorizeRefusal(assertion.code, assertion.message);
   }
-  const response = assertion.response;
-  if (!(response instanceof AuthenticatorAssertionResponse)) {
-    throw new WrongPasswordError("Passkey confirmation was cancelled.");
-  }
-  const wire = JSON.stringify({
-    credentialIdB64: b64urlEncode(new Uint8Array(assertion.rawId)),
-    authenticatorDataB64: b64urlEncode(
-      new Uint8Array(response.authenticatorData),
-    ),
-    clientDataJsonB64: b64urlEncode(new Uint8Array(response.clientDataJSON)),
-    signatureB64: b64urlEncode(new Uint8Array(response.signature)),
-  });
-  return formatCliAppHumanProofPasskey(wire);
+  return assertion.proof;
 }
 
 export async function mintCliAuthorizePinProof(
@@ -117,7 +108,10 @@ export async function mintCliAuthorizePinProof(
   );
   raw.fill(0);
   requirePairingSecret();
-  // PIN only unlocks the vault; the daemon never verifies PIN proofs against
-  // the client-chosen pairing device key (#1366), so mint the v3 passkey proof.
-  return mintCliAuthorizePasskeyProof(row);
+  // The daemon rejects `oschip3:pin:` proofs (`human_proof.rs`). A PIN unlock
+  // must not be repackaged as a passkey assertion.
+  throw new CliAuthorizeRefusal(
+    "pin_not_accepted",
+    "A PIN cannot approve a CLI request. Use the passkey from pairing.",
+  );
 }

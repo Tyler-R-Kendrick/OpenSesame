@@ -4,8 +4,9 @@ use super::*;
 use crate::device_crypto::pairing_confirm_message;
 use crate::human_proof::{mint_pin_human_proof, mint_test_signing_key, HumanProofContext};
 use crate::test_support::{
-    ensure_params, ensure_params_full, mint_test_human_proof, pair_browser_for_tests,
-    test_paired_binding,
+    ensure_params, ensure_params_full, mint_register_passkey_proof, mint_test_human_proof,
+    pair_browser_for_tests, test_approval_public_key_spki_b64, test_paired_binding,
+    TEST_VAULT_SESSION_ROOT_DIGEST,
 };
 use base64::Engine as _;
 use ecdsa::signature::Signer;
@@ -116,20 +117,111 @@ fn client_supplied_webauthn_registration_rejected() {
 }
 
 #[test]
-fn more_than_one_pending_is_refused_as_ambiguous() {
-    // Main #1366 supersedes the one-request cap: a second pending row makes
-    // the queue ambiguous and it is cleared rather than capped.
+fn webauthn_register_stores_the_verified_sign_count() {
+    let mut pairings = CliAppIntegrationPairings::default();
+    let origin = "http://localhost:5180";
+    let token = pair_browser_for_tests(&mut pairings, origin, 4_000);
+    assert_eq!(
+        pairings
+            .binding_for(&token, origin)
+            .expect("binding")
+            .webauthn
+            .expect("cred")
+            .sign_count,
+        1
+    );
+    pairings
+        .register_webauthn(
+            &token,
+            origin,
+            &WebAuthnRegistration {
+                vault_session_root_digest: TEST_VAULT_SESSION_ROOT_DIGEST.to_string(),
+                human_proof_passkey: mint_register_passkey_proof(&token, origin, 0),
+                credential_id_b64: "test-cli-app-cred".to_string(),
+                public_key_spki_b64: test_approval_public_key_spki_b64().to_string(),
+                sign_count: 99,
+            },
+        )
+        .expect("register");
+    assert_eq!(
+        pairings
+            .binding_for(&token, origin)
+            .expect("binding")
+            .webauthn
+            .expect("cred")
+            .sign_count,
+        0
+    );
+    assert!(pairings.advance_webauthn_sign_count(&token, origin, 0));
+    assert_eq!(
+        pairings
+            .binding_for(&token, origin)
+            .expect("binding")
+            .webauthn
+            .expect("cred")
+            .sign_count,
+        0
+    );
+    assert!(pairings.advance_webauthn_sign_count(&token, origin, 2));
+    assert!(!pairings.advance_webauthn_sign_count(&token, origin, 2));
+    assert!(!pairings.advance_webauthn_sign_count(&token, origin, 0));
+}
+
+#[test]
+fn pending_queue_keeps_the_first_request_when_a_second_arrives() {
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);
     let (_, a) = store.ensure(ensure_params_full(
         "term-a", "read", false, "00", 10, 1, true,
     ));
-    assert!(a.is_some());
+    let a_id = a.expect("first pending");
     let (_, b) = store.ensure(ensure_params_full(
         "term-b", "read", false, "00", 11, 1, true,
     ));
-    assert!(b.is_some());
-    assert!(store.list_pending().is_empty());
+    let b_id = b.expect("second pending");
+    let listed = store.list_pending();
+    assert_eq!(listed.len(), 2);
+    assert_eq!(listed[0].request_id, a_id);
+    let nonce = listed[0].respond_nonce.clone();
+    let proof = mint_test_human_proof(&a_id, "term-a", &nonce, "read", 10, 1);
+    assert_eq!(
+        store
+            .approve(&a_id, "term-a", &nonce, &proof, &test_paired_binding())
+            .0,
+        "approved"
+    );
+    let left = store.list_pending();
+    assert_eq!(left.len(), 1);
+    assert_eq!(left[0].request_id, b_id);
+}
+
+#[test]
+fn pending_queue_denies_past_the_cap_without_clearing() {
+    let mut store = CliAppIntegrationStore::new();
+    store.set_now_ms(1_000);
+    let ids: Vec<String> = (0..8).map(|i| format!("term-{i}")).collect();
+    for id in &ids {
+        let (status, request_id) = store.ensure(ensure_params(id, "read"));
+        assert_eq!(status, "pending");
+        assert!(request_id.is_some());
+    }
+    let (status, overflow) = store.ensure(ensure_params("term-overflow", "read"));
+    assert_eq!(status, "denied");
+    assert!(overflow.is_none());
+    assert_eq!(store.list_pending().len(), 8);
+    let first = store.list_pending()[0].clone();
+    assert_eq!(
+        store.deny(
+            &first.request_id,
+            &first.terminal_session_id,
+            &first.respond_nonce
+        ),
+        "denied"
+    );
+    let (status, queued) = store.ensure(ensure_params("term-overflow", "read"));
+    assert_eq!(status, "pending");
+    assert!(queued.is_some());
+    assert_eq!(store.list_pending().len(), 8);
 }
 
 #[test]

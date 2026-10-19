@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconConnection } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useCliAuthorizePairingForm } from "./cli-authorize-pairing-form-model.js";
@@ -60,20 +61,12 @@ function CliAuthorizePairingRegistrationStep({
         Type <code className="identity-ref">{registrationCode}</code> into the
         terminal, then finish pairing here.
       </p>
-      <div className="go-row">
-        <button
-          type="button"
-          className="go"
-          disabled={busy}
-          aria-busy={busy || undefined}
-          aria-label="Finish pairing"
-          title="Finish pairing"
-          onClick={onFinish}
-        />
-        <span className="go-verb" aria-hidden="true">
-          Finish pairing
-        </span>
-      </div>
+      <FormCommit
+        label="Finish pairing"
+        disabled={busy}
+        busy={busy}
+        onClick={onFinish}
+      />
     </output>
   );
 }

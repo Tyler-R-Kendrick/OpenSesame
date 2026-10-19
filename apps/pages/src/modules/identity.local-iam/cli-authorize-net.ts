@@ -9,13 +9,18 @@ type CliRespondBody = Readonly<{
   humanProof?: string;
 }>;
 
+export type CliRespondResult = Readonly<{
+  ok: boolean;
+  status: string;
+}>;
+
 export async function postCliRespond(
   origin: string,
   headers: Record<string, string>,
   row: CliAuthorizeRow,
   decision: "approve" | "deny",
   humanProof?: string,
-): Promise<boolean> {
+): Promise<CliRespondResult> {
   const base: CliRespondBody = {
     requestId: row[0],
     terminalSessionId: row[1],
@@ -34,5 +39,20 @@ export async function postCliRespond(
       body: JSON.stringify(body),
     },
   );
-  return res.ok;
+  let status = "approval_unreadable";
+  try {
+    const parsed: unknown = await res.json();
+    if (parsed && typeof parsed === "object") {
+      const record = parsed as { status?: unknown; error?: unknown };
+      if (typeof record.status === "string" && record.status.length > 0) {
+        status = record.status;
+      } else if (typeof record.error === "string" && record.error.length > 0) {
+        status = record.error;
+      }
+    }
+  } catch {
+    status = res.ok ? "approval_unreadable" : "approval_failed";
+  }
+  const ok = res.ok && (status === "approved" || status === "denied");
+  return { ok, status };
 }
