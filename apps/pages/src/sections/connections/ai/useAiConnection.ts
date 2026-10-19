@@ -1,3 +1,4 @@
+import { bedrockResourceBase } from "@opensesame/app-core/lib/ai-connections/bedrock-target.js";
 import {
   aiConnectionBinding,
   validateAiConnection,
@@ -11,8 +12,16 @@ import {
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import type { AiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/types.js";
 import { vertexResourceBase } from "@opensesame/app-core/lib/ai-connections/vertex-target.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { useEffect, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 export const aiConnectionUiDependencies = {
   save: saveAiConnection,
@@ -34,6 +43,7 @@ function changeDraft<Key extends keyof AiConnectionDraft>(
   if (!["openai_chat", "openai_responses"].includes(next.family))
     next.azure = undefined;
   changeVertexDraft(current, next, field);
+  changeBedrockDraft(current, next, field);
   if (next.azure) {
     next.authentication = "api-key";
     if (next.azure.api === "dated-chat") {
@@ -73,6 +83,34 @@ function changeVertexDraft(
   )
     next.apiKey = "";
 }
+function changeBedrockDraft(
+  current: AiConnectionDraft,
+  next: AiConnectionDraft,
+  field: keyof AiConnectionDraft,
+) {
+  if (next.family !== "bedrock_converse") next.bedrock = undefined;
+  else {
+    next.bedrock ??= { region: "us-east-1", credential: "sigv4" };
+    next.authentication = "api-key";
+    const automatic =
+      !next.baseUrl ||
+      Boolean(
+        current.bedrock &&
+          current.baseUrl.replace(/\/+$/, "") ===
+            bedrockResourceBase(current.bedrock).replace(/\/$/, ""),
+      );
+    if (
+      next.providerId === "aws-bedrock" ||
+      ((field === "bedrock" || field === "family") && automatic)
+    )
+      next.baseUrl = bedrockResourceBase(next.bedrock);
+  }
+  if (
+    (current.bedrock || next.bedrock) &&
+    ["bedrock", "family", "baseUrl", "model"].includes(field)
+  )
+    next.apiKey = "";
+}
 function canRetainCredential(draft: AiConnectionDraft, id?: string): boolean {
   if (!id) return false;
   try {
@@ -87,6 +125,27 @@ function canRetainCredential(draft: AiConnectionDraft, id?: string): boolean {
   }
 }
 
+function useAiFormOwner(
+  generation: RefObject<number>,
+  setDraft: Dispatch<SetStateAction<AiConnectionDraft>>,
+  setBusy: Dispatch<SetStateAction<boolean>>,
+  setFailure: Dispatch<SetStateAction<string>>,
+  setResult: Dispatch<SetStateAction<string>>,
+) {
+  useEffect(() => {
+    const detach = vaultStore.onLock(() => {
+      generation.current += 1;
+      setDraft((current) => ({ ...current, apiKey: "" }));
+      setBusy(false);
+      setFailure("");
+      setResult("");
+    });
+    return () => {
+      generation.current += 1;
+      detach();
+    };
+  }, [generation, setDraft, setBusy, setFailure, setResult]);
+}
 export function useAiConnection(
   providerId: string,
   connectionId: string | undefined,
@@ -101,12 +160,7 @@ export function useAiConnection(
   const [failure, setFailure] = useState("");
   const [result, setResult] = useState("");
   const generation = useRef(0);
-  useEffect(
-    () => () => {
-      generation.current += 1;
-    },
-    [],
-  );
+  useAiFormOwner(generation, setDraft, setBusy, setFailure, setResult);
   function onChange<Key extends keyof AiConnectionDraft>(
     field: Key,
     value: AiConnectionDraft[Key],

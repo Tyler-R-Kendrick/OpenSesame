@@ -263,8 +263,8 @@ it.each(["aws-bedrock", "byo-ai"])(
     const valid = validateAiConnection(draft(provider));
     expect(valid.apiKey).toBe(JSON.stringify(BEDROCK_CREDENTIAL));
     expect(valid.bedrock).toEqual({ region: "us-east-1", credential: "sigv4" });
-    expect(isAiConnectionProvider("aws-bedrock")).toBe(false);
-    expect(aiConnectionFamilies(provider)).not.toContainEqual({
+    expect(isAiConnectionProvider("aws-bedrock")).toBe(true);
+    expect(aiConnectionFamilies(provider)).toContainEqual({
       id: "bedrock_converse",
       label: "Amazon Bedrock Converse",
     });

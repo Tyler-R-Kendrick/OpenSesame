@@ -13,6 +13,10 @@ import { IconPlay } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 
 import {
+  BedrockConnectionFields,
+  BedrockConnectionHelp,
+} from "./BedrockConnectionFields.js";
+import {
   VertexConnectionFields,
   VertexConnectionHelp,
   VertexEndpointChoice,
@@ -147,15 +151,17 @@ function EndpointFields({ draft, busy, onChange }: Fields) {
     <>
       <FieldShell
         label={
-          draft.vertex
-            ? "Vertex API base URL"
-            : draft.azure
-              ? "Azure resource endpoint"
-              : "API base URL"
+          draft.bedrock
+            ? "Bedrock runtime endpoint"
+            : draft.vertex
+              ? "Vertex API base URL"
+              : draft.azure
+                ? "Azure resource endpoint"
+                : "API base URL"
         }
         value={draft.baseUrl}
-        type={draft.azure || draft.vertex ? "url" : undefined}
-        readOnly={draft.providerId === "google-vertex"}
+        type={draft.azure || draft.vertex || draft.bedrock ? "url" : undefined}
+        readOnly={["google-vertex", "aws-bedrock"].includes(draft.providerId)}
         placeholder={
           draft.azure
             ? "https://your-resource.openai.azure.com"
@@ -205,6 +211,8 @@ function CredentialFields(
   props: Fields & Pick<AiConnectionFormProps, "saved">,
 ) {
   const authId = useId();
+  if (props.draft.family === "bedrock_converse")
+    return <BedrockConnectionFields {...props} />;
   if (props.draft.vertex) return <VertexConnectionFields {...props} />;
   if (props.draft.azure)
     return (
@@ -303,6 +311,7 @@ function AzureCredentialFields({ draft, busy, onChange }: Fields) {
 }
 function AiConnectionSetup({ draft, busy, onChange }: Fields) {
   const tokenParameterId = useId();
+  if (draft.family === "bedrock_converse") return <BedrockConnectionHelp />;
   if (draft.vertex) return <VertexConnectionHelp draft={draft} />;
   return (
     <details className="conn-client-alt">

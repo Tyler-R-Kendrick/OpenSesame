@@ -4,6 +4,7 @@ import { bedrockResourceBase } from "./bedrock-target.js";
 import type { AiConnectionDraft, AiInferenceFamily } from "./types.js";
 
 export const AI_CONNECTION_FAMILIES = [
+  { id: "bedrock_converse", label: "Amazon Bedrock Converse" },
   { id: "openai_chat", label: "OpenAI Chat Completions" },
   { id: "openai_responses", label: "OpenAI Responses" },
   { id: "anthropic_messages", label: "Anthropic Messages" },
@@ -77,9 +78,7 @@ export function aiConnectionPreset(providerId: string) {
 }
 
 export function isAiConnectionProvider(providerId: string): boolean {
-  return (
-    providerId !== "aws-bedrock" && aiConnectionPreset(providerId) !== null
-  );
+  return aiConnectionPreset(providerId) !== null;
 }
 
 export function aiConnectionDraft(providerId: string): AiConnectionDraft {

@@ -9,7 +9,9 @@ import { StatusMark } from "../../../components/StatusMark.js";
 export function AiInferenceWorkspace({
   connectionId,
 }: { connectionId: string }) {
-  const supportsStreaming = !readAiConnection(connectionId)?.vertex;
+  const saved = readAiConnection(connectionId);
+  const supportsStreaming =
+    !saved?.vertex && saved?.family !== "bedrock_converse";
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("");
   const [failure, setFailure] = useState("");
