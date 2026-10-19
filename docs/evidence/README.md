@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-19-tailscale-peer-route/`](2026-10-19-tailscale-peer-route/README.md) | Tailscale peer routing in the shared connection form |
 | [`2026-10-18-tailscale-native-transport/`](2026-10-18-tailscale-native-transport/README.md) | Tailscale integration transport controls |
 | [`2026-10-18-native-item-edit/`](2026-10-18-native-item-edit/README.md) | Native password-manager item editing |
 | [`2026-10-16-s3-connected-removal/`](2026-10-16-s3-connected-removal/README.md) | S3 removal clears the Connected list |
