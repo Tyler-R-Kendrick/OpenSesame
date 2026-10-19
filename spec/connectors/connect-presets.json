@@ -7034,6 +7034,50 @@
       "sources": [
         "https://github.com/razorpay/razorpay-node/blob/b9e8527225a7322ba2671a3bc0b848fd019d2d8c/lib/resources/payments.js"
       ]
+    },
+    {
+      "service": "bitbucket",
+      "key_url": "https://id.atlassian.com/manage-profile/security/api-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "key_prefix": null,
+      "service_urls": ["https://api.bitbucket.org/2.0"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.bitbucket.org/2.0/user",
+        "account_field": "uuid"
+      },
+      "instructions": "Create a scoped Bitbucket API token with read:user:bitbucket and read:repository:bitbucket. Add write:repository:bitbucket for encrypted vault backups. Paste the API token here; it is sealed in this vault. For backups, optionally supply all three repository fields and an existing branch. Browser requests use your approved native HTTPS route when configured. No OAuth app or app password is used by this method.",
+      "docs_url": "https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/",
+      "confidence": "high",
+      "sources": [
+        "https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/",
+        "https://developer.atlassian.com/cloud/bitbucket/rest/api-group-users/",
+        "https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/"
+      ],
+      "template_params": [
+        {
+          "name": "backup_owner",
+          "label": "Backup repository owner (optional)",
+          "placeholder": "workspace-slug",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_repo",
+          "label": "Backup repository name (optional)",
+          "placeholder": "sealed-vault",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_branch",
+          "label": "Backup branch (optional)",
+          "placeholder": "backup/encrypted",
+          "required": false,
+          "secret": false
+        }
+      ]
     }
   ]
 }
