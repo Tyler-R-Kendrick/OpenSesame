@@ -1,5 +1,7 @@
+import { env } from "@opensesame/app-core/host.js";
 import { redirectUri } from "@opensesame/app-core/lib/federation.js";
 import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
+import type { IdentityProtocol } from "@opensesame/app-core/lib/identity-connections-schema.js";
 import { type FormEvent, useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
@@ -39,18 +41,39 @@ function ProtocolField({ draft, busy, onChange }: IdentityServiceFieldProps) {
     </div>
   );
 }
-function CallbackField({ oidc }: { oidc: boolean }) {
-  const value = oidc ? redirectUri() : window.location.origin;
+function CallbackField({ protocol }: { protocol: IdentityProtocol }) {
+  const saml = protocol === "saml";
+  const oidc = protocol === "oidc";
+  const value = saml
+    ? new URL(
+        "auth/native-saml",
+        new URL(env().BASE_URL || "/", window.location.origin),
+      ).href
+    : oidc
+      ? redirectUri()
+      : window.location.origin;
   return (
     <FieldShell
-      label={oidc ? "Redirect URI to register" : "Allowed browser origin"}
+      label={
+        saml
+          ? "SAML ACS URL to register"
+          : oidc
+            ? "Redirect URI to register"
+            : "Allowed browser origin"
+      }
       type="url"
       mono
       readOnly
       value={value}
       tail={
         <IconKey
-          label={oidc ? "Copy redirect URI" : "Copy browser origin"}
+          label={
+            saml
+              ? "Copy ACS URL"
+              : oidc
+                ? "Copy redirect URI"
+                : "Copy browser origin"
+          }
           onClick={() => {
             void navigator.clipboard?.writeText(value).catch(() => {});
           }}
@@ -109,11 +132,15 @@ export function IdentityConnectionForm(props: Props) {
         onValueChange={(value) => onChange("name", value)}
       />
       <ProtocolField {...props} />
-      <CallbackField oidc={draft.protocol === "oidc"} />
+      <CallbackField protocol={draft.protocol} />
       <IdentityConnectionFields {...props} />
       <details className="conn-client-alt">
         <summary>Setup guide</summary>
-        <p>{preset.setup}</p>
+        <p>
+          {draft.protocol === "saml"
+            ? "Register this service provider entity ID and ACS URL with your IdP. Use its metadata URL or paste its metadata XML. Enable HTTP-POST responses with RSA-SHA256 signatures. If the IdP requires signed requests, supply your SP signing key and matching certificate under SAML options. Testing checks configuration; complete sign-in to authenticate. Your existing vault still uses its normal unlock method."
+            : preset.setup}
+        </p>
         <a href={preset.docsUrl} target="_blank" rel="noreferrer noopener">
           {preset.label} documentation
         </a>

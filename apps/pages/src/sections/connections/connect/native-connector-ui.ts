@@ -16,6 +16,7 @@ export type NativeField = {
   secret: boolean;
   required: boolean;
   placeholder?: string;
+  maxLength?: number;
   help?: string;
   defaultValue?: string;
   readOnly?: boolean;

@@ -233,14 +233,16 @@ describe("composed identity configuration", () => {
     expect(dependencies.saveIdentityConnection).not.toHaveBeenCalled();
   });
 
-  it("composes SAML and LDAP service controls from BYO instead of refusing them", async () => {
+  it("composes native SAML and retains the LDAP organization service controls", async () => {
     const user = userEvent.setup();
     draw("byo-identity");
     await user.selectOptions(screen.getByLabelText("Protocol"), "saml");
     expect(screen.getByLabelText("SAML metadata URL")).toBeTruthy();
+    expect(screen.queryByLabelText("Identity service URL")).toBeNull();
+    expect(screen.queryByLabelText("Organization")).toBeNull();
+    await user.selectOptions(screen.getByLabelText("Protocol"), "ldap");
     expect(screen.getByLabelText("Identity service URL")).toBeTruthy();
     expect(screen.getByLabelText("Organization")).toBeTruthy();
-    await user.selectOptions(screen.getByLabelText("Protocol"), "ldap");
     expect(screen.getByLabelText("LDAP server URL")).toBeTruthy();
     await user.click(screen.getByText("Directory options"));
     expect(screen.getByLabelText("Service bind password")).toHaveProperty(
@@ -367,7 +369,7 @@ it("does not authenticate to a different unsaved service endpoint", async () => 
   const user = userEvent.setup();
   configuredService = "https://current.example.com";
   draw("byo-identity");
-  await user.selectOptions(screen.getByLabelText("Protocol"), "saml");
+  await user.selectOptions(screen.getByLabelText("Protocol"), "ldap");
   await user.clear(screen.getByLabelText("Identity service URL"));
   await user.type(
     screen.getByLabelText("Identity service URL"),

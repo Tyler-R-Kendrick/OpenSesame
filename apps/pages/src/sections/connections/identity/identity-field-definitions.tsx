@@ -51,12 +51,21 @@ export const OIDC_OPTIONS: IdentityField[] = [
   { key: "clientSecret", label: "Client secret (server client)", secret: true },
 ];
 export const SAML_FIELDS: IdentityField[] = [
-  { key: "samlEntityId", label: "SAML entity ID" },
+  {
+    key: "clientId",
+    label: "Service provider entity ID",
+    placeholder: "urn:your-app:identity",
+  },
+  { key: "samlEntityId", label: "Identity provider entity ID" },
   {
     key: "samlMetadataUrl",
     label: "SAML metadata URL",
     placeholder: "https://idp.example.com/metadata",
   },
+];
+export const SAML_OPTIONS: IdentityField[] = [
+  { key: "samlNameIdFormat", label: "NameID format URI" },
+  { key: "samlAuthnContext", label: "Authentication context URI (optional)" },
 ];
 export const TOKEN_FIELDS: IdentityField[] = [
   { key: "issuer", label: "Token issuer override" },
