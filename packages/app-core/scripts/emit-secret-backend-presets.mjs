@@ -14,6 +14,7 @@ const modes = new Set([
   "local",
   "file-import",
   "credential-management",
+  "proton-pass",
   "onepassword-sdk",
   "onepassword-connect",
   "bitwarden-api",
