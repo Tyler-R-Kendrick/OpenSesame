@@ -15,6 +15,7 @@ import {
   invalidateNativeApiProof,
   requireNativeApiBrowserAccess,
 } from "./native-api-proof.js";
+import { parseNativeStripeBalance } from "./native-api-stripe.js";
 import {
   type NativeApiTarget,
   nativeApiCredentials,
@@ -123,6 +124,7 @@ async function providerVerification(
   assertNativeApiBrowserTarget(target);
   const request = nativeApiVerificationRequest(target, credentials);
   const body = await nativeApiHttp(request, transport);
+  if (target.providerId === "stripe") parseNativeStripeBalance(body);
   if (!target.profile.verify)
     throw new Error("Provider verification is unavailable");
   return {

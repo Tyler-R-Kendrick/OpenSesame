@@ -5,9 +5,11 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { configureNativeApiConnector } from "@opensesame/app-core/lib/native-api-connectors.js";
 import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
+import { projectNativeStripeBalance } from "@opensesame/app-core/lib/native-api-stripe.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
 import { JSDOM } from "jsdom";
@@ -354,3 +356,35 @@ it.each(["postmark", "algolia"])(
     }
   },
 );
+
+it("keeps the actual Stripe browser fixture valid under its strict read-only native parser", () => {
+  const plan = connectPlan("stripe");
+  expect(plan.methods.map((method) => method.kind)).toEqual(["api-key"]);
+  const protocol = nativeApiFixture(plan);
+  expect(protocol.preset.auth).toEqual({
+    kind: "header",
+    header: "Authorization",
+    scheme: "Bearer",
+    valueTemplate: null,
+  });
+  expect(protocol.preset.verify).toMatchObject({
+    method: "GET",
+    url: "https://api.stripe.com/v1/balance",
+    headers: { "Stripe-Version": "2026-09-30.endive" },
+  });
+  expect(protocol.preset.verify.requiredFields).toEqual([
+    "object",
+    "available",
+    "pending",
+    "livemode",
+  ]);
+  expect(projectNativeStripeBalance(protocol.reply)).toEqual(
+    protocol.read.result,
+  );
+  expect(projectNativeStripeBalance(protocol.read.reply)).toEqual(
+    protocol.read.result,
+  );
+  expect(nativeApiResourceActions("stripe", "api-key")).toEqual([
+    { id: protocol.read.id, label: protocol.read.label },
+  ]);
+});

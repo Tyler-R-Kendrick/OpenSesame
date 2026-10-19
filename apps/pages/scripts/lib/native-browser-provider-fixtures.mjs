@@ -27,6 +27,12 @@ const DOCUMENTED_PROBE_REPLIES = {
       },
     ],
   },
+  stripe: {
+    object: "balance",
+    livemode: false,
+    available: [{ amount: 1500, currency: "usd" }],
+    pending: [{ amount: -7, currency: "jpy" }],
+  },
   algolia: {
     items: [
       {
@@ -95,6 +101,23 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
+  stripe: {
+    id: "provider.balance.read",
+    label: "Read account balance",
+    method: "GET",
+    url: "https://api.stripe.com/v1/balance",
+    headers: { "Stripe-Version": "2026-09-30.endive" },
+    absentHeaders: ["stripe-account"],
+    reply: DOCUMENTED_PROBE_REPLIES.stripe,
+    result: {
+      label: "Stripe balance (sandbox); amounts in minor units",
+      items: [
+        { id: "available:usd", label: "Available USD: 1500 minor units" },
+        { id: "pending:jpy", label: "Pending JPY: -7 minor units" },
+      ],
+    },
+    excludedText: [],
+  },
   algolia: {
     id: "provider.indices.read",
     label: "List indices",
@@ -198,6 +221,8 @@ function setField(root, path, value) {
 
 function verificationReply(id, verification) {
   const documented = DOCUMENTED_PROBE_REPLIES[id];
+  // Stripe's strict balance contract needs typed arrays and booleans, never placeholder strings.
+  if (id === "stripe") return structuredClone(documented);
   if (
     !documented &&
     !verification.accountField &&

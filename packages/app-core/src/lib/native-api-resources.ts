@@ -7,6 +7,7 @@ import {
   type NativeApiOperationDefinition,
   executeNativeApiRequest,
 } from "./native-api-operations.js";
+import { projectNativeStripeBalance } from "./native-api-stripe.js";
 import type { NativeApiReadResult } from "./native-api-verify.js";
 import type { NativeMethod } from "./native-connector-schema.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
@@ -196,6 +197,17 @@ function projectContentfulSpaces(body: BoundaryValue): BoundaryValue {
   };
 }
 const resources: readonly Resource[] = [
+  jsonResource(
+    "Read account balance",
+    {
+      providerId: "stripe",
+      operationId: "provider.balance.read",
+      method: "GET",
+      path: "/v1/balance",
+      headers: { "Stripe-Version": "2026-09-30.endive" },
+    },
+    projectNativeStripeBalance,
+  ),
   {
     providerId: "agentmail",
     id: "provider.inboxes.read",

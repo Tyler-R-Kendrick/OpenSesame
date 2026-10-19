@@ -110,7 +110,7 @@ describe("connector plans", () => {
     const parse = vi.spyOn(plans.ConnectPlanSchema, "parse");
     const catalog = await import("./vercel-connect-catalog.js");
     expect(catalog.isVercelConnectable("resend")).toBe(true);
-    expect(catalog.isVercelConnectable("stripe")).toBe(false);
+    expect(catalog.isVercelConnectable("stripe")).toBe(true);
     expect(catalog.isVercelCatalogId("github")).toBe(false);
     expect(parse).not.toHaveBeenCalled();
     expect(catalog.vercelConnectCatalog().length).toBeGreaterThan(150);
@@ -140,10 +140,51 @@ describe("connector plans", () => {
     }
   });
 
-  it("refuses payment rails", () => {
-    expect(connectPlan("stripe")?.refused).toBe(true);
+  it("offers only the fixed read-only Stripe contract and refuses other payment rails", () => {
+    const stripe = connectPlan("stripe");
+    expect(stripe?.refused).toBe(false);
+    expect(stripe?.methods.map((method) => method.kind)).toEqual(["api-key"]);
+    for (const id of [
+      "razorpay",
+      "agentcard",
+      "lithic",
+      "marqeta",
+      "privacy",
+      "stripe-issuing",
+    ])
+      expect(connectPlan(id)?.refused, id).toBe(true);
     expect(connectPlan("resend")?.refused).toBe(false);
   });
+
+  it.each([
+    null,
+    { method: "POST", url: "https://api.stripe.com/v1/balance" },
+    { method: "GET", url: "https://api.stripe.com/v1/charges" },
+  ])(
+    "does not enable another Stripe method when its read-only contract is missing or changed %#",
+    (verify) => {
+      const plans = renderPlanJson(
+        services,
+        {
+          oauth: [],
+          api_key: [
+            {
+              service: "stripe",
+              header: "Authorization",
+              scheme: "Bearer",
+              verify,
+            },
+          ],
+        },
+        { providers: [] },
+      );
+      const stripe = plans
+        .map((row) => JSON.parse(row))
+        .find((row) => row.id === "stripe");
+      expect(stripe?.refused).toBe(true);
+      expect(stripe?.methods).toEqual([]);
+    },
+  );
 
   it("fills and reports placeholders", () => {
     expect(

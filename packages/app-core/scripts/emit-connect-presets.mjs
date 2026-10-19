@@ -58,7 +58,7 @@ const CATEGORY_OVERRIDE = {
   tailscale: "networking",
 };
 
-/** Payment processors and agent card issuing: never connected (ADR 0086 §6). */
+/** Payment writes and agent card issuing remain refused; Stripe has one read-only contract. */
 const REFUSED = new Set(["stripe", "razorpay", "agentcard"]);
 
 /**
@@ -288,15 +288,32 @@ function categoryFor(id, service, row) {
   );
 }
 
+function stripeBalanceContract(id, apiKey) {
+  return (
+    id === "stripe" &&
+    apiKey?.verify?.method === "GET" &&
+    apiKey.verify.url === "https://api.stripe.com/v1/balance" &&
+    apiKey.auth?.kind === "header" &&
+    apiKey.auth.header === "Authorization" &&
+    apiKey.auth.scheme === "Bearer"
+  );
+}
+
 function planFor(id, service, row, oauth, apiKey) {
+  const stripeBalance = stripeBalanceContract(id, apiKey);
   return {
     id,
     name: service?.name ?? row?.display_name ?? id,
     docsUrl: docsFor(service, row, oauth, apiKey),
     category: categoryFor(id, service, row),
     registry: Boolean(service),
-    refused: refused(id, row),
-    methods: methodsFor(service, oauth, apiKey),
+    refused: refused(id, row) && !stripeBalance,
+    methods:
+      id === "stripe"
+        ? stripeBalance
+          ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
+          : []
+        : methodsFor(service, oauth, apiKey),
   };
 }
 

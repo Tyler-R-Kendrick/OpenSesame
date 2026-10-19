@@ -3213,6 +3213,30 @@
   ],
   "api_key": [
     {
+      "service": "stripe",
+      "key_url": "https://dashboard.stripe.com/apikeys",
+      "key_prefix": "rk_",
+      "service_urls": ["https://api.stripe.com"],
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "instructions": "Use a restricted API key with Balance Read permission. This connection only reads available and pending account balances; it cannot create charges, refunds, payouts or cards. The key is sealed in this vault and must be re-entered when changed.",
+      "docs_url": "https://docs.stripe.com/api/balance/balance_retrieve",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.stripe.com/v1/balance",
+        "headers": {
+          "Stripe-Version": "2026-09-30.endive"
+        },
+        "required_fields": ["object", "available", "pending", "livemode"],
+        "success": [
+          {
+            "field": "object",
+            "equals": "balance"
+          }
+        ]
+      }
+    },
+    {
       "service": "302ai",
       "key_url": "https://doc.302.ai",
       "header": "Authorization",
