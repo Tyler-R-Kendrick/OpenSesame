@@ -168,7 +168,7 @@ function operationQuery(
     throw new Error("Provider operation query exceeds its bound");
   for (const [name, value] of entries) {
     if (
-      !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name) ||
+      (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name) && name !== "page[limit]") ||
       ["constructor", "prototype", "__proto__"].includes(name) ||
       (!isString(value) && !isNumber(value) && !isBoolean(value)) ||
       (isNumber(value) && !Number.isFinite(value))
