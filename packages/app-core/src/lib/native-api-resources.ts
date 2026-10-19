@@ -4,6 +4,7 @@ import { z } from "zod";
 import { readNativeAgentMailInboxes } from "./native-agentmail.js";
 import { NativeApiError } from "./native-api-http.js";
 import { projectNativeLithicCards } from "./native-api-lithic.js";
+import { projectNativeMarqetaUsers } from "./native-api-marqeta.js";
 import { nativePrimaryCollections } from "./native-api-primary-collections.js";
 import { projectNativePrivacyCards } from "./native-api-privacy.js";
 import { projectNativeRazorpayPayments } from "./native-api-razorpay.js";
@@ -185,6 +186,17 @@ function projectDatadogMonitors(body: BoundaryValue): BoundaryValue {
   };
 }
 const resources: readonly Resource[] = [
+  jsonResource(
+    "List users",
+    {
+      providerId: "marqeta",
+      operationId: "provider.users.read",
+      method: "GET",
+      path: "/v3/users",
+      query: { count: 10, start_index: 0, fields: "token,active" },
+    },
+    projectNativeMarqetaUsers,
+  ),
   ...nativePrimaryCollections,
   jsonResource(
     "List cards",

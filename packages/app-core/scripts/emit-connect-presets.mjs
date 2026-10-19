@@ -19,9 +19,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderPackedJsonRows } from "./pack-json.mjs";
-import { lithicReadContract } from "./readonly-lithic.mjs";
-import { privacyReadContract } from "./readonly-privacy.mjs";
-import { razorpayReadContract } from "./readonly-razorpay.mjs";
+import {
+  READONLY_PAYMENT_IDS,
+  readonlyPaymentContract,
+} from "./readonly-payments.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const spec = (name) =>
@@ -62,14 +63,7 @@ const CATEGORY_OVERRIDE = {
 };
 
 /** Payment writes remain refused; only explicit bounded read contracts are admitted. */
-const REFUSED = new Set([
-  "stripe",
-  "stripe-issuing",
-  "razorpay",
-  "lithic",
-  "privacy",
-  "agentcard",
-]);
+const REFUSED = new Set([...READONLY_PAYMENT_IDS, "agentcard"]);
 
 /** Spending and issuing remain outside the connector's read-only authority. */
 function refused(id, row) {
@@ -294,31 +288,8 @@ function categoryFor(id, service, row) {
   );
 }
 
-function stripeReadContract(id, apiKey) {
-  const url =
-    id === "stripe"
-      ? "https://api.stripe.com/v1/balance"
-      : id === "stripe-issuing"
-        ? "https://api.stripe.com/v1/issuing/cards?limit=20"
-        : null;
-  return (
-    url !== null &&
-    apiKey?.verify?.method === "GET" &&
-    apiKey.verify.url === url &&
-    (id !== "stripe-issuing" ||
-      apiKey.verify.headers?.["Stripe-Version"] === "2026-09-30.endive") &&
-    apiKey.auth?.kind === "header" &&
-    apiKey.auth.header === "Authorization" &&
-    apiKey.auth.scheme === "Bearer"
-  );
-}
-
 function planFor(id, service, row, oauth, apiKey) {
-  const safeRead =
-    stripeReadContract(id, apiKey) ||
-    (id === "razorpay" && razorpayReadContract(apiKey)) ||
-    (id === "lithic" && lithicReadContract(apiKey)) ||
-    (id === "privacy" && privacyReadContract(apiKey));
+  const safeRead = readonlyPaymentContract(id, apiKey);
   return {
     id,
     name: service?.name ?? row?.display_name ?? id,
@@ -326,13 +297,7 @@ function planFor(id, service, row, oauth, apiKey) {
     category: categoryFor(id, service, row),
     registry: Boolean(service),
     refused: refused(id, row) && !safeRead,
-    methods: [
-      "stripe",
-      "stripe-issuing",
-      "razorpay",
-      "lithic",
-      "privacy",
-    ].includes(id)
+    methods: READONLY_PAYMENT_IDS.has(id)
       ? safeRead
         ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
         : []

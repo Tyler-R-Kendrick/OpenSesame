@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { connectPlans } from "./connect-plan.js";
 import { nativeApiVerificationRequest } from "./native-api-auth.js";
+import { nativeApiResourceActions } from "./native-api-resources.js";
 import { nativeApiCredentials, nativeApiTarget } from "./native-api-target.js";
 
 describe("compiled native API-key request protocols", () => {
@@ -113,7 +114,7 @@ describe("compiled native API-key request protocols", () => {
   ])("rejects uncompiled site %s", (site) => {
     expect(() => nativeApiTarget("datadog", { site })).toThrow("supported");
   });
-  it("rejects secret fields in parameters, unknown credential slots, header injection and wallet paths", () => {
+  it("rejects secret fields in parameters, unknown credential slots, header injection and unsupported provider contracts", () => {
     expect(() =>
       nativeApiTarget("datadog", { application_key: "private-key" }),
     ).toThrow("public");
@@ -128,6 +129,11 @@ describe("compiled native API-key request protocols", () => {
         api_key: "key\r\ninjected",
       }),
     ).toThrow("valid");
-    expect(() => nativeApiTarget("marqeta", {})).toThrow("supported");
+    expect(() => nativeApiTarget("unsupported-native-payment", {})).toThrow(
+      "supported",
+    );
+    expect(nativeApiResourceActions("marqeta", "api-key")).toEqual([
+      { id: "provider.users.read", label: "List users" },
+    ]);
   });
 });

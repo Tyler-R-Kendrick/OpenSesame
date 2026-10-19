@@ -1,7 +1,9 @@
 /** Provider-owned request definitions consume one verified saved credential. */
 import {
   type BoundaryValue,
+  isBoolean,
   isJsonObject,
+  isNumber,
   isString,
 } from "@opensesame/os-domain";
 import { connectPlan } from "./connect-plan.js";
@@ -103,13 +105,13 @@ function operationRequest(
   const allowed = connectPlan(definition.providerId)?.methods.find(
     (method) => method.kind === "api-key",
   );
+  const origin = definition.origin ?? verifiedOrigin;
   const origins =
-    allowed?.kind === "api-key"
+    origin !== verifiedOrigin && allowed?.kind === "api-key"
       ? (allowed.preset?.serviceUrls ?? []).map(
           (url) => providerUrl(url, target, {}).origin,
         )
       : [];
-  const origin = definition.origin ?? verifiedOrigin;
   if (
     (origin !== verifiedOrigin && !origins.includes(origin)) ||
     new URL(origin).origin !== origin
@@ -168,8 +170,8 @@ function operationQuery(
     if (
       !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name) ||
       ["constructor", "prototype", "__proto__"].includes(name) ||
-      !["string", "number", "boolean"].includes(typeof value) ||
-      (typeof value === "number" && !Number.isFinite(value))
+      (!isString(value) && !isNumber(value) && !isBoolean(value)) ||
+      (isNumber(value) && !Number.isFinite(value))
     )
       throw new Error("Provider operation has an invalid query field");
     const text = String(value);

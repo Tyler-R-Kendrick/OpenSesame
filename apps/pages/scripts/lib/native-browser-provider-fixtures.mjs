@@ -6,16 +6,12 @@ import {
 import { NATIVE_CONNECT_PLAN_JSON as CONNECT_PLAN_JSON } from "./native-browser-catalog-projection.mjs";
 
 import {
-  LITHIC_PROBE_REPLY,
-  LITHIC_READ,
-} from "./native-browser-lithic-fixture.mjs";
-
-import {
-  PRIVACY_PROBE_REPLY,
-  PRIVACY_READ,
-} from "./native-browser-privacy-fixture.mjs";
+  paymentProbeReply,
+  paymentReadFixture,
+} from "./native-browser-payment-fixtures.mjs";
 
 const PARAMETER_VALUES = {
+  program_host: "program-api.example.test",
   application_id: "contractapp",
   company_domain: "contractcompany",
   organization: "contractorganization",
@@ -26,35 +22,6 @@ const PARAMETER_VALUES = {
 };
 
 const DOCUMENTED_PROBE_REPLIES = {
-  privacy: PRIVACY_PROBE_REPLY,
-  lithic: LITHIC_PROBE_REPLY,
-  razorpay: {
-    entity: "collection",
-    count: 1,
-    items: [
-      {
-        entity: "payment",
-        id: "pay_contract",
-        status: "captured",
-        currency: "INR",
-        amount: 1500,
-      },
-    ],
-  },
-  "stripe-issuing": {
-    object: "list",
-    url: "/v1/issuing/cards",
-    has_more: false,
-    data: [
-      {
-        object: "issuing.card",
-        id: "ic_contract",
-        status: "active",
-        type: "virtual",
-        currency: "usd",
-      },
-    ],
-  },
   // https://docs.agentmail.to/api-reference/inboxes/list
   agentmail: {
     count: 1,
@@ -65,12 +32,6 @@ const DOCUMENTED_PROBE_REPLIES = {
         display_name: "Protocol authority AgentMail inbox",
       },
     ],
-  },
-  stripe: {
-    object: "balance",
-    livemode: false,
-    available: [{ amount: 1500, currency: "usd" }],
-    pending: [{ amount: -7, currency: "jpy" }],
   },
   algolia: {
     items: [
@@ -140,8 +101,6 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
-  privacy: PRIVACY_READ,
-  lithic: LITHIC_READ,
   datadog: {
     id: "provider.monitors.read",
     label: "List monitors",
@@ -155,56 +114,6 @@ const DOCUMENTED_READS = {
       items: [{ id: "12861", label: "Protocol monitor" }],
     },
     excludedText: ["private query"],
-  },
-  razorpay: {
-    id: "provider.payments.read",
-    label: "List payments",
-    method: "GET",
-    url: "https://api.razorpay.com/v1/payments?count=20&skip=0",
-    headers: {},
-    absentHeaders: ["x-razorpay-account"],
-    reply: DOCUMENTED_PROBE_REPLIES.razorpay,
-    result: {
-      label: "Showing 1 payments from first page; amounts in minor units",
-      items: [
-        {
-          id: "pay_contract",
-          label: "pay_contract — captured (INR 1500 minor units)",
-        },
-      ],
-    },
-    excludedText: [],
-  },
-  "stripe-issuing": {
-    id: "provider.issuing-cards.read",
-    label: "List Issuing cards",
-    method: "GET",
-    url: "https://api.stripe.com/v1/issuing/cards?limit=20",
-    headers: { "Stripe-Version": "2026-09-30.endive" },
-    absentHeaders: ["stripe-account"],
-    reply: DOCUMENTED_PROBE_REPLIES["stripe-issuing"],
-    result: {
-      label: "Showing 1 Issuing cards",
-      items: [{ id: "ic_contract", label: "ic_contract — active (virtual)" }],
-    },
-    excludedText: [],
-  },
-  stripe: {
-    id: "provider.balance.read",
-    label: "Read account balance",
-    method: "GET",
-    url: "https://api.stripe.com/v1/balance",
-    headers: { "Stripe-Version": "2026-09-30.endive" },
-    absentHeaders: ["stripe-account"],
-    reply: DOCUMENTED_PROBE_REPLIES.stripe,
-    result: {
-      label: "Stripe balance (sandbox); amounts in minor units",
-      items: [
-        { id: "available:usd", label: "Available USD: 1500 minor units" },
-        { id: "pending:jpy", label: "Pending JPY: -7 minor units" },
-      ],
-    },
-    excludedText: [],
   },
   algolia: {
     id: "provider.indices.read",
@@ -308,16 +217,9 @@ function setField(root, path, value) {
 }
 
 function verificationReply(id, verification) {
+  const payment = paymentProbeReply(id);
+  if (payment) return payment;
   const documented = DOCUMENTED_PROBE_REPLIES[id];
-  // Strict payment reads need their documented typed collections, not string placeholders.
-  if (
-    id === "stripe" ||
-    id === "stripe-issuing" ||
-    id === "razorpay" ||
-    id === "lithic" ||
-    id === "privacy"
-  )
-    return structuredClone(documented);
   if (
     !documented &&
     !verification.accountField &&
@@ -368,11 +270,11 @@ export function nativeApiFixture(plan, variantId) {
   const { parameters, credentials } = fixtureCredentials(plan, preset, variant);
   const reply = verificationReply(plan.id, preset.verify);
   if (!reply) return null;
-  const read = DOCUMENTED_READS[plan.id]
-    ? structuredClone(DOCUMENTED_READS[plan.id])
-    : null;
-  if (read && (plan.id === "lithic" || plan.id === "privacy"))
-    read.url = preset.verify.url;
+  const read =
+    paymentReadFixture(plan.id, preset.verify.url, parameters) ??
+    (DOCUMENTED_READS[plan.id]
+      ? structuredClone(DOCUMENTED_READS[plan.id])
+      : null);
   return {
     providerId: plan.id,
     name: plan.name,

@@ -5068,7 +5068,7 @@
       "service": "marqeta",
       "key_url": "https://app.marqeta.com/development",
       "header": "Authorization",
-      "scheme": "Basic",
+      "scheme": null,
       "basic": {
         "username": "{key}",
         "password": "{admin_access_token}"
@@ -5076,20 +5076,24 @@
       "key_prefix": null,
       "service_urls": [
         "https://sandbox-api.marqeta.com/v3",
-        "https://api.marqeta.com/v3"
+        "https://{program_host}/v3"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://sandbox-api.marqeta.com/v3/users?count=1",
+        "url": "https://sandbox-api.marqeta.com/v3/users?count=10&start_index=0&fields=token%2Cactive",
         "account_field": null
       },
-      "instructions": "Sign in to the [Marqeta developer dashboard](https://app.marqeta.com/development); your sandbox **Application token** and **Admin access token** are shown there. Production credentials come from Marqeta.",
+      "instructions": "Copy the **Application token**, **Admin access token** and API base URL from your [Marqeta dashboard](https://app.marqeta.com/development). Select **Public sandbox** or **Program API**. For Program API enter only the hostname from that base URL, without https://, a port or /v3. The original approved native route must allow that exact HTTPS origin. Only the first 10 user identifiers and active status, when returned, are read; no personal details, card data or writes are requested.",
       "docs_url": "https://www.marqeta.com/docs/developer-guides/core-api-quick-start",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "HTTP Basic requires the application token as username and the separate admin access token as password; both are secrets. Sandbox credentials work only on sandbox-api.marqeta.com. Production hosts are program-specific. Connect remains refused for wallet issuing (ADR 0086/0123).",
+      "notes": "HTTP Basic Application token/Admin access token; both sealed. Fixed /v3/users first page with fields=token,active. Program HTTPS origin explicitly configured and fingerprinted; no universal production-host fallback.",
       "sources": [
-        "https://www.marqeta.com/docs/developer-guides/core-api-quick-start.md"
+        "https://www.marqeta.com/docs/developer-guides/core-api-quick-start.md",
+        "https://www.marqeta.com/docs/core-api/authentication.md",
+        "https://www.marqeta.com/docs/core-api/users/list-users.md",
+        "https://www.marqeta.com/docs/core-api/field-filtering.md",
+        "https://www.marqeta.com/docs/core-api/sorting-and-pagination.md"
       ],
       "template_params": [],
       "additional_credentials": [
@@ -5099,6 +5103,37 @@
           "placeholder": "",
           "required": true,
           "secret": true
+        }
+      ],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Public sandbox",
+          "description": "Use the application and admin tokens for the public sandbox.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox-api.marqeta.com/v3/users?count=10&start_index=0&fields=token%2Cactive",
+            "account_field": null
+          }
+        },
+        {
+          "id": "program",
+          "label": "Program API",
+          "description": "Use the exact program API host and its application/admin tokens from your dashboard.",
+          "verify": {
+            "method": "GET",
+            "url": "https://{program_host}/v3/users?count=10&start_index=0&fields=token%2Cactive",
+            "account_field": null
+          },
+          "template_params": [
+            {
+              "name": "program_host",
+              "label": "Program API host (from dashboard)",
+              "placeholder": "your-program-api.example.com",
+              "required": true,
+              "secret": false
+            }
+          ]
         }
       ]
     },
