@@ -21,6 +21,7 @@
 
 import { isString } from "@opensesame/os-domain";
 import { withAddressHints } from "./candidates.js";
+import { type IceDiagnosticView, watchRtcIce } from "./ice-diagnostics.js";
 import { type ChannelMessage, readChannelMessage } from "./messages.js";
 import {
   type DialLink,
@@ -166,6 +167,8 @@ class RtcLink implements DialLink {
   readonly channel: Promise<LiveChannel>;
   readonly #pc: RTCPeerConnection;
   readonly #failed: (() => void)[] = [];
+  readonly #ice = new Set<(view: IceDiagnosticView) => void>();
+  #stopIce: (() => void) | null = null;
   #abandon: (error: Error) => void = () => undefined;
   #closed = false;
 
@@ -181,6 +184,9 @@ class RtcLink implements DialLink {
     });
     // A link nobody waited on may close quietly; one waited on still hears.
     this.channel.catch(() => undefined);
+    this.#stopIce = watchRtcIce(pc, (view) => {
+      for (const listener of this.#ice) listener(view);
+    });
     pc.addEventListener("connectionstatechange", () => {
       if (pc.connectionState !== "failed" || this.#closed) return;
       for (const handler of this.#failed.splice(0)) handler();
@@ -189,6 +195,13 @@ class RtcLink implements DialLink {
 
   onFailed(handler: () => void): void {
     if (!this.#closed) this.#failed.push(handler);
+  }
+
+  onIce(listener: (view: IceDiagnosticView) => void): () => void {
+    this.#ice.add(listener);
+    return () => {
+      this.#ice.delete(listener);
+    };
   }
 
   async accept(answer: string): Promise<void> {
@@ -201,6 +214,9 @@ class RtcLink implements DialLink {
     if (this.#closed) return;
     this.#closed = true;
     this.#failed.length = 0;
+    this.#ice.clear();
+    this.#stopIce?.();
+    this.#stopIce = null;
     // A channel still opening never will: whoever waits on it hears so.
     this.#abandon(new Error("link_closed"));
     this.#pc.close();

@@ -17,6 +17,8 @@ export const DRIVER_GATES = {
   "verify-experience-journeys.mjs": ["journeys"],
   "verify-webmcp.mjs": ["budgets"],
   "verify-push-worker.mjs": ["budgets"],
+  // P8-6: a dirty edit holds a service-worker release reload.
+  "verify-sw-dirty-edit.mjs": ["budgets"],
   "verify-capability-graph.mjs": ["budgets"],
   "verify-self-hosted-connectors.mjs": ["budgets"],
   "verify-native-connectors-journey.mjs": ["native-connectors"],
@@ -54,6 +56,12 @@ export const DRIVER_GATES = {
   // Peer-trust peering: two contexts, SAS, verified join, crossed signal,
   // changed key, duplicate names (journeys-2).
   "verify-peer-trust-two-context.mjs": ["journeys"],
+  // P8-3: ICE diagnostics line on joiner while connecting (journeys-2).
+  "verify-peering-diagnostics.mjs": ["journeys"],
+  // P8-4: fresh-vault Passwords onboarding and a saved account (journeys-2).
+  "verify-fresh-vault-login.mjs": ["journeys"],
+  // P8-5: CLI pairing on the public static site (journeys-2).
+  "verify-cli-public-site.mjs": ["journeys"],
   // ADR 0181: the journeys shard runs the relay join walk.
   "verify-relay-join.mjs": ["journeys"],
   "verify-relay-join-live.mjs": ["journeys"],

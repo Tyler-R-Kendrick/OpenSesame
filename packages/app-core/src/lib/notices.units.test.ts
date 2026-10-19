@@ -161,6 +161,20 @@ describe("setStatusNotice", () => {
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
+  it("swaps only the act closure in place, without an emit", () => {
+    setStatusNotice(statusInput());
+    const listener = vi.fn();
+    subscribeNotices(listener);
+    const run = vi.fn();
+    const kept = setStatusNotice(
+      statusInput({ act: { label: "Turn off", run } }),
+    );
+    expect(listener).not.toHaveBeenCalled();
+    expect(listNotices()).toEqual([kept]);
+    kept.act?.run();
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   it("is dismissible like any other notice", () => {
     const notice = setStatusNotice(statusInput());
     dismissNotice(notice.id);

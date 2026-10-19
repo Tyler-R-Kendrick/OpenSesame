@@ -116,6 +116,12 @@ function cursorRow(): HTMLElement {
   return row;
 }
 
+function workExpanded(): string | null {
+  return screen
+    .getByRole("treeitem", { name: /Work/ })
+    .getAttribute("aria-expanded");
+}
+
 /** Registers the item kinds this suite's filters name (SURFACE-08). */
 let revokeItemKinds: () => void;
 
@@ -476,13 +482,7 @@ describe("VaultSection", () => {
     };
     vaultTreeSeams.loadCollapsed = async () => ["Work/"];
     renderSection();
-    await waitFor(() => {
-      expect(
-        screen
-          .getByRole("treeitem", { name: /Work/ })
-          .getAttribute("aria-expanded"),
-      ).toBe("false");
-    });
+    await waitFor(() => expect(workExpanded()).toBe("false"));
     expect(screen.queryByText(/Webmail/)).toBeNull();
   });
 
@@ -503,11 +503,7 @@ describe("VaultSection", () => {
     expect(cursorRow().textContent).toContain("Work");
     // h on the expanded directory collapses it.
     press(handler, "h");
-    expect(
-      screen
-        .getByRole("treeitem", { name: /Work/ })
-        .getAttribute("aria-expanded"),
-    ).toBe("false");
+    expect(workExpanded()).toBe("false");
   });
 });
 
@@ -525,6 +521,7 @@ describe("VaultWelcome", () => {
     renderWelcome();
     expect(screen.getByText("nothing sealed yet")).toBeTruthy();
     expect(screen.getByText("n new · import · ? keys")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Passwords" })).toBeNull();
     expect(screen.queryByText(/Try the keyboard/)).toBeNull(); // list has it
     expect(
       screen.queryByRole("link", { name: /Add your first login/i }),

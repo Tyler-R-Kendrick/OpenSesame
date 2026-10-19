@@ -23,6 +23,7 @@ import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { Crumbs } from "./Crumbs.js";
 import { InstallMark } from "./InstallMark.js";
 import { KeymapSheet } from "./KeymapSheet.js";
+import { LegacyIdentityNotice } from "./LegacyIdentityNotice.js";
 import { MobileToolbar } from "./MobileToolbar.js";
 import { NavTree } from "./NavTree.js";
 import {
@@ -31,6 +32,7 @@ import {
   useSections,
 } from "./RailRows.js";
 import { SessionPrompt } from "./SessionPrompt.js";
+import { ShellUpdateMark } from "./ShellUpdateMark.js";
 import { Statusline } from "./Statusline.js";
 import { ToastStack } from "./ToastStack.js";
 import { Wordmark } from "./Wordmark.js";
@@ -118,6 +120,7 @@ function Shell({ children }: { children?: ReactNode }) {
       <aside className="rail">
         <div className="rail__brand">
           <Wordmark className="rail__wordmark" />
+          <ShellUpdateMark />
           <InstallMark />
         </div>
 
@@ -144,6 +147,8 @@ function Shell({ children }: { children?: ReactNode }) {
       {/* A row of the frame, not an overlay: it takes height only while a toast
           shows, so nothing rests on a control (DESIGN.md § Layout). */}
       <ToastStack />
+      {/* After the toast stack, so its arrival subscription is already up. */}
+      <LegacyIdentityNotice />
 
       <Statusline />
 

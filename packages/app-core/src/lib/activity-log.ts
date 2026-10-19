@@ -1,10 +1,4 @@
-/**
- * Durable app activity log (sealed in the vault).
- *
- * Every consequential Pages event — settings, access requests, vault lifecycle,
- * wallet journal mirrors, connection grants — appends here so `/activity` is
- * the single durable trail (not a wallet budget journal).
- */
+/** Durable sealed activity log. `/activity` reads it; a failed write never blocks the action. */
 
 import { redactAuditMetadata } from "@opensesame/audit/redact";
 import { scrubText } from "@opensesame/log-scrub";
@@ -180,13 +174,9 @@ export async function listActivityEvents(
   return readAll(tomb);
 }
 
-/** How close together two identical events fold into the first. */
+/** How close together two identical events fold into the first. Item saves stay separate. */
 const REPEAT_WINDOW_MS = 60_000;
 
-/**
- * One save is one fact. `vault.login.created` qualifies; `vault.body.persisted`
- * and `vault.unlocked` do not, and those still fold.
- */
 const ITEM_SAVE_TYPE = /^vault\.[^.]+\.(?:created|updated)$/u;
 
 function repeats(
@@ -210,11 +200,6 @@ function scrubNullable(value: string | null | undefined): string | null {
   return value === undefined || value === null ? null : scrubText(value);
 }
 
-/**
- * Per tomb, so a body-saved note and the item note that follows it both
- * read the log the other one just wrote. Unchained, each reads the old
- * file and one write replaces the other.
- */
 const activityWrites = new Map<string, Promise<void>>();
 
 async function appendActivityEvent(
@@ -301,11 +286,6 @@ export function recordActivityEvent(
   return run;
 }
 
-/**
- * Fire-and-forget append against the unlocked vault. No-ops when locked
- * or the write fails — activity must never block a primary action.
- */
-
 export function noteConnectionCreated(connectionId: string): void {
   noteActivity(
     "connection",
@@ -381,7 +361,35 @@ export function noteActivity(
 export function emitActivity(input: RecordActivityInput): void {
   const tomb = activitySeams.activeTomb();
   if (!tomb) return;
-  void recordActivityEvent(tomb, input).catch(() => {
-    // Durable log is best-effort beside the action.
+  void recordActivityEvent(tomb, input).catch(() => undefined);
+}
+
+/** Raise `count` on the one matching line. The line stays one; the count never falls. */
+export async function patchActivityCount(
+  tomb: string,
+  type: string,
+  targetId: string,
+  summary: string,
+  count: number,
+): Promise<void> {
+  let changed = false;
+  await withActivityLogLock(tomb, async () => {
+    const current = await readAll(tomb);
+    const index = current.findIndex(
+      (event) => event.type === type && event.targetId === targetId,
+    );
+    const event = current[index];
+    if (!event) return;
+    const prior = event.metadata.count;
+    if (typeof prior === "number" && prior >= count) return;
+    const next = current.slice();
+    next[index] = {
+      ...event,
+      summary: scrubText(summary),
+      metadata: redactAuditMetadata({ ...event.metadata, count }),
+    };
+    await writeAll(tomb, next);
+    changed = true;
   });
+  if (changed) notify();
 }

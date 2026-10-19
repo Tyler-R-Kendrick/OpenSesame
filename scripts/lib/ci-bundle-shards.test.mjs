@@ -42,6 +42,7 @@ const GATES = [
   "verify:secret-backends",
   "verify:keyboard",
   "verify:push-worker",
+  "verify:sw-dirty-edit",
   "verify:mobile",
   "verify:local-iam",
   "verify:quorum-browser",
@@ -56,6 +57,9 @@ const GATES = [
   "verify:relay-join-live",
   "verify:live-local-pair",
   "verify:peer-trust-two-context",
+  "verify:peering-diagnostics",
+  "verify:fresh-vault-login",
+  "verify:cli-public-site",
 ];
 
 /** The shards a step's `if:` selects: the union of its `||` clauses. */

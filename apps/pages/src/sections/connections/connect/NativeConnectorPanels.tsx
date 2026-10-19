@@ -17,9 +17,14 @@ import { useNativeBridge } from "../../../lib/use-native-bridge.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
+import { NativeS3BackupControls } from "./NativeS3BackupControls.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
-import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
+import type {
+  NativeConnectorCallbacks,
+  NativeConnectorController,
+  NativeConnectorDescriptor,
+} from "./native-connector-ui.js";
 import { nativeDeviceProviderDescriptor } from "./native-device-provider-descriptor.js";
 import { nativeGithubDescriptor } from "./native-github-descriptor.js";
 import {
@@ -214,6 +219,37 @@ function usePublishConnectorDisappearance(
   }, [view]);
 }
 
+function mcpTools(options: {
+  view: NativeConnectorView;
+  controller: NativeConnectorController;
+  callbacks: NativeConnectorCallbacks;
+  disabled: boolean;
+}) {
+  const { view, controller, callbacks, disabled } = options;
+  return view.configuration.method === "mcp" ? (
+    <NativeMcpTools
+      view={view}
+      controller={controller}
+      onFlash={callbacks.onFlash}
+      onChanged={callbacks.onChanged}
+      disabled={disabled}
+    />
+  ) : null;
+}
+
+function backupControls(
+  view: NativeConnectorView,
+  onFlash: (flash: Flash) => void,
+) {
+  return view.providerId === "s3" && nativeVerified(view) ? (
+    <NativeS3BackupControls
+      key={`${view.connectionId}/${view.revision}/${view.fingerprint}`}
+      view={view}
+      onFlash={onFlash}
+    />
+  ) : null;
+}
+
 export function NativeConnectorPanels({
   provider,
   connection,
@@ -254,9 +290,7 @@ export function NativeConnectorPanels({
   if (!descriptor) return null;
   const current = actions(descriptor, view);
   // A road that opens or closes (the bridge arriving, a host allowed in it) is a new form.
-  const roads = current.methods
-    .map((method) => (method.available ? 1 : 0))
-    .join("");
+  const roads = current.methods.map((m) => (m.available ? 1 : 0)).join("");
   const changed = (_next: NativeConnectorView | null) => {
     refresh((version) => version + 1);
     onChanged();
@@ -300,15 +334,13 @@ export function NativeConnectorPanels({
             onRemoved={() => changed(null)}
             authorization={pending.authorization}
           />
-          {view.configuration.method === "mcp" ? (
-            <NativeMcpTools
-              view={view}
-              controller={controller}
-              onFlash={onFlash}
-              onChanged={changed}
-              disabled={!!pending.authorization}
-            />
-          ) : null}
+          {backupControls(view, onFlash)}
+          {mcpTools({
+            view,
+            controller,
+            callbacks: { onFlash, onChanged: changed },
+            disabled: !!pending.authorization,
+          })}
         </>
       ) : null}
     </div>

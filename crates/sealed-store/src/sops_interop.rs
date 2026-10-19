@@ -1,6 +1,8 @@
 //! Optional SOPS YAML/JSON encrypt/decrypt (INTEROP-A/B start).
 //!
-//! Resolves the binary **only** from absolute `OPENSESAME_SOPS_BIN`.
+//! Resolves the binary **only** from absolute `OPENSESAME_SOPS_BIN`, by the
+//! same rule as every other override (`opensesame_trusted_exec::named`): after
+//! symlinks a regular file with an execute bit. There is no `PATH` search.
 //! Core vault tests do not require SOPS.
 
 use std::path::{Path, PathBuf};
@@ -18,28 +20,31 @@ pub enum SopsFormat {
 pub enum SopsError {
     #[error("sops unavailable: set OPENSESAME_SOPS_BIN to an absolute path")]
     Unavailable,
-    #[error("OPENSESAME_SOPS_BIN must be an absolute existing file")]
-    InvalidBinaryPath,
+    #[error("{0}")]
+    InvalidBinaryPath(String),
     #[error("sops failed: {0}")]
     Failed(String),
     #[error("io: {0}")]
     Io(String),
 }
 
+/// The variable that names the SOPS binary; there is no other way to find it.
+const SOPS_BIN: &str = "OPENSESAME_SOPS_BIN";
+
 /// Resolve the pinned SOPS binary from `OPENSESAME_SOPS_BIN` only.
 ///
 /// # Errors
 ///
-/// Returns `Unavailable` when unset; `InvalidBinaryPath` when not absolute/file.
+/// Returns `Unavailable` when unset; `InvalidBinaryPath`, with the reason
+/// (`OPENSESAME_SOPS_BIN must be an absolute path …`, `… is not executable`),
+/// when it is not an absolute path to a regular file (after symlinks) the
+/// caller can run.
 pub fn resolve_sops_bin() -> Result<PathBuf, SopsError> {
-    let Some(raw) = std::env::var_os("OPENSESAME_SOPS_BIN") else {
+    let Some(raw) = std::env::var_os(SOPS_BIN) else {
         return Err(SopsError::Unavailable);
     };
-    let path = PathBuf::from(raw);
-    if !path.is_absolute() || !path.is_file() {
-        return Err(SopsError::InvalidBinaryPath);
-    }
-    Ok(path)
+    opensesame_trusted_exec::named(SOPS_BIN, &raw)
+        .map_err(|why| SopsError::InvalidBinaryPath(why.to_string()))
 }
 
 /// Encrypt structured document bytes with the pinned SOPS binary.
@@ -89,16 +94,19 @@ fn format_flag(format: SopsFormat) -> &'static str {
     }
 }
 
+/// SOPS from an empty environment, with nothing but what this confined call
+/// decides: the `C` locale, `PATH` holding only the binary's own directory, and
+/// `SOPS_AGE_KEY_FILE` emptied so no operator key file is read. No `HOME`, no
+/// proxy, no CA bundle: encryption to `--age` recipients and decryption from
+/// stdin reach no network and read no `.sops.yaml`.
 fn confined_sops_command(bin: &Path) -> Command {
     let mut cmd = Command::new(bin);
     cmd.env_clear();
-    // Minimal env: locale + path to the binary's directory only.
     cmd.env("LANG", "C");
     cmd.env("LC_ALL", "C");
     if let Some(dir) = bin.parent() {
         cmd.env("PATH", dir);
     }
-    // Ignore operator `.sops.yaml` command authority for this confined call.
     cmd.env("SOPS_AGE_KEY_FILE", "");
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
@@ -151,7 +159,11 @@ mod tests {
         let before = std::env::var_os("OPENSESAME_SOPS_BIN");
         std::env::set_var("OPENSESAME_SOPS_BIN", "sops");
         let err = resolve_sops_bin().unwrap_err();
-        assert_eq!(err, SopsError::InvalidBinaryPath);
+        assert!(
+            matches!(&err, SopsError::InvalidBinaryPath(why)
+                if why.starts_with("OPENSESAME_SOPS_BIN must be an absolute path")),
+            "{err:?}"
+        );
         match before {
             Some(v) => std::env::set_var("OPENSESAME_SOPS_BIN", v),
             None => std::env::remove_var("OPENSESAME_SOPS_BIN"),

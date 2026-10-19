@@ -8,6 +8,8 @@ import {
   isDeviceMessage,
 } from "./device-messages.js";
 import { Greeter } from "./greeting.js";
+import { GuestIce } from "./guest-ice.js";
+import { makeJoinRequestCode } from "./guest-request.js";
 import {
   CONNECTING_TIMEOUT_MS,
   FALLBACK_MS,
@@ -22,10 +24,14 @@ import {
   characters,
   cleanText,
 } from "./messages.js";
-import type { DialLink, LiveChannel } from "./p2p.js";
-import { makeRequestCode, openReplyCode } from "./pairing.js";
 import {
-  joinRequestWithPeer,
+  DIRECT_ROUTING,
+  type DialLink,
+  type LiveChannel,
+  dialForRoute,
+} from "./p2p.js";
+import { openReplyCode } from "./pairing.js";
+import {
   replyHonorsPeer,
   requestView,
   sealRequestPeer,
@@ -57,8 +63,14 @@ export class LiveGuest {
   readonly #reposts = new Reposter();
   #device: ((message: DeviceMessage) => void) | null = null;
   #farewell: Promise<void> = Promise.resolve();
+  readonly #ice: GuestIce;
 
-  constructor(private readonly options: GuestOptions) {}
+  constructor(private readonly options: GuestOptions) {
+    this.#ice = new GuestIce(
+      options.routing ?? DIRECT_ROUTING,
+      options.now ?? Date.now,
+    );
+  }
 
   get status(): GuestStatus {
     return this.#status;
@@ -99,19 +111,11 @@ export class LiveGuest {
     }
   }
 
-  /** The peer link a request offers, or null on a relay route (no offer). */
-  async #dial(): Promise<DialLink | null> {
-    const { transport, route } = this.options;
-    if (route === "relay") return null;
-    if (!transport) throw new Error("join_transport_required");
-    return transport.dial();
-  }
-
   async #ask(): Promise<string> {
-    const { link, code, name, note, kind, route } = this.options;
+    const { link, code, name, note, kind, route, transport } = this.options;
     const keys = this.#keys;
     if (!keys) return "";
-    const peer = await this.#dial();
+    const peer = await dialForRoute(route, transport);
     if (this.#over()) {
       // Left while the transport was dialing: `#finish` found no link.
       peer?.channel.catch(() => undefined);
@@ -136,22 +140,12 @@ export class LiveGuest {
         if (this.#peer === peer && !this.#relayed) this.#finish();
       },
     );
-    const request = await makeRequestCode(
+    const request = await makeJoinRequestCode(
       link,
       code,
       keys,
-      joinRequestWithPeer(
-        {
-          id: this.#id,
-          name: cleanText(name),
-          note: cleanText(note),
-          offer: peer?.handshake ?? "",
-          greets: true,
-          kind: kind ?? "person",
-          route: route ?? "peer",
-        },
-        sealed.peer,
-      ),
+      { id: this.#id, name, note, offer: peer?.handshake ?? "", kind, route },
+      sealed.peer,
     );
     if (this.#status.at === "preparing") {
       this.#bound = sealed.binding;
@@ -217,12 +211,16 @@ export class LiveGuest {
     this.#relayed = reply.relay === "nats" && session !== "off";
     if (!peer && !this.#relayed) {
       // Nothing to meet the owner over: this side has no peer route either.
-      this.#finish({ at: "unreachable" });
+      this.#finishUnreachable(false);
       return false;
     }
     // The carriers stay open until the catalog comes: asking again uses them.
     this.#reposts.stop();
-    this.#to({ at: "connecting" });
+    this.#ice.begin(
+      peer,
+      (status) => this.#to(status),
+      () => this.#status.at === "connecting",
+    );
     this.#connectTimer.set(() => {
       if (this.#status.at === "connecting") this.#giveUp();
     }, CONNECTING_TIMEOUT_MS);
@@ -233,7 +231,7 @@ export class LiveGuest {
     peer.onFailed(() => {
       if (this.#status.at !== "connecting" || this.#peer !== peer) return;
       if (this.#relayed) void this.#toRelay();
-      else this.#finish({ at: "unreachable" });
+      else this.#finishUnreachable(false);
     });
     if (this.#relayed)
       this.#fallback.set(() => void this.#toRelay(), FALLBACK_MS);
@@ -254,7 +252,7 @@ export class LiveGuest {
     const shared = await keys.shared(this.options.link.owner);
     if (!carrier || !shared) {
       carrier?.close();
-      this.#finish({ at: "unreachable" });
+      this.#finishUnreachable(false);
       return;
     }
     if (this.#over() || this.#channel) {
@@ -369,9 +367,14 @@ export class LiveGuest {
     this.#to({ at: "connect_timeout" });
   }
 
+  #finishUnreachable(timedOut: boolean): void {
+    this.#finish({ at: "unreachable", reason: this.#ice.reason(timedOut) });
+  }
+
   #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
     this.#relayed = false;
+    this.#ice.stop();
     // The goodbye is posted first and the carriers let go after it.
     this.#release(this.#drop());
     // The catalog goes with the status it rode on.

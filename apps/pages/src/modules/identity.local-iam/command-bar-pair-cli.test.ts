@@ -3,8 +3,12 @@ import {
   executeCommand,
 } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { parseCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
-import { slashSections } from "@opensesame/app-core/lib/command-bar/slash.js";
 import {
+  slashSections,
+  slashSuggestions,
+} from "@opensesame/app-core/lib/command-bar/slash.js";
+import {
+  PAIR_CLI_COMMAND_PATH,
   commandPathAuthorized,
   commandSections,
 } from "@opensesame/app-core/lib/command-bar/types.js";
@@ -13,7 +17,7 @@ import { describe, expect, it } from "vitest";
 
 // Pair CLI is registered exactly as `identity.local-iam` does in runtime.ts.
 const PAIR_CLI = {
-  path: "/identity/authorize?cli=1",
+  path: PAIR_CLI_COMMAND_PATH,
   label: "Pair CLI",
 } as const;
 
@@ -60,6 +64,23 @@ describe("B7-6 Pair CLI command bar", () => {
     const revoke = registerContributionForTest("command-path", PAIR_CLI);
     const rows = slashSections([PAIR_CLI], () => true);
     expect(rows.map((row) => row.path)).toContain(PAIR_CLI.path);
+    const suggestion = {
+      id: `go:${PAIR_CLI.path}`,
+      insert: PAIR_CLI.path,
+      label: "Pair CLI",
+      run: true,
+    };
+    for (const typed of ["/pair", "/cli", "/pair cli"]) {
+      expect(slashSuggestions(typed, rows, [])).toEqual([suggestion]);
+    }
+    expect(parseCommand(PAIR_CLI.path)).toEqual({
+      action: "navigate",
+      path: PAIR_CLI.path,
+    });
     revoke();
+    expect(parseCommand(PAIR_CLI.path)).toEqual({
+      action: "refuse",
+      message: "That path is not an editable document.",
+    });
   });
 });

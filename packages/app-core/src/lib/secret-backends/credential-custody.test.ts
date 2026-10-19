@@ -149,7 +149,13 @@ it("replaces token revisions only after metadata commits, and failed metadata wr
   ).toEqual([]);
 });
 
-it.each(["wrong-target", "ordinary-item", "duplicate-field", "invalid-json"])(
+it.each([
+  "wrong-target",
+  "app-version",
+  "ordinary-item",
+  "duplicate-field",
+  "invalid-json",
+])(
   "rejects %s credential references without sending any token",
   async (tamper) => {
     const saved = await saveSecretBackendConnection(remoteDraft());
@@ -180,12 +186,19 @@ it.each(["wrong-target", "ordinary-item", "duplicate-field", "invalid-json"])(
       saved.connectionId,
       async (record) => {
         record.row.fields.secret_backend_credentials = raw;
-        if (tamper === "wrong-target") {
+        if (tamper === "wrong-target" || tamper === "app-version") {
           const draft = readSecretBackendConnection(saved.connectionId);
           if (!draft) throw new Error("Expected public draft");
           record.row.fields.secret_backend_configuration = JSON.stringify({
             ...draft,
-            baseUrl: "https://attacker.example.com",
+            baseUrl:
+              tamper === "wrong-target"
+                ? "https://attacker.example.com"
+                : draft.baseUrl,
+            appVersion:
+              tamper === "app-version"
+                ? "web-opensesame@9.0.0"
+                : draft.appVersion,
           });
         }
         return { row: record.row, secrets: {} };
@@ -270,4 +283,66 @@ it("refuses publication when a staged vault credential changes, preserving the o
   expect(
     vaultStore.getSnapshot().items.find((item) => item.id === staged.id)?.name,
   ).toBe("Keep this edited token item");
+});
+
+it("saves an explicit public application header and requires fresh credentials before changing its authority", async () => {
+  const draft = { ...remoteDraft(), appVersion: "web-opensesame@1.0.0" };
+  const saved = await saveSecretBackendConnection(draft);
+  expect(readSecretBackendConnection(saved.connectionId)?.appVersion).toBe(
+    draft.appVersion,
+  );
+  expect(actualCredentials(saved.connectionId).fields.get("token")).toBe(
+    draft.token,
+  );
+  await expect(
+    saveSecretBackendConnection(
+      { ...draft, appVersion: "web-opensesame@2.0.0", token: "" },
+      saved.connectionId,
+    ),
+  ).rejects.toMatchObject({ code: "configuration" });
+  expect(readSecretBackendConnection(saved.connectionId)?.appVersion).toBe(
+    draft.appVersion,
+  );
+  expect(actualCredentials(saved.connectionId).fields.get("token")).toBe(
+    draft.token,
+  );
+});
+
+it("binds a configured application header while preserving byte-identical legacy credential targets", () => {
+  const draft = remoteDraft();
+  const legacy = JSON.stringify([
+    "secret-backend",
+    draft.providerId,
+    draft.mode,
+    draft.baseUrl,
+    draft.identityUrl,
+    draft.vaultId,
+    draft.projectId,
+    draft.organizationId,
+    draft.environment,
+    draft.secretPath,
+    draft.clientId,
+    draft.passwordListId,
+  ]);
+  expect(secretBackendCredentialTarget(draft)).toBe(legacy);
+  expect(secretBackendCredentialTarget({ ...draft, appVersion: "" })).toBe(
+    legacy,
+  );
+  expect(
+    secretBackendCredentialTarget({
+      ...draft,
+      appVersion: "web-opensesame@1.0.0",
+    }),
+  ).not.toBe(legacy);
+  expect(
+    secretBackendCredentialTarget({
+      ...draft,
+      appVersion: "web-opensesame@1.0.0",
+    }),
+  ).not.toBe(
+    secretBackendCredentialTarget({
+      ...draft,
+      appVersion: "web-opensesame@2.0.0",
+    }),
+  );
 });

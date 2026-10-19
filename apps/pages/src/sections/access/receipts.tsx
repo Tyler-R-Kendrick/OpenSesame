@@ -26,8 +26,8 @@ import {
   type AuditEvent,
   isReceiptEvent,
   outcomeChip,
-  receiptLabel,
   receiptTarget,
+  receiptWords,
 } from "@opensesame/app-core/sections/access/receipts-model.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
@@ -161,7 +161,7 @@ export function Receipts({
         const target = receiptTarget(event);
         return {
           id: event.id,
-          label: `${receiptLabel(event.eventType)}${target ? ` · ${names.get(target.id) ?? target.id}` : ""}`,
+          label: `${receiptWords(event)}${target ? ` · ${names.get(target.id) ?? target.id}` : ""}`,
           extension: "receipt",
           to: selection.path(event.id),
         };
@@ -191,7 +191,7 @@ export function Receipts({
     >
       {selected ? (
         <AccessDetail
-          title={receiptLabel(selected.eventType)}
+          title={receiptWords(selected)}
           kind="Receipt"
           actions={
             <StatusMark
