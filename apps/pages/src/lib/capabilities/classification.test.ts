@@ -103,6 +103,28 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       expect(classify(path), path).toBeNull();
   });
 
+  it("shares only the principal generation leaf while ambient acquisition stays optional", () => {
+    expect(classify("src/lib/auth-generation.ts")).toMatchObject({
+      pattern: "src/lib/auth-generation.ts",
+      classification: "shared",
+      capability: null,
+    });
+    for (const path of [
+      "src/lib/auth-generation-helper.ts",
+      "src/lib/auth-generation.test.ts",
+      "src/lib/auth-generations.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+    for (const path of [
+      "src/lib/ambient-auth/generation.ts",
+      "src/lib/ambient-auth/controller.ts",
+      "src/lib/ambient-auth/oidc.ts",
+    ])
+      expect(classify(path), path).toMatchObject({
+        classification: "optional",
+        capability: "identity.ambient-sso",
+      });
+  });
   it("has unique patterns", () => {
     const patterns = SOURCE_CLASSIFICATION.map((rule) => rule.pattern);
     expect(new Set(patterns).size).toBe(patterns.length);
