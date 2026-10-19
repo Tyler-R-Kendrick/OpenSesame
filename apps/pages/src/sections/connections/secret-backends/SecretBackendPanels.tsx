@@ -154,6 +154,13 @@ function SessionPanel({ editor }: { editor: SecretBackendConnectionEditor }) {
             busy={editor.busy}
             onClick={editor.connect}
           />
+          {editor.draft.mode === "encrypted-remote" ? (
+            <FormCommit
+              label="Initialize empty encrypted remote"
+              disabled={editor.busy || !editor.saved}
+              onClick={editor.initialize}
+            />
+          ) : null}
         </div>
       ) : null}
     </section>
@@ -185,7 +192,12 @@ export function SecretBackendPanels(props: SecretBackendPanelProps) {
       vaultStore.onLock(() => {
         setFile(null);
         setPassword("");
-        setDraft((draft) => ({ ...draft, token: "", clientSecret: "" }));
+        setDraft((draft) => ({
+          ...draft,
+          token: "",
+          clientSecret: "",
+          encryptionKey: "",
+        }));
         clear();
       }),
     [setFile, setPassword, setDraft, clear],

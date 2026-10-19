@@ -2,6 +2,7 @@ import type { Connection } from "@opensesame/app-core/lib/connections.js";
 import {
   connectSecretBackend,
   deleteSecretBackendConnection,
+  initializeSecretBackend,
   listSecretBackendConnections,
   probeSecretBackend,
   readSecretBackendConnection,
@@ -15,6 +16,7 @@ import {
 /** The UI port keeps tests at the same boundary every partner composes. */
 export const secretBackendDependencies = {
   connectSecretBackend,
+  initializeSecretBackend,
   deleteSecretBackendConnection,
   listSecretBackendConnections,
   probeSecretBackend,
