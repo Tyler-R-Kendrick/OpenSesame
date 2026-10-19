@@ -2,6 +2,7 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import { readNativeAgentMailInboxes } from "./native-agentmail.js";
+import { projectNativeAgentcardOrganization } from "./native-api-agentcard.js";
 import { NativeApiError } from "./native-api-http.js";
 import { projectNativeLithicCards } from "./native-api-lithic.js";
 import { projectNativeMarqetaUsers } from "./native-api-marqeta.js";
@@ -186,6 +187,16 @@ function projectDatadogMonitors(body: BoundaryValue): BoundaryValue {
   };
 }
 const resources: readonly Resource[] = [
+  jsonResource(
+    "Read platform organization",
+    {
+      providerId: "agentcard",
+      operationId: "provider.organization.read",
+      method: "GET",
+      path: "/api/v2",
+    },
+    projectNativeAgentcardOrganization,
+  ),
   jsonResource(
     "List users",
     {

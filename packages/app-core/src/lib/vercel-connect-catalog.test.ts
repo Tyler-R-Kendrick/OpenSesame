@@ -28,12 +28,14 @@ describe("Vercel Connect browse catalog", () => {
     expect(ids.length).toBeGreaterThan(100);
   });
 
-  it("marks payment and card issuers as not connectable", () => {
+  it("keeps registered readonly payment contracts configurable and unknown providers unavailable", () => {
     expect(isVercelConnectable("slack")).toBe(true);
     expect(isVercelConnectable("github")).toBe(false);
-    expect(isVercelConnectable("stripe")).toBe(false);
-    expect(isVercelConnectable("razorpay")).toBe(false);
-    expect(isVercelConnectable("agentcard")).toBe(false);
+    expect(isVercelConnectable("stripe")).toBe(true);
+    expect(isVercelConnectable("razorpay")).toBe(true);
+    expect(isVercelConnectable("agentcard")).toBe(true);
+    expect(hasConnectRoute("unknown-native-payment")).toBe(false);
+    expect(isVercelConnectable("unknown-native-payment")).toBe(false);
     expect(isVercelConnectable("tailscale")).toBe(false);
   });
 
@@ -45,7 +47,7 @@ describe("Vercel Connect browse catalog", () => {
     ).toEqual([]);
   });
 
-  it("notes unconfigured Vercel rows and blocked rows on the tile", () => {
+  it("notes admitted but unconfigured Vercel rows without claiming a verification", () => {
     const slack = vercelConnectCatalog().find((row) => row.id === "slack");
     const stripe = vercelConnectCatalog().find((row) => row.id === "stripe");
     expect(slack).toBeTruthy();
@@ -57,8 +59,8 @@ describe("Vercel Connect browse catalog", () => {
     });
     // SAFETY: fixture constructed in this test matches the declared contract.
     expect(catalogTileNote(stripe as Provider, null)).toEqual({
-      label: "Not connectable",
-      tone: "chip--err",
+      label: "Not configured",
+      tone: "chip",
     });
   });
 
@@ -130,19 +132,16 @@ describe("Vercel Connect browse catalog", () => {
     expect(ids).toEqual(expect.arrayContaining(["discord", "brevo"]));
   });
 
-  it("refuses card issuers on Connect and keeps their bundled road", () => {
+  it("admits fixed readonly issuer routes while retaining their bundled catalog ownership", () => {
     const merged = mergeVercelCatalog(getBundledProviders());
     for (const id of ["privacy", "lithic", "marqeta", "stripe-issuing"]) {
-      expect(hasConnectRoute(id)).toBe(false);
+      expect(hasConnectRoute(id)).toBe(true);
       expect(isVercelConnectable(id)).toBe(false);
       expect(merged.filter((row) => row.id === id)).toHaveLength(1);
       const row = merged.find((item) => item.id === id);
       expect(row?.category).toBe("wallet");
       if (!row) throw new Error(`Expected the retained wallet provider ${id}`);
-      expect(catalogTileNote(row, null)).toEqual({
-        label: "Not connectable",
-        tone: "chip--err",
-      });
+      expect(catalogTileNote(row, null)).toBeNull();
     }
   });
 });

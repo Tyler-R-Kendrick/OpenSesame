@@ -140,12 +140,26 @@ describe("connector plans", () => {
     }
   });
 
-  it("offers only the fixed read-only Stripe contract and refuses other payment rails", () => {
+  it("offers only the compiled read-only payment contracts", () => {
     const stripe = connectPlan("stripe");
     expect(stripe?.refused).toBe(false);
     expect(stripe?.methods.map((method) => method.kind)).toEqual(["api-key"]);
-    for (const id of ["agentcard"])
-      expect(connectPlan(id)?.refused, id).toBe(true);
+    for (const id of [
+      "agentcard",
+      "stripe",
+      "stripe-issuing",
+      "razorpay",
+      "lithic",
+      "privacy",
+      "marqeta",
+    ]) {
+      expect(connectPlan(id)?.refused, id).toBe(false);
+      expect(
+        connectPlan(id)?.methods.map((method) => method.kind),
+        id,
+      ).toEqual(["api-key"]);
+    }
+    expect(connectPlan("unknown-native-payment")).toBeUndefined();
     expect(connectPlan("stripe-issuing")?.refused).toBe(false);
     expect(
       connectPlan("stripe-issuing")?.methods.map((method) => method.kind),

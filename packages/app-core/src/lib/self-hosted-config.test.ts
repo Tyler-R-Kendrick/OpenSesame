@@ -69,9 +69,11 @@ describe("self-hosted connector configuration", () => {
       selfHostedConfig(connectPlan("github"))?.webhookResourceTypes,
     ).toEqual([]);
     expect(selfHostedConfig(connectPlan("unknown-provider"))).toBeUndefined();
-    const refused = connectPlans().find((plan) => plan.refused);
-    expect(refused).toBeDefined();
-    if (refused) expect(selfHostedConfig(refused)).toBeUndefined();
+    const plan = connectPlan("github");
+    if (!plan) throw new Error("Missing Github plan fixture");
+    expect(
+      selfHostedConfig({ ...plan, id: "unknown-provider", refused: true }),
+    ).toBeUndefined();
   });
 
   it("returns isolated form choices so editing one connector cannot change another", () => {

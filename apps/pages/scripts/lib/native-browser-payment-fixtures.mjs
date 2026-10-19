@@ -8,6 +8,11 @@ import {
   PRIVACY_READ,
 } from "./native-browser-privacy-fixture.mjs";
 const PAYMENT_PROBE_REPLIES = {
+  agentcard: {
+    object: "api_v2",
+    organization_id: "owned-organization",
+    test_mode: true,
+  },
   marqeta: {
     count: 1,
     start_index: 0,
@@ -52,6 +57,22 @@ const PAYMENT_PROBE_REPLIES = {
   },
 };
 const PAYMENT_READS = {
+  agentcard: {
+    id: "provider.organization.read",
+    label: "Read platform organization",
+    method: "GET",
+    url: "https://api.agentcard.sh/api/v2",
+    headers: {},
+    absentHeaders: ["x-user-token", "x-api-version"],
+    reply: PAYMENT_PROBE_REPLIES.agentcard,
+    result: {
+      label: "Agentcard platform organization (test mode)",
+      items: [
+        { id: "owned-organization", label: "owned-organization — test mode" },
+      ],
+    },
+    excludedText: [],
+  },
   marqeta: {
     id: "provider.users.read",
     label: "List users",

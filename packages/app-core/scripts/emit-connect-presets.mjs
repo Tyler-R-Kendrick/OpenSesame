@@ -63,7 +63,7 @@ const CATEGORY_OVERRIDE = {
 };
 
 /** Payment writes remain refused; only explicit bounded read contracts are admitted. */
-const REFUSED = new Set([...READONLY_PAYMENT_IDS, "agentcard"]);
+const REFUSED = new Set(READONLY_PAYMENT_IDS);
 
 /** Spending and issuing remain outside the connector's read-only authority. */
 function refused(id, row) {

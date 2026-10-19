@@ -1,7 +1,6 @@
 import { expect, it } from "vitest";
 import { isRefusedPlan } from "./connect-plan.js";
 import { connectorCardAction } from "./connector-action-capability.js";
-import { getBundledProviders } from "./embedded-catalog.js";
 it("opens a compiled configuration route without promoting a saved draft to verified", () => {
   const provider = { id: "resend" };
   const connection = {
@@ -25,10 +24,17 @@ it("opens a compiled configuration route without promoting a saved draft to veri
       now: 1,
     }),
   ).toMatchObject({ kind: "unavailable" });
-  const refused = getBundledProviders().find((row) => isRefusedPlan(row.id));
-  if (!refused) throw new Error("missing refused plan fixture");
-  expect(connectorCardAction(refused, { routes, now: 1 })).toMatchObject({
-    kind: "unavailable",
-    reason: "policy",
-  });
+  expect(isRefusedPlan("agentcard")).toBe(false);
+  expect(
+    connectorCardAction(
+      { id: "agentcard" },
+      {
+        routes: [{ method: "api-key", available: false, configurable: true }],
+        now: 1,
+      },
+    ),
+  ).toMatchObject({ kind: "connect", method: "api-key" });
+  expect(
+    connectorCardAction({ id: "unknown-provider" }, { routes: [], now: 1 }),
+  ).toMatchObject({ kind: "unavailable" });
 });

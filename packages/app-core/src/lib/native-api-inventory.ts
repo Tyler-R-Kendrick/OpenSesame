@@ -1,5 +1,6 @@
 /** Provider-specific inventory validation runs before any verification proof is saved. */
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { parseNativeAgentcardOrganization } from "./native-api-agentcard.js";
 import { parseNativeLithicCards } from "./native-api-lithic.js";
 import { parseNativeMarqetaUsers } from "./native-api-marqeta.js";
 import { parseNativePrivacyCards } from "./native-api-privacy.js";
@@ -11,6 +12,7 @@ export function validateNativeApiInventory(
   providerId: string,
   body: BoundaryValue,
 ): void {
+  if (providerId === "agentcard") parseNativeAgentcardOrganization(body);
   if (providerId === "marqeta") parseNativeMarqetaUsers(body);
   if (providerId === "privacy") parseNativePrivacyCards(body);
   if (providerId === "lithic") parseNativeLithicCards(body);

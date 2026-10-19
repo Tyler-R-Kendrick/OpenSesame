@@ -3213,6 +3213,30 @@
   ],
   "api_key": [
     {
+      "service": "agentcard",
+      "key_url": "https://docs.agentcard.sh/api-reference/access-tokens/create",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.agentcard.sh"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.agentcard.sh/api/v2",
+        "account_field": "organization_id"
+      },
+      "instructions": "Supply a **platform access token** minted from your own client credentials using the [official access-token endpoint](https://docs.agentcard.sh/api-reference/access-tokens/create). It expires after one hour; replace it when authorization expires. Do not enter a user connection token or a member-card token. The same HTTPS host serves test and production; the token decides the mode. This connection only reads your platform organization and mode, never cards, card credentials or payment writes. Both token minting and renewal remain explicit in your own Agentcard account.",
+      "docs_url": "https://docs.agentcard.sh/api-reference/access-tokens/introspect",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Platform Bearer only; fixed GET /api/v2 with api_v2, organization_id and test_mode required. No member/card endpoints, token minting, refresh or environment fallback.",
+      "sources": [
+        "https://docs.agentcard.sh/api-reference/overview.md",
+        "https://docs.agentcard.sh/api-reference/access-tokens/introspect.md"
+      ],
+      "template_params": []
+    },
+    {
       "service": "stripe",
       "key_url": "https://dashboard.stripe.com/apikeys",
       "key_prefix": "rk_",

@@ -1,10 +1,12 @@
 /** Only closed provider-specific read contracts can admit a payment connector. */
+import { agentcardReadContract } from "./readonly-agentcard.mjs";
 import { lithicReadContract } from "./readonly-lithic.mjs";
 import { marqetaReadContract } from "./readonly-marqeta.mjs";
 import { privacyReadContract } from "./readonly-privacy.mjs";
 import { razorpayReadContract } from "./readonly-razorpay.mjs";
 
 export const READONLY_PAYMENT_IDS = new Set([
+  "agentcard",
   "stripe",
   "stripe-issuing",
   "razorpay",
@@ -34,6 +36,7 @@ function stripeReadContract(id, apiKey) {
 
 export function readonlyPaymentContract(id, apiKey) {
   return (
+    (id === "agentcard" && agentcardReadContract(apiKey)) ||
     stripeReadContract(id, apiKey) ||
     (id === "razorpay" && razorpayReadContract(apiKey)) ||
     (id === "lithic" && lithicReadContract(apiKey)) ||
