@@ -33,8 +33,10 @@ permissions:
   pull-requests: read
 
 concurrency:
+  # A newer pull request push or main push cancels the run it replaces.
+  # merge_group stays: cancelling it leaves the required checks pending.
   group: ci-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   changes:
@@ -426,6 +428,12 @@ jobs:
           pnpm --filter @opensesame/pages verify:provider-auth
           pnpm --filter @opensesame/pages build:identity-verify
           pnpm --filter @opensesame/pages verify:identity-connections
+      - name: Secret backends and encrypted vault
+        if: matrix.shard == 'native-public-backends'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
           pnpm --filter @opensesame/pages build:secret-backends-verify
           pnpm --filter @opensesame/pages verify:secret-backends
       - name: Experience journeys
