@@ -13,6 +13,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderPackedJsonRows } from "./pack-json.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const viewPath = join(here, "../../../spec/connectors/catalog.view.json");
@@ -59,11 +60,12 @@ export function renderModule(raw = readFileSync(viewPath, "utf8")) {
     "} as const;",
     "",
     "/** One Host API provider view per row, as JSON (`ProviderSchema`). */",
-    `const common = ${JSON.stringify(factored.common)};`,
-    "const rows: readonly string[] = [",
-    ...factored.rows.map((row) => `  ${JSON.stringify(JSON.stringify(row))},`),
-    "];",
-    "export const CATALOG_ROW_JSON: readonly string[] = rows.map((row) => JSON.stringify({ ...common, ...JSON.parse(row) }));",
+    renderPackedJsonRows(
+      "CATALOG_ROW_JSON",
+      factored.rows.map((row) =>
+        JSON.stringify({ ...factored.common, ...row }),
+      ),
+    ),
     "",
   ].join("\n");
 }

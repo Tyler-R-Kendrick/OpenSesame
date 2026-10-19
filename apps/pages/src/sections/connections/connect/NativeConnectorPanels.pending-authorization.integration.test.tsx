@@ -28,6 +28,7 @@ import { SettingsPageConnectPanels } from "../SettingsPageConnectPanels.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import {
   connectorIntegration,
+  connectorOwnerPassword,
   installConnectorIntegration,
 } from "./native-connector-integration.test-support.js";
 import type { NativeConnectorCallbacks } from "./native-connector-ui.js";
@@ -289,8 +290,7 @@ it.each(["route", "provider", "unmount", "remove"] as const)(
 
 it("does not revive the old close key after actual same-tomb lock and unlock", async () => {
   const actual = fixture();
-  const password = "Panel fixture unlock phrase 9!";
-  await act(async () => vaultStore.create(password));
+  const password = connectorOwnerPassword;
   const tomb = vaultStore.getSnapshot().tomb;
   const held = holdConfigure();
   await start();

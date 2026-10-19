@@ -1,8 +1,10 @@
 /** Real popup consent: the originating sealed vault never navigates or unlocks. */
 import { expect } from "@playwright/test";
+import {
+  CONSENT_POPUP_TIMEOUT_MS,
+  openLinearConsentPopup,
+} from "./linear-consent-popup-arming.mjs";
 import { readLinearStatusCodes } from "./linear-consent-status.mjs";
-
-const CONSENT_POPUP_TIMEOUT_MS = 60_000;
 
 let consentAttempt = 0;
 
@@ -116,28 +118,40 @@ function observeConsent(harness, page, original) {
 export async function beginLinearConsent(harness, page, label, action) {
   const original = page.url();
   const button = page.getByRole("button", { name: action, exact: true });
-  const observation = observeConsent(harness, page, original);
-  try {
-    // Bind the popup to this click — context-wide "page" events can catch a stray tab.
-    const [popup] = await Promise.all([
-      page.waitForEvent("popup", {
-        timeout: CONSENT_POPUP_TIMEOUT_MS,
-        predicate: (popup) => {
-          observation.bind(popup);
-          return true;
-        },
-      }),
-      button.click(),
-    ]);
-    if (popup.isClosed()) {
-      throw new Error(
-        `${label}: consent popup closed before Linear authorize URL`,
-      );
+  await expect(button).toBeEnabled({ timeout: CONSENT_POPUP_TIMEOUT_MS });
+  let popup;
+  let observation;
+  // A reserved consent window can be released when its preparation ends
+  // against a superseded attempt; one fresh click starts the real consent.
+  for (let attempt = 1; ; attempt += 1) {
+    observation = observeConsent(harness, page, original);
+    let opened;
+    try {
+      // Bind the popup to this click — context-wide "page" events can catch a stray tab.
+      popup = await openLinearConsentPopup(page, button, (next) => {
+        opened = next;
+        observation.bind(next);
+      });
+      break;
+    } catch (error) {
+      observation.note("consent-error");
+      observation.stop();
+      const ended =
+        (await page
+          .getByRole("button", { name: "Cancel sign-in", exact: true })
+          .count()) === 0;
+      if (attempt >= 2 || !ended || opened?.isClosed() !== true)
+        throw new Error(
+          `${label}: consent window closed before Linear authorize URL: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
+            .locator("body")
+            .innerText()
+            .then((text) => text.slice(-1200))}`,
+          { cause: error },
+        );
+      await expect(button).toBeEnabled({ timeout: 10_000 });
     }
-    await popup.waitForURL("https://linear.app/oauth/authorize?**", {
-      timeout: CONSENT_POPUP_TIMEOUT_MS,
-      waitUntil: "domcontentloaded",
-    });
+  }
+  try {
     await popup
       .getByText("Test-only OAuth consent transport.", { exact: true })
       .waitFor();
@@ -159,11 +173,11 @@ export async function beginLinearConsent(harness, page, label, action) {
     observation.note("consent-ready");
     return popup;
   } catch (error) {
-    observation.note("consent-error");
-    await observation.status("status-after-error");
+    observation?.note("consent-error");
+    await observation?.status("status-after-error");
     throw error;
   } finally {
-    observation.stop();
+    observation?.stop();
   }
 }
 

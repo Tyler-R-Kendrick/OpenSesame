@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -10,7 +10,7 @@ import { bundleChunk } from "./scripts/bundle-chunk.mjs";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
-import { mcpBrowserValidator } from "./scripts/mcp-browser-validator.mjs";
+import { writePrivateSnapshot } from "./scripts/lib/private-files.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
 import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
@@ -91,7 +91,7 @@ function handleAgentPage(
     req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     req.on("end", () => {
       try {
-        writeFileSync(
+        writePrivateSnapshot(
           "/tmp/agent-page.json",
           Buffer.concat(chunks).toString("utf8"),
         );
@@ -132,6 +132,10 @@ function handlePagesDevRequest(
 export default defineConfig({
   test: {
     // The relay's suites under `server/` are `node --test` (`test:relay`).
+    // Popup arming order is a Vitest suite
+    // (`linear-consent-popup-arming.test.mjs`), with the other `scripts/lib`
+    // contracts. Root `vitest run scripts/lib` discovers `**/scripts/lib/**`,
+    // so that file cannot stay on `node:test`.
     exclude: [...configDefaults.exclude, "server/**"],
     testTimeout: 20_000,
     hookTimeout: 20_000,
@@ -269,7 +273,6 @@ export default defineConfig({
         },
       },
     },
-    mcpBrowserValidator(fileURLToPath(new URL("../..", import.meta.url))),
     nativeClientMetadataPlugin(base),
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
