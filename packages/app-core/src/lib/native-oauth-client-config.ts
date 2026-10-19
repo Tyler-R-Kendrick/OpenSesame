@@ -100,6 +100,21 @@ export function nativeOAuthClientTarget(configuration: NativeConfiguration) {
     clientId: configuration.clientId,
   };
 }
+/** Both fingerprinted targets must be covered by this one captured original carrier. */
+export function assertNativeOAuthClientPolicy(
+  configuration: NativeConfiguration,
+  owner: NativeOAuthClientOwner,
+) {
+  assertNativeOAuthClientOwner(owner);
+  const target = nativeOAuthClientTarget(configuration);
+  assertNativeBrowserOAuthPolicy(configuration.providerId, {
+    transport: owner.transport,
+    tokenEndpoint: target.token_endpoint,
+    resourceEndpoint: target.resource ?? "",
+  });
+  assertNativeOAuthClientOwner(owner);
+  return target;
+}
 function callbackUri(value: string): string {
   const url = new URL(value);
   if (
@@ -214,10 +229,9 @@ export async function configureNativeOAuthClient(
   owner: NativeOAuthClientOwner,
 ) {
   assertNativeOAuthClientOwner(owner);
-  assertNativeBrowserOAuthPolicy(input.providerId);
   const desired = await configuration(input, owner);
   assertNativeOAuthClientOwner(owner);
-  const target = nativeOAuthClientTarget(desired);
+  const target = assertNativeOAuthClientPolicy(desired, owner);
   const credentials = z
     .object({ client_secret: CLIENT_SECRET.optional() })
     .strict()
@@ -294,8 +308,7 @@ export async function beginNativeOAuthClient(
   await initializeVaultCredentialCustody();
   assertNativeOAuthClientOwner(owner);
   const record = requireNativeOAuthRecord(id);
-  assertNativeBrowserOAuthPolicy(record.configuration.providerId);
-  const target = nativeOAuthClientTarget(record.configuration);
+  const target = assertNativeOAuthClientPolicy(record.configuration, owner);
   const secret = readNativeOAuthClientSecret(id, owner);
   if (
     record.privateState.recovery.length ||
