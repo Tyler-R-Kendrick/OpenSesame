@@ -5,6 +5,7 @@
 // fails on a driver missing from this table, so a new one forces a decision.
 export const DRIVER_GATES = {
   "verify-keyboard.mjs": ["keyboard"],
+  "verify-kdbx-native-dom.mjs": ["customer-crypto"],
   "verify-siop.mjs": ["keyboard"],
   "verify-mobile.mjs": ["mobile"],
   "verify-local-iam.mjs": ["sign-in"],

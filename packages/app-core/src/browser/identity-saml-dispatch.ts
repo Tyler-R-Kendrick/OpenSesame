@@ -1,5 +1,5 @@
 /** Original SAML workflow authority is retained before cold ledger or protocol imports. */
-import { currentAuthGeneration } from "../lib/ambient-auth/generation.js";
+import { currentAuthGeneration } from "../lib/auth-generation.js";
 import type { Connection } from "../lib/connections.js";
 import { deviceConnection } from "../lib/device-connectors.js";
 import { resolveIdentityBase } from "../lib/device-identity.js";

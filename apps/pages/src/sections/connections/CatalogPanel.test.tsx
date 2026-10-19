@@ -30,6 +30,6 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   // so with a StatusMark glyph — the sentence is its name, not a pill.
   expect(stripe?.querySelector("a")).toBeNull();
   const blocked = stripe?.querySelector(".conn-tile__go title");
-  expect(blocked?.textContent).toBe("Not offered");
+  expect(blocked?.textContent).toBe("No way to check a key");
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });

@@ -63,6 +63,7 @@ it("covers every visible bundled provider without a plan or replacing a speciali
     "bitwarden-secrets-manager",
     "browser-credentials",
     "byo-secret-backend",
+    "encrypted-remote",
     "infisical",
     "local-vault",
     "passwordstate",

@@ -1,5 +1,5 @@
 /** Native protocol evidence authenticates identity; these guards only retain its original local lineage. */
-import { currentAuthGeneration } from "./ambient-auth/generation.js";
+import { currentAuthGeneration } from "./auth-generation.js";
 import { subscribeDeviceRows } from "./device-connector-records.js";
 import { resolveIdentityBase } from "./device-identity.js";
 import { federationSessionGeneration } from "./federation-native-session.js";

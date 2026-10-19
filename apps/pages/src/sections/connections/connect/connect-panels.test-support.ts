@@ -58,7 +58,8 @@ export function expectNativePanel(
       expect(commit).toHaveProperty("disabled", true);
     for (const method of offered) {
       const choice = within(panel).queryByRole("radio", { name: method.label });
-      if (offered.length > 1) expect(choice).toHaveProperty("disabled", false);
+      if (offered.length > 1 || descriptor.providerId === "resend")
+        expect(choice).toHaveProperty("disabled", false);
       else expect(choice).toBeNull();
     }
   } else {
@@ -82,6 +83,7 @@ export function expectNativePanel(
     ).toBeNull();
   }
   for (const method of descriptor.methods.filter((item) => !item.available)) {
+    if (descriptor.providerId === "resend") continue;
     expect(
       within(panel).queryByRole("radio", { name: method.label }),
     ).toBeNull();

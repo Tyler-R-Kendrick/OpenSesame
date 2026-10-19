@@ -2,6 +2,7 @@ name: Sync target authorization
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'crates/connection-broker/**'
       - 'crates/gateway/**'
@@ -22,6 +23,7 @@ concurrency:
 
 jobs:
   authorization:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Sync authorization regressions
     runs-on: ubuntu-latest
     timeout-minutes: 45

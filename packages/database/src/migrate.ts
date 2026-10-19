@@ -22,6 +22,7 @@ async function main(): Promise<void> {
   if (!url) {
     console.error("DATABASE_URL is required for db:migrate");
     process.exit(1);
+    return;
   }
   await runMigrations(url);
   console.log("Migrations applied.");

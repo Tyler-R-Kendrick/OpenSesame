@@ -14,7 +14,15 @@ import {
 } from "@opensesame/os-domain";
 import { maybeLocalStore } from "../../ports.js";
 
-const GENERATION_KEY = "opensesame:ambient-auth:generation";
+import {
+  advanceAuthGeneration,
+  currentAuthGeneration,
+} from "../auth-generation.js";
+export {
+  currentAuthGeneration,
+  matchesAuthGeneration,
+} from "../auth-generation.js";
+
 const SUPPRESSION_KEY = "opensesame:ambient-auth:suppressed";
 
 export type AuthFence = {
@@ -22,29 +30,9 @@ export type AuthFence = {
   suppressed: boolean;
 };
 
-function readNumber(key: string): number {
-  try {
-    const raw = maybeLocalStore()?.getItem(key);
-    if (!raw) return 0;
-    const n = Number(raw);
-    return Number.isSafeInteger(n) && n >= 0 ? n : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function writeNumber(key: string, value: number): void {
-  try {
-    // ast-grep-ignore: ts-localstorage-set
-    maybeLocalStore()?.setItem(key, String(value));
-  } catch {
-    /* quota / private mode */
-  }
-}
-
 export function readAuthFence(): AuthFence {
   return {
-    generation: readNumber(GENERATION_KEY),
+    generation: currentAuthGeneration(),
     suppressed: readSuppressed(),
   };
 }
@@ -57,10 +45,6 @@ function readSuppressed(): boolean {
   }
 }
 
-export function currentAuthGeneration(): number {
-  return readAuthFence().generation;
-}
-
 export function isAutoAuthSuppressed(): boolean {
   return readAuthFence().suppressed;
 }
@@ -70,8 +54,7 @@ export function isAutoAuthSuppressed(): boolean {
  * the new fence so callers can stamp in-flight work.
  */
 export function fenceLocalSignOut(): AuthFence {
-  const next = currentAuthGeneration() + 1;
-  writeNumber(GENERATION_KEY, next);
+  const next = advanceAuthGeneration();
   try {
     // ast-grep-ignore: ts-localstorage-set
     maybeLocalStore()?.setItem(SUPPRESSION_KEY, "1");
@@ -88,10 +71,6 @@ export function clearAutoAuthSuppression(): void {
   } catch {
     /* storage unavailable */
   }
-}
-
-export function matchesAuthGeneration(expected: number): boolean {
-  return currentAuthGeneration() === expected;
 }
 
 const ATTEMPT_KEY = "opensesame:ambient-auth:attempt";

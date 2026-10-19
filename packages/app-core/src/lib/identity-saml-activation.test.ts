@@ -288,7 +288,7 @@ it.each([
   },
 );
 it.each(["record-close", "trust-callback"] as const)(
-  "restores an earlier configured connection with a fresh revision after %s withdrawal",
+  "restores an earlier configured connection with a phase-appropriate revision after %s withdrawal",
   async (phase) => {
     const fixture = await samlSaveFixture();
     const prior = { ...draft(), name: "Earlier saved identity" };
@@ -310,7 +310,9 @@ it.each(["record-close", "trust-callback"] as const)(
       held.resume();
       expect(await outcome).toBe(false);
       expect(getIdentityConnectionRuntime(saved.connectionId)).toEqual(prior);
-      expect(identityConnectionRevision(saved.connectionId)).not.toBe(revision);
+      if (phase === "trust-callback")
+        expect(identityConnectionRevision(saved.connectionId)).not.toBe(revision);
+      else expect(identityConnectionRevision(saved.connectionId)).toBe(revision);
       expect(signInMethods().providers).toEqual(providers);
       kvForgetAll();
       await kvHydrate([...DEVICE_CONNECTOR_KEYS, "settings.v1"]);

@@ -227,7 +227,7 @@ it("waits for actual metadata hydration before allowing Connect", async () => {
   expect(button().hasAttribute("disabled")).toBe(true);
   expect(
     screen.getByLabelText("Browser node hostname").hasAttribute("disabled"),
-  ).toBe(false);
+  ).toBe(true);
   expect(spy).toHaveBeenCalledWith([...DEVICE_CONNECTOR_KEYS]);
   await act(async () => {
     gate.resolve();

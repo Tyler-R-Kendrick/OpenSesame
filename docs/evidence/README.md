@@ -55,6 +55,8 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
 | [`2026-10-19-tailscale-peer-route/`](2026-10-19-tailscale-peer-route/README.md) | Tailscale peer routing in the shared connection form |
+| [`2026-10-19-snowflake-configuration/`](2026-10-19-snowflake-configuration/README.md) | Snowflake configuration |
+| [`2026-10-19-cloudflare-wallet-removal/`](2026-10-19-cloudflare-wallet-removal/README.md) | Cloudflare Wallet removal |
 | [`2026-10-18-tailscale-native-transport/`](2026-10-18-tailscale-native-transport/README.md) | Tailscale integration transport controls |
 | [`2026-10-18-native-item-edit/`](2026-10-18-native-item-edit/README.md) | Native password-manager item editing |
 | [`2026-10-17-p8-2-peer-trust-profiles/`](2026-10-17-p8-2-peer-trust-profiles/README.md) | Peer trust on four install profiles |

@@ -1,12 +1,7 @@
-import type { CallProtocol } from "../model-keys/protocols.js";
+import type { AiInferenceFamily } from "../hosted-model-authority.js";
 import type { BedrockAiTarget } from "./bedrock-target.js";
 import type { VertexAiTarget } from "./vertex-target.js";
-export type AiInferenceFamily =
-  | CallProtocol
-  | "openai_responses"
-  | "bedrock_converse"
-  | "replicate_predictions"
-  | "elevenlabs_scribe";
+export type { AiInferenceFamily } from "../hosted-model-authority.js";
 
 /** Azure target metadata is public; the supplied key or Entra token is not. */
 export type AzureOpenAiTarget =

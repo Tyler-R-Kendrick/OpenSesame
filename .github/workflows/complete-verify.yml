@@ -4,6 +4,7 @@ name: Complete verify
 # password parity remain separate checks; neither substitutes for this chain.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - '.github/workflows/complete-verify.yml'
       - 'packages/app-core/src/lib/agent-canaries/**'
@@ -44,6 +45,7 @@ concurrency:
 
 jobs:
   verify:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Complete pnpm verify
     runs-on: ubuntu-latest
     timeout-minutes: 180

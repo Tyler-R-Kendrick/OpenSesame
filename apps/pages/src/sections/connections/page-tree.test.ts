@@ -96,7 +96,6 @@ describe("connections page tree", () => {
       provider("google-wallet", "Google Wallet", "wallet"),
       provider("apple-wallet", "Apple Wallet", "wallet"),
       provider("samsung-wallet", "Samsung Wallet", "wallet"),
-      provider("cloudflare-wallet", "Cloudflare Wallet", "wallet"),
     ]);
     const bindings = featureBindingSections([
       provider("zulu", "Zulu Cloud", "developer"),
@@ -111,7 +110,6 @@ describe("connections page tree", () => {
       provider("google-wallet", "Google Wallet", "wallet"),
       provider("apple-wallet", "Apple Wallet", "wallet"),
       provider("samsung-wallet", "Samsung Wallet", "wallet"),
-      provider("cloudflare-wallet", "Cloudflare Wallet", "wallet"),
     ]);
     expect(groups.map((group) => group.label)).toEqual([
       "Managed",
@@ -148,12 +146,7 @@ describe("connections page tree", () => {
       bindings
         .find((group) => group.id === "wallet")
         ?.items?.map((item) => item.id),
-    ).toEqual([
-      "google-wallet",
-      "apple-wallet",
-      "samsung-wallet",
-      "cloudflare-wallet",
-    ]);
+    ).toEqual(["google-wallet", "apple-wallet", "samsung-wallet"]);
     expect(
       [...groups, ...bindings]
         .flatMap((group) => group.items ?? [])
@@ -217,7 +210,6 @@ describe("connections page tree", () => {
         ?.items?.map((item) => item.id),
     ).toEqual(
       expect.arrayContaining([
-        "cloudflare-wallet",
         "google-wallet",
         "apple-wallet",
         "samsung-wallet",

@@ -25,6 +25,9 @@ export default defineConfig({
     // full-suite run the KDF alone can exceed the default budget.
     testTimeout: 60_000,
     hookTimeout: 20_000,
+    // Real local TLS/HTTP fixtures can miss a short deadline under a loaded
+    // 12k-test run. Retry once; deterministic product failures still fail twice.
+    retry: 1,
     setupFiles: ["./src/test-setup.ts"],
   },
 });

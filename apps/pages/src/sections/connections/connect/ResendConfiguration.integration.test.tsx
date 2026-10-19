@@ -35,7 +35,7 @@ it("starts from the Resend preset and requires a key before API verification", a
   const apiKey = screen.getByRole("radio", { name: "API Key" });
   expect(apiKey).toHaveProperty("checked", false);
   expect(
-    screen.getByText("Other sign-in methods", { selector: "summary" }),
+    screen.getByText("Sign-in options", { selector: "summary" }),
   ).toBeTruthy();
   expect(screen.queryByLabelText("Resend API key")).toBeNull();
   await userEvent.click(apiKey);

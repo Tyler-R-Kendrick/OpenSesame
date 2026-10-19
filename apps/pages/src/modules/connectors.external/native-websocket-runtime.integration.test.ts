@@ -16,6 +16,7 @@ import {
   resolveComposition,
 } from "@opensesame/capability-composition";
 import { afterEach, expect, it, vi } from "vitest";
+import { genuineRuntimeFixture } from "./genuine-runtime.test-support.js";
 import {
   KEY,
   activate,
@@ -49,6 +50,7 @@ async function held(
 it.each(["lease", "dispose", "caller", "replacement"] as const)(
   "physically closes only the original held WSS socket on %s withdrawal",
   async (reason) => {
+    await genuineRuntimeFixture();
     const fixture = await providerFixture();
     const owner = activate(fixture);
     const caller = new AbortController();

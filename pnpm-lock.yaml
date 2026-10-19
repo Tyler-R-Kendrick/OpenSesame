@@ -40,6 +40,7 @@ overrides:
   promptfoo>jks-js: '-'
   '@devicefarmer/adbkit>node-forge': '-'
   '@xmldom/xmldom@^0.9.10': 0.9.12
+  '@noble/hashes@2.0.1': 2.4.0
 
 patchedDependencies:
   '@devicefarmer/adbkit@3.3.8':
@@ -4448,10 +4449,6 @@ packages:
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
-
-  '@noble/hashes@2.0.1':
-    resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
-    engines: {node: '>= 20.19.0'}
 
   '@noble/hashes@2.4.0':
     resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
@@ -13451,7 +13448,7 @@ snapshots:
 
   '@noble/curves@2.0.1':
     dependencies:
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.4.0
 
   '@noble/curves@2.4.0':
     dependencies:
@@ -13460,8 +13457,6 @@ snapshots:
   '@noble/hashes@1.4.0': {}
 
   '@noble/hashes@1.8.0': {}
-
-  '@noble/hashes@2.0.1': {}
 
   '@noble/hashes@2.4.0': {}
 
@@ -14271,7 +14266,7 @@ snapshots:
   '@scure/bip32@2.0.1':
     dependencies:
       '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
 
   '@scure/bip39@1.3.0':
@@ -14286,7 +14281,7 @@ snapshots:
 
   '@scure/bip39@2.0.1':
     dependencies:
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
 
   '@sec-ant/readable-stream@0.4.1': {}
@@ -18042,7 +18037,7 @@ snapshots:
     dependencies:
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
       '@scure/bip32': 2.0.1
       '@scure/bip39': 2.0.1

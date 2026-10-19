@@ -24,6 +24,11 @@ const CONNECTOR_FILES = [
 ];
 
 export const CONNECTOR_LIB_RULES = [
+  optional(
+    `${L}test/native-s3-backup-fixtures.ts`,
+    CONNECTORS,
+    "test-only TLS fixture for native S3 encrypted vault backup",
+  ),
   shared(
     `${L}secret-backends/onepassword-artifacts.json`,
     "pinned public SDK asset metadata shared by ownership and the native worker",
