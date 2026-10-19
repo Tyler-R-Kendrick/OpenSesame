@@ -77,14 +77,34 @@ function runListed(command, args, options = {}) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+/** `pnpm` args for `turbo run test`. Scope `all` uses concurrency 8. */
+export function turboTestArgs(scope) {
+  return [
+    "exec",
+    "turbo",
+    "run",
+    "test",
+    `--concurrency=${scope === "all" ? 8 : 4}`,
+  ];
+}
+
+/** Typecheck beside the full suite. `runLanes` runs the two lanes together. */
+export function allScopeLanes() {
+  return [
+    [{ command: "pnpm", args: ["typecheck"] }],
+    [{ command: "pnpm", args: turboTestArgs("all") }],
+  ];
+}
+
 async function runTs(plan) {
   if (plan.scope === "none") {
     console.log("no workspace package changed");
     return;
   }
   if (plan.scope === "all") {
-    runListed("pnpm", ["typecheck"]);
-    runListed("pnpm", ["test"]);
+    // Typecheck and the full suite do not wait on each other.
+    const status = await runLanes(allScopeLanes());
+    if (status !== 0) process.exit(status);
     return;
   }
   if (plan.packages.length === 0) {
