@@ -25,6 +25,8 @@ export type AiConnectionDraft = {
 };
 
 export type AiConnectionTransport = {
+  /** Acquire one route snapshot at an explicit workflow boundary, before credentials. */
+  capture?: () => AiConnectionTransport;
   fetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   assertCurrent(): void;
   signal: AbortSignal;

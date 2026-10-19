@@ -81,8 +81,10 @@ describe("saving a model provider from its Add sheet", () => {
     const fixture = connectorIntegration();
     vi.spyOn(aiConnectionUiDependencies, "save").mockImplementation(
       async (draft) => {
+        const native = nativeProviderTransport();
         const transport = {
-          ...nativeProviderTransport(),
+          fetch: native.fetch,
+          assertCurrent: native.assertCurrent,
           signal: new AbortController().signal,
         };
         await probeAiConnection(draft, transport, transport.assertCurrent);
