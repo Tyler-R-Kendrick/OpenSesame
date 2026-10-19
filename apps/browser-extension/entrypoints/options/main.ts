@@ -24,6 +24,7 @@ import type { RunnerStatus } from "../../runner/service";
 import { RunnerSettings } from "../../runner/settings";
 import { SealedKv, browserStore } from "../../runner/store";
 import { RunnerVault } from "../../runner/vault";
+import { bindVaultAppNavigation } from "./vault-app";
 
 const kv = new SealedKv(browserStore());
 const settings = new RunnerSettings(kv);
@@ -303,5 +304,7 @@ el("drive-arm").addEventListener("click", () => {
       granted ? arm(origin) : say("The browser did not grant that site."),
     );
 });
+
+bindVaultAppNavigation(kv, say);
 
 void render();

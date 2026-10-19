@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
+import { CanaryCredentialsPanel } from "./settings/security/CanaryCredentialsPanel.js";
+import { RetiredCredentialsPanel } from "./settings/security/RetiredCredentialsPanel.js";
 import { useSettingsCategory } from "./settings/use-settings-category.js";
 
 import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
@@ -224,6 +226,8 @@ function SecurityPanels({
       <VaultKeyProtectionPanel />
       <UnlockMethodsPanel />
       <DuressPanel />
+      <RetiredCredentialsPanel />
+      <CanaryCredentialsPanel />
       {duressShown ? <TravelPanel /> : null}
       {contributed.map(({ id, Panel }) => (
         <Panel key={id} />

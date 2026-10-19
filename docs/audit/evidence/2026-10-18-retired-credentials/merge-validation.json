@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-18T15:28:07.575765+00:00",
+  "source": {
+    "head": "2cd3edf1c820c3c1876b9f1468d8bf30fb1238ea",
+    "tree": "79538a3aa75b163052d615d7bdcf30f77ba99d9d",
+    "upstreamMain": "17f597febe19bf11396277dd76e12f73c4129339",
+    "cleanDuringBuildAndRuntimeProof": true
+  },
+  "normalAndHardenedBundleGate": {
+    "exit": 0,
+    "normalLimitsKiB": {
+      "javascript": 7355,
+      "javascriptGzip": 2240
+    },
+    "limitsChanged": false,
+    "hardenedProfiles": [
+      "minimal-local-hardened",
+      "family-local-hardened"
+    ],
+    "bothOfficialBuildExits": 0,
+    "ownershipEnforced": true,
+    "gateLogSha256": "e452106f7ce6a943fcb4dd4b5daaa4270818c137741a9ebae04a943a81fc35ca",
+    "minimalLogSha256": "39e81b22ce5af76b313844edfb457a8ca3557f03b025cf75a78a4dabc7d3406e",
+    "familyLogSha256": "ad84062b2fc10ffc2b133bf89c55cbea031d94001d9df157942f69aea0d34bf6"
+  },
+  "catalogPacking": {
+    "runtimeDecoderChanged": false,
+    "originalPlanRows": 252,
+    "originalCatalogRows": 186,
+    "focusedTestsPassed": 314,
+    "byteForByteRoundTrip": true,
+    "rawSavingsAgainst540Unoptimized": 11771,
+    "gzipSavingsAgainst540Unoptimized": 3313
+  },
+  "pwaToRealReceiver": {
+    "status": "PASS",
+    "signedGitHead": "2cd3edf1c820c3c1876b9f1468d8bf30fb1238ea",
+    "gitTree": "79538a3aa75b163052d615d7bdcf30f77ba99d9d",
+    "trackedAndUntrackedWorktreeClean": true,
+    "sourceInputs": 8624,
+    "sourceUnchangedDuringRun": true,
+    "sourceRowsSha256": "8dd136d77a5ce9e97442aabc01646108f90eccbc2153f7942f7fe7c131fbeace",
+    "artifactFiles": 260,
+    "artifactUnchangedDuringRun": true,
+    "artifactRowsSha256": "f3c341d35cf59f0890106fff0ccc7831e0f5b29ac4047f0a2ecfbf39cf0ef937",
+    "driverSha256": "28ad3a76dbb0602ce4ccc17218892a4a6ba71bb4967615bbd521a2328412129c",
+    "checks": [
+      "UI pairing binds exact browser origin and loopback endpoint",
+      "browser signed inspection reaches actual paired receiver",
+      "actual UI fresh-owner enrollment persists receiver record",
+      "fresh-owner export returns only receiver-bound detection artifact",
+      "exported artifact establishes actual detection-only connection",
+      "exported artifact invokes detection-only tool on actual receiver",
+      "actual UI inspection displays receiver connection and tool-use events",
+      "actual UI fresh-owner removal is confirmed by signed empty inspection",
+      "removed artifact bearer no longer reaches detection tool",
+      "real browser replay of spent signed nonce is refused",
+      "actual receiver refuses foreign browser origin without CORS admission",
+      "encrypted receiver state reopens with revoked record absent and two real detection events",
+      "actual receiver accepts exact-origin browser CORS preflight",
+      "production canary browser flow has zero page errors",
+      "successful real challenge/execute HTTP responses admit only exact paired origin"
+    ],
+    "signedOwnerCommands": 6,
+    "pageErrorCount": 0,
+    "requestNotificationCount": 2,
+    "requestNotifications": [
+      {
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "requestNotificationQualification": "Browser requestfailed notifications are preserved; all six signed owner commands completed with actual receiver HTTP 200 and verified lifecycle effects. This is not a zero-network-error claim.",
+    "receiverHttpStatusCounts": {
+      "204": 13,
+      "200": 14,
+      "403": 3
+    },
+    "receiverRecordsAfterReopen": 0,
+    "receiverDetectionEventsAfterReopen": 2,
+    "privateCredentialsOrStateIncluded": false,
+    "normalMeasurements": {
+      "dist": "/tmp/retired-ui-17f-final-20261018",
+      "total": 21461316,
+      "javascript": 7529602,
+      "javascriptGzip": 2293863,
+      "css": 184828,
+      "files": 260,
+      "kib": {
+        "total": {
+          "exact": 20958.31640625,
+          "gateRounded": 20958
+        },
+        "javascript": {
+          "exact": 7353.126953125,
+          "gateRounded": 7353
+        },
+        "javascriptGzip": {
+          "exact": 2240.1005859375,
+          "gateRounded": 2240
+        },
+        "css": {
+          "exact": 180.49609375,
+          "gateRounded": 180
+        }
+      }
+    },
+    "unchangedNormalBudgetsKiB": {
+      "javascript": 7355,
+      "javascriptGzip": 2240
+    },
+    "normalBudgetQualification": "Existing official gate compares Math.round(bytes/1024): 7353 raw and 2240 gzip KiB. Exact measured gzip is 2240.1005859375 KiB; this receipt does not claim an unrounded 2240 KiB byte ceiling."
+  },
+  "installedRelease": {
+    "archiveSha256": "86b5a37cf00559737e890bbcce9435d5d931a4e35a457685091bd902420f2f29",
+    "nativeReleaseBinarySha256": "930075a59de7f6487608230bf94d84717c9df31e6142960f8646bed164b1bda3",
+    "nodeVersionsPassed": [
+      "22.23.3",
+      "24.19.0"
+    ],
+    "localSourceHashesMatched": {
+      "library": 683,
+      "cli": 711
+    },
+    "offlineInstallBareJavaScriptStrictNodeNextTypesAndNativeWorkflowsPassed": true,
+    "sourceClosureExtendedToSignedHead": true,
+    "noNpmPublication": true
+  },
+  "fixtureCorrections": {
+    "localIamFullDesktopAndPhoneBrowserSuite": 0,
+    "siopFullBrowserAndNodeRpSuite": 0,
+    "productionAuthenticationChecksWeakened": false,
+    "correction": "Bare browser fixtures now await the same genuine durable-key initialization as production boot."
+  },
+  "securityQualifications": {
+    "gitleaks": "25 existing findings across seven files, zero added; findings remain unsuppressed. Latest scan bound to staged89325636 before disjoint17f update; all seven matched main540 bytes.",
+    "cargoAdvisories": "13 previously recorded baseline Cargo advisories unresolved; Cargo.lock unchanged.",
+    "fullVerification": "The last complete pnpm verify, task-access and 4000-schedule Shuttle pass belongs to earlier integration tree efe05981067fc20e36103056f88ce2075813a1e5. It is historical evidence, not a new complete gate for this source.",
+    "latestNativeFastMtls": "Focused guard and actual installedCLI checks pass. Full fast mTLS rerun was deliberately stopped at resource threshold, exit143, and is not counted as a pass; fresh CI required.",
+    "optionalTools": "Unavailable Kani/Miri/cargo-fuzz and live-model red-team were not credited."
+  },
+  "landing": "No PR merged at recording. Current-head area CI, password parity and the applicable Complete verify workflow must succeed before auto-merge authorization. Later heads are restacked bottom-up; no admin merge or copied checks.",
+  "strictIntegrationConfigurationFix": {
+    "file": "turbo.json",
+    "change": "Forward PLAYWRIGHT_CHROMIUM to integration tasks in strict mode, matching existing e2e behavior. No broad environment passthrough.",
+    "command": "TURBO_ENV_MODE=strict PLAYWRIGHT_CHROMIUM=/usr/bin/chromium pnpm test:integration",
+    "exit": 0,
+    "tasksSuccessful": 5,
+    "tasksTotal": 5,
+    "cachedTasks": 1,
+    "actualVisualCasesPassed": 6,
+    "testsWorkersAssertionsAndImageThresholdsUnchanged": true,
+    "localLooseModeAdapterUsed": false,
+    "logSha256": "504abbcb2534aa5f64589e1cf9fbf913df44f1df7ca3b93128f65cf2e7f56511",
+    "productionRuntimeFilesChanged": false
+  },
+  "peeringDiagnosticObservationCorrection": {
+    "recordedAt": "2026-10-18T16:31:14.793555+00:00",
+    "productionBehaviorChanged": false,
+    "ciRootCauseConfirmed": false,
+    "originalFailedRun": 39139848933,
+    "originalFailedJob": 117713232157,
+    "failedStep": "Peering diagnostics",
+    "independentBug": "Visible ICE row could unmount before deferred locator text read. Visibility and text now captured in one browser turn.",
+    "deadlineMilliseconds": 45000,
+    "assertionsAndRtcFallbackPreserved": true,
+    "regression": "Actual Chromium: valid, empty and invalid text retained across real node unmount; hidden row ignored until visible. Existing verification script runs regression first.",
+    "regressionPassed": true,
+    "regressionLogSha256": "6dd8ade992abe2b83ab7abae1d285659a5655b16e8322b61374e6bad0d357e58",
+    "sourceFileSha256": {
+      "apps/pages/package.json": "783e1ddd70c97de1da637324db45cb1b8768486b5600a48450d9fc526e3de0ab",
+      "apps/pages/scripts/verify-peering-diagnostics.mjs": "873ffdc9157887bc077a46ccd24fb436a597ac9101f8478493c052d7005d665d",
+      "apps/pages/scripts/lib/peering-diagnostic-observation.mjs": "148dc9bf8118cb55707a70ec58eb7bac22867d73696b6588a887da31fcca4736",
+      "apps/pages/scripts/verify-peering-diagnostic-observation.mjs": "07e2c2bca6f1d1d7aec2ed17417880615c90fe42c95de320f329cddc05c7f63d",
+      "scripts/lib/ci-gate-drivers.mjs": "4f3999dce1a57d3f2ab3e644cacb15af6f806109ab067c742de5cedee789893d"
+    },
+    "qualification": "Unchanged local direct-join walk failed because native Chromium generated no ICE candidates; differs from earlier passing CI same-machine step. No production runtime artifact was rebuilt or relabelled; earlier complete source hashes remain bound to their recorded source.",
+    "driverGateClassification": "New regression explicitly classified as journeys, matching existing caller. Existing ci-gates contract reproduced missing-row failure before correction.",
+    "qualityContracts": {
+      "filesPassed": 68,
+      "testsPassed": 595,
+      "logSha256": "ab228a7744663fbf3539e2991af43924cbdf00b1f3ecc1829267fd33388d8109"
+    }
+  }
+}

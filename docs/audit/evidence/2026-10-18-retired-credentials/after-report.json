@@ -1,0 +1,91 @@
+{
+  "label": "after",
+  "dist": "/tmp/retired-ui-final6-complete-20261018",
+  "browser": "151.0.7922.173",
+  "profiles": [
+    {
+      "name": "desktop",
+      "width": 1280,
+      "height": 900,
+      "retiredPanels": 1,
+      "measured": [
+        {
+          "x": 280,
+          "y": 482.828125,
+          "width": 960,
+          "height": 86.6875
+        }
+      ],
+      "images": [
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-desktop-security.png",
+          "sha256": "db86461215cb77fe8d613230c4cadbc39cca3f90be511b4f6e1cbed31e668205"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-desktop-fresh-primary.png",
+          "sha256": "99d5d1fcf17b112ff5170e24014fb58cd8620375ddd031c007386cd1b9409010"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-desktop-management.png",
+          "sha256": "4780e46719521182b44257afdf60b4dcfa409b84cc4b5508d0974a3953b4eb9e"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-desktop-synthetic-consent.png",
+          "sha256": "21a25f5c22d4bcded2b2112402fae25e937053b82a970ec4ddf0d8a289bcba0c"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-desktop-enrolled.png",
+          "sha256": "fb2c20acc0eeb380d4b2bd2da38578cb1a822f486847dc8cfecaab244f79ea0a"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-desktop-canary-receiver.png",
+          "sha256": "484bf03ce02cc42620a4c2ae2e7b918908b4776a4d9264fceb0fd7972da443f8"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "retiredPanels": 1,
+      "measured": [
+        {
+          "x": 16,
+          "y": 380.671875,
+          "width": 358,
+          "height": 149.078125
+        }
+      ],
+      "images": [
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-phone-security.png",
+          "sha256": "f39da2b20c297a4a160de724993c591c61fe26b46ab251e175c6b6d54f8a1ca3"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-phone-fresh-primary.png",
+          "sha256": "4f31ab33637f9641dcfad3d8e397b04e4e1ea910e47cc554c60f53039805218e"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-phone-management.png",
+          "sha256": "abca8c3f1cf4e9f27cd53cdaba03ea7a747dd2e2e092ce441af4a1c71da1071b"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-phone-synthetic-consent.png",
+          "sha256": "8394f0e527f1da5fd94f8bbde55176ba3e04c5f279b429e711decae9f7e3969c"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-phone-enrolled.png",
+          "sha256": "7fa4970e1f13e415b548ca4031e502efa8b5d0c987f8164d07afd964a1d7be53"
+        },
+        {
+          "file": "/tmp/retired-ui-final6-evidence-20261018/after-phone-canary-receiver.png",
+          "sha256": "6ff8ab0298974759f4ff7f264b9130e026ae09e38db56d4064f213d101a2018a"
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "qualification": "Actual production Vite build and real PIN setup/native browser storage. Phone is viewport emulation; service workers blocked and external networking denied. No ownership/authentication or storage doubles.",
+  "status": "PASS"
+}
