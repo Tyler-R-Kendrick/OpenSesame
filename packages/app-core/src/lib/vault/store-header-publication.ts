@@ -31,3 +31,5 @@ export async function publishOriginalHeader(
     throw error;
   }
 }
+
+export { bindOriginalHeaderPolicy } from "./store-header-binding-data.js";

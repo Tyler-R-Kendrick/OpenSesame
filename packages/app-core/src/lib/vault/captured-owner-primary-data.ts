@@ -1,5 +1,4 @@
 /** Genuine primary cryptographic DATA. Only private Store provenance can issue an owner or REAL. */
-import type { BoundaryValue } from "@opensesame/os-domain";
 import {
   ROOT_KEY_BYTES,
   type VaultHeader,
@@ -7,8 +6,14 @@ import {
   importVaultKey,
   unwrapRawVaultKeyFromPassword,
 } from "@opensesame/vault-core";
-import { z } from "zod";
-import { passwordBytes } from "../retired-credentials/argon-verifier.js";
+import {
+  type CapturedOwnerPrimaryRequest,
+  copyCapturedOwnerPrimaryRequest,
+} from "./captured-owner-primary-request.js";
+export {
+  type CapturedOwnerPrimaryRequest,
+  copyCapturedOwnerPrimaryRequest,
+} from "./captured-owner-primary-request.js";
 import { deriveCapturedAgePasskeyRootData } from "./captured-age-passkey-primary-data.js";
 import { capturePasskeyPrimaryCeremonyData } from "./captured-passkey-primary-ceremony-data.js";
 import { protectorToUnlockRecord } from "./protection/adapters/webauthn-prf-ops.js";
@@ -24,18 +29,6 @@ import {
   unwrapVaultKeyWithPrf,
 } from "./unlock-factor-crypto.js";
 
-const requestSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("password"), secret: z.string().max(4096) }),
-  z.strictObject({ kind: z.literal("pin"), secret: z.string().max(4096) }),
-  z.strictObject({ kind: z.literal("passkey") }),
-  z.strictObject({
-    kind: z.literal("protector"),
-    method: z.enum(["recovery", "age", "agePasskey"]),
-    secret: z.string().max(4096).optional(),
-  }),
-]);
-export type CapturedOwnerPrimaryRequest = z.infer<typeof requestSchema>;
-const actualSecretBytes = passwordBytes;
 const actualPassword = unwrapRawVaultKeyFromPassword;
 const actualPin = unwrapVaultKeyWithPin;
 const actualProbe = capturePasskeyPrimaryCeremonyData;
@@ -50,16 +43,6 @@ const actualUncounted = isUncountedProtectorFailure;
 const actualProtectorMiss = protectorUnlockMiss;
 const PIN_MISS = "That PIN did not unlock the vault.";
 const PASSKEY_MISS = "That passkey did not unlock the vault.";
-/** Primitive requests copied before asynchronous work; test crypto/verdicts/roots are never input. */
-export function copyCapturedOwnerPrimaryRequest(input: BoundaryValue) {
-  const request = requestSchema.parse(input);
-  if ("secret" in request && request.secret !== undefined) {
-    const bytes = actualSecretBytes(request.secret);
-    bytes.fill(0);
-  }
-  return Object.freeze(request);
-}
-
 async function passkeyRoot(
   header: VaultHeader,
   check: () => void,

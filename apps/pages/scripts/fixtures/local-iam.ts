@@ -1,4 +1,5 @@
 import "./install-browser-host.js";
+import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
 import { registerLocalAgentKey } from "@opensesame/app-core/lib/local-agent-keys.js";
 import { configureLocalApplication } from "@opensesame/app-core/lib/local-applications.js";
 import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
@@ -12,6 +13,7 @@ import type { LocalAgentPublicKey } from "@opensesame/static-auth";
 
 /** Disposable browser-context fixture. This entry is never part of the Pages build. */
 export async function seed() {
+  await atRestReady();
   await vaultStore.create("Cedar-lantern-47-river!");
   const tomb = vaultStore.activeTomb();
   async function change(command: LocalDirectoryChange) {

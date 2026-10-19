@@ -4,7 +4,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import { localStore, maybePage, sessionStore } from "../ports.js";
 import { createTestHost } from "../test-host.js";
-import { allowGithub } from "./github-app-authority.test-support.js";
+import {
+  allowGithub,
+  openGithubTestOwner,
+} from "./github-app-authority.test-support.js";
 import {
   claimGithubAppCode,
   verifyGithubAppInstallations,
@@ -68,15 +71,18 @@ function ceremony() {
   );
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   configureHost(createTestHost());
   allowGithub();
   vi.stubGlobal("crypto", webcrypto);
+  await openGithubTestOwner();
   vault();
 });
-afterEach(() => {
+afterEach(async () => {
   forgetLocalGithubApp();
   vi.restoreAllMocks();
+  await vaultStore.flushPendingWrites();
+  vaultStore.lock();
   vi.unstubAllGlobals();
 });
 

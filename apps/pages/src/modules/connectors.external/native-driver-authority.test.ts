@@ -9,14 +9,20 @@ import type {
   NativeConfiguration,
   NativeRecovery,
 } from "@opensesame/app-core/lib/native-connector-schema.js";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createActivation } from "../activation.js";
 import { createTestContext } from "../test-context.js";
+import {
+  closeGenuineRuntimeFixture,
+  genuineRuntimeFixture,
+} from "./genuine-runtime.test-support.js";
 import { bindNativeApiRuntime } from "./native-api-runtime.js";
 import { bindNativeOAuthRuntime } from "./native-oauth-runtime.js";
 import { bindNativeRuntime } from "./native-runtime.js";
 
+beforeEach(genuineRuntimeFixture);
 installNativeApiTests();
+afterEach(closeGenuineRuntimeFixture);
 function activate(generation: number) {
   const test = createTestContext({
     generation,

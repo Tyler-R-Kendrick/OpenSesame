@@ -62,6 +62,7 @@ const onVisible = new Set<() => void>();
 const onOnline = new Set<(online: boolean) => void>();
 
 const page: PagePort = overlapCast({
+  location: new URL("https://app.example/"),
   get visibilityState() {
     return visibility;
   },
@@ -101,6 +102,7 @@ beforeEach(async () => {
   configureHost(createTestHost({ page, environment }));
   await vfsFlush();
   wipePersonalTomb();
+  vaultStore.loadActiveProjectScope();
   access = "granted";
   reached = [];
   drive = memoryDrive();

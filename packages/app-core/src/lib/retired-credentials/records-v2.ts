@@ -71,7 +71,12 @@ const event = z.discriminatedUnion("type", [
     trapId: text(128),
     at: timestamp,
     response: z.literal("synthetic_decoy"),
-    action: z.enum(["vault_write", "authority_denied"]),
+    action: z.enum([
+      "vault_read",
+      "vault_export",
+      "vault_write",
+      "authority_denied",
+    ]),
   }),
 ]);
 const recordsSchema = z

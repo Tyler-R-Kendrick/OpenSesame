@@ -9,6 +9,7 @@ import type {
   RootProtectionManifest,
   VaultHeader,
 } from "@opensesame/vault-core";
+import { withCurrentCredentialRetiredGuard } from "../current-credential-retired-guard.js";
 import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
 import type { EnrollableKind, HeldWebauthnPrf } from "./browser-enroll.js";
 import type { LifecycleHost, RotationKey } from "./browser-lifecycle-ops.js";
@@ -250,9 +251,21 @@ export class VaultProtectionBrowserService {
   }
 
   async rotateCompromisedRoot(input: RotationKey): Promise<void> {
-    await this.#lifecycle((operations, pinned) =>
-      operations.rotateCompromisedRoot(pinned, input),
-    );
+    const selected: RotationKey = "pin" in input ? { pin: input.pin } : input;
+    await this.#lifecycle((operations, pinned) => {
+      if (!("pin" in selected))
+        return operations.rotateCompromisedRoot(pinned, selected);
+      // CRED precedes the rotation's BODY turn and remains held through publication.
+      return withCurrentCredentialRetiredGuard(
+        selected.pin,
+        pinned.check,
+        async (check) => {
+          check();
+          await operations.rotateCompromisedRoot(pinned, selected);
+          check();
+        },
+      );
+    });
   }
 
   /**
