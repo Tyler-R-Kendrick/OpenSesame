@@ -261,9 +261,12 @@ it("cannot borrow a replacement transport after capturing the original", async (
     detach();
   }
 });
-it("keeps the prediction family and partner hidden until saved runtime and UI are ready", () => {
-  expect(
-    aiConnectionFamilies("byo-ai").map((family) => family.id),
-  ).not.toContain("replicate_predictions");
-  expect(aiConnectionPreset("replicate")).toBeNull();
+it("exposes the prediction family and native partner through the same complete preset catalog", () => {
+  expect(aiConnectionFamilies("byo-ai").map((family) => family.id)).toContain(
+    "replicate_predictions",
+  );
+  expect(aiConnectionPreset("replicate")).toMatchObject({
+    family: "replicate_predictions",
+    baseUrl: "https://api.replicate.com/v1",
+  });
 });

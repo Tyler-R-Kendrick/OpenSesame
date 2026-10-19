@@ -111,18 +111,20 @@ it("withdraws the captured owner while a real TLS poll body is held without a la
   expect(f.requests).toHaveLength(2);
 });
 
-it("keeps public Replicate picker/dispatch hidden while its explicit internal draft is valid", () => {
+it("derives the public native and BYO prediction configuration from the same validated preset", () => {
   const draft = {
     ...aiConnectionDraft("replicate"),
     model: "owner/model",
     apiKey: REPLICATE_TOKEN,
   };
   expect(validateAiConnection(draft).family).toBe("replicate_predictions");
-  expect(aiConnectionPreset("replicate")).toBeNull();
-  expect(isAiConnectionProvider("replicate")).toBe(false);
-  expect(
-    aiConnectionFamilies("byo-ai").map((family) => family.id),
-  ).not.toContain("replicate_predictions");
+  expect(aiConnectionPreset("replicate")).toMatchObject({
+    family: "replicate_predictions",
+  });
+  expect(isAiConnectionProvider("replicate")).toBe(true);
+  expect(aiConnectionFamilies("byo-ai").map((family) => family.id)).toContain(
+    "replicate_predictions",
+  );
 });
 it.each([
   { providerId: "openai" },

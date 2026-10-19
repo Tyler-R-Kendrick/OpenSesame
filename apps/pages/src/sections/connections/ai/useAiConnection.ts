@@ -4,6 +4,7 @@ import {
   validateAiConnection,
 } from "@opensesame/app-core/lib/ai-connections/configuration.js";
 import { aiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/presets.js";
+import { ReplicatePredictionInterrupted } from "@opensesame/app-core/lib/ai-connections/replicate-types.js";
 import {
   deleteAiConnection,
   saveAiConnection,
@@ -12,16 +13,16 @@ import {
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import type { AiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/types.js";
 import { vertexResourceBase } from "@opensesame/app-core/lib/ai-connections/vertex-target.js";
+import { subscribeDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
+import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+  type SecretBackendActionOwner,
+  useSecretBackendAction,
+} from "../secret-backends/useSecretBackendAction.js";
+import { replicateVerificationInput } from "./PredictionFields.js";
 
 export const aiConnectionUiDependencies = {
   save: saveAiConnection,
@@ -44,6 +45,13 @@ function changeDraft<Key extends keyof AiConnectionDraft>(
     next.azure = undefined;
   changeVertexDraft(current, next, field);
   changeBedrockDraft(current, next, field);
+  if (next.family === "replicate_predictions") next.authentication = "api-key";
+  if (
+    (current.family === "replicate_predictions" ||
+      next.family === "replicate_predictions") &&
+    ["family", "baseUrl", "model", "authentication"].includes(field)
+  )
+    next.apiKey = "";
   if (next.azure) {
     next.authentication = "api-key";
     if (next.azure.api === "dated-chat") {
@@ -125,26 +133,85 @@ function canRetainCredential(draft: AiConnectionDraft, id?: string): boolean {
   }
 }
 
-function useAiFormOwner(
-  generation: RefObject<number>,
-  setDraft: Dispatch<SetStateAction<AiConnectionDraft>>,
-  setBusy: Dispatch<SetStateAction<boolean>>,
-  setFailure: Dispatch<SetStateAction<string>>,
-  setResult: Dispatch<SetStateAction<string>>,
+function aiVaultScope() {
+  const snapshot = vaultStore.getSnapshot();
+  return JSON.stringify([
+    snapshot.status,
+    snapshot.tomb,
+    snapshot.guest,
+    snapshot.awaitingSecondStep,
+    snapshot.decoy,
+  ]);
+}
+function savedStamp(id?: string) {
+  const row = id ? readNativeConnector(id) : null;
+  return JSON.stringify([row?.revision, row?.fingerprint]);
+}
+/** Shared action ownership ends HTTP. Only the separate user controller requests cancellation. */
+export function useAiOperation(
+  onFlash: (flash: Flash) => void,
+  onWithdraw: () => void,
+  connectionId?: string,
 ) {
-  useEffect(() => {
-    const detach = vaultStore.onLock(() => {
-      generation.current += 1;
-      setDraft((current) => ({ ...current, apiKey: "" }));
-      setBusy(false);
-      setFailure("");
-      setResult("");
+  const action = useSecretBackendAction(onFlash);
+  const prediction = useRef<AbortController | null>(null);
+  const { clear } = action;
+  useLayoutEffect(() => {
+    let scope = aiVaultScope();
+    let stamp = savedStamp(connectionId);
+    const end = () => {
+      clear();
+      onWithdraw();
+    };
+    const stopLock = vaultStore.onLock(end);
+    const stopVault = vaultStore.subscribe(() => {
+      const next = aiVaultScope();
+      if (next !== scope) {
+        scope = next;
+        end();
+      }
+    });
+    const stopRows = subscribeDeviceRows(() => {
+      if (!connectionId) return;
+      const next = savedStamp(connectionId);
+      if (next !== stamp) {
+        stamp = next;
+        end();
+      }
     });
     return () => {
-      generation.current += 1;
-      detach();
+      stopLock();
+      stopVault();
+      stopRows();
+      clear();
     };
-  }, [generation, setDraft, setBusy, setFailure, setResult]);
+  }, [clear, connectionId, onWithdraw]);
+  async function runAi(
+    work: (
+      owner: SecretBackendActionOwner,
+      signal: AbortSignal,
+    ) => Promise<string | undefined>,
+  ) {
+    return action.run(async (owner) => {
+      const controller = new AbortController();
+      prediction.current = controller;
+      try {
+        return await work(owner, controller.signal);
+      } catch (error) {
+        if (
+          error instanceof ReplicatePredictionInterrupted &&
+          error.cancellationRequested
+        ) {
+          owner.check();
+          return error.message;
+        }
+        throw error;
+      } finally {
+        if (prediction.current === controller) prediction.current = null;
+      }
+    });
+  }
+  return { ...action, runAi, onCancel: () => prediction.current?.abort() };
 }
 export function useAiConnection(
   providerId: string,
@@ -156,85 +223,80 @@ export function useAiConnection(
     initialDraft(providerId, connectionId),
   );
   const [savedId, setSavedId] = useState(connectionId);
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState("");
-  const [result, setResult] = useState("");
-  const generation = useRef(0);
-  useAiFormOwner(generation, setDraft, setBusy, setFailure, setResult);
+  const [predictionInput, setPredictionInput] = useState("");
+  const withdraw = useCallback(() => {
+    setDraft((current) => ({ ...current, apiKey: "" }));
+    setPredictionInput("");
+  }, []);
+  const pending = useAiOperation(onFlash, withdraw);
   function onChange<Key extends keyof AiConnectionDraft>(
     field: Key,
     value: AiConnectionDraft[Key],
   ) {
+    pending.clear();
     setDraft((current) => changeDraft(current, field, value));
-    setFailure("");
-    setResult("");
+    if (["family", "baseUrl", "model", "authentication"].includes(field))
+      setPredictionInput("");
   }
   async function run(save: boolean) {
-    if (busy) return;
-    const started = ++generation.current;
-    setBusy(true);
-    setFailure("");
-    setResult("");
-    try {
-      if (save) {
-        const view = await aiConnectionUiDependencies.save(draft, savedId);
-        if (started !== generation.current) return;
+    await pending.runAi(async (owner, signal) => {
+      const input =
+        draft.family === "replicate_predictions"
+          ? replicateVerificationInput(draft, predictionInput)
+          : undefined;
+      const options = { signal: owner.signal, prediction: { signal } };
+      try {
+        if (!save)
+          return await aiConnectionUiDependencies.test(
+            draft,
+            savedId,
+            input,
+            options,
+          );
+        const view = await aiConnectionUiDependencies.save(
+          draft,
+          savedId,
+          input,
+          options,
+        );
+        owner.check();
         setSavedId(view.connectionId);
-        setDraft((current) => ({ ...current, apiKey: "" }));
-        setResult("AI connection verified and saved in this vault");
+        withdraw();
         window.dispatchEvent(new Event("opensesame:ai-connections-changed"));
         onSaved?.();
-      } else {
-        const label = await aiConnectionUiDependencies.test(draft, savedId);
-        if (started !== generation.current) return;
-        setResult(label);
+        return "AI connection verified and saved in this vault";
+      } catch (error) {
+        if (error instanceof ReplicatePredictionInterrupted) throw error;
+        const text =
+          error instanceof Error ? error.message : "The AI operation failed.";
+        throw new Error(
+          draft.apiKey ? text.replaceAll(draft.apiKey, "[credential]") : text,
+        );
       }
-    } catch (error) {
-      if (started !== generation.current) return;
-      const text =
-        error instanceof Error ? error.message : "The AI operation failed.";
-      const safe = draft.apiKey
-        ? text.replaceAll(draft.apiKey, "[credential]")
-        : text;
-      setFailure(safe);
-      onFlash({ tone: "err", text: safe });
-    } finally {
-      if (started === generation.current) setBusy(false);
-    }
+    });
   }
-
   async function onForget() {
-    if (busy || !savedId) return;
-    const started = ++generation.current;
-    setBusy(true);
-    setFailure("");
-    try {
+    if (!savedId) return;
+    await pending.runAi(async (owner) => {
       await aiConnectionUiDependencies.remove(savedId);
-      if (started !== generation.current) return;
+      owner.check();
       setSavedId(undefined);
-      setResult("AI connection forgotten");
       window.dispatchEvent(new Event("opensesame:ai-connections-changed"));
       onSaved?.();
-    } catch (error) {
-      if (started !== generation.current) return;
-      const text =
-        error instanceof Error
-          ? error.message
-          : "Could not forget this AI connection.";
-      setFailure(text);
-      onFlash({ tone: "err", text });
-    } finally {
-      if (started === generation.current) setBusy(false);
-    }
+      return "AI connection forgotten";
+    });
   }
   return {
+    ...pending,
     draft,
     savedId,
+    predictionInput,
+    onPredictionInput: (value: string) => {
+      pending.clear();
+      setPredictionInput(value);
+    },
     hasSavedCredentials: Boolean(savedId && readAiConnection(savedId)),
     canRetainCredential: canRetainCredential(draft, savedId),
-    busy,
-    failure,
-    result,
     onChange,
     onSave: () => void run(true),
     onTest: () => void run(false),

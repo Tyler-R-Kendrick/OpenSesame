@@ -51,7 +51,7 @@ function mount(
   return { ...rendered, draft, onChange, onSave, onTest };
 }
 
-it("uses the common BYO form to expose five genuinely different API families", async () => {
+it("uses the common BYO form to expose six genuinely different API families", async () => {
   const state = mount("byo-ai");
   const options = within(screen.getByLabelText("API family")).getAllByRole(
     "option",
@@ -62,6 +62,7 @@ it("uses the common BYO form to expose five genuinely different API families", a
     "OpenAI Responses",
     "Anthropic Messages",
     "Gemini Generate Content",
+    "Replicate predictions",
   ]);
   await choose("API family", "anthropic_messages");
   expect(state.onChange).toHaveBeenCalledWith("family", "anthropic_messages");
@@ -166,6 +167,8 @@ it.each(["azure-openai", "byo-ai"])(
         azure: { api: "v1", credential: "api-key" },
       }),
       undefined,
+      undefined,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     await choose("API family", "openai_responses");
     await choose("Azure API mode", "dated-chat");

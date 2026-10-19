@@ -9,6 +9,7 @@ export const AI_CONNECTION_FAMILIES = [
   { id: "openai_responses", label: "OpenAI Responses" },
   { id: "anthropic_messages", label: "Anthropic Messages" },
   { id: "gemini_generate_content", label: "Gemini Generate Content" },
+  { id: "replicate_predictions", label: "Replicate predictions" },
 ] as const;
 
 export function isAiConnectionFamily(
@@ -30,6 +31,13 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "replicate")
+    return {
+      providerId,
+      name: "Replicate",
+      family: "replicate_predictions" as const,
+      baseUrl: "https://api.replicate.com/v1",
+    };
   if (providerId === "aws-bedrock") {
     const bedrock = { region: "us-east-1", credential: "sigv4" } as const;
     return {
@@ -81,20 +89,8 @@ export function isAiConnectionProvider(providerId: string): boolean {
   return aiConnectionPreset(providerId) !== null;
 }
 
-/** Internal verified-runtime defaults; public picker exposure waits for complete UI. */
-export function aiConnectionRuntimePreset(providerId: string) {
-  if (providerId === "replicate")
-    return {
-      providerId,
-      name: "Replicate",
-      family: "replicate_predictions" as const,
-      baseUrl: "https://api.replicate.com/v1",
-    };
-  return aiConnectionPreset(providerId);
-}
-
 export function aiConnectionDraft(providerId: string): AiConnectionDraft {
-  const preset = aiConnectionRuntimePreset(providerId);
+  const preset = aiConnectionPreset(providerId);
   if (!preset) throw new Error("This provider has no supported AI protocol.");
   return {
     ...preset,

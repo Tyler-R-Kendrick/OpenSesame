@@ -9,18 +9,20 @@ import { useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconKey } from "../../../components/IconKey.js";
-import { IconPlay } from "../../../components/Icons.js";
+import { IconPlay, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 
-import {
-  BedrockConnectionFields,
-  BedrockConnectionHelp,
-} from "./BedrockConnectionFields.js";
+import { BedrockConnectionFields } from "./BedrockConnectionFields.js";
 import {
   VertexConnectionFields,
-  VertexConnectionHelp,
   VertexEndpointChoice,
 } from "./VertexConnectionFields.js";
+
+import {
+  AiConnectionSetup,
+  PredictionInput,
+  predictionInputReady,
+} from "./PredictionFields.js";
 
 export type AiConnectionFormProps = {
   draft: AiConnectionDraft;
@@ -35,6 +37,9 @@ export type AiConnectionFormProps = {
   ) => void;
   onSave: () => void;
   onTest: () => void;
+  predictionInput?: string;
+  onPredictionInput?: (value: string) => void;
+  onCancel?: () => void;
 };
 type Fields = Pick<AiConnectionFormProps, "draft" | "busy" | "onChange">;
 
@@ -50,10 +55,10 @@ function connectionReady(draft: AiConnectionDraft, retained: boolean): boolean {
 /** BYO and optimized partner pages draw one protocol configuration form. */
 export function AiConnectionForm(props: AiConnectionFormProps) {
   const { draft, busy, onChange } = props;
-  const ready = connectionReady(
-    draft,
-    props.canRetainCredential ?? props.saved,
-  );
+  const prediction = draft.family === "replicate_predictions";
+  const ready =
+    connectionReady(draft, props.canRetainCredential ?? props.saved) &&
+    (!prediction || predictionInputReady(draft, props.predictionInput ?? ""));
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (ready && !busy) props.onSave();
@@ -74,6 +79,14 @@ export function AiConnectionForm(props: AiConnectionFormProps) {
       <EndpointFields draft={draft} busy={busy} onChange={onChange} />
       <CredentialFields {...props} />
       <AiConnectionSetup draft={draft} busy={busy} onChange={onChange} />
+      {prediction ? (
+        <PredictionInput
+          label="Prediction verification input JSON"
+          value={props.predictionInput ?? ""}
+          busy={busy}
+          onChange={props.onPredictionInput}
+        />
+      ) : null}
       <FormCommit
         label="Save AI connection"
         disabled={busy || !ready}
@@ -86,6 +99,11 @@ export function AiConnectionForm(props: AiConnectionFormProps) {
         >
           <IconPlay size={16} />
         </IconKey>
+        {prediction && busy && props.onCancel ? (
+          <IconKey label="Cancel prediction" onClick={props.onCancel}>
+            <IconX size={16} />
+          </IconKey>
+        ) : null}
         {props.failure ? <StatusMark tone="err" label={props.failure} /> : null}
         {props.result ? <StatusMark tone="ok" label={props.result} /> : null}
       </FormCommit>
@@ -211,6 +229,8 @@ function CredentialFields(
   props: Fields & Pick<AiConnectionFormProps, "saved">,
 ) {
   const authId = useId();
+  if (props.draft.family === "replicate_predictions")
+    return <SecretField {...props} />;
   if (props.draft.family === "bedrock_converse")
     return <BedrockConnectionFields {...props} />;
   if (props.draft.vertex) return <VertexConnectionFields {...props} />;
@@ -307,52 +327,5 @@ function AzureCredentialFields({ draft, busy, onChange }: Fields) {
         <option value="entra-token">Entra access token</option>
       </select>
     </div>
-  );
-}
-function AiConnectionSetup({ draft, busy, onChange }: Fields) {
-  const tokenParameterId = useId();
-  if (draft.family === "bedrock_converse") return <BedrockConnectionHelp />;
-  if (draft.vertex) return <VertexConnectionHelp draft={draft} />;
-  return (
-    <details className="conn-client-alt">
-      <summary>Connection setup</summary>
-      {draft.family === "openai_chat" ? (
-        <div className="field">
-          <label htmlFor={tokenParameterId}>Output token parameter</label>
-          <select
-            id={tokenParameterId}
-            value={draft.tokenParameter}
-            disabled={busy}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (value === "max_tokens" || value === "max_completion_tokens")
-                onChange("tokenParameter", value);
-            }}
-          >
-            <option value="max_completion_tokens">max_completion_tokens</option>
-            <option value="max_tokens">max_tokens</option>
-          </select>
-        </div>
-      ) : null}
-      <p>
-        {draft.azure
-          ? "Enter the Azure resource endpoint, including any custom mount. The operation adds /openai/v1 or the dated deployment path."
-          : "The base URL includes the API prefix."}{" "}
-        Your service must permit this browser origin through CORS. The
-        credential is saved as a Token credential in the current vault and sent
-        only to the configured endpoint.
-      </p>
-      {draft.azure?.credential === "entra-token" ? (
-        <p>
-          Supply an Entra access token. This form does not sign in or refresh
-          it.
-        </p>
-      ) : null}
-      <p>
-        Testing and saving send a short prompt with up to 16 output tokens.
-        Changing the target or authentication requires entering the credential
-        again.
-      </p>
-    </details>
   );
 }

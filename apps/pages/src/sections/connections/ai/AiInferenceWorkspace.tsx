@@ -1,34 +1,37 @@
 import { performSavedAiInference } from "@opensesame/app-core/lib/ai-connections/runtime.js";
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
+import { IconKey } from "../../../components/IconKey.js";
+import { IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { PredictionInput, predictionInputReady } from "./PredictionFields.js";
+import { useAiOperation } from "./useAiConnection.js";
 
-export function AiInferenceWorkspace({
-  connectionId,
-}: { connectionId: string }) {
+function useAiInference(connectionId: string) {
   const saved = readAiConnection(connectionId);
+  const prediction = saved?.family === "replicate_predictions";
   const supportsStreaming =
-    !saved?.vertex && saved?.family !== "bedrock_converse";
+    !saved?.vertex && saved?.family !== "bedrock_converse" && !prediction;
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("");
-  const [failure, setFailure] = useState("");
-  const [busy, setBusy] = useState(false);
   const [stream, setStream] = useState(true);
-  const pending = useRef<AbortController | null>(null);
-  useEffect(() => () => pending.current?.abort(), []);
+  const withdraw = useCallback(() => {
+    setPrompt("");
+    setAnswer("");
+  }, []);
+  const pending = useAiOperation(() => {}, withdraw, connectionId);
+  const ready = Boolean(
+    saved && (prediction ? predictionInputReady(saved, prompt) : prompt.trim()),
+  );
   async function invoke() {
-    if (busy || !prompt.trim()) return;
+    if (!ready) return;
     const draft = readAiConnection(connectionId);
     if (!draft) return;
-    const lifetime = new AbortController();
-    pending.current = lifetime;
-    setBusy(true);
     setAnswer("");
-    setFailure("");
-    try {
+    await pending.runAi(async (owner, signal) => {
       const result = await performSavedAiInference(
         connectionId,
         {
@@ -36,24 +39,53 @@ export function AiInferenceWorkspace({
           messages: [{ role: "user", content: prompt }],
           maxOutputTokens: 1024,
         },
-        {
-          signal: lifetime.signal,
-          assertCurrent: () => lifetime.signal.throwIfAborted(),
-        },
+        { signal: owner.signal, assertCurrent: owner.check },
         stream && supportsStreaming
-          ? (text) => setAnswer((current) => current + text)
+          ? (text) => {
+              owner.check();
+              setAnswer((current) => current + text);
+            }
           : undefined,
+        { signal },
       );
-      if (!lifetime.signal.aborted) setAnswer(result.answer);
-    } catch (error) {
-      if (!lifetime.signal.aborted)
-        setFailure(
-          error instanceof Error ? error.message : "The model request failed.",
-        );
-    } finally {
-      if (!lifetime.signal.aborted) setBusy(false);
-    }
+      owner.check();
+      setAnswer(result.answer);
+      return undefined;
+    });
   }
+  const change = (value: string) => {
+    pending.clear();
+    setPrompt(value);
+    setAnswer("");
+  };
+  return {
+    prediction,
+    supportsStreaming,
+    prompt,
+    answer,
+    stream,
+    setStream,
+    pending,
+    ready,
+    invoke,
+    change,
+  };
+}
+export function AiInferenceWorkspace({
+  connectionId,
+}: { connectionId: string }) {
+  const {
+    prediction,
+    supportsStreaming,
+    prompt,
+    answer,
+    stream,
+    setStream,
+    pending,
+    ready,
+    invoke,
+    change,
+  } = useAiInference(connectionId);
   return (
     <section className="panel" aria-label="Model inference">
       <div className="panel__head">
@@ -65,20 +97,29 @@ export function AiInferenceWorkspace({
         <FailureNotice
           id={`ai-inference-${connectionId}`}
           title="Model inference"
-          message={failure}
+          message={pending.failure}
         />
-        <FieldShell
-          label="Prompt"
-          value={prompt}
-          disabled={busy}
-          onValueChange={setPrompt}
-        />
+        {prediction ? (
+          <PredictionInput
+            label="Prediction input JSON"
+            value={prompt}
+            busy={pending.busy}
+            onChange={change}
+          />
+        ) : (
+          <FieldShell
+            label="Prompt"
+            value={prompt}
+            disabled={pending.busy}
+            onValueChange={change}
+          />
+        )}
         {supportsStreaming ? (
           <label>
             <input
               type="checkbox"
               checked={stream}
-              disabled={busy}
+              disabled={pending.busy}
               onChange={(event) => setStream(event.target.checked)}
             />{" "}
             Stream response
@@ -87,13 +128,27 @@ export function AiInferenceWorkspace({
           <p>Responses appear when the request completes.</p>
         )}
         <FormCommit
-          label="Send prompt"
-          disabled={busy || !prompt.trim()}
-          busy={busy}
+          label={prediction ? "Run prediction" : "Send prompt"}
+          disabled={pending.busy || !ready}
+          busy={pending.busy}
           onClick={() => void invoke()}
-        />
-        {failure ? <StatusMark tone="err" label={failure} /> : null}
-        <output aria-label="Model answer" aria-live="polite">
+        >
+          {prediction && pending.busy ? (
+            <IconKey label="Cancel prediction" onClick={pending.onCancel}>
+              <IconX size={16} />
+            </IconKey>
+          ) : null}
+          {pending.failure ? (
+            <StatusMark tone="err" label={pending.failure} />
+          ) : null}
+          {pending.result ? (
+            <StatusMark tone="ok" label={pending.result} />
+          ) : null}
+        </FormCommit>
+        <output
+          aria-label={prediction ? "Prediction output" : "Model answer"}
+          aria-live="polite"
+        >
           {answer}
         </output>
       </div>

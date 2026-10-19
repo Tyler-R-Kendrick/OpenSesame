@@ -11,7 +11,7 @@ import {
   bedrockConnectionTarget,
   bedrockCredential,
 } from "./bedrock-target.js";
-import { aiConnectionFamilies, aiConnectionRuntimePreset } from "./presets.js";
+import { aiConnectionFamilies, aiConnectionPreset } from "./presets.js";
 import { replicatePredictionTarget } from "./replicate-types.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
 import {
@@ -89,7 +89,7 @@ export function validateAiConnection<Value>(
       "Check the AI connection fields.",
     );
   const draft = result.data;
-  const preset = aiConnectionRuntimePreset(draft.providerId);
+  const preset = aiConnectionPreset(draft.providerId);
   const supportedFamily =
     draft.family === "replicate_predictions"
       ? ["replicate", "byo-ai"].includes(draft.providerId)
