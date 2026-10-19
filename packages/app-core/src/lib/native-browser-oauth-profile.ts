@@ -212,7 +212,7 @@ export type NativeBrowserOAuthEndpoints = {
 };
 export function browserOAuthEndpoints(
   profile: NativeBrowserOAuthProfile,
-  configuration: NativeConfiguration,
+  configuration: Pick<NativeConfiguration, "parameters">,
 ): NativeBrowserOAuthEndpoints {
   if (profile.id === "auth0" || profile.id === "okta")
     return nativeTenantOAuthEndpoints(
