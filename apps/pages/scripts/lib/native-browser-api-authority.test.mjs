@@ -170,7 +170,7 @@ it.each(NATIVE_REPRESENTATIVE_API_IDS)(
     );
   },
 );
-it.each(["postmark", "algolia"])(
+it.each(["postmark", "algolia", "datadog"])(
   "consumes %s resources through saved common controller and cold sealed reload",
   async (providerId) => {
     const o = await authority(providerId);
@@ -196,9 +196,15 @@ it.each(["postmark", "algolia"])(
     const shared = providerId === "algolia";
     const path = shared
       ? "/1/indexes?page=0&hitsPerPage=20"
-      : "/messages/outbound?count=20&offset=0&messagestream=outbound";
+      : providerId === "datadog"
+        ? "/api/v1/monitor?page=0&page_size=20"
+        : "/messages/outbound?count=20&offset=0&messagestream=outbound";
     expect(o.requests.map((item) => item.path)).toEqual([
-      shared ? path : "/server",
+      shared
+        ? path
+        : providerId === "datadog"
+          ? "/api/v2/validate_keys"
+          : "/server",
       path,
       path,
     ]);
@@ -209,7 +215,7 @@ it.each(["postmark", "algolia"])(
         ? Array(3).fill(["shared", "provider.indices.read"])
         : [
             ["verification", null],
-            ...Array(2).fill(["resource", "provider.messages.read"]),
+            ...Array(2).fill(["resource", o.protocol.read.id]),
           ],
     );
     expect(o.browserFetch).not.toHaveBeenCalled();
@@ -315,7 +321,7 @@ it.each([
     expect(o.browserFetch).not.toHaveBeenCalled();
   },
 );
-it.each(["postmark", "algolia"])(
+it.each(["postmark", "algolia", "datadog"])(
   "checks replacement credentials on the actual %s resource route",
   async (providerId) => {
     const o = await authority(providerId);
@@ -335,7 +341,7 @@ it.each(["postmark", "algolia"])(
     expect(o.browserFetch).not.toHaveBeenCalled();
   },
 );
-it.each(["postmark", "algolia"])(
+it.each(["postmark", "algolia", "datadog"])(
   "physically drains paused %s resource traffic on owner withdrawal",
   async (providerId) => {
     const o = await authority(providerId);

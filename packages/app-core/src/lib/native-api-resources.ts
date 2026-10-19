@@ -198,7 +198,38 @@ function projectContentfulSpaces(body: BoundaryValue): BoundaryValue {
     })),
   };
 }
+const monitors = z
+  .array(
+    z.object({
+      id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+      name: z.string().min(1).max(4096).refine(printable),
+    }),
+  )
+  .max(20);
+function projectDatadogMonitors(body: BoundaryValue): BoundaryValue {
+  const response = monitors.parse(body);
+  if (new Set(response.map((monitor) => monitor.id)).size !== response.length)
+    throw new NativeApiError("response");
+  return {
+    label: `Showing ${response.length} ${response.length === 1 ? "monitor" : "monitors"} from first page`,
+    items: response.map((monitor) => ({
+      id: String(monitor.id),
+      label: monitor.name,
+    })),
+  };
+}
 const resources: readonly Resource[] = [
+  jsonResource(
+    "List monitors",
+    {
+      providerId: "datadog",
+      operationId: "provider.monitors.read",
+      method: "GET",
+      path: "/api/v1/monitor",
+      query: { page: 0, page_size: 20 },
+    },
+    projectDatadogMonitors,
+  ),
   jsonResource(
     "List payments",
     {

@@ -128,6 +128,20 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
+  datadog: {
+    id: "provider.monitors.read",
+    label: "List monitors",
+    method: "GET",
+    url: "https://api.datadoghq.com/api/v1/monitor?page=0&page_size=20",
+    headers: { "DD-APPLICATION-KEY": "{application_key}" },
+    absentHeaders: ["authorization"],
+    reply: [{ id: 12861, name: "Protocol monitor", query: "private query" }],
+    result: {
+      label: "Showing 1 monitor from first page",
+      items: [{ id: "12861", label: "Protocol monitor" }],
+    },
+    excludedText: ["private query"],
+  },
   razorpay: {
     id: "provider.payments.read",
     label: "List payments",
