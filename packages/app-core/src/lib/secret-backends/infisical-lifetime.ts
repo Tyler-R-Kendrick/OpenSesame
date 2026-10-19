@@ -95,6 +95,7 @@ export function createInfisicalLifetime(
             (error.status === 403 && error.responseKind === "token-error"))
         )
           close();
+        else if (signal.aborted) current();
         throw error;
       }
     },

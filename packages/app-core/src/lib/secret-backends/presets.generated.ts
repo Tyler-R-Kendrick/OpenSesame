@@ -198,7 +198,7 @@ export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
   },
   {
     "providerId": "encrypted-remote",
-    "label": "Encrypted Remote",
+    "label": "Encrypted Remote Store",
     "modes": [
       "encrypted-remote"
     ],

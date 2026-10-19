@@ -21,6 +21,26 @@ import { isGitBackupProvider } from "./git-backup-forges.js";
 /** Host-owned rows keep their own flow (GitHub's App, ADR 0126). */
 const HOST_OWNED = new Set(["github"]);
 
+/**
+ * Payment providers admitted only through compiled read-only native
+ * contracts (scripts/readonly-payments.mjs). They stay configurable in the
+ * browse catalog, but the generic Vercel Connect create path must never
+ * carry them: their only road is the bounded native read contract.
+ */
+const READONLY_PAYMENT_PROVIDERS = new Set([
+  "agentcard",
+  "stripe",
+  "stripe-issuing",
+  "razorpay",
+  "lithic",
+  "privacy",
+  "marqeta",
+]);
+
+export function isReadonlyPaymentProvider(id: string): boolean {
+  return READONLY_PAYMENT_PROVIDERS.has(id);
+}
+
 const EMPTY_STRING_LIST: string[] = [];
 
 /**
