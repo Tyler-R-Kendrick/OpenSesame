@@ -15,6 +15,7 @@ import { mcpBrowserValidator } from "./scripts/mcp-browser-validator.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
 import { nativeSamlCallbackPlugin } from "./scripts/native-saml-callback-plugin.mjs";
 import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
+import { samlBrowserCrypto } from "./scripts/saml-browser-crypto.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { sharedWorkerGraph } from "./scripts/shared-worker-graph.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
@@ -283,6 +284,7 @@ export default defineConfig({
       },
     },
     mcpBrowserValidator(fileURLToPath(new URL("../..", import.meta.url))),
+    samlBrowserCrypto(fileURLToPath(new URL("../..", import.meta.url))),
     nativeClientMetadataPlugin(base),
     nativeSamlCallbackPlugin(),
     githubAppRelayPlugin(),
