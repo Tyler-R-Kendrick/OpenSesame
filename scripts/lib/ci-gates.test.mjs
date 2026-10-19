@@ -121,6 +121,7 @@ describe("ci gates, shards and drivers", () => {
     expect(gatesOf(metadata)).toEqual([
       "budgets",
       "native-connectors",
+      "native-public-backends",
       "native-public-protocol",
     ]);
     expect([
@@ -130,7 +131,12 @@ describe("ci gates, shards and drivers", () => {
         bundlePackageDirs(root),
         pushPackageDirs(root),
       ),
-    ]).toEqual(["budgets", "native-connectors", "native-public-protocol"]);
+    ]).toEqual([
+      "budgets",
+      "native-connectors",
+      "native-public-protocol",
+      "native-public-backends",
+    ]);
   });
 
   it("writes matrix legs in the shard file's order and only for wanted gates", () => {
@@ -224,8 +230,12 @@ it("runs both native production journeys for provider configuration changes", ()
   ]) {
     expect(gatesOf(path)).toContain("native-connectors");
     expect(gatesOf(path)).toContain("native-public-protocol");
+    expect(gatesOf(path)).toContain("native-public-backends");
   }
   expect(
     gatesOf("apps/pages/scripts/verify-native-public-protocol.mjs"),
   ).toEqual(["native-public-protocol"]);
+  expect(gatesOf("apps/pages/scripts/verify-secret-backends.mjs")).toEqual([
+    "native-public-backends",
+  ]);
 });

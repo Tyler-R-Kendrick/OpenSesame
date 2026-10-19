@@ -34,6 +34,7 @@ export const SHARD_GATES = [
   "mobile",
   "native-connectors",
   "native-public-protocol",
+  "native-public-backends",
   "trusted-contacts",
 ];
 /** The gates that are jobs of their own. */
@@ -318,6 +319,7 @@ export function gatesForPath(path, reach, read = () => "") {
   if (isNativeConnectorPath(path) && out.size > 0) {
     out.add("native-connectors");
     out.add("native-public-protocol");
+    out.add("native-public-backends");
   }
   return out;
 }

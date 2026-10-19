@@ -49,9 +49,9 @@ describe("the whole-repository run", () => {
     expect(step).toContain("if: github.event_name == 'pull_request'");
   });
 
-  it("does not cancel a push run for the next one", () => {
+  it("cancels a superseded pull request or main push and leaves a merge queue run", () => {
     expect(ci).toContain(
-      "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+      "cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}",
     );
   });
 
