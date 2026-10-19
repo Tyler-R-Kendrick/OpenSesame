@@ -186,11 +186,15 @@ test(
   },
 );
 test(
-  "a stale second file cannot partially apply the first file",
+  "stale later targets cannot partially apply any earlier target",
   { timeout: 10000 },
   async (t) => {
     const f = await fixture(t);
-    const paths = ["cmd/tsconnect/wasm/wasm_js.go", "net/tsdial/tsdial.go"];
+    const paths = [
+      "cmd/tsconnect/wasm/wasm_js.go",
+      "net/tsdial/tsdial.go",
+      "ipn/ipnlocal/node_backend.go",
+    ];
     const patch = paths
       .map((path) => `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-old\n+new\n`)
       .join("");
@@ -206,10 +210,16 @@ test(
       await mkdir(dirname(join(f.source, path)), { recursive: true });
       await writeFile(join(f.source, path), "old\n");
     }
-    await writeFile(join(f.source, paths[1]), "stale\n");
-    assert.notEqual(await run(f, "native-node.patch"), 0);
-    assert.equal(await readFile(join(f.source, paths[0]), "utf8"), "old\n");
-    await writeFile(join(f.source, paths[1]), "old\n");
+    for (const stale of paths.slice(1)) {
+      await writeFile(join(f.source, stale), "stale\n");
+      assert.notEqual(await run(f, "native-node.patch"), 0);
+      for (const path of paths)
+        assert.equal(
+          await readFile(join(f.source, path), "utf8"),
+          path === stale ? "stale\n" : "old\n",
+        );
+      await writeFile(join(f.source, stale), "old\n");
+    }
     assert.equal(await run(f, "native-node.patch"), 0);
     for (const path of paths)
       assert.equal(await readFile(join(f.source, path), "utf8"), "new\n");

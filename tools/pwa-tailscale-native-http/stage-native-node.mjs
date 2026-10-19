@@ -12,8 +12,14 @@ const nodeNames = [
   "native-node.patch",
   "nodepeer.go",
   "nodepeer_test.go",
+  "native-extra-dns.go",
+  "native-extra-dns_test.go",
 ];
-const patchTargets = ["cmd/tsconnect/wasm/wasm_js.go", "net/tsdial/tsdial.go"];
+const patchTargets = [
+  "cmd/tsconnect/wasm/wasm_js.go",
+  "net/tsdial/tsdial.go",
+  "ipn/ipnlocal/node_backend.go",
+];
 
 function requirePaths(files, expected) {
   if (
@@ -21,6 +27,16 @@ function requirePaths(files, expected) {
     files.some((file, index) => file.path !== expected[index])
   )
     throw new Error("Native node staging paths differ from the fixed scope.");
+}
+
+export function stagedNativeNodePath(source, name) {
+  if (!nodeNames.includes(name) || !name.endsWith(".go"))
+    throw new Error("Native Go staging path is outside the fixed scope.");
+  const directory =
+    name === "native-extra-dns.go" || name === "native-extra-dns_test.go"
+      ? "ipn/ipnlocal"
+      : "cmd/tsconnect/wasm";
+  return join(source, directory, name);
 }
 
 async function verifyPatchTargets(source, pins, requireHash, stage) {
@@ -59,7 +75,7 @@ export async function stageNativeNode({
     if (!file.path.endsWith(".go")) continue;
     await copyFile(
       join(here, file.path),
-      join(source, "cmd/tsconnect/wasm", file.path),
+      stagedNativeNodePath(source, file.path),
       constants.COPYFILE_EXCL,
     );
   }
@@ -72,10 +88,7 @@ export async function stageNativeNode({
     );
     for (const file of pins.nativeNode.files) {
       if (!file.path.endsWith(".go")) continue;
-      await requireHash(
-        join(source, "cmd/tsconnect/wasm", file.path),
-        file.sha256,
-      );
+      await requireHash(stagedNativeNodePath(source, file.path), file.sha256);
     }
   };
   await execute(

@@ -142,7 +142,7 @@
       },
       {
         "path": "native-node.patch",
-        "sha256": "20188547d026db1fe259e10dd46f2bd5f1ddb05cef321fdc3f16b81d360fc02a"
+        "sha256": "cefc688e60359533459c0675ce3e1a1ae49f1eea9baf0440f61c1f26e5ff1749"
       },
       {
         "path": "nodepeer.go",
@@ -151,11 +151,19 @@
       {
         "path": "nodepeer_test.go",
         "sha256": "25950159bb5b760f7d29f34a1918dc702136a5cd2ff7eb771962022d9a937192"
+      },
+      {
+        "path": "native-extra-dns.go",
+        "sha256": "4ab259dc73d0a77dfb2bb7911b47ac0ab4b0b65d1ea55312815107c6bf7a0cc2"
+      },
+      {
+        "path": "native-extra-dns_test.go",
+        "sha256": "9181339725c8b6ae955134a5ddcfcf1b8c9b9bdb8b89a589d9dc687a0d3099e0"
       }
     ],
     "stagingHelper": {
       "path": "stage-native-node.mjs",
-      "sha256": "19ebca118325e4b9c62d7497621dfd436605405589ecfadd6d56b0fef55de0ea"
+      "sha256": "754666c182ad3cf6595b08ed98f269163f738890fab869713f3cac3ef0144dea"
     },
     "patchTargets": [
       {
@@ -167,6 +175,11 @@
         "path": "net/tsdial/tsdial.go",
         "beforeSha256": "6900ffd939e59db4195fe038345347696e6b602d921d8d7cac6034227f7fb9ac",
         "afterSha256": "44bbb77a40ada4cc9de0bf3d42fae7113d912e4871892bb629052e9db012852a"
+      },
+      {
+        "path": "ipn/ipnlocal/node_backend.go",
+        "beforeSha256": "6e5bd3f1091437cbbbdc3256d2c4e22b95e4373595ed140d38c9d589a542881b",
+        "afterSha256": "a0832d65b115e3c3cb763a5b2833f80efd7e13d3d4db81f7219461202c7a8cf2"
       }
     ],
     "configuration": {
@@ -343,7 +356,7 @@
       },
       {
         "path": "compose-native.mjs",
-        "sha256": "affe065edb3eaffaeaf0d1d1caf54586fe1b145dd423ba25f7f42d8a52bbf1bb"
+        "sha256": "22e201ed34d04334a75d3f88ca1b4d1359df030d6354ea365be94539acc8e9ac"
       },
       {
         "path": "native-assets.mjs",
@@ -351,7 +364,7 @@
       },
       {
         "path": "compose-native.test.mjs",
-        "sha256": "e04c873a47fb06a1b143f20a153fb03166409658160bed53003ede4319819fbd"
+        "sha256": "9d06a0549a115824749faf163b57bf219e9bbc0a4747a30e2ec6ad535f996185"
       },
       {
         "path": "compress-wasm.mjs",
@@ -383,11 +396,11 @@
       },
       {
         "path": "apply-native-patch.mjs",
-        "sha256": "fb9e47e9883d7066025fc5ae533f7253c7327c55aa5485441b83860ccee71f91"
+        "sha256": "14c6b8edd70ca256658d551a6957070a0aac616ea9b4e2a5a7374358c1b823b4"
       },
       {
         "path": "apply-native-patch.test.mjs",
-        "sha256": "048c85303f805f1886a7bca5c3a17e7bbdc3b37751a1bade700fd72555a65870"
+        "sha256": "2b75c643228adddd17f0237e8612675052c0b1845dd3c8dd8e09820ad28a6bfc"
       },
       {
         "path": "compressor-archive.mjs",

@@ -2,7 +2,7 @@
 import { constants, copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { selectNativeToolchain } from "./select-toolchain.mjs";
-import { stageNativeNode } from "./stage-native-node.mjs";
+import { stageNativeNode, stagedNativeNodePath } from "./stage-native-node.mjs";
 import { stagePrivateLogging } from "./stage-private-logging.mjs";
 
 const rootNames = ["public-roots.go", "public-roots_test.go"];
@@ -46,10 +46,7 @@ async function verifyComposition({ here, source, output, pins, requireHash }) {
   );
   for (const file of pins.nativeNode.files) {
     if (!file.path.endsWith(".go")) continue;
-    await requireHash(
-      join(source, "cmd/tsconnect/wasm", file.path),
-      file.sha256,
-    );
+    await requireHash(stagedNativeNodePath(source, file.path), file.sha256);
   }
   for (const file of pins.publicTrust.files)
     await requireHash(
@@ -60,10 +57,8 @@ async function verifyComposition({ here, source, output, pins, requireHash }) {
     join(source, "cmd/tsconnect/wasm/wasm_js.go"),
     pins.privateLogging.afterSha256,
   );
-  await requireHash(
-    join(source, "net/tsdial/tsdial.go"),
-    pins.nativeNode.patchTargets[1].afterSha256,
-  );
+  for (const file of pins.nativeNode.patchTargets.slice(1))
+    await requireHash(join(source, file.path), file.afterSha256);
   await requireHash(
     join(source, "go.toolchain.rev"),
     pins.toolchainSelection.afterRevisionSha256,

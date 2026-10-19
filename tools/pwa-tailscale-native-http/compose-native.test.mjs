@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   copyFile,
@@ -15,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
+import { nativePatchCommand } from "./apply-native-patch.mjs";
 import { composeNative, nativeBuildEnvironment } from "./compose-native.mjs";
 import { emitNativeAssets } from "./native-assets.mjs";
 
@@ -48,6 +49,7 @@ async function fixture() {
     "LICENSE",
     "cmd/tsconnect/wasm/wasm_js.go",
     "net/tsdial/tsdial.go",
+    "ipn/ipnlocal/node_backend.go",
     "licenses/tailscale.md",
   ]) {
     await mkdir(dirname(join(source, name)), { recursive: true });
@@ -71,11 +73,19 @@ async function fixture() {
     commands,
     execute: async (program, args, name, verify) => {
       await verify();
-      const result = spawnSync(program, args, {
+      const command = nativePatchCommand(program, args);
+      const child = spawn(command.program, command.args, {
         cwd: source,
         env: { PATH: process.env.PATH, LANG: "C.UTF-8" },
         timeout: 5000,
-        encoding: "utf8",
+        stdio: "ignore",
+      });
+      const result = await new Promise((resolve) => {
+        let error;
+        child.once("error", (value) => {
+          error = value;
+        });
+        child.once("close", (status) => resolve({ error, status }));
       });
       commands.push({ name, status: result.status });
       assert.equal(result.error, undefined);
@@ -98,6 +108,16 @@ test("fixed composition patches actual source while preserving original manifest
     { name: "disable-remote-logtail", status: 0 },
   ]);
   await selected.verify();
+  const dnsPath = join(scope.source, "ipn/ipnlocal/native-extra-dns.go");
+  const dnsBytes = await readFile(dnsPath);
+  assert.equal(
+    hash(dnsBytes),
+    pins.nativeNode.files.find((file) => file.path === "native-extra-dns.go")
+      .sha256,
+  );
+  await writeFile(dnsPath, "changed");
+  await assert.rejects(selected.verify(), /Pinned source changed/);
+  await writeFile(dnsPath, dnsBytes);
   for (const name of ["go.mod", "go.sum", "assert_ts_toolchain_match.go"])
     assert.deepEqual(
       await readFile(join(scope.source, name)),

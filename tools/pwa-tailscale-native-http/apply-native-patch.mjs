@@ -11,6 +11,7 @@ const targets = {
   "native-node.patch": [
     "cmd/tsconnect/wasm/wasm_js.go",
     "net/tsdial/tsdial.go",
+    "ipn/ipnlocal/node_backend.go",
   ],
   "disable-logtail.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
   "exit-route.patch": ["cmd/tsconnect/wasmbuild/wasmbuild.go"],

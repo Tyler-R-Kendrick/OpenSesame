@@ -75,3 +75,23 @@
  // SetExitDNSDoH sets (or clears) the exit node DNS DoH server base URL to use.
  // The doh URL should contain the scheme, authority, and path, but without
  // a '?' and/or query parameters.
+--- a/ipn/ipnlocal/node_backend.go
++++ b/ipn/ipnlocal/node_backend.go
+@@ -827,14 +827,11 @@
+ 	// Rebuild extraDNS from DNS.ExtraRecords (service VIPs, etc).
+ 	nb.extraDNS = nil
+ 	for _, rec := range nm.DNS.ExtraRecords {
+-		if rec.Type != "" {
++		name, ip, ok := nativeExtraDNSRecord(rec)
++		if !ok {
+ 			continue
+ 		}
+-		ip, err := netip.ParseAddr(rec.Value)
+-		if err != nil {
+-			continue
+-		}
+-		mak.Set(&nb.extraDNS, strings.ToLower(strings.TrimSuffix(rec.Name, ".")), ip)
++		mak.Set(&nb.extraDNS, name, ip)
+ 	}
+ }
+ 
