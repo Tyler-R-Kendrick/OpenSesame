@@ -15,7 +15,7 @@ import type { Duplex } from "node:stream";
 import { expect } from "vitest";
 import { z } from "zod";
 import { kvFlush, kvForgetAll } from "../kv.js";
-import { tlsFetch } from "../native-s3-backup.test-support.js";
+import { tlsFetch } from "../test/native-s3-backup-fixtures.js";
 import { vaultStore } from "../vault/store.js";
 import { vfsFlush } from "../vfs.js";
 import {

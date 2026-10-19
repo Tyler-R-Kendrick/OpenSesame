@@ -10,7 +10,6 @@ import { z } from "zod";
 import { bindNativeBrowserPolicyOrigin } from "./native-browser-policy.js";
 import type { NativeDriverInput } from "./native-connector-drivers.js";
 import { createConfiguredMcpDriver } from "./native-mcp-configured-driver.js";
-import { tlsFetch } from "./native-s3-backup.test-support.js";
 import { runtimeFixture } from "./secret-backends/runtime.test-support.js";
 import {
   type TailscaleBrowserNode,
@@ -18,6 +17,7 @@ import {
   bindTailscaleBrowserNode,
 } from "./tailscale/browser-node-port.js";
 import { openBrowserNodeState } from "./tailscale/browser-node-store.js";
+import { tlsFetch } from "./test/native-s3-backup-fixtures.js";
 import { vaultStore } from "./vault/store.js";
 export const MCP_KEY = "configured_mcp_fixture:secret+sealed";
 const Rpc = z.object({

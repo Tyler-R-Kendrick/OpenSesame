@@ -9,7 +9,7 @@ import { z } from "zod";
 import { configureNativeApiConnector } from "./native-api-connectors.js";
 import { nativeApiDraft } from "./native-api.test-support.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
-import { tlsFetch } from "./native-s3-backup.test-support.js";
+import { tlsFetch } from "./test/native-s3-backup-fixtures.js";
 
 export type OracleProvider =
   | "similarweb"

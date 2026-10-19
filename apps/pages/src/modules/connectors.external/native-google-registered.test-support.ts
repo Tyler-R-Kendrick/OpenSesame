@@ -10,7 +10,6 @@ import { join } from "node:path";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { registerNativeProviderCleanup } from "@opensesame/app-core/lib/native-connector-lifecycle.js";
 import { bindNativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
 import {
   deferred,
   runtimeFixture,
@@ -21,6 +20,7 @@ import {
   bindTailscaleBrowserNode,
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { openBrowserNodeState } from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { expect, vi } from "vitest";
 import { createActivation } from "../activation.js";

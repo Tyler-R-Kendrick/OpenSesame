@@ -10,7 +10,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { configureNativeApiConnector } from "@opensesame/app-core/lib/native-api-connectors.js";
 import { bindNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-binding.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";

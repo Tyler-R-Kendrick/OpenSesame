@@ -21,7 +21,7 @@ import {
   readNativeConnector,
   updateNativeConnector,
 } from "@opensesame/app-core/lib/native-connector-store.js";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

@@ -7,7 +7,7 @@ import { createServer } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Duplex } from "node:stream";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import { expect } from "vitest";
 import { z } from "zod";
 import {

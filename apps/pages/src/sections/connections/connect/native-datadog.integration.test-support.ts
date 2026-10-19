@@ -8,7 +8,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configureNativeApiConnector } from "@opensesame/app-core/lib/native-api-connectors.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
 import { runtimeFixture } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
 import {
   type TailscaleBrowserNode,
@@ -16,6 +15,7 @@ import {
   bindTailscaleBrowserNode,
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { openBrowserNodeState } from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { vi } from "vitest";

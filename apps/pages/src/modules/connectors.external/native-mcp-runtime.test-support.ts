@@ -12,7 +12,7 @@ import {
   fixture as oauthOracle,
   target,
 } from "@opensesame/app-core/lib/native-mcp-oauth-fixtures.test-helper.js";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import {
   type BoundaryValue,
   isJsonObject,

@@ -17,8 +17,8 @@ import {
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { bindNativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 import { oauthDraft } from "./native-oauth.test-support.js";
-import { tlsFetch } from "./native-s3-backup.test-support.js";
 import { runtimeFixture } from "./secret-backends/runtime.test-support.js";
+import { tlsFetch } from "./test/native-s3-backup-fixtures.js";
 export const codebergBackupToken = "codeberg-owned-backup-issued-secret";
 export const codebergBackupTarget = {
   owner: "owned-user",

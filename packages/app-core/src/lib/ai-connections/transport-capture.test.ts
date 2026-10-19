@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { tlsFetch } from "../native-s3-backup.test-support.js";
+import { tlsFetch } from "../test/native-s3-backup-fixtures.js";
 import { inferAiConnection } from "./inference.js";
 import { aiNativeTlsFixture } from "./native-tls.test-support.js";
 import { aiConnectionDraft } from "./presets.js";

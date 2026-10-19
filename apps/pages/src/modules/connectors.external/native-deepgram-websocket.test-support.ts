@@ -18,8 +18,8 @@ import {
 } from "@opensesame/app-core/lib/native-api-connectors.js";
 import { registerNativeProviderCleanup } from "@opensesame/app-core/lib/native-connector-lifecycle.js";
 import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
 import { runtimeFixture } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import type { EffectivePlan } from "@opensesame/capability-composition";
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, expect, vi } from "vitest";

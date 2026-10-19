@@ -12,8 +12,8 @@ import { expect } from "vitest";
 import { z } from "zod";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { configureNativeGithubPersonal } from "./native-github-personal.js";
-import { tlsFetch } from "./native-s3-backup.test-support.js";
 import { runtimeFixture } from "./secret-backends/runtime.test-support.js";
+import { tlsFetch } from "./test/native-s3-backup-fixtures.js";
 
 export const githubBackupToken = "github_pat_owned-backup-fixture-secret";
 export const githubBackupTarget = {

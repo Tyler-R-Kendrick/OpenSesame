@@ -12,8 +12,8 @@ import { expect, vi } from "vitest";
 import { z } from "zod";
 import { configureNativeApiConnector } from "./native-api-connectors.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
-import { tlsFetch } from "./native-s3-backup.test-support.js";
 import { runtimeFixture } from "./secret-backends/runtime.test-support.js";
+import { tlsFetch } from "./test/native-s3-backup-fixtures.js";
 export const bitbucketBackupToken =
   "fixture-bitbucket-key-independent-wire-oracle";
 export const bitbucketBackupTarget = {

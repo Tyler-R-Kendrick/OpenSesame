@@ -10,7 +10,7 @@ import { X509CertificateGenerator } from "@peculiar/x509";
 import { expect, vi } from "vitest";
 import { SignedXml } from "xml-crypto";
 import { z } from "zod";
-import { tlsFetch } from "../../lib/native-s3-backup.test-support.js";
+import { tlsFetch } from "../../lib/test/native-s3-backup-fixtures.js";
 import * as receiver from "./post-session.js";
 const A = "urn:oasis:names:tc:SAML:2.0:assertion";
 const P = "urn:oasis:names:tc:SAML:2.0:protocol";

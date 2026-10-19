@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Duplex } from "node:stream";
 import { z } from "zod";
-import { tlsFetch } from "../native-s3-backup.test-support.js";
+import { tlsFetch } from "../test/native-s3-backup-fixtures.js";
 import type { AiConnectionTransport } from "./types.js";
 export const SCRIBE_TOKEN = "owned-scribe-primary-token";
 export const SCRIBE_TEXT = "search actual recorded command";

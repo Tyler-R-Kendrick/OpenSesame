@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { base64ToBytes } from "../native-base64.js";
 import { EMAIL, gcpPublicKey } from "../native-gcp.test-support.js";
-import { tlsFetch } from "../native-s3-backup.test-support.js";
+import { tlsFetch } from "../test/native-s3-backup-fixtures.js";
 export const TOKEN = "ya29.owned-vertex-token-0123456789";
 function segment(value: string): Uint8Array<ArrayBuffer> {
   return base64ToBytes(

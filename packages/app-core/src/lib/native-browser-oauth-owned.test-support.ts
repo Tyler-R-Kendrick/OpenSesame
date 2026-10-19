@@ -27,11 +27,11 @@ import {
   requireNativeOAuthRecord,
 } from "./native-oauth-session.js";
 import { oauthDraft } from "./native-oauth.test-support.js";
-import { tlsFetch } from "./native-s3-backup.test-support.js";
 import {
   deferred,
   runtimeFixture,
 } from "./secret-backends/runtime.test-support.js";
+import { tlsFetch } from "./test/native-s3-backup-fixtures.js";
 
 const callback = "https://selfhost.example/auth/native-connector.html";
 const token = "owned-public-oauth-issued-access";

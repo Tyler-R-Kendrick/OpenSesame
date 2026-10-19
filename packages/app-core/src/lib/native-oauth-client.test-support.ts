@@ -10,11 +10,11 @@ import { z } from "zod";
 import type { NativeDriverInput } from "./native-connector-drivers.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import type { NativeOAuthClientOwner } from "./native-oauth-client-config.js";
-import { tlsFetch } from "./native-s3-backup.test-support.js";
 import {
   deferred,
   runtimeFixture,
 } from "./secret-backends/runtime.test-support.js";
+import { tlsFetch } from "./test/native-s3-backup-fixtures.js";
 import { vaultStore } from "./vault/store.js";
 
 export const CLIENT_ID = "operator: café+client";

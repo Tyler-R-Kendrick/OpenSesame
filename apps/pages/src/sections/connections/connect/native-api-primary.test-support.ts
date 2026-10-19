@@ -5,7 +5,6 @@ import type { ServerResponse } from "node:http";
 import { createServer } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
 import { localVaultSessionGuard } from "@opensesame/app-core/lib/secret-backends/local-vault-port.js";
 import {
   deferred,
@@ -17,6 +16,7 @@ import {
   bindTailscaleBrowserNode,
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { openBrowserNodeState } from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { vi } from "vitest";

@@ -23,11 +23,11 @@ import {
   requireNativeOAuthRecord,
 } from "@opensesame/app-core/lib/native-oauth-session.js";
 import { oauthDraft } from "@opensesame/app-core/lib/native-oauth.test-support.js";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
 import {
   deferred,
   runtimeFixture,
 } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import { z } from "zod";
 import type { Activation } from "../activation.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";

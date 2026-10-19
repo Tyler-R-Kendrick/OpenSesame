@@ -20,7 +20,6 @@ import {
 } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import { nativeOAuthClientFixture } from "@opensesame/app-core/lib/native-oauth-client.test-support.js";
 import { createNativeOAuthResourceDriver } from "@opensesame/app-core/lib/native-oauth-resource-driver.js";
-import { tlsFetch } from "@opensesame/app-core/lib/native-s3-backup.test-support.js";
 import { refreshNativeTwitchAuthorization } from "@opensesame/app-core/lib/native-twitch-device-refresh.js";
 import {
   saveValidationFixture,
@@ -32,6 +31,7 @@ import {
   deferred,
   runtimeFixture,
 } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import { tlsFetch } from "@opensesame/app-core/lib/test/native-s3-backup-fixtures.js";
 import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createActivation } from "../activation.js";

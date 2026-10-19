@@ -8,7 +8,7 @@ import { createServer as createSecureServer } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { tlsFetch } from "../native-s3-backup.test-support.js";
+import { tlsFetch } from "../test/native-s3-backup-fixtures.js";
 export const BEDROCK_CREDENTIAL = {
   accessKeyId: "AKIAOWNEDTEST12345678",
   secretAccessKey: "ownedSecretAccessKey0123456789AbCdEf",

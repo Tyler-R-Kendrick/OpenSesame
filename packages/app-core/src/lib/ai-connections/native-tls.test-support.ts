@@ -6,8 +6,8 @@ import { createServer } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { tlsFetch } from "../native-s3-backup.test-support.js";
 import { deferred } from "../secret-backends/runtime.test-support.js";
+import { tlsFetch } from "../test/native-s3-backup-fixtures.js";
 import type { CapturedAiRequest } from "./protocol.test-support.js";
 
 function tlsMaterial() {

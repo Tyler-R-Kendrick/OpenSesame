@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
 import { z } from "zod";
 import { nativeApiHttp } from "./native-api-http.js";
 import { nativeOAuthHttp } from "./native-oauth-http.js";
-import { tlsFetch } from "./native-s3-backup.test-support.js";
+import { tlsFetch } from "./test/native-s3-backup-fixtures.js";
 
 const LIMIT = 256 * 1024;
 let directory = "";
