@@ -103,6 +103,7 @@ export async function createSecretBackend(
   assertCurrent?: () => void,
   ownerSignal?: AbortSignal,
   savedConnectionId?: string,
+  originalTransport?: SecretBackendTransport,
 ): Promise<SecretBackend> {
   const check = () => {
     if (ownerSignal?.aborted)
@@ -132,7 +133,7 @@ export async function createSecretBackend(
     case "infisical":
     case "passwordstate": {
       const transport = guardSecretBackendTransport(
-        secretBackendTransport(),
+        originalTransport ?? secretBackendTransport(),
         assertCurrent,
         ownerSignal,
       );

@@ -60,6 +60,25 @@ export function secretBackendTransport(): SecretBackendTransport {
   return captured;
 }
 
+/** Preserve the original route even when a cold saved record has not revealed its mode. */
+export function captureSecretBackendTransport(
+  callerSignal?: AbortSignal,
+): SecretBackendTransport {
+  if (callerSignal?.aborted) return inactive;
+  try {
+    return Object.freeze(guardSecretBackendTransport(secretBackendTransport()));
+  } catch (error) {
+    const refuse = (): never => {
+      throw error;
+    };
+    return Object.freeze({
+      fetch: async () => refuse(),
+      assertCurrent: refuse,
+      signal: AbortSignal.abort(),
+    });
+  }
+}
+
 /** Operation owners may add vault and saved-configuration checks to the approved network port. */
 export function guardSecretBackendTransport(
   transport: SecretBackendTransport,
