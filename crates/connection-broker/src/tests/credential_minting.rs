@@ -392,6 +392,25 @@ mod secret_config_domain {
     }
 
     #[tokio::test]
+    async fn oversized_secret_batches_are_refused_before_intake() {
+        let (_db, broker) = broker_and_pool().await;
+        let view = broker
+            .create_secret_config(ORG, create("proj", "dev-b", "development"), None)
+            .await
+            .expect("create");
+        let batch: BTreeMap<String, String> = (0..1025)
+            .map(|index| (format!("KEY_{index}"), "x".to_string()))
+            .collect();
+        let refused = broker
+            .put_config_secrets(ORG, &view.id, &batch, None)
+            .await
+            .expect_err("a batch over the per-put ceiling must be refused");
+        assert_eq!(refused.code(), "invalid_request");
+        let meta = broker.config_key_meta(ORG, &view.id).await.expect("meta");
+        assert!(meta.is_empty(), "nothing from a refused batch is stored");
+    }
+
+    #[tokio::test]
     async fn store_source_resolves_inheritance_and_references() {
         let (db, broker) = broker_and_pool().await;
         let root = broker

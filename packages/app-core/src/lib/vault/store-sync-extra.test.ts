@@ -56,6 +56,18 @@ describe("store path splitting", () => {
     expect(splitStorePath("/name")).toEqual({ folder: null, name: "name" });
   });
 
+  it("handles adversarial slash runs in imported store paths", () => {
+    const slashes = "/".repeat(200_000);
+    expect(splitStorePath(`${slashes}Email/github${slashes}`)).toEqual({
+      folder: "Email",
+      name: "github",
+    });
+    expect(splitStorePath(`${slashes}x`)).toEqual({
+      folder: null,
+      name: "x",
+    });
+  });
+
   it("joins the way it splits", () => {
     expect(joinStorePath(null, "")).toBe("untitled");
     expect(joinStorePath(" Email ", "x")).toBe("Email/x");

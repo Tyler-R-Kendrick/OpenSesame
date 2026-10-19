@@ -11,10 +11,18 @@ import {
 import { FIELD_TYPES } from "./catalogue.js";
 import { BUILTIN_DEFINITION_JSON } from "./definitions.generated.js";
 import { importPackText, packEntries } from "./packs.js";
-import { ItemTypeRegistry } from "./registry.js";
+import { ItemTypeRegistry, directoryOf } from "./registry.js";
 import { subtitleFor } from "./values.js";
 
 import { communityDefinition } from "./registry.test-support.js";
+
+describe("directoryOf", () => {
+  it("slugifies plurals and trims edge hyphens, even adversarial ones", () => {
+    expect(directoryOf("---Foo Bars---", "fallback")).toBe("foo-bars");
+    expect(directoryOf("!".repeat(200_000), "fallback")).toBe("fallback");
+    expect(directoryOf(`-${"!".repeat(200_000)}x`, "fallback")).toBe("x");
+  });
+});
 
 describe("the built-in corpus", () => {
   it("parses every shipped definition", () => {

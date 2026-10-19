@@ -1,0 +1,14 @@
+name: "OpenSesame CodeQL config"
+
+# Test, fixture, generated, and evidence code is not production surface:
+# scanning it only produces findings nobody can act on in shipped code.
+# Production source trees are deliberately not excluded.
+paths-ignore:
+  - "**/*.test.*"
+  - "**/tests/**"
+  - "**/*test-support*"
+  - "**/fixtures/**"
+  - "**/*.generated.*"
+  - "docs/evidence/**"
+  - "tools/mock-upstream-idp/**"
+  - "assets/**"

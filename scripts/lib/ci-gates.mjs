@@ -385,6 +385,7 @@ export function gatesForPaths(paths, reach, read = () => "") {
  */
 export function bundleMatrix(wanted, shards) {
   const set = new Set(wanted);
+  if (set.has("native-public-backends")) set.add("native-public-protocol");
   return shards.filter((leg) => set.has(gateOfShard(leg.shard)));
 }
 

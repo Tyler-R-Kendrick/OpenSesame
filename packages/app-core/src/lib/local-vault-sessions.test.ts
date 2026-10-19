@@ -127,7 +127,7 @@ describe("local vault sessions", () => {
       ],
     });
     expect(session.status).toBe("running");
-    expect(session.code).toMatch(/^[A-Z2-9]{6}$/);
+    expect(session.code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
     expect(session.boundTomb).toBe(tomb);
 
     const runningShares = await listLocalShares(tomb);

@@ -280,7 +280,6 @@ pub(crate) enum AuthCmd {
 pub(crate) enum ReceiptCmd {
     Verify { id: String },
 }
-
 #[derive(Subcommand, Debug)]
 pub(crate) enum ProviderCmd {
     List,

@@ -69,6 +69,13 @@ const CORE_INFRA = [
   "bounded-response",
   // A lazy chunk a newer deploy replaced, told as a stale page (ADR 0188).
   "chunk-load",
+  "dirty-edit",
+  "dirty-forms",
+  "shell-update",
+  "stale-asset",
+  "sw-update-guard",
+  // The shell chunk itself, told the same way when a deploy replaces it.
+  "load-shell",
   "urls",
   "agent-page-dump",
   "local-network-fetch",
@@ -197,6 +204,16 @@ export const LIB_RULES = [
     `${L}file-parts-store`,
     "vault.passwords",
     "sealed parts of a file item",
+  ),
+  core(
+    `${L}pwa-offer-passwords-onboarding`,
+    null,
+    "build-time opt-in for fresh-vault Passwords onboarding",
+  ),
+  core(
+    `${L}test/native-s3-backup-fixtures`,
+    null,
+    "shared native S3 backup fixture for its integration suite",
   ),
   ...each(L, CORE_INFRA, (p) =>
     core(p, null, "storage, focus, theme and shell infrastructure"),
@@ -355,6 +372,13 @@ export const LIB_RULES = [
   ),
   ...each(L, ["ambient-auth-seam"], (p) =>
     core(p, SIGNIN, "the ambient seam core federation calls through"),
+  ),
+  // The generation fence is storage-only shared infrastructure: core native
+  // identity lineage and optional ambient sign-in both stamp in-flight work
+  // with it. Only the remaining `ambient-auth/` orchestration is optional.
+  shared(
+    `${L}ambient-auth/generation`,
+    "the auth-generation fence core identity lineage and ambient sign-in share",
   ),
   ...each(L, ["ambient-auth/"], (p) =>
     optional(p, "identity.ambient-sso", "MSAL / OIDC ambient boot"),

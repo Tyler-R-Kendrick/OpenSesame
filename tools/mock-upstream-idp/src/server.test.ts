@@ -24,9 +24,9 @@ describe("mock-upstream-idp", () => {
     idp.config.redirectUris = [`${base}/cb`];
 
     // Catch redirect on /cb
-    const cbServer = createServer((req, res) => {
-      res.writeHead(200);
-      res.end(req.url ?? "");
+    const cbServer = createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "text/plain" });
+      res.end("callback received");
     });
     await new Promise<void>((resolve) =>
       cbServer.listen(addr.port + 1, "127.0.0.1", () => resolve()),

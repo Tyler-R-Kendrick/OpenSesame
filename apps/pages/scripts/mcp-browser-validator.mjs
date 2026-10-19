@@ -7,8 +7,8 @@ import { dirname, resolve } from "node:path";
 const pins = JSON.parse(
   readFileSync(new URL("./mcp-browser-sdk.json", import.meta.url), "utf8"),
 );
-const missing = "An explicit browser JSON Schema validator is required.";
-const fallback = `options?.jsonSchemaValidator ?? (() => { throw new Error(${JSON.stringify(missing)}); })()`;
+const fallback =
+  'options?.jsonSchemaValidator ?? (() => { throw new Error("An explicit browser JSON Schema validator is required."); })()';
 const forbidden = /\/node_modules\/(?:ajv|ajv-formats|fast-uri)\//;
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 function count(source, fragment) {

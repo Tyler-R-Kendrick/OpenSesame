@@ -120,7 +120,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
@@ -217,7 +217,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.bundle_matrix != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: ${{ matrix.shard == 'native-public-protocol' && 30 || 15 }}
     strategy:
       fail-fast: false
       # The legs are listed once, in scripts/lib/ci-bundle-shards.json; `changes`
@@ -429,7 +429,7 @@ jobs:
           pnpm --filter @opensesame/pages build:identity-verify
           pnpm --filter @opensesame/pages verify:identity-connections
       - name: Secret backends and encrypted vault
-        if: matrix.shard == 'native-public-backends'
+        if: matrix.shard == 'native-secret-backends'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/

@@ -18,9 +18,9 @@ self.onmessage = (
       kind === "regex"
         ? pattern
         : pattern
-            .replace(/[.]/g, "\\.")
-            .replace(/\*/g, ".*")
-            .replace(/\?/g, ".");
+            .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            .replace(/\\\*/g, ".*")
+            .replace(/\\\?/g, ".");
     const expression = new RegExp(`^(?:${source})$`, "i");
     self.postMessage(expression.test(hostname) ? "match" : "no-match");
   } catch {

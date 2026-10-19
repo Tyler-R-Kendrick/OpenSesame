@@ -127,6 +127,8 @@ describe("cadence", () => {
     // Healthy: the next sweep is a long way off.
     const healthyGap = (connectivitySnapshot().nextCheckAt ?? 0) - Date.now();
     expect(healthyGap).toBeGreaterThan(DEGRADED_MS * 3);
+    expect(healthyGap).toBeGreaterThanOrEqual(HEALTHY_MS * 0.85);
+    expect(healthyGap).toBeLessThanOrEqual(HEALTHY_MS * 1.15);
 
     // The plane dies and takes its first strike. Hysteresis keeps the glyph
     // green for now — but the cadence must tighten immediately, or the probe

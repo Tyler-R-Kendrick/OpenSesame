@@ -29,7 +29,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { browserCertStaticHandler } from "./lib/browser-cert-static.mjs";
@@ -69,7 +69,24 @@ if (!process.env.IOP_BROWSER_CA) {
   process.exit(0);
 }
 
-const dir = process.env.IOP_BROWSER_DIR;
+// The PKI directory is minted by the parent invocation under the OS temp
+// root (see above). Refuse anything else: every certificate path handed to
+// the browser below is derived from this directory.
+const tmpRoot = resolve(tmpdir());
+const dir = process.env.IOP_BROWSER_DIR
+  ? resolve(process.env.IOP_BROWSER_DIR)
+  : "";
+if (!dir.startsWith(tmpRoot + sep)) {
+  console.log(
+    `IOP_BROWSER ${JSON.stringify({
+      id: "pki-directory",
+      result: "not_executed",
+      detail: "IOP_BROWSER_DIR is not a directory under the OS temp root",
+    })}`,
+  );
+  console.log("IOP_BROWSER_SUMMARY not_executed=1");
+  process.exit(1);
+}
 const { pkiPaths, writeBindings, startIdentityEndpoint } = await import(
   resolve(repoRoot, "tests/mtls-interop/harness/browser-cert-endpoint.mjs")
 );

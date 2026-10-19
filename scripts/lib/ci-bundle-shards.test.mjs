@@ -86,6 +86,36 @@ function shardsOf(when, shards) {
   return shards.filter((name) => picked.has(name));
 }
 
+function assertGateCoverage(shards) {
+  const all = steps();
+  for (const gate of GATES) {
+    const running = all.filter((step) => step.text.includes(gate));
+    expect(running.length, `${gate} runs in ${running.length} steps`).toBe(1);
+    const where = shardsOf(running[0].when, shards);
+    // `verify:mobile` (by viewport) and the journeys (in turn) are split across shards.
+    const split = {
+      "verify:mobile": "mobile-",
+      "verify-experience-journeys.mjs": "journeys-",
+    }[gate];
+    const expected = split
+      ? shards.filter((name) => name.startsWith(split))
+      : where.slice(0, 1);
+    expect(where, `${gate} runs in ${where.join(", ")}`).toEqual(expected);
+    expect(where.length).toBeGreaterThan(0);
+    for (const name of where) expect(shards).toContain(name);
+  }
+  for (const shard of shards) {
+    const selected = all.filter(
+      (step) =>
+        step.when &&
+        step.text.includes("run:") &&
+        shardsOf(step.when, shards).includes(shard) &&
+        !step.text.includes("ci-pages-build.mjs"),
+    );
+    expect(selected.length, `${shard} runs no gate`).toBeGreaterThan(0);
+  }
+}
+
 describe("the bundle job's shards", () => {
   const shards = legs().map((leg) => leg.shard);
 
@@ -121,33 +151,7 @@ describe("the bundle job's shards", () => {
   });
 
   it("runs every gate in exactly one shard (verify:mobile in its viewport shards), and gives every shard something to run", () => {
-    const all = steps();
-    for (const gate of GATES) {
-      const running = all.filter((step) => step.text.includes(gate));
-      expect(running.length, `${gate} runs in ${running.length} steps`).toBe(1);
-      const where = shardsOf(running[0].when, shards);
-      // `verify:mobile` (by viewport) and the journeys (in turn) are split across shards.
-      const split = {
-        "verify:mobile": "mobile-",
-        "verify-experience-journeys.mjs": "journeys-",
-      }[gate];
-      const expected = split
-        ? shards.filter((name) => name.startsWith(split))
-        : where.slice(0, 1);
-      expect(where, `${gate} runs in ${where.join(", ")}`).toEqual(expected);
-      expect(where.length).toBeGreaterThan(0);
-      for (const name of where) expect(shards).toContain(name);
-    }
-    for (const shard of shards) {
-      const selected = all.filter(
-        (step) =>
-          step.when &&
-          step.text.includes("run:") &&
-          shardsOf(step.when, shards).includes(shard) &&
-          !step.text.includes("ci-pages-build.mjs"),
-      );
-      expect(selected.length, `${shard} runs no gate`).toBeGreaterThan(0);
-    }
+    assertGateCoverage(shards);
   });
 
   it("builds Pages once in every shard, and in `budgets` inside the measuring step", () => {

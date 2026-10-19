@@ -117,8 +117,10 @@ describe("RFC 8705 over a real TLS listener", () => {
   let clientC: Issued;
   let stranger: Issued;
   let tlsServer: https.Server;
+  let anonymousServer: https.Server;
   let plainServer: http.Server;
   let port: number;
+  let anonymousPort: number;
   let plainPort: number;
   let issuer: string;
   let callback: (req: IncomingMessage, res: ServerResponse) => void;
@@ -142,10 +144,7 @@ describe("RFC 8705 over a real TLS listener", () => {
         key: serverLeaf.keyPem,
         ca: pki.caCertPem,
         requestCert: true,
-        // Deliberately optional here so an untrusted certificate reaches the
-        // provider as an unauthenticated socket (the Identity listener's
-        // mtls_required profile rejects it at the handshake instead).
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
         minVersion: "TLSv1.3",
       },
       (req, res) => callback(req, res),
@@ -154,10 +153,23 @@ describe("RFC 8705 over a real TLS listener", () => {
       const peer = peerFor(socket);
       if (peer) peers.set(socket, peer);
     });
+    // A TLS listener that does not request a client certificate. It models the
+    // unauthenticated socket the Identity listener admits for optional-mTLS
+    // profiles without disabling certificate validation.
+    anonymousServer = https.createServer(
+      {
+        cert: serverLeaf.certPem,
+        key: serverLeaf.keyPem,
+        minVersion: "TLSv1.3",
+      },
+      (req, res) => callback(req, res),
+    );
     plainServer = http.createServer((req, res) => callback(req, res));
     await new Promise<void>((r) => tlsServer.listen(0, "127.0.0.1", r));
+    await new Promise<void>((r) => anonymousServer.listen(0, "127.0.0.1", r));
     await new Promise<void>((r) => plainServer.listen(0, "127.0.0.1", r));
     port = (tlsServer.address() as AddressInfo).port;
+    anonymousPort = (anonymousServer.address() as AddressInfo).port;
     plainPort = (plainServer.address() as AddressInfo).port;
     issuer = `https://127.0.0.1:${port}`;
     const { provider } = createOpenSesameProvider({
@@ -180,6 +192,7 @@ describe("RFC 8705 over a real TLS listener", () => {
   });
   afterAll(async () => {
     await new Promise<void>((r) => tlsServer.close(() => r()));
+    await new Promise<void>((r) => anonymousServer.close(() => r()));
     await new Promise<void>((r) => plainServer.close(() => r()));
     pki.cleanup();
   });
@@ -193,7 +206,7 @@ describe("RFC 8705 over a real TLS listener", () => {
 
   it("discovery advertises the implemented profile only (AT-OAUTH-METADATA)", async () => {
     const res = await request({
-      port,
+      port: anonymousPort,
       pki,
       method: "GET",
       path: "/.well-known/openid-configuration",
@@ -263,7 +276,7 @@ describe("RFC 8705 over a real TLS listener", () => {
 
   it("refuses the tls_client_auth client without a certificate and never falls back (AT-OAUTH-PUBLIC)", async () => {
     const none = await request({
-      port,
+      port: anonymousPort,
       pki,
       method: "POST",
       path: "/token",
@@ -283,17 +296,17 @@ describe("RFC 8705 over a real TLS listener", () => {
     expect(plain.json.error).toBe("invalid_client");
   });
 
-  it("refuses an untrusted certificate and a trusted one with the wrong SAN", async () => {
-    const untrusted = await request({
-      port,
-      pki,
-      identity: stranger,
-      method: "POST",
-      path: "/token",
-      body: tokenBody(),
-    });
-    expect(untrusted.status).toBe(401);
-    expect(untrusted.json.error).toBe("invalid_client");
+  it("rejects an untrusted certificate at the TLS listener and a trusted one with the wrong SAN", async () => {
+    await expect(
+      request({
+        port,
+        pki,
+        identity: stranger,
+        method: "POST",
+        path: "/token",
+        body: tokenBody(),
+      }),
+    ).rejects.toThrow();
     const wrongSan = await request({
       port,
       pki,
@@ -308,7 +321,7 @@ describe("RFC 8705 over a real TLS listener", () => {
 
   it("dynamic registration cannot claim certificate auth or bound tokens", async () => {
     const auth = await request({
-      port,
+      port: anonymousPort,
       pki,
       method: "POST",
       path: "/reg",
@@ -321,7 +334,7 @@ describe("RFC 8705 over a real TLS listener", () => {
     expect(auth.status).toBe(400);
     expect(auth.json.error).toBe("invalid_client_metadata");
     const bound = await request({
-      port,
+      port: anonymousPort,
       pki,
       method: "POST",
       path: "/reg",
@@ -335,7 +348,7 @@ describe("RFC 8705 over a real TLS listener", () => {
     expect(bound.json.error).toBe("invalid_client_metadata");
     // The plain public-client registration path stays open.
     const ok = await request({
-      port,
+      port: anonymousPort,
       pki,
       method: "POST",
       path: "/reg",

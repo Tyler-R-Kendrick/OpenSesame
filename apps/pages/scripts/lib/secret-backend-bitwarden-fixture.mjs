@@ -58,12 +58,14 @@ function preflight(request) {
   );
 }
 function forward(request, response, upstream, body, record, errors) {
-  const destination = new URL(request.url, upstream);
+  const destination = new URL(upstream);
+  const source = new URL(request.url, "http://fixture.invalid");
   const outgoing = sendRequest(
     destination,
     {
       method: request.method,
       headers: request.headers,
+      path: `${source.pathname}${source.search}`,
     },
     (reply) => {
       record.status = reply.statusCode;

@@ -57,6 +57,7 @@ describe("hostname patterns", () => {
       ["wildcard", "*.example.com", "app.example.com.evil.test", "no-match"],
       ["wildcard", "app?.example.com", "app1.example.com", "match"],
       ["wildcard", "app?.example.com", "app12.example.com", "no-match"],
+      ["wildcard", "app.example.com", "appXexample.com", "no-match"],
       ["wildcard", "https://*.example.com", "app.example.com", "invalid"],
       ["regex", "(.*\\.)?example\\.com", "example.com", "match"],
       ["regex", "(.*\\.)?example\\.com", "APP.EXAMPLE.COM", "match"],

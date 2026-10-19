@@ -30,6 +30,9 @@ module.exports.__wasm = wasm;
 
 wasm.__wbindgen_start();`;
 
+// SHA-256 over pinned SDK artifact bytes (wasm/glue/license) checked
+// against the committed manifest digests — a supply-chain pin, and the
+// input is never a password.
 export function assertOnePasswordHash(bytes, expected) {
   if (createHash("sha256").update(bytes).digest("hex") !== expected)
     throw new Error(
