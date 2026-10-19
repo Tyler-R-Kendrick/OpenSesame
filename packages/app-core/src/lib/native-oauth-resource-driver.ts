@@ -1,0 +1,143 @@
+import { captureNativeAuthorizationTransport } from "./native-authorization-transport.js";
+/** The native common driver returns actual configured resource data, never a key-check placeholder. */
+import { cancelNativeBrowserConsent } from "./native-browser-oauth-cancel.js";
+import type { NativeConnectorDriver } from "./native-connector-drivers.js";
+import type { NativeCleanupOutcome } from "./native-connector-lifecycle.js";
+import { nativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
+import {
+  type NativeOAuthClientOwner,
+  assertNativeOAuthClientOwner,
+  beginNativeOAuthClient,
+  configureNativeOAuthClient,
+  nativeOAuthClientClassification,
+  nativeOAuthClientTarget,
+} from "./native-oauth-client-config.js";
+import { exchangeNativeOAuthClient } from "./native-oauth-client-exchange.js";
+import { NativeOAuthError } from "./native-oauth-errors.js";
+import { verifyNativeOAuthResource } from "./native-oauth-resource.js";
+import {
+  requireNativeOAuthRecord,
+  retryRetainedNativeOAuthGrants,
+} from "./native-oauth-session.js";
+
+export type NativeOAuthResourceOwner = NativeOAuthClientOwner & {
+  close(): void;
+};
+export type NativeOAuthResourceDriverPorts = {
+  supports(providerId: string): boolean;
+  /** Capture the original authority synchronously, then await only its custody work. */
+  capture(
+    signal?: AbortSignal,
+  ): NativeOAuthResourceOwner | Promise<NativeOAuthResourceOwner>;
+};
+function resourceOperations(ports: NativeOAuthResourceDriverPorts) {
+  return async <T>(
+    action: (owner: NativeOAuthClientOwner) => Promise<T>,
+    caller?: AbortSignal,
+  ): Promise<T> => {
+    caller?.throwIfAborted();
+    const pending = caller ? ports.capture(caller) : ports.capture();
+    const capture = await pending;
+    try {
+      caller?.throwIfAborted();
+      const original = captureNativeAuthorizationTransport(capture.transport);
+      const signal = caller
+        ? AbortSignal.any([
+            caller,
+            ...(original.signal ? [original.signal] : []),
+          ])
+        : original.signal;
+      const assertCurrent = () => {
+        signal?.throwIfAborted();
+        original.assertCurrent();
+        signal?.throwIfAborted();
+      };
+      const owner = {
+        ...capture,
+        transport: { ...original, signal, assertCurrent },
+      };
+      assertNativeOAuthClientOwner(owner);
+      return await action(owner);
+    } finally {
+      capture.close();
+    }
+  };
+}
+export function createNativeOAuthResourceDriver(
+  ports: NativeOAuthResourceDriverPorts,
+): NativeConnectorDriver {
+  const owned = resourceOperations(ports);
+  return {
+    supports: ports.supports,
+    configure: (input) =>
+      owned((owner) => {
+        if (!input.parameters.resource) throw new NativeOAuthError("callback");
+        return configureNativeOAuthClient(input, owner);
+      }),
+    authorize: (id, actor = "user") =>
+      owned(async (owner) => {
+        if (actor !== "user") throw new NativeOAuthError("scope");
+        const browser = nativeOAuthBrowserPort();
+        const url = await beginNativeOAuthClient(id, owner);
+        const record = requireNativeOAuthRecord(id);
+        const pending = record.privateState.pending.user;
+        if (!pending || !browser.authorize)
+          throw new NativeOAuthError("callback");
+        try {
+          const callback = await browser.authorize(url, {
+            state: pending.state,
+            expiresAt: pending.expiresAt,
+            redirectUri: pending.redirectUri,
+            signal: owner.transport.signal,
+          });
+          await exchangeNativeOAuthClient(callback, owner);
+          await verifyNativeOAuthResource(id, owner);
+        } catch (error) {
+          await cancelNativeBrowserConsent(
+            id,
+            pending.state,
+            nativeOAuthClientClassification(),
+          );
+          throw error;
+        }
+      }),
+    verify: (id) =>
+      owned(async (owner) => (await verifyNativeOAuthResource(id, owner)).view),
+    invoke: (id, operation, input, signal) =>
+      owned(async (owner) => {
+        if (operation !== "provider.resource.read" || Object.keys(input).length)
+          throw new NativeOAuthError("scope");
+        const result = await verifyNativeOAuthResource(id, owner);
+        return {
+          label: "Configured API resource read",
+          items: [
+            {
+              id:
+                nativeOAuthClientTarget(result.view.configuration).resource ??
+                "",
+              label: "Resource response",
+              secretValue: JSON.stringify(result.body, null, 2),
+            },
+          ],
+        };
+      }, signal),
+    cleanup: {
+      classification: nativeOAuthClientClassification,
+      prepare: (id) =>
+        owned(async (owner) => {
+          assertNativeOAuthClientOwner(owner);
+          await retryRetainedNativeOAuthGrants(id);
+        }),
+      cleanup: (obligation, context) =>
+        owned<NativeCleanupOutcome>(async (owner) => {
+          assertNativeOAuthClientOwner(owner);
+          const record = requireNativeOAuthRecord(context.connectionId);
+          if (record.privateState.credentials.oauth_client_vault !== owner.tomb)
+            throw new NativeOAuthError("expired");
+          if (!obligation.grant && obligation.credentials?.phase === "exchange")
+            throw new NativeOAuthError("cleanup");
+          return "local-credential-forgotten";
+        }),
+    },
+  };
+}

@@ -2,13 +2,13 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 /** Shared code exchange retains actual minted credentials before freshness checks. */
 import { sha256Base64Url } from "@opensesame/sdk-browser";
 import { z } from "zod";
-import { assertNativeBrowserOAuthPolicy } from "./native-browser-policy.js";
 import type { NativeGrant } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import {
   type NativeOAuthClientOwner,
   assertNativeOAuthClientOwner,
+  assertNativeOAuthClientPolicy,
   initializeNativeOAuthClientCustody,
   nativeOAuthClientClassification,
   nativeOAuthClientTarget,
@@ -200,7 +200,7 @@ export async function exchangeNativeOAuthClient(
     pending.redirectUri !== target.redirectUri
   )
     throw new NativeOAuthError("expired");
-  assertNativeBrowserOAuthPolicy(claim.record.configuration.providerId);
+  assertNativeOAuthClientPolicy(claim.record.configuration, owner);
   const secret = readNativeOAuthClientSecret(id, owner);
   const credentialDigest = await sha256Base64Url(secret ?? "");
   if (
