@@ -36,6 +36,7 @@ import {
   nativeScopeDefaults,
   nativeVerified,
 } from "./native-connector-ui-values.js";
+import { nativeMethodConfigurable } from "./native-connector-ui.js";
 import type {
   NativeConnectorCallbacks,
   NativeConnectorController,
@@ -100,7 +101,7 @@ function useNativeForm(props: Props) {
   const { descriptor, controller, view, onChanged, onFlash } = props;
   const { lifetime, busy, setBusyOwner, failure, setFailure } =
     useNativeFormFeedback(props);
-  const available = descriptor.methods.filter((item) => item.available);
+  const available = descriptor.methods.filter(nativeMethodConfigurable);
   const initial = nativeInitialMethod(descriptor, view);
   const [methodId, setMethodId] = useState(initial?.id);
   const [values, setValues] = useState(() =>
@@ -119,7 +120,8 @@ function useNativeForm(props: Props) {
     : undefined;
 
   function choose(next: NativeMethodDescriptor) {
-    if (view || !next.available || busy || image.iconBusy) return;
+    if (view || !nativeMethodConfigurable(next) || busy || image.iconBusy)
+      return;
     setMethodId(next.id);
     setValues(nativeInitialValues(next, view));
     setScopes(nativeScopeDefaults(next));

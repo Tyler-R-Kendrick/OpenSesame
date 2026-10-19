@@ -36,6 +36,8 @@ export type NativeMethodDescriptor = {
   id: NativeMethod;
   label: string;
   available: boolean;
+  /** Compiled editor remains reachable before transport admission; never authorizes Connect. */
+  configurable?: boolean;
   unavailableReason?: string;
   /** Why it is unavailable, as a closed reason a tile can name (never prose). */
   unavailableKind?: BrowserUnavailableKind;
@@ -124,3 +126,16 @@ export type NativeConnectorCallbacks = {
   onChanged: (view: NativeConnectorView | null) => void;
   onFlash: (flash: Flash) => void;
 };
+
+/** Editing public configuration is separate from authorizing a provider operation. */
+export function nativeMethodConfigurable(
+  method: Pick<
+    NativeMethodDescriptor,
+    "available" | "configurable" | "unavailableKind"
+  >,
+): boolean {
+  return (
+    method.unavailableKind !== "policy" &&
+    (method.available || method.configurable === true)
+  );
+}
