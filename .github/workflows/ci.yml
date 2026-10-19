@@ -16,6 +16,9 @@ name: CI
 
 on:
   pull_request:
+    # ready_for_review: a draft runs no suite (the `changes` job reports it),
+    # so promoting it is what starts CI.
+    types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
   # A merged diff runs whole: a pull request runs only what its diff can reach
   # (the changed-areas and affected-tests scripts fall back to every area, every
@@ -39,21 +42,46 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      typescript: ${{ steps.areas.outputs.typescript }}
+      typescript: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.typescript }}
       # Quoted so the keyboard contract's job-id split does not match here.
-      "bundle": ${{ steps.areas.outputs.bundle }}
-      "rust": ${{ steps.areas.outputs.rust }}
-      native_mobile: ${{ steps.native.outputs.native_mobile }}
-      mtls: ${{ steps.areas.outputs.mtls }}
-      "push": ${{ steps.areas.outputs.push }}
+      "bundle": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.bundle }}
+      "rust": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.rust }}
+      native_mobile: ${{ github.event.pull_request.draft == true && 'false' || steps.native.outputs.native_mobile }}
+      mtls: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.mtls }}
+      "push": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.push }}
       # The browser gates this diff reaches (scripts/lib/ci-gates.mjs): the
       # bundle job's legs as a matrix, and the gates that are jobs of their own.
-      bundle_matrix: ${{ steps.areas.outputs.bundle_matrix }}
-      tutorials: ${{ steps.areas.outputs.tutorials }}
-      device_inbox: ${{ steps.areas.outputs.device_inbox }}
-      device_identity: ${{ steps.areas.outputs.device_identity }}
-      live_join: ${{ steps.areas.outputs.live_join }}
+      bundle_matrix: ${{ github.event.pull_request.draft == true && '[]' || steps.areas.outputs.bundle_matrix }}
+      tutorials: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.tutorials }}
+      device_inbox: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.device_inbox }}
+      device_identity: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.device_identity }}
+      live_join: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.live_join }}
+      # A draft pull request runs no suite; the three required checks fail on it
+      # (below) so a head SHA that only ever ran as a draft can never read green.
+      draft: ${{ github.event.pull_request.draft == true && 'true' || 'false' }}
+      # The runner the two jobs that can leave GitHub-hosted runners ask for.
+      linux_runner: ${{ steps.runner.outputs.linux }}
     steps:
+      - name: Choose the Linux runner
+        id: runner
+        # Off unless the repository variable CI_SELF_HOSTED_ARM64 is "true", so
+        # the default is GitHub-hosted and flipping it back is the whole rollback.
+        # Only the owner's own branches may reach the self-hosted box: this
+        # repository is public, and a runner executes whatever the PR contains.
+        env:
+          ENABLED: ${{ vars.CI_SELF_HOSTED_ARM64 }}
+          EVENT: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          linux='"ubuntu-latest"'
+          if [ "$ENABLED" = "true" ] && [ "$ACTOR" = "$OWNER" ] \
+            && { [ "$EVENT" != "pull_request" ] || [ "$HEAD_REPO" = "$REPO" ]; }; then
+            linux='["self-hosted","linux","ARM64","os-devbox"]'
+          fi
+          echo "linux=$linux" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
@@ -89,10 +117,8 @@ jobs:
     name: TypeScript tests
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
-    # A lockfile or manifest change runs every package (scope=all): 18 minutes
-    # on a push to main, over 28 on a slower runner. ci-full-run.test.mjs.
-    timeout-minutes: 45
+    runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
+    timeout-minutes: 30
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
@@ -282,6 +308,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:push-worker
+      - name: Service worker reload waits for a dirty edit
+        if: matrix.shard == 'budgets'
+        # A guest with an unsaved item must see the waiting release instead of
+        # losing the edit. Lock, idle, and a missing chunk still reload.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:sw-dirty-edit
       - name: Phone and tablet layout and touch contract
         if: startsWith(matrix.shard, 'mobile-')
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
@@ -444,6 +478,27 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:peer-trust-two-context
+      - name: Peering diagnostics
+        # Two contexts on the static dist: ICE line while connecting (P8-3).
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peering-diagnostics
+      - name: Fresh vault Passwords onboarding
+        # P8-4: the walker rebuilds dist with its opt-in, then saves an account.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:fresh-vault-login
+      - name: CLI on the public site
+        # P8-5: Pair CLI on the shared origin, with no loopback pairing field.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:cli-public-site
 
   ai-connections-e2e:
     name: AI connections end to end
@@ -782,7 +837,7 @@ jobs:
     name: Rust tests
     needs: changes
     if: needs.changes.outputs.rust == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
     timeout-minutes: 45
     env:
       CARGO_BUILD_JOBS: 2
@@ -967,7 +1022,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
         run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.typescript-tests.result }}"
           if [ "$changes" != "success" ]; then
@@ -987,7 +1048,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
         run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.bundle.result }}"
           tutorials="${{ needs.tutorials-e2e.result }}"
@@ -1042,7 +1109,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
         run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.rust.result }}"
           native="${{ needs.changes.outputs.native_mobile }}"
