@@ -1,357 +1,363 @@
-name: Publish focused PWA integration slice
-run-name: Verify focused PWA slice 1e3be26b3be96115
+name: Verify frozen FOKS portable host foundation
+run-name: FOKS host8/22 owned4GiB fe35e0b66c689128
 on:
   push:
     branches: ["work/verified-contents-1253-1792017664643"]
     paths: [".github/workflows/connector-pwa-slice.yml"]
 permissions: {}
 concurrency:
-  group: connector-pwa-slice-1e3be26b3be96115
+  group: connector-foks-host-fe35e0b66c689128
   cancel-in-progress: false
 jobs:
-  staging:
+  host-proof:
     if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.ref == 'refs/heads/work/verified-contents-1253-1792017664643' }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     timeout-minutes: 6
     permissions:
-      contents: write
+      contents: read
     steps:
-      - name: Create and independently verify isolated signed slice
+      - name: Execute actual canonical cold host tests under NEW owned4GiB profile
         shell: python
         env:
           GH_TOKEN: ${{ github.token }}
-          PUBLISHER_SOURCE_COMMIT: ${{ github.sha }}
         run: |
-          """Reviewed Actions-only staging publisher. No checkout or PR/ref promotion."""
+          """Independent fresh Actions host proof. No signing, promotion, warm cache or app activation."""
           import base64
           import hashlib
           import json
           import os
           from pathlib import Path
-          import re
+          import platform
+          import signal
+          import stat
+          import subprocess
           import sys
+          import tarfile
           import time
-          import urllib.error
           import urllib.parse
           import urllib.request
           
-          REPOSITORY = 'Tyler-R-Kendrick/OpenSesame'
-          API = 'https://api.github.com'
-          PAYLOAD_PATH = '.github/connector-stack/payload.json'
-          PAYLOAD_SHA256 = '1e3be26b3be96115d61fb0279441bda71e67e4298a8b69fa6e491da95c63655f'
-          NEW_BASE = '26f7720487f87e10fc38b9e89e2e9ec699a9a4af'
-          FINAL_TREE = '16e3137ac60fb4850feceb5ff5ad322dcbfa9eed'
-          SHA1 = re.compile(r'[0-9a-f]{40}\Z')
-          SHA256 = re.compile(r'[0-9a-f]{64}\Z')
-          STAGE_PREFIX = 'connector-signed-stage/' + PAYLOAD_SHA256[:16] + '/'
-          OUTPUT = Path('connector-signed-checkpoints')
+          PAYLOAD_SHA = 'fe35e0b66c689128cf48c344f7b967c040bf8a9c5e568c06dca3890cc15d90dc'
+          REPO = 'Tyler-R-Kendrick/OpenSesame'
+          PROFILE = 'NEW_CLEAN_ACTIONS_OWNED_SCRATCH_4GIB'
+          START = time.monotonic()
+          ROOT = None
+          REPORT = None
+          TIMELINE = []
+          KNOWN = {}
           
           
-          class Refusal(Exception):
-              pass
+          def require(ok, why):
+              if not ok:
+                  raise RuntimeError(why)
           
           
-          def require(condition, message):
-              if not condition:
-                  raise Refusal(message)
+          def digest(data):
+              return hashlib.sha256(data).hexdigest()
           
           
-          def encode(value):
-              return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+          def sha(path):
+              h = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                      h.update(chunk)
+              return h.hexdigest()
           
           
-          def git_blob_oid(content):
+          def write(name, value):
+              with (REPORT / name).open('x') as stream:
+                  json.dump(value, stream, indent=2)
+                  stream.write('\n')
+                  stream.flush()
+                  os.fsync(stream.fileno())
+          
+          
+          def resources(phase):
+              seen, allocated = set(), 0
+              for folder, directories, files in os.walk(ROOT, followlinks=False):
+                  for name in ['.', *directories, *files]:
+                      path = Path(folder) if name == '.' else Path(folder) / name
+                      value = path.lstat()
+                      require(not stat.S_ISLNK(value.st_mode), 'Owned scratch symlink refused')
+                      require(stat.S_ISREG(value.st_mode) or stat.S_ISDIR(value.st_mode), 'Owned special file refused')
+                      key = value.st_dev, value.st_ino
+                      if key not in seen:
+                          allocated += value.st_blocks * 512
+                          seen.add(key)
+              fs = os.statvfs(ROOT)
+              row = {'seconds': time.monotonic() - START, 'phase': phase, 'ownedAllocatedBytes': allocated,
+                     'hostFilesystemUsedBytes': (fs.f_blocks - fs.f_bfree) * fs.f_frsize,
+                     'availableBytes': fs.f_bavail * fs.f_frsize}
+              TIMELINE.append(row)
+              require(allocated + 16 * 1024 ** 2 < 4 * 1024 ** 3, 'NEW owned4GiB allocation/reserve exceeded')
+              require(row['availableBytes'] >= (1300 + 16) * 1024 ** 2, 'Original free floor/reserve reached')
+              return row
+          
+          
+          def identity(pid):
+              try:
+                  fields = Path('/proc', str(pid), 'stat').read_text().rsplit(')', 1)[1].split()
+                  return {'pid': pid, 'state': fields[0], 'ppid': int(fields[1]), 'pgrp': int(fields[2]), 'start': fields[19]}
+              except (FileNotFoundError, ProcessLookupError, PermissionError):
+                  return None
+          
+          
+          def remember(child):
+              processes = [identity(int(p.name)) for p in Path('/proc').iterdir() if p.name.isdigit()]
+              processes = [p for p in processes if p]
+              parents = {child.pid, *KNOWN}
+              for _ in range(12):
+                  found = [p for p in processes if p['pid'] in parents or p['ppid'] in parents or p['pgrp'] == child.pid]
+                  prior = len(parents)
+                  for value in found:
+                      KNOWN[value['pid']] = value
+                      parents.add(value['pid'])
+                  if len(parents) == prior:
+                      break
+          
+          
+          def live():
+              return [current for pid, old in KNOWN.items() if (current := identity(pid))
+                      and current['start'] == old['start'] and current['state'] != 'Z']
+          
+          
+          def child(argv, cwd, env, deadline, label):
+              process = None
+              result = {'argv': argv, 'passed': False, 'forcedCleanup': False}
+              try:
+                  with (REPORT / (label + '.jsonl')).open('xb') as output, (REPORT / (label + '.stderr')).open('xb') as error:
+                      process = subprocess.Popen(argv, cwd=cwd, env=env, stdout=output, stderr=error, start_new_session=True)
+                      while process.poll() is None:
+                          remember(process)
+                          resources(label)
+                          require(time.monotonic() < deadline - 3, 'Phase deadline/cleanup reserve reached')
+                          time.sleep(0.2)
+                      remember(process)
+                      result['exitCode'] = process.returncode
+                      require(process.returncode == 0, 'Owned command failed; inspect retained phase logs')
+                      require(not live(), 'Owned descendants remained after command exit')
+                      result['passed'] = True
+              finally:
+                  if process:
+                      remember(process)
+                      remaining = live()
+                      if remaining:
+                          result['forcedCleanup'] = True
+                          for sig in [signal.SIGTERM, signal.SIGKILL]:
+                              try:
+                                  os.killpg(process.pid, sig)
+                              except ProcessLookupError:
+                                  pass
+                              for value in live():
+                                  try:
+                                      os.kill(value['pid'], sig)
+                                  except ProcessLookupError:
+                                      pass
+                              try:
+                                  process.wait(timeout=1)
+                              except subprocess.TimeoutExpired:
+                                  pass
+                      process.wait(timeout=1)
+                      result.update(exitCode=process.returncode, ownedLiveAfter=live())
+                  write(label + '-receipt.json', result)
+              require(not result['forcedCleanup'] and not result.get('ownedLiveAfter'), 'Owned normal closure failed')
+          
+          
+          class NoApiRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args):
+                  raise RuntimeError('GitHub API redirect refused')
+          
+          
+          def github(path, limit):
+              require(path.startswith('contents/') or path.startswith('git/blobs/'), 'Only GitHub content reads allowed')
+              token = os.environ.get('GH_TOKEN', '')
+              request = urllib.request.Request('https://api.github.com/repos/' + REPO + '/' + path, headers={
+                  'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'OpenSesame-frozen-FOKS-host-proof'})
+              with urllib.request.build_opener(NoApiRedirect()).open(request, timeout=20) as response:
+                  require(response.url.startswith('https://api.github.com/repos/' + REPO + '/'), 'API origin changed')
+                  content = response.read(limit + 1)
+                  require(len(content) <= limit, 'GitHub content bound exceeded')
+                  return json.loads(content)
+          
+          
+          def checked_blob(row, content):
               header = b'blob ' + str(len(content)).encode() + b'\0'
-              return hashlib.sha1(header + content, usedforsecurity=False).hexdigest()
-          
-          
-          def check_blob(oid, descriptor, content):
-              require(len(content) == descriptor['bytes'], 'Blob length mismatch')
-              require(git_blob_oid(content) == oid, 'Git blob OID mismatch')
-              require(hashlib.sha256(content).hexdigest() == descriptor['sha256'], 'Blob SHA256 mismatch')
+              require(len(content) == row['bytes'] and digest(content) == row['sha256'], 'Frozen blob byte mismatch')
+              require(hashlib.sha1(header + content, usedforsecurity=False).hexdigest() == row['gitBlobOid'], 'Frozen Git blob mismatch')
               return content
           
           
-          def validate_payload(content):
-              require(hashlib.sha256(content).hexdigest() == PAYLOAD_SHA256, 'Frozen payload digest mismatch')
-              payload = json.loads(content)
-              require(payload['schemaVersion'] == 1 and payload['repository'] == REPOSITORY, 'Payload scope mismatch')
-              require(payload['newBase'] == NEW_BASE and payload['expectedTree'] == FINAL_TREE, 'Replay target mismatch')
-              require(len(payload['rows']) == 1, 'Expected exactly 1 receipt slice')
-              require(SHA256.fullmatch(payload['planSha256']), 'Invalid source plan digest')
-              seen_prs, seen_branches, used_blobs = set(), set(), set()
-              prior_tree = None
-              for row in payload['rows']:
-                  require(type(row['pr']) is int and row['pr'] not in seen_prs, 'Duplicate or invalid PR')
-                  seen_prs.add(row['pr'])
-                  branch = row['branch']
-                  require(type(branch) is str and branch and branch not in seen_branches, 'Duplicate or invalid lease branch')
-                  require(not branch.startswith(STAGE_PREFIX) and '\n' not in branch, 'Invalid lease branch scope')
-                  seen_branches.add(branch)
-                  for key in ('oldBase', 'oldHead', 'parentTree', 'resultTree'):
-                      require(SHA1.fullmatch(row[key]), 'Invalid row object identifier')
-                  require(prior_tree is None or prior_tree == row['parentTree'], 'Broken planned parent chain')
-                  prior_tree = row['resultTree']
-                  require(row['changes'], 'Empty source slice')
-                  paths = set()
-                  for change in row['changes']:
-                      path = change['path']
-                      require(type(path) is str and path and not path.startswith('/') and '\\' not in path,
-                              'Invalid file path')
-                      require(all(part not in ('', '.', '..', '.git') for part in path.split('/')), 'Unsafe file path')
-                      require(path not in paths, 'Duplicate row file')
-                      paths.add(path)
-                      require(change['status'] in ('A', 'M') and change['mode'] == '100644', 'Unsupported file operation')
-                      require(SHA1.fullmatch(change['blobOid']), 'Invalid file blob OID')
-                      used_blobs.add(change['blobOid'])
-              require(prior_tree == FINAL_TREE, 'Final slice tree mismatch')
-              require(set(payload['blobs']) == used_blobs, 'Blob inventory mismatch')
-              for oid, descriptor in payload['blobs'].items():
-                  require(type(descriptor['bytes']) is int and 0 <= descriptor['bytes'] <= 2_000_000, 'Invalid blob size')
-                  require(SHA256.fullmatch(descriptor['sha256']), 'Invalid blob digest')
-                  if 'base64' in descriptor:
-                      check_blob(oid, descriptor, base64.b64decode(descriptor['base64'], validate=True))
-              return payload
-          
-          
-          class NoRedirect(urllib.request.HTTPRedirectHandler):
-              def redirect_request(self, request, response, code, message, headers, new_url):
-                  raise Refusal('GitHub API redirect refused')
-          
-          
-          class GitHub:
-              def __init__(self, token):
-                  self.token = token
-                  self.opener = urllib.request.build_opener(NoRedirect())
-          
-              def call(self, method, path, data=None, limit=32_000_000):
-                  require(path.startswith('/repos/' + REPOSITORY + '/') or path == '/graphql', 'API scope refused')
-                  body = None if data is None else encode(data)
-                  request = urllib.request.Request(API + path, data=body, method=method, headers={
-                      'Authorization': 'Bearer ' + self.token,
-                      'Accept': 'application/vnd.github+json',
-                      'X-GitHub-Api-Version': '2022-11-28',
-                      'Content-Type': 'application/json',
-                      'User-Agent': 'OpenSesame-frozen-staging-publisher',
-                  })
-                  attempts = 4 if method == 'GET' else 1
-                  for attempt in range(attempts):
-                      try:
-                          with self.opener.open(request, timeout=60) as response:
-                              content = response.read(limit + 1)
-                              require(len(content) <= limit, 'API response size exceeded')
-                              return json.loads(content), response.headers
-                      except urllib.error.HTTPError as error:
-                          if method == 'GET' and error.code in (429, 500, 502, 503, 504) and attempt + 1 < attempts:
-                              time.sleep(min(30, 2 ** attempt))
-                              continue
-                          raise Refusal('GitHub API HTTP ' + str(error.code)) from None
-                      except (urllib.error.URLError, TimeoutError):
-                          if method == 'GET' and attempt + 1 < attempts:
-                              time.sleep(2 ** attempt)
-                              continue
-                          raise Refusal('GitHub API transport failed; rerun reconciles staging refs') from None
-                  raise Refusal('GitHub API retry exhausted')
-          
-              def get(self, path):
-                  return self.call('GET', '/repos/' + REPOSITORY + '/' + path)
-          
-              def ref(self, branch):
-                  result, _ = self.get('git/ref/heads/' + urllib.parse.quote(branch, safe='/'))
-                  require(result.get('ref') == 'refs/heads/' + branch, 'Unexpected ref response')
-                  require(result.get('object', {}).get('type') == 'commit', 'Ref is not a commit')
-                  oid = result['object']['sha']
-                  require(SHA1.fullmatch(oid), 'Invalid ref commit OID')
-                  return oid
-          
-              def optional_stage_ref(self, branch):
-                  require(branch.startswith(STAGE_PREFIX), 'Non-staging ref refused')
-                  try:
-                      return self.ref(branch)
-                  except Refusal as error:
-                      if str(error) == 'GitHub API HTTP 404':
-                          return None
-                      raise
-          
-              def created_ref(self, branch, parent):
-                  require(branch.startswith(STAGE_PREFIX), 'Non-staging ref visibility read refused')
-                  for delay in (0, 1, 2, 4):
-                      if delay:
-                          time.sleep(delay)
-                      try:
-                          actual = self.ref(branch)
-                      except Refusal as error:
-                          if str(error) == 'GitHub API HTTP 404':
-                              continue
-                          raise
-                      require(actual == parent, 'New staging ref has unexpected parent')
-                      return actual
-                  raise Refusal('New staging ref remains invisible; rerun reconciles it')
-          
-              def create_stage(self, branch, parent):
-                  require(branch.startswith(STAGE_PREFIX), 'Non-staging ref creation refused')
-                  self.call('POST', '/repos/' + REPOSITORY + '/git/refs', {
-                      'ref': 'refs/heads/' + branch, 'sha': parent,
-                  })
-          
-          
-          def load_payload(api, source_commit):
-              require(SHA1.fullmatch(source_commit), 'Source commit must be an exact 40-character SHA')
-              path = 'contents/' + PAYLOAD_PATH + '?ref=' + source_commit
-              data, _ = api.get(path)
-              require(data.get('type') == 'file' and data.get('encoding') == 'base64', 'Payload file unavailable')
-              content = base64.b64decode(data['content'].replace('\n', ''), validate=True)
-              require(git_blob_oid(content) == data['sha'], 'Source payload blob mismatch')
-              return validate_payload(content)
-          
-          
-          def load_blobs(api, payload):
-              cache = {}
-              for oid, descriptor in payload['blobs'].items():
-                  if 'base64' in descriptor:
-                      content = base64.b64decode(descriptor['base64'], validate=True)
-                  else:
-                      data, _ = api.get('git/blobs/' + oid)
-                      require(data.get('sha') == oid and data.get('encoding') == 'base64', 'Remote blob mismatch')
-                      content = base64.b64decode(data['content'].replace('\n', ''), validate=True)
-                  cache[oid] = base64.b64encode(check_blob(oid, descriptor, content)).decode()
-                  if len(cache) % 25 == 0 or len(cache) == len(payload['blobs']):
-                      print(json.dumps({'preflightBlobsValidated': len(cache), 'total': len(payload['blobs'])}), flush=True)
-              return cache
-          
-          
-          def read_leases(api, payload):
-              leases = []
-              for row in payload['rows']:
-                  actual = api.ref(row['branch'])
-                  require(actual == row['oldHead'], 'Original head lease changed for PR ' + str(row['pr']))
-                  leases.append({'pr': row['pr'], 'branch': row['branch'], 'head': actual})
-              return leases
-          
-          
-          def verify_commit(api, oid, parent, row):
-              require(SHA1.fullmatch(oid), 'Invalid created commit OID')
-              expected = {c['path']: c for c in row['changes']}
-              inventory, seen_pages = {}, set()
-              page = 1
-              while True:
-                  require(page not in seen_pages and page <= 20, 'Invalid inventory pagination')
-                  seen_pages.add(page)
-                  commit, headers = api.get('commits/' + oid + '?per_page=300&page=' + str(page))
-                  require(commit.get('sha') == oid, 'Unexpected inspected commit')
-                  require([p['sha'] for p in commit.get('parents', [])] == [parent], 'Commit must have exact single parent')
-                  detail = commit['commit']
-                  require(detail['tree']['sha'] == row['resultTree'], 'Created tree does not match frozen replay')
-                  verification = detail.get('verification', {})
-                  require(verification.get('verified') is True and verification.get('reason') == 'valid',
-                          'Created commit signature is not valid')
-                  require(verification.get('signature') and verification.get('payload'), 'Signature evidence missing')
-                  for file in commit.get('files', []):
-                      path = file['filename']
-                      require(path not in inventory and path in expected, 'Unexpected or duplicate changed file')
-                      change = expected[path]
-                      require(file['status'] == {'A': 'added', 'M': 'modified'}[change['status']], 'Changed-file status mismatch')
-                      require(file['sha'] == change['blobOid'], 'Changed-file blob mismatch')
-                      require('previous_filename' not in file, 'Unexpected renamed file')
-                      inventory[path] = {'status': file['status'], 'sha': file['sha']}
-                  links = headers.get('Link', '')
-                  next_links = re.findall(r'<([^>]+)>;\s*rel="next"', links)
-                  if not next_links:
+          def all_json(path):
+              text, decoder, offset, rows = path.read_text(), json.JSONDecoder(), 0, []
+              while offset < len(text):
+                  while offset < len(text) and text[offset].isspace():
+                      offset += 1
+                  if offset == len(text):
                       break
-                  require(len(next_links) == 1, 'Ambiguous pagination')
-                  next_url = urllib.parse.urlsplit(next_links[0])
-                  require(next_url.scheme == 'https' and next_url.netloc == 'api.github.com', 'Pagination origin refused')
-                  require(next_url.path == '/repos/' + REPOSITORY + '/commits/' + oid, 'Pagination path refused')
-                  query = urllib.parse.parse_qs(next_url.query)
-                  require(query.get('page') == [str(page + 1)], 'Unexpected next inventory page')
-                  page += 1
-              require(set(inventory) == set(expected), 'Incomplete changed-file inventory')
-              return {'commit': oid, 'parent': parent, 'tree': row['resultTree'], 'signature': 'valid',
-                      'fileCount': len(inventory), 'inventoryPages': len(seen_pages),
-                      'inventorySha256': hashlib.sha256(encode(inventory)).hexdigest()}
+                  row, offset = decoder.raw_decode(text, offset)
+                  rows.append(row)
+              return rows
           
           
-          MUTATION = '''mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}'''
+          def tree_inventory(root):
+              rows = []
+              for path in sorted(root.rglob('*')):
+                  value = path.lstat()
+                  require(not path.is_symlink(), 'Immutable tree symlink refused')
+                  if path.is_file():
+                      rows.append({'path': str(path.relative_to(root)), 'bytes': value.st_size,
+                                   'mode': stat.S_IMODE(value.st_mode), 'sha256': sha(path)})
+              return rows
           
           
-          def create_signed_commit(api, branch, parent, row, blobs, payload):
-              require(branch.startswith(STAGE_PREFIX), 'Non-staging commit target refused')
-              additions = [{'path': c['path'], 'contents': blobs[c['blobOid']]} for c in row['changes']]
-              body = 'Reviewed focused PWA integration slice.\nFrozen plan SHA256: ' + payload['planSha256']
-              body += '\nExpected branch head: ' + row['oldHead'] + '\nExpected tree: ' + row['resultTree']
-              result, _ = api.call('POST', '/graphql', {'query': MUTATION, 'variables': {'input': {
-                  'branch': {'repositoryNameWithOwner': REPOSITORY, 'branchName': branch},
-                  'expectedHeadOid': parent,
-                  'message': {'headline': row['headline'], 'body': body},
-                  'fileChanges': {'additions': additions},
-                  'clientMutationId': PAYLOAD_SHA256[:16] + '-' + str(row['pr']),
-              }}})
-              require(not result.get('errors'), 'GraphQL commit rejected; inspect staging ref before rerun')
-              try:
-                  oid = result['data']['createCommitOnBranch']['commit']['oid']
-              except (KeyError, TypeError):
-                  raise Refusal('GraphQL commit result missing') from None
-              require(api.ref(branch) == oid, 'Staging ref changed after commit creation')
-              return oid
-          
-          
-          def checkpoint(name, value):
-              OUTPUT.mkdir(mode=0o700, exist_ok=True)
-              path = OUTPUT / (name + '.json')
-              temporary = path.with_suffix('.tmp')
-              temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + '\n')
-              temporary.replace(path)
-              print(json.dumps({'checkpoint': name, **value}, sort_keys=True), flush=True)
+          def setup(payload, deadline):
+              source, tool, modules = ROOT / 'source', ROOT / 'toolchain', ROOT / 'modules'
+              for folder in [source, tool, modules, ROOT / 'preparation-cache', ROOT / 'tmp', ROOT / 'gopath']:
+                  folder.mkdir(mode=0o700)
+              for row in payload['files']:
+                  require(time.monotonic() < deadline - 3, 'Preparation deadline reached')
+                  rel = Path(row['path'])
+                  require(not rel.is_absolute() and all(p not in ['.', '..', '.git'] for p in rel.parts), 'Unsafe frozen path')
+                  if 'base64' in row:
+                      content = base64.b64decode(row['base64'], validate=True)
+                  else:
+                      reply = github('git/blobs/' + row['gitBlobOid'], max(4_000_000, row['bytes'] * 2))
+                      require(reply['sha'] == row['gitBlobOid'] and reply['encoding'] == 'base64', 'Blob response mismatch')
+                      content = base64.b64decode(reply['content'].replace('\n', ''), validate=True)
+                  target = source / rel
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  with target.open('xb') as out:
+                      out.write(checked_blob(row, content))
+                  os.chmod(target, 0o644)
+              compiler, archive = payload['compiler'], ROOT / 'compiler.tar.gz'
+              with urllib.request.urlopen(compiler['archiveURL'], timeout=20) as response, archive.open('xb') as out:
+                  url = urllib.parse.urlsplit(response.url)
+                  require(url.scheme == 'https' and url.hostname in ['github.com', 'release-assets.githubusercontent.com', 'objects.githubusercontent.com'], 'Compiler download origin refused')
+                  count = 0
+                  while chunk := response.read(1024 * 1024):
+                      count += len(chunk)
+                      require(count <= 128 * 1024 ** 2 and time.monotonic() < deadline - 3, 'Compiler download bound exceeded')
+                      out.write(chunk)
+                      resources('compiler-download')
+              require(sha(archive) == compiler['archiveSha256'], 'Official compiler archive digest mismatch')
+              with tarfile.open(archive, 'r:gz') as tar:
+                  seen, total = set(), 0
+                  for member in tar:
+                      rel = Path(member.name)
+                      require(rel.parts and rel.parts[0] == 'go' and not rel.is_absolute() and '..' not in rel.parts, 'Compiler archive path refused')
+                      require(member.name not in seen and (member.isdir() or member.isfile()), 'Compiler archive type/duplicate refused')
+                      seen.add(member.name)
+                      total += member.size
+                      require(len(seen) < 20000 and total < 512 * 1024 ** 2, 'Compiler extraction bound exceeded')
+                      target = tool / rel
+                      if member.isdir():
+                          target.mkdir(parents=True, exist_ok=True)
+                      else:
+                          target.parent.mkdir(parents=True, exist_ok=True)
+                          with target.open('xb') as out, tar.extractfile(member) as inp:
+                              while chunk := inp.read(1024 * 1024):
+                                  out.write(chunk)
+                          os.chmod(target, member.mode & 0o777)
+                      if len(seen) % 128 == 0:
+                          resources('compiler-extraction')
+                          require(time.monotonic() < deadline - 3, 'Preparation deadline reached')
+              go = tool / 'go' / 'bin' / 'go'
+              for row in compiler['criticalFiles']:
+                  require(sha(tool / 'go' / row['path']) == row['sha256'], 'Official compiler critical pin mismatch')
+              env = {'PATH': str(go.parent) + ':/usr/bin:/bin', 'LANG': 'C.UTF-8', 'GOTOOLCHAIN': 'local', 'GOENV': 'off',
+                     'GOWORK': 'off', 'GOTELEMETRY': 'off', 'CGO_ENABLED': '0', 'GOMAXPROCS': '2', 'GOMEMLIMIT': '2GiB',
+                     'GOFLAGS': '-p=2 -buildvcs=false', 'GOOS': 'linux', 'GOARCH': 'amd64', 'GOPATH': str(ROOT / 'gopath'),
+                     'GOMODCACHE': str(modules), 'GOCACHE': str(ROOT / 'preparation-cache'), 'TMPDIR': str(ROOT / 'tmp'),
+                     'GOPROXY': 'https://proxy.golang.org', 'GOSUMDB': 'sum.golang.org', 'GOPRIVATE': '', 'GONOSUMDB': '', 'GONOPROXY': ''}
+              package = source / 'tools/pwa-native-foks'
+              require('replace ' not in (package / 'go.mod').read_text(), 'No dependency replacements allowed')
+              child([str(go), 'version'], package, env, deadline, 'actual-toolchain')
+              require((REPORT / 'actual-toolchain.jsonl').read_text().strip() == 'go version go1.27.2 linux/amd64', 'Actual compiler version mismatch')
+              child([str(go), 'list', '-deps', '-test', '-tags=noresinit', '-mod=readonly', '-json', '.'], package, env, deadline, 'canonical-graph')
+              deps = {r['Module']['Path'] + '@' + r['Module']['Version'] for r in all_json(REPORT / 'canonical-graph.jsonl') if r.get('Module', {}).get('Version')}
+              require(deps and all(not r.get('Module', {}).get('Replace') and not r.get('Error') for r in all_json(REPORT / 'canonical-graph.jsonl')), 'Canonical graph replacement/error refused')
+              child([str(go), 'mod', 'download', '-json', *sorted(deps)], package, env, deadline, 'canonical-sums')
+              sums = {(r['module'], r['version']): r['sum'] for r in payload['checksumLock']['records']}
+              canonical_rows = all_json(REPORT / 'canonical-sums.jsonl')
+              require(len(canonical_rows) == len(deps), 'Canonical download record count differs')
+              for row in canonical_rows:
+                  require(not row.get('Error') and (row['Path'], row['Version']) in sums, 'Unknown canonical dependency')
+                  require(row.get('Sum') == sums[row['Path'], row['Version']] and row.get('GoModSum') == sums[row['Path'], row['Version'] + '/go.mod'], 'Authenticated module sums differ')
+                  require(Path(row['Dir']).is_relative_to(modules), 'Canonical module outside owned scratch')
+              metadata = json.loads((package / 'source.json').read_text())['foks']
+              sdk = [r for r in canonical_rows if r['Path'] == metadata['module'] and r['Version'] == metadata['version']]
+              require(len(sdk) == 1, 'Exact canonical FOKS version missing')
+              for critical in metadata['criticalSources']:
+                  require(sha(Path(sdk[0]['Dir']) / critical['path']) == critical['sha256'], 'Official FOKS critical-source pin mismatch')
+              return source, go, modules, package, env
           
           
           def main():
-              require(os.environ.get('GITHUB_REPOSITORY') == REPOSITORY, 'Repository allowlist refused')
-              token = os.environ.get('GH_TOKEN', '')
-              require(bool(token), 'GH_TOKEN is required')
-              api = GitHub(token)
-              source_commit = os.environ.get('PUBLISHER_SOURCE_COMMIT', '')
-              payload = load_payload(api, source_commit)
-              leases = read_leases(api, payload)  # ALL original leases pass before ANY write.
-              base, _ = api.get('git/commits/' + NEW_BASE)
-              require(base['sha'] == NEW_BASE and base['tree']['sha'] == payload['rows'][0]['parentTree'], 'New base tree mismatch')
-              blobs = load_blobs(api, payload)  # All content verified before any staging ref is created.
-              checkpoint('preflight', {'repository': REPOSITORY, 'sourceCommit': source_commit,
-                                      'payloadSha256': PAYLOAD_SHA256, 'newBase': NEW_BASE, 'leases': leases})
-              parent, rows = NEW_BASE, []
-              for row in payload['rows']:
-                  branch = STAGE_PREFIX + 'pr-' + str(row['pr']) + '-' + row['resultTree'][:12]
-                  existing = api.optional_stage_ref(branch)
-                  if existing is None:
-                      api.create_stage(branch, parent)
-                      existing = api.created_ref(branch, parent)
-                  if existing == parent:
-                      oid = create_signed_commit(api, branch, parent, row, blobs, payload)
-                  else:
-                      oid = existing  # Resume only after complete independent verification below.
-                  verified = verify_commit(api, oid, parent, row)
-                  require(api.ref(branch) == oid, 'Staging ref changed during verification')
-                  receipt = {'pr': row['pr'], 'originalBranch': row['branch'], 'originalHead': row['oldHead'],
-                             'stagingBranch': branch, **verified}
-                  checkpoint('pr-' + str(row['pr']), receipt)
-                  rows.append(receipt)
-                  parent = oid
-              require(rows[-1]['tree'] == FINAL_TREE, 'Final source tree mismatch')
-              final = {'repository': REPOSITORY, 'payloadSha256': PAYLOAD_SHA256, 'sourceCommit': source_commit,
-                       'newBase': NEW_BASE, 'finalCommit': parent, 'finalTree': FINAL_TREE, 'rows': rows,
-                       'promotionPerformed': False, 'originalLeases': leases}
-              checkpoint('complete', final)
-              summary = os.environ.get('GITHUB_STEP_SUMMARY')
-              if summary:
-                  with open(summary, 'a', encoding='utf-8') as stream:
-                      stream.write('Verified 1 receipt staging commit; no PR branches or bases changed.\n\n')
-                      stream.write('Final commit: `' + parent + '`\n\nFinal tree: `' + FINAL_TREE + '`\n')
+              global ROOT, REPORT
+              require(os.environ.get('GITHUB_REPOSITORY') == REPO and platform.machine() == 'x86_64', 'Explicit x64 repository runner required')
+              base = Path(os.environ['RUNNER_TEMP']).resolve()
+              ROOT = base / ('foks-host-' + os.environ['GITHUB_RUN_ID'] + '-' + os.environ['GITHUB_RUN_ATTEMPT'])
+              ROOT.mkdir(mode=0o700)
+              REPORT = ROOT / 'evidence'
+              REPORT.mkdir(mode=0o700)
+              result = {'passed': False, 'profile': PROFILE, 'originalLocal27GiBPassClaim': False, 'compilerOrBrowserIntegrationClaim': False}
+              try:
+                  result['initialResources'] = resources('initial')
+                  source_commit = os.environ['GITHUB_SHA']
+                  require(len(source_commit) == 40 and all(c in '0123456789abcdef' for c in source_commit), 'Immutable workflow commit required')
+                  response = github('contents/.github/connector-stack/payload.json?ref=' + source_commit, 2_000_000)
+                  payload_bytes = base64.b64decode(response['content'].replace('\n', ''), validate=True)
+                  require(digest(payload_bytes) == PAYLOAD_SHA, 'Frozen proof payload mismatch')
+                  payload = json.loads(payload_bytes)
+                  require(payload['repository'] == REPO and len(payload['files']) == 63 and len({r['path'] for r in payload['files']}) == 63
+                          and sum('base64' in r for r in payload['files']) == 7 and payload['profile']['ownedCapBytes'] == 4 * 1024 ** 3, 'Frozen proof scope mismatch')
+                  write('frozen-payload.json', payload)
+                  deadline = START + 180
+                  source, go, modules, package, env = setup(payload, deadline)
+                  frozen = tree_inventory(source)
+                  require(len(frozen) == 63, 'Source closure changed')
+                  require(sha(package / 'go.mod') == payload['checksumLock']['goModSHA256'] and sha(package / 'go.sum') == payload['checksumLock']['goSumSHA256'], 'Immutable module lock changed')
+                  module_before = tree_inventory(modules)
+                  require(time.monotonic() < deadline, 'Original preparation bound reached')
+                  write('preparation.json', {'passed': True, 'seconds': time.monotonic() - START, 'wholeSeconds': 180, 'sourceFiles': frozen, 'canonicalModuleFiles': module_before, 'compilerSHA256': sha(go), 'resources': resources('preparation-complete')})
+                  cold = time.monotonic()
+                  test_cache = ROOT / 'cold-test-cache'
+                  test_cache.mkdir(mode=0o700)
+                  require(not list(test_cache.iterdir()), 'Actual test cache must start empty')
+                  env.update(GOPROXY='off', GOSUMDB='off', GOCACHE=str(test_cache))
+                  argv = [str(go), 'test', '-tags=noresinit', '-mod=readonly', '-p=2', '-parallel=2', '-json', '-count=1', '-timeout=60s', '.']
+                  child(argv, package, env, cold + 120, 'actual-cold-test')
+                  events = all_json(REPORT / 'actual-cold-test.jsonl')
+                  passed = [r['Test'] for r in events if r.get('Action') == 'pass' and 'Test' in r]
+                  require(not any(r.get('Action') == 'fail' for r in events), 'Actual test failure event')
+                  require({name for name in passed if '/' not in name} == set(payload['expectedTests']) and len(passed) == 22, 'Expected8top/22records not met')
+                  require(any(r.get('Action') == 'pass' and r.get('Package') == 'github.com/Tyler-R-Kendrick/OpenSesame/tools/pwa-native-foks' and 'Test' not in r for r in events), 'Actual package pass missing')
+                  require(frozen == tree_inventory(source) and module_before == tree_inventory(modules) and sha(go) == payload['compiler']['binarySha256'], 'Immutable input changed during tests')
+                  require(time.monotonic() - cold < 120 and not live(), 'Original cold whole bound/normal closure failed')
+                  result.update(passed=True, topLevelTests=8, testPassRecords=22, coldWholeSeconds=time.monotonic() - cold, normalOwnedClosure=True)
+              except BaseException as error:
+                  result.update(errorClass=type(error).__name__, error='Frozen host proof failed; inspect retained phase receipts/logs')
+              finally:
+                  result.update(seconds=time.monotonic() - START, ownedLiveAfter=live(), timeline=TIMELINE)
+                  write('receipt.json', result)
+                  print(json.dumps({k: v for k, v in result.items() if k != 'timeline'}))
+              return 0 if result['passed'] else 1
+          
+          
+          def interrupted(signum, _frame):
+              raise KeyboardInterrupt('Owned host proof interrupted')
           
           
           if __name__ == '__main__':
-              try:
-                  main()
-              except Exception as error:
-                  # Never expose API response bodies, credentials, file contents, or traceback locals.
-                  message = str(error) if isinstance(error, Refusal) else 'Malformed input or unexpected publisher failure'
-                  print(json.dumps({'publisherFailure': message}), file=sys.stderr)
-                  sys.exit(1)
+              signal.signal(signal.SIGTERM, interrupted)
+              signal.signal(signal.SIGINT, interrupted)
+              raise SystemExit(main())
+      - name: Preserve actual host proof, admission failures and original logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: foks-host-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/foks-host-${{ github.run_id }}-${{ github.run_attempt }}/evidence/
+          if-no-files-found: error
+          retention-days: 14
