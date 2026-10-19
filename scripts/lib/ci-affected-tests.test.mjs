@@ -134,7 +134,7 @@ describe("affected crates", () => {
 });
 
 describe("scope all", () => {
-  it("runs typecheck and the full suite in parallel lanes at concurrency 8", () => {
+  it("caps all-scope typecheck at concurrency 4 beside tests at concurrency 8", () => {
     expect(turboTestArgs("all")).toEqual([
       "exec",
       "turbo",
@@ -150,7 +150,12 @@ describe("scope all", () => {
       "--concurrency=4",
     ]);
     expect(allScopeLanes()).toEqual([
-      [{ command: "pnpm", args: ["typecheck"] }],
+      [
+        {
+          command: "pnpm",
+          args: ["exec", "turbo", "run", "typecheck", "--concurrency=4"],
+        },
+      ],
       [{ command: "pnpm", args: turboTestArgs("all") }],
     ]);
   });

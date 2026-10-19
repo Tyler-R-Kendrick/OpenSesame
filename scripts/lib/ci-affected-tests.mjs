@@ -88,10 +88,19 @@ export function turboTestArgs(scope) {
   ];
 }
 
-/** Typecheck beside the full suite. `runLanes` runs the two lanes together. */
+/**
+ * Typecheck beside the full suite. `runLanes` runs the two lanes together.
+ * Typecheck is capped at turbo concurrency 4, same as a partial scope, so it
+ * does not starve the test lane at concurrency 8.
+ */
 export function allScopeLanes() {
   return [
-    [{ command: "pnpm", args: ["typecheck"] }],
+    [
+      {
+        command: "pnpm",
+        args: ["exec", "turbo", "run", "typecheck", "--concurrency=4"],
+      },
+    ],
     [{ command: "pnpm", args: turboTestArgs("all") }],
   ];
 }
