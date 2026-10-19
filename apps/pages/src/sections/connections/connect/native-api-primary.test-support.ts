@@ -32,6 +32,7 @@ export type PrimaryContract = {
   origin: string;
   authorization?: string;
   headers?: Record<string, string>;
+  verifyHeaders?: Record<string, string>;
   parameters: Record<string, string>;
   verifyPath: string;
   readPath: string;
@@ -130,6 +131,12 @@ function certificate() {
   };
 }
 
+function stageHeaders(contract: PrimaryContract, path: string | undefined) {
+  if (path === contract.verifyPath && contract.verifyPath !== contract.readPath)
+    return contract.verifyHeaders ?? contract.headers ?? {};
+  return contract.headers ?? {};
+}
+
 function routeOracle(
   tls: ReturnType<typeof certificate>,
   contract: PrimaryContract,
@@ -145,7 +152,7 @@ function routeOracle(
       request.method === "GET" &&
       [contract.verifyPath, contract.readPath].includes(request.url ?? "") &&
       request.headers.authorization === contract.authorization &&
-      Object.entries(contract.headers ?? {}).every(
+      Object.entries(stageHeaders(contract, request.url)).every(
         ([name, value]) => request.headers[name] === value,
       ) &&
       (contract.id !== "bamboohr" ||
