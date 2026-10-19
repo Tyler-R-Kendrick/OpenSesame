@@ -1,10 +1,19 @@
+/**
+ * Test-only loopback fixture for the owned S3 response client.
+ *
+ * Under `test/` deliberately: it types the accepted socket with `node:net`,
+ * and `scripts/mtls/mtls-static-imports.mjs` (AT-STATIC-IMPORTS) treats
+ * everything else under `src/` as a shipped source that may not import a
+ * native module. Nothing the browser loads imports this file.
+ */
+
 import { createServer } from "node:http";
 import type { ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import { Effect, Redacted } from "effect";
 import { z } from "zod";
-import { makeS3SecretFiles } from "./s3.js";
-import type { S3FilesConfig } from "./s3.js";
+import { makeS3SecretFiles } from "../s3.js";
+import type { S3FilesConfig } from "../s3.js";
 
 export function gate<T>() {
   let resolve!: (value: T) => void;

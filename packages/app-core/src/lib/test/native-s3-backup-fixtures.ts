@@ -1,3 +1,13 @@
+/**
+ * Test-only loopback fixture for native S3 encrypted vault backup.
+ *
+ * Under `test/` deliberately: it mints a localhost certificate with
+ * `node:child_process` and reads it with `node:fs`, and
+ * `scripts/mtls/mtls-static-imports.mjs` (AT-STATIC-IMPORTS) treats
+ * everything else under `src/` as a shipped source that may not import a
+ * native module. Nothing the browser loads imports this file.
+ */
+
 import { execFileSync } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -9,9 +19,9 @@ import { type Duplex, Readable } from "node:stream";
 import { overlapCast } from "@opensesame/os-domain";
 import { expect } from "vitest";
 import { z } from "zod";
-import type { NativeProviderTransport } from "./native-connector-transport.js";
-import { configureNativeS3 } from "./native-s3.js";
-import { runtimeFixture } from "./secret-backends/runtime.test-support.js";
+import type { NativeProviderTransport } from "../native-connector-transport.js";
+import { configureNativeS3 } from "../native-s3.js";
+import { runtimeFixture } from "../secret-backends/runtime.test-support.js";
 
 /** Real verified HTTPS sockets and response streams, not synthetic fetch success. */
 export function tlsFetch(ca: Uint8Array): typeof fetch {
