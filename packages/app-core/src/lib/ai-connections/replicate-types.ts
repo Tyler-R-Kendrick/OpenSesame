@@ -35,3 +35,18 @@ export class ReplicatePredictionInterrupted extends AiConnectionError {
     this.name = "ReplicatePredictionInterrupted";
   }
 }
+
+/** Configuration and request construction share the exact model/version grammar. */
+export function replicatePredictionTarget(model: string) {
+  const version =
+    /^(?:[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*:)?([a-f0-9]{64})$/.exec(
+      model,
+    );
+  if (version) return { path: "predictions", version: version[1] };
+  if (/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(model))
+    return { path: `models/${model}/predictions` };
+  throw new AiConnectionError(
+    "configuration",
+    "Enter a Replicate owner/model, owner/model:version or 64-character version ID.",
+  );
+}

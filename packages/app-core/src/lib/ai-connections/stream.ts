@@ -1,7 +1,11 @@
 import { isJsonObject, isString } from "@opensesame/os-domain";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { aiCompletionSeams } from "./http.js";
-import { AiConnectionError, type AiInferenceFamily } from "./types.js";
+import {
+  AiConnectionError,
+  type AiInferenceFamily,
+  textAiFamily,
+} from "./types.js";
 
 function malformed(): AiConnectionError {
   return new AiConnectionError(
@@ -106,11 +110,7 @@ export async function readAiTextStream(
   check: () => void,
   signal: AbortSignal,
 ): Promise<string> {
-  if (family === "bedrock_converse")
-    throw new AiConnectionError(
-      "configuration",
-      "Bedrock Converse uses a finite response, not this text-stream protocol.",
-    );
+  textAiFamily(family);
 
   if (
     !response.headers

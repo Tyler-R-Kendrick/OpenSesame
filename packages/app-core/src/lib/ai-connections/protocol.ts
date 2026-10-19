@@ -11,6 +11,7 @@ import {
   type AiConnectionDraft,
   AiConnectionError,
   type AiInferenceFamily,
+  textAiFamily,
 } from "./types.js";
 
 const FAMILY_PROVIDER = {
@@ -26,44 +27,45 @@ export function aiInferenceRequest(
   input: HostedModelInput,
   stream = false,
 ) {
-  if (draft.family === "bedrock_converse")
-    throw new AiConnectionError(
-      "configuration",
-      "Bedrock Converse requires its signed finite request adapter.",
-    );
+  const family = textAiFamily(draft.family);
   const base = aiConnectionBase(draft.baseUrl);
   const azure = azureInferenceUrl(draft, base);
   const provider =
-    draft.family === "openai_chat" && draft.tokenParameter === "max_tokens"
+    family === "openai_chat" && draft.tokenParameter === "max_tokens"
       ? "openrouter"
-      : FAMILY_PROVIDER[draft.family];
+      : FAMILY_PROVIDER[family];
   const request = hostedModelRequest(provider, input);
   const relative =
-    draft.family === "openai_responses"
+    family === "openai_responses"
       ? "responses"
-      : draft.family === "openai_chat"
+      : family === "openai_chat"
         ? "chat/completions"
-        : draft.family === "anthropic_messages"
+        : family === "anthropic_messages"
           ? "messages"
           : `models/${input.model}:${stream ? "streamGenerateContent" : "generateContent"}`;
   const url = azure ?? new URL(relative, base);
-  if (stream && draft.family === "gemini_generate_content")
+  if (stream && family === "gemini_generate_content")
     url.searchParams.set("alt", "sse");
   const body =
-    draft.family === "openai_responses"
+    family === "openai_responses"
       ? {
           model: input.model,
           input: input.messages,
           max_output_tokens: input.maxOutputTokens ?? 1024,
           stream,
         }
-      : draft.family === "gemini_generate_content"
+      : family === "gemini_generate_content"
         ? request.body
         : { ...request.body, stream };
   return { url, body };
 }
 
 export function aiConnectionHeaders(draft: AiConnectionDraft): Headers {
+  if (draft.family === "replicate_predictions")
+    throw new AiConnectionError(
+      "configuration",
+      "Replicate predictions require their finite JSON job adapter.",
+    );
   if (draft.family === "bedrock_converse")
     throw new AiConnectionError(
       "configuration",
@@ -102,6 +104,11 @@ export function aiInferenceAnswer(
   family: AiInferenceFamily,
   value: BoundaryValue,
 ): string {
+  if (family === "replicate_predictions")
+    throw new AiConnectionError(
+      "configuration",
+      "Read the terminal prediction through its finite JSON job adapter.",
+    );
   if (family === "bedrock_converse")
     throw new AiConnectionError(
       "configuration",
