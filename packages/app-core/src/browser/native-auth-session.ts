@@ -59,17 +59,24 @@ function validateRequest(
   maxLifetime = CONSENT_LIFETIME_MS,
 ): void {
   nativeAuthState(request.state);
-  const url = new URL(request.authorizationUrl);
+  let url: URL;
+  try {
+    url = new URL(request.authorizationUrl);
+  } catch {
+    throw new Error("Invalid provider authorization URL");
+  }
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-  const remaining = request.expiresAt - Date.now();
   if (
     (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) ||
     url.username ||
-    url.password ||
-    remaining <= 0 ||
-    remaining > maxLifetime + CLOCK_STEP_BACK_MS
+    url.password
   )
-    throw new Error("Invalid or expired provider authorization request");
+    throw new Error("Invalid provider authorization URL");
+  const remaining = request.expiresAt - Date.now();
+  if (remaining <= 0)
+    throw new Error("Provider authorization request expired");
+  if (remaining > maxLifetime + CLOCK_STEP_BACK_MS)
+    throw new Error("Provider authorization request exceeds allowed lifetime");
 }
 /** How long the window may still wait, never past the profile's lifetime. */
 function remainingLifetime(request: AuthRequest, maxLifetime: number): number {

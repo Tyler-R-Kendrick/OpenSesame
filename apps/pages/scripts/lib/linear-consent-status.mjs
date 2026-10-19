@@ -1,5 +1,11 @@
 /** Fixed diagnostic codes only; no provider text or callback data leaves the page. */
 export const LINEAR_STATUS_RULES = Object.freeze([
+  ["Invalid provider authorization URL", "authorization-url-invalid"],
+  ["Provider authorization request expired", "authorization-request-expired"],
+  [
+    "Provider authorization request exceeds allowed lifetime",
+    "authorization-lifetime-excessive",
+  ],
   ["lease aborted", "capability-lease-ended"],
   ["Provider authorization was cancelled or expired", "provider-wait-ended"],
   ["Finish the current Linear sign-in first", "sign-in-already-running"],
