@@ -106,7 +106,41 @@ export function projectDovetailProjects(body: BoundaryValue): BoundaryValue {
     "first-page",
   );
 }
+const lemma = z.object({
+  data: z
+    .array(
+      z.object({
+        id: resourceId.refine((id) => /^entity_[A-Za-z0-9_-]+$/.test(id)),
+        name: resourceText,
+      }),
+    )
+    .max(20),
+  has_next: z.boolean(),
+  cursor: resourceText.nullable(),
+  error: z.never().optional(),
+  errors: z.never().optional(),
+});
+export function projectLemmaEntities(body: BoundaryValue): BoundaryValue {
+  const response = lemma.parse(body);
+  if (response.has_next !== (response.cursor !== null))
+    throw new NativeApiError("response");
+  return projectResourceCollection(
+    response.data.map((entity) => ({ id: entity.id, label: entity.name })),
+    "entities",
+    "first-page",
+  );
+}
 export const nativeCatalogResources = [
+  jsonResource(
+    "List entities",
+    {
+      providerId: "lemma",
+      operationId: "provider.entities.read",
+      method: "GET",
+      path: "/v0/entities",
+    },
+    projectLemmaEntities,
+  ),
   jsonResource(
     "List projects",
     {
