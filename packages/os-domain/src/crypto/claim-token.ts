@@ -17,11 +17,8 @@ export interface GeneratedClaimToken {
 }
 
 function encodeBase64Url(buf: Buffer): string {
-  return buf
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  // Node's base64url encoding is unpadded, so no regex cleanup is needed.
+  return buf.toString("base64url");
 }
 
 /**
