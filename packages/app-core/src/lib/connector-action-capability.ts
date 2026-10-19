@@ -9,6 +9,8 @@ export type ConnectorBrowserRoute = {
   method: NativeMethod | "specialized";
   /** The compiled driver AND this deployment's current browser admission permit it. */
   available: boolean;
+  /** A compiled settings editor can be opened before network authorization is available. */
+  configurable?: boolean;
 };
 
 export type ConnectorNativeInstall = {
@@ -112,7 +114,7 @@ const METHOD_ORDER: readonly ConnectorBrowserRoute["method"][] = [
 
 function savedRouteAvailable(context: ConnectorCardActionContext): boolean {
   return (
-    context.routes.some((route) => route.available) ||
+    context.routes.some((route) => route.available || route.configurable) ||
     !!context.nativeView ||
     context.specializedVerified === true
   );
@@ -159,7 +161,8 @@ export function connectorCardAction(
   }
   const method = METHOD_ORDER.find((candidate) =>
     context.routes.some(
-      (route) => route.method === candidate && route.available,
+      (route) =>
+        route.method === candidate && (route.available || route.configurable),
     ),
   );
   if (method) return { kind: "connect", glyph: "plus", method };
