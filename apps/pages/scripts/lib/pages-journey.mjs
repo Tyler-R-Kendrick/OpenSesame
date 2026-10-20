@@ -47,6 +47,16 @@ export async function unlockWithPin(page) {
   await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
+  // The vault is mounted behind the door ceremony, so the shell's lock key is
+  // visible before the doors have finished. Walks install a frozen test clock;
+  // let the 1.6s ceremony run before touching the shell beneath it.
+  const gate = page.locator(".unlock");
+  if (await gate.count()) {
+    await page.clock.runFor(2_000).catch(() => undefined);
+    await gate
+      .waitFor({ state: "detached", timeout: 10_000 })
+      .catch(() => undefined);
+  }
 }
 
 export async function lockVault(page) {

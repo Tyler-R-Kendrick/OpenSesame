@@ -165,7 +165,7 @@ secret. No plaintext share and no SLIP-0039 mnemonic is ever in a record.
 `sharing.trusted-contacts` is an optional capability in the Sharing section:
 default off, `keyAccess: item-plaintext, protector-wrap`, no egress. Its engine
 is `packages/app-core/src/lib/quorum/`, classified as owned by it; the
-bootstrap does not import it. Its module registers **Settings › Trusted
+bootstrap does not import it. Its module registers **Settings › Security › Trusted
 contacts** with three panels, one per role a person can have in a circle:
 **Circles** (the owner: start, open, invite more, change, ask for approval,
 cancel, retire), **Guarding** (a contact: accept an invitation, take what an
@@ -436,7 +436,7 @@ State these to the people who rely on it.
 5. Saving the recovered items ends the recovery when the download starts, since
    a browser cannot say whether the person completed the save dialog; an explicit
    "I have it" step would make that exact.
-6. A visibility rule on a settings category, so the Trusted contacts tab (and
-   its walkthrough) is absent, not empty, in a guest or decoy vault.
+6. A visibility rule on a settings section, so Trusted contacts (and its
+   walkthrough) is absent, not empty, in a guest or decoy vault.
 7. An approvals-only circle's packets are kept until the circle is changed or
    retired, because nothing confirms their delivery.

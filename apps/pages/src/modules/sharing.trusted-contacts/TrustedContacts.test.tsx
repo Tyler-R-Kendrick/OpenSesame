@@ -51,12 +51,17 @@ function serve(desk: Awaited<ReturnType<typeof deskOf>> | null) {
 }
 
 describe("while there is no desk (locked, a guest, a decoy)", () => {
-  it("every panel draws nothing at all: absent, not disabled", () => {
+  it("says why instead of drawing a blank category", () => {
     serve(null);
-    const { container } = render(<TrustedContacts />);
-    expect(container.textContent).toBe("");
-    expect(container.querySelector("section")).toBeNull();
-    expect(screen.queryByRole("heading")).toBeNull();
+    render(<TrustedContacts />);
+    expect(
+      screen.getByRole("heading", { name: "Trusted contacts", level: 2 }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("img", {
+        name: /unlocked owner vault/,
+      }),
+    ).toBeTruthy();
   });
 });
 
@@ -67,6 +72,9 @@ describe("with nothing yet", () => {
     const circles = within(elementById("circles"));
     const guarding = within(elementById("guarding"));
     expect(circles.getByRole("img", { name: "No circles yet." })).toBeTruthy();
+    expect(
+      circles.getByRole("button", { name: "Start your first circle" }),
+    ).toBeTruthy();
     expect(
       guarding.getByRole("img", { name: "Nothing held for anyone yet." }),
     ).toBeTruthy();

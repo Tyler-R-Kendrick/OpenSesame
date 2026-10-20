@@ -107,7 +107,8 @@ export class Person {
   }
 
   async openTab() {
-    await openSettingsCategory(this.page, "Trusted contacts");
+    await openSettingsCategory(this.page, "Security");
+    await expect(this.page.locator("#trusted-contacts")).toBeVisible();
     for (const id of PANELS) {
       await expect(this.page.locator(`section#${id}`)).toBeVisible();
     }
@@ -218,7 +219,7 @@ export async function createPerson(harness, browser, name, options) {
   const { width, clock, shot, prf = true } = options;
   const { page, context } = await harness.newPage(browser, {
     // A reload at the tab is a deep link: the 404 page answers it, once.
-    expectedFallbackUrl: `${ORIGIN}${BASE}settings/trusted-contacts`,
+    expectedFallbackUrl: `${ORIGIN}${BASE}settings/security`,
     device: {
       viewport: { width, height: 900 },
       permissions: ["clipboard-read", "clipboard-write"],
