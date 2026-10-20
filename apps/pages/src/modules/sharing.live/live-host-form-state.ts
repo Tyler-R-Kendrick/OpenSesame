@@ -17,20 +17,9 @@ import { useLiveTransport } from "./live-transport-hooks.js";
 
 export type Scope = "vault" | "items" | "none";
 
-export function useHostForm(initialTitle = "") {
-  const [title, setTitle] = useState(initialTitle);
-  const [scope, setScope] = useState<Scope>("items");
-  const [devices, setDevices] = useState<"no" | "ask">("no");
-  const [chosen, setChosen] = useState<Set<string>>(() => new Set());
-  const [policy, setPolicy] = useState<SharePolicy>("use");
-  const [admission, setAdmission] = useState<Admission>("open");
-  const [audience, setAudience] = useState<"anyone" | "all-users" | "people">(
-    "anyone",
-  );
-  const [peopleIds, setPeopleIds] = useState<ReadonlySet<string>>(new Set());
-  const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
-  const [minutes, setMinutes] = useState(60);
-  const { starting, failed, start } = useStartSession();
+function useHostPeople(
+  setPeople: (people: { id: string; name: string }[]) => void,
+): void {
   useEffect(() => {
     let live = true;
     void readLocalDirectory(vaultStore.activeTomb())
@@ -48,7 +37,24 @@ export function useHostForm(initialTitle = "") {
     return () => {
       live = false;
     };
-  }, []);
+  }, [setPeople]);
+}
+
+export function useHostForm(initialTitle = "") {
+  const [title, setTitle] = useState(initialTitle);
+  const [scope, setScope] = useState<Scope>("items");
+  const [devices, setDevices] = useState<"no" | "ask">("no");
+  const [chosen, setChosen] = useState<Set<string>>(() => new Set());
+  const [policy, setPolicy] = useState<SharePolicy>("use");
+  const [admission, setAdmission] = useState<Admission>("open");
+  const [audience, setAudience] = useState<"anyone" | "all-users" | "people">(
+    "anyone",
+  );
+  const [peopleIds, setPeopleIds] = useState<ReadonlySet<string>>(new Set());
+  const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
+  const [minutes, setMinutes] = useState(60);
+  const { starting, failed, start } = useStartSession();
+  useHostPeople(setPeople);
   const { transport, loaded, refused } = useLiveTransport();
   // Devices are offered a choice only where there is something to lend.
   const lend = useOfferedConnections().length > 0;

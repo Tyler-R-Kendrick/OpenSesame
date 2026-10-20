@@ -132,6 +132,42 @@ export function ItemChoice({
   );
 }
 
+/** Choose the local people this session may admit. */
+export function PeopleChoice({
+  people,
+  peopleIds,
+  onChange,
+}: {
+  people: readonly { id: string; name: string }[];
+  peopleIds: ReadonlySet<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  return (
+    <fieldset className="live-choose">
+      <legend className="visually-hidden">People</legend>
+      {people.length === 0 ? (
+        <StatusMark tone="idle" label="No people in this vault." />
+      ) : (
+        people.map((person) => (
+          <label key={person.id} className="join__choice">
+            <input
+              type="checkbox"
+              checked={peopleIds.has(person.id)}
+              onChange={(event) => {
+                const next = new Set(peopleIds);
+                if (event.target.checked) next.add(person.id);
+                else next.delete(person.id);
+                onChange(next);
+              }}
+            />
+            <span>{person.name}</span>
+          </label>
+        ))
+      )}
+    </fieldset>
+  );
+}
+
 /** What the session will use beyond a direct route, in a few words. */
 export function routesSummary(transport: LiveTransport): string {
   const parts: string[] = [];
