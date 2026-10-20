@@ -2,7 +2,6 @@ import type { Ref } from "react";
 import { Link } from "react-router";
 import { useContributions } from "../../bindings/contributions.js";
 import { IconPlus } from "../../components/Icons.js";
-import { ClaimOpenLink } from "./ClaimOpen.js";
 import { ExportKey } from "./ExportKey.js";
 import { PasswordsOnboardingOffer } from "./passwords-onboarding-offer.js";
 
@@ -40,7 +39,6 @@ export function VaultActions({
       </Link>
       <PasswordsOnboardingOffer placement="path" />
       <VaultCommands />
-      <ClaimOpenLink />
     </>
   );
 }
