@@ -4,27 +4,49 @@
  * computed geometry in the touch context the walk already runs in.
  */
 
-/** Header controls stay inside the bar without overlapping the section name. */
+/** Header controls stay inside the bar, including a second identity row. */
 export async function topbarPromptFits(page, stop, { harness }) {
   const fit = await page.evaluate(() => {
-    const prompt = document.querySelector(".topbar");
-    const lock = prompt?.querySelector('[aria-label="Lock vault"]');
-    if (!prompt || !lock) return null;
-    const p = prompt.getBoundingClientRect();
-    const k = lock.getBoundingClientRect();
-    const names = [...prompt.children]
+    const header = document.querySelector(".app-header");
+    const lock = header?.querySelector('[aria-label="Lock vault"]');
+    if (!header || !lock) return null;
+    const box = header.getBoundingClientRect();
+    const key = lock.getBoundingClientRect();
+    const controls = [...header.querySelectorAll("button")]
       .filter(
-        (n) =>
-          n.getBoundingClientRect().width > 0 && !n.matches(".sheet-layer"),
+        (node) =>
+          node.getClientRects().length &&
+          !node.closest(
+            ".sheet-layer, .drawer, .account-switcher__menu, .project-switcher__menu",
+          ),
       )
-      .map((n) => {
-        const r = n.getBoundingClientRect();
-        return { right: r.right, left: r.left };
-      });
-    const overlap = names.some(
-      (n, i) => i > 0 && n.left < names[i - 1].right - 0.5,
+      .map((node) => node.getBoundingClientRect());
+    const overlap = controls.some((rect, index) =>
+      controls
+        .slice(index + 1)
+        .some(
+          (other) =>
+            Math.min(rect.right, other.right) -
+              Math.max(rect.left, other.left) >
+              0.5 &&
+            Math.min(rect.bottom, other.bottom) -
+              Math.max(rect.top, other.top) >
+              0.5,
+        ),
     );
-    return { keyRight: k.right, promptRight: p.right, overlap, vw: innerWidth };
+    return {
+      fits: controls.every(
+        (rect) =>
+          rect.left >= box.left - 0.5 &&
+          rect.right <= box.right + 0.5 &&
+          rect.top >= box.top - 0.5 &&
+          rect.bottom <= box.bottom + 0.5,
+      ),
+      keyRight: key.right,
+      headerRight: box.right,
+      overlap,
+      vw: innerWidth,
+    };
   });
   harness.check(
     fit !== null,
@@ -32,12 +54,12 @@ export async function topbarPromptFits(page, stop, { harness }) {
   );
   if (!fit) return;
   harness.check(
-    fit.keyRight <= fit.promptRight + 0.5 && fit.keyRight <= fit.vw,
-    `${stop("topbar-prompt")}: the lock key is whole inside the bar (${Math.round(fit.keyRight)} <= ${Math.round(fit.promptRight)})`,
+    fit.fits && fit.keyRight <= fit.vw,
+    `${stop("topbar-prompt")}: every header key is whole inside the bar`,
   );
   harness.check(
     !fit.overlap,
-    `${stop("topbar-prompt")}: the header controls and section name do not overlap`,
+    `${stop("topbar-prompt")}: header controls never overlap`,
   );
 }
 

@@ -19,7 +19,10 @@ export function checkSafeAreas({ dist, harness }) {
       "the drawer clears the home indicator",
       /\.drawer\{[^}]*safe-area-inset-bottom/,
     ],
-    ["the top bar clears the notch", /\.topbar\{[^}]*safe-area-inset-top/],
+    [
+      "the application header clears the notch",
+      /\.app-header\{[^}]*safe-area-inset-top/,
+    ],
     ["side gutters clear a landscape notch", /safe-area-inset-left/],
   ]) {
     harness.check(

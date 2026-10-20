@@ -333,6 +333,12 @@ jobs:
           VITE_BASE: /OpenSesame/
           MOBILE_SIZES: ${{ matrix.sizes }}
         run: pnpm --filter @opensesame/pages verify:mobile
+      - name: Approved header parity across viewport and pointer layouts
+        if: matrix.shard == 'mobile-320'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:header-layout
       - name: Browser-local application sign-in contract
         if: matrix.shard == 'sign-in'
         # Real cross-origin popup and virtual WebAuthn, no Identity/Host backend.

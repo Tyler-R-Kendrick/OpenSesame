@@ -1,23 +1,18 @@
-import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { SupportSlot } from "../tutorial/ui/SupportLauncher.js";
 import { CommandBar } from "./CommandBar.js";
-import { NotificationsBar } from "./NotificationsBar.js";
 import { PendingKeys } from "./PendingKeys.js";
 import "./statusline.css";
 
 /**
- * One strip for command, support, and notifications.
+ * One strip for commands, support, and pending keys.
  *
  * CommandBar lives here — typed commands on every unlocked screen.
  * A model capability, when it is on, also reads a question. The support
  * sheet keeps its own composer.
  * Beside it, the keys half-typed and what may follow them (`PendingKeys`).
- * Connection state is not a glyph on this row.
+ * Notifications live in the shared application header.
  */
 export function Statusline() {
-  const notificationsRef = useGuideTarget<HTMLDivElement>(
-    "shell.notifications",
-  );
   return (
     <footer className="statusline">
       <SupportSlot />
@@ -25,11 +20,6 @@ export function Statusline() {
         <CommandBar />
       </div>
       <PendingKeys />
-      <div className="statusline__tools">
-        <div ref={notificationsRef}>
-          <NotificationsBar />
-        </div>
-      </div>
     </footer>
   );
 }

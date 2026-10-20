@@ -1,3 +1,4 @@
+import "./app-header.css";
 import "./vault-shell-skeleton.css";
 
 const RAIL_ROWS = ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"];
@@ -21,13 +22,15 @@ const CONTENT_ROWS = [
 export function VaultShellSkeleton() {
   return (
     <div className="app vault-skeleton" aria-hidden="true">
-      <aside className="rail">
-        <div className="rail__brand">
+      <div className="app-header">
+        <div className="app-header__brand">
           <span className="vault-skeleton__bar vault-skeleton__wordmark" />
         </div>
-        <div className="rail__prompt">
+        <div className="rail__prompt header-prompt">
           <span className="vault-skeleton__bar vault-skeleton__prompt" />
         </div>
+      </div>
+      <aside className="rail">
         <div className="rail__scroll">
           <div className="vault-skeleton__rows">
             {RAIL_ROWS.map((id, index) => (

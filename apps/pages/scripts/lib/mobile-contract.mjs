@@ -305,7 +305,7 @@ export const AUDIT =
   //    the app is open — so the frame keeps under a third of the screen.
   //    Measured as the rows the chrome actually covers, not the sum of the
   //    bars: two bars sharing one row cost that row once.
-  const spans = [document.querySelector(".topbar"), strip, tabs]
+  const spans = [document.querySelector(".app-header, .topbar"), strip, tabs]
     .filter(Boolean)
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.height > 0)
@@ -330,7 +330,7 @@ export const AUDIT =
       "CHROME-EATS-THE-SCREEN",
       Math.round(bars) + "px of chrome on a " + vh + "px screen (budget "
         + Math.round(budget) + ")",
-      spans.length > 0 ? document.querySelector(".topbar") : null,
+      spans.length > 0 ? document.querySelector(".app-header, .topbar") : null,
     );
   }
 

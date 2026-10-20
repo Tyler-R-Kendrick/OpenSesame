@@ -32,7 +32,7 @@ import {
   supportSessionSeams,
   useSupport,
 } from "../tutorial/session.js";
-import { MobileToolbar } from "./MobileToolbar.js";
+import { AppHeader } from "./AppHeader.js";
 import { NavDrawer } from "./NavDrawer.js";
 import { SessionPrompt } from "./SessionPrompt.js";
 
@@ -79,7 +79,7 @@ function TourControls({ id }: { id: string }) {
 
 describe("Next-only session tutorials", () => {
   it.each(goals)(
-    "reveals %s's %s through the real runtime",
+    "points directly at %s's %s in the shared header",
     async (id, target) => {
       const user = userEvent.setup();
       provideGuideDeviceForm(() => ({ narrow: true, keys: false }));
@@ -99,7 +99,7 @@ describe("Next-only session tutorials", () => {
       render(
         <MemoryRouter>
           <SupportProvider>
-            <MobileToolbar />
+            <AppHeader />
             <TourControls id={id} />
           </SupportProvider>
         </MemoryRouter>,
@@ -108,17 +108,17 @@ describe("Next-only session tutorials", () => {
       const output = document.querySelector("output");
       if (!output) throw new Error("missing runtime snapshot");
       await waitFor(() => expect(output.textContent).toBe("1"));
-      expect(resolveGuideTargetElement(target)).toBeNull();
+      expect(
+        resolveGuideTargetElement(target)?.closest(".app-header"),
+      ).toBeTruthy();
       const next = screen.getByRole("button", { name: "Next" });
-      for (const step of [2, 3]) {
-        await user.click(next);
-        await waitFor(() => expect(output.textContent).toBe(String(step)));
-      }
+      await user.click(next);
+      await waitFor(() => expect(output.textContent).toBe("2"));
       await waitFor(() => {
         expect(output.getAttribute("data-target")).toBe(target);
         expect(output.getAttribute("data-degraded")).toBe("false");
         expect(
-          resolveGuideTargetElement(target)?.closest(".drawer"),
+          resolveGuideTargetElement(target)?.closest(".app-header"),
         ).toBeTruthy();
       });
       expect(document.activeElement).toBe(next);

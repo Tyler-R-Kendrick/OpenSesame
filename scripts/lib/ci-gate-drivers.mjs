@@ -8,6 +8,7 @@ export const DRIVER_GATES = {
   "verify-kdbx-native-dom.mjs": ["customer-crypto"],
   "verify-siop.mjs": ["keyboard"],
   "verify-mobile.mjs": ["mobile"],
+  "verify-header-layout.mjs": ["mobile"],
   "verify-local-iam.mjs": ["sign-in"],
   "verify-quorum-browser.mjs": ["sign-in"],
   "verify-trusted-contacts.mjs": ["trusted-contacts"],

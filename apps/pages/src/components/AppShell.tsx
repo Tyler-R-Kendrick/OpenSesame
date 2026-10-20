@@ -20,22 +20,18 @@ import { useTabSwipe } from "../lib/tab-swipe-hook.js";
 import { useGestures } from "../lib/use-gestures.js";
 import { useNarrow } from "../lib/use-narrow.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
+import { AppHeader } from "./AppHeader.js";
 import { Crumbs } from "./Crumbs.js";
-import { InstallMark } from "./InstallMark.js";
 import { KeymapSheet } from "./KeymapSheet.js";
 import { LegacyIdentityNotice } from "./LegacyIdentityNotice.js";
-import { MobileToolbar } from "./MobileToolbar.js";
 import { NavTree } from "./NavTree.js";
 import {
   type SectionRowModel,
   sectionForPath,
   useSections,
 } from "./RailRows.js";
-import { SessionPrompt } from "./SessionPrompt.js";
-import { ShellUpdateMark } from "./ShellUpdateMark.js";
 import { Statusline } from "./Statusline.js";
 import { ToastStack } from "./ToastStack.js";
-import { Wordmark } from "./Wordmark.js";
 import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
 import { PageTreeExpansionProvider } from "./page-tree-expansion.js";
 
@@ -117,15 +113,8 @@ function Shell({ children }: { children?: ReactNode }) {
       <a href="#main" className="skip-link visually-hidden">
         Skip to content
       </a>
+      <AppHeader />
       <aside className="rail">
-        <div className="rail__brand">
-          <Wordmark className="rail__wordmark" />
-          <ShellUpdateMark />
-          <InstallMark />
-        </div>
-
-        <SessionPrompt />
-
         {/* One tree at a time: below the breakpoint the rail is not drawn and
             the vault's first pane carries the tree (`VaultSection`), so a
             second `role="tree"` never shares the page with it. */}
@@ -133,11 +122,6 @@ function Shell({ children }: { children?: ReactNode }) {
       </aside>
 
       <div className="main">
-        {/* Phone chrome only: on a desktop the rail carries identity and the
-            statusline carries plane truth, so the top bar exists where the
-            rail is gone. */}
-        <MobileToolbar />
-
         <Crumbs />
 
         <DuressPresentationOverlay />
