@@ -164,7 +164,7 @@ function transcriptText(mode: string): string {
   if (mode === "echo") return SCRIBE_TOKEN;
   return SCRIBE_TEXT;
 }
-type ScribeState = { mode: string };
+type ScribeState = { mode: string; heldResponse?: ServerResponse };
 function scribeService(
   prefix: string,
   records: Exchange[],
@@ -197,6 +197,7 @@ function scribeService(
       if (parsed.model !== "scribe_v2") throw new Error("Wrong saved model");
       row.authenticated = true;
       if (state.mode === "held") {
+        state.heldResponse = response;
         response.flushHeaders();
         response.write('{"text":');
         resolveHeld();
@@ -230,7 +231,9 @@ export async function speechTlsFixture(
   const prefix = base.pathname.replace(/\/$/, "");
   const records: Exchange[] = [];
   const sockets = new Set<Duplex>();
-  const state = { mode: "complete" };
+  const state: ScribeState = {
+    mode: "complete",
+  };
   let resolveHeld = () => {};
   const held = new Promise<void>((resolve) => {
     resolveHeld = resolve;
@@ -268,6 +271,9 @@ export async function speechTlsFixture(
     abort,
     state,
     held,
+    release() {
+      state.heldResponse?.end(`${JSON.stringify(SCRIBE_TEXT)}}`);
+    },
     async close() {
       abort.abort();
       const stopped = once(server, "close");

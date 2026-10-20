@@ -318,8 +318,12 @@ export async function performSavedAiInference(
       record.revision,
       record.configuration.fingerprint,
     );
-    const check = () =>
+    const baseCheck = () =>
       assertCurrentOperation(guard, transport, unchanged, caller);
+    baseCheck();
+    const custody = await capturedAiCredentials(record, guard.tomb);
+    const check = () => assertVaultCredentials(custody, guard.tomb, baseCheck);
+    check();
     owner = check;
     const draft = await resolvedAiConnection(record, guard.tomb);
     check();
