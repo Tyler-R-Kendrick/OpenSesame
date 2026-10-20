@@ -2,9 +2,14 @@
 import { TOUCH_FLOOR } from "./mobile-contract.mjs";
 import { nativeAiFormContract } from "./native-browser-ai-form-contract.mjs";
 import {
+  nativeAuthFieldObservation,
+  nativeAuthFieldViolations,
+} from "./native-browser-auth-field-contract.mjs";
+import {
   NATIVE_CANONICAL_CATALOG_IDS,
   NATIVE_CANONICAL_PROVIDERS,
   NATIVE_SHARED_AI_PRESETS,
+  nativeAuthFieldMethods,
 } from "./native-browser-catalog-projection.mjs";
 import { addCapabilities } from "./pages-journey.mjs";
 
@@ -174,24 +179,14 @@ async function nativePageContract(page, row, { check, phone }) {
         .evaluateAll((inputs) => inputs.every((input) => input.value === "")),
       `${row.id}: no sealed secret prefilled`,
     );
-    const editable = await nativeForm
-      .locator("input")
-      .evaluateAll((inputs) =>
-        inputs
-          .filter((input) => !input.readOnly)
-          .map(
-            (input) =>
-              document.querySelector(`label[for="${CSS.escape(input.id)}"]`)
-                ?.textContent ?? "",
-          ),
-      );
+    const observed = await nativeForm.evaluate(nativeAuthFieldObservation);
+    const violations = nativeAuthFieldViolations(
+      nativeAuthFieldMethods(row.id),
+      observed,
+    );
     check(
-      !editable.some((label) =>
-        /Token endpoint|Authorization endpoint|Server URL|Client secret/i.test(
-          label,
-        ),
-      ),
-      `${row.id}: no arbitrary auth endpoint or confidential client-secret control`,
+      violations.length === 0,
+      `${row.id}: auth endpoint and client-secret controls belong only to the selected canonical method${violations.length ? ` (unexpected: ${violations.map((input) => input.label).join(", ")})` : ""}`,
     );
   }
   const layout = await page.evaluate(() => ({
