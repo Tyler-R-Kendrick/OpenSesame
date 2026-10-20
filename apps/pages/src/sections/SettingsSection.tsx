@@ -225,13 +225,13 @@ function SecurityPanels({
     <>
       <VaultKeyProtectionPanel />
       <UnlockMethodsPanel />
+      {contributed.map(({ id, Panel }) => (
+        <Panel key={id} />
+      ))}
       <DuressPanel />
       <RetiredCredentialsPanel />
       <CanaryCredentialsPanel />
       {duressShown ? <TravelPanel /> : null}
-      {contributed.map(({ id, Panel }) => (
-        <Panel key={id} />
-      ))}
     </>
   );
 }

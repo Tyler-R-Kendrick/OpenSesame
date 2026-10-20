@@ -145,13 +145,13 @@ const SECTION_BUILDERS = {
     ...(snapshot.account
       ? [panel("security", "account-factors", "Your account")]
       : []),
+    ...contributed,
     ...(snapshot.duress
       ? [
           panel("security", "duress-profiles", "Duress"),
           panel("security", "travel", "Travel"),
         ]
       : []),
-    ...contributed,
   ],
   vaults: (snapshot, contributed) => [
     ...(snapshot.vaults ?? []).map((vault) => ({
