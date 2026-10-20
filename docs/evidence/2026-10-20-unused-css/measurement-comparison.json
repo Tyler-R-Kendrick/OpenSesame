@@ -1,0 +1,12 @@
+{
+  "sameBrowserMeasurements": true,
+  "desktopWidth": 1280,
+  "phoneWidth": 390,
+  "beforeHead": "fbe2d2a73cccc3db1d5b034967f87e90c414d36d",
+  "afterHead": "699cb090b0592ae127c5246a23ecc755519ec273",
+  "cssBytesBefore": 188510,
+  "cssBytesAfter": 185220,
+  "budgetBytes": 185344,
+  "headroomBytes": 124,
+  "sheets": 8
+}
