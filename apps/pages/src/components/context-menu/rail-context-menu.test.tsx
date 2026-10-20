@@ -227,11 +227,11 @@ describe("the rail's context menu", () => {
 });
 
 /**
- * Share › Session hands this vault to people who open a link, so it opens
- * the share sheet that hosts one. `/live` is the other side of that link —
+ * Share › Live session hands this vault to people who open a link, so it
+ * opens the share sheet that hosts one. `/live` is the other side of that link —
  * the join screen — and is never where an owner broadcasts from.
  */
-describe("the vault row's Share › Session entry", () => {
+describe("the vault row's Share › Live session entry", () => {
   let revokeShell: readonly (() => void)[] = [];
   beforeEach(() => {
     revokeShell = registerContributedShell();
@@ -262,7 +262,7 @@ describe("the vault row's Share › Session entry", () => {
     );
     fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Session" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Live session" }));
   }
 
   it("opens the share sheet that hosts a live session, not the join screen", () => {
@@ -271,15 +271,18 @@ describe("the vault row's Share › Session entry", () => {
     expect(screen.getByTestId("where").textContent).toBe("/vault");
   });
 
-  it("offers no Session while Live sessions is off", () => {
+  it("offers no Live session while Live sessions is off", () => {
     renderShell("/vault", <ContextMenuLayer />);
     fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
-    // Access is still on, so Share is drawn — with only its other way.
+    // Access is still on, so Share is drawn — without the session way.
     fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
     expect(
-      screen.getByRole("menuitem", { name: "Person or agent" }),
+      screen.getByRole("menuitem", { name: "Temporary drop" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("menuitem", { name: "Session" })).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: "Specific people or agents" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Live session" })).toBeNull();
   });
 });
 

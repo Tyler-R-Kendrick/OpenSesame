@@ -32,6 +32,7 @@ import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
+import { VaultDropPicker } from "./vault/VaultDropPicker.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { VaultWelcome } from "./vault/VaultWelcome.js";
@@ -223,6 +224,16 @@ export function VaultSection() {
   // and the registry points at whichever copy is on screen.
   const treeListRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = vaultListPath(location.search, narrow);
+  const pickingDrop = params.get("share") === "pick-drop";
+  const closeDropPicker = () => {
+    const next = new URLSearchParams(location.search);
+    next.delete("share");
+    const search = next.toString();
+    navigate(
+      { pathname: "/vault", search: search ? `?${search}` : "" },
+      { replace: true },
+    );
+  };
   // Where New records itself for focus and the guide, wherever it is drawn.
   const recordNewItem = (element: HTMLAnchorElement | null) => {
     newItemRef.current = element;
@@ -353,6 +364,13 @@ export function VaultSection() {
           to={createPath}
           fabRef={recordNewItem}
         />
+        {pickingDrop ? (
+          <VaultDropPicker
+            items={items}
+            onClose={closeDropPicker}
+            onPick={(item) => navigate(`/vault/${item.id}?share=drop`)}
+          />
+        ) : null}
       </div>
     </AscendProvider>
   );
