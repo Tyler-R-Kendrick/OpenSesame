@@ -168,6 +168,12 @@ async function azureRemoveAndReload(page, harness, authority) {
   await expect(
     page.getByRole("button", { name: "List secret names", exact: true }),
   ).toHaveCount(0);
+  await expect(
+    page.getByText("List secret names", { selector: "summary", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Read a secret", { selector: "summary", exact: true }),
+  ).toHaveCount(0);
   authority.state.expectedDocuments.add(page.url());
   await page.reload();
   await unlockWithPin(page);
@@ -176,6 +182,12 @@ async function azureRemoveAndReload(page, harness, authority) {
   ).toHaveValue("");
   await expect(
     page.getByRole("button", { name: "Read a secret", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("List secret names", { selector: "summary", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Read a secret", { selector: "summary", exact: true }),
   ).toHaveCount(0);
   harness.check(
     authority.state.calls.length === before,
@@ -217,8 +229,8 @@ export async function nativeAzureSecretsJourney(
   await token.fill(f.token);
   await submit.click();
   await expect(
-    page.getByRole("button", { name: "List secret names", exact: true }),
-  ).toHaveCount(1);
+    page.getByText("List secret names", { selector: "summary", exact: true }),
+  ).toBeVisible();
   await expect(token).toHaveValue("");
   harness.check(
     !(await page.locator("body").innerText()).includes(f.token),

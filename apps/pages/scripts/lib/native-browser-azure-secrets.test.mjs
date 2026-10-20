@@ -1,3 +1,4 @@
+import { azureSecretsKeyFlows } from "@opensesame/app-core/lib/native-azure-secrets.js";
 /** @vitest-environment node */
 import {
   azureClosed,
@@ -14,7 +15,10 @@ import {
   azureVaultBase,
 } from "@opensesame/app-core/lib/secret-backends/azure-key-vault-codec.js";
 import { JSDOM } from "jsdom";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
+import { NativeConnectorActions } from "../../src/sections/connections/connect/NativeConnectorActions.js";
 import {
   connectorIntegration,
   installConnectorIntegration,
@@ -217,4 +221,48 @@ it("physically closes the current owned TLS stream on actual activation withdraw
     driver.invoke(view.connectionId, "provider.secrets.read", {}),
   ).rejects.toThrow();
   expect(o.requests).toHaveLength(2);
+});
+
+it("recognizes actual shared Azure action summaries before expanding their closed native disclosures", async () => {
+  const o = await oracle();
+  o.reply(azureBrowserReplies().page);
+  const driver = nativeConnectorDriver("api-key", "azure-sm");
+  const view = await driver.configure({
+    ...azureDraft(),
+    method: "api-key",
+    requestedScopes: {},
+    targetIds: {},
+  });
+  const ui = azureSecretsKeyFlows.ui("azure-sm");
+  const element = document.createElement("div");
+  element.innerHTML = renderToStaticMarkup(
+    createElement(NativeConnectorActions, {
+      descriptor: {
+        providerId: "azure-sm",
+        name: ui.name,
+        methods: [],
+        docsUrl: null,
+        actions: ui.actions.map((action) => ({
+          ...action,
+          available: true,
+          resultOrigins: [],
+        })),
+      },
+      controller: { invoke: driver.invoke },
+      view,
+      onChanged: () => {},
+      onFlash: () => {},
+    }),
+  );
+  const details = [...element.querySelectorAll("details")];
+  expect(
+    details.map((detail) => detail.querySelector("summary")?.textContent),
+  ).toEqual(["List secret names", "Read a secret"]);
+  for (const detail of details) {
+    expect(detail.open).toBe(false);
+    expect(detail.querySelector("button[type=submit]")).not.toBeNull();
+    detail.open = true;
+    expect(detail.open).toBe(true);
+  }
+  expect(o.requests).toHaveLength(1);
 });
