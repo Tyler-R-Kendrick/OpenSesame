@@ -1,5 +1,6 @@
 import { performSavedAiInference } from "@opensesame/app-core/lib/ai-connections/runtime.js";
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
+import { isAiSpeechFamily } from "@opensesame/app-core/lib/ai-connections/types.js";
 import { useCallback, useState } from "react";
 import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FormCommit } from "../../../components/FormCommit.js";
@@ -13,7 +14,7 @@ import { useAiOperation } from "./useAiConnection.js";
 function useAiInference(connectionId: string) {
   const saved = readAiConnection(connectionId);
   const prediction = saved?.family === "replicate_predictions";
-  const speech = saved?.family === "elevenlabs_scribe";
+  const speech = isAiSpeechFamily(saved?.family);
   const audio = useLocalAudioInput();
   const clearAudio = audio.clear;
   const supportsStreaming =

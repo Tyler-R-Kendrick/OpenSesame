@@ -1,5 +1,8 @@
 import { replicateOperationInput } from "@opensesame/app-core/lib/ai-connections/replicate-inference.js";
-import type { AiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/types.js";
+import {
+  type AiConnectionDraft,
+  isAiSpeechFamily,
+} from "@opensesame/app-core/lib/ai-connections/types.js";
 import { useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { BedrockConnectionHelp } from "./BedrockConnectionFields.js";
@@ -56,7 +59,7 @@ export function PredictionInput({
 }
 export function AiConnectionSetup({ draft, busy, onChange }: Fields) {
   const tokenParameterId = useId();
-  if (draft.family === "elevenlabs_scribe")
+  if (isAiSpeechFamily(draft.family))
     return (
       <details className="conn-client-alt">
         <summary>Connection setup</summary>

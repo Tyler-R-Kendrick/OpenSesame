@@ -3,7 +3,10 @@ import {
   aiConnectionFamilies,
   isAiConnectionFamily,
 } from "@opensesame/app-core/lib/ai-connections/presets.js";
-import type { AiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/types.js";
+import {
+  type AiConnectionDraft,
+  isAiSpeechFamily,
+} from "@opensesame/app-core/lib/ai-connections/types.js";
 import type { FormEvent } from "react";
 import { useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
@@ -57,7 +60,7 @@ function connectionReady(draft: AiConnectionDraft, retained: boolean): boolean {
 export function AiConnectionForm(props: AiConnectionFormProps) {
   const { draft, busy, onChange } = props;
   const prediction = draft.family === "replicate_predictions";
-  const speech = draft.family === "elevenlabs_scribe";
+  const speech = isAiSpeechFamily(draft.family);
   const ready =
     connectionReady(draft, props.canRetainCredential ?? props.saved) &&
     (!prediction || predictionInputReady(draft, props.predictionInput ?? "")) &&
@@ -99,7 +102,7 @@ export function AiConnectionForm(props: AiConnectionFormProps) {
 }
 function AiConnectionCommit(props: AiConnectionFormProps & { ready: boolean }) {
   const { busy, ready } = props;
-  const speech = props.draft.family === "elevenlabs_scribe";
+  const speech = isAiSpeechFamily(props.draft.family);
   const prediction = props.draft.family === "replicate_predictions";
   return (
     <FormCommit
@@ -248,7 +251,7 @@ function CredentialFields(
   const authId = useId();
   if (
     props.draft.family === "replicate_predictions" ||
-    props.draft.family === "elevenlabs_scribe"
+    isAiSpeechFamily(props.draft.family)
   )
     return <SecretField {...props} />;
   if (props.draft.family === "bedrock_converse")

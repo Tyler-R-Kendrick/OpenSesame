@@ -11,7 +11,10 @@ import {
   testAiConnection,
 } from "@opensesame/app-core/lib/ai-connections/runtime.js";
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
-import type { AiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/types.js";
+import {
+  type AiConnectionDraft,
+  isAiSpeechFamily,
+} from "@opensesame/app-core/lib/ai-connections/types.js";
 import { vertexResourceBase } from "@opensesame/app-core/lib/ai-connections/vertex-target.js";
 import { subscribeDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
@@ -46,11 +49,13 @@ function changeDraft<Key extends keyof AiConnectionDraft>(
     next.azure = undefined;
   changeVertexDraft(current, next, field);
   changeBedrockDraft(current, next, field);
-  if (["replicate_predictions", "elevenlabs_scribe"].includes(next.family))
-    next.authentication = "api-key";
+  const nextMedia =
+    next.family === "replicate_predictions" || isAiSpeechFamily(next.family);
+  if (nextMedia) next.authentication = "api-key";
   if (
-    (["replicate_predictions", "elevenlabs_scribe"].includes(current.family) ||
-      ["replicate_predictions", "elevenlabs_scribe"].includes(next.family)) &&
+    (current.family === "replicate_predictions" ||
+      isAiSpeechFamily(current.family) ||
+      nextMedia) &&
     ["family", "baseUrl", "model", "authentication"].includes(field)
   )
     next.apiKey = "";
@@ -253,10 +258,9 @@ export function useAiConnection(
       const options = {
         signal: owner.signal,
         prediction: { signal },
-        audio:
-          draft.family === "elevenlabs_scribe"
-            ? audio.fields.sampleAudio
-            : undefined,
+        audio: isAiSpeechFamily(draft.family)
+          ? audio.fields.sampleAudio
+          : undefined,
       };
       try {
         if (!save)
@@ -291,7 +295,7 @@ export function useAiConnection(
   return {
     ...pending,
     draft,
-    ...aiAudioControls(audio, pending, draft.family === "elevenlabs_scribe"),
+    ...aiAudioControls(audio, pending, isAiSpeechFamily(draft.family)),
     savedId,
     predictionInput,
     onPredictionInput: (value: string) => {
