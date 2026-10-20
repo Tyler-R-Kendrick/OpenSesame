@@ -10,7 +10,7 @@
 import {
   type ApprovalArrival,
   readApprovalArrival,
-} from "@opensesame/ceremony-kit";
+} from "@opensesame/ceremony-kit/links";
 import { maybePage } from "../ports.js";
 
 const NONE: ApprovalArrival = { kind: "none" };

@@ -22,7 +22,7 @@ import {
   type ClaimStash,
   createClaimStash,
   isClaimToken,
-} from "@opensesame/ceremony-kit";
+} from "@opensesame/ceremony-kit/links";
 import { maybeSessionStore } from "../../ports.js";
 
 export type { ClaimStash };

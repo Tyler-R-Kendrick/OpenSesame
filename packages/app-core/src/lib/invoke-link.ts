@@ -10,8 +10,13 @@
 import {
   type InvocationArrival,
   readInvocationArrival,
-} from "@opensesame/ceremony-kit";
+} from "@opensesame/ceremony-kit/links";
 import { maybePage } from "../ports.js";
+
+type HeldInvocationArrival = {
+  arrival: InvocationArrival;
+  at: string;
+};
 
 const NONE: InvocationArrival = { kind: "none" };
 
@@ -39,10 +44,7 @@ export function captureInvocationArrivalFromPage(): InvocationArrival {
 }
 
 /** What the last `/invoke/<kind>` address carried, and where. */
-export function peekInvocationArrival(): {
-  arrival: InvocationArrival;
-  at: string;
-} {
+export function peekInvocationArrival(): HeldInvocationArrival {
   return { arrival: held, at: heldAt };
 }
 
