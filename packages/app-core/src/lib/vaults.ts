@@ -24,6 +24,7 @@ import {
   parseOrgVaultRef,
 } from "@opensesame/os-domain";
 import type { VaultHeader } from "@opensesame/vault-core";
+import { deadmanBootKeys } from "./deadman/keys.js";
 import { guestsAllowed } from "./guest-access.js";
 import { kvHydrate } from "./kv.js";
 import { guestVaultLabel } from "./local-guest.js";
@@ -295,6 +296,7 @@ async function switchVaultDefault(id: string): Promise<SwitchOutcome> {
       throw new Error("That vault no longer exists on this device.");
     }
     const sharedKey = vaultStore.sharesKeyWith(readTombHeader(id));
+    await kvHydrate([...deadmanBootKeys(id)]);
     await setActiveProject(id);
     await enterActiveProjectScope(sharedKey);
     return vaultStore.isUnlocked() ? "opened" : "locked";

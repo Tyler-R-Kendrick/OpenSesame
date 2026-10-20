@@ -75,6 +75,7 @@ introduces its own (mTLS, plugins) names them where they are used.
 | [Duress troubleshooting](duress-troubleshooting.md) | PRF support, RP-ID changes and other failure modes. |
 | [New-item links](vault-draft-links.md) | Links that open a reviewable draft item with generated defaults. |
 | [Travel mode](travel-mode.md) | Crossing a border carrying only the vaults that are safe to carry, or only some of one vault's items, and bringing the rest back (ADR 0143, ADR 0171). |
+| [Deadman switch relay](deadman-relay.md) | The small heartbeat, signed-arm and webhook contract behind the device-local deadman switch (ADR 0209). |
 
 ## Payments
 

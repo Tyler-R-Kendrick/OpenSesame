@@ -348,6 +348,11 @@ export const LIB_RULES = [
     "vault.local-unlock",
     "travel mode: departure bundle and return",
   ),
+  core(
+    `${L}deadman/`,
+    "vault.local-unlock",
+    "deadman release envelope, signed record and relay heartbeat",
+  ),
   shared(`${L}local-iam-events`, "change fanout the tomb and identity share"),
   core(
     `${L}ambient-auth/entra-instances`,

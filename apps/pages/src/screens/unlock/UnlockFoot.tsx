@@ -7,6 +7,7 @@
  * the sign-in panel and a keyless guest tomb draw neither (AGENTS.md §5).
  */
 
+import { DeadmanSwitchRoad } from "./DeadmanSwitchRoad.js";
 import { GuestUnlockSwitch } from "./GuestRoad.js";
 import { LockFoot } from "./LockFoot.js";
 import { ResetVault } from "./ResetVault.js";
@@ -49,6 +50,7 @@ export function UnlockFoot({
       {/* Guest tomb beside a sealed vault (GuestRoad.tsx). Not on
             sign-in or a keyless tomb — Unlock resumes that tomb. Allow
             guests is the only gate (AGENTS.md §5). */}
+      {!firstRun && !showSignIn ? <DeadmanSwitchRoad /> : null}
       {!firstRun && !showSignIn && !showReset ? (
         <GuestUnlockSwitch
           busy={busy}

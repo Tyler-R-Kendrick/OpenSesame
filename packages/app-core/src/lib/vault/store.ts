@@ -13,6 +13,7 @@ import {
   noteVaultUnlocked,
   recordActivityEvent,
 } from "../activity-log.js";
+import { recordDeadmanAuthentication } from "../deadman/state.js";
 import {
   endEphemeralTomb,
   forgetDecoyScratch,
@@ -704,6 +705,7 @@ export class VaultStore {
     this.#armIdleTimer();
     this.#emit();
     noteVaultUnlocked();
+    await recordDeadmanAuthentication(this.#scope.tomb);
   }
   /** After primary unwrap: either activate or park the key for a second step. */
   async #afterPrimaryUnwrap(vaultKey: CryptoKey, miss?: string) {

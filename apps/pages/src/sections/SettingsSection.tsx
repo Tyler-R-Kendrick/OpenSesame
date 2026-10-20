@@ -4,6 +4,7 @@ import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
 import { CanaryCredentialsPanel } from "./settings/security/CanaryCredentialsPanel.js";
+import { DeadmanPanel } from "./settings/security/DeadmanPanel.js";
 import { RetiredCredentialsPanel } from "./settings/security/RetiredCredentialsPanel.js";
 import { useSettingsCategory } from "./settings/use-settings-category.js";
 
@@ -249,6 +250,7 @@ function SecurityPanels({
         <Panel key={id} />
       ))}
       <DuressPanel />
+      <DeadmanPanel />
       <RetiredCredentialsPanel />
       <CanaryCredentialsPanel />
       {duressShown ? <TravelPanel /> : null}
