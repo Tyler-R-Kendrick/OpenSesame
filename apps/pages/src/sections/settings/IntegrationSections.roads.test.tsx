@@ -5,6 +5,7 @@ import {
   notifyConnectRoads,
   resetConnectRoadSeams,
 } from "@opensesame/app-core/lib/connect-roads.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
@@ -108,6 +109,24 @@ describe("connector tiles while Connections is off", () => {
 });
 
 describe("connector tiles once Connections routes its pages", () => {
+  it.each([
+    ["replicate", "Replicate"],
+    ["stability", "Stability AI"],
+    ["deepgram", "Deepgram"],
+    ["assemblyai", "AssemblyAI"],
+  ])("routes the bundled %s lab through its single shared card", (id, name) => {
+    const provider = getBundledProviders().find((row) => row.id === id);
+    expect(provider, id).toMatchObject({ category: "ai_model_provider" });
+    installConnections();
+    renderIntegrationsPanel();
+    const labs = within(screen.getByRole("list", { name: "AI providers" }));
+    const links = labs.getAllByRole("link", { name });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveProperty("pathname", `/settings/connections/${id}`);
+    expect(links[0]?.closest(".conn-tile")).not.toBeNull();
+    expect(labs.getAllByRole("listitem")[0]?.textContent).toContain("BYO AI");
+  });
+
   it.each([
     ["AI providers", "BYO AI", "/settings/connections/byo-ai"],
     [
