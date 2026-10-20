@@ -130,6 +130,8 @@ async function startup(browser) {
 }
 
 async function hostVault(page) {
+  // Seed real wall time before the PIN ceremony advances Playwright timers.
+  await page.clock.install({ time: new Date() });
   setStep("owner-vault");
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);

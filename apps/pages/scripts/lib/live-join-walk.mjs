@@ -83,6 +83,8 @@ export async function copyFrom(page, key) {
 }
 
 export async function ownerEnters(page, { origin, base, secret }) {
+  // Seed real wall time before the PIN ceremony advances Playwright timers.
+  await page.clock.install({ time: new Date() });
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);
   const create = page.getByRole("link", { name: "New item", exact: true });
