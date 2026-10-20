@@ -10,24 +10,27 @@ import {
   IconTrash,
   IconX,
 } from "../../components/Icons.js";
+import { openContextMenu } from "../../components/context-menu/menu-model.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ReferenceKeys } from "./ReferenceKeys.js";
-import { TRASH_CONFIRM } from "./vault-menu.js";
+import { TRASH_CONFIRM, shareWays } from "./vault-menu.js";
 
 /**
- * The Share once key. It is its own component because it is the target a
+ * The Share key. It is its own component because it is the target a
  * tutorial points at (`item.share`, declared only where sharing is on), so the
  * target is claimed only where the key is drawn; the same ref takes the focus
  * back when the ceremony closes.
  */
 function ShareKey({
   open,
-  onToggle,
+  onOpen,
+  onGrant,
   keyRef,
 }: {
   open: boolean;
-  onToggle: () => void;
+  onOpen: () => void;
+  onGrant?: (() => void) | undefined;
   keyRef: MutableRefObject<HTMLButtonElement | null>;
 }) {
   const guideRef = useGuideTarget<HTMLButtonElement>("item.share");
@@ -43,10 +46,23 @@ function ShareKey({
       ref={ref}
       type="button"
       className={`icon-btn${open ? " is-on" : ""}`}
-      onClick={onToggle}
-      aria-pressed={open}
-      aria-label="Share once"
-      title="Share once (s)"
+      onClick={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        openContextMenu(
+          {
+            clientX: rect.left + Math.min(24, rect.width / 2),
+            clientY: rect.bottom,
+            preventDefault: () => event.preventDefault(),
+          },
+          event.currentTarget,
+          "Share",
+          shareWays({ drop: onOpen, grant: onGrant }),
+        );
+      }}
+      aria-haspopup="menu"
+      aria-expanded={open}
+      aria-label="Share"
+      title="Share"
     >
       <IconShare size={17} />
     </button>
@@ -117,7 +133,8 @@ export function ItemTools({
   /** Present when the item can be shared once: the key's state and its press. */
   share?: {
     open: boolean;
-    onToggle: () => void;
+    onOpen: () => void;
+    onGrant?: (() => void) | undefined;
     keyRef: MutableRefObject<HTMLButtonElement | null>;
   };
 }) {

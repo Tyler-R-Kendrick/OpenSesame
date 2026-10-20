@@ -2,7 +2,7 @@
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import type { Folder, VaultItem } from "@opensesame/vault-core";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import {
@@ -16,6 +16,8 @@ import {
   vi,
 } from "vitest";
 import { planeHookSeams } from "../../bindings/planes.js";
+import { ContextMenuLayer } from "../../components/context-menu/ContextMenuLayer.js";
+import { closeContextMenu } from "../../components/context-menu/menu-model.js";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
@@ -59,6 +61,7 @@ function renderAt(itemId: string, search = "") {
         <Route path="/vault/:itemId" element={<ItemDetail />} />
         <Route path="*" element={<div>elsewhere</div>} />
       </Routes>
+      <ContextMenuLayer />
     </MemoryRouter>,
   );
 }
@@ -83,6 +86,7 @@ describe("sharing an item once, from its toolbar", () => {
   });
 
   afterEach(() => {
+    closeContextMenu();
     cleanup();
     revoke();
     vi.clearAllMocks();
@@ -104,7 +108,7 @@ describe("sharing an item once, from its toolbar", () => {
     expect(toolbarNames()).toEqual([
       "Add to favorites",
       "Edit",
-      "Share once",
+      "Share",
       "Move to trash",
     ]);
     expect(screen.queryByRole("combobox")).toBeNull();
@@ -112,34 +116,37 @@ describe("sharing an item once, from its toolbar", () => {
     expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 
-  it("opens the ceremony under the fields on press, and a second press closes it", async () => {
+  it("opens a Share menu and starts the temporary drop from it", async () => {
     const user = userEvent.setup();
     vault.current = { items: [makeAccount({ id: "itm_login" })], folders: [] };
     renderAt("itm_login");
-    const share = screen.getByRole("button", { name: "Share once" });
-    expect(share.getAttribute("aria-pressed")).toBe("false");
+    const share = screen.getByRole("button", { name: "Share" });
+    expect(share.getAttribute("aria-expanded")).toBe("false");
 
     await user.click(share);
-    expect(share.getAttribute("aria-pressed")).toBe("true");
+    const menu = screen.getByRole("menu", { name: "Share" });
+    expect(
+      within(menu).getByRole("menuitem", { name: "Temporary drop" }),
+    ).toBeTruthy();
+    await user.click(
+      within(menu).getByRole("menuitem", { name: "Temporary drop" }),
+    );
     expect(screen.getByRole("radiogroup", { name: "Opens for" })).toBeTruthy();
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "1 hour" }),
     );
-
-    await user.click(share);
-    expect(share.getAttribute("aria-pressed")).toBe("false");
-    expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 
   it("returns the focus to the key on Cancel", async () => {
     const user = userEvent.setup();
     vault.current = { items: [makeAccount({ id: "itm_login" })], folders: [] };
     renderAt("itm_login");
-    await user.click(screen.getByRole("button", { name: "Share once" }));
+    await user.click(screen.getByRole("button", { name: "Share" }));
+    await user.click(screen.getByRole("menuitem", { name: "Temporary drop" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("radiogroup")).toBeNull();
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Share once" }),
+      screen.getByRole("button", { name: "Share" }),
     );
   });
 
@@ -148,8 +155,8 @@ describe("sharing an item once, from its toolbar", () => {
     renderAt("itm_login", "?share=drop");
     expect(
       screen
-        .getByRole("button", { name: "Share once" })
-        .getAttribute("aria-pressed"),
+        .getByRole("button", { name: "Share" })
+        .getAttribute("aria-expanded"),
     ).toBe("true");
     expect(screen.getByRole("radiogroup", { name: "Opens for" })).toBeTruthy();
   });
@@ -166,16 +173,16 @@ describe("sharing an item once, from its toolbar", () => {
       folders: [],
     };
     renderAt("itm_empty");
-    expect(screen.queryByRole("button", { name: "Share once" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
     cleanup();
     renderAt("itm_trashed");
-    expect(screen.queryByRole("button", { name: "Share once" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
     cleanup();
 
     revoke();
     vault.current = { items: [makeAccount({ id: "itm_login" })], folders: [] };
     renderAt("itm_login");
-    expect(screen.queryByRole("button", { name: "Share once" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
     revoke = () => {};
   });
 });
