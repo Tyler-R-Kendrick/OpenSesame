@@ -83,9 +83,11 @@ async function connect(token = azureToken) {
       name: "Verify and connect Azure Key Vault Secrets",
     }),
   );
+  await screen.findByRole("form", { name: "Back up vault" });
   return screen.findByRole("button", { name: "List secret names" });
 }
 async function list() {
+  await screen.findByRole("form", { name: "Back up vault" });
   await userEvent.click(
     screen.getByText("List secret names", { selector: "summary" }),
   );
@@ -157,7 +159,7 @@ it.each(["azure-sm", "azure-key-vault-secrets"])(
       ),
     );
     await list();
-    expect(o.requests).toHaveLength(5);
+    expect(o.requests).toHaveLength(11);
     expect(o.requests.every((request) => request.authorized)).toBe(true);
     expect(
       o.fixture.requests.every(
@@ -218,7 +220,7 @@ it.each(["activation", "vault", "unmount"])(
     if (kind === "vault") vaultStore.lock();
     if (kind === "unmount") ui.unmount();
     await azureClosed(held.closed.promise);
-    expect(o.requests).toHaveLength(2);
+    expect(o.requests).toHaveLength(4);
     expect(
       screen.queryByRole("region", { name: /Showing.*secret names/ }),
     ).toBeNull();
@@ -247,9 +249,9 @@ it("the original caller can cancel a physical secret stream without borrowing an
   await expect(
     driver.invoke(row.connectionId, "provider.secrets.read", {}, caller.signal),
   ).rejects.toThrow();
-  expect(o.requests).toHaveLength(2);
+  expect(o.requests).toHaveLength(4);
   await list();
-  expect(o.requests).toHaveLength(3);
+  expect(o.requests).toHaveLength(5);
 });
 
 it("refuses pending and subsequent reads after the captured native authority is replaced", async () => {
@@ -277,7 +279,7 @@ it("refuses pending and subsequent reads after the captured native authority is 
       driver.invoke(row.connectionId, "provider.secrets.read", {}),
     ).rejects.toThrow();
     expect(replacementFetch).not.toHaveBeenCalled();
-    expect(o.requests).toHaveLength(2);
+    expect(o.requests).toHaveLength(4);
     expect(
       screen.queryByRole("region", { name: "Secret read once" }),
     ).toBeNull();

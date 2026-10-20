@@ -13,6 +13,7 @@ import { nativeGitlabBackupTarget } from "@opensesame/app-core/lib/native-gitlab
 import { openNativeGitlabBackup } from "@opensesame/app-core/lib/native-gitlab-backup.js";
 import { openNativeS3Backup } from "@opensesame/app-core/lib/native-s3-backup.js";
 import type { SecretBackendBackupHandle } from "@opensesame/app-core/lib/secret-backends/backup-transfer.js";
+import { openSavedAzureKeyVaultBackend } from "@opensesame/app-core/lib/secret-backends/factory.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useEffect, useState } from "react";
@@ -43,6 +44,10 @@ const openers = {
     if (!target) throw new Error("Configure a GitLab backup project first.");
     return openNativeGitlabBackup(id, target, options);
   },
+  "azure-sm": (id, _parameters, options) =>
+    openSavedAzureKeyVaultBackend(id, options),
+  "azure-key-vault-secrets": (id, _parameters, options) =>
+    openSavedAzureKeyVaultBackend(id, options),
   s3: (id, _parameters, options) => openNativeS3Backup(id, options),
   codeberg: (id, parameters, options) => {
     const target = nativeCodebergBackupTarget(parameters);
@@ -104,6 +109,8 @@ export function NativeVaultBackupControls({
       try {
         check();
         if (
+          providerId !== "azure-sm" &&
+          providerId !== "azure-key-vault-secrets" &&
           providerId !== "s3" &&
           providerId !== "github" &&
           providerId !== "codeberg" &&

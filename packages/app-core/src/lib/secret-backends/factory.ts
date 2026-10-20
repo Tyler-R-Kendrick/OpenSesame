@@ -1,4 +1,8 @@
 import {
+  type NativeAzureSecretsOptions,
+  openSavedAzureSecrets,
+} from "../native-azure-secrets-backup.js";
+import {
   type SecretBackendTransport,
   fenceSecretBackend,
   guardSecretBackendTransport,
@@ -147,4 +151,12 @@ export async function createSecretBackend(
         "Choose a supported secret backend method.",
       );
   }
+}
+
+/** Open the existing sealed native Azure record through the common secret-store port. */
+export function openSavedAzureKeyVaultBackend(
+  id: string,
+  options: NativeAzureSecretsOptions,
+) {
+  return openSavedAzureSecrets(id, options);
 }

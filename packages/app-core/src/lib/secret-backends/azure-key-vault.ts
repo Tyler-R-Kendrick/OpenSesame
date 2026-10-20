@@ -37,6 +37,7 @@ import {
   SecretBackendError,
   type SecretBackendItemInput,
   type SecretBackendItemSummary,
+  type SecretBackendSession,
 } from "./types.js";
 
 type AzureState = {
@@ -214,7 +215,7 @@ async function list(state: AzureState): Promise<SecretBackendItemSummary[]> {
   return items;
 }
 function credentials(
-  config: SecretBackendConfiguration,
+  config: Pick<SecretBackendConfiguration, "baseUrl" | "token">,
   transport: SecretBackendTransport,
 ): AzureState {
   if (!/^[\x21-\x7e]{1,16384}$/.test(config.token))
@@ -273,9 +274,7 @@ const azureCapabilities: SecretBackend["capabilities"] = {
   delete: true,
   import: false,
 };
-export function createAzureKeyVaultSecretBackend(
-  captured: SecretBackendTransport,
-): SecretBackend {
+function azureBackend(captured: SecretBackendTransport) {
   const owner = guardSecretBackendTransport(captured);
   const sessions = createSecretBackendSessions<AzureState>(
     "azure-key-vault-secrets",
@@ -291,16 +290,19 @@ export function createAzureKeyVaultSecretBackend(
       ),
     };
   };
+  const authenticate = async (
+    config: Pick<SecretBackendConfiguration, "baseUrl" | "token">,
+  ) => {
+    const state = credentials(config, owner);
+    await list(state);
+    owner.assertCurrent();
+    return sessions.create(state, owner.signal);
+  };
   const backend: SecretBackend = {
     id: "azure-key-vault-secrets",
     name: "Azure Key Vault Secrets",
     capabilities: azureCapabilities,
-    async authenticate(config) {
-      const state = credentials(config, owner);
-      await list(state);
-      owner.assertCurrent();
-      return sessions.create(state, owner.signal);
-    },
+    authenticate,
     async listItems(session) {
       return list(held(session));
     },
@@ -351,5 +353,27 @@ export function createAzureKeyVaultSecretBackend(
       sessions.remove(session);
     },
   };
-  return fenceSecretBackend(backend, owner);
+  return { backend: fenceSecretBackend(backend, owner), authenticate, owner };
+}
+
+export function createAzureKeyVaultSecretBackend(
+  captured: SecretBackendTransport,
+): SecretBackend {
+  return azureBackend(captured).backend;
+}
+/** Native saved custody already owns the credential; no synthetic draft/mode is created. */
+export async function openAzureKeyVaultSecretBackend(
+  config: Pick<SecretBackendConfiguration, "baseUrl" | "token">,
+  captured: SecretBackendTransport,
+) {
+  const opened = azureBackend(captured);
+  let session: SecretBackendSession | undefined;
+  try {
+    session = await opened.authenticate(config);
+    opened.owner.assertCurrent();
+    return { backend: opened.backend, session };
+  } catch (error) {
+    if (session) await opened.backend.disconnect(session);
+    throw error;
+  }
 }
