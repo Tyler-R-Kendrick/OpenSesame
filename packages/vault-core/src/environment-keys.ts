@@ -10,3 +10,8 @@ import { type VaultItem, isRetired } from "./model.js";
 export function canBeKey(item: VaultItem): boolean {
   return item.deletedAt === null && !isRetired(item) && item.kind !== "drop";
 }
+
+/** Every live secret is a key unless a person took it out (ADR 0194). */
+export function isEnvironmentKey(item: VaultItem): boolean {
+  return canBeKey(item) && item.environmentsExcluded !== true;
+}

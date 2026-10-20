@@ -13,14 +13,16 @@ import {
 } from "@opensesame/app-core/lib/vault/environments-write.js";
 import {
   type EnvironmentPlan,
+  type EnvironmentSchema,
   type SchemaKey,
-  renderEnvSchema,
+  renderEnvSchemas,
   schemaKeys,
 } from "@opensesame/app-core/lib/vault/environments.js";
 import {
   type VaultItem,
   canBeKey,
   environmentNames,
+  isEnvironmentKey,
   normalizeEnvironmentName,
 } from "@opensesame/vault-core";
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
@@ -41,9 +43,10 @@ export type Environments = Readonly<{
   /** The environment whose values the sheet is showing, or null with none. */
   active: string | null;
   keys: readonly SchemaKey[];
-  /** Items that could become keys: live, and not keys already. */
+  /** Items a person took out of the schema, offered to add back. */
   candidates: readonly VaultItem[];
-  schema: string;
+  /** One generated `.env.<name>.schema` per environment, oldest first. */
+  schemas: readonly EnvironmentSchema[];
   /** The last refusal; the sheet raises it in the tray (controls.md § 0). */
   failure: string | null;
   /** True while the name field's last answer was a refusal, so it can say so. */
@@ -62,12 +65,16 @@ export function useEnvironments(): Environments {
     () => environmentNames(vault.environments),
     [vault.environments],
   );
-  const keys = useMemo(() => schemaKeys(vault.items), [vault.items]);
+  const keys = useMemo(
+    () => schemaKeys(vault.items, vault.folders),
+    [vault.items, vault.folders],
+  );
   const candidates = useMemo(
-    () => vault.items.filter((item) => canBeKey(item) && !item.environments),
+    () =>
+      vault.items.filter((item) => canBeKey(item) && !isEnvironmentKey(item)),
     [vault.items],
   );
-  const schema = useMemo(() => renderEnvSchema(names, keys), [names, keys]);
+  const schemas = useMemo(() => renderEnvSchemas(names, keys), [names, keys]);
   const [viewed, setViewed] = useState<string | null>(() =>
     environmentInView(vault.tomb, names),
   );
@@ -125,7 +132,7 @@ export function useEnvironments(): Environments {
     active,
     keys,
     candidates,
-    schema,
+    schemas,
     failure,
     nameRefused,
     choose,

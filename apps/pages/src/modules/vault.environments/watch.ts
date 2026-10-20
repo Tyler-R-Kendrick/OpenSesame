@@ -16,23 +16,30 @@ import { environmentNames } from "@opensesame/vault-core";
 
 export function startEnvironmentNotices(signal: AbortSignal): void {
   let seenItems: unknown;
+  let seenFolders: unknown;
   let seenEnvironments: unknown;
   const sync = () => {
     const state = vaultStore.getSnapshot();
     if (state.status !== "unlocked") {
       seenItems = undefined;
+      seenFolders = undefined;
       seenEnvironments = undefined;
       return;
     }
-    // Every emit of the store lands here; only these two can change the answer.
-    if (state.items === seenItems && state.environments === seenEnvironments) {
+    // Every emit of the store lands here; only these three can change the answer.
+    if (
+      state.items === seenItems &&
+      state.folders === seenFolders &&
+      state.environments === seenEnvironments
+    ) {
       return;
     }
     seenItems = state.items;
+    seenFolders = state.folders;
     seenEnvironments = state.environments;
     syncEnvironmentNotices(
       environmentNames(state.environments),
-      schemaKeys(state.items),
+      schemaKeys(state.items, state.folders),
     );
   };
   const stop = vaultStore.subscribe(sync);

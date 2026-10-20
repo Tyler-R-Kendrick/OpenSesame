@@ -338,11 +338,22 @@ export function graftOnto(
     return { ...graftAccountFormatOne(current, incoming), ...kept };
   }
   if (whole) {
-    const next: VaultItem = { ...incoming, ...kept };
+    let next: VaultItem = { ...incoming, ...kept };
     // An entry written before environments cannot say what an item's cells
-    // are: it must not erase them (ADR 0194).
-    if (!incoming.environments && current.environments) {
+    // are: it must not erase them (ADR 0194). An entry that says the item is
+    // out of the schema carries no cells, by construction.
+    if (incoming.environmentsExcluded) {
+      const { environments: _cells, ...withoutCells } = next;
+      next = overlapCast(withoutCells);
+    } else if (!incoming.environments && current.environments) {
       next.environments = current.environments;
+    }
+    if (
+      !incoming.environmentsExcluded &&
+      !incoming.environments &&
+      current.environmentsExcluded
+    ) {
+      next.environmentsExcluded = true;
     }
     // A manifest never says which account a credential is bound to.
     if (next.kind === "credential" && current.kind === "credential") {
