@@ -11,6 +11,7 @@ import {
   filesRootForRepo,
   walkJsonFiles,
 } from "./deepsec-wave2-completion.mjs";
+import { kimiDeferredPathSet } from "./deepsec-wave2-kimi-deferred.mjs";
 
 const repoRoot = process.argv[2] ?? process.cwd();
 const marker = Number(process.argv[3] ?? String(DEFAULT_MARKER));
@@ -24,11 +25,13 @@ function sourceByteSize(repoRoot, filePath) {
   }
 }
 
+const kimiDeferred = kimiDeferredPathSet(repoRoot);
 const paths = [];
 for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
   if (typeof rec.filePath !== "string") continue;
   if (fileHasInvestigateWaveStrict(rec, marker)) continue;
+  if (kimiDeferred.has(rec.filePath)) continue;
   paths.push(rec.filePath);
 }
 

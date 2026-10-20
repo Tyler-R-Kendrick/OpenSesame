@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Kimi K3 wave-2 reinvestigate on marker-incomplete files while Grok runs (subscription only).
+# One file per deepsec process so a single slow file cannot hold a batch-of-3 (~2.5–3h) before
+# any strict completion lands; per-file wall matches Grok ordered lane (DEEPSEC_KIMI_FILE_WALL_SEC).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WS="${ROOT}/.deepsec"
@@ -9,11 +11,13 @@ LOG="${DEEPSEC_KIMI_PARALLEL_LOG:-/tmp/deepsec-wave2-kimi-parallel.log}"
 export PATH="${HOME}/.local/bin:${PATH}"
 export DEEPSEC_THINKING="${DEEPSEC_THINKING:-medium}"
 export DEEPSEC_CONCURRENCY="${DEEPSEC_KIMI_PARALLEL_CONCURRENCY:-1}"
-export DEEPSEC_BATCH_SIZE="${DEEPSEC_KIMI_PARALLEL_BATCH_SIZE:-3}"
+export DEEPSEC_BATCH_SIZE="${DEEPSEC_KIMI_PARALLEL_BATCH_SIZE:-1}"
+export DEEPSEC_KIMI_FILE_WALL_SEC="${DEEPSEC_KIMI_FILE_WALL_SEC:-2700}"
+export DEEPSEC_KIMI_USE_COREUTILS_TIMEOUT="${DEEPSEC_KIMI_USE_COREUTILS_TIMEOUT:-1}"
 unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY
 
 exec >>"$LOG" 2>&1
-echo "=== kimi-parallel start $(date -u +%Y-%m-%dT%H:%M:%SZ) wave=$WAVE concurrency=$DEEPSEC_CONCURRENCY batch_size=$DEEPSEC_BATCH_SIZE ==="
+echo "=== kimi-parallel start $(date -u +%Y-%m-%dT%H:%M:%SZ) wave=$WAVE concurrency=$DEEPSEC_CONCURRENCY batch_size=$DEEPSEC_BATCH_SIZE file_wall_sec=$DEEPSEC_KIMI_FILE_WALL_SEC ordered_slices=1 ==="
 
 if ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh"; then
   echo "=== kimi-parallel: quota limited — exit $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
@@ -22,21 +26,55 @@ fi
 
 MANIFEST="$(mktemp /tmp/deepsec-wave2-marker-incomplete.XXXXXX.json)"
 node "${ROOT}/scripts/audit/deepsec-wave2-marker-incomplete-manifest.mjs" "$ROOT" "$WAVE" >"$MANIFEST"
-COUNT="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).length)" "$MANIFEST")"
-echo "=== kimi-parallel manifest $COUNT files ==="
-if [[ "$COUNT" == "0" ]]; then
+TOTAL="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).length)" "$MANIFEST")"
+echo "=== kimi-parallel manifest $TOTAL files ==="
+if [[ "$TOTAL" == "0" ]]; then
   rm -f "$MANIFEST"
   echo "=== kimi-parallel: nothing pending — exit $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
   exit 0
 fi
 
-cd "$WS"
-"$DEEPSEC" process --project-id opensesame \
-  --agent kimi --model kimi-code/k3 \
-  --thinking-level "$DEEPSEC_THINKING" \
-  --concurrency "$DEEPSEC_CONCURRENCY" \
-  --reinvestigate "$WAVE" \
-  --batch-size "${DEEPSEC_BATCH_SIZE:-5}" \
-  --manifest "$MANIFEST"
-rm -f "$MANIFEST"
+SLICE="$(mktemp /tmp/deepsec-wave2-kimi-slice.XXXXXX.json)"
+idx=0
+while [[ "$idx" -lt "$TOTAL" ]]; do
+  node -e "
+    const paths = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));
+    const i = Number(process.argv[2]);
+    const batch = Number(process.argv[3]);
+    const slice = paths.slice(i, i + batch);
+    require('fs').writeFileSync(process.argv[4], JSON.stringify(slice));
+  " "$MANIFEST" "$idx" "$DEEPSEC_BATCH_SIZE" "$SLICE"
+  slice_count="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).length)" "$SLICE")"
+  if [[ "$slice_count" == "0" ]]; then
+    idx=$((idx + 1))
+    continue
+  fi
+  path="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))[0])" "$SLICE")"
+  echo "deepsec-wave2-kimi-parallel: file $((idx + 1))/${TOTAL} ${path} (slice ${slice_count} path(s))"
+  cd "$WS"
+  run_deepsec() {
+    "$DEEPSEC" process --project-id opensesame \
+      --agent kimi --model kimi-code/k3 \
+      --thinking-level "$DEEPSEC_THINKING" \
+      --concurrency "$DEEPSEC_CONCURRENCY" \
+      --reinvestigate "$WAVE" \
+      --batch-size "$DEEPSEC_BATCH_SIZE" \
+      --manifest "$SLICE"
+  }
+  if [[ "$DEEPSEC_KIMI_USE_COREUTILS_TIMEOUT" == "1" ]] && command -v timeout >/dev/null; then
+    if ! timeout --foreground "${DEEPSEC_KIMI_FILE_WALL_SEC}" run_deepsec; then
+      reason="process_exit"
+      if tail -30 "$LOG" 2>/dev/null | grep -qE 'file wall exceeded|timed out|Termin'; then
+        reason="file_wall_exceeded"
+      fi
+      node "${ROOT}/scripts/audit/deepsec-wave2-kimi-deferred.mjs" path "$ROOT" "$path" "$reason"
+      echo "deepsec-wave2-kimi-parallel: deferred ${path} (${reason}) — continuing"
+    fi
+  elif ! run_deepsec; then
+    node "${ROOT}/scripts/audit/deepsec-wave2-kimi-deferred.mjs" path "$ROOT" "$path" "process_exit"
+    echo "deepsec-wave2-kimi-parallel: deferred ${path} (process_exit) — continuing"
+  fi
+  idx=$((idx + DEEPSEC_BATCH_SIZE))
+done
+rm -f "$SLICE" "$MANIFEST"
 echo "=== kimi-parallel done $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
