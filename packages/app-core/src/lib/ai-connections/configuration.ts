@@ -2,6 +2,7 @@ import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
 import { z } from "zod";
 import { parseGcpServiceAccount } from "../native-gcp-auth.js";
+import { validateAssemblySpeechTarget } from "./assemblyai-target.js";
 import {
   AzureOpenAiTargetSchema,
   azureConnectionTarget,
@@ -34,6 +35,7 @@ export const AiConnectionDraftSchema = z
       "replicate_predictions",
       "elevenlabs_scribe",
       "deepgram_listen",
+      "assemblyai_transcript",
       "bedrock_converse",
       "openai_chat",
       "openai_responses",
@@ -101,6 +103,8 @@ export function validateAiConnection<Value>(
   const speech = isAiSpeechFamily(draft.family);
   if (draft.family === "elevenlabs_scribe")
     validateAiSpeechConnection(draft, requireKey);
+  if (draft.family === "assemblyai_transcript")
+    validateAiAssemblyConnection(draft, requireKey);
   if (draft.family === "deepgram_listen")
     validateAiDeepgramConnection(draft, requireKey);
   const supportedFamily =
@@ -148,6 +152,33 @@ export function validateAiDeepgramConnection(
       "Choose a single Deepgram transcription target without another protocol's credentials.",
     );
   return validateDeepgramSpeechTarget(
+    {
+      providerId: draft.providerId,
+      baseUrl: draft.baseUrl,
+      model: draft.model,
+      authentication: draft.authentication,
+      apiKey: draft.apiKey,
+    },
+    requireKey,
+  );
+}
+
+/** Saved admission and useful inference share the closed finite-job speech target. */
+export function validateAiAssemblyConnection(
+  draft: AiConnectionDraft,
+  requireKey = true,
+) {
+  if (
+    draft.family !== "assemblyai_transcript" ||
+    draft.azure ||
+    draft.vertex ||
+    draft.bedrock
+  )
+    throw new AiConnectionError(
+      "configuration",
+      "Choose a single AssemblyAI transcription target without another protocol's credentials.",
+    );
+  return validateAssemblySpeechTarget(
     {
       providerId: draft.providerId,
       baseUrl: draft.baseUrl,
