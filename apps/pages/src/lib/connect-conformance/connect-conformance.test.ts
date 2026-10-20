@@ -243,9 +243,12 @@ describe("every connector acquires a person's token", () => {
       .filter(isConnectable)
       .map((plan) => plan.id)
       .filter((id) => !proven.has(id));
-    // Vercel runs these with its own app and publishes nothing a client can
-    // exercise; they are proven only against live Connect.
-    expect(unproven.sort()).toEqual([...VERCEL_ONLY].sort());
+    const managedOnly = connectPlans().filter(
+      (plan) =>
+        VERCEL_ONLY.has(plan.id) &&
+        plan.methods.every(({ kind }) => kind === "managed"),
+    );
+    expect(unproven.sort()).toEqual(managedOnly.map(({ id }) => id).sort());
   });
 });
 
