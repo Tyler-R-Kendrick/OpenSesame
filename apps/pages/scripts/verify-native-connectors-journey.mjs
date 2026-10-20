@@ -65,13 +65,19 @@ try {
       );
       if (!fixture)
         throw new Error(`No documented protocol fixture for ${providerId}.`);
-      results.push(
-        await nativeApiJourney(page, harness, authority, fixture, {
-          base,
-          out,
-          label,
-        }),
-      );
+      const result = await nativeApiJourney(page, harness, authority, fixture, {
+        base,
+        out,
+        label,
+      });
+      if (providerId === "linq")
+        harness.check(
+          result.providerId === "linq" &&
+            result.connected === true &&
+            result.readAfterReload === true,
+          `${label}: Linq connects and lists messaging lines after encrypted cold reload`,
+        );
+      results.push(result);
     }
     for (const fixture of NATIVE_INSTANCE_FIXTURES)
       results.push(
