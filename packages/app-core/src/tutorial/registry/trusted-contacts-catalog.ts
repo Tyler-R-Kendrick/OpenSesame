@@ -1,7 +1,7 @@
 /**
  * Targets and the walkthrough `sharing.trusted-contacts` contributes
  * (ADR 0187): the Trusted contacts section of Settings › Security and its
- * two panels, live only while that capability is in the plan.
+ * Circles panel, live only while that capability is in the plan.
  *
  * The panels hold lists, and a list holds only what a person's own ceremonies
  * made; a target here names a panel or the category, never a circle, a contact
@@ -16,7 +16,7 @@ import type { GuideTargetDescriptor } from "./targets.js";
 export const TRUSTED_CONTACTS_ROUTES: readonly GuideRouteDescriptor[] = [
   {
     id: "/settings/security",
-    title: "Settings — security: trusted contacts, circles and recoveries",
+    title: "Settings — security: trusted contacts and circles",
   },
 ];
 
@@ -24,7 +24,7 @@ export const TRUSTED_CONTACTS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.trusted-contacts",
     description:
-      "The Trusted contacts section of Settings › Security: the circles you keep and the recoveries you have asked for, all kept on this device and handed between people as packets.",
+      "The Trusted contacts section of Settings › Security: the circles you keep, kept on this device and handed between people as packets.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "quorum.circle.manage",
@@ -45,22 +45,6 @@ export const TRUSTED_CONTACTS_TARGETS: readonly GuideTargetDescriptor[] = [
     routes: ["/settings"],
     capabilityId: "quorum.circle.manage",
   },
-  {
-    id: "settings.trusted-contacts-recovery",
-    description:
-      "The Recovery panel: each recovery you have started from a circle's recovery file, with how many contacts have approved it and how many have released their share.",
-    role: "surface",
-    routes: ["/settings"],
-    capabilityId: "quorum.recover",
-  },
-  {
-    id: "recovery.start",
-    description:
-      "The Start a recovery key on the Recovery panel: opens a sheet that reads a circle's recovery file, names this device, and sends a request for the circle's contacts to approve and then release their shares.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: "quorum.recover",
-  },
 ];
 
 export const TRUSTED_CONTACTS_GOALS: readonly GuideGoalDescriptor[] = [
@@ -74,27 +58,8 @@ export const TRUSTED_CONTACTS_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "settings.trusted-contacts.circle"',
       'navigate "/settings/security"',
       'wait route "/settings/security" timeout=15000',
-      'focus "settings.trusted-contacts" "A circle is the people you trust to approve a request, or to hold one share of a recovery key, with a delay that gives you time to object. Each answers with their own security key, and what passes between you is a packet you hand over yourself. Nothing goes to a service." side=bottom',
+      'focus "settings.trusted-contacts" "A circle is the people you trust to approve a request, with a delay that gives you time to object. Each answers with their own security key, and what passes between you is a packet you hand over yourself. Nothing goes to a service." side=bottom',
       'focus "settings.trusted-contacts-circles" "Circles are the ones you own. Each is a rule, the contacts in it and where it stands." side=top',
-      'focus "settings.trusted-contacts-recovery" "Recovery is for getting something back. Open a circle\'s recovery file, ask its contacts, and the result lands in the normal import." side=top',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "settings.trusted-contacts.recovery",
-    title: "Recover what a circle protects",
-    routes: ["/settings"],
-    libraryOnly: true,
-    guide: [
-      "guide/1",
-      'goal "settings.trusted-contacts.recovery"',
-      'say "Getting something back from a circle takes the circle\'s recovery file and enough of its contacts. Each approves with their own security key, and after the delay the owner set, releases their share the same way."',
-      'navigate "/settings/security"',
-      'wait route "/settings/security" timeout=15000',
-      'scroll "settings.trusted-contacts-recovery"',
-      'focus "settings.trusted-contacts-recovery" "Recoveries you have started are listed here with how many contacts have approved and how many have released. Open one to hand its request to the contacts and add what they send back." side=top',
-      'focus "recovery.start" "Start a recovery reads the circle\'s recovery file, names this device and sends the request. When enough shares are released the result is a file to save, or items to put in this vault." side=bottom',
-      'success "That is a recovery: a file, a request, approvals, releases, and what the circle protected."',
       "end",
     ].join("\n"),
   },
@@ -106,7 +71,7 @@ export const TRUSTED_CONTACTS_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "settings.trusted-contacts.owner"',
-      'say "A circle is the people you trust to approve a request, or to hold one share of a recovery key. You make it here: name it, say what it protects, hand an invitation to each person, and set how many of them it takes."',
+      'say "A circle is the people you trust to approve a request. You make it here: name it, hand an invitation to each person, and set how many of them it takes."',
       'navigate "/settings/security"',
       'wait route "/settings/security" timeout=15000',
       'focus "settings.trusted-contacts-circles" "Your circles are listed here, each with its rule, how many contacts it has and where it stands. Open one to invite more people, change it, ask its contacts to approve a share, or retire it." side=top',

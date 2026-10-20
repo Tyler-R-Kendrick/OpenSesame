@@ -8,8 +8,8 @@
  * there is peer to peer: a contact approves with their own security key on
  * their own device, and nothing goes to a service.
  *
- * Contributed: Settings › Security › Trusted contacts — Circles (the owner's)
- * and Recovery (a recipient's) — and the walkthrough that points at it
+ * Contributed: Settings › Security › Trusted contacts — the owner's Circles —
+ * and the walkthrough that points at it
  * (`tutorial/registry/trusted-contacts-catalog.ts`). The section has no
  * settings file: what it holds are vault records, not configuration
  * (ADR 0134, ADR 0158). Each panel says why instead of drawing a blank while

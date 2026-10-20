@@ -5,8 +5,8 @@
 // door the way a person does — Enter on Set up, Skip all, the local seal, a PIN
 // — and switches the capability on from Settings › Features. After that
 // every claim is about where the keyboard is:
-//   - the tab is reached by `g s` and Tab, and it leaves the keys in reading
-//     order: Start a circle, Start a recovery;
+//   - the tab is reached by `g s` and Tab, and it leaves the key in reading
+//     order: Start a circle;
 //   - a sheet opens with the keyboard on its close key, Tab and Shift+Tab stay
 //     inside it, Escape closes it and gives the keyboard back to the key that
 //     opened it;
@@ -24,7 +24,7 @@ import { focusIn } from "./live-keyboard-contract.mjs";
 
 const PIN = "48291037";
 
-const KEYS = ["Start a circle", "Start a recovery"];
+const KEYS = ["Start a circle"];
 
 /** Set up, Skip all, then the local seal: the door's road to a vault of one's own. */
 async function toLocalSeal(page, tabTo) {
@@ -85,7 +85,7 @@ async function openTab(page, tabTo) {
   await expect(page.locator("#trusted-contacts")).toBeVisible({
     timeout: 20_000,
   });
-  for (const id of ["circles", "recovery"])
+  for (const id of ["circles"])
     await expect(page.locator(`section#${id}`)).toBeVisible({
       timeout: 20_000,
     });
@@ -194,14 +194,9 @@ export async function trustedContactsKeyboardContract({
   await keysInOrder(page, tabTo);
   await sheet(page, tabTo, "Start a circle", () => newCircleStep(page, tabTo));
   // The hidden file input carries the key's name too, so the key is found by id.
-  await sheet(page, tabTo, "Start a recovery", async () => {
-    const file = page.locator("button#recovery-file");
-    await expect(file).toBeVisible();
-    await tabTo(page, file);
-  });
   await context.close();
   if (harness.failures.length === before)
     console.log(
-      `PASS ${width}px: Trusted contacts by keyboard — tab, keys in order, two sheets, focus in and back`,
+      `PASS ${width}px: Trusted contacts by keyboard — tab, key in order, one sheet, focus in and back`,
     );
 }

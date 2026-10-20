@@ -1,16 +1,11 @@
 /** @vitest-environment jsdom */
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import { clearNotices } from "@opensesame/app-core/lib/notices.js";
 import { toB64url } from "@opensesame/app-core/lib/quorum/bytes.js";
 import {
   Clock,
   armedCircle,
   device,
 } from "@opensesame/app-core/lib/quorum/desk/harness.test-support.js";
-import {
-  DeskError,
-  type DeskPorts,
-  startRecoveryFlow,
-} from "@opensesame/app-core/lib/quorum/desk/index.js";
 import {
   cleanup,
   render,
@@ -20,7 +15,6 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CirclesPanel } from "./CirclesPanel.js";
-import { RecoveryPanel } from "./RecoveryPanel.js";
 import { TrustedContacts } from "./TrustedContacts.js";
 import {
   declareTargets,
@@ -72,19 +66,15 @@ describe("with nothing yet", () => {
     expect(
       circles.queryByRole("button", { name: "Start your first circle" }),
     ).toBeNull();
-    expect(
-      await screen.findByRole("img", { name: "No recoveries in progress." }),
-    ).toBeTruthy();
     expect(screen.queryAllByRole("listitem")).toEqual([]);
     expect(document.querySelectorAll("p")).toHaveLength(0);
   });
 });
 
 describe("the panels' frames", () => {
-  it("is one Security panel with two titled groups and a polite line each", async () => {
+  it("is one Security panel with the circles group and a polite line", async () => {
     serve(await deskOf(device(new Clock())));
     render(<TrustedContacts />);
-    await screen.findByRole("img", { name: "No recoveries in progress." });
     const section = document.querySelector("section#trusted-contacts");
     expect(section?.className).toContain("set__security");
     expect(
@@ -94,10 +84,9 @@ describe("the panels' frames", () => {
       }),
     ).toBeTruthy();
     const groups = [...document.querySelectorAll(".trusted-contacts__group")];
-    expect(groups.map((group) => group.id)).toEqual(["circles", "recovery"]);
+    expect(groups.map((group) => group.id)).toEqual(["circles"]);
     expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
       "Circles",
-      "Recovery",
     ]);
     for (const group of groups) {
       expect(
@@ -113,11 +102,7 @@ describe("the panels' frames", () => {
   it("are tutorial targets, found by the ids the walkthrough points at", async () => {
     serve(await deskOf(device(new Clock())));
     render(<TrustedContacts />);
-    await screen.findByRole("img", { name: "No recoveries in progress." });
-    for (const id of [
-      "settings.trusted-contacts-circles",
-      "settings.trusted-contacts-recovery",
-    ]) {
+    for (const id of ["settings.trusted-contacts-circles"]) {
       expect(
         document.querySelector(`[data-guide-target="${id}"]`),
       ).not.toBeNull();
@@ -167,75 +152,5 @@ describe("Circles", () => {
     serve(desk);
     rerender(<CirclesPanel />);
     await waitFor(() => expect(live()).toBe("1 circle"));
-  });
-});
-
-describe("Recovery", () => {
-  async function recovering() {
-    const clock = new Clock();
-    const armed = await armedCircle(clock);
-    const recipient = device(clock);
-    const started = await startRecoveryFlow(recipient, {
-      bundleText: armed.dealt.bundleFile ?? "",
-      recipientLabel: "New laptop",
-    });
-    return { recipient, started };
-  }
-
-  it("lists a recovery in flight with its counts and where the ledger stands", async () => {
-    const { recipient } = await recovering();
-    serve(await deskOf(recipient));
-    render(<RecoveryPanel />);
-    const row = (
-      await screen.findByRole("heading", { level: 3, name: "Family" })
-    ).closest("li");
-    if (!row) throw new Error("no row");
-    expect(row.textContent).toContain("0 approved · 0 released");
-    expect(
-      within(row).getByRole("img", { name: /^Collecting approvals until / }),
-    ).toBeTruthy();
-    // The row's one key opens its sheet (recovery/ walks it); no field is drawn.
-    expect(
-      within(row).getByRole("button", { name: "Open Family recovery" }),
-    ).toBeTruthy();
-    expect(row.querySelector("a, input, textarea")).toBeNull();
-  });
-
-  it("reads again when the desk is refreshed", async () => {
-    const { recipient, started } = await recovering();
-    const desk = await deskOf(recipient);
-    serve(desk);
-    const { rerender } = render(<RecoveryPanel />);
-    await screen.findByRole("heading", { level: 3, name: "Family" });
-    // The recovery ends on this device; the next desk no longer lists it.
-    await recipient.pending.remove(`recovery:${started.requestId}`);
-    serve({ ...desk });
-    rerender(<RecoveryPanel />);
-    await screen.findByRole("img", { name: "No recoveries in progress." });
-  });
-
-  it("marks a read that failed on the panel and once in the tray", async () => {
-    const { recipient } = await recovering();
-    const ports: DeskPorts = {
-      ...recipient,
-      pending: {
-        ...recipient.pending,
-        list: async () => {
-          throw new DeskError("sealed", "the recoveries could not be opened");
-        },
-      },
-    };
-    serve({ ...(await deskOf(recipient)), ports });
-    render(<RecoveryPanel />);
-    await screen.findByRole("img", {
-      name: "The recoveries could not be opened.",
-    });
-    // The tray notice is raised in an effect a tick after the mark is drawn.
-    await waitFor(() =>
-      expect(
-        listNotices().find((n) => n.id === "trusted-contacts:recoveries")
-          ?.title,
-      ).toBe("Recovery"),
-    );
   });
 });

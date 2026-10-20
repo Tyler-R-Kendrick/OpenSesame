@@ -8,16 +8,13 @@
  * a PIN first (the door's no-account road), chooses the capability the way a
  * person does, and then opens the tab. Nothing here makes a circle: a circle
  * needs other people's packets. What a phone has to hold is the empty tab, the
- * two owner sheets, and the new-circle sheet's second step (an invitation and
+ * one owner sheet, and the new-circle sheet's second step (an invitation and
  * its QR code).
  */
 import { chooseCapabilitiesHere } from "./mobile-capabilities.mjs";
 import { sealWithPin } from "./mobile-protector-unlock.mjs";
 
-const KEYS = [
-  ["Start a circle", "circle"],
-  ["Start a recovery", "recovery"],
-];
+const KEYS = [["Start a circle", "circle"]];
 
 /**
  * Close whatever sheet is open. Escape leaves a text field for its sheet before

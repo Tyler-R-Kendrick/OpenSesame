@@ -167,10 +167,9 @@ default off, `keyAccess: item-plaintext, protector-wrap`, no egress. Its engine
 is `packages/app-core/src/lib/quorum/`, classified as owned by it; the
 bootstrap does not import it. Its module registers **Settings › Security › Trusted
 contacts** with **Circles** (the owner: start, open, invite more, change, ask
-for approval, cancel, retire) and **Recovery** (a recipient: start from the
-recovery file, gather approvals and releases, open). The guardian-side screens
-were removed; a guardian still holds the protocol records, but this app draws
-no Guarding panel. Every ceremony is a sheet over a desk function (§10) that already has its own test; a screen
+for approval, cancel, retire). The guardian-side screens and the Recovery
+panel were removed; the protocol records still exist, but this app draws no
+Guarding or Recovery surface. Every ceremony is a sheet over a desk function (§10) that already has its own test; a screen
 collects input, calls a step and shows what comes back, and holds no protocol
 logic. Nothing leaves the page: a packet is copied by hand and handed over a
 road the people already use, and the recovery file is a file they save. The

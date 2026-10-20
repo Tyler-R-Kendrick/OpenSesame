@@ -1,15 +1,13 @@
 /**
- * Settings › Security › Trusted contacts (ADR 0187). Two panels, the owner's
- * circles and the recoveries they have started, over the desk they share
- * (`use-desk.ts`). Each draws nothing while the vault is locked, a guest or a
- * decoy: a circle holds an owner key, and it does not belong in a session that
- * is thrown away (ADR 0158).
+ * Settings › Security › Trusted contacts (ADR 0187): the owner's circles over
+ * the desk they share (`use-desk.ts`). It draws nothing while the vault is
+ * locked, a guest or a decoy: a circle holds an owner key, and it does not
+ * belong in a session that is thrown away (ADR 0158).
  */
 
 import { StatusMark } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { CirclesPanel } from "./CirclesPanel.js";
-import { RecoveryPanel } from "./RecoveryPanel.js";
 import { useDesk } from "./use-desk.js";
 import "./trusted-contacts.css";
 
@@ -54,7 +52,6 @@ export function TrustedContacts() {
       </div>
       <div className="panel__body trusted-contacts__body">
         <CirclesPanel />
-        <RecoveryPanel />
       </div>
     </section>
   );

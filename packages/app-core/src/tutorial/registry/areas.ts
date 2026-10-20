@@ -78,7 +78,6 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "vault.recovery.view",
       "settings.trusted-contacts.circle",
       "settings.trusted-contacts.owner",
-      "settings.trusted-contacts.recovery",
     ],
   },
   {
