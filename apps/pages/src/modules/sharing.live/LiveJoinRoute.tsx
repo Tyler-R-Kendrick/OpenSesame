@@ -18,6 +18,7 @@ import {
 } from "@opensesame/app-core/lib/join/invite.js";
 import {
   type LiveLink,
+  parseLiveLink,
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
 import { leaveLive } from "@opensesame/app-core/lib/live/session.js";
@@ -40,6 +41,9 @@ export function LiveJoinRoute() {
       takeHeldLiveLink() ??
       takeCapturedLiveLink() ??
       takePersistedLiveLink() ??
+      // Last resort: the address still has it because no earlier step got to
+      // remove it. This also survives a reload with session storage blocked.
+      parseLiveLink(window.location.href) ??
       joinDraft.link;
     return joinDraft.link;
   });
