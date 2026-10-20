@@ -238,10 +238,10 @@ describe("settingsPageTree", () => {
       "second-step",
       "recovery",
       "account-factors",
-      "duress-profiles",
-      "travel",
       "ambient-auth",
       "formats-interoperability",
+      "duress-profiles",
+      "travel",
     ]);
   });
 
