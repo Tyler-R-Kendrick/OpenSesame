@@ -46,7 +46,7 @@ import { useJoinRoad } from "./join/JoinRoad.js";
 import { PendingImportNote } from "./unlock/ImportRoad.js";
 import { MethodIcon } from "./unlock/MethodIcon.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
-import { DurabilityNote, LockoutNote } from "./unlock/Notes.js";
+import { FormNotes, LockoutNote } from "./unlock/Notes.js";
 import { PasskeyChoice } from "./unlock/PasskeyChoice.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
@@ -749,32 +749,16 @@ function UnlockForm({
             </div>
           ) : null}
 
-          {firstRun ? (
-            <div className="unlock__terms">
-              <p id="master-help">
-                {activeMethod === "passkey"
-                  ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us. An authenticator that cannot seal fails on Seal; the PIN tab works on any device."
-                  : "There is no recovery. Forget this PIN and the encrypted items on this device are unreadable — by you and by us."}
-              </p>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  ref={acceptRef}
-                  checked={accepted}
-                  onChange={(e) => setAccepted(e.target.checked)}
-                />
-                <span>I understand this vault cannot be recovered.</span>
-              </label>
-            </div>
-          ) : header?.hint &&
-            activeMethod === "password" &&
-            !awaitingSecondStep ? (
-            <p className="unlock__hint">
-              <strong>Reminder:</strong> {header.hint}
-            </p>
-          ) : null}
-
-          <DurabilityNote durable={durable} />
+          <FormNotes
+            firstRun={firstRun}
+            activeMethod={activeMethod}
+            acceptRef={acceptRef}
+            accepted={accepted}
+            setAccepted={setAccepted}
+            header={header}
+            awaitingSecondStep={awaitingSecondStep}
+            durable={durable}
+          />
 
           <FailureNotice id="unlock:error" title="Unlock" message={error} />
 
