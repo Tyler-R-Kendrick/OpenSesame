@@ -71,6 +71,7 @@ describe("the edits", () => {
 
   it("refuse a cell for an environment that does not exist or an item that is not a key", () => {
     const body = vault([item("a", "Token")], "production");
+    edit(body, { op: "remove-key", itemId: "a" });
     expect(() =>
       applyEnvironmentsEdit(body, {
         op: "set-cell",

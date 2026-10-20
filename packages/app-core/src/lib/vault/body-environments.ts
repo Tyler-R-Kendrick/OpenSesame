@@ -18,6 +18,7 @@ import {
   canBeKey,
   cellOf,
   environmentNames,
+  isEnvironmentKey,
   isEnvironmentName,
 } from "@opensesame/vault-core";
 
@@ -43,6 +44,13 @@ function withEnvironments(
   // never carries an explicit null.
   return overlapCast(
     environments === undefined ? rest : { ...rest, environments },
+  );
+}
+
+function withExclusion(item: VaultItem, excluded: boolean): VaultItem {
+  const { environmentsExcluded: _was, ...rest } = item;
+  return overlapCast(
+    excluded ? { ...rest, environmentsExcluded: true as const } : rest,
   );
 }
 
@@ -117,18 +125,21 @@ export function applyEnvironmentsEdit(
     case "add-key":
       mapItem(body, edit.itemId, (item) => {
         if (!canBeKey(item)) throw new Error("That item cannot be a key.");
-        return item.environments ? item : withEnvironments(item, {});
+        return withExclusion(
+          item.environments ? item : withEnvironments(item, {}),
+          false,
+        );
       });
       break;
     case "remove-key":
       mapItem(body, edit.itemId, (item) =>
-        item.environments ? withEnvironments(item, undefined) : item,
+        withExclusion(withEnvironments(item, undefined), true),
       );
       break;
     case "set-cell":
       assertLive(body, edit.environment);
       mapItem(body, edit.itemId, (item) => {
-        if (!item.environments) throw new Error("That item is not a key.");
+        if (!isEnvironmentKey(item)) throw new Error("That item is not a key.");
         return withEnvironments(item, {
           ...item.environments,
           [edit.environment]: patched(

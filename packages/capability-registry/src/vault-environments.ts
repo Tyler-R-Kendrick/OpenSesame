@@ -16,10 +16,11 @@ const HUMAN_ENVIRONMENT_VALUES: CapabilityExclusion = {
 
 /**
  * Named environments on a vault (`vault.environments`, ADR 0194): the vault
- * path strip's Environments key and the sheet it opens, where a vault's keys
- * get a value and a required rule per environment and the `.env.schema` they
- * generate is shown. The person's own act on this device, with no agent
- * surface and, today, no CLI one.
+ * path strip's Environments key and the sheet it opens, where a vault's secrets
+ * start as keys, get a value and a required rule per environment, and generate
+ * one `.env.<name>.schema` per environment. The files are shown in the sheet.
+ * The person's own act on this device, with no agent surface and, today, no CLI
+ * one.
  */
 export const vaultEnvironmentCapabilities: readonly Capability[] = [
   {

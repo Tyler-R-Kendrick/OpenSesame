@@ -52,11 +52,17 @@ export type BaseItem = {
   /** Field key → when it last changed, so a merge keeps both devices' edits (`stamps.ts`). */
   fieldTimes?: Readonly<Record<string, string>>;
   /**
-   * Present exactly when this item is a key in the vault's `.env.schema`: one
-   * cell per environment (ADR 0194). Concealed like any value, and merged one
-   * cell at a time.
+   * This item's cells in the vault's environment schemas (ADR 0194). Every
+   * live secret is a key by default; the object appears once it has a value or
+   * a required rule. Concealed like any value, and merged one cell at a time.
    */
   environments?: ItemEnvironments;
+  /**
+   * Set only when a person takes this item out of the environment schemas. It
+   * is how a removed key stays removed while every other live secret remains
+   * a key by default.
+   */
+  environmentsExcluded?: true;
 };
 
 export type PasskeyCustody = "vault" | "external";

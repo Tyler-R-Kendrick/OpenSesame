@@ -100,6 +100,7 @@ export function entryToVaultItem(
     item.favorite = meta.favorite === true;
     const environments = parseItemEnvironments(overlapCast(meta.environments));
     if (environments) item.environments = environments;
+    if (meta.environmentsExcluded === true) item.environmentsExcluded = true;
   }
   return item;
 }
@@ -156,6 +157,7 @@ export function itemToStoreEntry(
   meta.fields = customFieldsOut(item.fields);
   meta.favorite = item.favorite || undefined;
   meta.environments = item.environments;
+  meta.environmentsExcluded = item.environmentsExcluded || undefined;
 
   const jsonTrailer = `${JSON.stringify(meta)}\n`;
   const trailer = mergeOtpauthIntoTrailer(jsonTrailer, otpauth);

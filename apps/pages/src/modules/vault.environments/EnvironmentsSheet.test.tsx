@@ -73,11 +73,13 @@ async function startProduction() {
 }
 
 async function addKey(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.type(
-    screen.getByRole("searchbox", { name: "Add a key from the vault" }),
-    name,
-  );
-  await user.click(screen.getByRole("button", { name }));
+  const search = screen.queryByRole("searchbox", {
+    name: "Add a key from the vault",
+  });
+  if (!search) return;
+  await user.type(search, name);
+  const choice = screen.queryByRole("button", { name });
+  if (choice) await user.click(choice);
 }
 
 describe("the Environments sheet", () => {
@@ -94,18 +96,37 @@ describe("the Environments sheet", () => {
     ).toBeTruthy();
   });
 
-  it("makes an environment of a press and offers the vault's items as keys", async () => {
+  it("starts every secret as a key and writes a schema for the first environment", async () => {
     await startProduction();
-    expect(
-      screen.getByRole("searchbox", { name: "Add a key from the vault" }),
-    ).toBeTruthy();
-    // Nothing is a key until it is added: no rows, no schema.
-    expect(screen.queryByRole("switch")).toBeNull();
-    expect(screen.queryByLabelText(".env.schema")).toBeNull();
+    expect(await screen.findByLabelText(".env.production.schema")).toBeTruthy();
+    for (const name of ["STRIPE_KEY", "DATABASE_URL", "SPARE"]) {
+      expect(
+        screen.getByRole("switch", {
+          name: `${name} required in production`,
+        }),
+      ).toBeTruthy();
+    }
+    // Every live item is a key, so there is nothing left to pick.
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(itemNamed("Stripe key").environments).toBeUndefined();
   });
 
-  it("adds a key, which then draws a row with its derived variable name", async () => {
+  it("takes a key out of the schema, then adds it back from the vault", async () => {
     const user = await startProduction();
+    const remove = await screen.findByRole("button", {
+      name: "Remove STRIPE_KEY from the schema",
+    });
+    await user.click(remove);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Press again to take STRIPE_KEY out of every environment",
+      }),
+    );
+    await waitFor(() =>
+      expect(itemNamed("Stripe key").environmentsExcluded).toBe(true),
+    );
+    expect(itemNamed("Stripe key").environments).toBeUndefined();
+    expect(screen.queryByText("STRIPE_KEY")).toBeNull();
     await addKey(user, "Stripe key");
     expect(await screen.findByText("STRIPE_KEY")).toBeTruthy();
     expect(
@@ -113,9 +134,8 @@ describe("the Environments sheet", () => {
         .getByRole("switch", { name: "STRIPE_KEY required in production" })
         .getAttribute("aria-checked"),
     ).toBe("false");
-    // It is a key now, so it is no longer offered as one.
-    expect(screen.queryByRole("button", { name: "Stripe key" })).toBeNull();
     expect(itemNamed("Stripe key").environments).toEqual({});
+    expect(itemNamed("Stripe key").environmentsExcluded).toBeUndefined();
   });
 
   it("marks a key required, says what is missing, and clears it when a value is given", async () => {
@@ -170,7 +190,7 @@ describe("the Environments sheet", () => {
     expect(await navigator.clipboard.readText()).toBe("sk_live_secret");
   });
 
-  it("generates the schema from the keys, with the rule per environment and never a value", async () => {
+  it("generates one schema per environment, with that environment's rule and never a value", async () => {
     const user = await startProduction();
     await user.type(
       screen.getByRole("textbox", { name: "New environment" }),
@@ -179,7 +199,6 @@ describe("the Environments sheet", () => {
     await user.click(screen.getByRole("button", { name: "Add environment" }));
     await screen.findByRole("tab", { name: "staging", selected: true });
     await user.click(screen.getByRole("tab", { name: "production" }));
-    await addKey(user, "Stripe key");
     await user.click(
       await screen.findByRole("switch", {
         name: "STRIPE_KEY required in production",
@@ -189,20 +208,31 @@ describe("the Environments sheet", () => {
       screen.getByLabelText("STRIPE_KEY in production"),
       "sk_live_hidden",
     );
-    const schema = await screen.findByLabelText(".env.schema");
+    const production = await screen.findByLabelText(".env.production.schema");
+    const staging = await screen.findByLabelText(".env.staging.schema");
+    const stripeId = itemNamed("Stripe key").id;
     await waitFor(() =>
-      expect(schema.textContent).toContain(
-        "# @sensitive @required=forEnv(production)\nSTRIPE_KEY=",
+      expect(production.textContent).toContain(
+        `# @sensitive @required\n# @vaultItem=${stripeId}\nSTRIPE_KEY=`,
       ),
     );
-    expect(schema.textContent).toContain(
-      "# @type=enum(production, staging) @required @public",
+    expect(production.textContent).toContain(
+      "# @type=enum(production) @required @public",
+    );
+    expect(staging.textContent).toContain(
+      `# @sensitive\n# @vaultItem=${stripeId}\nSTRIPE_KEY=`,
+    );
+    expect(staging.textContent).not.toContain(
+      `# @sensitive @required\n# @vaultItem=${stripeId}`,
     );
     await new Promise((resolve) => setTimeout(resolve, 700));
-    expect(schema.textContent).not.toContain("sk_live_hidden");
-    await user.click(screen.getByRole("button", { name: "Copy .env.schema" }));
+    expect(production.textContent).not.toContain("sk_live_hidden");
+    expect(staging.textContent).not.toContain("sk_live_hidden");
+    await user.click(
+      screen.getByRole("button", { name: "Copy .env.production.schema" }),
+    );
     expect(await navigator.clipboard.readText()).toBe(
-      schema.querySelector("pre")?.textContent,
+      production.querySelector("pre")?.textContent,
     );
   });
 
@@ -251,8 +281,9 @@ describe("the Environments sheet", () => {
     expect(itemNamed("Stripe key").environments).toEqual({});
     await user.click(again);
     await waitFor(() =>
-      expect(itemNamed("Stripe key").environments).toBeUndefined(),
+      expect(itemNamed("Stripe key").environmentsExcluded).toBe(true),
     );
+    expect(itemNamed("Stripe key").environments).toBeUndefined();
     expect(screen.queryByText("STRIPE_KEY")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Remove production" }));
