@@ -130,7 +130,33 @@ export function projectLemmaEntities(body: BoundaryValue): BoundaryValue {
     "first-page",
   );
 }
+const tinybird = z.object({
+  datasources: z.array(z.object({ name: resourceId })),
+  error: z.never().optional(),
+  errors: z.never().optional(),
+});
+/** Tinybird has no list pagination here; validate all returned names before showing twenty. */
+export function projectTinybirdDataSources(body: BoundaryValue): BoundaryValue {
+  return projectResourceCollection(
+    tinybird
+      .parse(body)
+      .datasources.map(({ name }) => ({ id: name, label: name })),
+    "data sources",
+    "returned",
+  );
+}
 export const nativeCatalogResources = [
+  jsonResource(
+    "List data sources",
+    {
+      providerId: "tinybird",
+      operationId: "provider.datasources.read",
+      method: "GET",
+      path: "/v0/datasources",
+      query: { attrs: "name" },
+    },
+    projectTinybirdDataSources,
+  ),
   jsonResource(
     "List entities",
     {
