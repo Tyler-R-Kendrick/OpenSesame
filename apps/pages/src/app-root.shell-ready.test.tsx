@@ -23,6 +23,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App, type AppSlots } from "./App.js";
 import { shellReadySeams } from "./bindings/shell-ready.js";
+import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
 
 const realSeams = { ...shellReadySeams };
 const listeners = new Set<() => void>();
@@ -122,6 +123,7 @@ describe("shell after unlock", () => {
 
   afterEach(() => {
     cleanup();
+    unlockCeremonyStore.reset();
     listeners.clear();
     Object.assign(shellReadySeams, realSeams);
   });
@@ -142,6 +144,32 @@ describe("shell after unlock", () => {
     publish({ activated: 2 });
     expect(screen.getByText("consent screen")).toBeTruthy();
     expect(counts).toEqual({ mounts: 1, unmounts: 0 });
+  });
+
+  it("keeps the unlocked shell behind the door ceremony, and shows its skeleton before activation", () => {
+    renderConsent();
+    publish({
+      status: "unlocked",
+      snapshot: snapshotAt(2, "personal"),
+      activated: 2,
+    });
+    act(() => unlockCeremonyStore.begin());
+    // The vault is already mounted behind the unlock gate: the doors reveal
+    // it instead of a blank canvas. The gate stays on top until they finish.
+    expect(screen.getByTestId("app-shell")).toBeTruthy();
+    expect(screen.getByText("consent screen")).toBeTruthy();
+    expect(screen.getByText("unlock screen stub")).toBeTruthy();
+
+    act(() => unlockCeremonyStore.end());
+    expect(screen.queryByText("unlock screen stub")).toBeNull();
+    expect(screen.getByTestId("app-shell")).toBeTruthy();
+  });
+
+  it("shows the shell skeleton rather than null while the vault's generation activates", () => {
+    renderConsent();
+    publish({ status: "unlocked", snapshot: snapshotAt(2, "personal") });
+    expect(document.querySelector(".vault-skeleton")).toBeTruthy();
+    expect(screen.queryByText("unlock screen stub")).toBeNull();
   });
 
   it("keeps the screen mounted through a later generation, and waits again after a lock", () => {

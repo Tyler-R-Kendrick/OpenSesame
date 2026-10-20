@@ -1,9 +1,10 @@
 /**
  * A release that waited on an edit still lands.
  *
- * Lock and a hidden tab save a draft when one is registered, then reload.
- * A visible tab is left alone: reading is not idle. The vault's own idle
- * lock asks for the same draft before it drops the key.
+ * Lock saves a draft when one is registered; it never reloads the page.
+ * A hidden tab may apply a waiting release after its own delay. A visible
+ * tab is left alone: reading is not idle. The vault's own idle lock asks for
+ * the same draft before it drops the key.
  */
 
 import {
@@ -15,7 +16,6 @@ import {
 import { saveDirtyDrafts } from "@opensesame/app-core/lib/dirty-edit.js";
 import { subscribeNotices } from "@opensesame/app-core/lib/notices.js";
 import { idleLockSeams } from "@opensesame/app-core/lib/vault/idle-lock.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useEffect, useSyncExternalStore } from "react";
 import { useDirtyFormWatch } from "./dirty-forms.js";
 import { syncShellUpdateNotice } from "./shell-update.js";
@@ -38,9 +38,6 @@ export function lockAfterDraft(store: { lock: () => void }): void {
 function installSessionReload(): () => void {
   const previous = idleLockSeams.beforeLock;
   idleLockSeams.beforeLock = () => (updateIsOwed() ? saveDirtyDrafts() : null);
-  const stopLock = vaultStore.onLock(() => {
-    forceSessionReload("lock");
-  });
   let timer: ReturnType<typeof setTimeout> | null = null;
   const clearTimer = () => {
     if (timer === null) return;
@@ -59,7 +56,6 @@ function installSessionReload(): () => void {
   document.addEventListener("visibilitychange", onVisibility);
   return () => {
     idleLockSeams.beforeLock = previous;
-    stopLock();
     clearTimer();
     document.removeEventListener("visibilitychange", onVisibility);
   };
