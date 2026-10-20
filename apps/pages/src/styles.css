@@ -3713,3 +3713,30 @@ details[open] > summary::before {
     padding-inline: 0;
   }
 }
+
+/* SIOP social choices: a key, its provider name in the margin voice, one row
+   per configured identity provider or active connection. */
+.siop-social {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.siop-social h2 {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.siop-social ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.siop-social__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}

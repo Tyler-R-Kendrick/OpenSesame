@@ -1,4 +1,8 @@
 import {
+  beginSignIn,
+  loadSession,
+} from "@opensesame/app-core/lib/federation.js";
+import {
   LocalDirectoryError,
   type LocalIdentity,
   readLocalDirectory,
@@ -8,7 +12,9 @@ import {
   signInLocalIdentity,
 } from "@opensesame/app-core/lib/local-sessions.js";
 import {
+  type SiopSocialProof,
   approveSiopAuthorization,
+  approveSiopAuthorizationWithSocial,
   bindSiopRequest,
   denySiopAuthorization,
   parsePagesSiopRequest,
@@ -20,10 +26,20 @@ import { Link, useLocation } from "react-router";
 import { FailureNotice } from "../components/FailureNotice.js";
 import { FormCommit } from "../components/FormCommit.js";
 import { IconKey } from "../components/IconKey.js";
-import { IconPasskey, IconX } from "../components/Icons.js";
+import { IconLogin, IconPasskey, IconX } from "../components/Icons.js";
+import { StatusMark } from "../components/StatusMark.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
+import {
+  type SiopSocialChoice,
+  clearSiopSocialAttempt,
+  readSiopSocialAttempt,
+  saveSiopSocialAttempt,
+  siopSocialReturnTo,
+  useSiopSocialChoices,
+} from "../lib/siop-social.js";
 import { useOnce } from "../lib/use-once.js";
 import { useVault } from "../lib/vault/hooks.js";
+import { brandFor } from "./unlock/ProviderBrand.js";
 
 export function SiopAuthorize() {
   const { search } = useLocation();
@@ -64,10 +80,15 @@ function SiopConsent({
   const [application, setApplication] = useState("");
   const [person, setPerson] = useState("");
   const [session, setSession] = useState<LocalSession | null>(null);
+  const [socialProof, setSocialProof] = useState<SiopSocialProof | null>(null);
+  const [socialBusy, setSocialBusy] = useState(false);
+  const [socialError, setSocialError] = useState("");
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [finished, setFinished] = useState(false);
+  const socialChoices = useSiopSocialChoices();
+  const { search } = useLocation();
   const root = useRef<HTMLDivElement>(null);
   const generation = useRef(0);
   const redirectOrigin = useMemo(() => {
@@ -118,15 +139,107 @@ function SiopConsent({
     };
   }, [tomb, request]);
 
+  // A hosted identity provider returns to this page with its own session
+  // already adopted. The attempt in sessionStorage says which provider and
+  // which local person the redirect belonged to; a reload never trusts a
+  // stale `social` query by itself.
   useEffect(() => {
-    if (loaded && !busy && !finished && keyboardIsIdle())
+    if (!loaded) return;
+    const id = new URLSearchParams(search).get("social");
+    const attempt = readSiopSocialAttempt(id);
+    if (!attempt) return;
+    if (attempt.personId !== person) {
+      if (people.some((entry) => entry.id === attempt.personId)) {
+        setPerson(attempt.personId);
+      } else {
+        clearSiopSocialAttempt();
+        setSocialError(
+          "Choose the local person you started social sign-in with.",
+        );
+      }
+      return;
+    }
+    if (attempt.source !== "identity") return;
+    const upstream = loadSession();
+    if (
+      !upstream ||
+      upstream.upstreamId !== attempt.upstreamId ||
+      upstream.expiresAt <= Date.now()
+    ) {
+      clearSiopSocialAttempt();
+      setSocialError("That social sign-in expired. Choose it again.");
+      return;
+    }
+    clearSiopSocialAttempt();
+    setSocialProof({
+      source: "identity",
+      providerId: attempt.providerId,
+      label: attempt.label,
+      personId: attempt.personId,
+      at: Date.now(),
+      upstreamId: attempt.upstreamId,
+    });
+  }, [loaded, people, person, search]);
+
+  useEffect(() => {
+    if (socialProof && socialProof.personId !== person) setSocialProof(null);
+  }, [person, socialProof]);
+
+  useEffect(() => {
+    if (loaded && !busy && !socialBusy && !finished && keyboardIsIdle())
       landFocus(firstControl(root.current));
   });
+
+  function chooseSocial(choice: SiopSocialChoice): void {
+    if (busy || socialBusy || session || !person || finished) return;
+    setSocialError("");
+    setError("");
+    if (choice.source === "connection") {
+      if (!choice.connectionId) return;
+      setSocialProof({
+        source: "connection",
+        providerId: choice.providerId,
+        label: choice.accountLabel
+          ? `${choice.label} · ${choice.accountLabel}`
+          : choice.label,
+        personId: person,
+        at: Date.now(),
+        connectionId: choice.connectionId,
+      });
+      return;
+    }
+    if (!choice.upstream || !choice.upstreamId) return;
+    const attempt = {
+      id: crypto.randomUUID(),
+      source: "identity" as const,
+      providerId: choice.providerId,
+      label: choice.label,
+      personId: person,
+      at: Date.now(),
+      upstreamId: choice.upstreamId,
+    };
+    saveSiopSocialAttempt(attempt);
+    setSocialBusy(true);
+    void beginSignIn(choice.upstream, {
+      returnTo: siopSocialReturnTo(attempt.id),
+      providerHint: choice.upstream.providerHint,
+    }).catch((failure: unknown) => {
+      clearSiopSocialAttempt();
+      setSocialBusy(false);
+      setSocialError(
+        failure instanceof Error
+          ? failure.message
+          : "That social sign-in did not start.",
+      );
+    });
+  }
 
   async function verifyPasskey() {
     if (busy || !person || finished) return;
     const current = generation.current;
     setBusy(true);
+    setSocialProof(null);
+    setSocialError("");
     setError("");
     try {
       const identity = await signInLocalIdentity(tomb, person);
@@ -146,17 +259,18 @@ function SiopConsent({
   }
 
   async function allow() {
-    if (busy || !session || finished) return;
+    if (busy || (!session && !socialProof) || finished) return;
     const current = generation.current;
     setBusy(true);
     setError("");
     try {
-      const { redirectUrl } = await approveSiopAuthorization(
-        tomb,
-        session,
-        request,
-      );
-      if (current !== generation.current) return;
+      const approved = socialProof
+        ? await approveSiopAuthorizationWithSocial(tomb, socialProof, request)
+        : session
+          ? await approveSiopAuthorization(tomb, session, request)
+          : null;
+      if (!approved || current !== generation.current) return;
+      const { redirectUrl } = approved;
       setFinished(true);
       globalThis.location.replace(redirectUrl);
     } catch (failure) {
@@ -188,9 +302,11 @@ function SiopConsent({
 
   const status = finished
     ? "Finishing sign-in…"
-    : session
-      ? "Passkey verified."
-      : "Verify to continue.";
+    : socialProof
+      ? `Signed in with ${socialProof.label}.`
+      : session
+        ? "Passkey verified."
+        : "Verify to continue.";
 
   return (
     <section
@@ -232,7 +348,7 @@ function SiopConsent({
                 <select
                   id="siop-consent-person"
                   value={person}
-                  disabled={busy || session !== null}
+                  disabled={busy || socialBusy || session !== null}
                   onChange={(event) => setPerson(event.target.value)}
                 >
                   <option value="">Choose a local person</option>
@@ -249,9 +365,61 @@ function SiopConsent({
                   organization. Assign membership in Identity before signing in.
                 </p>
               ) : null}
+              {socialChoices.length > 0 && !session ? (
+                <div className="siop-social" aria-label="Social sign-in">
+                  <h2>Social sign-in</h2>
+                  {!person ? (
+                    <StatusMark
+                      tone="idle"
+                      label="Choose a local person first."
+                    />
+                  ) : null}
+                  <ul>
+                    {socialChoices.map((choice) => {
+                      const brand = brandFor(choice.providerId);
+                      return (
+                        <li key={choice.id} className="siop-social__row">
+                          <button
+                            type="button"
+                            className={`icon-btn icon-btn--sm${brand ? ` ${brand.className}` : ""}`}
+                            aria-label={`Continue with ${choice.label}`}
+                            title={`Continue with ${choice.label}`}
+                            disabled={
+                              busy ||
+                              socialBusy ||
+                              !person ||
+                              Boolean(socialProof)
+                            }
+                            onClick={() => chooseSocial(choice)}
+                          >
+                            {brand ? (
+                              <brand.Icon size={16} />
+                            ) : (
+                              <IconLogin size={16} />
+                            )}
+                          </button>
+                          <span className="go-verb" aria-hidden="true">
+                            {choice.label}
+                            {choice.accountLabel
+                              ? ` · ${choice.accountLabel}`
+                              : ""}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
+              {socialError ? (
+                <FailureNotice
+                  id="siop-authorize:social"
+                  title="Social sign-in"
+                  message={socialError}
+                />
+              ) : null}
               <SiopCommit
-                signedIn={Boolean(session)}
-                busy={busy}
+                signedIn={Boolean(session || socialProof)}
+                busy={busy || socialBusy}
                 canVerify={Boolean(person)}
                 onAllow={() => void allow()}
                 onVerify={() => void verifyPasskey()}

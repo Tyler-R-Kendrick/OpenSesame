@@ -1,5 +1,6 @@
 import "./install-browser-host.js";
 import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
+import { saveDeviceConnectorConfigurationDurable } from "@opensesame/app-core/lib/device-connectors.js";
 import {
   configureLocalApplication,
   readLocalApplications,
@@ -75,6 +76,16 @@ export async function seed(redirectUris: string[] = DEFAULT_REDIRECTS) {
   await registerApplication(appOne.id);
   await registerApplication(appTwo.id);
   await enrollLocalPasskey(tomb, person.id);
+  // A configured GitHub connection is the browser-side social choice; the
+  // fixture does not hold a token, only the durable connection record the UI
+  // reads after the vault is unlocked again.
+  await saveDeviceConnectorConfigurationDurable(() => ({
+    providerId: "github",
+    displayName: "GitHub",
+    scopes: [],
+    fields: {},
+    secrets: {},
+  }));
   vaultStore.lock();
   return {
     appOneId: appOne.id,

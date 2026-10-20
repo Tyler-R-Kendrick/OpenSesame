@@ -23,6 +23,7 @@ import {
   SIOP_CALLBACK,
   SIOP_RP,
   approveSiopConsent,
+  approveSiopConsentWithSocial,
   buildSiopUrl,
   denySiopConsent,
   installWebAuthn,
@@ -246,6 +247,22 @@ function routeRp(context) {
   );
 }
 
+async function runSocialAllow(page, clientId, personName, label) {
+  const nonce = `social-${label}-${crypto.randomUUID().slice(0, 8)}`;
+  const state = `social-${label}`;
+  const siopUrl = buildSiopUrl(origin, base, clientId, { nonce, state });
+  await gotoUnlocked(page, siopUrl);
+  const redirectUrl = await approveSiopConsentWithSocial(page, personName);
+  const verified = await siopVerify.verifySiopRedirect(redirectUrl, {
+    issuer: siopIssuer(origin, base),
+    clientId,
+    nonce,
+  });
+  expect(verified.aud).toBe(clientId);
+  expect(JSON.stringify(verified)).not.toMatch(/"d"\s*:/);
+  return verified.sub;
+}
+
 async function runAllow(page, clientId, personName, label) {
   const nonce = `nonce-${label}-${crypto.randomUUID().slice(0, 8)}`;
   const state = `state-${label}`;
@@ -303,6 +320,15 @@ try {
   );
   console.log(
     "PASS allow: verified Self-Issued ID Token for primary application",
+  );
+
+  const socialSub = await timed("pages social", async () => {
+    await gotoUnlocked(page, `${origin}${base}vault`);
+    return runSocialAllow(page, appOneId, personName, "primary");
+  });
+  expect(socialSub).toBe(subOne);
+  console.log(
+    "PASS social: a configured connection minted a Self-Issued ID Token without a passkey",
   );
 
   const subTwo = await timed("pages pairwise", async () => {

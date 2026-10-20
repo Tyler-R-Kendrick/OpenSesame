@@ -157,6 +157,32 @@ export async function approveSiopConsent(page, personName) {
   return page.url();
 }
 
+export async function approveSiopConsentWithSocial(
+  page,
+  personName,
+  provider = "GitHub",
+) {
+  await expect(
+    page.getByRole("heading", { name: /Self-issued sign-in to/ }),
+  ).toBeVisible({ timeout: 30_000 });
+  await page
+    .getByLabel("Person", { exact: true })
+    .selectOption({ label: personName });
+  await page
+    .getByRole("button", { name: `Continue with ${provider}`, exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Self-issued sign-in status", { exact: true }),
+  ).toContainText(`Signed in with ${provider}`);
+  const allow = page.getByRole("button", {
+    name: "Allow Self-Issued sign-in",
+    exact: true,
+  });
+  await expect(allow).toBeVisible({ timeout: 30_000 });
+  await Promise.all([waitForRpNavigation(page), allow.click()]);
+  return page.url();
+}
+
 export async function denySiopConsent(page) {
   await expect(
     page.getByRole("heading", { name: /Self-issued sign-in to/ }),
