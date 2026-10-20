@@ -108,3 +108,19 @@
   font-size: max(0.8125rem, var(--field-min));
   overflow-wrap: anywhere;
 }
+
+/* Trusted-contact unlock policy: the local people who approve an unlock. */
+.unlock-circle-people {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unlock-circle-people label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+}

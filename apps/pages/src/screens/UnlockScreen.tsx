@@ -52,6 +52,7 @@ import { ProtectorField } from "./unlock/ProtectorField.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
 import { SignInConfigurationNote } from "./unlock/SignInConfigurationNote.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
+import { TrustedUnlockGate } from "./unlock/TrustedUnlockGate.js";
 import { UnlockFoot } from "./unlock/UnlockFoot.js";
 import { UnlockStage } from "./unlock/UnlockStage.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
@@ -175,6 +176,7 @@ function UnlockForm({
     failedAttempts,
     durable,
     awaitingSecondStep,
+    trustedUnlock,
   } = useVault();
   const store = useVaultStore();
   const activeTomb = tomb ?? PERSONAL_PROJECT_ID;
@@ -428,6 +430,20 @@ function UnlockForm({
     guestUnlock,
     activeMethod,
   });
+
+  if (trustedUnlock) {
+    return (
+      <UnlockStage {...lockStage}>
+        <TrustedUnlockGate
+          challenge={trustedUnlock}
+          onCancel={() => {
+            store.cancelTrustedUnlock();
+            setError(null);
+          }}
+        />
+      </UnlockStage>
+    );
+  }
 
   return (
     <UnlockStage {...lockStage}>

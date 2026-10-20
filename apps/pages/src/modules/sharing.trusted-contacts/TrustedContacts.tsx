@@ -7,7 +7,7 @@
 
 import { StatusMark } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { CirclesPanel } from "./CirclesPanel.js";
+import { UnlockCirclePanel } from "./UnlockCirclePanel.js";
 import { useDesk } from "./use-desk.js";
 import "./trusted-contacts.css";
 
@@ -51,7 +51,7 @@ export function TrustedContacts() {
         </div>
       </div>
       <div className="panel__body trusted-contacts__body">
-        <CirclesPanel />
+        <UnlockCirclePanel />
       </div>
     </section>
   );

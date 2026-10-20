@@ -26,6 +26,12 @@ import { sessionRootDigestFromKey } from "../duress/store/vault-session-digest.j
 import { kvDelete } from "../kv.js";
 import { lastVaultIsGuest, writeLastVaultId } from "../last-vault.js";
 import { isRetiredTrapLive } from "../retired-credentials/retention-v2.js";
+import {
+  type TrustedUnlockPolicy,
+  readTrustedUnlock,
+  trustedUnlockSeams,
+  trustedUnlockView,
+} from "../trusted-unlock.js";
 import type { TombWriteTurn } from "../vfs-write-order.js";
 import {
   BODY_PATH,
@@ -215,6 +221,11 @@ export class VaultStore {
   #rawVaultKey: Uint8Array | null = null;
   /** Primary unwrap succeeded; waiting on optional TOTP before activating. */
   #pendingVaultKey: CryptoKey | null = null;
+  /** Primary and second steps passed; a trusted-contact quorum is still required. */
+  #pendingTrustedKey: CryptoKey | null = null;
+  #trustedPolicy: TrustedUnlockPolicy | null = null;
+  #trustedView: import("../trusted-unlock.js").TrustedUnlockView | null = null;
+  #trustedApproved = new Set<string>();
   /** A seed offered for enrollment; discarded unless a code confirms it. */
   #pendingTotpSecret: string | null = null;
   /** A code the Identity API sent and has not yet been asked about. */
@@ -300,7 +311,8 @@ export class VaultStore {
 
   /** Re-read plaintext state after OPFS hydration fills the KV cache. */
   rehydrate(): void {
-    if (this.#vaultKey || this.#pendingVaultKey) return;
+    if (this.#vaultKey || this.#pendingVaultKey || this.#pendingTrustedKey)
+      return;
     // Reload opens the last authorized account's unlock — guest included. Its
     // header is read like any tomb's; `headerCarriesGate` keeps a wrap-less
     // guest record from posing as a locked vault.
@@ -440,6 +452,7 @@ export class VaultStore {
       body: this.#body,
       prefs: this.#preferences.prefs,
       attempts: readAttempts(this.#scope.attempts),
+      trustedUnlock: this.#trustedView,
     });
   }
 
@@ -549,7 +562,7 @@ export class VaultStore {
 
   /** Point unlock at GUEST_TOMB without opening it; lock keeps the last guest. */
   prepareGuestUnlock(): void {
-    if (this.#vaultKey || this.#pendingVaultKey) {
+    if (this.#vaultKey || this.#pendingVaultKey || this.#pendingTrustedKey) {
       this.lock();
     } else {
       this.#protection.cancelPendingOps();
@@ -676,10 +689,86 @@ export class VaultStore {
     return loadVaultBody(this.#scope.tomb, vaultKey, this.#header);
   }
 
+  /**
+   * Primary and second steps passed. A trusted-contact policy, when one is
+   * stored, parks the key until enough local identities authenticate with a
+   * passkey. No body is exposed while it is parked.
+   */
+  async #requireTrustedUnlock(vaultKey: CryptoKey): Promise<void> {
+    this.#pendingVaultKey = null;
+    unlockTomb(this.#scope.tomb, vaultKey);
+    let policy: TrustedUnlockPolicy | null;
+    try {
+      policy = await readTrustedUnlock(this.#scope.tomb);
+    } catch (error) {
+      lockTomb(this.#scope.tomb);
+      throw error;
+    }
+    if (!policy) {
+      await this.#activateSession(vaultKey);
+      return;
+    }
+    this.#pendingTrustedKey = vaultKey;
+    this.#trustedPolicy = policy;
+    this.#trustedApproved.clear();
+    this.#trustedView = await trustedUnlockView(this.#scope.tomb, policy, []);
+    this.#pendingChallenge.clear();
+    this.#emit();
+  }
+
+  /** One member of the circle authenticated; the last needed one opens the vault. */
+  async confirmTrustedContact(principalId: string): Promise<void> {
+    const pending = this.#pendingTrustedKey;
+    const policy = this.#trustedPolicy;
+    if (!pending || !policy) {
+      throw new Error("No trusted-contact approval is waiting.");
+    }
+    if (!policy.memberIds.includes(principalId)) {
+      throw new Error("That identity is not a member of this circle.");
+    }
+    if (this.#trustedApproved.has(principalId)) return;
+    await trustedUnlockSeams.authenticate(this.#scope.tomb, principalId);
+    if (this.#pendingTrustedKey !== pending || this.#trustedPolicy !== policy) {
+      throw new Error("The trusted-contact challenge changed.");
+    }
+    this.#trustedApproved.add(principalId);
+    const approved = [...this.#trustedApproved];
+    if (approved.length >= policy.threshold) {
+      this.#pendingTrustedKey = null;
+      this.#trustedPolicy = null;
+      this.#trustedView = null;
+      this.#trustedApproved.clear();
+      await this.#activateSession(pending);
+      return;
+    }
+    this.#trustedView = await trustedUnlockView(
+      this.#scope.tomb,
+      policy,
+      approved,
+    );
+    this.#emit();
+  }
+
+  /** Drop a parked trusted-contact challenge and forget the key. */
+  cancelTrustedUnlock(): void {
+    if (!this.#pendingTrustedKey) return;
+    this.#pendingTrustedKey = null;
+    this.#trustedPolicy = null;
+    this.#trustedView = null;
+    this.#trustedApproved.clear();
+    lockTomb(this.#scope.tomb);
+    this.#zeroRaw();
+    this.#emit();
+  }
+
   async #activateSession(vaultKey: CryptoKey): Promise<void> {
     this.#refuseWhileFrozen();
     this.#vaultKey = vaultKey;
     this.#pendingVaultKey = null;
+    this.#pendingTrustedKey = null;
+    this.#trustedPolicy = null;
+    this.#trustedView = null;
+    this.#trustedApproved.clear();
     this.#pendingChallenge.clear();
     unlockTomb(this.#scope.tomb, vaultKey);
     try {
@@ -733,7 +822,7 @@ export class VaultStore {
       this.#emit();
       return;
     }
-    await this.#activateSession(vaultKey);
+    await this.#requireTrustedUnlock(vaultKey);
   }
 
   async unlock(password: string): Promise<void> {
@@ -868,10 +957,13 @@ export class VaultStore {
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
-      this.#activateSession(k),
+      this.#requireTrustedUnlock(k),
     );
-    // A gate with no registration yet gets one now (ADR 0113).
-    if (!gate.selfItemId) await this.#registerSelfAuthenticator(gate);
+    // A gate with no registration yet gets one now (ADR 0113), unless a
+    // trusted-contact challenge is holding the key before the vault opens.
+    if (!gate.selfItemId && !this.#pendingTrustedKey) {
+      await this.#registerSelfAuthenticator(gate);
+    }
   }
 
   cancelTotpChallenge(): void {
@@ -920,7 +1012,7 @@ export class VaultStore {
     }
     this.#pendingCode = null;
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
-      this.#activateSession(k),
+      this.#requireTrustedUnlock(k),
     );
   }
 
@@ -942,7 +1034,7 @@ export class VaultStore {
       unlocks: { ...header.unlocks, recovery: { ...record, codesWrap } },
     });
     this.#pendingCode = null;
-    await this.#activateSession(pending);
+    await this.#requireTrustedUnlock(pending);
   }
 
   async #persistHeader(
@@ -1204,6 +1296,10 @@ export class VaultStore {
     this.#vaultKey = null;
     this.#zeroRaw();
     this.#pendingVaultKey = null;
+    this.#pendingTrustedKey = null;
+    this.#trustedPolicy = null;
+    this.#trustedView = null;
+    this.#trustedApproved.clear();
     this.#pendingTotpSecret = null;
     this.#pendingCode = null;
     this.#pendingCodeAddress = null;

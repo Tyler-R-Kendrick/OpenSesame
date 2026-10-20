@@ -9,6 +9,7 @@ import type { Device } from "@opensesame/app-core/lib/quorum/desk/harness.test-s
 import type { OwnedRecord } from "@opensesame/app-core/lib/quorum/desk/ports.js";
 import type { HeldRecord } from "@opensesame/app-core/lib/quorum/records.js";
 import { TRUSTED_CONTACTS_TARGETS } from "@opensesame/app-core/tutorial/registry/trusted-contacts-catalog.js";
+import { unlockCircleSeams } from "./UnlockCirclePanel.js";
 import { type Desk, deskSeams } from "./use-desk.js";
 
 /** Declare the panels' tutorial targets, as the module does on activation. */
@@ -31,9 +32,24 @@ export async function deskOf(device: Device): Promise<Desk> {
 /** Make `useDesk()` answer with `desk` until `restore` runs. */
 export function serveDesk(desk: Desk | null): () => void {
   const was = deskSeams.useDesk;
+  const wasRead = unlockCircleSeams.readPolicy;
+  const wasDirectory = unlockCircleSeams.directory;
+  const wasPasskeys = unlockCircleSeams.passkeys;
   deskSeams.useDesk = () => desk;
+  // Panel tests run without a real vault VFS; the empty circle is the state.
+  unlockCircleSeams.readPolicy = async () => null;
+  unlockCircleSeams.directory = async () => ({
+    version: 2,
+    revision: 0,
+    entries: [],
+    memberships: [],
+  });
+  unlockCircleSeams.passkeys = async () => [];
   return () => {
     deskSeams.useDesk = was;
+    unlockCircleSeams.readPolicy = wasRead;
+    unlockCircleSeams.directory = wasDirectory;
+    unlockCircleSeams.passkeys = wasPasskeys;
   };
 }
 
