@@ -13,6 +13,39 @@ export {
   aiCompletionSeams,
 } from "../ai-completion-observation.js";
 
+/** Finite operations retain the original transport identity and owning caller. */
+export function aiFiniteProtocolAuthority(
+  transport: AiConnectionTransport,
+  owner: () => void,
+) {
+  const { signal, assertCurrent, fetch } = transport;
+  const check = () => {
+    signal.throwIfAborted();
+    if (
+      transport.signal !== signal ||
+      transport.assertCurrent !== assertCurrent ||
+      transport.fetch !== fetch
+    )
+      throw new AiConnectionError(
+        "stale",
+        "The transcription transport changed.",
+      );
+    owner();
+    assertCurrent.call(transport);
+    signal.throwIfAborted();
+    if (
+      transport.signal !== signal ||
+      transport.assertCurrent !== assertCurrent ||
+      transport.fetch !== fetch
+    )
+      throw new AiConnectionError(
+        "stale",
+        "The transcription transport changed.",
+      );
+  };
+  check();
+  return check;
+}
 export function checkAiResponse(response: Response): void {
   if (response.status === 401 || response.status === 403)
     throw new AiConnectionError(
