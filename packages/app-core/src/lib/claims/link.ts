@@ -17,10 +17,15 @@ import {
   type ClaimLink,
   fragmentCarriesBearer,
   readClaimLink,
-} from "@opensesame/ceremony-kit";
+} from "@opensesame/ceremony-kit/links";
 import { maybePage } from "../../ports.js";
 
 export type ClaimArrival = ClaimLink | { kind: "leaked" } | { kind: "none" };
+
+type ClaimArrivalRead = {
+  arrival: ClaimArrival;
+  scrubbed: string | null;
+};
 
 type Address = { pathname: string; search: string; hash: string };
 
@@ -37,10 +42,7 @@ function withoutBearer(search: string): string {
  * Read an address: what arrived, and the address to replace it with when a
  * bearer or key must leave it (`null` when nothing needs to change).
  */
-export function readClaimArrival(address: Address): {
-  arrival: ClaimArrival;
-  scrubbed: string | null;
-} {
+export function readClaimArrival(address: Address): ClaimArrivalRead {
   const { pathname, search, hash } = address;
   const queried = new URLSearchParams(search.replace(/^\?/, ""));
   const leaked = (queried.get("token") ?? "").startsWith("osc_clm_");
