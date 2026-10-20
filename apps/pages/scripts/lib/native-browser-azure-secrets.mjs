@@ -1,6 +1,7 @@
 /** Documented Azure secret list/get only; synthetic credentials, never hosted account proof. */
 import { expect } from "@playwright/test";
 import { nativeVerifiedCapture } from "./native-browser-api-lifecycle.mjs";
+import { createAzureBackupAuthority } from "./native-browser-azure-backup-authority.mjs";
 import { nativeVisit } from "./native-browser-catalog-journey.mjs";
 import { unlockWithPin } from "./pages-journey.mjs";
 
@@ -42,18 +43,21 @@ export async function routeNativeAzureSecretsAuthority(
   const f = AZURE_SECRETS_FIXTURE;
   const list = `${f.vaultURL}/secrets?api-version=${f.apiVersion}&maxresults=25`;
   const get = `${f.vaultURL}/secrets/${f.secretName}?api-version=${f.apiVersion}`;
+  const backup = createAzureBackupAuthority(f, authority, harness);
   await context.route(
     (url) => url.origin === f.vaultURL,
     async (route) => {
       const request = route.request();
       const cors = {
         "access-control-allow-origin": "*",
-        "access-control-allow-methods": "GET",
-        "access-control-allow-headers": "Authorization,Accept",
+        "access-control-allow-methods": "GET,PUT",
+        "access-control-allow-headers": "Authorization,Accept,Content-Type",
       };
       if (request.method() === "OPTIONS")
         return route.fulfill({ status: 204, headers: cors });
       const headers = await request.allHeaders();
+      const backed = backup.dispatch(request, headers);
+      if (backed) return route.fulfill({ ...backed, headers: cors });
       const exact =
         [list, get].includes(request.url()) &&
         request.method() === "GET" &&
@@ -65,8 +69,10 @@ export async function routeNativeAzureSecretsAuthority(
         headers.authorization === `Bearer ${f.token}` &&
         !authority.state.reject.has(f.providerId);
       const status = accepted ? 200 : 401;
+      const replies = azureBrowserReplies();
+      backup.appendMetadata(replies.page);
       const body = accepted
-        ? azureBrowserReplies()[request.url() === list ? "page" : "bundle"]
+        ? replies[request.url() === list ? "page" : "bundle"]
         : {
             error: {
               code: "Unauthorized",
@@ -99,7 +105,8 @@ export async function routeNativeAzureSecretsAuthority(
 }
 async function azureListNames(page, harness, authority) {
   await page
-    .getByText("List secret names", { selector: "summary", exact: true })
+    .locator("summary")
+    .filter({ hasText: /^List secret names$/ })
     .click();
   const before = authority.state.calls.length;
   await page
@@ -125,7 +132,8 @@ async function azureListNames(page, harness, authority) {
 async function azureReadValue(page, harness, authority) {
   const f = AZURE_SECRETS_FIXTURE;
   await page
-    .getByText("Read a secret", { selector: "summary", exact: true })
+    .locator("summary")
+    .filter({ hasText: /^Read a secret$/ })
     .click();
   await page
     .getByLabel("Secret name or versioned ID", { exact: true })
@@ -169,10 +177,10 @@ async function azureRemoveAndReload(page, harness, authority) {
     page.getByRole("button", { name: "List secret names", exact: true }),
   ).toHaveCount(0);
   await expect(
-    page.getByText("List secret names", { selector: "summary", exact: true }),
+    page.locator("summary").filter({ hasText: /^List secret names$/ }),
   ).toHaveCount(0);
   await expect(
-    page.getByText("Read a secret", { selector: "summary", exact: true }),
+    page.locator("summary").filter({ hasText: /^Read a secret$/ }),
   ).toHaveCount(0);
   authority.state.expectedDocuments.add(page.url());
   await page.reload();
@@ -184,10 +192,10 @@ async function azureRemoveAndReload(page, harness, authority) {
     page.getByRole("button", { name: "Read a secret", exact: true }),
   ).toHaveCount(0);
   await expect(
-    page.getByText("List secret names", { selector: "summary", exact: true }),
+    page.locator("summary").filter({ hasText: /^List secret names$/ }),
   ).toHaveCount(0);
   await expect(
-    page.getByText("Read a secret", { selector: "summary", exact: true }),
+    page.locator("summary").filter({ hasText: /^Read a secret$/ }),
   ).toHaveCount(0);
   harness.check(
     authority.state.calls.length === before,
@@ -202,7 +210,7 @@ export async function nativeAzureSecretsJourney(
   page,
   harness,
   authority,
-  { base, out, label },
+  { base, out, label, beforeRemove },
 ) {
   const f = AZURE_SECRETS_FIXTURE;
   harness.setStep(`${label}-azure-secrets`);
@@ -229,7 +237,7 @@ export async function nativeAzureSecretsJourney(
   await token.fill(f.token);
   await submit.click();
   await expect(
-    page.getByText("List secret names", { selector: "summary", exact: true }),
+    page.locator("summary").filter({ hasText: /^List secret names$/ }),
   ).toBeVisible();
   await expect(token).toHaveValue("");
   harness.check(
@@ -256,6 +264,8 @@ export async function nativeAzureSecretsJourney(
   await expect.poll(() => authority.state.calls.length).toBeGreaterThan(before);
   await expect(submit).toBeEnabled();
   await azureListNames(page, harness, authority);
+  if (beforeRemove)
+    await beforeRemove(page, harness, authority, { base, out, label });
   await azureRemoveAndReload(page, harness, authority);
   return {
     providerId: f.providerId,
