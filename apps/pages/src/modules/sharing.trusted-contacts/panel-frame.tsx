@@ -1,15 +1,14 @@
 /**
- * The frame every panel of Settings › Trusted contacts shares: the section
- * the category's rail scrolls to (`id` is the id the category lists), its
- * head, a polite line a screen reader hears changes on, and the body.
+ * The frame every group of Settings › Security › Trusted contacts shares: its
+ * heading, a polite line a screen reader hears changes on, and the body.
  *
- * `keys` ride the head as one group when a panel has any, and the group is
- * absent otherwise: a key that acts is drawn, an empty group is not. `overlay`
- * is where a panel's open sheet is drawn, after the body.
+ * `keys` ride the heading as one actions row when a group has any, and the
+ * row is absent otherwise: a key that acts is drawn, an empty row is not.
+ * `overlay` is where a group's open sheet is drawn, after the body.
  */
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { GuideTarget } from "../../tutorial/registry/react.jsx";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 /**
  * `text` as a sentence for a live region, said only when it changes: arriving
@@ -35,36 +34,45 @@ export function PanelFrame({
   overlay,
   children,
 }: {
-  /** The section id the category's panel list names. */
+  /** The group id the section's own page tree names. */
   id: string;
   title: string;
-  /** The tutorial target the panel answers to. */
+  /** The tutorial target the group answers to. */
   target: string;
   said: string;
   keys?: ReactNode;
   overlay?: ReactNode;
   children: ReactNode;
 }) {
+  const targetRef = useGuideTarget<HTMLElement>(target);
   return (
-    <GuideTarget id={target}>
-      <section className="panel" id={id} aria-label={title}>
-        <div className="panel__head">
-          <h2>{title}</h2>
-          {keys ? (
-            <fieldset className="vtree__keys" aria-label={`${title} commands`}>
-              {keys}
-            </fieldset>
-          ) : null}
-        </div>
-        <div className="panel__body">
-          <output className="visually-hidden" aria-live="polite">
-            {said}
-          </output>
-          {children}
-        </div>
-        {overlay}
-      </section>
-    </GuideTarget>
+    <section
+      ref={targetRef}
+      className="trusted-contacts__group"
+      id={id}
+      aria-label={title}
+      aria-labelledby={`${id}-title`}
+      data-guide-target={target}
+    >
+      <div className="trusted-contacts__group-head">
+        <h3 id={`${id}-title`}>{title}</h3>
+        {keys ? (
+          <fieldset
+            className="actions trusted-contacts__commands"
+            aria-label={`${title} commands`}
+          >
+            {keys}
+          </fieldset>
+        ) : null}
+      </div>
+      <div className="trusted-contacts__group-body">
+        <output className="visually-hidden" aria-live="polite">
+          {said}
+        </output>
+        {children}
+      </div>
+      {overlay}
+    </section>
   );
 }
 
