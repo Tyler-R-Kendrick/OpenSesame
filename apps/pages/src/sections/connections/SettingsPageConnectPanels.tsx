@@ -52,10 +52,7 @@ export function SettingsPageConnectPanels(props: Props) {
   // A native connector row created before the provider gained an AI contract
   // has no AI record. Keep that row on its native page: the AI form would show
   // an empty key over sealed custody and could orphan it on save.
-  const nativeAiRecord =
-    connection && !isConnectConnection(connection)
-      ? readAiConnection(connection.connectionId)
-      : null;
+  const nativeAiRecord = readNativeAiRecord(connection);
   if (
     isAiConnectionProvider(provider.id) &&
     !isConnectConnection(connection) &&
@@ -78,6 +75,12 @@ export function SettingsPageConnectPanels(props: Props) {
     );
   if (nativeExperience) return <NativeSettingsPanels {...props} />;
   return <HostedSettingsPanels {...props} />;
+}
+
+function readNativeAiRecord(connection: Connection | null) {
+  return connection && !isConnectConnection(connection)
+    ? readAiConnection(connection.connectionId)
+    : null;
 }
 
 function AiSettingsPanels({ provider, connection, onFlash, onChanged }: Props) {
