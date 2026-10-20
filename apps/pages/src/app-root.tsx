@@ -50,7 +50,7 @@ import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
 import { GateHost } from "./tutorial/gate-seat.js";
 
-import { useAfterUnlock } from "./app-root-hooks.js";
+import { useAfterUnlock, useVaultLanding } from "./app-root-hooks.js";
 import { useComposition } from "./bindings/capabilities.js";
 
 export { useCapabilityGate } from "./app-root-hooks.js";
@@ -248,13 +248,7 @@ function VaultApp() {
     slots.recoverPendingFederatedLink,
   );
 
-  // Land on the vault before the shell mounts: the rail's sections open from
-  // the route they first render under, and mounting on "/" would leave every
-  // one of them closed.
-  useEffect(() => {
-    if (status === "unlocked" && location.pathname === "/")
-      navigate("/vault", { replace: true });
-  }, [location.pathname, navigate, status]);
+  useVaultLanding(status, location.pathname, navigate);
 
   const shell = (
     // The shell is one Suspense boundary and the section inside it another,
