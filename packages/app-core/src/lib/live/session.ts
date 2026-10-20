@@ -135,6 +135,11 @@ export function onLiveSessionChange(listener: () => void): () => void {
 
 export type HostInput = Readonly<{
   title: string;
+  /** Who the generated link is for, for local identity/share provisioning. */
+  provision?: Readonly<{
+    audience: "anyone" | "all-users" | "people";
+    peopleIds: readonly string[];
+  }>;
   scope: ShareScope;
   policy: SharePolicy;
   admission: Admission;

@@ -18,6 +18,7 @@ import {
 import { kvRefresh } from "./kv.js";
 import { recordAccessAuditEvent } from "./local-access-audit.js";
 import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
+import { ALL_USERS_GROUP } from "./local-groups.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import {
   type ShareWriteAuthority,
@@ -90,7 +91,7 @@ export type ShareScopeLists = {
 export type GrantIdentity = {
   id: string;
   name: string;
-  kind: "person" | "agent" | "application";
+  kind: "person" | "agent" | "application" | "group";
 };
 
 /** People, agents, and applications a grant form can name. Organizations are not principals. */
@@ -113,6 +114,7 @@ export function grantIdentities(
       continue;
     identities.push({ id: entry.id, name: entry.name, kind: entry.kind });
   }
+  identities.push({ ...ALL_USERS_GROUP });
   return identities;
 }
 

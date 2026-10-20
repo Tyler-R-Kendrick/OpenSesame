@@ -11,12 +11,17 @@ import type { SharePolicy } from "./messages.js";
 import type { TransportFactory } from "./p2p.js";
 import type { Rendezvous } from "./rendezvous.js";
 import { hostRoutes } from "./session-carriers.js";
+import { provisionLiveSessionGuest } from "./session-provision.js";
 import { DIRECT_TRANSPORT, type LiveTransport } from "./transport.js";
 import type { ShareScope } from "./vault-share.js";
 import { vaultCatalog, vaultField } from "./vault-share.js";
 
 export type HostBuildInput = Readonly<{
   title: string;
+  provision?: Readonly<{
+    audience: "anyone" | "all-users" | "people";
+    peopleIds: readonly string[];
+  }>;
   scope: ShareScope;
   policy: SharePolicy;
   admission: "invite" | "open";
@@ -43,6 +48,7 @@ export async function buildLiveHost(
   const profile = input.routes ?? DIRECT_TRANSPORT;
   const { secret, routes, own, routing } = await hostRoutes(profile, expiresAt);
   const scope = input.scope;
+  const provision = input.provision;
   const next = await LiveHost.start({
     admission: input.admission,
     transport: input.transport(routing),
@@ -51,6 +57,20 @@ export async function buildLiveHost(
     relay: (name) => source.carriers?.seat(name) ?? null,
     canRelay: () => source.carriers?.relays ?? false,
     devices: input.devices ? { port: connectionPort } : undefined,
+    provisionSeat: provision
+      ? (guest, hostId) =>
+          provisionLiveSessionGuest({
+            tomb: vaultStore.activeTomb(),
+            hostId,
+            guest,
+            scope,
+            policy: input.policy,
+            minutes: input.minutes,
+            audience: provision.audience,
+            peopleIds: provision.peopleIds,
+            items: items(),
+          })
+      : undefined,
     post,
     expiresAt,
     catalog: () =>

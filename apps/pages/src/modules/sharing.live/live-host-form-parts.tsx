@@ -27,8 +27,15 @@ export const POLICIES: readonly Choice<SharePolicy>[] = [
   { value: "edit", label: "Can edit" },
 ];
 export const ADMISSIONS: readonly Choice<Admission>[] = [
-  { value: "invite", label: "Link and code" },
   { value: "open", label: "Anyone with the link" },
+  { value: "invite", label: "Link and code" },
+];
+
+export type SessionAudience = "anyone" | "all-users" | "people";
+export const AUDIENCES: readonly Choice<SessionAudience>[] = [
+  { value: "anyone", label: "Anyone with the link" },
+  { value: "all-users", label: "All users group" },
+  { value: "people", label: "Selected people" },
 ];
 export const DURATIONS: readonly Choice<number>[] = [
   { value: 15, label: "15 minutes" },

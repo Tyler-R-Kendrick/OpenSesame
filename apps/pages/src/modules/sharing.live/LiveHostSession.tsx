@@ -27,6 +27,7 @@ import {
   useCopyFeedback,
 } from "../../components/FieldRow.js";
 import { IconX } from "../../components/Icons.js";
+import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { DeviceRequests } from "./LiveHostDevices.js";
@@ -118,6 +119,7 @@ export function LiveHostSession({
           />
         </CeremonySheet>
       ) : null}
+      <QrCode value={link} label="Scan to join this live session" size={168} />
       <FieldRow
         label="Link"
         actions={

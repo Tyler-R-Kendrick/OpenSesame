@@ -14,6 +14,8 @@ import {
   type CapturedInvite,
   onInviteArrival,
   takeCapturedInvite,
+  takeCapturedLiveLink,
+  takePersistedLiveLink,
 } from "@opensesame/app-core/lib/join/invite.js";
 import { holdLiveLink } from "@opensesame/app-core/lib/live/link.js";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
@@ -26,6 +28,8 @@ import { LiveJoinGate } from "./LiveJoinGate.js";
 export const joinRoadDependencies = {
   configuredEndpoint,
   takeCapturedInvite,
+  takeCapturedLiveLink,
+  takePersistedLiveLink,
   onInviteArrival,
   /** The lock screens' road. `useJoinRoad` installs it. */
   openJoin: (): void => {},
@@ -44,15 +48,26 @@ export type JoinRoadState = Readonly<{
 /** The ceremony when it is open, and the road's opener. */
 export function useJoinRoad(): JoinRoadState {
   const [joining, setJoining] = useState<Joining>(() => {
+    const live =
+      joinRoadDependencies.takeCapturedLiveLink() ??
+      joinRoadDependencies.takePersistedLiveLink();
+    if (live) {
+      holdLiveLink(live);
+      return { captured: { kind: "live", link: live }, arrival: 0 };
+    }
     const captured = joinRoadDependencies.takeCapturedInvite();
-    if (captured?.kind === "live") holdLiveLink(captured.link);
     return captured ? { captured, arrival: 0 } : null;
   });
   // A link pasted into this open tab arrives without a reload.
   useEffect(
     () =>
       joinRoadDependencies.onInviteArrival(() => {
-        const captured = joinRoadDependencies.takeCapturedInvite();
+        const live =
+          joinRoadDependencies.takeCapturedLiveLink() ??
+          joinRoadDependencies.takePersistedLiveLink();
+        const captured: CapturedInvite | null = live
+          ? { kind: "live", link: live }
+          : joinRoadDependencies.takeCapturedInvite();
         if (captured) {
           if (captured.kind === "live") holdLiveLink(captured.link);
           setJoining((was) => ({ captured, arrival: (was?.arrival ?? 0) + 1 }));

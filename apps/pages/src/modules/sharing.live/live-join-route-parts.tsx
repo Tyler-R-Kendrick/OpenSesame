@@ -18,16 +18,20 @@ import {
   joinLive,
   leaveLive,
 } from "@opensesame/app-core/lib/live/session.js";
+import { ensureOwnerPerson } from "@opensesame/app-core/lib/local-directory-bootstrap.js";
 import { rememberTrustedPeer } from "@opensesame/app-core/lib/peer-trust/peers.js";
+import { pinPolicyProblems } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { useEffect, useRef, useState } from "react";
 import { FieldRow } from "../../components/FieldRow.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconArrowRight } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { firstControl } from "../../lib/focus.js";
+import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { LiveCatalog } from "./LiveCatalog.js";
 import {
   JoinPersonFields,
+  JoinVaultSealFields,
   LiveLinkField,
   PeerTrustField,
 } from "./LiveJoinFields.js";
@@ -54,11 +58,18 @@ import {
 const ASK_AGAIN = "Ask to join again";
 
 /** What the joiner has typed, and the ask it adds up to. */
-function useAsk(held: LiveLink | null) {
+function useAsk(
+  held: LiveLink | null,
+  vaultStatus: "empty" | "locked" | "unlocked",
+) {
+  const store = useVaultStore();
   const [pasted, setPasted] = useDraftField("pasted");
   const [code, setCode] = useDraftField("code");
   const [name, setName] = useDraftField("name");
   const [note, setNote] = useDraftField("note");
+  const [pin, setPin] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [peerTrust, setPeerTrust] = useDraftField("peerTrust");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useDraftField("failed");
@@ -74,16 +85,41 @@ function useAsk(held: LiveLink | null) {
   const needsCode = link?.admission === "invite";
   const normalized = needsCode ? normalizeInviteCode(code) : null;
   const cleanedName = cleanText(name);
+  const pinProblem =
+    pin.length === 0
+      ? null
+      : (pinPolicyProblems(pin)[0] ??
+        (confirm.length > 0 && pin !== confirm ? "PINs do not match." : null));
+  const sealProblem =
+    vaultStatus === "locked"
+      ? "Unlock this device before joining."
+      : vaultStatus === "empty"
+        ? pin.length === 0
+          ? "Choose a device PIN to seal your vault."
+          : (pinProblem ??
+            (confirm.length === 0
+              ? "Confirm the device PIN."
+              : pin !== confirm
+                ? "PINs do not match."
+                : !accepted
+                  ? "Acknowledge that the vault cannot be recovered."
+                  : null))
+        : null;
   const ready =
     link !== null &&
     cleanedName.length > 0 &&
-    (!needsCode || normalized !== null);
+    (!needsCode || normalized !== null) &&
+    sealProblem === null;
 
   async function ask(): Promise<void> {
     if (!link || !ready) return;
     setBusy(true);
     setFailed("");
     try {
+      if (vaultStatus === "empty") {
+        await store.createWithPin(pin);
+        await ensureOwnerPerson(store.activeTomb(), cleanedName);
+      }
       const trust = await joinTrustFields(cleanText(peerTrust));
       if (trust.blocked) {
         reportLiveOutcome("Live session", trust.blocked);
@@ -117,7 +153,17 @@ function useAsk(held: LiveLink | null) {
   }
 
   return {
-    fields: { pasted, code, name, note, peerTrust, useRoutes },
+    fields: {
+      pasted,
+      code,
+      name,
+      note,
+      peerTrust,
+      useRoutes,
+      pin,
+      confirm,
+      accepted,
+    },
     set: {
       setPasted,
       setCode,
@@ -129,7 +175,12 @@ function useAsk(held: LiveLink | null) {
         setFailed("");
       },
       setUseRoutes,
+      setPin,
+      setConfirm,
+      setAccepted,
     },
+    pinProblem,
+    sealProblem,
     link,
     routes,
     needsCode,
@@ -142,6 +193,7 @@ function useAsk(held: LiveLink | null) {
 }
 
 export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
+  const vault = useVault();
   const {
     fields,
     set,
@@ -152,11 +204,32 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
     busy,
     failed,
     alarm,
+    pinProblem,
+    sealProblem,
     ask,
-  } = useAsk(held);
-  const { pasted, code, name, note, peerTrust, useRoutes } = fields;
-  const { setPasted, setCode, setName, setNote, setPeerTrust, setUseRoutes } =
-    set;
+  } = useAsk(held, vault.status);
+  const {
+    pasted,
+    code,
+    name,
+    note,
+    peerTrust,
+    useRoutes,
+    pin,
+    confirm,
+    accepted,
+  } = fields;
+  const {
+    setPasted,
+    setCode,
+    setName,
+    setNote,
+    setPeerTrust,
+    setUseRoutes,
+    setPin,
+    setConfirm,
+    setAccepted,
+  } = set;
   const form = useRef<HTMLFormElement>(null);
   useLandWhenSettled(busy, () => form.current?.querySelector(".go"));
 
@@ -191,6 +264,21 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
         setName={setName}
         setNote={setNote}
       />
+      {vault.status === "empty" ? (
+        <JoinVaultSealFields
+          pin={pin}
+          confirm={confirm}
+          accepted={accepted}
+          problem={pinProblem}
+          busy={busy}
+          setPin={setPin}
+          setConfirm={setConfirm}
+          setAccepted={setAccepted}
+        />
+      ) : null}
+      {vault.status === "locked" ? (
+        <StatusMark tone="warn" label="Unlock this device before joining." />
+      ) : null}
       <PeerTrustField
         peerTrust={peerTrust}
         busy={busy}
@@ -220,6 +308,7 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
           needsCode: needsCode ?? false,
           code,
           name,
+          sealProblem: sealProblem ?? undefined,
         })}
         busy={busy}
         icon={<IconArrowRight size={18} />}

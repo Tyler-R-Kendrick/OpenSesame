@@ -12,13 +12,16 @@
  * (`gate: "any"`).
  */
 
-import { takeCapturedLiveLink } from "@opensesame/app-core/lib/join/invite.js";
+import {
+  takeCapturedLiveLink,
+  takePersistedLiveLink,
+} from "@opensesame/app-core/lib/join/invite.js";
 import {
   type LiveLink,
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
 import { leaveLive } from "@opensesame/app-core/lib/live/session.js";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { IconChevronLeft, IconX } from "../../components/Icons.js";
 import { useLandOnChange } from "./live-focus.js";
@@ -34,9 +37,20 @@ export function LiveJoinRoute() {
   const navigate = useNavigate();
   const [held] = useState<LiveLink | null>(() => {
     joinDraft.link =
-      takeHeldLiveLink() ?? takeCapturedLiveLink() ?? joinDraft.link;
+      takeHeldLiveLink() ??
+      takeCapturedLiveLink() ??
+      takePersistedLiveLink() ??
+      joinDraft.link;
     return joinDraft.link;
   });
+  useEffect(() => {
+    if (!window.location.hash.includes("live=")) return;
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}`,
+    );
+  }, []);
   const { guest, status } = useLiveGuest();
   const over =
     guest !== null && (status?.at === "ended" || status?.at === "unreachable");

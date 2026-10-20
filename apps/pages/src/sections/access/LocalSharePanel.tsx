@@ -178,9 +178,11 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
                   ? "Application"
                   : entry.kind === "agent"
                     ? "Agent"
-                    : accessRoleLabel(
-                        resolveAccessRole(directory, entry.id) ?? "member",
-                      ),
+                    : entry.kind === "group"
+                      ? "Group"
+                      : accessRoleLabel(
+                          resolveAccessRole(directory, entry.id) ?? "member",
+                        ),
             })),
           );
         } catch {

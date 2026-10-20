@@ -105,6 +105,8 @@ export type HostOptions = Readonly<{
   secret?: string;
   /** Whether a relay (a NATS carrier) could carry a seat now. */
   canRelay?: () => boolean;
+  /** Create the joined person and the session's shares when a seat is admitted. */
+  provisionSeat?: (guest: Guest, hostId: string) => Promise<void> | void;
   /**
    * Present when devices may ask to use the owner's connections (ADR 0196):
    * where the connections are. Absent, a device's request is not seated.
