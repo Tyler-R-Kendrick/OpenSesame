@@ -5,7 +5,7 @@
  * shows its link and QR only after that form is submitted.
  */
 import { currentHost } from "@opensesame/app-core/lib/live/session.js";
-import { fireEvent, render, within } from "@testing-library/react";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LiveSharePanel } from "./LiveSharePanel.js";
 import {
@@ -23,7 +23,7 @@ describe("the share sheet", () => {
     const panel = within(container);
     expect(panel.getByLabelText("Session name")).toBeTruthy();
     expect(
-      panel.getByRole("button", { name: "Start the live session" }),
+      panel.getByRole("button", { name: /^Start the live session/ }),
     ).toBeTruthy();
     const advanced = container.querySelector<HTMLDetailsElement>(
       "details.live-advanced",
@@ -42,7 +42,11 @@ describe("the share sheet", () => {
         name: liveItemPickerCheckboxName(github),
       }),
     );
-    press(panel.getByRole("button", { name: "Start the live session" }));
+    const start = await panel.findByRole("button", {
+      name: "Start the live session",
+    });
+    await waitFor(() => expect(start.hasAttribute("disabled")).toBe(false));
+    press(start);
     await panel.findByRole("img", { name: "Live" });
     expect(panel.getByRole("button", { name: "Copy the link" })).toBeTruthy();
     expect(
