@@ -65,6 +65,20 @@ const providers: Builtin[] = [
         { headers: { "Content-Type": "application/xml" } },
       ),
   },
+  ...["azure-sm", "azure-key-vault-secrets"].map(
+    (providerId): Builtin => ({
+      input: {
+        providerId,
+        method: "api-key",
+        displayName: "Azure Key Vault Secrets",
+        parameters: { vault_url: "https://owned.vault.azure.net" },
+        credentials: { token: "owned-key-vault-audience-token" },
+        requestedScopes: {},
+        targetIds: {},
+      },
+      response: () => Response.json({ value: [] }),
+    }),
+  ),
 ];
 function activate(provider: Builtin) {
   const test = createTestContext();

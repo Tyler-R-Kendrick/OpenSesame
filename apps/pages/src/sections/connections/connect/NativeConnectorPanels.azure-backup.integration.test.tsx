@@ -31,6 +31,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, expect, it, vi } from "vitest";
+import { bindNativeCleanupRuntime } from "../../../modules/connectors.external/native-cleanup-runtime.js";
 import { ConnectorSettingsPage } from "../SettingsPage.js";
 import { declareConnectionsTutorial } from "../tutorial.test-support.js";
 import {
@@ -52,14 +53,15 @@ async function prepare() {
   fixture.route.respond = (request) => oracle.transport.fetch(request);
   return { fixture, ...oracle };
 }
-function mount(id?: string) {
-  const provider = catalogProvider("azure-sm");
+function mount(id?: string, providerId = "azure-sm") {
+  const raw = catalogProvider(providerId);
+  const provider = raw ? { ...raw, id: providerId } : undefined;
   if (!provider) throw new Error("Missing Azure catalog row");
   return render(
-    <MemoryRouter initialEntries={["/settings/connections/azure-sm"]}>
+    <MemoryRouter initialEntries={[`/settings/connections/${providerId}`]}>
       <ConnectorSettingsPage
         provider={provider}
-        providerId="azure-sm"
+        providerId={providerId}
         connection={id ? deviceConnection(id) : null}
         connections={[]}
         loading={false}
@@ -210,5 +212,73 @@ it.each(["unmount", "vault", "activation"])(
     );
     expect(screen.queryByLabelText("Saved backup ID")).toBeNull();
     held.release();
+  },
+);
+
+it.each(["azure-sm", "azure-key-vault-secrets"])(
+  "removes cold PIN reverified %s while its real backup handle is mounted",
+  async (providerId) => {
+    const o = await prepare();
+    bindNativeCleanupRuntime(o.fixture.activation);
+    await vaultStore.enrollPin("83619472");
+    await vaultStore.removePassword();
+    const ui = mount(undefined, providerId);
+    const row = await configure(o.service.origin);
+    ui.unmount();
+    await vaultStore.flushPendingWrites();
+    await vfsFlush();
+    await kvFlush();
+    vaultStore.lock();
+    kvForgetFiles(new Set(DEVICE_CONNECTOR_KEYS.map(kvFileName)));
+    await kvHydrate([...DEVICE_CONNECTOR_KEYS]);
+    await vaultStore.unlockWithPin("83619472");
+    mount(row.connectionId, providerId);
+    await screen.findByRole("form", { name: "Back up vault" });
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Verify and connect Azure Key Vault Secrets",
+      }),
+    );
+    await screen.findByRole("form", { name: "Back up vault" });
+    await userEvent.click(
+      screen.getByText("List secret names", { selector: "summary" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "List secret names" }),
+    );
+    await screen.findByRole("region", {
+      name: "Showing 0 secret names from first page",
+    });
+    const before = o.service.requests.length;
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove connector" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Confirm remove connector",
+      }),
+    );
+    await waitFor(() =>
+      expect(loadNativeConnectorRecord(row.connectionId)).toBeNull(),
+    );
+    expect(readDeviceRows()).toHaveLength(0);
+    expect(
+      screen.queryByRole("button", { name: "List secret names" }),
+    ).toBeNull();
+    expect(screen.queryByRole("form", { name: "Back up vault" })).toBeNull();
+    expect(o.service.requests).toHaveLength(before);
+    cleanup();
+    await vaultStore.flushPendingWrites();
+    await vfsFlush();
+    await kvFlush();
+    vaultStore.lock();
+    kvForgetFiles(new Set(DEVICE_CONNECTOR_KEYS.map(kvFileName)));
+    await kvHydrate([...DEVICE_CONNECTOR_KEYS]);
+    await vaultStore.unlockWithPin("83619472");
+    expect(loadNativeConnectorRecord(row.connectionId)).toBeNull();
+    mount(undefined, providerId);
+    expect(
+      screen.queryByRole("button", { name: "List secret names" }),
+    ).toBeNull();
   },
 );
