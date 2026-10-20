@@ -21,10 +21,9 @@ import { IconKey } from "../../components/IconKey.js";
 import { IconLayers, IconPlus, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { type Person, UnlockCircleFields } from "./UnlockCircleFields.js";
 import { PanelFrame, useSaid } from "./panel-frame.js";
 import { useDesk } from "./use-desk.js";
-
-type Person = Readonly<{ id: string; name: string }>;
 
 /** Replaceable in tests: the vault files behind a circle. */
 export const unlockCircleSeams = {
@@ -158,62 +157,16 @@ function EditSheet({
           void save();
         }}
       >
-        <div className="field">
-          <label htmlFor="unlock-circle-name">Name</label>
-          <input
-            id="unlock-circle-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </div>
-        <fieldset className="f">
-          <legend className="f__label">People</legend>
-          {people.length === 0 ? (
-            <StatusMark
-              tone="idle"
-              label="Add a person with a passkey in Identity first."
-            />
-          ) : (
-            <ul className="unlock-circle-people">
-              {people.map((person) => (
-                <li key={person.id}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(person.id)}
-                      onChange={(event) =>
-                        setSelected((current) =>
-                          event.target.checked
-                            ? [...current, person.id]
-                            : current.filter((id) => id !== person.id),
-                        )
-                      }
-                    />
-                    {person.name}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
-        </fieldset>
-        {maximum > 0 ? (
-          <div className="field">
-            <label htmlFor="unlock-circle-threshold">Required approvals</label>
-            <select
-              id="unlock-circle-threshold"
-              value={String(wanted)}
-              onChange={(event) => setThreshold(event.target.value)}
-            >
-              {Array.from({ length: maximum }, (_, index) => index + 1).map(
-                (count) => (
-                  <option key={count} value={count}>
-                    {count} of {maximum}
-                  </option>
-                ),
-              )}
-            </select>
-          </div>
-        ) : null}
+        <UnlockCircleFields
+          name={name}
+          setName={setName}
+          people={people}
+          selected={selected}
+          setSelected={setSelected}
+          maximum={maximum}
+          wanted={wanted}
+          setThreshold={setThreshold}
+        />
         {error ? <StatusMark tone="err" label={error} /> : null}
         <div className="actions">
           <button

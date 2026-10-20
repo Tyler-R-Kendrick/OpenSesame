@@ -1,6 +1,9 @@
 import { performSavedAiInference } from "@opensesame/app-core/lib/ai-connections/runtime.js";
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
-import { isAiSpeechFamily } from "@opensesame/app-core/lib/ai-connections/types.js";
+import {
+  isAiRemoteJobFamily,
+  isAiSpeechFamily,
+} from "@opensesame/app-core/lib/ai-connections/types.js";
 import { useCallback, useState } from "react";
 import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FormCommit } from "../../../components/FormCommit.js";
@@ -91,7 +94,8 @@ function useAiInference(connectionId: string) {
     },
     onCancel: () => {
       if (speech) {
-        pending.clear();
+        if (isAiRemoteJobFamily(saved?.family)) pending.onCancel();
+        else pending.clear();
         clearAudio();
         setAnswer("");
       } else pending.onCancel();

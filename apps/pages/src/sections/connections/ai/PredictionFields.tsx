@@ -1,6 +1,7 @@
 import { replicateOperationInput } from "@opensesame/app-core/lib/ai-connections/replicate-inference.js";
 import {
   type AiConnectionDraft,
+  isAiRemoteJobFamily,
   isAiSpeechFamily,
 } from "@opensesame/app-core/lib/ai-connections/types.js";
 import { useId } from "react";
@@ -72,6 +73,15 @@ export function AiConnectionSetup({ draft, busy, onChange }: Fields) {
           HTTP transport, or permit this browser origin and headers for a direct
           browser connection.
         </p>
+        {isAiRemoteJobFamily(draft.family) ? (
+          <p>
+            Testing and saving upload audio and create a remote transcription
+            job. The app requests deletion before accepting a result. Cancel
+            stops waiting and attempts to delete the owned transcript. Locking
+            or leaving may prevent deletion. A deletion acknowledgment does not
+            confirm that provider processing or charges stopped.
+          </p>
+        ) : null}
       </details>
     );
   if (draft.family === "replicate_predictions")

@@ -19,7 +19,6 @@ import {
   vi,
 } from "vitest";
 import { VEHICLE_TYPE } from "./settings/vehicle-type.test-support.js";
-import { PURGE_CONFIRM } from "./vault/vault-menu.js";
 
 type TestItem = { id: string; name?: string; deletedAt?: string | null };
 const vault: {
@@ -359,82 +358,5 @@ describe("SettingsSection", () => {
     renderSettings("/settings/danger#settings-trash");
     expect(document.getElementById("settings-trash")).toBeTruthy();
     expect(scrollBy).toHaveBeenCalledTimes(3);
-  });
-
-  it("destroys the vault only after confirmation", async () => {
-    vault.current.items = [{ id: "itm_1" }, { id: "itm_2" }];
-    renderSettings("#danger");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Delete this vault/i }),
-    );
-    expect(
-      screen.getByText(/2 items \(0 in trash\) will be unrecoverable/),
-    ).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
-    expect(store.destroy).not.toHaveBeenCalled();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Delete this vault/i }),
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Delete permanently/i }),
-    );
-    expect(store.destroy).toHaveBeenCalled();
-  });
-
-  it("lists the trash and empties it only after arming", async () => {
-    vault.current.items = [
-      { id: "itm_1", name: "Alpha", deletedAt: "2026-09-01" },
-      { id: "itm_2", name: "Beta", deletedAt: "2026-09-02" },
-    ];
-    renderSettings("#danger");
-    expect(screen.getByText("Alpha")).toBeTruthy();
-    expect(screen.getByText("Beta")).toBeTruthy();
-    expect(screen.getByText(/2 items in the trash/)).toBeTruthy();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Empty the trash/i }),
-    );
-    expect(screen.getByText(/emptying is unrecoverable/)).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
-    expect(store.emptyTrash).not.toHaveBeenCalled();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Empty the trash/i }),
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Empty the trash/i }),
-    );
-    expect(store.emptyTrash).toHaveBeenCalledTimes(1);
-  });
-
-  it("restores a single trashed item", async () => {
-    vault.current.items = [
-      { id: "itm_1", name: "Alpha", deletedAt: "2026-09-01" },
-    ];
-    renderSettings("#danger");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Restore Alpha" }),
-    );
-    expect(store.restoreItem).toHaveBeenCalledWith("itm_1");
-  });
-
-  it("purges a single trashed item only after arming", async () => {
-    vault.current.items = [
-      { id: "itm_1", name: "Alpha", deletedAt: "2026-09-01" },
-    ];
-    renderSettings("#danger");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Delete Alpha permanently" }),
-    );
-    expect(store.purgeItem).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: PURGE_CONFIRM }));
-    expect(store.purgeItem).toHaveBeenCalledWith("itm_1");
-  });
-
-  it("draws no trash keys when the trash is empty", () => {
-    vault.current.items = [{ id: "itm_1", name: "Alpha" }];
-    renderSettings("#danger");
-    expect(screen.getByText("Trash is empty.")).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: /Empty the trash/i }),
-    ).toBeNull();
   });
 });

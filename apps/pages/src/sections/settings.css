@@ -38,12 +38,6 @@
 }
 
 /* A text input with its action beside it, aligned to the control row. */
-.set__inline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: flex-end;
-}
 
 .set__themes {
   display: flex;
@@ -287,30 +281,6 @@
   color: var(--ink-2);
 }
 
-.set-raw__status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 1.5rem;
-  margin-top: 0.5rem;
-  padding-top: 0.35rem;
-  border-top: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--ink-2);
-}
-
-.set-raw__status-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.set-raw__status-meta {
-  flex: none;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-3);
-}
-
 .set-raw__path {
   margin: 0;
   font-family: var(--mono);
@@ -401,42 +371,7 @@
   color: var(--ink-3);
 }
 
-.set-raw__complete {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
-}
-
-.set-raw__option {
-  appearance: none;
-  border: 0;
-  border-bottom: 1px solid var(--line-strong);
-  background: transparent;
-  color: var(--ink-2);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  padding: 0.15rem 0;
-  cursor: pointer;
-}
-
-.set-raw__option:hover,
-.set-raw__option:focus-visible {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-
 /* Age keys › Encryption: the key that seals files here, then its key. */
-.age-keys__using {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-  overflow-wrap: anywhere;
-}
 
 /* A select at the end of a switch row: as wide as its longest choice. */
 /* One width for every select in a column of rows, so their edges and

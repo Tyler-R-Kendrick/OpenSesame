@@ -69,12 +69,7 @@ import type { PasskeyCreateOptions } from "./protection/adapters/webauthn-prf-ce
 import { VaultProtectionBrowserService } from "./protection/browser-service.js";
 import { ProtectionError } from "./protection/errors.js";
 import { ProtectionSessionGuard } from "./protection/session-guard.js";
-import {
-  maskCodeAddress,
-  mintRecoveryCodes,
-  readRecoveryCodes,
-  spendRecoveryCode,
-} from "./recovery-codes.js";
+import { spendRecoveryCode } from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import { RetiredInteractionQueue } from "./retired-interaction-queue.js";
 import {
@@ -90,12 +85,8 @@ import {
   assertSecondStepPending,
   finishSecondStepUnlock,
 } from "./second-step-guard.js";
-import { headerWithoutSecondStep } from "./second-step-removal.js";
 import {
-  UnguardedTotpEnrollment,
   heldTotpCode,
-  proveTotpEnrollment,
-  startTotpEnrollment,
   withSelfAuthenticatorRegistration,
 } from "./self-authenticator.js";
 import {
@@ -138,6 +129,7 @@ import { StorePreferences } from "./store-preferences.js";
 import { buildVaultState, exportStoredVault } from "./store-presentation.js";
 import { createStorePrimaryApi } from "./store-primary-api.js";
 import { writeBody } from "./store-seal.js";
+import { createStoreSecondStepApi } from "./store-second-step-api.js";
 import { destroyStoredTomb } from "./store-tomb-destruction.js";
 import { StoreListeners, StoreView } from "./store-view.js";
 import { StoreWriteQueue } from "./store-write-queue.js";
@@ -154,8 +146,6 @@ import {
   headerWithoutUnlock,
   openText,
   openTotpSecret,
-  primaryUnlockCount,
-  sealText,
   totpCodeMatches,
 } from "./unlock-methods.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
@@ -260,6 +250,28 @@ export class VaultStore {
     publishHeader: (header, check) => this.#persistHeader(header, check),
     publishNew: (header, key, raw, check) =>
       this.#persistNewVault(header, key, raw, check),
+  });
+
+  #secondStepApi = createStoreSecondStepApi({
+    requireUnlocked: () => this.#requireUnlocked(),
+    ephemeral: () => this.#ephemeral,
+    totpSecret: () => this.#pendingTotpSecret,
+    setTotpSecret: (secret) => {
+      this.#pendingTotpSecret = secret;
+    },
+    pendingCode: () => this.#pendingCode,
+    setPendingCode: (code) => {
+      this.#pendingCode = code;
+    },
+    pendingCodeAddress: () => this.#pendingCodeAddress,
+    setPendingCodeAddress: (address) => {
+      this.#pendingCodeAddress = address;
+    },
+    persistHeader: (header) => this.#persistHeader(header),
+    registerSelfAuthenticator: (gate) => this.#registerSelfAuthenticator(gate),
+    header: () => this.#header,
+    trashItem: (id) => this.trashItem(id),
+    cancelCodeEnrollment: () => this.cancelCodeEnrollment(),
   });
   /** Expiry for a parked second step; cleared when the challenge ends. */
   #pendingChallenge = new PendingChallenge();
@@ -1127,46 +1139,11 @@ export class VaultStore {
       await this.#persistHeader(headerWithoutPassword(this.#header));
   }
 
-  /** Offer the authenticator URI; publish its gate only after a matching code. */
-  async beginTotpEnrollment(): Promise<string> {
-    const { header } = this.#requireUnlocked();
-    const started = startTotpEnrollment(
-      this.#ephemeral,
-      primaryUnlockCount(header),
-    );
-    this.#pendingTotpSecret = started.secret;
-    return started.uri;
-  }
+  beginTotpEnrollment = this.#secondStepApi.beginTotpEnrollment;
 
-  /** Prove TOTP, publish the gate, and register the self-authenticator (ADR 0113). */
-  async confirmTotpEnrollment(code: string): Promise<void> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    try {
-      const gate = await proveTotpEnrollment({
-        ephemeral: this.#ephemeral,
-        primaryCount: primaryUnlockCount(header),
-        secret: this.#pendingTotpSecret,
-        code,
-        vaultKey,
-      });
-      await this.#persistHeader({
-        ...header,
-        unlocks: { ...header.unlocks, totp: gate },
-      });
-      await this.#registerSelfAuthenticator(gate);
-    } catch (error) {
-      if (error instanceof UnguardedTotpEnrollment) {
-        this.#pendingTotpSecret = null;
-      }
-      throw error;
-    }
-    this.#pendingTotpSecret = null;
-  }
+  confirmTotpEnrollment = this.#secondStepApi.confirmTotpEnrollment;
 
-  /** Abandon an enrollment that never saw a matching code. */
-  cancelTotpEnrollment(): void {
-    this.#pendingTotpSecret = null;
-  }
+  cancelTotpEnrollment = this.#secondStepApi.cancelTotpEnrollment;
 
   /** Point a gate at its self-authenticator registration (ADR 0113). */
   async #registerSelfAuthenticator(gate: TotpGateRecord): Promise<void> {
@@ -1181,104 +1158,36 @@ export class VaultStore {
     await this.#persistHeader(next.header);
   }
 
-  async removeTotp(): Promise<void> {
-    await this.#removeSecondStep("totp");
-  }
+  removeTotp = this.#secondStepApi.removeTotp;
 
-  /** Drop one second step; the last one takes the recovery codes with it. */
-  async #removeSecondStep(step: "totp" | CodeChannel): Promise<void> {
-    this.#requireUnlocked();
-    const header = this.#header;
-    if (!header?.unlocks?.[step]) return;
-    // The authenticator's registration goes with its gate.
-    if (step === "totp") {
-      const selfId = header.unlocks.totp?.selfItemId;
-      if (selfId) await this.trashItem(selfId);
-    }
-    await this.#persistHeader(headerWithoutSecondStep(header, step));
-  }
+  beginCodeEnrollment = this.#secondStepApi.beginCodeEnrollment;
 
-  /** Enroll email/text code; nothing is written until a code matches. */
-  async beginCodeEnrollment(
-    channel: CodeChannel,
-    to: string,
-  ): Promise<SentCode> {
-    const { header } = this.#requireUnlocked();
-    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
-      throw new Error(
-        "Seal this vault with a passkey, PIN or password before adding a code by email or text — a code can only guard a key.",
-      );
-    }
-    const sent = await sendCode(channel, to.trim());
-    this.#pendingCode = sent;
-    this.#pendingCodeAddress = { channel, to: to.trim() };
-    return sent;
-  }
+  confirmCodeEnrollment = this.#secondStepApi.confirmCodeEnrollment;
 
-  /** Prove the first code arrived, then seal the address and turn it on. */
-  async confirmCodeEnrollment(code: string): Promise<void> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    const sent = this.#pendingCode;
-    const address = this.#pendingCodeAddress;
-    if (!sent || !address) {
-      throw new Error("Send a code first.");
-    }
-    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
-      this.cancelCodeEnrollment();
-      throw new Error(
-        "Seal this vault with a passkey, PIN or password before adding a code by email or text — a code can only guard a key.",
-      );
-    }
-    await verifyCode(sent.challengeId, code);
-    const toWrap = await sealText(vaultKey, address.to);
-    const unlocks: VaultUnlocks = {
-      ...header.unlocks,
-      [address.channel]: { toWrap, since: new Date().toISOString() },
-    };
-    await this.#persistHeader({ ...header, unlocks });
+  cancelCodeEnrollment = this.#secondStepApi.cancelCodeEnrollment;
+
+  removeCode = this.#secondStepApi.removeCode;
+
+  describeCodeChannel = this.#secondStepApi.describeCodeChannel;
+
+  generateRecoveryCodes = this.#secondStepApi.generateRecoveryCodes;
+
+  recoveryCodes = this.#secondStepApi.recoveryCodes;
+
+  /** Clear the session and parked secrets at the original lock boundary. */
+  #clearLockedSessionState(): void {
+    this.#vaultKey = null;
+    this.#zeroRaw();
+    this.#pendingVaultKey = null;
+    this.#pendingTrustedKey = null;
+    this.#trustedPolicy = null;
+    this.#trustedView = null;
+    this.#trustedApproved.clear();
+    this.#pendingTotpSecret = null;
     this.#pendingCode = null;
     this.#pendingCodeAddress = null;
-  }
-
-  /** Abandon a code enrollment whose first code never matched. */
-  cancelCodeEnrollment(): void {
-    this.#pendingCode = null;
-    this.#pendingCodeAddress = null;
-  }
-
-  async removeCode(channel: CodeChannel): Promise<void> {
-    await this.#removeSecondStep(channel);
-  }
-
-  /** The masked address a code channel sends to; needs the vault open. */
-  async describeCodeChannel(channel: CodeChannel): Promise<string | null> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    const record = header.unlocks?.[channel];
-    if (!record) return null;
-    return maskCodeAddress(channel, await openText(vaultKey, record.toWrap));
-  }
-
-  /** Replace the recovery-code set, sealed for Settings to show while unlocked. */
-  async generateRecoveryCodes(): Promise<string[]> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    if (!hasSecondStep(header)) {
-      throw new Error(
-        "Recovery codes stand in for a second step. Add an authenticator, email or text code first.",
-      );
-    }
-    const { codes, record } = await mintRecoveryCodes(vaultKey);
-    await this.#persistHeader({
-      ...header,
-      unlocks: { ...header.unlocks, recovery: record },
-    });
-    return codes;
-  }
-
-  /** The recovery codes and which are spent, or null when none were made. */
-  async recoveryCodes() {
-    const { vaultKey, header } = this.#requireUnlocked();
-    const record = header.unlocks?.recovery;
-    return record ? readRecoveryCodes(vaultKey, record) : null;
+    this.#body = emptyBody();
+    syncInstalledTypes(undefined);
   }
 
   /** Run on every lock — used to wipe secrets that left the vault (clipboard). */
@@ -1293,18 +1202,7 @@ export class VaultStore {
     const lockedTombForLog = this.#scope.tomb;
     const wasGuest = this.#ephemeral;
     const wasDecoy = markDecoySession(false);
-    this.#vaultKey = null;
-    this.#zeroRaw();
-    this.#pendingVaultKey = null;
-    this.#pendingTrustedKey = null;
-    this.#trustedPolicy = null;
-    this.#trustedView = null;
-    this.#trustedApproved.clear();
-    this.#pendingTotpSecret = null;
-    this.#pendingCode = null;
-    this.#pendingCodeAddress = null;
-    this.#body = emptyBody();
-    syncInstalledTypes(undefined);
+    this.#clearLockedSessionState();
     // Guest sessions are ephemeral — wipe ciphertext, but keep the unlock screen on the last guest.
     const ephemeralTomb = this.#ephemeral ? this.#scope.tomb : null;
     const guestBesideVault = isGuestSessionTomb(ephemeralTomb);

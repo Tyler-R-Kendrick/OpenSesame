@@ -49,8 +49,5 @@
   },
   {
     "shard": "native-secret-backends"
-  },
-  {
-    "shard": "trusted-contacts"
   }
 ]

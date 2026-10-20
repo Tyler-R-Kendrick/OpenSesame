@@ -18,6 +18,8 @@ import {
   SEAT_GRACE_MS,
   type HostSeat as Seat,
   askingSeat,
+  deviceLogEntry,
+  seatState,
 } from "./host-types.js";
 import type { LiveLink } from "./link.js";
 import type { JoinRequest } from "./messages.js";
@@ -31,8 +33,6 @@ import { seatName } from "./seat-channel.js";
 
 // What a host is made of lives in `host-types.ts`; it is named here as well.
 export * from "./host-types.js";
-
-const seatState = (seat: Seat | undefined) => seat?.guest.state;
 
 /** One live session, hosted by this tab. */
 export class LiveHost {
@@ -81,14 +81,7 @@ export class LiveHost {
           port: options.devices.port,
           expiresAt: this.expiresAt,
           now: this.#now,
-          onLog: (entry) =>
-            this.#record({
-              at: entry.at,
-              guest: entry.guest,
-              what: entry.what,
-              item: entry.connection,
-              field: entry.operation,
-            }),
+          onLog: (entry) => this.#record(deviceLogEntry(entry)),
         })
       : null;
     this.devices?.subscribe(() => this.#emit());

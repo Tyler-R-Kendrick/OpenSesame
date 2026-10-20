@@ -1,3 +1,4 @@
+import { AssemblyTranscriptInterrupted } from "@opensesame/app-core/lib/ai-connections/assemblyai-target.js";
 import { bedrockResourceBase } from "@opensesame/app-core/lib/ai-connections/bedrock-target.js";
 import {
   aiConnectionBinding,
@@ -13,6 +14,7 @@ import {
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import {
   type AiConnectionDraft,
+  isAiRemoteJobFamily,
   isAiSpeechFamily,
 } from "@opensesame/app-core/lib/ai-connections/types.js";
 import { vertexResourceBase } from "@opensesame/app-core/lib/ai-connections/vertex-target.js";
@@ -206,8 +208,10 @@ export function useAiOperation(
         return await work(owner, controller.signal);
       } catch (error) {
         if (
-          error instanceof ReplicatePredictionInterrupted &&
-          error.cancellationRequested
+          (error instanceof ReplicatePredictionInterrupted &&
+            error.cancellationRequested) ||
+          (error instanceof AssemblyTranscriptInterrupted &&
+            error.deletionAcknowledged)
         ) {
           owner.check();
           return error.message;
@@ -283,11 +287,11 @@ export function useAiConnection(
         onSaved?.();
         return "AI connection verified and saved in this vault";
       } catch (error) {
-        if (error instanceof ReplicatePredictionInterrupted) throw error;
-        const text =
-          error instanceof Error ? error.message : "The AI operation failed.";
-        throw new Error(
-          draft.apiKey ? text.replaceAll(draft.apiKey, "[credential]") : text,
+        throw aiOperationFailure(
+          error instanceof Error
+            ? error
+            : new Error("The AI operation failed."),
+          draft.apiKey,
         );
       }
     });
@@ -295,7 +299,7 @@ export function useAiConnection(
   return {
     ...pending,
     draft,
-    ...aiAudioControls(audio, pending, isAiSpeechFamily(draft.family)),
+    ...aiAudioControls(audio, pending, draft.family),
     savedId,
     predictionInput,
     onPredictionInput: (value: string) => {
@@ -340,7 +344,7 @@ async function forgetAiConnection(
 function aiAudioControls(
   audio: ReturnType<typeof useLocalAudioInput>,
   pending: Pick<ReturnType<typeof useAiOperation>, "clear" | "onCancel">,
-  speech: boolean,
+  family: AiConnectionDraft["family"],
 ) {
   return {
     ...audio.fields,
@@ -349,10 +353,22 @@ function aiAudioControls(
       audio.fields.onSampleAudio(file);
     },
     onCancel: () => {
-      if (speech) {
-        pending.clear();
+      if (isAiSpeechFamily(family)) {
+        if (isAiRemoteJobFamily(family)) pending.onCancel();
+        else pending.clear();
         audio.clear();
       } else pending.onCancel();
     },
   };
+}
+
+function aiOperationFailure(error: Error, apiKey: string): Error {
+  if (
+    error instanceof ReplicatePredictionInterrupted ||
+    error instanceof AssemblyTranscriptInterrupted
+  )
+    return error;
+  return new Error(
+    apiKey ? error.message.replaceAll(apiKey, "[credential]") : error.message,
+  );
 }
