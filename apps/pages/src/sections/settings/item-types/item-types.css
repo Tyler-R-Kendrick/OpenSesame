@@ -129,16 +129,6 @@
   }
 }
 
-/* A compact list — the built-ins — is reference, not a place to act. */
-.itype-list--compact .itype__row {
-  min-height: 2.5rem;
-  padding: 0.35rem 0;
-}
-
-.itype-list--compact .itype__summary {
-  display: none;
-}
-
 /* ——— Fields, when a row is inspected ————————————————————————————————— */
 .itype__fields {
   display: grid;
