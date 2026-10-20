@@ -14,6 +14,7 @@
 import type { Integration } from "@opensesame/app-core/lib/capabilities/integrations.js";
 import { useCallback } from "react";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { AiLabs } from "./AiLabs.js";
 import { SectionHead } from "./CapabilitySwitch.js";
 import { ProviderTiles } from "./ProviderTiles.js";
 import { WithdrawnMark } from "./SectionMarks.js";
@@ -56,17 +57,23 @@ function IntegrationSection({ integration, first, sectionRef }: SectionProps) {
       >
         <WithdrawnMark backedBy={integration.backedBy} />
       </SectionHead>
-      {integration.providerCategories.map((category) => (
-        <ProviderTiles
-          key={category}
-          category={category}
-          label={
-            integration.title.endsWith("providers")
-              ? integration.title
-              : `${integration.title} providers`
-          }
-        />
-      ))}
+      {integration.providerCategories.map((category) =>
+        category === "ai_model_provider" ? (
+          <AiLabs key={category} />
+        ) : (
+          <ProviderTiles
+            key={category}
+            category={category}
+            label={
+              category === "agent_harnesses"
+                ? "Agent harnesses"
+                : integration.title.endsWith("providers")
+                  ? integration.title
+                  : `${integration.title} providers`
+            }
+          />
+        ),
+      )}
     </section>
   );
 }
