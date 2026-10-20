@@ -173,7 +173,7 @@ describe("Settings > Keybindings with a pointer and a keyboard", () => {
   });
 
   it("keeps the tab where there is no matchMedia to ask", () => {
-    renderAt("/settings");
+    renderAt("/settings/keybindings");
     expect(tabNames()).toContain("Keybindings");
   });
 

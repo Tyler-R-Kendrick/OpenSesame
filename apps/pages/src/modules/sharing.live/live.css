@@ -52,7 +52,7 @@
   right: 2px;
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius);
   background: var(--ok, #3fb950);
 }
 

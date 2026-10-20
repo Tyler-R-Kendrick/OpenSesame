@@ -1,5 +1,5 @@
 import { type ComponentType, Suspense, lazy, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
@@ -9,7 +9,12 @@ import { useSettingsCategory } from "./settings/use-settings-category.js";
 
 import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { retiredSettingsAddress } from "@opensesame/app-core/lib/settings-retired.js";
-import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
+import {
+  SETTINGS_GROUPS,
+  categoryFromHash,
+  settingsGroupForCategory,
+  settingsTabsForGroup,
+} from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
 import {
@@ -104,6 +109,8 @@ export function SettingsSection({
   const { hash, pathname, search } = useLocation();
   const tabs = useSettingsTabs();
   const category = useSettingsCategory();
+  const group = settingsGroupForCategory(category);
+  const groupTabs = settingsTabsForGroup(tabs, group.id);
   const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
   const contributedPanels = useCategoryPanels(category);
   // A directory's files are addressed by `?file=` (the rail, the command bar,
@@ -131,11 +138,24 @@ export function SettingsSection({
     <SettingsFileContext.Provider value={fileNav}>
       <div className="section__inner">
         <div className="section__head">
-          <h1>Settings</h1>
+          <h1>{group.label}</h1>
         </div>
 
+        <nav className="set__groups" aria-label="Settings area">
+          {SETTINGS_GROUPS.map((entry) => (
+            <Link
+              key={entry.id}
+              className="set__group-link"
+              to={settingsPath(entry.initialCategory)}
+              aria-current={group.id === entry.id ? "page" : undefined}
+            >
+              {entry.label}
+            </Link>
+          ))}
+        </nav>
+
         <nav className="set__nav" aria-label="Settings sections">
-          {tabs.map((entry) => (
+          {groupTabs.map((entry) => (
             <CategoryLink
               key={entry.id}
               guideId={entry.guideId}
