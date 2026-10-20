@@ -5,6 +5,7 @@ import {
   projectCircleCiPipelines,
   projectDigitalOceanDroplets,
   projectDopplerProjects,
+  projectPlivoNumbers,
 } from "./native-api-ci-cloud-resources.js";
 import { nativeApiResourceActions } from "./native-api-resources.js";
 
@@ -18,7 +19,7 @@ const run = {
 };
 const droplet = { id: 3164444, name: "web-01" };
 const application = { id: "ed0c2a68b6", name: "Compression" };
-it("publishes four bounded inventories through the original API-key action registry", () => {
+it("publishes bounded inventories through the original API-key action registry", () => {
   for (const resource of nativeCiCloudResources) {
     expect(nativeApiResourceActions(resource.providerId, "api-key")).toEqual([
       { id: resource.id, label: resource.label },
@@ -203,3 +204,82 @@ it.each(
 )("rejects malformed or denied Doppler inventory %#", ({ body }) => {
   expect(() => projectDopplerProjects(body)).toThrow();
 });
+
+const number = { number: "18135401302", alias: null };
+const numberMeta = {
+  limit: 20,
+  offset: 0,
+  total_count: 40,
+  next: "https://untrusted.example/next",
+  previous: null,
+};
+it("projects actual Plivo rented-number objects and never follows or exposes metadata URLs", () => {
+  expect(
+    projectPlivoNumbers({
+      meta: numberMeta,
+      objects: [number, { number: "+44123456789", alias: "Support" }],
+      api_id: "ignored",
+      application: "private-application",
+    }),
+  ).toEqual({
+    label: "Showing 2 rented phone numbers from first page",
+    items: [
+      { id: number.number, label: number.number },
+      { id: "44123456789", label: "+44123456789 — Support" },
+    ],
+  });
+  expect(
+    projectPlivoNumbers({
+      meta: { ...numberMeta, total_count: 0, next: null },
+      objects: [],
+    }).items,
+  ).toEqual([]);
+  expect(
+    projectPlivoNumbers({
+      meta: numberMeta,
+      objects: [{ ...number, alias: "" }],
+    }).items[0].label,
+  ).toBe(number.number);
+});
+it.each(
+  [
+    {},
+    { meta: numberMeta, objects: [], error: "denied" },
+    { meta: numberMeta, objects: [{ ...number, number: "" }] },
+    {
+      meta: numberMeta,
+      objects: [{ ...number, number: "https://untrusted.example" }],
+    },
+    { meta: numberMeta, objects: [{ ...number, alias: "private\nline" }] },
+    { meta: numberMeta, objects: [{ number: number.number }] },
+    { meta: numberMeta, objects: [number, number] },
+    {
+      meta: numberMeta,
+      objects: [number, { ...number, number: `+${number.number}` }],
+    },
+    { meta: { ...numberMeta, offset: 20 }, objects: [number] },
+    { meta: { ...numberMeta, total_count: 0 }, objects: [number] },
+    {
+      meta: { ...numberMeta, total_count: Number.MAX_SAFE_INTEGER + 1 },
+      objects: [],
+    },
+    { meta: { ...numberMeta, limit: 0 }, objects: [] },
+    { meta: { ...numberMeta, limit: 21 }, objects: [] },
+    {
+      meta: { ...numberMeta, limit: 1 },
+      objects: [number, { number: "442012345678", alias: "Other" }],
+    },
+    {
+      meta: numberMeta,
+      objects: Array.from({ length: 21 }, (_, i) => ({
+        number: String(i),
+        alias: null,
+      })),
+    },
+  ].map((body) => ({ body })),
+)(
+  "rejects malformed, duplicated, excessive or denied Plivo page %#",
+  ({ body }) => {
+    expect(() => projectPlivoNumbers(body)).toThrow();
+  },
+);

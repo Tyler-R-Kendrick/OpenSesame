@@ -44,9 +44,7 @@ export async function runtimeFixture() {
       const handle = {
         __opfsName: name,
         async isSameEntry(other: RuntimeEntryIdentity): Promise<boolean> {
-          return (
-            (other as { __opfsName?: string }).__opfsName === name
-          );
+          return (other as { __opfsName?: string }).__opfsName === name;
         },
         async getFile() {
           if (!files.has(name) && !created.has(name))

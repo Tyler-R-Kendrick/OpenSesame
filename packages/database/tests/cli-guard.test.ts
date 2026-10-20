@@ -24,10 +24,9 @@ async function runCliGuard(script: "migrate" | "reset", message: string) {
       await import("../src/reset.js");
     }
     expect(errorSpy).toHaveBeenCalledWith(message);
-    await vi.waitFor(
-      () => expect(exitSpy).toHaveBeenCalledWith(1),
-      { timeout: 15_000 },
-    );
+    await vi.waitFor(() => expect(exitSpy).toHaveBeenCalledWith(1), {
+      timeout: 15_000,
+    });
     expect(exitSpy).toHaveBeenCalledTimes(1);
   } finally {
     if (originalArgv1 !== undefined) {

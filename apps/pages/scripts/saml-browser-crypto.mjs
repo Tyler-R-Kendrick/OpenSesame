@@ -86,6 +86,36 @@ export function readSamlBrowserCryptoInputs(root) {
     "f2cc5db5de63f76b35d9c63cc49fbed40731691313da4ec196dfd06516b8821f",
     "shared certificate implementation",
   );
+  const reflectionOwner = createRequire(sharedCertificate);
+  const reflection = {
+    full: realpathSync(reflectionOwner.resolve("reflect-metadata")),
+    lite: realpathSync(reflectionOwner.resolve("reflect-metadata/lite")),
+  };
+  const reflectionPackage = readFileSync(
+    resolve(dirname(reflection.full), "package.json"),
+  );
+  match(
+    sha(reflectionPackage),
+    "e0f6d5cf809e02e338f501d3030e917fa57e3a10044387de890cbf142b4f4083",
+    "reflection package",
+  );
+  match(
+    sha(readFileSync(reflection.full)),
+    "515c16dcde7492755691e3fca9eeca4656f1819b6e3307ecd4b0deaa93ad21e2",
+    "reflection default implementation",
+  );
+  match(
+    sha(readFileSync(reflection.lite)),
+    "92d7537f2c9416514356dc386763a0284cf856a1771c2570bfd9d4e7eced3826",
+    "reflection lite implementation",
+  );
+  const reflectionExports = JSON.parse(reflectionPackage);
+  match(reflectionExports.version, "0.2.2", "reflection version");
+  match(
+    reflectionExports.exports["./lite"].default,
+    "./ReflectLite.js",
+    "official lite export",
+  );
   const application = resolve(esm, "application.js");
   const certificate = resolve(esm, "pki/x509.js");
   const replacements = new Map([
@@ -101,6 +131,7 @@ export function readSamlBrowserCryptoInputs(root) {
   return {
     esm,
     sharedCertificate,
+    reflection,
     callers: callers.slice(0, 3),
     replacements,
     application,
@@ -153,6 +184,14 @@ export function samlBrowserCrypto(root) {
     buildStart() {
       input = readSamlBrowserCryptoInputs(root);
       transformed.clear();
+    },
+    async resolveId(source, importer) {
+      if (source !== "reflect-metadata") return null;
+      if (!input) throw new Error("SAML browser crypto was not initialized");
+      const original = await this.resolve(source, importer, { skipSelf: true });
+      return original?.id === input.reflection.full
+        ? input.reflection.lite
+        : null;
     },
     transform(source, id) {
       if (!input) throw new Error("SAML browser crypto was not initialized");
