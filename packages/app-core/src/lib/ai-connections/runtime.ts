@@ -20,6 +20,7 @@ import {
 import type { AiAudioInput } from "./media.js";
 import { aiConnectionPreset } from "./presets.js";
 import type { ReplicateInput, ReplicateRunOptions } from "./replicate-types.js";
+import { captureSavedAiVault } from "./saved-row-vault.js";
 import { isAiSpeechProvider } from "./speech-target.js";
 import {
   AI_CONNECTION_CLASSIFICATION,
@@ -157,7 +158,7 @@ export async function testAiConnection(
   const callerSignal = options.signal;
   const prediction = { ...options.prediction };
   const audio = captureAiSpeechAudio(options.audio);
-  const guard = await aiVaultSeams.capture();
+  const guard = await captureSavedAiVault(id);
   let completed = false;
   let owner: (() => void) | undefined;
   try {
@@ -203,7 +204,7 @@ export async function saveAiConnection(
   const callerSignal = options.signal;
   const prediction = { ...options.prediction };
   const audio = captureAiSpeechAudio(options.audio);
-  const guard = await aiVaultSeams.capture();
+  const guard = await captureSavedAiVault(id);
   let completed = false;
   let owner: (() => void) | undefined;
   try {
@@ -232,6 +233,8 @@ export async function saveAiConnection(
       prediction,
       audio,
     );
+    check();
+    guard.releaseSavedRow();
     const capture = await stageVaultCredentials(
       {
         name: draft.name,
@@ -289,7 +292,7 @@ export async function performSavedAiInference(
   const prediction = { ...predictionOptions };
   const audio = captureAiSpeechAudio(input.media);
   const supplied = audio === undefined ? input : { ...input, media: audio };
-  const guard = await aiVaultSeams.capture();
+  const guard = await captureSavedAiVault(id);
   let completed = false;
   let owner: (() => void) | undefined;
   try {
