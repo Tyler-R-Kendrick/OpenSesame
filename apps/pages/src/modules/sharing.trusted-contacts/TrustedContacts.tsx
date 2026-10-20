@@ -22,12 +22,14 @@ export function TrustedContacts() {
     return (
       <section
         ref={target}
-        className="panel"
+        className="panel set__security"
         id="trusted-contacts"
-        aria-label="Trusted contacts"
+        aria-labelledby="trusted-contacts-title"
       >
         <div className="panel__head">
-          <h2>Trusted contacts</h2>
+          <div>
+            <h2 id="trusted-contacts-title">Trusted contacts</h2>
+          </div>
         </div>
         <div className="panel__body">
           <div className="actions">
@@ -41,10 +43,22 @@ export function TrustedContacts() {
     );
   }
   return (
-    <div id="trusted-contacts" ref={target}>
-      <CirclesPanel />
-      <GuardingPanel />
-      <RecoveryPanel />
-    </div>
+    <section
+      ref={target}
+      className="panel set__security"
+      id="trusted-contacts"
+      aria-labelledby="trusted-contacts-title"
+    >
+      <div className="panel__head">
+        <div>
+          <h2 id="trusted-contacts-title">Trusted contacts</h2>
+        </div>
+      </div>
+      <div className="panel__body trusted-contacts__body">
+        <CirclesPanel />
+        <GuardingPanel />
+        <RecoveryPanel />
+      </div>
+    </section>
   );
 }

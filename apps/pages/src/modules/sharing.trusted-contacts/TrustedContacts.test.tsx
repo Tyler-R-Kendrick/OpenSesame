@@ -87,30 +87,37 @@ describe("with nothing yet", () => {
 });
 
 describe("the panels' frames", () => {
-  it("are three sections the category's rail names, each with a heading and a polite line", async () => {
+  it("is one Security panel with three titled groups and a polite line each", async () => {
     serve(await deskOf(device(new Clock())));
     render(<TrustedContacts />);
     await screen.findByRole("img", { name: "No recoveries in progress." });
-    const sections = [...document.querySelectorAll("section.panel")];
-    expect(sections.map((s) => s.id)).toEqual([
+    const section = document.querySelector("section#trusted-contacts");
+    expect(section?.className).toContain("set__security");
+    expect(
+      within(section as HTMLElement).getByRole("heading", {
+        level: 2,
+        name: "Trusted contacts",
+      }),
+    ).toBeTruthy();
+    const groups = [...document.querySelectorAll(".trusted-contacts__group")];
+    expect(groups.map((group) => group.id)).toEqual([
       "circles",
       "guarding",
       "recovery",
     ]);
-    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual([
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
       "Circles",
       "Guarding",
       "Recovery",
     ]);
-    for (const section of sections) {
+    for (const group of groups) {
       expect(
-        within(elementById(section.id)).getByRole("heading", { level: 2 }),
+        within(group as HTMLElement).getByRole("heading", { level: 3 }),
       ).toBeTruthy();
-      const live = section.querySelector("output[aria-live=polite]");
+      const live = group.querySelector("output[aria-live=polite]");
       expect(live?.className).toBe("visually-hidden");
-      // A panel's keys ride its head in one group, and no field sits open on the page.
-      expect(section.querySelectorAll("fieldset").length).toBeLessThan(2);
-      expect(section.querySelector("a, input, textarea")).toBeNull();
+      expect(group.querySelectorAll("fieldset").length).toBe(1);
+      expect(group.querySelector("a, input, textarea")).toBeNull();
     }
   });
 

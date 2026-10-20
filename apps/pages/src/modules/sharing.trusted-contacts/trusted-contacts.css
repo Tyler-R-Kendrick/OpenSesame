@@ -1,5 +1,48 @@
 /* Trusted contacts (ADR 0187): the lists of circles, shares held and
-   recoveries, and the packet fields the ceremonies pass between people. */
+   recoveries, and the packet fields the ceremonies pass between people.
+   One Security panel holds three groups with the same head/body rhythm as
+   every other Security panel. */
+
+.trusted-contacts__body {
+  gap: 0;
+}
+
+.trusted-contacts__group {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-block: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.trusted-contacts__group:first-child {
+  padding-block-start: 0;
+  border-top: 0;
+}
+
+.trusted-contacts__group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.trusted-contacts__group-head h3 {
+  margin: 0;
+}
+
+.trusted-contacts__group-body {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.trusted-contacts__commands {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 
 .tc-rows {
   list-style: none;

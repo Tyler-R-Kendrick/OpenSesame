@@ -178,14 +178,20 @@ function Circles({ desk }: { desk: Desk }) {
       {desk.owned.length === 0 ? (
         <div className="actions">
           <StatusMark tone="idle" label="No circles yet." />
-          <button
-            type="button"
-            className="go"
-            onClick={() => open({ kind: "new" }, HEAD_KEY)}
-          >
-            <IconPlus size={16} />
-            Start your first circle
-          </button>
+          <div className="go-row">
+            <button
+              type="button"
+              className="go"
+              aria-label="Start your first circle"
+              title="Start your first circle"
+              onClick={() => open({ kind: "new" }, HEAD_KEY)}
+            >
+              <IconPlus size={18} />
+            </button>
+            <span className="go-verb" aria-hidden="true">
+              Start your first circle
+            </span>
+          </div>
         </div>
       ) : (
         <ul className="tc-rows">
