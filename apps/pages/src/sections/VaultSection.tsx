@@ -47,6 +47,13 @@ import {
   username,
 } from "@opensesame/app-core/sections/vault-section-model.js";
 
+function vaultListTitle(filter: string, folderId: string | null): string {
+  return folderId
+    ? "Folder"
+    : ((filter === "all" ? undefined : vaultFilterLabel(filter)) ??
+        "All items");
+}
+
 export function VaultSection() {
   const [params] = useSearchParams();
   const location = useLocation();
@@ -93,10 +100,7 @@ export function VaultSection() {
   // The crumb's own label (a type's plural from its definition), so the
   // status line under a filter says what the crumb above it says — it used
   // to say "All items" under "Certificates".
-  const title = folderId
-    ? "Folder"
-    : ((filter === "all" ? undefined : vaultFilterLabel(filter)) ??
-      "All items");
+  const title = vaultListTitle(filter, folderId);
   // A filtered "+ new" creates the filter's kind only when that kind may be
   // created on this installation (SURFACE-08); otherwise the default kind.
   const createPath = itemCreatePath(
