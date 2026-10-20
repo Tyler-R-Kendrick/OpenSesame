@@ -8,8 +8,13 @@
  * locked.
  */
 
-import type { BoundaryValue } from "@opensesame/os-domain";
-import { isJsonObject, isNumber, isString } from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
+import {
+  isJsonObject,
+  isNumber,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   b64urlToBytes,
   randomString,
@@ -108,7 +113,7 @@ export async function sealDeadmanPackage(input: {
     id: input.id,
     createdAt: input.createdAt,
     items: input.items.map(
-      (item) => JSON.parse(JSON.stringify(item)) as VaultItem,
+      (item): VaultItem => JSON.parse(JSON.stringify(item)),
     ),
   };
   if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > 1_000_000)
@@ -117,7 +122,9 @@ export async function sealDeadmanPackage(input: {
     );
   const sealed = await sealJson(
     key,
-    payload as unknown as BoundaryValue,
+    // SAFETY: this payload contains the same JSON-round-tripped VaultItem
+    // snapshots above; the identity overlap leaves its serialization unchanged.
+    overlapCast(payload),
     binding(input.tomb, input.id),
   );
   const packageValue: DeadmanPackage = {
@@ -152,6 +159,17 @@ export async function sealDeadmanPackage(input: {
   return { package: packageValue, packageJson, releaseKey };
 }
 
+function invalidPackageEnvelope(value: JsonObject): boolean {
+  return (
+    !isString(value.ivB64) ||
+    value.ivB64.length > 64 ||
+    !isString(value.ctB64) ||
+    value.ctB64.length > 2_800_000 ||
+    !isString(value.digest) ||
+    !/^[A-Za-z0-9_-]{43}$/u.test(value.digest)
+  );
+}
+
 export function parseDeadmanPackage(raw: string | null): DeadmanPackage | null {
   if (!raw) return null;
   try {
@@ -167,15 +185,12 @@ export function parseDeadmanPackage(raw: string | null): DeadmanPackage | null {
       !Number.isSafeInteger(value.itemCount) ||
       value.itemCount < 1 ||
       value.itemCount > DEADMAN_MAX_ITEMS ||
-      !isString(value.ivB64) ||
-      value.ivB64.length > 64 ||
-      !isString(value.ctB64) ||
-      value.ctB64.length > 2_800_000 ||
-      !isString(value.digest) ||
-      !/^[A-Za-z0-9_-]{43}$/u.test(value.digest)
+      invalidPackageEnvelope(value)
     )
       return null;
-    return value as DeadmanPackage;
+    // SAFETY: the predicates above establish the existing package parse
+    // contract and bounds; cryptographic verification remains separate.
+    return overlapCast(value);
   } catch {
     return null;
   }
