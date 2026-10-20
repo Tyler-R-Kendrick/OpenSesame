@@ -1,13 +1,12 @@
 /**
  * The steps verify:live-join walks (ADR 0150), as a person takes them: the
- * owner enters, keeps a login, switches Live sessions on, names routes in
- * Settings › Live sessions › Routes and starts a session; a joiner opens the
+ * owner seals a vault with a PIN, keeps a login, switches Live sessions on,
+ * names routes in Share › Advanced and starts a session; a joiner opens the
  * link, keeps or declines the routes it names, and asks.
  */
 
-import { doorGuest } from "./front-door.mjs";
 import { SHARED_ITEM } from "./live-item-labels.mjs";
-import { addCapabilities, openSettingsCategory } from "./pages-journey.mjs";
+import { addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
@@ -85,7 +84,7 @@ export async function copyFrom(page, key) {
 
 export async function ownerEnters(page, { origin, base, secret }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await doorGuest(page).click();
+  await sealWithPin(page);
   const create = page.getByRole("link", { name: "New item", exact: true });
   await create.first().waitFor({ timeout: 20_000 });
   await create.first().click();
@@ -104,16 +103,31 @@ export async function ownerEnters(page, { origin, base, secret }) {
 }
 
 export async function openLive(page) {
-  // The tab is the capability's: it exists once its module has activated.
-  // Until then the only "Live sessions" on the page is its Features tile.
-  const tab = page.getByRole("link", { name: "Live sessions", exact: true });
-  await tab.first().waitFor({ timeout: 20_000 });
-  await openSettingsCategory(page, "Live sessions");
-  await page.locator("#live-routes").waitFor({ timeout: 20_000 });
-  return {
-    session: page.locator("#live-session"),
-    routes: page.locator("#live-routes"),
-  };
+  const session = page.getByRole("dialog", {
+    name: "Share personal",
+    exact: true,
+  });
+  if (!(await session.isVisible())) {
+    const key = page
+      .getByRole("button", {
+        name: /^(Share this vault|Sharing — live session)$/,
+      })
+      .locator("visible=true");
+    await key.waitFor({ timeout: 20_000 });
+    await key.click();
+  }
+  await session.waitFor({ timeout: 20_000 });
+  const advanced = session.locator("details.live-advanced");
+  if ((await advanced.getAttribute("open")) === null)
+    await advanced.getByText("Advanced", { exact: true }).click();
+  const back = session.getByRole("button", {
+    name: "Back to routes",
+    exact: true,
+  });
+  if (await back.isVisible()) await back.click();
+  const routes = session.locator("#live-routes");
+  await routes.waitFor({ timeout: 20_000 });
+  return { session, routes };
 }
 
 /** Clear Routes, then add what `wanted` names, through the Form. */
@@ -178,10 +192,18 @@ export async function startSession(
 ) {
   const { session } = await openLive(page);
   await session.getByLabel("Session name").fill("Team");
-  await session.getByRole("checkbox", { name: "GitHub" }).check();
+  await session.getByLabel("Share", { exact: true }).selectOption("items");
+  await session
+    .getByRole("checkbox", {
+      name: `${SHARED_ITEM.name} · personal`,
+      exact: true,
+    })
+    .check();
   await session.getByLabel("Values").selectOption(policy);
   await session.getByLabel("Who gets in").selectOption(admission);
-  await session.getByRole("button", { name: "Start the live session" }).click();
+  await session
+    .getByRole("button", { name: "Share this vault", exact: true })
+    .click({ timeout: 20_000 });
   await session.getByRole("img", { name: "Live" }).waitFor();
   const code =
     admission === "invite"
