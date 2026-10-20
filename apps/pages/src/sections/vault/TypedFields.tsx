@@ -12,16 +12,11 @@
  */
 
 import { ENVIRONMENT_ITEM_TYPE } from "@opensesame/app-core/lib/vault/environment-item.js";
-import {
-  asList,
-  asParts,
-  asText,
-} from "@opensesame/app-core/sections/vault/typed-field-inputs-model.js";
+import { asList } from "@opensesame/app-core/sections/vault/typed-field-inputs-model.js";
 import { isString } from "@opensesame/os-domain";
 import {
   FIELD_TYPES,
   type FieldDefinition,
-  type FieldValue,
   type FieldValues,
   type ItemTypeDefinition,
   displayText,
@@ -33,73 +28,13 @@ import {
   FieldRow,
   RevealButton,
 } from "../../components/FieldRow.js";
-import { BlobInput, BlobRow } from "./BlobField.js";
+import { BlobRow } from "./BlobField.js";
 import { OptionalField } from "./EditorExtras.js";
 import {
   EnvironmentFields,
   EnvironmentFieldsRead,
 } from "./EnvironmentFields.js";
-import {
-  RecordInput,
-  RepeatingInput,
-  ScalarInput,
-} from "./TypedFieldInputs.js";
-type ChangeField = (fieldId: string, value: FieldValue) => void;
-
-function FieldControl({
-  field,
-  value,
-  revealed,
-  toggle,
-  onChange,
-}: {
-  field: FieldDefinition;
-  value: FieldValue | undefined;
-  revealed: ReadonlySet<string>;
-  toggle: (key: string) => void;
-  onChange: ChangeField;
-}) {
-  const spec = FIELD_TYPES[field.type];
-  if (spec.valueKind === "record") {
-    return (
-      <RecordInput
-        field={field}
-        parts={asParts(value)}
-        revealedParts={revealed}
-        onToggle={toggle}
-        onChange={(next) => onChange(field.id, next)}
-      />
-    );
-  }
-  if (field.type === "blob") {
-    return (
-      <BlobInput
-        id={field.id}
-        value={asText(value)}
-        onChange={(next) => onChange(field.id, next)}
-      />
-    );
-  }
-  if (field.multiple === true) {
-    return (
-      <RepeatingInput
-        field={field}
-        values={asList(value)}
-        onChange={(next) => onChange(field.id, next)}
-      />
-    );
-  }
-  return (
-    <ScalarInput
-      field={field}
-      value={asText(value)}
-      revealed={revealed.has(field.id)}
-      onToggle={() => toggle(field.id)}
-      onChange={(next) => onChange(field.id, next)}
-    />
-  );
-}
-
+import { type ChangeField, FieldControl } from "./TypedFieldInputs.js";
 /** The editor for every plugin-defined type, drawn from its definition. */
 export function TypedFieldInputs({
   definition,
