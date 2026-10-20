@@ -2,9 +2,9 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-11
-- **Amended:** 2026-10-20 — every live secret is a key by default, folder names
-  prefix its variable, and each environment gets its own schema with vault-item
-  bindings.
+- **Amended:** 2026-10-20 — every live secret that is its own store entry is a
+  key by default, folder names prefix its variable, and each environment gets
+  its own schema with vault-item bindings.
 - **Deciders:** OpenSesame maintainers
 - **Supplements:** ADR 0130 ([operator-controlled capability composition](0130-operator-controlled-capability-composition.md)),
   ADR 0144 (field-time merge), ADR 0149 ([nothing stored in the clear](0149-nothing-stored-in-the-clear.md)),
@@ -43,10 +43,12 @@ Settings › Capabilities › Environments until ADR 0189 split that page) showe
 The decision here is what an environment *is* in the vault's data, and what the
 `.env.schema` is relative to it. `.env.schema` as a new vault item type was the
 first option raised, so it is weighed directly. The first environment now
-starts from **every live secret** in the vault, because a default schema that
-omits most of the vault is not a useful description of it; a person can remove
-a key and add it back. The original module's fault was not that default, but
-that it had no per-environment values, no opt-out and no folder namespacing.
+starts from **every live secret with its own store entry** in the vault, because
+a default schema that omits most of the vault is not a useful description of
+it; a person can remove a key and add it back. A credential bound to an account
+is part of that account's entry and is not a separate key. The original
+module's fault was not that default, but that it had no per-environment values,
+no opt-out and no folder namespacing.
 
 ## Options considered
 
@@ -112,9 +114,12 @@ One item per vault, of a new type whose body is the schema text.
 
 `BaseItem.environments?: Readonly<Record<string, EnvironmentCell>>` with
 `EnvironmentCell = { value?: string; required?: boolean }`. The
-`environmentsExcluded: true` flag is the one way out: **every live secret is a
-key by default**, whether or not it has a cell yet, and the object appears only once a value or rule is set.
-A vault that never uses the feature therefore carries no environment data and
+`environmentsExcluded: true` flag is the one way out: **every live secret that
+is its own store entry is a key by default**, whether or not it has a cell yet,
+and the object appears only once a value or rule is set. A credential bound to
+an account rides inside that account's sealed-store entry, so it is not offered
+as a separate key; its environment values would have no entry of their own. A
+vault that never uses the feature therefore carries no environment data and
 still has no schemas. Removing a key sets `environmentsExcluded` and drops its
 cells; adding it back clears the flag and starts an empty object. A secret
 created after the first environment is a key without any write, because the
@@ -260,9 +265,10 @@ a value gets a `ConnectionRef` and an Intent (ADR 0005), not a `.env`.
   on every render.
 - Renaming an item or its folder renames its schema key. That is deliberate
   (the item *is* the key) and the sheet shows the derived key beside each row so
-  it is never a surprise. Every live secret is in the first environment's
-  schema by default, so a large vault names many keys; the folder prefix keeps
-  those names apart.
+  it is never a surprise. Every live secret with its own store entry is in the
+  first environment's schema by default, so a large vault names many keys; the
+  folder prefix keeps those names apart. A bound credential is deliberately not
+  one of them, because its sealed-store entry belongs to its account.
 - Trash, purge, restore and field-level merge behave for cells because the cells
   are on the item. A purged item leaves no orphan cell.
 - Removing an environment on one device while another sets a value for it

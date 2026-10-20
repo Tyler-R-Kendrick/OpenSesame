@@ -64,6 +64,37 @@ describe("environments through the sealed store", () => {
     expect(merged.environments).toEqual({ production: { value: "sk_live" } });
   });
 
+  it("lets an exclusion win over cells in a hand-edited trailer", () => {
+    const entry = itemToStoreEntry(key(), []);
+    const meta: OsMeta = {
+      ...parseTrailerMeta(entry.trailer),
+      environmentsExcluded: true,
+    };
+    const back = entryToVaultItem({
+      ...entry,
+      trailer: `${JSON.stringify(meta)}\n`,
+    });
+    expect(back.environmentsExcluded).toBe(true);
+    expect(back.environments).toBeUndefined();
+  });
+
+  it("writes no cells for an item that is out of the schema", () => {
+    const item = { ...key(), environmentsExcluded: true as const };
+    const meta = parseTrailerMeta(itemToStoreEntry(item, []).trailer);
+    expect(meta.environmentsExcluded).toBe(true);
+    expect(meta.environments).toBeUndefined();
+  });
+
+  it("keeps an old-format entry from restoring cells on an excluded item", () => {
+    const current = { ...key(), environmentsExcluded: true as const };
+    const incoming = entryToVaultItem(
+      itemToStoreEntry(createItem("secret", "Stripe key"), []),
+    );
+    const merged = graftOnto(current, incoming, true);
+    expect(merged.environmentsExcluded).toBe(true);
+    expect(merged.environments).toBeUndefined();
+  });
+
   it("read only the valid cells of a hand-edited trailer", () => {
     const entry = itemToStoreEntry(key(), []);
     const hostile: JsonObject = {

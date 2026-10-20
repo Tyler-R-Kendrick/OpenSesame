@@ -125,10 +125,8 @@ export function applyEnvironmentsEdit(
     case "add-key":
       mapItem(body, edit.itemId, (item) => {
         if (!canBeKey(item)) throw new Error("That item cannot be a key.");
-        return withExclusion(
-          item.environments ? item : withEnvironments(item, {}),
-          false,
-        );
+        if (item.environments && !item.environmentsExcluded) return item;
+        return withExclusion(withEnvironments(item, {}), false);
       });
       break;
     case "remove-key":

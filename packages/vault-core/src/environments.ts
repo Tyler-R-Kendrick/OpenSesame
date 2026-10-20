@@ -2,7 +2,8 @@
  * Environments in a vault body (ADR 0194).
  *
  * An item is a key in the vault's `.env.<name>.schema` unless a person set
- * `environmentsExcluded`, so every live secret is a key by default. Its
+ * `environmentsExcluded`, so every live secret with its own store entry is a
+ * key by default. Its
  * `environments` object holds one cell per environment: the value sealed for
  * that environment, and whether the key is required there. The object appears
  * only once a value or a rule is set. The body carries the

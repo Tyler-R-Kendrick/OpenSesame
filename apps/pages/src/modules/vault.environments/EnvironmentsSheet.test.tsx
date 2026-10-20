@@ -278,7 +278,7 @@ describe("the Environments sheet", () => {
     const again = await screen.findByRole("button", {
       name: "Press again to take STRIPE_KEY out of every environment",
     });
-    expect(itemNamed("Stripe key").environments).toEqual({});
+    expect(itemNamed("Stripe key").environments).toBeUndefined();
     await user.click(again);
     await waitFor(() =>
       expect(itemNamed("Stripe key").environmentsExcluded).toBe(true),

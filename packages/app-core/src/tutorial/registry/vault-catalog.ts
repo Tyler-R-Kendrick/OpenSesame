@@ -39,7 +39,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.environments",
     description:
-      "Opens the Environments sheet from the vault's key strip: the vault's environments as tabs, each secret's value and whether it is required there, and one generated .env.<name>.schema per environment. Every secret is a key by default, folder-prefixed and removable; a picker adds one back. Present only once Environments is switched on in Settings › Features. Values are sealed in the vault and concealed until shown.",
+      "Opens the Environments sheet from the vault's key strip: the vault's environments as tabs, each secret's value and whether it is required there, and one generated .env.<name>.schema per environment. Every standalone secret is a key by default, folder-prefixed and removable; a picker adds one back. Present only once Environments is switched on in Settings › Features. Values are sealed in the vault and concealed until shown.",
     role: "ceremony",
     routes: ["/vault"],
     capabilityId: null,

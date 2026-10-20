@@ -38,7 +38,7 @@ export const SECURITY_CHECKS_SUMMARY =
  * catalog's 400-character summary limit.
  */
 export const ENVIRONMENTS_SUMMARY =
-  "Give a vault's secrets a value for each environment (development, staging, production), folder-prefixed where they are filed, and mark each required where it must have one. One .env.<name>.schema is generated per environment with item bindings but no values; a required key with no value is flagged in the bell. Adds an Environments key to the vault. Values stay sealed in the vault.";
+  "Give a vault's standalone secrets a value for each environment (development, staging, production), folder-prefixed where they are filed, and mark each required where it must have one. One .env.<name>.schema is generated per environment with item bindings but no values; a required key with no value is flagged in the bell. Adds an Environments key to the vault. Values stay sealed in the vault.";
 
 /**
  * What Settings says `sharing.trusted-contacts` does. Kept under the catalog's

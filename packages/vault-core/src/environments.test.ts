@@ -4,6 +4,7 @@
  * wrong clock cannot lose it.
  */
 import { describe, expect, it } from "vitest";
+import { createCredential } from "./credential.js";
 import { canBeKey } from "./environment-keys.js";
 import {
   type VaultEnvironments,
@@ -103,6 +104,12 @@ describe("which items may be keys", () => {
     expect(canBeKey({ ...createItem("drop", "One-time share"), id: "d" })).toBe(
       false,
     );
+    const own = createCredential(
+      { id: "c", type: "api-key", key: "k", header: "" },
+      "Standalone token",
+    );
+    expect(canBeKey(own)).toBe(true);
+    expect(canBeKey({ ...own, accountId: "account" })).toBe(false);
   });
 });
 
@@ -261,6 +268,26 @@ describe("an item's cells across two devices", () => {
       production: { value: "p0", required: true },
     },
   };
+
+  it("drops cells when one copy took the item out of the schema", () => {
+    const excluded = editedAt(
+      T2,
+      (item) => ({ ...item, environmentsExcluded: true }),
+      ORIGINAL,
+    );
+    const stale = editedAt(
+      T1,
+      (item) => ({
+        ...item,
+        environments: { production: { value: "stale-secret" } },
+      }),
+      ORIGINAL,
+    );
+    const merged = both(excluded, stale);
+    expect(merged.environmentsExcluded).toBe(true);
+    expect(merged.environments).toBeUndefined();
+    expect(JSON.stringify(merged)).not.toContain("stale-secret");
+  });
 
   it("keeps production edited on one device and staging on the other", () => {
     const here = editedAt(

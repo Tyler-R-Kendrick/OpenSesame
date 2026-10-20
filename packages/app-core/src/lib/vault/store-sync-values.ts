@@ -353,7 +353,8 @@ export function graftOnto(
       !incoming.environments &&
       current.environmentsExcluded
     ) {
-      next.environmentsExcluded = true;
+      const { environments: _cells, ...withoutCells } = next;
+      next = overlapCast({ ...withoutCells, environmentsExcluded: true });
     }
     // A manifest never says which account a credential is bound to.
     if (next.kind === "credential" && current.kind === "credential") {

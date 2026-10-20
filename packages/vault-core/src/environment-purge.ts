@@ -7,7 +7,8 @@
  * environment that no longer exists, never shown, never in the schema, and back
  * on screen if the name were ever added again. So the merge drops cells whose
  * environment the merged list marks as removed. Only a marker counts: a name the
- * list simply does not mention keeps its cells.
+ * list simply does not mention keeps its cells. It also drops every cell from an
+ * item a person took out of the schema, so an add-back starts empty.
  */
 
 import { overlapCast } from "@opensesame/os-domain";
@@ -19,6 +20,11 @@ export function withoutRemovedCells(
   item: VaultItem,
   environments: VaultEnvironments | undefined,
 ): VaultItem {
+  if (item.environmentsExcluded) {
+    if (!item.environments) return item;
+    const { environments: _cells, ...withoutCells } = item;
+    return overlapCast(withoutCells);
+  }
   const cells = item.environments;
   if (!cells || !environments) return item;
   const entries = Object.entries(cells);

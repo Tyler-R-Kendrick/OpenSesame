@@ -14,7 +14,7 @@ export const ENVIRONMENTS_GOAL = {
   guide: [
     "guide/1",
     'goal "vault.environments"',
-    'say "An environment is a place a key is used: development, staging, production. Every secret starts as a key, and each environment holds its own sealed value for it."',
+    'say "An environment is a place a key is used: development, staging, production. Every standalone secret starts as a key, and each environment holds its own sealed value for it."',
     'wait state "vault.unlocked" is=true timeout=60000',
     'navigate "/vault"',
     'wait route "/vault" timeout=15000',
