@@ -3740,3 +3740,58 @@ details[open] > summary::before {
   gap: 0.6rem;
   min-width: 0;
 }
+
+/* Deadman switch: a release key is read once, then item choices and the
+   relay pair below it. The package itself is never rendered here. */
+.deadman__actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.deadman__form,
+.deadman__confirm {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.deadman__items {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.deadman__items legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.deadman__list {
+  display: grid;
+  gap: 0.2rem;
+  max-height: 18rem;
+  overflow: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+}
+
+.deadman__item {
+  align-items: baseline;
+}
+
+.deadman__kind {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.deadman__key {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}

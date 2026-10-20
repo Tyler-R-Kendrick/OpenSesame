@@ -44,6 +44,7 @@ import {
   useTheme as defaultUseTheme,
   useVault as defaultUseVault,
 } from "./lib/vault/hooks.js";
+import { DeadmanRelease } from "./screens/DeadmanRelease.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
@@ -332,6 +333,7 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const wrappers = resolved.useShellWrappers();
   const { status } = resolved.useVault();
   const isAuthCallback = resolved.hasAuthResponse(location.search);
+  const isDeadmanRelease = location.pathname === "/deadman";
   useEffect(() => activatePlan(compositionStore), []);
   useEffect(() => {
     // Unit tests import their own doubles; preloading the real shell there
@@ -360,6 +362,12 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
     <GateHost wrappers={wrappers}>
       <resolved.FederationReturn />
     </GateHost>
+  ) : isDeadmanRelease ? (
+    <GateHost wrappers={wrappers}>
+      <Framed>
+        <DeadmanRelease />
+      </Framed>
+    </GateHost>
   ) : ungated ? (
     <GateHost wrappers={wrappers}>
       <UngatedRoute route={ungated} />
@@ -371,7 +379,11 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   // The unlocked shell carries its own bell. Every other screen — locked,
   // the federated return, a route on its own page — has none, and a failure
   // is a notice in the tray, so it gets the corner one.
-  const shellless = isAuthCallback || ungated !== null || status !== "unlocked";
+  const shellless =
+    isAuthCallback ||
+    isDeadmanRelease ||
+    ungated !== null ||
+    status !== "unlocked";
 
   return (
     <AppSlotsContext.Provider value={resolved}>

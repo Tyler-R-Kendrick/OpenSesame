@@ -273,3 +273,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0207](0207-release-kit-binaries.md) | A release kit of native binaries, verified by digest | Accepted |
 | [0207](0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md) | Retired credentials and controlled canaries are owner ceremonies | Accepted |
 | [0208](0208-hosting-starts-at-the-share-key.md) | Hosting starts at the Share key, not a Settings page | Accepted |
+| [0209](0209-deadman-switch.md) | A deadman switch is a release envelope with a relay witness | Accepted |

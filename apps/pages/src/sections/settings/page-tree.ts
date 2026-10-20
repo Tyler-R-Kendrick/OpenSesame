@@ -37,6 +37,8 @@ export type SettingsRailSnapshot = {
   contributed?: readonly ContributedPanel[];
   /** Security › Duress draws (the owner of an open vault; never a guest or a decoy). */
   duress?: boolean;
+  /** Security › Deadman switch draws (the owner of an open vault). */
+  deadman?: boolean;
   /** Security › Your account draws (an Identity session is held). */
   account?: boolean;
   /**
@@ -146,10 +148,15 @@ const SECTION_BUILDERS = {
       ? [panel("security", "account-factors", "Your account")]
       : []),
     ...contributed,
-    ...(snapshot.duress
+    ...(snapshot.duress || snapshot.deadman
       ? [
-          panel("security", "duress-profiles", "Duress"),
-          panel("security", "travel", "Travel"),
+          ...(snapshot.duress
+            ? [panel("security", "duress-profiles", "Duress")]
+            : []),
+          ...(snapshot.deadman
+            ? [panel("security", "deadman-switch", "Deadman switch")]
+            : []),
+          ...(snapshot.duress ? [panel("security", "travel", "Travel")] : []),
         ]
       : []),
   ],

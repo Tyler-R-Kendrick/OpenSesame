@@ -25,6 +25,7 @@ import {
   bindClaimLockReset,
   captureClaimArrivalFromPage,
 } from "@opensesame/app-core/lib/claims/arrival.js";
+import { deadmanBootKeys } from "@opensesame/app-core/lib/deadman/keys.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
 import { resumeWipeAtBoot } from "@opensesame/app-core/lib/duress/wipe/real.js";
 import { restoreConfiguredIdentityAtBootIfPresent } from "@opensesame/app-core/lib/federation-configured-lazy.js";
@@ -144,6 +145,7 @@ export async function bootCore(): Promise<CoreBoot> {
     ...projectScopedKeys(),
     ...tombStorageKeys(tomb),
     ...(guestTomb ? tombStorageKeys(guestTomb) : []),
+    ...deadmanBootKeys(tomb),
     vaultSelectionKey(tomb),
     // Every vault's plaintext header, so the front door says which ones are
     // sealed. Only the active tomb's was read, and the others drew as "not
