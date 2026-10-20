@@ -3,8 +3,30 @@
   overflow: visible;
 }
 
-.unlock--lock-v5.unlock--doors {
+/* The lock screen is an overlay, not a page in the shell's flow: it can sit
+   over the already-mounted vault while the doors pull back. */
+.unlock.unlock--lock-v5 {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: auto;
+  background: var(--canvas);
+}
+
+/* Only the moving panels are left during the reveal. The vault behind is the
+   surface the doors uncover. */
+.unlock.unlock--lock-v5.unlock--doors {
   overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+.unlock.unlock--lock-v5.unlock--doors > * {
+  pointer-events: none;
+}
+
+.unlock--lock-v5.unlock--doors .cipher-dial {
+  opacity: calc(1 - var(--unlock-door-progress, 1));
 }
 
 .unlock--lock-v5.unlock--doors .unlock__hero {

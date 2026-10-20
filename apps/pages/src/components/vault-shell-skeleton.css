@@ -1,0 +1,122 @@
+/* The unlocked shell's frame while its lazy modules land. Same grid and
+   surfaces as AppShell, so the real shell replaces it without a jump. */
+.vault-skeleton {
+  background: var(--surface);
+}
+
+.vault-skeleton .rail {
+  background: var(--rail);
+}
+
+.vault-skeleton__bar {
+  display: block;
+  border-radius: 0.35rem;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--surface-2) 80%, transparent) 20%,
+    color-mix(in srgb, var(--surface-2) 45%, transparent) 40%,
+    color-mix(in srgb, var(--surface-2) 80%, transparent) 60%
+  );
+  background-size: 220% 100%;
+  animation: vault-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.vault-skeleton__wordmark {
+  inline-size: 9.5rem;
+  block-size: 1.25rem;
+}
+
+.vault-skeleton__prompt {
+  inline-size: 8rem;
+  block-size: 0.9rem;
+}
+
+.vault-skeleton__rows {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.35rem 0.35rem 0;
+}
+
+.vault-skeleton__row {
+  block-size: 0.8rem;
+}
+
+.vault-skeleton__topbar {
+  display: flex;
+  align-items: center;
+  min-block-size: 3rem;
+  padding: 0.5rem 1rem;
+  border-block-end: 1px solid var(--line);
+}
+
+.vault-skeleton__crumb {
+  inline-size: 12rem;
+  block-size: 0.8rem;
+}
+
+.vault-skeleton__content {
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  overflow: hidden;
+}
+
+.vault-skeleton__intro {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.vault-skeleton__title {
+  inline-size: min(18rem, 38%);
+  block-size: 1.4rem;
+}
+
+.vault-skeleton__lede {
+  inline-size: min(28rem, 58%);
+  block-size: 0.85rem;
+}
+
+.vault-skeleton__card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.vault-skeleton__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-block-size: 2.5rem;
+  padding-inline: 0.5rem;
+  border-radius: 0.45rem;
+}
+
+.vault-skeleton__icon {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+  flex: none;
+}
+
+.vault-skeleton__line {
+  block-size: 0.75rem;
+}
+
+@keyframes vault-skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-skeleton__bar {
+    animation: none;
+    background: var(--surface-2);
+  }
+}

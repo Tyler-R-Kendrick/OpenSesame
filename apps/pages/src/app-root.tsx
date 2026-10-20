@@ -10,7 +10,14 @@ import {
   useEffect,
   useSyncExternalStore,
 } from "react";
-import { Link, Navigate, Route, Routes, useLocation } from "react-router";
+import {
+  Link,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router";
 import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
 import { Wrapped } from "./components/ShellWrappers.js";
 import { ContextMenuLayer } from "./components/context-menu/ContextMenuLayer.js";
@@ -26,6 +33,10 @@ import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compart
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { Notices } from "./components/Notices.js";
+import {
+  VaultContentSkeleton,
+  VaultShellSkeleton,
+} from "./components/VaultShellSkeleton.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
 import { useSwUpdateHost } from "./lib/sw-update-guard.js";
 import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
@@ -47,19 +58,27 @@ import { useShellReady as defaultUseShellReady } from "./bindings/shell-ready.js
 // from an approved capability's runtime, so nothing optional is imported
 // here — not even lazily. A lazy import is still a reference the bundle graph
 // follows; a contribution is a value a module hands over once it is approved.
+const loadAppShell = () => import("./components/AppShell.js");
+const loadVaultSection = () => import("./sections/VaultSection.js");
 const DefaultAppShell = lazy(() =>
-  import("./components/AppShell.js").then((m) => ({ default: m.AppShell })),
+  loadAppShell().then((m) => ({ default: m.AppShell })),
 );
 const DefaultVaultSection = lazy(() =>
-  import("./sections/VaultSection.js").then((m) => ({
-    default: m.VaultSection,
-  })),
+  loadVaultSection().then((m) => ({ default: m.VaultSection })),
 );
 const DefaultVaultWelcome = lazy(() =>
-  import("./sections/VaultSection.js").then((m) => ({
-    default: m.VaultWelcome,
-  })),
+  loadVaultSection().then((m) => ({ default: m.VaultWelcome })),
 );
+
+/**
+ * The unlock screen is the only thing between a person and their vault. Warm
+ * the shell and its first screen while that gate is still up, so the doors
+ * reveal the vault instead of an empty canvas and a second network wait.
+ * Failure is allowed to be quiet: the lazy boundaries render the skeleton.
+ */
+export function preloadVaultShell(): void {
+  void Promise.all([loadAppShell(), loadVaultSection()]).catch(() => undefined);
+}
 const DefaultHealthPanel = lazy(() =>
   import("./sections/vault/HealthPanel.js").then((m) => ({
     default: m.HealthPanel,
@@ -265,6 +284,7 @@ function VaultApp() {
     unlockCeremonyStore.getSnapshot,
   );
   const location = useLocation();
+  const navigate = useNavigate();
   const routes = slots.useRouteContributions();
   const wrappers = slots.useShellWrappers();
   const effects = slots.useUnlockEffects();
@@ -279,32 +299,21 @@ function VaultApp() {
     slots.recoverPendingFederatedLink,
   );
 
-  if (status !== "unlocked" || ceremonyActive) {
-    return (
-      <GateHost wrappers={wrappers}>
-        <slots.UnlockScreen />
-      </GateHost>
-    );
-  }
-
-  // Mounting before the unlock's own generation has activated builds the
-  // shell from registrations that are about to be revoked (bindings/shell-ready).
-  if (!shellReady) return null;
-
   // Land on the vault before the shell mounts: the rail's sections open from
   // the route they first render under, and mounting on "/" would leave every
   // one of them closed.
-  if (location.pathname === "/") {
-    return <Navigate to="/vault" replace />;
-  }
+  useEffect(() => {
+    if (status === "unlocked" && location.pathname === "/")
+      navigate("/vault", { replace: true });
+  }, [location.pathname, navigate, status]);
 
-  return (
+  const shell = (
     // The shell is one Suspense boundary and the section inside it another,
     // so a section still loading never blanks the rail around it.
-    <Suspense fallback={null}>
+    <Suspense fallback={<VaultShellSkeleton />}>
       <Wrapped wrappers={wrappers}>
         <slots.AppShell>
-          <Suspense fallback={<p className="hint">Loading…</p>}>
+          <Suspense fallback={<VaultContentSkeleton />}>
             <Routes>
               <Route path="/" element={<Navigate to="/vault" replace />} />
               <Route path="/vault" element={<slots.VaultSection />}>
@@ -337,6 +346,33 @@ function VaultApp() {
       </Wrapped>
     </Suspense>
   );
+
+  if (status !== "unlocked") {
+    return (
+      <GateHost wrappers={wrappers}>
+        <slots.UnlockScreen />
+      </GateHost>
+    );
+  }
+
+  // The unlocked shell mounts behind the door ceremony as soon as its
+  // generation activates, so the doors reveal the vault itself. Before that
+  // the same frame is a skeleton: never a blank canvas, and never a second
+  // layout shift when the real shell arrives.
+  if (ceremonyActive || !shellReady) {
+    return (
+      <>
+        {shellReady ? shell : <VaultShellSkeleton />}
+        {ceremonyActive ? (
+          <GateHost wrappers={wrappers}>
+            <slots.UnlockScreen />
+          </GateHost>
+        ) : null}
+      </>
+    );
+  }
+
+  return shell;
 }
 
 /**
@@ -355,6 +391,11 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const { status } = resolved.useVault();
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   useEffect(() => activatePlan(compositionStore), []);
+  useEffect(() => {
+    // Unit tests import their own doubles; preloading the real shell there
+    // would register side effects the test did not ask for.
+    if (import.meta.env.MODE !== "test") preloadVaultShell();
+  }, []);
   if (
     import.meta.env.DEV &&
     DevLockV5Demo &&

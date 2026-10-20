@@ -19,6 +19,26 @@
   }
 }
 
+.vault-doors__panel {
+  position: fixed;
+  inset-block: 0;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+  background: var(--surface);
+}
+
+.vault-doors__panel--right {
+  inset-inline-end: 0;
+  background: var(--unlock-notes-pane);
+}
+
+@media (max-width: 1099px) {
+  .vault-doors__panel {
+    background: var(--canvas);
+  }
+}
+
 .vault-doors__seam {
   position: fixed;
   top: 0;

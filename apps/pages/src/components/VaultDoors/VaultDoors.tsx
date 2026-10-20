@@ -66,15 +66,18 @@ export function VaultDoors({
       unlockEl.classList.remove("unlock--doors");
       unlockEl.style.removeProperty("--unlock-door-shift");
       unlockEl.style.removeProperty("--unlock-door-split");
+      unlockEl.style.removeProperty("--unlock-door-progress");
       return;
     }
     unlockEl.classList.add("unlock--doors");
     unlockEl.style.setProperty("--unlock-door-split", `${splitX}px`);
     unlockEl.style.setProperty("--unlock-door-shift", `${progress * 102}%`);
+    unlockEl.style.setProperty("--unlock-door-progress", `${progress}`);
     return () => {
       unlockEl.classList.remove("unlock--doors");
       unlockEl.style.removeProperty("--unlock-door-shift");
       unlockEl.style.removeProperty("--unlock-door-split");
+      unlockEl.style.removeProperty("--unlock-door-progress");
     };
   }, [active, paneRef, progress, splitX]);
 
@@ -86,6 +89,22 @@ export function VaultDoors({
 
   return (
     <>
+      <div
+        className="vault-doors__panel vault-doors__panel--left"
+        style={{
+          inlineSize: `${splitX}px`,
+          transform: `translate3d(${-progress * 100}%, 0, 0)`,
+        }}
+        aria-hidden="true"
+      />
+      <div
+        className="vault-doors__panel vault-doors__panel--right"
+        style={{
+          insetInlineStart: `${splitX}px`,
+          transform: `translate3d(${progress * 100}%, 0, 0)`,
+        }}
+        aria-hidden="true"
+      />
       <div
         className="vault-doors__seam vault-doors__seam--left"
         style={{
