@@ -230,6 +230,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/self-hosted-connectors.ts": "connectors.external",
       "src/lib/self-hosted-connectors.test.ts": "connectors.external",
       "src/lib/self-hosted-connectors.durable.test.ts": "connectors.external",
+      "src/lib/siop-social.ts": "identity.siop",
       "src/lib/connector-action-capability.ts": "connectors.external",
       "src/lib/connector-action-capability.test.ts": "connectors.external",
       "src/modules/sharing.drops/runtime.ts": "sharing.drops",
@@ -251,6 +252,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/local-directory.ts",
       "src/lib/local-sessions.ts",
       "src/lib/local-share-reach.ts",
+      "src/lib/local-groups.ts",
       "src/lib/connections.ts",
       "src/lib/tailscale/browser-node-port.ts",
       "src/lib/tailscale/browser-node-store.ts",
@@ -336,6 +338,17 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(classify("node_modules/age-encryption")?.capability).toBe(
       "backup.cloud-secrets",
     );
+  });
+
+  it("keeps SIOP social optional and limits the new ownership to exact files", () => {
+    expect(classify("src/lib/siop-social.ts")?.classification).toBe("optional");
+    for (const path of [
+      "src/lib/siop-social.test.ts",
+      "src/lib/siop-social-helper.ts",
+      "src/lib/local-groups.test.ts",
+      "src/lib/local-groups-helper.ts",
+    ])
+      expect(classify(path), path).toBeNull();
   });
 
   it("prefix matching continues only on '.', '-' or '/'", () => {
