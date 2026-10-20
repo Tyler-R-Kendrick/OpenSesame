@@ -1,15 +1,11 @@
 /** @vitest-environment node */
-import { CONNECT_PLAN_JSON } from "@opensesame/app-core/lib/connect-presets.generated.js";
-import { describe, expect, it, vi } from "vitest";
-import { nativeApiFixture } from "./native-browser-provider-fixtures.mjs";
+import { describe, expect, it } from "vitest";
+import {
+  nativeApiFixture,
+  nativeBrowserPlans,
+} from "./native-browser-provider-fixtures.mjs";
 
-// Fixture behavior consumes the actual generated plans; full catalog projection is unrelated.
-vi.mock("./native-browser-catalog-projection.mjs", () => ({
-  NATIVE_CONNECT_PLAN_JSON: [],
-}));
-const agentmail = CONNECT_PLAN_JSON.map((text) => JSON.parse(text)).find(
-  (plan) => plan.id === "agentmail",
-);
+const agentmail = nativeBrowserPlans().find((plan) => plan.id === "agentmail");
 
 describe("AgentMail documented readonly browser fixture", () => {
   it("supports the actual generated API-key preset without inventing an account field", () => {
