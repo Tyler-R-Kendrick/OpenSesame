@@ -134,7 +134,7 @@ function ui(): NativeKeyUi {
     name: "Azure Key Vault Secrets",
     methodLabel: "Key Vault access token",
     instructions:
-      "Supply your vault URL and an issued Bearer access token for the Key Vault audience https://vault.azure.net. The token needs secret list/get permission in that vault. Microsoft Graph tokens are not used. Requests use the configured native transport; no application server is required. Replace an expired token here.",
+      "Supply your vault URL and an issued Bearer access token for the Key Vault audience https://vault.azure.net. Verify and connect checks secret list access in that vault; reading values also requires get permission. Encrypted backups require set and get. Optional logical-secret deletion requires delete permission and removes the whole version chain under the vault soft-delete policy; this integration never purges secrets. Writes create a new immutable version. Microsoft Graph tokens are not used. Requests use the configured native transport; no application server is required. Replace an expired token here.",
     fields: [
       {
         id: "vault_url",
