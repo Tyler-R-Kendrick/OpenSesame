@@ -259,7 +259,7 @@ describe("holding the Add button on a phone", () => {
       contextMenuSnapshot()
         ?.groups.flat()
         .map((entry) => entry.label),
-    ).toEqual(["Import items", "Export items", "Open a claim"]);
+    ).toEqual(["Import items", "Export items"]);
     closeContextMenu();
   });
 
@@ -267,11 +267,7 @@ describe("holding the Add button on a phone", () => {
     renderVault("/vault");
     fireEvent.contextMenu(plus());
     const entries = contextMenuSnapshot()?.groups.flat() ?? [];
-    expect(entries.map((entry) => entry.id)).toEqual([
-      "import",
-      "export",
-      "claim",
-    ]);
+    expect(entries.map((entry) => entry.id)).toEqual(["import", "export"]);
     expect(
       document.querySelector('input[type="file"][aria-label]'),
     ).not.toBeNull();

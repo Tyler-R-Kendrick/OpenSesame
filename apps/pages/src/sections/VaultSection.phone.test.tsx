@@ -156,7 +156,7 @@ describe("the vault on a phone", () => {
     fireEvent.contextMenu(plus);
     expect(
       screen.getAllByRole("menuitem").map((entry) => entry.textContent),
-    ).toEqual(["Import items", "Export items", "Open a claim"]);
+    ).toEqual(["Import items", "Export items"]);
     expect(slideZones().up?.id).toBe("import");
     expect(slideZones().down?.id).toBe("export");
   });
