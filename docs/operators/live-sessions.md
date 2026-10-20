@@ -8,7 +8,8 @@ are on the same network.
 
 Everything on this page is optional, and everything is yours: the product
 ships no relay, carrier, STUN or TURN server, and uses none unless the owner names
-it. You name routes in **Settings › Live sessions › Routes**. The same
+it. You name routes under **Advanced** in the sheet the Share key — beside
+the vault's name, next to the lock — opens. The same
 profile is the file `settings/live/transport.json`, sealed in the vault, so
 it can hold credentials:
 
@@ -282,7 +283,7 @@ An instance policy
 like any optional capability, and a carrier is external service egress:
 
 - **The operator can prohibit `sharing.live`.** Nothing of it loads; the join
-  road and the Settings tab are absent. If the plan stops approving it while a
+  road and the Share key are absent. If the plan stops approving it while a
   session is running — the operator withdrew it, or the person switched Live
   sessions off in Settings › Features — the session ends at once, hosted
   or joined: the peer connection, the carriers and ntfy's stream are closed.

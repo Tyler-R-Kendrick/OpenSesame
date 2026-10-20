@@ -1,9 +1,8 @@
 /** @vitest-environment jsdom */
-import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   filterLink,
   registerContributedShell,
@@ -11,6 +10,7 @@ import {
   resetShellRender,
   seedVault,
 } from "../app-shell.test-harness.js";
+import { VaultShareProvider } from "../vault-share-seat.js";
 import { ContextMenuLayer } from "./ContextMenuLayer.js";
 
 /** Where the shell's router is, so a test can see a menu item navigate. */
@@ -227,48 +227,24 @@ describe("the rail's context menu", () => {
 });
 
 /**
- * Share › Session hands this vault to people who open a link, so it lands on
- * the panel that hosts one. `/live` is the other side of that link — the join
- * screen — and is never where an owner broadcasts from.
+ * Share › Session hands this vault to people who open a link, so it opens
+ * the share sheet that hosts one. `/live` is the other side of that link —
+ * the join screen — and is never where an owner broadcasts from.
  */
 describe("the vault row's Share › Session entry", () => {
   let revokeShell: readonly (() => void)[] = [];
-  let revokeLive: readonly (() => void)[] = [];
   beforeEach(() => {
     revokeShell = registerContributedShell();
     seedVault();
   });
   afterEach(() => {
-    for (const revoke of [...revokeLive, ...revokeShell]) revoke();
-    revokeLive = [];
+    for (const revoke of revokeShell) revoke();
     revokeShell = [];
     resetShellRender();
   });
 
-  /** `sharing.live` as its runtime registers it: the join route and the tab. */
-  function activateLive() {
-    revokeLive = [
-      registerContributionForTest("route", {
-        id: "live",
-        path: "/live",
-        element: () => null,
-        framed: true,
-        order: 48,
-        gate: "any",
-      }),
-      registerContributionForTest("settings-category", {
-        id: "live",
-        label: "Live sessions",
-        guideId: "settings.live",
-        Panel: () => null,
-        panels: [
-          { id: "live-session", label: "Live session" },
-          { id: "live-routes", label: "Routes" },
-        ],
-        order: 320,
-      }),
-    ];
-  }
+  /** Live sessions on: the Share key's seat is filled, as the wrapper fills it. */
+  const shareOpen = vi.fn();
 
   function Where() {
     const { pathname, hash } = useLocation();
@@ -276,24 +252,23 @@ describe("the vault row's Share › Session entry", () => {
   }
 
   function openShareSession() {
+    shareOpen.mockClear();
     renderShell(
       "/vault",
-      <>
+      <VaultShareProvider value={{ Button: () => null, open: shareOpen }}>
         <Where />
         <ContextMenuLayer />
-      </>,
+      </VaultShareProvider>,
     );
     fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Session" }));
   }
 
-  it("opens the panel that hosts a live session, not the join screen", () => {
-    activateLive();
+  it("opens the share sheet that hosts a live session, not the join screen", () => {
     openShareSession();
-    expect(screen.getByTestId("where").textContent).toBe(
-      "/settings/live#live-session",
-    );
+    expect(shareOpen).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("where").textContent).toBe("/vault");
   });
 
   it("offers no Session while Live sessions is off", () => {

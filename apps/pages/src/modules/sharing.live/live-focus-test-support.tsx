@@ -26,8 +26,8 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
-import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
+import { LiveSharePanel } from "./LiveSharePanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { transportSeams } from "./live-transport-hooks.js";
@@ -130,7 +130,10 @@ export async function host(
   admission: "invite" | "open" = "invite",
   values: "read" | "use" | "edit" = "use",
 ) {
-  const rendered = render(<LiveHostPanel />);
+  const rendered = render(<LiveSharePanel />);
+  // The form lives under Advanced now; a person unfolds it to use it.
+  const advanced = rendered.container.querySelector("details");
+  if (advanced) advanced.open = true;
   const panel = within(rendered.container);
   await panel.findByRole("img", { name: "Direct only" });
   type(panel.getByLabelText("Session name"), "Team");

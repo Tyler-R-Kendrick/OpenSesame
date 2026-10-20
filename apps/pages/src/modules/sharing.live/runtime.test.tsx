@@ -27,25 +27,19 @@ describe("sharing.live runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("sharing.live");
   });
 
-  it("registers the join route, the Live sessions tab and its guide targets", async () => {
+  it("registers the join route, the Share key's shell wrapper and its guide target — and no settings tab", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.live",
-      kinds: [
-        "route",
-        "settings-category",
-        "tutorial-target",
-        "tutorial-goal",
-        "tutorial-route",
-      ],
-      count: 5,
+      kinds: ["route", "shell-wrapper", "tutorial-target", "tutorial-goal"],
+      count: 4,
     });
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    const [category] = t.entries("settings-category");
-    expect(category?.id).toBe("live");
-    expect(category?.files?.list().map((file) => file.path)).toEqual([
-      "settings/live/transport.json",
-    ]);
+    expect(t.entries("settings-category")).toEqual([]);
+    const [wrapper] = t.entries("shell-wrapper");
+    expect(wrapper?.id).toBe("live-share");
+    const [target] = t.entries("tutorial-target");
+    expect(target?.id).toBe("shell.share");
     await handle.dispose();
   });
 

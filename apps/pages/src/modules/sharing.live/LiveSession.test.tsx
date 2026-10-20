@@ -30,8 +30,8 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
-import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
+import { LiveSharePanel } from "./LiveSharePanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { transportSeams } from "./live-transport-hooks.js";
@@ -87,7 +87,10 @@ async function startHosting(
   admission: "invite" | "open" = "invite",
   values: "read" | "use" | "edit" = "read",
 ) {
-  const { container } = render(<LiveHostPanel />);
+  const { container } = render(<LiveSharePanel />);
+  // The form lives under Advanced now; a person unfolds it to use it.
+  const advanced = container.querySelector("details");
+  if (advanced) advanced.open = true;
   const owner = container;
   const panel = within(owner);
   // The routes are read from the vault before a session can start.

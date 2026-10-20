@@ -7,6 +7,7 @@ import { IconLock } from "./Icons.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import { sessionSections, useSections } from "./RailRows.js";
 import { openContextMenu } from "./context-menu/menu-model.js";
+import { VaultShareSeat } from "./vault-share-seat.js";
 
 export function LockKey() {
   const store = useVaultStore();
@@ -55,6 +56,7 @@ export function SessionPrompt({ showLock = true }: { showLock?: boolean }) {
         <span className="prompt__dim prompt__dim--path" aria-hidden="true">
           :/
         </span>
+        <VaultShareSeat />
         {showLock ? <LockKey /> : null}
       </div>
     </div>

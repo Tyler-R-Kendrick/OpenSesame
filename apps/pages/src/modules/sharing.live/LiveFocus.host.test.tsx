@@ -16,15 +16,15 @@ import {
 installLiveFocusTests();
 
 describe("the keyboard after the host's swaps", () => {
-  it("lands on the copy key when Start opens the session, and on the form when End closes it", async () => {
+  it("lands on the copy key when Start opens the session, and on Start sharing when End closes it", async () => {
     const panel = await host();
     press(panel.getByRole("button", { name: "Start the live session" }));
     const copy = await panel.findByRole("button", { name: "Copy the link" });
     await landsOn(copy);
     press(panel.getByRole("button", { name: "End the session for everyone" }));
     press(panel.getByRole("button", { name: "End for everyone" }));
-    const name = await panel.findByLabelText("Session name");
-    await landsOn(name);
+    const start = await panel.findByRole("button", { name: "Start sharing" });
+    await landsOn(start);
   });
 
   it("brings the copy key out from under the phone's sticky strip when Start shortens the page", async () => {
