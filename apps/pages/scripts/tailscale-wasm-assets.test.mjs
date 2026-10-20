@@ -8,36 +8,42 @@ import {
   loadTailscaleAssets,
   tailscaleWorkerFileName,
 } from "./tailscale-wasm-assets.mjs";
-test.skipIf(process.arch !== "x64")("ships exact source-built native WASM, isolated runtime, jitless bridge and complete notices", async () => {
-  const assets = await loadTailscaleAssets();
-  assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6746017);
-  assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8078);
-  assert.match(
-    assets.get(TAILSCALE_ASSETS.runtime).toString(),
-    /globalThis\.Go\s*=\s*class/,
-  );
-  assert.doesNotMatch(
-    assets.get(TAILSCALE_ASSETS.runtime).toString(),
-    /document\./,
-  );
-  assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Tailscale/);
-  assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Go Authors/);
-  assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Zod3 runtime/);
-  assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 23988);
-  assertTailscaleHash(
-    assets.get(TAILSCALE_ASSETS.nativeHTTP),
-    TAILSCALE_SDK.nativeHTTPHash,
-  );
-  assert.match(
-    assets.get(TAILSCALE_ASSETS.nativeHTTP).toString(),
-    /jitless:!0/,
-  );
-  assert.equal(assets.get(TAILSCALE_ASSETS.notices).length, 16084);
-  assertTailscaleHash(
-    assets.get(TAILSCALE_ASSETS.runtime),
-    TAILSCALE_SDK.runtimeHash,
-  );
-});
+test.skipIf(process.arch !== "x64")(
+  "ships exact source-built native WASM, isolated runtime, jitless bridge and complete notices",
+  async () => {
+    const assets = await loadTailscaleAssets();
+    assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6746017);
+    assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8078);
+    assert.match(
+      assets.get(TAILSCALE_ASSETS.runtime).toString(),
+      /globalThis\.Go\s*=\s*class/,
+    );
+    assert.doesNotMatch(
+      assets.get(TAILSCALE_ASSETS.runtime).toString(),
+      /document\./,
+    );
+    assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Tailscale/);
+    assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Go Authors/);
+    assert.match(
+      assets.get(TAILSCALE_ASSETS.license).toString(),
+      /Zod3 runtime/,
+    );
+    assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 23988);
+    assertTailscaleHash(
+      assets.get(TAILSCALE_ASSETS.nativeHTTP),
+      TAILSCALE_SDK.nativeHTTPHash,
+    );
+    assert.match(
+      assets.get(TAILSCALE_ASSETS.nativeHTTP).toString(),
+      /jitless:!0/,
+    );
+    assert.equal(assets.get(TAILSCALE_ASSETS.notices).length, 16084);
+    assertTailscaleHash(
+      assets.get(TAILSCALE_ASSETS.runtime),
+      TAILSCALE_SDK.runtimeHash,
+    );
+  },
+);
 
 test("identifies only the dedicated Tailscale worker entry", () => {
   assert.equal(

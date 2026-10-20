@@ -16,7 +16,11 @@
  */
 
 import { SamlPostCommandSchema } from "@opensesame/app-core/browser/saml/post-wire.js";
-import { isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { parseCacheName } from "./cache-names.js";
 import { cleanupCaches } from "./cleanup.js";
 import {
@@ -157,19 +161,70 @@ async function precacheShell(
   }
 }
 
+/** Identify an existing hashed JS module; this grants no fetch or execution authority. */
+function moduleHandoff(
+  ctx: WorkerContext,
+  value: BoundaryValue,
+  manifest: readonly ManifestEntry[],
+): { pageModuleUrl: string; proofNonce: string } | null {
+  if (
+    !isJsonObject(value) ||
+    !isString(value.pageModuleUrl) ||
+    !isString(value.proofNonce) ||
+    !/^[A-Za-z0-9_-]{32,128}$/.test(value.proofNonce)
+  )
+    return null;
+  let url: URL;
+  try {
+    url = new URL(value.pageModuleUrl);
+  } catch {
+    return null;
+  }
+  if (
+    url.href !== value.pageModuleUrl ||
+    !url.href.startsWith(ctx.scopeUrl) ||
+    url.search ||
+    url.hash
+  )
+    return null;
+  const relative = url.href.slice(ctx.scopeUrl.length);
+  if (!/^assets\/[A-Za-z0-9._-]+-[A-Za-z0-9_-]{8,64}\.js$/.test(relative))
+    return null;
+  if (
+    !manifest.some(
+      (entry) => (isString(entry) ? entry : entry.url) === relative,
+    )
+  )
+    return null;
+  return { pageModuleUrl: url.href, proofNonce: value.proofNonce };
+}
+
 async function hello(
   ctx: WorkerContext,
   event: ExtendableMessageEvent,
   takeover: Takeover,
+  manifest: readonly ManifestEntry[],
 ): Promise<void> {
   const client = await controlledSender(ctx, event.source);
-  if (!client) return;
-  client.postMessage({
+  if (!client || (event.ports?.length ?? 0) > 1) {
+    for (const port of event.ports ?? []) port.close();
+    return;
+  }
+  const info = {
     type: "WORKER_INFO",
     releaseId: ctx.releaseId,
     variant: ctx.variant,
     scopePath: ctx.scopePath,
-  });
+  };
+  const port = event.ports?.length === 1 ? event.ports[0] : undefined;
+  const proof = moduleHandoff(ctx, event.data, manifest);
+  if (port) {
+    try {
+      if (proof) port.postMessage({ ...info, ...proof });
+    } finally {
+      port.close();
+    }
+  } else client.postMessage(info);
   await releaseRetained(ctx, takeover);
 }
 
@@ -177,16 +232,23 @@ export function installCoreWorker(
   sw: ServiceWorkerGlobalScope,
   options: CoreWorkerOptions,
 ): CoreWorker {
+  const manifest = Object.freeze(
+    options.manifest.map((entry) =>
+      isString(entry)
+        ? entry
+        : Object.freeze({ url: entry.url, revision: entry.revision }),
+    ),
+  );
   const ctx = workerContext({
     sw,
     variant: options.variant,
-    releaseId: releaseIdFromManifest(options.manifest),
+    releaseId: releaseIdFromManifest(manifest),
     caches: options.caches ?? caches,
     fetch: options.fetch ?? ((input) => fetch(input)),
   });
   const takeover: Takeover = { clientIds: new Set(), retained: new Set() };
   const plans = new PlanCoordinator(ctx);
-  const callbackScriptUrl = samlCallbackScript(options.manifest, ctx.scopeUrl);
+  const callbackScriptUrl = samlCallbackScript(manifest, ctx.scopeUrl);
   const saml = callbackScriptUrl
     ? createSamlPostIngress({
         scopeUrl: ctx.scopeUrl,
@@ -196,9 +258,7 @@ export function installCoreWorker(
     : null;
 
   sw.addEventListener("install", (event) => {
-    event.waitUntil(
-      precacheShell(ctx, options.manifest).then(() => sw.skipWaiting()),
-    );
+    event.waitUntil(precacheShell(ctx, manifest).then(() => sw.skipWaiting()));
   });
   sw.addEventListener("activate", (event) => {
     event.waitUntil(activate(ctx, takeover));
@@ -210,7 +270,8 @@ export function installCoreWorker(
   });
   sw.addEventListener("message", (event) => {
     const data = event.data;
-    if (isWorkerHello(data)) event.waitUntil(hello(ctx, event, takeover));
+    if (isWorkerHello(data))
+      event.waitUntil(hello(ctx, event, takeover, manifest));
     else if (data && isString(data.type) && data.type === "PLAN_ASSETS")
       event.waitUntil(plans.handle(event));
     else if (saml && SamlPostCommandSchema.safeParse(data).success)

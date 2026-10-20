@@ -203,7 +203,7 @@ async function recoverStuck(
   await transitionWorker();
 }
 
-/** The first registration of this page, and the worker it becomes. */
+/** First registration also applies when response headers already isolate the page. */
 async function ensureRegistered(
   container: ServiceWorkerContainer,
   current: string | null,
@@ -212,7 +212,6 @@ async function ensureRegistered(
 ): Promise<void> {
   if (current) return;
   if (state.registeredThisPage) return;
-  if (workerControllerSeams.crossOriginIsolated()) return;
   const registration = await register(container, requiredUrl);
   if (!registration) return;
   publish({ pendingVariant: requiredId });
@@ -273,9 +272,9 @@ async function reconcile(
 /**
  * Follow the composition store and keep the registered worker in step with
  * the plan. Returns the unsubscribe. With no `serviceWorker` the status says
- * `supported: false` and nothing else happens; on a cross-origin-isolated
- * page nothing new is registered (the worker that isolated it already is),
- * though an existing controller still receives the plan.
+ * `supported: false` and nothing else happens. Response headers can isolate a
+ * fresh page before any worker exists; an existing registration, rather than
+ * isolation alone, determines whether a first registration is needed.
  */
 export function registerWorkerForPlan(
   store: CompositionStoreForWorker,

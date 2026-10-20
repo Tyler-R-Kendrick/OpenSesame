@@ -174,7 +174,86 @@ function scopedPipelines(providerId: "buildkite" | "circleci"): Resource {
     },
   };
 }
+const rentedNumbers = z.object({
+  meta: z.object({
+    limit: z.number().int().positive().max(20),
+    offset: z.literal(0),
+    total_count: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    next: resourceText.nullable(),
+    previous: resourceText.nullable(),
+  }),
+  objects: z
+    .array(
+      z.object({
+        number: z.string().regex(/^\+?[0-9]{1,32}$/),
+        alias: resourceText.or(z.literal("")).nullable(),
+      }),
+    )
+    .max(20),
+  error: z.never().optional(),
+  errors: z.never().optional(),
+});
+export function projectPlivoNumbers(body: BoundaryValue) {
+  const response = rentedNumbers.parse(body);
+  const rows = response.objects;
+  if (
+    rows.length > response.meta.limit ||
+    rows.length > response.meta.total_count
+  )
+    throw new NativeApiError("response");
+  return projectResourceCollection(
+    rows.map((row) => ({
+      id: row.number.replace(/^\+/, ""),
+      label: row.alias ? `${row.number} — ${row.alias}` : row.number,
+    })),
+    "rented phone numbers",
+    "first-page",
+  );
+}
+const plivoNumbers: Resource = {
+  providerId: "plivo",
+  id: "provider.numbers.read",
+  label: "List rented phone numbers",
+  async read(id, input, transport) {
+    transport.assertCurrent();
+    if (Object.keys(input).length)
+      throw new Error("Number inventory does not accept request overrides.");
+    const saved = readNativeConnector(id);
+    if (
+      saved?.providerId !== "plivo" ||
+      saved.configuration.method !== "api-key"
+    )
+      throw new Error("Use the verified saved Plivo API connection.");
+    const path = `/v1/Account/${segment(saved.configuration.parameters.auth_id ?? "")}/Number/`;
+    const current = () => {
+      transport.assertCurrent();
+      const latest = readNativeConnector(id);
+      if (
+        latest?.revision !== saved.revision ||
+        latest.fingerprint !== saved.fingerprint
+      )
+        throw new Error(
+          "The saved Plivo account changed. Reopen its configuration.",
+        );
+    };
+    const result = await jsonResource(
+      "List rented phone numbers",
+      {
+        providerId: "plivo",
+        operationId: "provider.numbers.read",
+        method: "GET",
+        path,
+        query: { limit: 20, offset: 0 },
+        onDispatch: current,
+      },
+      projectPlivoNumbers,
+    ).read(id, input, transport);
+    current();
+    return result;
+  },
+};
 export const nativeCiCloudResources: readonly Resource[] = [
+  plivoNumbers,
   scopedPipelines("buildkite"),
   scopedPipelines("circleci"),
   jsonResource(

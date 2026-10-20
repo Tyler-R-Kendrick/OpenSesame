@@ -7,11 +7,11 @@ import {
   writeDeviceSecrets,
 } from "@opensesame/app-core/lib/device-connector-records.js";
 import { deviceConnectorDisplayName } from "@opensesame/app-core/lib/device-connector-view.js";
+import { kvFlush } from "@opensesame/app-core/lib/kv.js";
 import {
   runtimeFixture,
   runtimePassword,
 } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
-import { kvFlush } from "@opensesame/app-core/lib/kv.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { useSyncExternalStore } from "react";

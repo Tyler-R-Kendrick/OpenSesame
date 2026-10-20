@@ -311,8 +311,11 @@ it.each(["record-close", "trust-callback"] as const)(
       expect(await outcome).toBe(false);
       expect(getIdentityConnectionRuntime(saved.connectionId)).toEqual(prior);
       if (phase === "trust-callback")
-        expect(identityConnectionRevision(saved.connectionId)).not.toBe(revision);
-      else expect(identityConnectionRevision(saved.connectionId)).toBe(revision);
+        expect(identityConnectionRevision(saved.connectionId)).not.toBe(
+          revision,
+        );
+      else
+        expect(identityConnectionRevision(saved.connectionId)).toBe(revision);
       expect(signInMethods().providers).toEqual(providers);
       kvForgetAll();
       await kvHydrate([...DEVICE_CONNECTOR_KEYS, "settings.v1"]);
