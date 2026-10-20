@@ -21,7 +21,9 @@ it.each(["api.tinybird.co", "api.us-east.tinybird.co"])(
     const request = nativeApiVerificationRequest(target, {
       api_key: "owned-key",
     });
-    expect(request.url.href).toBe(`https://${host}/v0/datasources?attrs=name`);
+    expect(new URL(request.url).href).toBe(
+      `https://${host}/v0/datasources?attrs=name`,
+    );
     expect(request.method).toBe("GET");
     expect(new Headers(request.headers).get("authorization")).toBe(
       "Bearer owned-key",
