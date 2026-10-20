@@ -5495,7 +5495,10 @@
       "scheme": "Bearer",
       "basic": null,
       "key_prefix": "napi_",
-      "service_urls": ["https://console.neon.tech/api/v2"],
+      "service_urls": [
+        "https://console.neon.tech/api/v2",
+        "https://console.neon.tech/api/v2/projects?limit=20&org_id={org_id}"
+      ],
       "verify": {
         "method": "GET",
         "url": "https://console.neon.tech/api/v2/projects?limit=20&org_id={org_id}",
