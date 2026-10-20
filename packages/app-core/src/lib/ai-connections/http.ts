@@ -77,7 +77,7 @@ export async function aiConnectionFetch(
 }
 
 type AiProtocolRequest = {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   headers: HeadersInit;
   body?: string | ArrayBuffer;
 };
