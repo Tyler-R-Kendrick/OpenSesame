@@ -1,9 +1,10 @@
 /**
  * The toasts: the transient echo of a notice (ADR 0162; the policy is
  * app-core `lib/notice-toast.ts`). A toast carries the tray notice's own words,
- * sits right-aligned in the frame above the statusline (the shell's row, or a
- * block on a shellless screen), and goes after a few seconds unless the person
- * is reading it. The tray keeps the notice.
+ * sits as a fixed block above the statusline (the shell or a shellless
+ * screen), and goes after a few seconds unless the person is reading it. It
+ * takes no layout space, so an arrival cannot resize a pane. The tray keeps
+ * the notice.
  *
  * It is one polite live region, drawn whether or not anything is showing, so
  * an arrival is announced where it is added. A failure is a tone on a notice

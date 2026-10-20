@@ -803,10 +803,9 @@ input[type="radio"] {
 .app {
   display: grid;
   grid-template-columns: var(--rail-w) 1fr;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas:
     "rail main"
-    "rail toasts"
     "status status";
   height: 100dvh;
   overflow: hidden;
@@ -1225,24 +1224,27 @@ body {
   color: var(--err);
 }
 
-/* Toasts: the transient echo of a tray notice (ADR 0162). A row of the frame,
-   right-aligned, between the content and the statusline; empty, it has no
-   height. It takes room only while a toast shows, so nothing rests on a
-   control (DESIGN.md § Layout). Shellless screens draw it as a block, as the
-   notice corner does. Neutral shadow only. */
+/* Toasts: the transient echo of a tray notice (ADR 0162). A fixed block over
+   the frame, right-aligned above the statusline. It takes no grid row and no
+   height from the app, so an arrival never resizes a pane or pushes a control
+   under a finger. Shellless screens draw the same block. Neutral shadow only. */
 .toasts {
-  grid-area: toasts;
+  position: fixed;
+  inset-block-end: calc(4rem + env(safe-area-inset-bottom, 0px));
+  inset-inline-end: max(1rem, env(safe-area-inset-right, 0px));
+  z-index: 50;
   display: grid;
   gap: 0.5rem;
-  width: min(22rem, calc(100% - 32px));
-  margin: 0.5rem 16px 0 auto;
-}
-
-.toasts:empty {
-  margin: 0;
+  inline-size: min(22rem, calc(100vw - 2rem));
+  max-block-size: min(60dvh, 30rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 .toast {
+  pointer-events: auto;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
 }
 
@@ -1776,10 +1778,9 @@ body {
      Sections stay behind the bar's menu key — no tab bar. */
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas:
       "main"
-      "toasts"
       "status";
     height: 100dvh;
   }
