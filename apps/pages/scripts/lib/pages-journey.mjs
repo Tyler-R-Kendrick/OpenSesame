@@ -134,7 +134,7 @@ export async function addCapabilities(page, titles) {
 export async function openGeneral(page) {
   // Settings is the heading the section opens on (it has no "Preferences"
   // heading — that name went with an earlier shape of the panel).
-  const heading = page.getByRole("heading", { name: "Settings" });
+  const heading = page.getByRole("heading", { name: "Vault Settings" });
   if (!(await heading.isVisible().catch(() => false))) {
     await openSection(page, "settings/");
     await heading.waitFor({ timeout: 15000 });

@@ -18,7 +18,7 @@ export async function walkJFile({ page, origin, base, check, snap }) {
   await openGeneral(page);
   await snap(page, "J-FILE-settings");
   check(
-    (await page.getByRole("heading", { name: "Settings" }).count()) === 1,
+    (await page.getByRole("heading", { name: "Vault Settings" }).count()) === 1,
     "Settings section shows its heading",
   );
   await openConfigFile(page, "general");
@@ -41,7 +41,7 @@ export async function walkJFile({ page, origin, base, check, snap }) {
   const opened = await runCommand(page, "settings/prefs.yaml");
   check(/Opened/i.test(opened), `command bar opens the prefs alias: ${opened}`);
   await page
-    .getByRole("heading", { name: "Settings" })
+    .getByRole("heading", { name: "Vault Settings" })
     .waitFor({ timeout: 8000 });
   const refused = await runCommand(page, "config/identity-grants");
   check(
