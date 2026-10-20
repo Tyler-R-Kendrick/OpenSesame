@@ -19,6 +19,7 @@ import { expect } from "@playwright/test";
 import { build } from "vite";
 import { chooseCapabilities } from "./lib/choose-capabilities.mjs";
 import { privateTempDir } from "./lib/private-files.mjs";
+import { bundleFixture, bundleVerify } from "./lib/siop-fixture-bundles.mjs";
 import {
   SIOP_CALLBACK,
   SIOP_RP,
@@ -67,75 +68,6 @@ setTimeout(() => {
   );
   process.exit(1);
 }, RUN_BUDGET_MS).unref();
-
-async function bundleVerify() {
-  const result = await build({
-    configFile: false,
-    logLevel: "error",
-    publicDir: false,
-    define: {
-      "process.env.NODE_DEBUG_NATIVE": "false",
-      "process.env.NODE_ENV": '"production"',
-    },
-    resolve: {
-      alias: {
-        "@opensesame/os-domain": `${root}/packages/os-domain/src/browser.ts`,
-      },
-    },
-    build: {
-      write: false,
-      target: "es2022",
-      lib: {
-        entry: fileURLToPath(
-          new URL("./fixtures/siop-verify.ts", import.meta.url),
-        ),
-        name: "SiopVerify",
-        formats: ["es"],
-      },
-      rollupOptions: { output: { inlineDynamicImports: true } },
-    },
-  });
-  const output = Array.isArray(result) ? result[0].output : result.output;
-  const chunk = output.find((file) => file.type === "chunk");
-  if (!chunk) throw new Error("SIOP verify bundle missing");
-  const modPath = `${out}/siop-verify.mjs`;
-  fs.writeFileSync(modPath, chunk.code);
-  return import(`${modPath}?v=${Date.now()}`);
-}
-
-async function bundleFixture() {
-  const result = await build({
-    configFile: false,
-    logLevel: "error",
-    publicDir: false,
-    define: {
-      "process.env.NODE_DEBUG_NATIVE": "false",
-      "process.env.NODE_ENV": '"production"',
-    },
-    resolve: {
-      alias: {
-        "@opensesame/os-domain": `${root}/packages/os-domain/src/browser.ts`,
-      },
-    },
-    build: {
-      write: false,
-      target: "es2022",
-      lib: {
-        entry: fileURLToPath(
-          new URL("./fixtures/siop-iam.ts", import.meta.url),
-        ),
-        name: "SiopIamFixture",
-        formats: ["iife"],
-      },
-      rollupOptions: { output: { inlineDynamicImports: true } },
-    },
-  });
-  const output = Array.isArray(result) ? result[0].output : result.output;
-  return output
-    .filter((file) => file.type === "chunk")
-    .map((file) => file.code)
-    .join("\n");
-}
 
 async function bundleSpa(clientId, pagesBase) {
   // The single-page RP bakes its two settings in at build time.
@@ -209,8 +141,8 @@ async function installPasskeyCredentials(page, credentials) {
   return device;
 }
 
-const siopVerify = await bundleVerify();
-const siopFixture = await bundleFixture();
+const siopVerify = await bundleVerify(root, out);
+const siopFixture = await bundleFixture(root);
 const harness = createHarness({ dist, origin, base, out });
 // The production origin is served by the harness, in the browser. A request
 // that is not (the hop after the RP's own 302, which the network stack makes
