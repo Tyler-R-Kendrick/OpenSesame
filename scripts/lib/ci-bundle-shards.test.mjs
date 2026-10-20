@@ -47,7 +47,6 @@ const GATES = [
   "verify:header-layout",
   "verify:local-iam",
   "verify:quorum-browser",
-  "verify:trusted-contacts",
   "verify:siop",
   "verify:static",
   "verify:encrypted-search",
