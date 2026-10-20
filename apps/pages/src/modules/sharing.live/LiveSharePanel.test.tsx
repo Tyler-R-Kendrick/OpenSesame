@@ -17,9 +17,7 @@ describe("the share sheet", () => {
   it("keeps Advanced folded and asks for no field before the press", () => {
     const { container } = render(<LiveSharePanel />);
     const panel = within(container);
-    expect(
-      panel.getByRole("button", { name: "Start sharing" }),
-    ).toBeTruthy();
+    expect(panel.getByRole("button", { name: "Start sharing" })).toBeTruthy();
     const advanced = container.querySelector<HTMLDetailsElement>(
       "details.live-advanced",
     );
@@ -31,9 +29,7 @@ describe("the share sheet", () => {
     const panel = within(container);
     press(panel.getByRole("button", { name: "Start sharing" }));
     await panel.findByRole("img", { name: "Live" });
-    expect(
-      panel.getByRole("button", { name: "Copy the link" }),
-    ).toBeTruthy();
+    expect(panel.getByRole("button", { name: "Copy the link" })).toBeTruthy();
     expect(currentHost()).not.toBeNull();
   });
 });

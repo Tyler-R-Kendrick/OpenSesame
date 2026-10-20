@@ -234,25 +234,25 @@ export function LiveRoutesPanel() {
         ) : null}
       </div>
       <div className="setup__stack">
-          {!loaded ? (
-            <StatusMark tone="idle" label="Reading this vault's routes" />
-          ) : refused ? (
-            <StatusMark tone="err" label={refused} />
-          ) : (
-            <>
-              <Addresses transport={transport} change={apply} />
-              <IceServers transport={transport} change={apply} />
-              <RelayOnly transport={transport} change={apply} />
-              <Carriers transport={transport} change={apply} />
-              {carriesCredentials(transport) ? (
-                <StatusMark
-                  tone="warn"
-                  label="Credentials in this profile travel in the link"
-                />
-              ) : null}
-              {edited ? <StatusMark tone="err" label={edited} /> : null}
-            </>
-          )}
+        {!loaded ? (
+          <StatusMark tone="idle" label="Reading this vault's routes" />
+        ) : refused ? (
+          <StatusMark tone="err" label={refused} />
+        ) : (
+          <>
+            <Addresses transport={transport} change={apply} />
+            <IceServers transport={transport} change={apply} />
+            <RelayOnly transport={transport} change={apply} />
+            <Carriers transport={transport} change={apply} />
+            {carriesCredentials(transport) ? (
+              <StatusMark
+                tone="warn"
+                label="Credentials in this profile travel in the link"
+              />
+            ) : null}
+            {edited ? <StatusMark tone="err" label={edited} /> : null}
+          </>
+        )}
       </div>
     </div>
   );

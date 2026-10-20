@@ -30,12 +30,7 @@ describe("sharing.live runtime", () => {
   it("registers the join route, the Share key's shell wrapper and its guide target — and no settings tab", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.live",
-      kinds: [
-        "route",
-        "shell-wrapper",
-        "tutorial-target",
-        "tutorial-goal",
-      ],
+      kinds: ["route", "shell-wrapper", "tutorial-target", "tutorial-goal"],
       count: 4,
     });
     const t = createTestContext();

@@ -31,7 +31,9 @@ export function LiveShareButton() {
     <button
       ref={ref}
       type="button"
-      className={live ? "icon-btn live-share live-share--on" : "icon-btn live-share"}
+      className={
+        live ? "icon-btn live-share live-share--on" : "icon-btn live-share"
+      }
       onClick={() => share.open()}
       aria-label={label}
       title={label}
