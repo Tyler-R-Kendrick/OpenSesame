@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
-import { CanaryCredentialsPanel } from "./settings/security/CanaryCredentialsPanel.js";
 import { DeadmanPanel } from "./settings/security/DeadmanPanel.js";
 import { useSettingsCategory } from "./settings/use-settings-category.js";
 
@@ -236,7 +235,6 @@ function SecurityPanels({
       ))}
       <DuressPanel />
       <DeadmanPanel />
-      <CanaryCredentialsPanel />
       {duressShown ? <TravelPanel /> : null}
     </>
   );
