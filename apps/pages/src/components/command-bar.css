@@ -154,28 +154,6 @@
   color: var(--ink);
 }
 
-.command-bar__slash {
-  color: var(--ink);
-  white-space: nowrap;
-}
-
-.command-bar__usage {
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-
-.command-bar__hint {
-  flex: 1;
-  min-width: 0;
-  margin-left: auto;
-  padding-left: 0.5rem;
-  color: var(--ink-3);
-  font-family: var(--ui);
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* ——— Seated in the statusline —————————————————————————————
    The strip stays one row, so the bar goes borderless and the notice
    floats above it instead of stacking under the input. */

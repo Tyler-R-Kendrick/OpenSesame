@@ -3,40 +3,6 @@
 
 /* --- tabs ----------------------------------------------------------------- */
 
-.identity-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.1rem;
-  margin-bottom: 1.25rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.identity-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4375rem;
-  padding: 0.3rem 0 0.55rem;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  background: transparent;
-  color: var(--ink-2);
-  font: inherit;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.identity-tab:hover {
-  color: var(--ink);
-}
-
-.identity-tab.is-active,
-.identity-tab[aria-selected="true"] {
-  border-bottom-color: var(--ink);
-  color: var(--ink);
-  font-weight: 550;
-}
-
 /* --- ceremony ------------------------------------------------------------- */
 
 .identity-ceremony__bar {
@@ -278,14 +244,6 @@
 }
 
 /* --- guest note + member add ---------------------------------------------- */
-
-.identity-addmember {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--line);
-}
 .identity-session {
   margin-block-start: 0.75rem;
 }
