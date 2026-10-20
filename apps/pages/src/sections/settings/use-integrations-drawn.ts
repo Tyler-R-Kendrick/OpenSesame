@@ -18,5 +18,8 @@ export function useIntegrationsDrawn(): readonly DrawnIntegration[] {
   const roads = useConnectorRoads();
   return INTEGRATIONS.map((integration) => ({
     integration,
-  })).filter(({ integration }) => integrationDraws(integration, roads.tile));
+  })).filter(
+    ({ integration }) =>
+      integration.id === "ai" || integrationDraws(integration, roads.tile),
+  );
 }
