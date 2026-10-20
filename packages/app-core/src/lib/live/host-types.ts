@@ -6,7 +6,7 @@
  */
 
 import type { ConnectionPort } from "./connection-port.js";
-import type { DevicesState } from "./device-types.js";
+import type { DeviceLog, DevicesState } from "./device-types.js";
 import type { HostPeer, LogEntry, ReadField, WriteField } from "./host-peer.js";
 import type { IcePhase } from "./ice-diagnostics.js";
 import type { Catalog, JoinRequest, SeatKind, SeatRoute } from "./messages.js";
@@ -171,5 +171,19 @@ export function askingSeat(
     admitting: false,
     timer: null,
     peerTrust,
+  };
+}
+
+/** The state a seat contributes to the owner's view. */
+export const seatState = (seat: HostSeat | undefined) => seat?.guest.state;
+
+/** Project device metadata into the owner's log without carrying a value. */
+export function deviceLogEntry(entry: DeviceLog): LogEntry {
+  return {
+    at: entry.at,
+    guest: entry.guest,
+    what: entry.what,
+    item: entry.connection,
+    field: entry.operation,
   };
 }
