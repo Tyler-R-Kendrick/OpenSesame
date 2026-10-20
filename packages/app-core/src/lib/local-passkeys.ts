@@ -284,6 +284,14 @@ export async function enrollLocalPasskey(
   }
 }
 
+function requireRequestDigest(requestDigest: string | undefined) {
+  if (
+    requestDigest !== undefined &&
+    (!isString(requestDigest) || !/^[A-Za-z0-9_-]{43}$/.test(requestDigest))
+  )
+    throw new LocalDirectoryError("The request digest is invalid.");
+}
+
 /** Verifies possession and evaluates WebAuthn PRF. A usable result wraps this vault when it is open. */
 export async function authenticateLocalPasskey(
   tomb: string,
@@ -291,11 +299,7 @@ export async function authenticateLocalPasskey(
   requestDigest?: string,
 ) {
   const authentications = unspentAuthentications;
-  if (
-    requestDigest !== undefined &&
-    (!isString(requestDigest) || !/^[A-Za-z0-9_-]{43}$/.test(requestDigest))
-  )
-    throw new LocalDirectoryError("The request digest is invalid.");
+  requireRequestDigest(requestDigest);
   const start = ceremony();
   if (requestDigest !== undefined)
     start.challenge = b64urlToBytes(
