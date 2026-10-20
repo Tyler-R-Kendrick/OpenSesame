@@ -5,7 +5,6 @@ import {
   Clock,
   armedCircle,
   device,
-  who,
 } from "@opensesame/app-core/lib/quorum/desk/harness.test-support.js";
 import {
   DeskError,
@@ -21,7 +20,6 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CirclesPanel } from "./CirclesPanel.js";
-import { GuardingPanel } from "./GuardingPanel.js";
 import { RecoveryPanel } from "./RecoveryPanel.js";
 import { TrustedContacts } from "./TrustedContacts.js";
 import {
@@ -70,14 +68,10 @@ describe("with nothing yet", () => {
     serve(await deskOf(device(new Clock())));
     render(<TrustedContacts />);
     const circles = within(elementById("circles"));
-    const guarding = within(elementById("guarding"));
     expect(circles.getByRole("img", { name: "No circles yet." })).toBeTruthy();
     expect(
-      circles.getByRole("button", { name: "Start your first circle" }),
-    ).toBeTruthy();
-    expect(
-      guarding.getByRole("img", { name: "Nothing held for anyone yet." }),
-    ).toBeTruthy();
+      circles.queryByRole("button", { name: "Start your first circle" }),
+    ).toBeNull();
     expect(
       await screen.findByRole("img", { name: "No recoveries in progress." }),
     ).toBeTruthy();
@@ -87,7 +81,7 @@ describe("with nothing yet", () => {
 });
 
 describe("the panels' frames", () => {
-  it("is one Security panel with three titled groups and a polite line each", async () => {
+  it("is one Security panel with two titled groups and a polite line each", async () => {
     serve(await deskOf(device(new Clock())));
     render(<TrustedContacts />);
     await screen.findByRole("img", { name: "No recoveries in progress." });
@@ -100,14 +94,9 @@ describe("the panels' frames", () => {
       }),
     ).toBeTruthy();
     const groups = [...document.querySelectorAll(".trusted-contacts__group")];
-    expect(groups.map((group) => group.id)).toEqual([
-      "circles",
-      "guarding",
-      "recovery",
-    ]);
+    expect(groups.map((group) => group.id)).toEqual(["circles", "recovery"]);
     expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
       "Circles",
-      "Guarding",
       "Recovery",
     ]);
     for (const group of groups) {
@@ -127,7 +116,6 @@ describe("the panels' frames", () => {
     await screen.findByRole("img", { name: "No recoveries in progress." });
     for (const id of [
       "settings.trusted-contacts-circles",
-      "settings.trusted-contacts-guarding",
       "settings.trusted-contacts-recovery",
     ]) {
       expect(
@@ -179,36 +167,6 @@ describe("Circles", () => {
     serve(desk);
     rerender(<CirclesPanel />);
     await waitFor(() => expect(live()).toBe("1 circle"));
-  });
-});
-
-describe("Guarding", () => {
-  it("lists what a guardian holds: the circle, whose it is, share or seat, and its state", async () => {
-    const armed = await armedCircle(new Clock());
-    serve(await deskOf(who(armed, "Ada")));
-    render(<GuardingPanel />);
-    const row = screen
-      .getByRole("heading", { level: 3, name: "Family" })
-      .closest("li");
-    if (!row) throw new Error("no row");
-    expect(row.textContent).toMatch(
-      /Held for [0-9a-f]{4}(-[0-9a-f]{4}){3} · share · epoch 1/,
-    );
-    expect(within(row).getByRole("img", { name: "Held" })).toBeTruthy();
-    // The row's own keys are drawn (guarding/GuardingPanel.test.tsx walks them); no field is.
-    expect(row.querySelector("a, input, textarea")).toBeNull();
-    const [held] = await who(armed, "Ada").records.held();
-    const wrapped = held?.holding?.wrapped;
-    expect(wrapped).toBeDefined();
-    expect(document.body.innerHTML).not.toContain(JSON.stringify(wrapped));
-  });
-
-  it("calls the seat of an approvals-only circle a seat", async () => {
-    const armed = await armedCircle(new Clock(), { recovers: false });
-    serve(await deskOf(who(armed, "Ben")));
-    const { container } = render(<GuardingPanel />);
-    expect(container.textContent).toContain(" · seat · epoch 1");
-    expect(container.textContent).not.toContain(" · share · ");
   });
 });
 

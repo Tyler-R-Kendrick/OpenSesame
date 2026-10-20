@@ -6,8 +6,7 @@
 // — and switches the capability on from Settings › Features. After that
 // every claim is about where the keyboard is:
 //   - the tab is reached by `g s` and Tab, and it leaves the keys in reading
-//     order: Start a circle, Accept an invitation, Take what an owner sent,
-//     Answer a request, Start a recovery;
+//     order: Start a circle, Start a recovery;
 //   - a sheet opens with the keyboard on its close key, Tab and Shift+Tab stay
 //     inside it, Escape closes it and gives the keyboard back to the key that
 //     opened it;
@@ -25,13 +24,7 @@ import { focusIn } from "./live-keyboard-contract.mjs";
 
 const PIN = "48291037";
 
-const KEYS = [
-  "Start a circle",
-  "Accept an invitation",
-  "Take what an owner sent",
-  "Answer a request",
-  "Start a recovery",
-];
+const KEYS = ["Start a circle", "Start a recovery"];
 
 /** Set up, Skip all, then the local seal: the door's road to a vault of one's own. */
 async function toLocalSeal(page, tabTo) {
@@ -92,7 +85,7 @@ async function openTab(page, tabTo) {
   await expect(page.locator("#trusted-contacts")).toBeVisible({
     timeout: 20_000,
   });
-  for (const id of ["circles", "guarding", "recovery"])
+  for (const id of ["circles", "recovery"])
     await expect(page.locator(`section#${id}`)).toBeVisible({
       timeout: 20_000,
     });
@@ -182,23 +175,6 @@ async function newCircleStep(page, tabTo) {
   );
 }
 
-/** A paste that is not a packet is refused on its field; its key stays off. */
-async function refusedPaste(page, tabTo) {
-  const field = page.getByLabel("An invitation", { exact: true });
-  await tabTo(page, field);
-  await page.keyboard.insertText("this is not an invitation");
-  await expect(field).toHaveAttribute("aria-invalid", "true");
-  await expect(
-    page.getByRole("button", { name: "Read this invitation", exact: true }),
-  ).toBeDisabled();
-  // Escape leaves a text field for its sheet before it closes the sheet.
-  await page.keyboard.press("Escape");
-  await expect(field).not.toBeFocused();
-  await expect(
-    page.getByRole("dialog", { name: "Accept an invitation" }),
-  ).toBeVisible();
-}
-
 export async function trustedContactsKeyboardContract({
   harness,
   browser,
@@ -217,11 +193,6 @@ export async function trustedContactsKeyboardContract({
   await expect(page.locator(":focus")).not.toHaveJSProperty("tagName", "BODY");
   await keysInOrder(page, tabTo);
   await sheet(page, tabTo, "Start a circle", () => newCircleStep(page, tabTo));
-  await sheet(page, tabTo, "Accept an invitation", () =>
-    refusedPaste(page, tabTo),
-  );
-  await sheet(page, tabTo, "Take what an owner sent");
-  await sheet(page, tabTo, "Answer a request");
   // The hidden file input carries the key's name too, so the key is found by id.
   await sheet(page, tabTo, "Start a recovery", async () => {
     const file = page.locator("button#recovery-file");
@@ -231,6 +202,6 @@ export async function trustedContactsKeyboardContract({
   await context.close();
   if (harness.failures.length === before)
     console.log(
-      `PASS ${width}px: Trusted contacts by keyboard — tab, keys in order, five sheets, focus in and back`,
+      `PASS ${width}px: Trusted contacts by keyboard — tab, keys in order, two sheets, focus in and back`,
     );
 }

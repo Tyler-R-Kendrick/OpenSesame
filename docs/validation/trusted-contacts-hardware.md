@@ -11,7 +11,7 @@ page closes: *"Not exercised against physical hardware."*
 | The protocol (SLIP-0039, HPKE, policy, ledger, epochs, packets) | 45 official SLIP-0039 vectors, RFC 9180 Appendix A.1/A.2, ~300 unit tests, mutation checks | `pnpm --filter @opensesame/app-core exec vitest run src/lib/quorum` |
 | The ceremonies end to end, many devices, hostile pastes | the desk, one in-memory device per person, a JS virtual authenticator | `src/lib/quorum/desk/desk.*.test.ts` |
 | **A real browser's WebAuthn stack with PRF** | five Chromium contexts, five CDP virtual authenticators with `hasPrf`, the real desk in each page, only packets between them; refusals are the browser's own (`NotAllowedError`) | `pnpm --filter @opensesame/pages verify:quorum-browser` (CI: `sign-in` shard) |
-| The Settings screens | `verify:trusted-contacts` (keyboard, touch, tutorials) | see the screens' own gates |
+| The Settings screens | Pages tests and the local browser walk (keyboard, touch, tutorials) | see the screens' own gates |
 
 A CDP virtual authenticator runs Chromium's WebAuthn code (real `create` and
 `get`, real `clientDataJSON`, authenticator data, signatures, the PRF

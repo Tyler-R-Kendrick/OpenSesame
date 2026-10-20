@@ -7,19 +7,15 @@
  * Guest, decoy and locked vaults draw no panel, so the walk seals a vault with
  * a PIN first (the door's no-account road), chooses the capability the way a
  * person does, and then opens the tab. Nothing here makes a circle: a circle
- * needs other people's packets, and `verify:trusted-contacts` walks that with
- * five browsers. What a phone has to hold is the empty tab, the five sheets,
- * the new-circle sheet's second step (an invitation and its QR code), and a
- * refused paste.
+ * needs other people's packets. What a phone has to hold is the empty tab, the
+ * two owner sheets, and the new-circle sheet's second step (an invitation and
+ * its QR code).
  */
 import { chooseCapabilitiesHere } from "./mobile-capabilities.mjs";
 import { sealWithPin } from "./mobile-protector-unlock.mjs";
 
 const KEYS = [
   ["Start a circle", "circle"],
-  ["Accept an invitation", "accept"],
-  ["Take what an owner sent", "take"],
-  ["Answer a request", "answer"],
   ["Start a recovery", "recovery"],
 ];
 
@@ -91,34 +87,6 @@ async function invitationStep(page, run) {
   await audit(page, stop("trusted-contacts-invitation"));
 }
 
-/** A paste that is not a packet is refused on the field, in the touch context. */
-async function refusedPaste(page, run) {
-  const field = page.getByLabel("An invitation", { exact: true });
-  await field.fill("this is not an invitation");
-  await page.waitForTimeout(450);
-  await run.audit(page, run.stop("trusted-contacts-refused"));
-  // The mark's target is 2.75rem and grows into its row; it must not sit over
-  // the label it follows (the label once read "An invitatio").
-  const gap = await page.evaluate(() => {
-    const label = document.querySelector(".tc-packet-in .f__label");
-    const mark = document.querySelector(
-      ".tc-packet-in .status-mark[data-touch-twin]",
-    );
-    if (!label || !mark) return null;
-    return (
-      mark.getBoundingClientRect().left - label.getBoundingClientRect().right
-    );
-  });
-  const { harness, stop } = run;
-  harness.check(
-    gap !== null && gap >= 0,
-    `${stop("trusted-contacts-refused")}: the refused-paste mark's target clears its label (gap ${gap === null ? "not drawn" : `${Math.round(gap * 10) / 10}px`})`,
-  );
-  console.log(
-    `MEASURE ${stop("trusted-contacts-refused")}: label-to-mark target gap ${gap}px`,
-  );
-}
-
 export async function trustedContactsStops(
   page,
   { harness, audit, openTab: toSection, stop, origin, base },
@@ -136,7 +104,6 @@ export async function trustedContactsStops(
     if (!(await auditSheet(page, name, `trusted-contacts-${label}`, run)))
       continue;
     if (label === "circle") await invitationStep(page, run);
-    if (label === "accept") await refusedPaste(page, run);
     await closeSheet(page);
   }
 }

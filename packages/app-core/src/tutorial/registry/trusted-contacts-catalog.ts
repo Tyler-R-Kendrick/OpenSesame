@@ -1,7 +1,7 @@
 /**
  * Targets and the walkthrough `sharing.trusted-contacts` contributes
  * (ADR 0187): the Trusted contacts section of Settings › Security and its
- * three panels, live only while that capability is in the plan.
+ * two panels, live only while that capability is in the plan.
  *
  * The panels hold lists, and a list holds only what a person's own ceremonies
  * made; a target here names a panel or the category, never a circle, a contact
@@ -16,8 +16,7 @@ import type { GuideTargetDescriptor } from "./targets.js";
 export const TRUSTED_CONTACTS_ROUTES: readonly GuideRouteDescriptor[] = [
   {
     id: "/settings/security",
-    title:
-      "Settings — security: trusted contacts, circles, shares and recoveries",
+    title: "Settings — security: trusted contacts, circles and recoveries",
   },
 ];
 
@@ -25,7 +24,7 @@ export const TRUSTED_CONTACTS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.trusted-contacts",
     description:
-      "The Trusted contacts section of Settings › Security: the circles you keep, the shares you hold for other people, and the recoveries you have asked for, all kept on this device and handed between people as packets.",
+      "The Trusted contacts section of Settings › Security: the circles you keep and the recoveries you have asked for, all kept on this device and handed between people as packets.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "quorum.circle.manage",
@@ -45,38 +44,6 @@ export const TRUSTED_CONTACTS_TARGETS: readonly GuideTargetDescriptor[] = [
     role: "action",
     routes: ["/settings"],
     capabilityId: "quorum.circle.manage",
-  },
-  {
-    id: "settings.trusted-contacts-guarding",
-    description:
-      "The Guarding panel: each circle that has asked you to take a part in it, whether a share of a recovery key or only a seat at its approvals, with whose it is and where it stands.",
-    role: "surface",
-    routes: ["/settings"],
-    capabilityId: "quorum.guardian.hold",
-  },
-  {
-    id: "guarding.accept",
-    description:
-      "The Accept an invitation key on the Guarding panel: opens a sheet that reads an invitation, shows the circle and the owner's key to check with them, and has your security key or keys answer it.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: "quorum.guardian.hold",
-  },
-  {
-    id: "guarding.take",
-    description:
-      "The Take what an owner sent key on the Guarding panel: opens a sheet that takes the welcome an owner hands you, with your share of a recovery key when the circle has one, or a new policy for a circle you already hold.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: "quorum.guardian.hold",
-  },
-  {
-    id: "guarding.answer",
-    description:
-      "The Answer a request key on the Guarding panel: opens a sheet that reads a request against the policy you hold, shows the sentence you would be approving, and approves it or releases your share once the delay has passed.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: "quorum.request.approve",
   },
   {
     id: "settings.trusted-contacts-recovery",
@@ -109,29 +76,7 @@ export const TRUSTED_CONTACTS_GOALS: readonly GuideGoalDescriptor[] = [
       'wait route "/settings/security" timeout=15000',
       'focus "settings.trusted-contacts" "A circle is the people you trust to approve a request, or to hold one share of a recovery key, with a delay that gives you time to object. Each answers with their own security key, and what passes between you is a packet you hand over yourself. Nothing goes to a service." side=bottom',
       'focus "settings.trusted-contacts-circles" "Circles are the ones you own. Each is a rule, the contacts in it and where it stands." side=top',
-      'scroll "settings.trusted-contacts-guarding"',
-      'focus "settings.trusted-contacts-guarding" "Guarding is the other side: circles that asked you to take a part, and the requests waiting on your key." side=top',
       'focus "settings.trusted-contacts-recovery" "Recovery is for getting something back. Open a circle\'s recovery file, ask its contacts, and the result lands in the normal import." side=top',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "settings.trusted-contacts.guardian",
-    title: "Agree to hold a share for someone",
-    routes: ["/settings"],
-    libraryOnly: true,
-    guide: [
-      "guide/1",
-      'goal "settings.trusted-contacts.guardian"',
-      'say "A guardian agrees to hold one share of someone\'s recovery key, or only a seat at their approvals. You agree with your own security key, and later you approve a request or release your share the same way, after a delay that gives the owner time to object. What passes between you is a packet you hand over yourself."',
-      'navigate "/settings/security"',
-      'wait route "/settings/security" timeout=15000',
-      'scroll "settings.trusted-contacts-guarding"',
-      'focus "settings.trusted-contacts-guarding" "Guarding lists the circles you hold a part of, whose they are, and where each one stands." side=top',
-      'focus "guarding.accept" "Accept an invitation reads one from an owner, shows you the circle and the owner\'s key to check with them another way, and has your security key answer. You hand the answer back." side=bottom',
-      'focus "guarding.take" "Take what an owner sent keeps the welcome they hand back, with your share when the circle has one, and gives you a receipt to return. A new policy for a circle you hold goes in the same place." side=bottom',
-      'focus "guarding.answer" "Answer a request reads a request against the policy you hold and shows the sentence you would be approving. Approve with your key, and after the delay release your share." side=bottom',
-      'success "That is a guardian: agree, take what you are sent, and answer requests. Nothing goes to a service."',
       "end",
     ].join("\n"),
   },
