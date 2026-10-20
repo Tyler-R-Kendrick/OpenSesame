@@ -19,7 +19,7 @@ export const MAX_MISSES = 5;
 export const MAX_GUESTS = 8;
 /** How long a seat that has ended stays listed before it is forgotten. */
 export const SEAT_GRACE_MS = 60_000;
-export const MAX_SESSION_MS = 8 * 60 * 60 * 1000;
+export const MAX_SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 /** How many distinct wrong codes are remembered; each still counts as a miss. */
 export const MISSED_MAX = 256;
 /** How many forgotten requests are remembered, so a repost is not seated again. */
@@ -89,7 +89,7 @@ export type HostOptions = Readonly<{
   admission: Admission;
   /** What carries each seat, over the owner's routes. */
   transport: PeerTransport;
-  /** Epoch ms; clamped to eight hours from now. */
+  /** Epoch ms; clamped to seven days from now. */
   expiresAt: number;
   catalog: () => Catalog;
   readField: ReadField;

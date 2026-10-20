@@ -65,7 +65,7 @@ The owner, with the vault unlocked, opens a **live session**: what it shares
 (the whole vault or chosen items), how (`read` shows values, `use` — Copy
 only — keeps a concealed value off the joiner's screen and clipboard, `edit`
 lets the joiner replace a shared field in the open vault), for how long (at
-most eight hours), and who gets in — **invite** (a link plus an out-of-band
+most seven days, while the owner's tab stays open), and who gets in — **invite** (a link plus an out-of-band
 code, the ADR 0044 shape) or
 **open** (anyone holding the link is let in as they ask). The tab hosts the
 session: closing it, locking the vault, or the time running out ends it for

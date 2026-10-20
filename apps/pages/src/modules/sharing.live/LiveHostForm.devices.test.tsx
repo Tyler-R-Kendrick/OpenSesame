@@ -136,16 +136,13 @@ const choose = (
 };
 
 const startKey = (panel: ReturnType<typeof within>) =>
-  panel.getByRole("button", { name: /^Start the live session/ });
+  panel.getByRole("button", { name: /^Share this vault/ });
 
 describe("where there is nothing to lend", () => {
   it("draws no choice about devices, and no way to share nothing", async () => {
     const panel = await form();
     expect(panel.queryByLabelText("Devices")).toBeNull();
     expect(panel.queryByRole("option", { name: "Nothing" })).toBeNull();
-    fireEvent.click(
-      panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
-    );
     fireEvent.click(startKey(panel));
     await waitFor(() => expect(currentHost()).not.toBeNull());
     expect(currentHost()?.devices).toBeNull();
@@ -163,7 +160,7 @@ describe("where there is a connection to lend", () => {
     choose(panel, "Share", "Nothing");
     // Nothing shared and nothing asked: the key says what is missing.
     expect(startKey(panel).getAttribute("title")).toBe(
-      "Start the live session. Share an item, or let devices ask",
+      "Share this vault. Share an item, or let devices ask",
     );
     choose(panel, "Devices", "May ask");
     fireEvent.click(startKey(panel));
@@ -175,6 +172,7 @@ describe("where there is a connection to lend", () => {
 
   it("lets devices ask beside shared items", async () => {
     const panel = await form();
+    choose(panel, "Share", "Chosen items");
     fireEvent.click(
       panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
     );
@@ -186,6 +184,7 @@ describe("where there is a connection to lend", () => {
 
   it("does not let devices ask unless they are asked about", async () => {
     const panel = await form();
+    choose(panel, "Share", "Chosen items");
     fireEvent.click(
       panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
     );

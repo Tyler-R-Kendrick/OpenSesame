@@ -185,6 +185,8 @@ export function useRemaining(until: number | null): number {
 export function formatRemaining(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
   const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days} d ${hours % 24} h left`;
   if (hours > 0) return `${hours} h ${minutes % 60} min left`;
   if (minutes > 0) return `${minutes} min left`;
   return `${Math.ceil(ms / 1000)} s left`;

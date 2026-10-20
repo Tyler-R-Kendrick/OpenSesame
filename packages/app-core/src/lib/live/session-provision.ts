@@ -47,6 +47,8 @@ export type ProvisionInput = Readonly<{
   scope: ShareScope;
   policy: SharePolicy;
   minutes: number;
+  /** The host session's absolute end; a share may not outlive it. */
+  expiresAt?: number;
   audience: SessionAudience;
   peopleIds: readonly string[];
   items: readonly VaultItem[];
@@ -177,7 +179,15 @@ export async function provisionLiveSessionGuest(
   if (resources.length === 0) return;
   const durationSeconds = Math.max(
     60,
-    Math.min(7 * 86_400, Math.max(1, input.minutes) * 60),
+    Math.min(
+      7 * 86_400,
+      Math.max(1, input.minutes) * 60,
+      Math.floor(
+        ((input.expiresAt ?? Date.now() + input.minutes * 60_000) -
+          Date.now()) /
+          1000,
+      ),
+    ),
   );
   for (const resource of resources) {
     await name(input.tomb, (named) =>

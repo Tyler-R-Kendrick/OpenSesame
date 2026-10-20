@@ -98,6 +98,9 @@ async function startHosting(
   fireEvent.change(panel.getByLabelText("Session name"), {
     target: { value: "Team" },
   });
+  fireEvent.change(panel.getByLabelText("Share"), {
+    target: { value: "items" },
+  });
   fireEvent.click(
     panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
   );
@@ -107,9 +110,7 @@ async function startHosting(
   fireEvent.change(panel.getByLabelText("Who gets in"), {
     target: { value: admission },
   });
-  fireEvent.click(
-    panel.getByRole("button", { name: "Start the live session" }),
-  );
+  fireEvent.click(panel.getByRole("button", { name: "Share this vault" }));
   return { owner, panel };
 }
 

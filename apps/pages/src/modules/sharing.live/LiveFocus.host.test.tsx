@@ -18,7 +18,7 @@ installLiveFocusTests();
 describe("the keyboard after the host's swaps", () => {
   it("lands on the copy key when Start opens the session, and on the form when End closes it", async () => {
     const panel = await host();
-    press(panel.getByRole("button", { name: "Start the live session" }));
+    press(panel.getByRole("button", { name: "Share this vault" }));
     const copy = await panel.findByRole("button", { name: "Copy the link" });
     await landsOn(copy);
     press(panel.getByRole("button", { name: "End the session for everyone" }));
@@ -46,7 +46,7 @@ describe("the keyboard after the host's swaps", () => {
         return rect(98 - pane.scrollTop, 44);
       },
     );
-    press(panel.getByRole("button", { name: "Start the live session" }));
+    press(panel.getByRole("button", { name: "Share this vault" }));
     await landsOn(await panel.findByRole("button", { name: "Copy the link" }));
     expect(pane.scrollTop).toBe(38);
   });
@@ -57,7 +57,7 @@ describe("the keyboard after the host's swaps", () => {
     document.body.append(elsewhere);
     act(() => elsewhere.focus());
     fireEvent.click(
-      panel.getByRole("button", { name: "Start the live session" }),
+      panel.getByRole("button", { name: "Share this vault" }),
     );
     await panel.findByRole("img", { name: "Live" });
     await landsOn(elsewhere);

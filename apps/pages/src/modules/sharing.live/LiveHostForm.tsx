@@ -133,7 +133,7 @@ export function LiveHostForm({
       )}
       {failed ? <StatusMark tone="err" label={failed} /> : null}
       <FormCommit
-        label="Start the live session"
+        label="Share this vault"
         disabled={!ready}
         disabledReason={reason}
         icon={<IconPlay size={18} />}

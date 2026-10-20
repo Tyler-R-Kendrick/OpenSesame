@@ -66,6 +66,7 @@ export async function buildLiveHost(
             scope,
             policy: input.policy,
             minutes: input.minutes,
+            expiresAt,
             audience: provision.audience,
             peopleIds: provision.peopleIds,
             items: items(),

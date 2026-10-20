@@ -19,7 +19,7 @@ export type Scope = "vault" | "items" | "none";
 
 export function useHostForm(initialTitle = "") {
   const [title, setTitle] = useState(initialTitle);
-  const [scope, setScope] = useState<Scope>("items");
+  const [scope, setScope] = useState<Scope>("vault");
   const [devices, setDevices] = useState<"no" | "ask">("no");
   const [chosen, setChosen] = useState<Set<string>>(() => new Set());
   const [policy, setPolicy] = useState<SharePolicy>("use");
@@ -29,7 +29,7 @@ export function useHostForm(initialTitle = "") {
   );
   const [peopleIds, setPeopleIds] = useState<ReadonlySet<string>>(new Set());
   const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
-  const [minutes, setMinutes] = useState(60);
+  const [minutes, setMinutes] = useState(10_080);
   const { starting, failed, start } = useStartSession();
   useEffect(() => {
     let live = true;

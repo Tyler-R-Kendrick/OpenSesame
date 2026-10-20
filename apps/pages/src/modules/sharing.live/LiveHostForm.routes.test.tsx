@@ -125,6 +125,9 @@ async function filledForm() {
   fireEvent.change(panel.getByLabelText("Session name"), {
     target: { value: "Team" },
   });
+  fireEvent.change(panel.getByLabelText("Share"), {
+    target: { value: "items" },
+  });
   fireEvent.click(
     panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
   );
@@ -132,9 +135,7 @@ async function filledForm() {
 }
 
 const start = (panel: ReturnType<typeof within>) =>
-  fireEvent.click(
-    panel.getByRole("button", { name: "Start the live session" }),
-  );
+  fireEvent.click(panel.getByRole("button", { name: "Share this vault" }));
 
 describe("a session started right after a route was added", () => {
   it("starts with the carrier, though the seal behind the Routes panel is still out", async () => {

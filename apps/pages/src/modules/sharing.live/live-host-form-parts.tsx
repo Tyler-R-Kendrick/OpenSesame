@@ -42,6 +42,8 @@ export const DURATIONS: readonly Choice<number>[] = [
   { value: 60, label: "1 hour" },
   { value: 240, label: "4 hours" },
   { value: 480, label: "8 hours" },
+  { value: 1_440, label: "1 day" },
+  { value: 10_080, label: "Until this tab closes (up to 7 days)" },
 ];
 
 /** How long an allowed device keeps its grant; the session's end comes first. */

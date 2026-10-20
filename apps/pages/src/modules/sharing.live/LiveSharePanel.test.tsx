@@ -8,12 +8,7 @@ import { currentHost } from "@opensesame/app-core/lib/live/session.js";
 import { fireEvent, render, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LiveSharePanel } from "./LiveSharePanel.js";
-import {
-  github,
-  installLiveFocusTests,
-  press,
-} from "./live-focus-test-support.js";
-import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
+import { installLiveFocusTests, press } from "./live-focus-test-support.js";
 
 describe("the share sheet", () => {
   installLiveFocusTests();
@@ -23,7 +18,7 @@ describe("the share sheet", () => {
     const panel = within(container);
     expect(panel.getByLabelText("Session name")).toBeTruthy();
     expect(
-      panel.getByRole("button", { name: "Start the live session" }),
+      panel.getByRole("button", { name: "Share this vault" }),
     ).toBeTruthy();
     const advanced = container.querySelector<HTMLDetailsElement>(
       "details.live-advanced",
@@ -37,12 +32,7 @@ describe("the share sheet", () => {
     fireEvent.change(panel.getByLabelText("Session name"), {
       target: { value: "Team" },
     });
-    fireEvent.click(
-      panel.getByRole("checkbox", {
-        name: liveItemPickerCheckboxName(github),
-      }),
-    );
-    press(panel.getByRole("button", { name: "Start the live session" }));
+    press(panel.getByRole("button", { name: "Share this vault" }));
     await panel.findByRole("img", { name: "Live" });
     expect(panel.getByRole("button", { name: "Copy the link" })).toBeTruthy();
     expect(

@@ -16,6 +16,7 @@
  * changes nothing here (ADR 0150 §7).
  */
 
+import { name } from "@gdp-ts/core";
 import {
   type EffectivePlan,
   capabilityState,
@@ -23,6 +24,8 @@ import {
 import type { VaultItem } from "@opensesame/vault-core";
 import { compositionStore } from "../capabilities/store.js";
 import { persistedRestoreRefuses } from "../document-lifecycle.js";
+import { revokeSharesForSession } from "../local-share-grants.js";
+import { systemShareWrite } from "../proofs/share-write.js";
 import { noteLiveSessionEnded } from "../sharing-receipts.js";
 import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
@@ -143,7 +146,7 @@ export type HostInput = Readonly<{
   scope: ShareScope;
   policy: SharePolicy;
   admission: Admission;
-  /** Minutes; the host clamps it to eight hours. */
+  /** Minutes; the host clamps it to seven days. */
   minutes: number;
   /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
   transport: TransportFactory;
@@ -295,7 +298,14 @@ export function endHosting(): void {
   hostCarriers?.close();
   hostCarriers = null;
   if (!host) return;
-  noteLiveSessionEnded(host.id);
+  const endedId = host.id;
+  noteLiveSessionEnded(endedId);
+  // A joiner's standing shares are session-scoped. Drop the ones still stored
+  // when the owner ends the session; a vault that is already locked keeps
+  // their short cap instead.
+  void name(vaultStore.activeTomb(), (named) =>
+    revokeSharesForSession(named, endedId, systemShareWrite(named)),
+  ).catch(() => undefined);
   host.end("owner");
   host = null;
   liveSeams.onHostingEnded?.();

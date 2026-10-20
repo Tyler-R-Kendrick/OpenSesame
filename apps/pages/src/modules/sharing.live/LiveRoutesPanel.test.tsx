@@ -211,12 +211,15 @@ describe("the start form", () => {
   async function fill(form: ReturnType<typeof within>) {
     await form.findByLabelText("Session name");
     type(form, "Session name", "Team");
+    fireEvent.change(form.getByLabelText("Share"), {
+      target: { value: "items" },
+    });
     fireEvent.click(
       form.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
     );
   }
   const start = (form: ReturnType<typeof within>) =>
-    form.getByRole("button", { name: /^Start the live session/ });
+    form.getByRole("button", { name: /^Share this vault/ });
 
   it("does not start on a profile it cannot read, and says why", async () => {
     readError = new TransportRefused("relay needs at least one TURN server.");
@@ -225,6 +228,9 @@ describe("the start form", () => {
       name: "relay needs at least one TURN server.",
     });
     type(form, "Session name", "Team");
+    fireEvent.change(form.getByLabelText("Share"), {
+      target: { value: "items" },
+    });
     fireEvent.click(
       form.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
     );

@@ -137,6 +137,7 @@ export async function host(
   const panel = within(rendered.container);
   await panel.findByRole("img", { name: "Direct only" });
   type(panel.getByLabelText("Session name"), "Team");
+  type(panel.getByLabelText("Share"), "items");
   fireEvent.click(
     panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
   );
@@ -156,7 +157,7 @@ export function openJoin() {
 
 export async function hosted(values: "read" | "use" | "edit" = "use") {
   const panel = await host("invite", values);
-  press(panel.getByRole("button", { name: "Start the live session" }));
+  press(panel.getByRole("button", { name: "Share this vault" }));
   await panel.findByRole("img", { name: "Live" });
   const session = currentHost();
   holdLiveLink(session?.link ?? null);
