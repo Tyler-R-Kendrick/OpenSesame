@@ -53,12 +53,19 @@ export class AiConnectionError extends Error {
   }
 }
 
+/** Transcription families admitted by the current shared AI configuration. */
+export function isAiSpeechFamily(
+  family: string | undefined,
+): family is "elevenlabs_scribe" | "deepgram_listen" {
+  return family === "elevenlabs_scribe" || family === "deepgram_listen";
+}
+
 /** Finite protocols cannot borrow the generic request or text-stream builders. */
 export function textAiFamily(family: AiInferenceFamily) {
   if (
     family === "bedrock_converse" ||
     family === "replicate_predictions" ||
-    family === "elevenlabs_scribe"
+    isAiSpeechFamily(family)
   )
     throw new AiConnectionError(
       "configuration",

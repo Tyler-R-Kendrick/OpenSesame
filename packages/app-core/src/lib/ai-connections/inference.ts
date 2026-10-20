@@ -4,6 +4,8 @@ import type {
   HostedModelResult,
 } from "../hosted-model-protocol.js";
 import { inferBedrockAi } from "./bedrock-inference.js";
+import { validateAiDeepgramConnection } from "./configuration.js";
+import { inferDeepgramAi } from "./deepgram-inference.js";
 import { aiConnectionFetch, readAiJson } from "./http.js";
 import { type AiAudioInput, validateAiAudio } from "./media.js";
 import { aiInferenceAnswer, aiInferenceRequest } from "./protocol.js";
@@ -16,6 +18,7 @@ import {
   type AiConnectionDraft,
   AiConnectionError,
   type AiConnectionTransport,
+  isAiSpeechFamily,
 } from "./types.js";
 import { inferVertexAi } from "./vertex-inference.js";
 import { vertexConnectionTarget } from "./vertex-target.js";
@@ -34,30 +37,8 @@ export async function inferAiConnection(
       "configuration",
       "Use the model saved with this connection.",
     );
-  if (draft.family === "elevenlabs_scribe") {
-    if (onText)
-      throw new AiConnectionError(
-        "configuration",
-        "Scribe returns a finite transcript, not a text stream.",
-      );
-    const { media, ...fields } = input;
-    try {
-      z.object({ model: z.literal(draft.model), messages: z.tuple([]) })
-        .strict()
-        .parse(fields);
-    } catch {
-      throw new AiConnectionError(
-        "configuration",
-        "Supply local audio without a prompt or text-generation parameters.",
-      );
-    }
-    return inferSpeechAi(
-      validateAiSpeechConnection(draft),
-      validateAiAudio(media),
-      transport,
-      check,
-    );
-  }
+  if (isAiSpeechFamily(draft.family))
+    return inferTranscriptionAi(draft, input, transport, check, onText);
   if (input.media !== undefined)
     throw new AiConnectionError(
       "configuration",
@@ -121,6 +102,44 @@ export async function inferAiConnection(
   return { providerId: draft.providerId, model: draft.model, answer };
 }
 
+function inferTranscriptionAi(
+  draft: AiConnectionDraft,
+  input: HostedModelInput,
+  transport: AiConnectionTransport,
+  check: () => void,
+  onText?: (text: string) => void,
+): Promise<HostedModelResult> {
+  if (onText)
+    throw new AiConnectionError(
+      "configuration",
+      "Transcription returns a finite transcript, not a text stream.",
+    );
+  const { media, ...fields } = input;
+  try {
+    z.object({ model: z.literal(draft.model), messages: z.tuple([]) })
+      .strict()
+      .parse(fields);
+  } catch {
+    throw new AiConnectionError(
+      "configuration",
+      "Supply local audio without a prompt or text-generation parameters.",
+    );
+  }
+  if (draft.family === "deepgram_listen")
+    return inferDeepgramAi(
+      validateAiDeepgramConnection(draft),
+      validateAiAudio(media),
+      transport,
+      check,
+    );
+  return inferSpeechAi(
+    validateAiSpeechConnection(draft),
+    validateAiAudio(media),
+    transport,
+    check,
+  );
+}
+
 export function probeAiConnection(
   draft: AiConnectionDraft,
   transport: AiConnectionTransport,
@@ -129,7 +148,7 @@ export function probeAiConnection(
   predictionOptions: ReplicateRunOptions = {},
   audio?: AiAudioInput,
 ) {
-  if (draft.family === "elevenlabs_scribe") {
+  if (isAiSpeechFamily(draft.family)) {
     if (predictionInput !== undefined || audio === undefined)
       throw new AiConnectionError(
         "configuration",

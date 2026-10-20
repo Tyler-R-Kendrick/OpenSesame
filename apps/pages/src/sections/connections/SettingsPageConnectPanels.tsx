@@ -1,4 +1,5 @@
 import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
+import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import { isAiModelProvider } from "@opensesame/app-core/lib/ai-model-provider.js";
 import type {
   Connection,
@@ -48,7 +49,18 @@ export function SettingsPageConnectPanels(props: Props) {
   const { provider, connection, nativeExperience, identityExperience } = props;
   if (provider.id === "tailscale" && !isConnectConnection(connection))
     return <TailscalePanels {...props} />;
-  if (isAiConnectionProvider(provider.id) && !isConnectConnection(connection))
+  // A native connector row created before the provider gained an AI contract
+  // has no AI record. Keep that row on its native page: the AI form would show
+  // an empty key over sealed custody and could orphan it on save.
+  const nativeAiRecord =
+    connection && !isConnectConnection(connection)
+      ? readAiConnection(connection.connectionId)
+      : null;
+  if (
+    isAiConnectionProvider(provider.id) &&
+    !isConnectConnection(connection) &&
+    (!connection || nativeAiRecord)
+  )
     return <AiSettingsPanels {...props} />;
   if (isSecretBackendProvider(provider.id) && !isConnectConnection(connection))
     return (

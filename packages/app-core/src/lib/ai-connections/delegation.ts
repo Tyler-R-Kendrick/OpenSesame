@@ -23,7 +23,7 @@ import {
 import { aiConnectionHeaders } from "./protocol.js";
 import { AI_CONNECTION_CLASSIFICATION, readAiConnection } from "./store.js";
 import { captureAiConnectionTransport } from "./transport.js";
-import { AiConnectionError } from "./types.js";
+import { AiConnectionError, isAiSpeechFamily } from "./types.js";
 import { aiVaultSeams } from "./vault-guard.js";
 
 function unavailable(): never {
@@ -40,7 +40,7 @@ function delegationState(id: string) {
     draft.family === "openai_responses" ||
     draft.family === "bedrock_converse" ||
     draft.family === "replicate_predictions" ||
-    draft.family === "elevenlabs_scribe"
+    isAiSpeechFamily(draft.family)
   )
     return unavailable();
   const api = modelApiOf(draft.providerId);

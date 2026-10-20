@@ -6,6 +6,7 @@
  * without a harness (they need no sealed key).
  */
 
+import { isAiSpeechFamily } from "./ai-connections/types.js";
 import { listConnections } from "./connections.js";
 import { hostedModelAuthority } from "./hosted-model-authority.js";
 import {
@@ -180,7 +181,7 @@ function savedConnectionOptions(): ModelSlugOption[] {
       row.status !== "connected" ||
       !row.model ||
       !row.endpoint ||
-      row.family === "elevenlabs_scribe" ||
+      isAiSpeechFamily(row.family) ||
       row.family === "replicate_predictions"
     )
       continue;

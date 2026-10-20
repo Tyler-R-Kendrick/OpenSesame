@@ -11,6 +11,7 @@ export const AI_CONNECTION_FAMILIES = [
   { id: "gemini_generate_content", label: "Gemini Generate Content" },
   { id: "replicate_predictions", label: "Replicate predictions" },
   { id: "elevenlabs_scribe", label: "ElevenLabs Scribe transcription" },
+  { id: "deepgram_listen", label: "Deepgram transcription" },
 ] as const;
 
 export function isAiConnectionFamily(
@@ -32,6 +33,14 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "deepgram")
+    return {
+      providerId,
+      name: "Deepgram",
+      family: "deepgram_listen" as const,
+      baseUrl: "https://api.deepgram.com/v1",
+      model: "nova-3",
+    };
   if (providerId === "elevenlabs")
     return {
       providerId,
@@ -103,7 +112,11 @@ export function aiConnectionDraft(providerId: string): AiConnectionDraft {
   if (!preset) throw new Error("This provider has no supported AI protocol.");
   return {
     ...preset,
-    model: preset.family === "elevenlabs_scribe" ? preset.model : "",
+    model:
+      preset.family === "elevenlabs_scribe" ||
+      preset.family === "deepgram_listen"
+        ? preset.model
+        : "",
     authentication: "api-key",
     apiKey: "",
     tokenParameter: ["openai", "byo-ai", "azure-openai"].includes(providerId)

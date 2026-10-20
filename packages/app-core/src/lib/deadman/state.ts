@@ -9,7 +9,7 @@
  * before the vault is open.
  */
 
-import type { BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import {
   isJsonObject,
   isNumber,
@@ -89,7 +89,9 @@ function stateText(state: DeadmanState): string {
     timeoutDays: state.timeoutDays,
     packageDigest: state.packageDigest,
     itemCount: state.itemCount,
-    publicKeyJwk: state.publicKeyJwk as unknown as BoundaryValue,
+    // SAFETY: JsonWebKey uses JSON-compatible fields; this identity overlap
+    // preserves the same public key for canonicalJson's existing serializer.
+    publicKeyJwk: overlapCast(state.publicKeyJwk),
     relayUrl: state.relayUrl,
     sequence: state.sequence,
   });
@@ -99,7 +101,7 @@ export async function signDeadmanState(
   state: Omit<DeadmanState, "signature">,
   privateKeyJwk: JsonWebKey,
 ): Promise<DeadmanState> {
-  const unsigned = { ...state, signature: "" } as DeadmanState;
+  const unsigned: DeadmanState = { ...state, signature: "" };
   const signature = await signText(privateKeyJwk, stateText(unsigned));
   return { ...state, signature };
 }
@@ -108,6 +110,37 @@ export async function verifyDeadmanState(
   state: DeadmanState,
 ): Promise<boolean> {
   return verifyText(state.publicKeyJwk, stateText(state), state.signature);
+}
+
+function invalidAuthenticationWindow(value: JsonObject): boolean {
+  return (
+    !isNumber(value.lastAuthenticatedAt) ||
+    !Number.isSafeInteger(value.lastAuthenticatedAt) ||
+    value.lastAuthenticatedAt < 0 ||
+    !isNumber(value.timeoutDays) ||
+    !Number.isSafeInteger(value.timeoutDays) ||
+    value.timeoutDays < 1 ||
+    value.timeoutDays > DEADMAN_MAX_TIMEOUT_DAYS
+  );
+}
+
+function invalidReleaseRecord(value: JsonObject): boolean {
+  return (
+    !isString(value.packageDigest) ||
+    !/^[A-Za-z0-9_-]{43}$/u.test(value.packageDigest) ||
+    !isNumber(value.itemCount) ||
+    !Number.isSafeInteger(value.itemCount) ||
+    value.itemCount < 1 ||
+    value.itemCount > DEADMAN_MAX_ITEMS ||
+    !isJsonObject(value.publicKeyJwk) ||
+    !isString(value.relayUrl) ||
+    value.relayUrl.length > 2048 ||
+    !isNumber(value.sequence) ||
+    !Number.isSafeInteger(value.sequence) ||
+    value.sequence < 1 ||
+    !isString(value.signature) ||
+    !/^[A-Za-z0-9_-]{86}$/u.test(value.signature)
+  );
 }
 
 export function parseDeadmanState(raw: string | null): DeadmanState | null {
@@ -122,27 +155,8 @@ export function parseDeadmanState(raw: string | null): DeadmanState | null {
       !isString(value.tomb) ||
       value.tomb.length > 80 ||
       !isString(value.armedAt) ||
-      !isNumber(value.lastAuthenticatedAt) ||
-      !Number.isSafeInteger(value.lastAuthenticatedAt) ||
-      value.lastAuthenticatedAt < 0 ||
-      !isNumber(value.timeoutDays) ||
-      !Number.isSafeInteger(value.timeoutDays) ||
-      value.timeoutDays < 1 ||
-      value.timeoutDays > DEADMAN_MAX_TIMEOUT_DAYS ||
-      !isString(value.packageDigest) ||
-      !/^[A-Za-z0-9_-]{43}$/u.test(value.packageDigest) ||
-      !isNumber(value.itemCount) ||
-      !Number.isSafeInteger(value.itemCount) ||
-      value.itemCount < 1 ||
-      value.itemCount > DEADMAN_MAX_ITEMS ||
-      !isJsonObject(value.publicKeyJwk) ||
-      !isString(value.relayUrl) ||
-      value.relayUrl.length > 2048 ||
-      !isNumber(value.sequence) ||
-      !Number.isSafeInteger(value.sequence) ||
-      value.sequence < 1 ||
-      !isString(value.signature) ||
-      !/^[A-Za-z0-9_-]{86}$/u.test(value.signature)
+      invalidAuthenticationWindow(value) ||
+      invalidReleaseRecord(value)
     )
       return null;
     return overlapCast(value);
@@ -287,7 +301,7 @@ export async function recordDeadmanAuthentication(tomb: string): Promise<void> {
         ...state,
         lastAuthenticatedAt: now,
         sequence: state.sequence + 1,
-      } as Omit<DeadmanState, "signature">,
+      },
       config.privateKeyJwk,
     );
     await writeDeadmanState(tomb, next);

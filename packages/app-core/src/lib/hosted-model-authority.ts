@@ -9,7 +9,8 @@ export type AiInferenceFamily =
   | "openai_responses"
   | "bedrock_converse"
   | "replicate_predictions"
-  | "elevenlabs_scribe";
+  | "elevenlabs_scribe"
+  | "deepgram_listen";
 export type HostedModelTransport = {
   fetch: typeof fetch;
   assertCurrent: () => void;

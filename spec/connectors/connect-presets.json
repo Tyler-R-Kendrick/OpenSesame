@@ -6652,19 +6652,38 @@
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.tinybird.co/v0/sql?q=SELECT+1",
-        "account_field": null
+        "url": "https://{api_host}/v0/datasources?attrs=name",
+        "account_field": null,
+        "required_fields": ["datasources"]
       },
-      "instructions": "In [Tinybird Cloud](https://cloud.tinybird.co) open your workspace → **Tokens**, click **Create Token**, give it read scope on a data source or pipe, and copy it. Use the API host of your workspace's region.",
-      "docs_url": "https://www.tinybird.co/docs/api-reference",
+      "instructions": "In [Tinybird Cloud](https://cloud.tinybird.co) open your workspace → **Tokens** and create a token with **DATASOURCES:READ** on the data sources you want to list. Choose the matching EU or US East data region. The list shows up to 20 names from the bounded reply; it does not fetch rows or follow pagination. For an existing connection, re-enter its token and verify the same connection again to bind this region-aware contract; saved credentials are not reused across regions.",
+      "docs_url": "https://www.tinybird.co/docs/api-reference/datasource-api",
       "probe_status": 403,
       "confidence": "medium",
-      "notes": "Host depends on region (e.g. api.us-east.aws.tinybird.co). key_url is approximate; tokens live under the workspace.",
+      "notes": "EU uses api.tinybird.co; US East uses api.us-east.tinybird.co. Select the matching workspace region. Data-source names are the only requested attributes.",
       "sources": [
         "https://www.tinybird.co/docs/api-reference",
         "https://www.tinybird.co/docs/api-reference/token-api"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "api_host",
+          "label": "Data region",
+          "placeholder": "api.tinybird.co",
+          "required": true,
+          "secret": false,
+          "choices": [
+            {
+              "value": "api.tinybird.co",
+              "label": "EU"
+            },
+            {
+              "value": "api.us-east.tinybird.co",
+              "label": "US East"
+            }
+          ]
+        }
+      ]
     },
     {
       "service": "together",

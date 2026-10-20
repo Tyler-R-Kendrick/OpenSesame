@@ -17,6 +17,7 @@ import {
   DURATIONS,
   ItemChoice,
   POLICIES,
+  PeopleChoice,
   Pick,
   SCOPES,
   routesSummary,
@@ -89,28 +90,11 @@ export function LiveHostForm({
         onChange={set.audience}
       />
       {values.audience === "people" ? (
-        <fieldset className="live-choose">
-          <legend className="visually-hidden">People</legend>
-          {values.people.length === 0 ? (
-            <StatusMark tone="idle" label="No people in this vault." />
-          ) : (
-            values.people.map((person) => (
-              <label key={person.id} className="join__choice">
-                <input
-                  type="checkbox"
-                  checked={values.peopleIds.has(person.id)}
-                  onChange={(event) => {
-                    const next = new Set(values.peopleIds);
-                    if (event.target.checked) next.add(person.id);
-                    else next.delete(person.id);
-                    set.peopleIds(next);
-                  }}
-                />
-                <span>{person.name}</span>
-              </label>
-            ))
-          )}
-        </fieldset>
+        <PeopleChoice
+          people={values.people}
+          peopleIds={values.peopleIds}
+          onChange={set.peopleIds}
+        />
       ) : null}
       <Pick
         id="live-admission"

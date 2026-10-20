@@ -13,6 +13,9 @@ globalThis.__opensesameAppCoreHost = {
 const projection = buildSync({
   stdin: {
     contents: `
+      import {connectPlan} from './packages/app-core/src/lib/connect-plan.ts';
+      import {nativeBrowserOAuthProfile} from './packages/app-core/src/lib/native-browser-oauth-profile.ts';
+      import {nativeProviderDescriptor} from './apps/pages/src/sections/connections/connect/native-provider-descriptor.ts';
       import {getBundledProviders} from './packages/app-core/src/lib/embedded-catalog.ts';
       export {CONNECT_PLAN_JSON as connectPlanJson} from './packages/app-core/src/lib/connect-presets.generated.ts';
       import {mergeVercelCatalog} from './packages/app-core/src/lib/vercel-connect-catalog.ts';
@@ -20,6 +23,23 @@ const projection = buildSync({
       import {isAiModelProvider} from './packages/app-core/src/lib/ai-model-provider.ts';
       import {aiConnectionPreset,aiConnectionFamilies} from './packages/app-core/src/lib/ai-connections/presets.ts';
       import {nativeBrowserMcpPolicy,bindNativeBrowserPolicyOrigin} from './packages/app-core/src/lib/native-browser-policy.ts';
+      // Schema projection only: availability does not authorize a browser road.
+      // The real browser still owns runtime/transport admission and all requests.
+      export function authFieldMethods(providerId) {
+        const plan = connectPlan(providerId);
+        if (!plan || plan.refused) return [];
+        const availability = {
+          callbackUrl: 'https://tyler-r-kendrick.github.io/OpenSesame/auth/native-connector.html',
+          apiKey: {available: true},
+          oauth: {available: true, registeredAvailable: true, profile: nativeBrowserOAuthProfile(providerId) ?? undefined},
+          mcp: {available: true, actor: 'user'},
+        };
+        const methods = nativeProviderDescriptor(plan, availability).methods;
+        // Isolation can disable Google's popup while registered OAuth stays configurable.
+        return providerId === 'google' ? [...methods, ...nativeProviderDescriptor(plan, {
+          ...availability, oauth: {...availability.oauth, available: false},
+        }).methods.filter(method => method.id === 'oauth')] : methods;
+      }
       const releaseOrigin=bindNativeBrowserPolicyOrigin(()=> 'https://tyler-r-kendrick.github.io');
       export const auditedAdobeAdmission=nativeBrowserMcpPolicy('adobe');
       releaseOrigin();
@@ -73,3 +93,6 @@ export const NATIVE_SHARED_AI_PRESETS = new Map(
 
 /** Synthetic allowed-origin protocols never waive the real measured GH admission. */
 export const NATIVE_AUDITED_ADOBE_ADMISSION = source.auditedAdobeAdmission;
+
+/** Canonical field schemas only; never a substitute for executable admission. */
+export const nativeAuthFieldMethods = source.authFieldMethods;

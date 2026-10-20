@@ -16,11 +16,21 @@ import { openSessionSection } from "./session-section.mjs";
 export const PIN = "48291037";
 
 export async function waitOpen(page) {
+  const deadline = performance.now() + 20000;
   await page
     .getByRole("button", { name: "Lock vault" })
     .locator("visible=true")
     .first()
     .waitFor({ timeout: 20000 });
+  // The lock key mounts behind the doors. Walks install a frozen Playwright
+  // clock, so advance the 1.6s ceremony before waiting for the gate to leave.
+  await page.clock?.runFor(2_000)?.catch(() => undefined);
+  // Readiness also requires the ceremony to finish; keep its existing 10s
+  // bound within the 20s open budget.
+  await page.locator(".unlock").waitFor({
+    state: "detached",
+    timeout: Math.min(10000, Math.max(1, deadline - performance.now())),
+  });
 }
 
 /** Sign-in is already up: the no-account road seals a vault on this device. */
@@ -40,23 +50,12 @@ export async function sealLocalOnly(page) {
 export async function sealWithPin(page) {
   await passTheDoor(page);
   await sealLocalOnly(page);
-  await page.waitForTimeout(400);
 }
 
 export async function unlockWithPin(page) {
   await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
-  // The vault is mounted behind the door ceremony, so the shell's lock key is
-  // visible before the doors have finished. Walks install a frozen test clock;
-  // let the 1.6s ceremony run before touching the shell beneath it.
-  const gate = page.locator(".unlock");
-  if (await gate.count()) {
-    await page.clock.runFor(2_000).catch(() => undefined);
-    await gate
-      .waitFor({ state: "detached", timeout: 10_000 })
-      .catch(() => undefined);
-  }
 }
 
 export async function lockVault(page) {

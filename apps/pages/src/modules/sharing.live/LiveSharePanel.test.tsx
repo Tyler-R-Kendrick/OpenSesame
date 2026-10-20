@@ -5,7 +5,7 @@
  * shows its link and QR only after that form is submitted.
  */
 import { currentHost } from "@opensesame/app-core/lib/live/session.js";
-import { fireEvent, render, within } from "@testing-library/react";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LiveSharePanel } from "./LiveSharePanel.js";
 import { installLiveFocusTests, press } from "./live-focus-test-support.js";
@@ -32,7 +32,11 @@ describe("the share sheet", () => {
     fireEvent.change(panel.getByLabelText("Session name"), {
       target: { value: "Team" },
     });
-    press(panel.getByRole("button", { name: "Share this vault" }));
+    const start = await panel.findByRole("button", {
+      name: "Share this vault",
+    });
+    await waitFor(() => expect(start.hasAttribute("disabled")).toBe(false));
+    press(start);
     await panel.findByRole("img", { name: "Live" });
     expect(panel.getByRole("button", { name: "Copy the link" })).toBeTruthy();
     expect(

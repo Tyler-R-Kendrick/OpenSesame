@@ -2,7 +2,11 @@
 import { z } from "zod";
 import type { HostedModelResult } from "../hosted-model-protocol.js";
 import { aiConnectionBase } from "./configuration.js";
-import { aiProtocolFetch, readAiJson } from "./http.js";
+import {
+  aiFiniteProtocolAuthority,
+  aiProtocolFetch,
+  readAiJson,
+} from "./http.js";
 import { type AiAudioInput, validateAiAudio } from "./media.js";
 import {
   type AiSpeechTarget,
@@ -10,35 +14,6 @@ import {
 } from "./speech-target.js";
 import { AiConnectionError, type AiConnectionTransport } from "./types.js";
 
-function speechAuthority(transport: AiConnectionTransport, owner: () => void) {
-  const { signal, assertCurrent, fetch } = transport;
-  const check = () => {
-    signal.throwIfAborted();
-    if (
-      transport.signal !== signal ||
-      transport.assertCurrent !== assertCurrent ||
-      transport.fetch !== fetch
-    )
-      throw new AiConnectionError(
-        "stale",
-        "The transcription transport changed.",
-      );
-    owner();
-    assertCurrent.call(transport);
-    signal.throwIfAborted();
-    if (
-      transport.signal !== signal ||
-      transport.assertCurrent !== assertCurrent ||
-      transport.fetch !== fetch
-    )
-      throw new AiConnectionError(
-        "stale",
-        "The transcription transport changed.",
-      );
-  };
-  check();
-  return check;
-}
 async function scribeRequest(target: AiSpeechTarget, supplied: AiAudioInput) {
   const audio = validateAiAudio(supplied);
   const url = new URL("speech-to-text", aiConnectionBase(target.baseUrl));
@@ -73,7 +48,7 @@ export async function inferSpeechAi(
   transport: AiConnectionTransport,
   owner: () => void,
 ): Promise<HostedModelResult> {
-  const check = speechAuthority(transport, owner);
+  const check = aiFiniteProtocolAuthority(transport, owner);
   const valid = validateAiSpeechTarget(target);
   const { url, request } = await scribeRequest(valid, audio);
   check();

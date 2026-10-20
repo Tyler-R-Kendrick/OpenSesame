@@ -1,12 +1,13 @@
 /**
- * The app root's two capability hooks, split out for the file budget:
- * whether one capability is approved, and what runs after each unlock.
+ * The app root's capability and unlock lifecycle hooks, split out for the
+ * file budget: approval state, unlock effects, and the initial vault route.
  */
 
 import type { UnlockEffectContribution } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
 import { useEffect } from "react";
+import type { NavigateFunction } from "react-router";
 import { useComposition } from "./bindings/capabilities.js";
 
 export function useCapabilityGate(id: string) {
@@ -61,4 +62,20 @@ export function useAfterUnlock(
       controller.abort("unmount");
     };
   }, [status, tomb, guest, effects, recover]);
+}
+
+/**
+ * Land on the vault before the shell mounts: the rail's sections open from
+ * the route they first render under, and mounting on "/" would leave every
+ * one of them closed.
+ */
+export function useVaultLanding(
+  status: string,
+  pathname: string,
+  navigate: NavigateFunction,
+): void {
+  useEffect(() => {
+    if (status === "unlocked" && pathname === "/")
+      navigate("/vault", { replace: true });
+  }, [pathname, navigate, status]);
 }
