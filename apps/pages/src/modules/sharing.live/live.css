@@ -38,3 +38,41 @@
   gap: 8px;
   margin-top: 8px;
 }
+
+/* The Share key in the shell prompt, and its sheet's folded Advanced. */
+
+.live-share {
+  position: relative;
+}
+
+.live-share--on::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok, #3fb950);
+}
+
+.live-advanced > summary {
+  cursor: pointer;
+  color: var(--ink-2, inherit);
+  padding: 4px 0;
+}
+
+.live-advanced__body {
+  margin-top: 12px;
+}
+
+.live-routes__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.live-routes__head h3 {
+  margin: 0;
+}

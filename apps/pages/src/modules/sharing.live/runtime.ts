@@ -3,9 +3,10 @@
  *
  * Contributed: the `/live` join screen (`gate: "any"`, framed — it holds no
  * vault key, so it opens on a locked or empty device, and inside the shell
- * in an unlocked tab), and the Settings › Live sessions tab: the panel where
- * the owner hosts one from this tab, and its routes, whose file is
- * `settings/live/transport.json` (sealed in the vault, ADR 0134).
+ * in an unlocked tab), and the Share key beside the vault's name in the
+ * shell prompt, whose sheet is where the owner hosts one from this tab.
+ * Its routes file is `settings/live/transport.json` (sealed in the vault,
+ * ADR 0134), edited from the sheet's Advanced.
  *
  * The sessions themselves live in `app-core/lib/live/session.ts`, not here:
  * this module is disposed and activated again on every lock, unlock and
@@ -34,7 +35,6 @@
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { liveSeams } from "@opensesame/app-core/lib/live/session.js";
-import { liveTransportFiles } from "@opensesame/app-core/sections/settings/live-transport-files.js";
 import {
   LIVE_GOALS,
   LIVE_ROUTES,
@@ -43,7 +43,7 @@ import {
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
-import { LiveSettings } from "./LiveSettings.js";
+import { LiveShareShell } from "./LiveShareShell.js";
 import { carrierFactory, carriersUnavailable } from "./carriers/index.js";
 import { liveUiSeams } from "./live-hooks.js";
 import {
@@ -51,7 +51,6 @@ import {
   noteDeviceAsking,
   noteGuestAsking,
 } from "./live-host-tray.js";
-import { transportSeams } from "./live-transport-hooks.js";
 
 export const CAPABILITY = "sharing.live";
 
@@ -91,17 +90,10 @@ export const capabilityRuntime: CapabilityRuntime = {
       order: 48,
       gate: "any",
     });
-    activation.register("settings-category", {
-      id: "live",
-      label: "Live sessions",
-      guideId: "settings.live",
-      Panel: LiveSettings,
-      panels: [
-        { id: "live-session", label: "Live session" },
-        { id: "live-routes", label: "Routes" },
-      ],
-      order: 320,
-      files: liveTransportFiles(() => transportSeams.tomb()),
+    activation.register("shell-wrapper", {
+      id: "live-share",
+      Wrapper: LiveShareShell,
+      order: 30,
     });
     registerTutorial(activation, {
       targets: LIVE_TARGETS,

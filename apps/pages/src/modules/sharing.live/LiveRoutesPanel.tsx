@@ -1,8 +1,8 @@
 /**
- * Settings › Live sessions › Routes (ADR 0150 §6): how this vault's live
- * sessions reach people who are not on the same network — the Form view of
- * `settings/live/transport.json`. Every route is optional; with none, a
- * session is direct only and contacts nothing.
+ * Routes, under the share sheet's Advanced (ADR 0150 §6): how this
+ * vault's live sessions reach people who are not on the same network —
+ * the Form view of `settings/live/transport.json`. Every route is
+ * optional; with none, a session is direct only and contacts nothing.
  *
  * A row per address, ICE server and carrier, each with one key; one field to
  * add each kind. Credentials a TURN server needs are asked beside its URL;
@@ -25,7 +25,6 @@ import { FormCommit } from "../../components/FormCommit.js";
 import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { OpenFileKey } from "../../sections/settings/files/OpenFileKey.js";
-import { GuideTarget } from "../../tutorial/registry/react.jsx";
 import { Carriers } from "./LiveCarriers.js";
 import { type Change, RemoveKey } from "./live-route-parts.js";
 import {
@@ -224,20 +223,17 @@ export function LiveRoutesPanel() {
     return outcome;
   };
   return (
-    <GuideTarget id="settings.live-routes">
-      <section className="panel" id="live-routes">
-        <div className="panel__head">
-          <div>
-            <h2>Routes</h2>
+    <div className="setup__stack" id="live-routes">
+      <div className="live-routes__head">
+        <h3>Routes</h3>
+        {loaded ? (
+          // Over a profile that will not read too: the file is where it is fixed.
+          <div className="actions">
+            <OpenFileKey path={TRANSPORT_FILE} name="transport.json" />
           </div>
-          {loaded ? (
-            // Over a profile that will not read too: the file is where it is fixed.
-            <div className="actions">
-              <OpenFileKey path={TRANSPORT_FILE} name="transport.json" />
-            </div>
-          ) : null}
-        </div>
-        <div className="panel__body setup__stack">
+        ) : null}
+      </div>
+      <div className="setup__stack">
           {!loaded ? (
             <StatusMark tone="idle" label="Reading this vault's routes" />
           ) : refused ? (
@@ -257,8 +253,7 @@ export function LiveRoutesPanel() {
               {edited ? <StatusMark tone="err" label={edited} /> : null}
             </>
           )}
-        </div>
-      </section>
-    </GuideTarget>
+      </div>
+    </div>
   );
 }

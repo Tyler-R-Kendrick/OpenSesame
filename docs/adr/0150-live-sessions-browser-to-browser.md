@@ -8,7 +8,10 @@
   what a request carries, §5 the catalog answers the joiner's greeting),
   [ADR 0196](0196-device-authorization-in-live-sessions.md) (§2 a session may
   share nothing of the vault, §3 a request names its kind and route, §5 a
-  device vocabulary crosses the channel)
+  device vocabulary crosses the channel),
+  [ADR 0208](0208-hosting-starts-at-the-share-key.md) (hosting moves from
+  the Settings tab to the Share key beside the vault's name; routes live
+  under its sheet's Advanced)
 - Amends: [ADR 0090](0090-static-frontend-complete-without-backend.md) and
   [ADR 0115](0115-front-door-and-connector-directory.md) (the first-run door:
   two roads, sign-in behind a vault), [ADR 0136](0136-join-a-session-restored.md)
