@@ -5,7 +5,6 @@ import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
 import { CanaryCredentialsPanel } from "./settings/security/CanaryCredentialsPanel.js";
 import { DeadmanPanel } from "./settings/security/DeadmanPanel.js";
-import { RetiredCredentialsPanel } from "./settings/security/RetiredCredentialsPanel.js";
 import { useSettingsCategory } from "./settings/use-settings-category.js";
 
 import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
@@ -237,7 +236,6 @@ function SecurityPanels({
       ))}
       <DuressPanel />
       <DeadmanPanel />
-      <RetiredCredentialsPanel />
       <CanaryCredentialsPanel />
       {duressShown ? <TravelPanel /> : null}
     </>
