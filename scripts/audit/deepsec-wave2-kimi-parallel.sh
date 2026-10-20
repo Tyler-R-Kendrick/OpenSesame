@@ -52,7 +52,17 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
   path="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))[0])" "$SLICE")"
   echo "deepsec-wave2-kimi-parallel: file $((idx + 1))/${TOTAL} ${path} (slice ${slice_count} path(s))"
   cd "$WS"
-  run_deepsec() {
+  set +e
+  if [[ "$DEEPSEC_KIMI_USE_COREUTILS_TIMEOUT" == "1" ]] && command -v timeout >/dev/null; then
+    timeout --foreground "${DEEPSEC_KIMI_FILE_WALL_SEC}" \
+      "$DEEPSEC" process --project-id opensesame \
+      --agent kimi --model kimi-code/k3 \
+      --thinking-level "$DEEPSEC_THINKING" \
+      --concurrency "$DEEPSEC_CONCURRENCY" \
+      --reinvestigate "$WAVE" \
+      --batch-size "$DEEPSEC_BATCH_SIZE" \
+      --manifest "$SLICE"
+  else
     "$DEEPSEC" process --project-id opensesame \
       --agent kimi --model kimi-code/k3 \
       --thinking-level "$DEEPSEC_THINKING" \
@@ -60,19 +70,16 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
       --reinvestigate "$WAVE" \
       --batch-size "$DEEPSEC_BATCH_SIZE" \
       --manifest "$SLICE"
-  }
-  if [[ "$DEEPSEC_KIMI_USE_COREUTILS_TIMEOUT" == "1" ]] && command -v timeout >/dev/null; then
-    if ! timeout --foreground "${DEEPSEC_KIMI_FILE_WALL_SEC}" run_deepsec; then
-      reason="process_exit"
-      if tail -30 "$LOG" 2>/dev/null | grep -qE 'file wall exceeded|timed out|Termin'; then
-        reason="file_wall_exceeded"
-      fi
-      node "${ROOT}/scripts/audit/deepsec-wave2-kimi-deferred.mjs" path "$ROOT" "$path" "$reason"
-      echo "deepsec-wave2-kimi-parallel: deferred ${path} (${reason}) — continuing"
+  fi
+  deepsec_rc=$?
+  set -e
+  if [[ "$deepsec_rc" -ne 0 ]]; then
+    reason="process_exit"
+    if tail -30 "$LOG" 2>/dev/null | grep -qE 'file wall exceeded|timed out|Termin'; then
+      reason="file_wall_exceeded"
     fi
-  elif ! run_deepsec; then
-    node "${ROOT}/scripts/audit/deepsec-wave2-kimi-deferred.mjs" path "$ROOT" "$path" "process_exit"
-    echo "deepsec-wave2-kimi-parallel: deferred ${path} (process_exit) — continuing"
+    node "${ROOT}/scripts/audit/deepsec-wave2-kimi-deferred.mjs" path "$ROOT" "$path" "$reason"
+    echo "deepsec-wave2-kimi-parallel: deferred ${path} (${reason}) — continuing"
   fi
   idx=$((idx + DEEPSEC_BATCH_SIZE))
 done
