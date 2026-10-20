@@ -10,6 +10,7 @@ import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog
 import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
 import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { AI_LABS } from "./AiLabs.js";
 import { settingsPageSources } from "./page-tree.js";
 import {
   installPanelFixture,
@@ -59,6 +60,12 @@ function tileNames(list: string): string[] {
 }
 
 describe("connector tiles while Connections is off", () => {
+  it("still lists the main AI labs, without dead links", () => {
+    renderIntegrationsPanel();
+    expect(tileNames("AI providers")).toEqual(AI_LABS.map((lab) => lab.name));
+    expect(screen.queryByRole("link", { name: /OpenAI/ })).toBeNull();
+  });
+
   it("draws no tile that would open a page nothing routes", () => {
     renderIntegrationsPanel();
     for (const name of [
