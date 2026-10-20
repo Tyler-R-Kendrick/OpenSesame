@@ -5,7 +5,32 @@ import {
   hasUsablePrfOutput,
   readPrfFirst,
 } from "./vault/protection/adapters/webauthn-prf-output.js";
+import type { VaultProtectionBrowserService } from "./vault/protection/browser-service.js";
 import { unwrapVaultKeyWithPrf } from "./vault/unlock-methods.js";
+
+type SignInPrfVault = {
+  isUnlocked(): boolean;
+  activeTomb(): string;
+  readonly protection: Pick<
+    VaultProtectionBrowserService,
+    "listProtectors" | "enrollHeldWebauthnPrf" | "commitEnrollment"
+  >;
+};
+
+let signInVault: SignInPrfVault | null = null;
+
+/** The singleton boot binds live reads, never a key or session snapshot. */
+export function installSignInPrfVault(owner: SignInPrfVault): () => void {
+  signInVault = owner;
+  return () => {
+    if (signInVault === owner) signInVault = null;
+  };
+}
+
+/** Keep the former deferred lookup before checking the current owner state. */
+function currentSignInPrfVault(): Promise<SignInPrfVault | null> {
+  return Promise.resolve().then(() => signInVault);
+}
 
 function viewBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(
@@ -26,8 +51,12 @@ export function zeroSignInPrfSalts(plan: Map<string, SignInPrfRow>): void {
 
 async function knownPrfSalts(tomb: string): Promise<Map<string, Uint8Array>> {
   const salts = new Map<string, Uint8Array>();
-  const { vaultStore } = await import("./vault/store.js");
-  if (!vaultStore.isUnlocked() || vaultStore.activeTomb() !== tomb)
+  const vaultStore = await currentSignInPrfVault();
+  if (
+    !vaultStore ||
+    !vaultStore.isUnlocked() ||
+    vaultStore.activeTomb() !== tomb
+  )
     return salts;
   for (const record of vaultStore.protection.listProtectors()) {
     if (record.kind !== "webauthn-prf") continue;
@@ -81,8 +110,12 @@ export async function applySignInPrf(
   }
   const prfOutput = new Uint8Array(first);
   try {
-    const { vaultStore } = await import("./vault/store.js");
-    if (!vaultStore.isUnlocked() || vaultStore.activeTomb() !== tomb)
+    const vaultStore = await currentSignInPrfVault();
+    if (
+      !vaultStore ||
+      !vaultStore.isUnlocked() ||
+      vaultStore.activeTomb() !== tomb
+    )
       return true;
     if (row.existing) {
       const assertedId = bytesToB64url(new Uint8Array(credential.rawId));
