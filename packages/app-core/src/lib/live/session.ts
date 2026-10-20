@@ -30,27 +30,23 @@ import { noteLiveSessionEnded } from "../sharing-receipts.js";
 import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
 import { LiveGuest } from "./guest.js";
-import type { Admission, LiveHost } from "./host.js";
+import type { LiveHost } from "./host.js";
 import type { HostState } from "./host.js";
 import { watchDocumentLifecycle } from "./lifecycle-watch.js";
-import type { LiveLink } from "./link.js";
-import type { SharePolicy } from "./messages.js";
 import {
   LIVE_VAULT_LOCKED_TRAY,
   reportLiveOutcome,
 } from "./outcome-notices.js";
-import {
-  DIRECT_ROUTING,
-  type PeerRouting,
-  type TransportFactory,
-} from "./p2p.js";
-import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
+import { DIRECT_ROUTING, type PeerRouting } from "./p2p.js";
+import type { Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
 import { type RelaySource, buildLiveHost } from "./session-build-host.js";
 import { guestCarriersFor, openCarriers, poster } from "./session-carriers.js";
 import { prepareJoinTrust } from "./session-trust.js";
-import type { CarrierSpec, LiveTransport } from "./transport.js";
-import type { ShareScope } from "./vault-share.js";
+import type { HostInput, JoinInput } from "./session-types.js";
+import type { CarrierSpec } from "./transport.js";
+
+export type { HostInput, JoinInput } from "./session-types.js";
 
 type LiveSessionSeams = {
   items: () => readonly VaultItem[];
@@ -135,28 +131,6 @@ export function onLiveSessionChange(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
-
-export type HostInput = Readonly<{
-  title: string;
-  /** Who the generated link is for, for local identity/share provisioning. */
-  provision?: Readonly<{
-    audience: "anyone" | "all-users" | "people";
-    peopleIds: readonly string[];
-  }>;
-  scope: ShareScope;
-  policy: SharePolicy;
-  admission: Admission;
-  /** Minutes; the host clamps it to seven days. */
-  minutes: number;
-  /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
-  transport: TransportFactory;
-  /** The owner's routes profile (Settings › Routes); direct when absent. */
-  routes?: LiveTransport;
-  /** The shell's carrier clients, for a profile that names carriers. */
-  carriers?: CarrierFactory;
-  /** Let devices ask to use the owner's connections (ADR 0196). */
-  devices?: boolean;
-}>;
 
 function authorityStands(): boolean {
   return host !== null || guest !== null;
@@ -312,30 +286,6 @@ export function endHosting(): void {
   unwatchPlanIfIdle();
   changed();
 }
-
-export type JoinInput = Readonly<{
-  link: LiveLink;
-  code: string | null;
-  name: string;
-  note: string;
-  /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
-  transport: TransportFactory;
-  /**
-   * Whether to use what the link names — its ICE servers and carriers. The
-   * person agreed to the hosts it lists; without that, direct only.
-   */
-  useRoutes: boolean;
-  carriers?: CarrierFactory;
-  /** Optional OOB peer-trust signal (`peer-trust-peering.ts`); no daemon/CLI. */
-  peerTrustSignal?: string | null;
-  rememberedPeerFingerprint?: string;
-  minimumPeerTrustEpoch?: number;
-  /**
-   * An unsigned manual-code join. Empty without this is refused.
-   * The SAS compare is still required when the device can sign.
-   */
-  unverifiedManual?: boolean;
-}>;
 
 /**
  * Start asking to join: the request code comes back for the person to send
