@@ -1,5 +1,5 @@
 import { type ComponentType, Suspense, lazy, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
@@ -11,7 +11,6 @@ import { useSettingsCategory } from "./settings/use-settings-category.js";
 import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { retiredSettingsAddress } from "@opensesame/app-core/lib/settings-retired.js";
 import {
-  SETTINGS_GROUPS,
   categoryFromHash,
   settingsGroupForCategory,
   settingsTabsForGroup,
@@ -141,19 +140,6 @@ export function SettingsSection({
         <div className="section__head">
           <h1>{group.label}</h1>
         </div>
-
-        <nav className="set__groups" aria-label="Settings area">
-          {SETTINGS_GROUPS.map((entry) => (
-            <Link
-              key={entry.id}
-              className="set__group-link"
-              to={settingsPath(entry.initialCategory)}
-              aria-current={group.id === entry.id ? "page" : undefined}
-            >
-              {entry.label}
-            </Link>
-          ))}
-        </nav>
 
         <nav className="set__nav" aria-label="Settings sections">
           {groupTabs.map((entry) => (

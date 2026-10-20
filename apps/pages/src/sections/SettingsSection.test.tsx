@@ -202,43 +202,32 @@ describe("SettingsSection", () => {
     );
   });
 
-  it("splits Settings into Vault Settings and User Settings", async () => {
+  it("draws Vault Settings on its own page", () => {
     renderSettings();
     expect(
       screen.getByRole("heading", { name: "Vault Settings" }),
     ).toBeTruthy();
-    const areas = screen.getByRole("navigation", { name: "Settings area" });
     expect(
-      within(areas)
-        .getAllByRole("link")
-        .map((link) => link.textContent),
-    ).toEqual(["Vault Settings", "User Settings"]);
-    expect(
-      within(areas)
-        .getByRole("link", { name: "Vault Settings" })
-        .getAttribute("aria-current"),
-    ).toBe("page");
+      screen.queryByRole("navigation", { name: "Settings area" }),
+    ).toBeNull();
     expect(
       within(screen.getByRole("navigation", { name: "Settings sections" }))
         .getAllByRole("link")
         .map((link) => link.textContent),
     ).toEqual(["General", "Security", "Features", "Integrations", "Danger"]);
+  });
 
-    await userEvent.click(
-      within(areas).getByRole("link", { name: "User Settings" }),
-    );
+  it("draws User Settings on its own page", () => {
+    renderSettings("/settings/keybindings");
     expect(screen.getByRole("heading", { name: "User Settings" })).toBeTruthy();
-    const tabs = screen.getByRole("navigation", { name: "Settings sections" });
     expect(
-      within(tabs)
+      screen.queryByRole("navigation", { name: "Settings area" }),
+    ).toBeNull();
+    expect(
+      within(screen.getByRole("navigation", { name: "Settings sections" }))
         .getAllByRole("link")
         .map((link) => link.textContent),
     ).toEqual(["Keybindings", "Vaults"]);
-    expect(
-      within(tabs)
-        .getByRole("link", { name: "Keybindings" })
-        .getAttribute("aria-current"),
-    ).toBe("page");
   });
 
   it("opens Vaults in User Settings, not in the vault's tabs", () => {
@@ -253,11 +242,6 @@ describe("SettingsSection", () => {
     expect(
       within(tabs)
         .getByRole("link", { name: "Vaults" })
-        .getAttribute("aria-current"),
-    ).toBe("page");
-    expect(
-      within(screen.getByRole("navigation", { name: "Settings area" }))
-        .getByRole("link", { name: "User Settings" })
         .getAttribute("aria-current"),
     ).toBe("page");
   });

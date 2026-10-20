@@ -280,6 +280,14 @@ function VaultApp() {
               </Route>
               {routes.map(contributedRoute)}
               <Route
+                path="/settings/vault"
+                element={<Navigate to="/settings" replace />}
+              />
+              <Route
+                path="/settings/user"
+                element={<Navigate to="/settings/keybindings" replace />}
+              />
+              <Route
                 path="/settings/:category?"
                 element={
                   <Framed>

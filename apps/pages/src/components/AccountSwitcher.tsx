@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useNavigate } from "react-router";
 
 import { personGlyphId } from "@opensesame/app-core/lib/account.js";
 import { guestVaultLabel } from "@opensesame/app-core/lib/local-guest.js";
@@ -38,6 +39,7 @@ import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AddOrganization } from "./AddOrganization.js";
 import { GlyphMark } from "./GlyphMark.js";
 import { IconCheck, IconPlus, IconUser } from "./Icons.js";
+import { openContextMenu } from "./context-menu/menu-model.js";
 import { glyphStandsForName } from "./prompt-glyph.js";
 import { useHold } from "./use-hold.js";
 
@@ -54,6 +56,7 @@ function guestLabel(hasSession: boolean, assurance?: string): string {
 function AccountSwitcherDefault() {
   const session = useIdentitySession();
   const account = useAccount();
+  const navigate = useNavigate();
   const segRef = useGuideTarget<HTMLButtonElement>("shell.account");
   const activeId = useSyncExternalStore(
     subscribeOrgProfile,
@@ -146,11 +149,26 @@ function AccountSwitcherDefault() {
         onContextMenu={(event) => {
           // A finger held here is asking for the switcher, not for the
           // session menu the prompt answers a right-click with.
-          if (!isTouchPointer() || !glyphStandsForName(event.currentTarget))
+          if (isTouchPointer() && glyphStandsForName(event.currentTarget)) {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(true);
             return;
+          }
           event.preventDefault();
           event.stopPropagation();
-          setOpen(true);
+          openContextMenu(event, event.currentTarget, "Account", [
+            [
+              {
+                id: "user-settings",
+                label: "User Settings",
+                run: () => {
+                  setOpen(false);
+                  navigate("/settings/user");
+                },
+              },
+            ],
+          ]);
         }}
       >
         <GlyphMark className="prompt__glyph" {...promptGlyph} />

@@ -163,6 +163,21 @@ describe("the rail's context menu", () => {
     expect(screen.getByLabelText("route").textContent).toBe("/vault/health");
   });
 
+  it("opens Vault Settings from the vault row", () => {
+    renderShell(
+      "/vault",
+      <>
+        <ContextMenuLayer />
+        <RouteProbe />
+      </>,
+    );
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
+    fireEvent.click(
+      within(menu()).getByRole("menuitem", { name: "Vault Settings" }),
+    );
+    expect(screen.getByLabelText("route").textContent).toBe("/settings/vault");
+  });
+
   it("offers password health on the vault only, not on its filters", () => {
     renderShell("/vault", <ContextMenuLayer />);
     fireEvent.contextMenu(screen.getByRole("treeitem", { name: "all" }));

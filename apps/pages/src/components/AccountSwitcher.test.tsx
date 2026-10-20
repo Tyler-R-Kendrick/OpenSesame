@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../bindings/identity.js";
@@ -42,6 +42,7 @@ import {
   setActiveOrgProfileId,
 } from "@opensesame/app-core/lib/orgs.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
+import { ContextMenuLayer } from "./context-menu/ContextMenuLayer.js";
 
 function renderSwitcher() {
   return render(
@@ -247,6 +248,24 @@ describe("AccountSwitcher", () => {
 
 import { accountSeams } from "@opensesame/app-core/lib/account.js";
 import { sessionExitSeams } from "@opensesame/app-core/lib/session-exit.js";
+
+describe("AccountSwitcher — settings", () => {
+  it("opens User Settings from the account's context menu", () => {
+    function Where() {
+      return <output aria-label="where">{useLocation().pathname}</output>;
+    }
+    render(
+      <MemoryRouter initialEntries={["/vault"]}>
+        <AccountSwitcher />
+        <ContextMenuLayer />
+        <Where />
+      </MemoryRouter>,
+    );
+    fireEvent.contextMenu(screen.getByTitle("Switch account"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "User Settings" }));
+    expect(screen.getByLabelText("where").textContent).toBe("/settings/user");
+  });
+});
 
 describe("AccountSwitcher — the roads out", () => {
   const originalAccount = { ...accountSeams };

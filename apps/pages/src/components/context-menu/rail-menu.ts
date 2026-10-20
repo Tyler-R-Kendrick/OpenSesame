@@ -102,6 +102,11 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
         navigate("/vault/health");
       },
     });
+    items.push({
+      id: "vault-settings",
+      label: "Vault Settings",
+      run: () => navigate("/settings/vault"),
+    });
   }
   const share = vaultShare(navigate);
   if (share) items.push(share);
