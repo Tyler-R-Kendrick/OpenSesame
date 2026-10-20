@@ -3,7 +3,10 @@ import {
   MAX_AI_AUDIO_INPUT_BYTES,
   validateAiAudio,
 } from "@opensesame/app-core/lib/ai-connections/media.js";
-import type { AiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/types.js";
+import {
+  type AiConnectionDraft,
+  isAiSpeechFamily,
+} from "@opensesame/app-core/lib/ai-connections/types.js";
 import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { StatusMark } from "../../../components/StatusMark.js";
@@ -130,7 +133,7 @@ export function AiOperationInput({
   onPrompt: (value: string) => void;
   audio: AudioFieldProps;
 }) {
-  if (draft?.family === "elevenlabs_scribe")
+  if (isAiSpeechFamily(draft?.family))
     return (
       <AudioSampleField {...audio} busy={busy} label="Audio to transcribe" />
     );
