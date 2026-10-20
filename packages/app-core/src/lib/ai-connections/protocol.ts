@@ -11,6 +11,7 @@ import {
   type AiConnectionDraft,
   AiConnectionError,
   type AiInferenceFamily,
+  isAiSpeechFamily,
   textAiFamily,
 } from "./types.js";
 
@@ -61,10 +62,12 @@ export function aiInferenceRequest(
 }
 
 export function aiConnectionHeaders(draft: AiConnectionDraft): Headers {
-  if (draft.family === "elevenlabs_scribe")
+  if (isAiSpeechFamily(draft.family))
     throw new AiConnectionError(
       "configuration",
-      "Scribe audio requires its finite multipart transcription adapter.",
+      draft.family === "elevenlabs_scribe"
+        ? "Scribe audio requires its finite multipart transcription adapter."
+        : "Deepgram audio requires its finite raw-audio transcription adapter.",
     );
   if (draft.family === "replicate_predictions")
     throw new AiConnectionError(
@@ -109,10 +112,10 @@ export function aiInferenceAnswer(
   family: AiInferenceFamily,
   value: BoundaryValue,
 ): string {
-  if (family === "elevenlabs_scribe")
+  if (isAiSpeechFamily(family))
     throw new AiConnectionError(
       "configuration",
-      "Read Scribe transcription through its finite audio adapter.",
+      "Read transcription through its finite audio adapter.",
     );
   if (family === "replicate_predictions")
     throw new AiConnectionError(

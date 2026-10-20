@@ -11,10 +11,15 @@ import {
   bedrockConnectionTarget,
   bedrockCredential,
 } from "./bedrock-target.js";
+import { validateDeepgramSpeechTarget } from "./deepgram-target.js";
 import { aiConnectionFamilies, aiConnectionPreset } from "./presets.js";
 import { replicatePredictionTarget } from "./replicate-types.js";
 import { validateAiSpeechConnection } from "./speech-target.js";
-import { type AiConnectionDraft, AiConnectionError } from "./types.js";
+import {
+  type AiConnectionDraft,
+  AiConnectionError,
+  isAiSpeechFamily,
+} from "./types.js";
 import {
   VertexAiTargetSchema,
   vertexConnectionTarget,
@@ -28,6 +33,7 @@ export const AiConnectionDraftSchema = z
     family: z.enum([
       "replicate_predictions",
       "elevenlabs_scribe",
+      "deepgram_listen",
       "bedrock_converse",
       "openai_chat",
       "openai_responses",
@@ -92,8 +98,11 @@ export function validateAiConnection<Value>(
     );
   const draft = result.data;
   const preset = aiConnectionPreset(draft.providerId);
-  const speech = draft.family === "elevenlabs_scribe";
-  if (speech) validateAiSpeechConnection(draft, requireKey);
+  const speech = isAiSpeechFamily(draft.family);
+  if (draft.family === "elevenlabs_scribe")
+    validateAiSpeechConnection(draft, requireKey);
+  if (draft.family === "deepgram_listen")
+    validateAiDeepgramConnection(draft, requireKey);
   const supportedFamily =
     speech ||
     (draft.family === "replicate_predictions"
@@ -121,6 +130,33 @@ export function validateAiConnection<Value>(
     );
   validateCredential(draft, requireKey);
   return draft;
+}
+
+/** Shared admission and inference select the same closed raw-audio target. */
+export function validateAiDeepgramConnection(
+  draft: AiConnectionDraft,
+  requireKey = true,
+) {
+  if (
+    draft.family !== "deepgram_listen" ||
+    draft.azure ||
+    draft.vertex ||
+    draft.bedrock
+  )
+    throw new AiConnectionError(
+      "configuration",
+      "Choose a single Deepgram transcription target without another protocol's credentials.",
+    );
+  return validateDeepgramSpeechTarget(
+    {
+      providerId: draft.providerId,
+      baseUrl: draft.baseUrl,
+      model: draft.model,
+      authentication: draft.authentication,
+      apiKey: draft.apiKey,
+    },
+    requireKey,
+  );
 }
 
 function validateReplicateTarget(draft: AiConnectionDraft): void {

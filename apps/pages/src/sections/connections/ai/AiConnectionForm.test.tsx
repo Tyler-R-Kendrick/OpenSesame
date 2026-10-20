@@ -64,6 +64,7 @@ it("uses the common BYO form to expose seven genuinely different API families", 
     "Gemini Generate Content",
     "Replicate predictions",
     "ElevenLabs Scribe transcription",
+    "Deepgram transcription",
   ]);
   await choose("API family", "anthropic_messages");
   expect(state.onChange).toHaveBeenCalledWith("family", "anthropic_messages");
@@ -381,7 +382,6 @@ it.each(["Azure resource endpoint", "Deployment ID", "Azure API key"])(
     expect(state.save).not.toHaveBeenCalled();
   },
 );
-
 it.each(["authentication", "azure"])(
   "disables Test and Save for invalid %s state",
   (field) => {

@@ -26,6 +26,7 @@ export const AI_LABS = [
   { id: "together", name: "Together AI" },
   { id: "huggingface", name: "Hugging Face" },
   { id: "elevenlabs", name: "ElevenLabs" },
+  { id: "deepgram", name: "Deepgram" },
   { id: "gemini", name: "Google Gemini" },
   { id: "fireworks", name: "Fireworks AI" },
   { id: "azure-openai", name: "Azure OpenAI" },
