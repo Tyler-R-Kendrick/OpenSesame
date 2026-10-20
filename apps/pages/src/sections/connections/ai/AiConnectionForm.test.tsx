@@ -51,11 +51,10 @@ function mount(
   return { ...rendered, draft, onChange, onSave, onTest };
 }
 
-it("uses the common BYO form to expose seven genuinely different API families", async () => {
+it("uses the common BYO form to expose nine genuinely different API families", async () => {
   const state = mount("byo-ai");
-  const options = within(screen.getByLabelText("API family")).getAllByRole(
-    "option",
-  );
+  const family = screen.getByLabelText("API family");
+  const options = within(family).getAllByRole("option");
   expect(options.map((option) => option.textContent)).toEqual([
     "Amazon Bedrock Converse",
     "OpenAI Chat Completions",
@@ -65,6 +64,7 @@ it("uses the common BYO form to expose seven genuinely different API families", 
     "Replicate predictions",
     "ElevenLabs Scribe transcription",
     "Deepgram transcription",
+    "AssemblyAI transcription",
   ]);
   await choose("API family", "anthropic_messages");
   expect(state.onChange).toHaveBeenCalledWith("family", "anthropic_messages");

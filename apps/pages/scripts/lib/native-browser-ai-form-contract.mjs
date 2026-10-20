@@ -35,9 +35,11 @@ async function sharedAiLayout(page, form) {
 function sharedAiDefaultFields(preset) {
   const azure = preset.azure;
   const prediction = preset.family === "replicate_predictions";
-  const speech = ["elevenlabs_scribe", "deepgram_listen"].includes(
-    preset.family,
-  );
+  const speech = [
+    "elevenlabs_scribe",
+    "deepgram_listen",
+    "assemblyai_transcript",
+  ].includes(preset.family);
   const key = azure
     ? azure.credential === "api-key"
       ? "Azure API key"
@@ -96,9 +98,11 @@ async function sharedAiDefaults(form, row, preset, check) {
     `${row.id}: supported inference API families are explicit`,
   );
   const prediction = preset.family === "replicate_predictions";
-  const speech = ["elevenlabs_scribe", "deepgram_listen"].includes(
-    preset.family,
-  );
+  const speech = [
+    "elevenlabs_scribe",
+    "deepgram_listen",
+    "assemblyai_transcript",
+  ].includes(preset.family);
   const finite = prediction || speech;
   const authentication = finite ? [] : await selectOptions(form, defaults.auth);
   if (prediction)

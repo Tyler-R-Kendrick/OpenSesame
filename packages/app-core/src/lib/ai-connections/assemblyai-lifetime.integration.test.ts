@@ -232,9 +232,7 @@ describe("AssemblyAI original authority, cancellation and deletion lifetime", ()
       () => {},
       { timeoutMs: 200 },
     );
-    const rejected = expect(operation).rejects.toMatchObject({
-      deletionAcknowledged: true,
-    });
+    const rejected = expect(operation).rejects.toThrow("workflow deadline");
     await local.held;
     await rejected;
     await vi.waitFor(() =>

@@ -130,9 +130,10 @@ export async function inferAssemblyAi(
       "configuration",
       "Choose a transcription workflow budget between 100ms and 180s.",
     );
+  const deadline = AbortSignal.timeout(timeout);
   const signal = AbortSignal.any([
     transport.signal,
-    AbortSignal.timeout(timeout),
+    deadline,
     ...(options.signal ? [options.signal] : []),
   ]);
   const lifetime = new AbortController();
@@ -163,6 +164,13 @@ export async function inferAssemblyAi(
   authority();
   const deletionAcknowledged = await cleanup(valid, id, transport, authority);
   authority();
+  if (transport.signal.aborted || options.signal?.aborted)
+    throw new AssemblyTranscriptInterrupted(deletionAcknowledged);
+  if (deadline.aborted)
+    throw new AiConnectionError(
+      "response",
+      "The transcription exceeded its workflow deadline.",
+    );
   if (signal.aborted)
     throw new AssemblyTranscriptInterrupted(deletionAcknowledged);
   if (id && !deletionAcknowledged)

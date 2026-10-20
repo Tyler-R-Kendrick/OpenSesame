@@ -25,7 +25,7 @@ import {
   ceremonyPath,
   parseLegacyInteractionLink,
   readInteractionArrival,
-} from "@opensesame/ceremony-kit";
+} from "@opensesame/ceremony-kit/links";
 import { env } from "../host.js";
 import { maybePage } from "../ports.js";
 

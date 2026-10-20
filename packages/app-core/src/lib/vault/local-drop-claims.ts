@@ -5,7 +5,7 @@
  * `/v1/claims*`. Deliberately does not import `drop.ts`.
  */
 
-import { ceremonyPath } from "@opensesame/ceremony-kit";
+import { ceremonyPath } from "@opensesame/ceremony-kit/links";
 import { type JsonObject, isString } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { env } from "../../host.js";
