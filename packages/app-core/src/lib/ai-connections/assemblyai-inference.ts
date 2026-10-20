@@ -113,6 +113,24 @@ async function cleanup(
   }
 }
 
+function assertWorkflowNotInterrupted(
+  transport: AiConnectionTransport,
+  options: AssemblyRunOptions,
+  deadline: AbortSignal,
+  signal: AbortSignal,
+  deletionAcknowledged: boolean,
+): void {
+  if (transport.signal.aborted || options.signal?.aborted)
+    throw new AssemblyTranscriptInterrupted(deletionAcknowledged);
+  if (deadline.aborted)
+    throw new AiConnectionError(
+      "response",
+      "The transcription exceeded its workflow deadline.",
+    );
+  if (signal.aborted)
+    throw new AssemblyTranscriptInterrupted(deletionAcknowledged);
+}
+
 export async function inferAssemblyAi(
   target: AssemblySpeechTarget,
   supplied: AiAudioInput,
@@ -164,15 +182,13 @@ export async function inferAssemblyAi(
   authority();
   const deletionAcknowledged = await cleanup(valid, id, transport, authority);
   authority();
-  if (transport.signal.aborted || options.signal?.aborted)
-    throw new AssemblyTranscriptInterrupted(deletionAcknowledged);
-  if (deadline.aborted)
-    throw new AiConnectionError(
-      "response",
-      "The transcription exceeded its workflow deadline.",
-    );
-  if (signal.aborted)
-    throw new AssemblyTranscriptInterrupted(deletionAcknowledged);
+  assertWorkflowNotInterrupted(
+    transport,
+    options,
+    deadline,
+    signal,
+    deletionAcknowledged,
+  );
   if (id && !deletionAcknowledged)
     throw new AiConnectionError(
       "response",
