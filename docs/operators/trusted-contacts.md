@@ -2,7 +2,7 @@
 
 Capability `sharing.trusted-contacts` ([ADR 0187](../adr/0187-trusted-circle-quorum-sharing.md)).
 Optional, default off, no network. Turn it on in Settings › Features, under
-Sharing, and Settings gains a **Trusted contacts** tab with three panels. The
+Sharing, and Settings › Security gains a **Trusted contacts** section with three panels. The
 behaviour is in `packages/app-core/src/lib/quorum/` and the screens are
 `apps/pages/src/modules/sharing.trusted-contacts/`. This page says what it
 does, how to configure a circle, and what it does not promise.
@@ -321,7 +321,7 @@ distribution. It makes no request, so it reaches no service: it declares a
 user-mediated hand-off (the packets a person copies and passes on) and two
 browser permissions, `webauthn` for the contacts' security keys and
 `clipboard-write` for the Copy key beside a packet. Settings shows its switch
-in the Sharing section, and the tab exists only while it is on.
+in the Sharing section, and the section exists only while it is on.
 
 ## What it does not do
 

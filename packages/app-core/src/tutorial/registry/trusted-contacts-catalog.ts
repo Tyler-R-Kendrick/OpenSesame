@@ -1,7 +1,7 @@
 /**
  * Targets and the walkthrough `sharing.trusted-contacts` contributes
- * (ADR 0187): the Settings › Trusted contacts category and its three panels,
- * live only while that capability is in the plan.
+ * (ADR 0187): the Trusted contacts section of Settings › Security and its
+ * three panels, live only while that capability is in the plan.
  *
  * The panels hold lists, and a list holds only what a person's own ceremonies
  * made; a target here names a panel or the category, never a circle, a contact
@@ -15,9 +15,9 @@ import type { GuideTargetDescriptor } from "./targets.js";
 
 export const TRUSTED_CONTACTS_ROUTES: readonly GuideRouteDescriptor[] = [
   {
-    id: "/settings/trusted-contacts",
+    id: "/settings/security",
     title:
-      "Settings — trusted contacts: circles, shares you hold and recoveries",
+      "Settings — security: trusted contacts, circles, shares and recoveries",
   },
 ];
 
@@ -25,7 +25,7 @@ export const TRUSTED_CONTACTS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.trusted-contacts",
     description:
-      "The Trusted contacts settings category: the circles you keep, the shares you hold for other people, and the recoveries you have asked for, all kept on this device and handed between people as packets.",
+      "The Trusted contacts section of Settings › Security: the circles you keep, the shares you hold for other people, and the recoveries you have asked for, all kept on this device and handed between people as packets.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "quorum.circle.manage",
@@ -105,8 +105,8 @@ export const TRUSTED_CONTACTS_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "settings.trusted-contacts.circle"',
-      'navigate "/settings/trusted-contacts"',
-      'wait route "/settings/trusted-contacts" timeout=15000',
+      'navigate "/settings/security"',
+      'wait route "/settings/security" timeout=15000',
       'focus "settings.trusted-contacts" "A circle is the people you trust to approve a request, or to hold one share of a recovery key, with a delay that gives you time to object. Each answers with their own security key, and what passes between you is a packet you hand over yourself. Nothing goes to a service." side=bottom',
       'focus "settings.trusted-contacts-circles" "Circles are the ones you own. Each is a rule, the contacts in it and where it stands." side=top',
       'scroll "settings.trusted-contacts-guarding"',
@@ -124,8 +124,8 @@ export const TRUSTED_CONTACTS_GOALS: readonly GuideGoalDescriptor[] = [
       "guide/1",
       'goal "settings.trusted-contacts.guardian"',
       'say "A guardian agrees to hold one share of someone\'s recovery key, or only a seat at their approvals. You agree with your own security key, and later you approve a request or release your share the same way, after a delay that gives the owner time to object. What passes between you is a packet you hand over yourself."',
-      'navigate "/settings/trusted-contacts"',
-      'wait route "/settings/trusted-contacts" timeout=15000',
+      'navigate "/settings/security"',
+      'wait route "/settings/security" timeout=15000',
       'scroll "settings.trusted-contacts-guarding"',
       'focus "settings.trusted-contacts-guarding" "Guarding lists the circles you hold a part of, whose they are, and where each one stands." side=top',
       'focus "guarding.accept" "Accept an invitation reads one from an owner, shows you the circle and the owner\'s key to check with them another way, and has your security key answer. You hand the answer back." side=bottom',
@@ -144,8 +144,8 @@ export const TRUSTED_CONTACTS_GOALS: readonly GuideGoalDescriptor[] = [
       "guide/1",
       'goal "settings.trusted-contacts.recovery"',
       'say "Getting something back from a circle takes the circle\'s recovery file and enough of its contacts. Each approves with their own security key, and after the delay the owner set, releases their share the same way."',
-      'navigate "/settings/trusted-contacts"',
-      'wait route "/settings/trusted-contacts" timeout=15000',
+      'navigate "/settings/security"',
+      'wait route "/settings/security" timeout=15000',
       'scroll "settings.trusted-contacts-recovery"',
       'focus "settings.trusted-contacts-recovery" "Recoveries you have started are listed here with how many contacts have approved and how many have released. Open one to hand its request to the contacts and add what they send back." side=top',
       'focus "recovery.start" "Start a recovery reads the circle\'s recovery file, names this device and sends the request. When enough shares are released the result is a file to save, or items to put in this vault." side=bottom',
@@ -162,8 +162,8 @@ export const TRUSTED_CONTACTS_GOALS: readonly GuideGoalDescriptor[] = [
       "guide/1",
       'goal "settings.trusted-contacts.owner"',
       'say "A circle is the people you trust to approve a request, or to hold one share of a recovery key. You make it here: name it, say what it protects, hand an invitation to each person, and set how many of them it takes."',
-      'navigate "/settings/trusted-contacts"',
-      'wait route "/settings/trusted-contacts" timeout=15000',
+      'navigate "/settings/security"',
+      'wait route "/settings/security" timeout=15000',
       'focus "settings.trusted-contacts-circles" "Your circles are listed here, each with its rule, how many contacts it has and where it stands. Open one to invite more people, change it, ask its contacts to approve a share, or retire it." side=top',
       'focus "circle.new" "Start a circle names it, makes the invitation and sets the rule and the clocks. Each contact answers with their own security key, and you hand each of them a packet." side=bottom',
       'success "That is a circle: an invitation, the people who answer it, a rule, and a packet for each. Nothing goes to a service."',

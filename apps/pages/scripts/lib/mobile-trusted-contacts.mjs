@@ -35,15 +35,27 @@ async function closeSheet(page) {
   }
 }
 
-/** The Settings tab, reached the way a thumb does. */
+/** The Security subsection, reached the way a thumb does. */
 async function openSettingsTab(page, { harness, openTab, stop }) {
   await openTab(page, "Settings");
+  await page.waitForTimeout(700);
+  const security = page
+    .getByRole("link", { name: "Security", exact: true })
+    .first();
+  if ((await security.count()) === 0) {
+    harness.check(false, `${stop("trusted-contacts")}: Security is not drawn`);
+    return false;
+  }
+  await security.tap();
   await page.waitForTimeout(700);
   const link = page
     .getByRole("link", { name: "Trusted contacts", exact: true })
     .first();
   if ((await link.count()) === 0) {
-    harness.check(false, `${stop("trusted-contacts")}: the tab is not drawn`);
+    harness.check(
+      false,
+      `${stop("trusted-contacts")}: the subsection is not drawn`,
+    );
     return false;
   }
   await link.tap();

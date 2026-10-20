@@ -21,11 +21,11 @@ describe("sharing.trusted-contacts runtime", () => {
     );
   });
 
-  it("registers the Trusted contacts tab and its walkthrough, and disposes them (LOAD-09)", async () => {
+  it("registers the Trusted contacts Security panel and its walkthrough, and disposes them (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.trusted-contacts",
       kinds: [
-        "settings-category",
+        "settings-panel",
         "tutorial-goal",
         "tutorial-route",
         "tutorial-target",
@@ -38,20 +38,16 @@ describe("sharing.trusted-contacts runtime", () => {
     });
   });
 
-  it("lists its three panels in the rail, with no settings file and no network", async () => {
+  it("draws one panel inside Security, with no settings file and no network", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    const [category] = t.entries("settings-category");
-    expect(category?.id).toBe("trusted-contacts");
-    expect(category?.label).toBe("Trusted contacts");
-    expect(category?.guideId).toBe("settings.trusted-contacts");
-    expect(category?.order).toBe(330);
-    expect(category?.panels).toEqual([
-      { id: "circles", label: "Circles" },
-      { id: "guarding", label: "Guarding" },
-      { id: "recovery", label: "Recovery" },
-    ]);
-    expect(category?.files).toBeUndefined();
+    const [panel] = t.entries("settings-panel");
+    expect(panel?.id).toBe("trusted-contacts");
+    expect(panel?.label).toBe("Trusted contacts");
+    expect(panel?.category).toBe("security");
+    expect(panel?.order).toBe(330);
+    expect(panel?.files).toBeUndefined();
+    expect(t.entries("settings-category")).toEqual([]);
     expect(t.egressCalls).toEqual([]);
     await handle.dispose();
   });

@@ -30,7 +30,15 @@ export async function createItem(owner, { name, secret }) {
 
 /** The circle's sheet: opened by the head key, closed by its own. */
 export async function openNewCircle(owner) {
-  await owner.press("Start a circle");
+  // The empty panel offers the same action as the head's icon key; use the
+  // prominent one first, because that is what a person who sees no circles
+  // presses.
+  const first = owner.page.getByRole("button", {
+    name: "Start your first circle",
+    exact: true,
+  });
+  if ((await first.count()) > 0) await first.click();
+  else await owner.press("Start a circle");
   const sheet = owner.sheet(CIRCLE_DIALOG);
   await expect(sheet).toBeVisible();
   return sheet;

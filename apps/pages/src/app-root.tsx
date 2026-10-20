@@ -347,32 +347,26 @@ function VaultApp() {
     </Suspense>
   );
 
-  if (status !== "unlocked") {
-    return (
-      <GateHost wrappers={wrappers}>
-        <slots.UnlockScreen />
-      </GateHost>
-    );
-  }
-
-  // The unlocked shell mounts behind the door ceremony as soon as its
-  // generation activates, so the doors reveal the vault itself. Before that
-  // the same frame is a skeleton: never a blank canvas, and never a second
-  // layout shift when the real shell arrives.
-  if (ceremonyActive || !shellReady) {
-    return (
-      <>
-        {shellReady ? shell : <VaultShellSkeleton />}
-        {ceremonyActive ? (
-          <GateHost wrappers={wrappers}>
-            <slots.UnlockScreen />
-          </GateHost>
-        ) : null}
-      </>
-    );
-  }
-
-  return shell;
+  // One stable frame across lock, unlock and the door ceremony. Switching
+  // between a bare gate and a gate beside the shell would remount the unlock
+  // screen at the moment the vault opens, losing the ceremony token; keeping
+  // the two slots in the same fragment lets the gate finish where it started.
+  return (
+    <>
+      {status === "unlocked" ? (
+        shellReady ? (
+          shell
+        ) : (
+          <VaultShellSkeleton />
+        )
+      ) : null}
+      {status !== "unlocked" || ceremonyActive ? (
+        <GateHost wrappers={wrappers}>
+          <slots.UnlockScreen />
+        </GateHost>
+      ) : null}
+    </>
+  );
 }
 
 /**

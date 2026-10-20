@@ -30,6 +30,7 @@ import { guardianReplaced } from "./lib/tc-scenario-epoch.mjs";
 import { happyRecovery, reloadSafety } from "./lib/tc-scenario-happy.mjs";
 import { hostilePastes } from "./lib/tc-scenario-hostile.mjs";
 import { keyRefusals } from "./lib/tc-scenario-keys.mjs";
+import { quorumSharesItem } from "./lib/tc-scenario-share.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = "/OpenSesame/";
@@ -86,6 +87,10 @@ try {
   );
   await scenario("a reload before anything is saved loses nothing", () =>
     reloadSafety(ctx, state),
+  );
+  await scenario(
+    "a 2-of-3 circle approves a standing share, and Access revokes it",
+    () => quorumSharesItem(ctx, state),
   );
   await scenario(
     "hostile pastes are refused on their field and in the tray",

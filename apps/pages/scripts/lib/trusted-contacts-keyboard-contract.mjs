@@ -77,13 +77,29 @@ async function openTab(page, tabTo) {
   await page.keyboard.press("g");
   await page.keyboard.press("s");
   await expect(page).toHaveURL(/\/settings(?:[/?].*)?$/, { timeout: 10_000 });
-  const tab = page.getByRole("link", { name: "Trusted contacts", exact: true });
-  await tabTo(page, tab.first());
+  const security = page.getByRole("link", {
+    name: "Security",
+    exact: true,
+  });
+  await tabTo(page, security.first());
   await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/settings\/security(?:[?#].*)?$/, {
+    timeout: 10_000,
+  });
+  // The subsection is part of Security now. The page index is a phone
+  // control and is not drawn at this width, so the keyboard goes straight to
+  // the first key the subsection contributes.
+  await expect(page.locator("#trusted-contacts")).toBeVisible({
+    timeout: 20_000,
+  });
   for (const id of ["circles", "guarding", "recovery"])
     await expect(page.locator(`section#${id}`)).toBeVisible({
       timeout: 20_000,
     });
+  await tabTo(
+    page,
+    page.getByRole("button", { name: "Start a circle", exact: true }),
+  );
 }
 
 /** Where the keyboard is, in words a failure can quote. */
