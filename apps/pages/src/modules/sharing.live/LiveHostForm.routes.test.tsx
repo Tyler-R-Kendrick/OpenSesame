@@ -121,7 +121,7 @@ async function filledForm() {
   const advanced = container.querySelector("details");
   if (advanced) advanced.open = true;
   const panel = within(container);
-  await panel.findByRole("img", { name: "Direct only" });
+  await panel.findByRole("img", { name: /^Direct/ });
   fireEvent.change(panel.getByLabelText("Session name"), {
     target: { value: "Team" },
   });

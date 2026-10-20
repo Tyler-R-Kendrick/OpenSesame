@@ -24,6 +24,7 @@ import {
   ConcealedValue,
   CopyButton,
   FieldRow,
+  RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
 import { IconX } from "../../components/Icons.js";
@@ -75,6 +76,7 @@ export function LiveHostSession({
   state,
 }: { host: LiveHost; state: HostState }) {
   const [endAsk, setEndAsk] = useState(false);
+  const [showLink, setShowLink] = useState(false);
   const { copied, failed, copy } = useCopyFeedback();
   const left = useRemaining(host.expiresAt);
   const link = formatLiveLink(liveUiSeams.joinUrl(), host.link);
@@ -123,17 +125,24 @@ export function LiveHostSession({
       <FieldRow
         label="Link"
         actions={
-          <CopyButton
-            value={link}
-            label="the link"
-            fieldKey="live-link"
-            copied={copied}
-            failed={failed}
-            onCopy={copy}
-          />
+          <>
+            <RevealButton
+              revealed={showLink}
+              label="the link"
+              onToggle={() => setShowLink((on) => !on)}
+            />
+            <CopyButton
+              value={link}
+              label="the link"
+              fieldKey="live-link"
+              copied={copied}
+              failed={failed}
+              onCopy={copy}
+            />
+          </>
         }
       >
-        <ConcealedValue value={link} label="Link" revealed={false} />
+        <ConcealedValue value={link} label="Link" revealed={showLink} />
       </FieldRow>
       {host.code ? (
         <FieldRow
@@ -152,11 +161,14 @@ export function LiveHostSession({
           <span className="frow__value live-code">{host.code}</span>
         </FieldRow>
       ) : null}
-      <Suspense fallback={null}>
-        <LivePeerTrustExport />
-      </Suspense>
       <CarrierMarks rendezvous={currentHostCarriers()} />
       <RequestPaste host={host} />
+      <details className="live-advanced">
+        <summary>Peer trust signal</summary>
+        <Suspense fallback={null}>
+          <LivePeerTrustExport />
+        </Suspense>
+      </details>
       <GuestRows host={host} guests={state.guests} />
       <DeviceRequests host={host} state={state} />
       <Log host={host} state={state} />

@@ -702,11 +702,13 @@ Do not add new top-level directories or loose root files — find the group.
   as the card's corner **Skip**. The door asks no sign-in question: a device
   with no vault has nothing to sign in to. Join is on every deployment, the shared GitHub
   Pages origin included: it opens a live session browser to browser over
-  WebRTC, paired by codes the two people pass each other — no server, relay,
-  STUN or TURN by default (`sharing.live`, `lib/live/`, consent first); an
-  owner may name their own in Settings › Live sessions › Routes (a tunnel
-  address, STUN/TURN, relay only, a Nostr/MQTT/NATS/ntfy carrier), never a
-  default, and the joiner sees every host before any is contacted —
+  WebRTC, paired automatically through a sealed-code ntfy.sh carrier by
+  default, with the manual request/reply codes as the fallback when no carrier
+  is ready (`sharing.live`, `lib/live/`, consent first); an owner may replace
+  the carrier in Settings › Live sessions › Routes and may name a tunnel
+  address, STUN/TURN, relay only, or a Nostr/MQTT/NATS/ntfy carrier, and the
+  joiner sees every host before any is contacted. An open session admits at
+  once; invite sessions still wait for the owner's compare —
   and a Host invite link still opens the Host ceremony
   ([ADR 0136](docs/adr/0136-join-a-session-restored.md));
   a shared link opens join by itself. Once setup is answered or skipped the

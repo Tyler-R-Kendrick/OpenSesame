@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { liveValue, readLiveValue } from "./link.js";
 import {
+  DEFAULT_LIVE_CARRIER,
   LiveRoutesRefused,
   MAX_ROUTES_SEGMENT,
   isIceUrl,
@@ -44,6 +45,15 @@ const CHROMIUM: readonly (readonly [string, boolean])[] = [
   ["turn:[fd7a::1]?transport=tcp", true],
   ["stun:1.2.3.4:1", true],
 ];
+
+describe("the default pairing carrier", () => {
+  it("is the sealed-code ntfy relay, never a vault transport", () => {
+    expect(DEFAULT_LIVE_CARRIER).toEqual({
+      kind: "ntfy",
+      url: "https://ntfy.sh",
+    });
+  });
+});
 
 describe("ICE URLs", () => {
   it.each(CHROMIUM)("%s is %s to Chromium, and to us", (url, accepted) => {

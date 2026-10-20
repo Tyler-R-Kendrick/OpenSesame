@@ -226,7 +226,7 @@ describe("joining through the owner's routes", () => {
     fireEvent.click(joiner.getByRole("checkbox", { name: /^Through / }));
     type(joiner, "Your name", "Ada");
     fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
-    await joiner.findByRole("button", { name: "Copy your request code" });
+    await joiner.findByRole("button", { name: "Copy your join request" });
     expect(bus.seen).toEqual([]);
     expect(currentGuest()?.status.at).toBe("request");
     expect(currentHost()?.state.guests).toEqual([]);

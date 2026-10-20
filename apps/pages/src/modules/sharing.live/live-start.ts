@@ -6,7 +6,10 @@
 
 import type { Admission } from "@opensesame/app-core/lib/live/host.js";
 import type { SharePolicy } from "@opensesame/app-core/lib/live/messages.js";
-import { LiveRoutesRefused } from "@opensesame/app-core/lib/live/routes.js";
+import {
+  DEFAULT_LIVE_CARRIER,
+  LiveRoutesRefused,
+} from "@opensesame/app-core/lib/live/routes.js";
 import {
   type HostInput,
   startHosting,
@@ -58,7 +61,14 @@ export async function startInput(form: StartForm): Promise<HostInput> {
     transport: liveUiSeams.transport,
     carriers: liveUiSeams.carriers,
   };
-  return { ...fields, routes: await settledTransport() };
+  const routes = await settledTransport();
+  return {
+    ...fields,
+    routes:
+      routes.carriers.length > 0
+        ? routes
+        : { ...routes, carriers: [DEFAULT_LIVE_CARRIER] },
+  };
 }
 
 export type Starter = Readonly<{

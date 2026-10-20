@@ -13,7 +13,7 @@ import {
 } from "@opensesame/app-core/lib/live/session.js";
 import { rememberTrustedPeer } from "@opensesame/app-core/lib/peer-trust/peers.js";
 import { useEffect, useRef } from "react";
-import { FieldRow } from "../../components/FieldRow.js";
+import { useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconArrowRight } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -263,6 +263,17 @@ function openedSession(
   return { guest, status, mark };
 }
 
+/** Whether a carrier has proved it can pass the request without a person. */
+function useCarrierReady(): boolean {
+  const carriers = currentGuestCarriers();
+  const [states, setStates] = useState(() => carriers?.states ?? []);
+  useEffect(() => {
+    setStates(carriers?.states ?? []);
+    return carriers?.subscribe(setStates);
+  }, [carriers]);
+  return states.some((state) => state.status === "ready");
+}
+
 function RequestWaiting({
   guest,
   status,
@@ -270,18 +281,30 @@ function RequestWaiting({
   guest: LiveGuest;
   status: Extract<GuestStatus, { at: "request" }>;
 }) {
+  const automatic = useCarrierReady();
   return (
     <>
       <CarrierMarks rendezvous={currentGuestCarriers()} />
+      {automatic ? (
+        <StatusMark
+          tone="idle"
+          label="The owner can see your request. Waiting for them to let you in."
+        />
+      ) : null}
       {status.sas ? (
-        <FieldRow label="Short authentication string">
+        <details className="live-verify">
+          <summary>Security code</summary>
+          <p className="live-help">
+            Compare this with the owner if you are on a call with them. It is
+            not needed when the owner already recognises your request.
+          </p>
           <span className="frow__value frow__value--mono live-sas">
             {status.sas}
           </span>
-        </FieldRow>
+        </details>
       ) : null}
       {status.unverified ? <StatusMark tone="warn" label="Unverified" /> : null}
-      <RequestStep guest={guest} code={status.code} />
+      {automatic ? null : <RequestStep guest={guest} code={status.code} />}
     </>
   );
 }

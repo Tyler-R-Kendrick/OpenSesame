@@ -47,12 +47,16 @@ export function RequestStep({
 
   return (
     <>
+      <p className="live-help">
+        Send this join request to the owner. They paste it into their live
+        session, then send you their reply code.
+      </p>
       <FieldRow
-        label="Your request code"
+        label="Join request"
         actions={
           <CopyButton
             value={code}
-            label="your request code"
+            label="your join request"
             fieldKey="live-request"
             copied={copied}
             failed={failed}
@@ -71,6 +75,7 @@ export function RequestStep({
         <FieldShell
           id="live-reply"
           label="The owner's reply code"
+          placeholder="Paste the reply the owner sends back"
           mono
           autoComplete="off"
           lead={<IconShare size={17} />}

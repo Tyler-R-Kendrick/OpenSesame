@@ -88,7 +88,7 @@ export function RequestPaste({ host }: { host: LiveHost }) {
     >
       <FieldShell
         id="live-request"
-        label="A request code"
+        label="Paste a join request"
         mono
         autoComplete="off"
         lead={<IconShare size={17} />}
@@ -113,6 +113,9 @@ export function RequestPaste({ host }: { host: LiveHost }) {
           </button>
         }
       />
+      <p className="live-help">
+        Only needed when the joiner cannot pair automatically.
+      </p>
     </form>
   );
 }
@@ -237,7 +240,7 @@ function GuestMeta({ guest }: { guest: Guest }) {
           {guest.connection.detail}
         </span>
       ) : null}
-      {guest.sas ? (
+      {guest.sas && guest.state === "asking" ? (
         <span className="vault-row__meta live-sas">{guest.sas}</span>
       ) : null}
       {showKeyId(guest) ? (
@@ -293,6 +296,11 @@ export function GuestRows({
   const oldest = oldestAsking(guests);
   return (
     <>
+      {guests.some((guest) => guest.sas && guest.state === "asking") ? (
+        <p className="live-help">
+          Compare the security code with the joiner before letting them in.
+        </p>
+      ) : null}
       {guests.map((guest) => (
         <GuestRow
           key={guest.key}

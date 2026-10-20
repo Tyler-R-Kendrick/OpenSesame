@@ -103,6 +103,9 @@ export async function ntfyCarrier(
   const headers = authorization(spec);
   const aborts = new Set<AbortController>();
   let closed = false;
+  // Where to pick up from: when the carrier opened, so a subscription with no
+  // backlog is not a 404 and a code posted while it connects is not lost.
+  let since = String(Math.floor(Date.now() / 1000));
 
   // One subscription proves the server is there before the session counts on it.
   const first = new AbortController();
@@ -112,7 +115,7 @@ export async function ntfyCarrier(
   else connecting.addEventListener("abort", stopFirst, { once: true });
   const opened = await egress
     .fetch(
-      `${base}/${topic}/json`,
+      `${base}/${topic}/json?since=${encodeURIComponent(since)}`,
       { headers, signal: first.signal, cache: "no-store" },
       CARRIER_META,
     )
@@ -133,8 +136,6 @@ export async function ntfyCarrier(
     },
     listen(onText) {
       let response: Response | null = opened;
-      // Where to pick up from: the last message's id, else when we began.
-      let since = String(Math.floor(Date.now() / 1000));
       void (async () => {
         while (!closed) {
           let failed = false;

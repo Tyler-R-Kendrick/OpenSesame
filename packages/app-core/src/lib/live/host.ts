@@ -222,7 +222,10 @@ export class LiveHost {
     for (const id of judged.clashKeys) this.#set(id, { nameClash: true });
     this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
     this.#emit();
-    if (this.options.admission === "open" && !judged.holdReply) {
+    // An open session's link is the admission: let the holder in at once.
+    // The SAS stays on the owner's row for an optional check, but it does not
+    // hold the reply. Invite sessions still wait for that compare.
+    if (this.options.admission === "open") {
       await this.admit(key);
     }
     return { kind: "guest", key };

@@ -366,3 +366,20 @@ a WebSocket that it could not reach through a fetch.
   public one — each would make joining depend on someone else's service.
   They are the owner's to name, or absent.
 - Operator guide: [`docs/operators/live-sessions.md`](../operators/live-sessions.md).
+
+## Amendment — automatic pairing and open admission (2026-10-20)
+
+A session that names no carrier now names **ntfy.sh** by default. Its topic is
+derived from the link secret, and only the sealed request and reply codes
+cross it; the vault data still goes browser to browser over WebRTC. The owner
+can replace it in Routes, and a deployment that denies external services leaves
+the manual codes as the fallback. The host form says the pairing relay is in
+use, and the joiner sees the host before keeping the route.
+
+An **open** session admits the link holder as soon as the request arrives. The
+SAS no longer holds an open request for a compare; it remains available as an
+optional verification while the seat is asking, and invite sessions still wait
+for the owner's compare. The request screen shows the manual request/reply
+codes only when no carrier is ready, and the security code is folded under an
+explanation instead of standing alone. A joined guest keeps a key back to the
+live catalog after moving around the vault.

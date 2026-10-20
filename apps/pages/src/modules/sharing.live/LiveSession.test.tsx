@@ -94,7 +94,7 @@ async function startHosting(
   const owner = container;
   const panel = within(owner);
   // The routes are read from the vault before a session can start.
-  await panel.findByRole("img", { name: "Direct only" });
+  await panel.findByRole("img", { name: /^Direct/ });
   fireEvent.change(panel.getByLabelText("Session name"), {
     target: { value: "Team" },
   });
@@ -129,7 +129,7 @@ async function ask(joiner: ReturnType<typeof within>, name: string) {
     target: { value: name },
   });
   fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
-  await joiner.findByRole("button", { name: "Copy your request code" });
+  await joiner.findByRole("button", { name: "Copy your join request" });
   const status = currentGuest()?.status;
   return status?.at === "request" ? status.code : "";
 }
@@ -164,7 +164,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
     expect(request).not.toContain("Ada Lovelace");
 
     const created = net.created;
-    paste(panel, "A request code", "Read the request", request);
+    paste(panel, "Paste a join request", "Read the request", request);
     const admit = await panel.findByRole("button", {
       name: "Let Ada Lovelace in",
     });
@@ -214,7 +214,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
       target: { value: host?.code === "BCDF-GHJK" ? "BCDF-GHJL" : "BCDF-GHJK" },
     });
     const request = await ask(joiner, "Mallory");
-    paste(panel, "A request code", "Read the request", request);
+    paste(panel, "Paste a join request", "Read the request", request);
     await panel.findByRole("img", { name: "Not for this session (1 of 5)" });
     expect(panel.queryByText("Mallory")).toBeNull();
   });
@@ -256,7 +256,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
       target: { value: host?.code ?? "" },
     });
     const request = await ask(joiner, "Ada Lovelace");
-    paste(panel, "A request code", "Read the request", request);
+    paste(panel, "Paste a join request", "Read the request", request);
     fireEvent.click(
       await panel.findByRole("button", { name: "Let Ada Lovelace in" }),
     );
@@ -291,7 +291,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
     const joiner = within(openJoin());
     expect(joiner.queryByLabelText("Code")).toBeNull();
     const request = await ask(joiner, "Grace");
-    paste(panel, "A request code", "Read the request", request);
+    paste(panel, "Paste a join request", "Read the request", request);
     await panel.findByRole("button", { name: "Copy the reply code for Grace" });
     expect(panel.queryByRole("button", { name: "Let Grace in" })).toBeNull();
     paste(

@@ -93,7 +93,7 @@ describe("peer trust gate", () => {
     ).rejects.toThrow(/peer_trust_refused:changed-key/);
   });
 
-  it("shows the same SAS on both sides and holds the reply until admit", async () => {
+  it("shows the same SAS on both sides and admits an open session at once", async () => {
     const exported = await exportLivePeerTrustSignal();
     expect(exported.ok).toBe(true);
     if (!exported.ok) return;
@@ -123,10 +123,7 @@ describe("peer trust gate", () => {
     const seated = owner.state.guests[0];
     expect(seated?.sas).toBe(guest.status.sas);
     expect(seated?.sas).toMatch(/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/);
-    expect(seated?.reply).toBeNull();
-    expect(seated?.state).toBe("asking");
-    await owner.admit(seated?.key ?? "");
-    expect(owner.state.guests[0]?.reply).toBeTruthy();
+    expect(seated?.reply).toBeTruthy();
     expect(owner.state.guests[0]?.state).toBe("replied");
   });
 

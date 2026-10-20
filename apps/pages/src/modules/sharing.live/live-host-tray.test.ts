@@ -41,6 +41,43 @@ describe("live host tray", () => {
     expect(bodies).toEqual(["Ada is asking to join"]);
   });
 
+  it("takes back the asking row once the guest is in", () => {
+    const asking = {
+      guests: [
+        {
+          key: "g1",
+          name: "Ada",
+          note: "",
+          state: "asking" as const,
+          askedAt: 0,
+          reply: null,
+          kind: "person" as const,
+        },
+      ],
+      log: [],
+      misses: 0,
+      locked: false,
+      status: "live" as const,
+      endedBecause: null,
+      devices: NO_DEVICES,
+    };
+    noteGuestAsking(asking);
+    expect(listNotices()).toHaveLength(1);
+    noteGuestAsking({
+      ...asking,
+      guests: [
+        {
+          ...asking.guests[0],
+          state: "joined" as const,
+          reply: null,
+        },
+      ],
+    });
+    expect(listNotices().map((notice) => notice.body)).toEqual([
+      "Ada joined the live session",
+    ]);
+  });
+
   it("announces a device's request once, with its code, and takes it back when answered", () => {
     const base = {
       guests: [],

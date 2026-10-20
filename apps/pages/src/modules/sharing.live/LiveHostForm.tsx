@@ -113,7 +113,10 @@ export function LiveHostForm({
       {refused ? (
         <StatusMark tone="err" label={refused} />
       ) : (
-        <StatusMark tone="idle" label={routesSummary(transport)} />
+        <StatusMark
+          tone="idle"
+          label={routesSummary(transport, transport.carriers.length === 0)}
+        />
       )}
       {failed ? <StatusMark tone="err" label={failed} /> : null}
       <FormCommit

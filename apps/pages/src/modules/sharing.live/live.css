@@ -76,3 +76,19 @@
 .live-routes__head h3 {
   margin: 0;
 }
+
+.live-help {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.live-verify {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.live-verify summary {
+  cursor: pointer;
+}

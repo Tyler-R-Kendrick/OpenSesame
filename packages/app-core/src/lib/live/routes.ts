@@ -87,6 +87,17 @@ type CarrierDraft = {
 
 export const NO_ROUTES: LiveRoutes = { ice: [], relay: false, carriers: [] };
 
+/**
+ * The relay a session names when its owner has not named one: ntfy over TLS.
+ * It carries only the sealed pairing codes, on a topic derived from the link
+ * secret, so the two browsers still meet directly; a deployment or plan that
+ * refuses external services leaves the manual codes in place.
+ */
+export const DEFAULT_LIVE_CARRIER: CarrierSpec = {
+  kind: "ntfy",
+  url: "https://ntfy.sh",
+};
+
 export const MAX_SERVERS = 6;
 const MAX_URLS = 4;
 export const MAX_CARRIERS = 6;

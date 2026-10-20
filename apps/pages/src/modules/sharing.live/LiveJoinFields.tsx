@@ -30,8 +30,8 @@ export function LiveLinkField({
   return (
     <FieldShell
       id="live-link"
-      label="Link"
-      type="password"
+      label="Session link"
+      type="text"
       mono
       autoComplete="off"
       lead={<IconShare size={17} />}

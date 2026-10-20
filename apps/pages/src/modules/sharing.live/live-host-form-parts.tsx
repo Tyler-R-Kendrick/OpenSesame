@@ -171,7 +171,10 @@ export function PeopleChoice({
 }
 
 /** What the session will use beyond a direct route, in a few words. */
-export function routesSummary(transport: LiveTransport): string {
+export function routesSummary(
+  transport: LiveTransport,
+  automaticCarrier = false,
+): string {
   const parts: string[] = [];
   const count = (n: number, one: string, many: string) =>
     n === 0 ? null : `${n} ${n === 1 ? one : many}`;
@@ -185,6 +188,7 @@ export function routesSummary(transport: LiveTransport): string {
     count(transport.carriers.length, "carrier", "carriers"),
   ])
     if (part) parts.push(part);
-  if (parts.length === 0) return "Direct only";
-  return `${transport.relay ? "Relay only" : "Direct"}, with ${parts.join(", ")}`;
+  const relay = automaticCarrier ? ["ntfy.sh pairing"] : [];
+  if (parts.length === 0 && relay.length === 0) return "Direct only";
+  return `${transport.relay ? "Relay only" : "Direct"}, with ${[...parts, ...relay].join(", ")}`;
 }

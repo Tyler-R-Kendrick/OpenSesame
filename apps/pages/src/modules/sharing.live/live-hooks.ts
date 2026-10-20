@@ -144,7 +144,13 @@ export function useLiveGuest(): LiveGuestView {
   const [status, setStatus] = useState<GuestStatus | null>(
     () => guest?.status ?? null,
   );
-  useEffect(() => onLiveSessionChange(() => setGuest(currentGuest())), []);
+  useEffect(() => {
+    // The route can remount while the session is starting (a new vault, a
+    // capability replan). Reconcile before subscribing so a change that
+    // landed between render and effect is not lost.
+    setGuest(currentGuest());
+    return onLiveSessionChange(() => setGuest(currentGuest()));
+  }, []);
   useEffect(() => {
     if (!guest) {
       setStatus(null);
@@ -160,7 +166,10 @@ export function useLiveHost(): LiveHostView {
   const [state, setState] = useState<HostState | null>(
     () => host?.state ?? null,
   );
-  useEffect(() => onLiveSessionChange(() => setHost(currentHost())), []);
+  useEffect(() => {
+    setHost(currentHost());
+    return onLiveSessionChange(() => setHost(currentHost()));
+  }, []);
   useEffect(() => {
     if (!host) {
       setState(null);
@@ -174,12 +183,17 @@ export function useLiveHost(): LiveHostView {
 /** Whole minutes and seconds left, for a clock that ticks once a second. */
 export function useRemaining(until: number | null): number {
   const [now, setNow] = useState(liveUiSeams.now);
+  const [mountedAt] = useState(liveUiSeams.now);
   useEffect(() => {
     if (until === null) return;
     const timer = setInterval(() => setNow(liveUiSeams.now()), 1000);
     return () => clearInterval(timer);
   }, [until]);
-  return until === null ? 0 : Math.max(0, until - now);
+  if (until === null) return 0;
+  // The catalog crosses the wire as time left in the session; the host's own
+  // expiry is an absolute epoch. Accept both rather than showing "0 s left".
+  const deadline = until < 1_000_000_000_000 ? mountedAt + until : until;
+  return Math.max(0, deadline - now);
 }
 
 export function formatRemaining(ms: number): string {

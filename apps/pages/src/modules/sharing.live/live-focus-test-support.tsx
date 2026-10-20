@@ -135,7 +135,7 @@ export async function host(
   const advanced = rendered.container.querySelector("details");
   if (advanced) advanced.open = true;
   const panel = within(rendered.container);
-  await panel.findByRole("img", { name: "Direct only" });
+  await panel.findByRole("img", { name: /^Direct/ });
   type(panel.getByLabelText("Session name"), "Team");
   type(panel.getByLabelText("Share"), "items");
   fireEvent.click(
@@ -168,7 +168,7 @@ export async function asked(joiner: ReturnType<typeof within>, code: string) {
   type(joiner.getByLabelText("Code"), code);
   type(joiner.getByLabelText("Your name"), "Ada");
   enter(joiner.getByLabelText("Your name"));
-  await joiner.findByRole("button", { name: "Copy your request code" });
+  await joiner.findByRole("button", { name: "Copy your join request" });
   const status = currentGuest()?.status;
   return status?.at === "request" ? status.code : "";
 }
@@ -177,8 +177,8 @@ export async function pairedJoiner(values: "read" | "use" | "edit" = "use") {
   const { panel, session } = await hosted(values);
   const joiner = openJoin();
   const request = await asked(joiner, session?.code ?? "");
-  type(panel.getByLabelText("A request code"), request);
-  enter(panel.getByLabelText("A request code"));
+  type(panel.getByLabelText("Paste a join request"), request);
+  enter(panel.getByLabelText("Paste a join request"));
   press(await panel.findByRole("button", { name: "Let Ada in" }));
   await panel.findByRole("button", { name: "Copy the reply code for Ada" });
   const field = joiner.getByLabelText("The owner's reply code");
