@@ -144,8 +144,8 @@ function Shell({ children }: { children?: ReactNode }) {
         {children}
       </div>
 
-      {/* A row of the frame, not an overlay: it takes height only while a toast
-          shows, so nothing rests on a control (DESIGN.md § Layout). */}
+      {/* A fixed block over the frame: an arrival never takes a grid row or
+          resizes the pane behind it. */}
       <ToastStack />
       {/* After the toast stack, so its arrival subscription is already up. */}
       <LegacyIdentityNotice />

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   setDesktopRinging,
   showToast,
@@ -14,6 +17,17 @@ import {
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TOAST_LIMIT, TOAST_MS, ToastStack } from "./ToastStack.js";
+
+const css = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "..", "styles.css"),
+  "utf8",
+);
+
+function rule(selector: string): string {
+  const start = css.indexOf(`\n${selector} {`);
+  if (start < 0) throw new Error(`no ${selector} rule`);
+  return css.slice(start, css.indexOf("}", start));
+}
 
 type Made = { title: string; options: NotificationOptions; closed: boolean };
 const made: Made[] = [];
@@ -77,6 +91,16 @@ describe("ToastStack", () => {
     const region = screen.getByRole("status");
     expect(region.getAttribute("aria-live")).toBe("polite");
     expect(region.textContent).toBe("");
+  });
+
+  it("is a fixed overlay, not a grid row that resizes the frame", () => {
+    const toasts = rule(".toasts");
+    expect(toasts).toMatch(/position:\s*fixed/);
+    expect(toasts).toMatch(/z-index:\s*\d+/);
+    expect(toasts).toMatch(/pointer-events:\s*none/);
+    expect(toasts).not.toMatch(/grid-area/);
+    expect(rule(".toast")).toMatch(/pointer-events:\s*auto/);
+    expect(rule(".app")).not.toContain("toasts");
   });
 
   it("says an arrival in front of the person, in the notice's own words", () => {
