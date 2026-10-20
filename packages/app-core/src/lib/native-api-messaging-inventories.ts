@@ -70,6 +70,50 @@ export function projectTelegramCommands(body: BoundaryValue) {
     "returned",
   );
 }
+/** Linq Partner messaging lines: every returned row is validated; no returned URL is authority. */
+const linqLines = z.object({
+  phone_numbers: z.array(
+    z.object({
+      id: z
+        .string()
+        .regex(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        ),
+      phone_number: z.string().regex(/^\+[1-9]\d{1,14}$/),
+      line_type: z.enum(["iMessage", "RCS"]).optional(),
+      forwarding_number: z
+        .string()
+        .regex(/^\+[1-9]\d{1,14}$/)
+        .nullable()
+        .optional(),
+      reputation: z.object({
+        status: z.enum(["HEALTHY", "AT_RISK", "CRITICAL"]),
+        doc_url: z
+          .string()
+          .url()
+          .max(4096)
+          .refine((value) =>
+            [...value].every(
+              (character) =>
+                character.charCodeAt(0) >= 32 &&
+                character.charCodeAt(0) !== 127,
+            ),
+          ),
+      }),
+    }),
+  ),
+  ...failed,
+});
+export function projectLinqMessagingLines(body: BoundaryValue) {
+  return projectResourceCollection(
+    linqLines.parse(body).phone_numbers.map((line) => ({
+      id: line.id.toLowerCase(),
+      label: `${line.phone_number}${line.line_type ? ` — ${line.line_type}` : ""} — ${line.reputation.status}`,
+    })),
+    "messaging lines",
+    "returned",
+  );
+}
 export const nativeMessagingInventories: readonly Resource[] = [
   jsonResource(
     "List messages",

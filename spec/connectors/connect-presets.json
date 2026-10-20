@@ -3213,6 +3213,32 @@
   ],
   "api_key": [
     {
+      "service": "linq",
+      "key_url": null,
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.linqapp.com/api/partner"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.linqapp.com/api/partner/v3/phone_numbers",
+        "account_field": null,
+        "required_fields": ["phone_numbers"],
+        "headers": { "Accept": "application/json" }
+      },
+      "instructions": "Supply your Linq Partner messaging Bearer token. Test and Save read the sending phone numbers assigned to your partner. Use List messaging lines to read the current phone numbers, line types and reputations. This is the iMessage/RCS/SMS Partner API, not the separate WhatsApp API or a business-card account. No messages are sent.",
+      "docs_url": "https://docs.linqapp.com/channel/imessage/",
+      "probe_status": null,
+      "confidence": "high",
+      "notes": "Official OpenAPI BearerAuth; fixed GET /api/partner/v3/phone_numbers, no request body or invented query. Strict line inventory must validate before a saved verification proof. No message writes, webhook setup, token minting or refresh.",
+      "sources": [
+        "https://docs.linqapp.com/llms.txt",
+        "https://cdn.linqapp.com/openapi/linq-api-v3.yaml"
+      ],
+      "template_params": []
+    },
+    {
       "service": "agentcard",
       "key_url": "https://docs.agentcard.sh/api-reference/access-tokens/create",
       "header": "Authorization",
