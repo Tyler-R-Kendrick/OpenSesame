@@ -36,7 +36,9 @@ use sqlx::{sqlite::SqliteRow, Row, Sqlite, Transaction};
 
 #[path = "delegation_helpers.rs"]
 mod helpers;
-use helpers::{child_grant_from, internal, materialize_organization};
+use helpers::{
+    audiences_for, child_grant_from, default_delegate_actions, internal, materialize_organization,
+};
 
 use crate::error::{BrokerError, Result};
 use crate::model::{BindingTargetKind, EventKind};
@@ -255,30 +257,6 @@ fn parse_time(raw: &str) -> DateTime<Utc> {
     DateTime::parse_from_rfc3339(raw)
         .map(|t| t.with_timezone(&Utc))
         .unwrap_or(DateTime::<Utc>::MIN_UTC)
-}
-
-/// Default delegate action set: the provider vocabulary minus mutating
-/// operations. The owner may widen back up to the full set explicitly.
-fn default_delegate_actions(operations: &[String]) -> Vec<String> {
-    operations
-        .iter()
-        .filter(|op| {
-            let lower = op.to_ascii_lowercase();
-            !(lower.contains("write")
-                || lower.contains("push")
-                || lower.contains("delete")
-                || lower.contains("admin"))
-        })
-        .cloned()
-        .collect()
-}
-
-fn audiences_for(row: &ConnectionRow) -> Vec<String> {
-    row.egress
-        .authorities
-        .iter()
-        .map(|authority| format!("{}://{}", row.egress.scheme, authority))
-        .collect()
 }
 
 impl ConnectionBroker {

@@ -9,7 +9,6 @@
  */
 
 import { type Named, name } from "@gdp-ts/core";
-import type { OrganizationRole } from "@opensesame/os-domain";
 import {
   type BoundaryValue,
   isJsonObject,
@@ -19,13 +18,15 @@ import {
 import { kvRefresh } from "./kv.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
-import type { AccessRole } from "./local-rbac.js";
 import { assertAccessCapability } from "./local-rbac.js";
-import {
-  type ShareKind,
-  revokeSharesForSession,
-} from "./local-share-grants.js";
+import { revokeSharesForSession } from "./local-share-grants.js";
 import { issueSessionGrants } from "./local-vault-session-issue.js";
+import type {
+  CreateVaultSessionInput,
+  LocalVaultSession,
+  SessionGrantSpec,
+  SessionSubject,
+} from "./local-vault-session-types.js";
 import {
   type ManageGrants,
   requireManageGrants,
@@ -38,38 +39,12 @@ const MAX_BYTES = 256_000;
 const MAX_SESSIONS = 64;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-export type SessionSubject =
-  | { kind: "principal"; principalId: string }
-  | { kind: "accessRole"; role: AccessRole }
-  | { kind: "orgRole"; role: OrganizationRole };
-
-export type SessionGrantSpec = {
-  subject: SessionSubject;
-  resourceKind: ShareKind;
-  resourceId: string;
-  resourceLabel: string;
-  policy: string;
-};
-
-export type LocalVaultSession = {
-  id: string;
-  code: string;
-  label: string;
-  status: "running" | "stopped";
-  durationSeconds: number;
-  startedAt: number | null;
-  expiresAt: number | null;
-  boundTomb: string;
-  grants: SessionGrantSpec[];
-  issuedShareIds: string[];
-};
-
-export type CreateVaultSessionInput = {
-  label: string;
-  durationSeconds: number;
-  grants: SessionGrantSpec[];
-  start?: boolean;
-};
+export type {
+  CreateVaultSessionInput,
+  LocalVaultSession,
+  SessionGrantSpec,
+  SessionSubject,
+} from "./local-vault-session-types.js";
 
 function text(value: BoundaryValue, max: number): value is string {
   return isString(value) && value.length > 0 && value.length <= max;

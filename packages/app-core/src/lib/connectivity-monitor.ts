@@ -22,6 +22,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { maybePage } from "../ports.js";
 import { isOnline, subscribeConnectivity } from "./connectivity.js";
+import { jittered } from "./connectivity-backoff.js";
 import { identityBase, probeIdentityDetailed } from "./identity.js";
 import { type FailureClass, classifyThrown } from "./probe-failure.js";
 import { subscribeSettings } from "./settings.js";
@@ -81,8 +82,6 @@ export const DEGRADED_MS = 5_000;
  */
 export const MAX_MS = HEALTHY_MS;
 const BACKOFF = 1.6;
-/** Spread repeated sweeps so N tabs never form a thundering herd. */
-const JITTER = 0.15;
 
 /**
  * How many consecutive failures before a green light goes amber.
@@ -169,29 +168,6 @@ export function connectivitySnapshot(): MonitorSnapshot {
  */
 function degraded(): boolean {
   return state.identity.health === "unreachable" || state.identity.strikes > 0;
-}
-
-/** Uniform index in [0, max) without modulo bias (rejection sampling). */
-function randomIndex(max: number): number {
-  if (!Number.isInteger(max) || max <= 0) {
-    throw new Error("randomIndex needs a positive bound");
-  }
-  const limit = Math.floor(2 ** 32 / max) * max;
-  const buf = new Uint32Array(1);
-  const view = new DataView(buf.buffer);
-  let value: number;
-  do {
-    crypto.getRandomValues(buf);
-    value = view.getUint32(0);
-  } while (value >= limit);
-  return value % max;
-}
-
-function jittered(ms: number): number {
-  const spread = ms * JITTER;
-  const low = Math.ceil(ms - spread);
-  const high = Math.floor(ms + spread);
-  return low + randomIndex(high - low + 1);
 }
 
 function nextDelay(): number {

@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 413,
-    "violations": 639,
-    "oversizedLines": 209661
+    "files": 412,
+    "violations": 638,
+    "oversizedLines": 208824
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -234,10 +234,10 @@
       "max-lines": 676
     },
     "crates/connection-broker/src/delegation.rs": {
-      "max-lines": 1570
+      "max-lines": 1556
     },
     "crates/connection-broker/src/egress.rs": {
-      "max-lines": 526
+      "max-lines": 518
     },
     "crates/connection-broker/src/flow.rs": {
       "max-lines": 604
@@ -252,7 +252,7 @@
       "max-lines": 1727
     },
     "crates/connection-broker/src/secret_config.rs": {
-      "max-lines": 824
+      "max-lines": 771
     },
     "crates/connection-broker/src/store.rs": {
       "max-lines": 2736
@@ -264,7 +264,7 @@
       "max-lines": 878
     },
     "crates/connection-broker/src/tests/credential_minting.rs": {
-      "max-lines": 819
+      "max-lines": 688
     },
     "crates/connection-broker/src/tests/org_integrations.rs": {
       "max-lines": 480
@@ -273,7 +273,7 @@
       "max-lines": 641
     },
     "crates/connection-broker/src/tests/web_rotation.rs": {
-      "max-lines": 1152
+      "max-lines": 990
     },
     "crates/connection-broker/src/token.rs": {
       "max-lines": 422
@@ -303,7 +303,7 @@
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1332
+      "max-lines": 1322
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -1237,9 +1237,6 @@
       "max-lines-per-function": 2,
       "max-statements": 1
     },
-    "packages/sdk-server/src/verifier.test.ts": {
-      "max-lines": 424
-    },
     "packages/sdk-server/src/verifier.ts": {
       "complexity": 1
     },
@@ -1380,7 +1377,7 @@
     },
     "tools/mock-upstream-idp/src/server.ts": {
       "complexity": 1,
-      "max-lines": 751,
+      "max-lines": 716,
       "max-lines-per-function": 2,
       "max-statements": 1
     },

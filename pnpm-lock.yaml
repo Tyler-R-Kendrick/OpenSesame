@@ -2239,6 +2239,9 @@ importers:
 
   tools/mock-upstream-idp:
     dependencies:
+      '@opensesame/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../../packages/os-domain
@@ -19061,7 +19064,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.20.0):
+  retry-axios@2.6.0(axios@1.20.0(debug@4.4.3)):
     dependencies:
       axios: 1.20.0(debug@4.4.3)
     optional: true

@@ -29,55 +29,60 @@ test("Pages build registers the shared worker graph before Tailscale assets", as
   );
 });
 
+/** Write the controller/worker fixture and build it through the plugin. */
+async function buildFixtureWorker(directory) {
+  const controller = join(
+    directory,
+    "src/modules/networking.tailnet/browser/controller.ts",
+  );
+  const worker = join(
+    directory,
+    "src/modules/networking.tailnet/browser/worker.ts",
+  );
+  await mkdir(dirname(controller), { recursive: true });
+  await writeFile(
+    controller,
+    `export const start=()=>new Worker(new URL("./worker.ts",import.meta.url),{type:"module",name:"opensesame-tailscale"});`,
+  );
+  await writeFile(worker, `self.name="opensesame-tailscale";`);
+  return build({
+    configFile: false,
+    root: directory,
+    cacheDir: join(directory, "cache"),
+    publicDir: false,
+    logLevel: "silent",
+    plugins: [
+      sharedWorkerGraph({
+        workers: [
+          {
+            owner: controller,
+            specifier: "./worker.ts",
+            name: "tailscale-node",
+          },
+        ],
+      }),
+    ],
+    build: {
+      write: false,
+      target: "es2022",
+      minify: false,
+      rollupOptions: {
+        input: controller,
+        preserveEntrySignatures: "strict",
+        output: {
+          format: "es",
+          entryFileNames: "assets/[name]-[hash].js",
+          chunkFileNames: "assets/[name]-[hash].js",
+        },
+      },
+    },
+  });
+}
+
 test("the shared worker graph declares exactly one dedicated Tailscale worker", async () => {
   const directory = await mkdtemp(join(tmpdir(), "tailnet-worker-graph-"));
   try {
-    const controller = join(
-      directory,
-      "src/modules/networking.tailnet/browser/controller.ts",
-    );
-    const worker = join(
-      directory,
-      "src/modules/networking.tailnet/browser/worker.ts",
-    );
-    await mkdir(dirname(controller), { recursive: true });
-    await writeFile(
-      controller,
-      `export const start=()=>new Worker(new URL("./worker.ts",import.meta.url),{type:"module",name:"opensesame-tailscale"});`,
-    );
-    await writeFile(worker, `self.name="opensesame-tailscale";`);
-    const result = await build({
-      configFile: false,
-      root: directory,
-      cacheDir: join(directory, "cache"),
-      publicDir: false,
-      logLevel: "silent",
-      plugins: [
-        sharedWorkerGraph({
-          workers: [
-            {
-              owner: controller,
-              specifier: "./worker.ts",
-              name: "tailscale-node",
-            },
-          ],
-        }),
-      ],
-      build: {
-        write: false,
-        target: "es2022",
-        minify: false,
-        rollupOptions: {
-          input: controller,
-          preserveEntrySignatures: "strict",
-          output: {
-            format: "es",
-            entryFileNames: "assets/[name]-[hash].js",
-            chunkFileNames: "assets/[name]-[hash].js",
-          },
-        },
-      },
-    });
+    const result = await buildFixtureWorker(directory);
     const bundle = Object.fromEntries(
       result.output.map((item) => [item.fileName, item]),
     );

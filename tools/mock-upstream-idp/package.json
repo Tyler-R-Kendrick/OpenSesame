@@ -26,6 +26,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@xmldom/xmldom": "0.8.15",
     "jose": "6.2.8",

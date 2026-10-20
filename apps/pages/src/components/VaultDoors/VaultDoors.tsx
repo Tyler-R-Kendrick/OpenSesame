@@ -57,29 +57,7 @@ export function VaultDoors({
     return () => cancelAnimationFrame(frame);
   }, [active, onComplete, openStartMs, reduce]);
 
-  useEffect(() => {
-    const pane = paneRef.current;
-    if (!pane) return;
-    const unlockEl = pane.closest(".unlock");
-    if (!(unlockEl instanceof HTMLElement)) return;
-    if (!active) {
-      unlockEl.classList.remove("unlock--doors");
-      unlockEl.style.removeProperty("--unlock-door-shift");
-      unlockEl.style.removeProperty("--unlock-door-split");
-      unlockEl.style.removeProperty("--unlock-door-progress");
-      return;
-    }
-    unlockEl.classList.add("unlock--doors");
-    unlockEl.style.setProperty("--unlock-door-split", `${splitX}px`);
-    unlockEl.style.setProperty("--unlock-door-shift", `${progress * 102}%`);
-    unlockEl.style.setProperty("--unlock-door-progress", `${progress}`);
-    return () => {
-      unlockEl.classList.remove("unlock--doors");
-      unlockEl.style.removeProperty("--unlock-door-shift");
-      unlockEl.style.removeProperty("--unlock-door-split");
-      unlockEl.style.removeProperty("--unlock-door-progress");
-    };
-  }, [active, paneRef, progress, splitX]);
+  useDoorVars(paneRef, active, splitX, progress);
 
   if (!active) return null;
 
@@ -123,4 +101,36 @@ export function VaultDoors({
       />
     </>
   );
+}
+
+/** Mirror the door geometry onto the unlock pane as CSS variables. */
+function useDoorVars(
+  paneRef: RefObject<HTMLElement | null>,
+  active: boolean,
+  splitX: number,
+  progress: number,
+): void {
+  useEffect(() => {
+    const pane = paneRef.current;
+    if (!pane) return;
+    const unlockEl = pane.closest(".unlock");
+    if (!(unlockEl instanceof HTMLElement)) return;
+    if (!active) {
+      unlockEl.classList.remove("unlock--doors");
+      unlockEl.style.removeProperty("--unlock-door-shift");
+      unlockEl.style.removeProperty("--unlock-door-split");
+      unlockEl.style.removeProperty("--unlock-door-progress");
+      return;
+    }
+    unlockEl.classList.add("unlock--doors");
+    unlockEl.style.setProperty("--unlock-door-split", `${splitX}px`);
+    unlockEl.style.setProperty("--unlock-door-shift", `${progress * 102}%`);
+    unlockEl.style.setProperty("--unlock-door-progress", `${progress}`);
+    return () => {
+      unlockEl.classList.remove("unlock--doors");
+      unlockEl.style.removeProperty("--unlock-door-shift");
+      unlockEl.style.removeProperty("--unlock-door-split");
+      unlockEl.style.removeProperty("--unlock-door-progress");
+    };
+  }, [active, paneRef, progress, splitX]);
 }
