@@ -118,14 +118,21 @@ function vaultShare(navigate: Navigate): MenuItem | null {
   if (share) {
     ways.push({
       id: "share-session",
-      label: "Session",
+      label: "Live session",
       run: () => share.open(),
+    });
+  }
+  if (vaultStore.getSnapshot().status === "unlocked") {
+    ways.push({
+      id: "share-drop",
+      label: "Temporary drop",
+      run: () => navigate("/vault?share=pick-drop"),
     });
   }
   if (isCommandSection("/access")) {
     ways.push({
       id: "share-grant",
-      label: "Person or agent",
+      label: "Specific people or agents",
       run: () => navigate(accessNewPath("grants")),
     });
   }
