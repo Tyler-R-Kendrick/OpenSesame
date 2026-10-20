@@ -1,0 +1,55 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "environment",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Environment",
+    "plural": "Environments",
+    "extension": ".envschema",
+    "summary": "A varlock-compatible .env.schema and the vault item paths its keys bind to.",
+    "categories": ["developer", "access"],
+    "sections": [
+      {
+        "id": "schema",
+        "title": "Environment schema",
+        "fields": [
+          {
+            "id": "environment",
+            "type": "string",
+            "label": "Environment",
+            "help": "The environment name used in the generated file: development, staging or production.",
+            "required": true
+          },
+          {
+            "id": "schema",
+            "type": "multiline",
+            "label": "env.schema",
+            "help": "The varlock @env-spec body. Holds keys, decorators and rules, never a value.",
+            "required": true
+          },
+          {
+            "id": "aliases",
+            "type": "multiline",
+            "label": "Vault item aliases",
+            "help": "One KEY=vault/item/path binding per line. The key must appear in the schema; the path may be any named vault item path."
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": null,
+      "trailer": [
+        { "key": "environment", "field": "environment" },
+        { "key": "schema", "field": "schema" },
+        { "key": "aliases", "field": "aliases" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["environment"],
+    "search": ["environment"]
+  }
+}

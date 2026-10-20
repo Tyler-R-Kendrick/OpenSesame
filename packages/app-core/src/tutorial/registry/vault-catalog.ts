@@ -37,14 +37,6 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.import",
   },
   {
-    id: "vault.environments",
-    description:
-      "Opens the Environments sheet from the vault's key strip: the vault's environments as tabs, each secret's value and whether it is required there, and one generated .env.<name>.schema per environment. Every standalone secret is a key by default, folder-prefixed and removable; a picker adds one back. Present only once Environments is switched on in Settings › Features. Values are sealed in the vault and concealed until shown.",
-    role: "ceremony",
-    routes: ["/vault"],
-    capabilityId: null,
-  },
-  {
     id: "vault.filter",
     description:
       "The vault's filters: favorites, each item type this vault holds, your folders and the trash, with the count each would show. Narrowing the list never changes an item. Health is drawn with them and opens the password health report; it does not narrow the list. They are rows of the section tree, on a wide screen and on a phone's first screen; in a phone's list one key opens the same roads as a sheet.",

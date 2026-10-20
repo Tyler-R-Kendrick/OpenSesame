@@ -7,6 +7,10 @@ import {
   acknowledgeCertificateDelivery,
   issueCertificate,
 } from "@opensesame/app-core/lib/certs.js";
+import {
+  ENVIRONMENT_ITEM_TYPE,
+  renderEnvironmentSchemaItem,
+} from "@opensesame/app-core/lib/vault/environment-item.js";
 import { validateWebsitePatterns } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import {
   type Folder,
@@ -61,6 +65,18 @@ export function editorDraftError(draft: VaultItem): string | null {
       const missing = missingRequired(definition, draft.values);
       if (missing.length > 0) {
         return `Fill in ${missing.map((field) => field.label).join(", ")} before saving.`;
+      }
+      if (definition.metadata.id === ENVIRONMENT_ITEM_TYPE) {
+        const text = (id: string) => {
+          const value = draft.values[id];
+          return typeof value === "string" ? value : "";
+        };
+        const rendered = renderEnvironmentSchemaItem(draft.name, {
+          environment: text("environment"),
+          schema: text("schema"),
+          aliases: text("aliases"),
+        });
+        if (rendered.problems[0]) return rendered.problems[0].message;
       }
     }
   }

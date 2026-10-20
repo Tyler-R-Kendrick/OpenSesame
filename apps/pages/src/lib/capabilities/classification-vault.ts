@@ -120,7 +120,7 @@ export const VAULT_LIB_RULES = [
   optional(
     `${V}environments`,
     "vault.environments",
-    "named environments, schema text, and the missing-value notice",
+    "the Environment item type, varlock schema text, and alias bindings",
   ),
   optional(
     `${V}security-checks`,

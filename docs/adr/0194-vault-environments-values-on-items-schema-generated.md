@@ -287,3 +287,18 @@ a value gets a `ConnectionRef` and an Intent (ADR 0005), not a `.env`.
   ceremony of its own (ADR 0086's pattern), not a side effect of editing.
 - A new `.env.schema` item type remains possible later as an *import* source
   (parse a pasted schema into keys). It would not be where the data lives.
+
+## Amendment — Environment item type (2026-10-20)
+
+The surface and storage decision above is amended. The vault no longer draws
+an **Environments** key, sheet, Add entry or `/environments` route. With the
+capability on, the New item type picker offers **Environment**: a core
+`environment` item type that stores one varlock-compatible `.env.schema` body,
+its environment name, and alias bindings in the form
+`KEY=named/vault/item/path`.
+
+The generated file is named
+`<vault-item-name>.<env-name>.env.schema`. Rendering inserts each alias as the
+`@vaultItem=` comment above its key; the file still contains no values. The
+item's values are sealed with the rest of the vault, and the existing
+per-item environment cells remain readable data, not a surface.

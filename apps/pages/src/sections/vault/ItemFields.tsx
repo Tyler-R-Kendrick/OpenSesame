@@ -82,6 +82,7 @@ export function ItemFields({
       return (
         <TypedFieldRows
           definition={definition}
+          itemName={item.name}
           values={item.values}
           revealed={revealed}
           toggle={toggle}

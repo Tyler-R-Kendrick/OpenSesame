@@ -350,6 +350,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         {typedDefinition !== undefined && draft.kind === "typed" ? (
           <TypedFieldInputs
             definition={typedDefinition}
+            itemName={draft.name}
             values={draft.values}
             onChange={patchValue}
           />

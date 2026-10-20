@@ -11,6 +11,7 @@
  * concealed in the item list and the search index too.
  */
 
+import { ENVIRONMENT_ITEM_TYPE } from "@opensesame/app-core/lib/vault/environment-item.js";
 import {
   asList,
   asParts,
@@ -34,6 +35,10 @@ import {
 } from "../../components/FieldRow.js";
 import { BlobInput, BlobRow } from "./BlobField.js";
 import { OptionalField } from "./EditorExtras.js";
+import {
+  EnvironmentFields,
+  EnvironmentFieldsRead,
+} from "./EnvironmentFields.js";
 import {
   RecordInput,
   RepeatingInput,
@@ -97,6 +102,34 @@ function FieldControl({
 
 /** The editor for every plugin-defined type, drawn from its definition. */
 export function TypedFieldInputs({
+  definition,
+  itemName,
+  values,
+  onChange,
+}: {
+  definition: ItemTypeDefinition;
+  itemName: string;
+  values: FieldValues;
+  onChange: ChangeField;
+}) {
+  if (definition.metadata.id === ENVIRONMENT_ITEM_TYPE)
+    return (
+      <EnvironmentFields
+        itemName={itemName}
+        values={values}
+        onChange={onChange}
+      />
+    );
+  return (
+    <GenericTypedFieldInputs
+      definition={definition}
+      values={values}
+      onChange={onChange}
+    />
+  );
+}
+
+function GenericTypedFieldInputs({
   definition,
   values,
   onChange,
@@ -232,6 +265,40 @@ function ValueRow({
 
 /** The detail view for every plugin-defined type, drawn from its definition. */
 export function TypedFieldRows({
+  definition,
+  itemName,
+  values,
+  revealed,
+  toggle,
+  copied,
+  failed,
+  copy,
+}: {
+  definition: ItemTypeDefinition;
+  itemName: string;
+  values: FieldValues;
+  revealed: ReadonlySet<string>;
+  toggle: (key: string) => void;
+  copied: string | null;
+  failed: string | null;
+  copy: (key: string, value: string) => Promise<void>;
+}) {
+  if (definition.metadata.id === ENVIRONMENT_ITEM_TYPE)
+    return <EnvironmentFieldsRead itemName={itemName} values={values} />;
+  return (
+    <GenericTypedFieldRows
+      definition={definition}
+      values={values}
+      revealed={revealed}
+      toggle={toggle}
+      copied={copied}
+      failed={failed}
+      copy={copy}
+    />
+  );
+}
+
+function GenericTypedFieldRows({
   definition,
   values,
   revealed,

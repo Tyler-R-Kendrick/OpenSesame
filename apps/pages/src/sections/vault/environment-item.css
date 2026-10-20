@@ -1,0 +1,69 @@
+/* The Environment item: schema editor, alias bindings, generated file. */
+.envschema {
+  align-content: start;
+}
+
+.envschema .field__help {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+}
+
+.envschema__paths {
+  margin-top: 0.35rem;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.envschema__paths ul,
+.envschema__aliases,
+.envschema__problems {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.envschema__paths li,
+.envschema__aliases li,
+.envschema__problems li {
+  overflow-wrap: anywhere;
+}
+
+.envschema__file {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.envschema__filehead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.envschema__filehead h3 {
+  margin: 0.15rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.envschema__filekeys {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.envschema__file pre {
+  max-height: 22rem;
+  margin: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
