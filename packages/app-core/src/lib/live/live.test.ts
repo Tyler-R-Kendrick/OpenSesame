@@ -95,7 +95,9 @@ describe("the link", () => {
   it("round-trips through the app's own address, and names no server", async () => {
     const r = await room();
     const url = formatLiveLink("https://example.test/OpenSesame/", r.host.link);
-    expect(url).toMatch(/^https:\/\/example\.test\/OpenSesame\/#live=v1\.i\./);
+    expect(url).toMatch(
+      /^https:\/\/example\.test\/OpenSesame\/\?join=[A-Za-z0-9_-]{12}#live=v1\.i\./,
+    );
     expect(parseLiveLink(url)).toEqual(r.host.link);
     expect(url).not.toMatch(/wss?:|stun:|turn:/);
     expect(parseLiveLink("https://example.test/#live=v2.i.x.y")).toBeNull();

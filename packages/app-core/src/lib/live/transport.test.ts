@@ -160,7 +160,9 @@ describe("a link with routes", () => {
       ...link,
       routes: routesSegment(NO_ROUTES),
     });
-    expect(direct).toMatch(/#live=v1\.o\.[\w-]{87}\.[\w-]{43}$/);
+    expect(direct).toMatch(
+      /\?join=[A-Za-z0-9_-]{12}#live=v1\.o\.[\w-]{87}\.[\w-]{43}$/,
+    );
     const none = parseLiveLink(direct);
     expect(none && linkRoutes(none)).toEqual(NO_ROUTES);
     const empty = parseLiveLink(`${direct}.e30`);
