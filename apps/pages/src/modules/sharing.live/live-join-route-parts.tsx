@@ -15,13 +15,12 @@ import { rememberTrustedPeer } from "@opensesame/app-core/lib/peer-trust/peers.j
 import { useEffect, useRef } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconArrowRight } from "../../components/Icons.js";
+import { IconInfo } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { firstControl } from "../../lib/focus.js";
-import { useVault } from "../../lib/vault/hooks.js";
 import { LiveCatalog } from "./LiveCatalog.js";
 import {
   JoinPersonFields,
-  JoinVaultSealFields,
   LiveLinkField,
   PeerTrustField,
 } from "./LiveJoinFields.js";
@@ -43,20 +42,19 @@ import { joinAskDisabledReason } from "./live-join-trust.js";
 const ASK_AGAIN = "Ask to join again";
 
 export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
-  const vault = useVault();
-  const askState = useAsk(held, vault.status);
-  const {
-    fields,
-    link,
-    needsCode,
+  const askState = useAsk(held);
+  const { fields, link, needsCode, ready, busy, failed, alarm, ask } = askState;
+  const form = useRef<HTMLFormElement>(null);
+  const disabledReason = joinAskDisabledReason({
+    alarm,
     ready,
     busy,
-    failed,
-    alarm,
-    sealProblem,
-    ask,
-  } = askState;
-  const form = useRef<HTMLFormElement>(null);
+    link,
+    pasted: fields.pasted,
+    needsCode: needsCode ?? false,
+    code: fields.code,
+    name: fields.name,
+  });
   useLandWhenSettled(busy, () => form.current?.querySelector(".go"));
 
   return (
@@ -68,25 +66,20 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
         void ask();
       }}
     >
-      <JoinAskFields held={held} vaultStatus={vault.status} state={askState} />
+      <JoinAskFields held={held} state={askState} />
       {failed && failed !== alarm ? (
         <StatusMark tone="err" label={failed} />
       ) : null}
       {alarm ? <StatusMark tone="err" label={alarm} /> : null}
+      {!ready && !busy && disabledReason ? (
+        <p className="live-help" role="status">
+          {disabledReason}
+        </p>
+      ) : null}
       <FormCommit
         label="Ask to join"
         disabled={!ready || busy || alarm.length > 0}
-        disabledReason={joinAskDisabledReason({
-          alarm,
-          ready,
-          busy,
-          link,
-          pasted: fields.pasted,
-          needsCode: needsCode ?? false,
-          code: fields.code,
-          name: fields.name,
-          sealProblem: sealProblem ?? undefined,
-        })}
+        disabledReason={disabledReason}
         busy={busy}
         icon={<IconArrowRight size={18} />}
       />
@@ -96,36 +89,15 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
 
 function JoinAskFields({
   held,
-  vaultStatus,
   state,
 }: {
   held: LiveLink | null;
-  vaultStatus: "empty" | "locked" | "unlocked";
   state: ReturnType<typeof useAsk>;
 }) {
-  const { fields, set, link, routes, needsCode, busy, pinProblem } = state;
-  const {
-    pasted,
-    code,
-    name,
-    note,
-    peerTrust,
-    useRoutes,
-    pin,
-    confirm,
-    accepted,
-  } = fields;
-  const {
-    setPasted,
-    setCode,
-    setName,
-    setNote,
-    setPeerTrust,
-    setUseRoutes,
-    setPin,
-    setConfirm,
-    setAccepted,
-  } = set;
+  const { fields, set, link, routes, needsCode, busy } = state;
+  const { pasted, code, name, note, peerTrust, useRoutes } = fields;
+  const { setPasted, setCode, setName, setNote, setPeerTrust, setUseRoutes } =
+    set;
   return (
     <>
       {held && link ? <StatusMark tone="ok" label="Link in hand" /> : null}
@@ -150,34 +122,32 @@ function JoinAskFields({
         setName={setName}
         setNote={setNote}
       />
-      {vaultStatus === "empty" ? (
-        <JoinVaultSealFields
-          pin={pin}
-          confirm={confirm}
-          accepted={accepted}
-          problem={pinProblem}
+      <p className="live-help">
+        <IconInfo size={14} aria-hidden="true" /> The owner sees the name you
+        enter. Nothing is stored on your side; the shared items live only in
+        this tab while the session is open.
+      </p>
+      <details className="live-advanced">
+        <summary>Advanced</summary>
+        {routes ? (
+          <RoutesChoice
+            routes={routes}
+            checked={useRoutes}
+            disabled={busy}
+            onChange={setUseRoutes}
+          />
+        ) : null}
+        <p className="live-help">
+          <IconInfo size={14} aria-hidden="true" /> Peer trust is only for a
+          code the owner gave you outside this link. Most people can leave it
+          empty.
+        </p>
+        <PeerTrustField
+          peerTrust={peerTrust}
           busy={busy}
-          setPin={setPin}
-          setConfirm={setConfirm}
-          setAccepted={setAccepted}
+          setPeerTrust={setPeerTrust}
         />
-      ) : null}
-      {vaultStatus === "locked" ? (
-        <StatusMark tone="warn" label="Unlock this device before joining." />
-      ) : null}
-      <PeerTrustField
-        peerTrust={peerTrust}
-        busy={busy}
-        setPeerTrust={setPeerTrust}
-      />
-      {routes ? (
-        <RoutesChoice
-          routes={routes}
-          checked={useRoutes}
-          disabled={busy}
-          onChange={setUseRoutes}
-        />
-      ) : null}
+      </details>
     </>
   );
 }
@@ -207,6 +177,7 @@ export function LiveJoinSession() {
     <div className="setup__stack" id="live-view">
       <div className="live-status" id="live-status" tabIndex={-1}>
         <StatusMark tone={opened.mark.tone} label={opened.mark.label} />
+        <span className="live-status__label">{opened.mark.label}</span>
         <span className="vault-row__meta">
           {catalog ? formatRemaining(left) : opened.mark.tray}
         </span>

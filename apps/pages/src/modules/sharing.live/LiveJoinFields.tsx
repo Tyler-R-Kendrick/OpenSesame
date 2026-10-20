@@ -86,67 +86,6 @@ export function JoinPersonFields(props: PersonFields) {
   );
 }
 
-export function JoinVaultSealFields({
-  pin,
-  confirm,
-  accepted,
-  problem,
-  busy,
-  setPin,
-  setConfirm,
-  setAccepted,
-}: {
-  pin: string;
-  confirm: string;
-  accepted: boolean;
-  problem: string | null;
-  busy: boolean;
-  setPin: (next: string) => void;
-  setConfirm: (next: string) => void;
-  setAccepted: (next: boolean) => void;
-}) {
-  return (
-    <fieldset className="fieldset">
-      <legend>Seal this device</legend>
-      <div className="field">
-        <label htmlFor="live-device-pin">Device PIN</label>
-        <input
-          id="live-device-pin"
-          type="password"
-          inputMode="numeric"
-          autoComplete="new-password"
-          title="8–12 characters, no repeated character, no sequential digits."
-          value={pin}
-          disabled={busy}
-          onChange={(event) => setPin(event.target.value)}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="live-device-pin-confirm">Confirm PIN</label>
-        <input
-          id="live-device-pin-confirm"
-          type="password"
-          inputMode="numeric"
-          autoComplete="new-password"
-          value={confirm}
-          disabled={busy}
-          onChange={(event) => setConfirm(event.target.value)}
-        />
-      </div>
-      {problem ? <StatusMark tone="err" label={problem} /> : null}
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={accepted}
-          disabled={busy}
-          onChange={(event) => setAccepted(event.target.checked)}
-        />
-        <span>I understand this vault cannot be recovered.</span>
-      </label>
-    </fieldset>
-  );
-}
-
 export function PeerTrustField({
   peerTrust,
   busy,

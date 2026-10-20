@@ -202,8 +202,10 @@ describe("joining through the owner's routes", () => {
     expect(carried).not.toContain("100.101.102.103");
     holdLiveLink(link);
     const joiner = openJoin();
+    const advanced = joiner.getByText("Advanced").closest("details");
+    if (advanced) advanced.open = true;
     const choice = joiner.getByRole("checkbox", {
-      name: "Through turn.example.ts.net, ntfy.example.ts.net",
+      name: "Pair through turn.example.ts.net, ntfy.example.ts.net",
     });
     expect(choice).toHaveProperty("checked", true);
     const posted = bus.seen.length;
@@ -223,7 +225,9 @@ describe("joining through the owner's routes", () => {
     await host(CARRIED);
     holdLiveLink(currentHost()?.link ?? null);
     const joiner = openJoin();
-    fireEvent.click(joiner.getByRole("checkbox", { name: /^Through / }));
+    const advanced = joiner.getByText("Advanced").closest("details");
+    if (advanced) advanced.open = true;
+    fireEvent.click(joiner.getByRole("checkbox", { name: /^Pair through / }));
     type(joiner, "Your name", "Ada");
     fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
     await joiner.findByRole("button", { name: "Copy your join request" });

@@ -69,10 +69,8 @@ export function joinAskDisabledReason(input: {
   needsCode: boolean;
   code: string;
   name: string;
-  sealProblem?: string;
 }): string | undefined {
   if (input.alarm) return input.alarm;
-  if (input.sealProblem) return input.sealProblem;
   if (input.ready || input.busy) return undefined;
   return liveJoinAskDisabledReason({
     link: input.link,
