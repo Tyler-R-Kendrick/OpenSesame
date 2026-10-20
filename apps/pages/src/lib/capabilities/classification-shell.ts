@@ -116,6 +116,17 @@ export const SHELL_RULES = [
     "connectors.external",
     "provider consent browser ports loaded only by native connector runtime",
   ),
+  // The native SAML popup the unlock stage opens for a configured IdP is a
+  // core sign-in road; the connector runtime drives the same session words.
+  ...each(
+    "src/browser/",
+    ["native-auth-form", "native-auth-message", "native-auth-session"],
+    (p) =>
+      shared(
+        p,
+        "native SAML sign-in session shared by the unlock stage and the connector runtime",
+      ),
+  ),
   core("src/node/", null, "the CLI host; never in a Pages build"),
   core("src/sandbox/", null, "the isolate host; never in a Pages build"),
   core("src/test-setup", null, "installs the app-core test host (ADR 0133)"),

@@ -1,15 +1,14 @@
 import { randomBytes } from "node:crypto";
 import {
   type IncomingMessage,
-  type Server,
   type ServerResponse,
   createServer,
 } from "node:http";
+import { createLogger } from "@opensesame/observability";
 import { type JsonObject, isString } from "@opensesame/os-domain";
 import { SignJWT } from "jose";
 import {
   type MockIdpConfig,
-  type MockIdpKeys,
   type MockIdpSamlKeys,
   assertMockIdpListenAllowed,
   createMockIdpKeys,
@@ -51,6 +50,21 @@ import {
   parseAuthnRequest,
   samlPostBindingHtml,
 } from "./saml.js";
+import type {
+  MintLogoutTokenOptions,
+  MintSamlResponseInput,
+  MockIdpObservations,
+  MockUpstreamIdp,
+} from "./server-types.js";
+
+export type {
+  MintLogoutTokenOptions,
+  MintSamlResponseInput,
+  MockIdpObservations,
+  MockUpstreamIdp,
+} from "./server-types.js";
+
+const log = createLogger({ name: "mock-upstream-idp" });
 
 type AuthCode = {
   clientId: string;
@@ -67,62 +81,10 @@ interface TokenIssueRequest {
   scope: string;
 }
 
-/** What the last requests carried — the assertions callers make about wire shape. */
-export interface MockIdpObservations {
-  lastNonce?: string | undefined;
-  tokenOrigin?: string | undefined;
-  tokenClient: { id?: string; secret?: string };
-}
-
-export interface MintLogoutTokenOptions {
-  /**
-   * OIDC Back-Channel Logout 1.0 forbids `nonce` in a logout token — it is the
-   * fence against replaying an id_token as a logout. Set this to produce the
-   * malformed token an endpoint must refuse.
-   */
-  includeNonce?: boolean;
-  audience?: string;
-  sessionId?: string;
-}
-
-export interface MintSamlResponseInput {
-  acsUrl: string;
-  /** SP entityID; defaults to the OpenSesame SP convention on the ACS origin. */
-  audience?: string;
-  subject?: string;
-  nameIdFormat?: string;
-  inResponseTo?: string;
-  assertionId?: string;
-  mutate?: SamlMutation;
-}
-
-export interface MockUpstreamIdp {
-  config: MockIdpConfig;
-  keys: MockIdpKeys;
-  server: Server;
-  /** Clients admitted through the RFC 7591 registration endpoint. */
-  registrations: ClientRegistry;
-  observed: MockIdpObservations;
-  listen(): Promise<string>;
-  close(): Promise<void>;
-  samlKeys(): Promise<MockIdpSamlKeys>;
-  setSamlMutation(mutation?: SamlMutation): void;
-  setSamlAcsUrl(acsUrl?: string): void;
-  mintLogoutToken(
-    subject: string,
-    options?: MintLogoutTokenOptions,
-  ): Promise<string>;
-  mintSamlResponse(input: MintSamlResponseInput): Promise<string>;
-}
-
 /**
- * The repository's reference identity provider.
- *
- * It speaks real OIDC (PKCE S256 enforced, Origin-bound origin-profile
- * clients, single-use codes, RS256 over a runtime keypair), real RFC 7591
- * dynamic client registration, a real GitHub-shaped OAuth2 leg, and real
- * SAML 2.0 with XML-DSig — over one HTTP server, so the dev stack and every
- * protocol test drive the same implementation.
+ * The repository's reference identity provider: real OIDC (PKCE S256,
+ * Origin-bound clients, single-use codes, RS256), RFC 7591 registration, a
+ * GitHub-shaped OAuth2 leg, and SAML 2.0 with XML-DSig, over one HTTP server.
  */
 export async function createMockUpstreamIdp(
   overrides?: Partial<MockIdpConfig>,
@@ -701,9 +663,9 @@ export async function createMockUpstreamIdp(
 
       sendJson(res, 404, { error: "not_found" }, config.issuer);
     } catch (err) {
-      // Exception text (and any stack in it) stays server-side; the wire
-      // answer is the generic OAuth server_error only.
-      console.error(err);
+      // Exception text (and any stack in it) stays server-side, behind the
+      // scrubbing logger; the wire answer is the generic OAuth server_error only.
+      log.error({ err }, "reference IdP request failed");
       sendJson(
         res,
         500,

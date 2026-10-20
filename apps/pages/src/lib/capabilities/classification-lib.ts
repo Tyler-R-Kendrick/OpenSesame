@@ -69,10 +69,6 @@ const CORE_INFRA = [
   "bounded-response",
   // A lazy chunk a newer deploy replaced, told as a stale page (ADR 0188).
   "chunk-load",
-  "dirty-edit",
-  "dirty-forms",
-  "shell-update",
-  "sw-update-guard",
   "urls",
   "agent-page-dump",
   "local-network-fetch",

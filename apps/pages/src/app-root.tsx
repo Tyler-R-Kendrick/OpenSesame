@@ -29,7 +29,6 @@ import type {
 } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { planIsSettling } from "@opensesame/app-core/lib/capabilities/settling.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
-import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { Notices } from "./components/Notices.js";
@@ -50,7 +49,10 @@ import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
 import { GateHost } from "./tutorial/gate-seat.js";
 
+import { useAfterUnlock } from "./app-root-hooks.js";
 import { useComposition } from "./bindings/capabilities.js";
+
+export { useCapabilityGate } from "./app-root-hooks.js";
 import { useRegistryContributions as defaultUseContributions } from "./bindings/contributions.js";
 import { useShellReady as defaultUseShellReady } from "./bindings/shell-ready.js";
 // The core shell (ownership.md §5): unlock, the vault, Settings, and the
@@ -192,60 +194,6 @@ export function UnavailableRoute() {
 }
 
 /** Whether a capability is approved under the current plan, and its lifecycle. */
-export function useCapabilityGate(id: string) {
-  const snapshot = useComposition();
-  const state = snapshot.plan?.capabilities[id] ?? null;
-  return {
-    approved: state?.approved === true,
-    lifecycle: snapshot.lifecycle[id] ?? null,
-    state,
-  };
-}
-
-/**
- * Unlock effects an approved module registered run once per unlock, under
- * the lease that approved them: a bump aborts the signal they were handed.
- *
- * Locking clears any active duress presentation first (ADR 0131). That is
- * core, not an unlock effect: it must run whether or not a tomb is open and
- * whether or not a capability contributed anything, so it sits ahead of the
- * early return rather than inside the effect list.
- */
-function useAfterUnlock(
-  status: string,
-  tomb: string | undefined,
-  guest: boolean | undefined,
-  effects: readonly UnlockEffectContribution[],
-  recover: () => void,
-): void {
-  useEffect(() => {
-    if (status !== "unlocked") {
-      clearActivePresentation();
-      return;
-    }
-    if (!tomb) return;
-    recover();
-    const controller = new AbortController();
-    let leaseSignal: AbortSignal | null = null;
-    try {
-      leaseSignal = compositionStore.currentLease().signal;
-    } catch {
-      // Not resolved yet: the effects run again on the next generation.
-    }
-    const onLeaseAbort = () => controller.abort("lease");
-    leaseSignal?.addEventListener("abort", onLeaseAbort, { once: true });
-    for (const effect of effects) {
-      void effect
-        .run({ tomb, guest: guest === true, signal: controller.signal })
-        .catch(() => undefined);
-    }
-    return () => {
-      leaseSignal?.removeEventListener("abort", onLeaseAbort);
-      controller.abort("unmount");
-    };
-  }, [status, tomb, guest, effects, recover]);
-}
-
 function contributedRoute(route: RouteContribution) {
   const Element = route.element;
   return (

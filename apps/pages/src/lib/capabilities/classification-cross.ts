@@ -67,6 +67,7 @@ const LOCAL_RECORDS = [
   // optional Access administration surface is absent.
   "local-share-reach",
   "local-vault-session-issue",
+  "local-vault-session-types",
   "local-vault-sessions",
   "pages-dogfood",
   "standing-connection-grants",
@@ -157,6 +158,13 @@ export const CROSS_RULES = [
     `${L}native-`,
     "connectors.external",
     "native provider authorization and connection runtime",
+  ),
+  // The port the native runtime binds egress into: types, the binding and
+  // an unavailable stub. Whoever holds it gains no networking until the
+  // optional runtime binds, so core may carry the seam (as `secret-backends/seam`).
+  shared(
+    `${L}native-connector-transport`,
+    "the native provider transport port and its binding; egress stays with the optional runtime",
   ),
   // The seam between two optional capabilities: the connections an app holds
   // offer themselves to a live session through it, and neither owns the words.

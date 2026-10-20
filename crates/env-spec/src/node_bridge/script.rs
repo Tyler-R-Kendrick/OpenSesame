@@ -32,9 +32,9 @@
 
 use std::path::{Path, PathBuf};
 
-use opensesame_trusted_exec::trust::{self, Owner};
 use super::{Host, Platform};
 use crate::EnvSpecError;
+use opensesame_trusted_exec::trust::{self, Owner};
 
 /// The variable that names the script outright.
 pub(crate) const OVERRIDE: &str = "OPENSESAME_ENV_PARSE";

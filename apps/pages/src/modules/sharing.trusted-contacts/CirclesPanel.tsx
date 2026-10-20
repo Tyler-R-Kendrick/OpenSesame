@@ -112,12 +112,11 @@ function Sheet({
   }
 }
 
-function Circles({ desk }: { desk: Desk }) {
-  const said = useSaid(countText(desk.owned.length, "circle"));
+/** Which sheet is open over the circles, and where its key came from. */
+function useCircleView(desk: Desk) {
   const [view, setView] = useState<View | null>(null);
   const opener = useRef(HEAD_KEY);
   const wasOpen = useRef(false);
-  const guide = useGuideTarget<HTMLButtonElement>("circle.new");
 
   // A circle that is gone takes its sheets with it.
   const gone =
@@ -143,6 +142,13 @@ function Circles({ desk }: { desk: Desk }) {
     opener.current = from;
     setView(next);
   }
+  return { view, setView, opener, open };
+}
+
+function Circles({ desk }: { desk: Desk }) {
+  const said = useSaid(countText(desk.owned.length, "circle"));
+  const { view, setView, opener, open } = useCircleView(desk);
+  const guide = useGuideTarget<HTMLButtonElement>("circle.new");
 
   return (
     <PanelFrame
