@@ -16,7 +16,6 @@ import { FeatureBindingTile } from "./FeatureBindingTile.js";
 
 /** The labs the AI section lists, in the order a person scans them. */
 export const AI_LABS = [
-  { id: "byo-ai", name: "BYO AI" },
   { id: "openai", name: "OpenAI" },
   { id: "anthropic", name: "Anthropic" },
   { id: "cohere", name: "Cohere" },
