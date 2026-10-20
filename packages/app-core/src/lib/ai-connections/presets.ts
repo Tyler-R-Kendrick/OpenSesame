@@ -12,6 +12,7 @@ export const AI_CONNECTION_FAMILIES = [
   { id: "replicate_predictions", label: "Replicate predictions" },
   { id: "elevenlabs_scribe", label: "ElevenLabs Scribe transcription" },
   { id: "deepgram_listen", label: "Deepgram transcription" },
+  { id: "assemblyai_transcript", label: "AssemblyAI transcription" },
 ] as const;
 
 export function isAiConnectionFamily(
@@ -33,6 +34,14 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "assemblyai")
+    return {
+      providerId,
+      name: "AssemblyAI",
+      family: "assemblyai_transcript" as const,
+      baseUrl: "https://api.assemblyai.com/v2",
+      model: "universal-3-5-pro",
+    };
   if (providerId === "deepgram")
     return {
       providerId,
@@ -114,7 +123,8 @@ export function aiConnectionDraft(providerId: string): AiConnectionDraft {
     ...preset,
     model:
       preset.family === "elevenlabs_scribe" ||
-      preset.family === "deepgram_listen"
+      preset.family === "deepgram_listen" ||
+      preset.family === "assemblyai_transcript"
         ? preset.model
         : "",
     authentication: "api-key",

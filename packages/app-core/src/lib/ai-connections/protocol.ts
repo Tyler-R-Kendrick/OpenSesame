@@ -65,9 +65,11 @@ export function aiConnectionHeaders(draft: AiConnectionDraft): Headers {
   if (isAiSpeechFamily(draft.family))
     throw new AiConnectionError(
       "configuration",
-      draft.family === "elevenlabs_scribe"
-        ? "Scribe audio requires its finite multipart transcription adapter."
-        : "Deepgram audio requires its finite raw-audio transcription adapter.",
+      draft.family === "assemblyai_transcript"
+        ? "AssemblyAI audio requires its finite upload and transcription job adapter."
+        : draft.family === "elevenlabs_scribe"
+          ? "Scribe audio requires its finite multipart transcription adapter."
+          : "Deepgram audio requires its finite raw-audio transcription adapter.",
     );
   if (draft.family === "replicate_predictions")
     throw new AiConnectionError(

@@ -56,8 +56,12 @@ export class AiConnectionError extends Error {
 /** Transcription families admitted by the current shared AI configuration. */
 export function isAiSpeechFamily(
   family: string | undefined,
-): family is "elevenlabs_scribe" | "deepgram_listen" {
-  return family === "elevenlabs_scribe" || family === "deepgram_listen";
+): family is "elevenlabs_scribe" | "deepgram_listen" | "assemblyai_transcript" {
+  return (
+    family === "elevenlabs_scribe" ||
+    family === "deepgram_listen" ||
+    family === "assemblyai_transcript"
+  );
 }
 
 /** Implemented finite jobs keep explicit user cancellation separate from owner loss. */

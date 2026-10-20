@@ -3,8 +3,12 @@ import type {
   HostedModelInput,
   HostedModelResult,
 } from "../hosted-model-protocol.js";
+import { inferAssemblyAi } from "./assemblyai-inference.js";
 import { inferBedrockAi } from "./bedrock-inference.js";
-import { validateAiDeepgramConnection } from "./configuration.js";
+import {
+  validateAiAssemblyConnection,
+  validateAiDeepgramConnection,
+} from "./configuration.js";
 import { inferDeepgramAi } from "./deepgram-inference.js";
 import { aiConnectionFetch, readAiJson } from "./http.js";
 import { type AiAudioInput, validateAiAudio } from "./media.js";
@@ -38,7 +42,14 @@ export async function inferAiConnection(
       "Use the model saved with this connection.",
     );
   if (isAiSpeechFamily(draft.family))
-    return inferTranscriptionAi(draft, input, transport, check, onText);
+    return inferTranscriptionAi(
+      draft,
+      input,
+      transport,
+      check,
+      onText,
+      predictionOptions,
+    );
   if (input.media !== undefined)
     throw new AiConnectionError(
       "configuration",
@@ -108,6 +119,7 @@ function inferTranscriptionAi(
   transport: AiConnectionTransport,
   check: () => void,
   onText?: (text: string) => void,
+  predictionOptions: ReplicateRunOptions = {},
 ): Promise<HostedModelResult> {
   if (onText)
     throw new AiConnectionError(
@@ -125,6 +137,14 @@ function inferTranscriptionAi(
       "Supply local audio without a prompt or text-generation parameters.",
     );
   }
+  if (draft.family === "assemblyai_transcript")
+    return inferAssemblyAi(
+      validateAiAssemblyConnection(draft),
+      validateAiAudio(media),
+      transport,
+      check,
+      { signal: predictionOptions.signal },
+    );
   if (draft.family === "deepgram_listen")
     return inferDeepgramAi(
       validateAiDeepgramConnection(draft),
@@ -159,6 +179,8 @@ export function probeAiConnection(
       { model: draft.model, messages: [], media: audio },
       transport,
       check,
+      undefined,
+      predictionOptions,
     );
   }
   if (audio !== undefined)

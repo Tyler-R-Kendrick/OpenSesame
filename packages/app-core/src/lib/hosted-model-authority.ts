@@ -10,7 +10,8 @@ export type AiInferenceFamily =
   | "bedrock_converse"
   | "replicate_predictions"
   | "elevenlabs_scribe"
-  | "deepgram_listen";
+  | "deepgram_listen"
+  | "assemblyai_transcript";
 export type HostedModelTransport = {
   fetch: typeof fetch;
   assertCurrent: () => void;
