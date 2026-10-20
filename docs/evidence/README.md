@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-20-unused-css/`](2026-10-20-unused-css/README.md) | Unreachable CSS cleanup |
 | [`2026-10-19-tailscale-peer-route/`](2026-10-19-tailscale-peer-route/README.md) | Tailscale peer routing in the shared connection form |
 | [`2026-10-19-snowflake-configuration/`](2026-10-19-snowflake-configuration/README.md) | Snowflake configuration |
 | [`2026-10-19-cloudflare-wallet-removal/`](2026-10-19-cloudflare-wallet-removal/README.md) | Cloudflare Wallet removal |
