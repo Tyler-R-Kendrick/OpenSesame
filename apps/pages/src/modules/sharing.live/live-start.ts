@@ -19,6 +19,8 @@ import { settledTransport } from "./live-transport-hooks.js";
 /** What the Form holds at the press. */
 export type StartForm = Readonly<{
   title: string;
+  audience: "anyone" | "all-users" | "people";
+  peopleIds: readonly string[];
   scope: "vault" | "items" | "none";
   chosen: ReadonlySet<string>;
   policy: SharePolicy;
@@ -49,6 +51,10 @@ export async function startInput(form: StartForm): Promise<HostInput> {
     admission: form.admission,
     minutes: form.minutes,
     devices: form.devices,
+    provision: {
+      audience: form.audience,
+      peopleIds: form.peopleIds,
+    },
     transport: liveUiSeams.transport,
     carriers: liveUiSeams.carriers,
   };

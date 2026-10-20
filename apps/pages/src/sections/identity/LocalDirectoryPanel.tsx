@@ -204,6 +204,12 @@ function DirectoryEditor({
               </span>
             </>
           ) : null}
+          {kind === "person" ? (
+            <StatusMark
+              tone="idle"
+              label="All users is a built-in group every enabled person belongs to."
+            />
+          ) : null}
           {!directory && !error ? (
             <StatusMark tone="idle" label="Loading directory…" />
           ) : null}

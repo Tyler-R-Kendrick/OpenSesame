@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readLocalDirectory } from "./local-directory.js";
+import { ALL_USERS_GROUP_ID } from "./local-groups.js";
 import { localRequestFixture } from "./local-request.fixture.js";
 import {
   approvePendingShare,
@@ -33,7 +34,7 @@ it("grants a vault to a person and lists it until revoked", async () => {
   const shares = await createLocalShare(fixture.tomb, {
     principalId: fixture.personId,
     resourceKind: "vault",
-    resourceId: "personal",
+    resourceId: fixture.tomb,
     resourceLabel: "personal",
     policy: "open",
     durationSeconds: 3600,
@@ -43,6 +44,22 @@ it("grants a vault to a person and lists it until revoked", async () => {
   expect(await listLocalShares(fixture.tomb)).toHaveLength(1);
   await revokeLocalShare(fixture.tomb, shares[0]?.id ?? "");
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
+});
+
+it("grants a vault to the built-in All users group", async () => {
+  const fixture = await localRequestFixture();
+  const shares = await createLocalShare(fixture.tomb, {
+    principalId: ALL_USERS_GROUP_ID,
+    resourceKind: "vault",
+    resourceId: fixture.tomb,
+    resourceLabel: "personal",
+    policy: "open",
+    durationSeconds: 3600,
+  });
+  expect(shares[0]?.principalId).toBe(ALL_USERS_GROUP_ID);
+  await expect(
+    shareAllows(fixture.tomb, { kind: "vault" }, "read", fixture.personId),
+  ).resolves.toBe(true);
 });
 
 it("grants a connector under the invoke policy", async () => {
@@ -126,6 +143,7 @@ it("holds an application grant until it is approved", async () => {
   expect(grantIdentities(directory.entries).map((row) => row.kind)).toEqual([
     "person",
     "application",
+    "group",
   ]);
   const input = {
     principalId: fixture.applicationId,

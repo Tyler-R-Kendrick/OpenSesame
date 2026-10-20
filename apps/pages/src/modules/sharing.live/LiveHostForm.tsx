@@ -12,6 +12,7 @@ import { IconPlay } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import {
   ADMISSIONS,
+  AUDIENCES,
   DEVICES,
   DURATIONS,
   ItemChoice,
@@ -24,7 +25,11 @@ import { useHostForm } from "./live-host-form-state.js";
 
 export { routesSummary } from "./live-host-form-parts.js";
 
-export function LiveHostForm() {
+export function LiveHostForm({
+  initialTitle = "",
+}: {
+  initialTitle?: string;
+}) {
   const {
     values,
     set,
@@ -35,7 +40,7 @@ export function LiveHostForm() {
     refused,
     failed,
     submit,
-  } = useHostForm();
+  } = useHostForm(initialTitle);
   return (
     <form
       className="setup__stack"
@@ -75,6 +80,37 @@ export function LiveHostForm() {
           options={DEVICES}
           onChange={set.devices}
         />
+      ) : null}
+      <Pick
+        id="live-audience"
+        name="Share with"
+        value={values.audience}
+        options={AUDIENCES}
+        onChange={set.audience}
+      />
+      {values.audience === "people" ? (
+        <fieldset className="live-choose">
+          <legend className="visually-hidden">People</legend>
+          {values.people.length === 0 ? (
+            <StatusMark tone="idle" label="No people in this vault." />
+          ) : (
+            values.people.map((person) => (
+              <label key={person.id} className="join__choice">
+                <input
+                  type="checkbox"
+                  checked={values.peopleIds.has(person.id)}
+                  onChange={(event) => {
+                    const next = new Set(values.peopleIds);
+                    if (event.target.checked) next.add(person.id);
+                    else next.delete(person.id);
+                    set.peopleIds(next);
+                  }}
+                />
+                <span>{person.name}</span>
+              </label>
+            ))
+          )}
+        </fieldset>
       ) : null}
       <Pick
         id="live-admission"

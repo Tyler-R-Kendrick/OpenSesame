@@ -34,6 +34,29 @@ Two different problems are solved here, and they have different answers:
 | The **codes** have to reach the other person | By hand (always works), or a **carrier** that passes them |
 | The **peer connection** has to reach the other browser | Same network, a **tunnel address**, or a **TURN** server |
 
+## The share sheet
+
+The Share key beside the vault's name opens a session generator. It asks for a
+name, the scope, the value policy, who the link is for, who gets in and how
+long it lasts. **Anyone with the link** is the default admission; the default
+scope is chosen items. Routes stay under Advanced.
+
+Submitting starts the session and draws a QR beside the hidden link. A joiner
+on a device with no vault is asked to seal a local vault with a PIN and claim a
+name before asking; on an unlocked device the existing identity is used. The
+owner's vault creates a person for the claimed name when the seat is admitted,
+and writes the displayed scope as session shares.
+
+**Share with → All users** is the built-in `local_group_all_users` group. It
+appears in Access as a share target too. A join that claims a name in a
+selected-people session is matched against those selected people; the claim is
+not authentication.
+
+An open session still needs the request and reply codes to cross, or a carrier
+or relay named under Routes. The QR carries the link, not a rendezvous server.
+The link stays in the fragment until the join screen has taken it, so a reload
+while Live sessions is being approved does not lose the invitation.
+
 ## Addresses: a tailnet or VPN you already run
 
 Browsers hide their local addresses behind mDNS names (`<uuid>.local`), which

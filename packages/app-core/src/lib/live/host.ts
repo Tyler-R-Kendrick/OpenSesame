@@ -296,6 +296,20 @@ export class LiveHost {
     const admission = this.#admission(key);
     if (!admission) return;
     const { seat, relay } = admission;
+    if (this.options.provisionSeat) {
+      try {
+        await this.options.provisionSeat(seat.guest, this.id);
+      } catch {
+        this.#drop(key, "refused");
+        return;
+      }
+      if (
+        this.#ended ||
+        this.#seats.get(key) !== seat ||
+        seat.guest.state !== "asking"
+      )
+        return;
+    }
     const peer = this.#peerFor(key, seat, relay);
     seat.peer = peer;
     try {
