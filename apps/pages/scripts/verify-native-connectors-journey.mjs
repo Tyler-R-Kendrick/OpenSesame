@@ -7,6 +7,10 @@ import { phoneContext } from "./lib/mobile-contract.mjs";
 import { routeNativeApiAuthority } from "./lib/native-browser-api-authority.mjs";
 import { nativeApiJourney } from "./lib/native-browser-api-journey.mjs";
 import { nativeApiForgetJourney } from "./lib/native-browser-api-lifecycle.mjs";
+import {
+  nativeAzureSecretsJourney,
+  routeNativeAzureSecretsAuthority,
+} from "./lib/native-browser-azure-secrets.mjs";
 import { nativeCasJourney } from "./lib/native-browser-cas-journey.mjs";
 import {
   nativeCatalogJourney,
@@ -51,6 +55,7 @@ try {
     activeContext = context;
     const authority = await routeNativeApiAuthority(context, harness);
     await routeNativeInstanceAuthority(context, authority, harness);
+    await routeNativeAzureSecretsAuthority(context, authority, harness);
     expectedFailures.push(nativeExpectedFailures(harness, page, authority));
     await page.goto(`${origin}${base}`);
     await sealWithPin(page);
@@ -87,6 +92,13 @@ try {
           label,
         }),
       );
+    results.push(
+      await nativeAzureSecretsJourney(page, harness, authority, {
+        base,
+        out,
+        label,
+      }),
+    );
     if (label === "desktop") {
       const usable = results.find((result) => result.connected);
       const fixture = authority.fixtures.find(
