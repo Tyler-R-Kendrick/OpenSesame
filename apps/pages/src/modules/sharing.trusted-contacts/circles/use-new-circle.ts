@@ -165,7 +165,7 @@ function useRunState() {
   const [furthest, setFurthest] = useState<Step>("name");
   const [begun, setBegun] = useState<Begun | null>(null);
   const [scope, setScope] = useState<Scope>({
-    protects: "everything",
+    protects: "approvals",
     folder: "",
   });
   const [guardians, setGuardians] = useState<readonly Guardian[]>([]);

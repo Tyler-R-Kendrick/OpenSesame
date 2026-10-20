@@ -188,10 +188,10 @@ export async function startCircle(
   user: UserEvent,
   copies: readonly string[],
   name: string,
-  protects?: string,
+  _protects?: string,
 ): Promise<string> {
+  await user.clear(screen.getByLabelText("Name"));
   await user.type(screen.getByLabelText("Name"), name);
-  if (protects) await user.click(sheetKey(protects));
   await user.click(sheetKey("Make the invitation"));
   await user.click(
     await screen.findByRole("button", { name: "Copy invitation" }),

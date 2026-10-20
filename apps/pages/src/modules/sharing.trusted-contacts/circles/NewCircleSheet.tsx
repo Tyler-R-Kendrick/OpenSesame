@@ -61,9 +61,8 @@ function Strip({ run }: { run: NewCircle }) {
 
 function Current({ desk, run }: { desk: Desk; run: NewCircle }) {
   const { begun } = run;
-  const vault = useVault();
   if (run.step === "name" || !begun) {
-    return <NameStep desk={desk} folders={vault.folders} onBegun={run.begin} />;
+    return <NameStep desk={desk} onBegun={run.begin} />;
   }
   const circleId = begun.draft.circleId;
   switch (run.step) {
@@ -73,10 +72,7 @@ function Current({ desk, run }: { desk: Desk; run: NewCircle }) {
           desk={desk}
           circleId={circleId}
           invite={begun.invite}
-          facts={[
-            { key: "Circle", value: begun.draft.label },
-            { key: "Protects", value: begun.draft.collection },
-          ]}
+          facts={[{ key: "Circle", value: begun.draft.label }]}
           people={run.guardians}
           onPeople={run.setGuardians}
           next={{ label: "Set the rule", onNext: () => run.go("rule") }}
