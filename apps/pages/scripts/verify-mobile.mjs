@@ -1,20 +1,10 @@
 import { privateTempDir } from "./lib/private-files.mjs";
 /**
- * The touch journey (DESIGN.md § Touch).
- *
- * Drives the built deployment in real touch contexts — a coarse pointer, a
- * touch-capable context, a device pixel ratio of 3 — and audits every stop
- * against `lib/mobile-contract.mjs`. It walks the roads a person on a phone
- * actually takes: the front door, guest entry, every section behind the
- * sections drawer, the overflow key's own sheets, the item editor, and a
- * locked reload. Then it walks a tablet, where a finger meets the *wide*
- * arrangement — the one place the phone stylesheet and the desktop one can
- * contradict each other with every other gate still green.
- *
- * Run it against a fresh build:
- *   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
- *   PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
- *     pnpm --filter @opensesame/pages verify:mobile
+ * The touch journey (DESIGN.md § Touch), on a fresh built deployment.
+ * Walks the front door, guest entry, sections, sheets, editor and locked reload
+ * in real coarse-pointer phone and tablet contexts. Each stop is measured by
+ * lib/mobile-contract.mjs. PAGES_VERIFY_DIST selects another real build;
+ * MOBILE_SIZES selects the viewport shards in lib/mobile-sizes.mjs.
  */
 
 import fs from "node:fs";
@@ -44,7 +34,9 @@ import { touchCopyStop } from "./lib/touch-copy-contract.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
-const dist = fileURLToPath(new URL("../dist", import.meta.url));
+const dist =
+  process.env.PAGES_VERIFY_DIST ??
+  fileURLToPath(new URL("../dist", import.meta.url));
 const out =
   process.env.PAGES_VERIFY_OUT ??
   privateTempDir("opensesame-mobile-verification-");
@@ -113,7 +105,10 @@ async function openOverflowRow(page, pattern, label) {
   }
   await more.tap();
   await page.waitForTimeout(650);
-  const row = page.getByRole("button", { name: pattern }).first();
+  const row = page
+    .getByRole("dialog", { name: "More", exact: true })
+    .getByRole("button", { name: pattern })
+    .first();
   if ((await row.count()) === 0) {
     harness.check(false, `${label}: no such row in the overflow`);
     await page.keyboard.press("Escape");
@@ -295,9 +290,8 @@ async function trustedContacts(browser, phone) {
 /**
  * A finger above 900px: the arrangement the phone roads never reach.
  *
- * Here the top bar is gone by width and the status strip is the whole of the
- * chrome — Support, CommandBar, and the bell. Assert the strip is drawn with
- * those seats on screen and named, and that they are keys a finger can hit.
+ * The shared header carries the bell; the status strip keeps Support and
+ * CommandBar. Both rows must remain on screen, with keys a finger can hit.
  */
 async function tablet(browser, size) {
   const { page, context } = await harness.newPage(browser, {
@@ -328,13 +322,19 @@ async function tablet(browser, size) {
       topbar: visible(".topbar").length,
       overflow: visible(".topbar__more").length,
       rail: visible(".rail").length,
+      header: visible(".app-header").length,
+      bell: visible('.app-header button[aria-label^="Notifications —"]').length,
     };
   });
   harness.check(
     chromeCounts.strip === 1 &&
       chromeCounts.command === 1 &&
-      chromeCounts.keys >= 3,
-    `${stop("chrome")}: the status strip with CommandBar is on screen (saw ${chromeCounts.keys} keys in ${chromeCounts.strip} strip)`,
+      chromeCounts.keys === 2,
+    `${stop("chrome")}: Support and CommandBar remain in one status strip (saw ${chromeCounts.keys} keys in ${chromeCounts.strip} strip)`,
+  );
+  harness.check(
+    chromeCounts.header === 1 && chromeCounts.bell === 1,
+    `${stop("chrome")}: one shared header carries the notifications key`,
   );
   harness.check(
     chromeCounts.topbar === 0 && chromeCounts.overflow === 0,

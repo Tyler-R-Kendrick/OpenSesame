@@ -802,9 +802,10 @@ input[type="radio"] {
 
 .app {
   display: grid;
-  grid-template-columns: var(--rail-w) 1fr;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
+    "header header"
     "rail main"
     "status status";
   height: 100dvh;
@@ -1773,13 +1774,14 @@ body {
 /* ——— Responsive frame ————————————————————————————————————— */
 
 @media (max-width: 900px) {
-  /* One column: main + statusline. The bell sits behind the top bar overflow
-     key; CommandBar stays in the statusline on every unlocked screen.
-     Sections stay behind the bar's menu key — no tab bar. */
+  /* One column below the shared header. CommandBar stays in the statusline
+     on every unlocked screen; the bell stays directly in the header.
+     Sections stay behind the header's menu key — no tab bar. */
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
+      "header"
       "main"
       "status";
     height: 100dvh;

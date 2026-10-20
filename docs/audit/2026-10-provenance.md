@@ -680,3 +680,9 @@ galleries under `docs/evidence/2026-10-17-p8-1-portable-drop-profiles/` and
 **P3 (F9/F10)** — Grok Build `grok-4.7`; commit `0c8a032ef` on `cursor/p3-danger-travel-drop-8ad8`; PR #1472 stacked on B8-1.
 
 **D8-1 (F6)** — Grok Build `grok-4.7`; commit `30aef4fca` on `cursor/d8-1-cli-approval-webauthn-8ad8`; TS + `cargo test -p opensesame-cli-app-integration` (54) PASS locally; **runtime verify blocked** (no live daemon ceremony in cloud agent).
+
+**Global title bar (2026-10-20)** — Codex implementation and verification in an
+isolated worktree, following the supplied approved screenshot. The coding
+preflight reported no Grok subscription auth and no Kimi executable; neither
+CLI could implement this change. The shared header, responsive arrangement,
+geometry checks, and visual evidence were implemented by Codex.

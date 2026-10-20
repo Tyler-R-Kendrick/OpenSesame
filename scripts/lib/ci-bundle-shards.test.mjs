@@ -44,6 +44,7 @@ const GATES = [
   "verify:push-worker",
   "verify:sw-dirty-edit",
   "verify:mobile",
+  "verify:header-layout",
   "verify:local-iam",
   "verify:quorum-browser",
   "verify:trusted-contacts",

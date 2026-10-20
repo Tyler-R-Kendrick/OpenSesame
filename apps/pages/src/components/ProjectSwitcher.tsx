@@ -39,12 +39,15 @@ import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { FailureNotice } from "./FailureNotice.js";
 import { GlyphMark } from "./GlyphMark.js";
 import { IconPlus } from "./Icons.js";
+import { PromptGlyph } from "./PromptGlyph.js";
 import { VaultList } from "./VaultList.js";
 import { glyphStandsForName } from "./prompt-glyph.js";
 import { useHold } from "./use-hold.js";
 
 import { useDeviceVaults } from "../bindings/vaults.js";
-function ProjectSwitcherDefault() {
+export type ProjectSwitcherProps = { glyphHost?: HTMLElement | null };
+
+function ProjectSwitcherDefault({ glyphHost }: ProjectSwitcherProps = {}) {
   const state = useSyncExternalStore(subscribeProjects, projectsState);
   const navigate = useNavigate();
   const promptRef = useGuideTarget<HTMLButtonElement>("prompt.tomb");
@@ -154,11 +157,13 @@ function ProjectSwitcherDefault() {
           setOpen(true);
         }}
       >
-        <GlyphMark
-          className="prompt__glyph"
-          kind="vault"
-          id={guestShown ? GUEST_TOMB : (active?.id ?? "personal")}
-        />
+        <PromptGlyph glyphHost={glyphHost}>
+          <GlyphMark
+            className="prompt__glyph"
+            kind="vault"
+            id={guestShown ? GUEST_TOMB : (active?.id ?? "personal")}
+          />
+        </PromptGlyph>
         <span className="prompt__name">{name}</span>
       </button>
 
@@ -257,7 +262,7 @@ export async function afterProjectChange(carryUnlock: boolean): Promise<void> {
   return projectSwitcherSeams.afterProjectChange(carryUnlock);
 }
 
-export function ProjectSwitcher() {
+export function ProjectSwitcher(props: ProjectSwitcherProps = {}) {
   const Impl = projectSwitcherSeams.ProjectSwitcher;
-  return <Impl />;
+  return <Impl {...props} />;
 }

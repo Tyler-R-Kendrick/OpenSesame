@@ -73,8 +73,10 @@ describe("the rail's context menu", () => {
     // The settings directory is session-level: the session
     // prompt's menu roots the tree in it, and its own row
     // opens it, before the tab's hidden config.yaml shows.
-    const prompt = container.querySelector<HTMLElement>(".rail .rail__prompt");
-    if (!prompt) throw new Error("the rail has no session prompt");
+    const prompt = container.querySelector<HTMLElement>(
+      ".app-header .rail__prompt",
+    );
+    if (!prompt) throw new Error("the header has no session prompt");
     fireEvent.contextMenu(prompt);
     fireEvent.click(within(menu()).getByRole("menuitem", { name: "Settings" }));
     fireEvent.click(screen.getByRole("treeitem", { name: "Settings" }));
@@ -209,8 +211,10 @@ describe("the rail's context menu", () => {
     expect(screen.queryByRole("treeitem", { name: "Activity" })).toBeNull();
     // The session prompt is the home of the two the rail leaves
     // out: a right-click roots the tree in either one.
-    const prompt = container.querySelector<HTMLElement>(".rail .rail__prompt");
-    if (!prompt) throw new Error("the rail has no session prompt");
+    const prompt = container.querySelector<HTMLElement>(
+      ".app-header .rail__prompt",
+    );
+    if (!prompt) throw new Error("the header has no session prompt");
     fireEvent.contextMenu(prompt);
     // Both session directories are offered.
     const settings = within(menu()).getByRole("menuitem", {

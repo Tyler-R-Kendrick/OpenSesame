@@ -134,8 +134,8 @@ describe("AppShell", () => {
     const gone = ["Authority", "Authentication", "Sites"];
     expect(gone.flatMap((g) => screen.queryAllByText(g))).toHaveLength(0);
     expect(screen.getByText("content")).toBeTruthy();
-    expect(screen.getAllByTestId("project-switcher").length).toBe(2);
-    expect(screen.getAllByTestId("account-switcher").length).toBe(2);
+    expect(screen.getAllByTestId("project-switcher").length).toBe(1);
+    expect(screen.getAllByTestId("account-switcher").length).toBe(1);
     expect(screen.queryByTestId("connectivity-bar")).toBeNull();
     expect(screen.getAllByTestId("notifications-bar").length).toBe(1);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
@@ -216,30 +216,28 @@ describe("AppShell", () => {
       ).not.toBeNull();
     },
   );
-  it("keeps lock in the mobile header and switching in its drawer", () => {
+  it("keeps one session and notification control in a header above the panes", () => {
     const { container } = renderShell("/vault");
-    const locks = screen.getAllByRole("button", { name: "Lock vault" });
-    expect(locks).toHaveLength(2);
+    const header = screen.getByRole("banner", { name: "Application" });
+    const lock = screen.getByRole("button", { name: "Lock vault" });
+    expect(header.contains(lock)).toBe(true);
     expect(
-      container.querySelector('.statusline [aria-label="Lock vault"]'),
-    ).toBeNull();
-    const header = container.querySelector(".mobile-toolbar");
-    expect(header?.querySelectorAll("button")).toHaveLength(3);
-    expect(
-      header?.querySelector('[data-testid="account-switcher"]'),
-    ).toBeNull();
-    expect(
-      header?.querySelector('[data-testid="project-switcher"]'),
-    ).toBeNull();
-    const desktop = container.querySelector(".rail__prompt");
-    expect(
-      desktop?.querySelector('[data-testid="account-switcher"]'),
+      header.querySelector('[data-testid="account-switcher"]'),
     ).toBeTruthy();
     expect(
-      desktop?.querySelector('[data-testid="project-switcher"]'),
+      header.querySelector('[data-testid="project-switcher"]'),
     ).toBeTruthy();
-    for (const lock of locks) fireEvent.click(lock);
-    expect(vault.lock).toHaveBeenCalledTimes(2);
+    expect(
+      header.querySelector('[data-testid="notifications-bar"]'),
+    ).toBeTruthy();
+    expect(container.querySelector(".rail .rail__prompt")).toBeNull();
+    expect(container.querySelector(".main header")).toBeNull();
+    expect(
+      container.querySelector('.statusline [data-testid="notifications-bar"]'),
+    ).toBeNull();
+    expect(header.parentElement?.querySelector("header + .rail")).toBeTruthy();
+    fireEvent.click(lock);
+    expect(vault.lock).toHaveBeenCalledTimes(1);
   });
   it("offers a skip-to-content link as the first stop", () => {
     const { container } = renderShell("/vault");

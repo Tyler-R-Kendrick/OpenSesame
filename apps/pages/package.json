@@ -37,6 +37,7 @@
     "verify:push-worker": "node scripts/verify-push-worker.mjs",
     "verify:sw-dirty-edit": "node scripts/verify-sw-dirty-edit.mjs",
     "verify:mobile": "node scripts/verify-mobile.mjs",
+    "verify:header-layout": "node scripts/verify-header-layout.mjs",
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
     "verify:siop": "vitest run scripts/siop-headers.test.mjs && node scripts/verify-siop.mjs",
     "verify:webmcp": "node scripts/verify-webmcp.mjs",

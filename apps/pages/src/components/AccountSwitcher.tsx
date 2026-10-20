@@ -38,7 +38,8 @@ import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AddOrganization } from "./AddOrganization.js";
 import { GlyphMark } from "./GlyphMark.js";
-import { IconCheck, IconPlus, IconUser } from "./Icons.js";
+import { IconCheck, IconChevronDown, IconPlus, IconUser } from "./Icons.js";
+import { PromptGlyph } from "./PromptGlyph.js";
 import { openContextMenu } from "./context-menu/menu-model.js";
 import { glyphStandsForName } from "./prompt-glyph.js";
 import { useHold } from "./use-hold.js";
@@ -53,7 +54,9 @@ function guestLabel(hasSession: boolean, assurance?: string): string {
   return "account";
 }
 
-function AccountSwitcherDefault() {
+export type AccountSwitcherProps = { glyphHost?: HTMLElement | null };
+
+function AccountSwitcherDefault({ glyphHost }: AccountSwitcherProps = {}) {
   const session = useIdentitySession();
   const account = useAccount();
   const navigate = useNavigate();
@@ -171,8 +174,13 @@ function AccountSwitcherDefault() {
           ]);
         }}
       >
-        <GlyphMark className="prompt__glyph" {...promptGlyph} />
+        <PromptGlyph glyphHost={glyphHost}>
+          <GlyphMark className="prompt__glyph" {...promptGlyph} />
+        </PromptGlyph>
         <span className="prompt__name">{label}</span>
+        {glyphHost !== undefined ? (
+          <IconChevronDown className="prompt__chevron" size={14} />
+        ) : null}
       </button>
 
       {open ? (
@@ -322,7 +330,7 @@ export const accountSwitcherSeams = {
   AccountSwitcher: AccountSwitcherDefault,
 };
 
-export function AccountSwitcher() {
+export function AccountSwitcher(props: AccountSwitcherProps = {}) {
   const Impl = accountSwitcherSeams.AccountSwitcher;
-  return <Impl />;
+  return <Impl {...props} />;
 }
