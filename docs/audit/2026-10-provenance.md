@@ -686,3 +686,10 @@ isolated worktree, following the supplied approved screenshot. The coding
 preflight reported no Grok subscription auth and no Kimi executable; neither
 CLI could implement this change. The shared header, responsive arrangement,
 geometry checks, and visual evidence were implemented by Codex.
+
+**Lockscreen screenshot parity (2026-10-20)** — Codex implementation and
+verification in an isolated worktree from `a03b3c5094b7aeef0a18ff0aabe31c023925a43b`.
+The coding preflight reported missing Grok subscription auth and no Kimi
+executable. Codex implemented the supplied lockscreen reference, preserving
+animated rings, wordmark and successful-unlock doors, and captured separate
+base/changed production builds for desktop, tablet and phone evidence.

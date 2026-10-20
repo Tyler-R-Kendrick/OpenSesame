@@ -48,6 +48,7 @@ export function CipherDial({
     ringCanvasRefs,
     layoutRef,
     inkRef,
+    lit,
     onSplitX,
   });
 

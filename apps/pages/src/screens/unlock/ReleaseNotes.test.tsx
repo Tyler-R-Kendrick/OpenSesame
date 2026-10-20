@@ -38,13 +38,16 @@ it("opens the newest release on arrival beside the card on a wide screen", () =>
     screen.getByRole("complementary", { name: "Release notes" }),
   ).toBeTruthy();
   const newestBtn = screen.getByRole("button", {
-    name: `Release notes · ${version}`,
+    name: `${version} Latest`,
   });
   const priorBtn = screen.getByRole("button", { name: "0.0.1" });
   expect(newestBtn.getAttribute("aria-expanded")).toBe("true");
   expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
-  // Under the gate's h1, so the next level down: no skipped heading level.
-  expect(screen.getByRole("heading", { level: 2, name: "Works" })).toBeTruthy();
+  // Notes have a persistent h2 title; subsection headings follow at h3.
+  expect(
+    screen.getByRole("heading", { level: 2, name: "Release Notes" }),
+  ).toBeTruthy();
+  expect(screen.getByRole("heading", { level: 3, name: "Works" })).toBeTruthy();
 
   fireEvent.click(priorBtn);
   expect(priorBtn.getAttribute("aria-expanded")).toBe("true");
@@ -58,7 +61,7 @@ it("starts collapsed on a stacked gate, toggles releases, and keeps at most one 
     screen.getByRole("complementary", { name: "Release notes" }),
   ).toBeTruthy();
   const newestBtn = screen.getByRole("button", {
-    name: `Release notes · ${version}`,
+    name: `${version} Latest`,
   });
   const priorBtn = screen.getByRole("button", { name: "0.0.1" });
   expect(newestBtn.getAttribute("aria-expanded")).toBe("false");

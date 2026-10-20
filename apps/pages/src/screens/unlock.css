@@ -115,13 +115,17 @@
 
 /* ——— Release notes beside the gate ———————————————————————
    Wide screens: two equal columns, two tones. The notes pane mixes ink into
-   surface — day needs a heavier mix than night or white|grey collapses. The
-   accordion summary is a darker head band so "Release notes" reads as a
-   subheader on both themes. The split is painted on `.unlock` so empty
-   column areas match. */
+   surface to keep the right pane distinct in either theme. The
+   heading stands on its own above the version accordion. The pane keeps one
+   uniform tone, including the summaries and empty column areas. */
 .unlock {
-  --unlock-notes-pane: color-mix(in srgb, var(--ink) 22%, var(--surface));
-  --unlock-notes-head: color-mix(in srgb, var(--ink) 32%, var(--surface));
+  --unlock-notes-pane: color-mix(in srgb, var(--ink) 8%, var(--surface));
+  --unlock-notes-head: var(--unlock-notes-pane);
+  --unlock-notes-line: color-mix(
+    in srgb,
+    var(--ink) 28%,
+    var(--unlock-notes-pane)
+  );
 }
 
 .unlock__notes {
@@ -131,17 +135,27 @@
   align-content: start;
   padding: 0;
   font-family: var(--mono);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--ink-2);
+  color: var(--ink);
   background: var(--unlock-notes-pane);
   box-sizing: border-box;
   overflow: hidden;
   border-radius: var(--radius);
 }
 
-/* One accordion row per build. Summary is the subheader band; prior builds
-   collapse until opened. */
+/* The section title stays visible independently of the selected release. */
+.unlock__notes-title {
+  margin: 0;
+  padding: 0 0 1.5rem;
+  border-bottom: 1px solid var(--unlock-notes-line);
+  color: var(--ink);
+  font-size: 2.25rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+/* One accordion row per build; prior builds collapse until opened. */
 .unlock__notes-stack {
   display: grid;
   align-content: start;
@@ -150,7 +164,7 @@
 
 .unlock__notes-release {
   min-width: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--unlock-notes-line);
 }
 
 .unlock__notes-release:last-child {
@@ -165,7 +179,7 @@
   gap: 0.75rem;
   width: 100%;
   margin: 0;
-  padding: 0.85rem 1.25rem;
+  padding: 1.125rem 0 1.5rem;
   border: 0;
   cursor: pointer;
   font: inherit;
@@ -173,17 +187,28 @@
   font-weight: 600;
   text-align: start;
   color: var(--ink);
-  /* Darker than the notes pane so the label reads as a subheader in day and
-     night — not a paper band that collapses the two-tone split. */
-  background: var(--unlock-notes-head);
+  background: transparent;
   user-select: none;
 }
 
 .unlock__notes-summary-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.unlock__notes-latest {
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.3;
 }
 
 .unlock__notes-caret {
@@ -203,15 +228,15 @@
 
 .unlock__notes-body {
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
   align-content: start;
-  padding: 1rem 1.25rem 1.35rem;
+  padding: 1rem 0 1.5rem;
   min-width: 0;
 }
 
 .unlock__notes-section {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.8rem;
   min-width: 0;
 }
 
@@ -227,7 +252,7 @@
 /* Subsection items sit under the head, indented past the label. */
 .unlock__notes-list {
   margin: 0;
-  padding: 0 0 0 0.85rem;
+  padding: 0 0 0 1.975rem;
   list-style: none;
   display: grid;
   gap: 0.4rem;
@@ -258,7 +283,7 @@
        mix as `.unlock__notes` so the right column is never white-on-white. */
     background: linear-gradient(
       90deg,
-      var(--surface) 0 50%,
+      var(--canvas) 0 50%,
       var(--unlock-notes-pane) 50% 100%
     );
   }
@@ -271,27 +296,88 @@
     padding-bottom: 2rem;
   }
 
+  .unlock--lock-v5:not(.door) .unlock__card {
+    width: min(calc(100% - 4rem), 22rem);
+    justify-self: center;
+    align-self: start;
+    --go-size: 3.125rem;
+    --go-verb-size: 1rem;
+    margin: max(18rem, 33dvh) 0 2rem 12.5%;
+    gap: 1.5rem;
+    padding-block: 0;
+  }
+
   .unlock__notes {
     width: auto;
     max-width: none;
     height: 100dvh;
     min-height: 100dvh;
     justify-self: stretch;
-    /* Accordion stack centred as one block in the column. */
-    align-content: safe center;
+    align-content: start;
+    padding: clamp(2rem, 11.6dvh, 7rem) clamp(1.5rem, 3.125vw, 3.25rem) 2rem;
     overflow-y: auto;
     border-radius: 0;
-    background: transparent;
-    box-shadow: inset 1px 0 0 var(--line);
+    background: var(--unlock-notes-pane);
+    box-shadow: inset 1px 0 0 var(--line-strong);
   }
 
   .unlock__notes-summary {
-    padding: 1rem clamp(1.5rem, 4vw, 3.25rem);
+    min-height: 44px;
   }
 
-  .unlock__notes-body {
-    padding: 1.15rem clamp(1.5rem, 4vw, 3.25rem) 1.5rem;
+  .unlock--lock-v5:not(.door) .unlock__title {
+    font-size: 1.625rem;
   }
+
+  /* Keep the utility keys above the profile while the title keeps its row. */
+  .unlock--lock-v5:not(.door) .unlock__brand-tools {
+    position: relative;
+    top: 1.75rem;
+  }
+
+  .unlock--lock-v5:not(.door) .unlock__heading .unlock-user {
+    position: relative;
+    top: 1.125rem;
+  }
+
+  .unlock--lock-v5:not(.door) .unlock__form {
+    gap: 1.25rem;
+  }
+
+  .unlock--lock-v5:not(.door) .unlock__foot {
+    gap: 0.875rem;
+    padding-top: 0.75rem;
+  }
+
+  .unlock--lock-v5:not(.door) .unlock__switch,
+  .unlock--lock-v5:not(.door) .unlock__method {
+    font-size: 1rem;
+  }
+
+  .unlock--lock-v5:not(.door) .unlock__form .field > label {
+    font-size: 0.875rem;
+  }
+}
+
+/* The unlock key has a label above its full-width entry line at every size. */
+.unlock--lock-v5:not(.door) .unlock__form .field {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.25rem;
+  align-items: stretch;
+  padding: 0;
+}
+
+.unlock--lock-v5:not(.door) .unlock__form .field > * {
+  grid-column: 1;
+  max-width: 100%;
+}
+
+.unlock--lock-v5:not(.door) .unlock__form .field > label {
+  padding-top: 0;
+}
+
+.unlock--lock-v5:not(.door) .unlock__form .field > input {
+  border-bottom-color: var(--ink);
 }
 
 .unlock__card {
@@ -623,6 +709,10 @@
 @media (max-width: 1099px) {
   .unlock {
     align-content: start;
+    align-items: start;
+    /* The viewport scrolls; its rows keep their natural content height even
+       when opening a release makes them taller than the fixed pane. */
+    grid-auto-rows: max-content;
     gap: 1.25rem;
     padding-inline: max(1.25rem, env(safe-area-inset-left, 0px))
       max(1.25rem, env(safe-area-inset-right, 0px));
@@ -634,16 +724,22 @@
   }
 
   .unlock__card {
+    min-height: max-content;
     padding-block: 0;
+  }
+
+  .unlock__notes {
+    padding: 1.25rem 0.85rem;
+  }
+
+  .unlock__notes-title {
+    padding-bottom: 1rem;
+    font-size: 1.125rem;
   }
 
   .unlock__notes-summary {
     min-height: 44px;
-    padding: 0.65rem 0.85rem;
-  }
-
-  .unlock__notes-body {
-    padding-inline: 0.85rem;
+    padding: 0.65rem 0;
   }
 }
 
