@@ -60,6 +60,15 @@ export function isAiSpeechFamily(
   return family === "elevenlabs_scribe" || family === "deepgram_listen";
 }
 
+/** Implemented finite jobs keep explicit user cancellation separate from owner loss. */
+export function isAiRemoteJobFamily(
+  family: string | undefined,
+): family is "replicate_predictions" | "assemblyai_transcript" {
+  return (
+    family === "replicate_predictions" || family === "assemblyai_transcript"
+  );
+}
+
 /** Finite protocols cannot borrow the generic request or text-stream builders. */
 export function textAiFamily(family: AiInferenceFamily) {
   if (
