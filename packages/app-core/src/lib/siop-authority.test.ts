@@ -20,6 +20,7 @@ import { enrollLocalPasskey } from "./local-passkeys.js";
 import { signInLocalIdentity } from "./local-sessions.js";
 import {
   approveSiopAuthorization,
+  approveSiopAuthorizationWithSocial,
   bindSiopRequest,
   denySiopAuthorization,
   dynamicSiopIssuer,
@@ -215,6 +216,93 @@ describe("siop-authority", () => {
     });
     expect(verified.sub).toBe(identity.keyId);
     expect(parsed.state).toBe("state-1");
+  });
+
+  it("approves a hosted identity provider social proof without a passkey", async () => {
+    const request = parsePagesSiopRequest(siopSearch());
+    const proof = {
+      source: "identity" as const,
+      providerId: "github",
+      label: "GitHub",
+      personId: person,
+      at: fixedNow * 1000,
+      upstreamId: "broker:github",
+    };
+    const { identity } = await approveSiopAuthorizationWithSocial(
+      tomb,
+      proof,
+      request,
+      {
+        nowSeconds: () => fixedNow,
+        socialSession: () => ({
+          upstreamId: "broker:github",
+          expiresAt: fixedNow * 1000 + 60_000,
+        }),
+      },
+    );
+    expect(identity.subjectId).toBe(person);
+    expect(identity.applicationId).toBe(app);
+    expect((await listReceipts(tomb, 10))[0]?.eventType).toBe(
+      "access.siop.approved",
+    );
+  });
+
+  it("approves an active configured connection social proof", async () => {
+    const request = parsePagesSiopRequest(siopSearch());
+    const proof = {
+      source: "connection" as const,
+      providerId: "github",
+      label: "GitHub · owner",
+      personId: person,
+      at: fixedNow * 1000,
+      connectionId: "conn_github",
+    };
+    const { identity } = await approveSiopAuthorizationWithSocial(
+      tomb,
+      proof,
+      request,
+      {
+        nowSeconds: () => fixedNow,
+        socialConnection: async () => ({
+          providerId: "github",
+          status: "active",
+        }),
+      },
+    );
+    expect(identity.subjectId).toBe(person);
+  });
+
+  it("refuses a social proof for another person or an expired upstream", async () => {
+    const request = parsePagesSiopRequest(siopSearch());
+    const proof = {
+      source: "identity" as const,
+      providerId: "github",
+      label: "GitHub",
+      personId: person,
+      at: fixedNow * 1000,
+      upstreamId: "broker:github",
+    };
+    await expect(
+      approveSiopAuthorizationWithSocial(
+        tomb,
+        { ...proof, personId: "someone-else" },
+        request,
+        {
+          socialSession: () => ({
+            upstreamId: "broker:github",
+            expiresAt: fixedNow * 1000 + 60_000,
+          }),
+        },
+      ),
+    ).rejects.toThrow(/unavailable/i);
+    await expect(
+      approveSiopAuthorizationWithSocial(tomb, proof, request, {
+        socialSession: () => ({
+          upstreamId: "broker:github",
+          expiresAt: fixedNow * 1000 - 1,
+        }),
+      }),
+    ).rejects.toThrow(/unavailable/i);
   });
 
   it("refuses non-passkey sessions and denies with an OAuth error fragment", async () => {
