@@ -37,27 +37,44 @@ export type VaultTreeActions = {
 export const PURGE_CONFIRM = "Really delete permanently? This cannot be undone";
 export const TRASH_CONFIRM = "Really move to trash?";
 
-function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
-  const ways: MenuItem[] = [
-    {
-      id: "share-drop",
-      label: "Temporary drop",
-      hint: "s",
-      run: () => actions.share(item),
-    },
+/** The ways a secret can leave, shared by the row menu and the item toolbar. */
+export function shareWays(ways: {
+  drop: () => void;
+  grant?: (() => void) | undefined;
+}): MenuGroup[] {
+  const groups: MenuGroup[] = [
+    [
+      {
+        id: "share-drop",
+        label: "Temporary drop",
+        hint: "s",
+        run: ways.drop,
+      },
+    ],
   ];
-  if (isCommandSection("/access")) {
-    ways.push({
-      id: "share-grant",
-      label: "Person or agent",
-      run: () => actions.shareGrant(item),
-    });
+  if (ways.grant) {
+    groups.push([
+      {
+        id: "share-grant",
+        label: "Specific people or agents",
+        run: ways.grant,
+      },
+    ]);
   }
+  return groups;
+}
+
+function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
   return [
     {
       id: "share",
       label: "Share",
-      submenu: [ways],
+      submenu: shareWays({
+        drop: () => actions.share(item),
+        grant: isCommandSection("/access")
+          ? () => actions.shareGrant(item)
+          : undefined,
+      }),
       run: () => undefined,
     },
   ];
