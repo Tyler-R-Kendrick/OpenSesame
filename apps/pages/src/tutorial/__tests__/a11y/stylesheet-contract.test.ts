@@ -229,7 +229,7 @@ describe("the panel reflows rather than clipping", () => {
   });
 
   it("wraps model prose instead of pushing it out of the panel", () => {
-    for (const selector of [".support__text", ".support__goal-title"]) {
+    for (const selector of [".support__text", ".support__tutorial-title"]) {
       // `min-width: 0` is the half people forget: without it a grid or flex
       // child refuses to shrink and one long token wins the argument.
       expect(

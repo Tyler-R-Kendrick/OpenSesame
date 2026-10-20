@@ -107,13 +107,6 @@
   gap: 0.4rem;
 }
 
-.xcard__note {
-  grid-column: 1 / -1;
-  margin: 0.15rem 0 0;
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-}
-
 /* A finger is not a pointer — the same 44px floor the rest of the ceremony
    gets. Scoped to .setup so other card users are untouched. */
 @media (pointer: coarse) {
