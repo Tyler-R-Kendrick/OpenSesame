@@ -20,6 +20,7 @@ import type {
   LiveHost,
 } from "@opensesame/app-core/lib/live/host.js";
 import type { LiveLink } from "@opensesame/app-core/lib/live/link.js";
+import type { Rendezvous } from "@opensesame/app-core/lib/live/rendezvous.js";
 import {
   currentGuest,
   currentHost,
@@ -178,6 +179,16 @@ export function useLiveHost(): LiveHostView {
     return host.subscribe(setState);
   }, [host]);
   return { host, state };
+}
+
+/** Whether a carrier has proved it can pass a code without a person. */
+export function useRendezvousReady(rendezvous: Rendezvous | null): boolean {
+  const [states, setStates] = useState(() => rendezvous?.states ?? []);
+  useEffect(() => {
+    setStates(rendezvous?.states ?? []);
+    return rendezvous?.subscribe(setStates);
+  }, [rendezvous]);
+  return states.some((state) => state.status === "ready");
 }
 
 /** Whole minutes and seconds left, for a clock that ticks once a second. */

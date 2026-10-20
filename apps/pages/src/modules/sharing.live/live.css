@@ -92,3 +92,8 @@
 .live-verify summary {
   cursor: pointer;
 }
+
+.live-link {
+  overflow-wrap: anywhere;
+  user-select: all;
+}

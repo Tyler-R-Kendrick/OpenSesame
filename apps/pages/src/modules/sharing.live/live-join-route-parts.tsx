@@ -13,7 +13,6 @@ import {
 } from "@opensesame/app-core/lib/live/session.js";
 import { rememberTrustedPeer } from "@opensesame/app-core/lib/peer-trust/peers.js";
 import { useEffect, useRef } from "react";
-import { useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconArrowRight } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -35,6 +34,7 @@ import {
   formatRemaining,
   useLiveGuest,
   useRemaining,
+  useRendezvousReady,
 } from "./live-hooks.js";
 import { useAsk } from "./live-join-ask-state.js";
 import { joinAskDisabledReason } from "./live-join-trust.js";
@@ -263,17 +263,6 @@ function openedSession(
   return { guest, status, mark };
 }
 
-/** Whether a carrier has proved it can pass the request without a person. */
-function useCarrierReady(): boolean {
-  const carriers = currentGuestCarriers();
-  const [states, setStates] = useState(() => carriers?.states ?? []);
-  useEffect(() => {
-    setStates(carriers?.states ?? []);
-    return carriers?.subscribe(setStates);
-  }, [carriers]);
-  return states.some((state) => state.status === "ready");
-}
-
 function RequestWaiting({
   guest,
   status,
@@ -281,7 +270,7 @@ function RequestWaiting({
   guest: LiveGuest;
   status: Extract<GuestStatus, { at: "request" }>;
 }) {
-  const automatic = useCarrierReady();
+  const automatic = useRendezvousReady(currentGuestCarriers());
   return (
     <>
       <CarrierMarks rendezvous={currentGuestCarriers()} />

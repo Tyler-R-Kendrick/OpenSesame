@@ -21,10 +21,8 @@ import { Suspense, lazy, useState } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import {
-  ConcealedValue,
   CopyButton,
   FieldRow,
-  RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
 import { IconX } from "../../components/Icons.js";
@@ -34,7 +32,12 @@ import { useVault } from "../../lib/vault/hooks.js";
 import { DeviceRequests } from "./LiveHostDevices.js";
 import { GuestRows, RequestPaste } from "./LiveHostGuests.js";
 import { CarrierMarks } from "./LiveJoinRoutes.js";
-import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
+import {
+  formatRemaining,
+  liveUiSeams,
+  useRemaining,
+  useRendezvousReady,
+} from "./live-hooks.js";
 
 const LivePeerTrustExport = lazy(() => import("./LivePeerTrustExport.js"));
 
@@ -76,8 +79,8 @@ export function LiveHostSession({
   state,
 }: { host: LiveHost; state: HostState }) {
   const [endAsk, setEndAsk] = useState(false);
-  const [showLink, setShowLink] = useState(false);
   const { copied, failed, copy } = useCopyFeedback();
+  const automatic = useRendezvousReady(currentHostCarriers());
   const left = useRemaining(host.expiresAt);
   const link = formatLiveLink(liveUiSeams.joinUrl(), host.link);
   return (
@@ -125,24 +128,17 @@ export function LiveHostSession({
       <FieldRow
         label="Link"
         actions={
-          <>
-            <RevealButton
-              revealed={showLink}
-              label="the link"
-              onToggle={() => setShowLink((on) => !on)}
-            />
-            <CopyButton
-              value={link}
-              label="the link"
-              fieldKey="live-link"
-              copied={copied}
-              failed={failed}
-              onCopy={copy}
-            />
-          </>
+          <CopyButton
+            value={link}
+            label="the link"
+            fieldKey="live-link"
+            copied={copied}
+            failed={failed}
+            onCopy={copy}
+          />
         }
       >
-        <ConcealedValue value={link} label="Link" revealed={showLink} />
+        <span className="frow__value frow__value--mono live-link">{link}</span>
       </FieldRow>
       {host.code ? (
         <FieldRow
@@ -162,7 +158,7 @@ export function LiveHostSession({
         </FieldRow>
       ) : null}
       <CarrierMarks rendezvous={currentHostCarriers()} />
-      <RequestPaste host={host} />
+      {automatic ? null : <RequestPaste host={host} />}
       <details className="live-advanced">
         <summary>Peer trust signal</summary>
         <Suspense fallback={null}>
