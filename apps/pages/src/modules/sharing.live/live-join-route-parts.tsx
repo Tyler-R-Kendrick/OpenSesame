@@ -88,9 +88,7 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
       ) : null}
       {alarm ? <StatusMark tone="err" label={alarm} /> : null}
       {!ready && !busy && disabledReason ? (
-        <p className="live-help" role="status">
-          {disabledReason}
-        </p>
+        <output className="live-help">{disabledReason}</output>
       ) : null}
       <FormCommit
         label="Ask to join"
@@ -183,28 +181,49 @@ function JoinAskFields({
         enter. Your own vault is separate; shared items stay live in this tab
         while the session is open.
       </p>
-      <details className="live-advanced">
-        <summary>Advanced</summary>
-        {routes ? (
-          <RoutesChoice
-            routes={routes}
-            checked={useRoutes}
-            disabled={busy}
-            onChange={setUseRoutes}
-          />
-        ) : null}
-        <p className="live-help">
-          <IconInfo size={14} aria-hidden="true" /> Peer trust is only for a
-          code the owner gave you outside this link. Most people can leave it
-          empty.
-        </p>
-        <PeerTrustField
-          peerTrust={peerTrust}
-          busy={busy}
-          setPeerTrust={setPeerTrust}
-        />
-      </details>
+      {joinAskAdvanced({
+        routes,
+        useRoutes,
+        busy,
+        setUseRoutes,
+        peerTrust,
+        setPeerTrust,
+      })}
     </>
+  );
+}
+
+function joinAskAdvanced({
+  routes,
+  useRoutes,
+  busy,
+  setUseRoutes,
+  peerTrust,
+  setPeerTrust,
+}: Pick<ReturnType<typeof useAsk>, "routes" | "busy"> &
+  Pick<ReturnType<typeof useAsk>["fields"], "peerTrust" | "useRoutes"> &
+  Pick<ReturnType<typeof useAsk>["set"], "setPeerTrust" | "setUseRoutes">) {
+  return (
+    <details className="live-advanced">
+      <summary>Advanced</summary>
+      {routes ? (
+        <RoutesChoice
+          routes={routes}
+          checked={useRoutes}
+          disabled={busy}
+          onChange={setUseRoutes}
+        />
+      ) : null}
+      <p className="live-help">
+        <IconInfo size={14} aria-hidden="true" /> Peer trust is only for a code
+        the owner gave you outside this link. Most people can leave it empty.
+      </p>
+      <PeerTrustField
+        peerTrust={peerTrust}
+        busy={busy}
+        setPeerTrust={setPeerTrust}
+      />
+    </details>
   );
 }
 
@@ -245,11 +264,7 @@ export function LiveJoinSession() {
         <span className="vault-row__meta">
           {catalog ? formatRemaining(left) : opened.mark.tray}
         </span>
-        {opened.status.at === "joined" && vault.status === "unlocked" ? (
-          <Link className="btn btn--sm" to="/vault">
-            Open my vault
-          </Link>
-        ) : null}
+        {openedVaultLink(opened, vault)}
       </div>
       {opened.status.at === "request" ? (
         <RequestWaiting guest={opened.guest} status={opened.status} />
@@ -292,6 +307,17 @@ export function LiveJoinSession() {
       ) : null}
     </div>
   );
+}
+
+function openedVaultLink(
+  opened: NonNullable<ReturnType<typeof openedSession>>,
+  vault: ReturnType<typeof useVault>,
+) {
+  return opened.status.at === "joined" && vault.status === "unlocked" ? (
+    <Link className="btn btn--sm" to="/vault">
+      Open my vault
+    </Link>
+  ) : null;
 }
 
 function openedSession(

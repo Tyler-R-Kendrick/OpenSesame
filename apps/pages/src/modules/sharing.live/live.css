@@ -84,6 +84,10 @@
   line-height: 1.45;
 }
 
+output.live-help {
+  font-family: var(--font);
+}
+
 .live-verify {
   color: var(--ink-2);
   font-size: 0.8125rem;
