@@ -7,6 +7,7 @@ import {
   AzureOpenAiTargetSchema,
   azureConnectionTarget,
 } from "./azure-protocol.js";
+import { aiConnectionBase } from "./base-url.js";
 import {
   BedrockAiTargetSchema,
   bedrockConnectionTarget,
@@ -16,9 +17,11 @@ import { validateDeepgramSpeechTarget } from "./deepgram-target.js";
 import { aiConnectionFamilies, aiConnectionPreset } from "./presets.js";
 import { replicatePredictionTarget } from "./replicate-types.js";
 import { validateAiSpeechConnection } from "./speech-target.js";
+import { validateAiStabilityConnection } from "./stability-target.js";
 import {
   type AiConnectionDraft,
   AiConnectionError,
+  isAiImageFamily,
   isAiSpeechFamily,
 } from "./types.js";
 import {
@@ -32,6 +35,7 @@ export const AiConnectionDraftSchema = z
     providerId: z.string().min(1).max(100),
     name: z.string().trim().min(1).max(200),
     family: z.enum([
+      "stability_sd3",
       "replicate_predictions",
       "elevenlabs_scribe",
       "deepgram_listen",
@@ -60,33 +64,7 @@ export const AiConnectionDraftSchema = z
   })
   .strict();
 
-export function aiConnectionBase(value: string): URL {
-  let base: URL;
-  try {
-    base = new URL(value.trim());
-  } catch {
-    throw new AiConnectionError(
-      "configuration",
-      "Enter a complete AI API base URL.",
-    );
-  }
-  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(base.hostname);
-  if (
-    !(base.protocol === "https:" || (base.protocol === "http:" && loopback)) ||
-    base.username ||
-    base.password ||
-    base.search ||
-    base.hash ||
-    /[\\\r\n]/.test(value) ||
-    /%2e|%2f|%5c/i.test(value)
-  )
-    throw new AiConnectionError(
-      "configuration",
-      "Use HTTPS, or loopback HTTP, without URL credentials, query or fragment.",
-    );
-  base.pathname = `${base.pathname.replace(/\/+$/, "")}/`;
-  return base;
-}
+export { aiConnectionBase } from "./base-url.js";
 
 export function validateAiConnection<Value>(
   value: Value,
@@ -99,28 +77,7 @@ export function validateAiConnection<Value>(
       "Check the AI connection fields.",
     );
   const draft = result.data;
-  const preset = aiConnectionPreset(draft.providerId);
-  const speech = isAiSpeechFamily(draft.family);
-  if (draft.family === "elevenlabs_scribe")
-    validateAiSpeechConnection(draft, requireKey);
-  if (draft.family === "assemblyai_transcript")
-    validateAiAssemblyConnection(draft, requireKey);
-  if (draft.family === "deepgram_listen")
-    validateAiDeepgramConnection(draft, requireKey);
-  const supportedFamily =
-    speech ||
-    (draft.family === "replicate_predictions"
-      ? ["replicate", "byo-ai"].includes(draft.providerId)
-      : draft.family === "bedrock_converse"
-        ? ["aws-bedrock", "byo-ai"].includes(draft.providerId)
-        : aiConnectionFamilies(draft.providerId).some(
-            (family) => family.id === draft.family,
-          ));
-  if ((!preset && !speech) || !supportedFamily)
-    throw new AiConnectionError(
-      "configuration",
-      "Choose a protocol supported by this provider.",
-    );
+  validateFamilyTarget(draft, requireKey);
   draft.baseUrl = aiConnectionBase(draft.baseUrl).href.replace(/\/$/, "");
   validateReplicateTarget(draft);
   azureConnectionTarget(draft);
@@ -134,6 +91,38 @@ export function validateAiConnection<Value>(
     );
   validateCredential(draft, requireKey);
   return draft;
+}
+
+function validateFamilyTarget(
+  draft: AiConnectionDraft,
+  requireKey: boolean,
+): void {
+  const preset = aiConnectionPreset(draft.providerId);
+  const speech = isAiSpeechFamily(draft.family);
+  const image = isAiImageFamily(draft.family);
+  if (image || draft.providerId === "stability")
+    validateAiStabilityConnection(draft, requireKey);
+  if (draft.family === "elevenlabs_scribe")
+    validateAiSpeechConnection(draft, requireKey);
+  if (draft.family === "assemblyai_transcript")
+    validateAiAssemblyConnection(draft, requireKey);
+  if (draft.family === "deepgram_listen")
+    validateAiDeepgramConnection(draft, requireKey);
+  const supportedFamily =
+    image ||
+    speech ||
+    (draft.family === "replicate_predictions"
+      ? ["replicate", "byo-ai"].includes(draft.providerId)
+      : draft.family === "bedrock_converse"
+        ? ["aws-bedrock", "byo-ai"].includes(draft.providerId)
+        : aiConnectionFamilies(draft.providerId).some(
+            (family) => family.id === draft.family,
+          ));
+  if ((!preset && !speech && !image) || !supportedFamily)
+    throw new AiConnectionError(
+      "configuration",
+      "Choose a protocol supported by this provider.",
+    );
 }
 
 /** Shared admission and inference select the same closed raw-audio target. */

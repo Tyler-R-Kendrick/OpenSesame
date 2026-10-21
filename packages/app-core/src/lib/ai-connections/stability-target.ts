@@ -1,7 +1,7 @@
 /** Official synchronous SD3 REST target; this alone does not activate a saved family. */
 import { z } from "zod";
 import type { HostedModelInput } from "../hosted-model-protocol.js";
-import { aiConnectionBase } from "./configuration.js";
+import { aiConnectionBase } from "./base-url.js";
 import type { AiConnectionDraft } from "./types.js";
 import { AiConnectionError } from "./types.js";
 export type StabilityAiTarget = Pick<
@@ -19,16 +19,17 @@ const Target = z
     authentication: z.literal("api-key"),
     apiKey: z
       .string()
-      .min(1)
+      .min(0)
       .max(16384)
-      .regex(/^[\x21-\x7e]+$/),
+      .regex(/^[\x21-\x7e]*$/),
   })
   .strict();
 export function validateStabilityTarget(
   target: StabilityAiTarget,
+  requireKey = true,
 ): StabilityAiTarget {
   const parsed = Target.safeParse(target);
-  if (!parsed.success)
+  if (!parsed.success || (requireKey && !parsed.data.apiKey))
     throw new AiConnectionError(
       "configuration",
       "Choose a Stability SD3 endpoint, saved model and API key.",
@@ -47,6 +48,7 @@ export function validateStabilityTarget(
       "Choose a documented Stability SD3 model and endpoint.",
     );
   if (
+    valid.apiKey &&
     [valid.baseUrl, valid.model].some((field) => field.includes(valid.apiKey))
   )
     throw new AiConnectionError(
@@ -83,4 +85,31 @@ export function stabilityPrompt(
       "Enter one image prompt for the saved model without chat, audio, streaming or token parameters.",
     );
   return parsed.data.messages[0].content;
+}
+
+/** One image-family target; other protocols' public credentials never mix into SD3. */
+export function validateAiStabilityConnection(
+  draft: AiConnectionDraft,
+  requireKey = true,
+) {
+  if (
+    draft.family !== "stability_sd3" ||
+    draft.azure ||
+    draft.vertex ||
+    draft.bedrock
+  )
+    throw new AiConnectionError(
+      "configuration",
+      "Choose one Stability SD3 image target without another protocol's credentials.",
+    );
+  return validateStabilityTarget(
+    {
+      providerId: draft.providerId,
+      baseUrl: draft.baseUrl,
+      model: draft.model,
+      authentication: draft.authentication,
+      apiKey: draft.apiKey,
+    },
+    requireKey,
+  );
 }
