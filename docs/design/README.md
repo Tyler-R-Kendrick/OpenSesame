@@ -18,6 +18,7 @@ at the repository root; the product's users and voice are in
 | [Encrypted VFS](encrypted-vfs.md) | Tombs in the browser. |
 | [Secret drop](secret-drop.md) | The one-time share ceremony and the claim page that opens it. |
 | [Writing a vault item type](vault-item-types.md) | The item-type JSON format, field by field. |
+| [Bring-your-own connections](byo-connections.md) | The Connections header form, its four methods, and the vault item that holds the credential. |
 
 ## Design canvases
 

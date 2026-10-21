@@ -1,3 +1,4 @@
+import { BYO_CONNECTION_PROVIDER } from "@opensesame/app-core/lib/byo-connections.js";
 import { mergeLocalGitConnections } from "@opensesame/app-core/lib/connections-local-git.js";
 import {
   type Connection,
@@ -14,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
 import { FailureNotice } from "../components/FailureNotice.js";
-import { IconRefresh } from "../components/Icons.js";
+import { IconPlus, IconRefresh } from "../components/Icons.js";
 import { PageIndex } from "../components/PageIndex.js";
 import { StatusMark } from "../components/StatusMark.js";
 import { panelFromHash, scrollToPanel } from "../lib/scroll-panel.js";
@@ -30,6 +31,7 @@ import {
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { noteGuideConnectionsPresent } from "@opensesame/app-core/tutorial/registry/predicates.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { ByoConnectionPanel } from "./connections/ByoConnectionPanel.js";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
 import { ConnectorImport, ImportKey } from "./connections/ConnectorImport.js";
@@ -68,6 +70,7 @@ export function ConnectionsSection() {
   const imported = useImportedDirectory(tomb);
   const transport = useConnectTransport();
   const [importing, setImporting] = useState(false);
+  const [byoOpen, setByoOpen] = useState(false);
 
   const [providers, setProviders] = useState<Provider[] | null>(null);
   const [connections, setConnections] = useTailscaleConnections();
@@ -138,13 +141,18 @@ export function ConnectionsSection() {
 
   const loadCatalog = useCallback(async () => {
     const id = ++catalogRun.current;
-    setProviders(vercelCatalogSeams.providers(getBundledProviders()));
+    setProviders([
+      ...vercelCatalogSeams.providers(getBundledProviders()),
+      BYO_CONNECTION_PROVIDER,
+    ]);
     if (catalogRun.current !== id) return;
     setCatalogError(null);
   }, []);
 
   const catalogFailure =
-    catalogError && (providers?.length ?? 0) === 0
+    catalogError &&
+    (providers?.filter((entry) => entry.id !== BYO_CONNECTION_PROVIDER.id)
+      .length ?? 0) === 0
       ? catalogError.message
       : null;
   const raisedCatalog = useRef(false);
@@ -251,6 +259,15 @@ export function ConnectionsSection() {
         <div className="conn-head__titlerow">
           <h1>Connections</h1>
           <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setByoOpen(true)}
+            title="Add a connection"
+            aria-label="Add a connection"
+          >
+            <IconPlus size={16} />
+          </button>
+          <button
             ref={reloadRef}
             type="button"
             className="icon-btn"
@@ -263,6 +280,12 @@ export function ConnectionsSection() {
           </button>
         </div>
       </header>
+      <ByoConnectionPanel
+        open={byoOpen}
+        onClose={() => setByoOpen(false)}
+        onSaved={() => void loadConnections()}
+        onFlash={setFlash}
+      />
       <PageIndex
         entries={connectionsPageSources(providers, connections).flatMap(
           (source) =>

@@ -178,6 +178,8 @@ function legacyStatusSentence(
   connection: Connection,
   provider?: Provider | null,
 ): string {
+  if (connection.providerId === "byo-connection")
+    return connection.statusDetail ?? "Credentials are stored in this vault.";
   const who = connection.accountLabel ? ` as ${connection.accountLabel}` : "";
   switch (connection.status) {
     case "pending":

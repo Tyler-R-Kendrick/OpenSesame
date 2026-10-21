@@ -19,6 +19,7 @@ import {
   clearDeviceConnectorStore,
   readDeviceRows,
   readDeviceSecrets,
+  removeAtomicDeviceConfigurationDurable,
   removeDeviceConfigurationDurable,
   writeDeviceConfigurationDurable,
   writeDeviceRows,
@@ -296,6 +297,10 @@ export async function revokeDeviceConnection(id: string): Promise<{
   }
   if (row.fields.self_hosted_configuration !== undefined) {
     const removed = await removeDeviceConfigurationDurable(id);
+    return removed ? { revoked: true, providerRevocation: "ok" } : null;
+  }
+  if (row.fields.byo_connection !== undefined) {
+    const removed = await removeAtomicDeviceConfigurationDurable(id);
     return removed ? { revoked: true, providerRevocation: "ok" } : null;
   }
   writeDeviceRows(readDeviceRows().filter((row) => row.connectionId !== id));

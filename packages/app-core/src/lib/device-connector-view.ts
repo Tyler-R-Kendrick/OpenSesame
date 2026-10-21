@@ -1,5 +1,9 @@
 /** Public device rows render without loading any optional provider runtime or private credentials. */
-import { type BoundaryValue, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import type { Connection } from "./connections.js";
 import { type PublicRow, readDeviceRows } from "./device-connector-records.js";
 import { identityConnectionDeviceSeams } from "./identity-connections-seam.js";
@@ -23,6 +27,45 @@ type NativeDeviceViewPort = {
 export const nativeDeviceViewSeams: NativeDeviceViewPort = {
   authorization: () => null,
 };
+
+/** Bound by `byo-connections.ts`; absent means the item cannot be checked. */
+export const byoConnectionViewSeams = {
+  itemExists: (_itemId: string): boolean => false,
+};
+
+function byoItemId(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed) || !isString(parsed.itemId)) return null;
+    return parsed.itemId;
+  } catch {
+    return null;
+  }
+}
+
+function byoAuthorization(
+  row: PublicRow,
+  ordinary: AuthorizationView,
+): AuthorizationView {
+  const itemId = byoItemId(row.fields.byo_connection);
+  if (!itemId || !byoConnectionViewSeams.itemExists(itemId)) {
+    return {
+      ...ordinary,
+      status: "pending",
+      statusDetail:
+        "The credential item for this connection is unavailable on this device.",
+      grantedScopes: [],
+    };
+  }
+  return {
+    ...ordinary,
+    status: "active",
+    statusDetail:
+      "Credentials are stored in this vault; no broker session is configured.",
+    grantedScopes: [],
+  };
+}
 
 function grantedScopes(raw: string | undefined): string[] {
   try {
@@ -79,6 +122,8 @@ function authorizationView(row: PublicRow): AuthorizationView {
   };
   if (row.providerId === "tailscale")
     return tailscaleAuthorization(row, ordinary);
+  if (row.fields.byo_connection !== undefined)
+    return byoAuthorization(row, ordinary);
   if (row.fields.self_hosted_configuration === undefined) return ordinary;
   if (row.fields.secret_backend_configuration !== undefined) {
     return (

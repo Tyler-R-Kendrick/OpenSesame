@@ -176,6 +176,19 @@ describe("ConnectionsSection gallery", () => {
     ).toBeNull();
   });
 
+  it("opens the BYO method picker from the header add key", async () => {
+    renderAt("/connections");
+    await screen.findByRole("heading", { name: "Connections" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add a connection" }),
+    );
+    expect(screen.getByRole("region", { name: "New connection" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "OAuth" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Basic auth" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "API key" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "SAML" })).toBeTruthy();
+  });
+
   it("filters the catalog by the prompt's words and clears it", async () => {
     const { container } = renderAt("/connections");
     await screen.findByText("Linear");

@@ -340,3 +340,16 @@ export function removeDeviceConfigurationDurable(
     return true;
   });
 }
+
+/** Remove any atomic device row, whatever feature wrote it. */
+export function removeAtomicDeviceConfigurationDurable(
+  id: string,
+  beforeCommit?: () => void,
+): Promise<boolean> {
+  return withConfigurationLock(async () => {
+    const records = readAtomic();
+    if (!(id in records)) return false;
+    await commitAtomic({ ...records, [id]: null }, beforeCommit);
+    return true;
+  });
+}

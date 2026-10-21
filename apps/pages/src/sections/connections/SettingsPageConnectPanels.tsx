@@ -8,6 +8,7 @@ import type {
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { ByoConnectionPanels } from "./ByoConnectionPanels.js";
 import { GithubNativeAppPanels } from "./GithubNativeAppPanels.js";
 import { AiConnectionPanels } from "./ai/AiConnectionPanels.js";
 import { ModelKeysPanel } from "./ai/keys/ModelKeysPanel.js";
@@ -47,6 +48,8 @@ function NativeSettingsPanels(props: Props) {
 }
 export function SettingsPageConnectPanels(props: Props) {
   const { provider, connection, nativeExperience, identityExperience } = props;
+  if (provider.id === "byo-connection")
+    return <ByoConnectionPanels connection={connection} />;
   if (provider.id === "tailscale" && !isConnectConnection(connection))
     return <TailscalePanels {...props} />;
   // A native connector row created before the provider gained an AI contract

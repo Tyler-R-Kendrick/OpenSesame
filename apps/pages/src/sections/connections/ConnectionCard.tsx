@@ -1,3 +1,4 @@
+import { BYO_CONNECTION_FIELD } from "@opensesame/app-core/lib/byo-connections.js";
 import type {
   Connection,
   Provider,
@@ -151,15 +152,17 @@ export function ConnectionCard({
       <p className="conn-card__status">
         {statusSentence(connection, provider)}
       </p>
-      {Object.entries(savedFields).map(([name, value]) => (
-        <p
-          key={name}
-          className="conn-card__status"
-          data-testid={`connector-field-${name}`}
-        >
-          {`${name}: ${value}`}
-        </p>
-      ))}
+      {Object.entries(savedFields)
+        .filter(([name]) => name !== BYO_CONNECTION_FIELD)
+        .map(([name, value]) => (
+          <p
+            key={name}
+            className="conn-card__status"
+            data-testid={`connector-field-${name}`}
+          >
+            {`${name}: ${value}`}
+          </p>
+        ))}
 
       {provider?.id === "github" ? (
         <GithubCardDetails connection={connection} />
