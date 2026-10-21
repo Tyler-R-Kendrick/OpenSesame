@@ -9,6 +9,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
+import { createInitialWorkerReleaseProof } from "./browser/worker-initial-release.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { StaleBuildError, importAppRoot } from "./lib/load-shell.js";
 import { watchLinkedPairing } from "./lib/pairing-link.js";
@@ -85,6 +86,11 @@ registerDuressUiModule(
   () => import("./components/duress/DuressSettingsPanel.js"),
 );
 
+const initialWorkerReleaseProof = createInitialWorkerReleaseProof(
+  import.meta.url,
+  new URL(import.meta.env.BASE_URL, location.href).href,
+);
+
 /**
  * The worker registration controller (S08) picks the variant the plan
  * requires and registers it. Until it lands, boot proceeds without a worker
@@ -98,6 +104,7 @@ async function registerWorker(): Promise<void> {
     ]);
     controller.registerWorkerForPlan(compositionStore, {
       distribution: DISTRIBUTION,
+      initialReleaseProof: initialWorkerReleaseProof ?? undefined,
     });
   } catch {
     // No controller in this build: no worker is registered.

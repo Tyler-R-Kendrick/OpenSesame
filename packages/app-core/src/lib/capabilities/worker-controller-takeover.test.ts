@@ -6,18 +6,23 @@
  * origin, which did nothing and must not lose its unlocked vault.
  */
 
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { holdDirtyEdit, registerDraftSaver } from "../dirty-edit.js";
 import {
   forceSessionReload,
   noteShellLoaded,
+  registerWorkerForPlan,
   reloadForStaleAsset,
   resetWorkerController,
   updateIsOwed,
+  workerControllerSeams,
+  workerControllerSettled,
   workerStatus,
 } from "./worker-controller.js";
 import {
   CORE_URL,
+  DISTRIBUTION,
   FakeContainer,
   FakeStore,
   PUSH_URL,
@@ -29,6 +34,8 @@ import {
   restoreSeams,
   selection,
 } from "./worker/test-harness.js";
+
+import type { PageToWorkerMessage } from "./worker/types.js";
 
 beforeEach(installSeams);
 afterEach(restoreSeams);
@@ -187,5 +194,124 @@ describe("an unsaved edit", () => {
     resetWorkerController();
     expect(await reloadForStaleAsset()).toBe(true);
     expect(env.reloads).toBe(2);
+  });
+});
+
+describe("an isolated first claim with an executing-entry port proof", () => {
+  async function fresh(
+    prove: (
+      worker: ServiceWorker,
+      signal: AbortSignal,
+    ) => Promise<string | null>,
+    isolated = true,
+  ) {
+    env.isolated = isolated;
+    const container = new FakeContainer(null);
+    const original: ServiceWorker = overlapCast({
+      scriptURL: CORE_URL,
+      postMessage(message: PageToWorkerMessage) {
+        container.posted.push(message);
+      },
+    });
+    let current: ServiceWorker | null = null;
+    Object.defineProperty(container, "controller", { get: () => current });
+    workerControllerSeams.serviceWorkerContainer = () =>
+      container.asContainer();
+    registerWorkerForPlan(store(), {
+      distribution: DISTRIBUTION,
+      initialReleaseProof: prove,
+    });
+    await workerControllerSettled();
+    current = original;
+    container.emit("controllerchange");
+    return {
+      container,
+      original,
+      replace: () => {
+        current = overlapCast({ scriptURL: PUSH_URL });
+        container.emit("controllerchange");
+      },
+    };
+  }
+
+  it("keeps the executing entry alive, then still reloads for a different release", async () => {
+    let captured: ServiceWorker | null = null;
+    const lifetimes = new Set<AbortSignal>();
+    const setup = await fresh(async (worker, lifetime) => {
+      captured = worker;
+      lifetimes.add(lifetime);
+      return "rel-1";
+    });
+    await Promise.resolve();
+    expect(env.reloads).toBe(0);
+    expect(captured).toBe(setup.original);
+    expect([...lifetimes][0]?.aborted).toBe(true);
+    expect(workerStatus().releaseId).toBe("rel-1");
+    expect(env.reloads).toBe(0);
+    env.elapse();
+    expect(env.reloads).toBe(0);
+    setup.container.emit("controllerchange");
+    expect(env.reloads).toBe(0);
+    info(setup.container, "rel-2");
+    expect(env.reloads).toBe(1);
+  });
+
+  it("does not infer a proof from a broadcast and closes a timed-out attempt", async () => {
+    let answer: (release: string | null) => void = () => undefined;
+    const lifetimes = new Set<AbortSignal>();
+    const setup = await fresh((_worker, lifetime) => {
+      lifetimes.add(lifetime);
+      return new Promise((resolve) => {
+        answer = resolve;
+      });
+    });
+    info(setup.container, "rel-1");
+    expect(workerStatus().releaseId).toBeNull();
+    expect(env.reloads).toBe(0);
+    env.elapse(1999);
+    expect(env.reloads).toBe(0);
+    env.elapse(2000);
+    expect(env.reloads).toBe(1);
+    expect([...lifetimes][0]?.aborted).toBe(true);
+    answer("rel-1");
+    await Promise.resolve();
+    expect(workerStatus().releaseId).toBeNull();
+    expect(env.reloads).toBe(1);
+  });
+
+  it("never adopts a replacement controller or the old port's later reply", async () => {
+    let answer: (release: string | null) => void = () => undefined;
+    const lifetimes = new Set<AbortSignal>();
+    const setup = await fresh((_worker, lifetime) => {
+      lifetimes.add(lifetime);
+      return new Promise((resolve) => {
+        answer = resolve;
+      });
+    });
+    setup.replace();
+    expect([...lifetimes][0]?.aborted).toBe(true);
+    expect(env.reloads).toBe(1);
+    answer("rel-1");
+    await Promise.resolve();
+    expect(workerStatus().releaseId).toBeNull();
+  });
+
+  it.each([null, "bad:release"])(
+    "reloads for refused or malformed proof %s",
+    async (value) => {
+      await fresh(async () => value);
+      await Promise.resolve();
+      expect(env.reloads).toBe(1);
+    },
+  );
+
+  it("retains immediate reload for a fresh page without header isolation", async () => {
+    let calls = 0;
+    await fresh(async () => {
+      calls++;
+      return "rel-1";
+    }, false);
+    expect(calls).toBe(0);
+    expect(env.reloads).toBe(1);
   });
 });

@@ -28,6 +28,7 @@ import { diagnose, publish, state } from "./state.js";
 import {
   type CompositionSnapshotForWorker,
   type PageToWorkerMessage,
+  type RegisterWorkerOptions,
   type ReloadCause,
   TAKEOVER_WAIT_MS,
 } from "./types.js";
@@ -148,6 +149,53 @@ export function askWorker(): boolean {
   return state.helloPending;
 }
 
+/** Bind only the first claiming worker to the already executing browser entry. */
+function proveInitialClaim(
+  prove: NonNullable<RegisterWorkerOptions["initialReleaseProof"]>,
+  controller: ServiceWorker,
+): void {
+  const abort = new AbortController();
+  const fail = (cause: ReloadCause) => {
+    if (state.initialClaim !== attempt) return;
+    attempt.cancel();
+    state.takeover = null;
+    requestReload(cause);
+  };
+  const cancelTimer = workerControllerSeams.later(
+    () => fail("takeover-timeout"),
+    TAKEOVER_WAIT_MS,
+  );
+  const attempt = {
+    cancel: () => {
+      cancelTimer();
+      abort.abort();
+      if (state.initialClaim === attempt) state.initialClaim = null;
+    },
+  };
+  state.initialClaim = state.takeover = attempt;
+  const accept = (release: string | null) => {
+    if (state.initialClaim !== attempt || abort.signal.aborted) return;
+    if (
+      state.container?.controller !== controller ||
+      !isString(release) ||
+      !/^[A-Za-z0-9_-]{1,64}$/.test(release)
+    ) {
+      fail("controller-unknown");
+      return;
+    }
+    state.bootReleaseId = release;
+    state.initialClaim = null;
+    onWorkerInfo(release);
+  };
+  try {
+    void prove(controller, abort.signal).then(accept, () =>
+      fail("controller-unknown"),
+    );
+  } catch {
+    fail("controller-unknown");
+  }
+}
+
 /** Reload the page for a new release: once, as it always did. */
 export function reloadOnce(): void {
   finishReload(false);
@@ -162,7 +210,8 @@ export function reloadOnce(): void {
  * the middle of — an unlocked vault included. So the new worker is asked which
  * release it is and the page reloads only when that is not the release it
  * booted under. A page that does not know its release (its first load, before
- * any worker controlled it), a worker that does not answer in time, and a
+ * any worker controlled it and without an executing-entry port proof), a
+ * worker that does not answer in time, and a
  * controller that cannot be reached all reload. An unsaved edit holds that
  * reload until the edit is gone, the vault locks, or the tab sits idle;
  * a chunk that fails to load does not wait.
@@ -171,6 +220,12 @@ export function onControllerChange(): void {
   state.takeover?.cancel();
   state.takeover = null;
   state.helloPending = false;
+  const prove = state.initialReleaseProof;
+  state.initialReleaseProof = null;
+  if (state.bootReleaseId === null && prove && state.container?.controller) {
+    proveInitialClaim(prove, state.container.controller);
+    return;
+  }
   if (state.bootReleaseId === null || !askWorker()) {
     requestReload("controller-unknown");
     return;
@@ -257,7 +312,7 @@ function onPlanRejected(reason: BoundaryValue): void {
 }
 
 function onWorkerInfo(releaseId: BoundaryValue): void {
-  if (!isString(releaseId)) return;
+  if (state.initialClaim || !isString(releaseId)) return;
   state.helloPending = false;
   state.workerReleaseId = releaseId;
   if (state.bootControlled && state.bootReleaseId === null)
