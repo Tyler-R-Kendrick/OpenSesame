@@ -1,10 +1,17 @@
 # CipherDial
 
-Decorative lock-v5 astrolabe dial behind the unlock gate: cipher rings, bezel
-ornament, index line, and decoded `0PEN SESAME` readout on the column divider.
-Ink only; the rings fade to 30% under the credential card on a feathered 56px band (`mask.ts`), so the dial carries on behind it rather than being cut off. On wide layouts rings clip
-at the notes divider; on narrow, opaque notes sit above the dial so the
-corner arc stays visible in the empty band.
+Animated astrolabe behind the unlock gate. On wide screens its center meets
+mid-height of the column divider and its outer bezel leaves space above and
+below. The right semicircle clips at the opaque notes pane. Narrow layouts
+keep the corner arc in the empty band. The enclosing bezel is smooth hairline
+circles and fine ticks; there are no perimeter teeth or compass numbers.
+
+The rings remain faint and visible: their layer opacity is 18% in dark
+themes and 50% in light themes. Under the credential card they fade
+to 30% of that already quiet layer over a feathered 56px band (`mask.ts`).
+Idle counter-rotation continues; only the successful alignment lights the
+index and decoded `0PEN SESAME` readout before the doors open. Reduced-motion
+preference keeps a static cipher.
 
 Ported from `lock-v5-handoff` (`v-lock-v5.js` cipher rings + `drawFixed`).
 

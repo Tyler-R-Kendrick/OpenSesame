@@ -74,15 +74,31 @@ function shellManifest() {
   }
   const revision = createHash("md5").update(readFileSync(shell)).digest("hex");
   const assets = join(dist, "assets");
+  const entries = existsSync(assets)
+    ? readdirSync(assets).filter((name) =>
+        /^main-[A-Za-z0-9_-]{8,64}\.js$/.test(name),
+      )
+    : [];
   const callbacks = existsSync(assets)
     ? readdirSync(assets).filter((name) =>
         /^native-saml-[A-Za-z0-9_-]{8,64}\.js$/.test(name),
       )
     : [];
+  if (entries.length !== 1)
+    throw new Error("build-workers: expected exactly one page entry module");
   if (callbacks.length > 1)
     throw new Error("build-workers: ambiguous native SAML callbacks");
+  // The push worker also answers the first-entry proof. Its manifest must
+  // name the entry it is claiming, or every first claim by that variant falls
+  // back to a reload even though the page is already running.
   return [
     { url: "index.html", revision },
+    ...entries.map((name) => ({
+      url: `assets/${name}`,
+      revision: createHash("md5")
+        .update(readFileSync(join(assets, name)))
+        .digest("hex"),
+    })),
     ...callbacks.map((name) => ({
       url: `assets/${name}`,
       revision: createHash("md5")

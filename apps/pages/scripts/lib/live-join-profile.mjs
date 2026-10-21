@@ -8,7 +8,7 @@
  */
 
 import { expect } from "@playwright/test";
-import { openSettingsCategory } from "./pages-journey.mjs";
+import { openLive } from "./live-join-walk.mjs";
 
 export const PROFILE_PATH = "settings/live/transport.json";
 
@@ -18,9 +18,7 @@ export const PROFILE_PATH = "settings/live/transport.json";
  * from the key on the heading of the Form drawn from it.
  */
 async function openProfileFile(page) {
-  await openSettingsCategory(page, "Live sessions");
-  const routes = page.locator("#live-routes");
-  await routes.waitFor({ timeout: 20_000 });
+  const { routes } = await openLive(page);
   await routes.getByRole("button", { name: "Open transport.json" }).click();
   const field = page.getByRole("textbox", { name: PROFILE_PATH, exact: true });
   await field.waitFor({ timeout: 10_000 });
@@ -55,11 +53,6 @@ export function linkRoutes(link) {
 
 /** Back from the file to the Form it spells (Back returns to the form). */
 export async function backToForm(page) {
-  await page
-    .locator(".set__nav")
-    .getByRole("link", { name: "Live sessions", exact: true })
-    .click();
-  const routes = page.locator("#live-routes");
-  await routes.waitFor({ timeout: 20_000 });
+  const { routes } = await openLive(page);
   return routes;
 }

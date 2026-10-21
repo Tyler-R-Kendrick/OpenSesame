@@ -38,22 +38,40 @@ const EMPTY_SCOPE = {
 export function ShareGrantForm({
   identities,
   scopes,
+  initialKind,
+  initialResourceId,
   busy,
   onCancel,
   onSave,
 }: {
   identities: IdentityChoice[];
   scopes?: ShareScopeLists;
+  initialKind?: ShareKind;
+  initialResourceId?: string;
   busy: boolean;
   onCancel: () => void;
   onSave: (input: SaveInput) => void;
 }) {
-  const [kind, setKind] = useState<ShareKind>("vault");
-  const resources = listShareTargets(scopes).filter(
-    (target) => target.kind === kind,
-  );
+  const [kind, setKind] = useState<ShareKind>(initialKind ?? "vault");
+  const targets = listShareTargets(scopes);
+  const resources = targets.filter((target) => target.kind === kind);
+  const requestedItemUnavailable =
+    initialKind === "item" &&
+    initialResourceId !== undefined &&
+    !targets.some(
+      (target) => target.kind === "item" && target.id === initialResourceId,
+    );
   const [principalId, setPrincipalId] = useState(identities[0]?.id ?? "");
-  const [resourceId, setResourceId] = useState(resources[0]?.id ?? "");
+  const [identityQuery, setIdentityQuery] = useState(identities[0]?.name ?? "");
+  const [resourceId, setResourceId] = useState(() => {
+    if (requestedItemUnavailable) return "";
+    if (
+      initialResourceId &&
+      resources.some((resource) => resource.id === initialResourceId)
+    )
+      return initialResourceId;
+    return resources[0]?.id ?? "";
+  });
   const [policy, setPolicy] = useState<string>(
     SHARE_POLICIES[kind][0]?.id ?? "open",
   );
@@ -62,23 +80,43 @@ export function ShareGrantForm({
     setPolicy(SHARE_POLICIES[kind][0]?.id ?? "open");
   }, [kind]);
   useEffect(() => {
+    if (kind === "item" && requestedItemUnavailable) {
+      setResourceId("");
+      return;
+    }
     const next = listShareTargets(scopes).filter(
       (target) => target.kind === kind,
     );
-    setResourceId((current) =>
-      next.some((entry) => entry.id === current)
-        ? current
-        : (next[0]?.id ?? ""),
-    );
-  }, [kind, scopes]);
+    setResourceId((current) => {
+      if (next.some((entry) => entry.id === current)) return current;
+      if (
+        current === "" &&
+        initialResourceId &&
+        next.some((entry) => entry.id === initialResourceId)
+      )
+        return initialResourceId;
+      return next[0]?.id ?? "";
+    });
+  }, [kind, scopes, initialResourceId, requestedItemUnavailable]);
 
   const selected = identities.find((entry) => entry.id === principalId);
+  const identityMatches = selected !== undefined;
   const commitLabel = shareGrantCommitLabel(selected?.kind);
+
+  function chooseIdentity(text: string) {
+    setIdentityQuery(text);
+    const match = identities.find(
+      (entry) =>
+        entry.id === text ||
+        entry.name.trim().toLowerCase() === text.trim().toLowerCase(),
+    );
+    setPrincipalId(match?.id ?? "");
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const resource = resources.find((entry) => entry.id === resourceId);
-    if (!principalId || !resource) return;
+    if (!identityMatches || !resource) return;
     onSave({
       principalId,
       resourceKind: kind,
@@ -93,6 +131,8 @@ export function ShareGrantForm({
     return <p className="hint">No identities.</p>;
   }
 
+  const itemUnavailable = kind === "item" && requestedItemUnavailable;
+
   return (
     <form onSubmit={submit}>
       <ShareFields
@@ -100,19 +140,28 @@ export function ShareGrantForm({
         busy={busy}
         kind={kind}
         resources={resources}
-        principalId={principalId}
+        identityQuery={identityQuery}
+        identityMatches={identityMatches}
         resourceId={resourceId}
+        itemUnavailable={itemUnavailable}
         policy={policy}
         duration={duration}
         onKind={setKind}
-        onPrincipal={setPrincipalId}
+        onIdentity={chooseIdentity}
         onResource={setResourceId}
         onPolicy={setPolicy}
         onDuration={setDuration}
       />
       <FormCommit
         label={commitLabel}
-        disabled={busy || resources.length === 0 || !principalId}
+        disabled={
+          busy ||
+          itemUnavailable ||
+          resources.length === 0 ||
+          !resources.some((resource) => resource.id === resourceId) ||
+          !identityMatches ||
+          !principalId
+        }
       >
         <button
           type="button"
@@ -142,12 +191,14 @@ type ShareFieldProps = {
   busy: boolean;
   kind: ShareKind;
   resources: { id: string; label: string }[];
-  principalId: string;
+  identityQuery: string;
+  identityMatches: boolean;
   resourceId: string;
+  itemUnavailable: boolean;
   policy: string;
   duration: number;
   onKind: (kind: ShareKind) => void;
-  onPrincipal: (id: string) => void;
+  onIdentity: (name: string) => void;
   onResource: (id: string) => void;
   onPolicy: (id: string) => void;
   onDuration: (seconds: number) => void;
@@ -158,12 +209,14 @@ function ShareFields({
   busy,
   kind,
   resources,
-  principalId,
+  identityQuery,
+  identityMatches,
   resourceId,
+  itemUnavailable,
   policy,
   duration,
   onKind,
-  onPrincipal,
+  onIdentity,
   onResource,
   onPolicy,
   onDuration,
@@ -172,17 +225,33 @@ function ShareFields({
   return (
     <>
       <Field id="share-identity" label="Identity">
-        <select
+        <input
           id="share-identity"
           required
+          list="share-identity-options"
+          autoComplete="off"
+          spellCheck={false}
           disabled={busy}
-          value={principalId}
-          onChange={(event) => onPrincipal(event.target.value)}
-        >
-          {options(
-            identities.map((entry) => ({ id: entry.id, label: entry.name })),
-          )}
-        </select>
+          aria-invalid={!identityMatches}
+          aria-describedby={
+            identityMatches ? undefined : "share-identity-error"
+          }
+          value={identityQuery}
+          placeholder="Start typing a person, agent, or application"
+          onChange={(event) => onIdentity(event.target.value)}
+        />
+        <datalist id="share-identity-options">
+          {identities.map((entry) => (
+            <option key={entry.id} value={entry.name}>
+              {entry.kind ?? "Identity"}
+            </option>
+          ))}
+        </datalist>
+        {identityMatches ? null : (
+          <p className="hint" id="share-identity-error" role="alert">
+            Choose an identity from the list.
+          </p>
+        )}
       </Field>
       <Field id="share-kind" label="Resource">
         <select
@@ -198,7 +267,12 @@ function ShareFields({
           <option value="item">Item</option>
         </select>
       </Field>
-      {resources.length === 0 ? (
+      {itemUnavailable ? (
+        <p className="hint" role="alert">
+          That item is no longer available to share. Choose another item or
+          resource.
+        </p>
+      ) : resources.length === 0 ? (
         <p className="hint">{EMPTY_SCOPE[kind]}</p>
       ) : (
         <Field id="share-resource" label={resourceLabel}>

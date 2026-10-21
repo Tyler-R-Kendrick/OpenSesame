@@ -18,7 +18,7 @@ describe("the share sheet", () => {
     const panel = within(container);
     expect(panel.getByLabelText("Session name")).toBeTruthy();
     expect(
-      panel.getByRole("button", { name: "Share this vault" }),
+      panel.getByRole("button", { name: /^Share this vault/ }),
     ).toBeTruthy();
     const advanced = container.querySelector<HTMLDetailsElement>(
       "details.live-advanced",

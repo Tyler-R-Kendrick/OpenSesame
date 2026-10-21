@@ -13,6 +13,7 @@ import type {
   Carrier,
   CarrierFactory,
 } from "@opensesame/app-core/lib/live/rendezvous.js";
+import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import {
   currentHost,
   currentHostCarriers,
@@ -192,12 +193,24 @@ describe("a session started right after a route was added", () => {
     await Promise.all(queuedSeals);
   });
 
-  it("starts direct when no route was added, and does not wait for one", async () => {
+  it("names the default sealed-code carrier without waiting for it to connect", async () => {
     const panel = await filledForm();
     start(panel);
     await waitFor(() => expect(currentHost()).not.toBeNull());
-    expect(currentHostCarriers()).toBeNull();
-    expect(opened).toEqual([]);
+    const host = currentHost();
+    if (!host) throw new Error("The share form did not start its host.");
+    const carriers = [{ kind: "ntfy", url: "https://ntfy.sh" }];
+    expect(currentHostCarriers()?.states.map((state) => state.spec)).toEqual(
+      carriers,
+    );
+    await waitFor(() => expect(opened).toEqual(["ntfy https://ntfy.sh"]));
+    expect(linkRoutes(host.link)).toEqual({
+      ice: [],
+      relay: false,
+      carriers,
+    });
+    expect(files.size).toBe(0);
+    expect(panel.queryByText("correct horse battery staple")).toBeNull();
   });
 
   it("says why when the saved profile has become unusable, and starts nothing", async () => {

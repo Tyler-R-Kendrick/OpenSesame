@@ -1,4 +1,4 @@
-import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
+import { accessIdentitySharePath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
 import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
@@ -138,7 +138,7 @@ function vaultShare(navigate: Navigate): MenuItem | null {
     ways.push({
       id: "share-grant",
       label: "Specific people or agents",
-      run: () => navigate(accessNewPath("grants")),
+      run: () => navigate(accessIdentitySharePath()),
     });
   }
   if (ways.length === 0) return null;

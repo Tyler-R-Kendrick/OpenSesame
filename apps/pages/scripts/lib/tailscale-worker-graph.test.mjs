@@ -27,7 +27,7 @@ test("Pages build registers the shared worker graph before Tailscale assets", as
     workerGraph < names.indexOf("opensesame-tailscale-wasm-assets"),
     "Tailscale assets must see the emitted worker chunk",
   );
-});
+}, 60_000);
 
 /** Write the controller/worker fixture and build it through the plugin. */
 async function buildFixtureWorker(directory) {

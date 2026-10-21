@@ -19,6 +19,18 @@ import { LocalRequestsPanel } from "./LocalRequestsPanel.js";
 import { LocalSharePanel } from "./LocalSharePanel.js";
 import { renderAccess as render } from "./workspace-test-support.js";
 
+async function pickIdentity(name: string): Promise<void> {
+  const input = screen.getByLabelText("Identity");
+  await userEvent.clear(input);
+  await userEvent.type(input, name);
+}
+
+function identityOption(name: string): Element | null {
+  return document.querySelector(
+    `#share-identity-options option[value="${name}"]`,
+  );
+}
+
 // The share + and its form are the Access walkthrough's targets, which the
 // access capability declares when it activates.
 let revokeRealm = () => {};
@@ -78,14 +90,10 @@ it("offers a new application and grants it a vault", async () => {
     name: "Payroll",
   });
   await userEvent.click(grant);
-  const identity = await screen.findByLabelText("Identity");
+  await screen.findByLabelText("Identity");
   await waitFor(() => {
-    expect(
-      within(identity).getByRole("option", { name: "Payroll" }),
-    ).toBeTruthy();
-    expect(
-      within(identity).getByRole("option", { name: "Test application" }),
-    ).toBeTruthy();
+    expect(identityOption("Payroll")).toBeTruthy();
+    expect(identityOption("Test application")).toBeTruthy();
   });
   expect(
     within(screen.getByLabelText("Resource")).getByRole("option", {
@@ -97,7 +105,7 @@ it("offers a new application and grants it a vault", async () => {
       name: "Item",
     }),
   ).toBeTruthy();
-  await userEvent.selectOptions(identity, "Payroll");
+  await pickIdentity("Payroll");
   await userEvent.selectOptions(screen.getByLabelText("Resource"), "Vault");
   await userEvent.click(
     screen.getByRole("button", { name: "Request approval" }),
@@ -156,13 +164,9 @@ it("lists a pending agent grant on the requests tab", async () => {
     expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);
   });
   await userEvent.click(grant);
-  const identity = await screen.findByLabelText("Identity");
-  await waitFor(() =>
-    expect(
-      within(identity).getByRole("option", { name: "Helper" }),
-    ).toBeTruthy(),
-  );
-  await userEvent.selectOptions(identity, "Helper");
+  await screen.findByLabelText("Identity");
+  await waitFor(() => expect(identityOption("Helper")).toBeTruthy());
+  await pickIdentity("Helper");
   await userEvent.click(
     screen.getByRole("button", { name: "Request approval" }),
   );
@@ -186,13 +190,9 @@ it("asks for approval before an agent share is active", async () => {
     expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);
   });
   await userEvent.click(grant);
-  const identity = await screen.findByLabelText("Identity");
-  await waitFor(() =>
-    expect(
-      within(identity).getByRole("option", { name: "Helper" }),
-    ).toBeTruthy(),
-  );
-  await userEvent.selectOptions(identity, "Helper");
+  await screen.findByLabelText("Identity");
+  await waitFor(() => expect(identityOption("Helper")).toBeTruthy());
+  await pickIdentity("Helper");
   await userEvent.click(
     screen.getByRole("button", { name: "Request approval" }),
   );

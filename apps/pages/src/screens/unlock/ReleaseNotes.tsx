@@ -14,8 +14,8 @@ import {
  * front door and the unlock form, never past them.
  *
  * One accordion row per build. On wide layouts the newest opens on arrival
- * (lock-v5 desktop). On narrow, all rows start collapsed so the corner dial
- * keeps the empty band under the opaque notes (lock-v5 mobile).
+ * beside the form. On narrow, rows start collapsed so release history
+ * stays available without pushing the unlocking controls away.
  */
 
 type ReleaseNote = {
@@ -72,7 +72,7 @@ function NoteList({
   if (items.length === 0) return null;
   return (
     <section className="unlock__notes-section" aria-label={label}>
-      <h2 className="unlock__notes-head">{label}</h2>
+      <h3 className="unlock__notes-head">{label}</h3>
       <ul className="unlock__notes-list">
         {items.map((line) => (
           <li key={line}>
@@ -96,7 +96,6 @@ function ReleasePanel({
   open: boolean;
   onToggle: () => void;
 }) {
-  const label = newest ? `Release notes · ${release.version}` : release.version;
   const panelId = `unlock-notes-${release.version}`;
   return (
     <div
@@ -113,8 +112,11 @@ function ReleasePanel({
         aria-controls={panelId}
         onClick={onToggle}
       >
-        <span className="unlock__notes-summary-label">{label}</span>
-        <IconChevronRight className="unlock__notes-caret" size={12} />
+        <span className="unlock__notes-summary-label">
+          {release.version}
+          {newest ? <span className="unlock__notes-latest">Latest</span> : null}
+        </span>
+        <IconChevronRight className="unlock__notes-caret" size={24} />
       </button>
       {open ? (
         <section className="unlock__notes-body" id={panelId}>
@@ -136,7 +138,7 @@ function ReleasePanel({
 }
 
 function initialOpenVersion(): string | null {
-  // Narrow: collapsed accordion — empty band for the corner dial.
+  // Narrow: history is available on demand below the unlocking controls.
   // matchMedia is absent in some test hosts; prefer the wide (open) default.
   const mq = globalThis.matchMedia?.("(max-width: 1099px)");
   if (mq?.matches) return null;
@@ -148,6 +150,7 @@ export const ReleaseNotes = forwardRef<HTMLElement>(
     const [active, setActive] = useState<string | null>(initialOpenVersion);
     return (
       <aside ref={ref} className="unlock__notes" aria-label="Release notes">
+        <h2 className="unlock__notes-title">Release Notes</h2>
         <div className="unlock__notes-stack">
           {RELEASES.map((release, index) => (
             <ReleasePanel

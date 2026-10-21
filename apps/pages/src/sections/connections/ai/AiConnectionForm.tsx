@@ -5,6 +5,7 @@ import {
 } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import {
   type AiConnectionDraft,
+  isAiImageFamily,
   isAiSpeechFamily,
 } from "@opensesame/app-core/lib/ai-connections/types.js";
 import type { FormEvent } from "react";
@@ -61,10 +62,12 @@ export function AiConnectionForm(props: AiConnectionFormProps) {
   const { draft, busy, onChange } = props;
   const prediction = draft.family === "replicate_predictions";
   const speech = isAiSpeechFamily(draft.family);
+  const image = isAiImageFamily(draft.family);
   const ready =
     connectionReady(draft, props.canRetainCredential ?? props.saved) &&
     (!prediction || predictionInputReady(draft, props.predictionInput ?? "")) &&
-    (!speech || Boolean(props.sampleAudio));
+    (!speech || Boolean(props.sampleAudio)) &&
+    (!image || Boolean(props.predictionInput?.trim()));
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (ready && !busy) props.onSave();
@@ -96,6 +99,15 @@ export function AiConnectionForm(props: AiConnectionFormProps) {
           onChange={props.onPredictionInput}
         />
       ) : null}
+      {image ? (
+        <FieldShell
+          label="Verification image prompt"
+          value={props.predictionInput ?? ""}
+          maxLength={8192}
+          disabled={busy}
+          onValueChange={props.onPredictionInput}
+        />
+      ) : null}
       <AiConnectionCommit {...props} ready={ready} />
     </form>
   );
@@ -104,6 +116,7 @@ function AiConnectionCommit(props: AiConnectionFormProps & { ready: boolean }) {
   const { busy, ready } = props;
   const speech = isAiSpeechFamily(props.draft.family);
   const prediction = props.draft.family === "replicate_predictions";
+  const image = isAiImageFamily(props.draft.family);
   return (
     <FormCommit
       label="Save AI connection"
@@ -117,9 +130,15 @@ function AiConnectionCommit(props: AiConnectionFormProps & { ready: boolean }) {
       >
         <IconPlay size={16} />
       </IconKey>
-      {(prediction || speech) && busy && props.onCancel ? (
+      {(prediction || speech || image) && busy && props.onCancel ? (
         <IconKey
-          label={speech ? "Cancel transcription" : "Cancel prediction"}
+          label={
+            image
+              ? "Cancel image generation"
+              : speech
+                ? "Cancel transcription"
+                : "Cancel prediction"
+          }
           onClick={props.onCancel}
         >
           <IconX size={16} />
@@ -251,7 +270,8 @@ function CredentialFields(
   const authId = useId();
   if (
     props.draft.family === "replicate_predictions" ||
-    isAiSpeechFamily(props.draft.family)
+    isAiSpeechFamily(props.draft.family) ||
+    isAiImageFamily(props.draft.family)
   )
     return <SecretField {...props} />;
   if (props.draft.family === "bedrock_converse")

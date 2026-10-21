@@ -35,6 +35,16 @@ export function useAccessRecord(
   const listPath = `/access?view=${view}#${panel}`;
   const path = (record: string) =>
     `/access?view=${view}#${legacyPrefix ?? `${panel}/`}${encodeURIComponent(record)}`;
+  const formPath = (next: boolean) => {
+    const params = new URLSearchParams(location.search);
+    params.set("view", view);
+    if (next) params.set("draft", "new");
+    else {
+      params.delete("draft");
+      params.delete("shareItem");
+    }
+    return `/access?${params.toString()}#${panel}`;
+  };
   return {
     id,
     creating,
@@ -42,8 +52,7 @@ export function useAccessRecord(
     path,
     select: (record: string | null) =>
       navigate(record ? path(record) : listPath),
-    setCreating: (next: boolean) =>
-      navigate(next ? `/access?view=${view}&draft=new#${panel}` : listPath),
+    setCreating: (next: boolean) => navigate(formPath(next)),
     close: () => navigate(listPath),
   };
 }

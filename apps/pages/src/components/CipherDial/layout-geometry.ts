@@ -1,4 +1,4 @@
-import { RING_COUNT } from "./constants.js";
+import { OUTER_BEZEL_CLEARANCE, RING_COUNT } from "./constants.js";
 import type { QuietRect } from "./layout-types.js";
 
 export type DialGeometry = {
@@ -24,11 +24,16 @@ export function computeDialGeometry(input: {
   const { w, h, card, notes, narrow } = input;
 
   if (!narrow && notes) {
-    const dr = Math.min(21, Math.max(16, h * 0.023));
-    const R0 = Math.max(96, h * 0.11);
+    // The dial meets the column divider at mid-height. Its outer bezel has
+    // breathing room above and below, and tall windows keep it inside the
+    // left column instead of enlarging it past the form.
+    const extent = Math.max(96, Math.min(h * 0.465, notes.x * 0.78));
+    const R0 = extent * 0.3;
+    // Fit every glyph ring and the smooth enclosing bezel inside the extent.
+    const dr = (extent - OUTER_BEZEL_CLEARANCE - R0) / (RING_COUNT - 0.4);
     return {
       cx: notes.x,
-      cy: h - 30,
+      cy: h * 0.493,
       R0,
       dr,
       fs: Math.min(12.5, dr * 0.6),

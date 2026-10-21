@@ -36,7 +36,12 @@ it("admits the exact owned package, SDK client and existing explicit validator i
   expect(input.appSource).toContain("jsonSchemaValidator: this.inputValidator");
 });
 it.each([
-  { packageSource: input.packageSource.replace('"1.31.0"', '"1.31.1"') },
+  {
+    packageSource: input.packageSource.replace(
+      /"version":\s*"[^"]+"/,
+      '"version": "1.32.1"',
+    ),
+  },
   { packageSource: `${input.packageSource}\n` },
   { clientSource: `${input.clientSource}\n` },
   {
@@ -93,7 +98,13 @@ it("is build-only and does not rewrite unrelated modules or alternate peer versi
   expect(plugin.apply).toBe("build");
   expect(plugin.transform("unrelated", input.appPath)).toBeNull();
   expect(
-    plugin.transform("unrelated", input.clientPath.replace("1.31.0", "1.30.0")),
+    plugin.transform(
+      "unrelated",
+      input.clientPath.replace(
+        /@modelcontextprotocol\+sdk@[^/]+/,
+        "@modelcontextprotocol+sdk@1.30.0",
+      ),
+    ),
   ).toBeNull();
   expect(plugin.transform("unrelated", `${input.clientPath}?other`)).toBeNull();
 });

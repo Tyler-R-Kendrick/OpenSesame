@@ -1,5 +1,7 @@
-/** One captured provider cleanup dispatches to the obligation's original native method. */
 import { connectPlans } from "@opensesame/app-core/lib/connect-plan.js";
+/** One captured provider cleanup dispatches to the obligation's original native method. */
+import { CATALOG_ALIASES } from "@opensesame/app-core/lib/connector-catalog.generated.js";
+import { catalogProviders } from "@opensesame/app-core/lib/connector-catalog.js";
 import { deviceProviderRevokers } from "@opensesame/app-core/lib/device-connectors.js";
 import {
   type NativeConnectorDriver,
@@ -30,6 +32,8 @@ export function bindNativeCleanupRuntime(
   const transport = captureNativeProviderAuthority();
   const ids = new Set([
     ...connectPlans().map((plan) => plan.id),
+    ...catalogProviders().map((provider) => provider.id),
+    ...Object.keys(CATALOG_ALIASES),
     ...extraProviderIds,
   ]);
   for (const providerId of ids) {

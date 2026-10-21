@@ -8,7 +8,7 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
+import { accessIdentitySharePath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { resolveFilterSlug } from "@opensesame/app-core/lib/vault-filter-slug.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
@@ -194,7 +194,8 @@ export function VaultSection() {
         if (inTrash) return;
         navigate(createPath);
       },
-      shareGrant: () => navigate(accessNewPath("grants")),
+      shareGrant: (item: VaultItem) =>
+        navigate(accessIdentitySharePath(item.id)),
       inTrash,
     }),
     [

@@ -29,6 +29,11 @@ export const CONNECTOR_LIB_RULES = [
     CONNECTORS,
     "test-only TLS fixture for native S3 encrypted vault backup",
   ),
+  optional(
+    `${L}test/native-azure-secrets-backup-fixture.ts`,
+    CONNECTORS,
+    "test-only Azure Key Vault fixture for native encrypted vault backup",
+  ),
   shared(
     `${L}secret-backends/onepassword-artifacts.json`,
     "pinned public SDK asset metadata shared by ownership and the native worker",

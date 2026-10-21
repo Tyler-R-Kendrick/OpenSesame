@@ -17,11 +17,16 @@ import {
   WATCH_RTC,
   joinerAsks,
   joinerConnects,
+  openLive,
   ownerAdmitsByHand,
   ownerEnters,
   startSession,
 } from "./lib/live-join-walk.mjs";
-import { openSettingsCategory } from "./lib/pages-journey.mjs";
+import {
+  openSettingsCategory,
+  unlockWithPin,
+  waitOpen,
+} from "./lib/pages-journey.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, "../dist");
@@ -216,7 +221,8 @@ async function windowClient(page) {
 }
 
 async function hideJourney(origin, owner, joiner) {
-  await connectPair(origin, owner.page, joiner.page);
+  const panel = await connectPair(origin, owner.page, joiner.page);
+  await panel.getByRole("button", { name: "Close", exact: true }).click();
   await openSettingsCategory(owner.page, "General");
   const toggle = owner.page.getByRole("switch", {
     name: "Lock when this tab goes to the background",
@@ -275,10 +281,12 @@ async function hideJourney(origin, owner, joiner) {
   const restored = await owner.page.evaluate(() => document.visibilityState);
   console.log(`visibility after restore=${restored}`);
   await refused(joiner.page);
-  const live = await owner.page
-    .locator("#live-session")
-    .getByRole("img", { name: "Live" })
-    .count();
+  await unlockWithPin(owner.page);
+  const { session } = await openLive(owner.page);
+  await expect(
+    session.getByRole("button", { name: "Share this vault", exact: true }),
+  ).toBeEnabled({ timeout: 20_000 });
+  const live = await session.getByRole("img", { name: "Live" }).count();
   console.log(`owner live marks after restore=${live}`);
   if (live !== 0) throw new Error("restoring the window revived the session");
 }
@@ -321,10 +329,14 @@ async function bfcacheJourney(origin, owner, joiner) {
     );
   }
   await refused(joiner.page);
-  const live = await owner.page
-    .locator("#live-session")
-    .getByRole("img", { name: "Live" })
-    .count();
+  if (await owner.page.getByLabel("PIN", { exact: true }).isVisible())
+    await unlockWithPin(owner.page);
+  await waitOpen(owner.page);
+  const { session } = await openLive(owner.page);
+  await expect(
+    session.getByRole("button", { name: "Share this vault", exact: true }),
+  ).toBeEnabled({ timeout: 20_000 });
+  const live = await session.getByRole("img", { name: "Live" }).count();
   console.log(`owner live marks after bfcache=${live}`);
   if (live !== 0) throw new Error("bfcache restore revived the session");
 }
