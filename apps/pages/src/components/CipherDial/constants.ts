@@ -14,6 +14,8 @@ export const RING_CIPHER = "0123456789ABCDEF";
 
 export const RING_FONT = "var(--mono)";
 export const TAU = Math.PI * 2;
+/** Clearance from the outer tick track to its smooth enclosing hairline. */
+export const OUTER_BEZEL_CLEARANCE = 16;
 
 export const T_CLICK_MS = 780;
 export const T_OPEN_MS = 920;

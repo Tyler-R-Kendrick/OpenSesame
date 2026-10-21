@@ -66,7 +66,9 @@ describe("the most an item's fields hold", () => {
   it("holds a card number to what a card scheme issues", async () => {
     open("/vault/new/card");
     await userEvent.type(field(/^Number$/i), "1".repeat(30));
-    expect(field(/^Number$/i).value).toHaveLength(FIELD_LIMITS.cardNumber);
+    expect(field(/^Number$/i).value.replace(/\s/g, "")).toHaveLength(
+      FIELD_LIMITS.cardNumber,
+    );
   });
 
   it("stops a name growing past the limit as it is typed or pasted", async () => {

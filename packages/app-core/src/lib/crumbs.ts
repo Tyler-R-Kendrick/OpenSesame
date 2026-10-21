@@ -20,16 +20,18 @@ export type Crumb = {
 
 /**
  * The categories the core Settings pages always have. Vault Settings draws
- * General, Security, Features, Integrations and Danger; User Settings draws
- * Keybindings first, then Vaults. `capabilities` and `connections` are
- * retired names that still read as one of them (`SETTINGS_HASH_ALIAS`); a
- * module may still contribute a category of its own (to Vault Settings).
+ * General, Security, Item types, Features, Integrations and Danger; User
+ * Settings draws Keybindings first, then Vaults. `capabilities` and
+ * `connections` are retired names that still read as one of them
+ * (`SETTINGS_HASH_ALIAS`); a module may still contribute a category of its own
+ * (to Vault Settings).
  */
 export const SETTINGS_CATEGORIES = [
   "general",
   "keybindings",
   "security",
   "vaults",
+  "item-types",
   "features",
   "integrations",
   "danger",
@@ -44,6 +46,7 @@ export const SETTINGS_CATEGORY_LABEL = {
   connections: "Connections",
   security: "Security",
   vaults: "Vaults",
+  "item-types": "Item types",
   features: "Features",
   integrations: "Integrations",
   danger: "Danger",

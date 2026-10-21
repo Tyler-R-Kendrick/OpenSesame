@@ -47,7 +47,7 @@ export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
 ];
 
 /**
- * The built-in kinds a person switched on in Settings › Vaults › Item types
+ * The built-in kinds a person switched on in Settings › Item types
  * (ADR 0165). They take the rail position the same kind has when a
  * capability contributes it, so a type reads the same wherever it came from.
  */

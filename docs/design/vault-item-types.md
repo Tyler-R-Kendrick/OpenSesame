@@ -2,7 +2,7 @@
 
 A vault item type is a JSON file. It is not code, it is not compiled, and
 installing one does not rebuild anything — write or paste it as a new file in
-**Settings › Vaults › Item types** (the *Write a new item type* key opens
+**Settings › Item types** (the *Write a new item type* key opens
 `installed/new.json`) and the type exists, on this device and on every other
 device this vault syncs to.
 

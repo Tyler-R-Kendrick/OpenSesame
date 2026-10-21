@@ -81,6 +81,11 @@ export type CompositionStoreForWorker = Readonly<{
 export type RegisterWorkerOptions = Readonly<{
   /** `virtual:opensesame-distribution`'s `DISTRIBUTION` (S07). */
   distribution: DistributionContract;
+  /** Browser-owned nonce/port proof of the executing entry in the first worker manifest. */
+  initialReleaseProof?: (
+    worker: ServiceWorker,
+    signal: AbortSignal,
+  ) => Promise<string | null>;
 }>;
 
 /** What the page may say to its worker (`src/sw/messages.ts` is the other side). */

@@ -1,0 +1,28 @@
+{
+  "before": {
+    "compiledHead": "22aee90866b2ff636798cd74cb94be59c5b77649",
+    "compiledTree": "91f6601bebd1a99beaf788552d1d71ac3432812d",
+    "durationSeconds": 123.67084965104004,
+    "indexSHA256": "3019340a00043ae38108437ed70f22c5e8568bc3dddd79b652e4339db0cf70e7",
+    "receiptSHA256": "6e6dea561762af7e849e1f90e97ade137490192b81ab6de02ca88445d2ea1878",
+    "gateReceiptSHA256": "ca152458c69bcd0e375546433cf07d254fec6dc80729f56ad6c678052c9c7e64",
+    "captureLogSHA256": "de8fbb105d6019adbd685ba42c039f5f1ec6158fb85c29dee47644eb6f3c938f",
+    "cards": 30,
+    "BYOFirst": true,
+    "mainCount": 1,
+    "horizontalOverflow": false
+  },
+  "after": {
+    "compiledHead": "0b089e69a3bb1eef9f95eb02a15ca57eba03d61f",
+    "compiledTree": "713afd07478361761762204cd1ae8ec3575671fe",
+    "durationSeconds": 101.57373887702124,
+    "indexSHA256": "4b06e2eefc8c23962e8d977d89d6f3872a870b54ac3a612183600a8f8ced02d2",
+    "receiptSHA256": "5ccebd699c7ff680d6e667466194901b569946495cf6c9936b8c1eedf793c0de",
+    "gateReceiptSHA256": "1d3a3d3c2e7ea63452710c4e6deb8af80e756f9dc8cebbfd56d0c555abe71229",
+    "captureLogSHA256": "0410cf6ca1f62c319407b50d6ae440f8414eb0b2facf3d914f5d5071af37ec05",
+    "cards": 34,
+    "BYOFirst": true,
+    "mainCount": 1,
+    "horizontalOverflow": false
+  }
+}

@@ -22,6 +22,23 @@ const PARAMETER_VALUES = {
 };
 
 const DOCUMENTED_PROBE_REPLIES = {
+  // https://docs.linqapp.com/api-reference/phone-numbers/list-phone-numbers
+  linq: {
+    phone_numbers: [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        phone_number: "+12025551234",
+        line_type: "iMessage",
+        forwarding_number: "+12025559999",
+        reputation: {
+          status: "HEALTHY",
+          doc_url:
+            "https://docs.linqapp.com/channel/imessage/guides/phone-numbers/phone-reputation#healthy",
+        },
+        private_metadata: "private Linq upstream metadata",
+      },
+    ],
+  },
   // https://docs.agentmail.to/api-reference/inboxes/list
   agentmail: {
     count: 1,
@@ -101,6 +118,28 @@ const DOCUMENTED_PROBE_REPLIES = {
 };
 
 const DOCUMENTED_READS = {
+  linq: {
+    id: "provider.phone-numbers.read",
+    label: "List messaging lines",
+    method: "GET",
+    url: "https://api.linqapp.com/api/partner/v3/phone_numbers",
+    headers: { Accept: "application/json" },
+    reply: DOCUMENTED_PROBE_REPLIES.linq,
+    result: {
+      label: "Showing 1 of 1 returned messaging lines",
+      items: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          label: "+12025551234 — iMessage — HEALTHY",
+        },
+      ],
+    },
+    excludedText: [
+      "+12025559999",
+      "private Linq upstream metadata",
+      "https://docs.linqapp.com/channel/imessage/guides/phone-numbers/phone-reputation#healthy",
+    ],
+  },
   datadog: {
     id: "provider.monitors.read",
     label: "List monitors",
@@ -220,6 +259,7 @@ function verificationReply(id, verification) {
   const payment = paymentProbeReply(id);
   if (payment) return payment;
   const documented = DOCUMENTED_PROBE_REPLIES[id];
+  if (id === "linq") return structuredClone(documented);
   if (
     !documented &&
     !verification.accountField &&
@@ -296,4 +336,5 @@ export const NATIVE_REPRESENTATIVE_API_IDS = [
   "resend",
   "postmark",
   "gemini",
+  "linq",
 ];

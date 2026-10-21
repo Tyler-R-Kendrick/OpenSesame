@@ -6,7 +6,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
-import { doorGuest } from "./lib/front-door.mjs";
 import { joinerSaves, ownerSeesSave } from "./lib/live-edit-walk.mjs";
 import {
   PRIVATE_ITEM,
@@ -25,7 +24,7 @@ import {
   ownerAdmitsByHand,
   startSession,
 } from "./lib/live-join-walk.mjs";
-import { addCapabilities } from "./lib/pages-journey.mjs";
+import { addCapabilities, sealWithPin } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -131,9 +130,11 @@ async function startup(browser) {
 }
 
 async function hostVault(page) {
+  // Seed real wall time before the PIN ceremony advances Playwright timers.
+  await page.clock.install({ time: new Date() });
   setStep("owner-vault");
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await doorGuest(page).click();
+  await sealWithPin(page);
   await createSecret(page, { name: SHARED_ITEM.name, value: secret });
   await createSecret(page, { name: PRIVATE_ITEM.name, value: privateSecret });
   await addCapabilities(page, ["Live sessions"]);

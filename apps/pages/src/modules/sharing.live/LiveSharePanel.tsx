@@ -22,7 +22,7 @@ import { useRef, useSyncExternalStore } from "react";
 import { firstControl } from "../../lib/focus.js";
 import { LiveHostForm } from "./LiveHostForm.js";
 import { LiveHostSession } from "./LiveHostSession.js";
-import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
+import { LiveTransportSettings } from "./LiveTransportSettings.js";
 import { useLandOnChange } from "./live-focus.js";
 import { useLiveHost } from "./live-hooks.js";
 import "./live.css";
@@ -58,7 +58,7 @@ export function LiveSharePanel() {
       <details className="live-advanced">
         <summary>Advanced</summary>
         <div className="live-advanced__body setup__stack">
-          <LiveRoutesPanel />
+          <LiveTransportSettings />
         </div>
       </details>
     </div>

@@ -59,7 +59,7 @@ describe("the live join ask", () => {
     const { result } = renderHook(() => useAsk(link, "empty"));
     expect(result.current.ready).toBe(false);
     expect(result.current.sealProblem).toBe("Choose a PIN for your own vault.");
-    act(() => result.current.set.setPin("10060211"));
+    act(() => result.current.set.setPin("12345678"));
     expect(result.current.pinProblem).toBeTruthy();
     expect(result.current.ready).toBe(false);
     act(() => {

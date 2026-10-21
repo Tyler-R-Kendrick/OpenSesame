@@ -356,6 +356,11 @@ export class LiveHost {
     }
   }
 
+  /** Push the current vault catalog to every joined seat. */
+  refreshCatalog(): void {
+    for (const seat of this.#seats.values()) seat.peer?.refreshCatalog();
+  }
+
   /** Turn an asker away, or send a guest out. */
   refuse(key: string): void {
     this.#drop(key, "refused");

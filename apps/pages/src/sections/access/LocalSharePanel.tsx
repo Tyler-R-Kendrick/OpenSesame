@@ -16,6 +16,7 @@ import {
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import type { Folder, VaultItem } from "@opensesame/vault-core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -139,9 +140,19 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
     { id: string; name: string; kind: string; role: string }[]
   >([]);
   const [canGrant, setCanGrant] = useState(false);
+  const [params] = useSearchParams();
+  const [requestedItem, setRequestedItem] = useState(
+    () => params.get("shareItem") ?? "",
+  );
   const selection = useAccessRecord("identity-shares", "grants", "share-");
   const draft = selection.creating;
   const setDraft = selection.setCreating;
+  const openedRequest = useRef(false);
+  useEffect(() => {
+    if (openedRequest.current || !requestedItem || !canGrant) return;
+    openedRequest.current = true;
+    setDraft(true);
+  }, [requestedItem, canGrant, setDraft]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const names = new Map(identities.map((entry) => [entry.id, entry.name]));
@@ -261,15 +272,25 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
             <ShareGrantForm
               identities={identities}
               scopes={scopes}
+              initialKind={requestedItem ? "item" : undefined}
+              initialResourceId={requestedItem || undefined}
               busy={busy}
-              onCancel={() => setDraft(false)}
+              onCancel={() => {
+                setDraft(false);
+                setRequestedItem("");
+              }}
               onSave={(input) =>
                 void run(async () => {
                   const result = await submitLocalShare(tomb, input);
+                  // One ceremony for one item: a later + is a new grant.
+                  setRequestedItem("");
+                  // The writer returns every live share, with the row just
+                  // written appended last; selecting `shares[0]` would open an
+                  // older bootstrap grant instead of the one the person made.
                   const record =
                     result.outcome === "pending"
                       ? result.pending.id
-                      : result.shares[0]?.id;
+                      : result.shares.at(-1)?.id;
                   if (record) selection.select(record);
                   else selection.close();
                 })

@@ -34,6 +34,8 @@ type VaultTreeProps = {
   items: VaultItem[];
   folders: Folder[];
   activeItemId?: string;
+  /** Standing item grants, counted by resource id. */
+  sharedItems?: ReadonlyMap<string, number>;
   title: string;
   total: number;
   actions: VaultTreeActions;
@@ -63,6 +65,7 @@ export function VaultTree({
   items,
   folders,
   activeItemId,
+  sharedItems,
   title,
   total,
   actions,
@@ -340,7 +343,10 @@ export function VaultTree({
                     <Highlight text={row.name} query={needle} />
                     <span className="vtree__dim">{row.ext}</span>
                   </span>
-                  <Decorations item={row.item} />
+                  <Decorations
+                    item={row.item}
+                    sharedGrants={sharedItems?.get(row.item.id) ?? 0}
+                  />
                   <VaultRowMenu
                     actions={actions}
                     listRef={listRef}

@@ -143,11 +143,13 @@ export async function readAiJson(
     );
   const chunks: Uint8Array[] = [];
   let length = 0;
+  let ended = false;
   let value: BoundaryValue = null;
   try {
     for (;;) {
       check();
       const next = await reader.read();
+      ended = next.done;
       check();
       if (next.done) break;
       length += next.value.byteLength;
@@ -173,7 +175,7 @@ export async function readAiJson(
       );
     }
   } finally {
-    await reader.cancel().catch(() => undefined);
+    if (!ended) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
   aiCompletionSeams.observe?.({

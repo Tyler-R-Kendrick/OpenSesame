@@ -1,4 +1,4 @@
-import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
+import { accessIdentitySharePath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
 import { shareText } from "@opensesame/app-core/sections/vault-share-text.js";
 import type { VaultItem } from "@opensesame/vault-core";
@@ -59,7 +59,9 @@ export function useItemShare(
     tool: {
       open,
       onOpen: () => setOpen(true),
-      onGrant: canGrant ? () => navigate(accessNewPath("grants")) : undefined,
+      onGrant: canGrant
+        ? () => navigate(accessIdentitySharePath(item.id))
+        : undefined,
       keyRef: key,
     },
     ceremony: (

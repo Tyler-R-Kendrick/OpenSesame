@@ -70,12 +70,16 @@ afterEach(() => {
   cleanup();
 });
 
-function draw(items: VaultItem[] = [makeAccount(), makeNote()]) {
+function draw(
+  items: VaultItem[] = [makeAccount(), makeNote()],
+  sharedItems: ReadonlyMap<string, number> = new Map(),
+) {
   render(
     <MemoryRouter>
       <VaultTree
         items={items}
         folders={[]}
+        sharedItems={sharedItems}
         title="All items"
         total={items.length}
         actions={actions}
@@ -276,12 +280,28 @@ describe("the vault listing's context menu", () => {
     expect(within(menu).queryByRole("menuitem", { name: /Share/ })).toBeNull();
   });
 
-  it("says on the row that a secret somebody else can open is shared", () => {
+  it("marks a shared secret with people just before its actions", () => {
     draw([makeSecret({ grantees: ["agt_release_bot"] })]);
-    expect(screen.getByTitle("Shared with agt_release_bot")).toBeTruthy();
+    const mark = screen.getByTitle("Shared with agt_release_bot");
+    const side = mark.closest(".vtree__side");
+    expect(side?.nextElementSibling).toBe(
+      screen.getByRole("button", { name: "Actions for Deploy key" }),
+    );
 
     cleanup();
     draw([makeSecret()]);
     expect(screen.queryByTitle(/^Shared with/)).toBeNull();
+  });
+
+  it("puts the people mark before the actions for a standing item grant", () => {
+    draw(
+      [makeNote({ id: "itm_shared", name: "Shared note" })],
+      new Map([["itm_shared", 2]]),
+    );
+    const mark = screen.getByTitle("Shared with 2 identities");
+    const side = mark.closest(".vtree__side");
+    expect(side?.nextElementSibling).toBe(
+      screen.getByRole("button", { name: "Actions for Shared note" }),
+    );
   });
 });

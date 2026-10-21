@@ -213,7 +213,14 @@ describe("SettingsSection", () => {
       within(screen.getByRole("navigation", { name: "Settings sections" }))
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["General", "Security", "Features", "Integrations", "Danger"]);
+    ).toEqual([
+      "General",
+      "Security",
+      "Item types",
+      "Features",
+      "Integrations",
+      "Danger",
+    ]);
   });
 
   it("draws User Settings on its own page", () => {
@@ -267,7 +274,7 @@ describe("SettingsSection", () => {
   // the source view, and the source view lists the category's files.
   it("opens an item type's file from its row in the file viewer", async () => {
     installItemType(VEHICLE_TYPE);
-    renderSettings("/settings/vaults");
+    renderSettings("/settings/item-types");
     await userEvent.click(
       screen.getByRole("button", { name: "Open vehicle.json" }),
     );
@@ -286,7 +293,7 @@ describe("SettingsSection", () => {
     await userEvent.click(
       within(
         screen.getByRole("navigation", { name: "Settings sections" }),
-      ).getByRole("link", { name: "Vaults" }),
+      ).getByRole("link", { name: "Item types" }),
     );
     expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
   });

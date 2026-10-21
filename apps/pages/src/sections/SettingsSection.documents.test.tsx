@@ -115,7 +115,7 @@ describe("a page's own files", () => {
   });
 
   it("draw the page for any category's config.yaml", () => {
-    renderAt("/settings/vaults?file=config.yaml");
+    renderAt("/settings/item-types?file=config.yaml");
     expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
     expect(textEditor()).toBeNull();
     cleanup();
@@ -126,7 +126,7 @@ describe("a page's own files", () => {
 
   it("leave the file viewer to the files a provider keeps for authoring", () => {
     renderAt(
-      `/settings/vaults?file=${encodeURIComponent("settings/item-types/builtin/secret.json")}`,
+      `/settings/item-types?file=${encodeURIComponent("settings/item-types/builtin/secret.json")}`,
     );
     expect(screen.getByRole("navigation", { name: "Files" })).toBeTruthy();
     expect(textEditor()).not.toBeNull();

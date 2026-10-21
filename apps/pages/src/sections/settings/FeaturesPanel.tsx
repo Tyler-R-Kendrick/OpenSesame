@@ -2,11 +2,12 @@
  * Settings › Features — which optional parts of this installation are on.
  *
  * One list of sections, each drawn the same way (`FeatureSections`): a
- * subheader and the switch on it, with a tile and switch for each capability
- * where a section has several. Guests first; then identity, access, the
+ * subheader and the switch on it, with a switch row for each capability
+ * where a section has several. Every row links to its own configuration
+ * page; no panel is drawn inline here. Guests first; then identity, access, the
  * vault's extras, sharing, payments, AI, networking, notifications and
  * telemetry; then, for the operator of this device, the instance policy
- * (`InstanceCapabilitiesPanel`, never shown to a member — SURFACE-06).
+ * (`InstancePolicyLink`, never shown to a member — SURFACE-06).
  *
  * A switch commits in place (`useCapabilityChange`). The documents behind
  * the page — the selection, the operator's policy, the effective plan — are
@@ -22,7 +23,7 @@ import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { FeatureSections } from "./FeatureSections.js";
-import { InstanceCapabilitiesPanel } from "./InstanceCapabilitiesPanel.js";
+import { InstancePolicyLink } from "./InstanceCapabilitiesPanel.js";
 import {
   type CapabilityChange,
   capabilitiesPanelSeams,
@@ -83,7 +84,7 @@ function Body({ change }: { change: CapabilityChange }) {
   return (
     <>
       <FeatureSections current={change.current} onPropose={change.propose} />
-      <InstanceCapabilitiesPanel />
+      <InstancePolicyLink />
     </>
   );
 }

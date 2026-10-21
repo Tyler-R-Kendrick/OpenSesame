@@ -308,12 +308,15 @@ export class LiveGuest {
     return channel.send(request);
   }
 
-  /** The first catalog is the session; a later one answered a greeting. */
+  /** The first catalog is the session; later ones replace what it shared. */
   #joined(catalog: Catalog): void {
-    if (this.#status.at !== "connecting") return;
-    this.#greeter.stop();
-    this.#connectTimer.clear();
-    this.#release();
+    const first = this.#status.at === "connecting";
+    if (!first && this.#status.at !== "joined") return;
+    if (first) {
+      this.#greeter.stop();
+      this.#connectTimer.clear();
+      this.#release();
+    }
     this.#to({ at: "joined", catalog });
   }
 

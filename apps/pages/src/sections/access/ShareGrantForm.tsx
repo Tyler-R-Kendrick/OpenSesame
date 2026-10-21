@@ -38,22 +38,39 @@ const EMPTY_SCOPE = {
 export function ShareGrantForm({
   identities,
   scopes,
+  initialKind,
+  initialResourceId,
   busy,
   onCancel,
   onSave,
 }: {
   identities: IdentityChoice[];
   scopes?: ShareScopeLists;
+  initialKind?: ShareKind;
+  initialResourceId?: string;
   busy: boolean;
   onCancel: () => void;
   onSave: (input: SaveInput) => void;
 }) {
-  const [kind, setKind] = useState<ShareKind>("vault");
-  const resources = listShareTargets(scopes).filter(
-    (target) => target.kind === kind,
-  );
+  const [kind, setKind] = useState<ShareKind>(initialKind ?? "vault");
+  const targets = listShareTargets(scopes);
+  const resources = targets.filter((target) => target.kind === kind);
+  const requestedItemUnavailable =
+    initialKind === "item" &&
+    initialResourceId !== undefined &&
+    !targets.some(
+      (target) => target.kind === "item" && target.id === initialResourceId,
+    );
   const [principalId, setPrincipalId] = useState(identities[0]?.id ?? "");
-  const [resourceId, setResourceId] = useState(resources[0]?.id ?? "");
+  const [resourceId, setResourceId] = useState(() => {
+    if (requestedItemUnavailable) return "";
+    if (
+      initialResourceId &&
+      resources.some((resource) => resource.id === initialResourceId)
+    )
+      return initialResourceId;
+    return resources[0]?.id ?? "";
+  });
   const [policy, setPolicy] = useState<string>(
     SHARE_POLICIES[kind][0]?.id ?? "open",
   );
@@ -62,23 +79,33 @@ export function ShareGrantForm({
     setPolicy(SHARE_POLICIES[kind][0]?.id ?? "open");
   }, [kind]);
   useEffect(() => {
+    if (kind === "item" && requestedItemUnavailable) {
+      setResourceId("");
+      return;
+    }
     const next = listShareTargets(scopes).filter(
       (target) => target.kind === kind,
     );
-    setResourceId((current) =>
-      next.some((entry) => entry.id === current)
-        ? current
-        : (next[0]?.id ?? ""),
-    );
-  }, [kind, scopes]);
+    setResourceId((current) => {
+      if (next.some((entry) => entry.id === current)) return current;
+      if (
+        current === "" &&
+        initialResourceId &&
+        next.some((entry) => entry.id === initialResourceId)
+      )
+        return initialResourceId;
+      return next[0]?.id ?? "";
+    });
+  }, [kind, scopes, initialResourceId, requestedItemUnavailable]);
 
   const selected = identities.find((entry) => entry.id === principalId);
+  const identityMatches = selected !== undefined;
   const commitLabel = shareGrantCommitLabel(selected?.kind);
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const resource = resources.find((entry) => entry.id === resourceId);
-    if (!principalId || !resource) return;
+    if (!identityMatches || !resource) return;
     onSave({
       principalId,
       resourceKind: kind,
@@ -93,6 +120,8 @@ export function ShareGrantForm({
     return <p className="hint">No identities.</p>;
   }
 
+  const itemUnavailable = kind === "item" && requestedItemUnavailable;
+
   return (
     <form onSubmit={submit}>
       <ShareFields
@@ -102,6 +131,12 @@ export function ShareGrantForm({
         resources={resources}
         principalId={principalId}
         resourceId={resourceId}
+        itemUnavailable={itemUnavailable}
+        fixedResource={
+          initialKind !== undefined &&
+          initialResourceId !== undefined &&
+          !requestedItemUnavailable
+        }
         policy={policy}
         duration={duration}
         onKind={setKind}
@@ -112,7 +147,14 @@ export function ShareGrantForm({
       />
       <FormCommit
         label={commitLabel}
-        disabled={busy || resources.length === 0 || !principalId}
+        disabled={
+          busy ||
+          itemUnavailable ||
+          resources.length === 0 ||
+          !resources.some((resource) => resource.id === resourceId) ||
+          !identityMatches ||
+          !principalId
+        }
       >
         <button
           type="button"
@@ -127,6 +169,16 @@ export function ShareGrantForm({
       </FormCommit>
     </form>
   );
+}
+
+function identityLabel(
+  entry: IdentityChoice,
+  identities: readonly IdentityChoice[],
+): string {
+  const sameName = identities.filter((row) => row.name === entry.name);
+  if (sameName.length === 1) return entry.name;
+  const sameKind = sameName.filter((row) => row.kind === entry.kind);
+  return `${entry.name} (${sameKind.length === 1 ? (entry.kind ?? "identity") : entry.id.slice(0, 8)})`;
 }
 
 function options(rows: readonly { id: string | number; label: string }[]) {
@@ -144,6 +196,8 @@ type ShareFieldProps = {
   resources: { id: string; label: string }[];
   principalId: string;
   resourceId: string;
+  itemUnavailable: boolean;
+  fixedResource: boolean;
   policy: string;
   duration: number;
   onKind: (kind: ShareKind) => void;
@@ -160,6 +214,8 @@ function ShareFields({
   resources,
   principalId,
   resourceId,
+  itemUnavailable,
+  fixedResource,
   policy,
   duration,
   onKind,
@@ -179,39 +235,53 @@ function ShareFields({
           value={principalId}
           onChange={(event) => onPrincipal(event.target.value)}
         >
-          {options(
-            identities.map((entry) => ({ id: entry.id, label: entry.name })),
+          <option value="" disabled>
+            Choose an identity
+          </option>
+          {identities.map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {identityLabel(entry, identities)}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {fixedResource ? null : (
+        <>
+          <Field id="share-kind" label="Resource">
+            <select
+              id="share-kind"
+              disabled={busy}
+              value={kind}
+              // SAFETY: test/fixture or boundary-checked value matches ShareKind.
+              onChange={(event) => onKind(event.target.value as ShareKind)}
+            >
+              <option value="vault">Vault</option>
+              <option value="connection">Connector</option>
+              <option value="folder">Folder</option>
+              <option value="item">Item</option>
+            </select>
+          </Field>
+          {itemUnavailable ? (
+            <p className="hint" role="alert">
+              That item is no longer available to share. Choose another item or
+              resource.
+            </p>
+          ) : resources.length === 0 ? (
+            <p className="hint">{EMPTY_SCOPE[kind]}</p>
+          ) : (
+            <Field id="share-resource" label={resourceLabel}>
+              <select
+                id="share-resource"
+                required
+                disabled={busy}
+                value={resourceId}
+                onChange={(event) => onResource(event.target.value)}
+              >
+                {options(resources)}
+              </select>
+            </Field>
           )}
-        </select>
-      </Field>
-      <Field id="share-kind" label="Resource">
-        <select
-          id="share-kind"
-          disabled={busy}
-          value={kind}
-          // SAFETY: test/fixture or boundary-checked value matches ShareKind)}.
-          onChange={(event) => onKind(event.target.value as ShareKind)}
-        >
-          <option value="vault">Vault</option>
-          <option value="connection">Connector</option>
-          <option value="folder">Folder</option>
-          <option value="item">Item</option>
-        </select>
-      </Field>
-      {resources.length === 0 ? (
-        <p className="hint">{EMPTY_SCOPE[kind]}</p>
-      ) : (
-        <Field id="share-resource" label={resourceLabel}>
-          <select
-            id="share-resource"
-            required
-            disabled={busy}
-            value={resourceId}
-            onChange={(event) => onResource(event.target.value)}
-          >
-            {options(resources)}
-          </select>
-        </Field>
+        </>
       )}
       <Field id="share-policy" label="Policy">
         <select

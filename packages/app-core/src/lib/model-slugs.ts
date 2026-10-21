@@ -6,7 +6,7 @@
  * without a harness (they need no sealed key).
  */
 
-import { isAiSpeechFamily } from "./ai-connections/types.js";
+import { isAiImageFamily, isAiSpeechFamily } from "./ai-connections/types.js";
 import { listConnections } from "./connections.js";
 import { hostedModelAuthority } from "./hosted-model-authority.js";
 import {
@@ -182,6 +182,7 @@ function savedConnectionOptions(): ModelSlugOption[] {
       !row.model ||
       !row.endpoint ||
       isAiSpeechFamily(row.family) ||
+      isAiImageFamily(row.family) ||
       row.family === "replicate_predictions"
     )
       continue;

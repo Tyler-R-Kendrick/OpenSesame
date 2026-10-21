@@ -43,6 +43,12 @@ export const settingsTabs: readonly SettingsTab[] = [
   },
   { id: "vaults", label: "Vaults", guideId: "settings.vaults", order: 200 },
   {
+    id: "item-types",
+    label: "Item types",
+    guideId: "settings.item-types",
+    order: 350,
+  },
+  {
     id: "features",
     label: "Features",
     guideId: "settings.features",

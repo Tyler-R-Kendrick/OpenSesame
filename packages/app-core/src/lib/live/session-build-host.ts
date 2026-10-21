@@ -6,7 +6,7 @@ import type { VaultItem } from "@opensesame/vault-core";
 import { vaultStore } from "../vault/store.js";
 import { connectionPort } from "./connection-port.js";
 import { vaultWrite } from "./field-write.js";
-import { LiveHost, MAX_SESSION_MS } from "./host.js";
+import { type HostOptions, LiveHost, MAX_SESSION_MS } from "./host.js";
 import type { SharePolicy } from "./messages.js";
 import type { TransportFactory } from "./p2p.js";
 import type { Rendezvous } from "./rendezvous.js";
@@ -35,6 +35,10 @@ export type HostBuildInput = Readonly<{
 
 export type RelaySource = { carriers: Rendezvous | null };
 
+type ProvisionOptions = {
+  provisionSeat?: NonNullable<HostOptions["provisionSeat"]>;
+};
+
 export async function buildLiveHost(
   input: HostBuildInput,
   items: () => readonly VaultItem[],
@@ -49,6 +53,22 @@ export async function buildLiveHost(
   const { secret, routes, own, routing } = await hostRoutes(profile, expiresAt);
   const scope = input.scope;
   const provision = input.provision;
+  const provisioning: ProvisionOptions = {};
+  if (provision) {
+    provisioning.provisionSeat = (guest, hostId) =>
+      provisionLiveSessionGuest({
+        tomb: vaultStore.activeTomb(),
+        hostId,
+        guest,
+        scope,
+        policy: input.policy,
+        minutes: input.minutes,
+        expiresAt,
+        audience: provision.audience,
+        peopleIds: provision.peopleIds,
+        items: items(),
+      });
+  }
   const next = await LiveHost.start({
     admission: input.admission,
     transport: input.transport(routing),
@@ -57,21 +77,7 @@ export async function buildLiveHost(
     relay: (name) => source.carriers?.seat(name) ?? null,
     canRelay: () => source.carriers?.relays ?? false,
     devices: input.devices ? { port: connectionPort } : undefined,
-    provisionSeat: provision
-      ? (guest, hostId) =>
-          provisionLiveSessionGuest({
-            tomb: vaultStore.activeTomb(),
-            hostId,
-            guest,
-            scope,
-            policy: input.policy,
-            minutes: input.minutes,
-            expiresAt,
-            audience: provision.audience,
-            peopleIds: provision.peopleIds,
-            items: items(),
-          })
-      : undefined,
+    ...provisioning,
     post,
     expiresAt,
     catalog: () =>
@@ -87,5 +93,14 @@ export async function buildLiveHost(
       vaultStore.saveItem(item),
     ),
   });
+  // A vault edit or a newly created item changes what the next catalog says;
+  // send it to joined guests without making them re-greet.
+  let stopVault = () => {};
+  const stopState = next.subscribe((state) => {
+    if (state.status !== "ended") return;
+    stopVault();
+    stopState();
+  });
+  stopVault = vaultStore.subscribe(() => next.refreshCatalog());
   return { next, routes, own };
 }

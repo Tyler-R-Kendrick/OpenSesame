@@ -96,7 +96,7 @@ export const SETTINGS_GOALS: readonly GuideGoalDescriptor[] = [
       'say "A device can hold several vaults: your own, one for each project, and a guest session beside them. This category lists them."',
       'navigate "/settings/vaults"',
       'wait route "/settings/vaults" timeout=15000',
-      'focus "settings.vaults" "Vaults lists every vault this device holds, with a key to seal a new one, a row to open each, and a key to delete a project vault that is not open. Below it are the item types the vaults can hold." side=bottom',
+      'focus "settings.vaults" "Vaults lists every vault this device holds, with a key to seal a new one, a row to open each, and a key to delete a project vault that is not open." side=bottom',
       'success "That is Vaults."',
       "end",
     ].join("\n"),

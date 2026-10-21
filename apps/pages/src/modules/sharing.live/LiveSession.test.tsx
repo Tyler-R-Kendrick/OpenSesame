@@ -6,7 +6,10 @@
  * pairing codes are passed by hand, as people pass them; no server of any
  * kind is involved. The peers are fakes (real WebRTC: verify:live-join).
  */
-import { holdLiveLink } from "@opensesame/app-core/lib/live/link.js";
+import {
+  holdLiveLink,
+  parseLiveLink,
+} from "@opensesame/app-core/lib/live/link.js";
 import { FakeNet } from "@opensesame/app-core/lib/live/live-fakes.js";
 import {
   currentGuest,
@@ -360,10 +363,16 @@ describe("a live session, owner to joiner, paired by hand", () => {
     );
   });
 
-  it("takes a pasted link masked, and says when it is not one", () => {
+  it("shows the pasted session link and refuses one that does not parse", async () => {
+    const { panel } = await startHosting();
+    await panel.findByRole("img", { name: "Live" });
+    const link =
+      panel.getByText(
+        /^https:\/\/example\.test\/OpenSesame\/\?join=[A-Za-z0-9_-]{12}#live=/,
+      ).textContent ?? "";
     const joiner = within(openJoin());
-    const field = joiner.getByLabelText<HTMLInputElement>("Link");
-    expect(field.type).toBe("password");
+    const field = joiner.getByLabelText<HTMLInputElement>("Session link");
+    expect(field.type).toBe("text");
     fireEvent.change(field, {
       target: { value: "https://example.test/#nope" },
     });
@@ -374,5 +383,16 @@ describe("a live session, owner to joiner, paired by hand", () => {
       name: /Ask to join\. Paste a live-session link that parses/,
     });
     expect(ask.hasAttribute("disabled")).toBe(true);
+    fireEvent.change(field, { target: { value: link } });
+    expect(field.value).toBe(link);
+    expect(new URL(link).searchParams.get("join")).toBe(
+      currentHost()?.link.owner.slice(0, 12),
+    );
+    expect(parseLiveLink(field.value)).toEqual(currentHost()?.link);
+    expect(
+      joiner.queryByRole("img", { name: "Not a live-session link" }),
+    ).toBeNull();
+    expect(link).not.toContain(SECRET);
+    expect(joiner.queryByText(SECRET)).toBeNull();
   });
 });

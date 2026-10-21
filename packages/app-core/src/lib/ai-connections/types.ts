@@ -53,6 +53,13 @@ export class AiConnectionError extends Error {
   }
 }
 
+/** Image results are local owned rasters, never text/voice responses. */
+export function isAiImageFamily(
+  family: string | undefined,
+): family is "stability_sd3" {
+  return family === "stability_sd3";
+}
+
 /** Transcription families admitted by the current shared AI configuration. */
 export function isAiSpeechFamily(
   family: string | undefined,
@@ -78,7 +85,8 @@ export function textAiFamily(family: AiInferenceFamily) {
   if (
     family === "bedrock_converse" ||
     family === "replicate_predictions" ||
-    isAiSpeechFamily(family)
+    isAiSpeechFamily(family) ||
+    isAiImageFamily(family)
   )
     throw new AiConnectionError(
       "configuration",

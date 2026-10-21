@@ -1,14 +1,20 @@
 /** @vitest-environment jsdom */
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { inTray } from "../../components/tray.test-support.js";
-import { instancePanelSeams } from "./InstanceCapabilitiesPanel.js";
 import {
-  installPanelFixture,
-  renderPanel,
-} from "./settings-panels.test-support.js";
+  InstanceCapabilitiesPanel,
+  instancePanelSeams,
+} from "./InstanceCapabilitiesPanel.js";
+import { installPanelFixture } from "./settings-panels.test-support.js";
 
 installDoublePorts();
 installPanelFixture();
@@ -38,7 +44,7 @@ describe("the instance policy when a preset is refused", () => {
     instancePanelSeams.save = async () => {
       throw new Error(SENTENCE);
     };
-    renderPanel();
+    render(<InstanceCapabilitiesPanel />);
     fireEvent.click(screen.getByTestId("purpose-card-personal"));
     await waitFor(() =>
       expect(within(head()).getByRole("img", { name: SENTENCE })).toBeTruthy(),
@@ -51,7 +57,7 @@ describe("the instance policy when a preset is refused", () => {
     instancePanelSeams.save = async () => {
       saved += 1;
     };
-    renderPanel();
+    render(<InstanceCapabilitiesPanel />);
     fireEvent.click(screen.getByTestId("purpose-card-personal"));
     await waitFor(() => expect(saved).toBe(1));
     expect(within(head()).queryByRole("img", { name: SENTENCE })).toBeNull();

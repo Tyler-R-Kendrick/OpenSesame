@@ -366,13 +366,49 @@ describe("ItemEditor", () => {
       revoke();
     }
   });
-  it("strips non-digits from card numbers", async () => {
+  it("formats card numbers and keeps the stored value numeric", async () => {
     renderEditor("/vault/new/card");
     await userEvent.type(
       screen.getByLabelText(/^Number$/i),
       "4111-1111 x 4242",
     );
-    expect(inputByLabel(/^Number$/i).value).toBe("411111114242");
+    expect(inputByLabel(/^Number$/i).value).toBe("4111 1111 4242");
+    expect(inputByLabel(/^Number$/i).value.replace(/\s/g, "")).toBe(
+      "411111114242",
+    );
+  });
+
+  it("infers a brand from a checksum-valid number and accepts a manual brand otherwise", async () => {
+    renderEditor("/vault/new/card");
+    expect(screen.queryByRole("button", { name: "Add brand" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Add security code" }),
+    ).toBeNull();
+    expect(screen.getByLabelText("Security code (optional)")).toBeTruthy();
+
+    await userEvent.type(
+      screen.getByLabelText(/^Number$/i),
+      "4111111111111111",
+    );
+    expect(inputByLabel("Brand")).toHaveProperty("value", "Visa");
+    expect(screen.getByText(/Detected from the number: Visa/)).toBeTruthy();
+
+    await userEvent.clear(screen.getByLabelText(/^Number$/i));
+    await userEvent.type(
+      screen.getByLabelText(/^Number$/i),
+      "1234567812345670",
+    );
+    expect(inputByLabel("Brand")).toHaveProperty("value", "");
+    await userEvent.type(screen.getByLabelText("Brand"), "Credit union");
+    expect(inputByLabel("Brand")).toHaveProperty("value", "Credit union");
+    await userEvent.type(
+      screen.getByLabelText("Security code (optional)"),
+      "12a3",
+    );
+    expect(inputByLabel("Security code (optional)")).toHaveProperty(
+      "value",
+      "123",
+    );
   });
   it("adds, edits, and removes website addresses", async () => {
     renderEditor("/vault/new/account?uri=https://old.example.com");
@@ -392,9 +428,21 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-  it("starts with an empty address and saves its removal", async () => {
+  it("saves a generated password with no site as the all-domains rule", async () => {
     renderEditor();
-    expect(inputByLabel("Address 1").value).toBe("");
+    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(savedItem()).toMatchObject({
+      kind: "account",
+      uris: [{ uri: "*", match: "wildcard" }],
+    });
+  });
+  it("starts with an all-domains wildcard and saves its removal", async () => {
+    renderEditor();
+    expect(inputByLabel("Address 1").value).toBe("*");
+    expect(
+      (screen.getByLabelText("Match rule 1") as HTMLSelectElement).value,
+    ).toBe("wildcard");
     await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));

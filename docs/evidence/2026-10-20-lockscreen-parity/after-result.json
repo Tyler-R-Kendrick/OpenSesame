@@ -1,0 +1,3021 @@
+{
+  "stage": "after",
+  "failures": [],
+  "log": [
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "reference-size hero matches x80/y150/about700px"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "reference-size card starts around x293"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "reference-size heading starts around y368"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "reference-size Release Notes heading matches x884/y116"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1663x946-dark",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.090, maximum 1.176)"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "reference-size hero matches x80/y150/about700px"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "reference-size card starts around x293"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "reference-size heading starts around y368"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "reference-size Release Notes heading matches x884/y116"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.082, maximum 1.153)"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "1663x946-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "reference-size hero matches x80/y150/about700px"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "reference-size card starts around x293"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "reference-size heading starts around y368"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "reference-size Release Notes heading matches x884/y116"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.090, maximum 1.176)"
+    },
+    {
+      "step": "1663x946-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "1663x946-resized-390",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1280x900-dark",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.090, maximum 1.176)"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.092, maximum 1.163)"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "1280x900-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.090, maximum 1.176)"
+    },
+    {
+      "step": "1280x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "1280x900-resized-390",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1100x900-dark",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.090, maximum 1.176)"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.092, maximum 1.163)"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "1100x900-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.090, maximum 1.176)"
+    },
+    {
+      "step": "1100x900-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "1100x900-resized-390",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1024x1366-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "1024x1366-light",
+      "kind": "PASS",
+      "detail": "collapsed release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1024x1366-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.125, maximum 1.190)"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "1024x1366-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "320x568-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "320x568-light",
+      "kind": "PASS",
+      "detail": "collapsed release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "320x568-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.125, maximum 1.190)"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "320x568-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "390x844-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "390x844-light",
+      "kind": "PASS",
+      "detail": "collapsed release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "390x844-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.137, maximum 1.190)"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "390x844-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "430x932-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "430x932-light",
+      "kind": "PASS",
+      "detail": "collapsed release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "430x932-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.125, maximum 1.190)"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "430x932-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "844x390-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "844x390-light",
+      "kind": "PASS",
+      "detail": "collapsed release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "844x390-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.137, maximum 1.190)"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "844x390-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "568x320-dark",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "idle cipher rings visibly repaint over time"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "large hero wordmark keeps its authored live animation"
+    },
+    {
+      "step": "568x320-light",
+      "kind": "PASS",
+      "detail": "collapsed release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes stay below the complete credential card"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "stacked release notes remain within the viewport"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "568x320-notes-expanded",
+      "kind": "PASS",
+      "detail": "expanded release-note summary remains reachable by pointer"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "the document fits the viewport width"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "hero remains within the viewport"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card remains within the viewport"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "credential field stays usable and unclipped"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "all eleven cipher rings remain mounted"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "newest release is marked Latest"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes begin at the 50/50 divider"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "release notes fill the right half"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "hero stays inside the left pane"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "dial is centered on the divider"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "dial vertical center follows the reference"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "credential card keeps its readable 352px measure"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "fixed bezel uses the actual device pixel ratio"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "idle overlay has no foreground index/readout ink"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher glyphs remain painted"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "cipher layer stays faint rather than opaque"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "composite contrast samples the empty upper dial arc"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "upper dial arc stays subordinate (99th percentile 1.137, maximum 1.190)"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "real PIN unlock advances the opening doors and reaches the vault"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced motion leaves the decorative ring canvases static"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion hero remains painted and static"
+    },
+    {
+      "step": "568x320-resized-1280",
+      "kind": "PASS",
+      "detail": "reduced-motion rings remain painted and static after live resize"
+    }
+  ]
+}

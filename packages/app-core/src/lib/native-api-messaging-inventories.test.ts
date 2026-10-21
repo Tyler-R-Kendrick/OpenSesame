@@ -1,6 +1,8 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { expect, it } from "vitest";
 import {
   nativeMessagingInventories,
+  projectLinqMessagingLines,
   projectMessagebirdMessages,
   projectTelegramCommands,
 } from "./native-api-messaging-inventories.js";
@@ -274,4 +276,80 @@ it("refuses caller-selected auth, path, filter, language, scope and pagination b
     ).toBeNull();
   }
   expect(fetch).not.toHaveBeenCalled();
+});
+
+function line(index = 0) {
+  return {
+    id: `550e8400-e29b-41d4-a716-${String(index).padStart(12, "0")}`,
+    phone_number: "+12025551234",
+    line_type: "iMessage",
+    reputation: {
+      status: "HEALTHY",
+      doc_url:
+        "https://docs.linqapp.com/channel/imessage/guides/phone-numbers/phone-reputation#healthy",
+    },
+    forwarding_number: "+12025559999",
+    private_data: "private-linq-data",
+  };
+}
+const reply = { phone_numbers: [line()] };
+type InvalidReply = { name: string; body: BoundaryValue };
+function invalidLine<T extends object>(name: string, changes: T) {
+  return { name, body: { phone_numbers: [{ ...line(), ...changes }] } };
+}
+const invalidReplies: InvalidReply[] = [
+  { name: "missing collection", body: {} },
+  { name: "wrong collection", body: { phone_numbers: {} } },
+  invalidLine("invalid UUID", { id: "foreign" }),
+  invalidLine("invalid E.164", { phone_number: "12025551234" }),
+  invalidLine("invalid line type", { line_type: "SMS" }),
+  invalidLine("invalid reputation", {
+    reputation: { status: "UNKNOWN", doc_url: "https://docs.linqapp.com" },
+  }),
+  invalidLine("missing reputation URL", { reputation: { status: "HEALTHY" } }),
+  {
+    name: "case-folded duplicate",
+    body: {
+      phone_numbers: [line(), { ...line(), id: line().id.toUpperCase() }],
+    },
+  },
+  {
+    name: "failed envelope",
+    body: { ...reply, error: { message: "safe provider error" } },
+  },
+  {
+    name: "invalid hidden row",
+    body: {
+      phone_numbers: [
+        ...Array.from({ length: 20 }, (_, i) => line(i)),
+        { ...line(21), phone_number: "invalid" },
+      ],
+    },
+  },
+];
+it.each(invalidReplies)(
+  "$name is rejected by the same parser used before Save and resource projection",
+  ({ body }) => {
+    expect(() => projectLinqMessagingLines(body)).toThrow();
+  },
+);
+it("preserves empty inventory and validates every returned line before showing at most twenty", () => {
+  expect(projectLinqMessagingLines({ phone_numbers: [] })).toEqual({
+    label: "Showing 0 of 0 returned messaging lines",
+    items: [],
+  });
+  expect(
+    projectLinqMessagingLines({
+      phone_numbers: Array.from({ length: 25 }, (_, i) => line(i)),
+    }),
+  ).toMatchObject({
+    label: "Showing 20 of 25 returned messaging lines",
+    items: expect.any(Array),
+  });
+  const noType = line();
+  Reflect.deleteProperty(noType, "line_type");
+  const projected = projectLinqMessagingLines({ phone_numbers: [noType] });
+  expect(projected.items).toEqual([
+    { id: line().id, label: "+12025551234 — HEALTHY" },
+  ]);
 });

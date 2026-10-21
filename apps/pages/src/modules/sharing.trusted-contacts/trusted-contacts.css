@@ -124,3 +124,24 @@
   gap: 0.5rem;
   min-height: 2.25rem;
 }
+
+.unlock-circle-person {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.unlock-circle-person label {
+  flex: 1;
+  min-width: 0;
+}
+
+.unlock-circle-person__missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: none;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+}

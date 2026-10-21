@@ -1,5 +1,5 @@
 /**
- * Settings › Features — the switch every section and capability tile
+ * Settings › Features — the switch every section and capability row
  * wears, and the Guests section, which is a switch and nothing else.
  *
  * "Allow guests" is the one switch that is not a capability: the guest road
@@ -8,8 +8,11 @@
 
 import { setGuestsAllowed } from "@opensesame/app-core/lib/guest-access.js";
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 import { useGuestsAllowed } from "../../bindings/guest-access.js";
+import { IconChevronRight } from "../../components/Icons.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { featureConfigPath } from "./feature-config-path.js";
 import { useDeviceOperator } from "./useDeviceOperator.js";
 
 /** The subheader every section wears: its title, and its switch if any. */
@@ -17,6 +20,7 @@ export function SectionHead({
   id,
   title,
   headRef,
+  to,
   children,
 }: {
   /** The heading's id, which names its section (`aria-labelledby`). */
@@ -24,13 +28,24 @@ export function SectionHead({
   title: string;
   /** Binds the heading row as the section's tutorial target. */
   headRef?: (element: HTMLDivElement | null) => void;
+  /** Where the section's own configuration page lives, when it has one. */
+  to?: string;
   children?: ReactNode;
 }) {
   return (
-    <div className="conn-group__label capsection__head" ref={headRef}>
-      <h3 className="capsection__title" id={id}>
-        {title}
-      </h3>
+    <div className="capsection__head" ref={headRef}>
+      {to ? (
+        <Link className="capsection__titlelink" to={to}>
+          <h3 className="capsection__title" id={id}>
+            {title}
+          </h3>
+          <IconChevronRight className="capsection__go" size={14} />
+        </Link>
+      ) : (
+        <h3 className="capsection__title" id={id}>
+          {title}
+        </h3>
+      )}
       {children}
     </div>
   );
@@ -87,11 +102,15 @@ export function GuestSection() {
   if (!useGuestRowShown()) return null;
   return (
     <section
-      className="conn-group capsection"
+      className="capsection"
       id="feature-guests"
       aria-labelledby="feature-guests-title"
     >
-      <SectionHead id="feature-guests-title" title="Guests">
+      <SectionHead
+        id="feature-guests-title"
+        title="Guests"
+        to={featureConfigPath("guests")}
+      >
         <CapabilitySwitch
           label="Allow guests"
           on={allowed}

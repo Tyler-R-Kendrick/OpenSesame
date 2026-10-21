@@ -11,6 +11,7 @@ import {
   type AiConnectionDraft,
   AiConnectionError,
   type AiInferenceFamily,
+  isAiImageFamily,
   isAiSpeechFamily,
   textAiFamily,
 } from "./types.js";
@@ -62,6 +63,11 @@ export function aiInferenceRequest(
 }
 
 export function aiConnectionHeaders(draft: AiConnectionDraft): Headers {
+  if (isAiImageFamily(draft.family))
+    throw new AiConnectionError(
+      "configuration",
+      "Image generation requires its finite multipart adapter.",
+    );
   if (isAiSpeechFamily(draft.family))
     throw new AiConnectionError(
       "configuration",
@@ -114,6 +120,11 @@ export function aiInferenceAnswer(
   family: AiInferenceFamily,
   value: BoundaryValue,
 ): string {
+  if (isAiImageFamily(family))
+    throw new AiConnectionError(
+      "configuration",
+      "Read image generation through its owned raster adapter.",
+    );
   if (isAiSpeechFamily(family))
     throw new AiConnectionError(
       "configuration",

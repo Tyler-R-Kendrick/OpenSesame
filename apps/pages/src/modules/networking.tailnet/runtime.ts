@@ -11,7 +11,7 @@
  * Contributed: the tailnet sync observer as a background job — it follows the
  * vault store and, for a vault paired with a drive, runs a pass on unlock,
  * shortly after each change, and once a minute — and the Tailnet sync panel
- * under Settings › Vaults, where a vault is paired.
+ * on Features › Networking, where a vault is paired.
  *
  * Egress this module wraps: `GET` and `PUT` of one sealed snapshot at
  * `{drive}/v1/vault-drive/slots/{slot}/snapshot` on the tailnet drive a
@@ -35,6 +35,7 @@ import {
   registerTailnetReader,
   tailnetSyncHeaders,
 } from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
+import { sectionCategory } from "../../sections/settings/FeatureSections.js";
 import { createActivation } from "../activation.js";
 import { TailnetSyncPanel } from "./TailnetSyncPanel.js";
 import { bindTailscaleBrowserRuntime } from "./browser/runtime.js";
@@ -130,7 +131,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("settings-panel", {
       id: "tailnet-sync",
       label: "Tailnet sync",
-      category: "vaults",
+      category: sectionCategory("feature-networking"),
       Panel: TailnetSyncPanel,
       order: 10,
     });

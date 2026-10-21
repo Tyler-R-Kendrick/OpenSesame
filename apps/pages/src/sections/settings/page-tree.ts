@@ -167,7 +167,10 @@ const SECTION_BUILDERS = {
       href: settingsPath("vaults"),
       keepEmpty: true,
     })),
-    panel("vaults", "item-types", "Item types"),
+    ...contributed,
+  ],
+  "item-types": (_snapshot, contributed) => [
+    panel("item-types", "item-types", "Item types"),
     ...contributed,
   ],
   features: (snapshot, contributed) => [

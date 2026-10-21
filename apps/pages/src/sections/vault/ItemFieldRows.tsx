@@ -3,6 +3,7 @@ import {
   type CertificateItem,
   type PasskeyItem,
   type SecretItem,
+  formatCardNumber,
   isVaultCustodied,
 } from "@opensesame/vault-core";
 import {
@@ -126,7 +127,7 @@ export function CardFields({
         >
           {revealed.has("number") ? (
             <span className="frow__value frow__value--mono">
-              {item.number.replace(/(.{4})/g, "$1 ").trim()}
+              {formatCardNumber(item.number, item.brand)}
             </span>
           ) : (
             <span className="conceal">

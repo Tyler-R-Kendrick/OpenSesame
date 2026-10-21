@@ -1,12 +1,10 @@
 /** @vitest-environment jsdom */
-import { SECURITY_CHECKS_SUMMARY } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import {
   SECURITY_CHECKS_IDLE,
   clearSecurityWatch,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
-import { MAX_SUMMARY_LENGTH } from "@opensesame/capability-composition";
 import {
   type AccountItem,
   createItem,
@@ -20,6 +18,7 @@ import { securityChecksPanel } from "../../modules/vault.security-checks/Securit
 import { sectionCategory } from "./FeatureSections.js";
 import {
   installPanelFixture,
+  renderFeatureConfig,
   renderPanel,
 } from "./settings-panels.test-support.js";
 
@@ -54,19 +53,17 @@ afterEach(() => {
 });
 
 describe("Breach and two-step checks in Settings", () => {
-  it("explains the capability while its switch is off", () => {
-    expect(SECURITY_CHECKS_SUMMARY.length).toBeLessThanOrEqual(
-      MAX_SUMMARY_LENGTH,
-    );
+  it("keeps the check panel off Features and links to its page", () => {
     const { container } = renderPanel();
-    const section = container.querySelector("#feature-security-checks");
-    expect(section?.textContent).toContain(SECURITY_CHECKS_SUMMARY);
-    expect(section?.textContent).toContain("Hash prefixes");
     expect(
       screen.queryByRole("button", {
         name: "Check logins against breaches and two-step sites",
       }),
     ).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Breach checks" }).getAttribute("href"),
+    ).toBe("/settings/features/security-checks");
+    expect(container.querySelector("#feature-security-checks")).not.toBeNull();
   });
 
   it("shows breach and two-step outcomes in the section when the capability is on", async () => {
@@ -87,11 +84,12 @@ describe("Breach and two-step checks in Settings", () => {
       }),
       order: 10,
     });
-    const { container } = renderPanel();
-    const section = container.querySelector("#feature-security-checks");
-    expect(section?.textContent).toContain(SECURITY_CHECKS_SUMMARY);
+    const { container } = renderFeatureConfig(
+      "security-checks",
+      "vault.security-checks",
+    );
+    const section = container.querySelector(".feature-config");
     expect(section?.textContent).toContain(SECURITY_CHECKS_IDLE);
-    expect(screen.getAllByText(SECURITY_CHECKS_SUMMARY)).toHaveLength(1);
 
     fireEvent.click(
       screen.getByRole("button", {

@@ -14,7 +14,7 @@ import { dismissNotice, setStatusNotice } from "../notices.js";
 import { getPackSnapshot, statusOf } from "./state.js";
 
 const RUN_ID = "type-packs";
-const OPEN = { to: "/settings/vaults#item-types", label: "Open item types" };
+const OPEN = { to: "/settings/item-types", label: "Open item types" };
 /** How long a finished run stays in the tray. */
 const LINGER_MS = 5000;
 

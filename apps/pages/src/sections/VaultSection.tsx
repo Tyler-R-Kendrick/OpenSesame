@@ -8,7 +8,7 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
+import { accessIdentitySharePath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { resolveFilterSlug } from "@opensesame/app-core/lib/vault-filter-slug.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
@@ -39,6 +39,7 @@ import { VaultTree } from "./vault/VaultTree.js";
 import { VaultWelcome } from "./vault/VaultWelcome.js";
 import { accountSecretToCopy } from "./vault/account-copy.js";
 import { credentialChoices } from "./vault/account-credentials.js";
+import { useSharedItems } from "./vault/use-shared-items.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
@@ -61,6 +62,7 @@ export function VaultSection() {
   const { itemId } = useParams();
   const { items, folders } = useVault();
   const store = useVaultStore();
+  const sharedItems = useSharedItems(store.activeTomb?.() ?? "");
   const copySecret = useCopySecret();
   const navigate = useNavigate();
 
@@ -194,7 +196,8 @@ export function VaultSection() {
         if (inTrash) return;
         navigate(createPath);
       },
-      shareGrant: () => navigate(accessNewPath("grants")),
+      shareGrant: (item: VaultItem) =>
+        navigate(accessIdentitySharePath(item.id)),
       inTrash,
     }),
     [
@@ -311,6 +314,7 @@ export function VaultSection() {
             items={visible}
             folders={treeFolders}
             activeItemId={itemId}
+            sharedItems={sharedItems}
             actions={actions}
             title={title}
             total={total}

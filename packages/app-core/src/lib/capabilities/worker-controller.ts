@@ -291,6 +291,10 @@ export function registerWorkerForPlan(
   // A page that starts under a worker learns which release that is; it is what
   // a later change of controller is compared with (`onControllerChange`).
   state.bootControlled = container.controller != null;
+  state.initialReleaseProof =
+    !state.bootControlled && workerControllerSeams.crossOriginIsolated()
+      ? (options.initialReleaseProof ?? null)
+      : null;
   if (state.bootControlled) askWorker();
   const apply = () => {
     state.latest = store.getSnapshot();

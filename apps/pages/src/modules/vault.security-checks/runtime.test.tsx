@@ -120,11 +120,11 @@ describe("vault.security-checks runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the check on Settings › Vaults and in its Capabilities section", async () => {
+  it("registers the check only in its Capabilities section", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "vault.security-checks",
       kinds: ["settings-panel"],
-      count: 2,
+      count: 1,
     });
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
@@ -137,7 +137,7 @@ describe("vault.security-checks runtime", () => {
         .entries("settings-panel")
         .map((panel) => panel.category)
         .sort(),
-    ).toEqual(["features.feature-security-checks", "vaults"]);
+    ).toEqual(["features.feature-security-checks"]);
     await handle.dispose();
     expect(breachWatchSnapshot().phase).toBe("off");
   });

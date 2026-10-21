@@ -1,6 +1,7 @@
 import { performSavedAiInference } from "@opensesame/app-core/lib/ai-connections/runtime.js";
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import {
+  isAiImageFamily,
   isAiRemoteJobFamily,
   isAiSpeechFamily,
 } from "@opensesame/app-core/lib/ai-connections/types.js";
@@ -10,6 +11,7 @@ import { FormCommit } from "../../../components/FormCommit.js";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { AiImageWorkspace } from "./AiImageWorkspace.js";
 import { AiOperationInput, useLocalAudioInput } from "./AudioFields.js";
 import { predictionInputReady } from "./PredictionFields.js";
 import { useAiOperation } from "./useAiConnection.js";
@@ -111,9 +113,7 @@ function useAiInference(connectionId: string) {
     change,
   };
 }
-export function AiInferenceWorkspace({
-  connectionId,
-}: { connectionId: string }) {
+function TextInferenceWorkspace({ connectionId }: { connectionId: string }) {
   const {
     draft,
     prediction,
@@ -205,5 +205,16 @@ export function AiInferenceWorkspace({
         </output>
       </div>
     </section>
+  );
+}
+
+/** Separate components keep each family's hooks and output contracts intact. */
+export function AiInferenceWorkspace({
+  connectionId,
+}: { connectionId: string }) {
+  return isAiImageFamily(readAiConnection(connectionId)?.family) ? (
+    <AiImageWorkspace key={connectionId} connectionId={connectionId} />
+  ) : (
+    <TextInferenceWorkspace key={connectionId} connectionId={connectionId} />
   );
 }

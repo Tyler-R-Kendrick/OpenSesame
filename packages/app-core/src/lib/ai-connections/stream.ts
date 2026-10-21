@@ -126,6 +126,7 @@ export async function readAiTextStream(
   let answer = "";
   let bytes = 0;
   let completed = false;
+  let ended = false;
   const abort = () => {
     void reader.cancel().catch(() => undefined);
   };
@@ -151,6 +152,7 @@ export async function readAiTextStream(
       check();
       signal.throwIfAborted();
       const next = await reader.read();
+      ended = next.done;
       check();
       signal.throwIfAborted();
       if (next.done) break;
@@ -173,7 +175,7 @@ export async function readAiTextStream(
     check();
   } finally {
     signal.removeEventListener("abort", abort);
-    await reader.cancel().catch(() => undefined);
+    if (!ended) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
   aiCompletionSeams.observe?.({

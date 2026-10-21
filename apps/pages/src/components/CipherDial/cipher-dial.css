@@ -1,4 +1,5 @@
 .cipher-dial {
+  --cipher-dial-ink-opacity: 0.5;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -11,6 +12,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
+  opacity: var(--cipher-dial-ink-opacity);
   mask-repeat: no-repeat;
   -webkit-mask-repeat: no-repeat;
 }
@@ -29,4 +31,16 @@
   top: 0;
   z-index: 2;
   pointer-events: none;
+}
+
+/* Keep the animated cipher behind the form. The canvas ink is lifted for dark
+   themes; its layer needs less opacity to remain a faint, visible backdrop. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cipher-dial {
+    --cipher-dial-ink-opacity: 0.18;
+  }
+}
+
+:root[data-theme="dark"] .cipher-dial {
+  --cipher-dial-ink-opacity: 0.18;
 }

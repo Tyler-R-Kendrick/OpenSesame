@@ -10,6 +10,7 @@ import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconPasskey, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { cancelUnlockCeremony } from "../../lib/unlock-ceremony-arm.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 
 export function TrustedUnlockGate({
@@ -30,6 +31,7 @@ export function TrustedUnlockGate({
     setError(null);
     try {
       await store.confirmTrustedContact(principalId);
+      if (store.getSnapshot().status === "unlocked") cancelUnlockCeremony();
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -81,7 +83,14 @@ export function TrustedUnlockGate({
         message={error}
       />
       <div className="actions">
-        <button type="button" className="go-row" onClick={onCancel}>
+        <button
+          type="button"
+          className="go-row"
+          onClick={() => {
+            cancelUnlockCeremony();
+            onCancel();
+          }}
+        >
           <IconX size={16} />
           <span className="go-verb">Cancel</span>
         </button>

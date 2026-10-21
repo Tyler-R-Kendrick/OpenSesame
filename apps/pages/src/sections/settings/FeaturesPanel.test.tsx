@@ -152,18 +152,22 @@ describe("switches — the reviewed change, from a section or a tile", () => {
 describe("SURFACE-06 — a member never sees policy controls", () => {
   it("shows the instance policy only to the operator of a personal-local device in the personal tomb", () => {
     renderPanel();
-    expect(screen.getByTestId("instance-capabilities-panel")).toBeTruthy();
-    expect(screen.getByTestId("purpose-card-personal")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Instance policy" })
+        .getAttribute("href"),
+    ).toBe("/settings/features/instance-policy");
+    expect(screen.queryByTestId("purpose-card-personal")).toBeNull();
   });
 
   it("hides it from a guest and from any other tomb", () => {
     panelVault.current = { tomb: "personal", guest: true };
     renderPanel();
-    expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Instance policy" })).toBeNull();
     cleanup();
     panelVault.current = { tomb: "project-4f2a", guest: false };
     renderPanel();
-    expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Instance policy" })).toBeNull();
   });
 
   it("hides it from a member of a managed instance", () => {
@@ -172,7 +176,7 @@ describe("SURFACE-06 — a member never sees policy controls", () => {
       provenance: "same-origin-deployment",
     });
     renderPanel();
-    expect(screen.queryByTestId("instance-capabilities-panel")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Instance policy" })).toBeNull();
     expect(screen.queryByTestId("purpose-card-personal")).toBeNull();
     expect(screen.queryByRole("button", { name: /Personal/ })).toBeNull();
   });

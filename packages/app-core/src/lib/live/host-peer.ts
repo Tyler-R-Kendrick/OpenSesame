@@ -106,6 +106,7 @@ export class HostPeer {
   #greetings = 0;
   #joined = false;
   #closed = false;
+  #lastCatalog: string | null = null;
   /** This seat's end of the device broker; only a device seat has one. */
   readonly #devices: SeatDevices | null;
 
@@ -213,6 +214,8 @@ export class HostPeer {
   }
 
   #connected(channel: LiveChannel): void {
+    // A new route starts with no catalog sent on it.
+    this.#lastCatalog = null;
     if (this.#closed) {
       channel.close();
       return;
@@ -239,20 +242,38 @@ export class HostPeer {
     if (this.#sendCatalog()) this.#in();
   }
 
+  /** The catalog this seat may see. Devices see no item (ADR 0196). */
+  #catalog(): Catalog {
+    return this.options.kind === "device"
+      ? { ...this.options.catalog(), policy: "use" as const, items: [] }
+      : this.options.catalog();
+  }
+
   /**
    * Send the catalog. A guest it cannot be sent to is not in the session:
    * say so by ending it, not by counting them joined.
    */
   #sendCatalog(): boolean {
-    // A device is shown no item of the owner's vault: it is here for the
-    // connections, and the catalog it greets for is empty (ADR 0196).
-    const catalog =
-      this.options.kind === "device"
-        ? { ...this.options.catalog(), policy: "use" as const, items: [] }
-        : this.options.catalog();
-    if (this.#channel?.send({ t: "catalog", catalog })) return true;
+    const catalog = this.#catalog();
+    if (this.#channel?.send({ t: "catalog", catalog })) {
+      this.#lastCatalog = JSON.stringify(catalog);
+      return true;
+    }
     this.#closedByPeer();
     return false;
+  }
+
+  /** Push a changed catalog to an already-joined guest. */
+  refreshCatalog(): void {
+    if (!this.#channel) return;
+    const catalog = this.#catalog();
+    const fingerprint = JSON.stringify(catalog);
+    if (fingerprint === this.#lastCatalog) return;
+    if (this.#channel.send({ t: "catalog", catalog })) {
+      this.#lastCatalog = fingerprint;
+      return;
+    }
+    this.#closedByPeer();
   }
 
   #in(): void {

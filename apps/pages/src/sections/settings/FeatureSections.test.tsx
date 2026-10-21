@@ -78,11 +78,21 @@ describe("sections — one list, one style, a switch only where something is opt
     ]);
     // No second list of capabilities, no card rows, nothing that collapses.
     expect(container.querySelector(".capspanel__row")).toBeNull();
+    expect(container.querySelector(".capsection .conn-grid")).toBeNull();
     expect(container.querySelector("details")).toBeNull();
     expect(screen.queryByText("Advanced")).toBeNull();
     expect(
       screen.queryByRole("list", { name: "Permitted catalog" }),
     ).toBeNull();
+  });
+
+  it("draws a multi-capability section as switch rows, not connection cards", () => {
+    renderPanel();
+    const sharing = screen.getByRole("list", {
+      name: "Sharing capabilities",
+    });
+    expect(sharing.querySelectorAll(".capsection__cap.sw")).toHaveLength(3);
+    expect(sharing.querySelector(".conn-tile")).toBeNull();
   });
 
   it("puts the switch on the subheader of a section with optional capabilities, and none on an always-on one", () => {

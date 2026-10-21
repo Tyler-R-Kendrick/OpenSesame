@@ -4,15 +4,28 @@
  * about one record, and the tree is already at the module-size budget.
  */
 import type { VaultItem } from "@opensesame/vault-core";
-import { IconClock, IconShare, IconStar } from "../../components/Icons.js";
+import { IconClock, IconPeople, IconStar } from "../../components/Icons.js";
 import { formatExpiry } from "./expiry.js";
 
-export function Decorations({ item }: { item: VaultItem }) {
-  // A secret somebody else can open says so on the row: the grant is standing,
-  // it outlives the ceremony that made it, and the list is where a person
-  // looks for "what have I handed out". The drop beside it is the other way
-  // out and already carries its own clock.
-  const shared = item.kind === "secret" && item.grantees.length > 0;
+export function Decorations({
+  item,
+  sharedGrants = 0,
+}: {
+  item: VaultItem;
+  /** Standing item grants from the local share ledger. */
+  sharedGrants?: number;
+}) {
+  // A record somebody else can open says so on the row with the people it is
+  // shared with. The people mark sits last, immediately before the row's
+  // `⋯`, so "who can open this" reads as part of the action area.
+  const grantees = item.kind === "secret" ? item.grantees : [];
+  const shared = sharedGrants > 0 || grantees.length > 0;
+  const sharedTitle =
+    sharedGrants > 0
+      ? `Shared with ${sharedGrants} ${
+          sharedGrants === 1 ? "identity" : "identities"
+        }`
+      : `Shared with ${grantees.join(", ")}`;
   return (
     <span className="vtree__side">
       {item.kind === "drop" ? (
@@ -21,14 +34,11 @@ export function Decorations({ item }: { item: VaultItem }) {
           title={`Expires ${formatExpiry(item.expiresAt)}`}
         />
       ) : null}
-      {shared ? (
-        <IconShare
-          size={13}
-          title={`Shared with ${item.grantees.join(", ")}`}
-        />
-      ) : null}
       {item.favorite ? (
         <IconStar size={13} filled title="Favorite" className="vtree__fav" />
+      ) : null}
+      {shared ? (
+        <IconPeople size={13} className="vtree__shared" title={sharedTitle} />
       ) : null}
     </span>
   );

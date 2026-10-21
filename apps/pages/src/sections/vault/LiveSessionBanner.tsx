@@ -16,12 +16,27 @@ import { StatusMark } from "../../components/StatusMark.js";
 export function LiveSessionBanner() {
   const [count, setCount] = useState<number | null>(null);
   useEffect(() => {
-    const read = () => {
-      const status = currentGuest()?.status;
-      setCount(status?.at === "joined" ? status.catalog.items.length : null);
+    let stopStatus = () => {};
+    const listen = () => {
+      stopStatus();
+      const guest = currentGuest();
+      if (!guest) {
+        setCount(null);
+        return;
+      }
+      const read = (
+        status: NonNullable<ReturnType<typeof currentGuest>>["status"],
+      ) =>
+        setCount(status.at === "joined" ? status.catalog.items.length : null);
+      read(guest.status);
+      stopStatus = guest.subscribe(read);
     };
-    read();
-    return onLiveSessionChange(read);
+    listen();
+    const stopSession = onLiveSessionChange(listen);
+    return () => {
+      stopStatus();
+      stopSession();
+    };
   }, []);
   if (count === null) return null;
   return (

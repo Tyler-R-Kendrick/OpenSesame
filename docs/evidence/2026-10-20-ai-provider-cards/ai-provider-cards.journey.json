@@ -1,0 +1,148 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Integrations"
+        },
+        {
+          "scrollTo": "^AI$"
+        },
+        {
+          "metrics": "main, #ai_model_provider"
+        },
+        {
+          "count": [
+            "main",
+            "#ai_model_provider > li",
+            "#ai_model_provider > li > a"
+          ]
+        },
+        {
+          "report": "#ai_model_provider > li:first-child .conn-tile__name"
+        },
+        {
+          "shot": "1280-ai-overview"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Integrations"
+        },
+        {
+          "scrollTo": "^AI$"
+        },
+        {
+          "metrics": "main, #ai_model_provider"
+        },
+        {
+          "count": [
+            "main",
+            "#ai_model_provider > li",
+            "#ai_model_provider > li > a"
+          ]
+        },
+        {
+          "report": "#ai_model_provider > li:first-child .conn-tile__name"
+        },
+        {
+          "shot": "390-ai-overview"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Integrations"
+        },
+        {
+          "scrollTo": "^AI$"
+        },
+        {
+          "revealCenter": "#ai_model_provider li:has-text(\"Google Gemini\")"
+        },
+        {
+          "metrics": "main, #ai_model_provider"
+        },
+        {
+          "count": [
+            "main",
+            "#ai_model_provider > li",
+            "#ai_model_provider > li > a"
+          ]
+        },
+        {
+          "report": "#ai_model_provider > li:first-child .conn-tile__name"
+        },
+        {
+          "shot": "390-ai-restored"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-ai-overview",
+      "width": 1280,
+      "title": "AI provider cards \u2014 1280 \u00d7 900",
+      "caption": "Matching real PIN-vault compiled builds; BYO remains first. No provider credentials or responses are supplied.",
+      "before": "Four bundled providers omitted from the curated list",
+      "after": "Replicate, Stability AI, Deepgram and AssemblyAI use the existing shared cards"
+    },
+    {
+      "shot": "390-ai-overview",
+      "width": 390,
+      "title": "AI provider cards \u2014 390 \u00d7 844",
+      "caption": "Matching real PIN-vault compiled builds; BYO remains first. No provider credentials or responses are supplied.",
+      "before": "Four bundled providers omitted from the curated list",
+      "after": "Replicate, Stability AI, Deepgram and AssemblyAI use the existing shared cards"
+    },
+    {
+      "shot": "390-ai-restored",
+      "width": 390,
+      "title": "AI provider cards \u2014 390 \u00d7 844",
+      "caption": "Matching real PIN-vault compiled builds; BYO remains first. No provider credentials or responses are supplied.",
+      "before": "Four bundled providers omitted from the curated list",
+      "after": "Replicate, Stability AI, Deepgram and AssemblyAI use the existing shared cards"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import {
   identityConnectionUsesBroker,
   identityEndpoint,
 } from "./identity-connections-schema.js";
+import { nativeOidcConfigurationProblems } from "./identity-oidc-config.js";
 import { nativeSamlConfigurationProblems } from "./identity-saml-config.js";
 
 function oidcProblems(draft: IdentityConnectionDraft): string[] {
@@ -16,6 +17,9 @@ function oidcProblems(draft: IdentityConnectionDraft): string[] {
     problems.push("Enter your registered OIDC client ID");
   if (!draft.scope.split(/\s+/).includes("openid"))
     problems.push("OIDC scopes must include openid");
+  if (draft.oidcClientType === "confidential" && !draft.clientSecret)
+    problems.push("Enter the confidential OIDC client secret");
+  problems.push(...nativeOidcConfigurationProblems(draft));
   return problems;
 }
 function nativeProblems(draft: IdentityConnectionDraft): string[] {

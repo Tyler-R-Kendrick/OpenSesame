@@ -282,6 +282,14 @@ function VaultApp() {
                 element={<Navigate to="/settings/keybindings" replace />}
               />
               <Route
+                path="/settings/features/:featureId/:capabilityId?"
+                element={
+                  <Framed>
+                    <slots.SettingsSection />
+                  </Framed>
+                }
+              />
+              <Route
                 path="/settings/:category?"
                 element={
                   <Framed>

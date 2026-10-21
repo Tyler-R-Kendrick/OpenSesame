@@ -1,6 +1,7 @@
 import { replicateOperationInput } from "@opensesame/app-core/lib/ai-connections/replicate-inference.js";
 import {
   type AiConnectionDraft,
+  isAiImageFamily,
   isAiRemoteJobFamily,
   isAiSpeechFamily,
 } from "@opensesame/app-core/lib/ai-connections/types.js";
@@ -60,6 +61,18 @@ export function PredictionInput({
 }
 export function AiConnectionSetup({ draft, busy, onChange }: Fields) {
   const tokenParameterId = useId();
+  if (isAiImageFamily(draft.family))
+    return (
+      <p>
+        Testing and saving generate an actual PNG from the verification prompt
+        shown below and may incur service charges. The prompt and verification
+        image are not saved. Cancel stops waiting and closes the request; it
+        does not confirm that provider processing or charges stopped. The API
+        key is sealed in the owning vault. Use the configured native Tailscale
+        HTTP transport, or permit this browser origin and request headers for a
+        direct browser connection.
+      </p>
+    );
   if (isAiSpeechFamily(draft.family))
     return (
       <details className="conn-client-alt">

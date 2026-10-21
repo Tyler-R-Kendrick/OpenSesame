@@ -3,7 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { CipherDial } from "./CipherDial.js";
-import { PLAIN, RING_COUNT } from "./constants.js";
+import { OUTER_BEZEL_CLEARANCE, PLAIN, RING_COUNT } from "./constants.js";
 import { computeDialLayout } from "./layout.js";
 import { alignRings } from "./ring-motion.js";
 
@@ -25,6 +25,48 @@ describe("computeDialLayout", () => {
     // Notes are not a quiet zone on wide — rings meet the divider.
     expect(layout.quiet).toEqual([{ x: 80, y: 40, w: 400, h: 500 }]);
   });
+
+  it("matches the approved mid-height semicircle at the desktop reference size", () => {
+    const layout = computeDialLayout({
+      w: 1663,
+      h: 946,
+      card: { x: 293, y: 284, w: 352, h: 380 },
+      notes: { x: 831.5, y: 0, w: 831.5, h: 946 },
+      narrow: false,
+      nowMs: 0,
+    });
+    const bezel = layout.outer + layout.dr * 0.6 + OUTER_BEZEL_CLEARANCE;
+    expect(layout.cx).toBe(831.5);
+    expect(layout.cy).toBeCloseTo(466.4, 0);
+    expect(bezel).toBeCloseTo(440, 0);
+    expect(layout.cy - bezel).toBeCloseTo(26.5, 0);
+    expect(layout.cy + bezel).toBeCloseTo(906.3, 0);
+    expect(layout.rings).toHaveLength(RING_COUNT);
+    expect(new Set(layout.rings.map((ring) => ring.dir)).size).toBe(2);
+  });
+
+  it.each([
+    { w: 1100, h: 1600, divider: 550 },
+    { w: 1280, h: 500, divider: 640 },
+  ])(
+    "fits the dial inside wide windows with different aspect ratios ($w × $h)",
+    ({ w, h, divider }) => {
+      const layout = computeDialLayout({
+        w,
+        h,
+        card: { x: 40, y: 80, w: 352, h: 380 },
+        notes: { x: divider, y: 0, w: w - divider, h },
+        narrow: false,
+        nowMs: 0,
+      });
+      const bezel = layout.outer + layout.dr * 0.6 + OUTER_BEZEL_CLEARANCE;
+      expect(layout.cx - bezel).toBeGreaterThanOrEqual(0);
+      expect(layout.cy - bezel).toBeGreaterThanOrEqual(0);
+      expect(layout.cy + bezel).toBeLessThanOrEqual(h);
+      expect(layout.dr).toBeGreaterThan(0);
+      expect(layout.fs).toBeGreaterThan(0);
+    },
+  );
 
   it("never quiets the notes pane — opaque notes sit above the dial", () => {
     const notes = { x: 0, y: 520, w: 390, h: 280 };

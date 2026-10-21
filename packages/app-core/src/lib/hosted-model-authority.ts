@@ -6,6 +6,7 @@ export type CallProtocol =
   | "gemini_generate_content";
 export type AiInferenceFamily =
   | CallProtocol
+  | "stability_sd3"
   | "openai_responses"
   | "bedrock_converse"
   | "replicate_predictions"

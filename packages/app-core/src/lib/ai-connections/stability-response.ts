@@ -1,0 +1,94 @@
+/** Image-owned JSON ceiling; other AI protocols retain their smaller reader. */
+import type { BoundaryValue } from "@opensesame/os-domain";
+import { z } from "zod";
+import { decodeAiImage } from "./image-output.js";
+import { invalidAiImage } from "./image-raster.js";
+import { AiConnectionError } from "./types.js";
+export const MAX_STABILITY_JSON_BYTES = 4 * 1024 * 1024;
+export async function readStabilityJson(
+  response: Response,
+  signal: AbortSignal,
+  check: () => void,
+): Promise<BoundaryValue> {
+  const reader = response.body?.getReader();
+  if (!reader)
+    throw new AiConnectionError(
+      "response",
+      "The image service returned no response body.",
+    );
+  const abort = () => {
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener("abort", abort, { once: true });
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  let ended = false;
+  try {
+    for (;;) {
+      check();
+      signal.throwIfAborted();
+      const next = await reader.read();
+      ended = next.done;
+      check();
+      signal.throwIfAborted();
+      if (next.done) break;
+      length += next.value.byteLength;
+      if (length > MAX_STABILITY_JSON_BYTES)
+        throw new AiConnectionError(
+          "response",
+          "The generated image response exceeds the supported size.",
+        );
+      chunks.push(next.value);
+    }
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.length;
+    }
+    try {
+      return JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      );
+    } catch {
+      throw new AiConnectionError(
+        "response",
+        "The image service returned unreadable JSON.",
+      );
+    }
+  } finally {
+    signal.removeEventListener("abort", abort);
+    if (!ended) await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
+const Reply = z
+  .object({
+    image: z.string(),
+    finish_reason: z.enum(["SUCCESS", "CONTENT_FILTERED"]),
+    seed: z.number().int().min(0).max(4294967294).optional(),
+  })
+  .strict();
+export async function readStabilityImage(
+  response: Response,
+  signal: AbortSignal,
+  secret: string,
+  check: () => void,
+) {
+  if (
+    response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
+    "application/json"
+  )
+    invalidAiImage();
+  const value = await readStabilityJson(response, signal, check);
+  check();
+  const reply = Reply.safeParse(value);
+  if (!reply.success || JSON.stringify(value).includes(secret))
+    invalidAiImage();
+  if (reply.data.finish_reason === "CONTENT_FILTERED")
+    throw new AiConnectionError(
+      "response",
+      "The image service filtered this generation. Change the prompt before trying again.",
+    );
+  return decodeAiImage(reply.data.image, "image/png", secret, reply.data.seed);
+}

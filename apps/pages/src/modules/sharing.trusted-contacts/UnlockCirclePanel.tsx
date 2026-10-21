@@ -7,6 +7,7 @@
 
 import { readLocalPasskeys } from "@opensesame/app-core/lib/local-credentials.js";
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { enrollLocalPasskey } from "@opensesame/app-core/lib/local-passkeys.js";
 import {
   type TrustedUnlockPolicy,
   type TrustedUnlockView,
@@ -33,6 +34,7 @@ export const unlockCircleSeams = {
   clearPolicy: clearTrustedUnlock,
   directory: readLocalDirectory,
   passkeys: readLocalPasskeys,
+  enroll: enrollLocalPasskey,
 };
 
 function useUnlockCircle(tomb: string) {
@@ -57,13 +59,12 @@ function useUnlockCircle(tomb: string) {
         setPolicy(nextPolicy);
         setPeople(
           directory.entries
-            .filter(
-              (entry) =>
-                entry.kind === "person" &&
-                entry.enabled &&
-                passkeys.some((key) => key.principalId === entry.id),
-            )
-            .map((entry) => ({ id: entry.id, name: entry.name })),
+            .filter((entry) => entry.kind === "person" && entry.enabled)
+            .map((entry) => ({
+              id: entry.id,
+              name: entry.name,
+              hasPasskey: passkeys.some((key) => key.principalId === entry.id),
+            })),
         );
         setView(
           nextPolicy
@@ -116,13 +117,36 @@ function EditSheet({
     String(policy?.threshold ?? Math.min(2, people.length || 1)),
   );
   const [busy, setBusy] = useState(false);
+  const [enrolling, setEnrolling] = useState<string | null>(null);
   const [error, setError] = useState("");
   const chosen = people.filter((person) => selected.includes(person.id));
   const maximum = chosen.length;
   const wanted = Math.min(Number(threshold) || 1, Math.max(1, maximum));
 
+  async function enroll(person: Person): Promise<void> {
+    if (busy || enrolling !== null) return;
+    setEnrolling(person.id);
+    setError("");
+    try {
+      const result = await unlockCircleSeams.enroll(tomb, person.id);
+      result.vaultOffer?.discard();
+      setSelected((current) =>
+        current.includes(person.id) ? current : [...current, person.id],
+      );
+      onSaved();
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "The passkey could not be enrolled.",
+      );
+    } finally {
+      setEnrolling(null);
+    }
+  }
+
   async function save(): Promise<void> {
-    if (busy || chosen.length === 0) return;
+    if (busy || enrolling !== null || chosen.length === 0) return;
     setBusy(true);
     setError("");
     try {
@@ -166,13 +190,15 @@ function EditSheet({
           maximum={maximum}
           wanted={wanted}
           setThreshold={setThreshold}
+          onEnroll={(person) => void enroll(person)}
+          enrolling={enrolling}
         />
         {error ? <StatusMark tone="err" label={error} /> : null}
         <div className="actions">
           <button
             type="submit"
             className="go-row"
-            disabled={busy || chosen.length === 0}
+            disabled={busy || enrolling !== null || chosen.length === 0}
           >
             <span className="go-verb">
               {busy ? "Saving…" : "Save the circle"}

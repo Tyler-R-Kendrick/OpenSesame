@@ -229,7 +229,7 @@ try {
   await unlockSeeded(a.page);
   await saveItem(a.page, "Bank of Example");
   await networkingOn(a.page);
-  await visit(a.page, "settings/vaults");
+  await visit(a.page, "settings/features/networking/networking.tailnet");
   // Pairing is a ceremony in a sheet: the row's key opens it, the code goes
   // in the sheet, and the sheet's commit pairs.
   await a.page
@@ -263,7 +263,10 @@ try {
   await doorGuest(b.page).tap();
   await b.page.waitForTimeout(1400);
   await networkingOn(b.page);
-  await visit(b.page, `settings/vaults#pair-drive=${code}`);
+  await visit(
+    b.page,
+    `settings/features/networking/networking.tailnet#pair-drive=${code}`,
+  );
   // The link opens the sheet by itself with the code already in the field.
   const linkSheet = b.page.getByRole("dialog");
   await expect(
@@ -298,10 +301,10 @@ try {
 
   // TS-BACK
   await saveItem(b.page, "Saved on the phone");
-  await visit(b.page, "settings/vaults");
+  await visit(b.page, "settings/features/networking/networking.tailnet");
   await inStep(b.page);
   await shot(b.page, "390-device-b-in-step");
-  await visit(a.page, "settings/vaults");
+  await visit(a.page, "settings/features/networking/networking.tailnet");
   await a.page.getByRole("button", { name: "Sync now" }).click();
   await inStep(a.page);
   await visit(a.page, "vault");
@@ -321,7 +324,7 @@ try {
   await answerPrompt(a.page, "prompt");
   const before = (await readSlot(code)).generation;
   await saveItem(a.page, "Waiting on the browser");
-  await visit(a.page, "settings/vaults");
+  await visit(a.page, "settings/features/networking/networking.tailnet");
   await expect(a.page.locator("#tailnet-sync .status-mark")).toHaveAttribute(
     "aria-label",
     /waiting for local network access/,
@@ -350,7 +353,10 @@ try {
   await doorGuest(c.page).click();
   await c.page.waitForTimeout(1400);
   await networkingOn(c.page);
-  await visit(c.page, `settings/vaults#pair-drive=${code}`);
+  await visit(
+    c.page,
+    `settings/features/networking/networking.tailnet#pair-drive=${code}`,
+  );
   const refused = c.page.getByRole("dialog");
   await refused
     .getByRole("button", {

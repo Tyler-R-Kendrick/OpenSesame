@@ -162,4 +162,53 @@ describe("captured AI HTTP boundary", () => {
     ).rejects.toThrow();
     expect(observe).not.toHaveBeenCalled();
   });
+  it.each([false, true])(
+    "releases actual JSON EOF without cancelling its completed reader (malformed=%s)",
+    async (malformed) => {
+      const cancel = vi.spyOn(ReadableStreamDefaultReader.prototype, "cancel");
+      const response = new Response(malformed ? "{" : '{"answer":"complete"}');
+      const result = readAiJson(response, () => {});
+      if (malformed)
+        await expect(result).rejects.toMatchObject({ code: "response" });
+      else await expect(result).resolves.toEqual({ answer: "complete" });
+      expect(response.body?.locked).toBe(false);
+      expect(cancel).not.toHaveBeenCalled();
+    },
+  );
+  it("cancels a partial JSON producer and preserves the original authority error even when cancellation rejects", async () => {
+    const initiating = new Error("Original JSON owner ended");
+    const cancel = vi.fn(() => Promise.reject(new Error("Cancel failed")));
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"answer":'));
+        },
+        cancel,
+      }),
+    );
+    let checks = 0;
+    await expect(
+      readAiJson(response, () => {
+        if (++checks === 2) throw initiating;
+      }),
+    ).rejects.toBe(initiating);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(response.body?.locked).toBe(false);
+  });
+  it("cancels an oversized JSON producer before EOF", async () => {
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(512 * 1024 + 1));
+        },
+        cancel,
+      }),
+    );
+    await expect(readAiJson(response, () => {})).rejects.toThrow(
+      "exceeds the supported size",
+    );
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(response.body?.locked).toBe(false);
+  });
 });

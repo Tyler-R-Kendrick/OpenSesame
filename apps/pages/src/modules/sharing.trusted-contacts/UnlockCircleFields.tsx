@@ -1,7 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
+import { IconKey } from "../../components/IconKey.js";
+import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
-export type Person = Readonly<{ id: string; name: string }>;
+export type Person = Readonly<{
+  id: string;
+  name: string;
+  hasPasskey: boolean;
+}>;
 
 type UnlockCircleFieldsProps = {
   name: string;
@@ -12,6 +18,8 @@ type UnlockCircleFieldsProps = {
   maximum: number;
   wanted: number;
   setThreshold: (value: string) => void;
+  onEnroll: (person: Person) => void;
+  enrolling: string | null;
 };
 
 export function UnlockCircleFields({
@@ -23,6 +31,8 @@ export function UnlockCircleFields({
   maximum,
   wanted,
   setThreshold,
+  onEnroll,
+  enrolling,
 }: UnlockCircleFieldsProps) {
   return (
     <>
@@ -44,11 +54,15 @@ export function UnlockCircleFields({
         ) : (
           <ul className="unlock-circle-people">
             {people.map((person) => (
-              <li key={person.id}>
+              <li key={person.id} className="unlock-circle-person">
                 <label>
                   <input
                     type="checkbox"
                     checked={selected.includes(person.id)}
+                    disabled={
+                      enrolling !== null ||
+                      (!person.hasPasskey && !selected.includes(person.id))
+                    }
                     onChange={(event) =>
                       setSelected((current) =>
                         event.target.checked
@@ -59,6 +73,19 @@ export function UnlockCircleFields({
                   />
                   {person.name}
                 </label>
+                {person.hasPasskey ? null : (
+                  <span className="unlock-circle-person__missing">
+                    No passkey
+                    <IconKey
+                      small
+                      label={`Enroll a passkey for ${person.name}`}
+                      disabled={enrolling !== null}
+                      onClick={() => onEnroll(person)}
+                    >
+                      <IconPlus size={14} />
+                    </IconKey>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

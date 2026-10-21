@@ -4,14 +4,14 @@
  * A section is a subheader and the switch on it: one switch over all of the
  * section's optional capabilities, through the same review and consent
  * receipt as a single one. A section with more than one also lists each as
- * a tile with its own switch, so no second list of capabilities is needed
- * anywhere on the page. A section with nothing to switch on this device is
- * not drawn (ADR 0158). The third-party services a feature connects to are
- * configured on Settings › Integrations, and nothing here waits on them
- * (ADR 0189).
+ * a switch row with its own switch, so no second list or card style is
+ * needed anywhere on the page. Each row opens that feature's own page; no
+ * configuration panel is drawn on this list. A section with nothing to
+ * switch on this device is not drawn (ADR 0158). The third-party services a
+ * feature connects to are configured on Settings › Integrations, and nothing
+ * here waits on them (ADR 0189).
  */
 
-import { SECURITY_CHECKS_SUMMARY } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
 import {
   FEATURES,
   type Feature,
@@ -28,24 +28,24 @@ import {
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useCallback } from "react";
+import { Link } from "react-router";
 import { useComposition } from "../../bindings/capabilities.js";
-import { useContributions } from "../../bindings/contributions.js";
+import { IconChevronRight } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { ConnectorMark } from "../connections/ConnectorMark.js";
 import {
   CapabilitySwitch,
   GuestSection,
   SectionHead,
 } from "./CapabilitySwitch.js";
 import { WithdrawnMark, titleOf } from "./SectionMarks.js";
+import { featureConfigPath } from "./feature-config-path.js";
 
 /**
- * The `settings-panel` category that draws a panel inside one section
- * (`features.feature-<id>`) — a category no settings route renders on
- * its own, so the panel appears in its section and nowhere else.
+ * The `settings-panel` category a feature's own page reads
+ * (`features.feature-<id>`). The list never draws these panels inline.
  */
 export function sectionCategory(sectionId: string): string {
   return `features.${sectionId}`;
@@ -65,7 +65,7 @@ const SAID_BY_SWITCH: ReadonlySet<string> = new Set([
  * switch cannot say (conflict, consent required, restart required, starting,
  * selected · not yet applied …).
  */
-function BesideSwitch({ id }: { id: CapabilityId | undefined }) {
+export function BesideSwitch({ id }: { id: CapabilityId | undefined }) {
   const snapshot = useComposition();
   if (id === undefined) return null;
   const status = capabilityStatus(
@@ -111,7 +111,10 @@ function SectionSwitch({
     feature.capabilities.length === 1 ? feature.capabilities[0] : undefined;
   return (
     <span className="capsection__controls">
-      {/* A section with several capabilities marks each on its tile. */}
+      {feature.capabilities.length > 1 ? (
+        <span className="capsection__all">All</span>
+      ) : null}
+      {/* A section with several capabilities marks each on its row. */}
       <BesideSwitch id={only} />
       <CapabilitySwitch
         label={feature.title}
@@ -135,8 +138,8 @@ function SectionSwitch({
   );
 }
 
-/** One optional capability of a section with several, as a tile. */
-function CapabilityTile({
+/** One optional capability of a section with several, as a switch row. */
+function CapabilityRow({
   feature,
   id,
   current,
@@ -173,20 +176,14 @@ function CapabilityTile({
         }
       : capabilityStatus(state, snapshot.lifecycle[id]);
   return (
-    <li className={`conn-tile${on ? " is-on" : ""}`}>
-      <div className="conn-tile__row">
-        <span className="conn-tile__link capsection__cap">
-          <ConnectorMark providerId={id} displayName={title} size={32} />
-          <span className="conn-tile__copy">
-            <span className="conn-tile__name">{title}</span>
-          </span>
-          {switchable ? (
-            <BesideSwitch id={id} />
-          ) : (
-            <StatusMark tone={status.tone} label={status.label} />
-          )}
-        </span>
-        {switchable ? (
+    <li className="sw capsection__cap">
+      <Link className="capsection__link" to={featureConfigPath(feature.id, id)}>
+        <span className="sw__name">{title}</span>
+        <IconChevronRight className="capsection__go" size={14} />
+      </Link>
+      {switchable ? (
+        <span className="capsection__controls">
+          <BesideSwitch id={id} />
           <CapabilitySwitch
             label={title}
             capabilityTitle={title}
@@ -204,8 +201,10 @@ function CapabilityTile({
               )
             }
           />
-        ) : null}
-      </div>
+        </span>
+      ) : (
+        <StatusMark tone={status.tone} label={status.label} />
+      )}
     </li>
   );
 }
@@ -235,21 +234,18 @@ function CapabilitySection({
     [ownHead, listHead, first],
   );
   const identityApi = useIdentityConfigured();
-  const tiles = feature.capabilities.length > 1;
+  const several = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
-  const panels = useContributions("settings-panel");
-  // A capability's own panel inside its section (a runtime-installed
-  // plugin's state and switch): there only while its module is active.
-  const own = panels.filter((panel) => panel.category === sectionCategory(id));
   // A subheader over nothing is not drawn: no switch on this device (ADR 0158).
   if (!isSwitchable(feature, plan, { identityApi })) return null;
   return (
-    <section
-      className="conn-group capsection"
-      id={id}
-      aria-labelledby={`${id}-title`}
-    >
-      <SectionHead id={`${id}-title`} title={feature.title} headRef={headRef}>
+    <section className="capsection" id={id} aria-labelledby={`${id}-title`}>
+      <SectionHead
+        id={`${id}-title`}
+        title={feature.title}
+        headRef={headRef}
+        {...(several ? {} : { to: featureConfigPath(feature.id) })}
+      >
         <WithdrawnMark backedBy={feature.backedBy} />
         <SectionSwitch
           feature={feature}
@@ -257,13 +253,13 @@ function CapabilitySection({
           onPropose={onPropose}
         />
       </SectionHead>
-      {feature.id === "security-checks" && own.length === 0 ? (
-        <p className="capsection__summary">{SECURITY_CHECKS_SUMMARY}</p>
-      ) : null}
-      {tiles ? (
-        <ul className="conn-grid" aria-label={`${feature.title} capabilities`}>
+      {several ? (
+        <ul
+          className="capsection__caps"
+          aria-label={`${feature.title} capabilities`}
+        >
           {feature.capabilities.map((id) => (
-            <CapabilityTile
+            <CapabilityRow
               key={id}
               feature={feature}
               id={id}
@@ -273,9 +269,6 @@ function CapabilitySection({
           ))}
         </ul>
       ) : null}
-      {own.map(({ id: panelId, Panel }) => (
-        <Panel key={panelId} />
-      ))}
     </section>
   );
 }

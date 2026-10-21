@@ -36,7 +36,7 @@ pub enum DriveCmd {
 pub fn pairing_link(pages_url: &str, code: &str) -> String {
     let base = pages_url.split('#').next().unwrap_or(pages_url);
     format!(
-        "{}/settings/vaults#pair-drive={code}",
+        "{}/settings/features/networking#pair-drive={code}",
         base.trim_end_matches('/')
     )
 }
@@ -115,11 +115,11 @@ mod tests {
         let link = pairing_link("https://example.test/app/", "opensesame-drive:v1:abc");
         assert_eq!(
             link,
-            "https://example.test/app/settings/vaults#pair-drive=opensesame-drive:v1:abc"
+            "https://example.test/app/settings/features/networking#pair-drive=opensesame-drive:v1:abc"
         );
         assert_eq!(
             pairing_link("https://example.test/app#old", "c"),
-            "https://example.test/app/settings/vaults#pair-drive=c"
+            "https://example.test/app/settings/features/networking#pair-drive=c"
         );
     }
 

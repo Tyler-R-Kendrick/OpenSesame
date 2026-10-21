@@ -1,4 +1,4 @@
-import { type RefObject, useCallback } from "react";
+import { type RefObject, useCallback, useRef } from "react";
 import { measureAndPaintDial } from "./apply-dial-layout.js";
 import type { DialLayout } from "./layout-types.js";
 
@@ -12,8 +12,11 @@ export function useDialRelayout(input: {
   ringCanvasRefs: RefObject<Map<number, HTMLCanvasElement>>;
   layoutRef: RefObject<DialLayout | null>;
   inkRef: RefObject<[number, number, number]>;
+  lit: number;
   onSplitX?: (x: number) => void;
 }): () => void {
+  const litRef = useRef(input.lit);
+  litRef.current = input.lit;
   const {
     paneRef,
     cardRef,
@@ -43,6 +46,7 @@ export function useDialRelayout(input: {
         ringCanvasRefs: ringCanvasRefs.current,
       },
       layoutRef.current?.rings,
+      litRef.current,
     );
     if (!result) return;
 
