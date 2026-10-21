@@ -1,0 +1,53 @@
+{
+  "kind": "paired-actual-signed-Ollama-production-PWA",
+  "viewports": [
+    {
+      "width": 1280,
+      "height": 900
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "builds": [
+    {
+      "label": "before",
+      "head": "35da37457f447ca2d3aabe4a7a6a22d0cfcb7c66",
+      "tree": "ad86eae742f510c671cca3cb0cbd3f35e924ed49",
+      "durationSeconds": 104.66818190604681,
+      "indexSHA256": "e95fbbd1c492f2622a511c5a32a04f0c71fe5128e30d165462b589db04efce2f",
+      "buildReceiptSHA256": "3c41320ed5abfd78a1f6e9a5833300031f7b35a6d7cbef6cf8468c6cbdd01193",
+      "gateReceiptSHA256": "f445a78191129f505eb109c851cf0a38dedce381c89b2a1fc9780da60e3dd09f",
+      "captureLogSHA256": "db6e4d844a4e5419ead1eb05bec734246da3e56d84eb21be9239a676577a71c8"
+    },
+    {
+      "label": "after",
+      "head": "979caf304c4b13fca55ad699798a61298a79b3ca",
+      "tree": "1d0ecf5a07117d69aac6d3a9c582ca7fa9ae47c5",
+      "durationSeconds": 111.39640221802983,
+      "indexSHA256": "302b3975686c0110bbcfdd957d35020b6498ed4aa5f8ea8dd6fb35510306826d",
+      "buildReceiptSHA256": "26713893e947e9d2902f419fae86ca38ea777120f03763b8b0a8f2b676d42714",
+      "gateReceiptSHA256": "98392c32165ea518b42638351b5916666a312ea5cc652fd82ca0590d58d4a9a6",
+      "captureLogSHA256": "a17236004d6a62e6b3166121e1bcbbf7f590838bb02511242ddf28680c726512"
+    }
+  ],
+  "measurements": {
+    "ollamaConfigurationLinks": {
+      "before": 0,
+      "after": 1
+    },
+    "sharedConfigurationForms": {
+      "before": 0,
+      "after": 1
+    },
+    "afterFormCSSPixels": {
+      "1280": "640x445",
+      "390": "358x580"
+    },
+    "oneMainAtBothWidths": true,
+    "horizontalOverflowAtEitherWidth": false,
+    "firstAiCard": "BYO AI"
+  },
+  "functionalQualification": "166 canonical owning/regression cases and32 harness cases passed. Actual desktop48.916s run completed10UIchecks/12providerPOSTs but FAILED strict audit:2ordinary SSE ERR_ABORTED and verification-only normal-build ledger mismatch. Four held cancellations were proven. Phone functional run not started. No browser acceptance success claim."
+}
