@@ -13,6 +13,7 @@ import { staleAssetReload } from "../../stale-asset-reload.js";
 import type {
   CompositionSnapshotForWorker,
   PendingTransition,
+  RegisterWorkerOptions,
   ReloadCause,
   WorkerStatus,
 } from "./types.js";
@@ -37,6 +38,8 @@ export type ControllerState = {
   bootControlled: boolean;
   /** The release the page's shell belongs to: its first controller's answer. */
   bootReleaseId: string | null;
+  initialReleaseProof: RegisterWorkerOptions["initialReleaseProof"] | null;
+  initialClaim: { cancel: () => void } | null;
   /** A hello is out and unanswered; another is not sent on top of it. */
   helloPending: boolean;
   /**
@@ -89,6 +92,8 @@ function initialFields(): ControllerState {
     pendingTransition: null,
     bootControlled: false,
     bootReleaseId: null,
+    initialReleaseProof: null,
+    initialClaim: null,
     helloPending: false,
     takeover: null,
     afterTakeover: null,
@@ -122,6 +127,7 @@ export function diagnose(code: string): void {
 
 /** Test seam: forget every page-level decision. */
 export function resetWorkerController(): void {
+  state.takeover?.cancel();
   state.recheckCancel?.();
   Object.assign(state, initialFields());
   notify();
