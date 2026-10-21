@@ -114,7 +114,7 @@ function RestoreForm({ handle, onFlash }: Props) {
 }
 function BackupForm({ handle, onFlash }: Props) {
   const status = useBackupAction({ handle, onFlash });
-  const [name, setName] = useState("OpenSesame vault backup");
+  const [name, setName] = useState("opensesame-vault-backup");
   const [reference, setReference] = useState("");
   function backup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -97,7 +97,7 @@ it("shows verified backup success and the actual saved reference only after the 
   await act(async () =>
     complete({
       id: "server-backup-17",
-      name: "OpenSesame vault backup",
+      name: "opensesame-vault-backup",
       kind: "note",
     }),
   );
@@ -112,7 +112,7 @@ it("shows verified backup success and the actual saved reference only after the 
   ).toBeTruthy();
   expect(dependencies.backup).toHaveBeenCalledWith(
     opened,
-    "OpenSesame vault backup",
+    "opensesame-vault-backup",
     expect.any(Function),
   );
 });
