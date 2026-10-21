@@ -114,6 +114,7 @@ export async function inferStabilityAi(
     throw error;
   } finally {
     clearTimeout(timer);
-    void response?.body?.cancel().catch(() => undefined);
+    if (response && !response.bodyUsed)
+      void response.body?.cancel().catch(() => undefined);
   }
 }

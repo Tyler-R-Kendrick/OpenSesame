@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HostedModelInput } from "../hosted-model-protocol.js";
 import { inferStabilityAi } from "./stability-inference.js";
+import { readStabilityJson } from "./stability-response.js";
 import {
   STABILITY_SD3_BASE,
   type StabilityAiTarget,
@@ -43,6 +44,7 @@ async function closed(row: { closed: boolean }) {
 }
 afterEach(async () => {
   for (const item of active.splice(0)) await item.close();
+  vi.restoreAllMocks();
 });
 describe("official finite Stability SD3 over independently verified owned HTTPS", () => {
   it.each([
@@ -53,6 +55,11 @@ describe("official finite Stability SD3 over independently verified owned HTTPS"
     "sends saved exact target/model %s %s and consumes raster bytes",
     async (base, model) => {
       const local = await fixture(base, model);
+      const cancelReader = vi.spyOn(
+        ReadableStreamDefaultReader.prototype,
+        "cancel",
+      );
+      const cancelBody = vi.spyOn(ReadableStream.prototype, "cancel");
       const draft = target(base, model);
       let acquisitions = 0;
       local.port.capture = () => {
@@ -90,6 +97,8 @@ describe("official finite Stability SD3 over independently verified owned HTTPS"
         ["output_format", "png"],
       ]);
       expect(acquisitions).toBe(0);
+      expect(cancelReader).not.toHaveBeenCalled();
+      expect(cancelBody).not.toHaveBeenCalled();
       result.image.release();
     },
   );
@@ -126,6 +135,7 @@ describe("official finite Stability SD3 over independently verified owned HTTPS"
     "oversized",
   ])("rejects %s without provider/private output or retry", async (mode) => {
     const local = await fixture();
+    const cancelBody = vi.spyOn(ReadableStream.prototype, "cancel");
     local.state.mode = mode;
     const result = await inferStabilityAi(
       target(),
@@ -143,6 +153,29 @@ describe("official finite Stability SD3 over independently verified owned HTTPS"
     expect(result.message).not.toContain(RASTER_FIXTURES.png);
     expect(local.records).toHaveLength(1);
     if (mode === "filtered") expect(result.message).toContain("filtered");
+    if (["wrong-mime", "http-400", "http-401"].includes(mode))
+      expect(cancelBody).toHaveBeenCalledOnce();
+  });
+  it("cancels a partial image JSON producer without replacing the original owner error", async () => {
+    const initiating = new Error("Original image owner ended");
+    const cancel = vi.fn(() => Promise.reject(new Error("Cancel failed")));
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"image":'));
+        },
+        cancel,
+      }),
+    );
+    let checks = 0;
+    await expect(
+      readStabilityJson(response, new AbortController().signal, () => {
+        if (++checks === 2) throw initiating;
+      }),
+    ).rejects.toBe(initiating);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(response.bodyUsed).toBe(true);
+    expect(response.body?.locked).toBe(false);
   });
   it("rejects chat/media/token/model/path misuse before egress", async () => {
     const local = await fixture();

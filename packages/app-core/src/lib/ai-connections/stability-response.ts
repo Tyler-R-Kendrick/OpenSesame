@@ -22,11 +22,13 @@ export async function readStabilityJson(
   signal.addEventListener("abort", abort, { once: true });
   const chunks: Uint8Array[] = [];
   let length = 0;
+  let ended = false;
   try {
     for (;;) {
       check();
       signal.throwIfAborted();
       const next = await reader.read();
+      ended = next.done;
       check();
       signal.throwIfAborted();
       if (next.done) break;
@@ -56,7 +58,7 @@ export async function readStabilityJson(
     }
   } finally {
     signal.removeEventListener("abort", abort);
-    void reader.cancel().catch(() => undefined);
+    if (!ended) void reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }

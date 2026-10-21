@@ -104,6 +104,11 @@ it.each(["stability", "byo-ai"] as const)(
   "exposes the actual %s form and consumes Test/Save, cold restore, then independently owned local preview/download",
   async (provider) => {
     const f = await setup(provider);
+    const cancelReader = vi.spyOn(
+      ReadableStreamDefaultReader.prototype,
+      "cancel",
+    );
+    const cancelBody = vi.spyOn(ReadableStream.prototype, "cancel");
     const onFlash = vi.fn();
     render(<AiConnectionPanels providerId={provider} onFlash={onFlash} />);
     if (provider === "byo-ai") {
@@ -180,6 +185,8 @@ it.each(["stability", "byo-ai"] as const)(
     expect(f.host.urls[0].type).toBe("image/png");
     expect(f.captures()).toBe(captures);
     expect(f.http.records).toHaveLength(3);
+    expect(cancelReader).not.toHaveBeenCalled();
+    expect(cancelBody).not.toHaveBeenCalled();
     expect(onFlash).not.toHaveBeenCalled();
     expect(document.body.textContent).not.toContain(STABILITY_KEY);
     for (const secret of [STABILITY_KEY, STABILITY_PROMPT]) {
