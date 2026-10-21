@@ -32,13 +32,16 @@ async function setup() {
   const vault = await runtimeFixture();
   const http = await ollamaTlsFixture();
   const signals: AbortSignal[] = [];
+  const responses: Response[] = [];
   closes.push(vault.close, http.close);
   const release = bindAiConnectionTransport({
     ...http.port,
-    fetch(input, init) {
+    async fetch(input, init) {
       if (!init?.signal) throw new Error("Actual request signal required");
       signals.push(init.signal);
-      return http.port.fetch(input, init);
+      const response = await http.port.fetch(input, init);
+      responses.push(response);
+      return response;
     },
   });
   closes.push(async () => release());
@@ -55,7 +58,7 @@ async function setup() {
   const owners: SecretBackendActionOwner[] = [];
   const answers: string[] = [];
   let complete = false;
-  function start() {
+  function start(stream = true) {
     let task = Promise.resolve(false);
     act(() => {
       task = view.result.current.runAi(async (owner) => {
@@ -67,7 +70,7 @@ async function setup() {
             messages: [{ role: "user", content: "Original owned response" }],
           },
           { signal: owner.signal, assertCurrent: owner.check },
-          (text) => answers.push(text),
+          stream ? (text) => answers.push(text) : undefined,
         );
         expect(response.answer).toBe(OLLAMA_TEXT);
         complete = true;
@@ -79,6 +82,7 @@ async function setup() {
   return {
     http,
     signals,
+    responses,
     saved,
     flash,
     view,
@@ -89,23 +93,37 @@ async function setup() {
   };
 }
 
-it("completes actual TLS SSE without aborting its consumed HTTP signal during generic successful retirement", async () => {
-  const f = await setup();
-  await act(async () => {
-    expect(await f.start()).toBe(true);
-  });
-  expect(f.complete()).toBe(true);
-  expect(f.http.records.at(-1)).toMatchObject({ stream: true, finished: true });
-  const owner = f.owners[0];
-  expect(owner).toBeDefined();
-  expect(owner?.current()).toBe(false);
-  expect(() => owner?.check()).toThrow(/ended/);
-  expect(owner?.signal.aborted).toBe(false);
-  expect(f.signals.at(-1)?.aborted).toBe(false);
-  expect(f.view.result.current.result).toBe("Actual response finished");
-  expect(f.view.result.current.busy).toBe(false);
-  expect(f.http.errors).toEqual([]);
-});
+it.each([false, true])(
+  "completes actual TLS stream=%s without cancelling the EOF reader or aborting its consumed HTTP during generic retirement",
+  async (stream) => {
+    const f = await setup();
+    const readers = vi.spyOn(ReadableStream.prototype, "getReader");
+    const cancel = vi.spyOn(ReadableStreamDefaultReader.prototype, "cancel");
+    await act(async () => {
+      expect(await f.start(stream)).toBe(true);
+    });
+    expect(f.complete()).toBe(true);
+    expect(f.http.records.at(-1)).toMatchObject({ stream, finished: true });
+    const response = f.responses.at(-1);
+    const index = readers.mock.contexts.findIndex(
+      (body) => body === response?.body,
+    );
+    expect(index).toBeGreaterThanOrEqual(0);
+    const reader = readers.mock.results[index];
+    expect(reader?.type).toBe("return");
+    expect(cancel.mock.contexts).not.toContain(reader?.value);
+    expect(response?.body?.locked).toBe(false);
+    const owner = f.owners[0];
+    expect(owner).toBeDefined();
+    expect(owner?.current()).toBe(false);
+    expect(() => owner?.check()).toThrow(/ended/);
+    expect(owner?.signal.aborted).toBe(false);
+    expect(f.signals.at(-1)?.aborted).toBe(false);
+    expect(f.view.result.current.result).toBe("Actual response finished");
+    expect(f.view.result.current.busy).toBe(false);
+    expect(f.http.errors).toEqual([]);
+  },
+);
 
 it.each(["clear", "unmount", "vault", "remove"] as const)(
   "keeps DONE-before-EOF pending and physically closes held TLS on %s withdrawal",

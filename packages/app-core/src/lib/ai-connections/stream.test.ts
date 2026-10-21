@@ -8,6 +8,7 @@ import { readAiTextStream } from "./stream.js";
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
   while (cleanups.length) await cleanups.pop()?.();
+  vi.restoreAllMocks();
 });
 const contracts = [
   {
@@ -86,6 +87,7 @@ describe("streaming AI families over independent HTTP", () => {
   );
 
   it("handles UTF-8 and CRLF split across arbitrary byte boundaries", async () => {
+    const cancel = vi.spyOn(ReadableStreamDefaultReader.prototype, "cancel");
     const bytes = new TextEncoder().encode(
       'data: {"choices":[{"delta":{"content":"雪"}}]}\r\n\r\ndata: [DONE]\r\n\r\n',
     );
@@ -109,9 +111,12 @@ describe("streaming AI families over independent HTTP", () => {
       ),
     ).toBe("雪");
     expect(chunks).toEqual(["雪"]);
+    expect(response.body?.locked).toBe(false);
+    expect(cancel).not.toHaveBeenCalled();
   });
 
   it("refuses truncated streams instead of reporting the partial answer as complete", async () => {
+    const cancel = vi.spyOn(ReadableStreamDefaultReader.prototype, "cancel");
     const response = new Response(
       'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n',
       { headers: { "content-type": "text/event-stream" } },
@@ -125,6 +130,39 @@ describe("streaming AI families over independent HTTP", () => {
         new AbortController().signal,
       ),
     ).rejects.toMatchObject({ code: "response" });
+    expect(response.body?.locked).toBe(false);
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("cancels a still-open SSE producer and preserves its consumer error when cancellation rejects", async () => {
+    const initiating = new Error("Original stream consumer ended");
+    const cancel = vi.fn(() => Promise.reject(new Error("Cancel failed")));
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n',
+            ),
+          );
+        },
+        cancel,
+      }),
+      { headers: { "content-type": "text/event-stream" } },
+    );
+    await expect(
+      readAiTextStream(
+        response,
+        "openai_chat",
+        () => {
+          throw initiating;
+        },
+        () => {},
+        new AbortController().signal,
+      ),
+    ).rejects.toBe(initiating);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(response.body?.locked).toBe(false);
   });
 
   it("cancels a pending body read when the owning lease ends", async () => {
