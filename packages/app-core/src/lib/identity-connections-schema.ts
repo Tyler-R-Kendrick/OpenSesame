@@ -1,5 +1,6 @@
 /** Shared configuration for identity adapters; passwords used to sign in are never configuration. */
 import { z } from "zod";
+import { OIDC_NATIVE_FIELDS } from "./identity-oidc-config.js";
 import { SAML_NATIVE_FIELDS } from "./identity-saml-config.js";
 import { isLoopbackUrl } from "./urls.js";
 
@@ -21,6 +22,7 @@ export const IdentityConnectionDraftSchema = z
     audience: z.string().max(2048),
     jwksUri: z.string().max(2048),
     clientSecret: z.string().max(16384),
+    ...OIDC_NATIVE_FIELDS,
     scope: z.string().max(2048),
     baseUrl: z.string().max(2048),
     publicKey: z.string().max(8192),
@@ -80,6 +82,8 @@ export function normalizeIdentityConnectionDraft(
     "brokerUrl",
     "organizationId",
     "organizationSlug",
+    "oidcOrganizationParameter",
+    "oidcOrganizationClaim",
     "samlMetadataUrl",
     "samlEntityId",
     "samlNameIdFormat",
@@ -90,6 +94,8 @@ export function normalizeIdentityConnectionDraft(
   ] as const) {
     draft[field] = draft[field].trim();
   }
+  if (draft.protocol === "oidc" && draft.clientSecret)
+    draft.oidcClientType = "confidential";
   for (const field of [
     "jwksUri",
     "baseUrl",
