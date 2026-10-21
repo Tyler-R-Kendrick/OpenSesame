@@ -7084,6 +7084,57 @@
     },
     {
       "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-14.3",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "base_url",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "model",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "authentication",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "api_key",
+          "required": false,
+          "secret": true
+        }
+      ],
+      "display_name": "Ollama",
+      "docs_url": "https://docs.ollama.com/api/openai-compatibility",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "ollama",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "ai.configure",
+        "chat.create"
+      ],
+      "provenance_url": "https://docs.ollama.com/api/openai-compatibility",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
