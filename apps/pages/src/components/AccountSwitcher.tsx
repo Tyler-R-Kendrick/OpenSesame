@@ -19,7 +19,9 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
 
 import { personGlyphId } from "@opensesame/app-core/lib/account.js";
+import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { guestVaultLabel } from "@opensesame/app-core/lib/local-guest.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   GUEST_PROFILE_ID,
   type OrgMembership,
@@ -46,6 +48,7 @@ import { useHold } from "./use-hold.js";
 
 import { useAccount } from "../bindings/account.js";
 import { useIdentitySession } from "../bindings/identity.js";
+import { useVault } from "../lib/vault/hooks.js";
 function guestLabel(hasSession: boolean, assurance?: string): string {
   if (!hasSession) return guestVaultLabel();
   if (assurance === "provisional" || !assurance) {
@@ -59,6 +62,8 @@ export type AccountSwitcherProps = { glyphHost?: HTMLElement | null };
 function AccountSwitcherDefault({ glyphHost }: AccountSwitcherProps = {}) {
   const session = useIdentitySession();
   const account = useAccount();
+  const vault = useVault();
+  const [localName, setLocalName] = useState<string | null>(null);
   const navigate = useNavigate();
   const segRef = useGuideTarget<HTMLButtonElement>("shell.account");
   const activeId = useSyncExternalStore(
@@ -67,6 +72,33 @@ function AccountSwitcherDefault({ glyphHost }: AccountSwitcherProps = {}) {
   );
   const [open, setOpen] = useState(false);
   const [memberships, setMemberships] = useState<OrgMembership[]>([]);
+
+  useEffect(() => {
+    if (account || vault.status !== "unlocked") {
+      setLocalName(null);
+      return;
+    }
+    let live = true;
+    const read = () => {
+      void readLocalDirectory(vault.tomb)
+        .then((directory) => {
+          if (!live) return;
+          const person = directory.entries.find(
+            (entry) => entry.kind === "person",
+          );
+          setLocalName(person?.name ?? null);
+        })
+        .catch(() => {
+          if (live) setLocalName(null);
+        });
+    };
+    read();
+    const stop = subscribeLocalIamChanges(read);
+    return () => {
+      live = false;
+      stop();
+    };
+  }, [account, vault.status, vault.tomb]);
 
   useEffect(() => {
     if (!session || !open) return;
@@ -92,7 +124,10 @@ function AccountSwitcherDefault({ glyphHost }: AccountSwitcherProps = {}) {
   // broker's assertion is the whole identity (ADR 0090), so it is never
   // called a guest.
   const label =
-    activeOrg?.displayName ?? account?.name ?? guestLabel(Boolean(session));
+    activeOrg?.displayName ??
+    account?.name ??
+    localName ??
+    guestLabel(Boolean(session));
   const brand = account?.providerId ? brandFor(account.providerId) : null;
   // What the prompt wears in place of the name on a phone: the organization's
   // face while one is active, else the person's.
