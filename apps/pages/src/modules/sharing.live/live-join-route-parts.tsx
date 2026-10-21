@@ -111,15 +111,7 @@ function JoinAskFields({
   vaultStatus: "empty" | "locked" | "unlocked";
   state: ReturnType<typeof useAsk>;
 }) {
-  const {
-    fields,
-    set,
-    link,
-    routes,
-    needsCode,
-    busy,
-    pinProblems,
-  } = state;
+  const { fields, set, link, routes, needsCode, busy, pinProblems } = state;
   const {
     pasted,
     code,
@@ -179,8 +171,10 @@ function JoinAskFields({
         />
       ) : null}
       {vaultStatus === "locked" ? (
-        <p className="live-help live-help--err">
-          Unlock this device before joining. Your own vault must be open.
+        <p className="live-help">
+          <IconInfo size={14} aria-hidden="true" /> You can join now. This
+          session does not need your local vault, and a locked vault can stay
+          locked until you want your own items.
         </p>
       ) : null}
       <p className="live-help">

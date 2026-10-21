@@ -84,7 +84,8 @@ function deviceSealProblem(
   pinProblem: string | null,
 ): string | null {
   const { pin, confirm, accepted } = fields;
-  if (vaultStatus === "locked") return "Unlock this device before joining.";
+  // Joining a live session never needs the local vault key. A locked vault
+  // stays locked; the owner's shared catalog is the session.
   if (vaultStatus !== "empty") return null;
   if (pin.length === 0) return "Choose a PIN for your own vault.";
   if (pinProblem !== null) return pinProblem;
