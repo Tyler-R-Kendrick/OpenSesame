@@ -74,6 +74,7 @@ const bodySchema = z
   .strict();
 type OllamaResponseState = {
   hold: boolean;
+  doneWithoutEOF: boolean;
   malformed: boolean;
   oversized: boolean;
   reflected: boolean;
@@ -120,8 +121,16 @@ function service(
         });
         const text = state.reflected ? OLLAMA_KEY : OLLAMA_TEXT;
         if (state.hold) {
-          response.writeHead(200, { "Content-Type": "application/json" });
-          response.write(" ");
+          response.writeHead(200, {
+            "Content-Type": state.doneWithoutEOF
+              ? "text/event-stream"
+              : "application/json",
+          });
+          response.write(
+            state.doneWithoutEOF
+              ? `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`
+              : " ",
+          );
         } else if (state.malformed) {
           response.writeHead(200, { "Content-Type": "application/json" });
           response.end('{"choices":[]}');
@@ -158,6 +167,7 @@ export async function ollamaTlsFixture(authenticated = false) {
   const lifetime = new AbortController();
   const state = {
     hold: false,
+    doneWithoutEOF: false,
     malformed: false,
     oversized: false,
     reflected: false,

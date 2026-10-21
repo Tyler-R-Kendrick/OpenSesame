@@ -29,6 +29,7 @@ import {
 } from "../secret-backends/useSecretBackendAction.js";
 import { useLocalAudioInput } from "./AudioFields.js";
 import { replicateVerificationInput } from "./PredictionFields.js";
+import { runAiWork } from "./ai-work-lifetime.js";
 
 export const aiConnectionUiDependencies = {
   save: saveAiConnection,
@@ -201,26 +202,7 @@ export function useAiOperation(
       signal: AbortSignal,
     ) => Promise<string | undefined>,
   ) {
-    return action.run(async (owner) => {
-      const controller = new AbortController();
-      prediction.current = controller;
-      try {
-        return await work(owner, controller.signal);
-      } catch (error) {
-        if (
-          (error instanceof ReplicatePredictionInterrupted &&
-            error.cancellationRequested) ||
-          (error instanceof AssemblyTranscriptInterrupted &&
-            error.deletionAcknowledged)
-        ) {
-          owner.check();
-          return error.message;
-        }
-        throw error;
-      } finally {
-        if (prediction.current === controller) prediction.current = null;
-      }
-    });
+    return action.run((owner) => runAiWork(owner, prediction, work));
   }
   return { ...action, runAi, onCancel: () => prediction.current?.abort() };
 }
