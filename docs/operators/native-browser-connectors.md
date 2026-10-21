@@ -3,8 +3,9 @@
 The Connections page configures the selected provider and verifies real access.
 It runs directly in the browser, without a connector relay or a browser client
 secret. The [support matrix](native-connector-support.md) covers all 225 listed
-provider identities (160 tiles appear in Add a connection), including unavailable
-native and confidential methods. Feature-bound provider categories route to their
+provider identities, including unavailable native and confidential methods.
+Add a connection draws the curated browse list; the linked support matrix covers
+every provider identity. Feature-bound provider categories route to their
 settings rather than appearing as duplicate browse tiles. Existing
 [Linear setup](connect-connectors.md#connect-linear), Git backup, GitHub, S3 and
 vault-key protection keep their specialized experiences.
@@ -127,6 +128,25 @@ separate connector IDs. **Verify [provider] access** can refresh an expired
 refreshable grant and restores provider proof; non-refreshable or reduced grants
 require authorization again. Required permissions cannot be silently removed
 or silently added after explicit deselection.
+
+## Choose the simplest secure method
+
+Connections ranks the compiled routes instead of making every provider's
+configuration mode a user decision:
+
+1. MCP with CIMD or DCR (no provider application to register);
+2. public OAuth with CIMD or PKCE;
+3. an API key with a browser-verifiable contract;
+4. an operator-supplied OAuth application;
+5. MCP with a manually registered public client;
+6. manual or confidential OAuth, which a static browser cannot complete.
+
+The first available route is selected. Remaining routes stay visible under the
+form's method choices so a person can deliberately switch; an unavailable
+route says why. This is the same pattern Linear uses, applied from the compiled
+provider metadata rather than one provider-specific form. A provider with only
+confidential OAuth remains listed but cannot be connected until it publishes a
+public browser contract or an API-key contract.
 
 ## Connect a public MCP server
 

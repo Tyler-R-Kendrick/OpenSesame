@@ -19,23 +19,21 @@ import { identityConnectionMethodLabel } from "./identity/identity-ui-values.js"
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 declareConnectionsTutorial();
 afterEach(cleanup);
-it("shows Adobe's MCP contract on the actual catalog tile instead of its legacy OAuth type", () => {
+it("keeps removed providers off the page while showing compiled protocols", () => {
   const providers = mergeVercelCatalog(getBundledProviders());
   render(
     <MemoryRouter>
       <CatalogPanel providers={providers} />
     </MemoryRouter>,
   );
-  const adobe = document.getElementById("catalog-adobe");
-  expect(adobe?.querySelector(".conn-tile__kind")?.textContent).toBe("MCP");
+  expect(document.getElementById("catalog-adobe")).toBeNull();
+  expect(document.getElementById("catalog-datadog")).toBeNull();
+  const linearProvider = providers.find((provider) => provider.id === "linear");
+  if (!linearProvider) throw new Error("Missing Linear");
   expect(
-    document
-      .getElementById("catalog-datadog")
-      ?.querySelector(".conn-tile__kind")?.textContent,
-  ).toBe("API key");
-  expect(connectPlan("adobe")?.methods.map((method) => method.kind)).toEqual([
-    "mcp",
-  ]);
+    document.getElementById("catalog-linear")?.querySelector(".conn-tile__kind")
+      ?.textContent,
+  ).toBe(catalogMethodLabel(linearProvider));
 });
 it("uses compiled provider protocols across the full public catalog and keeps legacy feature labels", () => {
   for (const provider of mergeVercelCatalog(getBundledProviders())) {

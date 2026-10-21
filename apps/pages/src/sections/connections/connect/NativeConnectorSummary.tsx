@@ -5,6 +5,7 @@ import { useState } from "react";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconTrash, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { ConnectorPanel } from "./ConnectorPanel.js";
 import {
   NativeAuthorizationControls,
   useNativeSignInUiLifetime,
@@ -250,22 +251,19 @@ export function NativeConnectorSummary(props: Props) {
   const model = useNativeSummary(props);
   const verified = nativeVerified(view);
   return (
-    <section
-      className="panel"
+    <ConnectorPanel
       id="complete"
-      tabIndex={-1}
-      aria-label={`${descriptor.name} connection status`}
-    >
-      <div className="panel__head">
-        <h2>
-          <span className="cx-step">3</span>{" "}
-          {verified ? "Complete" : "Authorization"}
-        </h2>
+      step={3}
+      title={verified ? "Complete" : "Authorization"}
+      label={`${descriptor.name} connection status`}
+      focus
+      actions={
         <StatusMark
           tone={verified ? "ok" : "warn"}
           label={verifiedLabel(view, descriptor.name)}
         />
-      </div>
+      }
+    >
       <div className="panel__body cx-form">
         <p>{view.configuration.displayName}</p>
         <NativeConfigurationFacts descriptor={descriptor} view={view} />
@@ -323,6 +321,6 @@ export function NativeConnectorSummary(props: Props) {
           ) : null}
         </div>
       </div>
-    </section>
+    </ConnectorPanel>
   );
 }

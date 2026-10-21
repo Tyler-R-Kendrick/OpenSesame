@@ -9,48 +9,14 @@
  */
 
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
 import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
 import { FeatureBindingTile } from "./FeatureBindingTile.js";
 
-/** The labs the AI section lists, in the order a person scans them. */
-export const AI_LABS = [
-  { id: "byo-ai", name: "BYO AI" },
-  { id: "openai", name: "OpenAI" },
-  { id: "anthropic", name: "Anthropic" },
-  { id: "cohere", name: "Cohere" },
-  { id: "mistral", name: "Mistral" },
-  { id: "groq", name: "Groq" },
-  { id: "perplexity", name: "Perplexity" },
-  { id: "together", name: "Together AI" },
-  { id: "replicate", name: "Replicate" },
-  { id: "huggingface", name: "Hugging Face" },
-  { id: "elevenlabs", name: "ElevenLabs" },
-  { id: "stability", name: "Stability AI" },
-  { id: "deepgram", name: "Deepgram" },
-  { id: "assemblyai", name: "AssemblyAI" },
-  { id: "gemini", name: "Google Gemini" },
-  { id: "fireworks", name: "Fireworks AI" },
-  { id: "azure-openai", name: "Azure OpenAI" },
-  { id: "aws-bedrock", name: "Amazon Bedrock" },
-  { id: "openrouter", name: "OpenRouter" },
-  { id: "xai", name: "xAI" },
-  { id: "meta", name: "Meta" },
-  { id: "zai", name: "Z.ai" },
-  { id: "deepseek", name: "DeepSeek" },
-  { id: "nvidia", name: "NVIDIA" },
-  { id: "minimax", name: "MiniMax" },
-  { id: "moonshotai", name: "Moonshot AI" },
-  { id: "alibaba", name: "Alibaba" },
-  { id: "vercel-ai-gateway", name: "Vercel" },
-  { id: "xiaomi", name: "Xiaomi" },
-  { id: "ollama", name: "Ollama" },
-  { id: "google-vertex", name: "Google Vertex AI" },
-  { id: "cloudflare-ai-gateway", name: "Cloudflare AI Gateway" },
-  { id: "higgsfield", name: "Higgsfield" },
-  { id: "fal-ai", name: "fal.ai" },
-] as const;
+/** Kept as the page-local name used by the settings tests and callers. */
+export const AI_LABS = INTEGRATION_AI_LABS;
 
 function LabTile({ id, name }: { id: string; name: string }) {
   return (

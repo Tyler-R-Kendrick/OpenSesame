@@ -19,8 +19,21 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   const tiles = [
     ...container.querySelectorAll<HTMLAnchorElement>("a.conn-tile__link"),
   ];
-  expect(container.querySelectorAll(".conn-tile").length).toBeGreaterThan(100);
+  expect(container.querySelectorAll(".conn-tile").length).toBeGreaterThan(0);
   expect(tiles.length).toBeGreaterThan(0);
+  expect(container.querySelectorAll(".conn-group__label")).toHaveLength(0);
+  expect(
+    container.querySelectorAll(".conn-tile__tags .conn-tag").length,
+  ).toBeGreaterThan(0);
+  const linearLink = container.querySelector<HTMLAnchorElement>(
+    "#catalog-linear a.conn-tile__link",
+  );
+  expect(linearLink).toBeTruthy();
+  expect(linearLink?.getAttribute("aria-describedby")).toBe(
+    "catalog-linear-tags",
+  );
+  expect(container.querySelector("#catalog-linq")).toBeNull();
+  expect(container.querySelector("#catalog-whoop")).toBeNull();
   for (const tile of tiles) expect(tile.tabIndex).toBe(-1);
   // Nothing leads to a page that does not exist: the catalog's own tiles are
   // its only links.

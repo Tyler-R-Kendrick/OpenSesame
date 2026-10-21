@@ -137,9 +137,8 @@ describe("ConnectionsSection deeper branches", () => {
       screen.getByRole("img", { name: "GitHub App registration failed." }),
     ).toBeTruthy();
     expect(window.location.search).toBe("");
-    await userEvent.selectOptions(
-      screen.getByLabelText("Connection method"),
-      "token",
+    await userEvent.click(
+      screen.getByRole("radio", { name: "Personal access token" }),
     );
     expect(
       await screen.findByLabelText("GitHub personal access token"),
@@ -158,9 +157,8 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github");
     await expectInTray("GitHub App registration could not be verified.");
     expect(window.location.search).toBe("");
-    await userEvent.selectOptions(
-      screen.getByLabelText("Connection method"),
-      "token",
+    await userEvent.click(
+      screen.getByRole("radio", { name: "Personal access token" }),
     );
     expect(
       await screen.findByLabelText("GitHub personal access token"),
@@ -190,9 +188,8 @@ describe("ConnectionsSection deeper branches", () => {
     );
     try {
       renderAt("/connections/github");
-      await userEvent.selectOptions(
-        await screen.findByLabelText("Connection method"),
-        "token",
+      await userEvent.click(
+        await screen.findByRole("radio", { name: "Personal access token" }),
       );
       expect(
         await screen.findByLabelText("GitHub personal access token"),

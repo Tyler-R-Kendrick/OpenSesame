@@ -13,6 +13,7 @@ import { bindNativeApiRuntime } from "../../../modules/connectors.external/nativ
 import { bindNativeOAuthRuntime } from "../../../modules/connectors.external/native-oauth-runtime.js";
 import { bindNativeRuntime } from "../../../modules/connectors.external/native-runtime.js";
 import { createTestContext } from "../../../modules/test-context.js";
+import { nativeInitialMethod } from "./native-connector-edit-values.js";
 import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
 
 export async function activateNativePanelRuntime() {
@@ -46,10 +47,10 @@ export function expectNativePanel(
   if (offered.length) {
     expect(within(panel).queryByLabelText("Connector name")).toBeNull();
     expect(panel.querySelector('input[type="file"]')).toBeNull();
-    const authorizes = offered.some(
-      (method) =>
-        method.authorizeFirst ?? ["oauth", "oidc", "mcp"].includes(method.id),
-    );
+    const initial = nativeInitialMethod(descriptor);
+    const authorizes =
+      initial !== undefined &&
+      (initial.authorizeFirst ?? ["oauth", "oidc", "mcp"].includes(initial.id));
     const commit = within(panel).getByRole("button", {
       name: `${authorizes ? "Sign in to" : "Verify and connect"} ${descriptor.name}`,
     });

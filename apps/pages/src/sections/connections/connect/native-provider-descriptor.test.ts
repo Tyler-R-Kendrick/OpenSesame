@@ -3,6 +3,8 @@ import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import { bindNativeBrowserPolicyOrigin } from "@opensesame/app-core/lib/native-browser-policy.js";
 import { describe, expect, it } from "vitest";
+import { nativeInitialMethod } from "./native-connector-edit-values.js";
+import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
 import { nativeGithubDescriptor } from "./native-github-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 
@@ -190,4 +192,63 @@ it("composes the same optional encrypted backup target fields for Codeberg OAuth
   ]);
   expect(oauth?.scopeGroups).toEqual([]);
   expect(oauth?.instructions).toContain("without granular permission scopes");
+});
+
+it("prefers the simplest secure method: MCP CIMD, public OAuth, then API key", () => {
+  const callbackUrl = "https://app.example/auth/native-connector.html";
+  const release = bindNativeBrowserPolicyOrigin(() => "https://app.example");
+  try {
+    const initial = (id: string) => {
+      const plan = connectPlan(id);
+      if (!plan) throw new Error(`Missing ${id}`);
+      const profile = nativeBrowserOAuthProfile(id) ?? undefined;
+      const descriptor = nativeProviderDescriptor(plan, {
+        callbackUrl,
+        apiKey: { available: true },
+        oauth: {
+          available: profile !== undefined,
+          registeredAvailable: true,
+          profile,
+        },
+        mcp: { available: true, actor: "user" },
+      });
+      return nativeInitialMethod(descriptor)?.id;
+    };
+    expect(initial("resend")).toBe("mcp");
+    expect(initial("gitlab")).toBe("oauth");
+    expect(initial("clickup")).toBe("api-key");
+    expect(initial("box")).toBe("mcp");
+    expect(initial("notion")).toBe("mcp");
+  } finally {
+    release();
+  }
+});
+
+it("does not open a new connection on a configurable but blocked method", () => {
+  const descriptor = {
+    providerId: "example",
+    name: "Example",
+    docsUrl: null,
+    actions: [],
+    methods: [
+      {
+        id: "mcp",
+        label: "MCP",
+        available: false,
+        configurable: true,
+        preferredRank: 10,
+        fields: [],
+        scopeGroups: [],
+      },
+      {
+        id: "oauth",
+        label: "OAuth",
+        available: true,
+        preferredRank: 20,
+        fields: [],
+        scopeGroups: [],
+      },
+    ],
+  } satisfies NativeConnectorDescriptor;
+  expect(nativeInitialMethod(descriptor)?.id).toBe("oauth");
 });

@@ -1,22 +1,17 @@
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import {
-  limitPageTree,
-  pageToTree,
-  pageTreeItemTotal,
-  pageTreeLeaves,
-} from "../lib/page-to-tree.js";
+import { pageToTree } from "../lib/page-to-tree.js";
 import {
   CONNECTIONS_PAGE_SIZE,
   nextPageCount,
 } from "../sections/connections/page-cap.js";
 import {
-  catalogPageSections,
+  catalogPageItems,
   connectionsPageSources,
 } from "../sections/connections/page-tree.js";
 import { useRailConnections } from "./ConnectionsNavigation.js";
-import { PageTreeBranch } from "./PageTreeBranch.js";
+import { PageTreeBranch, PageTreeLeafRow } from "./PageTreeBranch.js";
 import { TreeRow } from "./RailRows.js";
 import "./connections-tree.css";
 
@@ -56,7 +51,7 @@ export function ConnectionsTreeEntries({ pathname }: { pathname: string }) {
             href: catalog.href,
             children: [],
             branch: true,
-            count: pageTreeItemTotal(pageToTree(catalog.sections ?? [])),
+            count: catalog.items?.length ?? 0,
           }}
           level={2}
           current={current}
@@ -80,30 +75,16 @@ function CatalogEntries({
 }) {
   const [limit, setLimit] = useState(catalogLeafLimit);
   const navigate = useNavigate();
-  const sections = catalogPageSections(providers ?? []);
-  const matches = pageTreeLeaves(pageToTree(sections));
-  // Paging trims leaves, never groups: a group past the page keeps its row
-  // and its whole count, so the rail names every category the page shows
-  // (it used to stop at "Developer tools 3" with Productivity…CRM gone).
-  const limited = limitPageTree(sections, limit);
-  const visible = pageToTree(
-    sections.map((section) => ({
-      ...(limited.find((shown) => shown.id === section.id) ?? {
-        ...section,
-        items: [],
-      }),
-      keepEmpty: true,
-      count: section.items?.length,
-    })),
-  );
-  const more = nextPageCount(matches.length, limit);
+  const items = catalogPageItems(providers ?? []);
+  const visible = items.slice(0, limit);
+  const more = nextPageCount(items.length, limit);
 
   return (
     <>
-      {visible.map((group) => (
-        <PageTreeBranch
-          key={group.id}
-          node={group}
+      {visible.map((item) => (
+        <PageTreeLeafRow
+          key={item.id}
+          node={{ ...item, children: [], branch: false }}
           level={3}
           current={current}
         />
@@ -117,7 +98,7 @@ function CatalogEntries({
             const next = limit + CONNECTIONS_PAGE_SIZE;
             catalogLeafLimit = next;
             setLimit(next);
-            const first = matches[limit];
+            const first = items[limit];
             if (first) {
               navigate(`/connections#catalog-${encodeURIComponent(first.id)}`);
             }
@@ -126,7 +107,7 @@ function CatalogEntries({
           {`Load ${more} more`}
         </TreeRow>
       ) : null}
-      {matches.length === 0 ? (
+      {items.length === 0 ? (
         <output className="connections-tree__note">
           {providers === null
             ? "Loading connectors…"

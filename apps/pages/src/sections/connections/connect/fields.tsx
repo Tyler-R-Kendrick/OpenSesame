@@ -4,6 +4,7 @@ import type {
 } from "@opensesame/app-core/lib/connect-plan.js";
 import { type ReactNode, useId } from "react";
 import { IconCopy, IconExternal } from "../../../components/Icons.js";
+import { ConnectorModes } from "./ConnectorModes.js";
 
 /** A connection method is a choice object, so it keeps its word. */
 export const METHOD_LABEL = {
@@ -22,26 +23,17 @@ export function MethodPicker({
   method: ConnectMethodKind;
   onMethod: (next: ConnectMethodKind) => void;
 }) {
-  const name = useId();
   if (plan.methods.length < 2) return null;
   return (
-    <fieldset className="cx-block">
-      <legend>Connection method</legend>
-      <div className="conn-git-auth__modes" role="radiogroup">
-        {plan.methods.map((item) => (
-          <label key={item.kind} className="conn-git-auth__mode">
-            <input
-              type="radio"
-              name={name}
-              value={item.kind}
-              checked={method === item.kind}
-              onChange={() => onMethod(item.kind)}
-            />
-            <span>{METHOD_LABEL[item.kind]}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    <ConnectorModes
+      label="Connection method"
+      value={method}
+      options={plan.methods.map((item) => ({
+        id: item.kind,
+        label: METHOD_LABEL[item.kind],
+      }))}
+      onChange={onMethod}
+    />
   );
 }
 

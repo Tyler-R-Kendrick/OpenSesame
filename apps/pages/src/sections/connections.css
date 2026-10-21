@@ -803,3 +803,25 @@ button.conn-tile__link {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Former catalog subheaders are tags on each tile, so one flat list remains
+   searchable by the same category words. */
+.conn-tile__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+
+.conn-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+  padding: 0 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 0.65rem;
+  line-height: 1;
+  white-space: nowrap;
+}

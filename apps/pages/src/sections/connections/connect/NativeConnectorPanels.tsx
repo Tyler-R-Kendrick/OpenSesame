@@ -19,6 +19,7 @@ import {
   nativeOAuthClientConfigured,
   supportsNativeOAuthResource,
 } from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
+import { ConnectorPanel } from "./ConnectorPanel.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
@@ -315,20 +316,13 @@ export function NativeConnectorPanels({
   );
   return (
     <div className="cx-setup">
-      <section
-        className="panel"
-        id="connector"
-        aria-label="Connector"
-        tabIndex={-1}
+      <ConnectorPanel
+        step={2}
+        title={view && nativeVerified(view) ? "Configure" : "Connect"}
+        focus
       >
-        <div className="panel__head">
-          <h2>
-            <span className="cx-step">2</span>{" "}
-            {view && nativeVerified(view) ? "Configure" : "Connect"}
-          </h2>
-        </div>
         {renderConfiguration ? renderConfiguration(form) : form}
-      </section>
+      </ConnectorPanel>
       {view ? (
         <>
           <NativeConnectorSummary

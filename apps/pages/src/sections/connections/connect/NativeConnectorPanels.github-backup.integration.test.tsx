@@ -98,10 +98,9 @@ function mount() {
 }
 async function configureTarget() {
   mount();
-  expect(screen.getByLabelText("Connection method")).toHaveProperty(
-    "value",
-    "token",
-  );
+  expect(
+    screen.getByRole("radio", { name: "Personal access token" }),
+  ).toHaveProperty("checked", true);
   expect(screen.queryByTestId("github-app-presence")).toBeNull();
   expect(screen.queryByTestId("forge-backup-sync")).toBeNull();
   for (const [label, value] of [
