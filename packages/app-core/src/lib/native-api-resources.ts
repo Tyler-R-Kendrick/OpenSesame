@@ -9,7 +9,10 @@ import { nativeDataWorkspaceResources } from "./native-api-data-workspace-resour
 import { NativeApiError } from "./native-api-http.js";
 import { projectNativeLithicCards } from "./native-api-lithic.js";
 import { projectNativeMarqetaUsers } from "./native-api-marqeta.js";
-import { nativeMessagingInventories } from "./native-api-messaging-inventories.js";
+import {
+  nativeMessagingInventories,
+  projectLinqMessagingLines,
+} from "./native-api-messaging-inventories.js";
 import { nativePrimaryCollections } from "./native-api-primary-collections.js";
 import { projectNativePrivacyCards } from "./native-api-privacy.js";
 import { projectNativeRazorpayPayments } from "./native-api-razorpay.js";
@@ -193,6 +196,17 @@ function projectDatadogMonitors(body: BoundaryValue): BoundaryValue {
 }
 const resources: readonly Resource[] = [
   ...nativeMessagingInventories,
+  jsonResource(
+    "List messaging lines",
+    {
+      providerId: "linq",
+      operationId: "provider.phone-numbers.read",
+      method: "GET",
+      path: "/api/partner/v3/phone_numbers",
+      headers: { Accept: "application/json" },
+    },
+    projectLinqMessagingLines,
+  ),
   ...nativeServiceInventories,
   jsonResource(
     "Read platform organization",
