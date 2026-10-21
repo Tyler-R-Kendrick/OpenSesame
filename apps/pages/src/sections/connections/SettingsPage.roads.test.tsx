@@ -229,7 +229,7 @@ describe("a connector page the browser acts on alone", () => {
     expect(
       screen.getByRole("img", { name: "Not available here" }),
     ).toBeTruthy();
-    expect(screen.queryByLabelText(/personal access token/i)).toBeNull();
+    expect(screen.queryByLabelText("GitHub personal access token")).toBeNull();
     expect(
       screen.queryByRole("button", { name: /Authorize with GitHub/i }),
     ).toBeNull();

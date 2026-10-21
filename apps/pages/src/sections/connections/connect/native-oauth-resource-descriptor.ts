@@ -205,6 +205,7 @@ export function nativePublicApplicationDescriptor(
   const methods = ["none", "client_secret_basic", "client_secret_post"];
   return {
     ...registered,
+    preferredRank: publicMethod.preferredRank,
     label: "OAuth application",
     fields: [
       {

@@ -178,9 +178,8 @@ it("opens Github's specific browser form, rejects a bad token, then verifies and
   expect(screen.queryByTestId("github-app-presence")).toBeNull();
   expect(screen.queryByLabelText("Connector name")).toBeNull();
   expect(screen.queryByLabelText("Icon")).toBeNull();
-  await userEvent.selectOptions(
-    screen.getByLabelText("Connection method"),
-    "token",
+  await userEvent.click(
+    screen.getByRole("radio", { name: "Personal access token" }),
   );
   const token = screen.getByLabelText("GitHub personal access token");
   await userEvent.type(token, "private-browser-token");

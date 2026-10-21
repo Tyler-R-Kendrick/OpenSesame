@@ -49,6 +49,8 @@ export type NativeMethodDescriptor = {
   scopeGroups: readonly NativeScopeGroup[];
   authorizeFirst?: boolean;
   authorizationActor?: string;
+  /** Lower ranks are the simplest secure route; absent keeps the legacy order. */
+  preferredRank?: number;
   links?: readonly { label: string; url: string }[];
 };
 

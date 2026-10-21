@@ -2,6 +2,7 @@ import type { Flash } from "@opensesame/app-core/sections/connections/shared.js"
 import { FailureNotice } from "../../../components/FailureNotice.js";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconX } from "../../../components/Icons.js";
+import { ConnectorPanel } from "../connect/ConnectorPanel.js";
 import "../connect/connect.css";
 import { AiConnectionForm } from "./AiConnectionForm.js";
 import { AiDelegationPanel } from "./AiDelegationPanel.js";
@@ -28,12 +29,13 @@ export function AiConnectionPanels({
     return <AiConnectionForm {...state} saved={state.hasSavedCredentials} />;
   return (
     <div className="cx-setup">
-      <section className="panel" id="connector" aria-label="AI configuration">
-        <div className="panel__head">
-          <h2>
-            <span className="cx-step">2</span> Configure AI
-          </h2>
-          {state.hasSavedCredentials ? (
+      <ConnectorPanel
+        step={2}
+        label="AI configuration"
+        title={state.savedId ? "Configure" : "Connect"}
+        focus
+        actions={
+          state.hasSavedCredentials ? (
             <IconKey
               label="Forget AI connection"
               disabled={state.busy}
@@ -41,10 +43,11 @@ export function AiConnectionPanels({
             >
               <IconX size={16} />
             </IconKey>
-          ) : null}
-        </div>
+          ) : null
+        }
+      >
         <AiConnectionForm {...state} saved={state.hasSavedCredentials} />
-      </section>
+      </ConnectorPanel>
       {state.savedId && state.hasSavedCredentials ? (
         <>
           <AiInferenceWorkspace

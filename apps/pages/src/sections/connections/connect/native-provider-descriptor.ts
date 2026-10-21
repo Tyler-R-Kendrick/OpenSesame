@@ -81,6 +81,7 @@ function oauthDescriptor(
   return {
     id: "oauth",
     authorizeFirst: true,
+    preferredRank: 50,
     label: "Bring Your Own OAuth App",
     available: availability.available && preset !== null,
     unavailableReason: availability.reason ?? unavailableOAuthReason(preset),
@@ -132,6 +133,7 @@ function apiDescriptor(
   return {
     id: "api-key",
     label: "API Key",
+    preferredRank: 30,
     available,
     unavailableReason:
       availability.reason ??
@@ -156,6 +158,8 @@ function mcpDescriptor(
   return {
     id: "mcp",
     authorizeFirst: true,
+    preferredRank:
+      metadata?.status === "ok" && metadata.registration !== "manual" ? 10 : 40,
     label:
       metadata && metadata.registration !== "manual" ? "Managed MCP" : "MCP",
     available: availability.available,
@@ -205,11 +209,10 @@ function publicOAuthDescriptor(
   const profile = availability.oauth.profile;
   const options: NativeOAuthResourceOptions = configured ?? {};
   if (availability.oauth.available && profile) {
-    const publicMethod = nativeBrowserOAuthDescriptor(
-      plan,
-      profile,
-      availability.callbackUrl,
-    );
+    const publicMethod = {
+      ...nativeBrowserOAuthDescriptor(plan, profile, availability.callbackUrl),
+      preferredRank: 20,
+    };
     return preset
       ? nativePublicApplicationDescriptor(
           preset,
@@ -230,12 +233,12 @@ function publicOAuthDescriptor(
     preset &&
     availability.oauth.registeredAvailable
   )
-    return nativeOAuthResourceDescriptor(
-      preset,
-      availability.callbackUrl,
-      true,
-      { resourceParameter: "omit" },
-    );
+    return {
+      ...nativeOAuthResourceDescriptor(preset, availability.callbackUrl, true, {
+        resourceParameter: "omit",
+      }),
+      preferredRank: 35,
+    };
   if (profile)
     return oauthDescriptor(
       method,
@@ -243,11 +246,14 @@ function publicOAuthDescriptor(
       availability.callbackUrl,
     );
   if (preset)
-    return nativeOAuthResourceDescriptor(
-      preset,
-      availability.callbackUrl,
-      availability.oauth.available,
-    );
+    return {
+      ...nativeOAuthResourceDescriptor(
+        preset,
+        availability.callbackUrl,
+        availability.oauth.available,
+      ),
+      preferredRank: 35,
+    };
   return oauthDescriptor(method, availability.oauth, availability.callbackUrl);
 }
 
@@ -262,12 +268,15 @@ function additionalOAuthMethod(
     });
   const configured = configuredNativeOAuthPreset(plan);
   if (configured)
-    return nativeOAuthResourceDescriptor(
-      configured.preset,
-      availability.callbackUrl,
-      availability.oauth.registeredAvailable ?? availability.oauth.available,
-      configured,
-    );
+    return {
+      ...nativeOAuthResourceDescriptor(
+        configured.preset,
+        availability.callbackUrl,
+        availability.oauth.registeredAvailable ?? availability.oauth.available,
+        configured,
+      ),
+      preferredRank: 35,
+    };
   if (
     (availability.oauth.available || availability.oauth.registeredAvailable) &&
     (availability.oauth.profile || availability.oauth.preset)

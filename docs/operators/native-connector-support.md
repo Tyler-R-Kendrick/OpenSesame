@@ -1,6 +1,6 @@
 # Browser connector support matrix
 
-Snapshot of the compiled browser catalog (refreshed 2026-10-12): **225 provider identities**, including **160 Add a connection tiles**.
+Snapshot of the compiled browser catalog (refreshed 2026-10-12): **225 provider identities**. Add a connection draws a curated browse list; this matrix covers every identity.
 Feature-bound categories route to settings rather than adding duplicate browse tiles.
 A listed method is a protocol implementation, subject to provider CORS, current metadata,
 operator policy, account permissions and successful live verification. It is not a claim

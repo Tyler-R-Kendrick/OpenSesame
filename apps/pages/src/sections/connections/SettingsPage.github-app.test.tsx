@@ -85,11 +85,13 @@ it("offers App first in the actual native settings page and preserves the token 
   expect(screen.getByRole("link", { name: "Docs" }).getAttribute("href")).toBe(
     "https://docs.github.com/en/apps",
   );
-  const picker = screen.getByLabelText("Connection method");
-  expect(picker).toHaveProperty("value", "app");
+  expect(screen.getByRole("radio", { name: "GitHub App" })).toHaveProperty(
+    "checked",
+    true,
+  );
   expect(
-    [...picker.querySelectorAll("option")].map((option) => option.textContent),
-  ).toEqual(["GitHub App", "Personal access token"]);
+    screen.getByRole("radio", { name: "Personal access token" }),
+  ).toHaveProperty("checked", false);
   expect(
     screen.getByRole("button", { name: "Create GitHub App" }),
   ).toBeTruthy();
@@ -100,13 +102,17 @@ it("offers App first in the actual native settings page and preserves the token 
       })
       .closest("[hidden]"),
   ).toBeTruthy();
-  await userEvent.selectOptions(picker, "token");
+  await userEvent.click(
+    screen.getByRole("radio", { name: "Personal access token" }),
+  );
   const token = screen.getByLabelText("GitHub personal access token", {
     selector: 'input[type="password"]',
   });
   await userEvent.type(token, "draft-token");
-  await userEvent.selectOptions(picker, "app");
-  await userEvent.selectOptions(picker, "token");
+  await userEvent.click(screen.getByRole("radio", { name: "GitHub App" }));
+  await userEvent.click(
+    screen.getByRole("radio", { name: "Personal access token" }),
+  );
   expect(token).toHaveProperty("value", "draft-token");
   expect(fixture.requests).toHaveLength(0);
   expect(screen.queryByTestId("github-app-presence")).toBeNull();
@@ -212,9 +218,8 @@ it("keeps the verified callback mounted when saved App hides create and the toke
   await waitFor(() =>
     expect(claim).toHaveBeenCalledWith("one-use", "bound-state"),
   );
-  await userEvent.selectOptions(
-    screen.getByLabelText("Connection method"),
-    "token",
+  await userEvent.click(
+    screen.getByRole("radio", { name: "Personal access token" }),
   );
   finish("registered");
   await waitFor(() =>
@@ -280,10 +285,9 @@ it("starts with the existing active native personal token rather than App regist
     credentials: { api_key: "private-test-token" },
   });
   draw({ connection: deviceConnection(saved.connectionId) });
-  expect(screen.getByLabelText("Connection method")).toHaveProperty(
-    "value",
-    "token",
-  );
+  expect(
+    screen.getByRole("radio", { name: "Personal access token" }),
+  ).toHaveProperty("checked", true);
   expect(
     screen.queryByRole("button", { name: "Create GitHub App" }),
   ).toBeNull();
@@ -309,9 +313,9 @@ it("shows the App return alongside an existing active token without trusting a f
     `${window.location.pathname}?github_app=installed`,
   );
   const { flash } = draw({ connection: deviceConnection(saved.connectionId) });
-  expect(screen.getByLabelText("Connection method")).toHaveProperty(
-    "value",
-    "app",
+  expect(screen.getByRole("radio", { name: "GitHub App" })).toHaveProperty(
+    "checked",
+    true,
   );
   expect(
     screen.getByRole("button", { name: "Create GitHub App" }),

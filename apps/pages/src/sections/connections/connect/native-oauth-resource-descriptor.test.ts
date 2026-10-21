@@ -38,10 +38,10 @@ it("derives standard configurable native OAuth from the actual confidential prov
   });
   const method = descriptor.methods.find((row) => row.id === "oauth");
   expect(method).toEqual(
-    nativePolicyMethod(
-      f.plan.id,
-      nativeOAuthResourceDescriptor(f.preset, callbackUrl, true),
-    ),
+    nativePolicyMethod(f.plan.id, {
+      ...nativeOAuthResourceDescriptor(f.preset, callbackUrl, true),
+      preferredRank: 35,
+    }),
   );
   expect(
     method?.fields
@@ -83,7 +83,7 @@ it.each([
     profile,
     callbackUrl,
   );
-  const expected = configured
+  const expectedBase = configured
     ? nativePublicApplicationDescriptor(
         configured.preset,
         callbackUrl,
@@ -97,6 +97,7 @@ it.each([
         },
       )
     : publicMethod;
+  const expected = { ...expectedBase, preferredRank: 20 };
   const method = descriptor.methods.find((row) => row.id === "oauth");
   expect(method).toEqual(nativePolicyMethod(f.plan.id, expected));
   if (!method) throw new Error("Missing composed form");

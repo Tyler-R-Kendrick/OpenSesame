@@ -13,8 +13,9 @@ import { useState, useSyncExternalStore } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppRegistrationPanel } from "./GithubAppRegistrationPanel.js";
+import { ConnectorModes } from "./connect/ConnectorModes.js";
 import { NativeConnectorPanels } from "./connect/NativeConnectorPanels.js";
-import { Facts, OutLink, SelectField } from "./connect/fields.js";
+import { Facts, OutLink } from "./connect/fields.js";
 
 type Method = "app" | "token";
 const METHODS: readonly { id: Method; label: string }[] = [
@@ -67,7 +68,7 @@ export function GithubNativeAppPanels(props: {
       renderConfiguration={(form) => (
         <>
           <div className="panel__body cx-form">
-            <SelectField
+            <ConnectorModes
               label="Connection method"
               value={method}
               options={METHODS}

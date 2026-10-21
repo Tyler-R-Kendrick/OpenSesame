@@ -23,10 +23,22 @@ export function nativeInitialMethod(
         nativeMethodConfigurable(method) &&
         method.id === view.configuration.method,
     );
-  for (const id of ["oidc", "oauth", "mcp", "api-key", "native-local"]) {
-    const method = descriptor.methods.find(
-      (entry) => nativeMethodConfigurable(entry) && entry.id === id,
+  const configurable = descriptor.methods.filter(nativeMethodConfigurable);
+  // A policy-refused route stays configurable so an operator can prepare it,
+  // but a new connection must not open on a form whose Connect button is
+  // disabled when a usable route exists.
+  const usable = configurable.filter((method) => method.available);
+  const available = usable.length ? usable : configurable;
+  const ranked = available
+    .filter((method) => method.preferredRank !== undefined)
+    .sort(
+      (left, right) =>
+        (left.preferredRank ?? Number.MAX_SAFE_INTEGER) -
+        (right.preferredRank ?? Number.MAX_SAFE_INTEGER),
     );
+  if (ranked[0]) return ranked[0];
+  for (const id of ["oidc", "oauth", "mcp", "api-key", "native-local"]) {
+    const method = available.find((entry) => entry.id === id);
     if (method) return method;
   }
   return undefined;

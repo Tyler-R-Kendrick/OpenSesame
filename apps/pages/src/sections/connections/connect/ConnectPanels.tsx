@@ -19,6 +19,7 @@ import {
 } from "../identity/IdentityConnectionPanels.js";
 import { TailscalePanels } from "../tailscale/TailscalePanels.js";
 import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
+import { ConnectorPanel } from "./ConnectorPanel.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
 import { LinearConnectorForm } from "./LinearConnectorForm.js";
 import { LinearConnectorSummary } from "./LinearConnectorSummary.js";
@@ -135,12 +136,7 @@ function LinearLocalPanels({
   const connectorId = local?.connectionId;
   return (
     <div className="cx-setup">
-      <section className="panel" id="connector" aria-label="Connector">
-        <div className="panel__head">
-          <h2>
-            <span className="cx-step">2</span> Configure
-          </h2>
-        </div>
+      <ConnectorPanel step={2} title={local ? "Configure" : "Connect"} focus>
         <LinearConnectorForm
           key={`${plan.id}/${connectorId ?? "new"}`}
           plan={plan}
@@ -151,7 +147,7 @@ function LinearLocalPanels({
           authorization={pending.authorization}
           captureUiCurrent={pending.captureUiCurrent}
         />
-      </section>
+      </ConnectorPanel>
       {local ? (
         <fieldset className="cx-block" disabled={!!pending.authorization}>
           <legend className="visually-hidden">
