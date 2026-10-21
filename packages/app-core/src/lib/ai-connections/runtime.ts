@@ -258,6 +258,7 @@ export async function saveAiConnection(
       ).catch(() => undefined);
       throw error;
     });
+    guard.releaseSavedCredentials();
     if (oldCapture)
       await discardVaultCredentials(oldCapture, guard.tomb, () =>
         guard.check(),
