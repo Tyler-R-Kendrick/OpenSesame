@@ -20,6 +20,7 @@ import {
 import type { AiAudioInput } from "./media.js";
 import { aiConnectionPreset } from "./presets.js";
 import type { ReplicateInput, ReplicateRunOptions } from "./replicate-types.js";
+import { captureSavedAiVault } from "./saved-row-vault.js";
 import { isAiSpeechProvider } from "./speech-target.js";
 import {
   AI_CONNECTION_CLASSIFICATION,
@@ -135,6 +136,7 @@ export type AiConnectionOperationOptions = {
   signal?: AbortSignal;
   prediction?: ReplicateRunOptions;
   audio?: AiAudioInput;
+  imagePrompt?: string;
 };
 function operationTransport(
   port: AiConnectionTransport,
@@ -157,7 +159,8 @@ export async function testAiConnection(
   const callerSignal = options.signal;
   const prediction = { ...options.prediction };
   const audio = captureAiSpeechAudio(options.audio);
-  const guard = await aiVaultSeams.capture();
+  const imagePrompt = options.imagePrompt;
+  const guard = await captureSavedAiVault(id);
   let completed = false;
   let owner: (() => void) | undefined;
   try {
@@ -181,6 +184,7 @@ export async function testAiConnection(
       predictionInput,
       prediction,
       audio,
+      imagePrompt,
     );
     check();
     completed = true;
@@ -203,7 +207,8 @@ export async function saveAiConnection(
   const callerSignal = options.signal;
   const prediction = { ...options.prediction };
   const audio = captureAiSpeechAudio(options.audio);
-  const guard = await aiVaultSeams.capture();
+  const imagePrompt = options.imagePrompt;
+  const guard = await captureSavedAiVault(id);
   let completed = false;
   let owner: (() => void) | undefined;
   try {
@@ -231,7 +236,10 @@ export async function saveAiConnection(
       predictionInput,
       prediction,
       audio,
+      imagePrompt,
     );
+    check();
+    guard.releaseSavedRow();
     const capture = await stageVaultCredentials(
       {
         name: draft.name,
@@ -255,6 +263,7 @@ export async function saveAiConnection(
       ).catch(() => undefined);
       throw error;
     });
+    guard.releaseSavedCredentials();
     if (oldCapture)
       await discardVaultCredentials(oldCapture, guard.tomb, () =>
         guard.check(),
@@ -289,7 +298,7 @@ export async function performSavedAiInference(
   const prediction = { ...predictionOptions };
   const audio = captureAiSpeechAudio(input.media);
   const supplied = audio === undefined ? input : { ...input, media: audio };
-  const guard = await aiVaultSeams.capture();
+  const guard = await captureSavedAiVault(id);
   let completed = false;
   let owner: (() => void) | undefined;
   try {
