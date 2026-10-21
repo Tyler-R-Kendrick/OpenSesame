@@ -23,7 +23,11 @@ import {
 import { aiConnectionHeaders } from "./protocol.js";
 import { AI_CONNECTION_CLASSIFICATION, readAiConnection } from "./store.js";
 import { captureAiConnectionTransport } from "./transport.js";
-import { AiConnectionError, isAiSpeechFamily } from "./types.js";
+import {
+  AiConnectionError,
+  isAiImageFamily,
+  isAiSpeechFamily,
+} from "./types.js";
 import { aiVaultSeams } from "./vault-guard.js";
 
 function unavailable(): never {
@@ -32,7 +36,7 @@ function unavailable(): never {
     "Configured AI delegation requires a verified vault key and its exact canonical catalog protocol and endpoint.",
   );
 }
-function delegationState(id: string) {
+function delegatedTextDraft(id: string) {
   const draft = readAiConnection(id);
   if (
     !draft ||
@@ -40,9 +44,14 @@ function delegationState(id: string) {
     draft.family === "openai_responses" ||
     draft.family === "bedrock_converse" ||
     draft.family === "replicate_predictions" ||
-    isAiSpeechFamily(draft.family)
+    isAiSpeechFamily(draft.family) ||
+    isAiImageFamily(draft.family)
   )
     return unavailable();
+  return draft;
+}
+function delegationState(id: string) {
+  const draft = delegatedTextDraft(id);
   const api = modelApiOf(draft.providerId);
   if (
     !api?.baseUrl ||
