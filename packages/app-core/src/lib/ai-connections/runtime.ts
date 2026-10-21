@@ -136,6 +136,7 @@ export type AiConnectionOperationOptions = {
   signal?: AbortSignal;
   prediction?: ReplicateRunOptions;
   audio?: AiAudioInput;
+  imagePrompt?: string;
 };
 function operationTransport(
   port: AiConnectionTransport,
@@ -158,6 +159,7 @@ export async function testAiConnection(
   const callerSignal = options.signal;
   const prediction = { ...options.prediction };
   const audio = captureAiSpeechAudio(options.audio);
+  const imagePrompt = options.imagePrompt;
   const guard = await captureSavedAiVault(id);
   let completed = false;
   let owner: (() => void) | undefined;
@@ -182,6 +184,7 @@ export async function testAiConnection(
       predictionInput,
       prediction,
       audio,
+      imagePrompt,
     );
     check();
     completed = true;
@@ -204,6 +207,7 @@ export async function saveAiConnection(
   const callerSignal = options.signal;
   const prediction = { ...options.prediction };
   const audio = captureAiSpeechAudio(options.audio);
+  const imagePrompt = options.imagePrompt;
   const guard = await captureSavedAiVault(id);
   let completed = false;
   let owner: (() => void) | undefined;
@@ -232,6 +236,7 @@ export async function saveAiConnection(
       predictionInput,
       prediction,
       audio,
+      imagePrompt,
     );
     check();
     guard.releaseSavedRow();

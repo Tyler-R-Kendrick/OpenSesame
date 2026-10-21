@@ -14,6 +14,7 @@ import {
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import {
   type AiConnectionDraft,
+  isAiImageFamily,
   isAiRemoteJobFamily,
   isAiSpeechFamily,
 } from "@opensesame/app-core/lib/ai-connections/types.js";
@@ -42,6 +43,13 @@ function initialDraft(providerId: string, id?: string) {
     ? (readAiConnection(id) ?? aiConnectionDraft(providerId))
     : aiConnectionDraft(providerId);
 }
+function requiresAiKey(family: AiConnectionDraft["family"]) {
+  return (
+    family === "replicate_predictions" ||
+    isAiSpeechFamily(family) ||
+    isAiImageFamily(family)
+  );
+}
 function changeDraft<Key extends keyof AiConnectionDraft>(
   current: AiConnectionDraft,
   field: Key,
@@ -52,13 +60,10 @@ function changeDraft<Key extends keyof AiConnectionDraft>(
     next.azure = undefined;
   changeVertexDraft(current, next, field);
   changeBedrockDraft(current, next, field);
-  const nextMedia =
-    next.family === "replicate_predictions" || isAiSpeechFamily(next.family);
+  const nextMedia = requiresAiKey(next.family);
   if (nextMedia) next.authentication = "api-key";
   if (
-    (current.family === "replicate_predictions" ||
-      isAiSpeechFamily(current.family) ||
-      nextMedia) &&
+    (requiresAiKey(current.family) || nextMedia) &&
     ["family", "baseUrl", "model", "authentication"].includes(field)
   )
     next.apiKey = "";
@@ -241,13 +246,13 @@ export function useAiConnection(
         draft.family === "replicate_predictions"
           ? replicateVerificationInput(draft, predictionInput)
           : undefined;
-      const options = {
-        signal: owner.signal,
-        prediction: { signal },
-        audio: isAiSpeechFamily(draft.family)
-          ? audio.fields.sampleAudio
-          : undefined,
-      };
+      const options = verificationOptions(
+        draft,
+        predictionInput,
+        owner,
+        signal,
+        audio,
+      );
       try {
         if (!save)
           return await aiConnectionUiDependencies.test(
@@ -306,6 +311,23 @@ export function useAiConnection(
   };
 }
 
+function verificationOptions(
+  draft: AiConnectionDraft,
+  prompt: string,
+  owner: SecretBackendActionOwner,
+  signal: AbortSignal,
+  audio: ReturnType<typeof useLocalAudioInput>,
+) {
+  return {
+    signal: owner.signal,
+    prediction: { signal },
+    imagePrompt: isAiImageFamily(draft.family) ? prompt : undefined,
+    audio: isAiSpeechFamily(draft.family)
+      ? audio.fields.sampleAudio
+      : undefined,
+  };
+}
+
 async function forgetAiConnection(
   id: string | undefined,
   pending: Pick<ReturnType<typeof useAiOperation>, "runAi">,
@@ -335,7 +357,8 @@ function aiAudioControls(
       audio.fields.onSampleAudio(file);
     },
     onCancel: () => {
-      if (isAiSpeechFamily(family)) {
+      if (isAiImageFamily(family)) pending.clear();
+      else if (isAiSpeechFamily(family)) {
         if (isAiRemoteJobFamily(family)) pending.onCancel();
         else pending.clear();
         audio.clear();

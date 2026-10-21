@@ -17,11 +17,14 @@ import { inferReplicateAi } from "./replicate-inference.js";
 import type { ReplicateInput, ReplicateRunOptions } from "./replicate-types.js";
 import { inferSpeechAi } from "./speech-inference.js";
 import { validateAiSpeechConnection } from "./speech-target.js";
+import { inferStabilityAi } from "./stability-inference.js";
+import { validateAiStabilityConnection } from "./stability-target.js";
 import { readAiTextStream } from "./stream.js";
 import {
   type AiConnectionDraft,
   AiConnectionError,
   type AiConnectionTransport,
+  isAiImageFamily,
   isAiSpeechFamily,
 } from "./types.js";
 import { inferVertexAi } from "./vertex-inference.js";
@@ -40,6 +43,11 @@ export async function inferAiConnection(
     throw new AiConnectionError(
       "configuration",
       "Use the model saved with this connection.",
+    );
+  if (isAiImageFamily(draft.family))
+    throw new AiConnectionError(
+      "configuration",
+      "Use the owned image-result operation for image generation.",
     );
   if (isAiSpeechFamily(draft.family))
     return inferTranscriptionAi(
@@ -167,7 +175,31 @@ export function probeAiConnection(
   predictionInput?: ReplicateInput,
   predictionOptions: ReplicateRunOptions = {},
   audio?: AiAudioInput,
+  imagePrompt?: string,
 ) {
+  if (isAiImageFamily(draft.family)) {
+    if (
+      predictionInput !== undefined ||
+      audio !== undefined ||
+      imagePrompt === undefined
+    )
+      throw new AiConnectionError(
+        "configuration",
+        "Supply an explicit image prompt to test or save this image connection.",
+      );
+    return verifyImageConnection(
+      draft,
+      imagePrompt,
+      transport,
+      check,
+      predictionOptions.signal,
+    );
+  }
+  if (imagePrompt !== undefined)
+    throw new AiConnectionError(
+      "configuration",
+      "Image verification prompts belong only to the image protocol.",
+    );
   if (isAiSpeechFamily(draft.family)) {
     if (predictionInput !== undefined || audio === undefined)
       throw new AiConnectionError(
@@ -230,4 +262,27 @@ export function captureAiSpeechAudio(
   if (audio === undefined) return undefined;
   const valid = validateAiAudio(audio);
   return { ...valid, bytes: new Uint8Array(valid.bytes) };
+}
+
+/** Actual charged generation verifies the response; transient verification pixels are never retained. */
+async function verifyImageConnection(
+  draft: AiConnectionDraft,
+  prompt: string,
+  transport: AiConnectionTransport,
+  check: () => void,
+  signal?: AbortSignal,
+) {
+  const result = await inferStabilityAi(
+    validateAiStabilityConnection(draft),
+    { model: draft.model, messages: [{ role: "user", content: prompt }] },
+    transport,
+    check,
+    { signal },
+  );
+  try {
+    check();
+    return "Image generation verified";
+  } finally {
+    result.image.release();
+  }
 }
