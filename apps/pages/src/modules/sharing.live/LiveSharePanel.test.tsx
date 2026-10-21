@@ -13,13 +13,15 @@ import { installLiveFocusTests, press } from "./live-focus-test-support.js";
 describe("the share sheet", () => {
   installLiveFocusTests();
 
-  it("opens on the generator and keeps Advanced folded", () => {
+  it("opens on the generator and keeps Advanced folded", async () => {
     const { container } = render(<LiveSharePanel />);
     const panel = within(container);
     expect(panel.getByLabelText("Session name")).toBeTruthy();
-    expect(
-      panel.getByRole("button", { name: "Share this vault" }),
-    ).toBeTruthy();
+    const start = await panel.findByRole("button", {
+      name: "Share this vault",
+    });
+    expect(start).toBeTruthy();
+    await waitFor(() => expect(start.hasAttribute("disabled")).toBe(false));
     const advanced = container.querySelector<HTMLDetailsElement>(
       "details.live-advanced",
     );
