@@ -49,6 +49,9 @@ export function SettingsPageConnectPanels(props: Props) {
   const { provider, connection, nativeExperience, identityExperience } = props;
   if (provider.id === "tailscale" && !isConnectConnection(connection))
     return <TailscalePanels {...props} />;
+  // Legacy Linear records use the specialized GraphQL/webhook custody route.
+  if (provider.id === "linear" && isSelfHostedConnector(connection))
+    return <ConnectPanels {...props} />;
   // A native connector row created before the provider gained an AI contract
   // has no AI record. Keep that row on its native page: the AI form would show
   // an empty key over sealed custody and could orphan it on save.

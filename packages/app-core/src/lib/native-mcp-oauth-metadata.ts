@@ -14,6 +14,11 @@ const PublicMetadataSchema = OAuthMetadataSchema.strip();
 export type NativeMcpAuthorizationMetadata = z.infer<
   typeof PublicMetadataSchema
 >;
+export type NativeMcpRegistrationMode = "manual" | "dcr" | "cimd";
+export type NativeMcpResolvedMetadata = {
+  metadata: NativeMcpAuthorizationMetadata;
+  registration: NativeMcpRegistrationMode;
+};
 
 const CimdDocumentSchema = OAuthClientMetadataSchema.extend({
   client_id: z.string().url(),
@@ -23,7 +28,7 @@ const CimdDocumentSchema = OAuthClientMetadataSchema.extend({
 export async function nativeMcpPublicMetadata(
   target: NativeMcpOAuthTarget,
   fetcher: typeof fetch,
-): Promise<NativeMcpAuthorizationMetadata> {
+): Promise<NativeMcpResolvedMetadata> {
   const { metadata, binding } = target;
   if (!metadata.resourceMetadata || !metadata.discoveryUrl)
     throw new NativeMcpAuthError("public-client");
@@ -41,9 +46,21 @@ export async function nativeMcpPublicMetadata(
   if (!response.ok) throw new NativeMcpAuthError("metadata");
   const live = PublicMetadataSchema.parse(await response.json());
   assertLivePublicMetadata(target, live);
-  if (target.registration === "cimd")
+  if (target.registration !== "cimd")
+    return { metadata: live, registration: target.registration };
+  if (live.client_id_metadata_document_supported) {
     await assertCimdDocument(target, live, fetcher);
-  return live;
+    return { metadata: live, registration: "cimd" };
+  }
+  // A provider that does not implement CIMD may still publish the registered
+  // public-client endpoint in its compiled contract. Fall back only when the
+  // live endpoint is the same endpoint, never to an arbitrary registration URL.
+  if (
+    target.metadata.registrationEndpoint &&
+    live.registration_endpoint === target.metadata.registrationEndpoint
+  )
+    return { metadata: live, registration: "dcr" };
+  throw new NativeMcpAuthError("public-client");
 }
 
 function assertLivePublicMetadata(

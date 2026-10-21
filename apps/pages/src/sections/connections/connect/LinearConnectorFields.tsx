@@ -1,5 +1,6 @@
 import type { DraftState } from "@opensesame/app-core/lib/connect-draft.js";
 import type { ConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+import { linearApplicationManifestUrl } from "@opensesame/app-core/lib/linear-application-manifest.js";
 import {
   linearClientId,
   linearRedirectUri,
@@ -112,6 +113,10 @@ function LinearAuthentication({
   const config = selfHostedConfig(plan);
   const redirectUri = linearRedirectUri();
   const managedClientId = linearClientId();
+  const manifestUrl = linearApplicationManifestUrl({
+    redirectUri,
+    appUrl: new URL(import.meta.env.BASE_URL, window.location.origin).href,
+  });
   return (
     <>
       {state.method === "api-key" ? (
@@ -160,6 +165,9 @@ function LinearAuthentication({
             mono
             tail={<CopyKey value={redirectUri} label="Copy redirect URI" />}
           />
+          <OutLink href={manifestUrl}>
+            Create a prefilled Linear OAuth app
+          </OutLink>
           <OutLink href="https://linear.app/settings/api/applications/new">
             Linear developer console
           </OutLink>

@@ -101,6 +101,52 @@ describe("public browser MCP authorization", () => {
     ).rejects.toMatchObject({ code: "public-client" });
   });
 
+  it("falls back to the compiled DCR endpoint only when live metadata omits CIMD support", async () => {
+    const selected: NativeMcpOAuthTarget = {
+      ...target,
+      registration: "cimd",
+      clientMetadataUrl:
+        "https://self-host.example.org/auth/native-client.json",
+      metadata: { ...target.metadata, registration: "cimd" },
+    };
+    const { oauth, requests } = fixture(selected, {
+      live: { client_id_metadata_document_supported: false },
+    });
+    expect(await oauth.register(async () => undefined)).toMatchObject({
+      client_id: client.client_id,
+    });
+    expect(
+      requests.some(
+        (request) =>
+          request.url === selected.metadata.registrationEndpoint &&
+          request.method === "POST",
+      ),
+    ).toBe(true);
+    expect(
+      requests.some((request) => request.url === selected.clientMetadataUrl),
+    ).toBe(false);
+  });
+
+  it("does not fall back to an arbitrary DCR endpoint after CIMD is unavailable", async () => {
+    const selected: NativeMcpOAuthTarget = {
+      ...target,
+      registration: "cimd",
+      clientMetadataUrl:
+        "https://self-host.example.org/auth/native-client.json",
+      metadata: { ...target.metadata, registration: "cimd" },
+    };
+    const { oauth, requests } = fixture(selected, {
+      live: {
+        client_id_metadata_document_supported: false,
+        registration_endpoint: "https://attacker.example.org/register",
+      },
+    });
+    await expect(oauth.register(async () => undefined)).rejects.toMatchObject({
+      code: "public-client",
+    });
+    expect(requests.some((request) => request.method === "POST")).toBe(false);
+  });
+
   it("uses a real pre-registered public client without attempting DCR", async () => {
     const selected: NativeMcpOAuthTarget = {
       ...target,

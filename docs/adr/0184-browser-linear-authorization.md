@@ -1,9 +1,9 @@
 # ADR 0184 — Linear authorizes and runs directly in the browser
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-10-21
 - **Date:** 2026-10-08
 - **Amends:** [ADR 0183](0183-self-hosted-connector-configuration.md)
-- **Uses:** [ADR 0128](0128-pages-without-host.md), [ADR 0149](0149-nothing-stored-in-the-clear.md)
+- **Uses:** [ADR 0128](0128-pages-without-host.md), [ADR 0149](0149-nothing-stored-in-the-clear.md), [ADR 0185](0185-native-browser-connectors.md)
 
 ## Context
 
@@ -65,6 +65,24 @@ and browser CORS for its token and GraphQL endpoints.
    device-record lock; exact grant comparisons and a guarded atomic tombstone
    preserve concurrent authorizations. Unselected actors have a cleanup action
    that does not start OAuth consent.
+
+## Amendment — 2026-10-21: Linear's default road is MCP
+
+New Linear connections use Linear's published MCP authorization through the
+compiled native MCP route. CIMD is preferred and needs no OAuth application;
+when live metadata omits CIMD support, DCR is used only if the live registration
+endpoint exactly matches the compiled endpoint. The primary page requests the
+provider-advertised `read` permission by default. It does not ask a person to
+choose Managed versus Bring Your Own and does not collect a client ID.
+
+The specialized GraphQL OAuth, webhook and personal-API-key route in this ADR
+remains available under an explicit Advanced disclosure for new connections,
+and remains the custody route for existing specialized records. It is a separate
+transport with separate sealed credentials; an MCP token is never silently
+reused for GraphQL. OAuth application manifests may prefill a person's own
+Linear application when they deliberately choose that fallback. XAA/EMA is not
+enabled: no verified enterprise IdP, resource-client registration or token
+exchange contract exists for this deployment.
 
 ## Consequences
 
