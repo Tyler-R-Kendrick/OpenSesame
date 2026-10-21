@@ -35,7 +35,7 @@ function draft(providerId: "stability" | "byo-ai" = "stability") {
     tokenParameter: "max_tokens" as const,
   };
 }
-describe("strict Stability family configuration without advertised activation", () => {
+describe("strict Stability family configuration and native/BYO activation", () => {
   it.each(["sd3.5-medium", "sd3.5-large", "sd3.5-large-turbo"])(
     "accepts official native model %s with the exact existing kernel base",
     (model) => {
@@ -140,7 +140,7 @@ describe("strict Stability family configuration without advertised activation", 
       validateAiConnection({ ...draft("byo-ai"), baseUrl }),
     ).toThrow();
   });
-  it("retains legacy shared URL export and normalization without registering a picker/preset", () => {
+  it("retains legacy shared URL normalization and exposes the exact native/BYO image protocol", () => {
     expect(aiConnectionBase).toBe(sharedBase);
     expect(aiConnectionBase(" https://models.example/mount/// ").href).toBe(
       "https://models.example/mount/",
@@ -148,12 +148,16 @@ describe("strict Stability family configuration without advertised activation", 
     expect(aiConnectionBase("http://127.0.0.1:8080/mount").href).toBe(
       "http://127.0.0.1:8080/mount/",
     );
-    expect(aiConnectionPreset("stability")).toBeNull();
+    expect(aiConnectionPreset("stability")).toMatchObject({
+      family: "stability_sd3",
+      baseUrl: STABILITY_SD3_BASE,
+      model: STABILITY_SD3_MODEL,
+    });
     expect(
       aiConnectionFamilies("byo-ai").some(
         (item) => String(item.id) === "stability_sd3",
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(isAiImageFamily("stability_sd3")).toBe(true);
     expect(isAiImageFamily("openai_chat")).toBe(false);
   });

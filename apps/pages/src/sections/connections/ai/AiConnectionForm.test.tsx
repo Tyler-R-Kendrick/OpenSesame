@@ -20,7 +20,6 @@ import { AiConnectionPanels } from "./AiConnectionPanels.js";
 import { aiConnectionUiDependencies } from "./useAiConnection.js";
 afterEach(cleanup);
 installConnectorIntegration();
-
 function mount(
   providerId: string,
   saved = false,
@@ -51,7 +50,7 @@ function mount(
   return { ...rendered, draft, onChange, onSave, onTest };
 }
 
-it("uses the common BYO form to expose nine genuinely different API families", async () => {
+it("uses the common BYO form to expose ten genuinely different API families", async () => {
   const state = mount("byo-ai");
   const family = screen.getByLabelText("API family");
   const options = within(family).getAllByRole("option");
@@ -65,6 +64,7 @@ it("uses the common BYO form to expose nine genuinely different API families", a
     "ElevenLabs Scribe transcription",
     "Deepgram transcription",
     "AssemblyAI transcription",
+    "Stability AI images",
   ]);
   await choose("API family", "anthropic_messages");
   expect(state.onChange).toHaveBeenCalledWith("family", "anthropic_messages");

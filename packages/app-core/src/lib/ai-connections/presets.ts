@@ -1,6 +1,7 @@
 import { modelApiOf } from "../ai-model-provider.js";
 import { catalogProvider } from "../connector-catalog.js";
 import { bedrockResourceBase } from "./bedrock-target.js";
+import { STABILITY_SD3_BASE, STABILITY_SD3_MODEL } from "./stability-target.js";
 import type { AiConnectionDraft, AiInferenceFamily } from "./types.js";
 
 export const AI_CONNECTION_FAMILIES = [
@@ -13,6 +14,7 @@ export const AI_CONNECTION_FAMILIES = [
   { id: "elevenlabs_scribe", label: "ElevenLabs Scribe transcription" },
   { id: "deepgram_listen", label: "Deepgram transcription" },
   { id: "assemblyai_transcript", label: "AssemblyAI transcription" },
+  { id: "stability_sd3", label: "Stability AI images" },
 ] as const;
 
 export function isAiConnectionFamily(
@@ -34,6 +36,14 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "stability")
+    return {
+      providerId,
+      name: "Stability AI",
+      family: "stability_sd3" as const,
+      baseUrl: STABILITY_SD3_BASE,
+      model: STABILITY_SD3_MODEL,
+    };
   if (providerId === "ollama")
     return {
       providerId,
@@ -109,6 +119,10 @@ export function aiConnectionPreset(providerId: string) {
       family: "openai_chat" as const,
       baseUrl: "",
     };
+  return catalogAiPreset(providerId);
+}
+
+function catalogAiPreset(providerId: string) {
   const api = modelApiOf(providerId);
   if (!api || !isAiConnectionFamily(api.protocol)) return null;
   return {
@@ -131,7 +145,8 @@ export function aiConnectionDraft(providerId: string): AiConnectionDraft {
     model:
       preset.family === "elevenlabs_scribe" ||
       preset.family === "deepgram_listen" ||
-      preset.family === "assemblyai_transcript"
+      preset.family === "assemblyai_transcript" ||
+      preset.family === "stability_sd3"
         ? preset.model
         : "",
     authentication: providerId === "ollama" ? "none" : "api-key",
