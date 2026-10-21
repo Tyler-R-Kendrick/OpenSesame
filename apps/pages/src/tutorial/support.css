@@ -383,10 +383,6 @@
   color: var(--ink-3);
 }
 
-.support__search {
-  margin-bottom: 0.15rem;
-}
-
 .support__topic {
   display: flex;
   align-items: center;
@@ -412,24 +408,6 @@
 .support__topic-open:hover {
   background: var(--surface-2);
   border-color: var(--line-strong);
-}
-
-.support__goal {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.4rem 0 0.4rem 0.05rem;
-  border-top: 1px solid var(--line);
-}
-
-.support__goal:first-of-type {
-  border-top: 0;
-}
-
-.support__goal-title {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.8438rem;
 }
 
 /* ——— Asking ———————————————————————————————————————————————— */
