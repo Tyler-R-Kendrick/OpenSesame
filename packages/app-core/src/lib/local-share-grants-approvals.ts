@@ -14,6 +14,7 @@ import {
 } from "@opensesame/os-domain";
 import { getBundledProviders } from "./embedded-catalog.js";
 import { kvRefresh } from "./kv.js";
+import { currentActorPrincipalId } from "./local-actor.js";
 import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import {
@@ -92,6 +93,7 @@ export async function ensureLocalShare(
     policy: input.policy,
     durationSeconds,
   };
+  if (input.issuedBy) share.issuedBy = input.issuedBy;
   if (input.sessionId) share.sessionId = input.sessionId;
   // The standing share is the vault's own: system code, no person's grant.
   return name(tomb, (named) =>
@@ -152,6 +154,7 @@ export type PendingShare = {
   policy: string;
   durationSeconds: number;
   requestedAt: number;
+  issuedBy?: string;
 };
 
 export type SubmittedShare =
@@ -168,6 +171,7 @@ function isPending(value: BoundaryValue): value is PendingShare {
     text(value.resourceLabel, 128) &&
     text(value.policy, 32) &&
     allowedPolicy(value.resourceKind, value.policy) &&
+    (value.issuedBy === undefined || text(value.issuedBy, 64)) &&
     isNumber(value.durationSeconds) &&
     SHARE_DURATIONS.some((entry) => entry.seconds === value.durationSeconds) &&
     isNumber(value.requestedAt) &&
@@ -249,6 +253,7 @@ async function savePendingShare<T>(
     durationSeconds: input.durationSeconds,
     requestedAt: Date.now(),
   };
+  if (input.issuedBy) pending.issuedBy = input.issuedBy;
   const next = [...current, pending];
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
@@ -270,17 +275,28 @@ export async function submitLocalShare(
   tomb: string,
   input: CreateLocalShareInput,
 ): Promise<SubmittedShare> {
+  const issuedBy = input.issuedBy ?? (await currentActorPrincipalId(tomb));
+  const attributed = issuedBy ? { ...input, issuedBy } : input;
   const directory = await readLocalDirectory(tomb);
-  const entry = directory.entries.find((row) => row.id === input.principalId);
+  const entry = directory.entries.find(
+    (row) => row.id === attributed.principalId,
+  );
   if (shareNeedsApproval(entry?.kind)) {
     if (entry?.kind === "agent" && !entry.enabled)
       throw new LocalDirectoryError("This agent is disabled.");
     const pending = await name(tomb, async (named) =>
-      savePendingShare(named.value, input, await requireManageGrants(named)),
+      savePendingShare(
+        named.value,
+        attributed,
+        await requireManageGrants(named),
+      ),
     );
     return { outcome: "pending", pending };
   }
-  return { outcome: "granted", shares: await createLocalShare(tomb, input) };
+  return {
+    outcome: "granted",
+    shares: await createLocalShare(tomb, attributed),
+  };
 }
 
 /** Turn a pending agent grant into an active share. The clock starts here. */
@@ -302,18 +318,16 @@ export function approvePendingShare(
       (entry.kind === "agent" && !entry.enabled)
     )
       throw new LocalDirectoryError("This grant request is unavailable.");
-    const shares = await createLocalShareAs(
-      named,
-      {
-        principalId: pending.principalId,
-        resourceKind: pending.resourceKind,
-        resourceId: pending.resourceId,
-        resourceLabel: pending.resourceLabel,
-        policy: pending.policy,
-        durationSeconds: pending.durationSeconds,
-      },
-      authority,
-    );
+    const approved: CreateLocalShareInput = {
+      principalId: pending.principalId,
+      resourceKind: pending.resourceKind,
+      resourceId: pending.resourceId,
+      resourceLabel: pending.resourceLabel,
+      policy: pending.policy,
+      durationSeconds: pending.durationSeconds,
+    };
+    if (pending.issuedBy) approved.issuedBy = pending.issuedBy;
+    const shares = await createLocalShareAs(named, approved, authority);
     await writePending(
       tomb,
       (await readPending(tomb)).filter((row) => row.id !== id),

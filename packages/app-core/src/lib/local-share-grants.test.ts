@@ -41,6 +41,7 @@ it("grants a vault to a person and lists it until revoked", async () => {
   });
   expect(shares).toHaveLength(1);
   expect(shares[0]?.resourceKind).toBe("vault");
+  expect(shares[0]?.issuedBy).toBe(fixture.personId);
   expect(await listLocalShares(fixture.tomb)).toHaveLength(1);
   await revokeLocalShare(fixture.tomb, shares[0]?.id ?? "");
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);

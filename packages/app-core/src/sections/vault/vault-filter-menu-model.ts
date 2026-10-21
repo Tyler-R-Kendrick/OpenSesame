@@ -22,15 +22,23 @@ export type Road = {
   guideId?: string;
 };
 
+export type SharedItemRoadMark = {
+  incoming: readonly unknown[];
+};
+
 export function buildRoads(
   items: VaultItem[],
   folders: Folder[],
   typeIds: readonly string[],
   filter: string,
   folderId: string | null,
+  sharedItems?: ReadonlyMap<string, SharedItemRoadMark>,
 ): Road[] {
   const live = items.filter((item) => item.deletedAt === null);
   const current = resolveFilterSlug(filter);
+  const sharedCount = live.filter(
+    (item) => (sharedItems?.get(item.id)?.incoming.length ?? 0) > 0,
+  ).length;
   const roads: Road[] = [
     {
       key: "all",
@@ -48,6 +56,24 @@ export function buildRoads(
       guideId: "vault.filter.favorites",
     },
   ];
+  if (sharedCount > 0 || filter === "shared" || filter === "owned") {
+    roads.push(
+      {
+        key: "shared",
+        to: "/vault?f=shared",
+        label: "Shared with me",
+        count: sharedCount,
+        active: filter === "shared",
+      },
+      {
+        key: "owned",
+        to: "/vault?f=owned",
+        label: "Owned by me",
+        count: live.length - sharedCount,
+        active: filter === "owned",
+      },
+    );
+  }
   for (const typeId of typeIds) {
     roads.push({
       key: typeId,

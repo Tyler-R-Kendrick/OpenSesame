@@ -17,6 +17,7 @@ import {
 } from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
 import { recordAccessAuditEvent } from "./local-access-audit.js";
+import { currentActorPrincipalId } from "./local-actor.js";
 import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
 import { ALL_USERS_GROUP } from "./local-groups.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
@@ -72,6 +73,8 @@ export type LocalShare = {
   policy: string;
   issuedAt: number;
   expiresAt: number;
+  /** The person or identity that issued this share, when one was acting. */
+  issuedBy?: string;
   /** Set when this share was issued by a vault session run. */
   sessionId?: string;
 };
@@ -145,6 +148,7 @@ function isShare(value: BoundaryValue): value is LocalShare {
     text(value.resourceLabel, 128) &&
     text(value.policy, 32) &&
     allowedPolicy(value.resourceKind, value.policy) &&
+    (value.issuedBy === undefined || text(value.issuedBy, 64)) &&
     (value.sessionId === undefined || text(value.sessionId, 36)) &&
     isNumber(value.issuedAt) &&
     isNumber(value.expiresAt) &&
@@ -204,6 +208,8 @@ export type CreateLocalShareInput = {
   resourceLabel: string;
   policy: string;
   durationSeconds: number;
+  /** Defaults to the current local or remote actor when the form did not name one. */
+  issuedBy?: string;
   sessionId?: string;
 };
 
@@ -242,6 +248,8 @@ export function validateShareInput(
     );
   if (!durationAllowed(input.durationSeconds, freeDuration))
     throw new LocalDirectoryError("Choose a duration.");
+  if (input.issuedBy !== undefined && !text(input.issuedBy, 64))
+    throw new LocalDirectoryError("Choose a valid sharing identity.");
 }
 
 /**
@@ -249,15 +257,17 @@ export function validateShareInput(
  * An agent or application is refused here. `submitLocalShare` records a
  * pending approval, and `approvePendingShare` is what writes that share.
  */
-export function createLocalShare(
+export async function createLocalShare(
   tomb: string,
   input: CreateLocalShareInput,
   options?: ShareWriteOptions,
 ): Promise<LocalShare[]> {
+  const issuedBy = input.issuedBy ?? (await currentActorPrincipalId(tomb));
+  const attributed = issuedBy ? { ...input, issuedBy } : input;
   return name(tomb, async (named) => {
     const authority = await requireManageGrants(named);
-    await refuseUnapprovedPrincipal(named.value, input.principalId);
-    return createLocalShareAs(named, input, authority, options);
+    await refuseUnapprovedPrincipal(named.value, attributed.principalId);
+    return createLocalShareAs(named, attributed, authority, options);
   });
 }
 
@@ -295,6 +305,7 @@ export async function createLocalShareAs<T>(
     issuedAt,
     expiresAt: issuedAt + input.durationSeconds * 1000,
   };
+  if (input.issuedBy) share.issuedBy = input.issuedBy;
   if (input.sessionId) share.sessionId = input.sessionId;
   const next = [
     ...(await readAll(tomb)).filter((row) => row.expiresAt > issuedAt),

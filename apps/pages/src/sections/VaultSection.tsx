@@ -62,7 +62,7 @@ export function VaultSection() {
   const { itemId } = useParams();
   const { items, folders } = useVault();
   const store = useVaultStore();
-  const sharedItems = useSharedItems(store.activeTomb?.() ?? "");
+  const sharedItems = useSharedItems(store.activeTomb?.() ?? "", items);
   const copySecret = useCopySecret();
   const navigate = useNavigate();
 
@@ -84,9 +84,14 @@ export function VaultSection() {
           return false;
         if (folderId && item.folderId !== folderId) return false;
         if (filter === "favorites" && !item.favorite) return false;
+        const incoming = sharedItems.get(item.id)?.incoming.length ?? 0;
+        if (filter === "shared" && incoming === 0) return false;
+        if (filter === "owned" && incoming > 0) return false;
         if (
           filter !== "all" &&
           filter !== "favorites" &&
+          filter !== "shared" &&
+          filter !== "owned" &&
           filter !== "trash" &&
           itemTypeId(item) !== filter
         ) {
@@ -95,7 +100,7 @@ export function VaultSection() {
         return true;
       }),
     );
-  }, [listed, filter, folderId, inTrash]);
+  }, [listed, filter, folderId, inTrash, sharedItems]);
 
   const narrow = useNarrow();
   // A phone draws one pane at a time, the first being the section tree.
@@ -340,6 +345,7 @@ export function VaultSection() {
                   )}
                   filter={filter}
                   folderId={folderId}
+                  sharedItems={sharedItems}
                 />
                 {inTrash ? (
                   <TrashCommands
