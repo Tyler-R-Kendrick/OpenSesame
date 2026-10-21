@@ -11,12 +11,15 @@ export function CredentialLine({
   label,
   htmlFor,
   field,
+  hint,
   remove,
 }: {
   label: string;
   /** The id of the control the label names. */
   htmlFor: string;
   field: ReactNode;
+  /** An optional shape hint below the field; never the field's value. */
+  hint?: ReactNode;
   remove?: { label: string; onRemove: () => void };
 }) {
   return (
@@ -36,6 +39,7 @@ export function CredentialLine({
           </button>
         ) : null}
       </div>
+      {hint}
     </div>
   );
 }
