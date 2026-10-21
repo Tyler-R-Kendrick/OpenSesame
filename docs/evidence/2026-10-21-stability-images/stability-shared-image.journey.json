@@ -1,0 +1,221 @@
+{
+  "out": ".",
+  "clock": "2026-10-21T00:00:00Z",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "enable": "Remote support model"
+        },
+        {
+          "visit": "settings/connections/stability"
+        },
+        {
+          "metrics": "main, form[aria-label=\"AI connection configuration\"]"
+        },
+        {
+          "count": [
+            "main",
+            "form[aria-label=\"AI connection configuration\"]",
+            "section[aria-label=\"Image generation\"]"
+          ]
+        },
+        {
+          "shot": "1280-stability-form"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "enable": "Remote support model"
+        },
+        {
+          "visit": "settings/connections/byo-ai"
+        },
+        {
+          "only": "after",
+          "selectOptional": {
+            "label": "API family",
+            "value": "stability_sd3"
+          }
+        },
+        {
+          "metrics": "main, form[aria-label=\"AI connection configuration\"]"
+        },
+        {
+          "count": [
+            "main",
+            "form[aria-label=\"AI connection configuration\"]",
+            "section[aria-label=\"Image generation\"]"
+          ]
+        },
+        {
+          "shot": "1280-byo-image-form"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "enable": "Remote support model"
+        },
+        {
+          "visit": "settings/connections/stability"
+        },
+        {
+          "metrics": "main, form[aria-label=\"AI connection configuration\"]"
+        },
+        {
+          "count": [
+            "main",
+            "form[aria-label=\"AI connection configuration\"]",
+            "section[aria-label=\"Image generation\"]"
+          ]
+        },
+        {
+          "shot": "390-stability-form"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "enable": "Remote support model"
+        },
+        {
+          "visit": "settings/connections/byo-ai"
+        },
+        {
+          "only": "after",
+          "selectOptional": {
+            "label": "API family",
+            "value": "stability_sd3"
+          }
+        },
+        {
+          "metrics": "main, form[aria-label=\"AI connection configuration\"]"
+        },
+        {
+          "count": [
+            "main",
+            "form[aria-label=\"AI connection configuration\"]",
+            "section[aria-label=\"Image generation\"]"
+          ]
+        },
+        {
+          "shot": "390-byo-image-form"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-stability-form",
+      "width": 1280,
+      "title": "Stability native configuration \u2014 1280 \u00d7 900",
+      "caption": "Two actual signed normal builds, same ordinary PIN-vault configuration screen. Owned protocol fixture is used separately for functional checks; no live provider account claim.",
+      "before": "Generic API-key form; no shared image configuration",
+      "after": "Shared image family, official endpoint/model defaults and verification prompt"
+    },
+    {
+      "shot": "1280-byo-image-form",
+      "width": 1280,
+      "title": "BYO image configuration \u2014 1280 \u00d7 900",
+      "caption": "Two actual signed normal builds, same ordinary PIN-vault configuration screen. Owned protocol fixture is used separately for functional checks; no live provider account claim.",
+      "before": "Shared BYO form without the SD3 image family",
+      "after": "Same shared image controls with custom endpoint/model configuration"
+    },
+    {
+      "shot": "390-stability-form",
+      "width": 390,
+      "title": "Stability native configuration \u2014 390 \u00d7 844",
+      "caption": "Two actual signed normal builds, same ordinary PIN-vault configuration screen. Owned protocol fixture is used separately for functional checks; no live provider account claim.",
+      "before": "Generic API-key form; no shared image configuration",
+      "after": "Shared image family, official endpoint/model defaults and verification prompt"
+    },
+    {
+      "shot": "390-byo-image-form",
+      "width": 390,
+      "title": "BYO image configuration \u2014 390 \u00d7 844",
+      "caption": "Two actual signed normal builds, same ordinary PIN-vault configuration screen. Owned protocol fixture is used separately for functional checks; no live provider account claim.",
+      "before": "Shared BYO form without the SD3 image family",
+      "after": "Same shared image controls with custom endpoint/model configuration"
+    }
+  ],
+  "functionalAddedCapture": {
+    "qualification": "Added saved image workspace is captured by the separately bounded functional image journey, after a real provider response; no base screenshot exists. Canonical configuration capture alone does not produce this screenshot or prove inference.",
+    "screens": [
+      {
+        "width": 1280,
+        "height": 900,
+        "provider": "byo-ai",
+        "shot": "1280-byo-ai-image-workspace-added"
+      },
+      {
+        "width": 390,
+        "height": 844,
+        "provider": "byo-ai",
+        "shot": "390-byo-ai-image-workspace-added"
+      }
+    ],
+    "ordinarySteps": [
+      "Seal original vault with PIN and enable Connections, External connectors and Remote support model through Features controls.",
+      "Open BYO AI; select stability_sd3; configure an operator-approved HTTPS endpoint, model and API key and verification prompt.",
+      "Test AI connection; require real inference response completion. Save AI connection; require a second completed inference and persisted encrypted credentials.",
+      "Cold navigate and unlock the same vault with its original PIN; saved key field remains empty and the sealed token remains present.",
+      "Fill Image prompt, press Generate image, require real Image.decode on the generated blob and exact original downloaded PNG bytes/SHA.",
+      "Capture the entire document with saved shared configuration and added Image generation region; no DOM overlays or cropping."
+    ],
+    "protocol": "POST /v2beta/stable-image/generate/sd3 with documented multipart prompt/model/mode/aspect_ratio/output_format, bearer credential and application/json response. Owned fixture returns a real PNG encoded in the documented response; endpoint must permit the actual PWA origin.",
+    "source": "Actual matching final browser receipt/result/capture hashes and bounded ordinary workflow are recorded in paired-build-proof.json. Canonical configuration capture alone does not recreate the owned protocol fixture or added workspace."
+  }
+}

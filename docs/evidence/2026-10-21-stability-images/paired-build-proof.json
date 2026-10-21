@@ -1,0 +1,2008 @@
+{
+  "schemaVersion": 1,
+  "title": "Stability native and BYO image configuration",
+  "qualification": "Two actual signed normal PWA builds and matching real PIN-vault configuration captures. Functional evidence uses an owned documented Stability HTTPS protocol stand-in with independent TLS/network/PNG proof; it is not a live Stability account, CORS deployment, billing, or hosted generation result. No application backend, extension or host CLI was used.",
+  "beforeHead": "33d8513793cbf2a6d647363230e15b67d0733917",
+  "afterHead": "c2b820991b5877cdf4bea298c928d81a7f41b074",
+  "afterIncludes": [
+    "#1864 shared image UI activation",
+    "#1865 non-UI OIDC foundation",
+    "#1866 completed text HTTP body release",
+    "#1867 completed image HTTP body release"
+  ],
+  "builds": [
+    {
+      "side": "before",
+      "head": "33d8513793cbf2a6d647363230e15b67d0733917",
+      "tree": "7971eceaaf70d1fde9022c91480089eba0470ad0",
+      "parent": "7d99b57be8001b9b0bbc8efbd213a21bf136d29c",
+      "buildReceipt": {
+        "bytes": 45326,
+        "sha256": "5b0cbacef2ed44055196d02922d27d71a41cfa27b8545d79705f2463d42b4d84",
+        "file": "pwa-first-claim-normal-build-2660/after-build/receipt.json"
+      },
+      "gatesReceipt": {
+        "bytes": 1087,
+        "sha256": "e1f18e33ab89b6fe9f1767274eab6f82387a33ebcdf7a83ca1c42840ce6eca42",
+        "file": "pwa-first-claim-normal-build-2660/after-build/gates/receipts.json"
+      },
+      "index": {
+        "bytes": 4528,
+        "sha256": "3f1050ca657d8d07f361707e8097ef6e190dd6abe28ecba7bbf41e994ef4fa76",
+        "file": "pwa-first-claim-normal-build-2660/after-build/dist/index.html"
+      },
+      "seconds": 105.24003889900632,
+      "outerBuildBoundSeconds": 240,
+      "budgetExitCode": 0,
+      "strictGraphExitCode": 0,
+      "sourceBytesUnchanged": true,
+      "allPinsUnchanged": true,
+      "profileRestored": true,
+      "budgetLog": {
+        "bytes": 699,
+        "sha256": "b2d968f866e0ffd3e92546ed06e4613c9546a38f33db2892174c3dddd8be68c9",
+        "file": "pwa-first-claim-normal-build-2660/after-build/gates/budget.log"
+      },
+      "budgetReadback": "Shipped bundle sizes (KiB)\n\n  apps/pages  -- 288 files\n    total            19788  /  21050 budget\n    javascript        7265  /   7370 budget\n    javascriptGzip    2233  /   2235 budget\n    css                181  /    181 budget\n    largestAsset      6588  /  12800 budget  tailscale/main-83486f566c91f403.wasm.gz\n\nCapability profiles not measured -- no build output at:\n  minimal-local-hardened: apps/pages/dist-profiles/minimal-local-hardened\n  family-local-hardened: apps/pages/dist-profiles/family-local-hardened\nRun `pnpm --filter @opensesame/pages build:profile --profile capability-profiles/<name>.json --mode hardened` to measure one.\n\nbundle budget gate: CLEAN -- 1 app(s) within budget"
+    },
+    {
+      "side": "after",
+      "head": "c2b820991b5877cdf4bea298c928d81a7f41b074",
+      "tree": "b801e69c881d1544c91757965841c7d98428c646",
+      "parent": "dd34214d45a30b11fa4d967e9bed1f799fbcb50a",
+      "buildReceipt": {
+        "bytes": 45326,
+        "sha256": "b1b260b72faea93d8ba3d145ffda02536d1190ff81220cc0f825c35e7ca72ad7",
+        "file": "pwa-ai-image-eof-normal-build-2678/after-build/receipt.json"
+      },
+      "gatesReceipt": {
+        "bytes": 1090,
+        "sha256": "f936f72332ee0dab6cc93620dc542c42a373ff009e401134efb71ff12f37fd97",
+        "file": "pwa-ai-image-eof-normal-build-2678/after-build/gates/receipts.json"
+      },
+      "index": {
+        "bytes": 4528,
+        "sha256": "519c89953bb50511e0817104e8f6c5520941439ad2a251d46580f81bad0011fc",
+        "file": "pwa-ai-image-eof-normal-build-2678/after-build/dist/index.html"
+      },
+      "seconds": 101.61820776801324,
+      "outerBuildBoundSeconds": 240,
+      "budgetExitCode": 0,
+      "strictGraphExitCode": 0,
+      "sourceBytesUnchanged": true,
+      "allPinsUnchanged": true,
+      "profileRestored": true,
+      "budgetLog": {
+        "bytes": 699,
+        "sha256": "3c9b7661c90187c1754cf2acf4fdf6006d289e3abf959b26ba939e7445c39092",
+        "file": "pwa-ai-image-eof-normal-build-2678/after-build/gates/budget.log"
+      },
+      "budgetReadback": "Shipped bundle sizes (KiB)\n\n  apps/pages  -- 288 files\n    total            19797  /  21050 budget\n    javascript        7273  /   7370 budget\n    javascriptGzip    2235  /   2235 budget\n    css                181  /    181 budget\n    largestAsset      6588  /  12800 budget  tailscale/main-83486f566c91f403.wasm.gz\n\nCapability profiles not measured -- no build output at:\n  minimal-local-hardened: apps/pages/dist-profiles/minimal-local-hardened\n  family-local-hardened: apps/pages/dist-profiles/family-local-hardened\nRun `pnpm --filter @opensesame/pages build:profile --profile capability-profiles/<name>.json --mode hardened` to measure one.\n\nbundle budget gate: CLEAN -- 1 app(s) within budget"
+    }
+  ],
+  "normalBuildQualification": "Both build profiles/source/tool pins restored and unchanged; unchanged bundle budgets and strict graph checks passed. Final gzip2235/2235KiB versus before2233/2235KiB. No budget increase.",
+  "bounds": {
+    "buildSeconds": 240,
+    "browserWholeSeconds": 180,
+    "phaseSeconds": 45,
+    "heldOpenMinimumMs": 250,
+    "physicalCloseMaximumMs": 2000,
+    "launchFloorMiB": 1316,
+    "runningFloorMiB": 1300,
+    "chromiumSandboxMode": "04755"
+  },
+  "configurationPairs": [
+    {
+      "name": "stability-form",
+      "width": 1280,
+      "before": {
+        "name": "stability-form",
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "scale": 1,
+          "coarse": false
+        },
+        "documentWidth": 1280,
+        "commonForms": 0,
+        "imageWorkspaces": 0,
+        "controls": [
+          {
+            "tag": "INPUT",
+            "type": "password",
+            "label": "Stability AI API key",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "BUTTON",
+            "type": "submit",
+            "label": "Verify and connect Stability AI",
+            "x": 280,
+            "width": 40,
+            "height": 40
+          }
+        ],
+        "png": {
+          "file": "1280-stability-form.png",
+          "bytes": 50217,
+          "sha256": "cb904a423a9ff2f8496b70b3a2f9a0697046744bb357c549071eda871a46f539",
+          "width": 1280,
+          "height": 900
+        }
+      },
+      "after": {
+        "name": "stability-form",
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "scale": 1,
+          "coarse": false
+        },
+        "documentWidth": 1280,
+        "commonForms": 1,
+        "imageWorkspaces": 0,
+        "controls": [
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Connection name",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "API family",
+            "x": 441.59375,
+            "width": 478.40625,
+            "height": 32
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "API base URL",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Model ID",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "INPUT",
+            "type": "password",
+            "label": "API key",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Verification image prompt",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "BUTTON",
+            "type": "submit",
+            "label": "Save AI connection",
+            "x": 280,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "tag": "BUTTON",
+            "type": "button",
+            "label": "Test AI connection",
+            "x": 479.625,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "png": {
+          "file": "1280-stability-form.png",
+          "bytes": 79854,
+          "sha256": "abf0548bb674f1261c7f9b72f2294c0e0853990755caddc74ed6f680a1cb7888",
+          "width": 1280,
+          "height": 900
+        }
+      },
+      "measurements": {
+        "commonForms": {
+          "before": 0,
+          "after": 1
+        },
+        "imageWorkspacesAtConfiguration": {
+          "before": 0,
+          "after": 0
+        },
+        "horizontalOverflow": false,
+        "allMeasuredControlBoundsWithinViewport": true
+      },
+      "qualification": "Actual whole-viewport captures at canonical desktop1x/mouse or phone3x/touch; no styles or elements injected."
+    },
+    {
+      "name": "byo-image-form",
+      "width": 1280,
+      "before": {
+        "name": "byo-image-form",
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "scale": 1,
+          "coarse": false
+        },
+        "documentWidth": 1280,
+        "commonForms": 1,
+        "imageWorkspaces": 0,
+        "controls": [
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Connection name",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "API family",
+            "x": 441.59375,
+            "width": 478.40625,
+            "height": 32
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "Endpoint type",
+            "x": 441.59375,
+            "width": 478.40625,
+            "height": 32
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "API base URL",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Model ID",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "Authentication",
+            "x": 441.59375,
+            "width": 478.40625,
+            "height": 32
+          },
+          {
+            "tag": "INPUT",
+            "type": "password",
+            "label": "API key",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "Output token parameter",
+            "x": 441.59375,
+            "width": 478.40625,
+            "height": 32
+          },
+          {
+            "tag": "BUTTON",
+            "type": "submit",
+            "label": "Save AI connection",
+            "x": 280,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "tag": "BUTTON",
+            "type": "button",
+            "label": "Test AI connection",
+            "x": 479.625,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "png": {
+          "file": "1280-byo-image-form.png",
+          "bytes": 56708,
+          "sha256": "30bc8fa6bb5c10dc419c70a36ae129165646ad980f40dcc918837ef26d66dab2",
+          "width": 1280,
+          "height": 900
+        }
+      },
+      "after": {
+        "name": "byo-image-form",
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "scale": 1,
+          "coarse": false
+        },
+        "documentWidth": 1280,
+        "commonForms": 1,
+        "imageWorkspaces": 0,
+        "controls": [
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Connection name",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "API family",
+            "x": 441.59375,
+            "width": 478.40625,
+            "height": 32
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "API base URL",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Model ID",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "INPUT",
+            "type": "password",
+            "label": "API key",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Verification image prompt",
+            "x": 280,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "tag": "BUTTON",
+            "type": "submit",
+            "label": "Save AI connection",
+            "x": 280,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "tag": "BUTTON",
+            "type": "button",
+            "label": "Test AI connection",
+            "x": 479.625,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "png": {
+          "file": "1280-byo-image-form.png",
+          "bytes": 75701,
+          "sha256": "910e6220ededbd71b669a2ffdf8702b88475cb4b2bf3346ef9976346de90f293",
+          "width": 1280,
+          "height": 900
+        }
+      },
+      "measurements": {
+        "commonForms": {
+          "before": 1,
+          "after": 1
+        },
+        "imageWorkspacesAtConfiguration": {
+          "before": 0,
+          "after": 0
+        },
+        "horizontalOverflow": false,
+        "allMeasuredControlBoundsWithinViewport": true
+      },
+      "qualification": "Actual whole-viewport captures at canonical desktop1x/mouse or phone3x/touch; no styles or elements injected."
+    },
+    {
+      "name": "stability-form",
+      "width": 390,
+      "before": {
+        "name": "stability-form",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "scale": 3,
+          "coarse": true
+        },
+        "documentWidth": 390,
+        "commonForms": 0,
+        "imageWorkspaces": 0,
+        "controls": [
+          {
+            "tag": "INPUT",
+            "type": "password",
+            "label": "Stability AI API key",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "type": "submit",
+            "label": "Verify and connect Stability AI",
+            "x": 16,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "png": {
+          "file": "390-stability-form.png",
+          "bytes": 139067,
+          "sha256": "12db3432255311881cc1cd8e53dcdca3a8eb90e1d4c379a8eeb7ff9cf67035df",
+          "width": 1170,
+          "height": 2532
+        }
+      },
+      "after": {
+        "name": "stability-form",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "scale": 3,
+          "coarse": true
+        },
+        "documentWidth": 390,
+        "commonForms": 1,
+        "imageWorkspaces": 0,
+        "controls": [
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Connection name",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "API family",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "API base URL",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Model ID",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "password",
+            "label": "API key",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Verification image prompt",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "type": "submit",
+            "label": "Save AI connection",
+            "x": 16,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "type": "button",
+            "label": "Test AI connection",
+            "x": 219.625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "png": {
+          "file": "390-stability-form.png",
+          "bytes": 146591,
+          "sha256": "185d41a5d1ed4a4d1583ec18a872a2fbc1b4832c05338fda32af0c3fd509a745",
+          "width": 1170,
+          "height": 2532
+        }
+      },
+      "measurements": {
+        "commonForms": {
+          "before": 0,
+          "after": 1
+        },
+        "imageWorkspacesAtConfiguration": {
+          "before": 0,
+          "after": 0
+        },
+        "horizontalOverflow": false,
+        "allMeasuredControlBoundsWithinViewport": true
+      },
+      "qualification": "Actual whole-viewport captures at canonical desktop1x/mouse or phone3x/touch; no styles or elements injected."
+    },
+    {
+      "name": "byo-image-form",
+      "width": 390,
+      "before": {
+        "name": "byo-image-form",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "scale": 3,
+          "coarse": true
+        },
+        "documentWidth": 390,
+        "commonForms": 1,
+        "imageWorkspaces": 0,
+        "controls": [
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Connection name",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "API family",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "Endpoint type",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "API base URL",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Model ID",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "Authentication",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "password",
+            "label": "API key",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "Output token parameter",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "type": "submit",
+            "label": "Save AI connection",
+            "x": 16,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "type": "button",
+            "label": "Test AI connection",
+            "x": 219.625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "png": {
+          "file": "390-byo-image-form.png",
+          "bytes": 140694,
+          "sha256": "cbc100442769a5972ab1ecfee617485f4bb6b8afc3bbc5abe83b930ba8a0cdee",
+          "width": 1170,
+          "height": 2532
+        }
+      },
+      "after": {
+        "name": "byo-image-form",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "scale": 3,
+          "coarse": true
+        },
+        "documentWidth": 390,
+        "commonForms": 1,
+        "imageWorkspaces": 0,
+        "controls": [
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Connection name",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "SELECT",
+            "type": null,
+            "label": "API family",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "API base URL",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Model ID",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "password",
+            "label": "API key",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "INPUT",
+            "type": "text",
+            "label": "Verification image prompt",
+            "x": 16,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "type": "submit",
+            "label": "Save AI connection",
+            "x": 16,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "type": "button",
+            "label": "Test AI connection",
+            "x": 219.625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "png": {
+          "file": "390-byo-image-form.png",
+          "bytes": 218212,
+          "sha256": "127eceb5cbeb684f789010a09891a17cb1b150c37e13ba35bbe5640bc8af8d2e",
+          "width": 1170,
+          "height": 2532
+        }
+      },
+      "measurements": {
+        "commonForms": {
+          "before": 1,
+          "after": 1
+        },
+        "imageWorkspacesAtConfiguration": {
+          "before": 0,
+          "after": 0
+        },
+        "horizontalOverflow": false,
+        "allMeasuredControlBoundsWithinViewport": true
+      },
+      "qualification": "Actual whole-viewport captures at canonical desktop1x/mouse or phone3x/touch; no styles or elements injected."
+    }
+  ],
+  "functionalRuns": [
+    {
+      "road": "byo-owned-https",
+      "width": 1280,
+      "checks": 33,
+      "passed": true,
+      "seconds": 43.46176796098007,
+      "receipt": {
+        "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-byo-1280-2678-attempt-1/receipt.json",
+        "bytes": 1007,
+        "sha256": "832360fe2a8d0c3ddc1ef2335f674ed8f51a7b66205d3e4a171d04fc4f857c32"
+      },
+      "results": {
+        "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-byo-1280-2678-attempt-1/browser/results.json",
+        "bytes": 301594,
+        "sha256": "508a5d1fc99c8796c74e421fa49fbf8184528cdfba8742b488255e79029c33af"
+      },
+      "rawFailures": 5,
+      "rawFailureQualification": "Exactly five original pre-armed held requests, each independently joined to its native Request, CDP loadingFailed, actual Playwright requestfailed and premature producer/socket close. No ordinary failure filtered.",
+      "unarmedErrors": [],
+      "fixtureErrors": [],
+      "normalOwnedClosure": true,
+      "forcedCleanupUsed": false,
+      "sourceArtifactAndPinsUnchanged": true,
+      "completion": {
+        "passed": true,
+        "ordinaryCompleted": 5,
+        "exactlyProvenHeldFailures": 5,
+        "authority": "Independent producer end/finish/close, PW exactRequest failed for proven holds and Request finished/response.finished/body SHA for ordinary success, CDP loadingFinished/body SHA and actual Chromium preview/decode/download; no image phase-seal fabricated."
+      },
+      "ordinary": [
+        {
+          "kind": "test",
+          "document": "cdp:8C9EF8E21D46C8F40DC69B1D0627AEE6:0714BE4A831579F52C28AFFE231127F3",
+          "exchange": "stability:8e81ed10-639b-4fdc-9309-7e4b2e79ec48",
+          "requestId": "2245466.131",
+          "frameId": "8C9EF8E21D46C8F40DC69B1D0627AEE6",
+          "loaderId": "0714BE4A831579F52C28AFFE231127F3",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "save",
+          "document": "cdp:8C9EF8E21D46C8F40DC69B1D0627AEE6:0714BE4A831579F52C28AFFE231127F3",
+          "exchange": "stability:5b398c55-05ba-4a8e-a21e-ca20572882f5",
+          "requestId": "2245466.132",
+          "frameId": "8C9EF8E21D46C8F40DC69B1D0627AEE6",
+          "loaderId": "0714BE4A831579F52C28AFFE231127F3",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "image",
+          "document": "cdp:8C9EF8E21D46C8F40DC69B1D0627AEE6:7CCC2F18BC0EFD0E592D0B2FFC6584F1",
+          "exchange": "stability:87a2da18-f8b2-45ab-9401-b92aa52a72c7",
+          "requestId": "2245466.256",
+          "frameId": "8C9EF8E21D46C8F40DC69B1D0627AEE6",
+          "loaderId": "7CCC2F18BC0EFD0E592D0B2FFC6584F1",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "credential-save",
+          "document": "cdp:8C9EF8E21D46C8F40DC69B1D0627AEE6:7CCC2F18BC0EFD0E592D0B2FFC6584F1",
+          "exchange": "stability:91522ae8-09e7-4405-9a87-96ff0e78796b",
+          "requestId": "2245466.268",
+          "frameId": "8C9EF8E21D46C8F40DC69B1D0627AEE6",
+          "loaderId": "7CCC2F18BC0EFD0E592D0B2FFC6584F1",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "image",
+          "document": "cdp:8C9EF8E21D46C8F40DC69B1D0627AEE6:7CCC2F18BC0EFD0E592D0B2FFC6584F1",
+          "exchange": "stability:63f3a9c3-59af-4714-810e-02177d1e3d14",
+          "requestId": "2245466.269",
+          "frameId": "8C9EF8E21D46C8F40DC69B1D0627AEE6",
+          "loaderId": "7CCC2F18BC0EFD0E592D0B2FFC6584F1",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        }
+      ],
+      "withdrawals": [
+        {
+          "cause": "caller",
+          "armedAt": 1792552822265,
+          "drainMs": 58,
+          "exchange": "stability:9429e800-8ef5-4419-a04d-1826ab83806f"
+        },
+        {
+          "cause": "route",
+          "armedAt": 1792552823714,
+          "drainMs": 132,
+          "exchange": "stability:342e442b-0c15-4e6b-9e26-1aa3f3672bc3"
+        },
+        {
+          "cause": "credential",
+          "armedAt": 1792552825255,
+          "drainMs": 207,
+          "exchange": "stability:1b326db5-d3c0-4dcf-a329-fe5c7b90b91d"
+        },
+        {
+          "cause": "vault",
+          "armedAt": 1792552827209,
+          "drainMs": 163,
+          "exchange": "stability:3ba03d1b-a744-4a6a-b68a-19cbc2f90126"
+        },
+        {
+          "cause": "remove",
+          "armedAt": 1792552832622,
+          "drainMs": 68,
+          "exchange": "stability:aa278133-fab9-4691-ad11-0a6c0dc1d087"
+        }
+      ],
+      "credentialQualification": "Credential rotation also changes saved-row revision. This proves the combined original ownership withdrawal, not an isolated token-only cause.",
+      "requestSurface": [
+        {
+          "id": "stability:8e81ed10-639b-4fdc-9309-7e4b2e79ec48",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:5b398c55-05ba-4a8e-a21e-ca20572882f5",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:87a2da18-f8b2-45ab-9401-b92aa52a72c7",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:9429e800-8ef5-4419-a04d-1826ab83806f",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:342e442b-0c15-4e6b-9e26-1aa3f3672bc3",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:1b326db5-d3c0-4dcf-a329-fe5c7b90b91d",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:91522ae8-09e7-4405-9a87-96ff0e78796b",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:63f3a9c3-59af-4714-810e-02177d1e3d14",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:3ba03d1b-a744-4a6a-b68a-19cbc2f90126",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:aa278133-fab9-4691-ad11-0a6c0dc1d087",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        }
+      ],
+      "nativeRemoteRoute": {
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 41912,
+        "allNativeRequestsExactHostAndSni": false,
+        "fixedUrl": null
+      },
+      "downloads": [
+        {
+          "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-byo-1280-2678-attempt-1/browser/cold-original-generated.png",
+          "bytes": 77,
+          "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c"
+        },
+        {
+          "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-byo-1280-2678-attempt-1/browser/rotated-generated.png",
+          "bytes": 77,
+          "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c"
+        }
+      ],
+      "png": {
+        "width": 2,
+        "height": 3,
+        "bytes": 77,
+        "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c",
+        "actualChromiumDecode": true,
+        "actualDownloadBytesAndHashMatch": true
+      },
+      "liveProviderAccountClaim": false,
+      "remoteProviderWorkStoppedClaim": false
+    },
+    {
+      "road": "byo-owned-https",
+      "width": 390,
+      "checks": 33,
+      "passed": true,
+      "seconds": 45.35508570296224,
+      "receipt": {
+        "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-byo-390-2678-attempt-1/receipt.json",
+        "bytes": 1006,
+        "sha256": "56c3352dcf7d8fca4bec1b2ece3c00aed50730a96673284f52a1be16b49e5493"
+      },
+      "results": {
+        "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-byo-390-2678-attempt-1/browser/results.json",
+        "bytes": 301142,
+        "sha256": "d58a4ea7c1f9427a7352e3e77186fcc2e00c33f0a80a96621b38e5ee6d5ab4b2"
+      },
+      "rawFailures": 5,
+      "rawFailureQualification": "Exactly five original pre-armed held requests, each independently joined to its native Request, CDP loadingFailed, actual Playwright requestfailed and premature producer/socket close. No ordinary failure filtered.",
+      "unarmedErrors": [],
+      "fixtureErrors": [],
+      "normalOwnedClosure": true,
+      "forcedCleanupUsed": false,
+      "sourceArtifactAndPinsUnchanged": true,
+      "completion": {
+        "passed": true,
+        "ordinaryCompleted": 5,
+        "exactlyProvenHeldFailures": 5,
+        "authority": "Independent producer end/finish/close, PW exactRequest failed for proven holds and Request finished/response.finished/body SHA for ordinary success, CDP loadingFinished/body SHA and actual Chromium preview/decode/download; no image phase-seal fabricated."
+      },
+      "ordinary": [
+        {
+          "kind": "test",
+          "document": "cdp:B8A6BA3DF00208A64E379D8EC3C13577:62D476C08D1EE8E61313E88A08CBD392",
+          "exchange": "stability:ccd6fed1-5333-4d2f-aeac-92c205a196a4",
+          "requestId": "2243742.137",
+          "frameId": "B8A6BA3DF00208A64E379D8EC3C13577",
+          "loaderId": "62D476C08D1EE8E61313E88A08CBD392",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "save",
+          "document": "cdp:B8A6BA3DF00208A64E379D8EC3C13577:62D476C08D1EE8E61313E88A08CBD392",
+          "exchange": "stability:922f352a-0b19-45dc-8557-3f6aa06348a6",
+          "requestId": "2243742.138",
+          "frameId": "B8A6BA3DF00208A64E379D8EC3C13577",
+          "loaderId": "62D476C08D1EE8E61313E88A08CBD392",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "image",
+          "document": "cdp:B8A6BA3DF00208A64E379D8EC3C13577:415AAEE39D5C63E50EABB90B8EE646DA",
+          "exchange": "stability:d41818b3-5535-4162-afdf-b5e02a352cef",
+          "requestId": "2243742.263",
+          "frameId": "B8A6BA3DF00208A64E379D8EC3C13577",
+          "loaderId": "415AAEE39D5C63E50EABB90B8EE646DA",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "credential-save",
+          "document": "cdp:B8A6BA3DF00208A64E379D8EC3C13577:415AAEE39D5C63E50EABB90B8EE646DA",
+          "exchange": "stability:bd0e9380-c9a2-46d8-97a3-d6a1e89a635f",
+          "requestId": "2243742.275",
+          "frameId": "B8A6BA3DF00208A64E379D8EC3C13577",
+          "loaderId": "415AAEE39D5C63E50EABB90B8EE646DA",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "image",
+          "document": "cdp:B8A6BA3DF00208A64E379D8EC3C13577:415AAEE39D5C63E50EABB90B8EE646DA",
+          "exchange": "stability:21732e49-3a80-461c-b881-7a822b6976ad",
+          "requestId": "2243742.276",
+          "frameId": "B8A6BA3DF00208A64E379D8EC3C13577",
+          "loaderId": "415AAEE39D5C63E50EABB90B8EE646DA",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        }
+      ],
+      "withdrawals": [
+        {
+          "cause": "caller",
+          "armedAt": 1792552710823,
+          "drainMs": 57,
+          "exchange": "stability:6ec424a7-d03f-4da6-a365-53b78c2f3211"
+        },
+        {
+          "cause": "route",
+          "armedAt": 1792552712238,
+          "drainMs": 129,
+          "exchange": "stability:3f4e0c93-1733-4639-b783-ff7269e5bf41"
+        },
+        {
+          "cause": "credential",
+          "armedAt": 1792552713736,
+          "drainMs": 168,
+          "exchange": "stability:b1171719-f0ce-4867-a602-4e17ff036c17"
+        },
+        {
+          "cause": "vault",
+          "armedAt": 1792552715524,
+          "drainMs": 170,
+          "exchange": "stability:e7ae6aa4-be41-483d-9816-20e5039dbcd9"
+        },
+        {
+          "cause": "remove",
+          "armedAt": 1792552721171,
+          "drainMs": 68,
+          "exchange": "stability:8d527c5e-1013-4e31-acda-4b4ca09c0119"
+        }
+      ],
+      "credentialQualification": "Credential rotation also changes saved-row revision. This proves the combined original ownership withdrawal, not an isolated token-only cause.",
+      "requestSurface": [
+        {
+          "id": "stability:ccd6fed1-5333-4d2f-aeac-92c205a196a4",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:922f352a-0b19-45dc-8557-3f6aa06348a6",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:d41818b3-5535-4162-afdf-b5e02a352cef",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:6ec424a7-d03f-4da6-a365-53b78c2f3211",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:3f4e0c93-1733-4639-b783-ff7269e5bf41",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:b1171719-f0ce-4867-a602-4e17ff036c17",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:bd0e9380-c9a2-46d8-97a3-d6a1e89a635f",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:21732e49-3a80-461c-b881-7a822b6976ad",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:e7ae6aa4-be41-483d-9816-20e5039dbcd9",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:8d527c5e-1013-4e31-acda-4b4ca09c0119",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "localhost:41912",
+          "sni": "localhost",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        }
+      ],
+      "nativeRemoteRoute": {
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 41912,
+        "allNativeRequestsExactHostAndSni": false,
+        "fixedUrl": null
+      },
+      "downloads": [
+        {
+          "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-byo-390-2678-attempt-1/browser/cold-original-generated.png",
+          "bytes": 77,
+          "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c"
+        },
+        {
+          "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-byo-390-2678-attempt-1/browser/rotated-generated.png",
+          "bytes": 77,
+          "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c"
+        }
+      ],
+      "png": {
+        "width": 2,
+        "height": 3,
+        "bytes": 77,
+        "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c",
+        "actualChromiumDecode": true,
+        "actualDownloadBytesAndHashMatch": true
+      },
+      "liveProviderAccountClaim": false,
+      "remoteProviderWorkStoppedClaim": false
+    },
+    {
+      "road": "native-fixed-host-map",
+      "width": 1280,
+      "checks": 33,
+      "passed": true,
+      "seconds": 40.52444688900141,
+      "receipt": {
+        "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-native-1280-2678-attempt-1/receipt.json",
+        "bytes": 1010,
+        "sha256": "1a6ed1222163c67602f0b3379ce1fe9673ac683440d8d8b09f55158b11c88ce0"
+      },
+      "results": {
+        "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-native-1280-2678-attempt-1/browser/results.json",
+        "bytes": 304237,
+        "sha256": "a4a0538afca5e5cafbb7b45e8667a19a483ca34754e4ca49b4d7f7c8cefecbc7"
+      },
+      "rawFailures": 5,
+      "rawFailureQualification": "Exactly five original pre-armed held requests, each independently joined to its native Request, CDP loadingFailed, actual Playwright requestfailed and premature producer/socket close. No ordinary failure filtered.",
+      "unarmedErrors": [],
+      "fixtureErrors": [],
+      "normalOwnedClosure": true,
+      "forcedCleanupUsed": false,
+      "sourceArtifactAndPinsUnchanged": true,
+      "completion": {
+        "passed": true,
+        "ordinaryCompleted": 5,
+        "exactlyProvenHeldFailures": 5,
+        "authority": "Independent producer end/finish/close, PW exactRequest failed for proven holds and Request finished/response.finished/body SHA for ordinary success, CDP loadingFinished/body SHA and actual Chromium preview/decode/download; no image phase-seal fabricated."
+      },
+      "ordinary": [
+        {
+          "kind": "test",
+          "document": "cdp:90EB6A6D2B2D0550152B26B54BB17A49:ED5101CDDB8074DE0C4ADFE9B7C39D1A",
+          "exchange": "stability:0c75337d-136a-4723-a384-cd801dc0c885",
+          "requestId": "2245845.131",
+          "frameId": "90EB6A6D2B2D0550152B26B54BB17A49",
+          "loaderId": "ED5101CDDB8074DE0C4ADFE9B7C39D1A",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "save",
+          "document": "cdp:90EB6A6D2B2D0550152B26B54BB17A49:ED5101CDDB8074DE0C4ADFE9B7C39D1A",
+          "exchange": "stability:7671b8ec-8c68-42b3-92b0-7d1e7e76e205",
+          "requestId": "2245845.132",
+          "frameId": "90EB6A6D2B2D0550152B26B54BB17A49",
+          "loaderId": "ED5101CDDB8074DE0C4ADFE9B7C39D1A",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "image",
+          "document": "cdp:90EB6A6D2B2D0550152B26B54BB17A49:541E635C6323BB735580EC20F322DCF1",
+          "exchange": "stability:0810b34e-08a3-4e0d-8b3d-f0e70870d67f",
+          "requestId": "2245845.256",
+          "frameId": "90EB6A6D2B2D0550152B26B54BB17A49",
+          "loaderId": "541E635C6323BB735580EC20F322DCF1",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "credential-save",
+          "document": "cdp:90EB6A6D2B2D0550152B26B54BB17A49:541E635C6323BB735580EC20F322DCF1",
+          "exchange": "stability:56ef9bb4-694e-4ed0-8c42-e699f1ff4f4a",
+          "requestId": "2245845.268",
+          "frameId": "90EB6A6D2B2D0550152B26B54BB17A49",
+          "loaderId": "541E635C6323BB735580EC20F322DCF1",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "image",
+          "document": "cdp:90EB6A6D2B2D0550152B26B54BB17A49:541E635C6323BB735580EC20F322DCF1",
+          "exchange": "stability:c4065e30-1687-4810-8f5a-aafd2071b610",
+          "requestId": "2245845.269",
+          "frameId": "90EB6A6D2B2D0550152B26B54BB17A49",
+          "loaderId": "541E635C6323BB735580EC20F322DCF1",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        }
+      ],
+      "withdrawals": [
+        {
+          "cause": "caller",
+          "armedAt": 1792552867626,
+          "drainMs": 46,
+          "exchange": "stability:ed8908a0-dfc6-4f3e-8dfc-c610fc7e03ac"
+        },
+        {
+          "cause": "route",
+          "armedAt": 1792552869033,
+          "drainMs": 100,
+          "exchange": "stability:f7a087c7-ac5c-4032-8fc6-2e6522c71499"
+        },
+        {
+          "cause": "credential",
+          "armedAt": 1792552870507,
+          "drainMs": 162,
+          "exchange": "stability:11e05c13-ed74-4f3c-b5e0-33fe5705772f"
+        },
+        {
+          "cause": "vault",
+          "armedAt": 1792552872317,
+          "drainMs": 275,
+          "exchange": "stability:99e1003a-f784-4892-803d-57317893af20"
+        },
+        {
+          "cause": "remove",
+          "armedAt": 1792552877602,
+          "drainMs": 67,
+          "exchange": "stability:c5c8f95a-df76-46c4-b793-567d4565d7f5"
+        }
+      ],
+      "credentialQualification": "Credential rotation also changes saved-row revision. This proves the combined original ownership withdrawal, not an isolated token-only cause.",
+      "requestSurface": [
+        {
+          "id": "stability:0c75337d-136a-4723-a384-cd801dc0c885",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:7671b8ec-8c68-42b3-92b0-7d1e7e76e205",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:0810b34e-08a3-4e0d-8b3d-f0e70870d67f",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:ed8908a0-dfc6-4f3e-8dfc-c610fc7e03ac",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:f7a087c7-ac5c-4032-8fc6-2e6522c71499",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:11e05c13-ed74-4f3c-b5e0-33fe5705772f",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:56ef9bb4-694e-4ed0-8c42-e699f1ff4f4a",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:c4065e30-1687-4810-8f5a-aafd2071b610",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:99e1003a-f784-4892-803d-57317893af20",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:c5c8f95a-df76-46c4-b793-567d4565d7f5",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        }
+      ],
+      "nativeRemoteRoute": {
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 41912,
+        "allNativeRequestsExactHostAndSni": true,
+        "fixedUrl": "https://api.stability.ai/v2beta/stable-image/generate/sd3"
+      },
+      "downloads": [
+        {
+          "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-native-1280-2678-attempt-1/browser/cold-original-generated.png",
+          "bytes": 77,
+          "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c"
+        },
+        {
+          "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-native-1280-2678-attempt-1/browser/rotated-generated.png",
+          "bytes": 77,
+          "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c"
+        }
+      ],
+      "png": {
+        "width": 2,
+        "height": 3,
+        "bytes": 77,
+        "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c",
+        "actualChromiumDecode": true,
+        "actualDownloadBytesAndHashMatch": true
+      },
+      "liveProviderAccountClaim": false,
+      "remoteProviderWorkStoppedClaim": false
+    },
+    {
+      "road": "native-fixed-host-map",
+      "width": 390,
+      "checks": 33,
+      "passed": true,
+      "seconds": 44.264818548981566,
+      "receipt": {
+        "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-native-390-2678-attempt-1/receipt.json",
+        "bytes": 1010,
+        "sha256": "7feb20c6631bdf31942da66e3823c5c5f7376624ef9cc581101ddfc111a0b289"
+      },
+      "results": {
+        "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-native-390-2678-attempt-1/browser/results.json",
+        "bytes": 303782,
+        "sha256": "8b007c47e5d7714db30afd13f303e5bd9042e754f2ac11243a1f0b40b2019f42"
+      },
+      "rawFailures": 5,
+      "rawFailureQualification": "Exactly five original pre-armed held requests, each independently joined to its native Request, CDP loadingFailed, actual Playwright requestfailed and premature producer/socket close. No ordinary failure filtered.",
+      "unarmedErrors": [],
+      "fixtureErrors": [],
+      "normalOwnedClosure": true,
+      "forcedCleanupUsed": false,
+      "sourceArtifactAndPinsUnchanged": true,
+      "completion": {
+        "passed": true,
+        "ordinaryCompleted": 5,
+        "exactlyProvenHeldFailures": 5,
+        "authority": "Independent producer end/finish/close, PW exactRequest failed for proven holds and Request finished/response.finished/body SHA for ordinary success, CDP loadingFinished/body SHA and actual Chromium preview/decode/download; no image phase-seal fabricated."
+      },
+      "ordinary": [
+        {
+          "kind": "test",
+          "document": "cdp:0FE6B4C76230E54347B603CBDA65845A:CECC25A54EF402E1A77CBAB4441B60E1",
+          "exchange": "stability:998d6b78-45f8-42c2-993e-3426c519a3e7",
+          "requestId": "2246108.137",
+          "frameId": "0FE6B4C76230E54347B603CBDA65845A",
+          "loaderId": "CECC25A54EF402E1A77CBAB4441B60E1",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "save",
+          "document": "cdp:0FE6B4C76230E54347B603CBDA65845A:CECC25A54EF402E1A77CBAB4441B60E1",
+          "exchange": "stability:22eddf7d-b33b-4cfa-9f76-23160a8088f6",
+          "requestId": "2246108.138",
+          "frameId": "0FE6B4C76230E54347B603CBDA65845A",
+          "loaderId": "CECC25A54EF402E1A77CBAB4441B60E1",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "image",
+          "document": "cdp:0FE6B4C76230E54347B603CBDA65845A:3A0BE63F0CFDB53C7BFEBD7D3656EB75",
+          "exchange": "stability:145861e5-61a2-45f9-a695-459cbc1e39ac",
+          "requestId": "2246108.263",
+          "frameId": "0FE6B4C76230E54347B603CBDA65845A",
+          "loaderId": "3A0BE63F0CFDB53C7BFEBD7D3656EB75",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "credential-save",
+          "document": "cdp:0FE6B4C76230E54347B603CBDA65845A:3A0BE63F0CFDB53C7BFEBD7D3656EB75",
+          "exchange": "stability:b4027b20-6fb5-443e-8b7f-4e8afdbf905e",
+          "requestId": "2246108.275",
+          "frameId": "0FE6B4C76230E54347B603CBDA65845A",
+          "loaderId": "3A0BE63F0CFDB53C7BFEBD7D3656EB75",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        },
+        {
+          "kind": "image",
+          "document": "cdp:0FE6B4C76230E54347B603CBDA65845A:3A0BE63F0CFDB53C7BFEBD7D3656EB75",
+          "exchange": "stability:69b80907-0ea3-4646-89bb-aaa62d537537",
+          "requestId": "2246108.276",
+          "frameId": "0FE6B4C76230E54347B603CBDA65845A",
+          "loaderId": "3A0BE63F0CFDB53C7BFEBD7D3656EB75",
+          "terminal": "finished",
+          "body": {
+            "bytes": 152,
+            "sha256": "af0d2df8742c3d7ffcdf269127131a05ae1e35d578707549b2eaa003af20f414"
+          },
+          "playwrightResponseFinished": true,
+          "cdpLoadingFinished": true,
+          "producerEndFinishClose": true
+        }
+      ],
+      "withdrawals": [
+        {
+          "cause": "caller",
+          "armedAt": 1792552912919,
+          "drainMs": 51,
+          "exchange": "stability:001a172d-ea18-4777-a1e6-ab62a20df95f"
+        },
+        {
+          "cause": "route",
+          "armedAt": 1792552914329,
+          "drainMs": 100,
+          "exchange": "stability:3f606bdd-7567-45b3-8141-168d098d3679"
+        },
+        {
+          "cause": "credential",
+          "armedAt": 1792552915781,
+          "drainMs": 162,
+          "exchange": "stability:b6352a5c-00e1-4fe1-b68e-d9b30e519780"
+        },
+        {
+          "cause": "vault",
+          "armedAt": 1792552917564,
+          "drainMs": 161,
+          "exchange": "stability:ac4fa184-a15b-41c4-9d11-1b42f7a260a0"
+        },
+        {
+          "cause": "remove",
+          "armedAt": 1792552924058,
+          "drainMs": 70,
+          "exchange": "stability:d095bf2e-e9e4-4a5d-b24c-5af7f5001ca0"
+        }
+      ],
+      "credentialQualification": "Credential rotation also changes saved-row revision. This proves the combined original ownership withdrawal, not an isolated token-only cause.",
+      "requestSurface": [
+        {
+          "id": "stability:998d6b78-45f8-42c2-993e-3426c519a3e7",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:22eddf7d-b33b-4cfa-9f76-23160a8088f6",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:145861e5-61a2-45f9-a695-459cbc1e39ac",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:001a172d-ea18-4777-a1e6-ab62a20df95f",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:3f606bdd-7567-45b3-8141-168d098d3679",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:b6352a5c-00e1-4fe1-b68e-d9b30e519780",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:b4027b20-6fb5-443e-8b7f-4e8afdbf905e",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:69b80907-0ea3-4646-89bb-aaa62d537537",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": true
+        },
+        {
+          "id": "stability:ac4fa184-a15b-41c4-9d11-1b42f7a260a0",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        },
+        {
+          "id": "stability:d095bf2e-e9e4-4a5d-b24c-5af7f5001ca0",
+          "path": "/v2beta/stable-image/generate/sd3",
+          "host": "api.stability.ai",
+          "sni": "api.stability.ai",
+          "bodyBytes": 582,
+          "valid": true,
+          "finished": false
+        }
+      ],
+      "nativeRemoteRoute": {
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 41912,
+        "allNativeRequestsExactHostAndSni": true,
+        "fixedUrl": "https://api.stability.ai/v2beta/stable-image/generate/sd3"
+      },
+      "downloads": [
+        {
+          "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-native-390-2678-attempt-1/browser/cold-original-generated.png",
+          "bytes": 77,
+          "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c"
+        },
+        {
+          "file": "pwa-ai-image-eof-browser-binding-2678/actual-stability-native-390-2678-attempt-1/browser/rotated-generated.png",
+          "bytes": 77,
+          "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c"
+        }
+      ],
+      "png": {
+        "width": 2,
+        "height": 3,
+        "bytes": 77,
+        "sha256": "87d8fc8553c19a81283ffb5bdf09a58f99fdef209ebd337ad2544e63eba7f64c",
+        "actualChromiumDecode": true,
+        "actualDownloadBytesAndHashMatch": true
+      },
+      "liveProviderAccountClaim": false,
+      "remoteProviderWorkStoppedClaim": false
+    }
+  ],
+  "retainedFailures": [
+    {
+      "case": "before-1280-attempt-1",
+      "passed": false,
+      "cause": "Harness selector mismatch before any configuration checks.",
+      "receipt": {
+        "file": "pwa-stability-compiled-paired-proof-2660/before-1280-attempt-1/receipt.json",
+        "bytes": 1002,
+        "sha256": "fc997b8d464856cd02a691941977bde0fb9d2ad9696a70ac14e9534f1422eb56"
+      },
+      "results": {
+        "file": "pwa-stability-compiled-paired-proof-2660/before-1280-attempt-1/browser/results.json",
+        "bytes": 97598,
+        "sha256": "07b15c6d4f8519ab0904cef1c5e3ff41d7926b7ea7fa12053482b480733839e0"
+      },
+      "runtime": {
+        "file": "pwa-stability-compiled-paired-proof-2660/before-1280-attempt-1/runtime.log",
+        "bytes": 1537,
+        "sha256": "a608a1a66c9c65da8eef8b0c0dc4adcbbba8580f3629cedf662079be7def4ef0"
+      },
+      "qualification": "Preserved as actual failure; superseded by four new signed-final-head successful runs, not relabelled."
+    },
+    {
+      "case": "after-v3-byo-owned-https-1280-attempt-1",
+      "passed": false,
+      "cause": "Proof attempted fetch(blobURL), correctly refused by unchanged production CSP.",
+      "receipt": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v3-byo-owned-https-1280-attempt-1/receipt.json",
+        "bytes": 1023,
+        "sha256": "de74e6cbe355e9656b344faf9320cf036389b2a5e4b965c9958700b097022715"
+      },
+      "results": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v3-byo-owned-https-1280-attempt-1/browser/results.json",
+        "bytes": 180621,
+        "sha256": "7b4db809c0b88a403dfb17f96014f5c3feecb6e5da6ef4908599ea7688e38a96"
+      },
+      "runtime": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v3-byo-owned-https-1280-attempt-1/runtime.log",
+        "bytes": 890,
+        "sha256": "a2521ed0475368a705fb33bce33ede38869486f83f333f303a899ca39f65f7b3"
+      },
+      "qualification": "Preserved as actual failure; superseded by four new signed-final-head successful runs, not relabelled."
+    },
+    {
+      "case": "after-v4-byo-owned-https-1280-attempt-1",
+      "passed": false,
+      "cause": "Obsolete verification-only document observer failed normal build binding; whole180 timeout and forced cleanup remain failure.",
+      "receipt": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v4-byo-owned-https-1280-attempt-1/receipt.json",
+        "bytes": 2364,
+        "sha256": "23dc334339d890f827bf165131f73228e90e1457c688c4bf0aabb581c5ccc7ac"
+      },
+      "results": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v4-byo-owned-https-1280-attempt-1/browser/results.json",
+        "bytes": 300625,
+        "sha256": "8b398eaa49497ca1f4ffbad44a14bf987f6932d442ff6eee45e7192e458867ef"
+      },
+      "runtime": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v4-byo-owned-https-1280-attempt-1/runtime.log",
+        "bytes": 729,
+        "sha256": "b36de6a60bcbbd838dc9674ab47327d2d0a6c1cf156652237145598c2b7ac188"
+      },
+      "qualification": "Preserved as actual failure; superseded by four new signed-final-head successful runs, not relabelled."
+    },
+    {
+      "case": "after-v5-byo-owned-https-1280-attempt-1",
+      "passed": false,
+      "cause": "Playwright1.55.1 failed responses never resolve Response.finished; independent audit45s wait and cleanup failure remain failure.",
+      "receipt": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v5-byo-owned-https-1280-attempt-1/receipt.json",
+        "bytes": 1022,
+        "sha256": "cc8229e49198f3300fc3263fcea30f5ce2808cf9ff2fc62ba4681d83819d4f96"
+      },
+      "results": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v5-byo-owned-https-1280-attempt-1/browser/results.json",
+        "bytes": 300058,
+        "sha256": "22b4b12847e47831a3817c72cee976797692db180c5b94a4820a0d08d7b60443"
+      },
+      "runtime": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v5-byo-owned-https-1280-attempt-1/runtime.log",
+        "bytes": 485,
+        "sha256": "f9e5f365ff5be3a22490073e7030be719622c5af24219aaf41972362a85ed815"
+      },
+      "qualification": "Preserved as actual failure; superseded by four new signed-final-head successful runs, not relabelled."
+    },
+    {
+      "case": "after-v6-byo-owned-https-390-attempt-1",
+      "passed": false,
+      "cause": "Real ordinary Save response ERR_ABORTED; completed-image cleanup defect fixed separately in #1867; original failure remains failure.",
+      "receipt": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v6-byo-owned-https-390-attempt-1/receipt.json",
+        "bytes": 1021,
+        "sha256": "d17170b2f3fd97a312327b824c178623c2b71c4e8308e712ab65e6e5a4e488c9"
+      },
+      "results": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v6-byo-owned-https-390-attempt-1/browser/results.json",
+        "bytes": 99599,
+        "sha256": "5e6a50383e5f1f23b6b67ee6b5372db896d7e3461c7e7ca736a9bc78ea2bfab2"
+      },
+      "runtime": {
+        "file": "pwa-stability-compiled-paired-proof-2660/after-v6-byo-owned-https-390-attempt-1/runtime.log",
+        "bytes": 1235,
+        "sha256": "9311b37a7c93d56047916128e6fbd97d02600e97ba6724464fd9d60ecced53cd"
+      },
+      "qualification": "Preserved as actual failure; superseded by four new signed-final-head successful runs, not relabelled."
+    }
+  ],
+  "rootInvocationPreflight": {
+    "passed": false,
+    "browserLaunched": false,
+    "log": {
+      "file": "pwa-ai-image-eof-browser-binding-2678/bound-stability-byo-390/root-run.log",
+      "bytes": 427,
+      "sha256": "ff977c3dd67f6f70d4fe9f92d31a2ab7751d9cba82d90842e70b5d755c701b6e"
+    },
+    "cause": "Root mistyped expected config hash; frozen guard rejected invocation before browser execution. The corrected exact hash ran in root-run-v2.log. This is not a product failure.",
+    "correctedInvocationLog": {
+      "file": "pwa-ai-image-eof-browser-binding-2678/bound-stability-byo-390/root-run-v2.log",
+      "bytes": 946,
+      "sha256": "061da66c8ca7156f7cfa86391fedb121841af89359f5cca885408f5ff59bc84d"
+    }
+  },
+  "screenshots": [
+    {
+      "file": "1280-stability-form.png",
+      "bytes": 491223,
+      "sha256": "d4099abc99f797958bca5ba5e8898474548ab0d034c85cbf4fb393e04f940399",
+      "width": 5276,
+      "height": 2242
+    },
+    {
+      "file": "1280-byo-image-form.png",
+      "bytes": 899931,
+      "sha256": "77c707eb7fb22277f27e2ee05e564eba2f86e397f48d496dfe375885e321a56d",
+      "width": 5276,
+      "height": 4174
+    },
+    {
+      "file": "390-stability-form.png",
+      "bytes": 293144,
+      "sha256": "c3b3695f0569105f10910b8f381bb470b161114f08e1ed8871562d6b6f6c6c4e",
+      "width": 1716,
+      "height": 2160
+    },
+    {
+      "file": "390-byo-image-form.png",
+      "bytes": 569647,
+      "sha256": "d9230a465c0943fc5688cc1aaf313387d2cc44a68063f068a5e5113e39b4e4e0",
+      "width": 1716,
+      "height": 4008
+    }
+  ],
+  "canonicalCompositor": {
+    "file": "apps/pages/scripts/lib/visual-evidence.mjs",
+    "sha256": "67a74e9b8db4cc69478e229e2be5303ca52b78f91225268a27606c904eb75156",
+    "rawPngsPreserved": true,
+    "croppingOrApplicationStaging": false,
+    "addedWorkspaceHasFabricatedBefore": false
+  },
+  "compositionReceipt": {
+    "file": "pwa-stability-visual-evidence-2668/composed/composition-receipt.json",
+    "bytes": 1296,
+    "sha256": "787bea8c7017b72269d4930894128a08b660ce4c3b3982ebd81c530f0057d9fe"
+  },
+  "captureScrollQualification": "Phone BYO AFTER is naturally scrolled after API-family selection while BEFORE retains the header. Whole viewports are preserved; this is not a same-scroll pixel comparison. No cropping, DOM staging or recapture was used.",
+  "outOfScope": "Successful Stability image runs do not close the separately retained ordinary Ollama SSE acceptance failure."
+}
