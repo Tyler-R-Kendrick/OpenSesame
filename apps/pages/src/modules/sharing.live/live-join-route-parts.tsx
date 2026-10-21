@@ -30,7 +30,7 @@ import {
 import { RequestStep } from "./LiveJoinPairing.js";
 import { CarrierMarks, RoutesChoice } from "./LiveJoinRoutes.js";
 import { ConnectingProgress, standing } from "./LiveJoinStanding.js";
-import { takeVaultEntry } from "./live-entry.js";
+import { takeVaultEntry, useVaultEntryPending } from "./live-entry.js";
 import { useLandWhenSettled } from "./live-focus.js";
 import {
   type Standing,
@@ -159,7 +159,7 @@ function JoinAskFields({
         setName={setName}
         setNote={setNote}
       />
-      {vaultStatus === "empty" ? (
+      {vaultStatus === "empty" || vaultStatus === "locked" ? (
         <JoinVaultSealFields
           pin={pin}
           confirm={confirm}
@@ -173,9 +173,9 @@ function JoinAskFields({
       ) : null}
       {vaultStatus === "locked" ? (
         <p className="live-help">
-          <IconInfo size={14} aria-hidden="true" /> You can join now. This
-          session does not need your local vault, and a locked vault can stay
-          locked until you want your own items.
+          <IconInfo size={14} aria-hidden="true" /> A vault is locked on this
+          device. Joining creates a new vault for this person; the old locked
+          vault and its items stay on the device.
         </p>
       ) : null}
       <p className="live-help">
@@ -212,6 +212,7 @@ export function LiveJoinSession() {
   const { guest, status } = useLiveGuest();
   const vault = useVault();
   const navigate = useNavigate();
+  const enterPending = useVaultEntryPending();
   const catalog = status?.at === "joined" ? status.catalog : null;
   const left = useRemaining(catalog?.expiresAt ?? null);
   const mark = status ? standing(status) : null;
@@ -225,9 +226,9 @@ export function LiveJoinSession() {
   }, [status, mark?.tray]);
   useEffect(() => {
     if (status?.at !== "joined" || vault.status !== "unlocked") return;
-    if (!takeVaultEntry()) return;
+    if (!enterPending || !takeVaultEntry()) return;
     navigate("/vault", { replace: true });
-  }, [status?.at, vault.status, navigate]);
+  }, [status?.at, vault.status, enterPending, navigate]);
   useEffect(() => {
     if (status?.at !== "joined" || !guest) return;
     const owner = guest.trustedOwner();

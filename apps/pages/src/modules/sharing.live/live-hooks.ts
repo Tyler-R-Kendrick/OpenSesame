@@ -32,6 +32,7 @@ import { useEffect, useState } from "react";
 import type { StatusTone } from "../../components/StatusMark.js";
 import { carriersUnavailable } from "./carriers/index.js";
 import { liveOwnerCertificate } from "./live-dtls-pin.js";
+import { cancelVaultEntry } from "./live-entry.js";
 
 /** A glyph's tone, its short page label, and the tray sentence. */
 export type Standing = Readonly<{
@@ -92,6 +93,7 @@ export const joinDraft: JoinDraft = {
 };
 
 export function clearJoinDraft(): void {
+  cancelVaultEntry();
   forgetPersistedLiveLink();
   Object.assign(joinDraft, {
     link: null,

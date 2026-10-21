@@ -43,10 +43,16 @@ describe("the live join ask", () => {
     expect(result.current.ready).toBe(true);
   });
 
-  it("joins without the local vault when that vault is locked", () => {
+  it("creates a new sealed vault when the local vault is locked", () => {
     const { result } = renderHook(() => useAsk(link, "locked"));
+    expect(result.current.ready).toBe(false);
+    expect(result.current.sealProblem).toBe("Choose a PIN for your own vault.");
+    act(() => {
+      result.current.set.setPin("73926584");
+      result.current.set.setConfirm("73926584");
+      result.current.set.setAccepted(true);
+    });
     expect(result.current.ready).toBe(true);
-    expect(result.current.sealProblem).toBeNull();
   });
 
   it("creates the joiner's own vault with a visible PIN policy", () => {

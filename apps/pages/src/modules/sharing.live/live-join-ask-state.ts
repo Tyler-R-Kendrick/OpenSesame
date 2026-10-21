@@ -9,6 +9,7 @@ import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import { joinLive, leaveLive } from "@opensesame/app-core/lib/live/session.js";
 import { ensureOwnerPerson } from "@opensesame/app-core/lib/local-directory-bootstrap.js";
 import { pinPolicyProblems } from "@opensesame/app-core/lib/vault/unlock-methods.js";
+import { sealNewVault } from "@opensesame/app-core/lib/vaults.js";
 import { useState } from "react";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { requestVaultEntry } from "./live-entry.js";
@@ -85,9 +86,7 @@ function deviceSealProblem(
   pinProblem: string | null,
 ): string | null {
   const { pin, confirm, accepted } = fields;
-  // Joining a live session never needs the local vault key. A locked vault
-  // stays locked; the owner's shared catalog is the session.
-  if (vaultStatus !== "empty") return null;
+  if (vaultStatus === "unlocked") return null;
   if (pin.length === 0) return "Choose a PIN for your own vault.";
   if (pinProblem !== null) return pinProblem;
   if (confirm.length === 0) return "Confirm your vault PIN.";
@@ -140,6 +139,12 @@ export function useAsk(held: LiveLink | null, vaultStatus: VaultStatus) {
     setFailed("");
     try {
       if (vaultStatus === "empty") {
+        await store.createWithPin(fields.pin);
+        await ensureOwnerPerson(store.activeTomb(), cleanedName);
+      } else if (vaultStatus === "locked") {
+        // The old vault is locked and cannot be opened from here. Make a new
+        // sealed vault for this person; the locked vault stays on the device.
+        await sealNewVault(cleanedName, { shareKey: false });
         await store.createWithPin(fields.pin);
         await ensureOwnerPerson(store.activeTomb(), cleanedName);
       }
