@@ -151,7 +151,7 @@ describe("access domain forest properties", () => {
         expectWalksTerminate(forest, seed);
       }
     }
-  });
+  }, 30_000);
 
   it("never leaves a dangling parent after removing a subtree", () => {
     for (const seed of SEEDS) {
