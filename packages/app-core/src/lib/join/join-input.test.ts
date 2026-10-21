@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { liveValue } from "../live/link.js";
 import {
   acceptedItemIds,
   initialSelection,
@@ -8,12 +9,15 @@ import {
 } from "./consent.js";
 import {
   captureInviteFromPage,
+  forgetPersistedLiveLink,
   normalizeInviteCode,
   normalizeSessionId,
   onInviteArrival,
   parseInvite,
   resetCapturedInviteForTests,
   takeCapturedInvite,
+  takeCapturedLiveLink,
+  takePersistedLiveLink,
   watchInviteArrivals,
 } from "./invite.js";
 import {
@@ -138,6 +142,27 @@ describe("capturing an invite from the address bar", () => {
     expect(window.location.hash).toBe("");
     expect(takeCapturedInvite()?.kind).toBe("invite");
     stop();
+  });
+
+  it("keeps a live link across the capability reload until the join closes", () => {
+    const live = {
+      admission: "open" as const,
+      owner: "A".repeat(87),
+      secret: "A".repeat(43),
+      routes: null,
+    };
+    window.history.replaceState(
+      null,
+      "",
+      `/OpenSesame/?join=1#live=${liveValue(live)}`,
+    );
+    expect(captureInviteFromPage()).toEqual({ kind: "live", link: live });
+    expect(takeCapturedLiveLink()).toEqual(live);
+    // The first read did not spend the session copy; the reload reads it too.
+    expect(takePersistedLiveLink()).toEqual(live);
+    expect(takePersistedLiveLink()).toEqual(live);
+    forgetPersistedLiveLink();
+    expect(takePersistedLiveLink()).toBeNull();
   });
 
   it("leaves a drop link's fragment exactly as it arrived", () => {

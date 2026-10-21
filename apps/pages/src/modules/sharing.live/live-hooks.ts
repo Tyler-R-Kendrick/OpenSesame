@@ -5,6 +5,7 @@
  * own address (ADR 0150, ADR 0186).
  */
 
+import { forgetPersistedLiveLink } from "@opensesame/app-core/lib/join/invite.js";
 import {
   connectionPort,
   offeredBy,
@@ -91,6 +92,7 @@ export const joinDraft: JoinDraft = {
 };
 
 export function clearJoinDraft(): void {
+  forgetPersistedLiveLink();
   Object.assign(joinDraft, {
     link: null,
     pasted: "",

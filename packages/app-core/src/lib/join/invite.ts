@@ -126,16 +126,23 @@ function forgetLiveLink(): void {
   }
 }
 
-/** The live link a reload kept, once. */
+/**
+ * The live link a reload kept. Reading does not spend it: the capability's
+ * consent can reload the page again before the person has even seen the form,
+ * and a one-shot read loses the link on that second load.
+ */
 export function takePersistedLiveLink(): LiveLink | null {
   try {
     const raw = sessionStore().getItem(LIVE_LINK_KEY);
-    if (!raw) return null;
-    forgetLiveLink();
-    return readLiveValue(raw);
+    return raw ? readLiveValue(raw) : null;
   } catch {
     return null;
   }
+}
+
+/** Drop the link when the person closes the join screen or starts another. */
+export function forgetPersistedLiveLink(): void {
+  forgetLiveLink();
 }
 
 /** A Host invite or a live-session link in the fragment, or neither. */
@@ -246,7 +253,9 @@ export function takeCapturedLiveLink(): LiveLink | null {
   if (captured?.kind !== "live") return null;
   const { link } = captured;
   captured = null;
-  forgetLiveLink();
+  // Keep the session copy: capability consent can reload the page once more
+  // before the person has joined. It is dropped on close, or replaced by the
+  // next link.
   dismissNotice(WAITING_NOTICE);
   return link;
 }
