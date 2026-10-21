@@ -7,9 +7,21 @@
  * from a build that excludes this capability.
  */
 
-import { type ReactNode, useCallback, useMemo, useState } from "react";
+import {
+  currentGuest,
+  onLiveSessionChange,
+} from "@opensesame/app-core/lib/live/session.js";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { Link } from "react-router";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { IconShare } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import {
   type VaultShare,
   VaultShareProvider,
@@ -23,7 +35,7 @@ export function LiveShareShell({ children }: { children?: ReactNode }) {
   const show = useCallback(() => setOpen(true), []);
   const hide = useCallback(() => setOpen(false), []);
   const share = useMemo<VaultShare>(
-    () => ({ Button: LiveShareButton, open: show }),
+    () => ({ Button: LiveShareButton, Banner: LiveSessionBanner, open: show }),
     [show],
   );
   return (
@@ -39,5 +51,30 @@ export function LiveShareShell({ children }: { children?: ReactNode }) {
         </CeremonySheet>
       ) : null}
     </VaultShareProvider>
+  );
+}
+
+function LiveSessionBanner() {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    const read = () => {
+      const status = currentGuest()?.status;
+      setCount(status?.at === "joined" ? status.catalog.items.length : null);
+    };
+    read();
+    return onLiveSessionChange(read);
+  }, []);
+  if (count === null) return null;
+  return (
+    <div className="vault-live-banner" aria-label="Live session">
+      <StatusMark tone="ok" label="In a live session" />
+      <span>
+        {count === 1 ? "1 shared item" : `${count} shared items`} from the
+        owner's session.
+      </span>
+      <Link className="btn btn--sm" to="/live">
+        Open shared items
+      </Link>
+    </div>
   );
 }
