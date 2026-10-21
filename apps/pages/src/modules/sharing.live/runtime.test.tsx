@@ -59,6 +59,8 @@ describe("sharing.live runtime", () => {
   });
 
   it("hands carriers this activation's egress port, and takes them away on dispose", async () => {
+    const startedAt = 1_700_000_000_123;
+    vi.spyOn(Date, "now").mockReturnValue(startedAt);
     expect(liveUiSeams.carriers).toBe(carriersUnavailable);
     await expect(
       liveUiSeams.carriers({ kind: "broadcast", url: "" }, "t"),
@@ -80,7 +82,7 @@ describe("sharing.live runtime", () => {
     ntfy.close();
     expect(t.egressCalls).toEqual([
       {
-        input: "https://ntfy.example.test/t/json",
+        input: `https://ntfy.example.test/t/json?since=${Math.floor(startedAt / 1000)}`,
         capability: "sharing.live",
         purpose: CARRIER_PURPOSE,
       },
