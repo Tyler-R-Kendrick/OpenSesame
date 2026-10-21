@@ -414,8 +414,8 @@ kbd {
   appearance: none;
   display: grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: var(--go-size, 2.5rem);
+  height: var(--go-size, 2.5rem);
   flex: none;
   border: 0;
   border-radius: var(--radius);
@@ -442,7 +442,7 @@ kbd {
    as its accessible name, and a screen reader must not hear it twice. */
 .go-verb {
   font-family: var(--mono);
-  font-size: 0.8125rem;
+  font-size: var(--go-verb-size, 0.8125rem);
   color: var(--ink-2);
 }
 
@@ -451,8 +451,8 @@ kbd {
    never smaller than the icon key beside it in a narrow window. */
 @media (pointer: coarse), (max-width: 900px) {
   .go {
-    width: 2.75rem;
-    height: 2.75rem;
+    width: max(2.75rem, var(--go-size, 2.75rem));
+    height: max(2.75rem, var(--go-size, 2.75rem));
   }
 }
 
