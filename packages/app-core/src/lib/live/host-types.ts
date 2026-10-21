@@ -187,3 +187,9 @@ export function deviceLogEntry(entry: DeviceLog): LogEntry {
     field: entry.operation,
   };
 }
+
+/** Stop the seat's current deadline before joining or ending it. */
+export function disarmSeat(seat: HostSeat): void {
+  if (seat.timer) clearTimeout(seat.timer);
+  seat.timer = null;
+}

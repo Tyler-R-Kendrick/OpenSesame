@@ -14,6 +14,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { fromB64url, toB64url } from "./b64.js";
+import type * as Ice from "./ice-types.js";
 import type { LiveLink } from "./link.js";
 import {
   NATS_LINK_KEYS,
@@ -22,6 +23,8 @@ import {
   type NatsSession,
   readNatsFields,
 } from "./nats-route.js";
+
+export type { IceServerSetting, IceServerSpec } from "./ice-types.js";
 
 export const CARRIER_KINDS = [
   "nostr",
@@ -50,29 +53,14 @@ export type CarrierSpec = Readonly<{
 /** A carrier as the owner keeps it: a NATS signing key mints credentials. */
 export type CarrierSetting = CarrierSpec & Readonly<{ mint?: NatsMint }>;
 
-export type IceServerSpec = Readonly<{
-  urls: readonly string[];
-  username?: string;
-  credential?: string;
-}>;
-
-/** An ICE server as the owner keeps it: a REST secret mints credentials. */
-export type IceServerSetting = IceServerSpec & Readonly<{ secret?: string }>;
-
 /** What a link carries for the joiner. */
 export type LiveRoutes = Readonly<{
-  ice: readonly IceServerSpec[];
+  ice: readonly Ice.IceServerSpec[];
   relay: boolean;
   carriers: readonly CarrierSpec[];
 }>;
 
 /** An ICE server or carrier as it is read, before it is handed on. */
-type IceServerDraft = {
-  urls: string[];
-  username?: string;
-  credential?: string;
-  secret?: string;
-};
 type CarrierDraft = {
   kind: CarrierKind;
   url: string;
@@ -196,7 +184,7 @@ export function readIceServer(
   at: string,
   errors: Errors,
   secrets: boolean,
-): IceServerSetting | null {
+): Ice.IceServerSetting | null {
   if (!isJsonObject(value)) {
     errors.push(`${at} must be an object.`);
     return null;
@@ -216,7 +204,7 @@ export function readIceServer(
   const secret = secrets
     ? optionalText(value.secret, `${at}.secret`, errors)
     : undefined;
-  const server: IceServerDraft = { urls };
+  const server: Ice.IceServerDraft = { urls };
   if (username) server.username = username;
   if (credential) server.credential = credential;
   if (secret) server.secret = secret;
@@ -244,7 +232,7 @@ function readIceUrls(
 
 /** A TURN server needs credentials: static, or minted from a secret. */
 function checkCredentials(
-  server: IceServerDraft,
+  server: Ice.IceServerDraft,
   at: string,
   errors: Errors,
 ): void {

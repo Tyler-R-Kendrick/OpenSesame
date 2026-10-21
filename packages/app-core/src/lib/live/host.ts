@@ -19,6 +19,7 @@ import {
   type HostSeat as Seat,
   askingSeat,
   deviceLogEntry,
+  disarmSeat,
   seatState,
 } from "./host-types.js";
 import type { LiveLink } from "./link.js";
@@ -132,11 +133,6 @@ export class LiveHost {
   #arm(seat: Seat, ms: number, fire: () => void): void {
     if (seat.timer) clearTimeout(seat.timer);
     seat.timer = setTimeout(fire, ms);
-  }
-
-  #disarm(seat: Seat): void {
-    if (seat.timer) clearTimeout(seat.timer);
-    seat.timer = null;
   }
 
   /** A request code the owner pasted, or a carrier passed on. */
@@ -255,7 +251,7 @@ export class LiveHost {
       now: this.#now,
       onJoined: () => {
         if (seat.peer !== peer) return;
-        this.#disarm(seat);
+        disarmSeat(seat);
         this.#set(key, { state: "joined", reply: null });
       },
       onClosed: () => {
@@ -392,7 +388,7 @@ export class LiveHost {
     if (this.#timer) clearTimeout(this.#timer);
     this.devices?.end();
     for (const seat of this.#seats.values()) {
-      this.#disarm(seat);
+      disarmSeat(seat);
       seat.peer?.close();
       seat.peer = null;
       if (OPEN.has(seat.guest.state))

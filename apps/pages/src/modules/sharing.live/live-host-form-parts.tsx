@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { useDeviceVaults } from "../../bindings/vaults.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import type { useHostForm } from "./live-host-form-state.js";
 
 type Choice<T extends string | number> = Readonly<{ value: T; label: string }>;
 
@@ -191,4 +192,72 @@ export function routesSummary(
   const relay = automaticCarrier ? ["ntfy.sh pairing"] : [];
   if (parts.length === 0 && relay.length === 0) return "Direct only";
   return `${transport.relay ? "Relay only" : "Direct"}, with ${[...parts, ...relay].join(", ")}`;
+}
+
+/** The host's sharing choices, with state and commits retained by the form. */
+type HostChoicesProps = {
+  values: ReturnType<typeof useHostForm>["values"];
+  set: ReturnType<typeof useHostForm>["set"];
+  lend: ReturnType<typeof useHostForm>["lend"];
+};
+
+export function HostChoices({ values, set, lend }: HostChoicesProps) {
+  return (
+    <>
+      <Pick
+        id="live-scope"
+        name="Share"
+        value={values.scope}
+        options={lend ? SCOPES : SCOPES.filter((one) => one.value !== "none")}
+        onChange={set.scope}
+      />
+      {values.scope === "items" ? (
+        <ItemChoice chosen={values.chosen} onChange={set.chosen} />
+      ) : null}
+      <Pick
+        id="live-policy"
+        name="Values"
+        value={values.policy}
+        options={POLICIES}
+        onChange={set.policy}
+      />
+      {lend ? (
+        <Pick
+          id="live-devices"
+          name="Devices"
+          value={values.devices}
+          options={DEVICES}
+          onChange={set.devices}
+        />
+      ) : null}
+      <Pick
+        id="live-audience"
+        name="Share with"
+        value={values.audience}
+        options={AUDIENCES}
+        onChange={set.audience}
+      />
+      {values.audience === "people" ? (
+        <PeopleChoice
+          people={values.people}
+          peopleIds={values.peopleIds}
+          onChange={set.peopleIds}
+        />
+      ) : null}
+      <Pick
+        id="live-admission"
+        name="Who gets in"
+        value={values.admission}
+        options={ADMISSIONS}
+        onChange={set.admission}
+      />
+      <Pick
+        id="live-minutes"
+        name="For"
+        value={values.minutes}
+        options={DURATIONS}
+        onChange={set.minutes}
+      />
+    </>
+  );
 }
