@@ -416,7 +416,7 @@ export function buildSuccessMessage(
   identity: UpstreamIdentity,
 ): SignInSuccess {
   if (!originMayUseBroker(request.origin)) throw new Error("loopback_only");
-  if (identity.assertionFormat === "saml")
+  if (["saml", "native-oidc"].includes(identity.assertionFormat ?? ""))
     throw new Error("upstream_assertion_format_mismatch");
   return {
     type: "opensesame:signin",

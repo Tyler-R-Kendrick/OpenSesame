@@ -22,13 +22,13 @@ import {
   verifyConfiguredIdentityToken,
 } from "./federation-configured-token.js";
 import { FederationError } from "./federation-error.js";
-import { isOperatorIdpIssuer } from "./federation-operator.js";
 import {
   type UpstreamIdentity,
   advanceFederationSessionGeneration,
   upstreamIdentityDisplayName as displayNameDefault,
   readNativeFederationSession,
 } from "./federation-native-session.js";
+import { isOperatorIdpIssuer } from "./federation-operator.js";
 import {
   originCallbackUri,
   originClientId,
@@ -804,9 +804,9 @@ export function clearAuthResponseFromUrl(): void {
  * revocation after that takes effect only when `exp` passes.
  */
 export function saveSession(identity: UpstreamIdentity): void {
-  if (identity.assertionFormat === "saml")
+  if (["saml", "native-oidc"].includes(identity.assertionFormat ?? ""))
     throw new Error(
-      "Native SAML evidence must remain in its verified browser session",
+      "Native identity evidence must remain in its verified browser session",
     );
   advanceFederationSessionGeneration();
   writeFederationSessionJson(JSON.stringify(identity));

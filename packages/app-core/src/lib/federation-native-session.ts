@@ -3,8 +3,8 @@ export type UpstreamIdentity = {
   issuer: string;
   upstreamId: string;
   idToken: string;
-  /** Existing providers may carry JWT or opaque assertions; native SAML carries no OIDC bearer. */
-  assertionFormat?: "jwt" | "opaque" | "saml";
+  /** Existing providers may carry JWT or opaque assertions; native sessions carry no bearer. */
+  assertionFormat?: "jwt" | "opaque" | "saml" | "native-oidc";
   /** Per-origin and stable; the identity this app knows the human by. */
   pairwiseSub: string;
   audience: string;
@@ -16,7 +16,7 @@ export type UpstreamIdentity = {
 };
 export type NativeFederationIdentity = Readonly<
   UpstreamIdentity & {
-    assertionFormat: "saml";
+    assertionFormat: "saml" | "native-oidc";
     idToken: "";
     jwksUri: "";
   }
@@ -74,7 +74,7 @@ export function readNativeFederationSession(): NativeFederationIdentity | null {
     if (active !== original) return null;
     if (!identity) return null;
     if (
-      identity.assertionFormat !== "saml" ||
+      !["saml", "native-oidc"].includes(identity.assertionFormat) ||
       identity.idToken !== "" ||
       identity.jwksUri !== "" ||
       !Number.isSafeInteger(identity.expiresAt) ||

@@ -3,7 +3,7 @@ import { originClientId } from "./federation-origin.js";
 /** Configured identity connections require a signed assertion before becoming active. */
 import type { PendingAuth } from "./federation-pending.js";
 import type { UpstreamIdentity } from "./federation.js";
-import { signInMethods } from "./settings.js";
+import { type OperatorIdp, signInMethods } from "./settings.js";
 
 export async function verifyConfiguredIdentityToken(
   token: string,
@@ -41,6 +41,18 @@ export function configuredIdentityNonce(
 ): string | undefined {
   return upstreamId.startsWith("identity:") ? randomString(32) : undefined;
 }
+function matchesNativeTarget(
+  identity: Pick<UpstreamIdentity, "issuer" | "audience" | "assertionFormat">,
+  provider: OperatorIdp,
+  format: "saml" | "native-oidc",
+): boolean {
+  return (
+    identity.assertionFormat === format &&
+    provider.issuer === identity.issuer &&
+    provider.clientId === identity.audience
+  );
+}
+
 /** A configured connection's audience and issuer are live trust, not remembered token metadata. */
 export function configuredIdentitySessionTrusted(
   identity: Pick<
@@ -49,18 +61,20 @@ export function configuredIdentitySessionTrusted(
   >,
 ): boolean {
   if (!identity.upstreamId.startsWith("identity:"))
-    return identity.assertionFormat !== "saml";
+    return !["saml", "native-oidc"].includes(identity.assertionFormat ?? "");
   const id = identity.upstreamId.slice("identity:".length);
   const provider = signInMethods().providers.find(
     (entry) => entry.connectionId === id,
   );
   if (provider?.protocol === "saml")
+    return matchesNativeTarget(identity, provider, "saml");
+  if (provider?.nativeIdentity === true)
     return (
-      identity.assertionFormat === "saml" &&
-      provider.issuer === identity.issuer &&
-      provider.clientId === identity.audience
+      provider.protocol === "oidc" &&
+      matchesNativeTarget(identity, provider, "native-oidc")
     );
-  if (identity.assertionFormat === "saml") return false;
+  if (["saml", "native-oidc"].includes(identity.assertionFormat ?? ""))
+    return false;
   return Boolean(
     provider &&
       provider.issuer.replace(/\/+$/, "") ===
@@ -94,5 +108,17 @@ export function configuredSamlIdentity(upstreamId: string): boolean {
   const id = upstreamId.slice("identity:".length);
   return signInMethods().providers.some(
     (entry) => entry.connectionId === id && entry.protocol === "saml",
+  );
+}
+
+/** Native-marked adapters never restore from a persisted scalar bearer. */
+export function configuredNativeIdentity(upstreamId: string): boolean {
+  if (configuredSamlIdentity(upstreamId)) return true;
+  if (!upstreamId.startsWith("identity:")) return false;
+  return signInMethods().providers.some(
+    (entry) =>
+      entry.connectionId === upstreamId.slice("identity:".length) &&
+      entry.protocol === "oidc" &&
+      entry.nativeIdentity === true,
   );
 }

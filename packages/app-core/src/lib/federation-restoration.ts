@@ -20,7 +20,7 @@ import {
 } from "@opensesame/sdk-browser";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import { restoreConfiguredIdentityIfNative } from "./federation-configured-lazy.js";
-import { configuredSamlIdentity } from "./federation-configured-token.js";
+import { configuredNativeIdentity } from "./federation-configured-token.js";
 import type { UpstreamIdentity } from "./federation.js";
 
 export type RestorationTrust = {
@@ -49,7 +49,9 @@ function parseStoredAssertion(raw: string): JsonObject | null {
       !isString(stored.idToken) ||
       !isString(stored.issuer) ||
       stored.assertionFormat === "saml" ||
-      (isString(stored.upstreamId) && configuredSamlIdentity(stored.upstreamId))
+      stored.assertionFormat === "native-oidc" ||
+      (isString(stored.upstreamId) &&
+        configuredNativeIdentity(stored.upstreamId))
     ) {
       return null;
     }
