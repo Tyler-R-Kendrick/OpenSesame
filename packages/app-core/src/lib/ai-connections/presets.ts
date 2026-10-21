@@ -34,6 +34,13 @@ export function aiConnectionFamilies(providerId: string) {
 
 /** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
 export function aiConnectionPreset(providerId: string) {
+  if (providerId === "ollama")
+    return {
+      providerId,
+      name: "Ollama",
+      family: "openai_chat" as const,
+      baseUrl: "http://localhost:11434/v1",
+    };
   if (providerId === "assemblyai")
     return {
       providerId,
@@ -127,7 +134,7 @@ export function aiConnectionDraft(providerId: string): AiConnectionDraft {
       preset.family === "assemblyai_transcript"
         ? preset.model
         : "",
-    authentication: "api-key",
+    authentication: providerId === "ollama" ? "none" : "api-key",
     apiKey: "",
     tokenParameter: ["openai", "byo-ai", "azure-openai"].includes(providerId)
       ? "max_completion_tokens"
