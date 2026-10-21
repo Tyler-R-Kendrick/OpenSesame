@@ -11,6 +11,7 @@ import { ensureOwnerPerson } from "@opensesame/app-core/lib/local-directory-boot
 import { pinPolicyProblems } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { useState } from "react";
 import { useVaultStore } from "../../lib/vault/hooks.js";
+import { requestVaultEntry } from "./live-entry.js";
 import { joinDraft, liveUiSeams, useDraftField } from "./live-hooks.js";
 import { joinTrustFields, liveTrustRefusal } from "./live-join-trust.js";
 
@@ -162,6 +163,7 @@ export function useAsk(held: LiveLink | null, vaultStatus: VaultStatus) {
         rememberedPeerFingerprint: trust.rememberedPeerFingerprint,
         minimumPeerTrustEpoch: trust.minimumPeerTrustEpoch,
       });
+      requestVaultEntry();
     } catch (error) {
       leaveLive();
       const refused = error instanceof Error ? liveTrustRefusal(error) : null;

@@ -13,7 +13,7 @@ import {
 } from "@opensesame/app-core/lib/live/session.js";
 import { rememberTrustedPeer } from "@opensesame/app-core/lib/peer-trust/peers.js";
 import { useEffect, useRef } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconArrowRight } from "../../components/Icons.js";
 import { IconInfo } from "../../components/Icons.js";
@@ -30,6 +30,7 @@ import {
 import { RequestStep } from "./LiveJoinPairing.js";
 import { CarrierMarks, RoutesChoice } from "./LiveJoinRoutes.js";
 import { ConnectingProgress, standing } from "./LiveJoinStanding.js";
+import { takeVaultEntry } from "./live-entry.js";
 import { useLandWhenSettled } from "./live-focus.js";
 import {
   type Standing,
@@ -210,6 +211,7 @@ function JoinAskFields({
 export function LiveJoinSession() {
   const { guest, status } = useLiveGuest();
   const vault = useVault();
+  const navigate = useNavigate();
   const catalog = status?.at === "joined" ? status.catalog : null;
   const left = useRemaining(catalog?.expiresAt ?? null);
   const mark = status ? standing(status) : null;
@@ -221,6 +223,11 @@ export function LiveJoinSession() {
       reportLiveOutcome("Live session", mark?.tray || LIVE_SESSION_ENDED_TRAY);
     }
   }, [status, mark?.tray]);
+  useEffect(() => {
+    if (status?.at !== "joined" || vault.status !== "unlocked") return;
+    if (!takeVaultEntry()) return;
+    navigate("/vault", { replace: true });
+  }, [status?.at, vault.status, navigate]);
   useEffect(() => {
     if (status?.at !== "joined" || !guest) return;
     const owner = guest.trustedOwner();
