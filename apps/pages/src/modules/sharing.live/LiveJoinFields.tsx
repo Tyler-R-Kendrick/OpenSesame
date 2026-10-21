@@ -2,7 +2,12 @@
 import type { LiveLink } from "@opensesame/app-core/lib/live/link.js";
 import { NAME_MAX, NOTE_MAX } from "@opensesame/app-core/lib/live/messages.js";
 import { FieldShell } from "../../components/FieldShell.js";
-import { IconSecret, IconShare, IconUser } from "../../components/Icons.js";
+import {
+  IconInfo,
+  IconSecret,
+  IconShare,
+  IconUser,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 type PersonFields = Readonly<{
@@ -83,6 +88,82 @@ export function JoinPersonFields(props: PersonFields) {
         onValueChange={(next) => setNote(next.slice(0, NOTE_MAX))}
       />
     </>
+  );
+}
+
+export function JoinVaultSealFields({
+  pin,
+  confirm,
+  accepted,
+  problems,
+  busy,
+  setPin,
+  setConfirm,
+  setAccepted,
+}: {
+  pin: string;
+  confirm: string;
+  accepted: boolean;
+  problems: readonly string[];
+  busy: boolean;
+  setPin: (next: string) => void;
+  setConfirm: (next: string) => void;
+  setAccepted: (next: boolean) => void;
+}) {
+  return (
+    <fieldset className="fieldset">
+      <legend>Create your own vault</legend>
+      <p className="live-help">
+        <IconInfo size={14} aria-hidden="true" /> This is your vault, separate
+        from the owner's. It keeps your own items and gives you a local user for
+        the owner to recognise.
+      </p>
+      <div className="field">
+        <label htmlFor="live-device-pin">Your vault PIN</label>
+        <input
+          id="live-device-pin"
+          type="password"
+          inputMode="numeric"
+          autoComplete="new-password"
+          aria-describedby="live-pin-rules"
+          value={pin}
+          disabled={busy}
+          onChange={(event) => setPin(event.target.value)}
+        />
+      </div>
+      <p className="live-help" id="live-pin-rules">
+        8–12 digits, at least three different digits, and no run of three
+        sequential digits.
+      </p>
+      {pin.length > 0 && problems.length > 0 ? (
+        <ul className="live-rules">
+          {problems.map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="field">
+        <label htmlFor="live-device-pin-confirm">Confirm PIN</label>
+        <input
+          id="live-device-pin-confirm"
+          type="password"
+          inputMode="numeric"
+          autoComplete="new-password"
+          value={confirm}
+          disabled={busy}
+          onChange={(event) => setConfirm(event.target.value)}
+        />
+      </div>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={accepted}
+          disabled={busy}
+          onChange={(event) => setAccepted(event.target.checked)}
+        />
+        <span>I understand this vault cannot be recovered.</span>
+      </label>
+    </fieldset>
   );
 }
 

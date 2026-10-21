@@ -3797,3 +3797,20 @@ details[open] > summary::before {
   font-size: 0.8125rem;
   line-height: 1.5;
 }
+
+.vault-live-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.5rem 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.vault-live-banner .btn {
+  margin-inline-start: auto;
+}

@@ -13,14 +13,17 @@ import {
 } from "@opensesame/app-core/lib/live/session.js";
 import { rememberTrustedPeer } from "@opensesame/app-core/lib/peer-trust/peers.js";
 import { useEffect, useRef } from "react";
+import { Link } from "react-router";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconArrowRight } from "../../components/Icons.js";
 import { IconInfo } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { firstControl } from "../../lib/focus.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { LiveCatalog } from "./LiveCatalog.js";
 import {
   JoinPersonFields,
+  JoinVaultSealFields,
   LiveLinkField,
   PeerTrustField,
 } from "./LiveJoinFields.js";
@@ -42,8 +45,19 @@ import { joinAskDisabledReason } from "./live-join-trust.js";
 const ASK_AGAIN = "Ask to join again";
 
 export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
-  const askState = useAsk(held);
-  const { fields, link, needsCode, ready, busy, failed, alarm, ask } = askState;
+  const vault = useVault();
+  const askState = useAsk(held, vault.status);
+  const {
+    fields,
+    link,
+    needsCode,
+    ready,
+    busy,
+    failed,
+    alarm,
+    sealProblem,
+    ask,
+  } = askState;
   const form = useRef<HTMLFormElement>(null);
   const disabledReason = joinAskDisabledReason({
     alarm,
@@ -54,6 +68,7 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
     needsCode: needsCode ?? false,
     code: fields.code,
     name: fields.name,
+    sealProblem: sealProblem ?? undefined,
   });
   useLandWhenSettled(busy, () => form.current?.querySelector(".go"));
 
@@ -66,7 +81,7 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
         void ask();
       }}
     >
-      <JoinAskFields held={held} state={askState} />
+      <JoinAskFields held={held} vaultStatus={vault.status} state={askState} />
       {failed && failed !== alarm ? (
         <StatusMark tone="err" label={failed} />
       ) : null}
@@ -89,15 +104,44 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
 
 function JoinAskFields({
   held,
+  vaultStatus,
   state,
 }: {
   held: LiveLink | null;
+  vaultStatus: "empty" | "locked" | "unlocked";
   state: ReturnType<typeof useAsk>;
 }) {
-  const { fields, set, link, routes, needsCode, busy } = state;
-  const { pasted, code, name, note, peerTrust, useRoutes } = fields;
-  const { setPasted, setCode, setName, setNote, setPeerTrust, setUseRoutes } =
-    set;
+  const {
+    fields,
+    set,
+    link,
+    routes,
+    needsCode,
+    busy,
+    pinProblems,
+  } = state;
+  const {
+    pasted,
+    code,
+    name,
+    note,
+    peerTrust,
+    useRoutes,
+    pin,
+    confirm,
+    accepted,
+  } = fields;
+  const {
+    setPasted,
+    setCode,
+    setName,
+    setNote,
+    setPeerTrust,
+    setUseRoutes,
+    setPin,
+    setConfirm,
+    setAccepted,
+  } = set;
   return (
     <>
       {held && link ? <StatusMark tone="ok" label="Link in hand" /> : null}
@@ -122,10 +166,27 @@ function JoinAskFields({
         setName={setName}
         setNote={setNote}
       />
+      {vaultStatus === "empty" ? (
+        <JoinVaultSealFields
+          pin={pin}
+          confirm={confirm}
+          accepted={accepted}
+          problems={pinProblems}
+          busy={busy}
+          setPin={setPin}
+          setConfirm={setConfirm}
+          setAccepted={setAccepted}
+        />
+      ) : null}
+      {vaultStatus === "locked" ? (
+        <p className="live-help live-help--err">
+          Unlock this device before joining. Your own vault must be open.
+        </p>
+      ) : null}
       <p className="live-help">
         <IconInfo size={14} aria-hidden="true" /> The owner sees the name you
-        enter. Nothing is stored on your side; the shared items live only in
-        this tab while the session is open.
+        enter. Your own vault is separate; shared items stay live in this tab
+        while the session is open.
       </p>
       <details className="live-advanced">
         <summary>Advanced</summary>
@@ -154,6 +215,7 @@ function JoinAskFields({
 
 export function LiveJoinSession() {
   const { guest, status } = useLiveGuest();
+  const vault = useVault();
   const catalog = status?.at === "joined" ? status.catalog : null;
   const left = useRemaining(catalog?.expiresAt ?? null);
   const mark = status ? standing(status) : null;
@@ -181,6 +243,11 @@ export function LiveJoinSession() {
         <span className="vault-row__meta">
           {catalog ? formatRemaining(left) : opened.mark.tray}
         </span>
+        {opened.status.at === "joined" && vault.status === "unlocked" ? (
+          <Link className="btn btn--sm" to="/vault">
+            Open my vault
+          </Link>
+        ) : null}
       </div>
       {opened.status.at === "request" ? (
         <RequestWaiting guest={opened.guest} status={opened.status} />

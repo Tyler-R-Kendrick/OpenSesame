@@ -29,6 +29,7 @@ import { useNarrow } from "../lib/use-narrow.js";
 import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { LiveSessionBanner } from "./vault/LiveSessionBanner.js";
 import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
@@ -305,6 +306,7 @@ export function VaultSection() {
             listRef(element);
           }}
         >
+          <LiveSessionBanner />
           <VaultTree
             items={visible}
             folders={treeFolders}
