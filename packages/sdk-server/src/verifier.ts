@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -249,7 +250,19 @@ export function createJwksKeySource(
     if (!isString(meta.jwks_uri)) {
       return fallback();
     }
-    return assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
+    const discovered = assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
+    if (config.fetchImpl === undefined && !isPrivateHost(issuerUrl.hostname)) {
+      const addresses = await lookup(
+        discovered.hostname.replace(/^\[|\]$/gu, "").replace(/\.+$/u, ""),
+        { all: true, verbatim: true },
+      );
+      if (addresses.some((entry) => isPrivateHost(entry.address))) {
+        throw new Error(
+          "jwks_uri resolves to a private or loopback address, but the issuer is remote",
+        );
+      }
+    }
+    return discovered;
   }
 
   let remoteKeys: JWTVerifyGetKey | undefined;

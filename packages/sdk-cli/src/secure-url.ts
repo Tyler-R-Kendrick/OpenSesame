@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 
 const LOOPBACK_HOSTS = new BlockList();
@@ -135,4 +136,22 @@ function stripTrailingSlashes(value: string): string {
   let end = value.length;
   while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
   return value.slice(0, end);
+}
+
+/** A public endpoint whose name resolves inside the local network is an SSRF
+ * target even when its literal URL looks public. */
+export async function assertResolvedPublicHost(
+  raw: string,
+  issuer: string,
+): Promise<void> {
+  const url = new URL(raw);
+  if (isPrivateHost(new URL(issuer).hostname)) return;
+  const host = stripIpv6Brackets(url.hostname).replace(/\.+$/u, "");
+  if (isIP(host) !== 0) return;
+  const addresses = await lookup(host, { all: true, verbatim: true });
+  if (addresses.some((entry) => isPrivateHost(entry.address))) {
+    throw new Error(
+      "endpoint resolves to a private or loopback address, but the issuer is remote",
+    );
+  }
 }
