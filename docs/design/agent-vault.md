@@ -119,6 +119,8 @@ append-only and never stores headers, query strings, bodies, or credentials.
 Machine identity authentication is specified separately in
 [machine identity auth](machine-identity-auth.md): Universal, Token, JWT, OIDC,
 SPIFFE, TLS certificate, Kubernetes, AWS, GCP, Azure, Alibaba, OCI and LDAP.
+Group provisioning and GitHub team sync are in
+[group provisioning](group-provisioning.md).
 
 ## Runtime contracts
 
