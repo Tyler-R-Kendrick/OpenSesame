@@ -6,6 +6,7 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { configDefaults } from "vitest/config";
 import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-policy.ts";
+import { pwaManifest } from "./pwa-manifest.js";
 import { bundleChunk } from "./scripts/bundle-chunk.mjs";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
@@ -340,27 +341,11 @@ export default defineConfig({
       registerType: "autoUpdate",
       injectRegister: false,
       includeAssets: ["icon.svg", "auth.js"],
-      manifest: {
-        name: "OpenSesame",
-        short_name: "OpenSesame",
-        description:
-          "End-to-end-encrypted vault for passwords, passkeys, and agent secrets",
-        theme_color: "#fafafa",
-        background_color: "#fafafa",
-        display: "standalone",
-        start_url: "./",
-        scope: "./",
-        icons: [
-          {
-            src: "icon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-            purpose: "any maskable",
-          },
-        ],
-      },
+      manifest: pwaManifest,
       injectManifest: {
-        globPatterns: ["**/*.{js,wasm,gz,css,html,svg,ico,webp,woff2,json}"],
+        globPatterns: [
+          "**/*.{js,wasm,gz,css,html,svg,png,ico,webp,woff2,json}",
+        ],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
       },
       devOptions: { enabled: true, navigateFallback: "index.html" },

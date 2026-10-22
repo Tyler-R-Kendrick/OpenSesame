@@ -37,6 +37,7 @@ at the repository root; the product's users and voice are in
 | [mDNS Device Discovery](mdns-discovery.md) | Why browsers cannot browse mDNS, the native discovery contract, and why Tailscale remains the default transport. |
 | [OpenSSL interoperability](openssl-interop.md) | PEM/DER, X.509, PKCS#1/8/SEC1 and encrypted-key detection, plus the Bouncy Castle and cryptlib boundary. |
 | [Isolated Web App](iwa.md) | Shared-source IWA build, signed bundle, runtime gate and Direct Sockets adapter. |
+| [PWA capabilities](pwa-capabilities.md) | Full Powerful PWAs/Desktop PWA review, adoption decisions and phased plan. |
 
 ## Design canvases
 

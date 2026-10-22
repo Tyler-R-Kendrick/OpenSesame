@@ -83,7 +83,8 @@
     "verify:tailnet-browser-node": "node scripts/verify-tailnet-browser-node.mjs",
     "verify:tailscale-provisioning": "node scripts/verify-tailscale-provisioning.mjs",
     "build:iwa": "PAGES_DEPLOYMENT_PROFILE=isolated_web_app PAGES_CANONICAL_ORIGIN=isolated-app: node scripts/stamped-build.mjs 'VITE_BASE=/ vite build --outDir dist-iwa --emptyOutDir && PAGES_OUT_DIR=dist-iwa node scripts/build-workers.mjs && node scripts/build-iwa-manifest.mjs'",
-    "build:iwa:signed": "pnpm run build:iwa && node scripts/sign-iwa.mjs"
+    "build:iwa:signed": "pnpm run build:iwa && node scripts/sign-iwa.mjs",
+    "generate:icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
     "@1password/save-button": "1.3.0",
