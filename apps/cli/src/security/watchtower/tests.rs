@@ -5,7 +5,10 @@ use std::fs;
 use std::io::Write;
 
 fn ssh_string(value: &[u8]) -> Vec<u8> {
-    let mut out = (value.len() as u32).to_be_bytes().to_vec();
+    let mut out = u32::try_from(value.len())
+        .expect("test SSH string fits u32")
+        .to_be_bytes()
+        .to_vec();
     out.extend_from_slice(value);
     out
 }

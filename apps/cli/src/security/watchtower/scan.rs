@@ -45,8 +45,7 @@ pub struct SshFinding {
 pub(crate) fn home_default() -> PathBuf {
     std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
+        .map_or_else(|| PathBuf::from("."), PathBuf::from)
 }
 
 pub(crate) fn is_file(path: &Path) -> bool {
@@ -83,7 +82,7 @@ pub(crate) fn walk(
         return;
     };
     let mut entries: Vec<_> = entries.flatten().collect();
-    entries.sort_by_key(|entry| entry.file_name());
+    entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
         let path = entry.path();
         if is_dir(&path) {
@@ -299,7 +298,6 @@ pub(crate) fn classify_ssh(text: &str) -> Option<(String, Option<u32>, bool, boo
         }
         "DSA PRIVATE KEY" => Some(("ssh-dss".into(), None, encrypted, false)),
         "EC PRIVATE KEY" => Some(("ecdsa".into(), None, encrypted, false)),
-        "OPENSSH PRIVATE KEY" => None,
         // This scanner does not parse PKCS#8's inner key, so it cannot claim
         // the key is importable or report RSA strength honestly.
         "PRIVATE KEY" | "ENCRYPTED PRIVATE KEY" => Some(("pkcs8".into(), None, encrypted, false)),
