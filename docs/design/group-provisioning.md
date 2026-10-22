@@ -13,6 +13,10 @@ team sync.
 
 ## What exists today
 
+Email-domain verification for SCIM users is specified separately in
+[email domain verification](email-domain-verification.md); SCIM user creation
+and email immutability are its current gaps.
+
 | Piece | State | Where |
 |---|---|---|
 | SCIM 2.0 users | Create, list, filter by userName, get, PATCH, deactivate; provisioning tokens | `packages/control-plane/src/routes/scim.ts` |

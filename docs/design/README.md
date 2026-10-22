@@ -23,6 +23,7 @@ at the repository root; the product's users and voice are in
 | [Agent Vault](agent-vault.md) | The native/PWA split for brokered agent access, the Infisical parity contract, and the delivery slices. |
 | [Machine identity auth](machine-identity-auth.md) | Every Infisical machine-identity auth method, its fields, native/PWA applicability, and the parity gaps. |
 | [Group provisioning](group-provisioning.md) | GitHub team sync, SCIM Group CRUD and approval, and groups as sharing principals. |
+| [Email domain verification](email-domain-verification.md) | DNS-proved work domains, SSO routing, SCIM enforcement, expiry and the current parity gaps. |
 
 ## Design canvases
 
