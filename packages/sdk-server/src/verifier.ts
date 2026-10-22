@@ -84,7 +84,10 @@ export const DEFAULT_ALLOWED_ALGORITHMS = [
 const REQUIRED_CLAIMS = ["iss", "sub", "aud", "exp"];
 
 function isLoopbackHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  const host = hostname
+    .replace(/^\[|\]$/gu, "")
+    .replace(/\.+$/u, "")
+    .toLowerCase();
   if (host === "localhost" || host.endsWith(".localhost")) return true;
   if (host === "::1") return true;
   const embedded = ipv4FromMappedIpv6(host);
@@ -122,7 +125,10 @@ function hextetsToIpv4(hiHex: string, loHex: string): string {
  * make a request on its behalf to somewhere it cannot reach itself.
  */
 function isPrivateHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  const host = hostname
+    .replace(/^\[|\]$/gu, "")
+    .replace(/\.+$/u, "")
+    .toLowerCase();
   if (isLoopbackHost(host)) return true;
   if (host === "0.0.0.0" || host === "::" || host === "localhost") return true;
   const embedded = ipv4FromMappedIpv6(host);
@@ -221,7 +227,10 @@ export function createJwksKeySource(
     try {
       const res = await fetchImpl(
         `${issuer}/.well-known/openid-configuration`,
-        { headers: { accept: "application/json" } },
+        {
+          headers: { accept: "application/json" },
+          redirect: "error",
+        },
       );
       if (!res.ok) return fallback();
       meta = await res.json();

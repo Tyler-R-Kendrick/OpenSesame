@@ -100,6 +100,7 @@ export async function loopbackLogin(
   const fetchImpl = config.fetchImpl ?? fetch;
   const discoveryRes = await fetchImpl(
     `${issuer}/.well-known/openid-configuration`,
+    { redirect: "error" },
   );
   if (!discoveryRes.ok)
     throw new Error(`discovery failed: ${discoveryRes.status}`);
@@ -176,6 +177,7 @@ export async function loopbackLogin(
           });
           const tokenRes = await fetchImpl(tokenEndpoint, {
             method: "POST",
+            redirect: "error",
             headers: { "content-type": "application/x-www-form-urlencoded" },
             body,
           });

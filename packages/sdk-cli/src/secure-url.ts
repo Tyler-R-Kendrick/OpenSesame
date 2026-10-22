@@ -35,7 +35,7 @@ function blockListContains(list: BlockList, host: string): boolean {
 }
 
 function isLoopbackHost(hostname: string): boolean {
-  const host = stripIpv6Brackets(hostname).toLowerCase();
+  const host = stripIpv6Brackets(hostname).replace(/\.+$/u, "").toLowerCase();
   return (
     host === "localhost" ||
     host.endsWith(".localhost") ||
@@ -71,7 +71,7 @@ export function assertSecureUrl(raw: string, what: string): string {
  * Hosts that only mean something inside this machine's network.
  */
 function isPrivateHost(hostname: string): boolean {
-  const host = stripIpv6Brackets(hostname).toLowerCase();
+  const host = stripIpv6Brackets(hostname).replace(/\.+$/u, "").toLowerCase();
   if (isLoopbackHost(host)) return true;
   return (
     blockListContains(PRIVATE_HOSTS, host) ||
