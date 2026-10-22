@@ -26,6 +26,7 @@ at the repository root; the product's users and voice are in
 | [Email domain verification](email-domain-verification.md) | DNS-proved work domains, SSO routing, SCIM enforcement, expiry and the current parity gaps. |
 | [Assume privilege](assume-privilege.md) | Time-boxed, audited permission testing for owned agents and applications, scoped to one vault or project. |
 | [Connections experience](connections-experience.md) | Task-first setup, reuse/verification, connection doctor, agent invocation and 1Password Connect API parity. |
+| [Credential broker](credential-broker.md) | OIDC-bound workflow access to environment variables, GitHub Actions, SDK and the 1Password broker capability contract. |
 
 ## Design canvases
 

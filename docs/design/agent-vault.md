@@ -122,7 +122,8 @@ SPIFFE, TLS certificate, Kubernetes, AWS, GCP, Azure, Alibaba, OCI and LDAP.
 Group provisioning and GitHub team sync are in
 [group provisioning](group-provisioning.md).
 Connector creation, invocation and the 1Password Connect-compatible API are in
-[connections experience](connections-experience.md).
+[connections experience](connections-experience.md). OIDC workflow access to
+environment variables is in [credential broker](credential-broker.md).
 
 ## Runtime contracts
 
