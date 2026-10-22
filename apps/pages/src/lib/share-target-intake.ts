@@ -77,7 +77,10 @@ async function readFile(
   const bytes = await decrypt(response, key);
   if (bytes.byteLength === 0 || bytes.byteLength > SHARE_TARGET_MAX_BYTES)
     return null;
-  return new File([bytes], meta.file.name, {
+  const name = /\.(?:txt|md)$/iu.test(meta.file.name)
+    ? ".opensesame-share.txt"
+    : meta.file.name;
+  return new File([bytes], name, {
     type: meta.file.type,
     lastModified: meta.createdAt,
   });
