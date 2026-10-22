@@ -29,6 +29,7 @@ at the repository root; the product's users and voice are in
 | [Credential broker](credential-broker.md) | OIDC-bound workflow access to environment variables, GitHub Actions, SDK and the 1Password broker capability contract. |
 | [KMIP](kmip.md) | Why a static PWA cannot host KMIP, the free native daemon shape, client ACLs, KMS boundaries and conformance. |
 | [Save in OpenSesame](save-button.md) | A website button that hands a reviewed login, card or wallet to the static vault without a backend or extension. |
+| [SSH and Git](ssh-git.md) | Native SSH agent, authorization, Git commit signing, public-key autofill and the PWA boundary. |
 
 ## Design canvases
 
