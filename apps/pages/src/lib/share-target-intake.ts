@@ -4,6 +4,10 @@
  * arrive in the URL fragment, which is removed before any await.
  */
 
+import {
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
 import { holdPendingImport } from "@opensesame/app-core/lib/vault/pending-import.js";
 import {
   SHARE_TARGET_MAX_BYTES,
@@ -87,6 +91,15 @@ export async function captureShareTarget(
   const found = address(location);
   if (found === null) return null;
   withoutHash(new URL(location.href), history);
+  const fail = () => {
+    setStatusNotice({
+      id: "share-target",
+      tone: "err",
+      title: "Shared file",
+      body: "The shared item could not be opened. Ask the sender to share it again.",
+    });
+    return null;
+  };
   const scope = scopeUrl();
   let cache: Cache;
   try {
@@ -108,17 +121,18 @@ export async function captureShareTarget(
   );
   try {
     const response = await cache.match(metaEntry);
-    if (!response) return null;
+    if (!response) return fail();
     const meta = parseShareTargetMeta(
       JSON.parse(new TextDecoder().decode(await decrypt(response, found.key))),
     );
-    if (!meta || meta.token !== found.token) return null;
+    if (!meta || meta.token !== found.token) return fail();
     const file = await readFile(cache, scope, found.token, found.key, meta);
-    if (file === null) return null;
-    holdPendingImport(file);
+    if (file === null) return fail();
+    holdPendingImport(file, "share");
+    dismissNotice("share-target");
     return file;
   } catch {
-    return null;
+    return fail();
   } finally {
     await cache.delete(metaEntry).catch(() => undefined);
     await cache.delete(fileEntry).catch(() => undefined);

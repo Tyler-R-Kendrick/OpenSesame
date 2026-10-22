@@ -14,6 +14,7 @@ import type {
 } from "../types.js";
 
 const SHARED_NAME = ".opensesame-share.txt";
+const TEXT_FILE = /\.(?:txt|md)$/u;
 
 function basename(fileName: string): string {
   return (fileName.toLowerCase().split(/[/\\]/u).pop() ?? "").trim();
@@ -35,8 +36,9 @@ export const sharedText: TextImportAdapter = {
   hint: "Text shared from another app, saved as one note.",
   accepts: "text",
   detect(input: DetectInput): boolean {
+    const name = basename(input.fileName);
     return (
-      basename(input.fileName) === SHARED_NAME &&
+      (name === SHARED_NAME || TEXT_FILE.test(name)) &&
       input.text.trim() !== "" &&
       input.bytes === null
     );

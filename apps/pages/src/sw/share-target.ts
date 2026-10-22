@@ -43,8 +43,9 @@ function fail(status: number, message: string): Response {
   return new Response(message, { status, headers: HEADERS });
 }
 
-function text(value: FormDataEntryValue | null, max: number): string {
-  return typeof value === "string" && value.length <= max ? value : "";
+function bounded(value: FormDataEntryValue | null, max: number): string | null {
+  if (value === null) return "";
+  return typeof value === "string" && value.length <= max ? value : null;
 }
 
 function safeName(value: string): string {
@@ -81,9 +82,11 @@ function parseForm(form: FormData): Staged | Response {
   const problem = fileProblem(file);
   if (problem) return problem;
 
-  const title = text(form.get("title"), SHARE_TARGET_MAX_TITLE);
-  const sharedText = text(form.get("text"), SHARE_TARGET_MAX_TEXT);
-  const sharedUrl = text(form.get("url"), 4096);
+  const title = bounded(form.get("title"), SHARE_TARGET_MAX_TITLE);
+  const sharedText = bounded(form.get("text"), SHARE_TARGET_MAX_TEXT);
+  const sharedUrl = bounded(form.get("url"), 4096);
+  if (title === null || sharedText === null || sharedUrl === null)
+    return fail(413, "That share field is too large.");
   if (file === null && sharedText === "" && sharedUrl === "")
     return fail(400, "That share carried no text or file.");
 
@@ -111,6 +114,36 @@ async function sweep(cache: Cache, now: number): Promise<void> {
     if (now - Number(match[1] ?? 0) > 60 * 60 * 1000)
       await cache.delete(request);
   }
+}
+
+async function boundedForm(request: Request): Promise<FormData | null> {
+  const reader = request.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      total += chunk.value.length;
+      if (total > SHARE_TARGET_MAX_BYTES + 256 * 1024) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(chunk.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const joined = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    joined.set(chunk, offset);
+    offset += chunk.length;
+  }
+  const type = request.headers.get("content-type");
+  if (type === null) return null;
+  return new Response(joined, { headers: { "Content-Type": type } }).formData();
 }
 
 async function stage(
@@ -182,16 +215,23 @@ export async function respondToShareTarget(
   )
     return null;
 
-  const declared = Number(request.headers.get("content-length") ?? "0");
+  // An OS share is a user-initiated navigation (`none`) or the app itself.
+  // A cross-site form in a hidden iframe must not clear or fill this cache.
+  if (request.headers.get("sec-fetch-site") === "cross-site")
+    return fail(403, "Cross-site shares are not accepted.");
+
+  const rawLength = request.headers.get("content-length");
   if (
-    Number.isFinite(declared) &&
-    declared > SHARE_TARGET_MAX_BYTES + 256 * 1024
+    rawLength !== null &&
+    Number(rawLength) > SHARE_TARGET_MAX_BYTES + 256 * 1024
   )
     return fail(413, "That share is too large.");
 
   let form: FormData;
   try {
-    form = await request.formData();
+    const parsed = await boundedForm(request);
+    if (parsed === null) return fail(413, "That share is too large.");
+    form = parsed;
   } catch {
     return fail(400, "That share could not be read.");
   }

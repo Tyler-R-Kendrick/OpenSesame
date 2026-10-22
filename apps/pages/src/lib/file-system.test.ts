@@ -97,9 +97,16 @@ describe("File System Access directory", () => {
   it("writes a reviewed export into the chosen directory", async () => {
     const write = vi.fn(async () => undefined);
     const close = vi.fn(async () => undefined);
-    const getFileHandle = vi.fn(async () => ({
-      createWritable: async () => ({ write, close, abort: vi.fn() }),
-    }));
+    let missing = true;
+    const getFileHandle = vi.fn(async () => {
+      if (missing) {
+        missing = false;
+        throw new DOMException("missing", "NotFoundError");
+      }
+      return {
+        createWritable: async () => ({ write, close, abort: vi.fn() }),
+      };
+    });
     const directory = {
       name: "backups",
       getFileHandle,
@@ -115,7 +122,10 @@ describe("File System Access directory", () => {
       "{}",
       "application/json",
     );
-    expect(getFileHandle).toHaveBeenCalledWith("vault.json", { create: true });
+    expect(getFileHandle).toHaveBeenNthCalledWith(1, "vault.json");
+    expect(getFileHandle).toHaveBeenNthCalledWith(2, "vault.json", {
+      create: true,
+    });
     expect(write).toHaveBeenCalledOnce();
     expect(close).toHaveBeenCalledOnce();
   });

@@ -16,7 +16,11 @@ import {
 } from "../../components/CeremonyShell.js";
 import { IconUpload, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { pickDirectory, saveTextToDirectory } from "../../lib/file-system.js";
+import {
+  directoryPickerAvailable,
+  pickDirectory,
+  saveTextToDirectory,
+} from "../../lib/file-system.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { withWakeLock } from "../../lib/wake-lock.js";
@@ -109,6 +113,7 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
   useModalFocus(true, sheetRef, closeRef, onClose);
   const vault = useVault();
   const refusal = exportRefusal(vault);
+  const canSaveFolder = directoryPickerAvailable();
   const { saved, folderSaved, error, save, saveToFolder } =
     useExportActions(vault);
   const problem = error ?? refusal;
@@ -163,7 +168,7 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
                 : undefined
             }
             secondary={
-              refusal === null
+              refusal === null && canSaveFolder
                 ? { label: "Save to folder", onClick: saveToFolder }
                 : undefined
             }

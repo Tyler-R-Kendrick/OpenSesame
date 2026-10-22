@@ -23,6 +23,8 @@ export const SHARE_TARGET_EXTENSIONS = new Set([
   ".zip",
   ".csv",
   ".env",
+  ".txt",
+  ".md",
 ]);
 
 const TOKEN =

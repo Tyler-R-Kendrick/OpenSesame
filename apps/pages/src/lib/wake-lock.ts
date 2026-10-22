@@ -29,7 +29,7 @@ export type WakeLockRelease = () => Promise<void>;
 
 /** Acquire a lock, or a no-op release when the platform cannot provide one. */
 export async function holdWakeLock(
-  host: WakeLockHost = globalThis as WakeLockHost,
+  host: WakeLockHost = globalThis.navigator as WakeLockHost,
   visibility: VisibilityHost = globalThis.document as VisibilityHost,
 ): Promise<WakeLockRelease> {
   let sentinel: WakeLockSentinel | null = null;

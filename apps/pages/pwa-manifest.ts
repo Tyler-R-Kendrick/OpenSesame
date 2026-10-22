@@ -61,7 +61,7 @@ export const pwaManifest = {
     {
       action: "./",
       accept: {
-        "application/x-keepass2": [".kdbx", ".kdb"],
+        "application/x-keepass2": [".kdbx"],
         "application/json": [".json"],
         "application/zip": [".1pux", ".zip"],
         "text/csv": [".csv"],

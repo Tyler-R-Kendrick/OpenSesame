@@ -7,6 +7,7 @@
  * (a shortcut or link) is left to normal routing.
  */
 
+import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
 import { holdPendingImport } from "@opensesame/app-core/lib/vault/pending-import.js";
 
 type LaunchParams = {
@@ -38,7 +39,15 @@ export function installLaunchQueue(
     void handle
       .getFile()
       .then((file) => {
-        holdPendingImport(file);
+        if ((params.files?.length ?? 0) > 1) {
+          setStatusNotice({
+            id: "launch-intake",
+            tone: "warn",
+            title: "Open files",
+            body: "Open one file at a time. Only the first file was kept.",
+          });
+        }
+        holdPendingImport(file, "launch");
       })
       .catch(() => {
         // A handle withdrawn or revoked by the OS is a cancelled launch.

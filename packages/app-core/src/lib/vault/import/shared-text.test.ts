@@ -16,7 +16,9 @@ function input(overrides: Partial<DetectInput> = {}): DetectInput {
 describe("shared text", () => {
   it("claims only the internal share filename", () => {
     expect(sharedText.detect(input())).toBe(true);
-    expect(sharedText.detect(input({ fileName: "notes.txt" }))).toBe(false);
+    expect(sharedText.detect(input({ fileName: "notes.txt" }))).toBe(true);
+    expect(sharedText.detect(input({ fileName: "notes.md" }))).toBe(true);
+    expect(sharedText.detect(input({ fileName: "photo.png" }))).toBe(false);
     expect(sharedText.detect(input({ text: "" }))).toBe(false);
   });
 

@@ -23,7 +23,9 @@ type PickerHost = {
     options?: SavePickerOptions,
   ) => Promise<FileSystemFileHandle>;
   showOpenFilePicker?: () => Promise<FileSystemFileHandle[]>;
-  showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
+  showDirectoryPicker?: (options?: {
+    mode?: "read" | "readwrite";
+  }) => Promise<FileSystemDirectoryHandle>;
 };
 
 function picker(): PickerHost["showSaveFilePicker"] {
@@ -148,11 +150,40 @@ export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null>
   const choose = directoryPicker();
   if (choose === undefined) return null;
   try {
-    return await choose();
+    return await choose({ mode: "readwrite" });
   } catch (error) {
     if (cancelled(error)) return null;
     throw error;
   }
+}
+
+/** Whether the browser can hand us a writable directory. */
+export function directoryPickerAvailable(): boolean {
+  return directoryPicker() !== undefined;
+}
+
+function versionedName(fileName: string, version: number): string {
+  if (version === 0) return fileName;
+  const dot = fileName.lastIndexOf(".");
+  if (dot <= 0) return `${fileName}-${version}`;
+  return `${fileName.slice(0, dot)}-${version}${fileName.slice(dot)}`;
+}
+
+async function unusedName(
+  directory: FileSystemDirectoryHandle,
+  fileName: string,
+): Promise<string> {
+  for (let version = 0; version < 100; version += 1) {
+    const candidate = versionedName(fileName, version);
+    try {
+      await directory.getFileHandle(candidate);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError")
+        return candidate;
+      throw error;
+    }
+  }
+  throw new Error("That folder already holds too many backups with this name.");
 }
 
 /** Write one file into a directory the person explicitly chose. */
@@ -161,7 +192,8 @@ export async function saveBlobToDirectory(
   fileName: string,
   blob: Blob,
 ): Promise<void> {
-  const handle = await directory.getFileHandle(fileName, { create: true });
+  const name = await unusedName(directory, fileName);
+  const handle = await directory.getFileHandle(name, { create: true });
   const writable = await handle.createWritable();
   try {
     await writable.write(blob);
