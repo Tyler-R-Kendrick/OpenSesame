@@ -59,22 +59,27 @@ function safeName(value: string): string {
   return clean === "" ? "shared-file" : clean;
 }
 
+function fileProblem(file: File | null): Response | null {
+  if (file === null) return null;
+  if (file.size <= 0 || file.size > SHARE_TARGET_MAX_BYTES)
+    return fail(413, "That file is empty or too large.");
+  if (file.name.length > 255) return fail(413, "That filename is too long.");
+  const name = file.name.toLowerCase();
+  const dot = name.lastIndexOf(".");
+  const extension = dot < 0 ? "" : name.slice(dot);
+  if (extension !== "" && !SHARE_TARGET_EXTENSIONS.has(extension))
+    return fail(415, "That file type is not an import format.");
+  return null;
+}
+
 function parseForm(form: FormData): Staged | Response {
   const files = form
     .getAll("files")
     .filter((entry): entry is File => typeof entry !== "string");
   if (files.length > 1) return fail(413, "Share one file at a time.");
   const file = files[0] ?? null;
-  if (file !== null && (file.size <= 0 || file.size > SHARE_TARGET_MAX_BYTES))
-    return fail(413, "That file is empty or too large.");
-  if (file !== null) {
-    if (file.name.length > 255) return fail(413, "That filename is too long.");
-    const name = file.name.toLowerCase();
-    const dot = name.lastIndexOf(".");
-    const extension = dot < 0 ? "" : name.slice(dot);
-    if (extension !== "" && !SHARE_TARGET_EXTENSIONS.has(extension))
-      return fail(415, "That file type is not an import format.");
-  }
+  const problem = fileProblem(file);
+  if (problem) return problem;
 
   const title = text(form.get("title"), SHARE_TARGET_MAX_TITLE);
   const sharedText = text(form.get("text"), SHARE_TARGET_MAX_TEXT);
