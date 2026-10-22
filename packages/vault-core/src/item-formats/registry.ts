@@ -36,7 +36,6 @@ const UNSUPPORTED_REASONS = new Map<string, string>([
     "A recovery share is a quorum fragment with a bespoke envelope.",
   ],
   ["health-insurance", "Member and group identifiers are payer-specific."],
-  ["identity-document", "National identity numbers are jurisdiction-specific."],
   [
     "membership",
     "Membership numbers are issuer-specific with no common checksum.",
@@ -45,10 +44,6 @@ const UNSUPPORTED_REASONS = new Map<string, string>([
   [
     "oauth-client",
     "Client ids and secrets are opaque and have no common issuer shape.",
-  ],
-  [
-    "passport",
-    "Passport numbers are country-specific; ICAO MRZ is a separate document format.",
   ],
   ["person-name", "A name has no serialised secret format."],
   [

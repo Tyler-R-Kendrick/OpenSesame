@@ -8,10 +8,14 @@ import { keccak_256 } from "@noble/hashes/sha3";
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import type { JsonValue } from "@opensesame/os-domain";
 import type { FieldValues } from "@opensesame/vault-item-types";
-import { b64urlToBytes, bytesToB64url } from "../bytes.js";
+import { b64ToBytes, b64urlToBytes, bytesToB64url } from "../bytes.js";
 import { cardChecksumValid, detectCardBrand } from "../card.js";
 import { parseTotp } from "../totp.js";
+import { apiKeyFormats } from "./api-key-formats.js";
+import { identityDocumentFormat } from "./identity-document-format.js";
+import { passportFormat } from "./passport-format.js";
 import type { Random } from "./random.js";
+import { sshKeyFormat } from "./ssh-key-format.js";
 import type { ItemFormat } from "./types.js";
 
 const ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -278,153 +282,6 @@ const jwtFormat: ItemFormat = {
   },
   canonical: (values) => trimToNull(text(values, "token")),
 };
-
-type ApiKeySpec = {
-  id: string;
-  label: string;
-  service: string;
-  header: string;
-  specificity: number;
-  pattern: RegExp;
-  generate: (random: Random) => string;
-};
-
-const API_KEYS: readonly ApiKeySpec[] = [
-  {
-    id: "supabase-pat",
-    label: "Supabase personal access token",
-    service: "Supabase",
-    header: "Authorization",
-    specificity: 100,
-    pattern: /^sbp_(?:v\d+_)?[0-9a-f]{40}$/u,
-    generate: (random) => `sbp_${random.hex(40)}`,
-  },
-  {
-    id: "supabase-secret",
-    label: "Supabase secret key",
-    service: "Supabase",
-    header: "apikey",
-    specificity: 98,
-    pattern: /^sb_secret_[A-Za-z0-9_-]{32,}$/u,
-    generate: (random) => `sb_secret_${random.string(ALNUM, 40)}`,
-  },
-  {
-    id: "github-token",
-    label: "GitHub token",
-    service: "GitHub",
-    header: "Authorization",
-    specificity: 96,
-    pattern:
-      /^(?:gh[pousr]_[A-Za-z0-9]{36,251}|github_pat_[A-Za-z0-9_]{22,255})$/u,
-    generate: (random) => `ghp_${random.string(ALNUM, 36)}`,
-  },
-  {
-    id: "gitlab-token",
-    label: "GitLab personal access token",
-    service: "GitLab",
-    header: "PRIVATE-TOKEN",
-    specificity: 95,
-    pattern: /^glpat-[A-Za-z0-9_-]{20,}$/u,
-    generate: (random) => `glpat-${random.string(ALNUM, 20)}`,
-  },
-  {
-    id: "aws-access-key",
-    label: "AWS access key ID",
-    service: "AWS",
-    header: "Authorization",
-    specificity: 95,
-    pattern: /^(?:AKIA|ASIA)[A-Z0-9]{16}$/u,
-    generate: (random) =>
-      `AKIA${random.string("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 16)}`,
-  },
-  {
-    id: "slack-token",
-    label: "Slack token",
-    service: "Slack",
-    header: "Authorization",
-    specificity: 94,
-    pattern: /^xox[abposr]-[A-Za-z0-9-]{10,}$/u,
-    generate: (random) =>
-      `xoxb-${random.digits(12)}-${random.string(ALNUM, 24)}`,
-  },
-  {
-    id: "stripe-key",
-    label: "Stripe secret key",
-    service: "Stripe",
-    header: "Authorization",
-    specificity: 94,
-    pattern: /^(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}$/u,
-    generate: (random) => `sk_test_${random.string(ALNUM, 24)}`,
-  },
-  {
-    id: "anthropic-key",
-    label: "Anthropic API key",
-    service: "Anthropic",
-    header: "x-api-key",
-    specificity: 93,
-    pattern: /^sk-ant-[A-Za-z0-9_-]{20,}$/u,
-    generate: (random) => `sk-ant-api03-${random.string(`${ALNUM}_-`, 40)}`,
-  },
-  {
-    id: "openai-key",
-    label: "OpenAI API key",
-    service: "OpenAI",
-    header: "Authorization",
-    specificity: 92,
-    pattern: /^sk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_-]{32,}$/u,
-    generate: (random) => `sk-proj-${random.string(`${ALNUM}_-`, 48)}`,
-  },
-  {
-    id: "google-api-key",
-    label: "Google API key",
-    service: "Google",
-    header: "x-goog-api-key",
-    specificity: 92,
-    pattern: /^AIza[0-9A-Za-z_-]{35}$/u,
-    generate: (random) => `AIza${random.string(`${ALNUM}_-`, 35)}`,
-  },
-  {
-    id: "npm-token",
-    label: "npm access token",
-    service: "npm",
-    header: "Authorization",
-    specificity: 91,
-    pattern: /^npm_[A-Za-z0-9]{36}$/u,
-    generate: (random) => `npm_${random.string(ALNUM, 36)}`,
-  },
-  {
-    id: "generic-api-key",
-    label: "Synthetic API key",
-    service: "OpenSesame test service",
-    header: "Authorization",
-    specificity: 20,
-    pattern: /^opensesame_test_[A-Za-z0-9_-]{32,}$/u,
-    generate: (random) => `opensesame_test_${random.string(`${ALNUM}_-`, 32)}`,
-  },
-] as const;
-
-function apiKeyFormats(typeId: string): ItemFormat[] {
-  return API_KEYS.map((spec) => ({
-    id: `${typeId}:${spec.id}`,
-    typeId,
-    label: spec.label,
-    specificity: spec.specificity,
-    parse(value): FieldValues | null {
-      const key = value.trim();
-      if (!spec.pattern.test(key)) return null;
-      return typeId === "api-credential"
-        ? { service: spec.service, apiKey: key }
-        : { apiKey: key, header: spec.header };
-    },
-    generate({ random }): FieldValues {
-      const apiKey = spec.generate(random);
-      return typeId === "api-credential"
-        ? { service: spec.service, apiKey }
-        : { apiKey, header: spec.header };
-    },
-    canonical: (values) => trimToNull(text(values, "apiKey")),
-  }));
-}
 
 const DATABASE_SCHEMES = new Map<string, string>([
   ["postgres", "postgresql"],
@@ -865,60 +722,6 @@ const backupCodesFormat: ItemFormat = {
   canonical: (values) => trimToNull(text(values, "codes")),
 };
 
-const sshKeyFormat: ItemFormat = {
-  id: "ssh-key",
-  typeId: "ssh-key",
-  label: "SSH key",
-  specificity: 100,
-  parse(value) {
-    const raw = value.trim();
-    const publicMatch =
-      /^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) ([A-Za-z0-9+/=]+)(?: (.+))?$/u.exec(
-        raw,
-      );
-    if (publicMatch) {
-      return {
-        keyType:
-          publicMatch[1] === "ssh-rsa"
-            ? "rsa"
-            : publicMatch[1] === "sk-ssh-ed25519@openssh.com"
-              ? "ed25519-sk"
-              : publicMatch[1] === "sk-ecdsa-sha2-nistp256@openssh.com"
-                ? "ecdsa-sk"
-                : publicMatch[1]?.startsWith("ecdsa")
-                  ? "ecdsa"
-                  : "ed25519",
-        keyPair: {
-          publicKey: `${publicMatch[1]} ${publicMatch[2]}`,
-          privateKey: "",
-        },
-        comment: publicMatch[3] ?? "",
-      };
-    }
-    const privateMatch =
-      /^-----BEGIN ((?:OPENSSH|RSA|EC|DSA) PRIVATE KEY)-----[\s\S]+-----END \1-----$/u.exec(
-        raw,
-      );
-    if (!privateMatch) return null;
-    const label = privateMatch[1] ?? "";
-    return {
-      keyType: label.startsWith("OPENSSH")
-        ? ""
-        : label.startsWith("EC")
-          ? "ecdsa"
-          : label.startsWith("RSA")
-            ? "rsa"
-            : "",
-      keyPair: { publicKey: "", privateKey: raw },
-      comment: "",
-    };
-  },
-  canonical: (values) => {
-    const keyPair = record(values, "keyPair");
-    return trimToNull(keyPair.privateKey || keyPair.publicKey || "");
-  },
-};
-
 const certificateFormat: ItemFormat = {
   id: "pem-certificate",
   typeId: "certificate",
@@ -926,11 +729,21 @@ const certificateFormat: ItemFormat = {
   specificity: 100,
   parse(value) {
     const certificatePem = value.trim();
-    return /^-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----$/u.test(
-      certificatePem,
+    if (
+      !/^-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----$/u.test(
+        certificatePem,
+      )
     )
-      ? { certificatePem }
-      : null;
+      return null;
+    const body = certificatePem
+      .replaceAll(/-----[^-]+-----/gu, "")
+      .replaceAll(/\s+/gu, "");
+    try {
+      const der = b64ToBytes(body);
+      return der[0] === 0x30 ? { certificatePem } : null;
+    } catch {
+      return null;
+    }
   },
   canonical: (values) => trimToNull(text(values, "certificatePem")),
 };
@@ -966,6 +779,8 @@ const passwordFormat: ItemFormat = {
 
 /** Every format that can be recognised from one value, most specific first. */
 export const DETECTED_FORMATS: readonly ItemFormat[] = [
+  passportFormat,
+  identityDocumentFormat,
   certificateFormat,
   sshKeyFormat,
   wifiFormat,

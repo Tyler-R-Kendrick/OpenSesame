@@ -36,7 +36,7 @@ turns a test value into a working account credential.
 | `bank-account` | IBAN mod-97; ABA routing checksum | Yes |
 | `authenticator` | `otpauth://` or an uppercase base32 seed | Yes |
 | `token` | Three-segment JWT with JSON header and payload | Yes |
-| `api-key`, `api-credential` | Supabase `sbp_`/`sb_secret_`, GitHub, GitLab, AWS, Slack, Stripe, Anthropic, OpenAI, Google, npm, and a synthetic generic key | Yes, per format |
+| `api-key`, `api-credential` | Supabase `sbp_`/`sb_secret_`, GitHub, GitLab, AWS, Slack, Stripe, Anthropic, OpenAI, Google, npm, Hugging Face, Replicate, Groq, Perplexity, xAI, Linear, Notion, Airtable, Figma, Shopify, DigitalOcean, SendGrid, Mailgun, PyPI, Sentry, Twilio, PostHog, PlanetScale, Resend, Doppler, 1Password, HashiCorp Vault, Pulumi, and a synthetic generic key | Yes, per format |
 | `database` | Parsed connection URL (PostgreSQL, MySQL/MariaDB, MongoDB, Redis, SQL Server) | Yes |
 | `server` | `ssh://` URL and host/port | Yes |
 | `vehicle` | 17-character VIN with the ISO 3779 check digit | Yes |
@@ -48,14 +48,16 @@ turns a test value into a working account credential.
 | `gift-card` | Numeric card number with no universal issuer checksum | Yes |
 | `backup-codes` | Four or more code lines | Yes |
 | `secret`, `password` | Exact named-type parse; no automatic detection | Yes (opaque value) |
-| `ssh-key` | OpenSSH public key or PEM private key | Parser only |
+| `ssh-key` | OpenSSH public key wire structure or PEM private key | Yes (synthetic ed25519 public key) |
 | `certificate` | PEM certificate | Parser only |
+| `passport` | ICAO 9303 TD3 MRZ with check digits | Yes (synthetic specimen) |
+| `identity-document` | ICAO 9303 TD1 MRZ with check digits | Yes (synthetic specimen) |
 
 Everything else is explicitly unsupported with a reason. Postal addresses,
-free prose, names, membership numbers, national identity numbers, passport
-numbers, client credentials, and policy records do not have a universal
-secret shape. A parser that guessed at them would be less honest than the
-field label.
+free prose, names, membership numbers, national identity numbers outside an
+ICAO MRZ, driving-licence numbers, health-plan member ids, client credentials,
+and policy records do not have a universal secret shape. A parser that guessed
+at them would be less honest than the field label.
 
 ## Pitfalls
 

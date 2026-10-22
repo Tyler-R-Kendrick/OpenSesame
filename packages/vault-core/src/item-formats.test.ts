@@ -82,6 +82,24 @@ describe("item formats", () => {
     expect(parseItemFormat("api-key", "sbp_not-hex")).toBeNull();
   });
 
+  it("recognises additional issuer-prefixed API keys by shape", () => {
+    for (const formatId of [
+      "api-key:hugging-face-token",
+      "api-key:linear-key",
+      "api-key:digitalocean-token",
+      "api-key:sendgrid-key",
+    ]) {
+      const key = generated("api-key", formatId);
+      expect(bestItemFormat(key.canonical ?? "")?.formatId, formatId).toBe(
+        formatId,
+      );
+      expect(
+        parseItemFormat("api-key", key.canonical ?? ""),
+        formatId,
+      ).not.toBeNull();
+    }
+  });
+
   it("carries provider identity into an API credential", () => {
     const generatedCredential = generated(
       "api-credential",
@@ -202,17 +220,34 @@ describe("item formats", () => {
     }
   });
 
-  it("parses SSH keys and certificates but refuses to invent issuer material", () => {
-    const publicKey =
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest synthetic@example.test";
-    expect(bestItemFormat(publicKey)?.typeId).toBe("ssh-key");
+  it("round-trips an ICAO TD3 passport MRZ", () => {
+    const passport = generated("passport");
+    expect(passport.canonical).toMatch(/^P<GBR/u);
+    expect(passport.values.fullName).toBe("SPECIMEN TEST");
+    expect(bestItemFormat(passport.canonical ?? "")?.typeId).toBe("passport");
+    const parsed = parseItemFormat("passport", passport.canonical ?? "");
+    expect(parsed?.values).toMatchObject({
+      issuingCountry: "GBR",
+      documentNumber: passport.values.documentNumber,
+      documentType: "ordinary",
+    });
+    const canonical = passport.canonical ?? "";
+    const bad = `${canonical.slice(0, -1)}${canonical.endsWith("0") ? "1" : "0"}`;
+    expect(parseItemFormat("passport", bad)).toBeNull();
+  });
+
+  it("generates a structurally valid SSH key and keeps certificates parser-only", () => {
+    const key = generated("ssh-key");
+    expect(key.canonical).toMatch(
+      /^ssh-ed25519 [A-Za-z0-9+/=]+ synthetic@example\.test$/u,
+    );
+    expect(bestItemFormat(key.canonical ?? "")?.typeId).toBe("ssh-key");
     expect(
-      parseItemFormat(
-        "ssh-key",
-        "sk-ssh-ed25519@openssh.com AAAATest sk@example.test",
-      )?.values.keyType,
-    ).toBe("ed25519-sk");
-    expect(generateItemFormat("ssh-key")).toBeNull();
+      parseItemFormat("ssh-key", key.canonical ?? "")?.values.keyType,
+    ).toBe("ed25519");
+    expect(
+      parseItemFormat("ssh-key", "ssh-ed25519 AAAATest synthetic@example.test"),
+    ).toBeNull();
 
     const certificate =
       "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----";
