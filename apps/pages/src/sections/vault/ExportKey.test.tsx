@@ -61,8 +61,9 @@ async function passwordVault() {
 describe("Export key", () => {
   beforeEach(() => {
     saved.length = 0;
-    downloadSeams.save = (name, text, type = "") => {
+    downloadSeams.save = async (name, text, type = "") => {
       saved.push({ name, text, type });
+      return "downloaded" as const;
     };
   });
 

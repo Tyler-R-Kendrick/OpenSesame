@@ -62,6 +62,14 @@ export function useItemShare(
       onGrant: canGrant
         ? () => navigate(accessIdentitySharePath(item.id))
         : undefined,
+      onShare:
+        typeof navigator.share === "function"
+          ? () => {
+              void navigator
+                .share({ title: item.name, text: item.name })
+                .catch(() => undefined);
+            }
+          : undefined,
       keyRef: key,
     },
     ceremony: (

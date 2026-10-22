@@ -28,6 +28,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { checkForAppUpdate } from "../../../lib/pwa-update.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
+import { withWakeLock } from "../../../lib/wake-lock.js";
 
 const NOTICE = "vault-import";
 
@@ -105,7 +106,7 @@ export function useImportFlow(file: File, onDone?: () => void): ImportFlow {
     current.current = reading;
     setStage(reading);
     setError(null);
-    void readStage(file).then((outcome) => {
+    void withWakeLock(() => readStage(file)).then((outcome) => {
       if (live) land(outcome);
     });
     return () => {
@@ -130,7 +131,7 @@ export function useImportFlow(file: File, onDone?: () => void): ImportFlow {
 
   const run = (transition: () => Promise<StageOutcome>) => {
     setBusy(true);
-    void transition()
+    void withWakeLock(transition)
       .then(land)
       .finally(() => setBusy(false));
   };

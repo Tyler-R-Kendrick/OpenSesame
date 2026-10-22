@@ -16,8 +16,14 @@ import {
 } from "../../components/CeremonyShell.js";
 import { IconUpload, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import {
+  directoryPickerAvailable,
+  pickDirectory,
+  saveTextToDirectory,
+} from "../../lib/file-system.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { withWakeLock } from "../../lib/wake-lock.js";
 import { downloadSeams } from "../../screens/capabilities/download.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { useAddEntry } from "./add-menu.js";
@@ -26,6 +32,73 @@ const NOTICE = "vault-export";
 
 function messageOf<Thrown>(caught: Thrown): string {
   return caught instanceof Error ? caught.message : "Export failed.";
+}
+
+function exportFacts(vault: ReturnType<typeof useVault>): CeremonyFact[] {
+  const live = listedItems(vault.items).filter(
+    (item) => item.deletedAt === null,
+  ).length;
+  return [
+    { key: "Vault", value: openVaultLabel() },
+    { key: "Items", value: String(live) },
+    {
+      key: "Opens with",
+      value: exportOpener(vault.header) ?? "the master password",
+    },
+    { key: "Holds", value: "ciphertext only" },
+  ];
+}
+
+function useExportActions(vault: ReturnType<typeof useVault>) {
+  const [saved, setSaved] = useState<string | null>(null);
+  const [folderSaved, setFolderSaved] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = useCallback(async () => {
+    try {
+      const file = offlineBackupFile(vault);
+      const outcome = await withWakeLock(() =>
+        Promise.resolve(
+          downloadSeams.save(file.fileName, file.text, "application/json"),
+        ),
+      );
+      if (outcome === "cancelled") return;
+      setSaved(file.fileName);
+      setError(null);
+      dismissNotice(NOTICE);
+    } catch (caught) {
+      const message = messageOf(caught);
+      setError(message);
+      setStatusNotice({
+        id: NOTICE,
+        tone: "err",
+        title: "Export",
+        body: message,
+      });
+    }
+  }, [vault]);
+
+  const saveToFolder = useCallback(async () => {
+    try {
+      const directory = await pickDirectory();
+      if (directory === null) return;
+      const file = offlineBackupFile(vault);
+      await withWakeLock(() =>
+        saveTextToDirectory(
+          directory,
+          file.fileName,
+          file.text,
+          "application/json",
+        ),
+      );
+      setFolderSaved(directory.name);
+      setError(null);
+    } catch (caught) {
+      setError(messageOf(caught));
+    }
+  }, [vault]);
+
+  return { saved, folderSaved, error, save, saveToFolder };
 }
 
 /**
@@ -40,42 +113,14 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
   useModalFocus(true, sheetRef, closeRef, onClose);
   const vault = useVault();
   const refusal = exportRefusal(vault);
-  const [saved, setSaved] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const canSaveFolder = directoryPickerAvailable();
+  const { saved, folderSaved, error, save, saveToFolder } =
+    useExportActions(vault);
   const problem = error ?? refusal;
 
-  const save = () => {
-    try {
-      const file = offlineBackupFile(vault);
-      downloadSeams.save(file.fileName, file.text, "application/json");
-      setSaved(file.fileName);
-      setError(null);
-      dismissNotice(NOTICE);
-    } catch (caught) {
-      const message = messageOf(caught);
-      setError(message);
-      setStatusNotice({
-        id: NOTICE,
-        tone: "err",
-        title: "Export",
-        body: message,
-      });
-    }
-  };
-
-  const live = listedItems(vault.items).filter(
-    (item) => item.deletedAt === null,
-  ).length;
-  const facts: CeremonyFact[] = [
-    { key: "Vault", value: openVaultLabel() },
-    { key: "Items", value: String(live) },
-    {
-      key: "Opens with",
-      value: exportOpener(vault.header) ?? "the master password",
-    },
-    { key: "Holds", value: "ciphertext only" },
-  ];
+  const facts = exportFacts(vault);
   if (saved) facts.push({ key: "File", value: saved });
+  if (folderSaved) facts.push({ key: "Folder", value: folderSaved });
 
   return (
     <div className="sheet-layer">
@@ -120,6 +165,11 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
             primary={
               refusal === null
                 ? { label: saved ? "Save again" : "Save backup", onClick: save }
+                : undefined
+            }
+            secondary={
+              refusal === null && canSaveFolder
+                ? { label: "Save to folder", onClick: saveToFolder }
                 : undefined
             }
           >

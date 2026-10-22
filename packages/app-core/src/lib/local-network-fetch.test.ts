@@ -4,6 +4,7 @@ import {
   localNetworkFetch,
   localNetworkFetchSeams,
   targetAddressSpaceFor,
+  withTargetAddressSpace,
 } from "./local-network-fetch.js";
 const eligible = localNetworkFetchSeams.eligible;
 beforeEach(() => {
@@ -115,6 +116,38 @@ describe("local-network-fetch edges", () => {
     expect(targetAddressSpaceFor("http://169.254.1.1")).toBe("local");
     expect(targetAddressSpaceFor("http://printer.local")).toBe("local");
     expect(targetAddressSpaceFor("http://devbox.localhost")).toBe("loopback");
+  });
+
+  it("follows the current non-public address table", () => {
+    expect(targetAddressSpaceFor("http://0.0.0.0")).toBe("loopback");
+    expect(targetAddressSpaceFor("http://0.1.2.3")).toBe("local");
+    expect(targetAddressSpaceFor("http://198.18.0.1")).toBe("loopback");
+    expect(targetAddressSpaceFor("http://198.19.255.255")).toBe("loopback");
+    expect(targetAddressSpaceFor("http://[::]")).toBe("loopback");
+    expect(targetAddressSpaceFor("http://[::1]")).toBe("loopback");
+    expect(targetAddressSpaceFor("http://[fd00::1]")).toBe("local");
+    expect(targetAddressSpaceFor("http://[fe80::1]")).toBe("local");
+    expect(targetAddressSpaceFor("http://[fec0::1]")).toBe("local");
+    expect(targetAddressSpaceFor("http://[2001:db8::1]")).toBe("local");
+    expect(targetAddressSpaceFor("http://[3fff::1]")).toBe("local");
+    expect(targetAddressSpaceFor("http://[::ffff:192.168.1.1]")).toBe("local");
+    expect(targetAddressSpaceFor("http://[::ffff:8.8.8.8]")).toBeUndefined();
+  });
+
+  it("annotates a caller-owned request without taking its abort signal", () => {
+    const controller = new AbortController();
+    const init = withTargetAddressSpace("http://127.0.0.1:18790/x", {
+      method: "POST",
+      signal: controller.signal,
+    });
+    expect(init.signal).toBe(controller.signal);
+    expect(init).toMatchObject({
+      method: "POST",
+      targetAddressSpace: "loopback",
+    });
+    expect(
+      withTargetAddressSpace("https://example.com", { method: "GET" }),
+    ).not.toHaveProperty("targetAddressSpace");
   });
 
   it("propagates an outer abort signal into the fetch", async () => {

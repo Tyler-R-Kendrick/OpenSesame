@@ -13,6 +13,7 @@ import type { UriMatch } from "@opensesame/vault-core";
 export type SourceId =
   | "opensesame"
   | "env-file"
+  | "shared-text"
   | "bitwarden-json"
   | "bitwarden-csv"
   | "1password-1pux"

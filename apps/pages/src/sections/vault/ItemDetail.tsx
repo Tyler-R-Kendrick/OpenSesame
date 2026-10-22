@@ -17,6 +17,7 @@ import { ItemFields } from "./ItemFields.js";
 import { ItemGone } from "./ItemGone.js";
 import { useItemShare } from "./ItemShare.js";
 import { ItemTools } from "./ItemTools.js";
+import { RotationPanel } from "./RotationPanel.js";
 import { updateItemSecret } from "./item-secret-update.js";
 
 function formatDate(iso: string): string {
@@ -30,7 +31,7 @@ export function ItemDetail() {
   const { itemId } = useParams();
   const location = useLocation();
   const { listPath, backLabel } = useVaultList(location.search);
-  const { items, folders } = useVault();
+  const { items, folders, guest } = useVault();
   const store = useVaultStore();
   const { copied, failed, copy } = useCopyFeedback();
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
@@ -102,6 +103,7 @@ export function ItemDetail() {
         copy={copy}
         onUpdateSecret={(next) => updateItemSecret(item, next, store.saveItem)}
       />
+      <RotationPanel item={item} scope={guest ? "" : store.activeTomb()} />
       {ceremony}
 
       {item.fields.length > 0 ? (

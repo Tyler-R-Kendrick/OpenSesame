@@ -6,6 +6,7 @@ import type {
   TokenMethod,
 } from "@opensesame/vault-core";
 import { CredentialLine } from "./CredentialLine.js";
+import { FormatHint } from "./FormatHint.js";
 import { SecretControl, TextControl } from "./SecretInput.js";
 import { apiKeyLabels } from "./credential-labels.js";
 
@@ -61,6 +62,7 @@ export function ApiKeyLines({
             onChange={(key) => onChange({ ...method, key })}
           />
         }
+        hint={<FormatHint typeId="api-key" value={method.key} />}
       />
     </>
   );
@@ -86,6 +88,7 @@ export function TokenLines({
             onChange={(token) => onChange({ ...method, token })}
           />
         }
+        hint={<FormatHint typeId="token" value={method.token} />}
       />
       <CredentialLine
         label="Expires"

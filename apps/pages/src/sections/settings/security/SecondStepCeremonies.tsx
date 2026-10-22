@@ -33,6 +33,7 @@ import {
 } from "../../../components/Icons.js";
 import { QrCode } from "../../../components/QrCode.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { saveTextFile } from "../../../lib/file-system.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
 import { KeyCeremony } from "./KeyCeremony.js";
 import type { Run } from "./run.js";
@@ -57,16 +58,12 @@ async function copyCodes(ledger: Codes): Promise<void> {
 }
 
 function downloadCodes(ledger: Codes): void {
-  const url = URL.createObjectURL(
-    new Blob([`OpenSesame vault recovery codes\n\n${unusedText(ledger)}`], {
-      type: "text/plain",
-    }),
-  );
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "opensesame-recovery-codes.txt";
-  a.click();
-  URL.revokeObjectURL(url);
+  void saveTextFile(
+    "opensesame-recovery-codes.txt",
+    `OpenSesame vault recovery codes\n\n${unusedText(ledger)}`,
+    "text/plain",
+    "Recovery codes",
+  ).catch(() => undefined);
 }
 
 /** The card that hands over fresh codes: copy, download, and "I saved them". */

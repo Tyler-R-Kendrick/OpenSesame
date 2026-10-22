@@ -21,6 +21,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { SHARE_TARGET_PATH } from "../lib/share-target.js";
 import { parseCacheName } from "./cache-names.js";
 import { cleanupCaches } from "./cleanup.js";
 import {
@@ -38,6 +39,7 @@ import {
   shellEntry,
 } from "./release.js";
 import { createSamlPostIngress } from "./saml-post.js";
+import { respondToShareTarget } from "./share-target.js";
 
 export type CoreWorkerOptions = Readonly<{
   /** `core-only` or `push`; the last cache-name segment. */
@@ -265,8 +267,24 @@ export function installCoreWorker(
   });
   sw.addEventListener("fetch", (event) => {
     const post = saml?.respond(event);
-    if (post) event.respondWith(post);
-    else handleFetch(ctx, event);
+    if (post) {
+      event.respondWith(post);
+      return;
+    }
+    const url = new URL(event.request.url);
+    if (
+      event.request.method === "POST" &&
+      url.origin === new URL(ctx.scopeUrl).origin &&
+      url.pathname === `${ctx.scopePath}${SHARE_TARGET_PATH}`
+    ) {
+      event.respondWith(
+        respondToShareTarget(ctx, event.request).then(
+          (response) => response ?? new Response("Not found", { status: 404 }),
+        ),
+      );
+      return;
+    }
+    handleFetch(ctx, event);
   });
   sw.addEventListener("message", (event) => {
     const data = event.data;

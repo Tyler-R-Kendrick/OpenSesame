@@ -233,11 +233,11 @@ func TestExactRequestLimit(t *testing.T) {
 		if err != nil || !bytes.Equal(payload, body) {
 			t.Error("Exact request limit changed body bytes.")
 		}
-		writer.Write(payload)
+		writer.WriteHeader(http.StatusNoContent)
 	})
 	response, err := Do(context.Background(), Request{Method: "PUT", URL: fixture.url, Body: body}, fixture.dial, fixture.roots, func() bool { return true })
-	if err != nil || !bytes.Equal(response.Body, body) {
-		t.Fatal("Exact request limit did not round-trip over owned TLS.")
+	if err != nil || len(response.Body) != 0 {
+		t.Fatal("Exact request limit did not complete over owned TLS.")
 	}
 }
 

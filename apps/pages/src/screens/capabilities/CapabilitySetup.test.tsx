@@ -309,8 +309,9 @@ describe("dependency conflicts explain before/after and offer the alternative", 
 describe("CONSENT-10 — export is a file, publish is absent without its capability", () => {
   it("exports the instance configuration and reads it back equal; offers no publish control", async () => {
     const saved: Array<[string, string]> = [];
-    downloadSeams.save = (name, text) => {
+    downloadSeams.save = async (name, text) => {
       saved.push([name, text]);
+      return "downloaded" as const;
     };
     render(<CapabilitySetup />);
     fireEvent.click(road("Customize this installation"));

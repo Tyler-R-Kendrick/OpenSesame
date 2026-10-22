@@ -17,6 +17,10 @@ import { PROJECTS_KEY } from "@opensesame/app-core/lib/projects.js";
 import { TRAVEL_SAFE_KEY } from "@opensesame/app-core/lib/travel/safe-flags.js";
 import { HELD_PACKS_KEY } from "@opensesame/app-core/lib/type-packs/held-cache.js";
 import { PACKS_KEY } from "@opensesame/app-core/lib/type-packs/persist.js";
+import {
+  ROTATION_EVENT_KEY,
+  ROTATION_SCHEDULE_KEY,
+} from "@opensesame/app-core/lib/vault/rotation-queue.js";
 import { TOMBS_REGISTRY_KEY } from "@opensesame/app-core/lib/vfs.js";
 import { THEME_KEY } from "../lib/theme.js";
 
@@ -28,6 +32,9 @@ export const CORE_BOOT_KEYS: readonly string[] = [
   "settings.v1",
   "setup.v1",
   "outbox.v1",
+  // Due rotations queue at open even while the vault is locked.
+  ROTATION_SCHEDULE_KEY,
+  ROTATION_EVENT_KEY,
   // Day/night must survive a locked reload — not a vault secret.
   THEME_KEY,
   // Last authorized vault (guest included). Missing this on a cold load

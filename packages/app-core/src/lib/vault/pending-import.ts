@@ -21,7 +21,10 @@ export const IMPORT_ACCEPT =
 
 type Listener = () => void;
 
+export type PendingImportSource = "door" | "launch" | "share";
+
 let held: File | null = null;
+let heldSource: PendingImportSource = "door";
 const listeners = new Set<Listener>();
 
 function emit(): void {
@@ -29,9 +32,23 @@ function emit(): void {
 }
 
 /** Hold `file` for the vault that is about to be sealed. Replaces any held. */
-export function holdPendingImport(file: File): void {
+export function holdPendingImport(
+  file: File,
+  source: PendingImportSource = "door",
+): void {
   held = file;
+  heldSource = source;
   emit();
+}
+
+/** Where the held file came from; launch/share holds survive a locked vault. */
+export function pendingImportSource(): PendingImportSource | null {
+  return held === null ? null : heldSource;
+}
+
+/** Let go of a door-held file when the vault it was for is locked. */
+export function discardDoorPendingImport(): void {
+  if (held !== null && heldSource === "door") discardPendingImport();
 }
 
 /** The held file, left in place: what the seal screen names. */
@@ -43,6 +60,7 @@ export function peekPendingImport(): File | null {
 export function discardPendingImport(): void {
   if (held === null) return;
   held = null;
+  heldSource = "door";
   emit();
 }
 
