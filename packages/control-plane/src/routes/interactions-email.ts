@@ -1,16 +1,17 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { HttpBindings } from "@hono/node-server";
 import type { OpenSesameProviderBundle } from "@opensesame/oauth-provider";
 import { isString, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
-import { setCookie } from "hono/cookie";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { InteractionCsrf } from "../interactions/csrf.js";
 import {
   type LoginPageOptions,
   buildLoginPageModel,
   finishLoginInteraction,
 } from "../interactions/handlers.js";
+import { interactionPath } from "../interactions/rendezvous.js";
 import type {
   InteractionDetails,
   ProviderInteractions,
@@ -49,6 +50,19 @@ type NodeEnv = { Bindings: HttpBindings };
 /** Enough for any deliverable address (RFC 5321 caps the path at 256 octets). */
 const MAX_EMAIL_LENGTH = 254;
 const MAX_TOKEN_LENGTH = 512;
+const EMAIL_BINDING_TTL_SECONDS = 600;
+
+/** Bind the link to the browser+interaction that asked for it, not just its inbox. */
+function emailBindingCookieName(uid: string): string {
+  return `os.email.${uid}`;
+}
+
+function emailBinding(email: string, secret: string): string {
+  return createHmac("sha256", secret)
+    .update("email-link:")
+    .update(normalizeEmail(email))
+    .digest("base64url");
+}
 
 /** Bridge failures that mean "the deployment is busy", not "no". */
 const MINT_REFUSALS = new Set(["rate_limited", "provisional_capacity"]);
@@ -203,6 +217,18 @@ export function createEmailInteractionRoutes(
       ctx.log.error({ err: error }, "magic link delivery failed");
       return rerender({ emailError: UNDELIVERABLE_MESSAGE });
     }
+    setCookie(
+      c,
+      emailBindingCookieName(uid),
+      emailBinding(email, ctx.config.claimPepper),
+      {
+        httpOnly: true,
+        sameSite: "Lax",
+        path: interactionPath(uid),
+        maxAge: EMAIL_BINDING_TTL_SECONDS,
+        secure: ctx.config.publicUrl.startsWith("https://"),
+      },
+    );
     // The same page for an address this deployment knows and one it has never
     // seen: the request itself must not answer whether an account exists.
     return rerender({ emailSent: true });
@@ -230,7 +256,28 @@ export function createEmailInteractionRoutes(
       token && token.length <= MAX_TOKEN_LENGTH
         ? await verifyMagicLinkToken(ctx, token)
         : undefined;
-    if (!subject) {
+    const expectedBinding = getCookie(c, emailBindingCookieName(details.uid));
+    const suppliedBinding =
+      subject && expectedBinding
+        ? emailBinding(subject.email ?? "", ctx.config.claimPepper)
+        : undefined;
+    const sameLength =
+      expectedBinding !== undefined && suppliedBinding !== undefined
+        ? expectedBinding.length === suppliedBinding.length
+        : false;
+    const bound =
+      sameLength &&
+      suppliedBinding !== undefined &&
+      expectedBinding !== undefined &&
+      timingSafeEqual(
+        Buffer.from(suppliedBinding),
+        Buffer.from(expectedBinding),
+      );
+    if (!subject || !bound) {
+      if (expectedBinding)
+        deleteCookie(c, emailBindingCookieName(details.uid), {
+          path: interactionPath(details.uid),
+        });
       return c.html(
         renderLoginPage(
           await buildLoginPageModel(
@@ -261,6 +308,9 @@ export function createEmailInteractionRoutes(
       throw error;
     }
 
+    deleteCookie(c, emailBindingCookieName(details.uid), {
+      path: interactionPath(details.uid),
+    });
     // The browser holding this cookie is the one that just proved control of
     // the address, whether the principal is new or returning — unlike the
     // redirect legs, where a returning identity gets no new cookie (T6),

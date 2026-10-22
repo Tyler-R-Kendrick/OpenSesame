@@ -204,7 +204,12 @@ export function createFederatedSessionRoutes(): Hono<{ Variables: Variables }> {
       return invalid();
     }
     const client = await ctx.oauth.clientStore.findById(clientId);
-    if (!client || client.admissionMode !== "origin_profile") return invalid();
+    if (
+      !client ||
+      client.admissionMode !== "origin_profile" ||
+      client.state !== "active"
+    )
+      return invalid();
 
     // The exchange exists to finish a sign-in, not to broaden an arbitrary
     // OAuth grant. A token without `openid` never authenticated a person.

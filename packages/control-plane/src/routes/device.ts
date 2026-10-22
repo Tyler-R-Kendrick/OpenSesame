@@ -15,9 +15,32 @@ import {
  */
 export const deviceRoutes = new Hono<{ Variables: Variables }>();
 
+const DEVICE_WINDOW_MS = 60_000;
+const DEVICE_PER_PRINCIPAL = 10;
+const deviceApprovals = new Map<string, number[]>();
+
+function deviceAllowed(principalId: string, now: number): boolean {
+  const recent = (deviceApprovals.get(principalId) ?? []).filter(
+    (at) => now - at < DEVICE_WINDOW_MS,
+  );
+  if (recent.length >= DEVICE_PER_PRINCIPAL) {
+    deviceApprovals.set(principalId, recent);
+    return false;
+  }
+  recent.push(now);
+  deviceApprovals.set(principalId, recent);
+  return true;
+}
+
+export function resetDeviceApprovalBudgetForTest(): void {
+  deviceApprovals.clear();
+}
+
 deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
+  if (!deviceAllowed(principalId, ctx.clock().getTime()))
+    return c.json({ error: "rate_limited" }, 429);
   if (!ctx.config.operatorToken) {
     return c.json(
       {

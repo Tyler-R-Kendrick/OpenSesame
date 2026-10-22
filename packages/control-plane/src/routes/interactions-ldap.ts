@@ -182,6 +182,11 @@ export function createLdapInteractionRoutes(
       return c.text(loaded.error, loaded.status);
     }
     const { http, details } = loaded;
+    // The CSRF token is bound to the URL uid; the interaction the provider
+    // resolves comes from its cookie. They must name the same ceremony.
+    if (details.uid !== uid) {
+      return c.text("Invalid or expired interaction", 400);
+    }
     if (details.prompt.name !== "login") {
       return c.text("Prompt mismatch", 400);
     }
@@ -339,9 +344,12 @@ export function createLdapInteractionRoutes(
     // named no group this tenant maps, a SCIM push may still have said what
     // this subject joins as (C15) — the LDAP mapping wins because it comes
     // from the directory that just authenticated them.
+    const mappedRole = roleForGroups(config, bound.groups);
     const role =
-      roleForGroups(config, bound.groups) ??
-      (await provisionedRoleForSubject(ctx, organization.id, bound.subject));
+      mappedRole ??
+      (Object.keys(config.groupRoleMap).length > 0
+        ? "member"
+        : await provisionedRoleForSubject(ctx, organization.id, bound.subject));
     const joined = await jitJoinOrganization(ctx, {
       organization,
       principalId: accountId,
