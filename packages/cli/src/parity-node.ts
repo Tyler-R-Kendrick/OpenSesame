@@ -202,7 +202,9 @@ export function resolveCredentialHelper(
         resolved,
         process.platform === "win32" ? constants.F_OK : constants.X_OK,
       );
+      // First trusted match wins; a later PATH entry must not shadow it.
       chosen = resolved;
+      break;
     } catch {
       /* Missing or unusable PATH entries grant no trust. */
     }
@@ -237,7 +239,9 @@ function trustedDirectory(directory: string): boolean {
     const cwd = realpathSync(process.cwd());
     if (resolved === cwd) return false;
     if (cwdUnderDirectory(cwd, resolved)) return false;
-    if (worldWritableWithoutStickyBit(resolved)) return false;
+    // A helper directory writable by another local account is plantable,
+    // whether or not the sticky bit protects deletion.
+    if ((lstatSync(resolved).mode & 0o002) !== 0) return false;
     return true;
   } catch {
     return false;
@@ -251,16 +255,6 @@ function cwdUnderDirectory(cwd: string, directory: string): boolean {
     return normalized === root || normalized.startsWith(`${root}${sep}`);
   }
   return cwd === directory || cwd.startsWith(`${directory}${sep}`);
-}
-
-function worldWritableWithoutStickyBit(directory: string): boolean {
-  if (process.platform === "win32") return false;
-  try {
-    const mode = lstatSync(directory).mode;
-    return (mode & 0o002) !== 0 && (mode & 0o1000) === 0;
-  } catch {
-    return true;
-  }
 }
 
 /** Execute only an owner-only snapshot of contents already screened by the core. */

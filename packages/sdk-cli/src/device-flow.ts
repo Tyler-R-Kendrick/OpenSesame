@@ -376,7 +376,7 @@ function redactKeys(value: JsonValue | undefined): JsonValue | undefined {
   const out: JsonObject = {};
   for (const [k, v] of Object.entries(value)) {
     if (
-      /device_code|access_token|refresh_token|id_token|code_verifier|client_secret|client_assertion|claimToken|claim_token|verification_?uri_?complete|operator|password|passphrase|secret|cookie|authorization|api[-_]?key|private_key|signing_key|bearer/iu.test(
+      /device_?code|access_?token|refresh_?token|id_?token|code_?verifier|client_?secret|client_?assertion|claim_?token|verification_?uri_?complete|operator|password|passphrase|secret|cookie|authorization|api[-_]?key|private_?key|signing_?key|bearer/iu.test(
         k,
       )
     ) {

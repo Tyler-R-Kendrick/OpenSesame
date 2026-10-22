@@ -45,6 +45,7 @@ async function pollEnsure(
   while (Date.now() < deadline) {
     const response = await fetch(`${base}${path}`, {
       method: "POST",
+      signal: AbortSignal.timeout(8_000),
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         terminalSessionId,

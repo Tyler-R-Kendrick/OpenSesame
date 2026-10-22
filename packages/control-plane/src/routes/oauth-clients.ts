@@ -305,7 +305,10 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   return asVerifiedPrincipal(c, refusal("rotate"), async ({ actor, proof }) => {
     const client = await loadOwnedClient(ctx, principalId, c.req.param("id"));
-    if (!client) {
+    const stored = client
+      ? await ctx.stores.oauthClients.findById(client.id)
+      : undefined;
+    if (!client || !stored) {
       return c.json({ error: "not_found" }, 404);
     }
     const refused = await rotationRefusal(
@@ -316,8 +319,8 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     );
     if (refused) return refused;
     const now = ctx.clock();
-    const rotated: OAuthClientRecord = {
-      ...client,
+    const rotated = {
+      ...stored,
       id: `cli_${randomUUID()}`,
       createdAt: now,
       updatedAt: now,
@@ -326,22 +329,17 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     // the claim refuses changes nothing. `successorOf` re-decides the pre-check
     // under the claim lock: a release that lands in between refuses it.
     try {
-      await insertOAuthClient(ctx, actor, proof, toStoreRecord(rotated), {
+      await insertOAuthClient(ctx, actor, proof, rotated, {
         successorOf: client.id,
       });
     } catch (err) {
       return sectorTakenOrThrow(overlapCast(err));
     }
-    await replaceOAuthClient(
-      ctx,
-      actor,
-      proof,
-      toStoreRecord({
-        ...client,
-        state: "revoked",
-        updatedAt: now,
-      }),
-    );
+    await replaceOAuthClient(ctx, actor, proof, {
+      ...stored,
+      state: "revoked",
+      updatedAt: now,
+    });
 
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "oauth_client.rotated",
@@ -355,7 +353,7 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
       },
     });
 
-    return c.json(toResponse(rotated), 201);
+    return c.json(toResponse(toDomain(rotated)), 201);
   });
 });
 
@@ -366,16 +364,15 @@ oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
     const client = await loadOwnedClient(ctx, principalId, c.req.param("id"), {
       includeRevoked: true,
     });
-    if (!client) {
+    const stored = client
+      ? await ctx.stores.oauthClients.findById(client.id)
+      : undefined;
+    if (!client || !stored) {
       return c.json({ error: "not_found" }, 404);
     }
     const now = ctx.clock();
-    const revoked: OAuthClientRecord = {
-      ...client,
-      state: "revoked",
-      updatedAt: now,
-    };
-    await replaceOAuthClient(ctx, actor, proof, toStoreRecord(revoked));
+    const revoked = { ...stored, state: "revoked" as const, updatedAt: now };
+    await replaceOAuthClient(ctx, actor, proof, revoked);
 
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "oauth_client.revoked",
@@ -386,6 +383,6 @@ oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
       metadata: { action: "oauth_client.revoke" },
     });
 
-    return c.json(toResponse(revoked));
+    return c.json(toResponse(toDomain(revoked)));
   });
 });

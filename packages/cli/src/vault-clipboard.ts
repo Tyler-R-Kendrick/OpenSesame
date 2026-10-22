@@ -3,6 +3,7 @@
  * clipboard tool's stdin and nowhere else.
  */
 import { spawn } from "node:child_process";
+import { resolveCredentialHelper } from "./parity-node.js";
 
 const TOOLS: readonly (readonly string[])[] = [
   ["wl-copy"],
@@ -13,7 +14,9 @@ const TOOLS: readonly (readonly string[])[] = [
 
 function writeTo(command: string, args: readonly string[], text: string) {
   return new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["pipe", "ignore", "ignore"] });
+    const child = spawn(resolveCredentialHelper(command), args, {
+      stdio: ["pipe", "ignore", "ignore"],
+    });
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) resolve();

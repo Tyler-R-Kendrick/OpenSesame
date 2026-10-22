@@ -2,6 +2,7 @@
  * The Identity session file for `opensesame-id`: owner-only on disk, refreshed
  * against the issuer that minted it.
  */
+import { randomBytes } from "node:crypto";
 import {
   access,
   chmod,
@@ -97,6 +98,14 @@ export async function loadSession(): Promise<SessionFile | null> {
   try {
     await assertPrivateFile(path);
   } catch (err) {
+    // A first run has no session; that is not an error on every command.
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      err.code === "ENOENT"
+    )
+      return null;
     // Loud, not silent: a session the CLI will not touch is worth saying out loud.
     process.stderr.write(errorLine(overlapCast(err)));
     return null;
@@ -195,6 +204,23 @@ async function refreshSession(
  * A session is only the session for the issuer that minted it, and only until it
  * expires. An expired access token is refreshed when a refresh token is present.
  */
+const refreshes = new Map<string, Promise<SessionFile | null>>();
+
+/** One refresh per session, so parallel commands cannot rotate the same token twice. */
+function refreshOnce(
+  session: SessionFile,
+  fetchImpl: typeof fetch,
+): Promise<SessionFile | null> {
+  const key = `${session.issuer}\n${session.clientId}`;
+  const existing = refreshes.get(key);
+  if (existing) return existing;
+  const run = refreshSession(session, fetchImpl).finally(() => {
+    if (refreshes.get(key) === run) refreshes.delete(key);
+  });
+  refreshes.set(key, run);
+  return run;
+}
+
 export async function sessionFor(
   session: SessionFile | null,
   issuer: string,
@@ -205,7 +231,7 @@ export async function sessionFor(
   if (matched.expiresAt === undefined || matched.expiresAt > Date.now()) {
     return matched;
   }
-  return refreshSession(matched, fetchImpl);
+  return refreshOnce(matched, fetchImpl);
 }
 
 export async function saveSession(session: SessionFile): Promise<void> {
@@ -213,7 +239,7 @@ export async function saveSession(session: SessionFile): Promise<void> {
   // `mode` on writeFile only applies when the file is created, so a file left
   // behind at 0644 by an earlier version would keep those bits forever.
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-  const temp = `${path}.${process.pid}.tmp`;
+  const temp = `${path}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
   const root = await sessionRoot(path);
   let sealed: string;
   try {
@@ -231,7 +257,10 @@ export async function saveSession(session: SessionFile): Promise<void> {
     clientId: session.clientId,
     sealed,
   };
-  await writeFile(temp, JSON.stringify(envelope), { mode: 0o600 });
+  await writeFile(temp, JSON.stringify(envelope), {
+    mode: 0o600,
+    flag: "wx",
+  });
   await chmod(temp, 0o600);
   await rename(temp, path);
 }
