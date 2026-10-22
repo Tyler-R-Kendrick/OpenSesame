@@ -22,6 +22,20 @@ type GitConnectPersistInput = GitAuthFields & {
   name: string;
 };
 
+/** A backup target needs the address, never the credential in its userinfo. */
+function sanitizedRemote(remoteUrl: string): string {
+  try {
+    const url = new URL(remoteUrl);
+    if (url.username || url.password) {
+      url.username = "";
+      url.password = "";
+    }
+    return url.href;
+  } catch {
+    return remoteUrl;
+  }
+}
+
 async function bindBackupRemote(
   providerId: string,
   connectionId: string,
@@ -37,7 +51,7 @@ async function bindBackupRemote(
     repo: parsed.repo,
     branch: "main",
     enabled: true,
-    config: { remoteUrl },
+    config: { remoteUrl: sanitizedRemote(remoteUrl) },
   });
 }
 
