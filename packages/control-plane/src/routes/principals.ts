@@ -27,7 +27,11 @@ import { serializeKeyed } from "../serialize.js";
 import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { authorizeMappingResolve } from "../transport/mapping-auth.js";
-import { OrgAssertionError, verifyOrgIdToken } from "./org-assertion.js";
+import {
+  OrgAssertionError,
+  originAudiences,
+  verifyOrgIdToken,
+} from "./org-assertion.js";
 import {
   authenticatedPrincipalId,
   ensurePersonalOrganization,
@@ -562,7 +566,10 @@ async function linkFromVerifiedIdToken(
 
   let verified: Awaited<ReturnType<typeof verifyOrgIdToken>>;
   try {
-    verified = await verifyOrgIdToken(idToken, issuer);
+    verified = await verifyOrgIdToken(idToken, issuer, {
+      expectedAudiences: originAudiences(ctx.config),
+      blockPrivateIssuerHosts: !ctx.config.allowDevDefaults,
+    });
   } catch (error) {
     if (error instanceof OrgAssertionError) {
       const status = error.code === "upstream_unavailable" ? 502 : 401;

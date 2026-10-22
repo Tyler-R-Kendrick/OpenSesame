@@ -192,13 +192,18 @@ export function createByoInteractionRoutes(
         uid,
         outcome.record.issuer,
       );
-      setCookie(c, pendingCookieName(uid), encodePending(pending), {
-        httpOnly: true,
-        sameSite: "Lax",
-        path: interactionPath(uid),
-        maxAge: FEDERATED_PENDING_TTL_SECONDS,
-        secure: ctx.config.publicUrl.startsWith("https://"),
-      });
+      setCookie(
+        c,
+        pendingCookieName(uid),
+        encodePending(pending, ctx.config.claimPepper),
+        {
+          httpOnly: true,
+          sameSite: "Lax",
+          path: interactionPath(uid),
+          maxAge: FEDERATED_PENDING_TTL_SECONDS,
+          secure: ctx.config.publicUrl.startsWith("https://"),
+        },
+      );
       // Not a 303: Chromium refuses cross-origin redirects of a form
       // submission under `form-action 'self'` (see renderUpstreamHopPage).
       return c.html(renderUpstreamHopPage(authorizationUrl));

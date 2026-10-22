@@ -9,24 +9,20 @@
  */
 
 import { type Named, name } from "@gdp-ts/core";
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isNumber,
-  isString,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
 import { withLocalAccessLedgerLock } from "./local-access-ledger-lock.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { assertAccessCapability } from "./local-rbac.js";
 import { revokeSharesForSession } from "./local-share-grants.js";
+import { mintSessionCode } from "./local-vault-session-code.js";
 import { issueSessionGrants } from "./local-vault-session-issue.js";
+import { isGrantSpec, isSession } from "./local-vault-session-shape.js";
 import type {
   CreateVaultSessionInput,
   LocalVaultSession,
   SessionGrantSpec,
-  SessionSubject,
 } from "./local-vault-session-types.js";
 import {
   type ManageGrants,
@@ -35,11 +31,6 @@ import {
 } from "./proofs/share-write.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
-const PATH = "config/vault-sessions";
-const MAX_BYTES = 256_000;
-const MAX_SESSIONS = 64;
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
 export type {
   CreateVaultSessionInput,
   LocalVaultSession,
@@ -47,88 +38,9 @@ export type {
   SessionSubject,
 } from "./local-vault-session-types.js";
 
-function text(value: BoundaryValue, max: number): value is string {
-  return isString(value) && value.length > 0 && value.length <= max;
-}
-
-/** Uniform index in [0, max) without modulo bias (rejection sampling). */
-function randomIndex(max: number): number {
-  if (!Number.isInteger(max) || max <= 0) {
-    throw new Error("randomIndex needs a positive bound");
-  }
-  const limit = Math.floor(2 ** 32 / max) * max;
-  const buf = new Uint32Array(1);
-  const view = new DataView(buf.buffer);
-  let value: number;
-  do {
-    crypto.getRandomValues(buf);
-    value = view.getUint32(0);
-  } while (value >= limit);
-  return value % max;
-}
-
-function mintCode(): string {
-  return Array.from(
-    { length: 6 },
-    () => CODE_ALPHABET[randomIndex(CODE_ALPHABET.length)],
-  ).join("");
-}
-
-function isSubject(value: BoundaryValue): value is SessionSubject {
-  if (!isJsonObject(value) || !isString(value.kind)) return false;
-  if (value.kind === "principal") return text(value.principalId, 42);
-  if (value.kind === "accessRole")
-    return (
-      value.role === "operator" ||
-      value.role === "member" ||
-      value.role === "guest"
-    );
-  if (value.kind === "orgRole")
-    return (
-      value.role === "owner" ||
-      value.role === "admin" ||
-      value.role === "member"
-    );
-  return false;
-}
-
-function isGrantSpec(value: BoundaryValue): value is SessionGrantSpec {
-  return (
-    isJsonObject(value) &&
-    isSubject(value.subject) &&
-    (value.resourceKind === "vault" ||
-      value.resourceKind === "connection" ||
-      value.resourceKind === "folder" ||
-      value.resourceKind === "item") &&
-    text(value.resourceId, 128) &&
-    text(value.resourceLabel, 128) &&
-    text(value.policy, 32)
-  );
-}
-
-function isSession(value: BoundaryValue): value is LocalVaultSession {
-  return (
-    isJsonObject(value) &&
-    text(value.id, 36) &&
-    text(value.code, 12) &&
-    text(value.label, 128) &&
-    (value.status === "running" || value.status === "stopped") &&
-    isNumber(value.durationSeconds) &&
-    Number.isSafeInteger(value.durationSeconds) &&
-    value.durationSeconds >= 60 &&
-    value.durationSeconds <= 7 * 86400 &&
-    (value.startedAt === null ||
-      (isNumber(value.startedAt) && Number.isSafeInteger(value.startedAt))) &&
-    (value.expiresAt === null ||
-      (isNumber(value.expiresAt) && Number.isSafeInteger(value.expiresAt))) &&
-    text(value.boundTomb, 128) &&
-    Array.isArray(value.grants) &&
-    value.grants.length <= 64 &&
-    value.grants.every(isGrantSpec) &&
-    Array.isArray(value.issuedShareIds) &&
-    value.issuedShareIds.every((id) => text(id, 36))
-  );
-}
+const PATH = "config/vault-sessions";
+const MAX_BYTES = 256_000;
+const MAX_SESSIONS = 64;
 
 async function readAll(tomb: string): Promise<LocalVaultSession[]> {
   await kvRefresh(tombFileKey(tomb, PATH), MAX_BYTES * 2);
@@ -275,7 +187,7 @@ export async function createVaultSession(
         throw new LocalDirectoryError("Session capacity is full.");
       const created: LocalVaultSession = {
         id: crypto.randomUUID(),
-        code: mintCode(),
+        code: mintSessionCode(),
         label,
         status: "stopped",
         durationSeconds: input.durationSeconds,

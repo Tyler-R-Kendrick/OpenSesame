@@ -13,6 +13,8 @@
  * host of its choosing.
  */
 
+import { targetAddressSpaceFor } from "../local-network-fetch.js";
+
 export type MarketplaceForge = "github" | "gitlab" | "gitea" | "bitbucket";
 
 export type ForgeSource = {
@@ -177,6 +179,9 @@ function guessForge(host: string): MarketplaceForge | undefined {
 
 function rawSource(url: URL): RawSource | null {
   if (url.search !== "" || url.hash !== "") return null;
+  // A marketplace reference is untrusted input; a raw source must not turn
+  // the PWA into a probe for loopback, link-local or private-network hosts.
+  if (targetAddressSpaceFor(url.href) !== undefined) return null;
   const base = url.href.slice(0, -INDEX_PATH.length);
   return { forge: "raw", base };
 }

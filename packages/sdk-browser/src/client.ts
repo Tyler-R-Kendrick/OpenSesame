@@ -100,9 +100,18 @@ export function assertSecureUrl(raw: string, what: string): string {
 }
 
 /** Hosts that only mean something inside the user's own network. */
+function mappedIpv4(host: string): string | null {
+  const mapped =
+    /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host) ??
+    /^(?:0{1,4}:){0,5}:?ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host);
+  return mapped?.[1] ?? null;
+}
+
 function isPrivateHost(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
   if (isLoopbackHost(host)) return true;
+  const mapped = mappedIpv4(host);
+  if (mapped !== null) return isPrivateHost(mapped);
   if (host === "0.0.0.0" || host === "::") return true;
   const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(host);
   if (v4) {

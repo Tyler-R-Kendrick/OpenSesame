@@ -24,16 +24,18 @@ export { vfsFlush } from "./vfs-write-order.js";
 
 /**
  * Encrypted VFS (ADR 0063). AES-GCM seals bind tomb and path as additional
- * data. Unlock rewrites any unbound seal once, then only bound seals open.
- * Plaintext is tomb names, the header, and migration markers. Storage is OPFS.
+ * data. Plaintext is tomb names, headers and migration markers. Storage is OPFS.
  */
 
-import { lockManager } from "../ports.js";
+import {
+  VFS_INDEX_LOCK_PREFIX,
+  VFS_REGISTRY_LOCK,
+  withVfsCrossTabLock,
+} from "./vfs-cross-tab-lock.js";
 import { VfsError } from "./vfs-error.js";
 export { VfsError, type VfsErrorCode } from "./vfs-error.js";
 
-/** The personal vault's tomb — same name as the personal project (ADR 0038). */
-export const PERSONAL_TOMB = "personal";
+export const PERSONAL_TOMB = "personal"; // same as the personal project id
 /** Isolated guest session tomb — never a project in the vault list. */
 export const GUEST_TOMB = "guest";
 
@@ -111,22 +113,6 @@ function assertSealedPath(path: string): void {
   }
 }
 
-const REGISTRY_LOCK = "opensesame:vfs-tomb-registry";
-const INDEX_LOCK_PREFIX = "opensesame:vfs-index:";
-
-/**
- * One cross-tab fence for a read-modify-write. Tabs share an origin and the
- * same OPFS files, so the per-document promise queue alone is not enough.
- * Hosts without Web Locks keep the old single-document behavior.
- */
-async function withCrossTabLock<T>(
-  name: string,
-  work: () => Promise<T>,
-): Promise<T> {
-  const locks = lockManager();
-  return locks ? locks.request(name, work) : work();
-}
-
 /* --------------------------------------------------------------- registry */
 
 function readRegistry(): string[] {
@@ -162,7 +148,7 @@ export async function registerTomb(
 ): Promise<void> {
   check();
   assertTombName(tomb);
-  await withCrossTabLock(REGISTRY_LOCK, async () => {
+  await withVfsCrossTabLock(VFS_REGISTRY_LOCK, async () => {
     const names = readRegistry();
     if (names.includes(tomb)) return;
     await writeRegistry([...names, tomb], check);
@@ -170,7 +156,7 @@ export async function registerTomb(
 }
 
 export async function unregisterTomb(tomb: string): Promise<void> {
-  await withCrossTabLock(REGISTRY_LOCK, async () => {
+  await withVfsCrossTabLock(VFS_REGISTRY_LOCK, async () => {
     const names = readRegistry();
     if (!names.includes(tomb)) return;
     await writeRegistry(names.filter((name) => name !== tomb));
@@ -212,7 +198,7 @@ async function reviseIndex(
   written: boolean,
   check: () => void = () => {},
 ): Promise<void> {
-  await withCrossTabLock(`${INDEX_LOCK_PREFIX}${tomb}`, async () => {
+  await withVfsCrossTabLock(`${VFS_INDEX_LOCK_PREFIX}${tomb}`, async () => {
     check();
     const index = await readIndex(tomb, key, check);
     check();

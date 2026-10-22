@@ -67,6 +67,7 @@ type AccessTokenModel = {
         clientId?: string;
         isExpired?: boolean;
         exp?: number;
+        scope?: string;
       }
     | undefined
   >;
@@ -204,6 +205,11 @@ export function createFederatedSessionRoutes(): Hono<{ Variables: Variables }> {
     }
     const client = await ctx.oauth.clientStore.findById(clientId);
     if (!client || client.admissionMode !== "origin_profile") return invalid();
+
+    // The exchange exists to finish a sign-in, not to broaden an arbitrary
+    // OAuth grant. A token without `openid` never authenticated a person.
+    const scopes = isString(token.scope) ? token.scope.split(/\s+/u) : [];
+    if (!scopes.includes("openid")) return invalid();
 
     const principal = await ctx.repos.principals.getById(accountId);
     if (!principal || principal.state !== "active") return invalid();

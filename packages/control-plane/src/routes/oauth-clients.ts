@@ -232,6 +232,17 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
       );
     }
 
+    const stored = await ctx.stores.oauthClients.findById(client.id);
+    if (stored?.state === "suspended" && parsed.data.state === "active") {
+      return c.json(
+        {
+          error: "operator_suspended",
+          message:
+            "An operator suspension cannot be cleared by the client owner.",
+        },
+        403,
+      );
+    }
     const now = ctx.clock();
     const next: OAuthClientRecord = {
       ...client,

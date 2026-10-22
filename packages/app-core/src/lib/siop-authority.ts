@@ -55,13 +55,7 @@ export type SiopSocialProof = Readonly<{
 
 const SOCIAL_PROOF_LIFETIME_MS = 10 * 60_000;
 
-async function assertSocialProof(
-  tomb: string,
-  proof: SiopSocialProof,
-  principalId: string,
-  seams: SiopAuthoritySeams,
-): Promise<void> {
-  if (proof.personId !== principalId) refused();
+async function assertSocialActor(tomb: string, principalId: string) {
   const { currentLocalIdentityActor } = await import("./local-sessions.js");
   const actor = await currentLocalIdentityActor(tomb);
   if (actor) {
@@ -69,6 +63,16 @@ async function assertSocialProof(
   } else if ((await resolveCurrentAccessRole(tomb)) !== "operator") {
     refused();
   }
+}
+
+async function assertSocialProof(
+  tomb: string,
+  proof: SiopSocialProof,
+  principalId: string,
+  seams: SiopAuthoritySeams,
+): Promise<void> {
+  if (proof.personId !== principalId) refused();
+  await assertSocialActor(tomb, principalId);
   if (
     !Number.isFinite(proof.at) ||
     proof.at > Date.now() ||

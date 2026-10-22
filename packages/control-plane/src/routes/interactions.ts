@@ -286,7 +286,7 @@ export function createInteractionRoutes(): Hono<
             setCookie(
               c,
               pendingCookieName(details.uid),
-              encodePending(pending),
+              encodePending(pending, ctx.config.claimPepper),
               {
                 httpOnly: true,
                 sameSite: "Lax",
@@ -441,13 +441,18 @@ export function createInteractionRoutes(): Hono<
         descriptor?.kind === "oauth2"
           ? await beginOAuth2Auth(ctx, uid, descriptor)
           : await beginFederatedAuth(ctx, uid, descriptor?.issuer ?? issuer);
-      setCookie(c, pendingCookieName(uid), encodePending(pending), {
-        httpOnly: true,
-        sameSite: "Lax",
-        path: interactionPath(uid),
-        maxAge: FEDERATED_PENDING_TTL_SECONDS,
-        secure: ctx.config.publicUrl.startsWith("https://"),
-      });
+      setCookie(
+        c,
+        pendingCookieName(uid),
+        encodePending(pending, ctx.config.claimPepper),
+        {
+          httpOnly: true,
+          sameSite: "Lax",
+          path: interactionPath(uid),
+          maxAge: FEDERATED_PENDING_TTL_SECONDS,
+          secure: ctx.config.publicUrl.startsWith("https://"),
+        },
+      );
       // Not a 303: Chromium refuses cross-origin redirects of a form
       // submission under `form-action 'self'` (see renderUpstreamHopPage).
       return c.html(renderUpstreamHopPage(authorizationUrl));
@@ -515,7 +520,10 @@ export function createInteractionRoutes(): Hono<
       return c.text("Prompt mismatch", 400);
     }
 
-    const pending = decodePending(getCookie(c, pendingCookieName(uid)));
+    const pending = decodePending(
+      getCookie(c, pendingCookieName(uid)),
+      ctx.config.claimPepper,
+    );
     // Single-use: drop it before the exchange so a replayed callback cannot
     // re-run the code, whatever the outcome below.
     deleteCookie(c, pendingCookieName(uid), { path: interactionPath(uid) });
