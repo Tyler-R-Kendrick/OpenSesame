@@ -535,7 +535,7 @@ impl crate::ConnectionBroker {
             self.validate_cross_config_references(organization_id, &config, value)
                 .await?;
         }
-        let mut out = Vec::with_capacity(secrets.len().min(MAX_SECRETS_PER_PUT));
+        let mut out = Vec::new();
         let mut top_version = 0;
         for (name, value) in secrets {
             let version = store::upsert_config_value(
