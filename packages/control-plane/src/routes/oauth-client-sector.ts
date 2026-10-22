@@ -85,6 +85,28 @@ export async function sectorControlRefusal(
   redirectUris: readonly string[],
   sectorIdentifierUri: string | undefined,
 ): Promise<Response | null> {
+  const sectorHost = (() => {
+    try {
+      return new URL(
+        sectorIdentifier.includes("://")
+          ? sectorIdentifier
+          : `https://${sectorIdentifier}`,
+      ).hostname;
+    } catch {
+      return "";
+    }
+  })();
+  // A single-label sector (`com`, `io`) would make every public site a
+  // subdomain; it is not an ownership proof.
+  if (sectorHost !== "" && !sectorHost.includes(".")) {
+    return Response.json(
+      {
+        error: "sector_not_proven",
+        message: "sectorIdentifier must name a registrable domain, not a TLD.",
+      },
+      { status: 400 },
+    );
+  }
   const outside = redirectUrisOutsideSector(
     sectorIdentifier,
     redirectUris,

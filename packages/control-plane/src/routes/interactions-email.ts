@@ -93,6 +93,7 @@ const EXPIRED_LINK_MESSAGE =
  */
 const EMAIL_BUDGET_WINDOW_MS = 10 * 60 * 1000;
 const EMAIL_BUDGET_MAX = 5;
+const EMAIL_GLOBAL_MAX = 200;
 const emailBudget = new Map<string, number[]>();
 
 /** Test hook: drop every recorded send window. */
@@ -100,11 +101,15 @@ export function resetEmailLinkBudget(): void {
   emailBudget.clear();
 }
 
-function consumeEmailBudget(key: string, now: number): boolean {
+function consumeEmailBudget(
+  key: string,
+  now: number,
+  limit = EMAIL_BUDGET_MAX,
+): boolean {
   const recent = (emailBudget.get(key) ?? []).filter(
     (at) => now - at < EMAIL_BUDGET_WINDOW_MS,
   );
-  if (recent.length >= EMAIL_BUDGET_MAX) {
+  if (recent.length >= limit) {
     emailBudget.set(key, recent);
     return false;
   }
@@ -202,7 +207,10 @@ export function createEmailInteractionRoutes(
     // many links have been sent to that address" would confirm the address is
     // one somebody signs in with.
     const budgetKey = createHash("sha256").update(email).digest("hex");
-    if (!consumeEmailBudget(budgetKey, ctx.clock().getTime())) {
+    if (
+      !consumeEmailBudget(budgetKey, ctx.clock().getTime()) ||
+      !consumeEmailBudget("__global__", ctx.clock().getTime(), EMAIL_GLOBAL_MAX)
+    ) {
       return rerender({ emailSent: true });
     }
 
