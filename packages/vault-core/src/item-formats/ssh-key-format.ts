@@ -9,7 +9,7 @@ import type { ItemFormat } from "./types.js";
 const PUBLIC =
   /^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) ([A-Za-z0-9+/=]+)(?: (.+))?$/u;
 const PRIVATE =
-  /^-----BEGIN ((?:OPENSSH|RSA|EC|DSA) PRIVATE KEY)-----[\s\S]+-----END \1-----$/u;
+  /^-----BEGIN ((?:OPENSSH|RSA|EC|DSA|ENCRYPTED)? ?PRIVATE KEY)-----[\s\S]+-----END \1-----$/u;
 
 function pair(values: FieldValues): Record<string, string> {
   const value = values.keyPair;
@@ -55,19 +55,31 @@ function nonEmpty(value: Uint8Array | undefined): boolean {
 function validRsa(bytes: Uint8Array, offset: number): boolean {
   const exponent = readString(bytes, offset);
   const modulus = readString(bytes, exponent?.next ?? bytes.length);
-  return nonEmpty(exponent?.value) && nonEmpty(modulus?.value);
+  return (
+    nonEmpty(exponent?.value) &&
+    nonEmpty(modulus?.value) &&
+    modulus?.next === bytes.length
+  );
 }
 
 function validEcdsa(bytes: Uint8Array, offset: number): boolean {
   const curve = readString(bytes, offset);
   const point = readString(bytes, curve?.next ?? bytes.length);
-  return nonEmpty(curve?.value) && nonEmpty(point?.value);
+  return (
+    nonEmpty(curve?.value) &&
+    nonEmpty(point?.value) &&
+    point?.next === bytes.length
+  );
 }
 
 function validSecurityKey(bytes: Uint8Array, offset: number): boolean {
   const key = readString(bytes, offset);
   const application = readString(bytes, key?.next ?? bytes.length);
-  return nonEmpty(key?.value) && nonEmpty(application?.value);
+  return (
+    nonEmpty(key?.value) &&
+    nonEmpty(application?.value) &&
+    application?.next === bytes.length
+  );
 }
 
 function validEd25519(bytes: Uint8Array, offset: number): boolean {

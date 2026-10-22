@@ -320,4 +320,14 @@ it("serializes two concurrent share writes", async () => {
   expect(
     (await listLocalShares(fixture.tomb)).map((row) => row.resourceId).sort(),
   ).toEqual(["github", "gitlab"]);
+
+  await Promise.all([
+    createLocalShare(fixture.tomb, input("github", "GitHub")),
+    createLocalShare(fixture.tomb, input("github", "GitHub")),
+  ]);
+  expect(
+    (await listLocalShares(fixture.tomb)).filter(
+      (row) => row.resourceId === "github",
+    ),
+  ).toHaveLength(1);
 });

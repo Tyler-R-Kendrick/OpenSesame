@@ -58,13 +58,30 @@ describe("save request items", () => {
     expect(result.item.notes).toContain("City: Cambridge");
   });
 
-  it("refuses an install host that cannot add the wallet type", async () => {
+  it("builds a crypto wallet from the loaded built-in pack", async () => {
     const result = await buildSaveItem(
       request([{ autocomplete: "crypto-address", value: "0xabc" }]),
       "crypto-wallet",
       "https://wallet.example.test",
       { installItemTypeDefinition: async () => ({ ok: false }) },
     );
-    expect(result).toEqual({ error: expect.stringMatching(/crypto-wallet/) });
+    if (!("item" in result)) throw new Error(result.error);
+    expect(result.item.kind).toBe("typed");
+    expect(result.item.name).toBe("Example");
+  });
+
+  it("does not store a live one-time code as an authenticator seed", async () => {
+    const result = await buildSaveItem(
+      request([{ autocomplete: "one-time-code", value: "123456" }]),
+      "login",
+      "https://example.test",
+      host,
+    );
+    if (!("item" in result)) throw new Error(result.error);
+    expect(result.item.kind).toBe("account");
+    if (result.item.kind !== "account") throw new Error("not an account");
+    expect(
+      result.item.methods.some((method) => method.type === "authenticator"),
+    ).toBe(false);
   });
 });

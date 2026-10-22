@@ -230,10 +230,7 @@ const totpFormat: ItemFormat = {
     // Base32 has a small alphabet. Requiring it, rather than letting the TOTP
     // decoder normalise arbitrary text, keeps prose and card numbers out.
     const compact = raw.replaceAll(/\s/gu, "");
-    if (
-      !raw.startsWith("otpauth://") &&
-      !/^(?=.*[A-Z])[A-Z2-7]{16,}=*$/u.test(compact)
-    )
+    if (!raw.startsWith("otpauth://") && !/^[A-Z2-7]{8,}=*$/u.test(compact))
       return null;
     try {
       parseTotp(raw);

@@ -88,6 +88,22 @@ describe("OpenSSL PEM and X.509 inspection", () => {
     });
   });
 
+  it("recognises encrypted PKCS#8 without decrypting it", () => {
+    const encrypted = `-----BEGIN ENCRYPTED PRIVATE KEY-----
+MIH0MF8GCSqGSIb3DQEFDTBSMDEGCSqGSIb3DQEFDDAkBBDtvOyeUg/s8hhFSPsJ
+5Y0wAgIIADAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQ8GC4g35KO4A/nOpU
+Tryk6gSBkOiHkPWNYljQH23m2K7h5sZX/BLJF9BJg3NXM0I+Lc+pim41TXzH84V/
+qrTxKrSRAaf4xr5OjUr1kCuH+MBadozgIQ8niDXKfApHXavZxxokjSVyKLPyOsm3
+RynLON8c3v0NR3Q/IVYbrV1z+XK7gqeZiGS6zAjfgo9Mz4KDCmBTUQGwMNHIwTcR
+w7vvjYYwvQ==
+-----END ENCRYPTED PRIVATE KEY-----`;
+    expect(inspectPrivateKeyPem(encrypted)).toMatchObject({
+      encrypted: true,
+      bits: null,
+      algorithm: "unknown",
+    });
+  });
+
   it("recognises legacy OpenSSL encryption without decrypting it", () => {
     const encrypted = `-----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED

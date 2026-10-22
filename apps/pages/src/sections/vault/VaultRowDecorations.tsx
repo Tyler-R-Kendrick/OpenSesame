@@ -10,6 +10,7 @@ import {
 import type { VaultItem } from "@opensesame/vault-core";
 import { useSyncExternalStore } from "react";
 import { IconClock, IconPeople, IconStar } from "../../components/Icons.js";
+import { useVaultStore } from "../../lib/vault/hooks.js";
 import { formatExpiry } from "./expiry.js";
 
 export function Decorations({
@@ -31,9 +32,10 @@ export function Decorations({
           sharedGrants === 1 ? "identity" : "identities"
         }`
       : `Shared with ${grantees.join(", ")}`;
+  const scope = useVaultStore().activeTomb();
   const rotationState = useSyncExternalStore(
     subscribeRotationQueue,
-    () => rotationEventFor(item.id)?.state ?? "",
+    () => rotationEventFor(scope, item.id)?.state ?? "",
     () => "",
   );
   return (

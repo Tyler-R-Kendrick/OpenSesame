@@ -69,7 +69,13 @@ pub(crate) fn small_file(path: &Path) -> Option<String> {
     String::from_utf8(fs::read(path).ok()?).ok()
 }
 
-pub(crate) fn walk(root: &Path, depth: usize, max_depth: usize, out: &mut Vec<PathBuf>) {
+pub(crate) fn walk(
+    root: &Path,
+    depth: usize,
+    max_depth: usize,
+    skip: &[&str],
+    out: &mut Vec<PathBuf>,
+) {
     if depth > max_depth || !is_dir(root) {
         return;
     }
@@ -81,8 +87,12 @@ pub(crate) fn walk(root: &Path, depth: usize, max_depth: usize, out: &mut Vec<Pa
     for entry in entries {
         let path = entry.path();
         if is_dir(&path) {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if skip.contains(&name.as_str()) {
+                continue;
+            }
             if depth < max_depth {
-                walk(&path, depth + 1, max_depth, out);
+                walk(&path, depth + 1, max_depth, skip, out);
             }
         } else if is_file(&path) {
             out.push(path);
@@ -141,6 +151,10 @@ fn pem(text: &str) -> Option<(&str, String, Vec<String>)> {
     let end_marker = format!("-----END {label}-----");
     let body_end = text[body_start..].find(&end_marker)? + body_start;
     let block = &text[body_start..body_end];
+    let block = block
+        .strip_prefix("\r\n")
+        .or_else(|| block.strip_prefix('\n'))
+        .unwrap_or(block);
     let mut headers = Vec::new();
     let mut joined = String::new();
     let mut in_body = false;
@@ -286,7 +300,9 @@ pub(crate) fn classify_ssh(text: &str) -> Option<(String, Option<u32>, bool, boo
         "DSA PRIVATE KEY" => Some(("ssh-dss".into(), None, encrypted, false)),
         "EC PRIVATE KEY" => Some(("ecdsa".into(), None, encrypted, false)),
         "OPENSSH PRIVATE KEY" => None,
-        "PRIVATE KEY" | "ENCRYPTED PRIVATE KEY" => Some(("pkcs8".into(), None, encrypted, true)),
+        // This scanner does not parse PKCS#8's inner key, so it cannot claim
+        // the key is importable or report RSA strength honestly.
+        "PRIVATE KEY" | "ENCRYPTED PRIVATE KEY" => Some(("pkcs8".into(), None, encrypted, false)),
         _ => None,
     }
 }
@@ -294,7 +310,7 @@ pub(crate) fn classify_ssh(text: &str) -> Option<(String, Option<u32>, bool, boo
 pub(crate) fn scan_ssh(root: &Path) -> Vec<SshFinding> {
     let ignore = read_ignore(root);
     let mut files = Vec::new();
-    walk(root, 0, SSH_DEPTH, &mut files);
+    walk(root, 0, SSH_DEPTH, &[], &mut files);
     let mut findings = Vec::new();
     for path in files {
         if ignored(&ignore, &path) {

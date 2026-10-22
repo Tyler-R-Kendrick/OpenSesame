@@ -391,5 +391,5 @@ export function fileName(name: string): string {
 
 /** Hand the person a file the page keeps no copy of: it may be the only one. */
 export function downloadFile(name: string, body: string): void {
-  downloadOnce(fileName(name), body);
+  void downloadOnce(fileName(name), body).catch(() => undefined);
 }

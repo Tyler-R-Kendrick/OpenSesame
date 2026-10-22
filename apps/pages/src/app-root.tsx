@@ -358,8 +358,8 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const location = useLocation();
   const routes = resolved.useRouteContributions();
   const wrappers = resolved.useShellWrappers();
-  const { status, tomb, items } = resolved.useVault();
-  useRotationQueue(status, tomb, items);
+  const { status, tomb, items, guest } = resolved.useVault();
+  useRotationQueue(status, tomb, items, guest);
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   const isDeadmanRelease = location.pathname === "/deadman";
   useEffect(() => activatePlan(compositionStore), []);

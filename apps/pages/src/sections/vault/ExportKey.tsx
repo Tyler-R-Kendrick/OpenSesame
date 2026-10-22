@@ -28,6 +28,21 @@ function messageOf<Thrown>(caught: Thrown): string {
   return caught instanceof Error ? caught.message : "Export failed.";
 }
 
+function exportFacts(vault: ReturnType<typeof useVault>): CeremonyFact[] {
+  const live = listedItems(vault.items).filter(
+    (item) => item.deletedAt === null,
+  ).length;
+  return [
+    { key: "Vault", value: openVaultLabel() },
+    { key: "Items", value: String(live) },
+    {
+      key: "Opens with",
+      value: exportOpener(vault.header) ?? "the master password",
+    },
+    { key: "Holds", value: "ciphertext only" },
+  ];
+}
+
 /**
  * The encrypted backup (`backup.local-encrypted`): the vault's sealed body
  * and wrapping header in one file, the master password still its key.
@@ -44,10 +59,15 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const problem = error ?? refusal;
 
-  const save = () => {
+  const save = async () => {
     try {
       const file = offlineBackupFile(vault);
-      downloadSeams.save(file.fileName, file.text, "application/json");
+      const outcome = await downloadSeams.save(
+        file.fileName,
+        file.text,
+        "application/json",
+      );
+      if (outcome === "cancelled") return;
       setSaved(file.fileName);
       setError(null);
       dismissNotice(NOTICE);
@@ -63,18 +83,7 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const live = listedItems(vault.items).filter(
-    (item) => item.deletedAt === null,
-  ).length;
-  const facts: CeremonyFact[] = [
-    { key: "Vault", value: openVaultLabel() },
-    { key: "Items", value: String(live) },
-    {
-      key: "Opens with",
-      value: exportOpener(vault.header) ?? "the master password",
-    },
-    { key: "Holds", value: "ciphertext only" },
-  ];
+  const facts = exportFacts(vault);
   if (saved) facts.push({ key: "File", value: saved });
 
   return (

@@ -71,8 +71,10 @@ export function decodeSaveRequest(encoded: string): SaveRequest | null {
   const notes =
     record.notes === undefined
       ? undefined
-      : (text(record.notes, MAX_NOTES) ?? undefined);
-  if (record.notes !== undefined && notes === undefined) return null;
+      : typeof record.notes === "string" && record.notes.length <= MAX_NOTES
+        ? record.notes
+        : null;
+  if (notes === null) return null;
   return { title, fields, ...(notes === undefined ? {} : { notes }) };
 }
 

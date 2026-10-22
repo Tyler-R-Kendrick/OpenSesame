@@ -110,13 +110,29 @@ describe("the Add sheet", () => {
     expect(screen.queryByRole("checkbox")).toBeNull();
   });
 
+  it("does not commit when the recovery key save is cancelled", async () => {
+    protection.enrollCandidate.mockResolvedValue({
+      operationId: "op1",
+      recoverySecretB64: "c2VjcmV0",
+    });
+    download.mockResolvedValue("cancelled");
+    const onClose = openAdd();
+    fireEvent.click(screen.getByRole("button", { name: "Recovery key" }));
+    await waitFor(() => expect(download).toHaveBeenCalledOnce());
+    expect(protection.commitEnrollment).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("hands over the recovery secret before the record commits", async () => {
     const order: string[] = [];
     protection.enrollCandidate.mockResolvedValue({
       operationId: "op1",
       recoverySecretB64: "c2VjcmV0",
     });
-    download.mockImplementation(() => order.push("download"));
+    download.mockImplementation(async () => {
+      order.push("download");
+      return "saved";
+    });
     protection.commitEnrollment.mockImplementation(async () => {
       order.push("commit");
     });

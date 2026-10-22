@@ -250,6 +250,16 @@ export function pathOverrides(basePath) {
   const root = basePath.endsWith("/") ? basePath : `${basePath}/`;
   return [
     {
+      path: `${root}save`,
+      set: { "Cross-Origin-Opener-Policy": "unsafe-none" },
+      unset: [],
+    },
+    {
+      path: `${root}save/`,
+      set: { "Cross-Origin-Opener-Policy": "unsafe-none" },
+      unset: [],
+    },
+    {
       path: `${root}identity/authorize`,
       set: { "Cross-Origin-Opener-Policy": "unsafe-none" },
       unset: [],

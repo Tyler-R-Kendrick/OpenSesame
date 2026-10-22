@@ -103,8 +103,15 @@ export async function requestLocalPeer(options?: {
  */
 export class LocalPeerChannel implements LiveChannel {
   readonly #inbox = new Inbox();
+  #open = false;
 
   constructor(private readonly channel: Lp2pDataChannel) {
+    channel.addEventListener("open", () => {
+      this.#open = true;
+    });
+    channel.addEventListener("close", () => {
+      this.#open = false;
+    });
     channel.addEventListener("message", (event) => {
       if (typeof event.data !== "string") return;
       const message = readChannelMessage(event.data);
@@ -113,7 +120,7 @@ export class LocalPeerChannel implements LiveChannel {
   }
 
   send(message: ChannelMessage): boolean {
-    if (this.channel.readyState !== "open") return false;
+    if (!this.#open) return false;
     const frame = JSON.stringify(message);
     if (new TextEncoder().encode(frame).length > FRAME_BYTES) return false;
     try {

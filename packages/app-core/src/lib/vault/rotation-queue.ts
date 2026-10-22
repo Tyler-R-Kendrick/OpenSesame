@@ -177,15 +177,26 @@ export function saveRotationEvents(events: readonly RotationEvent[]): void {
   kvSet(ROTATION_EVENT_KEY, JSON.stringify(events.slice(-MAX_EVENTS)));
 }
 
-export function rotationScheduleFor(itemId: string): RotationSchedule | null {
+export function rotationScheduleFor(
+  scope: string,
+  itemId: string,
+): RotationSchedule | null {
   return (
-    loadRotationSchedules().find((schedule) => schedule.itemId === itemId) ??
-    null
+    loadRotationSchedules().find(
+      (schedule) => schedule.scope === scope && schedule.itemId === itemId,
+    ) ?? null
   );
 }
 
-export function rotationEventFor(itemId: string): RotationEvent | null {
-  return loadRotationEvents().find((event) => event.itemId === itemId) ?? null;
+export function rotationEventFor(
+  scope: string,
+  itemId: string,
+): RotationEvent | null {
+  return (
+    loadRotationEvents().find(
+      (event) => event.scope === scope && event.itemId === itemId,
+    ) ?? null
+  );
 }
 
 /** Create the default schedule for one item when no vault-wide sync has run yet. */
@@ -198,7 +209,7 @@ export function ensureRotationSchedule(
   const typeId = itemTypeId(item);
   if (itemRotationMode(typeId) !== "automatic") return null;
   if (!accountWebLoginOrigin(item)) return null;
-  const existing = rotationScheduleFor(item.id);
+  const existing = rotationScheduleFor(scope, item.id);
   if (existing && existing.typeId === typeId) return existing;
   const schedule: RotationSchedule = {
     scope,
@@ -210,7 +221,9 @@ export function ensureRotationSchedule(
     nextDueAt: nextDue(now, ROTATION_INTERVAL_DAYS),
   };
   saveRotationSchedules([
-    ...loadRotationSchedules().filter((entry) => entry.itemId !== item.id),
+    ...loadRotationSchedules().filter(
+      (entry) => entry.scope !== scope || entry.itemId !== item.id,
+    ),
     schedule,
   ]);
   notify();
@@ -239,6 +252,7 @@ export function syncRotationSchedules(
       .map((schedule) => [schedule.itemId, schedule]),
   );
   const present = new Set<string>();
+  const automatic = new Set<string>();
   const next: RotationSchedule[] = [];
   for (const item of items) {
     if (item.deletedAt) continue;
@@ -246,6 +260,7 @@ export function syncRotationSchedules(
     const typeId = itemTypeId(item);
     if (itemRotationMode(typeId) !== "automatic") continue;
     if (!accountWebLoginOrigin(item)) continue;
+    automatic.add(item.id);
     const existing = current.get(item.id);
     next.push(
       existing && existing.typeId === typeId
@@ -265,11 +280,16 @@ export function syncRotationSchedules(
     ...all.filter((schedule) => schedule.scope !== scope),
     ...next,
   ]);
-  // A queued event for an item that no longer exists has nothing to rotate.
+  // A scheduled event survives only while its item is still automatic.
+  // A manual event survives while the item and its generator still exist.
   const priorEvents = loadRotationEvents();
-  const events = priorEvents.filter(
-    (event) => event.scope !== scope || present.has(event.itemId),
-  );
+  const events = priorEvents.filter((event) => {
+    if (event.scope !== scope) return true;
+    if (!present.has(event.itemId)) return false;
+    return event.reason === "scheduled"
+      ? automatic.has(event.itemId)
+      : itemHasGenerator(event.typeId);
+  });
   saveRotationEvents(events);
   if (next.length !== current.size || events.length !== priorEvents.length)
     notify();
@@ -284,7 +304,7 @@ function enqueue(
   dueAt: string,
   now: Date,
 ): RotationEvent {
-  const existing = rotationEventFor(item.id);
+  const existing = rotationEventFor(scope, item.id);
   if (existing) return existing;
   const event: RotationEvent = {
     id: crypto.randomUUID(),
@@ -340,12 +360,13 @@ export function enqueueManualRotation(
 }
 
 export function setRotationEnabled(
+  scope: string,
   itemId: string,
   enabled: boolean,
 ): RotationSchedule | null {
   let found: RotationSchedule | null = null;
   const schedules = loadRotationSchedules().map((schedule) => {
-    if (schedule.itemId !== itemId) return schedule;
+    if (schedule.scope !== scope || schedule.itemId !== itemId) return schedule;
     found = { ...schedule, enabled };
     return found;
   });
@@ -354,7 +375,10 @@ export function setRotationEnabled(
     if (!enabled) {
       saveRotationEvents(
         loadRotationEvents().filter(
-          (event) => event.itemId !== itemId || event.reason === "manual",
+          (event) =>
+            event.scope !== scope ||
+            event.itemId !== itemId ||
+            event.reason === "manual",
         ),
       );
     }

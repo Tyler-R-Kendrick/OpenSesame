@@ -66,7 +66,9 @@ function fixture() {
 }
 it("writes the reference-only template for the item", async () => {
   const { item } = fixture();
-  const download = vi.spyOn(downloadSeams, "save").mockImplementation(() => {});
+  const download = vi
+    .spyOn(downloadSeams, "save")
+    .mockImplementation(async () => "downloaded" as const);
   const user = userEvent.setup();
   render(<ReferenceKeys item={item} />);
   await screen.findByRole("button", { name: "Download reference template" });
@@ -86,7 +88,9 @@ it("writes the reference-only template for the item", async () => {
 
 it("asks twice before a plaintext environment file, and writes it only the second time", async () => {
   const { item } = fixture();
-  const download = vi.spyOn(downloadSeams, "save").mockImplementation(() => {});
+  const download = vi
+    .spyOn(downloadSeams, "save")
+    .mockImplementation(async () => "downloaded" as const);
   const user = userEvent.setup();
   render(<ReferenceKeys item={item} />);
   const first = await screen.findByRole("button", {

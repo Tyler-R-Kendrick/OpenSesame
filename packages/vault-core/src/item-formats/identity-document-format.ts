@@ -139,7 +139,7 @@ function parse(value: string): FieldValues | null {
   const lines = mrzLines(value);
   if (!lines) return null;
   const [first, second, third] = lines;
-  if (first.slice(0, 2) !== "ID") return null;
+  if (first.slice(0, 1) !== "I") return null;
   const country = first.slice(2, 5);
   if (!COUNTRY.test(country)) return null;
   const number = first.slice(5, 14);

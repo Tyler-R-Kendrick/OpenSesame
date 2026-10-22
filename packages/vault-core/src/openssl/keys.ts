@@ -155,7 +155,8 @@ function classify(block: import("./pem.js").PemBlock): PrivateKeyInfo | null {
     if (outer.next !== block.der.length || outer.node.tag !== 0x30) return null;
     const parts = children(outer.node);
     if (label === "ENCRYPTED PRIVATE KEY") {
-      if (parts[1] !== undefined) algorithmOid(parts[1]);
+      if (parts[0] === undefined) return null;
+      algorithmOid(parts[0]);
       return { label, algorithm: "unknown", bits: null, encrypted: true };
     }
     if (label === "PRIVATE KEY") {

@@ -11,6 +11,7 @@ import { buildSaveItem } from "./save-request-item.js";
 const CONCEALED = new Set([
   "current-password",
   "password",
+  "cc-number",
   "cc-csc",
   "crypto-recovery-seed",
   "one-time-code",
@@ -109,6 +110,10 @@ export function SaveRequestScreen() {
       );
       if ("error" in result) {
         setError(result.error);
+        window.opener?.postMessage(
+          { type: "opensesame.save.failed", message: result.error },
+          source,
+        );
         return;
       }
       await store.saveItem(result.item);
@@ -118,7 +123,12 @@ export function SaveRequestScreen() {
         source,
       );
     } catch {
-      setError("The item could not be saved. Nothing was changed.");
+      const message = "The item could not be saved. Nothing was changed.";
+      setError(message);
+      window.opener?.postMessage(
+        { type: "opensesame.save.failed", message },
+        source,
+      );
     } finally {
       setBusy(false);
     }
@@ -218,7 +228,10 @@ export function SaveRequestScreen() {
       {savedId ? (
         <div className="actions">
           <output className="hint">Saved to this vault.</output>
-          <a className="btn btn--sm" href={`/vault/${savedId}`}>
+          <a
+            className="btn btn--sm"
+            href={`${import.meta.env.BASE_URL}vault/${savedId}`}
+          >
             Open item
           </a>
           <button

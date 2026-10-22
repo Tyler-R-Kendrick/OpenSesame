@@ -122,11 +122,21 @@ describe("item formats", () => {
     );
   });
 
-  it("round-trips an authenticator seed", () => {
+  it("round-trips an authenticator seed, including a short RFC 4648 seed", () => {
     const totp = generated("authenticator");
     expect(bestItemFormat(totp.canonical ?? "")?.typeId).toBe("authenticator");
     expect(
       parseItemFormat("authenticator", totp.canonical ?? ""),
+    ).not.toBeNull();
+    expect(parseItemFormat("authenticator", "JBSWY3DP")).not.toBeNull();
+  });
+
+  it("accepts both ID and I< document codes in a TD1 MRZ", () => {
+    const identity = generated("identity-document");
+    const canonical = identity.canonical ?? "";
+    expect(parseItemFormat("identity-document", canonical)).not.toBeNull();
+    expect(
+      parseItemFormat("identity-document", `I<${canonical.slice(2)}`),
     ).not.toBeNull();
   });
 
@@ -255,6 +265,12 @@ AwEHoUQDQgAEG2BFL/tYKhMA7S7cr9rR6WCQYB85reeqQdNlJ1rP1fEUVs0dauKS
 /BBNbn9jIKsSXdtEy8TFgk06A0eEHt8yhQ==
 -----END EC PRIVATE KEY-----`;
     expect(parseItemFormat("ssh-key", ecKey)?.values.keyType).toBe("ecdsa");
+    const ecPkcs8 = `-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg7objlKy97Ij+kw3b
+DtnMYKm18tsYmOQZyYPYGq2yv5ShRANCAASyKrJl8n16A+eGS91yXA456GxcM1ML
+QEAG1weeDZ/+P9G4O651k8kEbWvsWG2R4whKWOgj9hRttyjuYsOcvQpN
+-----END PRIVATE KEY-----`;
+    expect(parseItemFormat("ssh-key", ecPkcs8)?.values.keyType).toBe("ecdsa");
     expect(
       parseItemFormat(
         "ssh-key",

@@ -21,6 +21,7 @@ import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
 import { ALL_USERS_GROUP } from "./local-groups.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { recordConnectionShareEvent } from "./local-share-audit.js";
+import { sameShare } from "./local-share-match.js";
 import {
   type ShareWriteAuthority,
   requireManageGrants,
@@ -271,8 +272,6 @@ async function refuseUnapprovedPrincipal(
   if (entry?.kind === "agent" || entry?.kind === "application")
     throw new LocalDirectoryError("Approve the grant before it takes effect.");
 }
-
-/** Write a share under this tomb's authority and share lock. */
 export function createLocalShareAs<T>(
   named: Named<T, string>,
   input: CreateLocalShareInput,
@@ -304,10 +303,13 @@ async function createLocalShareAsUnlocked<T>(
     expiresAt: issuedAt + input.durationSeconds * 1000,
   };
   if (input.sessionId) share.sessionId = input.sessionId;
-  const next = [
-    ...(await readAll(tomb)).filter((row) => row.expiresAt > issuedAt),
-    share,
-  ];
+  const current = (await readAll(tomb)).filter(
+    (row) => row.expiresAt > issuedAt,
+  );
+  // The lock serializes writers; this makes a second create a no-op.
+  const duplicate = current.find((row) => sameShare(row, share));
+  if (duplicate) return current;
+  const next = [...current, share];
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
   await writeAll(tomb, next);

@@ -91,16 +91,29 @@ export class OpenSesameSaveButton extends HTMLElement {
   }
 
   #ready() {
-    return Boolean(
-      this.getAttribute("value") &&
-        this.getAttribute("vault-url") &&
-        ITEM_TYPES.has(this.getAttribute("data-opensesame-type") || ""),
-    );
+    const raw = this.getAttribute("vault-url");
+    if (
+      !this.getAttribute("value") ||
+      !raw ||
+      !ITEM_TYPES.has(this.getAttribute("data-opensesame-type") || "")
+    )
+      return false;
+    try {
+      return /^https?:$/.test(new URL(raw).protocol);
+    } catch {
+      return false;
+    }
   }
 
   #open() {
     if (!this.#ready()) return;
-    const vault = new URL(this.getAttribute("vault-url"));
+    let vault;
+    try {
+      vault = new URL(this.getAttribute("vault-url"));
+    } catch {
+      this.#status.textContent = "vault-url is not a URL";
+      return;
+    }
     if (!/^https?:$/.test(vault.protocol)) {
       this.#status.textContent = "vault-url must be http or https";
       return;
@@ -141,6 +154,8 @@ export class OpenSesameSaveButton extends HTMLElement {
     const data = event.data;
     if (!data || typeof data !== "object") return;
     if (data.type === READY) {
+      window.clearTimeout(this.#timer);
+      this.#timer = 0;
       this.#popup.postMessage(
         {
           type: REQUEST,

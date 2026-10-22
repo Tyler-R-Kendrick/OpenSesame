@@ -123,13 +123,14 @@ export function RotationPanel({
 
   if (mode === "none") return null;
 
-  const schedule = mode === "automatic" ? rotationScheduleFor(item.id) : null;
-  const event = rotationEventFor(item.id);
+  const schedule =
+    mode === "automatic" ? rotationScheduleFor(scope, item.id) : null;
+  const event = rotationEventFor(scope, item.id);
 
   const toggle = () => {
     if (!schedule) return;
     setError(null);
-    setRotationEnabled(item.id, !schedule.enabled);
+    setRotationEnabled(scope, item.id, !schedule.enabled);
   };
 
   const rotate = async () => {

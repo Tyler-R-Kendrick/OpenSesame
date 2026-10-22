@@ -51,6 +51,7 @@ fn env_names(text: &str) -> Vec<String> {
             continue;
         };
         let key = key.trim();
+        let key = key.strip_prefix("export ").unwrap_or(key).trim_start();
         let value = value.trim().trim_matches(['"', '\'']);
         if key.is_empty() || value.is_empty() || !sensitive_name(key) {
             continue;
@@ -67,16 +68,14 @@ pub(crate) fn scan_env(home: &Path) -> Vec<EnvFinding> {
     for root_name in ENV_ROOTS {
         let root = home.join(root_name);
         let mut files = Vec::new();
-        walk(&root, 0, ENV_DEPTH, &mut files);
+        walk(
+            &root,
+            0,
+            ENV_DEPTH,
+            &[".git", "node_modules", "target", "vendor"],
+            &mut files,
+        );
         for path in files {
-            if path.components().any(|part| {
-                matches!(
-                    part.as_os_str().to_str(),
-                    Some(".git" | "node_modules" | "target" | "vendor")
-                )
-            }) {
-                continue;
-            }
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if name != ".env" && !name.starts_with(".env.") {
                 continue;

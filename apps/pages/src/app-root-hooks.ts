@@ -11,6 +11,7 @@ import {
   tickRotationSchedules,
 } from "@opensesame/app-core/lib/vault/rotation-queue.js";
 import { processRotationQueue } from "@opensesame/app-core/lib/vault/rotation-relay.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { VaultItem } from "@opensesame/vault-core";
 import { useEffect } from "react";
 import type { NavigateFunction } from "react-router";
@@ -91,6 +92,7 @@ export function useRotationQueue(
   status: string,
   tomb: string | undefined,
   items: readonly VaultItem[] | undefined,
+  guest = false,
 ): void {
   useEffect(() => {
     // A due schedule is visible while the vault is locked. Opening the page
@@ -98,11 +100,16 @@ export function useRotationQueue(
     void tickRotationSchedules();
   }, []);
   useEffect(() => {
-    if (status !== "unlocked" || !tomb) return;
+    // The presented tomb is `guest` for a duress decoy; its raw scratch tomb
+    // must never share the real guest's metadata, and a guest session has no
+    // provider rotation to perform.
+    if (status !== "unlocked" || !tomb || guest) return;
     if (!Array.isArray(items)) return;
-    syncRotationSchedules(items, tomb);
-    void processRotationQueue(tomb);
-  }, [status, tomb, items]);
+    const scope = vaultStore.activeTomb();
+    if (!scope) return;
+    syncRotationSchedules(items, scope);
+    void processRotationQueue(scope);
+  }, [status, tomb, items, guest]);
 }
 
 export type VaultStatus = {

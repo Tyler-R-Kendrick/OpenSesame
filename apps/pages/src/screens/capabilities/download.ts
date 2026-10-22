@@ -4,14 +4,26 @@
  * the bytes instead of the browser.
  */
 
-import { saveTextFile as saveThroughPicker } from "../../lib/file-system.js";
+import {
+  type SaveOutcome,
+  saveTextFile as saveThroughPicker,
+} from "../../lib/file-system.js";
 
-export const downloadSeams = {
-  save(fileName: string, text: string, type = "application/yaml"): void {
-    void saveThroughPicker(fileName, text, type).catch(() => undefined);
+export const downloadSeams: {
+  save(
+    fileName: string,
+    text: string,
+    type?: string,
+  ): Promise<SaveOutcome> | undefined;
+} = {
+  save(fileName, text, type = "application/yaml") {
+    return saveThroughPicker(fileName, text, type);
   },
 };
 
-export function saveTextFile(fileName: string, text: string): void {
-  downloadSeams.save(fileName, text);
+export async function saveTextFile(
+  fileName: string,
+  text: string,
+): Promise<SaveOutcome> {
+  return (await downloadSeams.save(fileName, text)) ?? "downloaded";
 }

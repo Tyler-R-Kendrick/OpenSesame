@@ -5,10 +5,11 @@
  * in the same task, and this file may be the only copy of a generated key.
  */
 
-import { saveTextFile } from "../../lib/file-system.js";
+import { type SaveOutcome, saveTextFile } from "../../lib/file-system.js";
 
-export function downloadOnce(filename: string, body: string): void {
-  void saveTextFile(filename, body, "text/plain", "OpenSesame file").catch(
-    () => undefined,
-  );
+export function downloadOnce(
+  filename: string,
+  body: string,
+): Promise<SaveOutcome> {
+  return saveTextFile(filename, body, "text/plain", "OpenSesame file");
 }

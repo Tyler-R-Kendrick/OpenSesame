@@ -61,6 +61,7 @@ describe("Local Peer-to-Peer adapter", () => {
   it("bridges a data channel to the live-session frame protocol", () => {
     const raw = channel();
     const bridge = new LocalPeerChannel(raw as never);
+    raw.emit("open");
     const seen: unknown[] = [];
     bridge.onMessage((message) => seen.push(message));
     const message = { t: "hello" };

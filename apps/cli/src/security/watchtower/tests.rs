@@ -46,6 +46,27 @@ fn flags_dsa_as_insecure() {
 }
 
 #[test]
+fn reads_legacy_pem_encryption_headers() {
+    let key = format!(
+        "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\nDEK-Info: AES-256-CBC,00000000000000000000000000000000\n\n{}\n-----END RSA PRIVATE KEY-----\n",
+        base64::engine::general_purpose::STANDARD.encode(b"not-a-real-key")
+    );
+    let (_, _, encrypted, _) = classify_ssh(&key).unwrap();
+    assert!(encrypted);
+}
+
+#[test]
+fn strips_export_from_env_names() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("src/app");
+    fs::create_dir_all(&root).unwrap();
+    let path = root.join(".env");
+    fs::write(&path, "export API_KEY=super-secret\n").unwrap();
+    let findings = scan_env(dir.path());
+    assert_eq!(findings[0].names, vec!["API_KEY"]);
+}
+
+#[test]
 fn finds_sensitive_env_names_but_never_values() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("src/app");

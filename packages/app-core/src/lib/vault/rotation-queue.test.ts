@@ -72,7 +72,7 @@ describe("rotation schedules", () => {
       "personal",
       new Date("2026-01-01T00:00:00Z"),
     );
-    setRotationEnabled(login.id, false);
+    setRotationEnabled("personal", login.id, false);
     expect(loadRotationSchedules()[0]?.enabled).toBe(false);
 
     syncRotationSchedules([], "personal", new Date("2026-02-01T00:00:00Z"));
@@ -105,7 +105,7 @@ describe("the queue while locked", () => {
       "personal",
       new Date("2026-01-01T00:00:00Z"),
     );
-    setRotationEnabled(login.id, false);
+    setRotationEnabled("personal", login.id, false);
     expect(tickRotationSchedules(new Date("2026-03-01T00:00:00Z"))).toEqual([]);
   });
 
@@ -193,6 +193,80 @@ describe("the queue while locked", () => {
         }),
       ]),
     );
+  });
+
+  it("keys schedules and events by vault scope as well as item id", async () => {
+    const login = account();
+    syncRotationSchedules([login], "vault-a", new Date("2026-01-01T00:00:00Z"));
+    syncRotationSchedules([login], "vault-b", new Date("2026-01-01T00:00:00Z"));
+
+    expect(loadRotationSchedules()).toHaveLength(2);
+    setRotationEnabled("vault-a", login.id, false);
+    expect(
+      loadRotationSchedules().find((row) => row.scope === "vault-a")?.enabled,
+    ).toBe(false);
+    expect(
+      loadRotationSchedules().find((row) => row.scope === "vault-b")?.enabled,
+    ).toBe(true);
+
+    tickRotationSchedules(new Date("2026-02-01T00:00:00Z"));
+    expect(loadRotationEvents().map((row) => row.scope)).toEqual(["vault-b"]);
+  });
+
+  it("drops a scheduled event when the account loses its https origin", () => {
+    const login = account();
+    syncRotationSchedules(
+      [login],
+      "personal",
+      new Date("2026-01-01T00:00:00Z"),
+    );
+    tickRotationSchedules(new Date("2026-02-01T00:00:00Z"));
+    expect(loadRotationEvents()).toHaveLength(1);
+
+    login.uris = [];
+    syncRotationSchedules(
+      [login],
+      "personal",
+      new Date("2026-02-02T00:00:00Z"),
+    );
+    expect(loadRotationEvents()).toEqual([]);
+  });
+
+  it("keeps an event enqueued while the relay is awaiting", async () => {
+    const first = account();
+    const second = account();
+    syncRotationSchedules(
+      [first],
+      "personal",
+      new Date("2026-01-01T00:00:00Z"),
+    );
+    tickRotationSchedules(new Date("2026-02-01T00:00:00Z"));
+    let release: (() => void) | undefined;
+    let entered!: () => void;
+    const awaited = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    rotationSeams.relay = async (event) => {
+      if (event.itemId === first.id) {
+        entered();
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      }
+      return { ok: true };
+    };
+
+    const running = processRotationQueue(
+      "personal",
+      new Date("2026-03-03T00:00:00Z"),
+    );
+    await awaited;
+    enqueueManualRotation(second, "personal", new Date("2026-03-03T00:00:00Z"));
+    release?.();
+    await running;
+    expect(loadRotationEvents()).toEqual([
+      expect.objectContaining({ itemId: second.id, reason: "manual" }),
+    ]);
   });
 
   it("persists only metadata, never an item value", () => {

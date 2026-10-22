@@ -9,8 +9,9 @@ import {
   createTypedItem,
   detectCardBrand,
   newId,
+  parseTotp,
 } from "@opensesame/vault-core";
-import { loadPack, loadedPackText } from "@opensesame/vault-item-types";
+import { loadPack } from "@opensesame/vault-item-types";
 
 type InstallHost = {
   installItemTypeDefinition: (text: string) => Promise<{ ok: boolean }>;
@@ -68,7 +69,14 @@ function loginItem(request: SaveRequest, sourceOrigin: string): VaultItem {
   }
   const otp = saveRequestField(request, "one-time-code");
   if (otp) {
-    item.methods.push({ id: newId(), type: "authenticator", secret: otp });
+    // `one-time-code` may be a live 6-digit OTP, not a TOTP seed. Only a
+    // parses-as-TOTP value becomes a reusable authenticator method.
+    try {
+      parseTotp(otp);
+      item.methods.push({ id: newId(), type: "authenticator", secret: otp });
+    } catch {
+      // It was a code typed into the site, not a seed. Do not persist it.
+    }
   }
   return item;
 }
@@ -93,15 +101,8 @@ function cardItem(request: SaveRequest): VaultItem {
   return item;
 }
 
-async function cryptoItem(
-  request: SaveRequest,
-  host: InstallHost,
-): Promise<VaultItem | null> {
+async function cryptoItem(request: SaveRequest): Promise<VaultItem | null> {
   const definition = await loadPack("crypto-wallet");
-  const text = loadedPackText("crypto-wallet");
-  if (!text) return null;
-  const installed = await host.installItemTypeDefinition(text);
-  if (!installed.ok) return null;
   return createTypedItem(
     definition,
     {
@@ -126,7 +127,7 @@ export async function buildSaveItem(
   request: SaveRequest,
   type: SaveRequestType,
   sourceOrigin: string,
-  host: InstallHost,
+  _host: InstallHost,
 ): Promise<SaveItemResult> {
   if (type === "login") {
     return { item: loginItem(request, sourceOrigin) };
@@ -135,7 +136,7 @@ export async function buildSaveItem(
     return { item: cardItem(request) };
   }
   try {
-    const item = await cryptoItem(request, host);
+    const item = await cryptoItem(request);
     return item
       ? { item }
       : { error: "This build cannot install the crypto-wallet item type." };

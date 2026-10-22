@@ -35,4 +35,18 @@ describe("save request", () => {
     ).toBeNull();
     expect(decodeSaveRequest("A".repeat(128 * 1024 + 1))).toBeNull();
   });
+  it("accepts an empty optional notes field", () => {
+    const encoded = btoa(
+      JSON.stringify({
+        title: "Example",
+        fields: [{ autocomplete: "username", value: "ada" }],
+        notes: "",
+      }),
+    );
+    expect(decodeSaveRequest(encoded)).toEqual({
+      title: "Example",
+      fields: [{ autocomplete: "username", value: "ada" }],
+      notes: "",
+    });
+  });
 });

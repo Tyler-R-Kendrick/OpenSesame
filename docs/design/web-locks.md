@@ -17,6 +17,7 @@ opensesame:local-share:<tomb>
 opensesame:local-share-pending:<tomb>
 opensesame:local-audit:<tomb>
 opensesame:local-receipts:<tomb>
+opensesame:local-rotation:<tomb>
 ```
 
 `<tomb>` is the vault's local identifier. The names are stable across tabs and
@@ -35,6 +36,7 @@ workers on the same origin.
 | Pending shares | `local-share-pending` | submit, approve, deny |
 | Access audit | `local-audit` | append connector grant/revoke events |
 | Receipts | `local-receipts` | append value-blind receipts |
+| Rotation queue | `local-rotation` | one relay pass per vault |
 
 The vault body, open lease and capability locks are described in their own
 design notes. This document covers the four local Access ledgers.
@@ -46,6 +48,7 @@ When an operation needs more than one ledger, the order is:
 ```text
 session -> share -> audit / receipts
 pending share -> share -> audit / receipts
+rotation -> schedule/event writes
 ```
 
 A session start takes the session lock, issues shares under the share lock and

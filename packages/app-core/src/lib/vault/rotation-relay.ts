@@ -1,5 +1,7 @@
 /** Optional provider-side rotation relay. It sees metadata, never a secret. */
+import { withLocalAccessLedgerLock } from "../local-access-ledger-lock.js";
 import {
+  ROTATION_EVENT_KEY,
   type RotationEvent,
   loadRotationEvents,
   loadRotationSchedules,
@@ -22,7 +24,7 @@ export const rotationSeams = {
 
 function complete(event: RotationEvent, at: Date): void {
   const schedules = loadRotationSchedules().map((schedule) =>
-    schedule.itemId === event.itemId
+    schedule.scope === event.scope && schedule.itemId === event.itemId
       ? {
           ...schedule,
           lastRotatedAt: at.toISOString(),
@@ -31,9 +33,6 @@ function complete(event: RotationEvent, at: Date): void {
       : schedule,
   );
   saveRotationSchedules(schedules);
-  saveRotationEvents(
-    loadRotationEvents().filter((candidate) => candidate.id !== event.id),
-  );
 }
 
 let processing: Promise<unknown> = Promise.resolve();
@@ -47,7 +46,15 @@ export function processRotationQueue(
   scope: string,
   now = new Date(),
 ): Promise<RotationEvent[]> {
-  const run = processing.then(() => processRotationQueueNow(scope, now));
+  const run = processing.then(() =>
+    withLocalAccessLedgerLock(
+      scope,
+      "rotation",
+      ROTATION_EVENT_KEY,
+      1024 * 1024,
+      () => processRotationQueueNow(scope, now),
+    ),
+  );
   processing = run.catch(() => undefined);
   return run;
 }
@@ -57,13 +64,12 @@ async function processRotationQueueNow(
   now: Date,
 ): Promise<RotationEvent[]> {
   const relay = rotationSeams.relay;
-  const all = loadRotationEvents();
-  const events = all.filter((event) => event.scope === scope);
+  const events = loadRotationEvents().filter((event) => event.scope === scope);
   if (events.length === 0) return [];
-  const remaining: RotationEvent[] = [];
+  const outcomes = new Map<string, RotationEvent | null>();
   for (const event of events) {
     if (!relay) {
-      remaining.push({
+      outcomes.set(event.id, {
         ...event,
         state: "out-of-sync",
         detail: "No rotation relay is configured on this device.",
@@ -74,25 +80,30 @@ async function processRotationQueueNow(
       const result = await relay(event);
       if (result.ok) {
         complete(event, now);
+        outcomes.set(event.id, null);
         continue;
       }
-      remaining.push({
+      outcomes.set(event.id, {
         ...event,
         state: "out-of-sync",
         detail: result.detail ?? "The rotation relay did not accept the event.",
       });
     } catch {
-      remaining.push({
+      outcomes.set(event.id, {
         ...event,
         state: "out-of-sync",
         detail: "The rotation relay could not be reached.",
       });
     }
   }
-  saveRotationEvents([
-    ...all.filter((event) => event.scope !== scope),
-    ...remaining,
-  ]);
+  // Re-read after every await: another producer may have added an event while
+  // the relay was running. Only the ids this pass handled are replaced.
+  const retained = loadRotationEvents().flatMap((event) => {
+    if (event.scope !== scope || !outcomes.has(event.id)) return [event];
+    const outcome = outcomes.get(event.id);
+    return outcome === null || outcome === undefined ? [] : [outcome];
+  });
+  saveRotationEvents(retained);
   notify();
-  return remaining;
+  return retained.filter((event) => event.scope === scope);
 }
