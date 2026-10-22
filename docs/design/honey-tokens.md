@@ -53,3 +53,18 @@ noise, but it cannot turn a different record into a trigger.
 - The PWA shows at most the daemon's bounded recent notice list. Native
   `opensesame plugins notices surrogate-proxy` remains authoritative for the
   sealed local evidence file.
+
+## HoneyVault
+
+The duress code mode `honey_vault` opens an independently keyed decoy vault
+seeded with six synthetic credentials (AWS, Stripe, GitHub, Cloudflare,
+Postgres and an internal API). Arming registers those credentials in the
+owner's sealed honey-token store; the decoy only carries the token text.
+Using one through the surrogate proxy raises the same critical
+`surrogate.honey_token` notice as any other planted token, so the owner sees
+it after leaving the decoy.
+
+The mode reuses the existing duress compartment and effect machinery: the
+plan is sealed under the code, and the effect adds ordinary account items to
+the ephemeral decoy session. No protected-vault plaintext is copied, and the
+decoy is wiped when it locks.
