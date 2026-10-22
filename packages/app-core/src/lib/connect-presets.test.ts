@@ -344,6 +344,20 @@ describe("drafts", () => {
     expect(connectSubjectId(null, "personal", memoryStore())).not.toBe(mine);
     expect(connectSubjectId(null, "project-x", store)).not.toBe(mine);
     expect(connectSubjectId(" ", "", store)).toBeNull();
+    const instanceStore = memoryStore();
+    const firstVault = connectSubjectId(
+      null,
+      "personal",
+      instanceStore,
+      "vault-one",
+    );
+    expect(firstVault).not.toBeNull();
+    expect(connectSubjectId(null, "personal", instanceStore, "vault-one")).toBe(
+      firstVault,
+    );
+    expect(
+      connectSubjectId(null, "personal", instanceStore, "vault-two"),
+    ).not.toBe(firstVault);
     expect(connectSubjectId(null, "personal", undefined)).toBeNull();
   });
 });
