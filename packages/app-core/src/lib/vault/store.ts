@@ -1456,6 +1456,10 @@ export class VaultStore {
     const scope = this.#scope;
     // As final as locking: the same teardown (clipboard, Identity, claims).
     this.lock();
+    // Keep the in-memory header until the tomb is durably gone. A failed
+    // delete must leave a recoverable vault, not an empty store that the next
+    // create can overwrite.
+    await destroyStoredTomb(this.#writeQueue, scope);
     if (isGuestSessionTomb(scope.tomb)) {
       this.#scope = scopedVaultScope();
       this.#header = this.#readHeader();
@@ -1463,8 +1467,6 @@ export class VaultStore {
     } else {
       this.#header = null;
     }
-    this.#emit();
-    await destroyStoredTomb(this.#writeQueue, scope);
     this.#emit();
   }
 

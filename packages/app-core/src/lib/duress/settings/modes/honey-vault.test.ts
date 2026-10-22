@@ -1,10 +1,11 @@
+import type { VaultItem } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import { mintHoneyToken } from "../../../honey-tokens.js";
 import { hasEffectRunner, runDuressEffects } from "./effects.js";
 import { HONEY_VAULT, honeyVaultRecords } from "./honey-vault.js";
 import { decodePlan, encodePlan } from "./payload.js";
 
-const plan = () => HONEY_VAULT.plan({}, { items: [] });
+const plan = () => HONEY_VAULT.plan();
 
 describe("HoneyVault mode", () => {
   it("seals six distinct synthetic credentials that survive the slot codec", () => {
@@ -18,7 +19,7 @@ describe("HoneyVault mode", () => {
   });
 
   it("puts the credentials into the ephemeral decoy as accounts", async () => {
-    const addItems = vi.fn(async () => undefined);
+    const addItems = vi.fn(async (_items: VaultItem[]) => undefined);
     await runDuressEffects(plan(), "after_session", {
       store: { addItems },
     });
@@ -28,7 +29,8 @@ describe("HoneyVault mode", () => {
     expect(
       items.every(
         (item) =>
-          item.methods?.[0]?.type === "password" &&
+          item.kind === "account" &&
+          item.methods[0]?.type === "password" &&
           String(item.methods[0].secret).startsWith("osr_hny_"),
       ),
     ).toBe(true);

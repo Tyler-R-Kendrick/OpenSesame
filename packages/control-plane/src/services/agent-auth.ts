@@ -274,12 +274,20 @@ export async function initClaim(
     throw agentAuthError("invalid_login_hint", 400);
   }
   if (
-    registration.kind === "service_auth" &&
     registration.claimEmailNormalized &&
     emailNormalized &&
     emailNormalized !== registration.claimEmailNormalized
   ) {
     // Same response as a matching email: do not leak whether the hint exists.
+    throw agentAuthError("invalid_claim_token", 400);
+  }
+  // Provider assertion emails are part of the verified ID-JAG identity. A
+  // caller may not replace them with an address of their choosing.
+  if (
+    registration.kind === "provider_assertion" &&
+    emailNormalized !== undefined &&
+    emailNormalized !== registration.claimEmailNormalized
+  ) {
     throw agentAuthError("invalid_claim_token", 400);
   }
   const boundEmail = emailNormalized ?? registration.claimEmailNormalized;

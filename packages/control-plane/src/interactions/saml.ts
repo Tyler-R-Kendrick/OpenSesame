@@ -645,11 +645,44 @@ async function readResponseRouting(
  * 4. Re-check the things the library does not: the issuer of the *assertion*,
  *    the signed `InResponseTo`, and assertion-id replay.
  */
+const SAML_ACS_WINDOW_MS = 60_000;
+const SAML_ACS_PER_ISSUER = 30;
+const SAML_ACS_GLOBAL = 200;
+const samlAcsAttempts = new Map<string, number[]>();
+
+function consumeSamlAcsBudget(issuer: string, now: number): boolean {
+  for (const [key, times] of samlAcsAttempts) {
+    const live = times.filter((at) => now - at < SAML_ACS_WINDOW_MS);
+    if (live.length === 0) samlAcsAttempts.delete(key);
+    else if (live.length !== times.length) samlAcsAttempts.set(key, live);
+  }
+  const global = samlAcsAttempts.get("__global__") ?? [];
+  const mine = samlAcsAttempts.get(issuer) ?? [];
+  if (global.length >= SAML_ACS_GLOBAL || mine.length >= SAML_ACS_PER_ISSUER)
+    return false;
+  global.push(now);
+  mine.push(now);
+  samlAcsAttempts.set("__global__", global);
+  samlAcsAttempts.set(issuer, mine);
+  return true;
+}
+
+/** Test hook. */
+export function resetSamlAcsBudget(): void {
+  samlAcsAttempts.clear();
+}
+
 export async function completeSamlResponse(
   ctx: AppContext,
   body: { SAMLResponse: string; RelayState?: string },
 ): Promise<SamlResponseOutcome> {
   const routing = await readResponseRouting(body.SAMLResponse);
+  if (routing.issuer && !consumeSamlAcsBudget(routing.issuer, Date.now())) {
+    throw new SamlAuthError(
+      "invalid_assertion",
+      "That sign-in could not be completed.",
+    );
+  }
 
   let organization: Organization | undefined;
   let interactionUid: string | undefined;

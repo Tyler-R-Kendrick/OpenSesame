@@ -123,9 +123,7 @@ export async function loopbackLogin(
   const tokenEndpoint = meta.token_endpoint;
   assertDiscoveredUrl(authorizationEndpoint, "authorization_endpoint", issuer);
   assertDiscoveredUrl(tokenEndpoint, "token_endpoint", issuer);
-  if (config.fetchImpl === undefined) {
-    await assertResolvedPublicHost(tokenEndpoint, issuer);
-  }
+  await assertResolvedPublicHost(tokenEndpoint, issuer);
 
   const { verifier, challenge, state } = pkce();
   const scopes = (config.scopes ?? ["openid", "profile"]).join(" ");

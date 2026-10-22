@@ -219,6 +219,11 @@ export function createFederatedSessionRoutes(): Hono<{ Variables: Variables }> {
     const principal = await ctx.repos.principals.getById(accountId);
     if (!principal || principal.state !== "active") return invalid();
 
+    // This path must obey the same provisional-session ceiling as the
+    // interaction mint; otherwise a bearer can bypass MAX_PROVISIONAL.
+    if ((await ctx.stores.provisionalSessions.size) >= 1024)
+      return c.json({ error: "provisional_capacity" }, 429);
+
     const adopted = await adoptSession(
       ctx,
       principal.id,
