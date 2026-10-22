@@ -107,6 +107,11 @@ const DefaultSettingsSection = lazy(() =>
     default: m.SettingsSection,
   })),
 );
+const DefaultSaveRequestScreen = lazy(() =>
+  import("./screens/SaveRequestScreen.js").then((m) => ({
+    default: m.SaveRequestScreen,
+  })),
+);
 
 const DevLockV5Demo = import.meta.env.DEV
   ? lazy(() =>
@@ -299,6 +304,14 @@ function VaultApp() {
                   <Framed>
                     <slots.SettingsSection />
                   </Framed>
+                }
+              />
+              <Route
+                path="/save"
+                element={
+                  <Suspense fallback={<VaultContentSkeleton />}>
+                    <DefaultSaveRequestScreen />
+                  </Suspense>
                 }
               />
               <Route path={JOIN_COMMAND_PATH} element={<JoinRoadRoute />} />
