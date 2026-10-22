@@ -1,7 +1,7 @@
 /**
- * Read one shared file/text from the service worker's cache and hold it for
- * the normal Import review. The token is removed from the address before any
- * await, and the cache entry is deleted whether or not the read succeeds.
+ * Read one shared file/text from the service worker's encrypted cache and
+ * hold it for the normal Import review. The cache key and the decryption key
+ * arrive in the URL fragment, which is removed before any await.
  */
 
 import { holdPendingImport } from "@opensesame/app-core/lib/vault/pending-import.js";
@@ -10,6 +10,7 @@ import {
   SHARE_TARGET_PARAM,
   type ShareTargetMeta,
   isShareTargetToken,
+  openShareTarget,
   parseShareTargetMeta,
   shareTargetCacheName,
   shareTargetEntryUrl,
@@ -19,20 +20,40 @@ function scopeUrl(): URL {
   return new URL(import.meta.env.BASE_URL, window.location.origin);
 }
 
-function withoutParam(url: URL, history: History): void {
+function withoutHash(url: URL, history: History): void {
   const next = new URL(url);
-  next.searchParams.delete(SHARE_TARGET_PARAM);
-  history.replaceState(
-    history.state,
-    "",
-    `${next.pathname}${next.search}${next.hash}`,
+  next.hash = "";
+  history.replaceState(history.state, "", `${next.pathname}${next.search}`);
+}
+
+function address(
+  location: Location,
+): { token: string; key: string; createdAt: number } | null {
+  const raw = new URLSearchParams(location.hash.replace(/^#/u, "")).get(
+    SHARE_TARGET_PARAM,
   );
+  if (raw === null) return null;
+  const [token = "", key = "", stamp = ""] = raw.split(".");
+  const createdAt = Number(stamp);
+  if (
+    !isShareTargetToken(token) ||
+    !/^[A-Za-z0-9_-]{43}$/u.test(key) ||
+    !Number.isSafeInteger(createdAt) ||
+    createdAt <= 0
+  )
+    return null;
+  return { token, key, createdAt };
+}
+
+async function decrypt(response: Response, key: string): Promise<Uint8Array> {
+  return openShareTarget(key, new Uint8Array(await response.arrayBuffer()));
 }
 
 async function readFile(
   cache: Cache,
   scope: URL,
   token: string,
+  key: string,
   meta: ShareTargetMeta,
 ): Promise<File | null> {
   if (meta.file === null) {
@@ -46,10 +67,10 @@ async function readFile(
     });
   }
   const response = await cache.match(
-    shareTargetEntryUrl(scope.href, token, "file"),
+    shareTargetEntryUrl(scope.href, token, meta.createdAt, "file"),
   );
   if (!response) return null;
-  const bytes = await response.arrayBuffer();
+  const bytes = await decrypt(response, key);
   if (bytes.byteLength === 0 || bytes.byteLength > SHARE_TARGET_MAX_BYTES)
     return null;
   return new File([bytes], meta.file.name, {
@@ -58,44 +79,48 @@ async function readFile(
   });
 }
 
-/** Capture the share token now; the Import key takes the held File on mount. */
+/** Capture the share now; the Import key takes the held File on mount. */
 export async function captureShareTarget(
   location: Location = window.location,
   history: History = window.history,
 ): Promise<File | null> {
-  const url = new URL(location.href);
-  const token = url.searchParams.get(SHARE_TARGET_PARAM);
-  if (token === null) return null;
-  withoutParam(url, history);
-  if (!isShareTargetToken(token)) return null;
-
+  const found = address(location);
+  if (found === null) return null;
+  withoutHash(new URL(location.href), history);
   const scope = scopeUrl();
-  const cacheName = shareTargetCacheName(scope.pathname);
   let cache: Cache;
   try {
-    cache = await caches.open(cacheName);
+    cache = await caches.open(shareTargetCacheName(scope.pathname));
   } catch {
     return null;
   }
+  const metaEntry = shareTargetEntryUrl(
+    scope.href,
+    found.token,
+    found.createdAt,
+    "meta",
+  );
+  const fileEntry = shareTargetEntryUrl(
+    scope.href,
+    found.token,
+    found.createdAt,
+    "file",
+  );
   try {
-    const response = await cache.match(
-      shareTargetEntryUrl(scope.href, token, "meta"),
-    );
+    const response = await cache.match(metaEntry);
     if (!response) return null;
-    const meta = parseShareTargetMeta(await response.json());
-    if (!meta || meta.token !== token) return null;
-    const file = await readFile(cache, scope, token, meta);
+    const meta = parseShareTargetMeta(
+      JSON.parse(new TextDecoder().decode(await decrypt(response, found.key))),
+    );
+    if (!meta || meta.token !== found.token) return null;
+    const file = await readFile(cache, scope, found.token, found.key, meta);
     if (file === null) return null;
     holdPendingImport(file);
     return file;
   } catch {
     return null;
   } finally {
-    await cache
-      .delete(shareTargetEntryUrl(scope.href, token, "meta"))
-      .catch(() => undefined);
-    await cache
-      .delete(shareTargetEntryUrl(scope.href, token, "file"))
-      .catch(() => undefined);
+    await cache.delete(metaEntry).catch(() => undefined);
+    await cache.delete(fileEntry).catch(() => undefined);
   }
 }

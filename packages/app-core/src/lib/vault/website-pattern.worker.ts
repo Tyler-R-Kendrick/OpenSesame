@@ -3,7 +3,7 @@ export {};
 self.onmessage = (
   event: MessageEvent<{ pattern: string; kind: string; hostname: string }>,
 ) => {
-  if (event.origin !== self.location.origin) return;
+  if (event.origin !== "" && event.origin !== self.location.origin) return;
   const { pattern, kind, hostname } = event.data;
   if (pattern.length > 256 || hostname.length > 253 || !pattern.trim()) {
     self.postMessage("invalid");

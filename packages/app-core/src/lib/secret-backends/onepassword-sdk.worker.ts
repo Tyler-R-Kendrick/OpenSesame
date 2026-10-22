@@ -299,7 +299,7 @@ if ("importScripts" in globalThis) {
     stop: () => self.close(),
   });
   self.onmessage = (event: MessageEvent<BoundaryValue>) => {
-    if (event.origin !== self.location.origin) return;
+    if (event.origin !== "" && event.origin !== self.location.origin) return;
     engine.receive(event.data);
   };
 }

@@ -217,10 +217,23 @@ impl EgressBinding {
         } else {
             host.to_string()
         };
-        let ok = self.authorities.iter().any(|a| {
-            a == &authority
-                || a == host
-                || (a.contains(':') && a.as_str() == format!("{host}:{port}"))
+        let default_port = match parsed.scheme() {
+            "https" => 443,
+            "http" => 80,
+            _ => parsed.port_or_known_default().unwrap_or(443),
+        };
+        let ok = self.authorities.iter().any(|allowed| {
+            let (allowed_host, allowed_port) = match allowed.rsplit_once(':') {
+                Some((h, p)) => match p.parse::<u16>() {
+                    Ok(p) => (h, Some(p)),
+                    Err(_) => (allowed.as_str(), None),
+                },
+                None => (allowed.as_str(), None),
+            };
+            // A bare authority names only the scheme's default port. An
+            // explicit `host:port` names exactly that port; neither permits a
+            // credential-bearing request to an unlisted port.
+            allowed_host == host && allowed_port.unwrap_or(default_port) == port
         });
         if !ok {
             return Err(DomainError::GrantAttenuation(format!(
@@ -267,7 +280,9 @@ impl EgressBinding {
         let to = url::Url::parse(to_url).map_err(|_| DomainError::InvalidId("url".into()))?;
         let from_host = from.host_str().unwrap_or_default();
         let to_host = to.host_str().unwrap_or_default();
-        if from_host != to_host {
+        let from_port = from.port_or_known_default();
+        let to_port = to.port_or_known_default();
+        if from_host != to_host || from_port != to_port {
             return Err(DomainError::GrantAttenuation(
                 "cross-authority redirect denied while holding credential".into(),
             ));
@@ -576,6 +591,9 @@ mod tests {
             .allows_url("https://api.github.com/repos/acme/x/pulls")
             .is_ok());
         assert!(e.allows_url("https://evil.example/foo").is_err());
+        assert!(e
+            .allows_url("https://api.github.com:8443/repos/acme/x")
+            .is_err());
         assert!(e
             .allows_redirect(
                 "https://api.github.com/repos/x",

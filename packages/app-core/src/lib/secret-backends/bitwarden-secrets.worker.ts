@@ -61,7 +61,7 @@ const network = createBitwardenWorkerFetch((message) =>
 );
 
 self.onmessage = (event: MessageEvent<BoundaryValue>) => {
-  if (event.origin !== self.location.origin) return;
+  if (event.origin !== "" && event.origin !== self.location.origin) return;
   if (network.receive(event.data)) return;
   queue = queue.then(async () => {
     const parsed = BitwardenWorkerRequestSchema.safeParse(event.data);

@@ -101,7 +101,7 @@ async function handle(request: SopsRequest): Promise<SopsResponse> {
 }
 
 self.addEventListener("message", (event: MessageEvent<BoundaryValue>) => {
-  if (event.origin !== self.location.origin) return;
+  if (event.origin !== "" && event.origin !== self.location.origin) return;
   void (async () => {
     let id = "";
     try {

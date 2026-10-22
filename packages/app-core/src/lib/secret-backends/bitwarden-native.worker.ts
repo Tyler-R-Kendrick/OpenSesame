@@ -34,7 +34,7 @@ if ("importScripts" in globalThis) {
     limits,
   );
   self.onmessage = (event: MessageEvent<BoundaryValue>) => {
-    if (event.origin !== self.location.origin) return;
+    if (event.origin !== "" && event.origin !== self.location.origin) return;
     if (!network.receive(event.data)) runtime.receive(event.data);
   };
   self.onmessageerror = () => {

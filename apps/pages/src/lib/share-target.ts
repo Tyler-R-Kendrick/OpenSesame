@@ -55,18 +55,101 @@ export function shareTargetCacheName(scopePath: string): string {
 export function shareTargetEntryUrl(
   scopeUrl: string,
   token: string,
+  createdAt: number,
   part: "meta" | "file",
 ): string {
   return new URL(
-    `${new URL(scopeUrl).pathname}__share-target/${token}/${part}`,
+    `${new URL(scopeUrl).pathname}__share-target/${token}/${createdAt}/${part}`,
     scopeUrl,
   ).href;
 }
 
-export function shareTargetPageUrl(scopeUrl: string, token: string): string {
+/** The key and token travel in the fragment, which is never sent to a server. */
+export function shareTargetPageUrl(
+  scopeUrl: string,
+  token: string,
+  keyB64: string,
+  createdAt: number,
+): string {
   const url = new URL(scopeUrl);
-  url.searchParams.set(SHARE_TARGET_PARAM, token);
+  url.hash = new URLSearchParams({
+    [SHARE_TARGET_PARAM]: `${token}.${keyB64}.${createdAt}`,
+  }).toString();
   return url.href;
+}
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary)
+    .replace(/\+/gu, "-")
+    .replace(/\//gu, "_")
+    .replace(/=+$/u, "");
+}
+
+function base64UrlToBytes(value: string): Uint8Array | null {
+  if (!/^[A-Za-z0-9_-]{43}$/u.test(value)) return null;
+  try {
+    const padded = value.replace(/-/gu, "+").replace(/_/gu, "/");
+    const binary = atob(
+      `${padded}${"=".repeat((4 - (padded.length % 4)) % 4)}`,
+    );
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1)
+      bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+export function newShareTargetKey(): string {
+  return bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+export async function sealShareTarget(
+  keyB64: string,
+  plain: Uint8Array,
+): Promise<Uint8Array> {
+  const raw = base64UrlToBytes(keyB64);
+  if (!raw) throw new Error("invalid share key");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    raw,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"],
+  );
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cipher = new Uint8Array(
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain),
+  );
+  const out = new Uint8Array(iv.length + cipher.length);
+  out.set(iv);
+  out.set(cipher, iv.length);
+  return out;
+}
+
+export async function openShareTarget(
+  keyB64: string,
+  sealed: Uint8Array,
+): Promise<Uint8Array> {
+  const raw = base64UrlToBytes(keyB64);
+  if (!raw || sealed.length <= 12) throw new Error("invalid share entry");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    raw,
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"],
+  );
+  return new Uint8Array(
+    await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: sealed.subarray(0, 12) },
+      key,
+      sealed.subarray(12),
+    ),
+  );
 }
 
 function boundedText(value: unknown, max: number): string {

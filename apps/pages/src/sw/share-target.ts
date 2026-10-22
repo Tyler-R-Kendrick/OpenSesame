@@ -16,6 +16,8 @@ import {
   SHARE_TARGET_PATH,
   type ShareTargetFile,
   type ShareTargetMeta,
+  newShareTargetKey,
+  sealShareTarget,
   shareTargetCacheName,
   shareTargetEntryUrl,
   shareTargetPageUrl,
@@ -66,6 +68,7 @@ function parseForm(form: FormData): Staged | Response {
   if (file !== null && (file.size <= 0 || file.size > SHARE_TARGET_MAX_BYTES))
     return fail(413, "That file is empty or too large.");
   if (file !== null) {
+    if (file.name.length > 255) return fail(413, "That filename is too long.");
     const name = file.name.toLowerCase();
     const dot = name.lastIndexOf(".");
     const extension = dot < 0 ? "" : name.slice(dot);
@@ -95,47 +98,66 @@ function parseForm(form: FormData): Staged | Response {
   };
 }
 
-async function clear(cache: Cache): Promise<void> {
+/** Remove ciphertext older than one hour; never wipe a live pending share. */
+async function sweep(cache: Cache, now: number): Promise<void> {
   for (const request of await cache.keys()) {
-    if (request.url.includes("/__share-target/")) await cache.delete(request);
+    const match = /\/__share-target\/[^/]+\/(\d+)\//u.exec(request.url);
+    if (!match) continue;
+    if (now - Number(match[1] ?? 0) > 60 * 60 * 1000)
+      await cache.delete(request);
   }
 }
 
 async function stage(
   ctx: WorkerContext,
   token: string,
+  createdAt: number,
   staged: Staged,
-): Promise<boolean> {
+): Promise<string | null> {
   const meta: ShareTargetMeta = {
     token,
-    createdAt: Date.now(),
+    createdAt,
     title: staged.title,
     text: staged.text,
     url: staged.url,
     file: staged.fileMeta,
   };
+  const key = newShareTargetKey();
+  const encoder = new TextEncoder();
+  const metaEntry = shareTargetEntryUrl(ctx.scopeUrl, token, createdAt, "meta");
+  const fileEntry = shareTargetEntryUrl(ctx.scopeUrl, token, createdAt, "file");
   try {
     const cache = await ctx.caches.open(shareTargetCacheName(ctx.scopePath));
-    await clear(cache);
+    await sweep(cache, createdAt);
     await cache.put(
-      new Request(shareTargetEntryUrl(ctx.scopeUrl, token, "meta")),
-      new Response(JSON.stringify(meta), {
-        headers: { "Content-Type": "application/json" },
-      }),
+      new Request(metaEntry),
+      new Response(
+        await sealShareTarget(key, encoder.encode(JSON.stringify(meta))),
+        { headers: { "Content-Type": "application/octet-stream" } },
+      ),
     );
     if (staged.file !== null) {
       await cache.put(
-        new Request(shareTargetEntryUrl(ctx.scopeUrl, token, "file")),
-        new Response(await staged.file.arrayBuffer(), {
-          headers: {
-            "Content-Type": staged.fileMeta?.type ?? "application/octet-stream",
-          },
-        }),
+        new Request(fileEntry),
+        new Response(
+          await sealShareTarget(
+            key,
+            new Uint8Array(await staged.file.arrayBuffer()),
+          ),
+          { headers: { "Content-Type": "application/octet-stream" } },
+        ),
       );
     }
-    return true;
+    return key;
   } catch {
-    return false;
+    try {
+      const cache = await ctx.caches.open(shareTargetCacheName(ctx.scopePath));
+      await cache.delete(metaEntry);
+      await cache.delete(fileEntry);
+    } catch {
+      // The cache itself is unavailable; nothing else can be removed.
+    }
+    return null;
   }
 }
 
@@ -172,13 +194,14 @@ export async function respondToShareTarget(
   if (staged instanceof Response) return staged;
 
   const token = crypto.randomUUID();
-  if (!(await stage(ctx, token, staged)))
-    return fail(507, "This device could not stage that share.");
+  const createdAt = Date.now();
+  const key = await stage(ctx, token, createdAt, staged);
+  if (key === null) return fail(507, "This device could not stage that share.");
   return new Response(null, {
     status: 303,
     headers: {
       ...HEADERS,
-      Location: shareTargetPageUrl(ctx.scopeUrl, token),
+      Location: shareTargetPageUrl(ctx.scopeUrl, token, key, createdAt),
     },
   });
 }

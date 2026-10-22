@@ -1,41 +1,51 @@
 import { takePendingImport } from "@opensesame/app-core/lib/vault/pending-import.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureShareTarget } from "./share-target-intake.js";
-import { type ShareTargetMeta, shareTargetEntryUrl } from "./share-target.js";
+import {
+  type ShareTargetMeta,
+  newShareTargetKey,
+  sealShareTarget,
+  shareTargetEntryUrl,
+} from "./share-target.js";
 
 const TOKEN = "123e4567-e89b-42d3-a456-426614174000";
+const CREATED = 1_700_000_000_000;
 
 afterEach(() => {
   takePendingImport();
   vi.unstubAllGlobals();
 });
 
-function cacheWith(meta: ShareTargetMeta, file?: Uint8Array) {
+async function cacheWith(meta: ShareTargetMeta, file?: Uint8Array) {
+  const key = newShareTargetKey();
   const entries = new Map<string, Response>();
   const root = `${window.location.origin}/`;
   entries.set(
-    shareTargetEntryUrl(root, TOKEN, "meta"),
-    new Response(JSON.stringify(meta), {
-      headers: { "Content-Type": "application/json" },
-    }),
+    shareTargetEntryUrl(root, TOKEN, CREATED, "meta"),
+    new Response(
+      await sealShareTarget(
+        key,
+        new TextEncoder().encode(JSON.stringify(meta)),
+      ),
+    ),
   );
   if (file) {
     entries.set(
-      shareTargetEntryUrl(root, TOKEN, "file"),
-      new Response(file, { headers: { "Content-Type": "text/plain" } }),
+      shareTargetEntryUrl(root, TOKEN, CREATED, "file"),
+      new Response(await sealShareTarget(key, file)),
     );
   }
   const cache = {
     match: async (url: string) => entries.get(url)?.clone(),
     delete: async (url: string) => entries.delete(url),
   };
-  return { cache, entries };
+  return { cache, entries, key };
 }
 
 function meta(overrides: Partial<ShareTargetMeta> = {}): ShareTargetMeta {
   return {
     token: TOKEN,
-    createdAt: 1,
+    createdAt: CREATED,
     title: "Deploy",
     text: "",
     url: "",
@@ -44,26 +54,27 @@ function meta(overrides: Partial<ShareTargetMeta> = {}): ShareTargetMeta {
   };
 }
 
-function location(search: string) {
+function location(key: string, createdAt = CREATED) {
+  const hash = `#${new URLSearchParams({
+    "share-target": `${TOKEN}.${key}.${createdAt}`,
+  }).toString()}`;
   return {
-    href: `${window.location.origin}/${search}`,
-    search,
+    href: `${window.location.origin}/${hash}`,
+    search: "",
     pathname: "/",
-    hash: "",
+    hash,
   } as Location;
 }
 
 describe("share target intake", () => {
-  it("hands a staged file to the pending import and removes the token", async () => {
-    const { cache, entries } = cacheWith(
-      meta({
-        file: { name: "app.env", type: "text/plain", size: 10 },
-      }),
+  it("decrypts a staged file and removes the fragment", async () => {
+    const { cache, entries, key } = await cacheWith(
+      meta({ file: { name: "app.env", type: "text/plain", size: 10 } }),
       new TextEncoder().encode("API_KEY=x\n"),
     );
     vi.stubGlobal("caches", { open: async () => cache });
     const replaceState = vi.fn();
-    const file = await captureShareTarget(location(`?share-target=${TOKEN}`), {
+    const file = await captureShareTarget(location(key), {
       state: null,
       replaceState,
     } as unknown as History);
@@ -74,10 +85,12 @@ describe("share target intake", () => {
     expect(entries.size).toBe(0);
   });
 
-  it("turns shared text into the note Import adapter's file", async () => {
-    const { cache } = cacheWith(meta({ text: "hello", url: "https://x.test" }));
+  it("turns decrypted shared text into the note Import adapter file", async () => {
+    const { cache, key } = await cacheWith(
+      meta({ text: "hello", url: "https://x.test" }),
+    );
     vi.stubGlobal("caches", { open: async () => cache });
-    const file = await captureShareTarget(location(`?share-target=${TOKEN}`), {
+    const file = await captureShareTarget(location(key), {
       state: null,
       replaceState: vi.fn(),
     } as unknown as History);
@@ -85,13 +98,24 @@ describe("share target intake", () => {
     expect(file?.size).toBe("Deploy\n\nhello\n\nhttps://x.test".length);
   });
 
+  it("cannot decrypt a tampered cache entry", async () => {
+    const { cache, key } = await cacheWith(meta({ text: "hello" }));
+    vi.stubGlobal("caches", { open: async () => cache });
+    expect(
+      await captureShareTarget(location(`${key.slice(0, -1)}A`), {
+        state: null,
+        replaceState: vi.fn(),
+      } as unknown as History),
+    ).toBeNull();
+  });
+
   it("removes a malformed token without touching the cache", async () => {
     const open = vi.fn();
     vi.stubGlobal("caches", { open });
-    const file = await captureShareTarget(
-      location("?share-target=not-a-token"),
-      { state: null, replaceState: vi.fn() } as unknown as History,
-    );
+    const file = await captureShareTarget(location("not-a-token"), {
+      state: null,
+      replaceState: vi.fn(),
+    } as unknown as History);
     expect(file).toBeNull();
     expect(open).not.toHaveBeenCalled();
   });

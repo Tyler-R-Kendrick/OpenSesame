@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { shareTargetCacheName } from "../lib/share-target.js";
+import {
+  openShareTarget,
+  shareTargetCacheName,
+  shareTargetEntryUrl,
+} from "../lib/share-target.js";
 import { installCoreWorker } from "./core.js";
 import { FakeWorkerEnv } from "./test-env.js";
 import { RELEASE_MANIFEST } from "./test-fixtures.js";
@@ -44,19 +48,38 @@ describe("Web Share Target ingress", () => {
     const response = await post(env, form);
     expect(response?.status).toBe(303);
     const location = new URL(response?.headers.get("Location") ?? "");
-    const token = location.searchParams.get("share-target");
+    const [token = "", key = "", createdAt = ""] = (
+      new URLSearchParams(location.hash.slice(1)).get("share-target") ?? ""
+    ).split(".");
     expect(token).toMatch(/^[0-9a-f-]{36}$/u);
+    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/u);
     const cache = await env.cacheStorage.open(CACHE);
-    const entry = cache.urls().find((url) => url.endsWith("/meta"));
-    expect(entry).toBeDefined();
-    const metaResponse = await cache.match(entry ?? "");
-    const meta = await metaResponse?.json();
+    const metaResponse = await cache.match(
+      shareTargetEntryUrl(SCOPE, token, Number(createdAt), "meta"),
+    );
+    if (!metaResponse) throw new Error("meta entry missing");
+    const meta = JSON.parse(
+      new TextDecoder().decode(
+        await openShareTarget(
+          key,
+          new Uint8Array(await metaResponse.arrayBuffer()),
+        ),
+      ),
+    );
     expect(meta).toMatchObject({
       title: "Deploy keys",
       text: "shared from a phone",
       file: { type: "text/plain" },
     });
-    expect(cache.urls().some((url) => url.endsWith("/file"))).toBe(true);
+    expect(
+      cache
+        .urls()
+        .some(
+          (url) =>
+            url ===
+            shareTargetEntryUrl(SCOPE, token, Number(createdAt), "file"),
+        ),
+    ).toBe(true);
   });
 
   it("accepts text without a file", async () => {
@@ -66,9 +89,23 @@ describe("Web Share Target ingress", () => {
     form.set("text", "a note");
     const response = await post(env, form);
     expect(response?.status).toBe(303);
+    const location = new URL(response?.headers.get("Location") ?? "");
+    const [token = "", key = "", createdAt = ""] = (
+      new URLSearchParams(location.hash.slice(1)).get("share-target") ?? ""
+    ).split(".");
     const cache = await env.cacheStorage.open(CACHE);
-    const entry = cache.urls().find((url) => url.endsWith("/meta"));
-    const meta = await (await cache.match(entry ?? ""))?.json();
+    const metaResponse = await cache.match(
+      shareTargetEntryUrl(SCOPE, token, Number(createdAt), "meta"),
+    );
+    if (!metaResponse) throw new Error("meta entry missing");
+    const meta = JSON.parse(
+      new TextDecoder().decode(
+        await openShareTarget(
+          key,
+          new Uint8Array(await metaResponse.arrayBuffer()),
+        ),
+      ),
+    );
     expect(meta).toMatchObject({ text: "a note", file: null });
     expect(cache.urls().some((url) => url.endsWith("/file"))).toBe(false);
   });

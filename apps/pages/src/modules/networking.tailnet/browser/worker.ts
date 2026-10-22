@@ -118,6 +118,7 @@ const worker = new BrowserNodeWorker((message) =>
   globalThis.postMessage(message),
 );
 globalThis.addEventListener("message", (event: MessageEvent) => {
-  if (event.origin !== globalThis.location.origin) return;
+  if (event.origin !== "" && event.origin !== globalThis.location.origin)
+    return;
   worker.receive(event);
 });
