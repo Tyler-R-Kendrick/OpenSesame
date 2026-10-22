@@ -19,6 +19,7 @@ at the repository root; the product's users and voice are in
 | [Secret drop](secret-drop.md) | The one-time share ceremony and the claim page that opens it. |
 | [Writing a vault item type](vault-item-types.md) | The item-type JSON format, field by field. |
 | [Item formats](item-formats.md) | The closed parsers and synthetic generators for checksummed and issuer-shaped secrets. |
+| [Item rotation](item-rotation.md) | Default 30-day schedules, the locked-vault rotation queue, and the optional relay boundary. |
 
 ## Design canvases
 

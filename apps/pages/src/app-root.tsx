@@ -50,7 +50,12 @@ import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
 import { GateHost } from "./tutorial/gate-seat.js";
 
-import { useAfterUnlock, useVaultLanding } from "./app-root-hooks.js";
+import {
+  type VaultStatus,
+  useAfterUnlock,
+  useRotationQueue,
+  useVaultLanding,
+} from "./app-root-hooks.js";
 import { useComposition } from "./bindings/capabilities.js";
 
 export { useCapabilityGate } from "./app-root-hooks.js";
@@ -109,7 +114,6 @@ const DevLockV5Demo = import.meta.env.DEV
     )
   : null;
 
-type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
 
 export type AppSlots = {
@@ -341,7 +345,8 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const location = useLocation();
   const routes = resolved.useRouteContributions();
   const wrappers = resolved.useShellWrappers();
-  const { status } = resolved.useVault();
+  const { status, tomb, items } = resolved.useVault();
+  useRotationQueue(status, tomb, items);
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   const isDeadmanRelease = location.pathname === "/deadman";
   useEffect(() => activatePlan(compositionStore), []);
