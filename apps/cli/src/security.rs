@@ -37,6 +37,22 @@ pub enum SecurityCmd {
         #[arg(long, default_value = "store_path")]
         subject_kind: String,
     },
+    /// Scan local developer files for SSH keys and plaintext .env secrets.
+    ///
+    /// This is a user-invoked metadata scan. It reports paths, key types,
+    /// encryption state and sensitive variable names; it never reads a value
+    /// into the report and never changes a file.
+    Watchtower {
+        /// Home directory to scan. Defaults to HOME / USERPROFILE.
+        #[arg(long)]
+        home: Option<std::path::PathBuf>,
+        /// Scan SSH private keys only.
+        #[arg(long, conflicts_with = "env")]
+        ssh: bool,
+        /// Scan .env files only.
+        #[arg(long, conflicts_with = "ssh")]
+        env: bool,
+    },
 }
 
 /// `opensesame security …`.
@@ -48,6 +64,9 @@ pub async fn run(server: &str, output: &str, cmd: SecurityCmd) -> Result<()> {
             subject_id,
             subject_kind,
         } => cmd_check(server, output, &subject_id, &subject_kind).await,
+        SecurityCmd::Watchtower { home, ssh, env } => {
+            crate::watchtower::run(home, ssh, env, output)
+        }
     }
 }
 

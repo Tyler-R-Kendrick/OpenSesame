@@ -46,6 +46,11 @@ mod sync_migration;
 mod vault_area;
 mod vault_file;
 mod vault_migration;
+mod watchtower;
+mod watchtower_env;
+mod watchtower_scan;
+#[cfg(test)]
+mod watchtower_tests;
 use clap::{Parser, Subcommand, ValueEnum};
 use dev_run::DevCmd;
 use opensesame_authn::{
