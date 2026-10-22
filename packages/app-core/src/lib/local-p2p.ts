@@ -28,6 +28,8 @@ type Lp2pDataChannel = {
   ): void;
 };
 type Lp2pConnection = {
+  /** Draft implementations differ; close when the platform provides it. */
+  close?(): void;
   createDataChannel(
     label: string,
     options?: {
@@ -43,6 +45,8 @@ type Lp2pConnection = {
 type Lp2pReceiver = {
   onconnection: ((event: { connection: Lp2pConnection }) => void) | null;
   start(): Promise<void>;
+  /** Stop advertising and accepting new peers, when the draft exposes it. */
+  stop?(): void | Promise<void>;
 };
 type Lp2pRequest = { start(): Promise<Lp2pConnection> };
 
@@ -74,13 +78,22 @@ export async function startLocalPeerReceiver(options?: {
   const receiver = new Ctor(
     options?.nickname === undefined ? {} : { nickname: options.nickname },
   );
-  if (options?.onConnection)
-    receiver.onconnection = (event) => options.onConnection?.(event.connection);
+  const accepted = new Set<Lp2pConnection>();
+  receiver.onconnection = (event) => {
+    accepted.add(event.connection);
+    options?.onConnection?.(event.connection);
+  };
   await receiver.start();
+  let stopped = false;
   return {
     receiver,
     stop: () => {
+      if (stopped) return;
+      stopped = true;
       receiver.onconnection = null;
+      void receiver.stop?.();
+      for (const connection of accepted) connection.close?.();
+      accepted.clear();
     },
   };
 }

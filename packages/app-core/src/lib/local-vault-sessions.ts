@@ -156,6 +156,8 @@ async function writeAll(
   tomb: string,
   sessions: LocalVaultSession[],
 ): Promise<void> {
+  if (sessions.length > MAX_SESSIONS || !sessions.every(isSession))
+    throw new LocalDirectoryError("Session storage is invalid.");
   const bytes = new TextEncoder().encode(
     JSON.stringify({ version: 1, sessions }),
   );
@@ -204,11 +206,36 @@ async function settleExpired(
   return next;
 }
 
+async function readSettledSessions(tomb: string): Promise<LocalVaultSession[]> {
+  return withLocalAccessLedgerLock(tomb, "session", PATH, MAX_BYTES, async () =>
+    settleExpired(tomb, await readAll(tomb)),
+  );
+}
+
+/** Records include join codes and grants: only grant administrators may list them. */
 export async function listVaultSessions(
   tomb: string,
 ): Promise<LocalVaultSession[]> {
-  return withLocalAccessLedgerLock(tomb, "session", PATH, MAX_BYTES, async () =>
-    settleExpired(tomb, await readAll(tomb)),
+  await assertAccessCapability(tomb, "manage_grants");
+  return readSettledSessions(tomb);
+}
+
+/**
+ * The resource ids a session currently grants, without its bearer code or
+ * labels. Travel's copy detector needs only this much; members must not be
+ * able to read join credentials through it.
+ */
+export async function listVaultSessionGrantResources(
+  tomb: string,
+): Promise<
+  ReadonlyArray<Pick<SessionGrantSpec, "resourceKind" | "resourceId">>
+> {
+  const sessions = await readSettledSessions(tomb);
+  return sessions.flatMap((session) =>
+    session.grants.map((grant) => ({
+      resourceKind: grant.resourceKind,
+      resourceId: grant.resourceId,
+    })),
   );
 }
 
@@ -228,8 +255,15 @@ export async function createVaultSession(
     throw new LocalDirectoryError(
       "Choose a session lifetime between one minute and one week.",
     );
-  if (input.grants.length < 1 || input.grants.length > 64)
-    throw new LocalDirectoryError("Add at least one grant to the session.");
+  if (
+    !Array.isArray(input.grants) ||
+    input.grants.length < 1 ||
+    input.grants.length > 64 ||
+    !input.grants.every(isGrantSpec)
+  )
+    throw new LocalDirectoryError(
+      "Add at least one valid grant to the session.",
+    );
   let session = await withLocalAccessLedgerLock(
     tomb,
     "session",

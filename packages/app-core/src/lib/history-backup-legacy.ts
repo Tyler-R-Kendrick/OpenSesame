@@ -161,30 +161,40 @@ async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
   if (legacySwept) return;
   legacySwept = true;
   const tx = db.transaction([ACCOUNTS, ENTRIES], "readwrite");
-  for (const store of [ACCOUNTS, ENTRIES]) {
-    const rows: BoundaryValue[] = await idbReq(tx.objectStore(store).getAll());
-    for (const row of rows) {
-      if (!isJsonObject(row) || isString(row.sealed)) continue;
-      const account = store === ACCOUNTS ? asAccount(row) : null;
-      const entry = store === ENTRIES ? asEntry(row) : null;
-      if (account) {
-        await idbReq(
-          tx.objectStore(store).put(sealRow(atRest, store, account)),
-        );
-      } else if (entry) {
-        const sealed = sealRow(atRest, store, entry, entry.accountId);
-        await idbReq(tx.objectStore(store).put(sealed));
-      } else if (isString(row.id)) {
-        // Unreadable to the app either way: sealed whole rather than dropped
-        // or left in the clear.
-        const sealed = sealAtRest(
-          atRest.key,
-          rowBinding(store, row.id),
-          JSON.stringify(row),
-        );
-        await idbReq(tx.objectStore(store).put({ id: row.id, sealed }));
+  try {
+    for (const store of [ACCOUNTS, ENTRIES]) {
+      const rows: BoundaryValue[] = await idbReq(
+        tx.objectStore(store).getAll(),
+      );
+      for (const row of rows) {
+        if (!isJsonObject(row) || isString(row.sealed)) continue;
+        const account = store === ACCOUNTS ? asAccount(row) : null;
+        const entry = store === ENTRIES ? asEntry(row) : null;
+        if (account) {
+          await idbReq(
+            tx.objectStore(store).put(sealRow(atRest, store, account)),
+          );
+        } else if (entry) {
+          const sealed = sealRow(atRest, store, entry, entry.accountId);
+          await idbReq(tx.objectStore(store).put(sealed));
+        } else if (isString(row.id)) {
+          // Unreadable to the app either way: sealed whole rather than dropped
+          // or left in the clear.
+          const sealed = sealAtRest(
+            atRest.key,
+            rowBinding(store, row.id),
+            JSON.stringify(row),
+          );
+          await idbReq(tx.objectStore(store).put({ id: row.id, sealed }));
+        }
       }
     }
+    await txDone(tx);
+  } catch (error) {
+    // A transient IndexedDB failure must not latch the sweep off forever:
+    // later writes would keep serving unsealed legacy rows.
+    legacySwept = false;
+    throw error;
   }
 }
 
@@ -209,7 +219,13 @@ async function withDb<T>(
     return undefined;
   }
   try {
-    await sealLegacyRows(db, atRest);
+    try {
+      await sealLegacyRows(db, atRest);
+    } catch {
+      // A failed sweep is a memory-fallback write, not a rejected history
+      // operation; the next call retries the sweep.
+      return undefined;
+    }
     return await run(db, atRest);
   } finally {
     db.close();

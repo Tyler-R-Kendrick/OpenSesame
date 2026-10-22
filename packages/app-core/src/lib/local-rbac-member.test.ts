@@ -30,14 +30,15 @@ describe("local Access capabilities for a signed-in member", () => {
       name: "Bob",
     });
     const bob = withBob.entries.find((row) => row.name === "Bob");
+    // A directory edit invalidates the session that made it; the owner signs
+    // in again before the next administrative change.
+    await signInLocalIdentity(fixture.tomb, fixture.personId);
     await fixture.change({
       action: "membership",
       organizationId: fixture.organizationId,
       principalId: bob?.id ?? "",
       role: "member",
     });
-    // The owner signing out of this tab is not grant administration.
-    await revokeLocalIdentitySession(fixture.tomb, fixture.session.id);
     // Bob's own authenticator, beside the same lock queue.
     vi.stubGlobal("navigator", {
       ...navigator,
@@ -69,6 +70,7 @@ describe("local Access capabilities for a signed-in member", () => {
       revokeRecordedLocalGrant(fixture.tomb, "grant-1"),
     ).rejects.toThrow(OPERATOR_ONLY);
     await revokeLocalIdentitySession(fixture.tomb, session.id);
-    expect(await resolveCurrentAccessRole(fixture.tomb)).toBe("operator");
+    // A member's own sign-out is not a road back to the custodian role.
+    expect(await resolveCurrentAccessRole(fixture.tomb)).toBe("guest");
   });
 });

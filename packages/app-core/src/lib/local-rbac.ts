@@ -160,16 +160,19 @@ export async function resolveCurrentAccessRole(
     return claimed ? "guest" : "operator";
   }
   try {
-    const { currentLocalIdentitySession, listLocalIdentitySessions } =
+    const { currentLocalIdentityActor, hasPresentedLocalIdentity } =
       await import("./local-sessions.js");
-    for (const row of await listLocalIdentitySessions(tomb)) {
-      const session = await currentLocalIdentitySession(tomb, row.principalId);
-      if (session) {
-        return resolveAccessRole(directory, session.principalId) ?? "member";
-      }
+    const actor = await currentLocalIdentityActor(tomb);
+    if (actor) {
+      return resolveAccessRole(directory, actor.principalId) ?? "member";
     }
+    // A tab that authenticated someone before has no custodian fallback:
+    // revoking or expiring that session must not turn its holder into the
+    // vault custodian. A fresh unlock with no presentation still does.
+    if (hasPresentedLocalIdentity(tomb)) return "guest";
   } catch {
-    /* no local identity session — vault custodian */
+    // A session read failure fails closed once an operator exists.
+    return claimed ? "guest" : "operator";
   }
 
   // Unlocked non-guest vault custodian administers Access — unless a fence

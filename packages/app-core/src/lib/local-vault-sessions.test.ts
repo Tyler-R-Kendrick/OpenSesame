@@ -181,6 +181,25 @@ describe("local vault sessions", () => {
     ]);
   });
 
+  it("rejects an over-long grant before it can corrupt the ledger", async () => {
+    await expect(
+      createVaultSession(tomb, {
+        label: "Too long",
+        durationSeconds: 3600,
+        grants: [
+          {
+            subject: { kind: "accessRole", role: "guest" },
+            resourceKind: "vault",
+            resourceId: tomb,
+            resourceLabel: "x".repeat(129),
+            policy: "open",
+          },
+        ],
+      }),
+    ).rejects.toThrow(/valid grant/u);
+    expect(await listVaultSessions(tomb)).toEqual([]);
+  });
+
   it("redeems a running session code for a principal mid-run", async () => {
     const guest = mintGuestSessionPerson();
     const directory = await ensureOwnerPerson(tomb, "Ada");

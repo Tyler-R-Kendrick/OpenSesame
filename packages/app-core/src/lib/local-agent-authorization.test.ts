@@ -34,6 +34,7 @@ import { enrollLocalPasskey } from "./local-passkeys.js";
 import { consumedApplicationRequest } from "./local-request.fixture.js";
 import {
   type LocalSession,
+  resetLocalSessions,
   revokeLocalIdentitySession,
   signInLocalAgent,
   signInLocalIdentity,
@@ -276,6 +277,7 @@ it.each(["organization", "approval", "scope"])(
 );
 
 it("requires an authorized human administrator and current agent membership", async () => {
+  resetLocalSessions();
   await change({
     action: "membership",
     organizationId: org,
@@ -332,18 +334,23 @@ it.each(["human", "agent", "key", "grant", "human-grant", "membership"])(
       await revokeLocalIdentitySession(tomb, humanSession.id);
     if (target === "agent")
       await revokeLocalIdentitySession(tomb, agentSession.id);
-    if (target === "key") await revokeLocalAgentKey(tomb, agent, credentialId);
+    if (target === "key") {
+      resetLocalSessions();
+      await revokeLocalAgentKey(tomb, agent, credentialId);
+    }
     if (target === "grant")
       await revokeLocalApplicationGrant(tomb, agentSession, approved.id);
     if (target === "human-grant")
       await revokeLocalApplicationGrant(tomb, humanSession, approved.id);
-    if (target === "membership")
+    if (target === "membership") {
+      resetLocalSessions();
       await change({
         action: "membership",
         organizationId: org,
         principalId: agent,
         role: null,
       });
+    }
     const action = vi.fn();
     await expect(
       withLocalApplicationGrant(tomb, approved, app, ["records:read"], action),

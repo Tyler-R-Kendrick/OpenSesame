@@ -24,6 +24,7 @@ import {
   requireLocalApplicationAdmission,
 } from "./local-applications.js";
 import { LocalDirectoryError } from "./local-directory.js";
+import { resolveCurrentAccessRole } from "./local-rbac.js";
 import {
   type LocalSession,
   withLocalIdentitySession,
@@ -55,11 +56,19 @@ export type SiopSocialProof = Readonly<{
 const SOCIAL_PROOF_LIFETIME_MS = 10 * 60_000;
 
 async function assertSocialProof(
+  tomb: string,
   proof: SiopSocialProof,
   principalId: string,
   seams: SiopAuthoritySeams,
 ): Promise<void> {
   if (proof.personId !== principalId) refused();
+  const { currentLocalIdentityActor } = await import("./local-sessions.js");
+  const actor = await currentLocalIdentityActor(tomb);
+  if (actor) {
+    if (actor.principalId !== principalId) refused();
+  } else if ((await resolveCurrentAccessRole(tomb)) !== "operator") {
+    refused();
+  }
   if (
     !Number.isFinite(proof.at) ||
     proof.at > Date.now() ||
@@ -262,7 +271,8 @@ export async function approveSiopAuthorizationWithSocial(
   request: NormalizedAuthorizationRequest,
   seams: SiopAuthoritySeams = {},
 ): Promise<{ redirectUrl: string; identity: SiopPublicIdentity }> {
-  const assertActive = () => assertSocialProof(proof, proof.personId, seams);
+  const assertActive = () =>
+    assertSocialProof(tomb, proof, proof.personId, seams);
   await assertActive();
   const approved = await mintSiopAuthorization(
     tomb,
