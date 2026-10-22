@@ -21,6 +21,7 @@ at the repository root; the product's users and voice are in
 | [Item formats](item-formats.md) | The closed parsers and synthetic generators for checksummed and issuer-shaped secrets. |
 | [Item rotation](item-rotation.md) | Default 30-day schedules, the locked-vault rotation queue, and the optional relay boundary. |
 | [Agent Vault](agent-vault.md) | The native/PWA split for brokered agent access, the Infisical parity contract, and the delivery slices. |
+| [Machine identity auth](machine-identity-auth.md) | Every Infisical machine-identity auth method, its fields, native/PWA applicability, and the parity gaps. |
 
 ## Design canvases
 
