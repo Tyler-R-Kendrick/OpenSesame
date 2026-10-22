@@ -203,7 +203,17 @@ export class AppClaimService {
 
   async #fetchProof(wellKnown: string): Promise<JsonObject> {
     let text: string;
-    if (this.options.allowDirectFetch) {
+    const directHost = (() => {
+      try {
+        return new URL(wellKnown).hostname.replace(/^\[|\]$/gu, "");
+      } catch {
+        return "";
+      }
+    })();
+    const directLoopback = new Set(["localhost", "127.0.0.1", "::1"]).has(
+      directHost,
+    );
+    if (this.options.allowDirectFetch && directLoopback) {
       let res: Response;
       try {
         res = await this.#fetchImpl(wellKnown, {

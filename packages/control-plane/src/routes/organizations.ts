@@ -64,6 +64,17 @@ export type { JitJoinInput, JitJoinResult } from "./organization-membership.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
+/** A tenant issuer may name exactly one organization. */
+async function issuerClaimed(
+  ctx: AppContext,
+  issuer: string | undefined,
+  exceptOrganizationId?: string,
+): Promise<boolean> {
+  if (!issuer) return false;
+  const owner = await ctx.stores.organizations.findByIssuer(issuer);
+  return owner !== undefined && owner.id !== exceptOrganizationId;
+}
+
 /**
  * How stale an organization assertion may be at the join route (ADR 0055).
  *
@@ -387,6 +398,19 @@ organizationRoutes.post(
             if (await ctx.stores.organizations.getBySlug(parsed.data.slug)) {
               return c.json({ error: "slug_taken" }, 409);
             }
+            if (
+              (await issuerClaimed(ctx, parsed.data.ssoIssuer)) ||
+              (await issuerClaimed(ctx, parsed.data.samlIssuer))
+            ) {
+              return c.json(
+                {
+                  error: "issuer_taken",
+                  message:
+                    "That identity provider already belongs to another tenant.",
+                },
+                409,
+              );
+            }
 
             const now = ctx.clock();
             const org: Organization = {
@@ -635,6 +659,21 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
         metadataXml: samlMetadataXml,
       });
       if (samlError) return c.json(samlError, 400);
+      if (
+        (parsed.data.ssoIssuer !== undefined &&
+          (await issuerClaimed(ctx, ssoIssuer, org.id))) ||
+        (parsed.data.samlIssuer !== undefined &&
+          (await issuerClaimed(ctx, samlIssuer, org.id)))
+      ) {
+        return c.json(
+          {
+            error: "issuer_taken",
+            message:
+              "That identity provider already belongs to another tenant.",
+          },
+          409,
+        );
+      }
       const unsafeIssuer = issuerConfigurationError(
         ctx.config,
         parsed.data.ssoIssuer,

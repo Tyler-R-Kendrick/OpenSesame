@@ -367,13 +367,28 @@ async function parseIdpMetadata(xml: string): Promise<ResolvedIdpMetadata> {
         `//*[local-name()='IDPSSODescriptor']/*[local-name()='SingleSignOnService'][@Binding='${BINDING_REDIRECT}']/@Location`,
       )
       .at(0)?.nodeValue ?? "";
-  if (entityId.length === 0 || certificates.length === 0) {
+  if (entityId.length === 0 || certificates.length === 0 || !ssoUrl) {
     throw new SamlAuthError(
       "metadata_unavailable",
-      "The organization's SAML metadata declares no entityID or signing certificate.",
+      "The organization's SAML metadata declares no entityID, signing certificate, or SSO endpoint.",
     );
   }
-  return { entityId, ssoUrl, certificates };
+  let safeSso: URL;
+  try {
+    safeSso = new URL(ssoUrl);
+    if (
+      (safeSso.protocol !== "https:" && safeSso.protocol !== "http:") ||
+      safeSso.username ||
+      safeSso.password
+    )
+      throw new Error("unsafe SSO URL");
+  } catch {
+    throw new SamlAuthError(
+      "metadata_unavailable",
+      "The organization's SAML SSO endpoint is not an HTTP(S) URL.",
+    );
+  }
+  return { entityId, ssoUrl: safeSso.href, certificates };
 }
 
 /**
@@ -661,6 +676,17 @@ export async function completeSamlResponse(
   }
 
   const metadata = await resolveIdpMetadata(ctx, cfg);
+  // A metadata document's entityID is an identity key. Two tenants may not
+  // share one, or one tenant's assertion would resolve to the other's rows.
+  const claimed = await ctx.stores.organizations.findByIssuer(
+    metadata.entityId,
+  );
+  if (claimed && claimed.id !== cfg.organizationId) {
+    throw new SamlAuthError(
+      "not_configured",
+      "This identity provider belongs to another tenant.",
+    );
+  }
   const client = buildSamlClient(ctx, metadata);
   let profile: Profile | null;
   try {
