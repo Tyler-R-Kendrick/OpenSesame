@@ -121,6 +121,8 @@ Machine identity authentication is specified separately in
 SPIFFE, TLS certificate, Kubernetes, AWS, GCP, Azure, Alibaba, OCI and LDAP.
 Group provisioning and GitHub team sync are in
 [group provisioning](group-provisioning.md).
+Connector creation, invocation and the 1Password Connect-compatible API are in
+[connections experience](connections-experience.md).
 
 ## Runtime contracts
 

@@ -25,6 +25,7 @@ at the repository root; the product's users and voice are in
 | [Group provisioning](group-provisioning.md) | GitHub team sync, SCIM Group CRUD and approval, and groups as sharing principals. |
 | [Email domain verification](email-domain-verification.md) | DNS-proved work domains, SSO routing, SCIM enforcement, expiry and the current parity gaps. |
 | [Assume privilege](assume-privilege.md) | Time-boxed, audited permission testing for owned agents and applications, scoped to one vault or project. |
+| [Connections experience](connections-experience.md) | Task-first setup, reuse/verification, connection doctor, agent invocation and 1Password Connect API parity. |
 
 ## Design canvases
 
