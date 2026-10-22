@@ -17,6 +17,7 @@ import { kvGet, kvSetDurable } from "./kv.js";
 
 export const HONEY_TOKEN_KEY = "settings.honey-tokens.v1";
 export const HONEY_TOKEN_MARKER = "osr_hny_";
+export const HONEY_ID_PREFIX = "c0de";
 export const HONEY_TOKEN_ID_LEN = 32;
 export const HONEY_TOKEN_SECRET_LEN = 32;
 export const MAX_HONEY_TOKENS = 128;
@@ -37,14 +38,13 @@ export type HoneyTokenStatus = "active" | "triggered" | "revoked";
 type Stored = { version: 1; tokens: HoneyTokenRecord[] };
 
 const ID = /^[0-9a-f]{32}$/u;
-const TOKEN = /^osr_hny_[0-9a-f]{32}_[0-9a-f]{32}$/u;
+const TOKEN = /^(?:osr_hny_[0-9a-f]{32}_[0-9a-f]{32}|osr_c0de[0-9a-f]{28})$/u;
 
 export function mintHoneyToken(): { id: string; token: string } {
-  const id = hex(16);
-  return {
-    id,
-    token: `${HONEY_TOKEN_MARKER}${id}_${hex(16)}`,
-  };
+  // The HoneyVault token is a normal proxy-key shape. Only the reserved id
+  // namespace tells the proxy it is a decoy; nothing says "honey" in the value.
+  const id = `${HONEY_ID_PREFIX}${hex(16).slice(4)}`;
+  return { id, token: `osr_${id}` };
 }
 
 function hex(bytes: number): string {
@@ -156,6 +156,7 @@ export function honeyTokenStatus(token: HoneyTokenRecord): HoneyTokenStatus {
 /** The id in a well-formed token, or null for any near miss. */
 export function honeyTokenId(value: string): string | null {
   if (!TOKEN.test(value)) return null;
+  if (value.startsWith("osr_c0de")) return value.slice(4);
   return value.slice(HONEY_TOKEN_MARKER.length, HONEY_TOKEN_MARKER.length + 32);
 }
 

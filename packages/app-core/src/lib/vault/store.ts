@@ -3,8 +3,10 @@ import {
   VaultCorruptError,
   type VaultHeader,
   WrongPasswordError,
+  createItem,
   emptyBody,
   importVaultKey,
+  manualPassword,
   syncInstalledTypes,
 } from "@opensesame/vault-core";
 import { host } from "../../host.js";
@@ -14,6 +16,7 @@ import {
   recordActivityEvent,
 } from "../activity-log.js";
 import { recordDeadmanAuthentication } from "../deadman/state.js";
+import { HONEY_VAULT_ITEMS } from "../duress/settings/modes/honey-vault.js";
 import {
   endEphemeralTomb,
   forgetDecoyScratch,
@@ -22,6 +25,7 @@ import {
 } from "../duress/store/decoy-scratch.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
 import { sessionRootDigestFromKey } from "../duress/store/vault-session-digest.js";
+import { mintHoneyToken, registerHoneyToken } from "../honey-tokens.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
 import { kvDelete } from "../kv.js";
 import { lastVaultIsGuest, writeLastVaultId } from "../last-vault.js";
@@ -202,6 +206,8 @@ import {
   presentRetiredOwnerStarted,
   retireRetiredOwnerTask,
 } from "./retired-owner-presentation.js";
+
+const honeyVaultSeededScopes = new Set<string>();
 
 export class VaultStore {
   readonly #retiredEntries = new RetiredOperationEntries();
@@ -897,6 +903,7 @@ export class VaultStore {
             )
           )
             throw new Error("Credential submission ended.");
+          await this.#seedHoneyVault(origin.tomb);
           scope = this.#scope;
           key = this.#vaultKey;
         },
@@ -909,6 +916,50 @@ export class VaultStore {
     if (!data) return false;
     this.#noteRetiredInteraction("vault_read");
     return true;
+  }
+
+  /** Retired-password HoneyVault: convincing credentials, never `hny`-branded. */
+  async #seedHoneyVault(ownerScope: string): Promise<void> {
+    if (honeyVaultSeededScopes.has(ownerScope)) return;
+    honeyVaultSeededScopes.add(ownerScope);
+    const already = new Set(this.getSnapshot().items.map((item) => item.name));
+    const items = HONEY_VAULT_ITEMS.filter((title) => !already.has(title)).map(
+      (title) => {
+        const { token } = mintHoneyToken();
+        return { title, token };
+      },
+    );
+    for (const item of items) {
+      try {
+        await registerHoneyToken(
+          ownerScope,
+          `${item.title} (HoneyVault)`,
+          item.token,
+        );
+      } catch {
+        // A full/corrupt honey store must not change the unlock presentation.
+      }
+    }
+    try {
+      const known = new Set<string>();
+      for (const item of this.getSnapshot().items) {
+        if (!(HONEY_VAULT_ITEMS as readonly string[]).includes(item.name))
+          continue;
+        if (known.has(item.name)) await this.purgeItem(item.id);
+        else known.add(item.name);
+      }
+      await this.addItems(
+        items.map(({ title, token }) => {
+          const account = createItem("account", title);
+          account.methods = [
+            manualPassword(`${account.id}:password`, token, account.createdAt),
+          ];
+          return account;
+        }),
+      );
+    } catch {
+      // The synthetic session still opens; the owner record is what alerts.
+    }
   }
 
   #noteRetiredInteraction(

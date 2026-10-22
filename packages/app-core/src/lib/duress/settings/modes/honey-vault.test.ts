@@ -13,7 +13,7 @@ describe("HoneyVault mode", () => {
     const records = honeyVaultRecords(built.body);
     expect(records).toHaveLength(6);
     expect(new Set(records.map((row) => row.token)).size).toBe(6);
-    expect(records.every((row) => row.token.startsWith("osr_hny_"))).toBe(true);
+    expect(records.every((row) => row.token.startsWith("osr_"))).toBe(true);
     expect(decodePlan(encodePlan(built))).toEqual(built);
     expect(hasEffectRunner("honey_vault")).toBe(true);
   });
@@ -31,7 +31,7 @@ describe("HoneyVault mode", () => {
         (item) =>
           item.kind === "account" &&
           item.methods[0]?.type === "password" &&
-          String(item.methods[0].secret).startsWith("osr_hny_"),
+          String(item.methods[0].secret).startsWith("osr_"),
       ),
     ).toBe(true);
   });

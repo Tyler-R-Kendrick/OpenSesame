@@ -119,7 +119,15 @@ describe("physical retired login data", () => {
       expect(f.store.isGenuineSession()).toBe(false);
       expect(f.store.getSnapshot().guest).toBe(true);
       expect(f.store.activeTomb()).toBe("guest-scratch");
-      expect(f.store.getSnapshot().items).toEqual([]);
+      const honey = f.store
+        .getSnapshot()
+        .items.filter(
+          (item) =>
+            item.kind === "account" &&
+            item.methods[0]?.type === "password" &&
+            /^osr_c0de[0-9a-f]{28}$/u.test(String(item.methods[0].secret)),
+        );
+      expect(honey).toHaveLength(6);
       expect(() => f.store.exportSealed()).toThrow("owner vault");
       await expect(f.store.enrollPin("48291037")).rejects.toThrow(
         "owner vault",

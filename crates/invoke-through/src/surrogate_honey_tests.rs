@@ -96,3 +96,14 @@ fn an_uppercase_id_is_reported_in_lowercase_for_the_pwa_match() {
         Some("abcdef0123456789abcdef0123456789")
     );
 }
+
+#[test]
+fn a_normal_looking_surrogate_id_in_the_honey_namespace_is_detected() {
+    let value = "osr_c0de0123456789abcdef0123456789ab";
+    assert_eq!(
+        honey_token_id(value).as_deref(),
+        Some("c0de0123456789abcdef0123456789ab")
+    );
+    assert_eq!(honey_token_id("osr_c0de0123456789abcdef0123456"), None);
+    assert_eq!(honey_token_id("osr_0123456789abcdef0123456789abcdef"), None);
+}

@@ -61,6 +61,9 @@ pub const SURROGATE_HEX_LEN: usize = 32;
 /// secret. The id is safe to report; the secret only makes the value
 /// unguessable when planted.
 pub const HONEY_TOKEN_MARKER: &str = "osr_hny_";
+/// The HoneyVault spelling is a normal-looking surrogate id whose first four
+/// hex characters reserve it for a decoy. The rest is random.
+pub const HONEY_ID_PREFIX: &str = "c0de";
 pub const HONEY_TOKEN_ID_LEN: usize = 32;
 pub const HONEY_TOKEN_SECRET_LEN: usize = 32;
 
@@ -357,12 +360,26 @@ impl SurrogateLedger {
 /// The id of a well-formed self-managed honey token, or `None`.
 #[must_use]
 pub fn honey_token_id(value: &str) -> Option<String> {
+    if let Some(id) = normal_honey_id(value) {
+        return Some(id);
+    }
     let rest = value.strip_prefix(HONEY_TOKEN_MARKER)?;
     let (id, secret) = rest.split_once('_')?;
     if id.len() != HONEY_TOKEN_ID_LEN
         || secret.len() != HONEY_TOKEN_SECRET_LEN
         || !id.bytes().all(|b| b.is_ascii_hexdigit())
         || !secret.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return None;
+    }
+    Some(id.to_ascii_lowercase())
+}
+
+fn normal_honey_id(value: &str) -> Option<String> {
+    let id = value.strip_prefix("osr_")?;
+    if id.len() != SURROGATE_HEX_LEN
+        || !id.starts_with(HONEY_ID_PREFIX)
+        || !id.bytes().all(|b| b.is_ascii_hexdigit())
     {
         return None;
     }

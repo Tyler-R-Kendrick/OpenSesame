@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   HONEY_TOKEN_KEY,
-  HONEY_TOKEN_MARKER,
   honeyTokenId,
   honeyTokenStatus,
   issueHoneyToken,
@@ -20,7 +19,7 @@ describe("self-managed honey tokens", () => {
   it("issues a synthetic proxy key with the public id encoded once", async () => {
     const token = await issueHoneyToken("work", "CI decoy", 1_700_000_000_000);
     expect(token.token).toMatch(
-      new RegExp(`^${HONEY_TOKEN_MARKER}[0-9a-f]{32}_[0-9a-f]{32}$`, "u"),
+      /^(?:osr_hny_[0-9a-f]{32}_[0-9a-f]{32}|osr_c0de[0-9a-f]{28})$/u,
     );
     expect(honeyTokenId(token.token)).toBe(token.id);
     expect(honeyTokenStatus(token)).toBe("active");

@@ -37,7 +37,9 @@ export function honeyVaultRecords(body: JsonValue): readonly HoneyVaultItem[] {
       row.title.length === 0 ||
       row.title.length > 128 ||
       typeof row.token !== "string" ||
-      !/^osr_hny_[0-9a-f]{32}_[0-9a-f]{32}$/u.test(row.token)
+      !/^(?:osr_hny_[0-9a-f]{32}_[0-9a-f]{32}|osr_c0de[0-9a-f]{28})$/u.test(
+        row.token,
+      )
     )
       return [];
     return [{ title: row.title, token: row.token }];
