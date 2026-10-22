@@ -11,6 +11,8 @@
 //! party, and a failed call reports the Host's hint rather than echoing what
 //! was sent.
 
+mod watchtower;
+
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use serde_json::{json, Value};
@@ -64,9 +66,7 @@ pub async fn run(server: &str, output: &str, cmd: SecurityCmd) -> Result<()> {
             subject_id,
             subject_kind,
         } => cmd_check(server, output, &subject_id, &subject_kind).await,
-        SecurityCmd::Watchtower { home, ssh, env } => {
-            crate::watchtower::run(home, ssh, env, output)
-        }
+        SecurityCmd::Watchtower { home, ssh, env } => watchtower::run(home, ssh, env, output),
     }
 }
 
