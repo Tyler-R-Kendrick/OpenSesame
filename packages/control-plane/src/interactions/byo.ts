@@ -101,6 +101,7 @@ const DISCOVERY_TIMEOUT_MS = 5_000;
 const BUDGET_WINDOW_MS = 10 * 60_000;
 const BUDGET_PER_FINGERPRINT = 5;
 /** Bounded so a fingerprint flood cannot grow the map without limit. */
+const BUDGET_TOTAL = 200;
 const BUDGET_MAX_KEYS = 2048;
 
 /**
@@ -124,9 +125,13 @@ function consumeRegistrationBudget(fingerprint: string, now: number): boolean {
     if (live.length === 0) registrationBudget.delete(key);
     else if (live.length !== attempts.length) registrationBudget.set(key, live);
   }
+  const total = registrationBudget.get("__total__") ?? [];
   const attempts = registrationBudget.get(fingerprint) ?? [];
-  if (attempts.length >= BUDGET_PER_FINGERPRINT) return false;
+  if (total.length >= BUDGET_TOTAL || attempts.length >= BUDGET_PER_FINGERPRINT)
+    return false;
   attempts.push(now);
+  total.push(now);
+  registrationBudget.set("__total__", total);
   registrationBudget.set(fingerprint, attempts);
   while (registrationBudget.size > BUDGET_MAX_KEYS) {
     const victim = registrationBudget.keys().next().value;
