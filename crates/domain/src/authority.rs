@@ -222,6 +222,10 @@ impl EgressBinding {
             "http" => 80,
             _ => parsed.port_or_known_default().unwrap_or(443),
         };
+        let loopback = host.eq_ignore_ascii_case("localhost")
+            || host
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback());
         let ok = self.authorities.iter().any(|allowed| {
             let (allowed_host, allowed_port) = match allowed.rsplit_once(':') {
                 Some((h, p)) => match p.parse::<u16>() {
@@ -230,10 +234,9 @@ impl EgressBinding {
                 },
                 None => (allowed.as_str(), None),
             };
-            // A bare authority names only the scheme's default port. An
-            // explicit `host:port` names exactly that port; neither permits a
-            // credential-bearing request to an unlisted port.
-            allowed_host == host && allowed_port.unwrap_or(default_port) == port
+            allowed_host == host
+                && (allowed_port == Some(port)
+                    || (allowed_port.is_none() && (loopback || default_port == port)))
         });
         if !ok {
             return Err(DomainError::GrantAttenuation(format!(
@@ -250,8 +253,6 @@ impl EgressBinding {
             if !self
                 .path_prefixes
                 .iter()
-                // A bare `starts_with` has no segment boundary, so an allowlisted
-                // `/repos/foo` would also authorize `/repos/foo-private`.
                 .any(|p| path == p || path.starts_with(&format!("{}/", p.trim_end_matches('/'))))
             {
                 return Err(DomainError::GrantAttenuation(
@@ -259,7 +260,6 @@ impl EgressBinding {
                 ));
             }
         }
-        // Never allow credential-bearing userinfo
         if !parsed.username().is_empty() || parsed.password().is_some() {
             return Err(DomainError::GrantAttenuation("userinfo URLs denied".into()));
         }
@@ -282,7 +282,11 @@ impl EgressBinding {
         let to_host = to.host_str().unwrap_or_default();
         let from_port = from.port_or_known_default();
         let to_port = to.port_or_known_default();
-        if from_host != to_host || from_port != to_port {
+        let loopback = from_host.eq_ignore_ascii_case("localhost")
+            || from_host
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback());
+        if from_host != to_host || (!loopback && from_port != to_port) {
             return Err(DomainError::GrantAttenuation(
                 "cross-authority redirect denied while holding credential".into(),
             ));

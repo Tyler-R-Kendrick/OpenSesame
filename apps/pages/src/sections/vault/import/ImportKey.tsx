@@ -18,10 +18,17 @@ import { ImportSheet } from "./ImportSheet.js";
 function useImportFlow() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const fileNow = useRef<File | null>(file);
+  fileNow.current = file;
+  const queued = useRef(false);
   // A file chosen at the door waited for this vault (ADR 0188): whichever Import
   // key mounts first takes it, so its sheet is open as soon as the vault is.
   useEffect(() => {
     const take = () => {
+      if (fileNow.current !== null) {
+        queued.current = true;
+        return;
+      }
       const waiting = takePendingImport();
       if (waiting) setFile(waiting);
     };
@@ -29,7 +36,13 @@ function useImportFlow() {
     return subscribePendingImport(take);
   }, []);
   const pick = useCallback(() => fileRef.current?.click(), []);
-  const close = useCallback(() => setFile(null), []);
+  const close = useCallback(() => {
+    setFile(null);
+    if (!queued.current) return;
+    queued.current = false;
+    const waiting = takePendingImport();
+    if (waiting) setFile(waiting);
+  }, []);
   const element = (
     <>
       <input
@@ -51,7 +64,7 @@ function useImportFlow() {
       ) : null}
     </>
   );
-  return { pick, open: file !== null, element };
+  return { pick, close, open: file !== null, element };
 }
 
 /**

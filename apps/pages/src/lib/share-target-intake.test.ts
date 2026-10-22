@@ -101,12 +101,15 @@ describe("share target intake", () => {
   it("cannot decrypt a tampered cache entry", async () => {
     const { cache, key } = await cacheWith(meta({ text: "hello" }));
     vi.stubGlobal("caches", { open: async () => cache });
-    expect(
-      await captureShareTarget(location(`${key.slice(0, -1)}A`), {
+    const tampered = key.endsWith("A")
+      ? `${key.slice(0, -1)}B`
+      : `${key.slice(0, -1)}A`;
+    await expect(
+      captureShareTarget(location(tampered), {
         state: null,
         replaceState: vi.fn(),
       } as unknown as History),
-    ).toBeNull();
+    ).resolves.toBeNull();
   });
 
   it("removes a malformed token without touching the cache", async () => {
