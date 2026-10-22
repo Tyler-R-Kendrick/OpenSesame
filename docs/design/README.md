@@ -33,6 +33,8 @@ at the repository root; the product's users and voice are in
 | [Developer Watchtower](watchtower.md) | User-invoked CLI scan for plaintext SSH keys and `.env` files, reporting metadata only. |
 | [Web Locks](web-locks.md) | Browser lock names, coverage, order, fallback and the test-queue rule. |
 | [File System API](file-system.md) | OPFS coverage and the File System Access save/open fallbacks. |
+| [Local Network Access](local-network-access.md) | Fine-grained LNA permissions, address spaces, callers and deployment policy. |
+| [mDNS Device Discovery](mdns-discovery.md) | Why browsers cannot browse mDNS, the native discovery contract, and why Tailscale remains the default transport. |
 
 ## Design canvases
 

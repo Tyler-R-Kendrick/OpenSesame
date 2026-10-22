@@ -4,6 +4,7 @@
  */
 
 import { z } from "zod";
+import { localNetworkFetch } from "../local-network-fetch.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 import {
   clearCliAppIntegrationBearer,
@@ -174,7 +175,7 @@ async function postPairing(
   origin: string,
   body: PairingConfirmBody | PairingExchangeBody,
 ): Promise<Response> {
-  return fetch(`${base}${path}`, {
+  return localNetworkFetch(`${base}${path}`, {
     method: "POST",
     credentials: "omit",
     headers: {
@@ -182,6 +183,7 @@ async function postPairing(
       Origin: origin,
     },
     body: JSON.stringify(body),
+    timeoutMs: 15_000,
   });
 }
 
@@ -207,10 +209,11 @@ export async function fetchCliAppPairingChallenge(
   if (!base) return refused("invalid_origin");
   const url = new URL(`${base}${CLI_APP_PAIRING_CHALLENGE_PATH}`);
   url.searchParams.set("code", parsed.code);
-  const res = await fetch(url, {
+  const res = await localNetworkFetch(url.href, {
     method: "GET",
     credentials: "omit",
     headers: { Origin: parsed.origin },
+    timeoutMs: 15_000,
   });
   if (!res.ok) return refusalFromResponse(res);
   const body = pairingChallengeBodySchema.safeParse(await res.json());
@@ -272,7 +275,7 @@ export async function submitCliAppWebAuthnRegistration(
     await import("./webauthn-credential.js");
   let res: Response;
   try {
-    res = await fetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {
+    res = await localNetworkFetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {
       method: "POST",
       credentials: "omit",
       headers: {
@@ -283,6 +286,7 @@ export async function submitCliAppWebAuthnRegistration(
       body: JSON.stringify(
         cliAppWebAuthnRegisterPayload(vaultSessionRootDigest, registration),
       ),
+      timeoutMs: 15_000,
     });
   } catch {
     return refused("network");

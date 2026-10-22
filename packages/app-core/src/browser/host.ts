@@ -109,12 +109,17 @@ const authenticator: AuthenticatorPort = {
  * into `local-network` and `loopback-network`. The first name the browser
  * knows answers; a browser that knows none has no such gate.
  */
-const LOCAL_NETWORK_NAMES = ["local-network-access", "local-network"] as const;
+const LOCAL_NETWORK_NAMES = {
+  local: ["local-network", "local-network-access"],
+  loopback: ["loopback-network", "local-network-access"],
+} as const;
 
-async function localNetworkPermission(): Promise<LocalNetworkPermission> {
+async function localNetworkPermission(
+  space: "local" | "loopback" = "local",
+): Promise<LocalNetworkPermission> {
   const permissions = globalThis.navigator?.permissions;
   if (!permissions?.query) return "unsupported";
-  for (const name of LOCAL_NETWORK_NAMES) {
+  for (const name of LOCAL_NETWORK_NAMES[space]) {
     try {
       // Not in the DOM lib's PermissionName union yet; the browser checks it.
       const descriptor: PermissionDescriptor = overlapCast({ name });

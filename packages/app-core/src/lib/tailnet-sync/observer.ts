@@ -13,6 +13,7 @@ import { isString } from "@opensesame/os-domain";
 import type { ObjectStore } from "@opensesame/vault-core";
 import { maybeEnvironment, maybePage } from "../../ports.js";
 import { addFileStoreSource, localFileStore } from "../file-parts-store.js";
+import { targetAddressSpaceFor } from "../local-network-fetch.js";
 import { refreshProjectsView } from "../projects.js";
 import { GUEST_TOMB, vaultStore } from "../vault/store.js";
 import { switchVault } from "../vaults.js";
@@ -121,20 +122,28 @@ function describe(drive: DrivePairing | null) {
 }
 
 /** What a failed pass tells the person: the gate's reason when it caused it. */
-async function failureMessage(error: Error | string): Promise<string> {
+async function failureMessage(
+  error: Error | string,
+  space: "local" | "loopback",
+): Promise<string> {
   if (isString(error)) return error;
-  return (await explainNetworkFailure(error)) ?? error.message;
+  return (await explainNetworkFailure(error, space)) ?? error.message;
 }
 
 /**
  * Let `drive` be reached: the gate refuses (blocked) or allows, and a person's
  * own pass waits out the browser's prompt on its first request.
  */
+function spaceOf(url: string): "local" | "loopback" {
+  return targetAddressSpaceFor(url) === "loopback" ? "loopback" : "local";
+}
+
 async function openTheWay(
   drive: DrivePairing,
   interactive: boolean,
 ): Promise<string | null> {
-  const gate = await networkGate(interactive);
+  const space = spaceOf(drive.url);
+  const gate = await networkGate(interactive, space);
   if (!gate.go) return gate.reason;
   if (gate.waitMs) await tailnetSyncSeams.reach(drive, gate.waitMs);
   return null;
@@ -165,6 +174,7 @@ async function pass(interactive: boolean): Promise<void> {
       phase: "error",
       error: await failureMessage(
         error instanceof Error ? error : String(error),
+        spaceOf(drive.url),
       ),
     });
   }
@@ -260,7 +270,10 @@ export async function pairTailnetDrive(
     if (blocked) throw new Error(blocked);
   } catch (error) {
     throw new Error(
-      await failureMessage(error instanceof Error ? error : String(error)),
+      await failureMessage(
+        error instanceof Error ? error : String(error),
+        spaceOf(next.url),
+      ),
     );
   }
   const theirs = (await tailnetSyncSeams.transport.read(next)).snapshot;

@@ -103,8 +103,13 @@ export type LocalNetworkPermission =
 
 /** What the device is doing: connectivity, activation, identification. */
 export type EnvironmentPort = {
-  /** The Local Network Access permission; absent where the host has none. */
-  localNetworkPermission?(): Promise<LocalNetworkPermission>;
+  /**
+   * The Local Network Access permission for a local or loopback destination;
+   * absent where the host has none.
+   */
+  localNetworkPermission?(
+    space?: "local" | "loopback",
+  ): Promise<LocalNetworkPermission>;
   readonly online: boolean;
   onOnlineChange(listener: (online: boolean) => void): () => void;
   readonly userAgent: string;
@@ -300,10 +305,16 @@ export function maybeEnvironment(): EnvironmentPort | undefined {
   return host().environment;
 }
 
-/** The Local Network Access permission; `unsupported` where the host has none. */
-export async function localNetworkPermission(): Promise<LocalNetworkPermission> {
+/**
+ * The Local Network Access permission; `unsupported` where the host has none.
+ * The spec split the old `local-network-access` into `local-network` and
+ * `loopback-network`; callers that reach loopback ask for the latter.
+ */
+export async function localNetworkPermission(
+  space: "local" | "loopback" = "local",
+): Promise<LocalNetworkPermission> {
   return (
-    (await maybeEnvironment()?.localNetworkPermission?.()) ?? "unsupported"
+    (await maybeEnvironment()?.localNetworkPermission?.(space)) ?? "unsupported"
   );
 }
 
