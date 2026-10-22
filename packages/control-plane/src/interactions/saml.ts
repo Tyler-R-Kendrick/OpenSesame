@@ -700,7 +700,12 @@ export async function completeSamlResponse(
     organization = await ctx.stores.organizations.findByIssuer(routing.issuer);
   }
 
-  const cfg = organization ? samlOrgConfig(organization) : undefined;
+  const cfg =
+    organization &&
+    organization.state !== "suspended" &&
+    organization.state !== "deleted"
+      ? samlOrgConfig(organization)
+      : undefined;
   if (!cfg) {
     throw new SamlAuthError(
       "not_configured",
