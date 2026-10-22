@@ -23,6 +23,7 @@ type PickerHost = {
     options?: SavePickerOptions,
   ) => Promise<FileSystemFileHandle>;
   showOpenFilePicker?: () => Promise<FileSystemFileHandle[]>;
+  showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
 };
 
 function picker(): PickerHost["showSaveFilePicker"] {
@@ -33,6 +34,11 @@ function picker(): PickerHost["showSaveFilePicker"] {
 function openPicker(): PickerHost["showOpenFilePicker"] {
   const host = globalThis as PickerHost;
   return host.showOpenFilePicker?.bind(host);
+}
+
+function directoryPicker(): PickerHost["showDirectoryPicker"] {
+  const host = globalThis as PickerHost;
+  return host.showDirectoryPicker?.bind(host);
 }
 
 function extensionOf(fileName: string): string | null {
@@ -131,6 +137,48 @@ export async function saveTextFile(
   description = "File",
 ): Promise<SaveOutcome> {
   return saveBlob(new Blob([text], { type }), fileName, description);
+}
+
+/**
+ * Choose a directory for one reviewed export. `null` when this browser has no
+ * directory picker or the person dismissed it; a picker failure is not treated
+ * as a successful save.
+ */
+export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null> {
+  const choose = directoryPicker();
+  if (choose === undefined) return null;
+  try {
+    return await choose();
+  } catch (error) {
+    if (cancelled(error)) return null;
+    throw error;
+  }
+}
+
+/** Write one file into a directory the person explicitly chose. */
+export async function saveBlobToDirectory(
+  directory: FileSystemDirectoryHandle,
+  fileName: string,
+  blob: Blob,
+): Promise<void> {
+  const handle = await directory.getFileHandle(fileName, { create: true });
+  const writable = await handle.createWritable();
+  try {
+    await writable.write(blob);
+    await writable.close();
+  } catch (error) {
+    await writable.abort().catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function saveTextToDirectory(
+  directory: FileSystemDirectoryHandle,
+  fileName: string,
+  text: string,
+  type = "text/plain",
+): Promise<void> {
+  await saveBlobToDirectory(directory, fileName, new Blob([text], { type }));
 }
 
 /** Whether this context exposes the browser's origin private file system. */

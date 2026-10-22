@@ -1,4 +1,7 @@
-import { takePendingImport } from "@opensesame/app-core/lib/vault/pending-import.js";
+import {
+  subscribePendingImport,
+  takePendingImport,
+} from "@opensesame/app-core/lib/vault/pending-import.js";
 import { IMPORT_ACCEPT } from "@opensesame/app-core/sections/vault/import/preview.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconDownload } from "../../../components/Icons.js";
@@ -18,8 +21,12 @@ function useImportFlow() {
   // A file chosen at the door waited for this vault (ADR 0188): whichever Import
   // key mounts first takes it, so its sheet is open as soon as the vault is.
   useEffect(() => {
-    const waiting = takePendingImport();
-    if (waiting) setFile(waiting);
+    const take = () => {
+      const waiting = takePendingImport();
+      if (waiting) setFile(waiting);
+    };
+    take();
+    return subscribePendingImport(take);
   }, []);
   const pick = useCallback(() => fileRef.current?.click(), []);
   const close = useCallback(() => setFile(null), []);

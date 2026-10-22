@@ -16,8 +16,10 @@ import {
 } from "../../components/CeremonyShell.js";
 import { IconUpload, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { pickDirectory, saveTextToDirectory } from "../../lib/file-system.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { withWakeLock } from "../../lib/wake-lock.js";
 import { downloadSeams } from "../../screens/capabilities/download.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { useAddEntry } from "./add-menu.js";
@@ -43,29 +45,18 @@ function exportFacts(vault: ReturnType<typeof useVault>): CeremonyFact[] {
   ];
 }
 
-/**
- * The encrypted backup (`backup.local-encrypted`): the vault's sealed body
- * and wrapping header in one file, the master password still its key.
- * Never a plaintext dump — nothing here decrypts an item — and a vault with
- * no enrolled unlock is refused rather than written into a file nobody can read.
- */
-function ExportSheet({ onClose }: { onClose: () => void }) {
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  useModalFocus(true, sheetRef, closeRef, onClose);
-  const vault = useVault();
-  const refusal = exportRefusal(vault);
+function useExportActions(vault: ReturnType<typeof useVault>) {
   const [saved, setSaved] = useState<string | null>(null);
+  const [folderSaved, setFolderSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const problem = error ?? refusal;
 
-  const save = async () => {
+  const save = useCallback(async () => {
     try {
       const file = offlineBackupFile(vault);
-      const outcome = await downloadSeams.save(
-        file.fileName,
-        file.text,
-        "application/json",
+      const outcome = await withWakeLock(() =>
+        Promise.resolve(
+          downloadSeams.save(file.fileName, file.text, "application/json"),
+        ),
       );
       if (outcome === "cancelled") return;
       setSaved(file.fileName);
@@ -81,10 +72,50 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
         body: message,
       });
     }
-  };
+  }, [vault]);
+
+  const saveToFolder = useCallback(async () => {
+    try {
+      const directory = await pickDirectory();
+      if (directory === null) return;
+      const file = offlineBackupFile(vault);
+      await withWakeLock(() =>
+        saveTextToDirectory(
+          directory,
+          file.fileName,
+          file.text,
+          "application/json",
+        ),
+      );
+      setFolderSaved(directory.name);
+      setError(null);
+    } catch (caught) {
+      setError(messageOf(caught));
+    }
+  }, [vault]);
+
+  return { saved, folderSaved, error, save, saveToFolder };
+}
+
+/**
+ * The encrypted backup (`backup.local-encrypted`): the vault's sealed body
+ * and wrapping header in one file, the master password still its key.
+ * Never a plaintext dump — nothing here decrypts an item — and a vault with
+ * no enrolled unlock is refused rather than written into a file nobody can read.
+ */
+function ExportSheet({ onClose }: { onClose: () => void }) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useModalFocus(true, sheetRef, closeRef, onClose);
+  const vault = useVault();
+  const refusal = exportRefusal(vault);
+  const { saved, folderSaved, error, save, saveToFolder } =
+    useExportActions(vault);
+  const problem = error ?? refusal;
 
   const facts = exportFacts(vault);
   if (saved) facts.push({ key: "File", value: saved });
+  if (folderSaved) facts.push({ key: "Folder", value: folderSaved });
 
   return (
     <div className="sheet-layer">
@@ -129,6 +160,11 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
             primary={
               refusal === null
                 ? { label: saved ? "Save again" : "Save backup", onClick: save }
+                : undefined
+            }
+            secondary={
+              refusal === null
+                ? { label: "Save to folder", onClick: saveToFolder }
                 : undefined
             }
           >

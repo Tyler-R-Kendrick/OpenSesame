@@ -11,8 +11,10 @@ import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
 import { createInitialWorkerReleaseProof } from "./browser/worker-initial-release.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
+import { installLaunchQueue } from "./lib/launch-intake.js";
 import { StaleBuildError, importAppRoot } from "./lib/load-shell.js";
 import { watchLinkedPairing } from "./lib/pairing-link.js";
+import { captureShareTarget } from "./lib/share-target-intake.js";
 import {
   installStaleAssetReload,
   recoverStaleAsset,
@@ -64,6 +66,12 @@ if (framed()) {
 // OPFS. Miss that event and there is no second chance until the next load, so
 // the listener goes on before anything asynchronous.
 armInstall();
+
+// A file launch from the installed app, and a Web Share Target POST that the
+// worker staged, both land in the same pending-import slot. Neither reads or
+// writes the vault; the normal Import review still asks.
+installLaunchQueue();
+void captureShareTarget().catch(() => undefined);
 
 // A drive pairing link carries a slot key in its fragment; it leaves the
 // address bar before anything renders, and on every later in-page arrival,

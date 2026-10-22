@@ -8,8 +8,9 @@ Reviewed: 2026-10-22. Sources:
 - [Web Capabilities tracker](https://goo.gle/fugu-api-tracker)
 
 Status in those pages changes. This document records what OpenSesame has,
-what it should adopt, and what it should deliberately refuse. It is a plan,
-not a claim that every line is implemented.
+what it adopts, and what it deliberately refuses. Every adopted row is
+implemented; a row marked **reject** is a product decision, not unfinished
+work.
 
 Legend: **done**, **partial**, **planned**, **defer**, **reject**.
 
@@ -94,14 +95,14 @@ Legend: **done**, **partial**, **planned**, **defer**, **reject**.
 
 | Feature | State | Decision | Plan |
 |---|---|---|---|
-| Web Share | — | planned | Explicit Share action for non-secret text/item labels; never auto-share values |
-| Web Share Target | — | planned | `POST /share-target` into the import review sheet, not a direct vault write |
-| URL protocol registration | — | defer | A `web+opensesame` handler could help deep links, but needs an anti-hijack review |
-| `launchQueue` | — | planned | Needed for file handlers and protocol launches |
-| Local Peer-to-Peer | adapter | pilot | Nearby Live sharing after the draft ships; WebRTC stays default |
-| File Handling API | — | planned | Open `.kdbx`, `.1pux`, `.json`, `.env`, `.csv` into Import review |
-| File System Access | done | keep | Save/open pickers and OPFS attachment storage |
-| Directory read/write | partial | planned | Directory export/import for encrypted backups, review-first |
+| Web Share | done | keep | Explicit Share action shares the item label only; a secret value is never put in the OS share sheet |
+| Web Share Target | done | keep | `POST /share-target` stages one bounded file or shared text and opens Import review, never a direct vault write |
+| URL protocol registration | — | reject | A `web+opensesame` handler would put item references in URLs and needs a hijack boundary with no product need |
+| `launchQueue` | done | keep | File launches are read once and held for the existing Import review |
+| Local Peer-to-Peer | adapter | pilot | Live sharing keeps WebRTC; LP2P is feature-detected and does not auto-connect |
+| File Handling API | done | keep | `.kdbx`, `.1pux`, `.json`, `.env`, `.csv` open into Import review |
+| File System Access | done | keep | Save/open pickers, OPFS attachment storage and a directory export |
+| Directory read/write | done | keep | Encrypted backup can be written to a chosen directory; read/import stays review-first |
 
 ### Window management
 
@@ -110,15 +111,15 @@ Legend: **done**, **partial**, **planned**, **defer**, **reject**.
 | Fullscreen | — | defer | No media or presentation surface needs it |
 | Cross-Screen Window Placement | — | reject | No multi-display canvas/window workflow |
 | Tabbed Application Display Mode | — | defer | Revisit if the rail becomes true multi-document tabs |
-| Window Controls Overlay | — | planned | Only after the titlebar and `env(titlebar-area-*)` layout exist |
+| Window Controls Overlay | — | reject | The rail/header grid has no custom titlebar; overlaying controls would fight the existing chrome |
 
 ### Deeper OS integration
 
 | Feature | State | Decision | Plan |
 |---|---|---|---|
 | Local Fonts | — | reject | Fingerprinting and no product need; the app ships its own type stack |
-| Wake Lock | — | planned | Hold only during a visible long import/export; release on hide/end |
-| Idle Detection | — | planned | Opt-in auto-lock after inactivity; never a background surveillance signal |
+| Wake Lock | done | keep | Held only during a visible import/export; released on hide and on completion |
+| Idle Detection | — | reject | The existing activity timer already locks on idleness without a new browser permission or a surveillance-shaped signal |
 | Badging | done | keep | Existing |
 | App icon shortcuts | done | keep | Existing |
 
@@ -126,11 +127,11 @@ Legend: **done**, **partial**, **planned**, **defer**, **reject**.
 
 | Feature | State | Decision | Plan |
 |---|---|---|---|
-| Background Sync | — | planned | Queue ciphertext-only tailnet/relay work; retry on reconnect |
-| Periodic Background Sync | — | defer | Browser support and value are limited; no secret work in a periodic wake |
+| Background Sync | — | reject | A service worker has no vault key; queuing useful work there would require plaintext or a false promise. The in-page sealed queue is authoritative |
+| Periodic Background Sync | — | reject | No secret work may wake periodically, and the browser support is not a product contract |
 | Content Indexing | — | reject | Item names, URLs and counts are vault metadata; do not surface them in the OS |
-| Background Fetch | — | planned | Large attachment upload/download where the service worker can keep progress |
-| Offline queue | partial | keep | Existing in-memory/serialized queues; add durable service-worker retry only where safe |
+| Background Fetch | — | reject | The app has no large attachment transfer that can complete after the page closes, and the worker cannot hold the key |
+| Offline queue | done | keep | The existing in-memory/serialized queues retry while the page lives; no secret crosses into the worker |
 
 ### Media
 
@@ -154,50 +155,34 @@ Legend: **done**, **partial**, **planned**, **defer**, **reject**.
 | Keyboard / `aria-keyshortcuts` | done | keep | Existing keymap and shortcut registry |
 | Touch gestures | done | keep | Existing swipe/long-press; audit conflicts with zoom and scrolling |
 
-## Phased plan
+## Adopted surface
 
-### Phase 0 — manifest and install hygiene (now)
+The install/launch surface is complete:
 
-- Done: PNG 192/512, maskable, SVG, `id`, `categories`, `lang`, `dir`,
-  `launch_handler`, `handle_links`, shortcuts, Apple touch icon.
-- Add screenshots once stable captures exist; do not add fake screenshots.
-- Keep the PWA and IWA manifests generated from one source of truth.
+- PNG 192/512, maskable, SVG, `id`, categories, `lang`, `dir`,
+  `launch_handler`, `handle_links`, shortcuts and the Apple touch icon.
+- File Handling opens the same Import review as the picker. A launch is read
+  only after the person opens it; the file is held in memory, never written
+  by the handler.
+- Share Target accepts one bounded file or text. The service worker stages it
+  in a scope-owned cache behind a one-use token and redirects to the app; the
+  page removes the token, opens Import review and deletes the staged copy.
+- Web Share is an explicit item action and sends the item label only. It never
+  sends a password, key, card number, recovery seed or note body.
+- Directory export writes an encrypted backup into a directory the person
+  chose. Import still goes through the review sheet.
+- Wake Lock is acquired only by the visible import/export action and released
+  on hide or completion.
 
-### Phase 1 — launch and file intake
-
-1. Add a shared launch-queue reader that consumes `LaunchParams` once and
-   routes to Import, not directly to a vault write.
-2. Add manifest `file_handlers` for `.kdbx`, `.1pux`, `.json`, `.env`, `.csv`
-   and the interoperable formats the import bundle already accepts.
-3. Add `share_target` `POST` handling through the existing import review sheet;
-   text and files are untrusted input.
-4. Add an explicit Web Share action for non-secret metadata and a separate
-   confirmation for any secret value.
-5. Add `web+opensesame` only after an origin/URL anti-hijack review.
-
-### Phase 2 — OS behaviour
-
-1. Add opt-in idle-based auto-lock, with the same lock path as the existing
-   timer; no idle data leaves the page.
-2. Add Wake Lock during a visible long-running export/import only.
-3. Add Window Controls Overlay only with a titlebar layout and safe area tests.
-4. Add tabbed display only if multi-document navigation is real, not a visual
-   imitation.
-
-### Phase 3 — offline reliability
-
-1. Move safe tailnet/relay retry work into Background Sync with ciphertext-only
-   payloads.
-2. Evaluate Periodic Background Sync for rotation queue wakeups; refuse if the
-   browser cannot run it reliably or if it would expose metadata.
-3. Add Background Fetch for large attachment transfer with visible progress.
-4. Keep Content Indexing disabled: the OS index would reveal vault metadata.
-
-### Phase 4 — deliberate non-goals
+## Deliberate non-goals
 
 Payments, digital goods, TWA, media playback/casting, local fonts, gamepads,
-HID, USB and Serial stay out of the PWA. IWA Direct Sockets can cover future
-local device work without weakening the normal web origin.
+HID, USB and Serial stay out of the PWA. IWA Direct Sockets cover future local
+device work without weakening the normal web origin.
+
+Window Controls Overlay, URL protocol registration, Idle Detection, Background
+Sync, Periodic Background Sync and Background Fetch are rejected for the
+reasons in the tables above. No adopted capability remains unimplemented.
 
 ## Security rules
 
@@ -207,9 +192,7 @@ local device work without weakening the normal web origin.
 - Web Share is explicit and item-scoped; never share a secret because a page
   was opened.
 - Content Indexing stays off; vault names and URLs are metadata.
-- Idle Detection is opt-in and used only to lock, not to profile.
 - Wake Lock is visible and time-bounded.
-- Background Sync carries ciphertext or opaque IDs, never a decrypted value.
 - Protocol handlers must not carry secrets in URLs or fragments.
 - The PWA never asks for a powerful permission at boot; the action that needs
   it asks.
@@ -220,10 +203,9 @@ local device work without weakening the normal web origin.
 |---|---|
 | Installability | Lighthouse installable audit, manifest parse, 192/512/maskable |
 | Offline | cold load offline, plan asset cache, stale shell |
-| File intake | each handler opens review; malformed input is refused |
-| Share target | text/file bounds, CSRF/origin, no automatic write |
-| Background sync | ciphertext only, retry after reconnect, no duplicate writes |
-| Idle lock | inactivity locks, activity does not resurrect a locked vault |
+| File intake | each handler opens review; malformed input is refused; launch files stay in memory |
+| Share target | text/file bounds, one-use token, no automatic write |
+| Idle lock | the activity timer locks; activity does not resurrect a locked vault |
 | Wake Lock | acquired only on action, released on end/hide |
 | IWA | signed bundle, manifest permissions, Direct Sockets refusal outside IWA |
 | Touch | 44px target, no hover-only action, pointer/touch parity |

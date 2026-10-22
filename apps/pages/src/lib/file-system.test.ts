@@ -1,6 +1,11 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { saveBlob, saveTextFile } from "./file-system.js";
+import {
+  pickDirectory,
+  saveBlob,
+  saveTextFile,
+  saveTextToDirectory,
+} from "./file-system.js";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -85,5 +90,37 @@ describe("File System Access open", () => {
   it("reports an unavailable open picker as null", async () => {
     const { pickFiles } = await import("./file-system.js");
     await expect(pickFiles()).resolves.toBeNull();
+  });
+});
+
+describe("File System Access directory", () => {
+  it("writes a reviewed export into the chosen directory", async () => {
+    const write = vi.fn(async () => undefined);
+    const close = vi.fn(async () => undefined);
+    const getFileHandle = vi.fn(async () => ({
+      createWritable: async () => ({ write, close, abort: vi.fn() }),
+    }));
+    const directory = {
+      name: "backups",
+      getFileHandle,
+    } as unknown as FileSystemDirectoryHandle;
+    vi.stubGlobal(
+      "showDirectoryPicker",
+      vi.fn(async () => directory),
+    );
+    await expect(pickDirectory()).resolves.toBe(directory);
+    await saveTextToDirectory(
+      directory,
+      "vault.json",
+      "{}",
+      "application/json",
+    );
+    expect(getFileHandle).toHaveBeenCalledWith("vault.json", { create: true });
+    expect(write).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("reports an unavailable directory picker as null", async () => {
+    await expect(pickDirectory()).resolves.toBeNull();
   });
 });

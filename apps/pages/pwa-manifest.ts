@@ -54,4 +54,44 @@ export const pwaManifest = {
     { name: "Wallet", short_name: "Wallet", url: "./wallet" },
     { name: "Settings", short_name: "Settings", url: "./settings" },
   ],
+  // A file opened from the OS is held for the existing Import review; the
+  // handler never writes a vault item. Keep the list to formats the import
+  // pipeline actually recognises.
+  file_handlers: [
+    {
+      action: "./",
+      accept: {
+        "application/x-keepass2": [".kdbx", ".kdb"],
+        "application/json": [".json"],
+        "application/zip": [".1pux", ".zip"],
+        "text/csv": [".csv"],
+        "text/plain": [".env"],
+      },
+    },
+  ],
+  // The worker bounds and stages the POST, then redirects into review. Text
+  // and one file are accepted; a second file is refused rather than silently
+  // dropped.
+  share_target: {
+    action: "./share-target",
+    method: "POST",
+    enctype: "multipart/form-data",
+    params: {
+      title: "title",
+      text: "text",
+      url: "url",
+      files: [
+        {
+          name: "files",
+          accept: [
+            "application/x-keepass2",
+            "application/json",
+            "application/zip",
+            "text/csv",
+            "text/plain",
+          ],
+        },
+      ],
+    },
+  },
 };

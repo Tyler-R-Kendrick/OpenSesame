@@ -41,6 +41,7 @@ export const TRASH_CONFIRM = "Really move to trash?";
 export function shareWays(ways: {
   drop: () => void;
   grant?: (() => void) | undefined;
+  nativeShare?: (() => void) | undefined;
 }): MenuGroup[] {
   const groups: MenuGroup[] = [
     [
@@ -61,7 +62,27 @@ export function shareWays(ways: {
       },
     ]);
   }
+  if (ways.nativeShare) {
+    groups.push([
+      {
+        id: "share-native",
+        label: "Share item label…",
+        run: ways.nativeShare,
+      },
+    ]);
+  }
   return groups;
+}
+
+/** A label, never a secret value, is what the OS share sheet receives. */
+function nativeShareLabel(item: VaultItem): (() => void) | undefined {
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function")
+    return undefined;
+  return () => {
+    void navigator.share({ title: item.name, text: item.name }).catch(() => {
+      // A dismissed share sheet is not an error.
+    });
+  };
 }
 
 function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
@@ -74,6 +95,7 @@ function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
         grant: isCommandSection("/access")
           ? () => actions.shareGrant(item)
           : undefined,
+        nativeShare: nativeShareLabel(item),
       }),
       run: () => undefined,
     },
