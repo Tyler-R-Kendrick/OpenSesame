@@ -24,6 +24,7 @@ at the repository root; the product's users and voice are in
 | [Machine identity auth](machine-identity-auth.md) | Every Infisical machine-identity auth method, its fields, native/PWA applicability, and the parity gaps. |
 | [Group provisioning](group-provisioning.md) | GitHub team sync, SCIM Group CRUD and approval, and groups as sharing principals. |
 | [Email domain verification](email-domain-verification.md) | DNS-proved work domains, SSO routing, SCIM enforcement, expiry and the current parity gaps. |
+| [Assume privilege](assume-privilege.md) | Time-boxed, audited permission testing for owned agents and applications, scoped to one vault or project. |
 
 ## Design canvases
 

@@ -13,6 +13,9 @@ team sync.
 
 ## What exists today
 
+Owned-identity permission testing is specified in
+[assume privilege](assume-privilege.md).
+
 Email-domain verification for SCIM users is specified separately in
 [email domain verification](email-domain-verification.md); SCIM user creation
 and email immutability are its current gaps.
