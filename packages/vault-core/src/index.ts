@@ -26,6 +26,7 @@ export * from "./merge.js";
 export * from "./model.js";
 export * from "./stamps.js";
 export * from "./offline-backup-format.js";
+export * from "./openssl/index.js";
 export * from "./paths.js";
 export * from "./pepper-position.js";
 export * from "./pepper-seal.js";

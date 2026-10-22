@@ -35,6 +35,7 @@ at the repository root; the product's users and voice are in
 | [File System API](file-system.md) | OPFS coverage and the File System Access save/open fallbacks. |
 | [Local Network Access](local-network-access.md) | Fine-grained LNA permissions, address spaces, callers and deployment policy. |
 | [mDNS Device Discovery](mdns-discovery.md) | Why browsers cannot browse mDNS, the native discovery contract, and why Tailscale remains the default transport. |
+| [OpenSSL interoperability](openssl-interop.md) | PEM/DER, X.509, PKCS#1/8/SEC1 and encrypted-key detection, plus the Bouncy Castle and cryptlib boundary. |
 
 ## Design canvases
 

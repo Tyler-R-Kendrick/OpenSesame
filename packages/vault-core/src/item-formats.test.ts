@@ -249,11 +249,40 @@ describe("item formats", () => {
       parseItemFormat("ssh-key", "ssh-ed25519 AAAATest synthetic@example.test"),
     ).toBeNull();
 
-    const certificate =
-      "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----";
+    const ecKey = `-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIAC8vHdOMsQ99eQ9eixtmqBgpdov+LJyv28KBhqxlaGeoAoGCCqGSM49
+AwEHoUQDQgAEG2BFL/tYKhMA7S7cr9rR6WCQYB85reeqQdNlJ1rP1fEUVs0dauKS
+/BBNbn9jIKsSXdtEy8TFgk06A0eEHt8yhQ==
+-----END EC PRIVATE KEY-----`;
+    expect(parseItemFormat("ssh-key", ecKey)?.values.keyType).toBe("ecdsa");
     expect(
-      parseItemFormat("certificate", certificate)?.values.certificatePem,
-    ).toBe(certificate);
+      parseItemFormat(
+        "ssh-key",
+        "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n-----END OPENSSH PRIVATE KEY-----",
+      )?.values.keyType,
+    ).toBe("");
+
+    const certificate = `-----BEGIN CERTIFICATE-----
+MIIB0zCCAXmgAwIBAgIUOb3aB2p34qA0V7YK5uKtFPzTYL0wCgYIKoZIzj0EAwIw
+HzEdMBsGA1UEAwwUb3BlbnNzbC5leGFtcGxlLnRlc3QwHhcNMjYxMDIyMDMyMjEz
+WhcNMjcxMDIyMDMyMjEzWjAfMR0wGwYDVQQDDBRvcGVuc3NsLmV4YW1wbGUudGVz
+dDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABBtgRS/7WCoTAO0u3K/a0elgkGAf
+Oa3nqkHTZSdaz9XxFFbNHWrikvwQTW5/YyCrEl3bRMvExYJNOgNHhB7fMoWjgZIw
+gY8wHQYDVR0OBBYEFKju9zUcXFin4yQIPJWYqrIw1QBeMB8GA1UdIwQYMBaAFKju
+9zUcXFin4yQIPJWYqrIw1QBeMD8GA1UdEQQ4MDaCFG9wZW5zc2wuZXhhbXBsZS50
+ZXN0ghh3d3cub3BlbnNzbC5leGFtcGxlLnRlc3SHBH8AAAEwDAYDVR0TAQH/BAIw
+ADAKBggqhkjOPQQDAgNIADBFAiEAkFnTBx9knF9msFG2IDOHnQNozdKYgy8LhLQl
+O2NFkOkCIHvR4129TsMirGQxJBuwHQhIARZ6+xRo3NaOfaZ92aRz
+-----END CERTIFICATE-----
+`;
+    const parsedCertificate = parseItemFormat("certificate", certificate);
+    expect(parsedCertificate?.values).toMatchObject({
+      certificatePem: certificate,
+      commonName: "openssl.example.test",
+      dnsNames: "openssl.example.test, www.openssl.example.test",
+      ipAddrs: "127.0.0.1",
+    });
+    expect(parsedCertificate?.values.serial).toMatch(/^[0-9A-F]+$/u);
     expect(generateItemFormat("certificate")).toBeNull();
   });
 

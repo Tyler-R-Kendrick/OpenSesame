@@ -48,8 +48,8 @@ turns a test value into a working account credential.
 | `gift-card` | Numeric card number with no universal issuer checksum | Yes |
 | `backup-codes` | Four or more code lines | Yes |
 | `secret`, `password` | Exact named-type parse; no automatic detection | Yes (opaque value) |
-| `ssh-key` | OpenSSH public key wire structure or PEM private key | Yes (synthetic ed25519 public key) |
-| `certificate` | PEM certificate | Parser only |
+| `ssh-key` | OpenSSH public key wire structure; OpenSSH, PKCS#1, PKCS#8 and SEC1 private keys | Yes (synthetic ed25519 public key) |
+| `certificate` | OpenSSL PEM certificate or chain; parses CN, SAN, expiry and serial | Parser only |
 | `passport` | ICAO 9303 TD3 MRZ with check digits | Yes (synthetic specimen) |
 | `identity-document` | ICAO 9303 TD1 MRZ with check digits | Yes (synthetic specimen) |
 

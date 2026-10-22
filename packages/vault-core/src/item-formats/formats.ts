@@ -8,8 +8,9 @@ import { keccak_256 } from "@noble/hashes/sha3";
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import type { JsonValue } from "@opensesame/os-domain";
 import type { FieldValues } from "@opensesame/vault-item-types";
-import { b64ToBytes, b64urlToBytes, bytesToB64url } from "../bytes.js";
+import { b64urlToBytes, bytesToB64url } from "../bytes.js";
 import { cardChecksumValid, detectCardBrand } from "../card.js";
+import { inspectCertificateBundle } from "../openssl/x509.js";
 import { parseTotp } from "../totp.js";
 import { apiKeyFormats } from "./api-key-formats.js";
 import { identityDocumentFormat } from "./identity-document-format.js";
@@ -728,26 +729,22 @@ const certificateFormat: ItemFormat = {
   label: "PEM certificate",
   specificity: 100,
   parse(value) {
-    const certificatePem = value.trim();
-    if (
-      !/^-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----$/u.test(
-        certificatePem,
-      )
-    )
-      return null;
-    const body = certificatePem
-      .replaceAll(/-----[^-]+-----/gu, "")
-      .replaceAll(/\s+/gu, "");
-    try {
-      const der = b64ToBytes(body);
-      return der[0] === 0x30 ? { certificatePem } : null;
-    } catch {
-      return null;
-    }
+    const bundle = inspectCertificateBundle(value.trim());
+    if (bundle === null || bundle.pem.length === 0) return null;
+    const leaf = bundle.certificates[0];
+    if (leaf === undefined) return null;
+    return {
+      certificatePem: bundle.pem[0] ?? "",
+      caPem: bundle.pem.slice(1).join("\n"),
+      commonName: leaf.subjectCommonName,
+      dnsNames: leaf.dnsNames.join(", "),
+      ipAddrs: leaf.ipAddrs.join(", "),
+      serial: leaf.serial,
+      notAfter: leaf.notAfter,
+    };
   },
   canonical: (values) => trimToNull(text(values, "certificatePem")),
 };
-
 const secretFormat: ItemFormat = {
   id: "opaque-secret",
   typeId: "secret",

@@ -2,6 +2,7 @@
 import { isString } from "@opensesame/os-domain";
 import type { FieldValues } from "@opensesame/vault-item-types";
 import { b64ToBytes, bytesToB64 } from "../bytes.js";
+import { inspectPrivateKeyPem } from "../openssl/keys.js";
 import type { Random } from "./random.js";
 import type { ItemFormat } from "./types.js";
 
@@ -130,15 +131,16 @@ export const sshKeyFormat: ItemFormat = {
     }
     const privateMatch = PRIVATE.exec(raw);
     if (!privateMatch) return null;
-    const label = privateMatch[1] ?? "";
+    const inspected = inspectPrivateKeyPem(raw);
+    if (inspected === null) return null;
     return {
-      keyType: label.startsWith("OPENSSH")
-        ? ""
-        : label.startsWith("EC")
+      keyType:
+        inspected.algorithm === "ec"
           ? "ecdsa"
-          : label.startsWith("RSA")
-            ? "rsa"
-            : "",
+          : inspected.algorithm === "openssh" ||
+              inspected.algorithm === "unknown"
+            ? ""
+            : inspected.algorithm,
       keyPair: { publicKey: "", privateKey: raw },
       comment: "",
     };
