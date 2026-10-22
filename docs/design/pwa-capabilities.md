@@ -31,6 +31,7 @@ Legend: **done**, **partial**, **planned**, **defer**, **reject**.
 | Compression Streams | done | ZIP import and WASM gzip |
 | Pointer input | partial | gestures and menus use pointer events; some touch-only paths remain |
 | Direct Sockets | IWA only | `lib/direct-sockets.ts` |
+| Local Peer-to-Peer | adapter | `lib/local-p2p.ts`; draft, not yet a live transport |
 | Local Network Access | done | `lib/local-network-fetch.ts` |
 | OPFS | done | `lib/kv.ts`, `lib/file-parts-store.ts`, `travel/storage.ts` |
 | Web Locks | done | `lib/local-access-ledger-lock.ts` |
@@ -97,6 +98,7 @@ Legend: **done**, **partial**, **planned**, **defer**, **reject**.
 | Web Share Target | — | planned | `POST /share-target` into the import review sheet, not a direct vault write |
 | URL protocol registration | — | defer | A `web+opensesame` handler could help deep links, but needs an anti-hijack review |
 | `launchQueue` | — | planned | Needed for file handlers and protocol launches |
+| Local Peer-to-Peer | adapter | pilot | Nearby Live sharing after the draft ships; WebRTC stays default |
 | File Handling API | — | planned | Open `.kdbx`, `.1pux`, `.json`, `.env`, `.csv` into Import review |
 | File System Access | done | keep | Save/open pickers and OPFS attachment storage |
 | Directory read/write | partial | planned | Directory export/import for encrypted backups, review-first |

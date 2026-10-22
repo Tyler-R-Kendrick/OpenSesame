@@ -65,6 +65,7 @@ const manifest = {
     "direct-sockets-multicast": ["self"],
     "direct-sockets-private": ["self"],
     "cross-origin-isolated": ["self"],
+    "local-peer-to-peer": ["self"],
   },
   ...(update === undefined ? {} : { update_manifest_url: update }),
 };
