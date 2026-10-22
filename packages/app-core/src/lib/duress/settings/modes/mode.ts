@@ -26,6 +26,7 @@ export type DuressPresentation = "decoy" | "locked";
  */
 export type DuressEffectName =
   | "decoy_items"
+  | "honey_vault"
   | "visible_items"
   | "freeze"
   | "wipe";

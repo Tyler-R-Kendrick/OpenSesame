@@ -39,6 +39,14 @@ type Stored = { version: 1; tokens: HoneyTokenRecord[] };
 const ID = /^[0-9a-f]{32}$/u;
 const TOKEN = /^osr_hny_[0-9a-f]{32}_[0-9a-f]{32}$/u;
 
+export function mintHoneyToken(): { id: string; token: string } {
+  const id = hex(16);
+  return {
+    id,
+    token: `${HONEY_TOKEN_MARKER}${id}_${hex(16)}`,
+  };
+}
+
 function hex(bytes: number): string {
   return [...crypto.getRandomValues(new Uint8Array(bytes))]
     .map((value) => value.toString(16).padStart(2, "0"))
@@ -172,6 +180,36 @@ export async function issueHoneyToken(
     let id = hex(16);
     while (current.some((row) => row.id === id)) id = hex(16);
     const token = `${HONEY_TOKEN_MARKER}${id}_${hex(16)}`;
+    const record: HoneyTokenRecord = {
+      id,
+      scope,
+      label: clean,
+      token,
+      createdAt: now,
+      revokedAt: null,
+      triggeredAt: null,
+      lastTriggeredAt: null,
+    };
+    await writeAll([...current, record]);
+    return record;
+  });
+}
+
+/** Record a token minted by a decoy-vault plan. The token itself is unchanged. */
+export async function registerHoneyToken(
+  scope: string,
+  label: string,
+  token: string,
+  now = Date.now(),
+): Promise<HoneyTokenRecord> {
+  const clean = label.trim();
+  const id = honeyTokenId(token);
+  if (clean === "" || clean.length > 80 || id === null)
+    throw new Error("That is not a valid honey token.");
+  return serialized(async () => {
+    const current = readAll();
+    if (current.some((row) => row.id === id))
+      throw new Error("This honey token is already recorded.");
     const record: HoneyTokenRecord = {
       id,
       scope,
