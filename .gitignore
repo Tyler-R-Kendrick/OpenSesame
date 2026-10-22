@@ -133,3 +133,6 @@ apps/pages/dist-secret-backends-verify/
 
 # Source-built browser networking runtime (verified build cache).
 .cache/pwa-tailscale-native-http/
+
+# Isolated Web App build output
+apps/pages/dist-iwa/

@@ -142,7 +142,9 @@ void (async () => {
   // release reloads the page, the page's own move between worker variants
   // (approving or removing Push notifications) does not. A second listener
   // here would reload on both.
-  void registerWorker();
+  // An IWA is already a signed, locally bundled app. A service worker would
+  // add a second, network-shaped update path and is not registered there.
+  if (location.protocol !== "isolated-app:") void registerWorker();
   // A launch of the already-installed app fires no `appinstalled` and may never
   // mount the install card at all — the reader has no cause to open Settings —
   // so this is the only thing covering them.

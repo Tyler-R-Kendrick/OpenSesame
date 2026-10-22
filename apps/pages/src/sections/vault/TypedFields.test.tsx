@@ -2,6 +2,7 @@ import {
   type Folder,
   type VaultItem,
   createTypedItem,
+  generateItemFormat,
   itemTypeRegistry,
   newValues,
   syncInstalledTypes,
@@ -165,6 +166,42 @@ describe("the editor for a type installed at runtime", () => {
     const options = await listedKeys("Type");
     expect(options).toContain("safe-deposit");
     expect(options).toContain("secret");
+  });
+
+  it("names a recognised format without revealing the value", async () => {
+    const token = generateItemFormat("api-credential", {
+      formatId: "api-credential:supabase-pat",
+    });
+    if (!token?.canonical)
+      throw new Error("Expected a synthetic Supabase token");
+    renderEditor("/vault/new/api-credential");
+    fireEvent.click(screen.getByRole("button", { name: "Add api key" }));
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: token.canonical },
+    });
+    expect(
+      await screen.findByText(
+        "Recognised format: Supabase personal access token",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByDisplayValue(token.canonical)).toBeTruthy();
+  });
+
+  it("names a provider key on an API-key credential", async () => {
+    const token = generateItemFormat("api-key", {
+      formatId: "api-key:supabase-pat",
+    });
+    if (!token?.canonical)
+      throw new Error("Expected a synthetic Supabase token");
+    renderEditor("/vault/new/api-key");
+    fireEvent.change(screen.getByLabelText("X-Api-Key value"), {
+      target: { value: token.canonical },
+    });
+    expect(
+      await screen.findByText(
+        "Recognised format: Supabase personal access token",
+      ),
+    ).toBeTruthy();
   });
 
   it("draws the fields the definition declares, with no per-type code", () => {

@@ -53,10 +53,14 @@ export function AddKeyProtection({
     void runCaught(async () => {
       const candidate = await store.protection.enrollCandidate(kind);
       if (candidate.recoverySecretB64) {
-        externalCeremonyDependencies.downloadOnce(
+        const delivered = await externalCeremonyDependencies.downloadOnce(
           "opensesame-recovery-key.txt",
           `${candidate.recoverySecretB64}\n`,
         );
+        if (delivered === "cancelled")
+          throw new Error(
+            "The recovery key was not saved. Nothing was enrolled.",
+          );
       }
       await store.protection.commitEnrollment(candidate.operationId);
       status("info", ok[0], ok[1]);

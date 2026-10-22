@@ -4,6 +4,7 @@ import {
   type PasskeyItem,
   type SecretItem,
   formatCardNumber,
+  inspectCertificateBundle,
   isVaultCustodied,
 } from "@opensesame/vault-core";
 import {
@@ -234,6 +235,26 @@ export function SecretFields({
   );
 }
 
+function firstText(...values: Array<string | undefined>): string {
+  for (const value of values) if (value) return value;
+  return "—";
+}
+
+function certificateFacts(item: CertificateItem) {
+  const parsed = item.certificatePem
+    ? inspectCertificateBundle(item.certificatePem)
+    : null;
+  const leaf = parsed?.certificates[0];
+  return {
+    caPem: item.caPem || parsed?.pem.slice(1).join("\n") || "",
+    commonName: firstText(item.commonName, leaf?.subjectCommonName),
+    dnsNames: firstText(item.dnsNames, leaf?.dnsNames.join(", ")),
+    ipAddrs: firstText(item.ipAddrs, leaf?.ipAddrs.join(", ")),
+    notAfter: firstText(item.notAfter, leaf?.notAfter),
+    serial: item.serial || leaf?.serial || "",
+  };
+}
+
 export function CertificateFields({
   item,
   revealed,
@@ -242,22 +263,32 @@ export function CertificateFields({
   failed,
   copy,
 }: RowProps<CertificateItem>) {
+  const { caPem, commonName, dnsNames, ipAddrs, notAfter, serial } =
+    certificateFacts(item);
   return (
     <>
       <section className="detail__group">
         <h2 className="detail__grouphead">Dev certificate</h2>
         <FieldRow label="Common name">
-          <span className="frow__value">{item.commonName || "—"}</span>
+          <span className="frow__value">{commonName}</span>
         </FieldRow>
         <FieldRow label="DNS names">
-          <span className="frow__value">{item.dnsNames || "—"}</span>
+          <span className="frow__value">{dnsNames}</span>
+        </FieldRow>
+        <FieldRow label="IP addresses">
+          <span className="frow__value">{ipAddrs}</span>
         </FieldRow>
         <FieldRow label="Expires">
-          <span className="frow__value">{item.notAfter || "—"}</span>
+          <span className="frow__value">{notAfter}</span>
         </FieldRow>
-        {item.serial ? (
+        {serial ? (
           <FieldRow label="Serial">
-            <span className="frow__value">{item.serial}</span>
+            <span className="frow__value">{serial}</span>
+          </FieldRow>
+        ) : null}
+        {caPem ? (
+          <FieldRow label="Issuing CA">
+            <span className="frow__value">PEM on this device</span>
           </FieldRow>
         ) : null}
       </section>

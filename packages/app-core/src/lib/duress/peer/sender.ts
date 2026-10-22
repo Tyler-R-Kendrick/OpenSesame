@@ -3,6 +3,7 @@
  * Bound paths only — no generic webhooks / open URL fetch (INV-26).
  */
 
+import { withTargetAddressSpace } from "../../local-network-fetch.js";
 import {
   type JsonObject,
   includesStringLiteral,
@@ -57,20 +58,24 @@ export async function sendPeerEnvelope(
     return { ok: false, code: "unsupported_factor" };
   }
   try {
-    const res = await fetch(`${originUrl.origin}${path}`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json",
-        "x-opensesame-duress-peer": "1",
-      },
-      body,
-      signal: config.signal,
-      redirect: "error",
-      credentials: "omit",
-      mode: "cors",
-      cache: "no-store",
-    });
+    const url = `${originUrl.origin}${path}`;
+    const res = await fetch(
+      url,
+      withTargetAddressSpace(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+          "x-opensesame-duress-peer": "1",
+        },
+        body,
+        signal: config.signal,
+        redirect: "error",
+        credentials: "omit",
+        mode: "cors",
+        cache: "no-store",
+      }),
+    );
     if (res.status === 413) {
       return { ok: false, code: "unsupported_factor", httpStatus: 413 };
     }

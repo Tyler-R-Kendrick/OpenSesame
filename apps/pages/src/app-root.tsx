@@ -50,7 +50,12 @@ import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
 import { GateHost } from "./tutorial/gate-seat.js";
 
-import { useAfterUnlock, useVaultLanding } from "./app-root-hooks.js";
+import {
+  type VaultStatus,
+  useAfterUnlock,
+  useRotationQueue,
+  useVaultLanding,
+} from "./app-root-hooks.js";
 import { useComposition } from "./bindings/capabilities.js";
 
 export { useCapabilityGate } from "./app-root-hooks.js";
@@ -102,6 +107,11 @@ const DefaultSettingsSection = lazy(() =>
     default: m.SettingsSection,
   })),
 );
+const DefaultSaveRequestScreen = lazy(() =>
+  import("./screens/SaveRequestScreen.js").then((m) => ({
+    default: m.SaveRequestScreen,
+  })),
+);
 
 const DevLockV5Demo = import.meta.env.DEV
   ? lazy(() =>
@@ -109,7 +119,6 @@ const DevLockV5Demo = import.meta.env.DEV
     )
   : null;
 
-type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
 
 export type AppSlots = {
@@ -297,6 +306,14 @@ function VaultApp() {
                   </Framed>
                 }
               />
+              <Route
+                path="/save"
+                element={
+                  <Suspense fallback={<VaultContentSkeleton />}>
+                    <DefaultSaveRequestScreen />
+                  </Suspense>
+                }
+              />
               <Route path={JOIN_COMMAND_PATH} element={<JoinRoadRoute />} />
               <Route path="*" element={<Fallback />} />
             </Routes>
@@ -341,7 +358,8 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const location = useLocation();
   const routes = resolved.useRouteContributions();
   const wrappers = resolved.useShellWrappers();
-  const { status } = resolved.useVault();
+  const { status, tomb, items, guest } = resolved.useVault();
+  useRotationQueue(status, tomb, items, guest);
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   const isDeadmanRelease = location.pathname === "/deadman";
   useEffect(() => activatePlan(compositionStore), []);

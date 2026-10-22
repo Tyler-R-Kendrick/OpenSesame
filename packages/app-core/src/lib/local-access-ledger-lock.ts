@@ -1,4 +1,7 @@
-/** One lock order for session mutations and the shares they issue: session, then share. */
+/**
+ * One lock order for Access mutations: session, then share, then audit or
+ * receipts. Pending-share approval goes pending, then share, then audit.
+ */
 import { lockManager } from "../ports.js";
 import { kvDurability, kvRefresh } from "./kv.js";
 import { tombFileKey } from "./vfs.js";
@@ -7,7 +10,13 @@ const chains = new Map<string, Promise<unknown>>();
 
 export function withLocalAccessLedgerLock<T>(
   tomb: string,
-  ledger: "session" | "share" | "audit" | "receipts",
+  ledger:
+    | "session"
+    | "share"
+    | "share-pending"
+    | "audit"
+    | "receipts"
+    | "rotation",
   path: string,
   maxBytes: number,
   action: () => Promise<T>,
