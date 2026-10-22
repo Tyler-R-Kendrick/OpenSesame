@@ -7,8 +7,8 @@ use serde_json::Value;
 
 use super::{
     notice_of, payload, vet_detail, vet_identifier, SurrogateFence, SurrogateNoticeError,
-    SurrogateRefusalReport, LOCAL_ORGANIZATION, SURROGATE_PROXY_SUBJECT_KIND,
-    SURROGATE_RUN_SUBJECT_KIND, UNATTRIBUTED_SUBJECT,
+    SurrogateRefusalReport, LOCAL_ORGANIZATION, SURROGATE_HONEY_SUBJECT_KIND,
+    SURROGATE_PROXY_SUBJECT_KIND, SURROGATE_RUN_SUBJECT_KIND, UNATTRIBUTED_SUBJECT,
 };
 
 /// One surrogate tripwire, ready to publish.
@@ -95,6 +95,14 @@ impl SurrogateEvent {
     /// broker itself.
     #[must_use]
     pub fn subject(&self) -> (&'static str, String) {
+        if self.fence == super::SurrogateFence::HoneyToken {
+            return (
+                SURROGATE_HONEY_SUBJECT_KIND,
+                self.run_id
+                    .clone()
+                    .unwrap_or_else(|| UNATTRIBUTED_SUBJECT.to_string()),
+            );
+        }
         match &self.run_id {
             Some(run_id) => (SURROGATE_RUN_SUBJECT_KIND, run_id.clone()),
             None => (

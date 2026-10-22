@@ -8,6 +8,7 @@
 import { CAPABILITY_BOOT_KEYS } from "@opensesame/app-core/lib/capabilities/keys.js";
 import { DURESS_BOOT_KEYS } from "@opensesame/app-core/lib/duress/store/boot-keys.js";
 import { GUEST_ACCESS_KEY } from "@opensesame/app-core/lib/guest-access.js";
+import { HONEY_TOKEN_KEY } from "@opensesame/app-core/lib/honey-tokens.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 import {
   GUEST_ORDINAL_KEY,
@@ -32,6 +33,9 @@ export const CORE_BOOT_KEYS: readonly string[] = [
   "settings.v1",
   "setup.v1",
   "outbox.v1",
+  // Planted honey-token metadata must survive a locked reload; the token is
+  // a decoy, but losing the record loses the only way to read it again.
+  HONEY_TOKEN_KEY,
   // Due rotations queue at open even while the vault is locked.
   ROTATION_SCHEDULE_KEY,
   ROTATION_EVENT_KEY,

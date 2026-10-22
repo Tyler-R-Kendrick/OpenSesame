@@ -31,6 +31,7 @@ at the repository root; the product's users and voice are in
 | [Save in OpenSesame](save-button.md) | A website button that hands a reviewed login, card or wallet to the static vault without a backend or extension. |
 | [SSH and Git](ssh-git.md) | Native SSH agent, authorization, Git commit signing, public-key autofill and the PWA boundary. |
 | [Developer Watchtower](watchtower.md) | User-invoked CLI scan for plaintext SSH keys and `.env` files, reporting metadata only. |
+| [Honey tokens](honey-tokens.md) | Self-managed synthetic proxy keys that trigger a critical notice when used. |
 | [Web Locks](web-locks.md) | Browser lock names, coverage, order, fallback and the test-queue rule. |
 | [File System API](file-system.md) | OPFS coverage and the File System Access save/open fallbacks. |
 | [Local Network Access](local-network-access.md) | Fine-grained LNA permissions, address spaces, callers and deployment policy. |

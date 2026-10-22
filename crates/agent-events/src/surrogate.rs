@@ -62,6 +62,8 @@ pub const EVENT_SURROGATE_CLEARTEXT: &str = "surrogate.cleartext";
 pub const EVENT_SURROGATE_MISPLACED: &str = "surrogate.misplaced";
 /// A surrogate used with a method or path it was not scoped to.
 pub const EVENT_SURROGATE_OUT_OF_SCOPE: &str = "surrogate.out_of_scope";
+/// A self-managed honey token was presented; its id names the planted token.
+pub const EVENT_SURROGATE_HONEY_TOKEN: &str = "surrogate.honey_token";
 
 /// Every event type a hook may subscribe to in this family. Exactly the names
 /// invoke-through's `RefusalCode::as_str` returns, which
@@ -76,6 +78,7 @@ pub const SURROGATE_EVENT_TYPES: &[&str] = &[
     EVENT_SURROGATE_CLEARTEXT,
     EVENT_SURROGATE_MISPLACED,
     EVENT_SURROGATE_OUT_OF_SCOPE,
+    EVENT_SURROGATE_HONEY_TOKEN,
 ];
 
 /// Subscription wildcard: every surrogate tripwire. Matched by the feed's
@@ -89,9 +92,14 @@ pub const SURROGATE_RUN_SUBJECT_KIND: &str = "agent_run";
 /// Subject kind when no run is known — a forgery, a stale surrogate from
 /// before a restart, two surrogates at once. The broker itself is the subject.
 pub const SURROGATE_PROXY_SUBJECT_KIND: &str = "surrogate_proxy";
+/// Subject kind for a planted honey token; the id is the token's public id.
+pub const SURROGATE_HONEY_SUBJECT_KIND: &str = "honey_token";
 /// Every subject kind this family reports under.
-pub const SURROGATE_SUBJECT_KINDS: &[&str] =
-    &[SURROGATE_RUN_SUBJECT_KIND, SURROGATE_PROXY_SUBJECT_KIND];
+pub const SURROGATE_SUBJECT_KINDS: &[&str] = &[
+    SURROGATE_RUN_SUBJECT_KIND,
+    SURROGATE_PROXY_SUBJECT_KIND,
+    SURROGATE_HONEY_SUBJECT_KIND,
+];
 /// Subject id under [`SURROGATE_PROXY_SUBJECT_KIND`]. One per organization, so
 /// a burst of guesses collapses into one incident instead of one per guess.
 pub const UNATTRIBUTED_SUBJECT: &str = "unattributed";
@@ -114,10 +122,11 @@ pub enum SurrogateFence {
     Cleartext,
     Misplaced,
     OutOfScope,
+    HoneyToken,
 }
 
 impl SurrogateFence {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Ambiguous,
         Self::Unknown,
         Self::Revoked,
@@ -127,6 +136,7 @@ impl SurrogateFence {
         Self::Cleartext,
         Self::Misplaced,
         Self::OutOfScope,
+        Self::HoneyToken,
     ];
 
     /// The frozen event name this fence publishes under.
@@ -142,6 +152,7 @@ impl SurrogateFence {
             Self::Cleartext => EVENT_SURROGATE_CLEARTEXT,
             Self::Misplaced => EVENT_SURROGATE_MISPLACED,
             Self::OutOfScope => EVENT_SURROGATE_OUT_OF_SCOPE,
+            Self::HoneyToken => EVENT_SURROGATE_HONEY_TOKEN,
         }
     }
 
@@ -169,10 +180,11 @@ impl SurrogateFence {
 
     /// How loud this tripwire is.
     ///
-    /// Nothing here is `Critical`, deliberately: that rung means a credential
-    /// is exposed, and a refused surrogate is the case where it is not — the
-    /// fence held, and what was copied is worthless. The rungs below it are
-    /// set by how strongly the refusal implies that a copy is loose:
+    /// A refused surrogate is normally not `Critical`: the fence held and what
+    /// was copied is worthless. The exception is **honey token** — a planted
+    /// decoy was used, which is the alert the whole feature exists to raise.
+    /// The other rungs are set by how strongly the refusal implies that a copy
+    /// is loose:
     ///
     /// - `Error` — **misdirected**, **foreign caller**, **revoked**. Each is
     ///   the signature of exfiltration: a surrogate sent to a host that is not
@@ -197,6 +209,9 @@ impl SurrogateFence {
             Self::Misplaced | Self::OutOfScope | Self::Ambiguous | Self::Cleartext => {
                 Severity::Warning
             }
+            // A planted token was used: the whole point is that a person
+            // hears now, not on the next review.
+            Self::HoneyToken => Severity::Critical,
             Self::Unknown | Self::Expired => Severity::Info,
         }
     }
@@ -220,6 +235,7 @@ impl SurrogateFence {
             Self::OutOfScope => {
                 format!("a surrogate{of} was used outside its method and path scope")
             }
+            Self::HoneyToken => "a planted honey token was presented".to_string(),
         }
     }
 }

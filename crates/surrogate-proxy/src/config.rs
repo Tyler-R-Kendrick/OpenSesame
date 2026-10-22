@@ -161,6 +161,14 @@ impl Shared {
             .cloned()
     }
 
+    /// Every honey token found before login substitution or admission.
+    pub(crate) fn honey_refusals(&self, view: &RequestView<'_>) -> Vec<Refusal> {
+        self.ledger
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .honey_refusals(view)
+    }
+
     /// Admit one request for `caller` at the configured clock's now.
     pub(crate) fn admit(
         &self,

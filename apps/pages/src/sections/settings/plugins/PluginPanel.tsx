@@ -24,6 +24,7 @@ import { IconPause, IconPlay, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
+import { HoneyTokensPanel } from "./HoneyTokensPanel.js";
 import { InstallCommand } from "./InstallCommand.js";
 import { PairForm } from "./PairForm.js";
 import { TripwireList } from "./TripwireList.js";
@@ -102,6 +103,33 @@ function PluginFailure({ session }: { session: PluginSession }) {
   );
 }
 
+function panelHidden(
+  view: ReturnType<PluginSession["view"]>,
+  session: PluginSession,
+): boolean {
+  return view.daemon === null && !session.canPair();
+}
+
+function installVisible(view: ReturnType<PluginSession["view"]>): boolean {
+  return view.read && (view.state === null || !view.state.installed);
+}
+
+function tripwiresVisible(
+  plugin: PluginSession["plugin"],
+  view: ReturnType<PluginSession["view"]>,
+): boolean {
+  return plugin.notices && view.state?.installed === true && view.read;
+}
+
+function honeyVisible(
+  plugin: PluginSession["plugin"],
+  view: ReturnType<PluginSession["view"]>,
+): boolean {
+  // Issuing is self-managed and does not need the proxy installed or a
+  // successful read. Detection does; the panel says so.
+  return plugin.id === "surrogate-proxy" && view.daemon !== null;
+}
+
 export function PluginPanel({
   session,
   guideId,
@@ -118,16 +146,22 @@ export function PluginPanel({
   useEffect(() => {
     session.ensure();
   }, [session]);
+  // Honey-token use can happen while Settings is open. Read the bounded
+  // notice list again so a trigger appears without a manual reload.
+  useEffect(() => {
+    if (session.plugin.id !== "surrogate-proxy") return;
+    const timer = setInterval(() => session.refresh(), 15_000);
+    return () => clearInterval(timer);
+  }, [session]);
   // No daemon paired and no way to pair one here (no open vault to keep the
   // key in, or an origin that may not hold local authority): the tile would be
   // a name and a mark nobody can act on, so it is not drawn (ADR 0158).
-  const hidden = view.daemon === null && !session.canPair();
+  const hidden = panelHidden(view, session);
   const { plugin } = session;
   const mark = markOf(view);
-  const showInstall =
-    view.read && (view.state === null || !view.state.installed);
-  const showTripwires =
-    plugin.notices && view.state?.installed === true && view.read;
+  const showInstall = installVisible(view);
+  const showTripwires = tripwiresVisible(plugin, view);
+  const showHoney = honeyVisible(plugin, view);
   return (
     <>
       <PluginFailure session={session} />
@@ -161,6 +195,7 @@ export function PluginPanel({
             <InstallCommand command={plugin.installCommand} />
           ) : null}
           {showTripwires ? <TripwireList notices={view.notices} /> : null}
+          {showHoney ? <HoneyTokensPanel notices={view.notices} /> : null}
         </div>
       )}
     </>

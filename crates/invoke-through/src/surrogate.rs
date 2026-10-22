@@ -57,6 +57,12 @@ use scan::{check_placement, check_scope, sightings};
 pub const SURROGATE_MARKER: &str = "osr_";
 /// Hex characters after the marker: 128 bits of caller-supplied entropy.
 pub const SURROGATE_HEX_LEN: usize = 32;
+/// A self-managed honey token: marker, 16-byte id, one separator, 16-byte
+/// secret. The id is safe to report; the secret only makes the value
+/// unguessable when planted.
+pub const HONEY_TOKEN_MARKER: &str = "osr_hny_";
+pub const HONEY_TOKEN_ID_LEN: usize = 32;
+pub const HONEY_TOKEN_SECRET_LEN: usize = 32;
 
 /// Where the client is told to put its surrogate. Recognition only: where the
 /// credential goes upstream is the provider rule's business, not this.
@@ -254,6 +260,29 @@ impl SurrogateLedger {
         revoked
     }
 
+    /// A honey token found anywhere in the request, before any login claim or
+    /// admission. The proxy calls this first so a planted value cannot ride
+    /// beside a valid login surrogate.
+    #[must_use]
+    pub fn honey_refusal(&self, req: &RequestView<'_>) -> Option<Refusal> {
+        self.honey_refusals(req).into_iter().next()
+    }
+
+    /// Every distinct honey token in the request. The proxy reports all of
+    /// them, so a forged id placed before the real token cannot hide it.
+    #[must_use]
+    pub fn honey_refusals(&self, req: &RequestView<'_>) -> Vec<Refusal> {
+        let mut ids = Vec::new();
+        for sighting in sightings(req) {
+            if let Some(id) = honey_token_id(&sighting.value) {
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+            }
+        }
+        ids.into_iter().map(Refusal::honey).collect()
+    }
+
     /// Decide one request. `Ok(None)` when it carries no surrogate at all: the
     /// adapter's own egress policy decides what happens to it, not this.
     ///
@@ -267,6 +296,9 @@ impl SurrogateLedger {
         now_unix: u64,
     ) -> Result<Option<Admission>, Refusal> {
         let sightings = sightings(req);
+        if let Some(honey) = self.honey_refusal(req) {
+            return Err(honey);
+        }
         let Some(first) = sightings.first() else {
             return Ok(None);
         };
@@ -322,6 +354,21 @@ impl SurrogateLedger {
     }
 }
 
+/// The id of a well-formed self-managed honey token, or `None`.
+#[must_use]
+pub fn honey_token_id(value: &str) -> Option<String> {
+    let rest = value.strip_prefix(HONEY_TOKEN_MARKER)?;
+    let (id, secret) = rest.split_once('_')?;
+    if id.len() != HONEY_TOKEN_ID_LEN
+        || secret.len() != HONEY_TOKEN_SECRET_LEN
+        || !id.bytes().all(|b| b.is_ascii_hexdigit())
+        || !secret.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return None;
+    }
+    Some(id.to_ascii_lowercase())
+}
+
 const HEX: &[u8; 16] = b"0123456789abcdef";
 
 #[cfg(test)]
@@ -330,6 +377,9 @@ mod detail_tests;
 #[cfg(test)]
 #[path = "surrogate_fixtures.rs"]
 mod fixtures;
+#[cfg(test)]
+#[path = "surrogate_honey_tests.rs"]
+mod honey_tests;
 #[cfg(test)]
 #[path = "surrogate_lifecycle_tests.rs"]
 mod lifecycle_tests;

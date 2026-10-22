@@ -21,6 +21,7 @@ import { pinnedTo, sameTarget } from "./pinned.js";
 import {
   type Bounded,
   IDLE,
+  type ViewStore,
   boundedBy,
   codeOf,
   pairingActions,
@@ -45,6 +46,42 @@ async function readPlugin(
   return { state, notices };
 }
 
+async function loadPluginView(
+  store: ViewStore,
+  plugin: PluginEntry,
+  daemon: PluginDaemon,
+  bounded: Bounded,
+  target: PluginDaemonTarget,
+  keep: boolean,
+  fresh: () => boolean,
+): Promise<void> {
+  store.publish({
+    ...(keep ? store.view() : IDLE),
+    daemon: target,
+    busy: true,
+  });
+  try {
+    const read = await readPlugin(plugin, pinnedTo(daemon, target), bounded);
+    if (!fresh()) return;
+    store.publish({
+      ...(keep ? store.view() : IDLE),
+      daemon: target,
+      ...read,
+      read: true,
+      busy: false,
+      error: null,
+    });
+  } catch (error) {
+    if (!fresh()) return;
+    store.publish({
+      ...(keep ? store.view() : IDLE),
+      daemon: target,
+      busy: false,
+      error: codeOf(error),
+    });
+  }
+}
+
 export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
   const store = viewStore();
   const lifetime = new AbortController();
@@ -59,37 +96,37 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
   let epoch = 0;
   let unwatch: (() => void) | null = null;
 
-  async function load(target: PluginDaemonTarget): Promise<void> {
+  async function load(
+    target: PluginDaemonTarget,
+    keep: boolean,
+  ): Promise<void> {
     const mine = epoch;
-    store.publish({ ...IDLE, daemon: target, busy: true });
-    try {
-      const read = await readPlugin(
-        plugin,
-        pinnedTo(daemon, target),
-        calls.bounded(),
-      );
-      if (epoch !== mine) return;
-      store.publish({ ...IDLE, daemon: target, ...read, read: true });
-    } catch (error) {
-      if (epoch !== mine) return;
-      store.publish({ ...IDLE, daemon: target, error: codeOf(error) });
-    }
+    await loadPluginView(
+      store,
+      plugin,
+      daemon,
+      calls.bounded(),
+      target,
+      keep,
+      () => epoch === mine,
+    );
   }
 
   /** Read (again) when the paired daemon changed; forget when there is none. */
-  function ensure(): void {
+  function ensure(force = false, keep = false): void {
     if (store.closed()) return;
     // Asked once, then told: a pairing that loads after unlock, or one
     // forgotten, reads again without the panel having to ask.
     if (unwatch === null && daemon.subscribe)
       unwatch = daemon.subscribe(ensure);
     const target = daemon.target();
-    if (readFrom !== undefined && sameTarget(target, readFrom)) return;
+    if (!force && readFrom !== undefined && sameTarget(target, readFrom))
+      return;
     readFrom = target;
     epoch += 1;
     calls.supersede();
     if (target === null) store.publish(IDLE);
-    else void load(target);
+    else void load(target, keep);
   }
 
   /**
@@ -122,11 +159,17 @@ export function createPluginSession(plugin: PluginEntry, daemon: PluginDaemon) {
     }
   }
 
+  /** Read the daemon again without blanking the panel while it answers. */
+  function refresh(): void {
+    if (!store.closed() && !store.view().busy) ensure(true, true);
+  }
+
   return {
     plugin,
     view: store.view,
     subscribe: store.subscribe,
     ensure,
+    refresh,
     toggle,
     ...pairingActions(daemon, store, bounded, ensure),
     /** Abort what is in flight and forget the view; nothing is sent. */
