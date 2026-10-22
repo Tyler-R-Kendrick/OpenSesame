@@ -56,10 +56,13 @@ noise, but it cannot turn a different record into a trigger.
 
 ## HoneyVault
 
-The duress code mode `honey_vault` opens an independently keyed decoy vault
-seeded with six synthetic credentials (AWS, Stripe, GitHub, Cloudflare,
-Postgres and an internal API). Arming registers those credentials in the
-owner's sealed honey-token store; the decoy only carries the token text.
+The retired-password response `synthetic_decoy` opens an independently keyed
+HoneyVault seeded with six synthetic credentials (AWS, Stripe, GitHub,
+Cloudflare, Postgres and an internal API). The credentials use the normal
+proxy-key shape `osr_c0de<28 hex>`; nothing in the value says "honey". The
+reserved id namespace makes the proxy report them as decoys. Arming / opening
+registers those credentials in the owner's sealed honey-token store; the
+decoy only carries the token text.
 Using one through the surrogate proxy raises the same critical
 `surrogate.honey_token` notice as any other planted token, so the owner sees
 it after leaving the decoy.
