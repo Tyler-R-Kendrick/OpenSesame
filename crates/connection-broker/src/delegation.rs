@@ -460,7 +460,7 @@ impl ConnectionBroker {
                 "an offer carries at most {MAX_ITEMS} items"
             )));
         }
-        let mut prepared = Vec::with_capacity(items.len());
+        let mut prepared = Vec::with_capacity(items.len().min(MAX_ITEMS));
         for item in items {
             prepared.push(
                 self.prepare_mint_item(organization_id, owner_subject, item, now)

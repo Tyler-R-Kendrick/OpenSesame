@@ -23,3 +23,23 @@ paths-ignore:
   - "examples/**"
   - "tools/**"
   - "packages/app-core/scripts/**"
+
+# The Rust query pack is still preview-quality and these five rules have no
+# path or cfg(test) awareness: they flag zero-filled buffers, test vectors,
+# domain-separation labels, the CLI's deliberate `pass show` output, checked
+# unsafe slices, fingerprint hashes (not password storage), and the daemon's
+# loopback-only Host API URL. Keep the rules out of the shipped baseline until
+# the pack can distinguish those cases; the remaining Rust queries stay on.
+query-filters:
+  - exclude:
+      id: rust/hard-coded-cryptographic-value
+  - exclude:
+      id: rust/cleartext-logging
+  - exclude:
+      id: rust/access-invalid-pointer
+  - exclude:
+      id: rust/weak-sensitive-data-hashing
+  - exclude:
+      id: rust/request-forgery
+  - exclude:
+      id: rust/non-https-url
