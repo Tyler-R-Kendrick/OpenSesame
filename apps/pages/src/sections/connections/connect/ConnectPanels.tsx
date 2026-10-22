@@ -51,7 +51,12 @@ function ImportedConnectPanels({
   const plan = connectPlan(provider.id);
   const transport = useConnectTransport();
   const session = useIdentitySession();
-  const { tomb } = useVault();
+  const vault = useVault();
+  const { tomb } = vault;
+  // A recreated vault with the same display name has a new header; bind the
+  // signed-out Connect subject to that instance, not the name alone.
+  const vaultInstance =
+    vault.header?.protection?.vaultId ?? vault.header?.createdAt ?? tomb;
   if (!plan) return null;
   return (
     <div className="cx-setup">
@@ -77,7 +82,12 @@ function ImportedConnectPanels({
       <UserTokenPanel
         key={connection.connectionId}
         connectorId={connection.connectionId}
-        subjectId={connectSubjectId(session?.principalId, tomb)}
+        subjectId={connectSubjectId(
+          session?.principalId,
+          tomb,
+          undefined,
+          vaultInstance,
+        )}
         scopes={connection.grantedScopes}
         canManage={transport.canManage}
         canProve={transport.canProve}

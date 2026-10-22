@@ -229,3 +229,11 @@ export async function countProvisionalHistoryAccounts(): Promise<number> {
   const accounts = await listHistoryAccounts();
   return accounts.filter((row) => row.claimState === "provisional").length;
 }
+
+/** Drop any backup selection bound to a connection that is being revoked. */
+export function unbindHistoryConnection(connectionId: string): void {
+  const kept = loadHistorySelections().filter(
+    (row) => row.connectionId !== connectionId,
+  );
+  persistHistoryBinding(kept);
+}

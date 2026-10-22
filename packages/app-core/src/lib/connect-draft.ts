@@ -308,12 +308,14 @@ export function connectSubjectId(
   principalId: string | null | undefined,
   tomb: string | null | undefined,
   store: WebStorage | undefined = maybeLocalStore(),
+  vaultInstance?: string | null,
 ): string | null {
   const id = principalId?.trim();
   if (id && /^[A-Za-z0-9_.:@-]{1,128}$/.test(id)) return id;
   const vault = tomb?.trim();
   if (!vault || !store) return null;
-  const key = `${SUBJECT_PREFIX}${vault}`;
+  const instance = vaultInstance?.trim();
+  const key = `${SUBJECT_PREFIX}${vault}${instance ? `.${instance}` : ""}`;
   try {
     const kept = store.getItem(key);
     if (kept && LOCAL_SUBJECT.test(kept)) return kept;

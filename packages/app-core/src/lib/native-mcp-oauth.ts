@@ -140,10 +140,12 @@ export class NativeMcpPublicOAuth {
         issuer: this.target.binding.issuer ?? undefined,
       };
     }
-    await retain(client);
+    const bounded = NativeMcpRegistrationReceiptSchema.safeParse(client);
+    if (!bounded.success) throw new NativeMcpAuthError("metadata");
+    await retain(bounded.data);
     this.ports.assertCurrent();
-    assertPublicClient(this.target, client);
-    return client;
+    assertPublicClient(this.target, bounded.data);
+    return bounded.data;
   }
 
   /** Caller seals state + this verifier atomically before navigating to authorizationUrl. */

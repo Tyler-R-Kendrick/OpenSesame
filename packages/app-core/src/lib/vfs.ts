@@ -28,6 +28,7 @@ export { vfsFlush } from "./vfs-write-order.js";
  * Plaintext is tomb names, the header, and migration markers. Storage is OPFS.
  */
 
+import { lockManager } from "../ports.js";
 import { VfsError } from "./vfs-error.js";
 export { VfsError, type VfsErrorCode } from "./vfs-error.js";
 
@@ -110,6 +111,22 @@ function assertSealedPath(path: string): void {
   }
 }
 
+const REGISTRY_LOCK = "opensesame:vfs-tomb-registry";
+const INDEX_LOCK_PREFIX = "opensesame:vfs-index:";
+
+/**
+ * One cross-tab fence for a read-modify-write. Tabs share an origin and the
+ * same OPFS files, so the per-document promise queue alone is not enough.
+ * Hosts without Web Locks keep the old single-document behavior.
+ */
+async function withCrossTabLock<T>(
+  name: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const locks = lockManager();
+  return locks ? locks.request(name, work) : work();
+}
+
 /* --------------------------------------------------------------- registry */
 
 function readRegistry(): string[] {
@@ -145,15 +162,19 @@ export async function registerTomb(
 ): Promise<void> {
   check();
   assertTombName(tomb);
-  const names = readRegistry();
-  if (names.includes(tomb)) return;
-  await writeRegistry([...names, tomb], check);
+  await withCrossTabLock(REGISTRY_LOCK, async () => {
+    const names = readRegistry();
+    if (names.includes(tomb)) return;
+    await writeRegistry([...names, tomb], check);
+  });
 }
 
 export async function unregisterTomb(tomb: string): Promise<void> {
-  const names = readRegistry();
-  if (!names.includes(tomb)) return;
-  await writeRegistry(names.filter((name) => name !== tomb));
+  await withCrossTabLock(REGISTRY_LOCK, async () => {
+    const names = readRegistry();
+    if (!names.includes(tomb)) return;
+    await writeRegistry(names.filter((name) => name !== tomb));
+  });
 }
 
 /* ------------------------------------------------------------------ index */
@@ -191,22 +212,27 @@ async function reviseIndex(
   written: boolean,
   check: () => void = () => {},
 ): Promise<void> {
-  check();
-  const index = await readIndex(tomb, key, check);
-  check();
-  if (written) {
-    index.files[path] = (index.files[path] ?? 0) + 1;
-  } else {
-    delete index.files[path];
-  }
-  const blob = await vfsSeams.seal(
-    key,
-    index,
-    vaultSealBinding(tomb, INDEX_PATH),
-  );
-  check();
-  await vfsSeams.writeRaw(tombFileKey(tomb, INDEX_PATH), JSON.stringify(blob));
-  check();
+  await withCrossTabLock(`${INDEX_LOCK_PREFIX}${tomb}`, async () => {
+    check();
+    const index = await readIndex(tomb, key, check);
+    check();
+    if (written) {
+      index.files[path] = (index.files[path] ?? 0) + 1;
+    } else {
+      delete index.files[path];
+    }
+    const blob = await vfsSeams.seal(
+      key,
+      index,
+      vaultSealBinding(tomb, INDEX_PATH),
+    );
+    check();
+    await vfsSeams.writeRaw(
+      tombFileKey(tomb, INDEX_PATH),
+      JSON.stringify(blob),
+    );
+    check();
+  });
 }
 
 /* ------------------------------------------------------------------ blobs */

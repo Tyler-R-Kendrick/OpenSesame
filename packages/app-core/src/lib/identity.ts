@@ -417,16 +417,14 @@ async function resumeCookieSession(): Promise<IdentitySession | null> {
 
 /** Adopt a token the operator already holds (CLI `opensesame-id`, tests). */
 async function adoptTokenDefault(accessToken: string): Promise<void> {
-  // Always end what came before, detected orphan or not: a cookie this tab
-  // never saw would otherwise keep acting alongside the pasted token.
-  endSession();
-  await settleRevokes();
   const token = accessToken.trim();
+  if (session?.accessToken === token) return;
   const epoch = sessionEpoch;
   const issuerOrigin = identityOrigin();
-  // Prove the token itself works, with the cookie deliberately withheld. A
-  // mistyped token would otherwise appear to work by riding a leftover cookie,
-  // and every ceremony would run as the wrong principal.
+  // Prove the token itself works before ending the working session, with the
+  // cookie deliberately withheld. A mistyped token would otherwise appear to
+  // work by riding a leftover cookie, and every ceremony would run as the
+  // wrong principal.
   const res = await identityPlaneRequest("/v1/principals/me", {
     headers: { authorization: `Bearer ${token}` },
     credentials: "omit",
@@ -443,6 +441,10 @@ async function adoptTokenDefault(accessToken: string): Promise<void> {
       409,
     );
   }
+  // Only now end what came before, detected orphan or not: a cookie this tab
+  // never saw would otherwise keep acting alongside the pasted token.
+  endSession();
+  await settleRevokes();
   session = {
     principalId: me.id ?? "unknown",
     accessToken: token,
@@ -459,7 +461,21 @@ async function fetchPrincipalDefault(): Promise<Principal> {
 }
 
 /** Put a stashed bearer back in this tab after an OIDC round-trip. */
-function restoreSessionDefault(next: IdentitySession): void {
+function restoreSessionDefault(
+  next: IdentitySession,
+  expectedEpoch?: number,
+): void {
+  if (expectedEpoch !== undefined && sessionEpoch !== expectedEpoch) {
+    if (!next.cookieOnly)
+      pendingRevoke = (pendingRevoke ?? Promise.resolve())
+        .then(() => revokeRequest(next.accessToken))
+        .then(() => undefined)
+        .catch(() => undefined);
+    throw new IdentityError(
+      "The session was ended while finishing sign-in. Sign in again.",
+      409,
+    );
+  }
   session = next;
   setOrphan(false);
   emit();
@@ -592,8 +608,11 @@ export async function fetchPrincipal(): Promise<Principal> {
   return identitySeams.fetchPrincipal();
 }
 
-export function restoreSession(next: IdentitySession): void {
-  identitySeams.restoreSession(next);
+export function restoreSession(
+  next: IdentitySession,
+  expectedEpoch?: number,
+): void {
+  identitySeams.restoreSession(next, expectedEpoch);
 }
 
 /** Original bearer transport DATA only; the private Store must prove primary/all configured factors. */

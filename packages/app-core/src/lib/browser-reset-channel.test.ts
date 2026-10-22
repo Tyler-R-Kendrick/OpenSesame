@@ -69,6 +69,7 @@ describe("browser-reset-channel", () => {
     ]);
     expect(heard).not.toHaveBeenCalled();
     hub.open().postMessage({ kind: "reset", tab: "another-tab" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(heard).toHaveBeenCalledTimes(1);
   });
 
@@ -100,12 +101,16 @@ describe("hearing another tab's reset", () => {
     const stop = onBrowserReset(reload);
 
     hub.open().postMessage({ kind: "reset", tab: "other", phase: "start" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(storageWritesHalted()).toBe(true);
     await expect(kvSetDurable("settings.v1", "{}")).rejects.toThrow(/reset/);
     expect(reload).not.toHaveBeenCalled();
 
     hub.open().postMessage({ kind: "reset", tab: "other", phase: "done" });
-    expect(reload).toHaveBeenCalledTimes(1);
+    // `done` does not reload while the reset still holds its lock.
+    expect(reload).not.toHaveBeenCalled();
+    locks.release();
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
     stop();
   });
 
@@ -118,7 +123,7 @@ describe("hearing another tab's reset", () => {
 
     hub.open().postMessage({ kind: "reset", tab: "other", phase: "start" });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(locks.asked).toEqual([RESET_LOCK]);
+    expect(locks.asked).toEqual([RESET_LOCK, RESET_LOCK]);
     expect(reload).not.toHaveBeenCalled();
 
     locks.release();
@@ -129,7 +134,22 @@ describe("hearing another tab's reset", () => {
     stop();
   });
 
-  it("without Web Locks, reloads at the ceiling and not before", () => {
+  it("ignores a forged start when no reset holds the lock", async () => {
+    const hub = broadcastHub();
+    configureHost(
+      createTestHost({ broadcast: hub.open, locks: availableLock().port }),
+    );
+    const reload = vi.fn();
+    const stop = onBrowserReset(reload);
+
+    hub.open().postMessage({ kind: "reset", tab: "other", phase: "start" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(storageWritesHalted()).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("without Web Locks, reloads at the ceiling and not before", async () => {
     vi.useFakeTimers();
     const hub = broadcastHub();
     configureHost(createTestHost({ broadcast: hub.open, locks: undefined }));
@@ -137,6 +157,7 @@ describe("hearing another tab's reset", () => {
     const stop = onBrowserReset(reload);
 
     hub.open().postMessage({ kind: "reset", tab: "other", phase: "start" });
+    await Promise.resolve();
     // Longer than any bounded reset: the old fixed 15 s wait was not.
     vi.advanceTimersByTime(119_000);
     expect(reload).not.toHaveBeenCalled();
@@ -154,11 +175,39 @@ function heldLock() {
   });
   const asked: string[] = [];
   const port: LockManagerLike = overlapCast({
-    request: async (name: string, granted: () => void) => {
+    request: async (
+      name: string,
+      optionsOrGranted: { ifAvailable?: boolean } | (() => void),
+      maybeGranted?: () => void,
+    ) => {
       asked.push(name);
+      const granted =
+        typeof optionsOrGranted === "function"
+          ? optionsOrGranted
+          : maybeGranted;
+      if (typeof optionsOrGranted === "object" && optionsOrGranted.ifAvailable)
+        return null;
       await held;
-      return granted();
+      return granted?.();
     },
   });
   return { port, asked, release: () => release() };
+}
+
+/** A Web Lock no other tab holds: a probe is granted immediately. */
+function availableLock() {
+  const port: LockManagerLike = overlapCast({
+    request: async (
+      _name: string,
+      optionsOrGranted: { ifAvailable?: boolean } | (() => void),
+      maybeGranted?: () => void,
+    ) => {
+      const granted =
+        typeof optionsOrGranted === "function"
+          ? optionsOrGranted
+          : maybeGranted;
+      return granted?.();
+    },
+  });
+  return { port };
 }

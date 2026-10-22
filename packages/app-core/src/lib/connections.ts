@@ -292,10 +292,10 @@ async function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
-  const device = await revokeDeviceConnection(id);
-  if (device) return device;
   const local = await revokeLocalGitConnection(id);
   if (local) return local;
+  const device = await revokeDeviceConnection(id);
+  if (device) return device;
   if (vercelConnect.isConnectConnector(id))
     return vercelConnect.revokeVercelConnection(id);
   throw new ConnectionsError(404, "not_found", "That connection is not here.");
@@ -384,7 +384,7 @@ function openConsentPopupDefault(url: string): Window | null {
   return page().open(
     url,
     "opensesame-connect",
-    "width=680,height=820,noopener=no,noreferrer=no",
+    "width=680,height=820,noopener=yes,noreferrer=yes",
   );
 }
 export const connectionSeams = {
@@ -450,10 +450,15 @@ export function setConnectionConfiguration(
 ): ReturnType<typeof setConnectionConfigurationDefault> {
   return connectionSeams.setConnectionConfiguration(...args);
 }
-export function revokeConnection(
+export async function revokeConnection(
   id: string,
-): ReturnType<typeof revokeConnectionDefault> {
-  const result = connectionSeams.revokeConnection(id);
-  noteConnectionRevoked(id);
-  return result;
+): Promise<Awaited<ReturnType<typeof revokeConnectionDefault>>> {
+  try {
+    const result = await connectionSeams.revokeConnection(id);
+    noteConnectionRevoked(id);
+    return result;
+  } catch (error) {
+    noteConnectionRevoked(id, "failed");
+    throw error;
+  }
 }
