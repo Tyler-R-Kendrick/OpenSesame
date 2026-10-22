@@ -16,6 +16,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
+import { withLocalAccessLedgerLock } from "./local-access-ledger-lock.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { assertAccessCapability } from "./local-rbac.js";
@@ -206,7 +207,9 @@ async function settleExpired(
 export async function listVaultSessions(
   tomb: string,
 ): Promise<LocalVaultSession[]> {
-  return settleExpired(tomb, await readAll(tomb));
+  return withLocalAccessLedgerLock(tomb, "session", PATH, MAX_BYTES, async () =>
+    settleExpired(tomb, await readAll(tomb)),
+  );
 }
 
 export async function createVaultSession(
@@ -227,23 +230,32 @@ export async function createVaultSession(
     );
   if (input.grants.length < 1 || input.grants.length > 64)
     throw new LocalDirectoryError("Add at least one grant to the session.");
-  const current = await readAll(tomb);
-  if (current.length >= MAX_SESSIONS)
-    throw new LocalDirectoryError("Session capacity is full.");
-  let session: LocalVaultSession = {
-    id: crypto.randomUUID(),
-    code: mintCode(),
-    label,
-    status: "stopped",
-    durationSeconds: input.durationSeconds,
-    startedAt: null,
-    expiresAt: null,
-    boundTomb: tomb,
-    grants: input.grants,
-    issuedShareIds: [],
-  };
-  current.push(session);
-  await writeAll(tomb, current);
+  let session = await withLocalAccessLedgerLock(
+    tomb,
+    "session",
+    PATH,
+    MAX_BYTES,
+    async () => {
+      const current = await readAll(tomb);
+      if (current.length >= MAX_SESSIONS)
+        throw new LocalDirectoryError("Session capacity is full.");
+      const created: LocalVaultSession = {
+        id: crypto.randomUUID(),
+        code: mintCode(),
+        label,
+        status: "stopped",
+        durationSeconds: input.durationSeconds,
+        startedAt: null,
+        expiresAt: null,
+        boundTomb: tomb,
+        grants: input.grants,
+        issuedShareIds: [],
+      };
+      current.push(created);
+      await writeAll(tomb, current);
+      return created;
+    },
+  );
   if (input.start) session = await startVaultSession(tomb, session.id);
   return session;
 }
@@ -252,10 +264,12 @@ export async function startVaultSession(
   tomb: string,
   sessionId: string,
 ): Promise<LocalVaultSession> {
-  return name(tomb, async (named) => {
-    const manage = await requireManageGrants(named);
-    return startCheckedVaultSession(named, tomb, sessionId, manage);
-  });
+  return withLocalAccessLedgerLock(tomb, "session", PATH, MAX_BYTES, () =>
+    name(tomb, async (named) => {
+      const manage = await requireManageGrants(named);
+      return startCheckedVaultSession(named, tomb, sessionId, manage);
+    }),
+  );
 }
 
 async function startCheckedVaultSession<T>(
@@ -307,10 +321,12 @@ export async function stopVaultSession(
   tomb: string,
   sessionId: string,
 ): Promise<LocalVaultSession> {
-  return name(tomb, async (named) => {
-    const manage = await requireManageGrants(named);
-    return stopCheckedVaultSession(named, tomb, sessionId, manage);
-  });
+  return withLocalAccessLedgerLock(tomb, "session", PATH, MAX_BYTES, () =>
+    name(tomb, async (named) => {
+      const manage = await requireManageGrants(named);
+      return stopCheckedVaultSession(named, tomb, sessionId, manage);
+    }),
+  );
 }
 
 async function stopCheckedVaultSession<T>(
@@ -354,23 +370,31 @@ export async function redeemVaultSessionCode(
   const normalized = code.trim().toUpperCase();
   if (!normalized)
     throw new LocalDirectoryError("Enter the session code to join.");
-  const current = await settleExpired(tomb, await readAll(tomb));
-  const index = current.findIndex((row) => row.code === normalized);
-  if (index < 0)
-    throw new LocalDirectoryError(
-      "That session code is unknown, stopped, or expired.",
-    );
-  let session = current[index];
-  if (!session || session.status !== "running")
-    throw new LocalDirectoryError(
-      "That session code is unknown, stopped, or expired.",
-    );
-  const issued = await issueSessionGrants(tomb, session, principalId);
-  session = {
-    ...session,
-    issuedShareIds: [...session.issuedShareIds, ...issued],
-  };
-  current[index] = session;
-  await writeAll(tomb, current);
-  return session;
+  return withLocalAccessLedgerLock(
+    tomb,
+    "session",
+    PATH,
+    MAX_BYTES,
+    async () => {
+      const current = await settleExpired(tomb, await readAll(tomb));
+      const index = current.findIndex((row) => row.code === normalized);
+      if (index < 0)
+        throw new LocalDirectoryError(
+          "That session code is unknown, stopped, or expired.",
+        );
+      let session = current[index];
+      if (!session || session.status !== "running")
+        throw new LocalDirectoryError(
+          "That session code is unknown, stopped, or expired.",
+        );
+      const issued = await issueSessionGrants(tomb, session, principalId);
+      session = {
+        ...session,
+        issuedShareIds: [...session.issuedShareIds, ...issued],
+      };
+      current[index] = session;
+      await writeAll(tomb, current);
+      return session;
+    },
+  );
 }

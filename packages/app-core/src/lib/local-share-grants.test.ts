@@ -302,3 +302,22 @@ it("refuses a grant to a disabled agent", async () => {
     }),
   ).rejects.toThrow(/disabled/);
 });
+
+it("serializes two concurrent share writes", async () => {
+  const fixture = await localRequestFixture();
+  const input = (resourceId: string, resourceLabel: string) => ({
+    principalId: fixture.personId,
+    resourceKind: "connection" as const,
+    resourceId,
+    resourceLabel,
+    policy: "invoke",
+    durationSeconds: 3600,
+  });
+  await Promise.all([
+    createLocalShare(fixture.tomb, input("github", "GitHub")),
+    createLocalShare(fixture.tomb, input("gitlab", "GitLab")),
+  ]);
+  expect(
+    (await listLocalShares(fixture.tomb)).map((row) => row.resourceId).sort(),
+  ).toEqual(["github", "gitlab"]);
+});
