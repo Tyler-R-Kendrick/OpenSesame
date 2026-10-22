@@ -119,3 +119,11 @@ jobs:
         uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
           category: /language:${{ matrix.language }}
+          output: ${{ runner.temp }}/codeql-results
+      - name: Keep SARIF for review
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: ${{ runner.temp }}/codeql-results
+          if-no-files-found: warn
