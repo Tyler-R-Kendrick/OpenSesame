@@ -14,6 +14,18 @@ function withPermission(
   return browserPorts().environment?.localNetworkPermission;
 }
 
+describe("runtime mode", () => {
+  it("reports iwa for an isolated-app document", () => {
+    vi.stubGlobal("location", { protocol: "isolated-app:" });
+    expect(browserPorts().environment?.runtime).toBe("iwa");
+  });
+
+  it("reports pwa for an ordinary document", () => {
+    vi.stubGlobal("location", { protocol: "https:" });
+    expect(browserPorts().environment?.runtime).toBe("pwa");
+  });
+});
+
 describe("Local Network Access permission names", () => {
   it("asks for loopback-network for a loopback destination", async () => {
     const query = vi.fn(async () => ({ state: "granted" }));

@@ -18,6 +18,7 @@ export function compiledSecurityProfile(): SecurityProfile {
 export type PagesDeploymentProfile =
   | "loopback_development"
   | "dedicated_origin"
+  | "isolated_web_app"
   | "shared_origin_demo";
 export type SecurityProfile = {
   version: 1;
@@ -31,8 +32,17 @@ export function resolveDeploymentProfile(
   origin: string,
   configured: SecurityProfile,
 ): PagesDeploymentProfile {
-  if (configured.version !== 1 || configured.canonicalOrigin !== origin)
-    return "shared_origin_demo";
+  if (configured.version !== 1) return "shared_origin_demo";
+  if (configured.profile === "isolated_web_app") {
+    // The bundle ID is the signing key's hash and is not known when the
+    // profile is stamped. The profile is inside the signed bundle, so the
+    // scheme prefix and the IWA context are the authority here.
+    return configured.canonicalOrigin === "isolated-app:" &&
+      origin.startsWith("isolated-app://")
+      ? configured.profile
+      : "shared_origin_demo";
+  }
+  if (configured.canonicalOrigin !== origin) return "shared_origin_demo";
   if (configured.profile === "loopback_development" && isLoopbackOrigin(origin))
     return configured.profile;
   if (

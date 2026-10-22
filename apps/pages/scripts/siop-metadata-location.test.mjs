@@ -77,6 +77,15 @@ const cases = [
     named(OTHER, SHIPPED_BASE),
   ],
   [
+    "an isolated-app build has no public SIOP issuer",
+    {
+      PAGES_DEPLOYMENT_PROFILE: "isolated_web_app",
+      PAGES_CANONICAL_ORIGIN: "isolated-app:",
+    },
+    "/",
+    skipped(/isolated-app origin has no public SIOP issuer/),
+  ],
+  [
     "a blank origin (an unset repository variable) says nothing, for a fork",
     { ...forkCi, PAGES_CANONICAL_ORIGIN: "  " },
     SHIPPED_BASE,

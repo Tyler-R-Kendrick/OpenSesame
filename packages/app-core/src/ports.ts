@@ -103,6 +103,8 @@ export type LocalNetworkPermission =
 
 /** What the device is doing: connectivity, activation, identification. */
 export type EnvironmentPort = {
+  /** `iwa` inside an `isolated-app://` bundle; `pwa` everywhere else. */
+  readonly runtime?: "pwa" | "iwa";
   /**
    * The Local Network Access permission for a local or loopback destination;
    * absent where the host has none.

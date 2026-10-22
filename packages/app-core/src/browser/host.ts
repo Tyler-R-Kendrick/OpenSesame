@@ -133,6 +133,9 @@ async function localNetworkPermission(
 }
 
 const environment: EnvironmentPort = {
+  get runtime() {
+    return globalThis.location?.protocol === "isolated-app:" ? "iwa" : "pwa";
+  },
   localNetworkPermission,
   get online() {
     return globalThis.navigator?.onLine ?? true;
