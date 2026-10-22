@@ -210,6 +210,8 @@ export async function registerHoneyToken(
     const current = readAll();
     if (current.some((row) => row.id === id))
       throw new Error("This honey token is already recorded.");
+    if (current.filter((row) => row.scope === scope).length >= MAX_HONEY_TOKENS)
+      throw new Error("This vault already holds the maximum honey tokens.");
     const record: HoneyTokenRecord = {
       id,
       scope,
