@@ -22,7 +22,7 @@ as a centralized secret store plus delivery path for apps, CI, and agents.
 | Category | Secrets platform + agent/runtime injection |
 | Trust model | Server-held secrets; identities / tokens unlock delivery |
 | Sync | Cloud or self-hosted control plane |
-| Agent story | Strong — `run` / proxy inject env or mediate fetches |
+| Agent story | Strong — standalone Agent Vault proxy plus commercial access bundles, sessions and managed proxies |
 | Human vault UI | Secondary to platform secrets, not Bitwarden-class UX |
 | License | Open-core (OSS + commercial) |
 
@@ -60,7 +60,7 @@ not env injection as the primary agent API.
 |-------------------|------------|
 | Project secrets | Host connections + sealed store / vault items (by role) |
 | `infisical run` env injection | Craft bar only — prefer ConnectionRef invoke over env dump |
-| Agent Proxy | Host authorize → invoke; receipts for audit. The optional `surrogate-proxy` plugin (off until enabled, [ADR 0150](../../adr/0150-surrogate-credentials-at-the-last-hop.md)) is the stand-in swap for an unmodified client |
+| Agent Vault | [Agent Vault design](../design/agent-vault.md): native forward proxy on the existing `surrogate-proxy`/invoke-through crates; PWA worker broker; services, bundles and sessions share one policy model |
 | Machine identity | Device / workload auth + connection grants |
 | Human password UI | Pages vault habits (Bitwarden craft bar), not Infisical |
 | Private CA / issue cert | Host `/api/v1/certs` · `opensesame cert issue` · Pages certificate vault item |

@@ -20,6 +20,7 @@ at the repository root; the product's users and voice are in
 | [Writing a vault item type](vault-item-types.md) | The item-type JSON format, field by field. |
 | [Item formats](item-formats.md) | The closed parsers and synthetic generators for checksummed and issuer-shaped secrets. |
 | [Item rotation](item-rotation.md) | Default 30-day schedules, the locked-vault rotation queue, and the optional relay boundary. |
+| [Agent Vault](agent-vault.md) | The native/PWA split for brokered agent access, the Infisical parity contract, and the delivery slices. |
 
 ## Design canvases
 
