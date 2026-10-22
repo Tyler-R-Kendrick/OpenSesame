@@ -123,7 +123,8 @@ Group provisioning and GitHub team sync are in
 [group provisioning](group-provisioning.md).
 Connector creation, invocation and the 1Password Connect-compatible API are in
 [connections experience](connections-experience.md). OIDC workflow access to
-environment variables is in [credential broker](credential-broker.md).
+environment variables is in [credential broker](credential-broker.md). KMIP
+limits and the native-daemon requirement are in [KMIP](kmip.md).
 
 ## Runtime contracts
 

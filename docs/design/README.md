@@ -27,6 +27,7 @@ at the repository root; the product's users and voice are in
 | [Assume privilege](assume-privilege.md) | Time-boxed, audited permission testing for owned agents and applications, scoped to one vault or project. |
 | [Connections experience](connections-experience.md) | Task-first setup, reuse/verification, connection doctor, agent invocation and 1Password Connect API parity. |
 | [Credential broker](credential-broker.md) | OIDC-bound workflow access to environment variables, GitHub Actions, SDK and the 1Password broker capability contract. |
+| [KMIP](kmip.md) | Why a static PWA cannot host KMIP, the free native daemon shape, client ACLs, KMS boundaries and conformance. |
 
 ## Design canvases
 
