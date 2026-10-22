@@ -117,6 +117,7 @@ export class BrowserNodeWorker {
 const worker = new BrowserNodeWorker((message) =>
   globalThis.postMessage(message),
 );
-globalThis.addEventListener("message", (event: MessageEvent) =>
-  worker.receive(event),
-);
+globalThis.addEventListener("message", (event: MessageEvent) => {
+  if (event.origin !== globalThis.location.origin) return;
+  worker.receive(event);
+});

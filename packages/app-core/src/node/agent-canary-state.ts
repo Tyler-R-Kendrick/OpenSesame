@@ -1,5 +1,6 @@
 /** Private authenticated receiver storage; this key never grants vault authority. */
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { constants } from "node:fs";
 import { lstat, mkdir, open, rename, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
@@ -28,14 +29,13 @@ export const ReceiverStateSchema = z.strictObject({
 });
 export type ReceiverState = z.infer<typeof ReceiverStateSchema>;
 async function privateFile(path: string): Promise<Buffer> {
-  const stat = await lstat(path);
-  if (!stat.isFile() || (stat.mode & 0o077) !== 0)
-    throw new Error("Receiver file must be private and regular.");
-  const file = await open(path, "r");
+  // Open with O_NOFOLLOW first, then judge the descriptor. Checking a path
+  // and opening it later is the race this used to have.
+  const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
     const held = await file.stat();
-    if (held.ino !== stat.ino || held.dev !== stat.dev || held.size > 2 << 20)
-      throw new Error("Receiver file changed.");
+    if (!held.isFile() || (held.mode & 0o077) !== 0 || held.size > 2 << 20)
+      throw new Error("Receiver file must be private and regular.");
     return await file.readFile();
   } finally {
     await file.close();

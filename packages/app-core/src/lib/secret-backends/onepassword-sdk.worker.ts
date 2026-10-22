@@ -298,6 +298,8 @@ if ("importScripts" in globalThis) {
     post: (message) => self.postMessage(message),
     stop: () => self.close(),
   });
-  self.onmessage = (event: MessageEvent<BoundaryValue>) =>
+  self.onmessage = (event: MessageEvent<BoundaryValue>) => {
+    if (event.origin !== self.location.origin) return;
     engine.receive(event.data);
+  };
 }
