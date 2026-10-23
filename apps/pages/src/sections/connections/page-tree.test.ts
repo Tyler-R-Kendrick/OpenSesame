@@ -30,7 +30,6 @@ describe("connections page tree", () => {
       expect.arrayContaining([
         "linear",
         "microsoft",
-        "microsoft-teams",
         "salesforce",
         "slack",
         "snowflake",

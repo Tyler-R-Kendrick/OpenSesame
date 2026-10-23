@@ -12,6 +12,11 @@ import {
   isManagedConnector,
 } from "@opensesame/app-core/lib/managed-connectors.js";
 import { CATEGORY_LABELS } from "@opensesame/app-core/sections/connections/shared.js";
+import {
+  API_FAMILIES,
+  apiFamilyFor,
+  isFamilyCanonical,
+} from "./catalog-families.js";
 
 // Every managed connector stays except Linq, which the operator retired from
 // this browse list. The source set is the managed-connector registry itself.
@@ -110,7 +115,9 @@ const AI = new Set<string>([
   "fal-ai",
   "higgsfield",
 ]);
+const FAMILY = new Set(API_FAMILIES.map((family) => family.id));
 const ALLOWED = new Set([
+  ...FAMILY,
   ...MANAGED,
   ...DEV_INTEGRATION,
   ...PRODUCTIVITY,
@@ -200,27 +207,58 @@ function featuredProviders(
       scopes: [],
     },
   ];
+  const categories: Record<string, Provider["category"]> = {
+    microsoft: "productivity",
+    vercel: "developer",
+    cloudflare: "developer",
+    google: "productivity",
+    azure: "encryption",
+    aws: "cloud_secret_storage",
+    gcp: "cloud_secret_storage",
+  };
+  for (const family of API_FAMILIES) {
+    if (!present.has(family.id))
+      rows.push(
+        clone(base, family.id, family.name, categories[family.id] ?? "custom"),
+      );
+  }
   return rows.filter((provider) => !present.has(provider.id));
 }
 
 /** The curated providers, in one alphabetical browse list. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
-  options: { includeFeatured?: boolean } = {},
+  options: { includeFeatured?: boolean; includeFamilies?: boolean } = {},
 ): Provider[] {
   const source = options.includeFeatured
     ? [...providers, ...featuredProviders(providers)]
     : providers;
   return source
-    .filter((provider) => isConnectionCatalogProvider(provider))
+    .filter(
+      (provider) =>
+        isConnectionCatalogProvider(provider) ||
+        (options.includeFamilies === true && isFamilyCanonical(provider.id)),
+    )
     .filter(
       (provider) =>
         provider.category !== "ai_model_provider" || AI.has(provider.id),
     )
     .filter(
       (provider) =>
-        ALLOWED.has(provider.id) && !RETIRED_FROM_BROWSE.has(provider.id),
+        ALLOWED.has(provider.id) &&
+        !RETIRED_FROM_BROWSE.has(provider.id) &&
+        (!options.includeFamilies ||
+          isFamilyCanonical(provider.id) ||
+          apiFamilyFor(provider.id) === undefined),
     )
+    .map((provider) => {
+      const family = options.includeFamilies
+        ? apiFamilyFor(provider.id)
+        : undefined;
+      return family && family.id === provider.id
+        ? { ...provider, displayName: family.name }
+        : provider;
+    })
     .sort((left, right) =>
       left.displayName.localeCompare(right.displayName, "en", {
         sensitivity: "base",

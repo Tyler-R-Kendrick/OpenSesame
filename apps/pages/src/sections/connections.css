@@ -825,3 +825,33 @@ button.conn-tile__link {
   line-height: 1;
   white-space: nowrap;
 }
+
+/* One provider family tile: the summary is the tile, its APIs sit inside. */
+.conn-tile--family > details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.conn-tile--family > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.conn-family__apis {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem 0.75rem;
+  list-style: none;
+}
+
+.conn-family__apis a {
+  color: var(--link);
+  display: block;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--radius-sm);
+}
+
+.conn-family__apis a:hover,
+.conn-family__apis a:focus-visible {
+  background: var(--surface-2);
+}
