@@ -76,6 +76,7 @@ describe("saved enterprise connections", () => {
       const linked = await started.ctx.repos.externalIdentities.findByTuple({
         kind: "saml",
         issuer: idp.saml.entityId,
+        tenant: id,
         subject,
       });
       expect(linked?.assurance).toBe("verified");

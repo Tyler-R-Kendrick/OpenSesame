@@ -1,9 +1,12 @@
-import { ambientAuthSeams, isAmbientIntent } from "../lib/ambient-auth-seam.js";
-import { storeAuthOutcome } from "../lib/auth-outcome.js";
 /**
  * View-model logic for `FederationReturn` (ADR 0133 §8): the pure part of that
  * screen — no React, no DOM — so any shell can drive the same behaviour.
  */
+import { pageOrigin } from "@opensesame/app-core/ports.js";
+import { ambientAuthSeams, isAmbientIntent } from "../lib/ambient-auth-seam.js";
+import { storeAuthOutcome } from "../lib/auth-outcome.js";
+import { assertSafeReturnTo } from "../lib/federation-callback.js";
+import { federationSessionGeneration } from "../lib/federation-native-session.js";
 import {
   adoptBrokeredSession,
   completeSignIn,
@@ -19,6 +22,7 @@ import { joinOrgTenant } from "../lib/orgs.js";
 export type ReturnOutcome = { returnTo?: string };
 
 export async function processReturn(): Promise<ReturnOutcome> {
+  const generation = federationSessionGeneration();
   const result = await completeSignIn();
   if (!result) return {};
   if (isAmbientIntent(result.intent)) {
@@ -41,7 +45,7 @@ export async function processReturn(): Promise<ReturnOutcome> {
     // session bound to THAT principal. The id_token beside it is pairwise for
     // this origin and is deliberately never linked — doing so would attach it
     // to whichever session this tab holds (T23).
-    await adoptBrokeredSession(result.accessToken);
+    await adoptBrokeredSession(result.accessToken, generation);
     // A finished ceremony lands in the app, not back on the sign-in screen —
     // unless this leg is resuming somewhere specific (broker consent), where
     // inventing a vault would fake an unlocked state. When the vault stays
@@ -73,7 +77,8 @@ export async function processReturn(): Promise<ReturnOutcome> {
       );
     }
   }
-  return result.returnTo !== undefined ? { returnTo: result.returnTo } : {};
+  const returnTo = assertSafeReturnTo(result.returnTo, pageOrigin(), "/");
+  return returnTo !== undefined ? { returnTo } : {};
 }
 
 export let inFlightReturn: Promise<ReturnOutcome> | null = null;

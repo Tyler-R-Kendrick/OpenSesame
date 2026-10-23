@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   atRestBinding,
@@ -14,7 +14,11 @@ import type {
 import { loadAtRestKeyFile } from "@opensesame/app-core/node/at-rest-key-file.js";
 import { defaultStateDir } from "@opensesame/app-core/node/host.js";
 import { z } from "zod";
-import { resolveCredentialHelper, writePrivateFile } from "./parity-node.js";
+import {
+  clipboardEnvironment,
+  resolveCredentialHelper,
+  writePrivateFile,
+} from "./parity-node.js";
 
 function osCredential(operation: string, token?: string): Promise<string> {
   const windows = process.platform === "win32";
@@ -40,7 +44,14 @@ function osCredential(operation: string, token?: string): Promise<string> {
     const child = spawn(
       resolveCredentialHelper(windows ? "powershell" : "osascript"),
       [...args, operation, "dev.opensesame.password-agent", "service-account"],
-      { stdio: ["pipe", "pipe", "ignore"], shell: false },
+      {
+        stdio: ["pipe", "pipe", "ignore"],
+        shell: false,
+        env: clipboardEnvironment(process.env),
+        cwd: parse(process.execPath).root,
+        timeout: 15_000,
+        killSignal: "SIGKILL",
+      },
     );
     let output = "";
     child.stdout.setEncoding("utf8");

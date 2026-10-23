@@ -494,3 +494,69 @@ describe("authentication service API", () => {
     expect((await attempt()).status).toBe(429);
   });
 });
+
+describe("authentication application concurrency", () => {
+  it("does not let a concurrent patch undo an API-key rotation", async () => {
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const owner = await verifiedPrincipal(app);
+    const created = await app.request("/v1/authentication/applications", {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        displayName: "Race RP",
+        rpId: "localhost",
+        origins: ["http://localhost:5180"],
+      }),
+    });
+    expect(created.status).toBe(201);
+    const createdBody = overlapCast(await created.json());
+    const applicationId: string = overlapCast(createdBody.application.id);
+    const oldSecret: string = overlapCast(createdBody.apiSecret);
+
+    const patch = () =>
+      app.request(`/v1/authentication/applications/${applicationId}`, {
+        method: "PATCH",
+        headers: { ...owner.auth, "content-type": "application/json" },
+        body: JSON.stringify({ displayName: "Race RP renamed" }),
+      });
+    const rotate = () =>
+      app.request(
+        `/v1/authentication/applications/${applicationId}/rotate-secret`,
+        { method: "POST", headers: owner.auth },
+      );
+
+    const [patched, rotated] = await Promise.all([patch(), rotate()]);
+    expect(patched.status).toBe(200);
+    expect(rotated.status).toBe(200);
+    const rotatedBody = overlapCast(await rotated.json());
+    const newSecret: string = overlapCast(rotatedBody.apiSecret);
+    expect(newSecret).not.toBe(oldSecret);
+
+    const probe = (secret: string) =>
+      app.request("/v1/authentication/backend/credentials/list", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${secret}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ applicationId, userId: "race-user" }),
+      });
+    // 404 means authentication succeeded but the user has no credentials;
+    // 401 is the old-secret rejection that matters here.
+    expect((await probe(newSecret)).status).not.toBe(401);
+    expect((await probe(oldSecret)).status).toBe(401);
+
+    const stored =
+      await ctx.authenticationStores.applications.get(applicationId);
+    expect(stored?.displayName).toBe("Race RP renamed");
+    expect(stored?.secretPrefix).toBe(
+      stored?.apiKeys.find((key) => key.state === "active")?.secretPrefix,
+    );
+  });
+});

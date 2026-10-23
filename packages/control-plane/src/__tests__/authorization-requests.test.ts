@@ -261,6 +261,22 @@ describe("authorization request inbox", () => {
     expect(again.status).toBe(422);
   });
 
+  it("binds a delegated request to a high-risk floor", async () => {
+    const app = plane();
+    const approver = await principal(app);
+    const requester = await principal(app);
+    const created = await ask(
+      app,
+      requester.accessToken,
+      await inboxRefOf(app, approver),
+      { delegationId: "dlg_test_delegated_authority" },
+    );
+    expect(created.status).toBe(201);
+    // The details still say "read", but delegated authority cannot be made
+    // read-only by the party asking to use it.
+    expect(overlapCast(await created.json()).approval.riskClass).toBe("high");
+  });
+
   it("contract: asking an unknown principal answers 404 rather than confirming it", async () => {
     const app = plane();
     const requester = await principal(app);

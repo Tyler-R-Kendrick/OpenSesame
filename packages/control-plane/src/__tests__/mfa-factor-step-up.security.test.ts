@@ -51,6 +51,23 @@ describe("DELETE /v1/mfa/factors/:id asks for a step-up", () => {
     expect(await factorIds(cp, alice.accessToken)).toEqual([key, "totp"]);
   });
 
+  it("does not let a full failure map deny every step-up", async () => {
+    const cp = createControlPlane({ config: DEV });
+    const alice = await signedIn(cp);
+    const credential = await enrolPasskey(cp, alice.principalId);
+    const secret = await enrolTotp(cp, alice.accessToken);
+    for (let i = 0; i < 4097; i += 1) {
+      cp.ctx.stores.mfaFailures.set(`stale-step-up:${i}`, 1);
+    }
+    const key = `pk_${passkeyDigest(credential)}`;
+    const res = await remove(cp, alice.accessToken, key, {
+      kind: "totp",
+      code: totpCode(secret),
+    });
+    // A full map is a reason to prune, not to lock every principal out.
+    expect(res.status).toBe(200);
+  });
+
   it("refuses a wrong, expired or replayed authenticator code", async () => {
     const cp = createControlPlane({ config: DEV });
     const alice = await signedIn(cp);

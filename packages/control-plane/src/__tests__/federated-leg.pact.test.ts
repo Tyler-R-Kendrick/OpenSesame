@@ -172,7 +172,7 @@ describeSourceOracle("PACT — federated leg fail-closed ordering", () => {
 describe("PACT — federated route ordering", () => {
   it("deletes the single-use pending cookie before the exchange runs", () => {
     assertSourceOrder(routesSource, [
-      "decodePending(getCookie",
+      "decodePending(",
       "deleteCookie(c, pendingCookieName(uid)",
       "completeFederatedLeg(ctx, pending",
     ]);

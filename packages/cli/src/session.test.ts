@@ -1,4 +1,11 @@
-import { chmod, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
@@ -231,6 +238,53 @@ describe("cli session file", () => {
     });
     expect(code).toBe(1);
     expect(out).toMatch(/Not authenticated/);
+  });
+
+  it("recovers a stale refresh lock and rotates once", async () => {
+    await writeSession({
+      accessToken: "at-old",
+      refreshToken: "rt-old",
+      issuer: ISSUER,
+      clientId: "opensesame-cli",
+      expiresAt: Date.now() - 1000,
+    });
+    const lock = join(dir, "identity-session.json.lock");
+    await writeFile(lock, "dead-holder", { mode: 0o600 });
+    const old = new Date(Date.now() - 60_000);
+    await utimes(lock, old, old);
+    const fetchImpl: typeof fetch = overlapCast(
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("openid-configuration")) {
+          return new Response(
+            JSON.stringify({
+              issuer: ISSUER,
+              token_endpoint: `${ISSUER}/token`,
+            }),
+          );
+        }
+        if (url.endsWith("/token")) {
+          return new Response(
+            JSON.stringify({
+              access_token: "at-new",
+              refresh_token: "rt-new",
+              token_type: "Bearer",
+              expires_in: 3600,
+            }),
+          );
+        }
+        if (url.endsWith("/v1/principals/me")) {
+          return new Response(JSON.stringify({ id: "p-1" }), { status: 200 });
+        }
+        throw new Error(`unexpected ${url}`);
+      }),
+    );
+    const code = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl });
+    expect(code).toBe(0);
+    const saved = await loadSession();
+    expect(saved?.accessToken).toBe("at-new");
+    expect(saved?.refreshToken).toBe("rt-new");
+    await expect(readFile(lock, "utf8")).rejects.toThrow();
   });
 
   it("keeps the session file when refresh is partitioned", async () => {

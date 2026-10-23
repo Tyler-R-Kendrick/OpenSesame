@@ -16,6 +16,7 @@ import { approvalTerminal } from "./fixtures/password-agent/approval-terminal.js
 import { processFixture } from "./fixtures/password-agent/process.js";
 import { openLeaseStore } from "./parity-lease-node.js";
 import {
+  clipboardEnvironment,
   helperEnvironment,
   invokeOp,
   resolveCredentialHelper,
@@ -163,12 +164,33 @@ describe("private request and authority CLI", { timeout: 60000 }, () => {
     expect(env.BASH_ENV).toBeUndefined();
     expect(env.LD_PRELOAD).toBeUndefined();
     expect(env.OP_SERVICE_ACCOUNT_TOKEN).toBe("ops_canary");
+    expect(
+      clipboardEnvironment({
+        PATH: process.env.PATH ?? "",
+        OP_SERVICE_ACCOUNT_TOKEN: "ops_canary",
+      }).OP_SERVICE_ACCOUNT_TOKEN,
+    ).toBeUndefined();
     const original = process.env.PATH;
     try {
       process.env.PATH = `:.:relative:${process.cwd()}`;
       expect(() => resolveCredentialHelper("op")).toThrow();
     } finally {
       process.env.PATH = original;
+    }
+  });
+  it("refuses a group- or world-writable helper directory even outside the working tree", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "opensesame-wide-bin-"));
+    const helper = join(directory, "op");
+    await writeFile(helper, "#!/bin/sh\nexit 0\n");
+    await chmod(helper, 0o700);
+    await chmod(directory, 0o777);
+    const original = process.env.PATH;
+    try {
+      process.env.PATH = directory;
+      expect(() => resolveCredentialHelper("op")).toThrow();
+    } finally {
+      process.env.PATH = original;
+      await chmod(directory, 0o700);
     }
   });
 });
