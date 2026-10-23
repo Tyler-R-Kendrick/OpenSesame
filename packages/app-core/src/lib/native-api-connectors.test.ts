@@ -52,6 +52,32 @@ describe("provider-verified sealed native API connections", () => {
       message: "Provider did not return the expected response",
     });
   });
+  it.each([
+    [
+      "asana",
+      "https://app.asana.com/api/1.0/users/me",
+      { data: { name: "Ada" } },
+    ],
+    ["attio", "https://api.attio.com/v2/objects", { data: [] }],
+  ])(
+    "connects %s with its own PAT and verifies the provider identity",
+    async (providerId, url, body) => {
+      const provider = nativeAnswers({ body });
+      const view = await configureNativeApiConnector(
+        nativeApiDraft(providerId),
+        provider.transport,
+      );
+      expect(view.status).toBe("connected");
+      expect(view.identity?.assurance).toBe("credential-valid");
+      expect(provider.fetch.mock.calls[0]?.[0].toString()).toBe(url);
+      expect(
+        new Headers(provider.fetch.mock.calls[0]?.[1]?.headers).get(
+          "authorization",
+        ),
+      ).toBe("Bearer private-native-key");
+    },
+  );
+
   it("actually verifies, stores one private key, and awaits a real read without exposing upstream secrets", async () => {
     const provider = nativeAnswers(
       {
