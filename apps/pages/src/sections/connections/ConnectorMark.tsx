@@ -81,7 +81,12 @@ export function ConnectorMark({
     return (
       <span
         className="conn-mark conn-mark--wordmark"
-        style={{ width: size, height: size, color: mark.hex ?? "currentColor" }}
+        style={{
+          width: size,
+          height: size,
+          color: mark.hex ?? "currentColor",
+          fontSize: size * 0.42,
+        }}
         aria-hidden="true"
       >
         {mark.wordmark}

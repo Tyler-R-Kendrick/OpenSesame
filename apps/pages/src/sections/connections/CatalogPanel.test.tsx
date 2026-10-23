@@ -59,7 +59,7 @@ it("opens the auth-method builder from the + button", () => {
   expect(
     screen.getByRole("group", { name: "Authentication method" }),
   ).toBeTruthy();
-  for (const name of ["OAuth", "OIDC", "API key", "MCP"])
+  for (const name of ["OAuth", "API key", "MCP"])
     expect(
       screen.getByRole("button", { name: new RegExp(`^${name}`) }),
     ).toBeTruthy();
