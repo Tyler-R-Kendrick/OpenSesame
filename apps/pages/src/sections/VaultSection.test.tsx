@@ -48,11 +48,11 @@ const vault: VaultHarness = {
     header: null,
   },
 };
-
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { vaultTreeSeams } from "./vault/VaultTree.js";
 const copySecret = vi.fn();
 const store = {
+  activeTomb: () => "personal",
   purgeItem: vi.fn(),
   trashItem: vi.fn(),
   toggleFavorite: vi.fn(),

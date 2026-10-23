@@ -28,7 +28,6 @@ import { AscendProvider, usePaneTrail } from "../lib/pane-trail.js";
 import { useNarrow } from "../lib/use-narrow.js";
 import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { LiveSessionBanner } from "./vault/LiveSessionBanner.js";
 import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
@@ -41,6 +40,7 @@ import { accountSecretToCopy } from "./vault/account-copy.js";
 import { credentialChoices } from "./vault/account-credentials.js";
 import { useSharedItems } from "./vault/use-shared-items.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
+import { useVaultPaneRefs } from "./vault/use-vault-pane-refs.js";
 import "./vault.css";
 import {
   chipTypeIds,
@@ -221,16 +221,15 @@ export function VaultSection() {
     filter === "trash" ? item.deletedAt !== null : item.deletedAt === null,
   ).length;
 
-  const detailRef = useRef<HTMLDivElement>(null);
-  const listPaneRef = useRef<HTMLDivElement>(null);
-  const treePaneRef = useRef<HTMLDivElement>(null);
-  const newItemRef = useRef<HTMLAnchorElement>(null);
-  const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
-  const listRef = useGuideTarget<HTMLDivElement>("vault.list");
-  // A phone opens on the section tree, where the list pane is not drawn: the
-  // tree answers to the list's target, and the Add button to the create one,
-  // and the registry points at whichever copy is on screen.
-  const treeListRef = useGuideTarget<HTMLDivElement>("vault.list");
+  const {
+    detailRef,
+    listPaneRef,
+    treePaneRef,
+    newItemRef,
+    listRef,
+    treeListRef,
+    recordNewItem,
+  } = useVaultPaneRefs();
   const listPath = vaultListPath(location.search, narrow);
   const pickingDrop = params.get("share") === "pick-drop";
   const closeDropPicker = () => {
@@ -242,12 +241,6 @@ export function VaultSection() {
       { replace: true },
     );
   };
-  // Where New records itself for focus and the guide, wherever it is drawn.
-  const recordNewItem = (element: HTMLAnchorElement | null) => {
-    newItemRef.current = element;
-    createRef(element);
-  };
-
   // The list stays mounted behind the tree on a phone, and the prompt's words
   // are the shell's, not the pane's: a search typed on the list came back,
   // filter and all, the next time a tree entry opened it ("all" drew no rows
@@ -280,7 +273,7 @@ export function VaultSection() {
     if (!target?.pane) return;
     const { to, up } = target;
     return swipeBack(target.pane, () => ascend(up, to));
-  }, [showing, listPath, ascend]);
+  }, [showing, listPath, ascend, detailRef, listPaneRef]);
 
   return (
     <AscendProvider value={narrow ? ascend : null}>

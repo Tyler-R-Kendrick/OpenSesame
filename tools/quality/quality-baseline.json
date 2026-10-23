@@ -17,7 +17,7 @@
   },
   "totals": {
     "files": 447,
-    "violations": 716,
+    "violations": 715,
     "oversizedLines": 221255
   },
   "files": {
@@ -168,8 +168,7 @@
       "max-lines": 674
     },
     "apps/pages/src/sections/VaultSection.tsx": {
-      "max-lines-per-function": 1,
-      "max-statements": 1
+      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/access/ConnectorBindForm.tsx": {
       "max-lines-per-function": 1
