@@ -12,6 +12,9 @@ for (const [network, prefix] of [
   ["169.254.0.0", 16],
   ["172.16.0.0", 12],
   ["192.168.0.0", 16],
+  ["100.64.0.0", 10],
+  ["192.0.0.0", 24],
+  ["198.18.0.0", 15],
 ] as const) {
   PRIVATE_HOSTS.addSubnet(network, prefix, "ipv4");
   PRIVATE_HOSTS.addSubnet(`::ffff:${network}`, 96 + prefix, "ipv6");
@@ -39,6 +42,11 @@ function isLoopbackHost(hostname: string): boolean {
   const host = stripIpv6Brackets(hostname).replace(/\.+$/u, "").toLowerCase();
   return (
     host === "localhost" ||
+    host === "localhost4" ||
+    host === "localhost6" ||
+    host === "localhost.localdomain" ||
+    host === "ip6-localhost" ||
+    host === "ip6-loopback" ||
     host.endsWith(".localhost") ||
     blockListContains(LOOPBACK_HOSTS, host)
   );

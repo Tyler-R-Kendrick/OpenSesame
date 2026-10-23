@@ -12,6 +12,7 @@ import { encodeQrTerminal } from "@opensesame/qr";
 import {
   assertDiscoveredUrl,
   assertDiscoveryBelongsToIssuer,
+  assertResolvedPublicHost,
   assertSecureUrl,
   trimSlash,
 } from "./secure-url.js";
@@ -191,6 +192,15 @@ export class DeviceFlowClient {
       this.#issuer,
     );
     assertDiscoveredUrl(doc.token_endpoint, "token_endpoint", this.#issuer);
+    // A public issuer name that resolves into loopback/private space would
+    // otherwise turn every device-flow request into an SSRF primitive. Check
+    // both endpoints before the first request; also re-check on each poll
+    // below so a DNS answer cannot be swapped in after discovery.
+    await assertResolvedPublicHost(
+      doc.device_authorization_endpoint,
+      this.#issuer,
+    );
+    await assertResolvedPublicHost(doc.token_endpoint, this.#issuer);
     this.#meta = {
       device_authorization_endpoint: doc.device_authorization_endpoint,
       token_endpoint: doc.token_endpoint,
@@ -210,6 +220,10 @@ export class DeviceFlowClient {
       body,
     };
     if (this.config.signal) init.signal = this.config.signal;
+    await assertResolvedPublicHost(
+      meta.device_authorization_endpoint,
+      this.#issuer,
+    );
     const res = await this.#fetch(meta.device_authorization_endpoint, init);
     if (!res.ok) {
       throw new Error(`device authorize failed: ${res.status}`);
@@ -266,6 +280,7 @@ export class DeviceFlowClient {
       body,
     };
     if (this.config.signal) init.signal = this.config.signal;
+    await assertResolvedPublicHost(meta.token_endpoint, this.#issuer);
     const res = await this.#fetch(meta.token_endpoint, init);
     const raw: BoundaryValue = await res.json();
     const json = isJsonObject(raw) ? raw : {};
