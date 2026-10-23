@@ -6,6 +6,7 @@ import { JOIN_COMMAND_PATH } from "@opensesame/app-core/lib/command-bar/types.js
 import { type ComponentType, Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import type { AppSlots } from "./app-root.js";
+import { useRenewingShellWrappers } from "./bindings/shell-wrappers.js";
 import { Framed } from "./components/RouteFrame.js";
 import { Wrapped } from "./components/ShellWrappers.js";
 import {
@@ -52,11 +53,12 @@ export function AppVaultShell({
   routes: readonly RouteContribution[];
   fallback: ComponentType;
 }) {
+  const renewedWrappers = useRenewingShellWrappers(wrappers);
   return (
     // The shell is one Suspense boundary and the section inside it another,
     // so a section still loading never blanks the rail around it.
     <Suspense fallback={<VaultShellSkeleton />}>
-      <Wrapped wrappers={wrappers}>
+      <Wrapped wrappers={renewedWrappers}>
         <slots.AppShell>
           <Suspense fallback={<VaultContentSkeleton />}>
             <Routes>
