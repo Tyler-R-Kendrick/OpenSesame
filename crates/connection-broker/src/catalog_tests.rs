@@ -14,6 +14,17 @@ fn embedded_catalog_is_valid_and_versioned() {
         185
     );
     assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
+    let ollama = catalog.find("ollama").expect("Ollama provider");
+    assert_eq!(ollama.display_name, "Ollama");
+    assert_eq!(ollama.category, Category::AiModelProvider);
+    assert_eq!(
+        ollama
+            .model_api
+            .as_ref()
+            .expect("Ollama model API")
+            .protocol,
+        ModelProtocol::OpenaiChat
+    );
 }
 
 #[test]
