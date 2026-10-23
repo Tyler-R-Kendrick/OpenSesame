@@ -112,6 +112,35 @@ export async function verifyDeadmanState(
   return verifyText(state.publicKeyJwk, stateText(state), state.signature);
 }
 
+/**
+ * Whether the sealed private key is the pair for the public key a state
+ * record carries. Verification with a key the record itself supplies is only
+ * evidence of internal consistency; this binds it to the key we hold.
+ */
+export async function deadmanKeyMatchesState(
+  privateKeyJwk: JsonWebKey,
+  publicKeyJwk: JsonWebKey,
+): Promise<boolean> {
+  try {
+    const key = await crypto.subtle.importKey(
+      "jwk",
+      privateKeyJwk,
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign"],
+    );
+    const derived = await crypto.subtle.exportKey("jwk", key);
+    return (
+      derived.kty === publicKeyJwk.kty &&
+      derived.crv === publicKeyJwk.crv &&
+      derived.x === publicKeyJwk.x &&
+      derived.y === publicKeyJwk.y
+    );
+  } catch {
+    return false;
+  }
+}
+
 function invalidAuthenticationWindow(value: JsonObject): boolean {
   return (
     !isNumber(value.lastAuthenticatedAt) ||
@@ -273,7 +302,26 @@ export async function loadDeadmanStatus(
 ): Promise<DeadmanStatus | null> {
   const state = readDeadmanState(tomb);
   if (!state) return null;
-  const valid = await verifyDeadmanState(state);
+  let valid = await verifyDeadmanState(state);
+  if (valid) {
+    // When the vault is open, the sealed private half is the trust anchor for
+    // the public key. A state re-signed with an attacker's own key verifies
+    // against itself but does not match the key this device enrolled.
+    try {
+      const config = await readDeadmanConfig(tomb);
+      if (config) {
+        valid =
+          config.id === state.id &&
+          (await deadmanKeyMatchesState(
+            config.privateKeyJwk,
+            state.publicKeyJwk,
+          ));
+      }
+    } catch {
+      // A locked vault cannot read the private half; the signed public record
+      // remains the only evidence available to the unlock screen.
+    }
+  }
   return statusOf(state, readDeadmanPackage(tomb), !valid, now);
 }
 
@@ -293,7 +341,12 @@ export async function recordDeadmanAuthentication(tomb: string): Promise<void> {
     const state = readDeadmanState(tomb);
     if (!state || !(await verifyDeadmanState(state))) return;
     const config = await readDeadmanConfig(tomb);
-    if (!config || config.id !== state.id) return;
+    if (
+      !config ||
+      config.id !== state.id ||
+      !(await deadmanKeyMatchesState(config.privateKeyJwk, state.publicKeyJwk))
+    )
+      return;
     const now = deadmanSeams.now();
     if (now <= state.lastAuthenticatedAt) return;
     const next = await signDeadmanState(

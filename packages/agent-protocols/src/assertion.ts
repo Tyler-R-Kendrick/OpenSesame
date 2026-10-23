@@ -62,6 +62,16 @@ function decodeHeader(jwt: string) {
   }
 }
 
+/**
+ * Resource identifiers are compared with one trailing slash removed. The
+ * published protected-resource metadata uses a slash while the assertion and
+ * auth.md's exchange example use the bare URL; both name the same resource.
+ */
+function sameResource(left: string, right: string): boolean {
+  const strip = (value: string) => value.replace(/\/+$/u, "");
+  return strip(left) === strip(right);
+}
+
 export async function issueServiceAgentIdentityAssertion(
   key: ServiceAssertionKey,
   input: IssueServiceAssertionInput,
@@ -128,6 +138,7 @@ export async function verifyServiceAgentIdentityAssertion(
     issuer: expected.issuer,
     audience: expected.audience,
     algorithms: ["ES256", "RS256"],
+    requiredClaims: ["exp", "iat", "jti"],
     clockTolerance: 60,
   }).catch((err) => {
     if (err instanceof Error && err.name === "AgentAuthError") throw err;
@@ -155,10 +166,11 @@ export async function verifyServiceAgentIdentityAssertion(
   }
   const resource = readString(payload.resource);
   if (
-    expected.resource &&
-    resource !== undefined &&
-    resource !== expected.resource
+    expected.resource !== undefined &&
+    (resource === undefined || !sameResource(resource, expected.resource))
   ) {
+    // A caller that names the resource it is redeeming for requires the
+    // assertion to name that exact resource. A missing claim is not a wildcard.
     throw agentAuthError("invalid_grant", 400, "assertion resource mismatch");
   }
 

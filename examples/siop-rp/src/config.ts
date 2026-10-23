@@ -34,6 +34,12 @@ export type SiopRpConfig = {
   allowLoopbackHttp: boolean;
   /** Logins one client may start per minute. */
   startsPerMinute: number;
+  /**
+   * Socket peers trusted to supply `X-Forwarded-For` (IPs or CIDRs). Empty
+   * means the rate limit keys on the socket peer and ignores forwarding
+   * headers, so a direct client cannot choose its bucket.
+   */
+  trustedProxies: string[];
   /** Logins that may wait at once before new ones are refused. */
   maxPendingLogins: number;
   /** host:port, for display. */
@@ -56,6 +62,16 @@ function listFrom(value: string | undefined): string[] {
 function positiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/** Only IP literals and CIDRs: `trust proxy` must never trust every peer. */
+function trustedProxyList(value: string | undefined): string[] {
+  return listFrom(value).map((entry) => {
+    if (!/^[0-9A-Fa-f:.]+(?:\/\d{1,3})?$/u.test(entry)) {
+      throw new Error(`SIOP_RP_TRUSTED_PROXY is not an IP or CIDR: ${entry}`);
+    }
+    return entry;
+  });
 }
 
 /** `host:port` from `SIOP_RP_LISTEN`; port 0 asks the kernel for one (tests). */
@@ -102,6 +118,7 @@ export function loadSiopRpConfig(
     metadataMirror: env.SIOP_RP_METADATA_MIRROR === "1",
     allowLoopbackHttp: env.SIOP_RP_ALLOW_LOOPBACK_HTTP === "1",
     startsPerMinute: positiveInt(env.SIOP_RP_STARTS_PER_MINUTE, 30),
+    trustedProxies: trustedProxyList(env.SIOP_RP_TRUSTED_PROXY),
     maxPendingLogins: positiveInt(env.SIOP_RP_MAX_PENDING_LOGINS, 10_000),
     listen,
     host,

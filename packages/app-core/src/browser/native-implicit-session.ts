@@ -18,7 +18,10 @@ export class NativeImplicitDeniedError extends Error {
   }
 }
 type Provider = "discord" | "reddit" | "google";
-type Acknowledgement = { kind: "accepted"; receipt: string };
+type Acknowledgement =
+  | { kind: "received"; receipt: string }
+  | { kind: "accepted"; receipt: string }
+  | { kind: "retention_failed"; receipt: string };
 export type NativeImplicitWait = {
   expiresAt: number;
   signal?: AbortSignal;
@@ -107,8 +110,23 @@ export async function createNativeImplicitReceiver(request: {
       if (claimed || stopped.signal.aborted) return;
       claimed = true;
       if (!("error" in payload)) {
+        // Tell the sender the token arrived before the durable write starts.
+        // Its short timeout then measures delivery, not slow sealed storage.
+        channel.postMessage({
+          kind: "received",
+          receipt: proof,
+        });
         retaining = true;
-        await retain(payload);
+        try {
+          await retain(payload);
+        } catch (error) {
+          if (!stopped.signal.aborted)
+            channel.postMessage({
+              kind: "retention_failed",
+              receipt: proof,
+            });
+          throw error;
+        }
       }
       channel.postMessage({
         kind: "accepted",
@@ -136,13 +154,16 @@ export async function createNativeImplicitReceiver(request: {
       retain = options.retain;
       assertReceiverCurrent(options.assertCurrent, close);
       const remaining = options.expiresAt - Date.now();
-      if (remaining <= 0 || remaining > 600_000) {
+      if (remaining <= 0) {
         close();
         throw new Error("Authorization expired");
       }
+      // A backward wall-clock step must not reject a window whose lifetime
+      // was minted before an earlier await: clamp the wait instead.
+      const timeoutMs = Math.min(remaining, 600_000);
       const signal = AbortSignal.any([
         stopped.signal,
-        AbortSignal.timeout(remaining),
+        AbortSignal.timeout(timeoutMs),
         ...(options.signal ? [options.signal] : []),
       ]);
       const cancelled = cancellation(signal, () => retaining);
@@ -175,16 +196,38 @@ export async function deliverNativeImplicitPayload(
   const channel = new BroadcastChannel(await channelName(state));
   try {
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
+      let timer = setTimeout(
         () =>
           reject(new Error("The originating connection window is unavailable")),
         15_000,
       );
+      let received = false;
       channel.onmessage = (event: MessageEvent<Acknowledgement>) => {
-        if (event.data?.kind !== "accepted" || event.data.receipt !== expected)
+        if (event.data?.receipt !== expected) return;
+        if (event.data.kind === "received") {
+          if (received) return;
+          received = true;
+          clearTimeout(timer);
+          // The peer committed the bytes and is now sealing them durably.
+          // Give that write the receiver's whole permitted lifetime rather
+          // than revoking a token it may still retain successfully.
+          timer = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  "The originating connection window did not finish retaining the token",
+                ),
+              ),
+            600_000,
+          );
           return;
-        clearTimeout(timeout);
-        resolve();
+        }
+        clearTimeout(timer);
+        if (event.data.kind === "retention_failed")
+          reject(
+            new Error("The originating window could not retain the token"),
+          );
+        else resolve();
       };
       channel.postMessage(delivery.envelope);
     });

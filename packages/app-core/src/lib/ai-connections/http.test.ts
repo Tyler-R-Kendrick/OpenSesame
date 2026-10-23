@@ -144,6 +144,32 @@ describe("captured AI HTTP boundary", () => {
       });
     },
   );
+  it("cancels the response body when HTTP policy rejects the response", async () => {
+    const local = port();
+    const cancel = vi.fn();
+    local.fetch.mockImplementation(
+      async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode("denied"));
+            },
+            cancel,
+          }),
+          { status: 403 },
+        ),
+    );
+    await expect(
+      aiConnectionFetch(
+        draft,
+        new URL(`${draft.baseUrl}/models`),
+        local.transport,
+        () => {},
+      ),
+    ).rejects.toMatchObject({ code: "authentication" });
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it("rejects authority withdrawal during fetch without observing success", async () => {
     const local = port();
     const observe = vi.fn();

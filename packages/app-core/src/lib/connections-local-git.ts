@@ -1,10 +1,12 @@
 import type { Connection } from "./connections.js";
+import { revokeDeviceConnection } from "./device-connectors.js";
 import {
   type LocalGitRemote,
   forgetLocalGitRemote,
   isLocalGitRemoteId,
   listLocalGitRemotes,
 } from "./git-remote-local.js";
+import { unbindHistoryConnection } from "./history-backups.js";
 
 function gitEgress(remoteUrl: string): Connection["egress"] {
   const trimmed = remoteUrl.trim();
@@ -85,6 +87,12 @@ export async function revokeLocalGitConnection(id: string): Promise<{
   providerRevocation: "ok" | "unsupported" | "failed";
 } | null> {
   if (!isLocalGitRemoteId(id)) return null;
-  await forgetLocalGitRemote(id);
-  return { revoked: true, providerRevocation: "ok" };
+  const removed = await forgetLocalGitRemote(id);
+  if (!removed) return null;
+  // Saving a forge remote also mirrors its credential into the device store
+  // and binds a backup target. Revocation is not complete until those copies
+  // and the binding are gone.
+  await revokeDeviceConnection(id);
+  unbindHistoryConnection(id);
+  return { revoked: true, providerRevocation: "unsupported" };
 }

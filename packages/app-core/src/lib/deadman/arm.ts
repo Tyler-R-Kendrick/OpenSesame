@@ -8,6 +8,7 @@
  */
 
 import type { VaultItem } from "@opensesame/vault-core";
+import { withVfsCrossTabLock } from "../vfs-cross-tab-lock.js";
 import { canonicalJson, generateSigningPair, signText } from "./crypto.js";
 import { DEADMAN_MAX_ITEMS, DEADMAN_MAX_TIMEOUT_DAYS } from "./keys.js";
 import {
@@ -19,6 +20,7 @@ import {
 } from "./package.js";
 import {
   type DeadmanDisarm,
+  DeadmanRelayError,
   type RelayTarget,
   normalizeRelayUrl,
   normalizeWebhookUrl,
@@ -29,6 +31,7 @@ import {
   type DeadmanConfig,
   type DeadmanState,
   type DeadmanStatus,
+  deadmanKeyMatchesState,
   deadmanSeams,
   deleteDeadmanConfig,
   deleteDeadmanLocal,
@@ -184,13 +187,41 @@ export async function prepareDeadmanSwitch(
  * package and the public record. A failed write tells the relay to disarm so a
  * half-armed switch cannot fire for a package this device does not have.
  */
-export async function commitDeadmanSwitch(
+const deadmanOperations = new Map<string, Promise<unknown>>();
+
+/** One arm/disarm at a time per vault: check-then-write must not interleave. */
+function serialize<T>(tomb: string, run: () => Promise<T>): Promise<T> {
+  const previous = deadmanOperations.get(tomb) ?? Promise.resolve();
+  const next = previous.then(run, run);
+  deadmanOperations.set(
+    tomb,
+    next.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return next;
+}
+
+export function commitDeadmanSwitch(plan: DeadmanPlan): Promise<DeadmanState> {
+  return withVfsCrossTabLock(`opensesame:deadman:${plan.tomb}`, () =>
+    serialize(plan.tomb, () => commitDeadmanSwitchNow(plan)),
+  );
+}
+
+async function commitDeadmanSwitchNow(
   plan: DeadmanPlan,
 ): Promise<DeadmanState> {
   if (readDeadmanState(plan.tomb))
     throw new Error("Turn off the current deadman switch before replacing it.");
   if (!(await verifyDeadmanState(plan.state)))
     throw new Error("The deadman record did not verify before arming.");
+  if (
+    !(await deadmanKeyMatchesState(plan.privateKeyJwk, plan.state.publicKeyJwk))
+  )
+    throw new Error(
+      "The deadman state key does not match the armed private key.",
+    );
   const packageValue = readDeadmanPackage(plan.tomb);
   if (packageValue)
     throw new Error("A deadman package is already stored for this vault.");
@@ -205,7 +236,9 @@ export async function commitDeadmanSwitch(
     relayUrl: committed.relayUrl,
     relayToken: plan.relayToken,
   };
-  await sendArm(target, committed, plan.webhookUrl);
+  // The local half must exist before the relay can be armed; otherwise a
+  // successful registration has no package this device can release. Any
+  // failure here means the relay has not been asked yet.
   try {
     const config: DeadmanConfig = {
       v: 1,
@@ -217,13 +250,37 @@ export async function commitDeadmanSwitch(
     await writeDeadmanConfig(plan.tomb, config);
     await writeDeadmanPackage(plan.tomb, plan.packageJson);
     await writeDeadmanState(plan.tomb, committed);
-    return committed;
   } catch (error) {
-    await disarmFor(committed, plan.privateKeyJwk)
-      .then((disarm) => sendDisarm(target, disarm))
-      .catch(() => undefined);
     await deleteDeadmanLocal(plan.tomb);
     throw error;
+  }
+  try {
+    await sendArm(target, committed, plan.webhookUrl);
+    return committed;
+  } catch (error) {
+    // A response that explicitly refused the arm proves the relay is not
+    // armed. A network/abort failure is ambiguous, so ask it to disarm and
+    // keep the local half if that cannot be confirmed: a retry can then
+    // disarm, whereas deleting it would leave an unreleasable relay record.
+    const refused =
+      error instanceof DeadmanRelayError && error.status !== undefined;
+    if (refused) {
+      await deleteDeadmanLocal(plan.tomb);
+      throw error;
+    }
+    const disarmed = await disarmFor(committed, plan.privateKeyJwk)
+      .then((disarm) => sendDisarm(target, disarm))
+      .then(
+        () => true,
+        () => false,
+      );
+    if (disarmed) {
+      await deleteDeadmanLocal(plan.tomb);
+      throw error;
+    }
+    throw new Error(
+      "The relay did not confirm the arm or the disarm. The local deadman record was kept so you can retry turning it off.",
+    );
   }
 }
 
@@ -231,14 +288,24 @@ export async function commitDeadmanSwitch(
  * Disarm only after the relay accepts the signed disarm. Otherwise a local
  * "off" would leave the relay still counting down and still able to notify.
  */
-export async function disarmDeadmanSwitch(tomb: string): Promise<void> {
+export function disarmDeadmanSwitch(tomb: string): Promise<void> {
+  return withVfsCrossTabLock(`opensesame:deadman:${tomb}`, () =>
+    serialize(tomb, () => disarmDeadmanSwitchNow(tomb)),
+  );
+}
+
+async function disarmDeadmanSwitchNow(tomb: string): Promise<void> {
   const state = readDeadmanState(tomb);
   if (!state) return;
   if (!(await verifyDeadmanState(state)))
     throw new Error("The deadman record did not verify.");
   const config = await readDeadmanConfig(tomb);
-  if (!config || config.id !== state.id)
-    throw new Error("The deadman private record is missing.");
+  if (
+    !config ||
+    config.id !== state.id ||
+    !(await deadmanKeyMatchesState(config.privateKeyJwk, state.publicKeyJwk))
+  )
+    throw new Error("The deadman private record is missing or does not match.");
   await sendDisarm(
     { relayUrl: state.relayUrl, relayToken: config.relayToken },
     await disarmFor(state, config.privateKeyJwk),

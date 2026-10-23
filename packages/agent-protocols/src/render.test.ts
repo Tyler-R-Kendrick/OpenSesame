@@ -20,6 +20,13 @@ describe("renderAuthMd", () => {
     expect(md).toContain("/agent/identity");
     expect(md).toContain("/oauth2/token");
     expect(md).toContain("/claim");
+    // The exchange parameter must equal the assertion's resource identifier,
+    // which has no trailing slash; the metadata URL keeps one.
+    expect(md).toContain("&resource=https://api.opensesame.test\n");
+    expect(md).not.toContain("&resource=https://api.opensesame.test/\n");
+    expect(md).toContain(
+      "https://api.opensesame.test/.well-known/oauth-protected-resource",
+    );
     expect(md).toContain("not advertised and not enabled");
     expect(md.toLowerCase()).toContain("never embed");
   });

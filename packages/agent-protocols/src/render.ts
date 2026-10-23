@@ -50,15 +50,15 @@ export interface AuthMdConfig {
 }
 
 function assertSafeText(label: string, value: string): void {
-  const lower = value;
+  const lower = value.toLowerCase();
   if (
     lower.includes("sk_live") ||
     lower.includes("sk_test") ||
-    lower.includes("BEGIN PRIVATE KEY") ||
-    lower.includes("BEGIN RSA PRIVATE KEY") ||
+    lower.includes("begin private key") ||
+    lower.includes("begin rsa private key") ||
     lower.includes("osc_clm_") ||
     /\bdevice_code\b/.test(lower) ||
-    /Bearer [A-Za-z0-9\-_]{20,}/.test(lower)
+    /bearer [a-z0-9\-_]{20,}/.test(lower)
   ) {
     throw new Error(`agent_protocol_secret_refused:${label}`);
   }
@@ -100,7 +100,8 @@ export function renderAuthMd(config: AuthMdConfig): string {
   assertSafeConfig("authMd", config);
   const caps = capabilitiesOf(config);
   const as = stripTrailingSlashes(config.authorizationServer);
-  const resource = `${stripTrailingSlashes(config.protectedResource)}/`;
+  const resource = stripTrailingSlashes(config.protectedResource);
+  const resourceUrl = `${resource}/`;
   const identityPath = config.agentRegisterPath ?? AGENT_IDENTITY_PATH;
   const claimPath = AGENT_CLAIM_PATH;
   const types = identityTypesOf(config);
@@ -166,7 +167,7 @@ Profile: \`${AUTH_MD_PROFILE}\`. This is a WorkOS ecosystem protocol, not an IET
 Runtime metadata at the Protected Resource Metadata and Authorization Server metadata URLs
 is authoritative if this file and those documents disagree.
 
-Resource: \`${resource}\`
+Resource: \`${resourceUrl}\`
 Authorization server: \`${as}\`
 
 ## Step 1 — Discover
@@ -174,12 +175,12 @@ Authorization server: \`${as}\`
 A 401 from the resource includes:
 
 \`\`\`http
-WWW-Authenticate: Bearer resource_metadata="${resource}.well-known/oauth-protected-resource"
+WWW-Authenticate: Bearer resource_metadata="${resourceUrl}.well-known/oauth-protected-resource"
 \`\`\`
 
 ### 1a. Protected Resource Metadata
 
-\`GET ${resource}.well-known/oauth-protected-resource\`
+\`GET ${resourceUrl}.well-known/oauth-protected-resource\`
 
 ### 1b. Authorization Server metadata
 

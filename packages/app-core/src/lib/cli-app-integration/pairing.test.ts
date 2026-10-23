@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { takeStorageWrites } from "../../test-host-storage-writes.js";
+import { localNetworkFetchSeams } from "../local-network-fetch.js";
 import { ownsWebStorageKey } from "../storage-ownership.js";
 import {
   CLI_APP_INTEGRATION_BEARER_KEY,
@@ -43,11 +44,16 @@ function memoryStorage(): Storage {
   };
 }
 
+const eligible = localNetworkFetchSeams.eligible;
 beforeEach(() => {
+  // These tests exercise pairing refusals, not the deployment fence; the
+  // loopback test origin is a local-authority deployment.
+  localNetworkFetchSeams.eligible = () => true;
   vi.stubGlobal("sessionStorage", memoryStorage());
 });
 
 afterEach(() => {
+  localNetworkFetchSeams.eligible = eligible;
   clearCliAppIntegrationBearer();
   const unowned = takeStorageWrites().filter(
     (write) => !ownsWebStorageKey(write.key, write.area),
