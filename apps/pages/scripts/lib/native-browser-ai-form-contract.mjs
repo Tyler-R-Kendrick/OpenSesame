@@ -50,21 +50,28 @@ function sharedAiDefaultFields(preset) {
     ["API family", preset.family],
     [azure ? "Azure resource endpoint" : "API base URL", preset.baseUrl],
     [azure ? "Deployment ID" : "Model ID", preset.model ?? ""],
-    [key, ""],
+    ...(preset.providerId === "ollama" ? [] : [[key, ""]]),
   ];
   if (!prediction && !speech)
     fields.push([
       azure ? "Azure authentication" : "Authentication",
-      azure?.credential ?? "api-key",
+      azure?.credential ??
+        (preset.providerId === "ollama" ? "none" : "api-key"),
     ]);
-  if (azure) fields.push(["Azure API mode", azure.api]);
-  if (azure?.api === "dated-chat")
-    fields.push(["Azure API version", azure.apiVersion]);
+  fields.push(...sharedAiAzureFields(azure));
   return {
     fields,
     key,
     auth: azure ? "Azure authentication" : "Authentication",
   };
+}
+
+function sharedAiAzureFields(azure) {
+  if (!azure) return [];
+  const fields = [["Azure API mode", azure.api]];
+  if (azure.api === "dated-chat")
+    fields.push(["Azure API version", azure.apiVersion]);
+  return fields;
 }
 
 async function sharedAiDefaults(form, row, preset, check) {
@@ -122,14 +129,13 @@ async function sharedAiDefaults(form, row, preset, check) {
     `${row.id}: ${prediction ? "prediction requires its API token without an unauthenticated mode" : speech ? "transcription requires its API key without an unauthenticated mode" : "published authentication choices are explicit"}`,
   );
   if (speech) await speechInputDefaults(form, row, check);
-  const apiKeyType = await form
-    .getByLabel(defaults.key, { exact: true })
-    .getAttribute("type");
-  check(
-    apiKeyType === "password",
-    `${row.id}: the blank API key is write-only`,
+  const { apiKeyType, actionsDisabled } = await sharedAiCredentialDefaults(
+    form,
+    row,
+    preset,
+    defaults,
+    check,
   );
-  const actionsDisabled = await sharedDisabledActions(form, row, check);
   const apiModes = await sharedAiModeDefaults(form, row, preset, check);
   return {
     fields,
@@ -139,6 +145,40 @@ async function sharedAiDefaults(form, row, preset, check) {
     apiKeyType,
     actionsDisabled,
   };
+}
+
+async function sharedAiCredentialDefaults(form, row, preset, defaults, check) {
+  const anonymous = preset.providerId === "ollama";
+  if (anonymous) {
+    check(
+      (await form.getByLabel(defaults.key, { exact: true }).count()) === 0,
+      `${row.id}: anonymous local mode does not collect an API key`,
+    );
+    await form
+      .getByLabel(defaults.auth, { exact: true })
+      .selectOption("api-key");
+    const key = form.getByLabel(defaults.key, { exact: true });
+    check(
+      (await key.inputValue()) === "" && (await key.isEditable()),
+      `${row.id}: explicitly selected API-key mode exposes a blank editable key`,
+    );
+  }
+  const apiKeyType = await form
+    .getByLabel(defaults.key, { exact: true })
+    .getAttribute("type");
+  check(
+    apiKeyType === "password",
+    `${row.id}: the blank API key is write-only`,
+  );
+  const actionsDisabled = await sharedDisabledActions(form, row, check);
+  if (anonymous) {
+    await form.getByLabel(defaults.auth, { exact: true }).selectOption("none");
+    check(
+      (await form.getByLabel(defaults.key, { exact: true }).count()) === 0,
+      `${row.id}: returning to anonymous mode removes the credential field`,
+    );
+  }
+  return { apiKeyType, actionsDisabled };
 }
 
 async function speechInputDefaults(form, row, check) {
