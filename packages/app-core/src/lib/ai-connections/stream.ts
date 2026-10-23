@@ -1,6 +1,7 @@
 import { isJsonObject, isString } from "@opensesame/os-domain";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { aiCompletionSeams } from "./http.js";
+import { aiStreamBody } from "./stream-body.js";
 import {
   AiConnectionError,
   type AiInferenceFamily,
@@ -119,18 +120,12 @@ export async function readAiTextStream(
       .includes("text/event-stream")
   )
     throw malformed();
-  const reader = response.body?.getReader();
-  if (!reader) throw malformed();
+  const body = aiStreamBody(response, check, signal, malformed);
   const decoder = new TextDecoder();
   let pending = "";
   let answer = "";
   let bytes = 0;
   let completed = false;
-  let ended = false;
-  const abort = () => {
-    void reader.cancel().catch(() => undefined);
-  };
-  signal.addEventListener("abort", abort, { once: true });
   function consume(frame: string) {
     const data = frame
       .split("\n")
@@ -149,12 +144,7 @@ export async function readAiTextStream(
   }
   try {
     for (;;) {
-      check();
-      signal.throwIfAborted();
-      const next = await reader.read();
-      ended = next.done;
-      check();
-      signal.throwIfAborted();
+      const next = await body.read();
       if (next.done) break;
       bytes += next.value.byteLength;
       if (bytes > 4 * 1024 * 1024) throw malformed();
@@ -173,10 +163,9 @@ export async function readAiTextStream(
     if (pending.trim()) consume(pending);
     if (!completed || !answer.trim()) throw malformed();
     check();
+    await body.finish(bytes);
   } finally {
-    signal.removeEventListener("abort", abort);
-    if (!ended) await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
+    await body.close();
   }
   aiCompletionSeams.observe?.({
     phase: "body",
