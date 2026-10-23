@@ -82,6 +82,7 @@ async function allowSystemNotifications(t) {
   await main.goto(`${BASE}/settings/features`);
   await unlockVault(main);
   await main
+    .getByTestId("features-panel")
     .getByRole("link", { name: "Local notifications", exact: true })
     .click();
   const allow = main.getByRole("button", {
