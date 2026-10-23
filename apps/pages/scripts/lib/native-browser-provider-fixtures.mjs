@@ -247,9 +247,16 @@ function setField(root, path, value) {
   const parts = path.split(".");
   let parent = root;
   for (const [index, part] of parts.entries()) {
-    if (index === parts.length - 1) parent[part] = value;
-    else {
-      parent[part] ??= /^\d+$/.test(parts[index + 1]) ? [] : {};
+    if (index === parts.length - 1) {
+      // An ancestor required field (e.g. "data") is already satisfied by
+      // the object a descendant field (e.g. "data.name") created.
+      if (typeof parent[part] !== "object" || parent[part] === null)
+        parent[part] = value;
+    } else {
+      // A scalar placeholder for an ancestor field must not block a
+      // descendant field; replace it with the container it needs.
+      if (typeof parent[part] !== "object" || parent[part] === null)
+        parent[part] = /^\d+$/.test(parts[index + 1]) ? [] : {};
       parent = parent[part];
     }
   }
