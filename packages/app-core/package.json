@@ -86,5 +86,10 @@
     "xmldsigjs": "2.8.8",
     "yaml": "2.9.1",
     "zod": "4.4.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
   }
 }

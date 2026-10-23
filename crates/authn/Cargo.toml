@@ -1,4 +1,5 @@
 [package]
+description = "Authentication primitives for the OpenSesame identity plane: tokens, devices, and OIDC discovery"
 name = "opensesame-authn"
 version.workspace = true
 edition.workspace = true

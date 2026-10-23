@@ -24,5 +24,10 @@
     "fast-check": "4.9.0",
     "typescript": "5.8.3",
     "vitest": "4.1.11"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
   }
 }
