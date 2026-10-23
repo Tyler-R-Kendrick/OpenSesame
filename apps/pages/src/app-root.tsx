@@ -1,5 +1,4 @@
 import { activatePlan } from "@opensesame/app-core/lib/capabilities/change.js";
-import { JOIN_COMMAND_PATH } from "@opensesame/app-core/lib/command-bar/types.js";
 import {
   type ComponentType,
   type ReactNode,
@@ -10,16 +9,8 @@ import {
   useEffect,
   useSyncExternalStore,
 } from "react";
-import {
-  Link,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
-import { Wrapped } from "./components/ShellWrappers.js";
 import { ContextMenuLayer } from "./components/context-menu/ContextMenuLayer.js";
 
 import type {
@@ -32,10 +23,7 @@ import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { Notices } from "./components/Notices.js";
-import {
-  VaultContentSkeleton,
-  VaultShellSkeleton,
-} from "./components/VaultShellSkeleton.js";
+import { VaultShellSkeleton } from "./components/VaultShellSkeleton.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
 import { useSwUpdateHost } from "./lib/sw-update-guard.js";
 import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
@@ -47,7 +35,6 @@ import {
 import { DeadmanRelease } from "./screens/DeadmanRelease.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
-import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
 import { GateHost } from "./tutorial/gate-seat.js";
 
 import {
@@ -56,6 +43,7 @@ import {
   useRotationQueue,
   useVaultLanding,
 } from "./app-root-hooks.js";
+import { AppVaultShell } from "./app-vault-shell.js";
 import { useComposition } from "./bindings/capabilities.js";
 
 export { useCapabilityGate } from "./app-root-hooks.js";
@@ -105,11 +93,6 @@ const DefaultItemEditor = lazy(() =>
 const DefaultSettingsSection = lazy(() =>
   import("./sections/SettingsSection.js").then((m) => ({
     default: m.SettingsSection,
-  })),
-);
-const DefaultSaveRequestScreen = lazy(() =>
-  import("./screens/SaveRequestScreen.js").then((m) => ({
-    default: m.SaveRequestScreen,
   })),
 );
 
@@ -203,26 +186,6 @@ export function UnavailableRoute() {
   );
 }
 
-/** Whether a capability is approved under the current plan, and its lifecycle. */
-function contributedRoute(route: RouteContribution) {
-  const Element = route.element;
-  return (
-    <Route
-      key={route.id}
-      path={route.path}
-      element={
-        route.framed ? (
-          <Framed>
-            <Element />
-          </Framed>
-        ) : (
-          <Element />
-        )
-      }
-    />
-  );
-}
-
 function Fallback() {
   const location = useLocation();
   const snapshot = useComposition();
@@ -260,67 +223,12 @@ function VaultApp() {
   useVaultLanding(status, location.pathname, navigate);
 
   const shell = (
-    // The shell is one Suspense boundary and the section inside it another,
-    // so a section still loading never blanks the rail around it.
-    <Suspense fallback={<VaultShellSkeleton />}>
-      <Wrapped wrappers={wrappers}>
-        <slots.AppShell>
-          <Suspense fallback={<VaultContentSkeleton />}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/vault" replace />} />
-              <Route path="/vault" element={<slots.VaultSection />}>
-                <Route index element={<slots.VaultWelcome />} />
-                <Route path="health" element={<slots.HealthPanel />} />
-                <Route
-                  path="new/:kind?"
-                  element={<slots.ItemEditor mode="new" />}
-                />
-                <Route
-                  path=":itemId/edit"
-                  element={<slots.ItemEditor mode="edit" />}
-                />
-                <Route path=":itemId" element={<slots.ItemDetail />} />
-              </Route>
-              {routes.map(contributedRoute)}
-              <Route
-                path="/settings/vault"
-                element={<Navigate to="/settings" replace />}
-              />
-              <Route
-                path="/settings/user"
-                element={<Navigate to="/settings/keybindings" replace />}
-              />
-              <Route
-                path="/settings/features/:featureId/:capabilityId?"
-                element={
-                  <Framed>
-                    <slots.SettingsSection />
-                  </Framed>
-                }
-              />
-              <Route
-                path="/settings/:category?"
-                element={
-                  <Framed>
-                    <slots.SettingsSection />
-                  </Framed>
-                }
-              />
-              <Route
-                path="/save"
-                element={
-                  <Suspense fallback={<VaultContentSkeleton />}>
-                    <DefaultSaveRequestScreen />
-                  </Suspense>
-                }
-              />
-              <Route path={JOIN_COMMAND_PATH} element={<JoinRoadRoute />} />
-              <Route path="*" element={<Fallback />} />
-            </Routes>
-          </Suspense>
-        </slots.AppShell>
-      </Wrapped>
-    </Suspense>
+    <AppVaultShell
+      slots={slots}
+      wrappers={wrappers}
+      routes={routes}
+      fallback={Fallback}
+    />
   );
 
   // One stable frame across lock, unlock and the door ceremony. Switching
