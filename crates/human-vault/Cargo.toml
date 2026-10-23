@@ -1,4 +1,5 @@
 [package]
+description = "E2EE envelope crypto shared by the OpenSesame vault and sealed store; reads the Pages vault format"
 name = "opensesame-human-vault"
 version.workspace = true
 edition.workspace = true

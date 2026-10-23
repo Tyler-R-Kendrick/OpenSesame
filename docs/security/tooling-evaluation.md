@@ -58,6 +58,8 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 
     > Status (2026-10-08): the zero-Actions posture no longer holds. `.github/workflows/` now holds `ci.yml`, `deploy-pages.yml`, `full-suite.yml` and `password-parity.yml`. None of them runs an `audit:*` gate, `cargo clippy` or `cargo deny`; those remain local scripts, git hooks and routines (`docs/contributing/agent-routines.md`).
 
+    > Status (2026-10-23): `.github/workflows/security.yml` adds a scheduled (weekly, plus on-demand) pass of OSV-Scanner over every lockfile, gitleaks over full history, and the OpenSSF Scorecard, reporting to the Security tab. It does not gate a merge and does not replace the local `pnpm audit:*` gates — the same engines (`osv-scanner`, `gitleaks`) with the same configs (`osv-scanner.toml`, `.gitleaks.toml`) run here on a clock so a hidden red is visible without a local checkout. `.github/dependabot.yml` proposes dependency bumps for the routine triage to review. The fuzz suites' enrollment in hosted OSS-Fuzz and OSS Verify is recorded in [ADR 0211](../adr/0211-oss-fuzz-and-oss-verify-enrollment.md).
+
 0e. **ast-grep after UX (#23)** — extension popup `innerHTML` → `textContent` — see `audits/2026-08-07-ast-grep-popup.md`.
 0f. **Pages PWA (#25)** — removed `localStorage` for settings/outbox; OPFS + session-only operator token — see `audits/2026-08-07-pages-localstorage.md`.
 0g. **sdk-browser storage** — default `sessionStorage` (not `localStorage`); strip refresh tokens from persisted session — see `audits/2026-08-07-sdk-browser-storage.md`.

@@ -23,6 +23,7 @@
 #   nothing here builds CMS, and `der` re-exports `ObjectIdentifier`.
 
 [package]
+description = "PKI primitives for OpenSesame: certificate requests, PKCS#12 bundles, CRLs, and OCSP requests"
 name = "opensesame-pki-core"
 version.workspace = true
 edition.workspace = true

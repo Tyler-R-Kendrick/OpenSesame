@@ -42,5 +42,10 @@
   "dependencies": {
     "@opensesame/log-scrub": "workspace:*",
     "@opensesame/os-domain": "workspace:*"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
   }
 }

@@ -1,4 +1,5 @@
 [package]
+description = "Deep redaction of declared secret fields for OpenSesame logs and payloads"
 name = "opensesame-redaction"
 version.workspace = true
 edition.workspace = true

@@ -1,5 +1,8 @@
 # OpenSesame
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Tyler-R-Kendrick/OpenSesame/badge)](https://scorecard.dev/viewer/?uri=github.com/Tyler-R-Kendrick/OpenSesame)
+[![Security Insights](https://img.shields.io/badge/OpenSSF-Security_Insights-blue)](security-insights.yml)
+
 **An authorization fabric for the agentic era.** Agents get scoped,
 revocable authority to act — never the secrets behind it. People keep their
 own credentials on their own devices. Websites get "Sign in with OpenSesame"

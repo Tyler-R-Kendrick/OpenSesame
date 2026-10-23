@@ -1,4 +1,5 @@
 [package]
+description = "SQLite utilities for the OpenSesame host store"
 name = "opensesame-sql"
 version.workspace = true
 edition.workspace = true

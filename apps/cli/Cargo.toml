@@ -1,4 +1,5 @@
 [package]
+description = "The OpenSesame native binary: Host API, daemon, worker, credential helpers, and the pass store CLI"
 name = "opensesame-cli"
 version.workspace = true
 edition.workspace = true

@@ -1,0 +1,26 @@
+# Copyright 2026 Tyler Kendrick
+# SPDX-License-Identifier: Apache-2.0
+#
+# kind	path	arguments: see lay-out-sources
+# One tree and one vendored lock per enrolled fuzz target: the release
+# layout reads the target's source at /work/ext/<target>/src (ov_target_begin's
+# SRCDIR), its Cargo.lock copy at /work/targets/<target>/Cargo.lock and the
+# crates that lock names at /work/ext/<target>/vendor. Each tree is a full
+# copy of the checkout, so every target's Cargo.lock is laid out before its
+# `crates` directive names it.
+tree	ext/capability_algebra/src	opensesame
+crates	ext/capability_algebra/vendor	ext/capability_algebra/src/tests/fuzz/cargo/Cargo.lock	ext/capability_algebra/src	tests/fuzz/cargo	capability_algebra
+tree	ext/grant_attenuation/src	opensesame
+crates	ext/grant_attenuation/vendor	ext/grant_attenuation/src/tests/fuzz/cargo/Cargo.lock	ext/grant_attenuation/src	tests/fuzz/cargo	grant_attenuation
+tree	ext/vault_envelope/src	opensesame
+crates	ext/vault_envelope/vendor	ext/vault_envelope/src/tests/fuzz/cargo/Cargo.lock	ext/vault_envelope/src	tests/fuzz/cargo	vault_envelope
+tree	ext/broker_seal/src	opensesame
+crates	ext/broker_seal/vendor	ext/broker_seal/src/tests/fuzz/cargo/Cargo.lock	ext/broker_seal/src	tests/fuzz/cargo	broker_seal
+tree	ext/canonical_json/src	opensesame
+crates	ext/canonical_json/vendor	ext/canonical_json/src/tests/fuzz/cargo/Cargo.lock	ext/canonical_json/src	tests/fuzz/cargo	canonical_json
+tree	ext/jwt_jwk/src	opensesame
+crates	ext/jwt_jwk/vendor	ext/jwt_jwk/src/tests/fuzz/cargo/Cargo.lock	ext/jwt_jwk/src	tests/fuzz/cargo	jwt_jwk
+tree	ext/pki_csr_parse/src	opensesame
+crates	ext/pki_csr_parse/vendor	ext/pki_csr_parse/src/tests/fuzz/cargo/Cargo.lock	ext/pki_csr_parse/src	tests/fuzz/cargo	pki_csr_parse
+tree	ext/kdbx_parse/src	opensesame
+crates	ext/kdbx_parse/vendor	ext/kdbx_parse/src/tests/fuzz/cargo/Cargo.lock	ext/kdbx_parse/src	tests/fuzz/cargo	kdbx_parse
