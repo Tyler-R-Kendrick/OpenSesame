@@ -44,7 +44,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Scan every lockfile against the OSV database
-        uses: google/osv-scanner-action/osv-scanner-action@6ad84ce1ef2d4124ba333b221894c133c4a970ea # v2.7.0
+        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
         with:
           # osv-scanner 2.x auto-discovers osv-scanner.toml at the scan root,
           # so the RUSTSEC-2023-0071 ignore in it applies here as it does
