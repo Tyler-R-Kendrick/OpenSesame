@@ -40,7 +40,11 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 
 - **This routine never becomes a GitHub Actions job.** Long fuzz batches stay
   in local sessions; do not add them to `.github/workflows/`.
-- **No OSS-Fuzz upstream PR** from this routine.
+- **No upstream enrollment PR from this routine.** Hosted OSS-Fuzz and OSS
+  Verify are enrolled by a maintainer following
+  `docs/contributing/oss-programs.md` ([ADR 0211](../../docs/adr/0211-oss-fuzz-and-oss-verify-enrollment.md));
+  the packs under `tests/fuzz/clusterfuzzlite/` and `tests/fuzz/oss-verify/`
+  change only through a reviewed pull request, never from a batch run.
 - **Never commit secrets.** A crash input is a test fixture, not a credential.
 - Do not add hour-long fuzz to `pnpm verify`.
 - Prefer fixing a real oracle violation over silencing a harness.

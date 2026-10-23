@@ -275,3 +275,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0208](0208-hosting-starts-at-the-share-key.md) | Hosting starts at the Share key, not a Settings page | Accepted |
 | [0209](0209-deadman-switch.md) | A deadman switch is a release envelope with a relay witness | Accepted |
 | [0210](0210-session-share-generator.md) | The share key opens a session generator, not a one-press session | Accepted |
+| [0211](0211-oss-fuzz-and-oss-verify-enrollment.md) | OpenSesame enrolls in OSS-Fuzz and OSS Verify | Accepted |
