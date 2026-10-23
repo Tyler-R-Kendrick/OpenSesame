@@ -36,6 +36,23 @@ function idpFetch(overrides: JsonObject = {}): typeof fetch {
 }
 
 describe("loopbackLogin", () => {
+  it("refuses a discovery redirect instead of following it", async () => {
+    const redirecting = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "http://169.254.169.254/latest/meta-data" },
+        }),
+    );
+    await expect(
+      loopbackLogin({
+        issuer: ISSUER,
+        clientId: "cli",
+        fetchImpl: redirecting as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow(/redirected; refusing to follow/);
+  });
+
   it("completes when the redirect carries the state it minted", async () => {
     let authUrl = "";
     const tokens = await loopbackLogin({

@@ -41,13 +41,14 @@ export function claimEmailDomain<A, O>(
 
 export function markEmailDomainVerified<A, O>(
   ctx: AppContext,
-  _org: Org<O>,
+  org: Org<O>,
   _proof: OrgOwner<A, O>,
   domain: string,
 ): Promise<EmailDomainRecord | null> {
   return ctx.stores.orgFederation.emailDomains.markVerified(
     domain,
     ctx.clock(),
+    org.value,
   );
 }
 

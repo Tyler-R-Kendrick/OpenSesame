@@ -297,12 +297,17 @@ export function noteConnectionCreated(connectionId: string): void {
   );
 }
 
-export function noteConnectionRevoked(connectionId: string): void {
+export function noteConnectionRevoked(
+  connectionId: string,
+  outcome: "succeeded" | "failed" = "succeeded",
+): void {
   noteActivity(
     "connection",
     "connection.revoked",
-    "Connection revoked",
-    "succeeded",
+    outcome === "succeeded"
+      ? "Connection revoked"
+      : "Connection revocation failed",
+    outcome,
     "connection",
     connectionId,
   );

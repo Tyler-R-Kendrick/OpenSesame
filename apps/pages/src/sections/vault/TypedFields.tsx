@@ -34,6 +34,7 @@ import {
   EnvironmentFields,
   EnvironmentFieldsRead,
 } from "./EnvironmentFields.js";
+import { FormatHint } from "./FormatHint.js";
 import { type ChangeField, FieldControl } from "./TypedFieldInputs.js";
 /** The editor for every plugin-defined type, drawn from its definition. */
 export function TypedFieldInputs({
@@ -114,6 +115,9 @@ function GenericTypedFieldInputs({
                     toggle={toggle}
                     onChange={onChange}
                   />
+                  {isString(value) && value.trim() !== "" ? (
+                    <FormatHint typeId={definition.metadata.id} value={value} />
+                  ) : null}
                 </div>
               </OptionalField>
             );

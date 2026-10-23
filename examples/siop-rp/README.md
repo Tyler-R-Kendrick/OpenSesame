@@ -54,6 +54,7 @@ and leave it off.
 | `SIOP_RP_METADATA_MIRROR` | off | `1`: `SIOP_RP_METADATA_URL` is a mirror at another origin than the issuer. |
 | `SIOP_RP_ALLOW_LOOPBACK_HTTP` | off | `1`: accept `http` on loopback (local development only). |
 | `SIOP_RP_STARTS_PER_MINUTE` | `30` | Logins one client may start per minute; over it `/auth/start` answers `429`. |
+| `SIOP_RP_TRUSTED_PROXY` | none | Comma-separated proxy IPs/CIDRs trusted to supply `X-Forwarded-For` (for example `127.0.0.1` when TLS terminates on the same host). Unset keys the limit on the socket peer and ignores the header, so a direct client cannot choose its bucket. |
 | `SIOP_RP_MAX_PENDING_LOGINS` | `10000` | Logins that may wait at once; when full, `/auth/start` answers `503` and never evicts one in progress. |
 | `SIOP_RP_LISTEN` | `127.0.0.1:4110` | `host:port`. |
 

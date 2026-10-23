@@ -14,6 +14,7 @@ import {
 import {
   assertDiscoveredUrl,
   assertDiscoveryBelongsToIssuer,
+  assertResolvedPublicHost,
   assertSecureUrl,
   trimSlash,
 } from "./secure-url.js";
@@ -100,7 +101,11 @@ export async function loopbackLogin(
   const fetchImpl = config.fetchImpl ?? fetch;
   const discoveryRes = await fetchImpl(
     `${issuer}/.well-known/openid-configuration`,
+    { redirect: "manual" },
   );
+  if (discoveryRes.status >= 300 && discoveryRes.status < 400) {
+    throw new Error("discovery endpoint redirected; refusing to follow it");
+  }
   if (!discoveryRes.ok)
     throw new Error(`discovery failed: ${discoveryRes.status}`);
   const rawMeta: BoundaryValue = await discoveryRes.json();
@@ -121,6 +126,7 @@ export async function loopbackLogin(
   const tokenEndpoint = meta.token_endpoint;
   assertDiscoveredUrl(authorizationEndpoint, "authorization_endpoint", issuer);
   assertDiscoveredUrl(tokenEndpoint, "token_endpoint", issuer);
+  await assertResolvedPublicHost(tokenEndpoint, issuer);
 
   const { verifier, challenge, state } = pkce();
   const scopes = (config.scopes ?? ["openid", "profile"]).join(" ");
@@ -176,9 +182,19 @@ export async function loopbackLogin(
           });
           const tokenRes = await fetchImpl(tokenEndpoint, {
             method: "POST",
+            redirect: "manual",
             headers: { "content-type": "application/x-www-form-urlencoded" },
             body,
           });
+          if (tokenRes.status >= 300 && tokenRes.status < 400) {
+            res.writeHead(500);
+            res.end("token exchange redirect refused");
+            shutdown();
+            reject(
+              new Error("token endpoint redirected; refusing to follow it"),
+            );
+            return;
+          }
           if (!tokenRes.ok) {
             res.writeHead(500);
             res.end("token exchange failed");
@@ -217,9 +233,25 @@ export async function loopbackLogin(
       auth.searchParams.set("state", state);
       auth.searchParams.set("code_challenge", challenge);
       auth.searchParams.set("code_challenge_method", "S256");
-      void Promise.resolve(config.openBrowser?.(auth.toString())).catch(
-        () => undefined,
-      );
+      const authorizationUrl = auth.toString();
+      if (config.openBrowser === undefined) {
+        // The server cannot open a browser itself. Never discard the URL and
+        // wait for a timeout: the caller can paste it or open it manually.
+        process.stderr.write(
+          `Open this URL to finish signing in:\n${authorizationUrl}\n`,
+        );
+      } else {
+        // Evaluate inside the promise chain so a synchronous opener throw
+        // rejects through the same path as an async opener rejection.
+        const open = config.openBrowser;
+        void Promise.resolve()
+          .then(() => open(authorizationUrl))
+          .catch(() => {
+            process.stderr.write(
+              `Could not open a browser. Open this URL manually:\n${authorizationUrl}\n`,
+            );
+          });
+      }
       timer = setTimeout(() => {
         shutdown();
         reject(new Error("timed out waiting for the authorization redirect"));

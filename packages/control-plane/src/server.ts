@@ -23,7 +23,7 @@ import {
   createTransportListener,
   preparePlainRequest,
 } from "./transport/listener.js";
-import { readBody, replayRequest } from "./transport/replay.js";
+import { replayRequest } from "./transport/replay.js";
 import { rejectMismatchedBoundBearer } from "./transport/resource-binding.js";
 import { EMPTY_BINDINGS } from "./transport/service-admission.js";
 
@@ -39,6 +39,95 @@ export interface StartedControlPlane {
    * the plain listener above keeps its existing scope either way.
    */
   transport?: TransportListener & { port: number; host: string };
+}
+
+/** /token is a form exchange; a megabyte is already far beyond any grant. */
+const MAX_TOKEN_BODY_BYTES = 1024 * 1024;
+
+/**
+ * Read a request body with a hard cap before buffering it.
+ *
+ * The /token dispatcher must look at the form body before oidc-provider sees
+ * it. `readBody` alone would buffer whatever an unauthenticated client sends,
+ * so the cap is enforced while streaming and an over-limit request is drained
+ * and refused rather than allocated.
+ */
+async function readBoundedBody(
+  req: http.IncomingMessage,
+): Promise<Buffer | undefined> {
+  const declared = Number(req.headers["content-length"] ?? "");
+  if (Number.isFinite(declared) && declared > MAX_TOKEN_BODY_BYTES) {
+    req.resume();
+    return undefined;
+  }
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of req) {
+    if (!(chunk instanceof Uint8Array)) {
+      throw new TypeError("HTTP request body yielded a non-byte chunk");
+    }
+    total += chunk.byteLength;
+    if (total > MAX_TOKEN_BODY_BYTES) {
+      req.resume();
+      return undefined;
+    }
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+/**
+ * Origin auto-admission is unauthenticated durable work. Cap it per client id
+ * and globally so a /auth loop cannot mint records without limit.
+ */
+const ORIGIN_ADMISSION_WINDOW_MS = 60_000;
+const ORIGIN_ADMISSIONS_PER_CLIENT = 10;
+const ORIGIN_ADMISSIONS_GLOBAL = 300;
+const ORIGIN_ADMISSION_MAX_KEYS = 2048;
+const ORIGIN_ADMISSION_GLOBAL_KEY = "__global__";
+let originAdmissionsByContext = new WeakMap<object, Map<string, number[]>>();
+
+function consumeOriginAdmission(
+  contextKey: object,
+  clientId: string,
+  now: number,
+): boolean {
+  let originAdmissions = originAdmissionsByContext.get(contextKey);
+  if (!originAdmissions) {
+    originAdmissions = new Map();
+    originAdmissionsByContext.set(contextKey, originAdmissions);
+  }
+  for (const [key, times] of originAdmissions) {
+    const live = times.filter((at) => now - at < ORIGIN_ADMISSION_WINDOW_MS);
+    if (live.length === 0) originAdmissions.delete(key);
+    else if (live.length !== times.length) originAdmissions.set(key, live);
+  }
+  const key = `client:${clientId}`;
+  const global = originAdmissions.get(ORIGIN_ADMISSION_GLOBAL_KEY) ?? [];
+  const client = originAdmissions.get(key) ?? [];
+  if (
+    global.length >= ORIGIN_ADMISSIONS_GLOBAL ||
+    client.length >= ORIGIN_ADMISSIONS_PER_CLIENT
+  ) {
+    return false;
+  }
+  global.push(now);
+  client.push(now);
+  originAdmissions.set(ORIGIN_ADMISSION_GLOBAL_KEY, global);
+  originAdmissions.set(key, client);
+  while (originAdmissions.size > ORIGIN_ADMISSION_MAX_KEYS) {
+    const victim = [...originAdmissions.keys()].find(
+      (candidate) => candidate !== ORIGIN_ADMISSION_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    originAdmissions.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook: the admission budget is process-global. */
+export function resetOriginAdmissionBudget(): void {
+  originAdmissionsByContext = new WeakMap();
 }
 
 function applyHeaders(
@@ -179,7 +268,20 @@ function createDispatcher(
         }
 
         if (req.method === "POST") {
-          const body = await readBody(req);
+          const body = await readBoundedBody(req);
+          if (body === undefined) {
+            if (!res.headersSent) {
+              res.statusCode = 413;
+              res.setHeader("content-type", "application/json");
+              res.end(
+                JSON.stringify({
+                  error: "invalid_request",
+                  error_description: "request_body_too_large",
+                }),
+              );
+            }
+            return;
+          }
           const grantType = new URLSearchParams(body.toString("utf8")).get(
             "grant_type",
           );
@@ -259,7 +361,11 @@ function createDispatcher(
         try {
           const u = new URL(url, `http://${req.headers.host ?? "127.0.0.1"}`);
           const clientId = u.searchParams.get("client_id");
-          if (clientId && parseOriginClientId(clientId) !== undefined) {
+          if (
+            clientId &&
+            parseOriginClientId(clientId) !== undefined &&
+            consumeOriginAdmission(ctx, clientId, Date.now())
+          ) {
             await ctx.oauth.ensureOriginClient(clientId);
           }
         } catch {

@@ -94,6 +94,12 @@ export type HostPeerOptions = Readonly<{
  */
 export const RELAY_GRACE_MS = 60_000;
 
+/** Per-seat request budget: a slow vault read cannot be multiplied without bound. */
+export const MAX_SEAT_REQUESTS = 240;
+export const SEAT_REQUEST_WINDOW_MS = 60_000;
+/** Concurrent reveal/copy/edit/device asks one seat may hold open. */
+export const MAX_SEAT_IN_FLIGHT = 4;
+
 type Request = Extract<ChannelMessage, { t: "reveal" | "copy" }>;
 type EditRequest = Extract<ChannelMessage, { t: "edit" }>;
 
@@ -109,6 +115,8 @@ export class HostPeer {
   #lastCatalog: string | null = null;
   /** This seat's end of the device broker; only a device seat has one. */
   readonly #devices: SeatDevices | null;
+  #inFlight = 0;
+  #requestTimes: number[] = [];
 
   constructor(private readonly options: HostPeerOptions) {
     this.#devices =
@@ -293,28 +301,64 @@ export class HostPeer {
       this.#greeted();
       return;
     }
-    if (isDeviceMessage(message)) {
-      await this.#device(message);
+    if (!this.#admitRequest()) {
+      if (isDeviceMessage(message)) {
+        this.#channel?.send({
+          t: "dev.error",
+          req: message.req,
+          error: "temporarily_unavailable",
+        });
+      } else if (
+        message.t === "reveal" ||
+        message.t === "copy" ||
+        message.t === "edit"
+      ) {
+        this.#channel?.send({ t: "denied", req: message.req });
+      }
       return;
     }
-    if (message.t === "edit") {
-      await this.#save(message);
-      return;
+    this.#inFlight += 1;
+    try {
+      if (isDeviceMessage(message)) {
+        await this.#device(message);
+        return;
+      }
+      if (message.t === "edit") {
+        await this.#save(message);
+        return;
+      }
+      if (message.t !== "reveal" && message.t !== "copy") return;
+      const value = await this.#answerFor(message);
+      this.options.onLog({
+        at: this.options.now(),
+        guest: this.options.guest,
+        what: value === null ? "denied" : message.t,
+        item: message.item,
+        field: message.field,
+      });
+      this.#channel?.send(
+        value === null
+          ? { t: "denied", req: message.req }
+          : { t: "value", req: message.req, value },
+      );
+    } finally {
+      this.#inFlight -= 1;
     }
-    if (message.t !== "reveal" && message.t !== "copy") return;
-    const value = await this.#answerFor(message);
-    this.options.onLog({
-      at: this.options.now(),
-      guest: this.options.guest,
-      what: value === null ? "denied" : message.t,
-      item: message.item,
-      field: message.field,
-    });
-    this.#channel?.send(
-      value === null
-        ? { t: "denied", req: message.req }
-        : { t: "value", req: message.req, value },
+  }
+
+  /** A bounded, per-seat window checked before any vault work starts. */
+  #admitRequest(): boolean {
+    const now = this.options.now();
+    this.#requestTimes = this.#requestTimes.filter(
+      (at) => now - at < SEAT_REQUEST_WINDOW_MS,
     );
+    if (
+      this.#requestTimes.length >= MAX_SEAT_REQUESTS ||
+      this.#inFlight >= MAX_SEAT_IN_FLIGHT
+    )
+      return false;
+    this.#requestTimes.push(now);
+    return true;
   }
 
   /** A device's ask goes to the broker; from anyone else it is refused. */

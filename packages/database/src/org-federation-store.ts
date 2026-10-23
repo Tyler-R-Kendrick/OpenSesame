@@ -31,7 +31,11 @@ export interface OrgEmailDomainStore {
   get(domain: string): Promise<OrgEmailDomain | null>;
   /** The organization a verified domain routes to — the only routing read. */
   findVerified(domain: string): Promise<OrgEmailDomain | null>;
-  markVerified(domain: string, at: Date): Promise<OrgEmailDomain | null>;
+  markVerified(
+    domain: string,
+    at: Date,
+    organizationId?: string,
+  ): Promise<OrgEmailDomain | null>;
   listByOrganization(organizationId: string): Promise<OrgEmailDomain[]>;
   remove(organizationId: string, domain: string): Promise<boolean>;
 }
@@ -164,10 +168,15 @@ export function createMemoryOrgFederationStores(): OrgFederationStores {
         return row?.verifiedAt ? { ...row } : null;
       },
 
-      async markVerified(domain, at) {
+      async markVerified(domain, at, organizationId) {
         const key = domain.trim().toLowerCase();
         const row = domains.get(key);
-        if (!row) return null;
+        if (
+          !row ||
+          (organizationId !== undefined &&
+            row.organizationId !== organizationId)
+        )
+          return null;
         const next: OrgEmailDomain = { ...row, verifiedAt: at };
         domains.set(key, next);
         return { ...next };
@@ -235,17 +244,9 @@ export function createPostgresOrgFederationStores(
     emailDomains: {
       async claim(record) {
         const row = normalizeDomainRow(record);
-        const existing = await db
-          .select()
-          .from(schema.orgEmailDomains)
-          .where(eq(schema.orgEmailDomains.domain, row.domain))
-          .limit(1);
-        const [current] = existing;
-        if (current && current.organizationId !== row.organizationId) {
-          throw new OrgEmailDomainConflictError(
-            `email domain already claimed: ${row.domain}`,
-          );
-        }
+        // Insert first: the primary key arbitrates a concurrent claim by two
+        // organizations. A check-then-upsert would let the loser steal the
+        // domain between its read and its write.
         const [inserted] = await db
           .insert(schema.orgEmailDomains)
           .values({
@@ -254,17 +255,39 @@ export function createPostgresOrgFederationStores(
             verificationToken: row.verificationToken,
             verifiedAt: row.verifiedAt ?? null,
           })
-          .onConflictDoUpdate({
-            target: schema.orgEmailDomains.domain,
-            set: {
-              organizationId: row.organizationId,
-              verificationToken: row.verificationToken,
-              verifiedAt: row.verifiedAt ?? null,
-            },
-          })
+          .onConflictDoNothing({ target: schema.orgEmailDomains.domain })
           .returning();
-        if (!inserted) throw new Error("claim email domain returned no row");
-        return mapDomain(inserted);
+        if (inserted) return mapDomain(inserted);
+
+        const [current] = await db
+          .select()
+          .from(schema.orgEmailDomains)
+          .where(eq(schema.orgEmailDomains.domain, row.domain))
+          .limit(1);
+        if (!current || current.organizationId !== row.organizationId) {
+          throw new OrgEmailDomainConflictError(
+            `email domain already claimed: ${row.domain}`,
+          );
+        }
+        const [updated] = await db
+          .update(schema.orgEmailDomains)
+          .set({
+            verificationToken: row.verificationToken,
+            verifiedAt: row.verifiedAt ?? null,
+          })
+          .where(
+            and(
+              eq(schema.orgEmailDomains.domain, row.domain),
+              eq(schema.orgEmailDomains.organizationId, row.organizationId),
+            ),
+          )
+          .returning();
+        if (!updated) {
+          throw new OrgEmailDomainConflictError(
+            `email domain already claimed: ${row.domain}`,
+          );
+        }
+        return mapDomain(updated);
       },
 
       async get(domain) {
@@ -285,11 +308,21 @@ export function createPostgresOrgFederationStores(
         return row?.verifiedAt ? mapDomain(row) : null;
       },
 
-      async markVerified(domain, at) {
+      async markVerified(domain, at, organizationId) {
         const [row] = await db
           .update(schema.orgEmailDomains)
           .set({ verifiedAt: at })
-          .where(eq(schema.orgEmailDomains.domain, domain.trim().toLowerCase()))
+          .where(
+            organizationId === undefined
+              ? eq(schema.orgEmailDomains.domain, domain.trim().toLowerCase())
+              : and(
+                  eq(
+                    schema.orgEmailDomains.domain,
+                    domain.trim().toLowerCase(),
+                  ),
+                  eq(schema.orgEmailDomains.organizationId, organizationId),
+                ),
+          )
           .returning();
         return row ? mapDomain(row) : null;
       },

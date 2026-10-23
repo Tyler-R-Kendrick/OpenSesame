@@ -17,7 +17,7 @@ import {
 } from "../sharing-receipts.js";
 import {
   DROP_LOCKOUT_WORDS,
-  type LocalClaimRecord,
+  type LocalClaimChange,
   type LocalDropPollState,
   MAX_DROP_CLAIM_ATTEMPTS,
   digestDropBearerToken,
@@ -26,9 +26,8 @@ import {
   localDropClaimStorage,
   localDropDevicePepper,
   localDropPollState,
-  readLocalDropClaimStore,
   resetLocalDropClaimSlotForTests,
-  writeLocalDropClaimStore,
+  updateLocalDropClaimStore,
   wrongDropCodeWords,
 } from "./local-drop-claim-store.js";
 import {
@@ -85,16 +84,19 @@ export const localDropClaimSeams = {
 };
 
 /** Wipe ciphertext on claims that can no longer be opened. */
-export function disposeExpiredLocalDropClaims(now = Date.now()): void {
-  const store = readLocalDropClaimStore();
-  let changed = false;
-  for (const [id, raw] of Object.entries(store.claims)) {
-    const next = freshenLocalDropClaim(raw, now);
-    if (next === raw) continue;
-    store.claims[id] = next;
-    changed = true;
-  }
-  if (changed) writeLocalDropClaimStore(store);
+export async function disposeExpiredLocalDropClaims(
+  now = Date.now(),
+): Promise<void> {
+  await updateLocalDropClaimStore((store) => {
+    let changed = false;
+    for (const [id, raw] of Object.entries(store.claims)) {
+      const next = freshenLocalDropClaim(raw, now);
+      if (next === raw) continue;
+      store.claims[id] = next;
+      changed = true;
+    }
+    return { value: undefined, changed };
+  });
 }
 
 /** Origin + Vite base, no trailing slash — the Pages claim host. */
@@ -143,9 +145,10 @@ export async function createLocalDropClaim(
     attempts: 0,
     version: 1,
   };
-  const store = readLocalDropClaimStore();
-  store.claims[id] = record;
-  writeLocalDropClaimStore(store);
+  await updateLocalDropClaimStore((store) => {
+    store.claims[id] = record;
+    return { value: undefined, changed: true };
+  });
   return {
     claimId: id,
     bearerToken,
@@ -161,26 +164,27 @@ export async function pollLocalDropClaim(
 ): Promise<LocalDropPollState> {
   const pepper = await localDropDevicePepper();
   const digest = await digestDropBearerToken(pepper, bearerToken);
-  const store = readLocalDropClaimStore();
-  const raw = store.claims[claimId];
-  if (!raw) {
-    throw new LocalDropClaimError(
-      "refused",
-      "This drop claim was not found on this device.",
-    );
-  }
-  const record = freshenLocalDropClaim(raw, Date.now());
-  if (!timingSafeEqual(digest, record.tokenDigest)) {
-    throw new LocalDropClaimError(
-      "refused",
-      "This drop's claim token was refused.",
-    );
-  }
-  if (record !== raw) {
-    store.claims[claimId] = record;
-    writeLocalDropClaimStore(store);
-  }
-  return localDropPollState(record.state);
+  return updateLocalDropClaimStore((store) => {
+    const raw = store.claims[claimId];
+    if (!raw) {
+      throw new LocalDropClaimError(
+        "refused",
+        "This drop claim was not found on this device.",
+      );
+    }
+    const record = freshenLocalDropClaim(raw, Date.now());
+    if (!timingSafeEqual(digest, record.tokenDigest)) {
+      throw new LocalDropClaimError(
+        "refused",
+        "This drop's claim token was refused.",
+      );
+    }
+    if (record !== raw) store.claims[claimId] = record;
+    return {
+      value: localDropPollState(record.state),
+      changed: record !== raw,
+    };
+  });
 }
 
 export type PresentedLocalDrop = {
@@ -189,50 +193,16 @@ export type PresentedLocalDrop = {
   targetManifest: JsonObject;
 };
 
-/** Lock a claim out: wipe ciphertext, persist, mirror to the sender ledger. */
-function lockOutLocalDropClaim(
-  record: LocalClaimRecord,
-  claimId: string,
-  persist: (next: LocalClaimRecord) => void,
-  attempts: number,
-): void {
-  persist({
-    ...record,
-    attempts,
-    state: "locked_out",
-    targetManifest: {},
-    version: record.version + 1,
-  });
-  noteDropLockedOut(claimId);
-}
-
-function throwTerminalPresentRefusal(
-  claimId: string,
-  record: LocalClaimRecord,
-  raw: LocalClaimRecord,
-  persist: (next: LocalClaimRecord) => void,
-  refuse: (
-    wire: string,
-    message: string,
-    attemptsLeft?: number,
-  ) => LocalDropClaimError,
-): never {
-  if (record !== raw) persist(record);
-  noteDropRefused(claimId);
-  if (record.state === "revoked") {
-    throw refuse("REVOKED", "This drop was revoked.");
-  }
-  if (record.state === "expired") {
-    throw refuse("EXPIRED", "This drop has expired.");
-  }
-  if (record.state === "locked_out") {
-    throw refuse("too_many_attempts", DROP_LOCKOUT_WORDS);
-  }
-  throw refuse(
-    "INVALID_TRANSITION",
-    "This drop was already opened and cannot be opened again.",
-  );
-}
+type PresentDecision =
+  | { kind: "presented"; manifest: JsonObject }
+  | {
+      kind: "refused";
+      wire: string;
+      message: string;
+      attemptsLeft?: number;
+      wrongCodes?: number;
+      note: "refused" | "locked";
+    };
 
 export async function presentLocalDropClaim(
   bearerToken: string,
@@ -246,57 +216,124 @@ export async function presentLocalDropClaim(
   const pepper = await localDropDevicePepper();
   const tokenDigest = await digestDropBearerToken(pepper, bearerToken);
   const codeDigest = await digestDropUserCode(pepper, claimId, userCode);
-  // Digests are done. Read and write with no await between them, so a revoke
-  // cannot land in the middle and have this present put the ciphertext back.
-  const store = readLocalDropClaimStore();
-  const raw = store.claims[claimId];
-  if (!raw) {
-    noteDropRefused(claimId);
-    throw refuse(
-      "not_found",
-      "This drop is not on this device. Open the link in the browser that sealed it, or connect a sign-in service for cross-device drops.",
-    );
-  }
-  const record = freshenLocalDropClaim(raw, Date.now());
-  const persist = (next: typeof record) => {
-    store.claims[claimId] = next;
-    writeLocalDropClaimStore(store);
-  };
-  if (record.state !== "pending") {
-    throwTerminalPresentRefusal(claimId, record, raw, persist, refuse);
-  }
-  if (!timingSafeEqual(tokenDigest, record.tokenDigest)) {
-    throw refuse("invalid_token", "This drop's claim token was refused.");
-  }
-  if (record.attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
-    lockOutLocalDropClaim(record, claimId, persist, record.attempts);
-    throw refuse("too_many_attempts", DROP_LOCKOUT_WORDS);
-  }
-  if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
-    const attempts = record.attempts + 1;
-    noteDropRefused(claimId, attempts);
-    const triesLeft = MAX_DROP_CLAIM_ATTEMPTS - attempts;
-    if (attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
-      lockOutLocalDropClaim(record, claimId, persist, attempts);
-      throw refuse("too_many_attempts", DROP_LOCKOUT_WORDS);
+  const decision = await updateLocalDropClaimStore<PresentDecision>((store) => {
+    const raw = store.claims[claimId];
+    if (!raw) {
+      noteDropRefused(claimId);
+      throw refuse(
+        "not_found",
+        "This drop is not on this device. Open the link in the browser that sealed it, or connect a sign-in service for cross-device drops.",
+      );
     }
-    persist({ ...record, attempts, version: record.version + 1 });
-    throw refuse("invalid_user_code", wrongDropCodeWords(triesLeft), triesLeft);
-  }
-  const targetManifest = structuredClone(record.targetManifest);
-  persist({
-    ...record,
-    state: "presented",
-    targetManifest: {},
-    attempts: 0,
-    version: record.version + 1,
+    const record = freshenLocalDropClaim(raw, Date.now());
+    const changed = record !== raw;
+    if (record.state !== "pending") {
+      if (changed) store.claims[claimId] = record;
+      if (record.state === "revoked")
+        return {
+          value: {
+            kind: "refused",
+            wire: "REVOKED",
+            message: "This drop was revoked.",
+            note: "refused",
+          },
+          changed,
+        } satisfies LocalClaimChange<PresentDecision>;
+      if (record.state === "expired")
+        return {
+          value: {
+            kind: "refused",
+            wire: "EXPIRED",
+            message: "This drop has expired.",
+            note: "refused",
+          },
+          changed,
+        } satisfies LocalClaimChange<PresentDecision>;
+      if (record.state === "locked_out")
+        return {
+          value: {
+            kind: "refused",
+            wire: "too_many_attempts",
+            message: DROP_LOCKOUT_WORDS,
+            note: "locked",
+          },
+          changed,
+        } satisfies LocalClaimChange<PresentDecision>;
+      return {
+        value: {
+          kind: "refused",
+          wire: "INVALID_TRANSITION",
+          message: "This drop was already opened and cannot be opened again.",
+          note: "refused",
+        },
+        changed,
+      } satisfies LocalClaimChange<PresentDecision>;
+    }
+    if (!timingSafeEqual(tokenDigest, record.tokenDigest)) {
+      throw refuse("invalid_token", "This drop's claim token was refused.");
+    }
+    if (record.attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
+      store.claims[claimId] = {
+        ...record,
+        state: "locked_out",
+        targetManifest: {},
+        version: record.version + 1,
+      };
+      return {
+        value: {
+          kind: "refused",
+          wire: "too_many_attempts",
+          message: DROP_LOCKOUT_WORDS,
+          note: "locked",
+        },
+        changed: true,
+      } satisfies LocalClaimChange<PresentDecision>;
+    }
+    if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
+      const attempts = record.attempts + 1;
+      const triesLeft = MAX_DROP_CLAIM_ATTEMPTS - attempts;
+      const lockedOut = attempts >= MAX_DROP_CLAIM_ATTEMPTS;
+      store.claims[claimId] = {
+        ...record,
+        attempts,
+        state: lockedOut ? "locked_out" : record.state,
+        ...(lockedOut ? { targetManifest: {} } : undefined),
+        version: record.version + 1,
+      };
+      return {
+        value: {
+          kind: "refused",
+          wire: lockedOut ? "too_many_attempts" : "invalid_user_code",
+          message: lockedOut
+            ? DROP_LOCKOUT_WORDS
+            : wrongDropCodeWords(triesLeft),
+          ...(lockedOut ? undefined : { attemptsLeft: triesLeft }),
+          wrongCodes: attempts,
+          note: lockedOut ? "locked" : "refused",
+        },
+        changed: true,
+      } satisfies LocalClaimChange<PresentDecision>;
+    }
+    const manifest = structuredClone(record.targetManifest);
+    store.claims[claimId] = {
+      ...record,
+      state: "presented",
+      targetManifest: {},
+      attempts: 0,
+      version: record.version + 1,
+    };
+    return {
+      value: { kind: "presented", manifest },
+      changed: true,
+    } satisfies LocalClaimChange<PresentDecision>;
   });
-  noteDropOpened(claimId);
-  return {
-    claimId,
-    state: "consumed",
-    targetManifest,
-  };
+  if (decision.kind === "presented") {
+    noteDropOpened(claimId);
+    return { claimId, state: "consumed", targetManifest: decision.manifest };
+  }
+  if (decision.note === "locked") noteDropLockedOut(claimId);
+  else noteDropRefused(claimId, decision.wrongCodes);
+  throw refuse(decision.wire, decision.message, decision.attemptsLeft);
 }
 
 /**
@@ -312,32 +349,28 @@ export async function revokeLocalDropClaim(
 ): Promise<LocalDropRevocation> {
   const pepper = await localDropDevicePepper();
   const digest = await digestDropBearerToken(pepper, bearerToken);
-  const store = readLocalDropClaimStore();
-  const raw = store.claims[claimId];
-  if (!raw) return "missing";
-  const record = freshenLocalDropClaim(raw, Date.now());
-  if (!timingSafeEqual(digest, record.tokenDigest)) {
-    throw new LocalDropClaimError(
-      "refused",
-      "This drop's claim token was refused.",
-    );
-  }
-  if (record.state === "presented") {
-    if (record !== raw) {
-      store.claims[claimId] = record;
-      writeLocalDropClaimStore(store);
+  return updateLocalDropClaimStore<LocalDropRevocation>((store) => {
+    const raw = store.claims[claimId];
+    if (!raw) return { value: "missing", changed: false };
+    const record = freshenLocalDropClaim(raw, Date.now());
+    if (!timingSafeEqual(digest, record.tokenDigest)) {
+      throw new LocalDropClaimError(
+        "refused",
+        "This drop's claim token was refused.",
+      );
     }
-    return "already_consumed";
-  }
-  const next = {
-    ...record,
-    state: "revoked" as const,
-    targetManifest: {},
-    version: record.version + 1,
-  };
-  store.claims[claimId] = next;
-  writeLocalDropClaimStore(store);
-  return "revoked";
+    if (record.state === "presented") {
+      if (record !== raw) store.claims[claimId] = record;
+      return { value: "already_consumed", changed: record !== raw };
+    }
+    store.claims[claimId] = {
+      ...record,
+      state: "revoked",
+      targetManifest: {},
+      version: record.version + 1,
+    };
+    return { value: "revoked", changed: true };
+  });
 }
 
 /** Test seam — wipe local drop claims and pepper. */

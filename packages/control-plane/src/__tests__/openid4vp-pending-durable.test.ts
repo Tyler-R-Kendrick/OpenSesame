@@ -4,6 +4,7 @@
 
 import { createHash } from "node:crypto";
 import * as schema from "@opensesame/database/schema";
+import { deriveSubjectRef } from "@opensesame/openid4vci";
 import { overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -238,6 +239,13 @@ describe("durable OpenID4VP pending bindings", () => {
           issuer: ISSUER,
           holderPublicJwk: holderKey.publicJwk,
           vct: VCT,
+          plaintext: {
+            sub: deriveSubjectRef({
+              id: approver.principalId,
+              audience: ISSUER,
+              pepper: "openid4vp-replica-complete-pepper-32b!",
+            }),
+          },
           issuedAt: new Date(),
           expiresAt: new Date(Date.now() + 86_400_000),
         });

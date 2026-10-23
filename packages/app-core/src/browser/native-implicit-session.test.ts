@@ -64,12 +64,13 @@ it("retains the minted credential durably before acknowledging delivery", async 
     payload,
   );
   await vi.waitFor(() => expect(retain).toHaveBeenCalledWith(payload));
-  expect(wire).toHaveLength(1);
+  // The delivery envelope and the receiver's pre-retention receipt.
+  expect(wire).toHaveLength(2);
   expect(JSON.stringify(wire)).not.toContain(payload.accessToken);
   release();
   await expect(waiting).resolves.toEqual(payload);
   await delivering;
-  expect(wire).toHaveLength(2);
+  expect(wire).toHaveLength(3);
   expect(peers.size).toBe(0);
 });
 it("returns retained bearer material after cancellation during durable journaling", async () => {
@@ -97,6 +98,63 @@ it("returns retained bearer material after cancellation during durable journalin
   await expect(waiting).resolves.toEqual(payload);
   await delivering;
 });
+it("clamps a wall-clock step-back instead of rejecting a just-minted window", async () => {
+  const session = await receiver();
+  const now = Date.now();
+  const spy = vi.spyOn(Date, "now").mockReturnValue(now - 1);
+  try {
+    const waiting = session.wait({
+      expiresAt: now + 600_000,
+      retain: async () => undefined,
+    });
+    session.close();
+    await expect(waiting).rejects.toThrow(/cancelled|expired/i);
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+it("does not fail delivery while the receiver is still retaining", async () => {
+  vi.useFakeTimers();
+  try {
+    const session = await receiver();
+    let release: () => void = () => undefined;
+    const durable = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const retain = vi.fn(async () => durable);
+    const waiting = session.wait({
+      expiresAt: Date.now() + 600_000,
+      retain,
+    });
+    const delivering = deliverNativeImplicitPayload(
+      session.state,
+      "discord",
+      redirectUri,
+      payload,
+    );
+    let settled = false;
+    void delivering.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.waitFor(() => expect(retain).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(settled).toBe(false);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(waiting).resolves.toEqual(payload);
+    await delivering;
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("acknowledges encrypted denial without retaining credentials", async () => {
   const session = await receiver();
   const retain = vi.fn(async () => undefined);

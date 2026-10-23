@@ -34,7 +34,9 @@ describe("the relying party app", () => {
     const { base } = await relyingParty();
     const first = await start(base);
     const header = first.response.headers.get("set-cookie") ?? "";
-    expect(header).toMatch(/^__Host-siop_binding=[A-Za-z0-9_-]{43,}; /);
+    expect(header).toMatch(
+      /^__Host-siop_binding_[A-Za-z0-9_-]{1,256}=[A-Za-z0-9_-]{43,}; /,
+    );
     for (const attribute of [
       "Path=/",
       "HttpOnly",

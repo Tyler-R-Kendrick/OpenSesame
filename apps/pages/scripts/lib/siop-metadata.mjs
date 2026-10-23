@@ -56,6 +56,11 @@ export function siopMetadataLocation(env, base) {
   const owner = env.GITHUB_REPOSITORY_OWNER?.trim().toLowerCase();
   const fork = owner !== undefined && owner !== "" && owner !== UPSTREAM_OWNER;
   const not = `${SIOP_METADATA_FILE} is not published`;
+  if (canonicalOrigin === "isolated-app:") {
+    return {
+      skip: `an isolated-app origin has no public SIOP issuer: ${not}`,
+    };
+  }
   if (!explicit && base !== SHIPPED_BASE) {
     return {
       skip: `no PAGES_CANONICAL_ORIGIN for a build under ${base}: ${not}`,

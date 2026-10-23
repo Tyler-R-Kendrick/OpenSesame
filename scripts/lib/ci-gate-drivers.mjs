@@ -11,6 +11,7 @@ export const DRIVER_GATES = {
   "verify-header-layout.mjs": ["mobile"],
   "verify-local-iam.mjs": ["sign-in"],
   "verify-quorum-browser.mjs": ["sign-in"],
+  "verify-trusted-unlock.mjs": ["sign-in"],
   "verify-static-origin.mjs": ["static"],
   "verify-encrypted-search.mjs": ["static"],
   "verify-portable-drop.mjs": ["static"],

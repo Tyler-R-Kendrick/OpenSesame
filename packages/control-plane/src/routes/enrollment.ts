@@ -20,6 +20,7 @@ import {
   ENROLLMENT_TICKET_TTL_MS_DEFAULT,
   clampEnrollmentTtlMs,
   consumeEnrollmentTicket,
+  peekEnrollmentTicket,
   storeEnrollmentTicket,
 } from "../repos/enrollment-tickets.js";
 import { saveProvisional } from "../repos/session-storage.js";
@@ -83,6 +84,27 @@ enrollmentRoutes.post("/bootstrap", async (c) => {
   }
   if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug) || displayName.length > 128) {
     return c.json({ error: "validation_error" }, 400);
+  }
+
+  // The route is unauthenticated. A slug-existence check before the ticket is
+  // checked would answer 409 for a real tenant and 401 for a guess, turning
+  // this into an organization-slug oracle. Validate the ticket first, and keep
+  // the check outside the global bootstrap lock so anonymous junk does not
+  // contend with a real enrollment.
+  if (
+    !(await peekEnrollmentTicket(
+      ctx.stores.enrollmentTickets,
+      ticket,
+      ctx.clock(),
+    ))
+  ) {
+    return c.json(
+      {
+        error: "unauthorized",
+        message: "Enrollment ticket is invalid or spent",
+      },
+      401,
+    );
   }
 
   return serializeKeyed(

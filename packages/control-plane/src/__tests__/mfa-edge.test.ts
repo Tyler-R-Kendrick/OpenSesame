@@ -120,7 +120,7 @@ describe("mfa routes edge cases", () => {
     expect(overlapCast(await limited.json()).error).toBe("rate_limited");
   });
 
-  it("refuses overflow without forgetting live failure fences", async () => {
+  it("does not turn a full failure map into a global denial of service", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig() });
     for (let i = 0; i < 4097; i += 1) {
       ctx.stores.mfaFailures.set(`stale:${i}`, 1);
@@ -130,7 +130,9 @@ describe("mfa routes edge cases", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(assertBody("cred_prune")),
     });
-    expect(res.status).toBe(429);
+    // One caller's stale counters must not close the endpoint for everybody.
+    // The refusal, when any, comes from this fingerprint's own budget.
+    expect(res.status).not.toBe(429);
     expect(ctx.stores.mfaFailures.has("stale:0")).toBe(true);
     expect(ctx.stores.mfaFailures.has("stale:1")).toBe(true);
   });

@@ -46,14 +46,18 @@ export function insertOAuthClient<A>(
 }
 
 /** Replaces a client the verified principal owns (patch, retire, revoke). */
-export function replaceOAuthClient<A>(
+export async function replaceOAuthClient<A>(
   ctx: AppContext,
   owner: Named<A, ActorId>,
   _proof: VerifiedPrincipal<A>,
   client: StoreClient,
-): ReturnType<Clients["update"]> {
+): Promise<Awaited<ReturnType<Clients["update"]>>> {
   assertOwns(client, owner.value);
-  return ctx.stores.oauthClients.update(client);
+  // Owner-facing callers hold the domain projection, which omits
+  // origin/claim/use metadata. Merge into the stored row so a field they do
+  // not edit cannot be erased by an otherwise valid update.
+  const current = await ctx.stores.oauthClients.findById(client.id);
+  return ctx.stores.oauthClients.update({ ...current, ...client });
 }
 
 export interface NewAuthenticationApplication {

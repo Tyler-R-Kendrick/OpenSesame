@@ -227,6 +227,27 @@ function updateClaimed(
     if (!current) {
       throw new Error(`Cannot update unknown OAuth client ${client.id}`);
     }
+    // Optimistic CAS on the row version callers read. A stale full-record
+    // write must not overwrite a concurrent suspension, revocation, claim, or
+    // field edit made after that read.
+    if (
+      client.updatedAt !== undefined &&
+      current.updatedAt !== null &&
+      client.updatedAt.getTime() !== current.updatedAt.getTime()
+    ) {
+      throw new Error(`OAuth client update conflict: ${client.id}`);
+    }
+    if (client.origin !== undefined && client.origin !== current.origin) {
+      throw new Error(`OAuth client origin is immutable: ${client.id}`);
+    }
+    const state =
+      current.state === "revoked" ||
+      (current.state === "suspended" && client.state === "active")
+        ? current.state
+        : client.state;
+    if (state !== client.state) {
+      throw new Error(`OAuth client state cannot be cleared: ${client.id}`);
+    }
     const same = current.sectorIdentifier === client.sectorIdentifier;
     const sectorKey = same
       ? current.sectorKey
@@ -244,6 +265,9 @@ function updateClaimed(
       .update(schema.oauthClients)
       .set({
         ...updateValues(client, new Date()),
+        origin: current.origin,
+        ownershipStatus: client.ownershipStatus ?? current.ownershipStatus,
+        ownerPrincipalId: client.ownerPrincipalId ?? current.ownerPrincipalId,
         sectorKey,
         sectorKeyBlocked,
         sectorGeneration,
@@ -317,9 +341,11 @@ export function createPostgresClientRecordStore(
     },
 
     async touchLastUsed(id, at) {
+      // Usage is not a configuration edit: leave `updatedAt` as the CAS
+      // version for owners and operators.
       await db
         .update(schema.oauthClients)
-        .set({ lastUsedAt: at, updatedAt: at })
+        .set({ lastUsedAt: at })
         .where(eq(schema.oauthClients.id, id));
     },
 

@@ -95,6 +95,39 @@ it("matches auth pages within the exact registration scope, including a root dep
     await (
       await env.fetchEvent(navigateTo(new URL("vault", env.scope).href))
     )?.text(),
-  ).toBe("ORDINARY DOCUMENT");
+  ).toBe("OFFLINE APP SHELL");
   expect(env.fetched).toContain(shellUrl);
+});
+
+it("never replaces the shell with a same-origin document reached by redirect", async () => {
+  const { env, cache, shellUrl } = await installed();
+  const redirected = new Response("LOGIN DOCUMENT", {
+    status: 200,
+    headers: { "content-type": "text/html" },
+  });
+  Object.defineProperty(redirected, "url", {
+    value: new URL("linear.html", env.scope).href,
+  });
+  Object.defineProperty(redirected, "redirected", { value: true });
+  env.routes.set(shellUrl, () => redirected);
+
+  const response = await env.fetchEvent(navigateTo(shellUrl));
+  expect(await response?.text()).toBe("LOGIN DOCUMENT");
+  expect(await (await cache.match(shellUrl))?.text()).toBe("OFFLINE APP SHELL");
+});
+
+it("never replaces the shell with a cross-origin redirect body", async () => {
+  const { env, cache, shellUrl } = await installed();
+  const redirected = new Response("ATTACKER DOCUMENT", {
+    status: 200,
+    headers: { "content-type": "text/html" },
+  });
+  Object.defineProperty(redirected, "url", {
+    value: "https://evil.test/OpenSesame/index.html",
+  });
+  Object.defineProperty(redirected, "redirected", { value: true });
+  env.routes.set(shellUrl, () => redirected);
+
+  await env.fetchEvent(navigateTo(shellUrl));
+  expect(await (await cache.match(shellUrl))?.text()).toBe("OFFLINE APP SHELL");
 });

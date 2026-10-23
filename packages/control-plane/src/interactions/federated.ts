@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import * as client from "openid-client";
 import { z } from "zod";
@@ -806,16 +807,46 @@ export function pendingCookieName(uid: string): string {
   return `os.fed.${uid}`;
 }
 
-export function encodePending(pending: PendingFederatedAuth): string {
-  return Buffer.from(JSON.stringify(pending), "utf8").toString("base64url");
+/** Sign with the deployment pepper when one is supplied; tests may omit it. */
+function pendingSignature(payload: string, secret: string): string {
+  return createHmac("sha256", secret).update(payload).digest("base64url");
+}
+
+export function encodePending(
+  pending: PendingFederatedAuth,
+  secret?: string,
+): string {
+  const payload = Buffer.from(JSON.stringify(pending), "utf8").toString(
+    "base64url",
+  );
+  return secret ? `${payload}.${pendingSignature(payload, secret)}` : payload;
 }
 
 export function decodePending(
   raw: string | undefined,
+  secret?: string,
 ): PendingFederatedAuth | undefined {
   if (!raw) return undefined;
+  let payload = raw;
+  if (secret) {
+    const split = raw.lastIndexOf(".");
+    if (split <= 0) return undefined;
+    payload = raw.slice(0, split);
+    const supplied = Buffer.from(raw.slice(split + 1), "base64url");
+    const expected = Buffer.from(
+      pendingSignature(payload, secret),
+      "base64url",
+    );
+    if (
+      supplied.length !== expected.length ||
+      !timingSafeEqual(supplied, expected)
+    )
+      return undefined;
+  }
   try {
-    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
+    const parsed = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
     const result = pendingFederatedAuthSchema.safeParse(parsed);
     if (!result.success) return undefined;
     // Rebuilt field by field rather than handed back whole: an absent v2 field

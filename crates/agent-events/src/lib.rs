@@ -49,7 +49,7 @@ pub mod surrogate;
 pub use surrogate::{
     surrogate_refusal_notice, SurrogateEvent, SurrogateFence, SurrogateNoticeError,
     SurrogateRefusalReport, SURROGATE_EVENT_TYPES, SURROGATE_EVENT_WILDCARD,
-    SURROGATE_SUBJECT_KINDS,
+    SURROGATE_HONEY_SUBJECT_KIND, SURROGATE_SUBJECT_KINDS,
 };
 
 /// A sandboxed run started against a relying party.

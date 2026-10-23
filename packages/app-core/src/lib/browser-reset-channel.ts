@@ -60,6 +60,25 @@ type ResetMessage = Readonly<{
  */
 const CEILING_MS = 120_000;
 
+/**
+ * Whether another tab holds RESET_LOCK. `null` means this browser has no Web
+ * Locks, so a message cannot be checked and the ceiling remains the only
+ * fallback. A granted probe means no reset is in progress.
+ */
+async function resetHeldByAnotherTab(): Promise<boolean | null> {
+  const locks = lockManager();
+  if (!locks) return null;
+  let granted = false;
+  try {
+    await locks.request(RESET_LOCK, { ifAvailable: true }, async (lock) => {
+      granted = lock !== null;
+    });
+  } catch {
+    return null;
+  }
+  return !granted;
+}
+
 function resetFromElsewhere(
   event: MessageEvent<Partial<ResetMessage> | null>,
 ): ResetPhase | null {
@@ -100,6 +119,7 @@ export function onBrowserReset(handler: () => void): () => void {
   const channel = openBroadcast(CHANNEL);
   if (!channel) return () => undefined;
   let finished = false;
+  let sawStart = false;
   let ceiling: ReturnType<typeof setTimeout> | null = null;
   const finish = () => {
     if (finished) return;
@@ -117,9 +137,26 @@ export function onBrowserReset(handler: () => void): () => void {
   const listener = (event: MessageEvent<Partial<ResetMessage> | null>) => {
     const phase = resetFromElsewhere(event);
     if (phase === null) return;
-    haltStorageWrites();
-    if (phase === "done") finish();
-    else waitForTheReset();
+    void (async () => {
+      const held = await resetHeldByAnotherTab();
+      // A message that cannot prove a lock holder is only a hint.
+      if (held === false) return;
+      if (phase === "start") {
+        sawStart = true;
+        haltStorageWrites();
+        waitForTheReset();
+        return;
+      }
+      // With Web Locks, `done` never finishes the tab itself: the lock's
+      // release does, so a forged message cannot reload into half-cleared
+      // storage. Without them there is nothing to verify, so keep the old
+      // one-message contract and let the ceiling bound a start.
+      if (held === null) {
+        haltStorageWrites();
+        return finish();
+      }
+      if (!sawStart) return;
+    })();
   };
   channel.addEventListener("message", listener);
   return () => {

@@ -15,9 +15,52 @@ import type { Context, Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
-import { incrementSecurityCounter } from "../repos/durable-map.js";
 import { spendTotpCode } from "./mfa-totp.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+
+/**
+ * A six-digit code is brute-forceable when the fence is per-activation: mint a
+ * new activation and the old counter no longer applies. Count attempts per
+ * principal and across the deployment, in a bounded process-local window so an
+ * attacker-chosen activation id cannot grow durable state either.
+ */
+const TOTP_WINDOW_MS = 10 * 60_000;
+const TOTP_PER_PRINCIPAL = 10;
+const TOTP_GLOBAL = 200;
+const TOTP_MAX_KEYS = 2_048;
+const TOTP_GLOBAL_KEY = "__global__";
+const totpAttempts = new Map<string, number[]>();
+
+/** Test hook: the budget is process-global and must not leak between suites. */
+export function resetInteractionTotpBudget(): void {
+  totpAttempts.clear();
+}
+
+function consumeTotpAttempt(principalId: string, now: number): boolean {
+  for (const [key, times] of totpAttempts) {
+    const live = times.filter((at) => now - at < TOTP_WINDOW_MS);
+    if (live.length === 0) totpAttempts.delete(key);
+    else if (live.length !== times.length) totpAttempts.set(key, live);
+  }
+  const global = totpAttempts.get(TOTP_GLOBAL_KEY) ?? [];
+  const key = `principal:${principalId}`;
+  const mine = totpAttempts.get(key) ?? [];
+  if (global.length >= TOTP_GLOBAL || mine.length >= TOTP_PER_PRINCIPAL) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  totpAttempts.set(TOTP_GLOBAL_KEY, global);
+  totpAttempts.set(key, mine);
+  while (totpAttempts.size > TOTP_MAX_KEYS) {
+    const victim = [...totpAttempts.keys()].find(
+      (candidate) => candidate !== TOTP_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    totpAttempts.delete(victim);
+  }
+  return true;
+}
 
 const MAX_INTERACTION_TOTP_FAILURES = 5;
 const TOTP_CODE = /^\d{6}$/;
@@ -107,12 +150,18 @@ async function completeTotp(
   if (isHttpResponse(activation)) return activation;
   const secret = await ctx.stores.totpSecrets.get(principalId);
   if (!secret) return c.json({ error: "not_enrolled" }, 404);
-  const fenceKey = `interaction-totp:${principalId}:${activation.id}`;
-  const prior =
-    (await incrementSecurityCounter(ctx.stores.mfaFailures, fenceKey)) - 1;
+  const nowMs = now.getTime();
+  if (!consumeTotpAttempt(principalId, nowMs)) {
+    return c.json({ error: "too_many_attempts" }, 429);
+  }
+  const fenceKey = `activation:${principalId}:${activation.id}`;
+  const prior = (totpAttempts.get(fenceKey) ?? []).length;
   if (prior >= MAX_INTERACTION_TOTP_FAILURES) {
     return c.json({ error: "too_many_attempts" }, 429);
   }
+  const priorTimes = totpAttempts.get(fenceKey) ?? [];
+  priorTimes.push(nowMs);
+  totpAttempts.set(fenceKey, priorTimes);
   // The step ledger `/v1/mfa/totp/verify` and factor removal share: a code
   // accepted anywhere is accepted once.
   const spent = await spendTotpCode(
@@ -136,7 +185,7 @@ async function completeTotp(
     });
     return c.json({ error: "activation_verification_failed" }, 401);
   }
-  await ctx.stores.mfaFailures.delete(fenceKey);
+  totpAttempts.delete(fenceKey);
   const updated: ApprovalActivation =
     await ctx.repos.approvalActivations.updateWithVersion(
       activation.id,

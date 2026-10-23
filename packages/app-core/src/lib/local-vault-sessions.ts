@@ -9,23 +9,20 @@
  */
 
 import { type Named, name } from "@gdp-ts/core";
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isNumber,
-  isString,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
+import { withLocalAccessLedgerLock } from "./local-access-ledger-lock.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { assertAccessCapability } from "./local-rbac.js";
 import { revokeSharesForSession } from "./local-share-grants.js";
+import { mintSessionCode } from "./local-vault-session-code.js";
 import { issueSessionGrants } from "./local-vault-session-issue.js";
+import { isGrantSpec, isSession } from "./local-vault-session-shape.js";
 import type {
   CreateVaultSessionInput,
   LocalVaultSession,
   SessionGrantSpec,
-  SessionSubject,
 } from "./local-vault-session-types.js";
 import {
   type ManageGrants,
@@ -34,11 +31,6 @@ import {
 } from "./proofs/share-write.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
-const PATH = "config/vault-sessions";
-const MAX_BYTES = 256_000;
-const MAX_SESSIONS = 64;
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
 export type {
   CreateVaultSessionInput,
   LocalVaultSession,
@@ -46,88 +38,9 @@ export type {
   SessionSubject,
 } from "./local-vault-session-types.js";
 
-function text(value: BoundaryValue, max: number): value is string {
-  return isString(value) && value.length > 0 && value.length <= max;
-}
-
-/** Uniform index in [0, max) without modulo bias (rejection sampling). */
-function randomIndex(max: number): number {
-  if (!Number.isInteger(max) || max <= 0) {
-    throw new Error("randomIndex needs a positive bound");
-  }
-  const limit = Math.floor(2 ** 32 / max) * max;
-  const buf = new Uint32Array(1);
-  const view = new DataView(buf.buffer);
-  let value: number;
-  do {
-    crypto.getRandomValues(buf);
-    value = view.getUint32(0);
-  } while (value >= limit);
-  return value % max;
-}
-
-function mintCode(): string {
-  return Array.from(
-    { length: 6 },
-    () => CODE_ALPHABET[randomIndex(CODE_ALPHABET.length)],
-  ).join("");
-}
-
-function isSubject(value: BoundaryValue): value is SessionSubject {
-  if (!isJsonObject(value) || !isString(value.kind)) return false;
-  if (value.kind === "principal") return text(value.principalId, 42);
-  if (value.kind === "accessRole")
-    return (
-      value.role === "operator" ||
-      value.role === "member" ||
-      value.role === "guest"
-    );
-  if (value.kind === "orgRole")
-    return (
-      value.role === "owner" ||
-      value.role === "admin" ||
-      value.role === "member"
-    );
-  return false;
-}
-
-function isGrantSpec(value: BoundaryValue): value is SessionGrantSpec {
-  return (
-    isJsonObject(value) &&
-    isSubject(value.subject) &&
-    (value.resourceKind === "vault" ||
-      value.resourceKind === "connection" ||
-      value.resourceKind === "folder" ||
-      value.resourceKind === "item") &&
-    text(value.resourceId, 128) &&
-    text(value.resourceLabel, 128) &&
-    text(value.policy, 32)
-  );
-}
-
-function isSession(value: BoundaryValue): value is LocalVaultSession {
-  return (
-    isJsonObject(value) &&
-    text(value.id, 36) &&
-    text(value.code, 12) &&
-    text(value.label, 128) &&
-    (value.status === "running" || value.status === "stopped") &&
-    isNumber(value.durationSeconds) &&
-    Number.isSafeInteger(value.durationSeconds) &&
-    value.durationSeconds >= 60 &&
-    value.durationSeconds <= 7 * 86400 &&
-    (value.startedAt === null ||
-      (isNumber(value.startedAt) && Number.isSafeInteger(value.startedAt))) &&
-    (value.expiresAt === null ||
-      (isNumber(value.expiresAt) && Number.isSafeInteger(value.expiresAt))) &&
-    text(value.boundTomb, 128) &&
-    Array.isArray(value.grants) &&
-    value.grants.length <= 64 &&
-    value.grants.every(isGrantSpec) &&
-    Array.isArray(value.issuedShareIds) &&
-    value.issuedShareIds.every((id) => text(id, 36))
-  );
-}
+const PATH = "config/vault-sessions";
+const MAX_BYTES = 256_000;
+const MAX_SESSIONS = 64;
 
 async function readAll(tomb: string): Promise<LocalVaultSession[]> {
   await kvRefresh(tombFileKey(tomb, PATH), MAX_BYTES * 2);
@@ -144,7 +57,14 @@ async function readAll(tomb: string): Promise<LocalVaultSession[]> {
       !value.sessions.every(isSession)
     )
       throw new LocalDirectoryError("Session storage is invalid.");
-    return value.sessions;
+    const sessions = value.sessions;
+    if (
+      sessions.some((session) => session.boundTomb !== tomb) ||
+      new Set(sessions.map((session) => session.id)).size !== sessions.length ||
+      new Set(sessions.map((session) => session.code)).size !== sessions.length
+    )
+      throw new LocalDirectoryError("Session storage is invalid.");
+    return sessions;
   } catch (error) {
     if (error instanceof VfsError && error.code === "not-found") return [];
     throw error;
@@ -155,6 +75,8 @@ async function writeAll(
   tomb: string,
   sessions: LocalVaultSession[],
 ): Promise<void> {
+  if (sessions.length > MAX_SESSIONS || !sessions.every(isSession))
+    throw new LocalDirectoryError("Session storage is invalid.");
   const bytes = new TextEncoder().encode(
     JSON.stringify({ version: 1, sessions }),
   );
@@ -203,10 +125,37 @@ async function settleExpired(
   return next;
 }
 
+async function readSettledSessions(tomb: string): Promise<LocalVaultSession[]> {
+  return withLocalAccessLedgerLock(tomb, "session", PATH, MAX_BYTES, async () =>
+    settleExpired(tomb, await readAll(tomb)),
+  );
+}
+
+/** Records include join codes and grants: only grant administrators may list them. */
 export async function listVaultSessions(
   tomb: string,
 ): Promise<LocalVaultSession[]> {
-  return settleExpired(tomb, await readAll(tomb));
+  await assertAccessCapability(tomb, "manage_grants");
+  return readSettledSessions(tomb);
+}
+
+/**
+ * The resource ids a session currently grants, without its bearer code or
+ * labels. Travel's copy detector needs only this much; members must not be
+ * able to read join credentials through it.
+ */
+export async function listVaultSessionGrantResources(
+  tomb: string,
+): Promise<
+  ReadonlyArray<Pick<SessionGrantSpec, "resourceKind" | "resourceId">>
+> {
+  const sessions = await readSettledSessions(tomb);
+  return sessions.flatMap((session) =>
+    session.grants.map((grant) => ({
+      resourceKind: grant.resourceKind,
+      resourceId: grant.resourceId,
+    })),
+  );
 }
 
 export async function createVaultSession(
@@ -225,25 +174,43 @@ export async function createVaultSession(
     throw new LocalDirectoryError(
       "Choose a session lifetime between one minute and one week.",
     );
-  if (input.grants.length < 1 || input.grants.length > 64)
-    throw new LocalDirectoryError("Add at least one grant to the session.");
-  const current = await readAll(tomb);
-  if (current.length >= MAX_SESSIONS)
-    throw new LocalDirectoryError("Session capacity is full.");
-  let session: LocalVaultSession = {
-    id: crypto.randomUUID(),
-    code: mintCode(),
-    label,
-    status: "stopped",
-    durationSeconds: input.durationSeconds,
-    startedAt: null,
-    expiresAt: null,
-    boundTomb: tomb,
-    grants: input.grants,
-    issuedShareIds: [],
-  };
-  current.push(session);
-  await writeAll(tomb, current);
+  if (
+    !Array.isArray(input.grants) ||
+    input.grants.length < 1 ||
+    input.grants.length > 64 ||
+    !input.grants.every(isGrantSpec)
+  )
+    throw new LocalDirectoryError(
+      "Add at least one valid grant to the session.",
+    );
+  let session = await withLocalAccessLedgerLock(
+    tomb,
+    "session",
+    PATH,
+    MAX_BYTES,
+    async () => {
+      const current = await readAll(tomb);
+      if (current.length >= MAX_SESSIONS)
+        throw new LocalDirectoryError("Session capacity is full.");
+      let code = mintSessionCode();
+      while (current.some((row) => row.code === code)) code = mintSessionCode();
+      const created: LocalVaultSession = {
+        id: crypto.randomUUID(),
+        code,
+        label,
+        status: "stopped",
+        durationSeconds: input.durationSeconds,
+        startedAt: null,
+        expiresAt: null,
+        boundTomb: tomb,
+        grants: input.grants,
+        issuedShareIds: [],
+      };
+      current.push(created);
+      await writeAll(tomb, current);
+      return created;
+    },
+  );
   if (input.start) session = await startVaultSession(tomb, session.id);
   return session;
 }
@@ -252,10 +219,12 @@ export async function startVaultSession(
   tomb: string,
   sessionId: string,
 ): Promise<LocalVaultSession> {
-  return name(tomb, async (named) => {
-    const manage = await requireManageGrants(named);
-    return startCheckedVaultSession(named, tomb, sessionId, manage);
-  });
+  return withLocalAccessLedgerLock(tomb, "session", PATH, MAX_BYTES, () =>
+    name(tomb, async (named) => {
+      const manage = await requireManageGrants(named);
+      return startCheckedVaultSession(named, tomb, sessionId, manage);
+    }),
+  );
 }
 
 async function startCheckedVaultSession<T>(
@@ -307,10 +276,12 @@ export async function stopVaultSession(
   tomb: string,
   sessionId: string,
 ): Promise<LocalVaultSession> {
-  return name(tomb, async (named) => {
-    const manage = await requireManageGrants(named);
-    return stopCheckedVaultSession(named, tomb, sessionId, manage);
-  });
+  return withLocalAccessLedgerLock(tomb, "session", PATH, MAX_BYTES, () =>
+    name(tomb, async (named) => {
+      const manage = await requireManageGrants(named);
+      return stopCheckedVaultSession(named, tomb, sessionId, manage);
+    }),
+  );
 }
 
 async function stopCheckedVaultSession<T>(
@@ -354,23 +325,31 @@ export async function redeemVaultSessionCode(
   const normalized = code.trim().toUpperCase();
   if (!normalized)
     throw new LocalDirectoryError("Enter the session code to join.");
-  const current = await settleExpired(tomb, await readAll(tomb));
-  const index = current.findIndex((row) => row.code === normalized);
-  if (index < 0)
-    throw new LocalDirectoryError(
-      "That session code is unknown, stopped, or expired.",
-    );
-  let session = current[index];
-  if (!session || session.status !== "running")
-    throw new LocalDirectoryError(
-      "That session code is unknown, stopped, or expired.",
-    );
-  const issued = await issueSessionGrants(tomb, session, principalId);
-  session = {
-    ...session,
-    issuedShareIds: [...session.issuedShareIds, ...issued],
-  };
-  current[index] = session;
-  await writeAll(tomb, current);
-  return session;
+  return withLocalAccessLedgerLock(
+    tomb,
+    "session",
+    PATH,
+    MAX_BYTES,
+    async () => {
+      const current = await settleExpired(tomb, await readAll(tomb));
+      const index = current.findIndex((row) => row.code === normalized);
+      if (index < 0)
+        throw new LocalDirectoryError(
+          "That session code is unknown, stopped, or expired.",
+        );
+      let session = current[index];
+      if (!session || session.status !== "running")
+        throw new LocalDirectoryError(
+          "That session code is unknown, stopped, or expired.",
+        );
+      const issued = await issueSessionGrants(tomb, session, principalId);
+      session = {
+        ...session,
+        issuedShareIds: [...session.issuedShareIds, ...issued],
+      };
+      current[index] = session;
+      await writeAll(tomb, current);
+      return session;
+    },
+  );
 }

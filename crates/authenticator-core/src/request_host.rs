@@ -17,8 +17,22 @@ pub(crate) fn host_is_private(url: &Url) -> bool {
         None => true,
         Some(url::Host::Domain(host)) => {
             let host = host.trim_end_matches('.');
+            let lower = host.to_ascii_lowercase();
             host.eq_ignore_ascii_case("localhost")
-                || host.to_ascii_lowercase().ends_with(".localhost")
+                || lower.ends_with(".localhost")
+                || lower == "metadata.google.internal"
+                || lower.ends_with(".internal")
+                || lower.ends_with(".local")
+                || lower.ends_with(".lan")
+                || lower.ends_with(".home.arpa")
+                // Public wildcard DNS services resolve attacker-chosen names
+                // to loopback/private addresses without a literal host.
+                || lower.ends_with(".nip.io")
+                || lower.ends_with(".sslip.io")
+                || lower.ends_with(".xip.io")
+                || lower.ends_with(".localtest.me")
+                || lower.ends_with(".lvh.me")
+                || lower.ends_with(".vcap.me")
         }
         Some(url::Host::Ipv4(ip)) => ipv4_is_blocked(ip),
         // Bracketed IPv4-mapped literals stay IPv6 (`::ffff:7f00:1` is 127.0.0.1).

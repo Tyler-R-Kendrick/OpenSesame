@@ -117,18 +117,23 @@ export async function aiProtocolFetch(
       "Could not reach this AI endpoint. Check TLS, network permissions and CORS for this origin.",
     );
   }
-  check();
-  transport.assertCurrent();
-  transport.signal.throwIfAborted();
-  checkAiResponse(response);
-  aiCompletionSeams.observe?.({
-    phase: "request",
-    response,
-    owner: check,
-    httpSignal: signal,
-    transportSignal: transport.signal,
-  });
-  return response;
+  try {
+    check();
+    transport.assertCurrent();
+    transport.signal.throwIfAborted();
+    checkAiResponse(response);
+    aiCompletionSeams.observe?.({
+      phase: "request",
+      response,
+      owner: check,
+      httpSignal: signal,
+      transportSignal: transport.signal,
+    });
+    return response;
+  } catch (error) {
+    await response.body?.cancel().catch(() => undefined);
+    throw error;
+  }
 }
 
 export async function readAiJson(

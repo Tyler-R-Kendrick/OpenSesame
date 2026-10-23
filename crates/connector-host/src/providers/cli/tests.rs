@@ -36,7 +36,17 @@ const FAMILIES: [(&str, &str); 12] = [
 fn run_stub(name: &str, extra: &[(&str, &str)]) -> (Fixture, BTreeMap<String, String>) {
     let fixture = Fixture::new(name);
     let lookup = fixture.lookup(extra);
-    let output = output(name, &["--version"], &lookup).expect("the trusted stub runs");
+    let mut tries = 0;
+    let output = loop {
+        match output(name, &["--version"], &lookup) {
+            Ok(output) => break output,
+            Err(error) if error.contains("Text file busy") && tries < 20 => {
+                tries += 1;
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            Err(error) => panic!("the trusted stub runs: {error}"),
+        }
+    };
     assert!(output.status.success());
     assert!(!fixture.planted_ran(), "the planted {name} ran");
     let env = fixture.env().expect("the trusted stub recorded");

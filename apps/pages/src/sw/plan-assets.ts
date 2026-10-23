@@ -46,12 +46,42 @@ function post(client: Client, message: WorkerToPageMessage): void {
   }
 }
 
+/**
+ * A redirect is not an asset. The cache key is the graph-listed URL, so a
+ * response whose final URL differs (or leaves this origin) must never be
+ * stored under it: `asset()` would later serve it as a first-party script.
+ */
+function responseIsTheRequestedAsset(
+  ctx: WorkerContext,
+  response: Response,
+  requested: string,
+): boolean {
+  if (response.type === "opaque") return false;
+  if (response.redirected && response.url === "") return false;
+  if (response.url === "") return true;
+  try {
+    const final = new URL(response.url);
+    const expected = new URL(requested);
+    return (
+      final.origin === new URL(ctx.scopeUrl).origin &&
+      final.pathname === expected.pathname &&
+      final.search === expected.search
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function readGraph(ctx: WorkerContext): Promise<CapabilityGraph | null> {
   const url = new URL(GRAPH_FILE, ctx.scopeUrl).href;
   const cache = await ctx.caches.open(ctx.releaseCacheName);
   try {
-    const response = await ctx.fetch(url);
-    if (response.ok && response.type !== "opaque") {
+    const response = await ctx.fetch(new Request(url, { redirect: "error" }));
+    if (
+      response.ok &&
+      response.type !== "opaque" &&
+      responseIsTheRequestedAsset(ctx, response, url)
+    ) {
       await cache.put(url, response.clone()).catch(() => undefined);
       return parseCapabilityGraph(await response.json());
     }
@@ -87,8 +117,12 @@ async function stageFiles(
     const url = new URL(file, ctx.scopeUrl).href;
     if (await alreadySaved(release, url)) continue;
     try {
-      const response = await ctx.fetch(url);
-      if (!response.ok || response.type === "opaque") {
+      const response = await ctx.fetch(new Request(url, { redirect: "error" }));
+      if (
+        !response.ok ||
+        response.type === "opaque" ||
+        !responseIsTheRequestedAsset(ctx, response, url)
+      ) {
         missing += 1;
         continue;
       }

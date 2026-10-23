@@ -1,16 +1,17 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { HttpBindings } from "@hono/node-server";
 import type { OpenSesameProviderBundle } from "@opensesame/oauth-provider";
 import { isString, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
-import { setCookie } from "hono/cookie";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { InteractionCsrf } from "../interactions/csrf.js";
 import {
   type LoginPageOptions,
   buildLoginPageModel,
   finishLoginInteraction,
 } from "../interactions/handlers.js";
+import { interactionPath } from "../interactions/rendezvous.js";
 import type {
   InteractionDetails,
   ProviderInteractions,
@@ -49,6 +50,19 @@ type NodeEnv = { Bindings: HttpBindings };
 /** Enough for any deliverable address (RFC 5321 caps the path at 256 octets). */
 const MAX_EMAIL_LENGTH = 254;
 const MAX_TOKEN_LENGTH = 512;
+const EMAIL_BINDING_TTL_SECONDS = 600;
+
+/** Bind the link to the browser+interaction that asked for it, not just its inbox. */
+function emailBindingCookieName(uid: string): string {
+  return `os.email.${uid}`;
+}
+
+function emailBinding(email: string, secret: string): string {
+  return createHmac("sha256", secret)
+    .update("email-link:")
+    .update(normalizeEmail(email))
+    .digest("base64url");
+}
 
 /** Bridge failures that mean "the deployment is busy", not "no". */
 const MINT_REFUSALS = new Set(["rate_limited", "provisional_capacity"]);
@@ -65,6 +79,8 @@ const UNDELIVERABLE_MESSAGE =
   "That link could not be sent right now. Try another sign-in method.";
 const EXPIRED_LINK_MESSAGE =
   "That sign-in link has expired or was already used. Request a new one.";
+const THROTTLED_MESSAGE =
+  "Too many sign-in links were requested for that address. Wait a few minutes and try again.";
 
 /**
  * Per-address budget for outbound links.
@@ -79,6 +95,11 @@ const EXPIRED_LINK_MESSAGE =
  */
 const EMAIL_BUDGET_WINDOW_MS = 10 * 60 * 1000;
 const EMAIL_BUDGET_MAX = 5;
+const EMAIL_GLOBAL_MAX = 200;
+/** A caller rotating recipient addresses still gets a source-address ceiling. */
+const EMAIL_PEER_MAX = 20;
+const EMAIL_BUDGET_MAX_KEYS = 2_048;
+const EMAIL_GLOBAL_KEY = "__global__";
 const emailBudget = new Map<string, number[]>();
 
 /** Test hook: drop every recorded send window. */
@@ -86,16 +107,35 @@ export function resetEmailLinkBudget(): void {
   emailBudget.clear();
 }
 
-function consumeEmailBudget(key: string, now: number): boolean {
-  const recent = (emailBudget.get(key) ?? []).filter(
-    (at) => now - at < EMAIL_BUDGET_WINDOW_MS,
-  );
-  if (recent.length >= EMAIL_BUDGET_MAX) {
+function peerKey(c: { env: HttpBindings }): string {
+  const address = c.env?.incoming?.socket?.remoteAddress;
+  return address ? `peer:${address}` : "peer:unknown";
+}
+
+function consumeEmailBudget(
+  key: string,
+  now: number,
+  limit = EMAIL_BUDGET_MAX,
+): boolean {
+  for (const [candidate, times] of emailBudget) {
+    const live = times.filter((at) => now - at < EMAIL_BUDGET_WINDOW_MS);
+    if (live.length === 0) emailBudget.delete(candidate);
+    else if (live.length !== times.length) emailBudget.set(candidate, live);
+  }
+  const recent = emailBudget.get(key) ?? [];
+  if (recent.length >= limit) {
     emailBudget.set(key, recent);
     return false;
   }
   recent.push(now);
   emailBudget.set(key, recent);
+  while (emailBudget.size > EMAIL_BUDGET_MAX_KEYS) {
+    const victim = [...emailBudget.keys()].find(
+      (candidate) => candidate !== EMAIL_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    emailBudget.delete(victim);
+  }
   return true;
 }
 
@@ -184,12 +224,23 @@ export function createEmailInteractionRoutes(
       return rerender({ emailError: INVALID_EMAIL_MESSAGE });
     }
 
-    // Budget exhaustion answers exactly like a successful send. Saying "too
-    // many links have been sent to that address" would confirm the address is
-    // one somebody signs in with.
+    // Charge the deployment-wide and source-address fences first, so a loop
+    // through arbitrary addresses cannot grow the per-address map. The
+    // per-address fence remains: one inbox must not be floodable at will.
+    const now = ctx.clock().getTime();
     const budgetKey = createHash("sha256").update(email).digest("hex");
-    if (!consumeEmailBudget(budgetKey, ctx.clock().getTime())) {
+    if (
+      !consumeEmailBudget(EMAIL_GLOBAL_KEY, now, EMAIL_GLOBAL_MAX) ||
+      !consumeEmailBudget(peerKey(c), now, EMAIL_PEER_MAX)
+    ) {
       return rerender({ emailSent: true });
+    }
+    // Over the per-address fence, say so rather than pretending a mail went
+    // out. The answer is the same for every address, so it is a throttling
+    // signal, not an account-existence oracle — and a victim is told why the
+    // link never arrives instead of being silently locked out.
+    if (!consumeEmailBudget(budgetKey, now)) {
+      return rerender({ emailError: THROTTLED_MESSAGE });
     }
 
     try {
@@ -203,6 +254,18 @@ export function createEmailInteractionRoutes(
       ctx.log.error({ err: error }, "magic link delivery failed");
       return rerender({ emailError: UNDELIVERABLE_MESSAGE });
     }
+    setCookie(
+      c,
+      emailBindingCookieName(uid),
+      emailBinding(email, ctx.config.claimPepper),
+      {
+        httpOnly: true,
+        sameSite: "Lax",
+        path: interactionPath(uid),
+        maxAge: EMAIL_BINDING_TTL_SECONDS,
+        secure: ctx.config.publicUrl.startsWith("https://"),
+      },
+    );
     // The same page for an address this deployment knows and one it has never
     // seen: the request itself must not answer whether an account exists.
     return rerender({ emailSent: true });
@@ -230,7 +293,28 @@ export function createEmailInteractionRoutes(
       token && token.length <= MAX_TOKEN_LENGTH
         ? await verifyMagicLinkToken(ctx, token)
         : undefined;
-    if (!subject) {
+    const expectedBinding = getCookie(c, emailBindingCookieName(details.uid));
+    const suppliedBinding =
+      subject && expectedBinding
+        ? emailBinding(subject.email ?? "", ctx.config.claimPepper)
+        : undefined;
+    const sameLength =
+      expectedBinding !== undefined && suppliedBinding !== undefined
+        ? expectedBinding.length === suppliedBinding.length
+        : false;
+    const bound =
+      sameLength &&
+      suppliedBinding !== undefined &&
+      expectedBinding !== undefined &&
+      timingSafeEqual(
+        Buffer.from(suppliedBinding),
+        Buffer.from(expectedBinding),
+      );
+    if (!subject || !bound) {
+      if (expectedBinding)
+        deleteCookie(c, emailBindingCookieName(details.uid), {
+          path: interactionPath(details.uid),
+        });
       return c.html(
         renderLoginPage(
           await buildLoginPageModel(
@@ -261,6 +345,9 @@ export function createEmailInteractionRoutes(
       throw error;
     }
 
+    deleteCookie(c, emailBindingCookieName(details.uid), {
+      path: interactionPath(details.uid),
+    });
     // The browser holding this cookie is the one that just proved control of
     // the address, whether the principal is new or returning — unlike the
     // redirect legs, where a returning identity gets no new cookie (T6),

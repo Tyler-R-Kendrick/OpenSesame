@@ -31,8 +31,11 @@ export type NetworkGate =
  * action (pair, sync now, set up from the drive): only that may raise the
  * prompt, and it is given `waitMs` to be answered.
  */
-export async function networkGate(interactive: boolean): Promise<NetworkGate> {
-  const access = await networkAccessSeams.query();
+export async function networkGate(
+  interactive: boolean,
+  space: "local" | "loopback" = "local",
+): Promise<NetworkGate> {
+  const access = await networkAccessSeams.query(space);
   if (access === "denied") return { go: false, reason: NETWORK_DENIED };
   if (access === "prompt") {
     return interactive
@@ -49,10 +52,11 @@ export async function networkGate(interactive: boolean): Promise<NetworkGate> {
  */
 export async function explainNetworkFailure(
   error: Error,
+  space: "local" | "loopback" = "local",
 ): Promise<string | null> {
   const timedOut = error.name === "TimeoutError" || error.name === "AbortError";
   if (!timedOut && error.name !== "TypeError") return null;
-  const access = await networkAccessSeams.query();
+  const access = await networkAccessSeams.query(space);
   if (access === "denied") return NETWORK_DENIED;
   if (access === "prompt" && timedOut) return NETWORK_STILL_ASKING;
   return null;

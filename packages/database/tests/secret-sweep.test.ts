@@ -208,6 +208,63 @@ it("preserves a concurrent session ownership change during migration", async () 
   ).toThrow();
 });
 
+it("does not seal a row whose ownership changed during migration", async () => {
+  const before = await ctx.repos.principals.create(makePrincipal());
+  const after = await ctx.repos.principals.create(makePrincipal());
+  await ctx.repos.webhookEndpoints.create({
+    id: "owner-race-hook",
+    principalId: before.id,
+    url: "https://example.test/race",
+    secret: "race-sensitive",
+    createdAt: new Date(),
+  });
+  let rotated = false;
+  let rotation: Promise<void> | undefined;
+  const migrating = {
+    ...sealer,
+    seal(
+      purpose: string,
+      value: import("@opensesame/os-domain").JsonObject,
+      scope?: string,
+    ) {
+      if (!rotated && purpose.startsWith("webhook_endpoints.secret:")) {
+        rotated = true;
+        rotation = ctx.db
+          .update(schema.webhookEndpoints)
+          .set({ principalId: after.id })
+          .where(eq(schema.webhookEndpoints.id, "owner-race-hook"))
+          .then(() => undefined);
+      }
+      return sealer.seal(purpose, value, scope);
+    },
+  };
+  await sealLegacySecrets(ctx.db, migrating);
+  await rotation;
+  const [staleOwner] = await ctx.db
+    .select()
+    .from(schema.webhookEndpoints)
+    .where(eq(schema.webhookEndpoints.id, "owner-race-hook"));
+  // The scope changed between read and write: the row is left for the next
+  // sweep, not sealed under the previous principal.
+  expect(staleOwner?.secret).toBe("race-sensitive");
+
+  expect(await sealLegacySecrets(ctx.db, sealer)).toBeGreaterThanOrEqual(1);
+  const [current] = await ctx.db
+    .select()
+    .from(schema.webhookEndpoints)
+    .where(eq(schema.webhookEndpoints.id, "owner-race-hook"));
+  if (!current?.secret) throw new Error("Webhook secret missing");
+  expect(current.secret).not.toBe("race-sensitive");
+  expect(
+    openSecretText(
+      sealer,
+      "webhook_endpoints.secret:owner-race-hook",
+      after.id,
+      current.secret,
+    ),
+  ).toBe("race-sensitive");
+});
+
 async function verifyStrictRestartColumns() {
   const fields = [
     { table: "organizations", column: "sso_client_secret", id: "id" },

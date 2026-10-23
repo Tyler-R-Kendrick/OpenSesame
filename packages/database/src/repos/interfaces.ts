@@ -782,6 +782,8 @@ export interface AgentAuthRepository extends AgentAuthReplayRepository {
     attempt: AgentClaimAttempt,
     uow?: UnitOfWork,
   ): Promise<AgentClaimAttempt>;
+  /** Atomically spend one wrong-code attempt; false when the cap is reached. */
+  consumeClaimAttempt(id: string, maxAttempts: number): Promise<boolean>;
   createAccessToken(
     record: AgentAccessTokenRecord,
     uow?: UnitOfWork,

@@ -122,6 +122,11 @@ describe("parseMarketplaceSource", () => {
     "ftp:octo/types",
     "unknown+https://git.example.net/octo/types",
     `https://git.example.net/${INDEX_PATH}?token=1`,
+    `https://127.0.0.1/${INDEX_PATH}`,
+    `https://[::ffff:7f00:1]/${INDEX_PATH}`,
+    "gitlab+https://10.0.0.5/group/repo",
+    "gitea+https://169.254.169.254/owner/repo",
+    "gitlab+https://[::1]/group/repo",
     "octo/ types",
   ])("refuses %j", (input) => {
     expect(parseMarketplaceSource(input)).toBeNull();
@@ -238,6 +243,9 @@ describe("rawFileUrl", () => {
     const source = parse(`https://git.example.net/r/${INDEX_PATH}`);
     expect(rawFileUrl(source, "types/a.json")).toBe(
       "https://git.example.net/r/types/a.json",
+    );
+    expect(() => rawFileUrl(source, "../outside.json")).toThrow(
+      /safe relative/,
     );
   });
 });

@@ -1,4 +1,3 @@
-/** Official Go/WireGuard runs in this terminable, privately governed realm. */
 import "./worker-csp.js";
 import { type HostEvent, WorkerMessage } from "./protocol.js";
 import {
@@ -12,6 +11,18 @@ type WorkerDependencies = {
   load: typeof loadBrowserNode;
   egress: typeof installWorkerEgress;
 };
+/** A peer GET is a plain HTTP(S) URL with no credential in its authority. */
+function peerGetUrl(raw: string): URL | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (!["http:", "https:"].includes(url.protocol)) return null;
+  if (url.username || url.password) return null;
+  return url;
+}
 /** One owned realm/client; injection substitutes only the existing SDK boundary in tests. */
 export class BrowserNodeWorker {
   private client: BrowserNodeClient | null = null;
@@ -71,11 +82,39 @@ export class BrowserNodeWorker {
       notifyPanicRecover: () => this.panic(),
     });
   }
-  private get(id: number, url: string) {
-    void this.client
-      ?.fetch(url)
-      .then(async (response) => {
-        const text = await response.text();
+  private get(id: number, rawUrl: string) {
+    const url = peerGetUrl(rawUrl);
+    if (!url) {
+      this.post({ kind: "error" });
+      return;
+    }
+    const port = this.client?.nativeHTTP;
+    if (!port || !port.ready()) {
+      // The Go SDK's fetch() follows redirects internally and exposes no
+      // final URL, so it cannot prove the approved peer was the destination.
+      // Use the native bridge, which returns the final URL for comparison.
+      this.post({ kind: "error" });
+      return;
+    }
+    const controller = new AbortController();
+    // The controller allocates `id` from the same monotonically increasing
+    // sequence it uses for native operations, so the bridge's high-water mark
+    // stays valid for both paths.
+    void port
+      .nativeHTTP(
+        id,
+        {
+          method: "GET",
+          url: url.href,
+          headers: [],
+          body: new Uint8Array(),
+        },
+        controller.signal,
+      )
+      .then((response) => {
+        if (response.url !== url.href)
+          throw new Error("Tailscale peer redirected an approved GET.");
+        const text = new TextDecoder().decode(response.body);
         this.post({ kind: "get", id, status: response.status, text });
       })
       .catch(() => this.post({ kind: "error" }));
@@ -117,6 +156,8 @@ export class BrowserNodeWorker {
 const worker = new BrowserNodeWorker((message) =>
   globalThis.postMessage(message),
 );
-globalThis.addEventListener("message", (event: MessageEvent) =>
-  worker.receive(event),
-);
+globalThis.addEventListener("message", (event: MessageEvent) => {
+  if (event.origin !== "" && event.origin !== globalThis.location.origin)
+    return;
+  worker.receive(event);
+});

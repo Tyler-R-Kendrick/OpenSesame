@@ -21,7 +21,7 @@ describe("openSesameAuth hono middleware", () => {
     expect(missing.status).toBe(401);
 
     const token = await new SignJWT({ scope: "openid" })
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject("pairwise-alpha-sub")
@@ -72,7 +72,7 @@ describe("openSesameAuth hono middleware", () => {
     app.onError((_e, c) => c.json({ error: "internal" }, 500));
 
     const token = await new SignJWT({ scope: "openid" })
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject("pairwise-alpha-sub")
@@ -99,7 +99,7 @@ describe("openSesameAuth hono middleware", () => {
     app.get("/me", (c) => c.json({ sub: c.get("identity").sub }));
 
     const token = await new SignJWT({ scope: "openid" })
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject("pairwise-alpha-sub")

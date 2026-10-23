@@ -68,11 +68,14 @@ it("cancellation before an asynchronous socket grant prevents any late construct
     [],
   );
   const socket = new WebSocket("wss://relay.example/derp");
+  const closed = vi.fn();
+  socket.addEventListener("close", closed);
   socket.close();
   release(true);
   await Promise.resolve();
   expect(constructed).not.toHaveBeenCalled();
   expect(socket.readyState).toBe(3);
+  expect(closed).toHaveBeenCalledTimes(1);
 });
 
 it("settles the original empty HEAD stream before publishing a metadata-preserving readable response", async () => {

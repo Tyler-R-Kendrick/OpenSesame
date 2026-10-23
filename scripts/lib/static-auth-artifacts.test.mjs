@@ -234,7 +234,7 @@ it.each(["**/*.js", "**", "apps", "**/public/**"])(
   },
 );
 
-it("refuses rewriting or dropping a published artifact even with a new valid hash", () => {
+it("refuses rewriting a published artifact but allows a reviewed retirement", () => {
   const f = fixture();
   expect(() =>
     assertImmutableArtifacts(f.manifest, structuredClone(f.manifest)),
@@ -247,7 +247,5 @@ it("refuses rewriting or dropping a published artifact even with a new valid has
     "Published artifact changed",
   );
   changed.artifacts.shift();
-  expect(() => assertImmutableArtifacts(f.manifest, changed)).toThrow(
-    "removed",
-  );
+  expect(() => assertImmutableArtifacts(f.manifest, changed)).not.toThrow();
 });

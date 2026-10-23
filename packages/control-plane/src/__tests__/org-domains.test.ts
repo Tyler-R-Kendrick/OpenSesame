@@ -156,7 +156,9 @@ async function seedOrg(slug: string) {
     body: JSON.stringify({
       slug,
       displayName: `Org ${slug}`,
-      ssoIssuer: UPSTREAM_ISSUER,
+      // One tenant per issuer: the create route refuses a second claim on the
+      // same IdP, and these cases are exercising domain routing, not SSO.
+      ssoIssuer: `${UPSTREAM_ISSUER}/${slug}`,
     }),
   });
   expect(created.status).toBe(201);
@@ -287,13 +289,22 @@ describe("organization email domain claims", () => {
     expect(absent.body.error).toBe("verification_failed");
   });
 
-  it("refuses a domain another organization already claims", async () => {
+  it("refuses a verified domain another organization claims", async () => {
     const first = await seedOrg("first-claim");
     const second = await seedOrg("second-claim");
+    const claimed = await claimDomain(
+      first.id,
+      first.ownerToken,
+      "contested.example",
+    );
+    expect(claimed.status).toBe(201);
+    orgDomainDependencies.resolveTxt = txtRecordsOf(
+      String(claimed.body.txtRecord),
+    );
     expect(
-      (await claimDomain(first.id, first.ownerToken, "contested.example"))
+      (await verifyDomain(first.id, first.ownerToken, "contested.example"))
         .status,
-    ).toBe(201);
+    ).toBe(200);
     const contested = await claimDomain(
       second.id,
       second.ownerToken,
@@ -301,6 +312,29 @@ describe("organization email domain claims", () => {
     );
     expect(contested.status).toBe(409);
     expect(contested.body.error).toBe("domain_taken");
+  });
+
+  it("does not let an unverified claim permanently squat a domain", async () => {
+    const first = await seedOrg("squat-first");
+    const second = await seedOrg("squat-second");
+    expect(
+      (await claimDomain(first.id, first.ownerToken, "stale.example")).status,
+    ).toBe(201);
+    // The first claim never proves control. The organization that does prove
+    // it must be able to take the pending record over.
+    const reclaimed = await claimDomain(
+      second.id,
+      second.ownerToken,
+      "stale.example",
+    );
+    expect(reclaimed.status).toBe(201);
+    orgDomainDependencies.resolveTxt = txtRecordsOf(
+      String(reclaimed.body.txtRecord),
+    );
+    expect(
+      (await verifyDomain(second.id, second.ownerToken, "stale.example"))
+        .status,
+    ).toBe(200);
   });
 
   it("refuses inputs that are not domain names", async () => {

@@ -4,6 +4,10 @@ import {
   resetPasswordResetMailForTest,
 } from "@opensesame/app-core/lib/password-reset-mail.js";
 import { clearHandledForTest } from "@opensesame/app-core/lib/password-reset/handled.js";
+import {
+  authorizeResetHandoff,
+  resetResetHandoffAuthorizationsForTest,
+} from "@opensesame/app-core/lib/password-reset/handoff-authorization.js";
 import type { MailFetch } from "@opensesame/app-core/lib/password-reset/jmap.js";
 import {
   JMAP_MAILBOX,
@@ -91,12 +95,14 @@ function scanOf(
 beforeEach(() => {
   clearNotices();
   clearHandledForTest();
+  resetResetHandoffAuthorizationsForTest();
 });
 
 afterEach(() => {
   resetPasswordResetMailForTest();
   clearNotices();
   clearHandledForTest();
+  resetResetHandoffAuthorizationsForTest();
 });
 
 describe("password reset scan", () => {
@@ -127,7 +133,25 @@ describe("password reset scan", () => {
     });
   });
 
-  it("hands the origin over once, retries one that did not land, and never sends the link", async () => {
+  it("does not hand off an untrusted reset message without the person's approval", async () => {
+    const uninstall = installAutonomousResetReady(() => true);
+    const home = mailboxItem(JMAP_MAILBOX, "Home");
+    const items = [home, login(home.id)];
+    const posted: string[] = [];
+    const { fetcher } = server(() => RESET_MAIL);
+    const scan = scanOf(items, fetcher, async (origin) => {
+      posted.push(origin);
+      return true;
+    });
+    await scan.scan();
+    await scan.scan();
+    expect(posted).toEqual([]);
+    // The notice offers the act, but the mail alone never performs it.
+    expect(listNotices()[0]?.act?.label).toBe("Reset this password");
+    uninstall();
+  });
+
+  it("hands the origin over once after approval, retries one that did not land, and never sends the link", async () => {
     const uninstall = installAutonomousResetReady(() => true);
     const home = mailboxItem(JMAP_MAILBOX, "Home");
     const items = [home, login(home.id)];
@@ -139,8 +163,20 @@ describe("password reset scan", () => {
       return ok;
     });
     await scan.scan();
+    expect(posted).toEqual([]);
+    authorizeResetHandoff({
+      itemId: items[1]?.id ?? "",
+      origin: "https://example.com",
+      messageId: "m1",
+    });
+    await scan.scan();
     expect(posted).toEqual(["https://example.com"]);
     ok = true;
+    authorizeResetHandoff({
+      itemId: items[1]?.id ?? "",
+      origin: "https://example.com",
+      messageId: "m1",
+    });
     await scan.scan();
     expect(posted).toEqual(["https://example.com", "https://example.com"]);
     await scan.scan();
@@ -162,6 +198,11 @@ describe("password reset scan", () => {
       posted.push(origin);
       return true;
     });
+    authorizeResetHandoff({
+      itemId: items[1]?.id ?? "",
+      origin: "https://example.com",
+      messageId: "m1",
+    });
     await scan.scan();
     mail = {
       messages: [
@@ -172,6 +213,11 @@ describe("password reset scan", () => {
         },
       ],
     };
+    authorizeResetHandoff({
+      itemId: items[1]?.id ?? "",
+      origin: "https://example.com",
+      messageId: "m2",
+    });
     await scan.scan();
     expect(posted).toHaveLength(2);
     expect(listNotices()).toHaveLength(2);

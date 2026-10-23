@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { AuthenticationApplication } from "@opensesame/os-domain";
 import type {
   AuthenticationResponseJSON,
@@ -169,6 +170,8 @@ describe("authentication service", () => {
       mode: "alias",
       alias: "ada@example.com",
     });
+    // A known alias gets a challenge, never the user's credential ids.
+    expect(authOptions.allowCredentials ?? []).toEqual([]);
     const result = await service.verifyAuthentication({
       applicationId: "authapp_one",
       response: authenticationResponse(authOptions.challenge),
@@ -187,6 +190,87 @@ describe("authentication service", () => {
     ).rejects.toMatchObject({
       code: "invalid_token",
     });
+  });
+
+  it("does not reveal whether an alias or user id exists", async () => {
+    const { service } = await setup();
+    const unknownAlias = await service.authenticationOptions({
+      applicationId: "authapp_one",
+      origin: "https://login.example.com",
+      mode: "alias",
+      alias: "nobody@example.com",
+    });
+    const unknownUser = await service.authenticationOptions({
+      applicationId: "authapp_one",
+      origin: "https://login.example.com",
+      mode: "user_id",
+      userId: "user-nobody",
+    });
+    // Both are ordinary challenges with nothing to bind, not a distinct
+    // unknown_credential error a caller could use to enumerate accounts.
+    for (const options of [unknownAlias, unknownUser]) {
+      expect(options.challenge).toBeTruthy();
+      expect(options.allowCredentials ?? []).toEqual([]);
+    }
+  });
+
+  it("keys new aliases with the deployment pepper and still resolves legacy digests", async () => {
+    const { stores } = await setup();
+    const now = new Date("2026-08-26T12:00:00Z");
+    const service = createAuthenticationService(stores, () => now, {
+      aliasPepper: "deployment-alias-pepper-for-tests",
+    });
+    const user = {
+      applicationId: "authapp_one",
+      userId: "user-legacy",
+      userName: "Ada",
+      displayName: "Ada Lovelace",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const legacy = `sha256:${createHash("sha256")
+      .update("ada@example.com")
+      .digest("hex")}`;
+    await stores.users.put(user, [legacy]);
+    await stores.credentials.create({
+      applicationId: "authapp_one",
+      credentialId: "cred-legacy",
+      userId: user.userId,
+      publicKey: new Uint8Array([1, 2, 3]),
+      counter: 0,
+      transports: ["internal"],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const lookup = vi.spyOn(stores.users, "findByAlias");
+    await service.authenticationOptions({
+      applicationId: "authapp_one",
+      origin: "https://login.example.com",
+      mode: "alias",
+      alias: "ADA@EXAMPLE.COM",
+    });
+    expect(lookup).toHaveBeenCalledWith("authapp_one", legacy);
+
+    await service.setAliases({
+      applicationId: "authapp_one",
+      userId: user.userId,
+      aliases: ["ada@example.com"],
+    });
+    const stored = await stores.users.aliases("authapp_one", user.userId);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatch(/^hmac-sha256:v1:[a-f0-9]{64}$/u);
+    expect(stored.some((alias) => alias.startsWith("sha256:"))).toBe(false);
+
+    lookup.mockClear();
+    await service.authenticationOptions({
+      applicationId: "authapp_one",
+      origin: "https://login.example.com",
+      mode: "alias",
+      alias: "ada@example.com",
+    });
+    expect(lookup).toHaveBeenCalledWith("authapp_one", stored[0]);
+    expect(lookup.mock.calls.some(([, alias]) => alias === legacy)).toBe(true);
   });
 
   it("binds registration tokens and challenges to one app and origin", async () => {

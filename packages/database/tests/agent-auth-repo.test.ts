@@ -1,4 +1,7 @@
-import type { AgentRegistration } from "@opensesame/os-domain";
+import type {
+  AgentClaimAttempt,
+  AgentRegistration,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { MemoryAgentAuthRepository } from "../src/repos/agent-auth-repo.js";
 import { ConflictError, type UnitOfWork } from "../src/repos/interfaces.js";
@@ -55,6 +58,37 @@ describe("MemoryAgentAuthRepository", () => {
         status: "claimed",
       }),
     ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("keeps poll/failure counters monotonic against a stale update", async () => {
+    const repo = new MemoryAgentAuthRepository();
+    const at = new Date("2026-09-02T12:00:00.000Z");
+    const attempt: AgentClaimAttempt = {
+      id: "aca_1",
+      registrationId: "areg_1",
+      attemptTokenDigest: new Uint8Array([1]),
+      userCodeDigest: new Uint8Array([2]),
+      createdAt: at,
+      expiresAt: new Date(at.getTime() + 60_000),
+      intervalSeconds: 5,
+      pollCount: 0,
+      failedAttempts: 0,
+    };
+    await repo.createClaimAttempt(attempt);
+    await repo.updateClaimAttempt({
+      ...attempt,
+      pollCount: 2,
+      failedAttempts: 1,
+    });
+    const stale = await repo.updateClaimAttempt({
+      ...attempt,
+      pollCount: 1,
+      failedAttempts: 0,
+      completedAt: new Date(at.getTime() + 1_000),
+    });
+    expect(stale.pollCount).toBe(2);
+    expect(stale.failedAttempts).toBe(1);
+    expect(stale.completedAt).toEqual(new Date(at.getTime() + 1_000));
   });
 
   it("does not apply a registration until the unit of work commits", async () => {

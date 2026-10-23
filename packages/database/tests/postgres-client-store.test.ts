@@ -150,6 +150,31 @@ describe("createPostgresClientRecordStore", () => {
     ).rejects.toMatchObject({ cause: { code: "23505" } });
   });
 
+  it("preserves the canonical origin when a full-record update omits it", async () => {
+    const client = makeClient();
+    const inserted = await clients.insertAtomic(client);
+    const { origin: _origin, ...withoutOrigin } = inserted;
+    const updated = await clients.update({
+      ...withoutOrigin,
+      displayName: "Renamed without origin",
+    });
+    expect(updated.origin).toBe(inserted.origin);
+    expect((await clients.findById(inserted.id))?.origin).toBe(inserted.origin);
+  });
+
+  it("refuses a stale full-record update instead of losing a later write", async () => {
+    const client = makeClient();
+    const inserted = await clients.insertAtomic(client);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await clients.update({ ...inserted, displayName: "First writer" });
+    await expect(
+      clients.update({ ...inserted, displayName: "Stale writer" }),
+    ).rejects.toThrow(/update conflict/u);
+    expect((await clients.findById(inserted.id))?.displayName).toBe(
+      "First writer",
+    );
+  });
+
   it("touchLastUsed stamps only the usage timestamps", async () => {
     const client = makeClient();
     const inserted = await clients.insertAtomic(client);

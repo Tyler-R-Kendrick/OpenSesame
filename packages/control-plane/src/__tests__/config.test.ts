@@ -269,3 +269,33 @@ describe("loadConfig personal workspace bootstrap", () => {
     expect(config.bootstrapPersonalOrganization).toBe(false);
   });
 });
+
+describe("OPENSESAME_PROVISIONAL_TTL_MS validation", () => {
+  const baseEnv = {
+    OPENSESAME_ENV: "test",
+    OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+    OPENSESAME_PUBLIC_URL: "http://127.0.0.1:8788",
+    OPENSESAME_ISSUER: "http://127.0.0.1:8788",
+  } as const;
+
+  it("accepts a finite positive duration inside the bound", () => {
+    expect(
+      loadConfig({
+        ...baseEnv,
+        OPENSESAME_PROVISIONAL_TTL_MS: "3600000",
+      }).provisionalTtlMs,
+    ).toBe(3_600_000);
+  });
+
+  it.each(["24h", "30d", "0", "-1", "1e9", "NaN", " 42 "])(
+    "refuses malformed or out-of-range value %s",
+    (value) => {
+      expect(() =>
+        loadConfig({
+          ...baseEnv,
+          OPENSESAME_PROVISIONAL_TTL_MS: value,
+        }),
+      ).toThrow(/OPENSESAME_PROVISIONAL_TTL_MS/);
+    },
+  );
+});

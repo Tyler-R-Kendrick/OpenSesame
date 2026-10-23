@@ -115,7 +115,9 @@ async function microsoftIdentity(
   if (!grant.idToken || !pending.clientId)
     throw new NativeOAuthError("provider");
   const tenant = guid.parse(decodeJwtEnvelope(grant.idToken).claims.tid);
-  const expected = configuration.parameters.tenant ?? "common";
+  const expected = (configuration.parameters.tenant ?? "common")
+    .trim()
+    .toLowerCase();
   const consumerTenant = "9188040d-6c67-4c5b-b112-36a304b66dad";
   if (
     (expected === "organizations" && tenant.toLowerCase() === consumerTenant) ||

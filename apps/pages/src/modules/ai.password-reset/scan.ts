@@ -1,9 +1,10 @@
 /**
  * One pass of the mailbox check. Each readable mailbox a login is bound to is
  * read over JMAP for the last two hours; a message that is a reset link for
- * one of those logins is announced once in the tray and, when the website
- * password-reset ceremony is reachable, handed to the Host with the link's
- * https origin — never the link, which carries the token.
+ * one of those logins is announced once in the tray. When the ceremony is
+ * reachable the tray offers a reset action; only a person pressing it creates
+ * the one-time correlation nonce the hand-off consumes, then the Host gets the
+ * link's https origin — never the link, which carries the token.
  *
  * A mailbox no login names is not read. A mailbox that cannot be read raises
  * one notice naming it and the reason in a word; the login is never in it.
@@ -29,6 +30,10 @@ import {
   markHandled,
   unmarkHandled,
 } from "@opensesame/app-core/lib/password-reset/handled.js";
+import {
+  authorizeResetHandoff,
+  consumeResetHandoffAuthorization,
+} from "@opensesame/app-core/lib/password-reset/handoff-authorization.js";
 import {
   JmapError,
   type JmapFailure,
@@ -152,20 +157,42 @@ export function createPasswordResetScan(deps: ScanDeps) {
         match.origin,
         match.messageId ?? "",
       );
-      if (!isHandled("announced", key)) {
-        markHandled("announced", key, now());
-        const login = all.find((entry) => entry.id === match.itemId);
+      const login = all.find((entry) => entry.id === match.itemId);
+      const request = {
+        itemId: match.itemId,
+        origin: match.origin,
+        messageId: match.messageId ?? "",
+      };
+      const handOffApproved = async (): Promise<boolean> => {
+        if (isHandled("handedOff", key)) return false;
+        if (!consumeResetHandoffAuthorization(request, now())) return false;
+        markHandled("handedOff", key, now());
+        if (await handOff(match.origin)) return true;
+        unmarkHandled("handedOff", key);
+        return false;
+      };
+      const awaitingApproval = ready && !isHandled("handedOff", key);
+      if (!isHandled("announced", key) || awaitingApproval) {
+        if (!isHandled("announced", key)) markHandled("announced", key, now());
         setStatusNotice({
           id: `password-reset-mail:${key}`,
           tone: "info",
           title: "Password reset email",
           body: `A reset message for ${login?.name || match.origin} arrived.`,
+          ...(awaitingApproval
+            ? {
+                act: {
+                  label: "Reset this password",
+                  run: () => {
+                    authorizeResetHandoff(request, now());
+                    void handOffApproved();
+                  },
+                },
+              }
+            : undefined),
         });
       }
-      if (ready && !isHandled("handedOff", key)) {
-        markHandled("handedOff", key, now());
-        if (!(await handOff(match.origin))) unmarkHandled("handedOff", key);
-      }
+      if (ready && !isHandled("handedOff", key)) await handOffApproved();
     }
   }
 

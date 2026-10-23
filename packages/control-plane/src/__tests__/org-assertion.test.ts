@@ -4,6 +4,7 @@ import {
   OrgAssertionError,
   orgAssertionSeams,
   originAudiences,
+  resetOrgAssertionCaches,
   verifyOrgIdToken,
 } from "../routes/org-assertion.js";
 
@@ -23,6 +24,7 @@ describe("verifyOrgIdToken", () => {
 
   afterEach(() => {
     orgAssertionSeams.discoverJwksUri = originalDiscover;
+    resetOrgAssertionCaches();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

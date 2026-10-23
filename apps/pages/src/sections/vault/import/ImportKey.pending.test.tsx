@@ -4,7 +4,7 @@ import {
   holdPendingImport,
   peekPendingImport,
 } from "@opensesame/app-core/lib/vault/pending-import.js";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const applyImport = vi.hoisted(() => vi.fn());
@@ -59,6 +59,14 @@ describe("a file chosen at the door, once the vault it was for is open", () => {
     render(<ImportKey />);
     await screen.findByRole("combobox", { name: "Read it as" });
     expect(applyImport).not.toHaveBeenCalled();
+  });
+
+  it("opens when a launch or share hands over a file while mounted", async () => {
+    render(<ImportKey />);
+    holdPendingImport(makeFile("app.env", "API_KEY=sk-123\n"));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Import items" })).toBeTruthy(),
+    );
   });
 
   it("leaves the key as it was when nothing waits", () => {

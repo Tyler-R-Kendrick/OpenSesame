@@ -46,6 +46,11 @@ function staticConfig() {
     publicUrl: "http://127.0.0.1:8788",
     issuer: "http://127.0.0.1:8788",
     trustedUpstreamIssuers: [idp.issuer],
+    upstreamClientCredentials: {
+      issuer: idp.issuer,
+      clientId: idp.clientId,
+      clientSecret: "test-secret",
+    },
   } as const;
 }
 
@@ -248,6 +253,20 @@ describe("back-channel logout", () => {
     expect(await stillSignedIn(app, session.accessToken)).toBe(true);
   }, 30_000);
 
+  it("refuses a token minted for another audience", async () => {
+    const { app } = createControlPlane({ config: staticConfig() });
+    const session = await signedIn(app, idp.issuer, "mock-user-1");
+
+    const res = await postLogout(
+      app,
+      await idp.mintBackchannelLogoutToken("mock-user-1", {
+        audience: "https://some-other-client.example",
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await stillSignedIn(app, session.accessToken)).toBe(true);
+  }, 30_000);
+
   it("refuses an empty or absent logout_token", async () => {
     const { app } = createControlPlane({ config: staticConfig() });
     const empty = await app.request(LOGOUT_PATH, {
@@ -285,7 +304,9 @@ describe("back-channel logout", () => {
 
     const res = await postLogout(
       app,
-      await idp.mintBackchannelLogoutToken(subject),
+      await idp.mintBackchannelLogoutToken(subject, {
+        audience: "http://127.0.0.1:8788",
+      }),
     );
     expect(res.status).toBe(200);
 

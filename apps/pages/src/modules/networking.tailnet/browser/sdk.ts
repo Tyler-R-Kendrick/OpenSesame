@@ -102,9 +102,14 @@ export type BrowserNodeClient = {
   }): void;
   login(): void;
   logout(): void;
-  fetch(
-    url: string,
-  ): Promise<{ status: number; statusText: string; text(): Promise<string> }>;
+  fetch(url: string): Promise<{
+    status: number;
+    statusText: string;
+    text(): Promise<string>;
+    /** Final response URL, when the SDK exposes the native Response. */
+    url?: string;
+    redirected?: boolean;
+  }>;
 };
 declare const fs: { writeSync(fd: number, bytes: Uint8Array): number };
 declare const Go: new () => {

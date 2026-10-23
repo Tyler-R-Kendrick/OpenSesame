@@ -7,6 +7,7 @@ import {
 import { generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { resetSiopChallengeBudget } from "../routes/siop-link.js";
 
 const AUDIENCE = "https://id.example/siop-bridge";
 
@@ -178,5 +179,24 @@ describe("POST /v1/siop/challenges and /link", () => {
     expect(overlapCast(await res.json())).toMatchObject({
       error: "invalid_request",
     });
+  });
+
+  it("bounds challenge minting per principal", async () => {
+    resetSiopChallengeBudget();
+    const { app } = createControlPlane();
+    const session = await provisional(app);
+    for (let index = 0; index < 10; index += 1) {
+      const res = await app.request(
+        "/v1/siop/challenges",
+        bearerJson(session.accessToken, { audience: AUDIENCE }),
+      );
+      expect(res.status).toBe(201);
+    }
+    const limited = await app.request(
+      "/v1/siop/challenges",
+      bearerJson(session.accessToken, { audience: AUDIENCE }),
+    );
+    expect(limited.status).toBe(429);
+    expect(overlapCast(await limited.json()).error).toBe("rate_limited");
   });
 });

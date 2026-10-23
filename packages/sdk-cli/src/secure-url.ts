@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 
 const LOOPBACK_HOSTS = new BlockList();
@@ -11,6 +12,9 @@ for (const [network, prefix] of [
   ["169.254.0.0", 16],
   ["172.16.0.0", 12],
   ["192.168.0.0", 16],
+  ["100.64.0.0", 10],
+  ["192.0.0.0", 24],
+  ["198.18.0.0", 15],
 ] as const) {
   PRIVATE_HOSTS.addSubnet(network, prefix, "ipv4");
   PRIVATE_HOSTS.addSubnet(`::ffff:${network}`, 96 + prefix, "ipv6");
@@ -35,9 +39,14 @@ function blockListContains(list: BlockList, host: string): boolean {
 }
 
 function isLoopbackHost(hostname: string): boolean {
-  const host = stripIpv6Brackets(hostname).toLowerCase();
+  const host = stripIpv6Brackets(hostname).replace(/\.+$/u, "").toLowerCase();
   return (
     host === "localhost" ||
+    host === "localhost4" ||
+    host === "localhost6" ||
+    host === "localhost.localdomain" ||
+    host === "ip6-localhost" ||
+    host === "ip6-loopback" ||
     host.endsWith(".localhost") ||
     blockListContains(LOOPBACK_HOSTS, host)
   );
@@ -71,7 +80,7 @@ export function assertSecureUrl(raw: string, what: string): string {
  * Hosts that only mean something inside this machine's network.
  */
 function isPrivateHost(hostname: string): boolean {
-  const host = stripIpv6Brackets(hostname).toLowerCase();
+  const host = stripIpv6Brackets(hostname).replace(/\.+$/u, "").toLowerCase();
   if (isLoopbackHost(host)) return true;
   return (
     blockListContains(PRIVATE_HOSTS, host) ||
@@ -135,4 +144,22 @@ function stripTrailingSlashes(value: string): string {
   let end = value.length;
   while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
   return value.slice(0, end);
+}
+
+/** A public endpoint whose name resolves inside the local network is an SSRF
+ * target even when its literal URL looks public. */
+export async function assertResolvedPublicHost(
+  raw: string,
+  issuer: string,
+): Promise<void> {
+  const url = new URL(raw);
+  if (isPrivateHost(new URL(issuer).hostname)) return;
+  const host = stripIpv6Brackets(url.hostname).replace(/\.+$/u, "");
+  if (isIP(host) !== 0) return;
+  const addresses = await lookup(host, { all: true, verbatim: true });
+  if (addresses.some((entry) => isPrivateHost(entry.address))) {
+    throw new Error(
+      "endpoint resolves to a private or loopback address, but the issuer is remote",
+    );
+  }
 }

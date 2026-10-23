@@ -54,12 +54,23 @@ export type SiopSocialProof = Readonly<{
 
 const SOCIAL_PROOF_LIFETIME_MS = 10 * 60_000;
 
+async function assertSocialActor(tomb: string, principalId: string) {
+  const { currentLocalIdentityActor } = await import("./local-sessions.js");
+  const actor = await currentLocalIdentityActor(tomb);
+  // The social leg proves the upstream account, never which local person the
+  // caller selected. The person must also hold the live local session this tab
+  // is acting under; a custodian role is not a substitute for that person.
+  if (!actor || actor.principalId !== principalId) refused();
+}
+
 async function assertSocialProof(
+  tomb: string,
   proof: SiopSocialProof,
   principalId: string,
   seams: SiopAuthoritySeams,
 ): Promise<void> {
   if (proof.personId !== principalId) refused();
+  await assertSocialActor(tomb, principalId);
   if (
     !Number.isFinite(proof.at) ||
     proof.at > Date.now() ||
@@ -262,7 +273,8 @@ export async function approveSiopAuthorizationWithSocial(
   request: NormalizedAuthorizationRequest,
   seams: SiopAuthoritySeams = {},
 ): Promise<{ redirectUrl: string; identity: SiopPublicIdentity }> {
-  const assertActive = () => assertSocialProof(proof, proof.personId, seams);
+  const assertActive = () =>
+    assertSocialProof(tomb, proof, proof.personId, seams);
   await assertActive();
   const approved = await mintSiopAuthorization(
     tomb,

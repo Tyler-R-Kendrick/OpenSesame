@@ -179,6 +179,55 @@ describe("oauth clients routes edge cases", () => {
     });
   });
 
+  it("preserves origin/claim fields and refuses to clear an operator suspension", async () => {
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    const owner = await verified(app, "oauth-origin-patch-owner");
+    const origin = "https://origin-patch.example";
+    await ctx.oauth.clientStore.insertAtomic({
+      id: `origin:${origin}`,
+      admissionMode: "origin_profile",
+      displayName: "Origin RP",
+      redirectUris: [`${origin}/opensesame/callback`],
+      sectorIdentifier: `sector_${origin}`,
+      grantTypes: ["authorization_code"],
+      responseTypes: ["code"],
+      tokenEndpointAuthMethod: "none",
+      allowedScopes: ["openid"],
+      allowedResources: [],
+      state: "active",
+      origin,
+      ownershipStatus: "unclaimed",
+      ownerPrincipalId: owner.principalId,
+    });
+    const id = `origin:${origin}`;
+    const patch = (body: BoundaryValue) =>
+      app.request(`/v1/oauth/clients/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: {
+          ...auth(owner.accessToken),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+    expect((await patch({ displayName: "Renamed origin" })).status).toBe(200);
+    const stored = await ctx.oauth.clientStore.findById(`origin:${origin}`);
+    expect(stored).toMatchObject({
+      displayName: "Renamed origin",
+      origin,
+      admissionMode: "origin_profile",
+      ownershipStatus: "unclaimed",
+    });
+
+    const suspended = { ...stored, state: "suspended" as const };
+    await ctx.oauth.clientStore.update(suspended);
+    expect((await patch({ state: "active" })).status).toBe(403);
+    expect((await patch({ displayName: "Still suspended" })).status).toBe(200);
+    expect(
+      (await ctx.oauth.clientStore.findById(`origin:${origin}`))?.state,
+    ).toBe("suspended");
+  });
+
   it("rotates a client, retiring the old registration", async () => {
     const { app } = createControlPlane({ config: testConfig() });
     const owner = await verified(app, "oauth-rotate-owner");
@@ -354,5 +403,80 @@ describe("oauth clients routes edge cases", () => {
         )
       ).status,
     ).toBe(201);
+  });
+
+  it("rejects trailing-root-dot and public-suffix sector identifiers", async () => {
+    const { app } = createControlPlane({ config: testConfig() });
+    const owner = await verified(app, "oauth-sector-suffix-owner");
+    for (const sectorIdentifier of [
+      "https://com.",
+      "https://co.uk",
+      "https://com",
+    ]) {
+      const res = await createClient(
+        app,
+        owner.accessToken,
+        clientBody({ sectorIdentifier }),
+      );
+      expect(res.status, sectorIdentifier).toBe(400);
+    }
+    // A registrable multi-label host still works.
+    expect(
+      (
+        await createClient(
+          app,
+          owner.accessToken,
+          clientBody({ sectorIdentifier: "https://rp.example.co.uk" }),
+        )
+      ).status,
+    ).toBe(201);
+  });
+
+  it("refuses rotation of an origin-profile or suspended client", async () => {
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    const owner = await verified(app, "oauth-rotate-origin-owner");
+    const origin = "https://rotate-origin.example";
+    const id = `origin:${origin}`;
+    await ctx.oauth.clientStore.insertAtomic({
+      id,
+      admissionMode: "origin_profile",
+      displayName: "Origin rotate",
+      redirectUris: [`${origin}/cb`],
+      sectorIdentifier: `sector_${origin}`,
+      grantTypes: ["authorization_code"],
+      responseTypes: ["code"],
+      tokenEndpointAuthMethod: "none",
+      allowedScopes: ["openid"],
+      allowedResources: [],
+      state: "active",
+      origin,
+      ownershipStatus: "claimed",
+      claimedAt: ctx.clock(),
+      ownerPrincipalId: owner.principalId,
+    });
+    const rotate = () =>
+      app.request(`/v1/oauth/clients/${encodeURIComponent(id)}/rotate`, {
+        method: "POST",
+        headers: auth(owner.accessToken),
+      });
+    const originRotation = await rotate();
+    expect(originRotation.status).toBe(409);
+    expect(overlapCast(await originRotation.json()).error).toBe(
+      "rotation_not_supported",
+    );
+    expect((await ctx.oauth.clientStore.findById(id))?.state).toBe("active");
+
+    const stored = await ctx.oauth.clientStore.findById(id);
+    if (!stored) throw new Error("missing origin client");
+    await ctx.oauth.clientStore.update({
+      ...stored,
+      admissionMode: "pre_registered",
+      state: "suspended",
+    });
+    const suspendedRotation = await rotate();
+    expect(suspendedRotation.status).toBe(409);
+    expect(overlapCast(await suspendedRotation.json()).error).toBe(
+      "client_not_active",
+    );
   });
 });

@@ -103,6 +103,40 @@ describe("ADV-30 first-admin enrollment", { timeout: 60_000 }, () => {
     expect(garbage.status).toBe(401);
   });
 
+  it("does not answer slug existence before the ticket is valid", async () => {
+    const { first } = await replicaPair();
+    const now = first.ctx.clock();
+    await first.ctx.stores.organizations.set("org:enrollment-oracle", {
+      id: "org:enrollment-oracle",
+      slug: "existing-tenant",
+      displayName: "Existing tenant",
+      state: "active",
+      createdBy: first.ctx.systemOwnerPrincipalId,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // No valid ticket: an existing slug and an unknown slug are the same 401.
+    const probeExisting = await bootstrap(
+      first,
+      "not-a-ticket",
+      "existing-tenant",
+    );
+    const probeUnknown = await bootstrap(
+      first,
+      "not-a-ticket",
+      "unknown-tenant",
+    );
+    expect(probeExisting.status).toBe(401);
+    expect(probeUnknown.status).toBe(401);
+    expect(await probeExisting.json()).toEqual(await probeUnknown.json());
+
+    // A caller who does hold a valid ticket may learn the slug is taken.
+    const { ticket } = await mintTicket(first);
+    const taken = await bootstrap(first, ticket, "existing-tenant");
+    expect(taken.status).toBe(409);
+  });
+
   it("lets exactly one of two racing browsers consume a ticket", async () => {
     const { first, second } = await replicaPair();
     const { ticket } = await mintTicket(first);

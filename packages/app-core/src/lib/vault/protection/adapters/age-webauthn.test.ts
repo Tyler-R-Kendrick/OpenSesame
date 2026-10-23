@@ -15,11 +15,16 @@ const CONTEXT: ProtectionContext = {
   purpose: "human-vault-root",
 };
 
-function fakeCrypto(): AgeWebauthnCrypto & { identity: string } {
+function fakeCrypto(): AgeWebauthnCrypto & {
+  identity: string;
+  decrypted: Uint8Array[];
+} {
   const byCt = new Map<string, Uint8Array>();
+  const decrypted: Uint8Array[] = [];
   const identity = "AGE-PLUGIN-FIDO2PRF-1-TEST";
   return {
     identity,
+    decrypted,
     async createCredential() {
       return identity;
     },
@@ -32,7 +37,9 @@ function fakeCrypto(): AgeWebauthnCrypto & { identity: string } {
       const key = btoa(String.fromCharCode(...ciphertext));
       const plain = byCt.get(key);
       if (!plain) throw new Error("missing");
-      return new Uint8Array(plain);
+      const copy = new Uint8Array(plain);
+      decrypted.push(copy);
+      return copy;
     },
   };
 }
@@ -55,6 +62,10 @@ describe("age-webauthn protector", () => {
       crypto: cryptoApi,
     });
     expect(opened).toEqual(rootKey);
+    // Both decrypted capsule buffers (enrollment proof and unlock) were zeroed.
+    expect(cryptoApi.decrypted).toHaveLength(2);
+    for (const buffer of cryptoApi.decrypted)
+      expect(buffer.every((byte) => byte === 0)).toBe(true);
   });
 
   it("refuses wrong-length roots", async () => {

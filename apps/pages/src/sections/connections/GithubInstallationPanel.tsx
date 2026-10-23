@@ -4,18 +4,30 @@ import {
   loadGithubInstallationSnapshot,
   shouldEnsureGithubAccessGrant,
 } from "@opensesame/app-core/lib/github-installation-access.js";
+import {
+  type Flash,
+  errorText,
+} from "@opensesame/app-core/sections/connections/shared.js";
 /**
  * GitHub account, permissions, and repositories inside the connection card.
  * The Access grant is recorded for the access page; it is not listed here.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 
 type AccountRow = { id: string; login: string; type: string };
 type PermissionRow = { name: string; access: string };
 
-export function GithubCardDetails({ connection }: { connection: Connection }) {
+export function GithubCardDetails({
+  connection,
+  onFlash,
+}: {
+  connection: Connection;
+  onFlash?: (flash: Flash) => void;
+}) {
   const { tomb } = useVault();
+  const flash = useRef(onFlash);
+  flash.current = onFlash;
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [permissions, setPermissions] = useState<PermissionRow[]>([]);
   const [repos, setRepos] = useState<string[]>([]);
@@ -23,32 +35,44 @@ export function GithubCardDetails({ connection }: { connection: Connection }) {
   useEffect(() => {
     let cancel = false;
     void (async () => {
-      const initial = await loadGithubInstallationSnapshot(tomb, connection);
-      if (shouldEnsureGithubAccessGrant(initial, connection)) {
-        await ensureGithubAccessGrant(tomb, connection);
+      try {
+        const initial = await loadGithubInstallationSnapshot(tomb, connection);
+        if (cancel) return;
+        if (shouldEnsureGithubAccessGrant(initial, connection)) {
+          // The card can unmount while the snapshot is in flight. The guard
+          // is checked again immediately before the write so a route change
+          // never mints a standing grant for a page the person left.
+          await ensureGithubAccessGrant(tomb, connection, () => !cancel);
+        }
+        if (cancel) return;
+        const nextAccounts = initial.installations.map((row) => ({
+          id: row.id,
+          login: row.accountLogin,
+          type: row.accountType,
+        }));
+        if (nextAccounts.length === 0 && connection.accountLabel) {
+          nextAccounts.push({
+            id: connection.connectionId,
+            login: connection.accountLabel,
+            type: "",
+          });
+        }
+        const scopes = connection.grantedScopes.length
+          ? connection.grantedScopes
+          : connection.requestedScopes;
+        setAccounts(nextAccounts);
+        setPermissions([
+          ...initial.installations.flatMap((row) => row.permissions ?? []),
+          ...scopes.map((name) => ({ name, access: "" })),
+        ]);
+        setRepos(
+          initial.installations.flatMap((row) => row.repositories ?? []),
+        );
+      } catch (error) {
+        // A locked or unreadable vault is a card-level failure, not an
+        // unhandled rejection. Do not surface it after unmount.
+        if (!cancel) flash.current?.({ tone: "err", text: errorText(error) });
       }
-      if (cancel) return;
-      const nextAccounts = initial.installations.map((row) => ({
-        id: row.id,
-        login: row.accountLogin,
-        type: row.accountType,
-      }));
-      if (nextAccounts.length === 0 && connection.accountLabel) {
-        nextAccounts.push({
-          id: connection.connectionId,
-          login: connection.accountLabel,
-          type: "",
-        });
-      }
-      const scopes = connection.grantedScopes.length
-        ? connection.grantedScopes
-        : connection.requestedScopes;
-      setAccounts(nextAccounts);
-      setPermissions([
-        ...initial.installations.flatMap((row) => row.permissions ?? []),
-        ...scopes.map((name) => ({ name, access: "" })),
-      ]);
-      setRepos(initial.installations.flatMap((row) => row.repositories ?? []));
     })();
     return () => {
       cancel = true;

@@ -116,6 +116,11 @@ definition being inert is that installing one cannot introduce behaviour.
 If you need a field type that is not here, that is a change to OpenSesame —
 open an issue; it is a small one.
 
+Issuer-shaped values (payment-card checksums, IBANs, API-key prefixes, TOTP
+seeds, VINs and the like) are recognised by the platform's closed
+[item formats](item-formats.md), keyed by the built-in type id. They are not
+manifest fields and a community definition cannot add a regex or a generator.
+
 ### `spec.native` — the base secret projection
 
 Every type declares how it lands on `sealed_store::Entry`, which is line one

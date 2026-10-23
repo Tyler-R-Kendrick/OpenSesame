@@ -149,18 +149,26 @@ export class DeviceClient {
   #ask<T>(
     build: (req: string) => DeviceRequest,
     take: (message: DeviceReply) => T | null,
+    signal?: AbortSignal,
   ): Promise<T> {
     const request = build(this.#id());
     return new Promise<T>((resolve, reject) => {
       if (this.#closed) return reject(new DeviceError("channel_closed"));
+      if (signal?.aborted) return reject(new DeviceError("aborted"));
       const done = (): void => {
         clearTimeout(timer);
+        signal?.removeEventListener("abort", abort);
         this.#asks.delete(request.req);
+      };
+      const abort = (): void => {
+        done();
+        reject(new DeviceError("aborted"));
       };
       const timer = setTimeout(() => {
         done();
         reject(new DeviceError("timeout"));
       }, this.#replyMs);
+      signal?.addEventListener("abort", abort, { once: true });
       this.#asks.set(request.req, {
         deliver: (message) => {
           done();
@@ -202,6 +210,7 @@ export class DeviceClient {
           return { t: "dev.begin", req, want };
         },
         (message) => (message.t === "dev.code" ? message : null),
+        options.signal,
       );
     } catch (error) {
       this.#pushes.delete(beginReq);
@@ -226,6 +235,7 @@ export class DeviceClient {
     let wait = code.interval;
     for (;;) {
       if (this.#closed) throw new DeviceError("channel_closed");
+      if (signal?.aborted) throw new DeviceError("aborted");
       const volunteered = await pushed.within(wait * 1000, signal);
       if (this.#closed) throw new DeviceError("channel_closed");
       let answer = volunteered;
@@ -234,6 +244,7 @@ export class DeviceClient {
         answer = await this.#ask(
           (req) => ({ t: "dev.poll", req, deviceCode: code.deviceCode }),
           (message) => (message.t === "dev.auth" ? message : null),
+          signal,
         );
       }
       if (answer.t !== "dev.auth") continue;

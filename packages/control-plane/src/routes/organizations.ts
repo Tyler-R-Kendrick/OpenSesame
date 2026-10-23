@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   AddOrganizationMemberRequestSchema,
@@ -64,6 +64,17 @@ export type { JitJoinInput, JitJoinResult } from "./organization-membership.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
+/** A tenant issuer may name exactly one organization. */
+async function issuerClaimed(
+  ctx: AppContext,
+  issuer: string | undefined,
+  exceptOrganizationId?: string,
+): Promise<boolean> {
+  if (!issuer) return false;
+  const owner = await ctx.stores.organizations.findByIssuer(issuer);
+  return owner !== undefined && owner.id !== exceptOrganizationId;
+}
+
 /**
  * How stale an organization assertion may be at the join route (ADR 0055).
  *
@@ -81,6 +92,107 @@ const JOIN_MAX_TOKEN_AGE_SECONDS = 600;
  * them. Recorded as `unchecked` instead of quietly changed (ADR 0178).
  */
 const MEMBER_ADMIN: OrgOwnerSource = { param: "id", liveness: "unchecked" };
+
+/**
+ * The public tenant lookup is unauthenticated and does a durable read plus an
+ * LDAP-configuration read. A budget keeps one caller from turning that into a
+ * database load generator; the global bucket is the ceiling a spoofed
+ * fingerprint cannot rotate away from.
+ */
+const TENANT_LOOKUP_WINDOW_MS = 60_000;
+const TENANT_LOOKUP_PER_CLIENT = 120;
+const TENANT_LOOKUP_GLOBAL = 1_000;
+const TENANT_LOOKUP_MAX_KEYS = 2_048;
+const TENANT_LOOKUP_GLOBAL_KEY = "__global__";
+const tenantLookupAttempts = new Map<string, number[]>();
+
+/**
+ * The tenant-join route performs an OIDC discovery + JWKS fetch on its first
+ * request for an issuer. A provisional principal can reach it, so bound it per
+ * principal and deployment-wide before any network work.
+ */
+const JOIN_WINDOW_MS = 60_000;
+const JOIN_PER_PRINCIPAL = 10;
+const JOIN_GLOBAL = 300;
+const JOIN_MAX_KEYS = 2_048;
+const joinAttempts = new Map<string, number[]>();
+
+export function resetTenantJoinBudget(): void {
+  joinAttempts.clear();
+}
+
+function consumeJoinBudget(principalId: string, now: number): boolean {
+  for (const [key, times] of joinAttempts) {
+    const live = times.filter((at) => now - at < JOIN_WINDOW_MS);
+    if (live.length === 0) joinAttempts.delete(key);
+    else if (live.length !== times.length) joinAttempts.set(key, live);
+  }
+  const global = joinAttempts.get("__global__") ?? [];
+  const key = `principal:${principalId}`;
+  const mine = joinAttempts.get(key) ?? [];
+  if (global.length >= JOIN_GLOBAL || mine.length >= JOIN_PER_PRINCIPAL) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  joinAttempts.set("__global__", global);
+  joinAttempts.set(key, mine);
+  while (joinAttempts.size > JOIN_MAX_KEYS) {
+    const victim = [...joinAttempts.keys()].find(
+      (candidate) => candidate !== "__global__",
+    );
+    if (victim === undefined) break;
+    joinAttempts.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook: the budget is process-global. */
+export function resetTenantLookupBudget(): void {
+  tenantLookupAttempts.clear();
+}
+
+function consumeTenantLookupBudget(fingerprint: string, now: number): boolean {
+  for (const [key, times] of tenantLookupAttempts) {
+    const live = times.filter((at) => now - at < TENANT_LOOKUP_WINDOW_MS);
+    if (live.length === 0) tenantLookupAttempts.delete(key);
+    else if (live.length !== times.length) {
+      tenantLookupAttempts.set(key, live);
+    }
+  }
+  const clientKey = `client:${fingerprint}`;
+  const global = tenantLookupAttempts.get(TENANT_LOOKUP_GLOBAL_KEY) ?? [];
+  const client = tenantLookupAttempts.get(clientKey) ?? [];
+  if (
+    global.length >= TENANT_LOOKUP_GLOBAL ||
+    client.length >= TENANT_LOOKUP_PER_CLIENT
+  ) {
+    return false;
+  }
+  global.push(now);
+  client.push(now);
+  tenantLookupAttempts.set(TENANT_LOOKUP_GLOBAL_KEY, global);
+  tenantLookupAttempts.set(clientKey, client);
+  while (tenantLookupAttempts.size > TENANT_LOOKUP_MAX_KEYS) {
+    const victim = [...tenantLookupAttempts.keys()].find(
+      (key) => key !== TENANT_LOOKUP_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    tenantLookupAttempts.delete(victim);
+  }
+  return true;
+}
+
+function tenantLookupFingerprint(c: {
+  req: { header: (name: string) => string | undefined };
+}): string {
+  return createHash("sha256")
+    .update(c.req.header("user-agent") ?? "")
+    .update("|")
+    .update(c.req.header("origin") ?? "")
+    .digest("hex")
+    .slice(0, 16);
+}
 
 export function authenticatedPrincipalId(value: string | undefined): string {
   if (!value) throw new Error("requirePrincipal middleware invariant violated");
@@ -231,6 +343,12 @@ export type OrganizationRevocationInput = {
   correlationId: string;
   /** Why authority was withdrawn — recorded on the audit row. */
   reason: string;
+  /**
+   * Finish session revocation even when the membership row was already gone.
+   * A deprovisioning retry after a partial failure needs this: the first
+   * attempt removed the row and then failed before ending sessions.
+   */
+  revokeSessionsWithoutMembership?: boolean;
 };
 
 export type OrganizationRevocationResult = {
@@ -260,13 +378,16 @@ export async function revokeOrganizationMembership(
       ),
   );
 
-  // A membership that was already gone authorized nothing here, and the
-  // holder's sessions are not this tenant's to end (a repeated sync pass, or a
-  // subject some other tenant's directory happens to name).
+  // A membership that was already gone normally authorized nothing here, and
+  // the holder's sessions are not this tenant's to end (a repeated sync pass,
+  // or a subject some other tenant's directory happens to name). A SCIM retry
+  // is the exception: it named the principal through this tenant's own
+  // identity tuple, so finishing an interrupted revocation is still in scope.
   let sessionsRevoked = 0;
-  const sessions = membershipRemoved
-    ? await ctx.stores.provisionalSessions.entries()
-    : [];
+  const sessions =
+    membershipRemoved || input.revokeSessionsWithoutMembership
+      ? await ctx.stores.provisionalSessions.entries()
+      : [];
   for (const [, session] of sessions) {
     if (session.principalId !== input.principalId) continue;
     await ctx.stores.provisionalSessions.delete(session.id);
@@ -387,6 +508,19 @@ organizationRoutes.post(
             if (await ctx.stores.organizations.getBySlug(parsed.data.slug)) {
               return c.json({ error: "slug_taken" }, 409);
             }
+            if (
+              (await issuerClaimed(ctx, parsed.data.samlIssuer)) ||
+              (await issuerClaimed(ctx, parsed.data.ssoIssuer))
+            ) {
+              return c.json(
+                {
+                  error: "issuer_taken",
+                  message:
+                    "That identity provider already belongs to another tenant.",
+                },
+                409,
+              );
+            }
 
             const now = ctx.clock();
             const org: Organization = {
@@ -429,6 +563,15 @@ organizationRoutes.post(
 
 organizationRoutes.get("/tenants/:slug", async (c) => {
   const ctx = c.get("ctx");
+  if (
+    !consumeTenantLookupBudget(
+      tenantLookupFingerprint(c),
+      ctx.clock().getTime(),
+    )
+  ) {
+    c.header("retry-after", "60");
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const org = await orgBySlug(ctx, c.req.param("slug"));
   if (!org) return c.json({ error: "not_found" }, 404);
   return c.json(
@@ -458,6 +601,15 @@ organizationRoutes.get("/tenants/:slug", async (c) => {
  */
 organizationRoutes.get("/by-domain/:domain", async (c) => {
   const ctx = c.get("ctx");
+  if (
+    !consumeTenantLookupBudget(
+      tenantLookupFingerprint(c),
+      ctx.clock().getTime(),
+    )
+  ) {
+    c.header("retry-after", "60");
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const domain = normalizeEmailDomain(c.req.param("domain"));
   const claim = domain
     ? await ctx.stores.orgFederation.emailDomains.findVerified(domain)
@@ -495,6 +647,10 @@ organizationRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
+    if (!consumeJoinBudget(principalId, ctx.clock().getTime())) {
+      c.header("retry-after", "60");
+      return c.json({ error: "rate_limited" }, 429);
+    }
     const org = await orgBySlug(ctx, c.req.param("slug"));
     if (!org) return c.json({ error: "not_found" }, 404);
 
@@ -635,6 +791,21 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
         metadataXml: samlMetadataXml,
       });
       if (samlError) return c.json(samlError, 400);
+      if (
+        (parsed.data.samlIssuer !== undefined &&
+          (await issuerClaimed(ctx, samlIssuer, org.id))) ||
+        (parsed.data.ssoIssuer !== undefined &&
+          (await issuerClaimed(ctx, ssoIssuer, org.id)))
+      ) {
+        return c.json(
+          {
+            error: "issuer_taken",
+            message:
+              "That identity provider already belongs to another tenant.",
+          },
+          409,
+        );
+      }
       const unsafeIssuer = issuerConfigurationError(
         ctx.config,
         parsed.data.ssoIssuer,

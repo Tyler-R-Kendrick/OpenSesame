@@ -91,7 +91,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       run: ({ signal }) => {
         const stop = anySignal([ctx.lease.signal, signal]);
         return runUnlessAborted(stop, async () => {
-          disposeExpiredLocalDropClaims();
+          await disposeExpiredLocalDropClaims();
           refreshOutboundDropLedger();
           await vaultStore.reconcileTrashedShares();
           await sweepDrops(

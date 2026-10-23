@@ -24,7 +24,20 @@ fn run(
     let mut command = crate::vault_file::id_cli_in(&lookup).unwrap();
     let guard = provide(&mut command, &lookup);
     if guard.is_ok() {
-        assert!(command.status().unwrap().success());
+        // A just-written helper can briefly report ETXTBSY on Linux when a
+        // sibling test forks while the write descriptor is still closing.
+        let mut attempts = 0;
+        let status = loop {
+            match command.status() {
+                Ok(status) => break status,
+                Err(error) if error.raw_os_error() == Some(26) && attempts < 20 => {
+                    attempts += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(error) => panic!("helper failed to start: {error}"),
+            }
+        };
+        assert!(status.success());
     }
     let path = fixture.env().and_then(|env| {
         env.get("PATH")

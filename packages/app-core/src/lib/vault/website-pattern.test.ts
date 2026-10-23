@@ -13,8 +13,10 @@ afterEach(() => {
 });
 
 type WorkerTestScope = {
+  location: { origin: string };
   onmessage:
     | ((event: {
+        origin: string;
         data: { pattern: string; kind: string; hostname: string };
       }) => void)
     | null;
@@ -46,7 +48,11 @@ describe("hostname patterns", () => {
   });
   it("matches full hostnames with wildcard and regex semantics", async () => {
     const postMessage = vi.fn();
-    const scope: WorkerTestScope = { onmessage: null, postMessage };
+    const scope: WorkerTestScope = {
+      location: { origin: "" },
+      onmessage: null,
+      postMessage,
+    };
     vi.stubGlobal("self", scope);
     await import("./website-pattern.worker.js");
     for (const [kind, pattern, hostname, expected] of [
@@ -66,7 +72,7 @@ describe("hostname patterns", () => {
       ["regex", "x".repeat(257), "example.com", "invalid"],
       ["never", ".*", "example.com", "invalid"],
     ]) {
-      scope.onmessage?.({ data: { kind, pattern, hostname } });
+      scope.onmessage?.({ origin: "", data: { kind, pattern, hostname } });
       expect(postMessage).toHaveBeenLastCalledWith(expected);
     }
   });

@@ -10,14 +10,16 @@ import { nativeMcpUrl } from "./native-mcp-target.js";
 
 export const NativeMcpRegistrationReceiptSchema =
   OAuthClientInformationSchema.extend({
-    token_endpoint_auth_method: z.string().optional(),
+    client_id: z.string().min(1).max(32768),
+    client_secret: z.string().max(32768).optional(),
+    token_endpoint_auth_method: z.string().max(1024).optional(),
     registration_access_token: z
       .string()
       .min(1)
       .max(32768)
       .regex(/^[!-~]+$/)
       .optional(),
-    registration_client_uri: z.string().url().optional(),
+    registration_client_uri: z.string().url().max(32768).optional(),
   });
 export type NativeMcpRegisteredClient = OAuthClientInformationMixed & {
   registration_access_token?: string;

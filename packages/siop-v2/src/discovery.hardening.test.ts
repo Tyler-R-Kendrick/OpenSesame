@@ -94,21 +94,24 @@ describe("the body is bounded by bytes, not characters", () => {
     expect(pulled.chunks).toBe(0);
   });
 
-  it("counts bytes: multi-byte text under the character cap is still over it", async () => {
-    // 3 bytes per character: well under the cap in characters, over in bytes.
-    const body = `{"pad":"${"€".repeat(MAX_SIOP_METADATA_BYTES / 2)}"}`;
-    expect(body.length).toBeLessThan(MAX_SIOP_METADATA_BYTES);
+  it("refuses a non-streaming body instead of buffering it", async () => {
     const whole: MetadataFetch = async () => ({
       ok: true,
       status: 200,
       headers: { get: () => "application/json" },
-      text: async () => body,
+      text: async () => GOOD,
     });
     expect(
       await codeOf(() =>
         fetchSiopMetadata({ fetch: whole, expectedIssuer: ISSUER }),
       ),
     ).toBe("limit_exceeded");
+  });
+
+  it("counts bytes: multi-byte text under the character cap is still over it", async () => {
+    // 3 bytes per character: well under the cap in characters, over in bytes.
+    const body = `{"pad":"${"€".repeat(MAX_SIOP_METADATA_BYTES / 2)}"}`;
+    expect(body.length).toBeLessThan(MAX_SIOP_METADATA_BYTES);
     const { response } = streamed([new TextEncoder().encode(body)]);
     expect(
       await codeOf(() =>
@@ -155,12 +158,8 @@ describe("the timeout is an AbortController, not AbortSignal.timeout", () => {
 
   it("clears its timer once the document is in", async () => {
     vi.useFakeTimers();
-    const fetch: MetadataFetch = async () => ({
-      ok: true,
-      status: 200,
-      headers: { get: () => "application/json" },
-      text: async () => GOOD,
-    });
+    const fetch: MetadataFetch = async () =>
+      streamed([new TextEncoder().encode(GOOD)]).response;
     await fetchSiopMetadata({ fetch, expectedIssuer: ISSUER });
     expect(vi.getTimerCount()).toBe(0);
   });

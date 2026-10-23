@@ -10,6 +10,7 @@ import type {
 } from "@opensesame/app-core/lib/travel/index.js";
 import type { ReactNode } from "react";
 import type { StatusTone } from "../../../components/StatusMark.js";
+import { saveBlob } from "../../../lib/file-system.js";
 
 /** What a refusal code means, in the panel's words. */
 const REFUSAL_TEXT = new Map<string, string>([
@@ -75,13 +76,9 @@ export function saveBundle(
   pkg: Pick<DeparturePackage, "bundleJson" | "bundleFileName">,
 ): void {
   const blob = new Blob([pkg.bundleJson], { type: "application/octet-stream" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = pkg.bundleFileName;
-  link.click();
-  // Revoking synchronously can cancel the download in some engines.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  void saveBlob(blob, pkg.bundleFileName, "Travel bundle").catch(
+    () => undefined,
+  );
 }
 
 export function departedNotice(receipt: DepartureReceipt): TravelNotice {

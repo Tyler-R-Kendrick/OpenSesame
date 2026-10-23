@@ -81,6 +81,8 @@ class Jar {
   }
 }
 
+const TEST_CLAIM_PEPPER = "test-claim-pepper-32-bytes-long-0001";
+
 async function startControlPlane(
   upstreamIssuer: string,
   port: number,
@@ -95,6 +97,7 @@ async function startControlPlane(
       // client id and the base of the federated redirect_uri.
       publicUrl: `http://127.0.0.1:${port}`,
       issuer: `http://127.0.0.1:${port}`,
+      claimPepper: TEST_CLAIM_PEPPER,
     },
     processEnv: {
       ...process.env,
@@ -515,7 +518,7 @@ describe("federated interaction leg", () => {
       postForm({ _csrf: extractCsrf(html), provider: "mock" }),
     );
     expect(new URL(await hopUrl(res)).origin).toBe(upstream.issuer);
-    const pending = decodePending(jar.get(`os.fed.${uid}`));
+    const pending = decodePending(jar.get(`os.fed.${uid}`), TEST_CLAIM_PEPPER);
     expect(pending?.issuer).toBe(upstream.issuer);
     expect(pending?.kind).toBe("oidc");
     expect(pending?.providerId).toBe("mock");
@@ -599,7 +602,7 @@ describe("federated interaction leg", () => {
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
 
-    const forged = decodePending(jar.get(`os.fed.${uid}`));
+    const forged = decodePending(jar.get(`os.fed.${uid}`), TEST_CLAIM_PEPPER);
     if (!forged) throw new Error("no pending cookie to forge from");
     const rewritten = encodePending({
       ...forged,
@@ -618,7 +621,8 @@ describe("federated interaction leg", () => {
       `${base}/interaction/${uid}/federated/callback${back.search}`,
       { redirect: "manual", headers: { cookie } },
     );
-    expect(res.status).toBe(403);
+    // An unsigned rewrite is indistinguishable from no pending leg at all.
+    expect(res.status).toBe(400);
   });
 
   /**
@@ -972,7 +976,9 @@ describe("federated leg, organization sign-in", () => {
       postForm({ _csrf: extractCsrf(html), issuer: tenantIdp.issuer }),
     );
     // The organization is what vouched for this issuer, and the cookie says so.
-    expect(decodePending(jar.get(`os.fed.${uid}`))?.orgId).toBe(organizationId);
+    expect(
+      decodePending(jar.get(`os.fed.${uid}`), TEST_CLAIM_PEPPER)?.orgId,
+    ).toBe(organizationId);
 
     const authorize = new URL(await hopUrl(start));
     // A tenant admin registers one redirect URI in their IdP's console, and

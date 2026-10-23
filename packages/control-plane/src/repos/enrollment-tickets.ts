@@ -69,3 +69,22 @@ export async function consumeEnrollmentTicket(
   if (!record || record.expiresAt.getTime() <= now.getTime()) return undefined;
   return record;
 }
+
+/**
+ * Read a ticket without spending it.
+ *
+ * The bootstrap route must know a ticket is valid before it can safely answer
+ * a slug-existence question. Reading first keeps the unauthenticated slug
+ * oracle closed without burning a valid ticket on a collision.
+ */
+export async function peekEnrollmentTicket(
+  store: SecurityMap<EnrollmentTicketRecord>,
+  ticket: string,
+  now: Date,
+): Promise<EnrollmentTicketRecord | undefined> {
+  if (!ticket) return undefined;
+  const key = hashEnrollmentTicket(ticket);
+  const record = await store.get(key);
+  if (!record || record.expiresAt.getTime() <= now.getTime()) return undefined;
+  return record;
+}

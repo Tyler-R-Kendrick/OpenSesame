@@ -125,7 +125,11 @@ afterAll(async () => {
   await idp.close();
 });
 
-async function seedTenant(app: App, slug: string) {
+async function seedTenant(
+  app: App,
+  slug: string,
+  ssoIssuer: string | null = idp.issuer,
+) {
   const owner = await verified(app, `${slug}-owner`);
   const created = await app.request("/v1/organizations", {
     method: "POST",
@@ -133,7 +137,7 @@ async function seedTenant(app: App, slug: string) {
     body: JSON.stringify({
       slug,
       displayName: `Org ${slug}`,
-      ssoIssuer: idp.issuer,
+      ...(ssoIssuer ? { ssoIssuer } : undefined),
     }),
   });
   expect(created.status).toBe(201);
@@ -361,7 +365,9 @@ describe("SCIM provisioning-token custody", () => {
   it("refuses a revoked token, and a token belonging to another tenant", async () => {
     const { app } = createControlPlane({ config: testConfig(idp.issuer) });
     const first = await seedTenant(app, "tenant-one");
-    const second = await seedTenant(app, "tenant-two");
+    // One idp issuer belongs to one tenant; the second tenant is a SCIM-only
+    // tenant, which is enough for the token-scoping assertion.
+    const second = await seedTenant(app, "tenant-two", null);
     const firstToken = await mintScimToken(
       app,
       first.org.id,

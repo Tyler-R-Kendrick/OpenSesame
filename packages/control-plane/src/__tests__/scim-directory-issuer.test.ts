@@ -132,7 +132,7 @@ describe("SCIM directory issuers", () => {
     if (!org) throw new Error("org missing");
     await ctx.stores.organizations.set(orgId, {
       ...org,
-      samlIssuer: undefined,
+      samlIssuer: SAML_ENTITY,
       samlMetadataXml: SAML_METADATA,
     });
 

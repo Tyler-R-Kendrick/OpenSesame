@@ -76,7 +76,7 @@
       },
       {
         "path": "nativehttp_test.go",
-        "sha256": "c945abbff4b1bf3845942f9320d9e909589fd37cf33eb6dd545ee0dd72843fa1"
+        "sha256": "3634b61d1c1998221bd9b83990ff6ef532d6364fe3eb19ff65999bf466ae6afb"
       },
       {
         "path": "nativehttp_security_test.go",

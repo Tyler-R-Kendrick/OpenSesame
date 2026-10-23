@@ -6,6 +6,13 @@
 import type { UnlockEffectContribution } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
+import {
+  syncRotationSchedules,
+  tickRotationSchedules,
+} from "@opensesame/app-core/lib/vault/rotation-queue.js";
+import { processRotationQueue } from "@opensesame/app-core/lib/vault/rotation-relay.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import type { VaultItem } from "@opensesame/vault-core";
 import { useEffect } from "react";
 import type { NavigateFunction } from "react-router";
 import { useComposition } from "./bindings/capabilities.js";
@@ -79,3 +86,35 @@ export function useVaultLanding(
       navigate("/vault", { replace: true });
   }, [pathname, navigate, status]);
 }
+
+/** Queue due rotations at app open, and drain the active vault's queue on unlock. */
+export function useRotationQueue(
+  status: string,
+  tomb: string | undefined,
+  items: readonly VaultItem[] | undefined,
+  guest = false,
+): void {
+  useEffect(() => {
+    // A due schedule is visible while the vault is locked. Opening the page
+    // is the listener: queue what is due, then leave it for the next unlock.
+    void tickRotationSchedules();
+  }, []);
+  useEffect(() => {
+    // The presented tomb is `guest` for a duress decoy; its raw scratch tomb
+    // must never share the real guest's metadata, and a guest session has no
+    // provider rotation to perform.
+    if (status !== "unlocked" || !tomb || guest) return;
+    if (!Array.isArray(items)) return;
+    const scope = vaultStore.activeTomb();
+    if (!scope) return;
+    syncRotationSchedules(items, scope);
+    void processRotationQueue(scope);
+  }, [status, tomb, items, guest]);
+}
+
+export type VaultStatus = {
+  status: string;
+  tomb?: string;
+  guest?: boolean;
+  items?: readonly VaultItem[];
+};

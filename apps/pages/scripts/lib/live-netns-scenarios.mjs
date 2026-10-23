@@ -126,7 +126,9 @@ export async function noAddress(ctx) {
   const tried = [...seen];
   check(
     tried.some((state) => state.endsWith("/checking")) &&
-      !tried.some((state) => /^connected|\/(connected|completed)$/.test(state)),
+      !tried.some((state) =>
+        /^(?:connected|\/(?:connected|completed))$/.test(state),
+      ),
     `no address: the joiner tried and was never connected (saw ${tried.join(", ")})`,
   );
   const hosts = remote.filter((line) => line.includes(" typ host"));

@@ -78,14 +78,23 @@ export function assertAllowedJwtAlgorithm(
   token: string,
   allowed: readonly string[] = ID_TOKEN_ALGORITHMS,
 ): void {
-  let alg: string | undefined;
+  let alg: unknown;
   try {
     alg = decodeProtectedHeader(token).alg;
   } catch {
     throw new AuthError("invalid_token", "Token header is malformed");
   }
 
-  if (alg === undefined || alg.toLowerCase() === "none") {
+  // decodeProtectedHeader only guarantees an object. A crafted header such
+  // as {"alg":123} must become a typed auth refusal, never a TypeError.
+  if (alg === null || typeof alg !== "string" || alg.length === 0) {
+    throw new AuthError(
+      "invalid_algorithm",
+      "Token uses a disallowed signing algorithm",
+    );
+  }
+
+  if (alg.toLowerCase() === "none") {
     throw new AuthError(
       "invalid_algorithm",
       "Token uses a disallowed signing algorithm",
@@ -97,6 +106,23 @@ export function assertAllowedJwtAlgorithm(
       "invalid_algorithm",
       "Token uses a disallowed signing algorithm",
     );
+  }
+}
+
+/**
+ * OIDC says `typ` is optional; when an issuer stamps one, an ID token must
+ * say `JWT`. An access token (`at+jwt`) with an ID-token audience must never
+ * be accepted as one.
+ */
+export function assertIdTokenTypeHeader(token: string): void {
+  let typ: unknown;
+  try {
+    typ = decodeProtectedHeader(token).typ;
+  } catch {
+    throw new AuthError("invalid_token", "Token header is malformed");
+  }
+  if (typ !== undefined && typ !== "JWT") {
+    throw new AuthError("invalid_token", "Token is not an ID token");
   }
 }
 

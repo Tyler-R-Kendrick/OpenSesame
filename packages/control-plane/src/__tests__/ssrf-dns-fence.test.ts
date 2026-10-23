@@ -6,6 +6,7 @@ import { registerByoUpstream, resetByoBudget } from "../interactions/byo.js";
 import { upstreamFetch } from "../interactions/federated-fetch.js";
 import { fencedLdapTarget } from "../interactions/ldap-host-guard.js";
 import { resetBackchannelLogoutBudget } from "../routes/backchannel-logout.js";
+import { resetOrgAssertionCaches } from "../routes/org-assertion.js";
 import {
   type PinnedRequest,
   UnsafeUpstreamError,
@@ -45,6 +46,7 @@ beforeEach(() => {
   dialled = [];
   documents = new Map();
   resetBackchannelLogoutBudget();
+  resetOrgAssertionCaches();
   resetByoBudget();
   guardedFetchSeams.transport = async (request) => {
     dialled.push(request);
@@ -59,6 +61,7 @@ afterEach(() => {
   Object.assign(guardedFetchSeams, originalSeams);
   vi.unstubAllGlobals();
   resetBackchannelLogoutBudget();
+  resetOrgAssertionCaches();
   resetByoBudget();
 });
 

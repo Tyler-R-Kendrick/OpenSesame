@@ -1,5 +1,5 @@
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, isNull, lt } from "drizzle-orm";
 import type { EventSealer } from "./event-seal.js";
 import { oidcLookup, openOidcRow, sealOidcRow } from "./oidc-seal.js";
 import type { Database } from "./repos/postgres.js";
@@ -204,10 +204,12 @@ export function createPostgresOidcStore(
     },
 
     async consume(model, id) {
+      // Single-use is a conditional write: two verifiers racing one code can
+      // both read it unconsumed, but only the first stamps the row.
       await db
         .update(schema.oidcPayloads)
         .set({ consumedAt: new Date() })
-        .where(rowFor(model, id));
+        .where(and(rowFor(model, id), isNull(schema.oidcPayloads.consumedAt)));
     },
 
     async revokeByGrantId(grantId) {

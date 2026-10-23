@@ -135,14 +135,23 @@ export const betterAuthSubjects = pgTable("better_auth_subjects", {
  * fell back to the in-memory adapter, so every magic link was invalidated by a
  * deploy and only ever worked on the replica that minted it.
  */
-export const betterAuthUsers = pgTable("better_auth_users", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  image: text("image"),
-  ...timestamps,
-});
+export const betterAuthUsers = pgTable(
+  "better_auth_users",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
+    ...timestamps,
+  },
+  (t) => [
+    // Better Auth resolves a user by email and requires it to be unique.
+    // Without this, two concurrent magic-link signups can create duplicate
+    // accounts and make the lookup nondeterministic.
+    uniqueIndex("better_auth_users_email_uidx").on(t.email),
+  ],
+);
 export const betterAuthSessions = pgTable(
   "better_auth_sessions",
   {
@@ -403,7 +412,17 @@ export const betterAuthAccounts = pgTable(
     password: text("password"),
     ...timestamps,
   },
-  (t) => [index("better_auth_accounts_user_idx").on(t.userId)],
+  (t) => [
+    // One upstream account maps to one local account. The sealed-secret
+    // migration binds each token to `provider_id` + `account_id`; two rows
+    // with the same pair would share a purpose and make that binding
+    // ambiguous.
+    uniqueIndex("better_auth_accounts_provider_account_uidx").on(
+      t.providerId,
+      t.accountId,
+    ),
+    index("better_auth_accounts_user_idx").on(t.userId),
+  ],
 );
 
 /**

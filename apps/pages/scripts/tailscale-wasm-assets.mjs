@@ -78,6 +78,13 @@ export function tailscaleWasmAssets() {
   return {
     name: "opensesame-tailscale-wasm-assets",
     async config(config, { command }) {
+      // Unit tests exercise the browser/worker code, not the pinned native
+      // distribution. Preparing it needs the Linux AMD64 compiler cache and
+      // makes every test run depend on a build artifact unrelated to the test.
+      if (process.env.VITEST) {
+        enabled = false;
+        return;
+      }
       const state = await composeState({}, config, command);
       enabled = !state.isExcluded("networking.tailnet");
       base = config.base ?? "/";

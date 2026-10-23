@@ -8,7 +8,7 @@ describe("downloadOnce", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps the object URL alive past the click so the download is not cancelled", () => {
+  it("keeps the object URL alive past the click so the download is not cancelled", async () => {
     vi.useFakeTimers();
     const create = vi.fn(() => "blob:one");
     const revoke = vi.fn();
@@ -17,7 +17,7 @@ describe("downloadOnce", () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => undefined);
 
-    downloadOnce("age.txt", "AGE-SECRET-KEY");
+    await downloadOnce("age.txt", "AGE-SECRET-KEY");
 
     expect(click).toHaveBeenCalledTimes(1);
     expect(revoke).not.toHaveBeenCalled();

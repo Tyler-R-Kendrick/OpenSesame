@@ -104,6 +104,32 @@ describe("github app PEM lookup", () => {
     expect(pemFromVault(APP)).toBeNull();
   });
 
+  it("purges the bound sealed item when the App is removed", async () => {
+    const bound = secret("renamed", APP_PEM);
+    localStore().setItem(
+      "opensesame.github-app.secret-item",
+      JSON.stringify({ appId: APP.id, itemId: bound.id }),
+    );
+    openVault([bound], "unlocked");
+    const purge = vi.spyOn(vaultStore, "purgeItem").mockResolvedValue();
+    forgetLocalGithubApp();
+    await Promise.resolve();
+    expect(purge).toHaveBeenCalledWith(bound.id);
+    expect(
+      localStore().getItem("opensesame.github-app.secret-item"),
+    ).toBeNull();
+  });
+
+  it("purges a pre-binding App key by its exact name on removal", async () => {
+    rememberApp();
+    const legacy = secret(APP.displayName, APP_PEM);
+    openVault([legacy], "unlocked");
+    const purge = vi.spyOn(vaultStore, "purgeItem").mockResolvedValue();
+    forgetLocalGithubApp();
+    await Promise.resolve();
+    expect(purge).toHaveBeenCalledWith(legacy.id);
+  });
+
   it("finds a pre-binding record by its exact App name only", () => {
     openVault(
       [secret("Other", SSH_RSA), secret(APP.displayName, APP_PEM)],

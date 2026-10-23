@@ -9,10 +9,15 @@ import { nativeBrowserOAuthPolicy } from "./native-browser-policy.js";
 import { nativeConfigurationBrowserPolicy } from "./native-configuration-policy.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import {
+  microsoftAccount,
+  microsoftAssertion,
+} from "./native-oauth-jwt.test-support.js";
+import {
   installNativeOAuthTests,
   oauthAuthority,
   oauthCallback,
   oauthDraft,
+  oauthPending,
 } from "./native-oauth.test-support.js";
 
 function expectProviderResourceRequest(
@@ -150,8 +155,62 @@ it.each(["microsoft", "microsoft-teams"])(
       "openid",
       "User.Read",
     ]);
+    expect(input.parameters.tenant).toBe("organizations");
   },
 );
+
+it("canonicalizes a mixed-case Microsoft tenant selector before verification", async () => {
+  const provider = oauthAuthority("microsoft");
+  const input = oauthDraft("microsoft");
+  input.parameters.tenant = "Organizations";
+  const draft = await configureNativeBrowserOAuthConnector(input);
+  await beginNativeBrowserAuthorization(draft.connectionId);
+  const signed = await microsoftAssertion(
+    oauthPending(draft.connectionId).state,
+  );
+  provider.replies.push(
+    {
+      body: {
+        access_token: "private-microsoft-access",
+        token_type: "Bearer",
+        expires_in: 3600,
+        scope: "openid https://graph.microsoft.com/User.Read",
+        id_token: signed.token,
+      },
+    },
+    { body: signed.jwks },
+    { body: { id: microsoftAccount, displayName: "Real Microsoft account" } },
+  );
+  await expect(
+    finishNativeBrowserAuthorization(oauthCallback(draft.connectionId)),
+  ).resolves.toMatchObject({ status: "connected" });
+});
+
+it("refuses a consumer tenant when the selector is a mixed-case organizations", async () => {
+  const provider = oauthAuthority("microsoft");
+  const input = oauthDraft("microsoft");
+  input.parameters.tenant = "Organizations";
+  const draft = await configureNativeBrowserOAuthConnector(input);
+  await beginNativeBrowserAuthorization(draft.connectionId);
+  const signed = await microsoftAssertion(
+    oauthPending(draft.connectionId).state,
+    {
+      tid: "9188040d-6c67-4c5b-b112-36a304b66dad",
+    },
+  );
+  provider.replies.push({
+    body: {
+      access_token: "consumer-access",
+      token_type: "Bearer",
+      expires_in: 3600,
+      scope: "openid User.Read",
+      id_token: signed.token,
+    },
+  });
+  await expect(
+    finishNativeBrowserAuthorization(oauthCallback(draft.connectionId)),
+  ).rejects.toThrow();
+});
 
 function configuredCarrier() {
   let current = true;

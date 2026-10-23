@@ -59,7 +59,11 @@ it("keeps customer resource audiences separate over live discovery, JWKS, and HT
     }
     const mint = (customer: string) =>
       new SignJWT({ scope: "resource:read", token_use: "access" })
-        .setProtectedHeader({ alg: "RS256", kid: "deployment-signing-key" })
+        .setProtectedHeader({
+          alg: "RS256",
+          kid: "deployment-signing-key",
+          typ: "at+jwt",
+        })
         .setIssuer(issuer)
         .setAudience(customer)
         .setSubject(`${customer}-principal`)

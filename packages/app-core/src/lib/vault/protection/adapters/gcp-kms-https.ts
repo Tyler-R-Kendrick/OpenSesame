@@ -16,6 +16,7 @@ import {
   type GcpKmsEncryptResponse,
   type GcpKmsTransport,
   assertGcpCryptoKeyName,
+  assertGcpKeyVersionName,
   crc32cDecimalString,
 } from "./gcp-kms.js";
 
@@ -78,11 +79,19 @@ async function gcpKmsHttpsEncrypt(
     );
   }
   const ct = b64ToBytes(json.ciphertext);
+  if (!json.ciphertextCrc32c?.value) {
+    throw new ProtectionError(
+      "provider_denied",
+      "GCP KMS encrypt response missing ciphertext integrity value.",
+    );
+  }
   return {
     ciphertext: ct,
     keyVersionName: json.name,
-    ciphertextCrc32c: json.ciphertextCrc32c?.value ?? crc32cDecimalString(ct),
-    verifiedPlaintextCrc32c: json.verifiedPlaintextCrc32c === true,
+    ciphertextCrc32c: json.ciphertextCrc32c.value,
+    ...(json.verifiedPlaintextCrc32c !== undefined
+      ? { verifiedPlaintextCrc32c: json.verifiedPlaintextCrc32c }
+      : undefined),
   };
 }
 
@@ -92,7 +101,17 @@ async function gcpKmsHttpsDecrypt(
   request: GcpKmsDecryptRequest,
 ): Promise<GcpKmsDecryptResponse> {
   assertGcpCryptoKeyName(request.keyName);
-  const endpoint = `https://cloudkms.googleapis.com/v1/${request.keyName}:decrypt`;
+  const pinned = request.expectedKeyVersionName;
+  if (pinned !== undefined) {
+    assertGcpKeyVersionName(pinned);
+    if (!pinned.startsWith(`${request.keyName}/cryptoKeyVersions/`))
+      throw new ProtectionError(
+        "malformed_encoding",
+        "GCP KMS key version does not belong to the configured key.",
+      );
+  }
+  const resource = pinned ?? request.keyName;
+  const endpoint = `https://cloudkms.googleapis.com/v1/${resource}:decrypt`;
   assertAllowedCloudEndpoint(endpoint, "gcp-kms");
   let response: Response;
   try {
@@ -121,14 +140,38 @@ async function gcpKmsHttpsDecrypt(
       `GCP KMS decrypt denied (${response.status}).`,
     );
   }
-  const json: { plaintext?: string } = await response.json();
+  const json: {
+    plaintext?: string;
+    plaintextCrc32c?: { value?: string };
+    verifiedCiphertextCrc32c?: boolean;
+    verifiedAdditionalAuthenticatedDataCrc32c?: boolean;
+  } = await response.json();
   if (!json.plaintext) {
     throw new ProtectionError(
       "provider_denied",
       "GCP KMS decrypt response missing plaintext.",
     );
   }
-  return { plaintext: b64ToBytes(json.plaintext) };
+  const plaintext = b64ToBytes(json.plaintext);
+  if (!json.plaintextCrc32c?.value) {
+    throw new ProtectionError(
+      "provider_denied",
+      "GCP KMS decrypt response missing plaintext integrity value.",
+    );
+  }
+  return {
+    plaintext,
+    plaintextCrc32c: json.plaintextCrc32c.value,
+    ...(json.verifiedCiphertextCrc32c !== undefined
+      ? { verifiedCiphertextCrc32c: json.verifiedCiphertextCrc32c }
+      : undefined),
+    ...(json.verifiedAdditionalAuthenticatedDataCrc32c !== undefined
+      ? {
+          verifiedAdditionalAuthenticatedDataCrc32c:
+            json.verifiedAdditionalAuthenticatedDataCrc32c,
+        }
+      : undefined),
+  };
 }
 
 export function createGcpKmsHttpsTransport(

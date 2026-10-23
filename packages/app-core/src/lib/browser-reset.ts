@@ -84,6 +84,8 @@ export type BrowserResetOptions = Readonly<{
  * and every tab waiting on its lock — always ends.
  */
 const STEP_MS = 10_000;
+/** A same-origin page cannot hold the reset lock forever. */
+const LOCK_WAIT_MS = 30_000;
 /** The shorter bound for work the reset only tries (flush, push, MSAL). */
 const TRY_MS = 5000;
 
@@ -202,5 +204,16 @@ export async function resetBrowser(
   beginBrowserReset();
   const locks = lockManager();
   if (!locks) return run(options);
-  return locks.request(RESET_LOCK, () => run(options));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LOCK_WAIT_MS);
+  try {
+    return await locks.request(RESET_LOCK, { signal: controller.signal }, () =>
+      run(options),
+    );
+  } catch {
+    // A squatting same-origin page must not make the reset impossible.
+    return run(options);
+  } finally {
+    clearTimeout(timer);
+  }
 }
