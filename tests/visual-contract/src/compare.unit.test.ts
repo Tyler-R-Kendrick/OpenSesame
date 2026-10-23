@@ -123,7 +123,7 @@ function fakeHarness(png: Buffer): FakeHarness {
 
 describe("visual-contract compare unit", () => {
   describe("baselinePath", () => {
-    it("resolves names into .impeccable/screenshots", () => {
+    it("resolves names into tests/visual-contract/baselines", () => {
       expect(baselinePath("home")).toBe(join(BASELINE_DIR, "home.png"));
     });
   });
@@ -133,7 +133,7 @@ describe("visual-contract compare unit", () => {
       const name = baselineName("missing");
       const captured = makeCaptured(name, solidPng(4, 4, 10));
       expect(() => compareAgainstBaseline(name, captured)).toThrow(
-        /No \.impeccable baseline.*VISUAL_UPDATE=1/s,
+        /No visual-contract baseline.*VISUAL_UPDATE=1/s,
       );
     });
 
@@ -314,7 +314,7 @@ describe("visual-contract compare unit", () => {
       const { page, testInfo, attachments } = fakeHarness(solidPng(4, 4, 1));
 
       await expect(captureAndVerify(page, name, testInfo)).rejects.toThrow(
-        /No \.impeccable baseline/,
+        /No visual-contract baseline/,
       );
       // The capture itself is still attached for debugging.
       expect(attachments.map((a) => a.name)).toEqual([name]);

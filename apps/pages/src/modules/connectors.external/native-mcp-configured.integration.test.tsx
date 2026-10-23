@@ -15,6 +15,7 @@ import {
 import { nativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { NativeConnectorForm } from "../../sections/connections/connect/NativeConnectorForm.js";
 import { NativeMcpTools } from "../../sections/connections/connect/NativeMcpTools.js";
@@ -243,6 +244,10 @@ it("selects the actual public MCP permissions contract before consent without cl
       onChanged={vi.fn()}
     />,
   );
+  const user = userEvent.setup();
+  await user.click(
+    screen.getByRole("radio", { name: "Bring Your Own OAuth App" }),
+  );
   expect(
     screen.getByRole("radio", {
       name: "Bring Your Own OAuth App",
@@ -251,12 +256,10 @@ it("selects the actual public MCP permissions contract before consent without cl
   expect(
     screen.queryByLabelText("MCP permissions", { selector: "summary" }),
   ).toBeNull();
-  fireEvent.click(screen.getByRole("radio", { name: "MCP" }));
-  fireEvent.change(
+  await user.click(screen.getByRole("radio", { name: "MCP" }));
+  await user.selectOptions(
     screen.getByLabelText("MCP authentication", { exact: true }),
-    {
-      target: { value: "oauth" },
-    },
+    "oauth",
   );
   expect(screen.getByRole("radio", { name: "MCP" })).toHaveProperty(
     "checked",
@@ -265,14 +268,16 @@ it("selects the actual public MCP permissions contract before consent without cl
   expect(
     screen.getByLabelText("MCP authentication", { exact: true }),
   ).toHaveProperty("value", "oauth");
-  fireEvent.click(screen.getByText("Sign-in options", { selector: "summary" }));
+  await user.click(
+    screen.getByText("Sign-in options", { selector: "summary" }),
+  );
   const permissions = screen.getByLabelText("MCP permissions", {
     selector: "summary",
   });
-  fireEvent.click(permissions);
+  await user.click(permissions);
   expect(permissions.closest("details")).toHaveProperty("open", true);
   const openid = screen.getByRole("checkbox", { name: "openid" });
-  fireEvent.click(openid);
+  await user.click(openid);
   expect(openid).toHaveProperty("checked", true);
   expect(
     screen.queryByRole("img", { name: "Adobe access verified" }),

@@ -1,3 +1,5 @@
+> Historical review captures are preserved in [Git history](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/apps/pages/.impeccable/review). Paths below describe that recorded review; captures are temporary and are no longer stored at HEAD.
+
 ---
 version: 1
 slug: "pps-pages-src-sections-identity-localagentkeys-tsx"

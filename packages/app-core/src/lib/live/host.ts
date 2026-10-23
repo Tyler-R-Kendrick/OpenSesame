@@ -1,5 +1,4 @@
 /** The owner's side of a live session (ADR 0150). A peer-trust ask waits for the SAS. */
-
 import { noteLiveSessionGranted } from "../sharing-receipts.js";
 import { DeviceBroker } from "./device-broker.js";
 import { NO_DEVICES } from "./device-types.js";
@@ -17,8 +16,10 @@ import {
   type Received,
   SEAT_GRACE_MS,
   type HostSeat as Seat,
+  armSeatTimer,
   askingSeat,
   deviceLogEntry,
+  disarmSeatTimer,
   seatState,
 } from "./host-types.js";
 import type { LiveLink } from "./link.js";
@@ -30,10 +31,8 @@ import type { Carrier } from "./rendezvous.js";
 import { NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
 import { seatName } from "./seat-channel.js";
-
 // What a host is made of lives in `host-types.ts`; it is named here as well.
 export * from "./host-types.js";
-
 /** One live session, hosted by this tab. */
 export class LiveHost {
   readonly link: LiveLink;
@@ -57,7 +56,6 @@ export class LiveHost {
   readonly #closed = new Set<string>();
   #ended: HostState["endedBecause"] = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
-
   private constructor(
     private readonly options: HostOptions,
     owner: Keypair,
@@ -86,13 +84,11 @@ export class LiveHost {
       : null;
     this.devices?.subscribe(() => this.#emit());
   }
-
   /** One more line in the owner's log, the last two hundred kept. */
   #record(entry: LogEntry): void {
     this.#log = [...this.#log.slice(-199), entry];
     this.#emit();
   }
-
   /** Start a session: a fresh owner key, link secret and code. */
   static async start(options: HostOptions): Promise<LiveHost> {
     return new LiveHost(options, await newKeypair());
@@ -126,17 +122,6 @@ export class LiveHost {
     if (!seat) return;
     seat.guest = { ...seat.guest, ...patch };
     this.#emit();
-  }
-
-  /** Run `fire` after `ms`, in place of whatever the seat was waiting on. */
-  #arm(seat: Seat, ms: number, fire: () => void): void {
-    if (seat.timer) clearTimeout(seat.timer);
-    seat.timer = setTimeout(fire, ms);
-  }
-
-  #disarm(seat: Seat): void {
-    if (seat.timer) clearTimeout(seat.timer);
-    seat.timer = null;
   }
 
   /** A request code the owner pasted, or a carrier passed on. */
@@ -220,7 +205,7 @@ export class LiveHost {
     );
     this.#seats.set(key, seat);
     for (const id of judged.clashKeys) this.#set(id, { nameClash: true });
-    this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
+    armSeatTimer(seat, PAIRING_MS, () => this.#drop(key, "gone"));
     this.#emit();
     // An open session's link is the admission: let the holder in at once.
     // The SAS stays on the owner's row for an optional check, but it does not
@@ -255,7 +240,7 @@ export class LiveHost {
       now: this.#now,
       onJoined: () => {
         if (seat.peer !== peer) return;
-        this.#disarm(seat);
+        disarmSeatTimer(seat);
         this.#set(key, { state: "joined", reply: null });
       },
       onClosed: () => {
@@ -337,7 +322,7 @@ export class LiveHost {
         return;
       }
       // The window to connect runs from the reply, not from the request.
-      this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
+      armSeatTimer(seat, PAIRING_MS, () => this.#drop(key, "gone"));
       this.#set(key, { state: "replied", reply, connection: undefined });
       this.options.post?.(reply);
     } catch {
@@ -373,7 +358,7 @@ export class LiveHost {
     seat.peer = null;
     // The offer is the seat's one big thing, and nothing reads it again.
     seat.offer = "";
-    this.#arm(seat, SEAT_GRACE_MS, () => this.#forget(key));
+    armSeatTimer(seat, SEAT_GRACE_MS, () => this.#forget(key));
     this.#set(key, { state, reply: null });
   }
 
@@ -397,7 +382,7 @@ export class LiveHost {
     if (this.#timer) clearTimeout(this.#timer);
     this.devices?.end();
     for (const seat of this.#seats.values()) {
-      this.#disarm(seat);
+      disarmSeatTimer(seat);
       seat.peer?.close();
       seat.peer = null;
       if (OPEN.has(seat.guest.state))

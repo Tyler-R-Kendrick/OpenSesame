@@ -12,6 +12,14 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.drive.sync",
   },
   {
+    id: "nav.settings.item-types",
+    description:
+      "The Item types Settings category. Opens the page that installs and configures vault item types.",
+    role: "navigation",
+    routes: ["/settings"],
+    capabilityId: "vault.item_types.list",
+  },
+  {
     id: "settings.item-types",
     description:
       "Switches built-in vault item types on or off, one switch per type: switching one on downloads and installs it, and nothing of it is in the app until then. A search field narrows the list; a type the vault already holds items of stays on and shows its count. Types a person wrote sit beneath, and a key opens the marketplaces, git repositories read for more types. Types are JSON manifests, not code paths.",

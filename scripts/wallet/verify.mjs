@@ -4,7 +4,7 @@
  *
  * Runs mainnet deny, domain tests, then package suite runners
  * (contracts/protocols/browser/security). Always writes
- * docs/evidence/wallet/last-run.json. A green exit requires every suite to
+ * work/evidence/wallet/wallet/cross-platform/last-run.json. A green exit requires every suite to
  * pass real tests — stubs never pass. Contract suite is in-memory simulation
  * Contracts/protocols mark local_execution_verified only after forge/Anvil harness success.
  */
@@ -20,11 +20,17 @@ import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { startWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { discoverDomainTargets } from "./lib/discover.mjs";
-import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import {
+  EVIDENCE_REL,
+  readWalletClaims,
+  writeWalletEvidence,
+} from "./lib/evidence.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+startWalletVerification(root);
 const dryRun = process.argv.includes("--dry-run");
 
 const mainnet = assertNoMainnet(
@@ -112,6 +118,18 @@ for (const suite of suiteNames) {
 }
 
 const targets = discoverDomainTargets(root);
+try {
+  readWalletClaims(root);
+} catch (error) {
+  results.push({
+    suite: "claims-source",
+    status: "failed",
+    exitCode: 1,
+    reason: error.message,
+    command: null,
+    durationMs: null,
+  });
+}
 const ok = results.every((r) => r.status === "passed");
 
 writeWalletEvidence(root, {

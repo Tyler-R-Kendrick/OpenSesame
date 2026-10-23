@@ -2,7 +2,7 @@
  * View-model logic for `receipts` (ADR 0133 §8): the pure part of that
  * screen — no React, no DOM — so any shell can drive the same behaviour.
  */
-import { type JsonObject, isString } from "@opensesame/os-domain";
+import { type JsonObject, isNumber, isString } from "@opensesame/os-domain";
 import { refusalWords } from "../../lib/sharing-receipts-tally.js";
 
 export type AuditEvent = {
@@ -82,7 +82,7 @@ export function receiptWords(event: AuditEvent): string {
     return receiptLabel(event.eventType);
   }
   const count = event.metadata?.count;
-  if (typeof count === "number" && Number.isInteger(count) && count >= 1) {
+  if (isNumber(count) && Number.isInteger(count) && count >= 1) {
     return refusalWords(count);
   }
   return receiptLabel(event.eventType);

@@ -15,6 +15,7 @@ import { closeContextMenu } from "../../components/context-menu/menu-model.js";
 import { gestureLimits } from "../../lib/gestures.js";
 import { VaultTree, vaultTreeSeams } from "./VaultTree.js";
 import { makeAccount, makeNote } from "./section-items.test-support.js";
+import type { SharedItemMark } from "./use-shared-items.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 
 Object.assign(vaultTreeSeams, {
@@ -72,7 +73,7 @@ afterEach(() => {
 
 function draw(
   items: VaultItem[] = [makeAccount(), makeNote()],
-  sharedItems: ReadonlyMap<string, number> = new Map(),
+  sharedItems: ReadonlyMap<string, SharedItemMark> = new Map(),
 ) {
   render(
     <MemoryRouter>
@@ -296,12 +297,29 @@ describe("the vault listing's context menu", () => {
   it("puts the people mark before the actions for a standing item grant", () => {
     draw(
       [makeNote({ id: "itm_shared", name: "Shared note" })],
-      new Map([["itm_shared", 2]]),
+      new Map([["itm_shared", { incoming: [], outgoing: 2 }]]),
     );
     const mark = screen.getByTitle("Shared with 2 identities");
     const side = mark.closest(".vtree__side");
     expect(side?.nextElementSibling).toBe(
       screen.getByRole("button", { name: "Actions for Shared note" }),
     );
+  });
+
+  it("names the person who shared a received item", () => {
+    draw(
+      [makeNote({ id: "itm_shared", name: "Shared note" })],
+      new Map([
+        [
+          "itm_shared",
+          {
+            outgoing: 0,
+            incoming: [{ id: "local_alice", name: "Alice" }],
+          },
+        ],
+      ]),
+    );
+    expect(screen.getByTitle("Shared by Alice")).toBeTruthy();
+    expect(screen.getByText("Shared by Alice")).toBeTruthy();
   });
 });

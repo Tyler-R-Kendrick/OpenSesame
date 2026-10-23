@@ -1,0 +1,146 @@
+{
+  "$comment": "Maintained index of historical audit dispositions, not approval or current implementation validation. Preserve actionable findings here; raw run output stays outside the tracked tree.",
+  "source": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-8/findings.json",
+  "sourceProductCommit": "cfa60722e1c26403c0d833fb230c48a5db07bd44",
+  "validationScope": "Historical run-8 records only. Its metadata says in_progress with hunting incomplete. No current-head revalidation was performed during consolidation.",
+  "findings": [
+    {
+      "fingerprint": "app-core.federation.storage-selected-token-endpoint",
+      "title": "Shared-origin storage chooses the federation token endpoint and an unsigned ID token is saved",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "The demonstrated storage-chosen endpoint is no longer the URL that is fetched when the issuer is compiled, and a stored endpoint on another origin is refused. The session-check backstop no longer follows a URL from shared storage."
+    },
+    {
+      "fingerprint": "apps/android/invocation/custom-scheme-skips-validate-platform-invocation",
+      "title": "Exported custom-scheme handlers skip invocation policy before wallet operations",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Closed on the stacked NV fix PRs at regression re-read: validate_credential_offer_scheme_handoff and validate_presentation_scheme_handoff on custom-scheme paths (#846)."
+    },
+    {
+      "fingerprint": "apps/pages/server/manage.mjs/readRawBody/unbounded-buffer",
+      "title": "Relay body readers retain the full request before authentication",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "The unbounded buffer is gone. A body one byte past the ceiling is rejected and is not retained for the handler."
+    },
+    {
+      "fingerprint": "apps/pages/server/webhook-queue.mjs/writeFileQueue/symlink-follow",
+      "title": "Default /tmp webhook queue symlink follow does not cross users",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "The executed result stays inside one uid and the claimed other-user overwrite is refused by the observed /tmp policy. In the single-uid sandbox, with VERCEL, CONNECT_WEBHOOK_QUEUE_PATH, KV_REST_API_URL, and KV_REST_API_TOKEN unset, an invalid X-Hub-Signature-256 returned 401 signature_invalid and the symlink target stayed SAFE; HMAC-SHA256 of {\"installation\":{\"id\":9}} with X-GitHub-Delivery delivery-1 returned 204 and replaced the target with [{\"id\":\"delivery-1\",\"installationId\":\"9\",\"receivedAt\":\"2026-10-08T02:22:19.483Z\"}] while lstat still showed a symlink. That process was uid 0 in a user namespace mapped from one host uid. newuidmap is not installed, so a second host uid was not mapped and was not executed. Same-account replacement is not a crossed OS principal. Host /tmp is mode 1777 and owned by root, fs.protected_symlinks is 1, and fs.protected_regular is 2. Under protected_symlinks, a symlink in a sticky world-writable directory is followed only when the follower owns it or the directory owner owns it; protected_regular also denies an O_CREAT open of another user's regular file in that directory. An attacker-owned name in /tmp is the case those sysctls deny, so the sticky bit is not the only control and a same-uid follow does not establish the cross-user write. The missing O_NOFOLLOW used by sealed-store is not this boundary crossing."
+    },
+    {
+      "fingerprint": "apps/pages/vite.config.ts/handleAgentPage/unbounded-buffer",
+      "title": "Vite dev handleAgentPage buffers POST bodies without limit",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "No production trust boundary; local dev DoS against the developer process is out of scope for this audit profile."
+    },
+    {
+      "fingerprint": "control-plane.federated.shared-redirect.byo-code-mixup",
+      "title": "BYO federated redirect enables authorization code mix-up",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "No bounded local reproduction of cross-client code redemption; BYO issuers are operator-configured trust, not anonymous attacker input."
+    },
+    {
+      "fingerprint": "control-plane.interaction.consent.resource-indicator-undisclosed",
+      "title": "Consent UI omits resource indicator scopes",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Incomplete UI disclosure is not demonstrated cross-client authorization; oidc-provider re-prompts when resource scopes are not granted."
+    },
+    {
+      "fingerprint": "control-plane.mfa.passkey.register/session-enroll-bypasses-factor-step-up",
+      "title": "Passkey registration bypasses MFA factor step-up",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Enrolling an additional factor behind an authenticated session is intended; step-up on removal is the documented contract."
+    },
+    {
+      "fingerprint": "control-plane.org-join.email-retarget-membership",
+      "title": "Tenant join grants organization membership to the caller after verified-email auto-link binds the identity to another principal",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "The caller is no longer granted the membership. Hosted SSO, LDAP, and SAML completion already followed attached.identity.principalId; this route now does too."
+    },
+    {
+      "fingerprint": "control-plane.scim.principalsForSubject.omits-directory-issuer",
+      "title": "SCIM deprovision does not revoke members who signed in through the organization LDAP directory",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "LDAP and metadata-only SAML members are in the deprovision search set. The run-1 gap in the issuer list is closed."
+    },
+    {
+      "fingerprint": "crates/authenticator-core/host_is_private/ipv4-mapped-request-uri",
+      "title": "Invocation policy admits IPv4-mapped loopback and private request URIs",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "The mapped addresses named in the run-1 tests are now rejected. The custom-scheme handoff that never calls this function is a separate needs_validation lead and is unchanged."
+    },
+    {
+      "fingerprint": "crates/breach-intel/src/event.rs/BreachEvent.occurrences/subscriber-count-oracle",
+      "title": "Publishing a breach occurrence count is the documented event boundary",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Source shows that publishing the occurrence count is the intended boundary, and no smaller preimage was shown. The module comment at crates/breach-intel/src/event.rs lines 8-10 and the field comment at lines 66-67 define the count as corpus metadata that says nothing about the secret and is published because it makes the finding actionable. The value-blind unit test and the PagerDuty renderer test both require that integer to survive while secret material is removed. ADR 0080 treats a stored SHA-1, not this count, as the crackable copy the product refuses to keep, and it still publishes breach.password.compromised to the security-event feed. The check is limited to an owner, admin, or operator, who is also returned the count. redact_json cloning non-strings matches that contract. The outbound range request still sends only a five-hex prefix. The candidate itself records that the public corpus was not loaded and that plaintext recovery was not shown, so the count was not established as an identifier of the secret."
+    },
+    {
+      "fingerprint": "crates/sandbox/spawn/grant-expiry-not-rechecked",
+      "title": "Sandbox broker calls ignore grant expiry after the profile is minted",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Closed on the stacked NV fix PRs at regression re-read: GrantExpired at spawn and broker imports; grant_expiry tests (#841)."
+    },
+    {
+      "fingerprint": "daemon.proxy.backslash-canonicalizes-local-session",
+      "title": "Daemon loopback proxy canonicalizes backslash paths into the blocked local session mint",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "A backslash that canonicalizes onto the local session mint is forbidden, and a raw backslash that is not that path is also refused. A percent-encoded backslash is not treated as a separator."
+    },
+    {
+      "fingerprint": "domain.EgressBinding.allows_url/encoded-path-escape",
+      "title": "Path-scoped egress allowlist accepts encoded traversals that decode outside the prefix",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Closed on the stacked NV fix PRs at regression re-read: egress_path_is_well_formed before prefix match (#839)."
+    },
+    {
+      "fingerprint": "gateway/hook-records/read_hook_records/role-evidence-fence-skipped",
+      "title": "Hook-records read skipped role evidence fence",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "One-shot View reads now share ensure_view_authority with stream tails; the hook-records-specific gap is closed on the stack tip."
+    },
+    {
+      "fingerprint": "gateway/observation-control/role-evidence-fence-skipped",
+      "title": "Role evidence fence does not bind observation control or one-shot log reads",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Closed on the stacked NV fix PRs at regression re-read: ensure_view_authority and observe ceiling on control and hook records (#845)."
+    },
+    {
+      "fingerprint": "opensesame.cli.connect.open_url.authorization-url-cmd-start",
+      "title": "Windows open_url passes a Host authorization_url to cmd.exe /C start",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Closed on the stacked NV fix PRs at regression re-read: authorization_url_may_open_in_browser (#844)."
+    },
+    {
+      "fingerprint": "ops/compose/docker-compose.yml/nats/plaintext-host-port",
+      "title": "Compose publishes the NATS client port with no host IP and no server auth config",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "Closed on the stacked NV fix PRs at regression re-read: 127.0.0.1:4222 bind (#843)."
+    },
+    {
+      "fingerprint": "packages/cli/startup-env-denylist-omits-ld-audit",
+      "title": "Shared startup denylist omits LD_AUDIT, so an env template loads an audit object in the credential-bearing child",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "LD_AUDIT is on the shared denylist both gates read. An env template can no longer introduce that hook by its absence from the list."
+    },
+    {
+      "fingerprint": "pages.connect.token-check.unpinned-issuer-host",
+      "title": "Token-check verify URL follows an unpinned issuer host",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "No demonstrated cross-tenant or cross-connector fetch to an attacker host; unfilled templates skip the call."
+    },
+    {
+      "fingerprint": "pages.manage-auth.callback-allowed.request-host",
+      "title": "Manage-auth callback allowlist trusts requestHost",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "The control is the Connect relay contract, not a Host authorization bypass."
+    },
+    {
+      "fingerprint": "runner.drive.getRun-origin-unbound",
+      "title": "In-flight runner keeps filling an origin after its arm expires when getRun names another armed origin",
+      "recordedVerdict": "rejected",
+      "recordedDisposition": "A getRun body for a different run is not driven, and a fresh view that names another origin stands the runner down."
+    }
+  ]
+}

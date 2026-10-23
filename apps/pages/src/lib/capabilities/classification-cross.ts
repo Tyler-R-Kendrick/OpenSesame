@@ -130,6 +130,10 @@ const CONNECTOR_RECORDS = [
 
 export const CROSS_RULES = [
   shared(
+    "src/lib/integration-ai-labs.ts",
+    "pure provider names/order shared by core Settings and the optional Connections catalog; no runtime or credential code",
+  ),
+  shared(
     `${L}der.ts`,
     "pure DER encoding shared by certificate issuance and browser GitHub App signing",
   ),

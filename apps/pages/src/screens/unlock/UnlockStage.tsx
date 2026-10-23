@@ -6,6 +6,7 @@ import {
 } from "../../components/CipherWordmark/index.js";
 import { GateTools } from "../../components/GateTools.js";
 import { InstallMark } from "../../components/InstallMark.js";
+import { GateNoticeSeat } from "../../components/Notices.js";
 import type { WordmarkHandle } from "../../components/Wordmark.js";
 import { PendingLinkBanner } from "./PendingLinkBanner.js";
 import { ReleaseNotes } from "./ReleaseNotes.js";
@@ -78,6 +79,7 @@ export function UnlockStage({
             <GateTools />
           </div>
         </div>
+        <GateNoticeSeat />
         {children}
       </div>
       {vaultUnlocked ? null : <ReleaseNotes ref={notesRef} />}

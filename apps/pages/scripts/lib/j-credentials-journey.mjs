@@ -83,7 +83,7 @@ async function confirmBound(page, base, check) {
 export async function walkJCredentials({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);
-  await openSettingsCategory(page, "Vaults");
+  await openSettingsCategory(page, "Item types");
   await switchOn(page, "Account");
 
   // A new account, with no credential type switched on but Accounts' own.

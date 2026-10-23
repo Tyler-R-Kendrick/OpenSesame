@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import {
   Clock,
   type Device,

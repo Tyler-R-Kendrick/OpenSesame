@@ -134,6 +134,22 @@ export type HostSeat = {
   timer: ReturnType<typeof setTimeout> | null;
 };
 
+/** Run `fire` after `ms`, replacing the seat's previous timer. */
+export function armSeatTimer(
+  seat: HostSeat,
+  ms: number,
+  fire: () => void,
+): void {
+  if (seat.timer) clearTimeout(seat.timer);
+  seat.timer = setTimeout(fire, ms);
+}
+
+/** A joined or ended seat has no outstanding admission timer. */
+export function disarmSeatTimer(seat: HostSeat): void {
+  if (seat.timer) clearTimeout(seat.timer);
+  seat.timer = null;
+}
+
 /** The states in which a seat still counts toward the session's eight. */
 export const OPEN: ReadonlySet<GuestState> = new Set<GuestState>([
   "asking",

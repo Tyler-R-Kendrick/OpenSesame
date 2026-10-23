@@ -11,6 +11,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
 import { isNumber, isString } from "./lib/primitive-guards.mjs";
@@ -20,6 +21,7 @@ import {
   runShippedAdapterLive,
 } from "./lib/protocols-followup.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 const forgeDir = join(root, "packages/wallet-x402/forge");
 const home = process.env.HOME ?? "";
 const foundryBins = [
@@ -33,7 +35,6 @@ const RPC_PORT = Number(process.env.WALLET_X402_ANVIL_PORT ?? "18545");
 const RPC_URL = `http://127.0.0.1:${RPC_PORT}`;
 const CHAIN_ID = Number(process.env.CHAIN_ID ?? "31337");
 const NETWORK = `eip155:${CHAIN_ID}`;
-
 /** Anvil deterministic keys (local test only; never production). */
 const KEYS = {
   payer: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
@@ -44,7 +45,6 @@ const KEYS = {
 };
 const MINT_AMOUNT = 1_000_000_000n; // 1000 TEST (6 decimals)
 const PAY_AMOUNT = "1000000"; // 1.000000 TEST
-
 function foundryEnv() {
   return {
     ...process.env,

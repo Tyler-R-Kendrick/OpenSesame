@@ -13,12 +13,16 @@ pnpm wallet:test:contracts          # forge enforcer suites + wallet-evm
 pnpm wallet:test:protocols          # Anvil Exact EIP-3009 + AP2/UCP fixtures
 pnpm wallet:test:browser            # Pages WalletSection + spending-ledger
 pnpm wallet:test:security           # conservation + policy + domain parsers
-pnpm wallet:evidence                # refresh docs/evidence/wallet/last-run.json
+pnpm wallet:evidence                # refresh work/evidence/wallet/wallet/cross-platform/last-run.json
 ```
+
+Gate output is temporary. Persist only approved current-state artifacts under
+`docs/evidence/wallet/wallet/cross-platform/`, following
+[the persistence contract](../evidence/README.md). A green run does not grant approval.
 
 Full detail: [`scripts/wallet/README.md`](../../scripts/wallet/README.md).
 
-## What is verified today
+## Recorded verification scope
 
 | Claim | Status | Meaning |
 |---|---|---|
@@ -57,7 +61,7 @@ recipient or calendar rules against an unrestricted key holder.
 ## Safety
 
 - Mainnet chain IDs are hard-denied by `scripts/wallet/lib/deny-mainnet.mjs`.
-- Evidence under `docs/evidence/wallet/` must not contain secrets.
+- Evidence under `work/evidence/wallet/wallet/cross-platform/` must not contain secrets.
 - A missing suite fails closed — never treat a stub as a pass.
 - `local_execution_verified` requires real local-chain / merchant output, not
   JavaScript imitation of contracts.

@@ -5,6 +5,7 @@
  */
 
 import { redactAuditMetadata } from "@opensesame/audit/redact";
+import { isNumber } from "@opensesame/os-domain";
 import { patchActivityCount } from "./activity-log.js";
 import {
   MAX_BYTES,
@@ -98,7 +99,7 @@ async function patchReceiptCount(
           return row;
         }
         const prior = row.metadata.count;
-        if (typeof prior === "number" && prior >= count) return row;
+        if (isNumber(prior) && prior >= count) return row;
         changed = true;
         return {
           ...row,

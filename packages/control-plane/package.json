@@ -50,7 +50,7 @@
     "hono": "4.13.11",
     "jose": "6.2.8",
     "ldapts": "9.0.0",
-    "nodemailer": "10.0.9",
+    "nodemailer": "10.0.10",
     "openid-client": "6.8.7",
     "zod": "3.25.67"
   },

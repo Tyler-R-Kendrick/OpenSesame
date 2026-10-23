@@ -11,32 +11,54 @@ confidential clients or native tooling show their constraints explicitly.
 ## Connect Linear
 
 1. Unlock your vault and open **Connections › Add a connection › Linear**.
-2. Choose **Managed** for your deployment's registered Linear application,
-   or **Bring Your Own** for your own OAuth application or API key.
-3. Enter a connector name. The optional expected workspace accepts a Linear
+2. Press **Sign in to Linear**. The default route uses Linear's published MCP
+   server with Client ID Metadata Documents (CIMD). You do not register an
+   OAuth application, create an API key or configure a connector relay.
+3. Review **MCP permissions**. Only the advertised `read` permission is selected
+   initially. Add write permissions only when the work requires them.
+4. Complete Linear's consent screen. OpenSesame verifies MCP initialization and
+   advertised tools before reporting the connection. The summary lists the
+   tools the server actually exposes; tool calls use their advertised schemas.
+
+No OAuth client ID, client secret or personal API key is entered on the default
+page. CIMD uses this deployment's public HTTPS metadata document. If live
+authorization metadata does not support CIMD, OpenSesame falls back to DCR only
+when the live registration endpoint exactly matches the compiled endpoint.
+This fallback is not a claim that every Linear workspace or origin supports it.
+
+### Advanced: GraphQL OAuth app or API key
+
+Use **Advanced: existing OAuth app or API key** only when you need Linear's
+GraphQL API or webhook route. It is a separate connection with separate sealed
+credentials; an MCP token is not reused for GraphQL.
+
+1. Choose **Bring Your Own** for your own OAuth application or API key. A
+   deployment that supplies `linearClientId` may also offer **Managed**.
+2. Enter a connector name. The optional expected workspace accepts a Linear
    organization name, URL key or ID. Linear's API must confirm it; app and
    user authorizations must belong to the same workspace.
-4. For OAuth, review **App Scopes** and **User Scopes** and enter your registered
-   **Linear OAuth client ID** if the deployment has not provided one. Register
-   the exact displayed **Redirect URI** in
-   [Linear developer settings](https://linear.app/settings/api/applications/new).
-   The browser uses S256 PKCE; do not enter or publish a client secret.
-5. Press **Create and authorize Linear** and complete Linear's consent screen. App scopes
-   authorize `actor=app`; selected user scopes require a second consent with
-   `actor=user`. Clear one actor's scopes if you do not need that actor. Linear
-   always includes `read`. The form's initial four app and two user selections
-   are product defaults, not evidence of provider grants.
-6. Alternatively, choose **Bring Your Own › API key**, supply a personal key,
+3. For OAuth, review **App Scopes** and **User Scopes** and enter your registered
+   **Linear OAuth client ID**. **Create a prefilled Linear OAuth app** opens
+   Linear's application form with this deployment's callback and public app
+   metadata already filled in. Register the exact displayed **Redirect URI**;
+   the browser uses S256 PKCE. Do not enter or publish a client secret.
+4. Press **Create and authorize Linear** and complete Linear's consent screen.
+   App scopes authorize `actor=app`; selected user scopes require a second
+   consent with `actor=user`. Clear one actor's scopes if you do not need that
+   actor. Linear always includes `read`. The form's initial four app and two
+   user selections are product defaults, not evidence of provider grants.
+5. Alternatively, choose **Bring Your Own › API key**, supply a personal key,
    and press **Verify and connect Linear**. The app verifies its account and
    workspace through Linear before reporting success. Specific key permissions
    are managed in Linear, not represented as OAuth scopes.
-7. The verified summary shows the actual account, workspace ID, granted scopes
+6. The verified summary shows the actual account, workspace ID, granted scopes
    and expiry. **Use Linear** reads recent issues/projects, lists accessible
    teams, and creates an issue in the selected team. OAuth app and user actors
    are selectable. Results and failures are awaited and displayed.
 
 The connector name and optional icon identify the local connection. They do
 not create or rename an OAuth application in Linear's developer console.
+Existing specialized records keep this page and its custody rules.
 
 ### Provision a deployment-owned application
 

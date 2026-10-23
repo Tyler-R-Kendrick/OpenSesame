@@ -72,6 +72,6 @@ export function printSummary(current) {
     );
   }
   process.stdout.write(
-    "report: docs/evidence/general-authority/authority-fabric-report.json\n",
+    "report: work/evidence/general-authority/authority/cross-platform/authority-fabric-report.json\n",
   );
 }

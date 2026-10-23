@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 452,
-    "violations": 722,
-    "oversizedLines": 222093
+    "files": 449,
+    "violations": 720,
+    "oversizedLines": 221587
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -48,9 +48,6 @@
     "apps/pages/scripts/security-profile.mjs": {
       "complexity": 1
     },
-    "apps/pages/scripts/verify-tailnet-sync.mjs": {
-      "max-lines": 404
-    },
     "apps/pages/server/github-app.mjs": {
       "complexity": 3,
       "max-depth": 2,
@@ -61,10 +58,6 @@
       "complexity": 1,
       "max-lines-per-function": 1,
       "max-statements": 1
-    },
-    "apps/pages/src/app-root.tsx": {
-      "max-lines": 423,
-      "max-lines-per-function": 1
     },
     "apps/pages/src/components/AccountSwitcher.tsx": {
       "complexity": 1,
@@ -86,6 +79,9 @@
     "apps/pages/src/components/ProjectSwitcher.tsx": {
       "max-lines-per-function": 1
     },
+    "apps/pages/src/components/VaultRail.tsx": {
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/components/rail-path.ts": {
       "complexity": 1
     },
@@ -104,14 +100,8 @@
     "apps/pages/src/modules/networking.tailnet/browser/native-http-worker.test.ts": {
       "max-lines": 409
     },
-    "apps/pages/src/modules/sharing.live/LiveHostForm.tsx": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/modules/sharing.live/live-join-route-parts.tsx": {
       "complexity": 1,
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/modules/sharing.trusted-contacts/UnlockCirclePanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/BrokerAuthorize.tsx": {
@@ -153,9 +143,6 @@
     "apps/pages/src/screens/unlock/UnlockUserMenu.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 402
-    },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
@@ -168,15 +155,14 @@
       "max-lines-per-function": 2
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1
+      "complexity": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 674
+      "max-lines": 730
     },
     "apps/pages/src/sections/VaultSection.tsx": {
-      "max-lines-per-function": 1,
-      "max-statements": 1
+      "complexity": 1,
+      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/access/ConnectorBindForm.tsx": {
       "max-lines-per-function": 1
@@ -191,6 +177,10 @@
     "apps/pages/src/sections/access/VaultSessionsPanel.tsx": {
       "max-lines-per-function": 2
     },
+    "apps/pages/src/sections/connections/CatalogPanel.tsx": {
+      "max-lines": 456,
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/sections/connections/ConnectForm.tsx": {
       "max-lines-per-function": 1
     },
@@ -202,6 +192,9 @@
       "complexity": 1,
       "max-lines-per-function": 1
     },
+    "apps/pages/src/sections/connections/SettingsPageConnectPanels.tsx": {
+      "complexity": 1
+    },
     "apps/pages/src/sections/connections/ai/AiGeneratedImage.tsx": {
       "max-lines-per-function": 1
     },
@@ -210,9 +203,6 @@
     },
     "apps/pages/src/sections/identity/LocalMemberships.tsx": {
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/FeatureConfigPanel.tsx": {
-      "complexity": 1
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.tsx": {
       "complexity": 1,
@@ -236,16 +226,17 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 664
+      "max-lines": 476
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
-    "apps/pages/src/sections/vault/NativeItemFields.tsx": {
-      "max-lines-per-function": 1
+    "apps/pages/src/sections/vault/VaultRowDecorations.tsx": {
+      "complexity": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
+      "max-lines": 401,
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts": {
@@ -645,6 +636,9 @@
     "packages/app-core/src/lib/identity-graph.ts": {
       "complexity": 1
     },
+    "packages/app-core/src/lib/identity-saml-activation.test.ts": {
+      "max-lines": 404
+    },
     "packages/app-core/src/lib/identity-session.test.ts": {
       "max-lines": 495
     },
@@ -661,12 +655,6 @@
       "complexity": 1,
       "max-lines": 440
     },
-    "packages/app-core/src/lib/live/host.ts": {
-      "max-lines": 408
-    },
-    "packages/app-core/src/lib/live/routes.ts": {
-      "max-lines": 409
-    },
     "packages/app-core/src/lib/live/webrtc.ts": {
       "complexity": 1
     },
@@ -675,6 +663,10 @@
     },
     "packages/app-core/src/lib/local-sessions.ts": {
       "max-lines": 423
+    },
+    "packages/app-core/src/lib/local-share-grants.ts": {
+      "complexity": 1,
+      "max-lines": 411
     },
     "packages/app-core/src/lib/projects.ts": {
       "max-lines": 466

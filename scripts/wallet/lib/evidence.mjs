@@ -1,5 +1,5 @@
 /**
- * Write docs/evidence/wallet/last-run.json — command results only, no secrets.
+ * Write work/evidence/wallet/wallet/cross-platform/last-run.json — command results only, no secrets.
  */
 
 import { spawnSync } from "node:child_process";
@@ -37,13 +37,14 @@ import { join } from "node:path";
  * @returns {WalletEvidence}
  */
 export function writeWalletEvidence(root, partial) {
-  const evidenceDir = join(root, "docs", "evidence", "wallet");
+  const evidenceDir = join(root, "work/evidence/wallet/wallet/cross-platform");
   mkdirSync(evidenceDir, { recursive: true });
 
   /** @type {WalletEvidence} */
   const doc = {
     generatedAt: partial.generatedAt ?? new Date().toISOString(),
     head: gitHead(root),
+    verificationRunId: process.env.OPENSESAME_WALLET_RUN_ID ?? null,
     treeDirty: gitStatusDigest(root) !== "",
     invokedAs: partial.invokedAs,
     mainnet: partial.mainnet,
@@ -125,4 +126,11 @@ function tail(text, max) {
   return text.slice(text.length - max);
 }
 
-export const EVIDENCE_REL = "docs/evidence/wallet/last-run.json";
+export const EVIDENCE_REL =
+  "work/evidence/wallet/wallet/cross-platform/last-run.json";
+
+export {
+  initializeWalletVerification,
+  readWalletClaims,
+  startWalletVerification,
+} from "./claims.mjs";

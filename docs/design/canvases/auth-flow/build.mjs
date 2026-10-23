@@ -13,7 +13,8 @@
  * `parts/<Name>.html` holds only what differs: the markup inside `<x-dc>`,
  * optionally followed by a `<script data-dc-script …>` logic block. The
  * generated `<Name>.dc.html` files are what `seed-canvas.mjs` reads, and they
- * are committed — an `--extract` round trip has to land on real files.
+ * are ignored build outputs. Reconcile editor extraction into `parts/` and
+ * `_style.css`, then rebuild before seeding; commit only those inputs.
  */
 
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";

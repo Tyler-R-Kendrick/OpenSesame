@@ -81,3 +81,17 @@ regenerated from the artboards above. Edit `parts/*.html`, never the generated
 `.dc.html`, unless you are reconciling an edit somebody made in the canvas
 editor (in which case `--extract` the published page first and fold the change
 back into the part).
+
+## Source-only storage
+
+Commit `parts/*.html`, the shared CSS, build script and canvas metadata. The
+`.dc.html` files in this directory are ignored build outputs; run `node build.mjs`
+before every seed or publish. Do not force-add generated artboards or seeded
+editor payloads. Keep alternate renders and review captures under ignored
+`work/` or temporary storage.
+
+For an editor round trip, extract the published canvas into temporary storage,
+review the changes, and reconcile markup into `parts/*.html` and shared styles
+into `_style.css` (icons into `icons.json` where present). Rebuild and compare
+the result before committing the source changes. An extracted generated file
+is never the only persisted copy of an accepted edit.

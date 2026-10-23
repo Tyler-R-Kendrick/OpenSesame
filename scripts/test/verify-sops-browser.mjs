@@ -14,7 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const evidence = join(root, "docs/evidence/2026-09-22-browser-local-sops");
+const evidence = join(root, "work/evidence/sops/pages/browser");
 mkdirSync(evidence, { recursive: true });
 
 const results = [];
@@ -115,7 +115,7 @@ function record(caseId, status, detail) {
       test: "vitest app-core src/lib/sops",
       command: "pnpm verify:sops-browser",
       runtime: `node ${process.version}`,
-      artifact: "docs/evidence/2026-09-22-browser-local-sops/results.json",
+      artifact: "work/evidence/sops/pages/browser/results.json",
       reason: ok ? "Suite passed." : "Suite failed; see the run output.",
     });
   }

@@ -184,5 +184,7 @@ not part of the browser workflow.
 ## Evidence
 
 `pnpm verify:key-protection` writes
-`docs/evidence/2026-09-20-vault-key-protection/verify-key-protection.json`
+`work/evidence/key-protection/pages/browser/verify-key-protection.json`
 with `passed | failed | blocked` (live cloud/PIV blocked without test env).
+This output is temporary; only approved current-state evidence may be promoted
+under [the persistence contract](../evidence/README.md).

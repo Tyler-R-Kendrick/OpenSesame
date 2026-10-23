@@ -43,7 +43,10 @@ pnpm --filter @opensesame/database db:reset           # drops public + drizzle s
 ```
 
 The root `pnpm db:migrate` / `pnpm db:reset` call the same scripts, and
-`pnpm bootstrap` runs `db:generate` then `db:migrate`. Tests use a real
+`pnpm bootstrap` installs dependencies and applies existing migrations with
+`db:migrate`. After changing the schema, deliberately run
+`pnpm --filter @opensesame/database db:generate` and review the migration
+before applying it. Tests use a real
 Postgres when `DATABASE_URL` is set and an in-process PGlite otherwise
 (`tests/pg-harness.ts`, `tests/pg-harness-full.ts`). On a real server every
 suite gets a database of its own, created and dropped around it, so the run is

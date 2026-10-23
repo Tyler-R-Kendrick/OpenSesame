@@ -1,6 +1,6 @@
 # Visual baseline review — 2026-10-05
 
-> Status (2026-10-08): the baselines committed in `.impeccable/screenshots/`
+> Status (2026-10-08): the baselines committed in `tests/visual-contract/baselines/`
 > are main's refresh described in the last paragraph. Of the four reviewed
 > hashes below only `vault-unlock-mobile` still matches; `pages-desktop`
 > (`8ad77bc3…`), `pages-mobile` (`4b549c73…`) and `vault-list-mobile`

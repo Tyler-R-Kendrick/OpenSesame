@@ -39,12 +39,18 @@ export async function dismissVaultSwitcher(page) {
   await menu.waitFor({ state: "hidden", timeout: 5000 });
 }
 
-/** The shell paints the prompt twice. One of the two is display:none. */
+/**
+ * The prompt's separator opens Session. Its account and vault buttons own
+ * their own context menus, so a center click on the whole prompt is ambiguous.
+ * The shell paints the prompt twice; only one separator is visible.
+ */
 export async function openSessionMenu(page) {
   await page
-    .locator(".rail__prompt")
+    .locator(".rail__prompt .prompt__dim")
     .filter({ visible: true })
+    .first()
     .click({ button: "right" });
+  await page.getByRole("menu", { name: "Session", exact: true }).waitFor();
 }
 
 export async function openSessionSection(page, name) {

@@ -118,3 +118,17 @@ constraints of its own.
 - Whether a second optional section would still be acceptable on the
   one-question screen, or whether this one is the ceiling. `ModelSection`
   states the cost: the next such offer will cite this one as precedent.
+
+## Source-only storage
+
+Commit `parts/*.html`, the shared CSS, build script and canvas metadata. The
+`.dc.html` files in this directory are ignored build outputs; run `node build.mjs`
+before every seed or publish. Do not force-add generated artboards or seeded
+editor payloads. Keep alternate renders and review captures under ignored
+`work/` or temporary storage.
+
+For an editor round trip, extract the published canvas into temporary storage,
+review the changes, and reconcile markup into `parts/*.html` and shared styles
+into `_style.css` (icons into `icons.json` where present). Rebuild and compare
+the result before committing the source changes. An extracted generated file
+is never the only persisted copy of an accepted edit.
