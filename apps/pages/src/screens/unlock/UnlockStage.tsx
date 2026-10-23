@@ -80,7 +80,7 @@ export function UnlockStage({
         </div>
         {children}
       </div>
-      <ReleaseNotes ref={notesRef} />
+      {vaultUnlocked ? null : <ReleaseNotes ref={notesRef} />}
     </div>
   );
 }

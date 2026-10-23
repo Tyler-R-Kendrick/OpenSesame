@@ -43,6 +43,9 @@
       "console": 1,
       "stdio": 1
     },
+    "packages/sdk-cli/src/loopback.ts": {
+      "stdio": 2
+    },
     "tools/mock-upstream-idp/src/cli.ts": {
       "console": 1
     },
