@@ -51,8 +51,10 @@ const vault: VaultHarness = {
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { vaultTreeSeams } from "./vault/VaultTree.js";
+import { sharedItemsSeams } from "./vault/use-shared-items.js";
 const copySecret = vi.fn();
 const store = {
+  activeTomb: () => "personal",
   purgeItem: vi.fn(),
   trashItem: vi.fn(),
   toggleFavorite: vi.fn(),
@@ -148,6 +150,60 @@ describe("VaultSection", () => {
       screen.getByRole("link", { name: /New item/i }).getAttribute("href"),
     ).toBe("/vault/new");
     expectVaultCommands();
+  });
+
+  it("separates shared-with-me from owned items and names the sharer", async () => {
+    const shared = makeNote({ id: "itm_shared", name: "From Alice" });
+    const own = makeNote({ id: "itm_own", name: "Mine" });
+    vault.current = { items: [shared, own], folders: [], header: null };
+    const list = vi.spyOn(sharedItemsSeams, "list").mockResolvedValue([
+      {
+        id: "share-1",
+        principalId: "local_bob",
+        resourceKind: "item",
+        resourceId: shared.id,
+        resourceLabel: shared.name,
+        policy: "read",
+        issuedAt: Date.now(),
+        expiresAt: Date.now() + 60_000,
+        issuedBy: "local_alice",
+      },
+    ]);
+    const actor = vi
+      .spyOn(sharedItemsSeams, "actor")
+      .mockResolvedValue("local_bob");
+    const directory = vi
+      .spyOn(sharedItemsSeams, "directory")
+      .mockResolvedValue({
+        version: 2,
+        revision: 1,
+        entries: [
+          { id: "local_alice", kind: "person", name: "Alice", enabled: true },
+          { id: "local_bob", kind: "person", name: "Bob", enabled: true },
+        ],
+        memberships: [],
+      });
+    try {
+      renderSection("/vault?f=shared");
+      await waitFor(() =>
+        expect(
+          screen.getAllByRole("treeitem").map((row) => row.textContent),
+        ).toEqual(["From Alice.noteShared by Alice"]),
+      );
+      expect(screen.getByText(/1\/2 · Shared with me/)).toBeTruthy();
+      cleanup();
+      renderSection("/vault?f=owned");
+      await waitFor(() =>
+        expect(
+          screen.getAllByRole("treeitem").map((row) => row.textContent),
+        ).toEqual(["Mine.note"]),
+      );
+      expect(screen.getByText(/1\/2 · Owned by me/)).toBeTruthy();
+    } finally {
+      list.mockRestore();
+      actor.mockRestore();
+      directory.mockRestore();
+    }
   });
 
   it("lists items as files with kind extensions and a status line", () => {
