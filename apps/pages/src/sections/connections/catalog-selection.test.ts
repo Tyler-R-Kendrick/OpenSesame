@@ -2,6 +2,7 @@ import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.j
 import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { describe, expect, it } from "vitest";
+import { API_FAMILIES, apiFamilyFor } from "./catalog-families.js";
 import {
   catalogAuthMethods,
   catalogTags,
@@ -199,6 +200,15 @@ describe("the curated Connections list", () => {
       autoConfigurable: false,
     };
     expect(curatedCatalogProviders([fake])).toEqual([]);
+  });
+
+  it("keeps every provider family complete, including Azure", () => {
+    for (const family of API_FAMILIES) {
+      expect(apiFamilyFor(family.id)?.id, family.id).toBe(family.id);
+      expect(family.members.length, family.id).toBeGreaterThan(1);
+    }
+    expect(apiFamilyFor("azure")?.members).toContain("azure");
+    expect(apiFamilyFor("azure")?.members).toContain("azure-kms");
   });
 
   it("labels each card with supported auth methods, not internal tags", () => {

@@ -9,7 +9,7 @@ import type { ConnectorCardAction } from "@opensesame/app-core/lib/connector-act
 import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
 import { catalogTileNote } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
@@ -75,7 +75,7 @@ export function catalogMethodLabel(provider: Provider): string {
 /** Enter in the prompt lands on the first tile, when the search left one. */
 function focusFirstTile(): boolean {
   const tile = document.querySelector<HTMLElement>(
-    "#catalog .conn-tile a, #catalog .conn-tile button",
+    "#catalog .conn-tile summary, #catalog .conn-tile a, #catalog .conn-tile button",
   );
   tile?.focus();
   return tile !== null && document.activeElement === tile;
@@ -90,6 +90,9 @@ export function CatalogPanel({
   connections?: Connection[];
 }) {
   const search = useListingSearch(focusFirstTile);
+  const [chooser, setChooser] = useState(false);
+  const [method, setMethod] = useState<string | null>(null);
+  const methodStatus = useRef<HTMLOutputElement | null>(null);
   const { hash } = useLocation();
   useEffect(() => {
     if (hash.startsWith("#catalog-")) search.close();
@@ -103,10 +106,23 @@ export function CatalogPanel({
     return () => pickerRef(null);
   }, [pickerRef]);
   const normalizedQuery = (search.query ?? "").trim().toLocaleLowerCase();
-  const catalogProviders = curatedCatalogProviders(providers ?? [], {
+  const allCatalogProviders = curatedCatalogProviders(providers ?? [], {
     includeFeatured: true,
     includeFamilies: true,
-  }).filter((provider) => matchesCatalog(provider, normalizedQuery));
+  });
+  const catalogProviders = allCatalogProviders.filter((provider) => {
+    if (!matchesCatalog(provider, normalizedQuery)) return false;
+    if (method === null) return true;
+    const family = apiFamilyFor(provider.id);
+    const members = family
+      ? allCatalogProviders.filter((candidate) =>
+          family.members.includes(candidate.id),
+        )
+      : [provider];
+    return members.some((candidate) =>
+      catalogAuthMethods(candidate).includes(method),
+    );
+  });
 
   const sealKeyMissing = (providers ?? []).some((provider) =>
     provider.missingConfig.some((name) => name.includes("CONNECTION_KEY")),
@@ -116,15 +132,18 @@ export function CatalogPanel({
     <section id="catalog" className="panel" ref={panelRef}>
       <div className="panel__head conn-catalog__head">
         <h2>Add a connection</h2>
-        <Link
+        <button
           id="catalog-add"
+          type="button"
           className="icon-btn icon-btn--sm"
-          aria-label="Add a custom connection"
-          title="Add a custom connection"
-          to={connectorPath("byo-ai")}
+          aria-label="Add a connection"
+          title="Add a connection"
+          aria-expanded={chooser}
+          disabled={providers === null}
+          onClick={() => setChooser((open) => !open)}
         >
           <IconPlus size={16} />
-        </Link>
+        </button>
       </div>
 
       <div className="panel__body">
@@ -132,6 +151,29 @@ export function CatalogPanel({
           <p className="hint">Loading the connector catalog…</p>
         ) : (
           <>
+            {chooser ? (
+              <AddConnectionChooser
+                onChoose={(next) => {
+                  setMethod(next);
+                  setChooser(false);
+                }}
+              />
+            ) : null}
+            {method ? (
+              <output
+                className="conn-method-filter"
+                tabIndex={-1}
+                ref={(element) => {
+                  methodStatus.current = element;
+                  element?.focus();
+                }}
+              >
+                <span>Showing {method} connectors</span>
+                <button type="button" onClick={() => setMethod(null)}>
+                  Clear
+                </button>
+              </output>
+            ) : null}
             <FailureNotice
               id="connections:sealing"
               title="Connection sealing"
@@ -148,7 +190,7 @@ export function CatalogPanel({
                 <ProviderTile
                   key={provider.id}
                   provider={provider}
-                  providers={catalogProviders}
+                  providers={allCatalogProviders}
                   methods={catalogAuthMethods(provider)}
                   connection={preferredCatalogConnection(provider, connections)}
                 />
@@ -171,6 +213,52 @@ export function CatalogPanel({
   );
 }
 
+const METHODS = [
+  [
+    "OAuth",
+    "Bring your own OAuth application. The client ID and secret stay in this vault.",
+  ],
+  ["OIDC", "Issuer-based sign-in with your own client registration."],
+  [
+    "API key",
+    "A personal access token or API key, verified before it is sealed.",
+  ],
+  [
+    "MCP",
+    "A published Model Context Protocol server, with OAuth where advertised.",
+  ],
+] as const;
+
+function AddConnectionChooser({
+  onChoose,
+}: {
+  onChoose: (method: string) => void;
+}) {
+  return (
+    <fieldset className="conn-add-methods" aria-label="Authentication method">
+      <legend>How does this connector authenticate?</legend>
+      <ul>
+        {METHODS.map(([name, description]) => (
+          <li key={name}>
+            <button type="button" onClick={() => onChoose(name)}>
+              <strong>{name}</strong>
+              <span>{description}</span>
+            </button>
+          </li>
+        ))}
+        <li>
+          <Link to={connectorPath("byo-ai")}>
+            <strong>Custom / self-hosted</strong>
+            <span>
+              Any HTTPS endpoint, OpenAI-compatible API, or custom API key.
+            </span>
+          </Link>
+        </li>
+      </ul>
+    </fieldset>
+  );
+}
+
 function FamilyTile({
   provider,
   members,
@@ -186,7 +274,7 @@ function FamilyTile({
       id={`catalog-${encodeURIComponent(provider.id)}`}
     >
       <details>
-        <summary className="conn-tile__link">
+        <summary className="conn-tile__link" tabIndex={-1}>
           <ConnectorMark
             providerId={provider.id}
             displayName={provider.displayName}
@@ -207,7 +295,7 @@ function FamilyTile({
         <ul className="conn-family__apis">
           {members.map((member) => (
             <li key={member.id}>
-              <Link to={connectorPath(member.id)}>
+              <Link to={connectorPath(member.id)} tabIndex={-1}>
                 <ConnectorMark
                   providerId={member.id}
                   displayName={member.displayName}
