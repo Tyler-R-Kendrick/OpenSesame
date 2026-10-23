@@ -77,3 +77,18 @@ async function sealOwner(page, tabTo) {
   await tabTo(page, seal);
   await page.keyboard.press("Enter");
 }
+
+/** The joining device creates its separate vault through the visible form. */
+export async function sealJoiner(page, tabTo) {
+  await tabTo(page, page.getByLabel("Your vault PIN", { exact: true }));
+  await page.keyboard.insertText("73926584");
+  await tabTo(page, page.getByLabel("Confirm PIN", { exact: true }));
+  await page.keyboard.insertText("73926584");
+  const acknowledge = page.getByRole("checkbox", {
+    name: "I understand this vault cannot be recovered.",
+    exact: true,
+  });
+  await tabTo(page, acknowledge);
+  await page.keyboard.press("Space");
+  await expect(acknowledge).toBeChecked();
+}

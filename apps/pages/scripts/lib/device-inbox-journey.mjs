@@ -82,6 +82,7 @@ async function allowSystemNotifications(t) {
   await main.goto(`${BASE}/settings/features`);
   await unlockVault(main);
   await main
+    .getByTestId("features-panel")
     .getByRole("link", { name: "Local notifications", exact: true })
     .click();
   const allow = main.getByRole("button", {
@@ -150,9 +151,12 @@ async function arrivedFromTheDoorbell(t) {
   await accessCollection(background, "sessions", "local-sessions");
   await expect(background).toHaveURL(onView("sessions"));
   await bell(background, width).first().click();
-  // A phone has no strip: its bell is a row of the More sheet.
+  // Exercise the phone's More sheet road alongside its direct header bell.
   if (width < 900)
-    await background.getByRole("button", { name: /^Notifications/ }).click();
+    await background
+      .getByRole("dialog", { name: "More", exact: true })
+      .getByRole("button", { name: /^Notifications/ })
+      .click();
   await background.getByRole("button", { name: "Review requests" }).click();
   await expect(background).toHaveURL(onView("requests"));
   await expectFocusLanded(background, "the bell's key");

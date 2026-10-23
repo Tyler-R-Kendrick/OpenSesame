@@ -14,7 +14,12 @@
 // servers (verify:live-join).
 
 import { chromium, expect } from "@playwright/test";
-import { SHARE_PANEL, openLive, ownerEnters } from "./live-keyboard-owner.mjs";
+import {
+  SHARE_PANEL,
+  openLive,
+  ownerEnters,
+  sealJoiner,
+} from "./live-keyboard-owner.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
@@ -150,6 +155,10 @@ async function joinerAsks(page, { link, code, tabTo }) {
   await page.keyboard.insertText(code.toLowerCase());
   await tabTo(page, page.getByLabel("Your name"));
   await page.keyboard.insertText("Ada Lovelace");
+  await sealJoiner(page, tabTo);
+  const ask = page.getByRole("button", { name: "Ask to join", exact: true });
+  await expect(ask).toBeEnabled();
+  await tabTo(page, ask);
   await page.keyboard.press("Enter");
   const copy = page.getByRole("button", { name: "Copy your request code" });
   // A request code waits on this browser's ICE gathering.
@@ -199,10 +208,22 @@ async function joinerConnects(page, { reply, tabTo }) {
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(reply);
   await page.keyboard.press("Enter");
+  // Joining now enters this device's own vault; the shared catalog stays live.
+  await expect(page).toHaveURL(/\/vault$/, { timeout: 45_000 });
+  await expect(
+    page.getByRole("img", { name: "In a live session", exact: true }),
+  ).toBeVisible();
+  await focusIn(page, ".vault, .railtree", "after entering the joined vault");
+  const shared = page.getByRole("link", {
+    name: "Open shared items",
+    exact: true,
+  });
+  await tabTo(page, shared);
+  await page.keyboard.press("Enter");
   await expect(
     page.getByRole("img", { name: "Joined Team" }),
-    "the two browsers connected",
-  ).toBeVisible({ timeout: 45_000 });
+    "the shared catalog remains available after entering the own vault",
+  ).toBeVisible();
   await expect(
     page.locator("#live-status"),
     "Connect lands on the session's status",
