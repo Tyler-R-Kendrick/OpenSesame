@@ -63,6 +63,7 @@ Object.assign(certsSeams, {
 
 import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemEditor } from "./ItemEditor.js";
+import { shownPassword } from "./account-secrets.js";
 import {
   type AccountSeed,
   makeAccount as makeAccountBase,
@@ -428,26 +429,18 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-  it("saves a generated password with no site as the all-domains rule", async () => {
+  it("saves a generated password with no website addresses", async () => {
     renderEditor();
+    expect(screen.queryAllByLabelText(/^Address \d+$/)).toHaveLength(0);
+    const generated = inputByLabel(/^Password$/i).value;
+    expect(generated.length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect(savedItem()).toMatchObject({
       kind: "account",
-      uris: [{ uri: "*", match: "wildcard" }],
+      uris: [],
     });
-  });
-  it("starts with an all-domains wildcard and saves its removal", async () => {
-    renderEditor();
-    expect(inputByLabel("Address 1").value).toBe("*");
-    expect(
-      (screen.getByLabelText("Match rule 1") as HTMLSelectElement).value,
-    ).toBe("wildcard");
-    await userEvent.click(screen.getByLabelText("Remove address 1"));
-    expect(screen.queryByLabelText("Address 1")).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    expect(savedItem()).toMatchObject({ kind: "account", uris: [] });
+    expect(shownPassword(passwordOf(savedItem()))).toBe(generated);
   });
   it("reveals the password field and generates another", async () => {
     renderEditor();

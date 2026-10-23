@@ -207,27 +207,50 @@ describe("vault editor route types", () => {
     expect(screen.queryByLabelText("Notes")).toBeNull();
     expect(screen.getByRole("button", { name: "Add notes" })).toBeTruthy();
   });
-  it("places the default wildcard website before username and offers pattern modes", async () => {
-    open("/vault/new/login");
-    const address = screen.getByLabelText("Address 1");
-    expect((address as HTMLInputElement).value).toBe("*");
-    expect(
-      (screen.getByLabelText("Match rule 1") as HTMLSelectElement).value,
-    ).toBe("wildcard");
-    expect(
-      address.compareDocumentPosition(screen.getByLabelText("Username / ID")) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+  it("adds an explicit all-domains wildcard and saves its removal", async () => {
+    open("/vault/new/account");
+    expect(screen.queryAllByLabelText(/^Address \d+$/)).toHaveLength(0);
+    await userEvent.click(screen.getByLabelText("Add address"));
+    await userEvent.type(screen.getByLabelText("Address 1"), "*");
     await userEvent.selectOptions(
       screen.getByLabelText("Match rule 1"),
       "wildcard",
     );
+    expect(screen.getByLabelText<HTMLInputElement>("Address 1").value).toBe(
+      "*",
+    );
+    expect(screen.getByLabelText<HTMLSelectElement>("Match rule 1").value).toBe(
+      "wildcard",
+    );
+    await userEvent.click(screen.getByLabelText("Remove address 1"));
+    expect(screen.queryByLabelText("Address 1")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(saveItem.mock.calls[0][0]).toMatchObject({
+      kind: "account",
+      uris: [],
+    });
+  });
+  it("places an explicitly added website before username and offers pattern modes", async () => {
+    open("/vault/new/login");
+    expect(screen.queryByLabelText("Address 1")).toBeNull();
+    await userEvent.click(screen.getByLabelText("Add address"));
+    const address = screen.getByLabelText<HTMLInputElement>("Address 1");
+    const rule = screen.getByLabelText("Match rule 1");
+    await userEvent.type(address, "*");
+    await userEvent.selectOptions(rule, "wildcard");
+    expect(address.value).toBe("*");
+    expect(screen.getByLabelText<HTMLSelectElement>("Match rule 1").value).toBe(
+      "wildcard",
+    );
+    expect(
+      address.compareDocumentPosition(screen.getByLabelText("Username / ID")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await userEvent.selectOptions(rule, "wildcard");
     expect(screen.getByPlaceholderText("*.example.com")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Test match" })).toBeTruthy();
-    await userEvent.selectOptions(
-      screen.getByLabelText("Match rule 1"),
-      "regex",
-    );
+    await userEvent.selectOptions(rule, "regex");
     expect(screen.getByLabelText("Test website")).toBeTruthy();
     await userEvent.type(screen.getByLabelText("Name"), "Example");
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
