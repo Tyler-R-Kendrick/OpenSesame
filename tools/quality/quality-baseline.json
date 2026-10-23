@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 416,
-    "violations": 645,
+    "files": 415,
+    "violations": 644,
     "oversizedLines": 209089
   },
   "files": {
@@ -84,9 +84,6 @@
     },
     "apps/pages/src/lib/keymap.coverage.test.ts": {
       "max-lines": 623
-    },
-    "apps/pages/src/modules/sharing.live/LiveHostForm.tsx": {
-      "max-lines-per-function": 1
     },
     "apps/pages/src/modules/sharing.live/live-join-route-parts.tsx": {
       "complexity": 1,
