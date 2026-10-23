@@ -232,6 +232,13 @@
       "when": 1792718527310,
       "tag": "0032_square_omega_red",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792759463925,
+      "tag": "0033_cold_genesis",
+      "breakpoints": true
     }
   ]
 }

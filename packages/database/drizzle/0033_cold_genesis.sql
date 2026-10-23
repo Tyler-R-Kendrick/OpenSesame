@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "better_auth_users_email_uidx" ON "better_auth_users" USING btree ("email");
