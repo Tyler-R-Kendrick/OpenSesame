@@ -3384,7 +3384,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 name = "opensesame-a2h"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "hmac 0.12.1",
  "opensesame-agent-events",
@@ -3429,7 +3429,7 @@ dependencies = [
 name = "opensesame-audit"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "ed25519-dalek",
  "opensesame-domain",
@@ -3458,7 +3458,7 @@ dependencies = [
 name = "opensesame-authn"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "opensesame-domain",
  "rand 0.8.7",
@@ -3493,7 +3493,7 @@ dependencies = [
  "argon2",
  "aws-lc-rs",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "data-encoding",
  "futures",
@@ -3587,7 +3587,7 @@ name = "opensesame-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "chacha20poly1305",
  "chrono",
@@ -3659,7 +3659,7 @@ dependencies = [
 name = "opensesame-cli-app-integration"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "ecdsa",
  "hex",
  "hkdf",
@@ -3680,7 +3680,7 @@ name = "opensesame-client-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "chacha20poly1305",
  "getrandom 0.2.17",
@@ -3721,7 +3721,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "chacha20poly1305",
  "chrono",
@@ -3773,7 +3773,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "chrono",
  "http",
@@ -3834,7 +3834,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "clap",
  "dbus",
@@ -3924,7 +3924,7 @@ dependencies = [
 name = "opensesame-event-seal"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chacha20poly1305",
  "hkdf",
  "sha2 0.10.9",
@@ -3938,7 +3938,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "bytes",
  "chrono",
@@ -4052,7 +4052,7 @@ dependencies = [
  "aes-gcm 0.10.3",
  "anyhow",
  "argon2",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "chacha20poly1305",
  "chrono",
@@ -4082,7 +4082,7 @@ name = "opensesame-ingress-evidence"
 version = "0.1.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "hex",
  "http",
@@ -4113,7 +4113,7 @@ name = "opensesame-invoke-through"
 version = "0.1.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "chrono",
  "http",
@@ -4187,7 +4187,7 @@ dependencies = [
  "async-nats",
  "async-trait",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "futures",
  "hex",
@@ -4217,7 +4217,7 @@ name = "opensesame-pki-core"
 version = "0.1.0"
 dependencies = [
  "aws-lc-rs",
- "base64 0.22.1",
+ "base64 0.23.1",
  "der 0.7.10",
  "ed25519-dalek",
  "hex",
@@ -4245,7 +4245,7 @@ dependencies = [
 name = "opensesame-plugin-settings"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "directories",
  "hex",
  "rand_core 0.6.4",
@@ -4262,7 +4262,7 @@ name = "opensesame-pm-bridges"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "crypto_box",
  "directories",
  "insta",
@@ -4281,7 +4281,7 @@ dependencies = [
 name = "opensesame-proof"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "ed25519-dalek",
  "jsonwebtoken",
@@ -4323,7 +4323,7 @@ version = "0.1.0"
 dependencies = [
  "aes 0.8.4",
  "argon2",
- "base64 0.22.1",
+ "base64 0.23.1",
  "cbc 0.1.2",
  "hkdf",
  "hmac 0.12.1",
@@ -4392,7 +4392,7 @@ name = "opensesame-quorum-recovery"
 version = "0.1.0"
 dependencies = [
  "aes-gcm 0.10.3",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chacha20poly1305",
  "ed25519-dalek",
  "hex",
@@ -4442,7 +4442,7 @@ version = "0.1.0"
 dependencies = [
  "agent-hooks-sdk",
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "ed25519-dalek",
  "futures",
@@ -4476,7 +4476,7 @@ dependencies = [
 name = "opensesame-sealed-log"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chacha20poly1305",
  "hex",
  "hkdf",
@@ -4496,7 +4496,7 @@ version = "0.1.0"
 dependencies = [
  "age",
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "directories",
  "hkdf",
@@ -4542,7 +4542,7 @@ dependencies = [
 name = "opensesame-spiffe-source"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "futures",
  "hex",
@@ -4604,7 +4604,7 @@ dependencies = [
 name = "opensesame-surrogate-proxy"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "chrono",
  "http",
@@ -4639,7 +4639,7 @@ name = "opensesame-tailnet-admin"
 version = "0.1.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "chacha20poly1305",
  "directories",
@@ -4691,7 +4691,7 @@ dependencies = [
  "anyhow",
  "async-nats",
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "futures",
  "nkeys",
