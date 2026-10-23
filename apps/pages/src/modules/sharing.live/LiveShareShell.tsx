@@ -42,4 +42,3 @@ export function LiveShareShell({ children }: { children?: ReactNode }) {
     </VaultShareProvider>
   );
 }
-

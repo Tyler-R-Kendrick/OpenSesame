@@ -1,4 +1,3 @@
-import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 /**
  * The connections a person sees in Add a connection, and the tags that
  * replace the old category subheaders. The allowlist is deliberately small:
@@ -6,6 +5,7 @@ import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
  * Settings › Integrations, but the browse page only offers the curated set.
  */
 import { byoProvidersFirst } from "@opensesame/app-core/lib/catalog-provider.js";
+import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
@@ -237,31 +237,31 @@ export function curatedCatalogProviders(
     : providers;
   return byoProvidersFirst(
     source
-    .filter(
-      (provider) =>
-        isConnectionCatalogProvider(provider) ||
-        (options.includeFamilies === true && isFamilyCanonical(provider.id)),
-    )
-    .filter(
-      (provider) =>
-        provider.category !== "ai_model_provider" || AI.has(provider.id),
-    )
-    .filter(
-      (provider) =>
-        ALLOWED.has(provider.id) &&
-        !RETIRED_FROM_BROWSE.has(provider.id) &&
-        (!options.includeFamilies ||
-          isFamilyCanonical(provider.id) ||
-          apiFamilyFor(provider.id) === undefined),
-    )
-    .map((provider) => {
-      const family = options.includeFamilies
-        ? apiFamilyFor(provider.id)
-        : undefined;
-      return family && family.id === provider.id
-        ? { ...provider, displayName: family.name }
-        : provider;
-    })
+      .filter(
+        (provider) =>
+          isConnectionCatalogProvider(provider) ||
+          (options.includeFamilies === true && isFamilyCanonical(provider.id)),
+      )
+      .filter(
+        (provider) =>
+          provider.category !== "ai_model_provider" || AI.has(provider.id),
+      )
+      .filter(
+        (provider) =>
+          ALLOWED.has(provider.id) &&
+          !RETIRED_FROM_BROWSE.has(provider.id) &&
+          (!options.includeFamilies ||
+            isFamilyCanonical(provider.id) ||
+            apiFamilyFor(provider.id) === undefined),
+      )
+      .map((provider) => {
+        const family = options.includeFamilies
+          ? apiFamilyFor(provider.id)
+          : undefined;
+        return family && family.id === provider.id
+          ? { ...provider, displayName: family.name }
+          : provider;
+      })
       .sort((left, right) =>
         left.displayName.localeCompare(right.displayName, "en", {
           sensitivity: "base",
