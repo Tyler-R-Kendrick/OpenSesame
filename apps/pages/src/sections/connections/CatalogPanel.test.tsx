@@ -1,7 +1,7 @@
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, expect, it } from "vitest";
 import { CatalogPanel } from "./CatalogPanel.js";
@@ -49,23 +49,12 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });
 
-it("opens the auth-method builder from the + button", () => {
+it("links the + button to the custom connector form", () => {
   render(
     <MemoryRouter>
       <CatalogPanel providers={mergeVercelCatalog(getBundledProviders())} />
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Add a connection" }));
-  expect(
-    screen.getByRole("group", { name: "Authentication method" }),
-  ).toBeTruthy();
-  for (const name of ["OAuth", "API key", "MCP"])
-    expect(
-      screen.getByRole("button", { name: new RegExp(`^${name}`) }),
-    ).toBeTruthy();
-  expect(
-    screen.getByRole("link", { name: /Custom \/ self-hosted/ }),
-  ).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: /^API key/ }));
-  expect(screen.getByText("Showing API key connectors")).toBeTruthy();
+  const add = screen.getByRole("link", { name: "Add a custom connection" });
+  expect(add.getAttribute("href")).toBe("/connections/byo-ai");
 });

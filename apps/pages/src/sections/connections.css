@@ -939,3 +939,8 @@ button.conn-tile__link {
   color: var(--accent);
   text-decoration: underline;
 }
+
+.conn-settings__family {
+  max-width: 22rem;
+  margin-bottom: 1rem;
+}
