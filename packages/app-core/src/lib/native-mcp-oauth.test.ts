@@ -141,6 +141,33 @@ describe("public browser MCP authorization", () => {
     }
   });
 
+  it("refuses a DCR receipt whose combined sealed fields exceed the slot", async () => {
+    const filler = "x".repeat(15_000);
+    const { oauth } = fixture(target, {
+      registered: {
+        client_id: filler,
+        registration_client_uri: `https://express-mcp-service.adobe.io/register/${filler}`,
+        registration_access_token: filler,
+        redirect_uris: [target.redirectUri],
+        token_endpoint_auth_method: "none",
+      },
+    });
+    const retained = vi.fn(async () => undefined);
+    await expect(oauth.register(retained)).rejects.toMatchObject({
+      code: "metadata",
+    });
+    expect(retained).not.toHaveBeenCalled();
+  });
+
+  it("turns a failed durable retention into a removable metadata refusal", async () => {
+    const { oauth } = fixture();
+    await expect(
+      oauth.register(async () => {
+        throw new Error("sealed slot rejected the record");
+      }),
+    ).rejects.toMatchObject({ code: "metadata" });
+  });
+
   it("retains an unexpected confidential DCR result for cleanup before refusing it", async () => {
     const { oauth } = fixture(target, {
       registered: {

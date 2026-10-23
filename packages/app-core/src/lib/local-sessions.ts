@@ -54,10 +54,16 @@ let presentations = new WeakMap<
   { tomb: string; token: string }
 >();
 const activeSessions = new Map<string, LocalSession>();
+/** The principal this tab most recently authenticated, per tomb. */
+const currentActors = new Map<string, string>();
+/** Tombs where a person or agent authenticated in this tab since unlock. */
+const presented = new Set<string>();
 /** Drop every local identity session; run on lock and on module dispose. */
 export function resetLocalSessions(): void {
   presentations = new WeakMap();
   activeSessions.clear();
+  currentActors.clear();
+  presented.clear();
   notifyLocalIamChange();
 }
 
@@ -260,6 +266,8 @@ async function createSession(
     const handle = publicSession(record);
     presentations.set(handle, { tomb, token });
     activeSessions.set(`${tomb}:${evidence.principalId}`, handle);
+    currentActors.set(tomb, evidence.principalId);
+    presented.add(tomb);
     notifyLocalIamChange();
     return handle;
   });
@@ -362,13 +370,34 @@ export async function revokeLocalIdentitySession(
       sessions.filter((row) => row.id !== id),
     );
     for (const [key, session] of activeSessions) {
-      if (session.id === id) activeSessions.delete(key);
+      if (session.id === id) {
+        activeSessions.delete(key);
+        const principalId = key.slice(`${tomb}:`.length);
+        if (currentActors.get(tomb) === principalId) currentActors.delete(tomb);
+      }
     }
     notifyLocalIamChange();
     return sessions.find((row) => row.id === id);
   });
   // Ending a session is a decision, whoever took it: a receipt after the lock.
   if (ended) await recordReceipt(tomb, "session.ended", sessionRef(ended));
+}
+
+/** The actor this tab most recently authenticated, after liveness checks. */
+export async function currentLocalIdentityActor(
+  tomb: string,
+): Promise<LocalSession | null> {
+  const principalId = currentActors.get(tomb);
+  if (!principalId) return null;
+  const session = await currentLocalIdentitySession(tomb, principalId);
+  if (!session && currentActors.get(tomb) === principalId)
+    currentActors.delete(tomb);
+  return session;
+}
+
+/** Whether this tab has presented any local identity since the vault unlocked. */
+export function hasPresentedLocalIdentity(tomb: string): boolean {
+  return presented.has(tomb);
 }
 
 /** Reopening a panel recovers the same tab-owned presentation, never a copied DTO. */

@@ -16,10 +16,12 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
-import { recordAccessAuditEvent } from "./local-access-audit.js";
+import { withLocalAccessLedgerLock } from "./local-access-ledger-lock.js";
 import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
 import { ALL_USERS_GROUP } from "./local-groups.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
+import { recordConnectionShareEvent } from "./local-share-audit.js";
+import { sameShare } from "./local-share-match.js";
 import {
   type ShareWriteAuthority,
   requireManageGrants,
@@ -270,13 +272,18 @@ async function refuseUnapprovedPrincipal(
   if (entry?.kind === "agent" || entry?.kind === "application")
     throw new LocalDirectoryError("Approve the grant before it takes effect.");
 }
+export function createLocalShareAs<T>(
+  named: Named<T, string>,
+  input: CreateLocalShareInput,
+  authority: ShareWriteAuthority<T>,
+  options?: ShareWriteOptions,
+): Promise<LocalShare[]> {
+  return withLocalAccessLedgerLock(named.value, "share", PATH, MAX_BYTES, () =>
+    createLocalShareAsUnlocked(named, input, authority, options),
+  );
+}
 
-/**
- * Write a share under an authority for this tomb: `ManageGrants` (a person's
- * write, trailed when it grants a connector) or `SystemShareWrite` (system
- * code, never trailed).
- */
-export async function createLocalShareAs<T>(
+async function createLocalShareAsUnlocked<T>(
   named: Named<T, string>,
   input: CreateLocalShareInput,
   authority: ShareWriteAuthority<T>,
@@ -296,10 +303,13 @@ export async function createLocalShareAs<T>(
     expiresAt: issuedAt + input.durationSeconds * 1000,
   };
   if (input.sessionId) share.sessionId = input.sessionId;
-  const next = [
-    ...(await readAll(tomb)).filter((row) => row.expiresAt > issuedAt),
-    share,
-  ];
+  const current = (await readAll(tomb)).filter(
+    (row) => row.expiresAt > issuedAt,
+  );
+  // The lock serializes writers; this makes a second create a no-op.
+  const duplicate = current.find((row) => sameShare(row, share));
+  if (duplicate) return current;
+  const next = [...current, share];
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
   await writeAll(tomb, next);
@@ -323,32 +333,17 @@ export async function createLocalShareAs<T>(
   return next.filter((row) => row.expiresAt > Date.now());
 }
 
-/** The sealed Access trail entry for a connector share granted or revoked. */
-async function recordConnectionShareEvent(
-  tomb: string,
-  eventType: "access.connection.granted" | "access.connection.revoked",
-  share: LocalShare,
-): Promise<void> {
-  await recordAccessAuditEvent(tomb, {
-    eventType,
-    outcome: "succeeded",
-    targetType: "connection",
-    targetId: share.resourceId,
-    metadata: {
-      providerId: share.resourceId,
-      resourceType: "connection",
-      resourceId: share.resourceId,
-      // Whose grant, under which policy — a standing grant a person took
-      // away is not re-issued for that principal and policy.
-      subject: share.principalId,
-      policy: share.policy,
-      action: eventType === "access.connection.granted" ? "grant" : "revoke",
-      kind: "share",
-    },
-  });
+export function revokeSharesForSession<T>(
+  named: Named<T, string>,
+  sessionId: string,
+  authority: ShareWriteAuthority<T>,
+): Promise<LocalShare[]> {
+  return withLocalAccessLedgerLock(named.value, "share", PATH, MAX_BYTES, () =>
+    revokeSharesForSessionUnlocked(named, sessionId, authority),
+  );
 }
 
-export async function revokeSharesForSession<T>(
+async function revokeSharesForSessionUnlocked<T>(
   named: Named<T, string>,
   sessionId: string,
   _authority: ShareWriteAuthority<T>,
@@ -370,7 +365,16 @@ export async function revokeSharesForSession<T>(
  * revoke with the share still in place, for the person to retry; the other
  * order could drop the share with nothing to keep it from being re-issued.
  */
-export async function revokeLocalShare(
+export function revokeLocalShare(
+  tomb: string,
+  id: string,
+): Promise<LocalShare[]> {
+  return withLocalAccessLedgerLock(tomb, "share", PATH, MAX_BYTES, () =>
+    revokeLocalShareUnlocked(tomb, id),
+  );
+}
+
+async function revokeLocalShareUnlocked(
   tomb: string,
   id: string,
 ): Promise<LocalShare[]> {

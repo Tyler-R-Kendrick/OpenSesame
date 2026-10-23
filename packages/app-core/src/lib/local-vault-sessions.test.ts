@@ -9,6 +9,7 @@ import { mintGuestSessionPerson } from "./local-guest.js";
 import { listLocalShares } from "./local-share-grants.js";
 import {
   createVaultSession,
+  listVaultSessions,
   redeemVaultSessionCode,
   restartVaultSession,
   startVaultSession,
@@ -22,15 +23,19 @@ let tomb: string;
 beforeEach(async () => {
   tomb = `vault-session-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
+  const queues = new Map<string, Promise<void>>();
   vi.stubGlobal("navigator", {
     userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/140.0.0.0",
     locks: {
-      request: <T>(_name: string, run: () => Promise<T>) => {
-        const result = queue.then(run);
-        queue = result.then(
-          () => undefined,
-          () => undefined,
+      // Per-name queues, as Web Locks holds distinct names concurrently.
+      request: <T>(name: string, run: () => Promise<T>) => {
+        const result = (queues.get(name) ?? Promise.resolve()).then(run);
+        queues.set(
+          name,
+          result.then(
+            () => undefined,
+            () => undefined,
+          ),
         );
         return result;
       },
@@ -150,6 +155,86 @@ describe("local vault sessions", () => {
         (share) => share.sessionId === session.id,
       ),
     ).toBe(true);
+  });
+
+  it("serializes two concurrent session creates", async () => {
+    const input = (label: string) => ({
+      label,
+      durationSeconds: 3600,
+      grants: [
+        {
+          subject: { kind: "accessRole" as const, role: "guest" as const },
+          resourceKind: "vault" as const,
+          resourceId: tomb,
+          resourceLabel: "this vault",
+          policy: "open",
+        },
+      ],
+    });
+    await Promise.all([
+      createVaultSession(tomb, input("First")),
+      createVaultSession(tomb, input("Second")),
+    ]);
+    expect((await listVaultSessions(tomb)).map((row) => row.label)).toEqual([
+      "First",
+      "Second",
+    ]);
+  });
+
+  it("rejects an over-long grant before it can corrupt the ledger", async () => {
+    await expect(
+      createVaultSession(tomb, {
+        label: "Too long",
+        durationSeconds: 3600,
+        grants: [
+          {
+            subject: { kind: "accessRole", role: "guest" },
+            resourceKind: "vault",
+            resourceId: tomb,
+            resourceLabel: "x".repeat(129),
+            policy: "open",
+          },
+        ],
+      }),
+    ).rejects.toThrow(/valid grant/u);
+    expect(await listVaultSessions(tomb)).toEqual([]);
+  });
+
+  it("rejects sessions bound to another tomb or reusing an id or code", async () => {
+    const guest = mintGuestSessionPerson();
+    const directory = await ensureOwnerPerson(tomb, "Ada");
+    await changeLocalDirectory(tomb, directory.revision, {
+      action: "create",
+      kind: "person",
+      name: guest.name,
+      id: guest.id,
+    });
+    const session = await createVaultSession(tomb, {
+      label: "Pairing",
+      durationSeconds: 3600,
+      grants: [
+        {
+          subject: { kind: "accessRole", role: "guest" },
+          resourceKind: "vault",
+          resourceId: tomb,
+          resourceLabel: "this vault",
+          policy: "open",
+        },
+      ],
+    });
+    const { writeFile } = await import("./vfs.js");
+    const write = (rows: unknown[]) =>
+      writeFile(
+        tomb,
+        "config/vault-sessions",
+        new TextEncoder().encode(
+          JSON.stringify({ version: 1, sessions: rows }),
+        ),
+      );
+    await write([{ ...session, boundTomb: "another-vault" }]);
+    await expect(listVaultSessions(tomb)).rejects.toThrow(/invalid/i);
+    await write([session, { ...session }]);
+    await expect(listVaultSessions(tomb)).rejects.toThrow(/invalid/i);
   });
 
   it("redeems a running session code for a principal mid-run", async () => {

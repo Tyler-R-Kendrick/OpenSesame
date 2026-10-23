@@ -21,6 +21,7 @@
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import { storeAuthOutcome } from "./auth-outcome.js";
 import { forgetClaim } from "./claims/arrival.js";
+import { clearPendingSignIn } from "./federation-pending.js";
 import { clearSession as clearFederationSession } from "./federation.js";
 import { forgetPendingLink } from "./guest-auth.js";
 import { endSession } from "./identity.js";
@@ -45,6 +46,7 @@ function signOutDefault(intent: SignOutIntent = "leave"): void {
   ambientAuthSeams.fenceLocalSignOut();
   ambientAuthSeams.cancelAllTransactions();
   clearFederationSession();
+  clearPendingSignIn();
   forgetPendingLink();
   // A join half-done under this account is not the next person's to finish.
   clearPendingJoin();

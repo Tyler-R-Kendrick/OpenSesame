@@ -193,6 +193,9 @@ describe("siop-authority", () => {
 
   it("approves a hosted identity provider social proof without a passkey", async () => {
     const request = parsePagesSiopRequest(siopSearch());
+    // The social leg is additional evidence for the person this tab has
+    // already authenticated; it never selects a different local person.
+    await signInLocalIdentity(tomb, person);
     const proof = {
       source: "identity" as const,
       providerId: "github",
@@ -222,6 +225,7 @@ describe("siop-authority", () => {
 
   it("approves an active configured connection social proof", async () => {
     const request = parsePagesSiopRequest(siopSearch());
+    await signInLocalIdentity(tomb, person);
     const proof = {
       source: "connection" as const,
       providerId: "github",
@@ -247,6 +251,7 @@ describe("siop-authority", () => {
 
   it("refuses a social proof for another person or an expired upstream", async () => {
     const request = parsePagesSiopRequest(siopSearch());
+    await signInLocalIdentity(tomb, person);
     const proof = {
       source: "identity" as const,
       providerId: "github",
@@ -273,6 +278,48 @@ describe("siop-authority", () => {
         socialSession: () => ({
           upstreamId: "broker:github",
           expiresAt: fixedNow * 1000 - 1,
+        }),
+      }),
+    ).rejects.toThrow(/unavailable/i);
+  });
+
+  it("refuses social proof when the selected person has no live local session", async () => {
+    const request = parsePagesSiopRequest(siopSearch());
+    const proof = {
+      source: "identity" as const,
+      providerId: "github",
+      label: "GitHub",
+      personId: person,
+      at: fixedNow * 1000,
+      upstreamId: "broker:github",
+    };
+    await expect(
+      approveSiopAuthorizationWithSocial(tomb, proof, request, {
+        socialSession: () => ({
+          upstreamId: "broker:github",
+          expiresAt: fixedNow * 1000 + 60_000,
+        }),
+      }),
+    ).rejects.toThrow(/unavailable/i);
+  });
+
+  it("refuses social proof for a person other than the tab's actor", async () => {
+    const request = parsePagesSiopRequest(siopSearch());
+    const other = await create("person", "Other");
+    const proof = {
+      source: "connection" as const,
+      providerId: "github",
+      label: "GitHub · owner",
+      personId: other,
+      at: fixedNow * 1000,
+      connectionId: "conn_github",
+    };
+    await signInLocalIdentity(tomb, person);
+    await expect(
+      approveSiopAuthorizationWithSocial(tomb, proof, request, {
+        socialConnection: async () => ({
+          providerId: "github",
+          status: "active",
         }),
       }),
     ).rejects.toThrow(/unavailable/i);

@@ -2,7 +2,10 @@ import type { NativeRecovery } from "./native-connector-schema.js";
 /** Only an attempted DCR mutation creates uncertainty; metadata reads cannot create clients. */
 import { updateNativeConnector } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
-import type { NativeMcpOAuthTarget } from "./native-mcp-oauth-target.js";
+import {
+  NativeMcpAuthError,
+  type NativeMcpOAuthTarget,
+} from "./native-mcp-oauth-target.js";
 import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
 import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
 import { requireNativeMcpRecord } from "./native-mcp-records.js";
@@ -52,7 +55,11 @@ export async function admitNativeMcpRegistration(
       ),
     );
   } catch (error) {
-    if (!submitted) {
+    const fatalReceipt =
+      submitted &&
+      error instanceof NativeMcpAuthError &&
+      error.code === "metadata";
+    if (!submitted || fatalReceipt) {
       const current = requireNativeMcpRecord(id);
       await updateNativeConnector(
         id,

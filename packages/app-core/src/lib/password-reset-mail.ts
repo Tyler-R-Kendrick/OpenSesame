@@ -171,6 +171,7 @@ export function matchResetMail(
     for (const item of items) {
       if (item.resetEmailId !== emailId) continue;
       const origin = originFor(link, item.uris);
+      if (origin === null) continue;
       const key = `${item.id}\n${origin}\n${message.id ?? ""}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -195,12 +196,13 @@ function resetUrl(message: ResetMailMessage): URL | null {
   return null;
 }
 
-function originFor(link: URL, uris: readonly string[]): string {
+function originFor(link: URL, uris: readonly string[]): string | null {
   for (const uri of uris) {
     const parsed = httpsUrl(uri.includes("://") ? uri : `https://${uri}`);
     if (parsed?.hostname === link.hostname) return parsed.origin;
   }
-  return link.origin;
+  // An email chooses the message, never the site a credential is rotated at.
+  return null;
 }
 
 function httpsUrl(raw: string): URL | null {

@@ -107,11 +107,10 @@ async function proveSettingsRevocation(
       transport,
     );
   } catch (error) {
-    if (
-      error instanceof NativeApiError &&
-      error.code === "authorization" &&
-      !grant.refreshToken
-    )
+    // The refresh token was already proven dead by invalid_grant above; a
+    // 401 from the access-token endpoint proves the pair is revoked whatever
+    // refresh token the obligation still carries.
+    if (error instanceof NativeApiError && error.code === "authorization")
       return "provider-revoked";
     throw new NativeOAuthError("cleanup");
   }

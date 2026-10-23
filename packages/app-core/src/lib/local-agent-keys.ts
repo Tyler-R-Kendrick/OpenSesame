@@ -13,6 +13,7 @@ import {
   withLocalDirectoryLock,
 } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
+import { assertAccessCapability } from "./local-rbac.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
 const PATH = "config/identity-agent-keys";
@@ -124,6 +125,7 @@ export async function registerLocalAgentKey(
   const publicKeyB64 = bytesToB64url(
     new TextEncoder().encode(JSON.stringify(material.publicKey)),
   );
+  await assertAccessCapability(tomb, "manage_identity");
   await withLocalDirectoryLock(tomb, async () => {
     await requireLocalAgent(tomb, principalId);
     const keys = await readLocalAgentKeys(tomb);
@@ -149,6 +151,7 @@ export async function revokeLocalAgentKey(
   principalId: string,
   credentialId: string,
 ): Promise<void> {
+  await assertAccessCapability(tomb, "manage_identity");
   await withLocalDirectoryLock(tomb, async () => {
     const keys = await readLocalAgentKeys(tomb);
     if (
