@@ -148,7 +148,7 @@ describe("making a circle by keyboard", () => {
       "10",
     );
     expect(
-      fieldValue(screen.getByLabelText("Hours before a share is released")),
+      fieldValue(screen.getByLabelText("Hours before it takes effect")),
     ).toBe("24");
     expect(fieldValue(screen.getByLabelText("Days a request lasts"))).toBe("7");
     expect(
