@@ -52,8 +52,17 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
   },
   { id: "/settings", title: "Settings — this deployment's preferences" },
   {
+    id: "/settings/features/local-notifications",
+    title: "Settings — Local notifications",
+  },
+  {
     id: "/settings/features/networking",
     title: "Settings — Networking",
+  },
+  // The core feature page is viewable before its optional controls activate.
+  {
+    id: "/settings/features/ai/support.local-ai",
+    title: "Settings — AI — On-device model",
   },
 ];
 

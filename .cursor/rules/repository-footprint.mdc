@@ -1,0 +1,14 @@
+---
+description: Keep source checkouts small; prevent generated histories and duplicated harness installs
+alwaysApply: true
+---
+
+Read `docs/contributing/repository-footprint.md`. Persist maintained source,
+required fixtures, approved current evidence and concise findings. Scanner runs,
+review transcripts, assignments and intermediate outputs stay in ignored `work/`
+or private temporary storage; summarize on the PR. Do not append per-run history.
+Install third-party skills once under `.agents/skills/`, then run
+`node scripts/dev/sync-agent-skills.mjs`; preserve harness-specific variants.
+Reuse dependency/build/browser caches. No automatic migration or baseline
+creation on session startup. Clean only this task's scratch when finished.
+Run `node scripts/quality/repository-size-gate.mjs` before staging.

@@ -1,17 +1,29 @@
 # .claude
 
-`hooks/session-start.sh` runs on Claude Code `SessionStart` and, when it
-proceeds, runs `pnpm install` and generates the drizzle database schema
-(`db:generate`) so the workspace is ready to use immediately.
+`hooks/session-start.sh` is inert unless `OPENSESAME_AGENT_BOOTSTRAP=1` explicitly
+requests dependency bootstrap. Remote-session flags alone do not authorize an
+installation. The hook refuses production-shaped credentials as before.
 
-It only does anything when explicitly opted in
-(`OPENSESAME_AGENT_BOOTSTRAP=1`) or when the environment shows real evidence
-of an ephemeral remote Claude Code session (`CLAUDE_CODE_REMOTE` /
-`CLAUDECODE` set). In any other shell it is a silent no-op.
+An opted-in session runs `scripts/dev/install-dependencies.sh`. The shared helper
+uses `pnpm install --frozen-lockfile` only when its tracked package manifests,
+patches, lockfile or workspace configuration differ from the last successful
+installation, or when pnpm's module manifest is absent. Its small fingerprint
+lives in ignored `node_modules/.cache/`; dependency stores remain shared. Cursor's
+explicit environment setup uses the same helper.
 
-**Why so cautious:** a repo-controlled `SessionStart` hook executes before a
-human has necessarily reviewed the checkout, so by default it must be inert.
-It also refuses outright — even when opted in — if `OPENSESAME_ENV=production`
-or production-shaped secrets (`OPENSESAME_CLAIM_PEPPER`,
-`OPENSESAME_AUTH_SECRET`) are present in the environment. It never runs
-database migrations automatically.
+Session startup never generates database schemas, migration snapshots, reports,
+baselines or other tracked files. Run `pnpm db:generate` deliberately after a
+schema change and review the generated migration. Database migrations never run
+automatically. Clear the ignored install fingerprint to request a repair install.
+Do not delete shared stores or download a second browser/toolchain cache to make
+an agent session fresh.
+
+Native dependency selection is declared in `package.json` using pnpm's
+`supportedArchitectures` with `os`, `cpu` and `libc` set to `current`. pnpm 9
+needs full registry metadata to include libc constraints in the lockfile.
+Refresh that metadata during an intentional dependency update; an old lockfile
+without libc fields can still install both variants. Do not manually remove
+installed native packages or count potential savings as already reclaimed.
+
+Devcontainer setup installs dependencies without an eager Rust build. Rust
+commands use the shared `CARGO_TARGET_DIR` cache when a task actually needs them.

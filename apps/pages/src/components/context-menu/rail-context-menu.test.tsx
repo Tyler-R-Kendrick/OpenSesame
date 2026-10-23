@@ -1,5 +1,7 @@
 /** @vitest-environment jsdom */
+import { runtimeFixture } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -290,18 +292,26 @@ describe("the vault row's Share › Live session entry", () => {
     expect(screen.getByTestId("where").textContent).toBe("/vault");
   });
 
-  it("offers no Live session while Live sessions is off", () => {
-    renderShell("/vault", <ContextMenuLayer />);
-    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
-    // Access is still on, so Share is drawn — without the session way.
-    fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
-    expect(
-      screen.getByRole("menuitem", { name: "Temporary drop" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("menuitem", { name: "Specific people or agents" }),
-    ).toBeTruthy();
-    expect(screen.queryByRole("menuitem", { name: "Live session" })).toBeNull();
+  it("offers no Live session while Live sessions is off", async () => {
+    const disk = await runtimeFixture();
+    try {
+      expect(vaultStore.getSnapshot().status).toBe("unlocked");
+      renderShell("/vault", <ContextMenuLayer />);
+      fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
+      // Access is still on, so Share is drawn — without the session way.
+      fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
+      expect(
+        screen.getByRole("menuitem", { name: "Temporary drop" }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("menuitem", { name: "Specific people or agents" }),
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole("menuitem", { name: "Live session" }),
+      ).toBeNull();
+    } finally {
+      await disk.close();
+    }
   });
 });
 

@@ -27,6 +27,7 @@ export function VaultRail({
   kinds,
   showHidden = false,
   allTo = "/vault",
+  sharedItems,
 }: {
   items: VaultItem[];
   folders: Folder[];
@@ -41,8 +42,18 @@ export function VaultRail({
    * phone's bare `/vault` is the tree, so its entry asks for the list.
    */
   allTo?: string;
+  /** Incoming item shares, so the rail can name the received view. */
+  sharedItems?: ReadonlyMap<string, { incoming: readonly unknown[] }>;
 }) {
   const filtersRef = useGuideTarget<HTMLDivElement>("vault.filter");
+  const live = items.filter((item) => item.deletedAt === null);
+  const sharedCount = live.filter(
+    (item) => (sharedItems?.get(item.id)?.incoming.length ?? 0) > 0,
+  ).length;
+  const showReceived =
+    sharedCount > 0 ||
+    selectedTo === "/vault?f=shared" ||
+    selectedTo === "/vault?f=owned";
   const nested = new Set(
     kinds.flatMap(({ id }) =>
       foldersForKind(id, items, folders).map((folder) => folder.id),
@@ -63,6 +74,24 @@ export function VaultRail({
         level={2}
         current={selectedTo}
       />
+      {showReceived ? (
+        <>
+          <PageTreeLeafRow
+            node={vaultLeaf("shared", "/vault?f=shared", sharedCount)}
+            level={2}
+            current={selectedTo}
+          />
+          <PageTreeLeafRow
+            node={vaultLeaf(
+              "owned",
+              "/vault?f=owned",
+              live.length - sharedCount,
+            )}
+            level={2}
+            current={selectedTo}
+          />
+        </>
+      ) : null}
       {kinds.map(({ id, segment }) => (
         <KindFilter
           key={id}

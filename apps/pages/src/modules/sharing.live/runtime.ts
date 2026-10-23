@@ -24,8 +24,8 @@
  * who agree to the hosts the link lists: the STUN and TURN servers named,
  * and the carriers named (`carriers/`: a Nostr relay, an MQTT broker or NATS
  * server over wss, an ntfy server over https, or BroadcastChannel). A session
- * that names no carrier uses ntfy.sh for the sealed pairing codes by default;
- * the owner can replace it in Routes. Each client is loaded only then
+ * that names no carrier uses manual pairing codes and opens no carrier.
+ * Each client is loaded only when its owner names it in Routes
  * and only if the installation allows it: ntfy fetches through this module's
  * `EgressPort`, and the socket carriers are held to the same plan and
  * allowlist (`carriers/allowed.ts`). A session ends if the plan stops

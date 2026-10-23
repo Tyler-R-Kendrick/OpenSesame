@@ -6,14 +6,15 @@
 import { describe, expect, it } from "vitest";
 import { liveValue, readLiveValue } from "./link.js";
 import {
-  DEFAULT_LIVE_CARRIER,
   LiveRoutesRefused,
   MAX_ROUTES_SEGMENT,
+  NO_ROUTES,
   isIceUrl,
   readRoutes,
   routesSegment,
 } from "./routes.js";
 import {
+  DIRECT_TRANSPORT,
   type LiveTransport,
   carriesCredentials,
   readTransport,
@@ -46,12 +47,43 @@ const CHROMIUM: readonly (readonly [string, boolean])[] = [
   ["stun:1.2.3.4:1", true],
 ];
 
-describe("the default pairing carrier", () => {
-  it("is the sealed-code ntfy relay, never a vault transport", () => {
-    expect(DEFAULT_LIVE_CARRIER).toEqual({
-      kind: "ntfy",
-      url: "https://ntfy.sh",
+describe("pairing routes require an explicit carrier", () => {
+  it("keeps both absent and explicitly empty configuration direct-only", () => {
+    expect(NO_ROUTES).toEqual({ ice: [], relay: false, carriers: [] });
+    expect(DIRECT_TRANSPORT).toEqual({
+      addresses: [],
+      ice: [],
+      relay: false,
+      carriers: [],
     });
+    expect(readTransport({})).toMatchObject({
+      ok: true,
+      transport: DIRECT_TRANSPORT,
+    });
+    expect(readTransport({ carriers: [] })).toMatchObject({
+      ok: true,
+      transport: DIRECT_TRANSPORT,
+    });
+    expect(readRoutes({})).toEqual(NO_ROUTES);
+    expect(readRoutes({ carriers: [] })).toEqual(NO_ROUTES);
+  });
+  it("still accepts ntfy only when the owner names it explicitly", () => {
+    const carrier = { kind: "ntfy", url: "https://ntfy.example.test" };
+    expect(readRoutes({ carriers: [carrier] })).toEqual({
+      ...NO_ROUTES,
+      carriers: [carrier],
+    });
+    expect(readTransport({ carriers: [carrier] })).toMatchObject({
+      ok: true,
+      transport: { ...DIRECT_TRANSPORT, carriers: [carrier] },
+    });
+    expect(
+      readRoutes({
+        carriers: [
+          { ...carrier, url: "https://user:secret@ntfy.example.test" },
+        ],
+      }),
+    ).toBeNull();
   });
 });
 

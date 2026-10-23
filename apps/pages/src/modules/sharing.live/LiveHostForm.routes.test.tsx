@@ -42,7 +42,7 @@ import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveSharePanel } from "./LiveSharePanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
-import { withCarrier } from "./live-transport-edits.js";
+import { withCarrier, withoutCarrier } from "./live-transport-edits.js";
 import { transportSeams, useLiveTransport } from "./live-transport-hooks.js";
 
 const github = createItem("account", "GitHub");
@@ -193,24 +193,82 @@ describe("a session started right after a route was added", () => {
     await Promise.all(queuedSeals);
   });
 
-  it("names the default sealed-code carrier without waiting for it to connect", async () => {
+  it.each([false, true])(
+    "starts direct with manual codes when no carrier is configured (saved=%s)",
+    async (saved) => {
+      if (saved)
+        files.set(
+          `personal/${TRANSPORT_PATH}`,
+          new TextEncoder().encode(
+            JSON.stringify({
+              addresses: [],
+              ice: [],
+              relay: false,
+              carriers: [],
+            }),
+          ),
+        );
+      const panel = await filledForm();
+      expect(panel.getByRole("img", { name: /^Direct only$/ })).toBeTruthy();
+      start(panel);
+      await waitFor(() => expect(currentHost()).not.toBeNull());
+      const host = currentHost();
+      if (!host) throw new Error("The share form did not start its host.");
+      expect(linkRoutes(host.link)).toEqual({
+        ice: [],
+        relay: false,
+        carriers: [],
+      });
+      expect(currentHostCarriers()?.states ?? []).toEqual([]);
+      expect(opened).toEqual([]);
+      expect(files.size).toBe(saved ? 1 : 0);
+      expect(panel.queryByText("correct horse battery staple")).toBeNull();
+    },
+  );
+
+  it("waits for clearing the last carrier and never substitutes another relay", async () => {
+    const panel = await filledForm();
+    const routes = renderHook(() => useLiveTransport());
+    await waitFor(() => expect(routes.result.current.loaded).toBe(true));
+    await act(async () => {
+      await routes.result.current.change((now) => withCarrier(now, NOSTR));
+    });
+    control.sealMs = 150;
+    let cleared: Promise<string | null> | undefined;
+    act(() => {
+      cleared = routes.result.current.change((now) =>
+        withoutCarrier(now, NOSTR),
+      );
+    });
+    expect(routes.result.current.transport.carriers).toEqual([]);
+    start(panel);
+    await waitFor(() => expect(currentHost()).not.toBeNull());
+    await cleared;
+    const host = currentHost();
+    if (!host) throw new Error("The share form did not start its host.");
+    expect(linkRoutes(host.link)).toEqual({
+      ice: [],
+      relay: false,
+      carriers: [],
+    });
+    expect(opened).toEqual([]);
+  });
+
+  it("uses an explicitly saved ntfy carrier without substituting a different service", async () => {
+    const carriers = [{ kind: "ntfy", url: "https://ntfy.sh" }];
+    files.set(
+      `personal/${TRANSPORT_PATH}`,
+      new TextEncoder().encode(
+        JSON.stringify({ ice: [], relay: false, carriers }),
+      ),
+    );
     const panel = await filledForm();
     start(panel);
     await waitFor(() => expect(currentHost()).not.toBeNull());
     const host = currentHost();
     if (!host) throw new Error("The share form did not start its host.");
-    const carriers = [{ kind: "ntfy", url: "https://ntfy.sh" }];
-    expect(currentHostCarriers()?.states.map((state) => state.spec)).toEqual(
-      carriers,
-    );
+    expect(linkRoutes(host.link)).toEqual({ ice: [], relay: false, carriers });
     await waitFor(() => expect(opened).toEqual(["ntfy https://ntfy.sh"]));
-    expect(linkRoutes(host.link)).toEqual({
-      ice: [],
-      relay: false,
-      carriers,
-    });
-    expect(files.size).toBe(0);
-    expect(panel.queryByText("correct horse battery staple")).toBeNull();
   });
 
   it("says why when the saved profile has become unusable, and starts nothing", async () => {

@@ -30,8 +30,10 @@ export function nativeMcpRegistrationManagementUrl(
   target: NativeMcpOAuthTarget,
   client: NativeMcpRegisteredClient,
 ): URL {
+  // A compiled CIMD route may have fallen back to DCR at the live metadata
+  // boundary. The management receipt proves that a registration exists, and
+  // cleanup still has to stay inside the compiled registration path.
   if (
-    target.registration !== "dcr" ||
     !target.metadata.registrationEndpoint ||
     !client.registration_client_uri ||
     !client.registration_access_token

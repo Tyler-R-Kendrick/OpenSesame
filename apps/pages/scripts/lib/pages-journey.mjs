@@ -22,9 +22,8 @@ export async function waitOpen(page) {
     .locator("visible=true")
     .first()
     .waitFor({ timeout: 20000 });
-  // The lock key mounts behind the doors. Walks install a frozen Playwright
-  // clock, so advance the 1.6s ceremony before waiting for the gate to leave.
-  await page.clock?.runFor(2_000)?.catch(() => undefined);
+  // Let the ceremony finish on the existing clock. Calling runFor here
+  // would install a clock on ordinary pages and reset their wall time.
   // Readiness also requires the ceremony to finish; keep its existing 10s
   // bound within the 20s open budget.
   await page.locator(".unlock").waitFor({
@@ -142,7 +141,22 @@ export async function openGeneral(page) {
 
 /** Open a Settings category without a full document navigation (keeps the vault open). */
 export async function openSettingsCategory(page, label) {
-  await openSection(page, "settings/");
+  if (label === "Keybindings" || label === "Vaults") {
+    await page
+      .getByTitle("Switch account", { exact: true })
+      .filter({ visible: true })
+      .first()
+      .click({ button: "right" });
+    const account = page.getByRole("menu", { name: "Account", exact: true });
+    await account
+      .getByRole("menuitem", { name: "User Settings", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "User Settings", exact: true })
+      .waitFor();
+  } else {
+    await openSection(page, "settings/");
+  }
   // Inside a category the breadcrumb names it too: the sections list is the one.
   const section = page
     .locator(".set__nav")
@@ -189,10 +203,7 @@ export async function openConfigFile(page, category) {
 
 /** The directory's own page, by its tab (drops any open file). */
 export async function openConfigForm(page, label) {
-  await page
-    .locator(".set__nav")
-    .getByRole("link", { name: label, exact: true })
-    .click();
+  await openSettingsCategory(page, label);
 }
 
 /**

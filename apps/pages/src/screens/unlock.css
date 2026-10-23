@@ -13,6 +13,14 @@
   background: var(--canvas);
 }
 
+/* A shellless notice is a row before the gate. Keep the locked screen in
+   document flow while that row is present, rather than covering its bell and
+   error card with the fixed release-notes pane. Doors still overlay the shell. */
+#root:has(.notice-corner) .unlock.unlock--lock-v5:not(.unlock--doors) {
+  position: relative;
+  inset: auto;
+}
+
 /* Only the moving panels are left during the reveal. The vault behind is the
    surface the doors uncover. */
 .unlock.unlock--lock-v5.unlock--doors {

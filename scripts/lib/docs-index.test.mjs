@@ -52,22 +52,22 @@ describe("docs index", () => {
     ]);
   });
 
-  it("lists evidence newest first, programmes after the dated changes", () => {
+  it("lists stable evidence slots by feature, project and platform", () => {
     const names = [
-      "wallet",
-      "2026-09-13-a",
-      "general-authority",
-      "2026-09-24-b",
+      "wallet/wallet/cross-platform",
+      "unlock/pages/web",
+      "unlock/desktop/macos",
     ];
     expect(names.sort(evidenceOrder)).toEqual([
-      "2026-09-24-b",
-      "2026-09-13-a",
-      "general-authority",
-      "wallet",
+      "unlock/desktop/macos",
+      "unlock/pages/web",
+      "wallet/wallet/cross-platform",
     ]);
-    expect(evidenceRow("wallet", "# Wallet — evidence\n")).toEqual([
-      "[`wallet/`](wallet/README.md)",
-      "Wallet — evidence",
+    expect(
+      evidenceRow("unlock/pages/web", "# Unlock — current state\n"),
+    ).toEqual([
+      "[`unlock/pages/web/`](unlock/pages/web/README.md)",
+      "Unlock — current state",
     ]);
   });
 
@@ -89,7 +89,7 @@ describe("docs index", () => {
         "node",
         [join(root, "scripts", "quality", "docs-index.mjs"), "--check"],
         {
-          stdio: "pipe",
+          stdio: ["ignore", "pipe", "pipe"],
         },
       ),
     ).not.toThrow();

@@ -1,0 +1,14 @@
+---
+description: Persist only approved current-state evidence using feature/project/platform slots
+alwaysApply: true
+---
+
+Follow `AGENTS.md` §5 and `docs/evidence/README.md` for all evidence collection.
+Persist only approved current-state artifacts in
+`docs/evidence/<feature>/<project>/<platform>/`, using stable lowercase kebab-case
+names. Replace the impacted slot and delete superseded files; preserve unrelated
+slots. Record source revision, capture method, checks and approval provenance.
+Before/after comparisons, raw recordings, failed runs and drafts stay in ignored
+`work/evidence/` or system temp. Do not persist dated, branch-named or versioned
+history folders, and do not restore historical media into the current tree.
+Use Git history and commit-SHA links for prior evidence.

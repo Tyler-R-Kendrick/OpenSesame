@@ -36,7 +36,7 @@ import type {
 function linearOptions(plan: ConnectPlan): SelfHostedConnectorOptions {
   const config = selfHostedConfig(plan);
   return {
-    mode: "managed",
+    mode: linearClientId() ? "managed" : "byo",
     workspace: "",
     appScopes: defaultSelections(config?.appScopes ?? []),
     userScopes: defaultSelections(config?.userScopes ?? []),

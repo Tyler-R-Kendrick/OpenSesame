@@ -24,6 +24,7 @@ import { useEffect, useRef, useState } from "react";
 import { FailureNotice } from "../components/FailureNotice.js";
 import { GateTools } from "../components/GateTools.js";
 import { IconAuthority } from "../components/Icons.js";
+import { GateNoticeSeat } from "../components/Notices.js";
 import { StatusMark } from "../components/StatusMark.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { landFocus } from "../lib/focus.js";
@@ -86,6 +87,7 @@ export function FrontDoor({
             (AGENTS.md §5). */}
         <GuestSkip busy={busy} onGuest={startGuest} lands />
         <PendingLinkBanner />
+        <GateNoticeSeat />
         <header className="door__hero">
           <Wordmark as="h1" className="door__wordmark" fit={HERO_FIT} />
           <p className="door__lede">Set up your own vault, or join one.</p>

@@ -24,7 +24,8 @@ import { NavLink, useLocation, useNavigate } from "react-router";
 import { useClaimedDrags } from "../lib/use-claimed-drags.js";
 import { useShowHidden } from "../lib/use-show-hidden.js";
 import { useVaultAllTo } from "../lib/vault-list-path.js";
-import { useVault } from "../lib/vault/hooks.js";
+import { useVault, useVaultStore } from "../lib/vault/hooks.js";
+import { useSharedItems } from "../sections/vault/use-shared-items.js";
 import { SupportContext } from "../tutorial/support-context.js";
 import { IconChevronLeft } from "./Icons.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
@@ -144,6 +145,7 @@ function SectionBranch({
   kinds,
   showHidden,
   allTo,
+  sharedItems,
 }: {
   section: SectionRowModel;
   expand: SectionExpand;
@@ -156,6 +158,7 @@ function SectionBranch({
   showHidden: boolean;
   /** Where the vault's "all items" entry goes — see `VaultRail`. */
   allTo: string;
+  sharedItems: ReturnType<typeof useSharedItems>;
 }) {
   const { expanded, here, onToggle } = expand;
   if (section.to === "/vault") {
@@ -178,6 +181,7 @@ function SectionBranch({
             kinds={kinds}
             showHidden={showHidden}
             allTo={allTo}
+            sharedItems={sharedItems}
           />
         ) : null}
       </>
@@ -261,6 +265,8 @@ export function NavTree() {
   const location = useLocation();
   const navigate = useNavigate();
   const { items, folders } = useVault();
+  const store = useVaultStore();
+  const sharedItems = useSharedItems(store.activeTomb?.() ?? "", items);
   const sections = useSections();
   const kinds = useVaultDirectories(items);
   const showHidden = useShowHidden();
@@ -335,6 +341,7 @@ export function NavTree() {
           kinds={kinds}
           showHidden={showHidden}
           allTo={allTo}
+          sharedItems={sharedItems}
         />
       ))}
     </nav>

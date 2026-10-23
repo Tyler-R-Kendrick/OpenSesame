@@ -21,7 +21,7 @@ const projection = buildSync({
       import {mergeVercelCatalog} from './packages/app-core/src/lib/vercel-connect-catalog.ts';
       import {isConnectionCatalogProvider} from './packages/app-core/src/lib/catalog-provider.ts';
       import {isAiModelProvider} from './packages/app-core/src/lib/ai-model-provider.ts';
-      import {aiConnectionPreset,aiConnectionFamilies} from './packages/app-core/src/lib/ai-connections/presets.ts';
+      import {aiConnectionDraft,aiConnectionPreset,aiConnectionFamilies} from './packages/app-core/src/lib/ai-connections/presets.ts';
       import {nativeBrowserMcpPolicy,bindNativeBrowserPolicyOrigin} from './packages/app-core/src/lib/native-browser-policy.ts';
       // Schema projection only: availability does not authorize a browser road.
       // The real browser still owns runtime/transport admission and all requests.
@@ -49,7 +49,7 @@ const projection = buildSync({
       export const aiModelProviderIds = all.filter(isAiModelProvider).map(provider => provider.id);
       export const sharedAiPresets = all.flatMap(provider => {
         const preset = aiConnectionPreset(provider.id);
-        return preset ? [{...preset,families:aiConnectionFamilies(provider.id).map(family => family.id)}] : [];
+        return preset ? [{...preset,authentication:aiConnectionDraft(provider.id).authentication,families:aiConnectionFamilies(provider.id).map(family => family.id)}] : [];
       });
     `,
     resolveDir: fileURLToPath(root),

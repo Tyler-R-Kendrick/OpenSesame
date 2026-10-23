@@ -31,7 +31,7 @@ import {
   currentTailscaleConnections,
   useTailscaleConnections,
 } from "../tailscale/useTailscaleConnectionState.js";
-import { ConnectPanels } from "./ConnectPanels.js";
+import { LinearLocalPanels } from "./ConnectPanels.js";
 import { linearUiAccount } from "./linear-ui.test-support.js";
 import {
   connectorIntegration,
@@ -49,7 +49,8 @@ afterEach(() => {
 
 function LiveLinearSettings({ onFlash }: { onFlash: (flash: Flash) => void }) {
   const provider = catalogProvider("linear");
-  if (!provider) throw new Error("Missing actual Linear provider");
+  const plan = connectPlan("linear");
+  if (!provider || !plan) throw new Error("Missing actual Linear provider");
   const [connections, setConnections] = useTailscaleConnections();
   const [selectedId, setSelectedId] = useState<string>();
   const [flash, setFlash] = useState<Flash | null>(null);
@@ -87,10 +88,11 @@ function LiveLinearSettings({ onFlash }: { onFlash: (flash: Flash) => void }) {
       <output aria-label="Selected Linear ID">
         {selected?.connectionId ?? "none"}
       </output>
-      <ConnectPanels
+      <LinearLocalPanels
         provider={provider}
         connection={selected}
         online
+        plan={plan}
         onFlash={(next) => {
           setFlash(next);
           onFlash(next);

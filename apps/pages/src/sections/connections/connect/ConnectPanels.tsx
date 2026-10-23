@@ -10,6 +10,7 @@ import type {
 } from "@opensesame/app-core/lib/connections.js";
 import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { useState } from "react";
 import { useIdentitySession } from "../../../bindings/identity.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import { AiConnectionPanels } from "../ai/AiConnectionPanels.js";
@@ -128,11 +129,53 @@ function LocalConnectPanels(props: Props) {
       />
     );
   if (!plan || plan.refused) return null;
+  if (provider.id === "linear" && isSelfHostedConnector(connection))
+    return <LinearLocalPanels {...props} plan={plan} />;
   if (provider.id !== "linear") return <NativeConnectorPanels {...props} />;
-  return <LinearLocalPanels {...props} plan={plan} />;
+  return <LinearMcpPanels {...props} plan={plan} />;
 }
 
-function LinearLocalPanels({
+/** Linear's default road is Linear's MCP authorization; GraphQL is an explicit fallback. */
+function LinearMcpPanels({ plan, ...props }: Props & { plan: ConnectPlan }) {
+  const [advanced, setAdvanced] = useState(false);
+  const { connection, onFlash, onChanged } = props;
+  return (
+    <NativeConnectorPanels
+      {...props}
+      renderConfiguration={(form) => (
+        <>
+          {form}
+          {connection ? null : (
+            <details
+              className="cx-application"
+              onToggle={(event) => setAdvanced(event.currentTarget.open)}
+            >
+              <summary>Advanced: existing OAuth app or API key</summary>
+              {advanced ? (
+                <div className="cx-form">
+                  <p className="hint">
+                    Linear MCP authorization is the default and does not need a
+                    registered OAuth application. Use this separate GraphQL
+                    connection only when your workspace requires the specialized
+                    API route; its credential is never shared with the MCP
+                    connection.
+                  </p>
+                  <LinearConnectorForm
+                    plan={plan}
+                    onFlash={onFlash}
+                    onSaved={onChanged}
+                  />
+                </div>
+              ) : null}
+            </details>
+          )}
+        </>
+      )}
+    />
+  );
+}
+
+export function LinearLocalPanels({
   connection,
   plan,
   onFlash,

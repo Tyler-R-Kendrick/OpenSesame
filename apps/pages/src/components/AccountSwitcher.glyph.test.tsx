@@ -7,7 +7,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../bindings/identity.js";
 import { gestureLimits } from "../lib/gestures.js";
@@ -32,6 +32,10 @@ import {
   setActiveOrgProfileId,
 } from "@opensesame/app-core/lib/orgs.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
+import {
+  closeContextMenu,
+  contextMenuSnapshot,
+} from "./context-menu/menu-model.js";
 
 function renderSwitcher() {
   return render(
@@ -75,6 +79,7 @@ describe("AccountSwitcher — the glyph a phone draws for the name", () => {
   afterEach(() => {
     showNames();
     cleanup();
+    closeContextMenu();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -86,6 +91,24 @@ describe("AccountSwitcher — the glyph a phone draws for the name", () => {
     if (!el) throw new Error("account switcher toggle not rendered");
     return el;
   }
+
+  it("opens User Settings by tapping the phone's account menu, without a context menu", () => {
+    vi.stubGlobal("matchMedia", matchMediaFor(true));
+    function Where() {
+      return <output aria-label="where">{useLocation().pathname}</output>;
+    }
+    render(
+      <MemoryRouter initialEntries={["/vault"]}>
+        <AccountSwitcher />
+        <Where />
+      </MemoryRouter>,
+    );
+    fireEvent.click(toggle());
+    fireEvent.click(screen.getByRole("button", { name: "User Settings" }));
+    expect(screen.getByLabelText("where").textContent).toBe("/settings/user");
+    expect(screen.queryByText("Accounts")).toBeNull();
+    expect(contextMenuSnapshot()).toBeNull();
+  });
 
   it("names the control for assistive tech and draws the person's dots beside the name", () => {
     renderSwitcher();
@@ -181,7 +204,7 @@ describe("AccountSwitcher — the glyph a phone draws for the name", () => {
     expect(screen.getByText("Accounts")).toBeTruthy();
   });
 
-  it("leaves a mouse's right-click to the session menu", () => {
+  it("opens User Settings from a mouse right-click without bubbling to the session menu", () => {
     vi.stubGlobal("matchMedia", matchMediaFor(false));
     const session = vi.fn();
     render(
@@ -192,7 +215,13 @@ describe("AccountSwitcher — the glyph a phone draws for the name", () => {
       </MemoryRouter>,
     );
     fireEvent.contextMenu(toggle());
-    expect(session).toHaveBeenCalledTimes(1);
+    expect(session).not.toHaveBeenCalled();
+    expect(contextMenuSnapshot()?.label).toBe("Account");
+    expect(
+      contextMenuSnapshot()
+        ?.groups.flat()
+        .map(({ label }) => label),
+    ).toEqual(["User Settings"]);
     expect(screen.queryByText("Accounts")).toBeNull();
   });
 });
@@ -206,6 +235,7 @@ describe("AccountSwitcher — where the name is drawn beside its glyph, nothing 
   });
   afterEach(() => {
     cleanup();
+    closeContextMenu();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -221,7 +251,7 @@ describe("AccountSwitcher — where the name is drawn beside its glyph, nothing 
     expect(getComputedStyle(name).display).not.toBe("none");
   });
 
-  it("leaves a touch long-press's contextmenu to the session menu, as before", () => {
+  it("opens User Settings from a touch contextmenu when the name is visible", () => {
     vi.stubGlobal("matchMedia", matchMediaFor(true));
     const session = vi.fn();
     render(
@@ -234,7 +264,13 @@ describe("AccountSwitcher — where the name is drawn beside its glyph, nothing 
     const seg = document.querySelector(".account-switcher .prompt__seg");
     if (!seg) throw new Error("no segment");
     fireEvent.contextMenu(seg);
-    expect(session).toHaveBeenCalledTimes(1);
+    expect(session).not.toHaveBeenCalled();
+    expect(contextMenuSnapshot()?.label).toBe("Account");
+    expect(
+      contextMenuSnapshot()
+        ?.groups.flat()
+        .map(({ label }) => label),
+    ).toEqual(["User Settings"]);
     expect(screen.queryByText("Accounts")).toBeNull();
   });
 

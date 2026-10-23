@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pnpm wallet:evidence — refresh docs/evidence/wallet/last-run.json from
+ * pnpm wallet:evidence — refresh work/evidence/wallet/wallet/cross-platform/last-run.json from
  * discovery + mainnet check without claiming suite passes.
  *
  * Always exits non-zero while any required suite is missing or stubbed.
@@ -10,11 +10,13 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { discoverDomainTargets } from "./lib/discover.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 
 const mainnet = assertNoMainnet(process.argv.slice(2));
 if (!mainnet.ok) {

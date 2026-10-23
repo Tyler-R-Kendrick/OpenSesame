@@ -64,6 +64,7 @@ export function PendingRow({
 export function ShareRow({
   share,
   name,
+  issuerName,
   principalRole,
   busy,
   canRevoke,
@@ -71,6 +72,7 @@ export function ShareRow({
 }: {
   share: LocalShare;
   name: string;
+  issuerName?: string;
   principalRole: string | undefined;
   busy: boolean;
   canRevoke: boolean;
@@ -124,6 +126,7 @@ export function ShareRow({
         label="Policy"
         value={policyLabel(share.resourceKind, share.policy)}
       />
+      {issuerName ? <AccessFact label="Shared by" value={issuerName} /> : null}
       <AccessFact label="Role" value={principalRole ?? "—"} />
       <AccessFact
         label="Expires"

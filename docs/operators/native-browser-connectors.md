@@ -7,8 +7,9 @@ provider identities, including unavailable native and confidential methods.
 Add a connection draws the curated browse list; the linked support matrix covers
 every provider identity. Feature-bound provider categories route to their
 settings rather than appearing as duplicate browse tiles. Existing
-[Linear setup](connect-connectors.md#connect-linear), Git backup, GitHub, S3 and
-vault-key protection keep their specialized experiences.
+[Linear's MCP setup](connect-connectors.md#connect-linear), Git backup, GitHub,
+S3 and vault-key protection keep their specialized experiences. Existing Linear
+GraphQL/webhook records keep the legacy custody page.
 
 ## When a provider has no browser connection
 
@@ -49,7 +50,9 @@ SPA index. Register the **exact displayed callback URL** at providers that
 require application registration. The callback bridge removes original
 `code/state/error` parameters and forwards the namespaced transaction to
 Connections before identity bootstrap. It never trusts a URL provider name as
-an authorization binding. Linear uses its separate `auth/linear.html` callback.
+an authorization binding. The specialized Linear GraphQL route uses its separate
+`auth/linear.html` callback; the default Linear MCP route uses
+`auth/native-connector.html` and the shared CIMD document.
 
 HTTPS builds emit `auth/native-client.json` with the canonical client ID,
 callback, public `none` authentication and authorization-code metadata. WorkOS
@@ -154,8 +157,17 @@ Select the provider's MCP method and its advertised permissions. Public support
 requires complete protected-resource/issuer discovery, `none` token
 authentication, S256, and supported registration. The compiled catalog currently
 has 71 such metadata contracts (46 DCR and 25 CIMD), including Linear's published
-MCP metadata; Linear's default page retains its specialized direct experience.
-These counts describe contracts, not successful live account connections.
+MCP metadata. Linear's default page uses that MCP route with CIMD and requests
+only the advertised `read` permission initially; its specialized GraphQL/API-key
+route is under **Advanced** or retained for existing records. These counts
+describe contracts, not successful live account connections.
+
+On 2026-10-21, Linear's live authorization metadata advertised issuer
+`https://mcp.linear.app`, `client_id_metadata_document_supported: true`, `none`
+token authentication and S256. An unauthenticated CORS preflight from the
+deployment origin returned its matching origin and allowed methods/headers.
+Those checks establish discovery and browser reachability only; they do not
+establish authenticated consent, workspace access or MCP tool discovery.
 
 **Managed MCP** registers through the actual DCR endpoint or uses the deployment's
 CIMD document. A manual public registration requires the actual public client ID.
@@ -235,8 +247,9 @@ provider connection. Wallet and refused payment routes do not collect issuer or
 signing credentials. Confidential OAuth and hosted managed provisioning have no
 browser relay; the page names the constraint instead of offering a dead form.
 
-Only the specialized Linear flow registers webhooks. Other catalog trigger
-metadata does not imply a registered subscription, receiver or business API.
+Only the advanced or legacy specialized Linear flow registers webhooks. Linear's
+default MCP connection does not. Other catalog trigger metadata does not imply a
+registered subscription, receiver or business API.
 Hosted Vercel imports remain a separate optional integration, not a prerequisite
 for these direct-browser contracts.
 

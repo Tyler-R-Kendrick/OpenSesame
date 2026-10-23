@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "maxTrackedBytes": 104857600,
+  "maxFileBytes": 2097152,
+  "maxFiles": 15000,
+  "forbiddenDirectoryNames": [
+    "node_modules",
+    "target",
+    "dist",
+    "coverage",
+    "artifacts",
+    "test-results",
+    "work",
+    ".turbo",
+    ".cache",
+    ".vite"
+  ],
+  "forbiddenPathPatterns": [
+    "^kimi-reviews(?:/|$)",
+    "^docs/security/cloudflare-audit/run(?:-|/)",
+    "^docs/audit/evidence(?:/|$)",
+    "(?:^|/)\\.impeccable/(?:review|screenshots)(?:/|$)",
+    "^docs/design/canvases/(?:auth-flow|first-run-setup|pwa-install|setup-next-steps|shared-sessions)/[^/]+\\.dc\\.html$"
+  ]
+}

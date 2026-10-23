@@ -86,3 +86,88 @@ describe("the whole-repository run", () => {
     }
   });
 });
+
+const fullWorkflow = readFileSync(
+  join(root, ".github/workflows/full-suite.yml"),
+  "utf8",
+);
+const fullSteps = fullWorkflow
+  .split("    steps:\n")[1]
+  .split(/\n {6}- (?=name:|uses:)/);
+
+function stepFor(command) {
+  const matches = fullSteps.filter((step) => step.includes(command));
+  expect(matches).toHaveLength(1);
+  return matches[0];
+}
+
+describe("full-suite native preparation", () => {
+  it("uses the repository's bounded package-test concurrency", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(root, "package.json"), "utf8"),
+    );
+    expect(manifest.scripts.test).toContain("--concurrency=4");
+    expect(stepFor("pnpm exec turbo run typecheck test")).toContain(
+      "run: pnpm exec turbo run typecheck test --concurrency=4",
+    );
+  });
+  it("checks out the selected workflow commit for scheduled and manual validation", () => {
+    expect(fullWorkflow).toContain("workflow_dispatch:");
+    expect(fullWorkflow).toContain("          ref: ${{ github.sha }}");
+    expect(fullWorkflow).not.toContain("          ref: main\n");
+  });
+  it("finishes canonical native asset verification before concurrent package tests", () => {
+    const preparation = stepFor("await loadTailscaleAssets();");
+    expect(preparation).toContain("node --input-type=module -e");
+    expect(preparation).toContain(
+      'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"',
+    );
+    expect(preparation).not.toMatch(
+      /\n\s+if:|continue-on-error:|timeout-minutes:/,
+    );
+    const tests = stepFor("pnpm exec turbo run typecheck test");
+    expect(fullSteps.indexOf(preparation)).toBeLessThan(
+      fullSteps.indexOf(tests),
+    );
+    expect(preparation).not.toContain("cache-hit");
+  });
+
+  it("reuses only exact-pin static distributions and still verifies cache hits", () => {
+    const cache = stepFor("name: Cache the pinned native PWA distribution");
+    expect(cache).toContain(
+      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+    );
+    expect(cache).toContain(
+      "path: .cache/pwa-tailscale-native-http/distributions\n",
+    );
+    expect(cache).toContain(
+      "hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json')",
+    );
+    expect(cache).not.toContain("restore-keys:");
+    expect(cache).not.toContain("/work");
+    const preparation = stepFor("await loadTailscaleAssets();");
+    expect(fullSteps.indexOf(cache)).toBeLessThan(
+      fullSteps.indexOf(preparation),
+    );
+  });
+
+  it("retains every package and both real Postgres contracts after preparation", () => {
+    const tests = stepFor("pnpm exec turbo run typecheck test");
+    expect(tests).not.toMatch(/--filter|continue-on-error:|\n\s+if:/);
+    for (const command of [
+      "pnpm --filter @opensesame/database test:postgres",
+      "pnpm --filter @opensesame/identity-worker test:postgres",
+    ]) {
+      const postgres = stepFor(command);
+      expect(postgres).toContain(
+        "DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres",
+      );
+      expect(postgres).not.toMatch(/continue-on-error:|\n\s+if:/);
+      expect(fullSteps.indexOf(tests)).toBeLessThan(
+        fullSteps.indexOf(postgres),
+      );
+    }
+    expect(fullWorkflow).toContain("timeout-minutes: 60");
+    expect(fullWorkflow).not.toContain("--passWithNoTests");
+  });
+});

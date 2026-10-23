@@ -303,6 +303,9 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
         <ShareRow
           share={selectedShare}
           name={name(selectedShare.principalId)}
+          issuerName={
+            selectedShare.issuedBy ? name(selectedShare.issuedBy) : undefined
+          }
           principalRole={
             identities.find((row) => row.id === selectedShare.principalId)?.role
           }
