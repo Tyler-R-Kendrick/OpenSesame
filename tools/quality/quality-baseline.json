@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 449,
-    "violations": 718,
+    "files": 448,
+    "violations": 717,
     "oversizedLines": 221262
   },
   "files": {
@@ -105,9 +105,6 @@
     },
     "apps/pages/src/modules/sharing.live/live-join-route-parts.tsx": {
       "complexity": 1,
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/modules/sharing.trusted-contacts/UnlockCirclePanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/BrokerAuthorize.tsx": {
