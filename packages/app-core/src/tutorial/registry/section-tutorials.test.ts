@@ -142,7 +142,7 @@ describe("tutorial panel destinations", () => {
     ["vault.item-types.install", "/settings/item-types", "settings.item-types"],
     [
       "settings.model-provider",
-      "/settings/features/ai",
+      "/settings/features/ai/support.local-ai",
       "settings.model-provider",
     ],
     [
