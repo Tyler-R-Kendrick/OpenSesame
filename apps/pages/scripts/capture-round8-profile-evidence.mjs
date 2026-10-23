@@ -90,13 +90,13 @@ function capturePeerWalk({ browser, dist, view, files }) {
 const FEATURES = Object.freeze({
   "p8-1": {
     title: "Portable drop on four install profiles",
-    folder: "2026-10-17-p8-1-portable-drop-profiles",
+    folder: "portable-drop",
     sheetsOf: dropSheets,
     walkOne: captureDropWalk,
   },
   "p8-2": {
     title: "Peer trust on four install profiles",
-    folder: "2026-10-17-p8-2-peer-trust-profiles",
+    folder: "peer-trust",
     sheetsOf: peerSheets,
     walkOne: capturePeerWalk,
   },

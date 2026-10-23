@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pnpm wallet:evidence — refresh docs/evidence/wallet/last-run.json from
+ * pnpm wallet:evidence — refresh work/evidence/wallet/wallet/cross-platform/last-run.json from
  * discovery + mainnet check without claiming suite passes.
  *
  * Always exits non-zero while any required suite is missing or stubbed.

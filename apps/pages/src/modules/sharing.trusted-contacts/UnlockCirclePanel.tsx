@@ -16,7 +16,7 @@ import {
   trustedUnlockView,
   writeTrustedUnlock,
 } from "@opensesame/app-core/lib/trusted-unlock.js";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconLayers, IconPlus, IconTrash } from "../../components/Icons.js";
@@ -96,6 +96,47 @@ function useUnlockCircle(tomb: string) {
   };
 }
 
+function SaveCircleAction({
+  busy,
+  disabled,
+}: { busy: boolean; disabled: boolean }) {
+  return (
+    <div className="actions">
+      <button type="submit" className="go-row" disabled={disabled}>
+        <span className="go-verb">{busy ? "Saving…" : "Save the circle"}</span>
+      </button>
+    </div>
+  );
+}
+
+function CircleSheet({
+  onClose,
+  onSave,
+  children,
+}: {
+  onClose: () => void;
+  onSave: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <CeremonySheet
+      title="Trusted contacts"
+      mark={<IconLayers size={20} />}
+      onClose={onClose}
+    >
+      <form
+        aria-label="Trusted contacts circle"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave();
+        }}
+      >
+        {children}
+      </form>
+    </CeremonySheet>
+  );
+}
+
 function EditSheet({
   tomb,
   people,
@@ -169,44 +210,25 @@ function EditSheet({
   }
 
   return (
-    <CeremonySheet
-      title="Trusted contacts"
-      mark={<IconLayers size={20} />}
-      onClose={onClose}
-    >
-      <form
-        aria-label="Trusted contacts circle"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        <UnlockCircleFields
-          name={name}
-          setName={setName}
-          people={people}
-          selected={selected}
-          setSelected={setSelected}
-          maximum={maximum}
-          wanted={wanted}
-          setThreshold={setThreshold}
-          onEnroll={(person) => void enroll(person)}
-          enrolling={enrolling}
-        />
-        {error ? <StatusMark tone="err" label={error} /> : null}
-        <div className="actions">
-          <button
-            type="submit"
-            className="go-row"
-            disabled={busy || enrolling !== null || chosen.length === 0}
-          >
-            <span className="go-verb">
-              {busy ? "Saving…" : "Save the circle"}
-            </span>
-          </button>
-        </div>
-      </form>
-    </CeremonySheet>
+    <CircleSheet onClose={onClose} onSave={() => void save()}>
+      <UnlockCircleFields
+        name={name}
+        setName={setName}
+        people={people}
+        selected={selected}
+        setSelected={setSelected}
+        maximum={maximum}
+        wanted={wanted}
+        setThreshold={setThreshold}
+        onEnroll={(person) => void enroll(person)}
+        enrolling={enrolling}
+      />
+      {error ? <StatusMark tone="err" label={error} /> : null}
+      <SaveCircleAction
+        busy={busy}
+        disabled={busy || enrolling !== null || chosen.length === 0}
+      />
+    </CircleSheet>
   );
 }
 

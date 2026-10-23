@@ -4,7 +4,7 @@
  *
  * Runs mainnet deny, domain tests, then package suite runners
  * (contracts/protocols/browser/security). Always writes
- * docs/evidence/wallet/last-run.json. A green exit requires every suite to
+ * work/evidence/wallet/wallet/cross-platform/last-run.json. A green exit requires every suite to
  * pass real tests — stubs never pass. Contract suite is in-memory simulation
  * Contracts/protocols mark local_execution_verified only after forge/Anvil harness success.
  */

@@ -1,9 +1,0 @@
-{
-  "note": "Engineering budgets, not human-research claims. Distributions not measured in this environment yet.",
-  "budgets": {
-    "visualSourceSwitchActions": 1,
-    "sourceValidationMsP95": 250,
-    "localSearchMsP95": 150
-  },
-  "measured": null
-}

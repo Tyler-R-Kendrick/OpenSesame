@@ -1,6 +1,6 @@
 /**
  * Pixel-diff contract between a freshly rendered apps/pages screen and its
- * checked-in .impeccable/screenshots/<name>.png baseline.
+ * checked-in tests/visual-contract/baselines/<name>.png baseline.
  *
  * Two modes:
  *  - default (compare): pixelmatch the capture against the baseline, fail
@@ -27,9 +27,8 @@ import { PNG } from "pngjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PACKAGE_ROOT = join(__dirname, "..");
-const REPO_ROOT = join(PACKAGE_ROOT, "..", "..");
 
-export const BASELINE_DIR = join(REPO_ROOT, ".impeccable", "screenshots");
+export const BASELINE_DIR = join(PACKAGE_ROOT, "baselines");
 export const OUTPUT_DIR = join(PACKAGE_ROOT, "output");
 
 /** pixelmatch's own per-pixel perceptual-color-difference sensitivity. */
@@ -81,7 +80,7 @@ export interface VisualCompareResult {
 
 /**
  * Pixel-diff two PNG buffers. Used by the Playwright contract and by unit
- * tests that must not touch `.impeccable/screenshots`.
+ * tests that must not touch `tests/visual-contract/baselines`.
  */
 export function comparePngBuffers(
   baseline: Buffer,
@@ -185,7 +184,7 @@ export function compareAgainstBaseline(
   const baseline = baselinePath(name);
   if (!existsSync(baseline)) {
     throw new Error(
-      `No .impeccable baseline for "${name}" at ${baseline}. If this screen is new or intentionally changing, run with VISUAL_UPDATE=1 to create/update it deliberately, then review the PNG in "git diff --stat" before committing.`,
+      `No visual-contract baseline for "${name}" at ${baseline}. If this screen is new or intentionally changing, run with VISUAL_UPDATE=1 to create/update it deliberately, then review the PNG in "git diff --stat" before committing.`,
     );
   }
 
@@ -219,7 +218,7 @@ export function rebaseline(name: string, capturedPngPath: string): void {
 
 /**
  * Screenshot `page` to output/<name>-captured.png, then either rebaseline
- * (VISUAL_UPDATE=1) or pixelmatch it against .impeccable/screenshots/<name>.png
+ * (VISUAL_UPDATE=1) or pixelmatch it against tests/visual-contract/baselines/<name>.png
  * and fail the test past the mismatch budget. Attaches the capture (and, on
  * failure, the diff) to the Playwright test report either way.
  */
@@ -237,7 +236,7 @@ export async function captureAndVerify(
     rebaseline(name, outPath);
     testInfo.annotations.push({
       type: "visual-rebaseline",
-      description: `Rebaselined .impeccable/screenshots/${name}.png from this run (VISUAL_UPDATE=1). This is a deliberate change — review the PNG diff in your PR before committing it.`,
+      description: `Rebaselined tests/visual-contract/baselines/${name}.png from this run (VISUAL_UPDATE=1). This is a deliberate change — review the PNG diff in your PR before committing it.`,
     });
     return;
   }
@@ -254,9 +253,9 @@ export async function captureAndVerify(
   expect(
     result.matched,
     result.diffPixelCount < 0
-      ? `"${name}" capture dimensions do not match the .impeccable baseline ` +
+      ? `"${name}" capture dimensions do not match the visual-contract baseline ` +
           `(${result.totalPixels} px vs captured image). See output/${name}-actual.png.`
-      : `"${name}" differs from the .impeccable baseline by ${pct}% of pixels ` +
+      : `"${name}" differs from the visual-contract baseline by ${pct}% of pixels ` +
           `(budget ${(MAX_DIFF_RATIO * 100).toFixed(2)}%) and ` +
           `${(result.contentDiffRatio * 100).toFixed(2)}% of its content ` +
           `(budget ${(MAX_CONTENT_DIFF_RATIO * 100).toFixed(2)}%). ` +

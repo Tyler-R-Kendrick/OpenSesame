@@ -64,7 +64,6 @@ import {
 } from "./lib/tailnet-sync-file.mjs";
 import { syncSteps } from "./lib/tailnet-sync-steps.mjs";
 import { tailscaleServeDrive } from "./lib/tailscale-serve-drive.mjs";
-
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const port = Number(process.env.TAILNET_SYNC_PORT ?? 18791);
@@ -90,7 +89,6 @@ const harness = createHarness({
   base,
   out: path.join(out, ".log"),
 });
-
 function startDrive() {
   const daemon = spawn(
     binary,
@@ -109,7 +107,6 @@ function startDrive() {
   );
   return daemon;
 }
-
 async function until(check, what, ms = 20_000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -118,7 +115,6 @@ async function until(check, what, ms = 20_000) {
   }
   throw new Error(`timed out waiting for ${what}`);
 }
-
 async function openSlot() {
   const response = await fetch(`${drive}/v1/vault-drive/slots`, {
     method: "POST",
@@ -131,7 +127,6 @@ async function openSlot() {
   if (response.status !== 201) throw new Error(`slot: ${response.status}`);
   return (await response.json()).pairing_code;
 }
-
 function readSlot(code) {
   return readSlotWith(drive, code);
 }

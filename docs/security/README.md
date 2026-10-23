@@ -23,6 +23,8 @@ same method onto one subsystem each. To report a vulnerability, see
 
 | Page | Covers |
 |---|---|
+| [Duress security review](duress/security-review.md) | Historical review of record and residual risks; relocation does not imply a new verification run. |
+| [Duress limitations](duress/limitations.md) | Normative limits for duress product copy and security claims. |
 | [Audit log](audits/README.md) | Every dated audit: what was reviewed, what was found, how each finding was fixed and proved. |
 | [Tooling evaluation](tooling-evaluation.md) | The scanners and harnesses behind `pnpm audit:*`, why each was chosen, and the running log of fixes they drove. |
 | [Scanner rules and negative controls](../../tools/security) | The ast-grep rule set, proof that the ast-grep and gitleaks gates can still fail, and the PR security-review checklist. |

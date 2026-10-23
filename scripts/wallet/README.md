@@ -30,6 +30,11 @@ pnpm wallet:evidence:blocked-adapters
 | browser | Vitest + Playwright static QAB-01/03 + WAL-B03/B05 + the WAL-B20 narrow-wallet touch check | Full SW-update / SR matrix (B09, and B20 beyond the narrow-wallet check) |
 | security | Conservation + policy + domain + mainnet deny | Hostile-owner / cross-device money |
 
-`local_execution_verified` is written into `docs/evidence/wallet/claims.json` only
+`local_execution_verified` is written into `work/evidence/wallet/wallet/cross-platform/claims.json` only
 after the corresponding harness exits 0. Stubs never pass. Mainnet chain IDs
 are hard-denied by `lib/deny-mainnet.mjs`.
+
+Run output is temporary and ignored. Claims start from the source-owned obligations
+in `spec/conformance/wallet-claims.json`; a harness updates a scratch copy, never
+the registry or approved evidence. Persist reviewed current-state artifacts only
+through the repository evidence promotion procedure.

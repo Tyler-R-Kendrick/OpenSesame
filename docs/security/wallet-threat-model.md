@@ -7,7 +7,7 @@ Compatibility evidence: [protocol compatibility](../reference/wallet-protocol-co
 This is an **initial stub**: enough structure to extend as adapters land.
 Do not treat rows below as completed reviews or as proof that a profile is
 safe in production. Reproductions and evidence refs stay empty until a
-command under `docs/evidence/wallet/` records them.
+command under `work/evidence/wallet/wallet/cross-platform/` records them.
 
 ## Scope
 
@@ -130,7 +130,7 @@ is not spending authority (ADR 0086 §3; ADR 0119).
 
 | ID | Status | Notes |
 |---|---|---|
-| *(not backfilled)* | — | The `WAL-*` claims, each with a status and command refs, are in [`docs/evidence/wallet/claims.json`](../evidence/wallet/claims.json); this table has not been backfilled from them |
+| *(not backfilled)* | — | The `WAL-*` claims, each with a status and command refs, are in the temporary `work/evidence/wallet/wallet/cross-platform/claims.json` (claim definitions: [`spec/conformance/wallet-claims.json`](../../spec/conformance/wallet-claims.json)); this table has not been backfilled from them |
 
 ## Related
 

@@ -44,6 +44,7 @@ export const DRIVER_GATES = {
   // Password parity has its own workflow and is not a ci.yml shard.
   "verify-password-agent.mjs": null,
   // Not run by any job of ci.yml.
+  "verify-trusted-unlock.mjs": null,
   "verify-access-pathbar.mjs": null,
   "verify-ambient-sso.mjs": null,
   "verify-browser-cert.mjs": null,

@@ -104,7 +104,6 @@ afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 const bundledRef = { current: new Array<Provider>() };
 vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
-
 import { embeddedCatalogSeams } from "@opensesame/app-core/lib/embedded-catalog.js";
 const originalEmbeddedCatalogSeams = {
   ...embeddedCatalogSeams,
@@ -115,7 +114,6 @@ embeddedCatalogSeams.readEmbeddedProviders = () =>
 embeddedCatalogSeams.writeEmbeddedProviders = vi
   .fn()
   .mockResolvedValue(undefined);
-
 import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
 import { expectInTray } from "../components/tray.test-support.js";
 const originalPasskeyCeremonyNoteSeams = { ...passkeyCeremonyNoteSeams };
@@ -123,7 +121,6 @@ Object.assign(passkeyCeremonyNoteSeams, { PasskeyCeremonyNote: () => null });
 afterAll(() =>
   Object.assign(passkeyCeremonyNoteSeams, originalPasskeyCeremonyNoteSeams),
 );
-
 // Every screen here mounts guide targets `connectors.external` contributes
 // (`connections.reload`, `.connected`, `.catalog`, `.provider-picker`,
 // `.custom`, `.back`). These cases describe a deployment that approved that
