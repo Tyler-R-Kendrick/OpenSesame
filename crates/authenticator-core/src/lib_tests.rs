@@ -88,6 +88,9 @@ fn rejects_ssrf_literal_and_localhost_forms() {
     for request_uri in [
         "https://localhost./request",
         "https://service.localhost/request",
+        "https://127.0.0.1.nip.io/request",
+        "https://metadata.google.internal/request",
+        "https://service.internal/request",
         "https://2130706433/request",
         "https://[::1]/request",
         "https://[fe80::1]/request",
