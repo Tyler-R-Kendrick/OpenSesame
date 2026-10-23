@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 415,
-    "violations": 644,
-    "oversizedLines": 209089
+    "files": 414,
+    "violations": 643,
+    "oversizedLines": 208680
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -598,9 +598,6 @@
     },
     "packages/app-core/src/lib/idp-registry.ts": {
       "complexity": 1
-    },
-    "packages/app-core/src/lib/live/routes.ts": {
-      "max-lines": 409
     },
     "packages/app-core/src/lib/local-vault-sessions.ts": {
       "complexity": 1
