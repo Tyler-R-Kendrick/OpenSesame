@@ -130,6 +130,20 @@ export const TailscaleNativeHTTPConfiguration = z.discriminatedUnion(
 export type TailscaleNativeHTTPConfiguration = z.infer<
   typeof TailscaleNativeHTTPConfiguration
 >;
+/** Shared server trust only: no provider route, client certificate or TLS bypass. */
+export const TailscaleServerTrustConfiguration = z.discriminatedUnion(
+  "trustMode",
+  [
+    TailscaleNativeHTTPConfiguration.options[0].pick({ trustMode: true }),
+    TailscaleNativeHTTPConfiguration.options[1].pick({
+      trustMode: true,
+      operatorCAPEM: true,
+    }),
+  ],
+);
+export type TailscaleServerTrustConfiguration = z.infer<
+  typeof TailscaleServerTrustConfiguration
+>;
 export type TailscaleNativeHTTPPort = {
   fetch: typeof fetch;
   assertCurrent: () => void;
@@ -142,6 +156,7 @@ export type TailscaleNodeConfiguration = Readonly<{
   controlURL: string;
   authKey?: string;
   nativeHTTP?: TailscaleHTTPRouteConfiguration;
+  peerTLS?: TailscaleServerTrustConfiguration;
 }>;
 /** Shared public identity validation for the persisted editor and actual browser-node controller. */
 export function normalizeTailscaleNodeIdentity(
