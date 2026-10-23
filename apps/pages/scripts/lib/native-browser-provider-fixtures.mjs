@@ -249,7 +249,12 @@ function setField(root, path, value) {
   for (const [index, part] of parts.entries()) {
     if (index === parts.length - 1) parent[part] = value;
     else {
-      parent[part] ??= /^\d+$/.test(parts[index + 1]) ? [] : {};
+      const next = parts[index + 1];
+      // A documented reply may carry a scalar at a parent path while a
+      // nested predicate names a child of it; replace the scalar with the
+      // object/array the deeper field needs.
+      if (parent[part] === null || typeof parent[part] !== "object")
+        parent[part] = /^\d+$/.test(next) ? [] : {};
       parent = parent[part];
     }
   }
