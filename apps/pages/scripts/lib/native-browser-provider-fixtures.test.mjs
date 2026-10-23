@@ -70,3 +70,48 @@ describe("AgentMail documented readonly browser fixture", () => {
     expect(nativeApiFixture(unknown)).toBeNull();
   });
 });
+describe("Nested native verification reply containers", () => {
+  const linear = nativeBrowserPlans().find((plan) => plan.id === "linear");
+
+  it("uses Linear's existing compiled API-key verification baseline", () => {
+    const fixture = nativeApiFixture(linear);
+    expect(fixture.preset.verify).toMatchObject({
+      method: "POST",
+      url: "https://api.linear.app/graphql",
+      requiredFields: ["data.viewer.id"],
+      accountField: "data.viewer.name",
+    });
+    expect(fixture.reply).toEqual({
+      data: {
+        viewer: {
+          id: "contract-linear-id",
+          name: "Protocol authority linear account",
+        },
+      },
+    });
+  });
+
+  it.each([
+    ["data.name", { data: { name: "Verified account" } }],
+    ["data.profile.name", { data: { profile: { name: "Verified account" } } }],
+    ["data.0.name", { data: [{ name: "Verified account" }] }],
+  ])(
+    "keeps required containers and success predicates for %s",
+    (field, reply) => {
+      const plan = structuredClone(linear);
+      const method = plan.methods.find((item) => item.kind === "api-key");
+      method.preset.verify = {
+        ...method.preset.verify,
+        requiredFields: ["data"],
+        accountField: field,
+        success: [{ field, equals: "Verified account" }],
+      };
+      const before = JSON.stringify(plan);
+      const fixture = nativeApiFixture(plan);
+      expect(fixture.reply).toEqual(reply);
+      fixture.reply.data = null;
+      expect(nativeApiFixture(plan).reply).toEqual(reply);
+      expect(JSON.stringify(plan)).toBe(before);
+    },
+  );
+});
