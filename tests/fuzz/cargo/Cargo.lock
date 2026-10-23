@@ -2670,7 +2670,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "opensesame-agent-events",
  "opensesame-session-observe",
  "serde",
@@ -2727,7 +2727,7 @@ dependencies = [
 name = "opensesame-authenticator-core"
 version = "0.1.0"
 dependencies = [
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "serde",
  "sha1 0.10.7",
  "sha2 0.10.9",
@@ -2814,7 +2814,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "data-encoding",
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "opensesame-domain",
  "rand 0.8.7",
  "serde_json",
@@ -2829,7 +2829,8 @@ dependencies = [
  "ecdsa",
  "hex",
  "hkdf",
- "hmac 0.12.1",
+ "hmac 0.13.0",
+ "opensesame-trusted-exec",
  "p256",
  "rand_core 0.6.4",
  "serde",
@@ -2871,7 +2872,7 @@ dependencies = [
  "chrono",
  "hex",
  "hkdf",
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "jsonwebtoken",
  "lru",
  "oauth2",
@@ -2920,6 +2921,7 @@ dependencies = [
  "opensesame-domain",
  "opensesame-invoke-through",
  "opensesame-sealed-store",
+ "opensesame-trusted-exec",
  "secrecy",
  "serde",
  "serde_json",
@@ -2966,8 +2968,8 @@ dependencies = [
 name = "opensesame-env-spec"
 version = "0.1.0"
 dependencies = [
- "libc",
  "opensesame-domain",
+ "opensesame-trusted-exec",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -3046,7 +3048,7 @@ dependencies = [
  "futures",
  "hex",
  "hkdf",
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "http",
  "http-body-util",
  "instant-acme",
@@ -3149,7 +3151,7 @@ dependencies = [
  "chrono",
  "getrandom 0.2.17",
  "hkdf",
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "libc",
  "pbkdf2 0.12.2",
  "rand 0.8.7",
@@ -3333,7 +3335,7 @@ dependencies = [
  "base64 0.22.1",
  "cbc 0.1.2",
  "hkdf",
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "pbkdf2 0.12.2",
  "reqwest",
  "secrecy",
@@ -3435,6 +3437,7 @@ dependencies = [
  "libc",
  "opensesame-authenticator-core",
  "opensesame-human-vault",
+ "opensesame-trusted-exec",
  "rand 0.8.7",
  "regex",
  "serde",
@@ -3585,6 +3588,13 @@ dependencies = [
  "tracing",
  "x509-parser 0.18.1",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-trusted-exec"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
