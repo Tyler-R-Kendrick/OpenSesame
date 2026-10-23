@@ -40,6 +40,7 @@ import {
 } from "../../components/FieldRow.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconDownload } from "../../components/Icons.js";
+import { saveBlob } from "../../lib/file-system.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { DROP_TTL_OPTIONS, dropTtlLabel } from "./DropTtl.js";
 import { ShareForm } from "./ShareForm.js";
@@ -228,12 +229,7 @@ function downloadKeptFile(copy: {
   const bytes = b64ToBytes(copy.dataB64);
   // SAFETY: Blob accepts a typed array view; bytes is a fresh local buffer.
   const blob = new Blob([bytes], { type: copy.contentType });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = copy.name;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  void saveBlob(blob, copy.name, "File").catch(() => undefined);
 }
 
 /** Drop record detail: state, countdown, optional kept copy, disposal poll. */

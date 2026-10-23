@@ -170,6 +170,30 @@ describe("readiness protocol (PWA-07)", () => {
     expect(await env.cacheStorage.has(STAGING)).toBe(false);
   });
 
+  it("refuses a redirect body instead of caching it under the planned asset URL", async () => {
+    const { env, page } = await ready();
+    const target = CONNECTORS_PLAN_FILES[0];
+    if (!target) throw new Error("fixture needs a planned asset");
+    const redirected = new Response("ATTACKER SCRIPT", { status: 200 });
+    Object.defineProperty(redirected, "url", {
+      value: "https://evil.test/assets/main.js",
+    });
+    Object.defineProperty(redirected, "redirected", { value: true });
+    env.routes.set(abs(env, target), () => redirected);
+
+    await env.message(page, plan([CONNECTORS_MODULE]));
+    expect(page.messages).toEqual([
+      {
+        type: "OFFLINE_PARTIAL",
+        releaseId: RELEASE_ID,
+        planDigest: PLAN_DIGEST,
+        missing: 1,
+      },
+    ]);
+    const own = await env.cacheStorage.open(CURRENT);
+    expect(own.urls()).not.toContain(abs(env, target));
+  });
+
   it("a quota refusal is reported as storage unavailable, never thrown", async () => {
     const { env, page } = await ready();
     env.quotaBytes = 40;

@@ -26,11 +26,13 @@ function ShareKey({
   open,
   onOpen,
   onGrant,
+  onShare,
   keyRef,
 }: {
   open: boolean;
   onOpen: () => void;
   onGrant?: (() => void) | undefined;
+  onShare?: (() => void) | undefined;
   keyRef: MutableRefObject<HTMLButtonElement | null>;
 }) {
   const guideRef = useGuideTarget<HTMLButtonElement>("item.share");
@@ -56,7 +58,11 @@ function ShareKey({
           },
           event.currentTarget,
           "Share",
-          shareWays({ drop: onOpen, grant: onGrant }),
+          shareWays({
+            drop: onOpen,
+            grant: onGrant,
+            nativeShare: onShare,
+          }),
         );
       }}
       aria-haspopup="menu"
@@ -135,6 +141,7 @@ export function ItemTools({
     open: boolean;
     onOpen: () => void;
     onGrant?: (() => void) | undefined;
+    onShare?: (() => void) | undefined;
     keyRef: MutableRefObject<HTMLButtonElement | null>;
   };
 }) {
