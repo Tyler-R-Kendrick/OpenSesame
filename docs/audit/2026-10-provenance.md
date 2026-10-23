@@ -693,3 +693,5 @@ The coding preflight reported missing Grok subscription auth and no Kimi
 executable. Codex implemented the supplied lockscreen reference, preserving
 animated rings, wordmark and successful-unlock doors, and captured separate
 base/changed production builds for desktop, tablet and phone evidence.
+
+- 2026-10-23: Latest-main integration and CI follow-up. Grok Build subscription authentication was unavailable and Kimi Code was not installed; bounded Codex agents prepared isolated slices, with root review, canonical checks, and GitHub-signed stacked publication.
