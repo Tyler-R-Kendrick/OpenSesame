@@ -1,0 +1,50 @@
+# Dependency updates. The audit gates (pnpm audit:osv, audit:cargo-audit,
+# audit:cve-lite) remain the security loop; Dependabot only proposes version
+# bumps so the routine dependency triage has a reviewed, ready-made PR.
+version: 2
+updates:
+  # Root Cargo workspace (product crates). tests/fuzz/cargo is its own
+  # workspace with its own lock and gets its own entry below.
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      cargo-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: cargo
+    directory: /tests/fuzz/cargo
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      cargo-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch
