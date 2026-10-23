@@ -6,7 +6,7 @@
  */
 
 import { SHARED_ITEM } from "./live-item-labels.mjs";
-import { addCapabilities, sealWithPin } from "./pages-journey.mjs";
+import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
@@ -243,6 +243,23 @@ export async function joinerAsks(
   await page.getByLabel("Your name").waitFor({ timeout: 20_000 });
   if (code) await page.getByLabel("Code").fill(code.toLowerCase());
   await page.getByLabel("Your name").fill(name);
+  const pin = page.getByLabel("Your vault PIN", { exact: true });
+  if (await pin.isVisible()) {
+    await pin.fill(PIN);
+    await page.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
+    await page
+      .getByLabel("I understand this vault cannot be recovered.", {
+        exact: true,
+      })
+      .check();
+  }
+  if (peerTrust || routes !== null) {
+    const advanced = page.locator("details.live-advanced").filter({
+      has: page.getByLabel("Peer trust signal", { exact: true }),
+    });
+    if ((await advanced.getAttribute("open")) === null)
+      await advanced.locator("summary").click();
+  }
   if (peerTrust) {
     await page.getByLabel("Peer trust signal", { exact: true }).fill(peerTrust);
   }
