@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 447,
-    "violations": 715,
-    "oversizedLines": 221066
+    "files": 446,
+    "violations": 714,
+    "oversizedLines": 220664
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -145,9 +145,6 @@
     },
     "apps/pages/src/screens/unlock/UnlockUserMenu.tsx": {
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 402
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,

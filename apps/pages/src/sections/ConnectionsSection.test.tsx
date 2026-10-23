@@ -106,15 +106,8 @@ vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
 
 import { embeddedCatalogSeams } from "@opensesame/app-core/lib/embedded-catalog.js";
-const originalEmbeddedCatalogSeams = {
-  ...embeddedCatalogSeams,
-  bundledProviders: embeddedCatalogSeams.bundledProviders,
-};
-embeddedCatalogSeams.readEmbeddedProviders = () =>
-  Promise.resolve(embeddedCatalogSeams.bundledProviders);
-embeddedCatalogSeams.writeEmbeddedProviders = vi
-  .fn()
-  .mockResolvedValue(undefined);
+import { installEmbeddedCatalogFixture } from "./connections/embedded-catalog.test-support.js";
+const originalEmbeddedCatalogSeams = installEmbeddedCatalogFixture();
 
 import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
 import { expectInTray } from "../components/tray.test-support.js";
@@ -179,6 +172,9 @@ describe("ConnectionsSection gallery", () => {
   it("filters the catalog by the prompt's words and clears it", async () => {
     const { container } = renderAt("/connections");
     await screen.findByText("Linear");
+    const tiles = () =>
+      [...container.querySelectorAll(".conn-tile")].map((tile) => tile.id);
+    const initialTiles = tiles();
     // No key or field of its own: the catalog is searched in the prompt.
     expect(screen.queryByLabelText("Search connectors")).toBeNull();
     act(() => prompt.type("/? linear"));
@@ -191,8 +187,7 @@ describe("ConnectionsSection gallery", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Clear search/i }),
     );
-    // Catalog tiles: github, linear, vercel (feature + automatic excluded).
-    expect(container.querySelectorAll(".conn-tile").length).toBe(3);
+    expect(tiles()).toEqual(initialTiles);
   });
   it("does not report an unreachable Host as a notification", async () => {
     listConnections.mockRejectedValue(
