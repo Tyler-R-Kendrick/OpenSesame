@@ -72,7 +72,6 @@ describe("the curated Connections list", () => {
       expect(ids, id).toContain(id);
     for (const retired of [
       "assemblyai",
-      "byo-ai",
       "cohere",
       "deepgram",
       "minimax",
@@ -117,8 +116,33 @@ describe("the curated Connections list", () => {
     expect(ai.every((provider) => allowed.has(provider.id))).toBe(true);
     expect(ai.map((provider) => provider.id)).not.toContain("baseten");
     expect(ai.map((provider) => provider.id)).toEqual(
-      expect.arrayContaining(["openai", "anthropic"]),
+      expect.arrayContaining(["openai", "anthropic", "byo-ai"]),
     );
+  });
+
+  it("puts BYO before partners while preserving alphabetical partner order and the input", () => {
+    const input = ["vercel", "openai", "byo-ai", "asana", "anthropic"].map(
+      (id) => {
+        const provider = byId.get(id);
+        if (!provider) throw new Error(`Missing curated provider: ${id}`);
+        return provider;
+      },
+    );
+    const original = [...input];
+    const ordered = curatedCatalogProviders(input);
+    expect(ordered.map((provider) => provider.id)).toEqual([
+      "byo-ai",
+      "anthropic",
+      "asana",
+      "openai",
+      "vercel",
+    ]);
+    expect(input).toEqual(original);
+    expect(
+      ordered
+        .filter((provider) => matchesCatalog(provider, "model provider"))
+        .map((provider) => provider.id),
+    ).toEqual(["byo-ai", "anthropic", "openai"]);
   });
 
   it("never admits an AI provider outside the Settings list", () => {
