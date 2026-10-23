@@ -3658,6 +3658,11 @@ details[open] > summary::before {
    block in the document flow, right-aligned above the screen — never an
    overlay, so it cannot rest on a control. The rail's tokens are re-pointed at
    the page's own so the key reads on the canvas. */
+/* A gate's notice seat adds no empty grid row; its notice keeps normal flow. */
+.gate-notice-seat {
+  display: contents;
+}
+
 .notice-corner {
   --rail-fg: var(--ink);
   --rail-2: var(--surface-2);
