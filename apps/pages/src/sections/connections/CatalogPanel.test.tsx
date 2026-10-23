@@ -1,19 +1,21 @@
-import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 /** @vitest-environment jsdom */
-import { render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { expect, it } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import { CatalogPanel } from "./CatalogPanel.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 // The catalog mounts `connections.catalog` and `.provider-picker`,
 // which `connectors.external` declares when it activates (ADR 0130).
 declareConnectionsTutorial();
+afterEach(cleanup);
 
 it("keeps browse-catalog tiles out of sequential Tab order", () => {
   const { container } = render(
     <MemoryRouter>
-      <CatalogPanel providers={vercelConnectCatalog()} />
+      <CatalogPanel providers={mergeVercelCatalog(getBundledProviders())} />
     </MemoryRouter>,
   );
   const tiles = [
@@ -25,8 +27,6 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   expect(
     container.querySelectorAll(".conn-tile__tags .conn-tag").length,
   ).toBeGreaterThan(0);
-  const add = screen.getByRole("link", { name: "Add a custom connection" });
-  expect(add.getAttribute("href")).toBe("/connections/byo-ai");
   const linearLink = container.querySelector<HTMLAnchorElement>(
     "#catalog-linear a.conn-tile__link",
   );
@@ -47,4 +47,25 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   const blocked = stripe?.querySelector(".conn-tile__go title");
   expect(blocked?.textContent).toBe("No way to check a key");
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
+});
+
+it("opens the auth-method builder from the + button", () => {
+  render(
+    <MemoryRouter>
+      <CatalogPanel providers={mergeVercelCatalog(getBundledProviders())} />
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add a connection" }));
+  expect(
+    screen.getByRole("group", { name: "Authentication method" }),
+  ).toBeTruthy();
+  for (const name of ["OAuth", "OIDC", "API key", "MCP"])
+    expect(
+      screen.getByRole("button", { name: new RegExp(`^${name}`) }),
+    ).toBeTruthy();
+  expect(
+    screen.getByRole("link", { name: /Custom \/ self-hosted/ }),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /^API key/ }));
+  expect(screen.getByText("Showing API key connectors")).toBeTruthy();
 });
