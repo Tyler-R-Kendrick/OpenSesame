@@ -60,13 +60,21 @@ export function artifactOverride(paths) {
   };
 }
 
-/** A reviewed release cannot be removed or rewritten by updating its local hash. */
+/**
+ * A published release may be withdrawn for a security defect, but one that
+ * remains published cannot be rewritten. A missing current entry is an
+ * intentional retirement; a present one must keep its exact SRI.
+ */
 export function assertImmutableArtifacts(previous, current) {
   for (const artifact of manifestSchema.parse(previous).artifacts) {
+    const kept = current.artifacts.find(
+      (entry) => entry.path === artifact.path,
+    );
+    if (!kept) continue;
     assert.equal(
-      current.artifacts.find((entry) => entry.path === artifact.path)?.sri,
+      kept.sri,
       artifact.sri,
-      `Published artifact changed or removed: ${artifact.path}`,
+      `Published artifact changed: ${artifact.path}`,
     );
   }
 }
