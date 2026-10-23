@@ -32,7 +32,7 @@ import {
 } from "./catalog-connector-action.js";
 import { apiFamilyFor } from "./catalog-families.js";
 import {
-  catalogTags,
+  catalogAuthMethods,
   curatedCatalogProviders,
   matchesCatalog,
 } from "./catalog-selection.js";
@@ -116,6 +116,15 @@ export function CatalogPanel({
     <section id="catalog" className="panel" ref={panelRef}>
       <div className="panel__head conn-catalog__head">
         <h2>Add a connection</h2>
+        <Link
+          id="catalog-add"
+          className="icon-btn icon-btn--sm"
+          aria-label="Add a custom connection"
+          title="Add a custom connection"
+          to={connectorPath("byo-ai")}
+        >
+          <IconPlus size={16} />
+        </Link>
       </div>
 
       <div className="panel__body">
@@ -140,7 +149,7 @@ export function CatalogPanel({
                   key={provider.id}
                   provider={provider}
                   providers={catalogProviders}
-                  tags={catalogTags(provider)}
+                  methods={catalogAuthMethods(provider)}
                   connection={preferredCatalogConnection(provider, connections)}
                 />
               ))}
@@ -165,11 +174,11 @@ export function CatalogPanel({
 function FamilyTile({
   provider,
   members,
-  tags,
+  methods,
 }: {
   provider: Provider;
   members: readonly Provider[];
-  tags: readonly string[];
+  methods: readonly string[];
 }) {
   return (
     <li
@@ -187,9 +196,9 @@ function FamilyTile({
             <span className="conn-tile__name">{provider.displayName}</span>
             <span className="conn-tile__kind">{members.length} APIs</span>
             <span className="conn-tile__tags">
-              {tags.map((tag) => (
-                <span className="conn-tag" key={tag}>
-                  {tag}
+              {methods.map((method) => (
+                <span className="conn-tag conn-tag--method" key={method}>
+                  {method}
                 </span>
               ))}
             </span>
@@ -217,12 +226,12 @@ function FamilyTile({
 function ProviderTile({
   provider,
   providers,
-  tags,
+  methods,
   connection,
 }: {
   provider: Provider;
   providers: readonly Provider[];
-  tags: readonly string[];
+  methods: readonly string[];
   connection: Connection | null;
 }) {
   const family = apiFamilyFor(provider.id);
@@ -233,7 +242,13 @@ function ProviderTile({
         members={providers.filter((candidate) =>
           family.members.includes(candidate.id),
         )}
-        tags={tags}
+        methods={[
+          ...new Set(
+            providers
+              .filter((candidate) => family.members.includes(candidate.id))
+              .flatMap(catalogAuthMethods),
+          ),
+        ]}
       />
     );
   }
@@ -245,7 +260,7 @@ function ProviderTile({
   const kind = catalogMethodLabel(provider);
   const repeats =
     provider.displayName.toLowerCase() === kind.toLowerCase() ||
-    tags.some((tag) => tag.toLowerCase() === kind.toLowerCase());
+    methods.some((method) => method.toLowerCase() === kind.toLowerCase());
   const tagsId = `catalog-${encodeURIComponent(provider.id)}-tags`;
   const { hash } = useLocation();
   return (
@@ -263,9 +278,9 @@ function ProviderTile({
           <span className="conn-tile__name">{provider.displayName}</span>
           {repeats ? null : <span className="conn-tile__kind">{kind}</span>}
           <span className="conn-tile__tags" id={tagsId}>
-            {tags.map((tag) => (
-              <span className="conn-tag" key={tag}>
-                {tag}
+            {methods.map((method) => (
+              <span className="conn-tag conn-tag--method" key={method}>
+                {method}
               </span>
             ))}
           </span>

@@ -25,6 +25,8 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   expect(
     container.querySelectorAll(".conn-tile__tags .conn-tag").length,
   ).toBeGreaterThan(0);
+  const add = screen.getByRole("link", { name: "Add a custom connection" });
+  expect(add.getAttribute("href")).toBe("/connections/byo-ai");
   const linearLink = container.querySelector<HTMLAnchorElement>(
     "#catalog-linear a.conn-tile__link",
   );
