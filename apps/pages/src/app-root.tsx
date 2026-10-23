@@ -220,6 +220,7 @@ function VaultApp() {
 
   const shell = (
     <AppVaultShell
+      key={JSON.stringify([tomb, guest])}
       slots={slots}
       wrappers={wrappers}
       routes={routes}
