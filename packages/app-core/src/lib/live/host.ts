@@ -17,8 +17,10 @@ import {
   type Received,
   SEAT_GRACE_MS,
   type HostSeat as Seat,
+  armSeatTimer,
   askingSeat,
   deviceLogEntry,
+  disarmSeatTimer,
   seatState,
 } from "./host-types.js";
 import type { LiveLink } from "./link.js";
@@ -128,17 +130,6 @@ export class LiveHost {
     this.#emit();
   }
 
-  /** Run `fire` after `ms`, in place of whatever the seat was waiting on. */
-  #arm(seat: Seat, ms: number, fire: () => void): void {
-    if (seat.timer) clearTimeout(seat.timer);
-    seat.timer = setTimeout(fire, ms);
-  }
-
-  #disarm(seat: Seat): void {
-    if (seat.timer) clearTimeout(seat.timer);
-    seat.timer = null;
-  }
-
   /** A request code the owner pasted, or a carrier passed on. */
   async receive(text: string): Promise<Received> {
     if (this.#ended) return { kind: "ended" };
@@ -220,7 +211,7 @@ export class LiveHost {
     );
     this.#seats.set(key, seat);
     for (const id of judged.clashKeys) this.#set(id, { nameClash: true });
-    this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
+    armSeatTimer(seat, PAIRING_MS, () => this.#drop(key, "gone"));
     this.#emit();
     // An open session's link is the admission: let the holder in at once.
     // The SAS stays on the owner's row for an optional check, but it does not
@@ -255,7 +246,7 @@ export class LiveHost {
       now: this.#now,
       onJoined: () => {
         if (seat.peer !== peer) return;
-        this.#disarm(seat);
+        disarmSeatTimer(seat);
         this.#set(key, { state: "joined", reply: null });
       },
       onClosed: () => {
@@ -337,7 +328,7 @@ export class LiveHost {
         return;
       }
       // The window to connect runs from the reply, not from the request.
-      this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
+      armSeatTimer(seat, PAIRING_MS, () => this.#drop(key, "gone"));
       this.#set(key, { state: "replied", reply, connection: undefined });
       this.options.post?.(reply);
     } catch {
@@ -373,7 +364,7 @@ export class LiveHost {
     seat.peer = null;
     // The offer is the seat's one big thing, and nothing reads it again.
     seat.offer = "";
-    this.#arm(seat, SEAT_GRACE_MS, () => this.#forget(key));
+    armSeatTimer(seat, SEAT_GRACE_MS, () => this.#forget(key));
     this.#set(key, { state, reply: null });
   }
 
@@ -397,7 +388,7 @@ export class LiveHost {
     if (this.#timer) clearTimeout(this.#timer);
     this.devices?.end();
     for (const seat of this.#seats.values()) {
-      this.#disarm(seat);
+      disarmSeatTimer(seat);
       seat.peer?.close();
       seat.peer = null;
       if (OPEN.has(seat.guest.state))
