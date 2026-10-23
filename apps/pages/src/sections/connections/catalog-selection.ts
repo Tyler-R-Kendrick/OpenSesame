@@ -19,6 +19,27 @@ const MANAGED = new Set(
   [...MANAGED_CONNECTOR_IDS].filter((id) => id !== "linq"),
 );
 
+/**
+ * Providers deliberately retired from the browse page. Their catalog rows
+ * remain for existing saved connections and Settings › Integrations, but a
+ * new connection no longer offers them.
+ */
+const RETIRED_FROM_BROWSE = new Set([
+  "assemblyai",
+  "byo-ai",
+  "cohere",
+  "deepgram",
+  "minimax",
+  "mistral",
+  "moonshotai",
+  "photon",
+  "replicate",
+  "stability",
+  "together",
+  "xiaomi",
+  "zai",
+]);
+
 /** Developer tools that OpenSesame itself uses for an integration. */
 const FORGE = new Set(["github", "gitlab", "bitbucket", "codeberg", "origin"]);
 const DEV_INTEGRATION = new Set([...FORGE, "vercel"]);
@@ -101,7 +122,10 @@ export function curatedCatalogProviders(
       (provider) =>
         provider.category !== "ai_model_provider" || AI.has(provider.id),
     )
-    .filter((provider) => ALLOWED.has(provider.id))
+    .filter(
+      (provider) =>
+        ALLOWED.has(provider.id) && !RETIRED_FROM_BROWSE.has(provider.id),
+    )
     .sort((left, right) =>
       left.displayName.localeCompare(right.displayName, "en", {
         sensitivity: "base",

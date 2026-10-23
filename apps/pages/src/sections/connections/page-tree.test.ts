@@ -35,7 +35,6 @@ describe("connections page tree", () => {
         "slack",
         "snowflake",
         "openai",
-        "byo-ai",
         "asana",
         "google",
         "notion",
@@ -50,6 +49,15 @@ describe("connections page tree", () => {
         "vercel",
       ]),
     );
+    expect(ids).not.toContain("byo-ai");
+    expect(ids).not.toContain("cohere");
+    expect(ids).not.toContain("deepgram");
+    expect(ids).not.toContain("mistral");
+    expect(ids).not.toContain("photon");
+    expect(ids).not.toContain("replicate");
+    expect(ids).not.toContain("stability");
+    expect(ids).not.toContain("together");
+    expect(ids).not.toContain("zai");
     expect(ids).not.toContain("linq");
     expect(ids).not.toContain("whoop");
     expect(ids).not.toContain("auth0");
