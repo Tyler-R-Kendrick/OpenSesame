@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 448,
-    "violations": 717,
+    "files": 447,
+    "violations": 716,
     "oversizedLines": 221074
   },
   "files": {
@@ -99,9 +99,6 @@
     },
     "apps/pages/src/modules/networking.tailnet/browser/native-http-worker.test.ts": {
       "max-lines": 409
-    },
-    "apps/pages/src/modules/sharing.live/LiveHostForm.tsx": {
-      "max-lines-per-function": 1
     },
     "apps/pages/src/modules/sharing.live/live-join-route-parts.tsx": {
       "complexity": 1,
