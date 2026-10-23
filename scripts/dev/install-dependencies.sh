@@ -25,16 +25,24 @@ process.stdout.write(hash.digest("hex"));
 NODE
 )"
 marker="node_modules/.cache/opensesame-install.sha256"
+installed_lock="node_modules/.pnpm/lock.yaml"
 if [[ -f node_modules/.modules.yaml && -f "$marker" ]] \
+   && cmp -s pnpm-lock.yaml "$installed_lock" \
    && [[ "$(cat "$marker")" == "$fingerprint" ]]; then
   echo "dependencies: current lockfile already installed"
   exit 0
 fi
 
-pnpm install --frozen-lockfile
+# Noninteractive pnpm must not cancel a reinstall prompt with a successful exit.
+rm -f "$marker"
+CI=true pnpm install --frozen-lockfile
 # A failed or incomplete installation must never appear current on the next run.
 if [[ ! -f node_modules/.modules.yaml ]]; then
   echo "dependencies: installation did not produce pnpm's module manifest" >&2
+  exit 1
+fi
+if ! cmp -s pnpm-lock.yaml "$installed_lock"; then
+  echo "dependencies: installed virtual-store lockfile does not match pnpm-lock.yaml" >&2
   exit 1
 fi
 mkdir -p "$(dirname "$marker")"
