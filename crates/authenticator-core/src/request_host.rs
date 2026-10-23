@@ -12,6 +12,9 @@ fn ipv4_is_blocked(ip: Ipv4Addr) -> bool {
         || ip.is_unspecified()
 }
 
+// Suffixes are compared against `lower`, already ASCII-lowercased, so
+// clippy's file-extension lint does not apply to these host suffixes.
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 pub(crate) fn host_is_private(url: &Url) -> bool {
     match url.host() {
         None => true,
