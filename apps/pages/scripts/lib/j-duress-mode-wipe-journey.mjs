@@ -106,7 +106,10 @@ async function sealNamed(page, name) {
 async function armWipe({ page, check, snap }) {
   await openSettingsCategory(page, "Security");
   await page.locator("#duress-profiles").waitFor({ timeout: 15000 });
-  await page.getByRole("button", { name: "Add" }).last().click();
+  await page
+    .locator("#duress-profiles")
+    .getByRole("button", { name: "Add", exact: true })
+    .click();
   await page.getByRole("radio", { name: WIPE }).check();
   const radios = await page.locator("[role=dialog] input[type=radio]").count();
   check(
