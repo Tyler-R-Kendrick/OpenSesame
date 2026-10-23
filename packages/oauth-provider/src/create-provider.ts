@@ -2,6 +2,7 @@ import { generateKeyPairSync } from "node:crypto";
 import {
   type BoundaryValue,
   type JsonObject,
+  isJsonObject,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -207,7 +208,10 @@ function tlsClientRecordFields(
  * Map a static oidc-provider `ClientMetadata` entry into a client record for
  * the store default, so existing static-only callers behave unchanged.
  */
-function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
+function recordFromClientMetadata(
+  meta: ClientMetadata,
+  deploymentResources: readonly string[],
+): OAuthClientRecord {
   const sectorIdentifierUri = isString(meta.sector_identifier_uri)
     ? meta.sector_identifier_uri
     : undefined;
@@ -235,7 +239,7 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
     responseTypes: meta.response_types ?? ["code"],
     tokenEndpointAuthMethod,
     allowedScopes: scope ? scope.split(" ") : ["openid"],
-    allowedResources: [],
+    allowedResources: [...deploymentResources],
     state: "active",
   };
   if (meta.jwks) record.jwks = meta.jwks;
@@ -294,7 +298,11 @@ export function createOpenSesameProvider(
     clientStore = options.clientStore;
   } else {
     const memory = new MemoryClientRecordStore();
-    memory.seed(staticClients.map(recordFromClientMetadata));
+    memory.seed(
+      staticClients.map((client) =>
+        recordFromClientMetadata(client, env.allowedResources),
+      ),
+    );
     clientStore = memory;
   }
 
@@ -352,6 +360,7 @@ export function createOpenSesameProvider(
         getResourceServerInfo: async (
           _ctx: BoundaryValue,
           resourceIndicator: string,
+          client?: BoundaryValue,
         ) => {
           // Without this check any client could obtain a signed JWT audienced to
           // an arbitrary resource server (RFC 8707 invalid_target).
@@ -365,6 +374,26 @@ export function createOpenSesameProvider(
             throw new errors.InvalidTarget(
               "resource indicator is not an allowed resource server",
             );
+          }
+          const activeClient = isJsonObject(client) ? client : undefined;
+          const clientId =
+            activeClient && isString(activeClient.clientId)
+              ? activeClient.clientId
+              : undefined;
+          if (clientId) {
+            const record = await clientStore.findById(clientId);
+            if (
+              !record ||
+              !isResourceAllowed(
+                resourceIndicator,
+                record.allowedResources,
+                env.issuer,
+              )
+            ) {
+              throw new errors.InvalidTarget(
+                "resource indicator is not allowed for this client",
+              );
+            }
           }
           return {
             scope: "openid",
@@ -402,20 +431,34 @@ export function createOpenSesameProvider(
 
   const provider = new Provider(env.issuer, configuration);
 
+  // The admission budget is a check-then-insert. Serialize it so two /auth
+  // probes in this process cannot both pass the last free slot.
+  let originAdmissionTail: Promise<unknown> = Promise.resolve();
+  function serializedOriginAdmission<T>(run: () => Promise<T>): Promise<T> {
+    const next = originAdmissionTail.then(run, run);
+    originAdmissionTail = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  }
+
   async function ensureOriginClient(rawOriginOrClientId: string) {
     const asOrigin =
       parseOriginClientId(rawOriginOrClientId) ?? rawOriginOrClientId;
-    const record = await resolveOriginClient({
-      store: clientStore,
-      admission,
-      origin: asOrigin,
-      allowLoopbackHttp: true,
-      production: env.isProduction,
-      ...(options.systemOwnerPrincipalId
-        ? { systemOwnerPrincipalId: options.systemOwnerPrincipalId }
-        : undefined),
+    return serializedOriginAdmission(async () => {
+      const record = await resolveOriginClient({
+        store: clientStore,
+        admission,
+        origin: asOrigin,
+        allowLoopbackHttp: true,
+        production: env.isProduction,
+        ...(options.systemOwnerPrincipalId
+          ? { systemOwnerPrincipalId: options.systemOwnerPrincipalId }
+          : undefined),
+      });
+      return toOidcClientMetadata(record);
     });
-    return toOidcClientMetadata(record);
   }
 
   async function lookupOriginClient(rawOriginOrClientId: string) {

@@ -21,6 +21,8 @@ type PageContext = {
   type: string;
   body: string;
   oidc: { client?: { clientId: string; clientName?: string } };
+  /** Koa's header setter; absent only in a bare test double. */
+  set?: (name: string, value: string) => void;
 };
 
 /**
@@ -89,6 +91,13 @@ function drawWith(styles: string): Draw {
   return (ctx, title, body) => {
     const page = contextOf(ctx);
     page.type = "html";
+    // These are credentials-adjacent forms. No page may be embedded, and the
+    // sheet stays inline because the surface is a single self-contained body.
+    page.set?.(
+      "Content-Security-Policy",
+      "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    );
+    page.set?.("X-Frame-Options", "DENY");
     page.body = `<!DOCTYPE html>
 <html lang="en">
 <head>

@@ -19,7 +19,7 @@ describe("createOpenSesameVerifier", () => {
       scope: "openid profile",
       token_use: "access",
     })
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject("pairwise-alpha-sub")
@@ -41,7 +41,7 @@ describe("createOpenSesameVerifier", () => {
       jwks,
     });
     const token = await new SignJWT({})
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience("rp-beta")
       .setSubject("x")
@@ -59,7 +59,7 @@ describe("createOpenSesameVerifier", () => {
       jwks,
     });
     const token = await new SignJWT({ scope: "openid" })
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject("x")
@@ -78,7 +78,7 @@ describe("createOpenSesameVerifier", () => {
       algorithms: ["ES256"],
     });
     const token = await new SignJWT({ scope: "openid" })
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject("x")
@@ -132,7 +132,7 @@ describe("createOpenSesameVerifier", () => {
       },
     });
     const token = await new SignJWT({ token_use: "access" })
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject("sub-1")
@@ -177,9 +177,15 @@ describe("createOpenSesameVerifier", () => {
       "https://169.254.169.254/latest/meta-data/",
       "https://172.20.0.5/jwks",
       "https://192.168.1.1/jwks",
+      "https://100.64.0.1/jwks",
+      "https://198.18.0.1/jwks",
+      "https://192.0.0.1/jwks",
+      "https://localhost./jwks",
       "https://[fd00::1]/jwks",
+      "https://[fec0::1]/jwks",
       "https://[::ffff:127.0.0.1]/jwks",
       "https://[::ffff:7f00:1]/jwks",
+      "https://[::ffff:100.64.0.1]/jwks",
       "https://vault.internal/jwks",
     ]) {
       const verifier = createOpenSesameVerifier({
@@ -264,13 +270,44 @@ describe("createOpenSesameVerifier", () => {
     expect(asked[0]).toBe(`${ISSUER}/.well-known/openid-configuration`);
   });
 
-  it("requires the RFC 9068 type header when asked to", async () => {
+  it("refuses a JWKS fetch that redirects", async () => {
+    const { privateKey } = await mintKeys();
+    let jwksRedirect: RequestRedirect | undefined;
+    const verifier = createOpenSesameVerifier({
+      issuer: "https://remote.example",
+      audience: AUDIENCE,
+      fetchImpl: async (input, init) => {
+        if (String(input).endsWith("/.well-known/openid-configuration"))
+          return Response.json({
+            issuer: "https://remote.example",
+            jwks_uri: "https://remote.example/jwks",
+          });
+        jwksRedirect = init?.redirect;
+        return new Response(null, {
+          status: 302,
+          headers: { location: "http://169.254.169.254/latest/meta-data" },
+        });
+      },
+    });
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
+      .setIssuer("https://remote.example")
+      .setAudience(AUDIENCE)
+      .setSubject("x")
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    await expect(verifier.verifyAccessToken(token)).rejects.toThrow(
+      /redirect/i,
+    );
+    expect(jwksRedirect).toBe("manual");
+  });
+
+  it("requires the RFC 9068 type header by default", async () => {
     const { privateKey, jwks } = await mintKeys();
     const verifier = createOpenSesameVerifier({
       issuer: ISSUER,
       audience: AUDIENCE,
       jwks,
-      requireAccessTokenTypeHeader: true,
     });
     const plain = new SignJWT({ scope: "openid" })
       .setIssuer(ISSUER)
@@ -296,6 +333,29 @@ describe("createOpenSesameVerifier", () => {
     });
   });
 
+  it("can opt out for a legacy issuer that omits the type header", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      jwks,
+      requireAccessTokenTypeHeader: false,
+    });
+    const token = await new SignJWT({
+      scope: "openid",
+      token_use: "access",
+    })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("x")
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    await expect(verifier.verifyAccessToken(token)).resolves.toMatchObject({
+      sub: "x",
+    });
+  });
+
   it("enforces required scopes", async () => {
     const { privateKey, jwks } = await mintKeys();
     const verifier = createOpenSesameVerifier({
@@ -305,7 +365,7 @@ describe("createOpenSesameVerifier", () => {
       requiredScopes: ["admin"],
     });
     const token = await new SignJWT({ scope: "openid" })
-      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject("x")

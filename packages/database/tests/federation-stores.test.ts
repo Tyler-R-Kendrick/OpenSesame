@@ -699,6 +699,15 @@ describe.each(backends)("$name federation storage", ({ create }) => {
       ).rejects.toBeInstanceOf(OrgEmailDomainConflictError);
 
       const at = new Date("2026-08-24T14:00:00.000Z");
+      // Verification is scoped to the claiming organization: another owner
+      // who presents the same domain cannot mark it verified.
+      expect(
+        await backend.federation.emailDomains.markVerified(
+          domain,
+          at,
+          rival.id,
+        ),
+      ).toBeNull();
       expect(
         (await backend.federation.emailDomains.markVerified(domain, at))
           ?.verifiedAt,

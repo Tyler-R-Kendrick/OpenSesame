@@ -4,7 +4,7 @@ import type {
   AgentRegistration,
   AgentServiceAssertionRecord,
 } from "@opensesame/os-domain";
-import { and, desc, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, lte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema/index.js";
 import {
@@ -177,14 +177,52 @@ export class MemoryAgentAuthRepository implements AgentAuthRepository {
     attempt: AgentClaimAttempt,
     uow?: UnitOfWork,
   ): Promise<AgentClaimAttempt> => {
-    if (!this.attempts.has(attempt.id)) {
+    const current = this.attempts.get(attempt.id);
+    if (!current) {
       throw new ConflictError(`agent claim attempt missing: ${attempt.id}`);
     }
-    const row = cloneAttempt(attempt);
+    const slowdownUntil = attempt.slowdownUntil ?? current.slowdownUntil;
+    const completedAt = current.completedAt ?? attempt.completedAt;
+    const row = cloneAttempt({
+      ...attempt,
+      pollCount: Math.max(current.pollCount, attempt.pollCount),
+      failedAttempts: Math.max(current.failedAttempts, attempt.failedAttempts),
+      ...(slowdownUntil ? { slowdownUntil } : undefined),
+      ...(completedAt ? { completedAt } : undefined),
+    });
     applyNowOrDefer(uow, () => {
-      this.attempts.set(row.id, row);
+      const live = this.attempts.get(attempt.id);
+      if (!live) {
+        throw new ConflictError(`agent claim attempt missing: ${attempt.id}`);
+      }
+      const liveSlowdown = row.slowdownUntil ?? live.slowdownUntil;
+      const liveCompleted = live.completedAt ?? row.completedAt;
+      this.attempts.set(row.id, {
+        ...row,
+        pollCount: Math.max(live.pollCount, row.pollCount),
+        failedAttempts: Math.max(live.failedAttempts, row.failedAttempts),
+        ...(liveSlowdown ? { slowdownUntil: liveSlowdown } : undefined),
+        ...(liveCompleted ? { completedAt: liveCompleted } : undefined),
+      });
     });
     return cloneAttempt(row);
+  };
+
+  consumeClaimAttempt = async (
+    id: string,
+    maxAttempts: number,
+  ): Promise<boolean> => {
+    const current = this.attempts.get(id);
+    if (!current || current.completedAt) return false;
+    if (current.failedAttempts >= maxAttempts) return false;
+    this.attempts.set(
+      id,
+      cloneAttempt({
+        ...current,
+        failedAttempts: current.failedAttempts + 1,
+      }),
+    );
+    return true;
   };
 
   createAccessToken = async (
@@ -479,10 +517,12 @@ export function createPostgresAgentAuthRepository(
       const [row] = await conn
         .update(schema.agentClaimAttempts)
         .set({
-          slowdownUntil: attempt.slowdownUntil,
-          pollCount: attempt.pollCount,
-          failedAttempts: attempt.failedAttempts,
-          completedAt: attempt.completedAt,
+          // Counter and completion writes are monotonic. A stale poll must
+          // not roll back another poll's count, a slowdown, or a completion.
+          slowdownUntil: sql`greatest(${schema.agentClaimAttempts.slowdownUntil}, ${attempt.slowdownUntil ?? null})`,
+          pollCount: sql`greatest(${schema.agentClaimAttempts.pollCount}, ${attempt.pollCount})`,
+          failedAttempts: sql`greatest(${schema.agentClaimAttempts.failedAttempts}, ${attempt.failedAttempts})`,
+          completedAt: sql`coalesce(${schema.agentClaimAttempts.completedAt}, ${attempt.completedAt ?? null})`,
         })
         .where(eq(schema.agentClaimAttempts.id, attempt.id))
         .returning();
@@ -490,6 +530,23 @@ export function createPostgresAgentAuthRepository(
         throw new ConflictError(`agent claim attempt missing: ${attempt.id}`);
       }
       return mapAttempt(row);
+    },
+
+    async consumeClaimAttempt(id, maxAttempts) {
+      const [row] = await db
+        .update(schema.agentClaimAttempts)
+        .set({
+          failedAttempts: sql`${schema.agentClaimAttempts.failedAttempts} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.agentClaimAttempts.id, id),
+            isNull(schema.agentClaimAttempts.completedAt),
+            lt(schema.agentClaimAttempts.failedAttempts, maxAttempts),
+          ),
+        )
+        .returning({ id: schema.agentClaimAttempts.id });
+      return row !== undefined;
     },
 
     async createAccessToken(record, uow) {

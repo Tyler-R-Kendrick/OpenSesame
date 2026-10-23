@@ -31,6 +31,7 @@ Import from the root: `import { openVaultFile } from "@opensesame/vault-core"`.
 | `merge.ts`, `item-merge.ts`, `stamps.ts`, `device-key.ts`, `sync-model.ts` | Merging two opened snapshots deterministically, field by field, with tombstones ([ADR 0144](../../docs/adr/0144-tailnet-vault-sync.md)): `mergeVaultBodies`, `mergeItem`, `restampEdits`; the device identity key a body carries |
 | `item-types.ts` | This device's item-type registry: `installItemType`, `uninstallItemType`, `definitionFor`, `typedSubtitle` |
 | `totp.ts` | `parseTotp`, `totpCode`, `hotpCode`, `totpSetupUri` |
+| `item-formats/` | Closed parser/generator formats for built-in and optional item types: `bestItemFormat`, `parseItemFormat`, `generateItemFormat`, `itemFormatCoverage`; Luhn, IBAN/ABA, TOTP, JWT, issuer API-key shapes, database/SSH URLs, VIN, EVM and more ([item formats](../../docs/design/item-formats.md)) |
 | `offline-backup-format.ts` | `buildOfflineBackupEnvelope`, `parseOfflineBackupEnvelope`, `assertCiphertextOnlyBackupJson` |
 | `vault-file.ts` | `openVaultFile`, `readVaultFile`, `openVaultBody`, `summarizeVaultBody` |
 | `drop-format.ts` | `sealDrop`, `openDrop` — 1 MiB chunks, v1 capped at 1 MiB ciphertext |

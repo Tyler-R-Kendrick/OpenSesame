@@ -56,6 +56,27 @@ it("persists opaque token jti and lookup capabilities only as keyed indexes and 
   expect(await store.find("AccessToken", "access-bearer")).toBeUndefined();
 });
 
+it("stamps a single-use artifact once under concurrent consumes", async () => {
+  const store = createPostgresOidcStore(ctx.db, sealer);
+  const id = "race-code";
+  await store.upsert("AuthorizationCode", id, { jti: id }, null);
+  await store.consume("AuthorizationCode", id);
+  const [first] = await ctx.db
+    .select()
+    .from(schema.oidcPayloads)
+    .where(eq(schema.oidcPayloads.model, "AuthorizationCode"));
+  await new Promise((resolve) => setTimeout(resolve, 2));
+  await store.consume("AuthorizationCode", id);
+  const [second] = await ctx.db
+    .select()
+    .from(schema.oidcPayloads)
+    .where(eq(schema.oidcPayloads.model, "AuthorizationCode"));
+  expect(second?.consumedAt).toEqual(first?.consumedAt);
+  await ctx.db
+    .delete(schema.oidcPayloads)
+    .where(eq(schema.oidcPayloads.model, "AuthorizationCode"));
+});
+
 it("upgrades legacy bearer rows atomically and preserves consumed state", async () => {
   const token = "legacy-refresh-bearer";
   const consumedAt = new Date(1_700_000_000_000);

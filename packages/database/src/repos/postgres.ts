@@ -2374,18 +2374,24 @@ export class PostgresProjectStore implements ProjectStore {
       });
     if (!row) throw new Error("ensurePersonal returned no row");
     const project = mapProject(row);
-    if (row.inserted) {
-      await this.db
-        .insert(schema.projectMemberships)
-        .values({
-          projectId: project.id,
-          principalId,
-          role: "owner",
-          createdAt: now,
-          updatedAt: now,
-        })
-        .onConflictDoNothing();
-    }
+    // Repair the owner membership on every call. A previous crash after the
+    // project insert must not leave a personal project with no owner.
+    await this.db
+      .insert(schema.projectMemberships)
+      .values({
+        projectId: project.id,
+        principalId,
+        role: "owner",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.projectMemberships.projectId,
+          schema.projectMemberships.principalId,
+        ],
+        set: { role: "owner", updatedAt: now },
+      });
     return { project, created: Boolean(row.inserted) };
   }
 }
