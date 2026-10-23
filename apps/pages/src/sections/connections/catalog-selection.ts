@@ -52,6 +52,9 @@ const PRODUCTIVITY = new Set([
   "docusign",
   "figma",
   "google",
+  "google-drive",
+  "m365",
+  "obsidian",
   "linear",
   "make",
   "microsoft-teams",
@@ -95,13 +98,18 @@ const CRM = new Set([
   "hubspot",
   "lemma",
   "paypal",
+  "polar",
   "salesforce",
   "shopify",
   "stripe",
   "zomato",
 ]);
 
-const AI = new Set<string>(INTEGRATION_AI_LABS.map((lab) => lab.id));
+const AI = new Set<string>([
+  ...INTEGRATION_AI_LABS.map((lab) => lab.id),
+  "fal-ai",
+  "higgsfield",
+]);
 const ALLOWED = new Set([
   ...MANAGED,
   ...DEV_INTEGRATION,
@@ -112,11 +120,98 @@ const ALLOWED = new Set([
   ...AI,
 ]);
 
+/**
+ * Tiles that have no bundled Host catalog row yet. They are browse entries
+ * backed by the provider's own auth details; a Host that later supplies the
+ * same id wins and this copy is not added twice.
+ */
+function featuredProviders(
+  providers: readonly Provider[],
+): readonly Provider[] {
+  const present = new Set(providers.map((provider) => provider.id));
+  const base = providers[0];
+  if (!base) return [];
+  const clone = (
+    source: Provider | undefined,
+    id: string,
+    displayName: string,
+    category: Provider["category"],
+  ): Provider => ({
+    ...(source ?? base),
+    id,
+    displayName,
+    category,
+    configured: false,
+    autoConfigurable: false,
+    missingConfig: [],
+    callbackUrl: null,
+  });
+  const google = providers.find((provider) => provider.id === "google");
+  const microsoft = providers.find((provider) => provider.id === "microsoft");
+  const rows: Provider[] = [
+    clone(google, "google-drive", "Google Drive", "storage"),
+    clone(microsoft, "m365", "M365", "productivity"),
+    {
+      ...clone(base, "obsidian", "Obsidian", "storage"),
+      authKind: "api_key",
+      docsUrl: "https://help.obsidian.md/",
+      egress: {
+        scheme: "https",
+        authorities: ["127.0.0.1:27124"],
+        pathPrefixes: [],
+      },
+      operations: [],
+      scopes: [],
+    },
+    {
+      ...clone(base, "polar", "Polar", "crm"),
+      authKind: "api_key",
+      docsUrl: "https://docs.polar.sh/",
+      egress: {
+        scheme: "https",
+        authorities: ["api.polar.sh"],
+        pathPrefixes: [],
+      },
+      operations: [],
+      scopes: [],
+    },
+    {
+      ...clone(base, "higgsfield", "Higgsfield", "ai_model_provider"),
+      authKind: "api_key",
+      docsUrl: "https://docs.higgsfield.ai/",
+      egress: {
+        scheme: "https",
+        authorities: ["api.higgsfield.ai"],
+        pathPrefixes: [],
+      },
+      operations: [],
+      scopes: [],
+    },
+    {
+      ...clone(base, "fal-ai", "FAL.ai", "ai_model_provider"),
+      authKind: "api_key",
+      docsUrl: "https://docs.fal.ai/",
+      egress: {
+        scheme: "https",
+        authorities: ["fal.run", "queue.fal.run"],
+        pathPrefixes: [],
+      },
+      operations: [],
+      scopes: [],
+    },
+  ];
+  return rows.filter((provider) => !present.has(provider.id));
+}
+
 /** The curated providers, in one alphabetical browse list. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
+  options: { includeFeatured?: boolean } = {},
 ): Provider[] {
-  return providers
+  const source = options.includeFeatured
+    ? [...providers, ...featuredProviders(providers)]
+    : providers;
+  return source
     .filter((provider) => isConnectionCatalogProvider(provider))
     .filter(
       (provider) =>

@@ -92,6 +92,22 @@ describe("the curated Connections list", () => {
     expect(ids).not.toContain("github-app");
   });
 
+  it("offers the featured additions in Add a connection", () => {
+    const featured = curatedCatalogProviders(
+      mergeVercelCatalog(getBundledProviders()),
+      { includeFeatured: true },
+    ).map((provider) => provider.id);
+    for (const id of [
+      "obsidian",
+      "google-drive",
+      "m365",
+      "polar",
+      "higgsfield",
+      "fal-ai",
+    ])
+      expect(featured, id).toContain(id);
+  });
+
   it("keeps only the non-retired AI labs from Settings › Integrations", () => {
     const allowed = new Set<string>(INTEGRATION_AI_LABS.map((lab) => lab.id));
     const ai = providers.filter(
