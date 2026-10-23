@@ -1,7 +1,7 @@
 /**
  * J-TYPES: switch a built-in type on (a download, no reload) and off again,
  * then install an inert VaultItemType as a file — a new file in
- * `settings/item-types/installed/`, opened from the Vaults directory's files
+ * `settings/item-types/installed/`, opened from the Item types directory's files
  * (ADR 0134) — without a reload, then remove it from the Form without
  * rewriting the item values it shaped (ADR 0087 §7).
  */
@@ -56,7 +56,7 @@ const TICKET = JSON.stringify({
 export async function walkJTypes({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);
-  await openSettingsCategory(page, "Vaults");
+  await openSettingsCategory(page, "Item types");
   await page.getByRole("heading", { name: "Item types" }).waitFor({
     timeout: 15000,
   });
@@ -107,7 +107,7 @@ export async function walkJTypes({ page, origin, base, check, snap }) {
   check(true, "the file is renamed for its id, with no reload");
   await snap(page, "J-TYPES-file");
 
-  await openConfigForm(page, "Vaults");
+  await openConfigForm(page, "Item types");
   const installed = page.getByRole("list", { name: "Types you added" });
   await installed.getByText("Event ticket").waitFor({ timeout: 8000 });
   check(true, "the Form lists the installed type");
