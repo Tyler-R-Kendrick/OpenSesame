@@ -5,6 +5,7 @@ import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
  * a provider's catalog row still exists for a saved connection and for
  * Settings › Integrations, but the browse page only offers the curated set.
  */
+import { byoProvidersFirst } from "@opensesame/app-core/lib/catalog-provider.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
@@ -226,7 +227,7 @@ function featuredProviders(
   return rows.filter((provider) => !present.has(provider.id));
 }
 
-/** The curated providers, in one alphabetical browse list. */
+/** BYO leads the curated browse list; partner providers stay alphabetical. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
   options: { includeFeatured?: boolean; includeFamilies?: boolean } = {},
@@ -234,7 +235,8 @@ export function curatedCatalogProviders(
   const source = options.includeFeatured
     ? [...providers, ...featuredProviders(providers)]
     : providers;
-  return source
+  return byoProvidersFirst(
+    source
     .filter(
       (provider) =>
         isConnectionCatalogProvider(provider) ||
@@ -260,11 +262,12 @@ export function curatedCatalogProviders(
         ? { ...provider, displayName: family.name }
         : provider;
     })
-    .sort((left, right) =>
-      left.displayName.localeCompare(right.displayName, "en", {
-        sensitivity: "base",
-      }),
-    );
+      .sort((left, right) =>
+        left.displayName.localeCompare(right.displayName, "en", {
+          sensitivity: "base",
+        }),
+      ),
+  );
 }
 
 /** The auth/integration methods a tile supports, as user-facing pills. */

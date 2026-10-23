@@ -157,6 +157,33 @@ describe("the curated Connections list", () => {
     );
   });
 
+  it("keeps retired BYO AI out of browse while partners stay alphabetical and the input is preserved", () => {
+    // BYO-first ordering (#1902) applies to admitted BYO providers;
+    // byo-ai itself was retired from browse on main (0ca0474ca) and is
+    // offered through the custom-connection button instead.
+    const input = ["vercel", "openai", "byo-ai", "asana", "anthropic"].map(
+      (id) => {
+        const provider = byId.get(id);
+        if (!provider) throw new Error(`Missing curated provider: ${id}`);
+        return provider;
+      },
+    );
+    const original = [...input];
+    const ordered = curatedCatalogProviders(input);
+    expect(ordered.map((provider) => provider.id)).toEqual([
+      "anthropic",
+      "asana",
+      "openai",
+      "vercel",
+    ]);
+    expect(input).toEqual(original);
+    expect(
+      ordered
+        .filter((provider) => matchesCatalog(provider, "model provider"))
+        .map((provider) => provider.id),
+    ).toEqual(["anthropic", "openai"]);
+  });
+
   it("never admits an AI provider outside the Settings list", () => {
     const fake = {
       ...providers[0],

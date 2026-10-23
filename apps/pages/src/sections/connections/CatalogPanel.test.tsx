@@ -1,3 +1,4 @@
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 /** @vitest-environment jsdom */
 import { render, screen } from "@testing-library/react";
@@ -47,4 +48,28 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   const blocked = stripe?.querySelector(".conn-tile__go title");
   expect(blocked?.textContent).toBe("No way to check a key");
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
+});
+
+it("offers BYO AI through the custom-connection button, not a browse tile", () => {
+  // #1902 put BYO first among tiles; main then retired byo-ai from
+  // browse (0ca0474ca) in favor of the custom-connection button
+  // (715c8e27c), so partners render alphabetically without a BYO tile.
+  const ids = new Set(["openai", "anthropic", "byo-ai"]);
+  const { container } = render(
+    <MemoryRouter>
+      <CatalogPanel
+        providers={getBundledProviders().filter((provider) =>
+          ids.has(provider.id),
+        )}
+      />
+    </MemoryRouter>,
+  );
+  const tiles = [...container.querySelectorAll(".conn-grid > .conn-tile")];
+  expect(tiles.map((tile) => tile.id)).toEqual([
+    "catalog-anthropic",
+    "catalog-openai",
+  ]);
+  expect(container.querySelector("#catalog-byo-ai")).toBeNull();
+  const add = screen.getByRole("link", { name: "Add a custom connection" });
+  expect(add.getAttribute("href")).toBe("/connections/byo-ai");
 });
