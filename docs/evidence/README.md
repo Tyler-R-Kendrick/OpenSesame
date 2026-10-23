@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-23-feature-title-touch/`](2026-10-23-feature-title-touch/README.md) | Feature heading touch targets |
 | [`2026-10-22-deepsec/`](2026-10-22-deepsec/README.md) | DeepSec scan evidence |
 | [`2026-10-21-ollama/`](2026-10-21-ollama/README.md) | Ollama shared configuration |
 | [`2026-10-20-unused-css/`](2026-10-20-unused-css/README.md) | Unreachable CSS cleanup |
