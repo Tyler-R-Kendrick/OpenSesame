@@ -40,7 +40,6 @@ describe("the curated Connections list", () => {
       "granola",
       "linkedin",
       "intuit-mailchimp",
-      "photon",
       "reddit",
       "resend",
       "sendgrid",
@@ -71,13 +70,29 @@ describe("the curated Connections list", () => {
       "vercel",
     ])
       expect(ids, id).toContain(id);
+    for (const retired of [
+      "assemblyai",
+      "byo-ai",
+      "cohere",
+      "deepgram",
+      "minimax",
+      "mistral",
+      "moonshotai",
+      "photon",
+      "replicate",
+      "stability",
+      "together",
+      "xiaomi",
+      "zai",
+    ])
+      expect(ids, retired).not.toContain(retired);
     expect(ids).not.toContain("linq");
     expect(ids).not.toContain("whoop");
     expect(ids).not.toContain("password-store");
     expect(ids).not.toContain("github-app");
   });
 
-  it("keeps exactly the AI labs Settings › Integrations lists", () => {
+  it("keeps only the non-retired AI labs from Settings › Integrations", () => {
     const allowed = new Set<string>(INTEGRATION_AI_LABS.map((lab) => lab.id));
     const ai = providers.filter(
       (provider) => provider.category === "ai_model_provider",
@@ -86,7 +101,7 @@ describe("the curated Connections list", () => {
     expect(ai.every((provider) => allowed.has(provider.id))).toBe(true);
     expect(ai.map((provider) => provider.id)).not.toContain("baseten");
     expect(ai.map((provider) => provider.id)).toEqual(
-      expect.arrayContaining(["openai", "anthropic", "byo-ai"]),
+      expect.arrayContaining(["openai", "anthropic"]),
     );
   });
 
