@@ -160,7 +160,7 @@ async function joinerAsks(page, { link, code, tabTo }) {
   await expect(ask).toBeEnabled();
   await tabTo(page, ask);
   await page.keyboard.press("Enter");
-  const copy = page.getByRole("button", { name: "Copy your request code" });
+  const copy = page.getByRole("button", { name: "Copy your join request" });
   // A request code waits on this browser's ICE gathering.
   await expect(copy, "asking lands on the request code").toBeFocused({
     timeout: 20_000,
@@ -173,7 +173,7 @@ async function joinerAsks(page, { link, code, tabTo }) {
 /** The owner pastes the request, lets the joiner in, and copies the reply. */
 async function ownerAdmits(page, { request, tabTo }) {
   const panel = page.locator(SHARE_PANEL);
-  const field = panel.getByLabel("A request code", { exact: true });
+  const field = panel.getByLabel("Paste a join request", { exact: true });
   await tabTo(page, field);
   await page.keyboard.insertText(request);
   await page.keyboard.press("Enter");
@@ -241,7 +241,7 @@ async function endings(owner, joiner, { tabTo }) {
     panel.getByRole("img", { name: "Left" }).or(panel.getByText("Left")),
   ).toBeVisible();
   await expect(
-    panel.getByLabel("A request code", { exact: true }),
+    panel.getByLabel("Paste a join request", { exact: true }),
     "Remove lands on the request field",
   ).toBeFocused();
   await focusIn(owner, SHARE_PANEL, "after Remove");
@@ -294,17 +294,9 @@ export async function liveKeyboardContract({
   const browser = await chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
     headless: true,
-    args: [
-      "--allow-loopback-in-peer-connection",
-      // Host candidates as plain addresses, not `<uuid>.local` names: two
-      // browsers on one runner would resolve those names over multicast DNS,
-      // which a hosted runner does not reliably carry. IPv6 host candidates
-      // on that runner often never leave "checking", so the joiner sits on
-      // "Connecting" until the wait expires. The keyboard contract is about
-      // where focus goes (verify:live-join walks the real network paths).
-      "--disable-ipv6",
-      "--disable-features=WebRtcHideLocalIpsWithMdns",
-    ],
+    // Match verify:live-local-pair: stock mDNS lets the product seal loopback
+    // hints without sending the runner's private LAN addresses to a peer.
+    args: ["--allow-loopback-in-peer-connection"],
   });
   try {
     const device = async () => {
@@ -334,8 +326,9 @@ export async function liveKeyboardContract({
           .first()
           .innerText({ timeout: 2000 })
           .catch(() => "(no live panel)");
+        console.error(`${who} focused: ${await focusedName(page)}`);
         console.error(
-          `${who} showed: ${shown.replace(/\s+/g, " ").slice(0, 400)}`,
+          `${who} showed: ${shown.replace(/\s+/g, " ").slice(0, 1800)}`,
         );
       }
     };
@@ -356,6 +349,9 @@ export async function liveKeyboardContract({
           },
         );
         await endings(owner.page, joiner.page, { tabTo });
+      } catch (error) {
+        if (joiner) await showed(owner.page, joiner.page);
+        throw error;
       } finally {
         await owner.context.close().catch(() => undefined);
         await joiner?.context.close().catch(() => undefined);

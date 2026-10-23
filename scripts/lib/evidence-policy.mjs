@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import { lstatSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { decodeJsonText } from "./json-text.mjs";
+import { readPinnedFile } from "./read-pinned-file.mjs";
 
 export const EVIDENCE_ROOT = "docs/evidence";
 const slug = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
@@ -75,7 +76,7 @@ export function readTree(directory) {
         visit(join(absolute, name), relative ? `${relative}/${name}` : name);
       }
     } else if (stat.isFile()) {
-      files.set(relative, readFileSync(absolute));
+      files.set(relative, readPinnedFile(absolute, stat).bytes);
     } else {
       throw new Error(`non-file evidence refused: ${relative}`);
     }

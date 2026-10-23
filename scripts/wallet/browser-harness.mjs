@@ -4,8 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { isNumber } from "./lib/primitive-guards.mjs";
-
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import {
   EVIDENCE_REL,
@@ -13,10 +12,11 @@ import {
   writeWalletEvidence,
 } from "./lib/evidence.mjs";
 import { runLeaseProbe } from "./lib/lease-probe.mjs";
+import { isNumber } from "./lib/primitive-guards.mjs";
 import { runWalB20NarrowWallet } from "./lib/wallet-b20.mjs";
 import { enterAsGuest, openWallet } from "./lib/wallet-capability.mjs";
-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 const DIST = join(root, "apps/pages/dist");
 const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";

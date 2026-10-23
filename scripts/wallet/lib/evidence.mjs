@@ -3,7 +3,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -44,6 +44,7 @@ export function writeWalletEvidence(root, partial) {
   const doc = {
     generatedAt: partial.generatedAt ?? new Date().toISOString(),
     head: gitHead(root),
+    verificationRunId: process.env.OPENSESAME_WALLET_RUN_ID ?? null,
     treeDirty: gitStatusDigest(root) !== "",
     invokedAs: partial.invokedAs,
     mainnet: partial.mainnet,
@@ -128,12 +129,8 @@ function tail(text, max) {
 export const EVIDENCE_REL =
   "work/evidence/wallet/wallet/cross-platform/last-run.json";
 
-/** Read scratch claims or seed a run from the source-owned claim registry. */
-export function readWalletClaims(root) {
-  const scratch = join(
-    root,
-    "work/evidence/wallet/wallet/cross-platform/claims.json",
-  );
-  const seed = join(root, "spec/conformance/wallet-claims.json");
-  return JSON.parse(readFileSync(existsSync(scratch) ? scratch : seed, "utf8"));
-}
+export {
+  initializeWalletVerification,
+  readWalletClaims,
+  startWalletVerification,
+} from "./claims.mjs";

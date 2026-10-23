@@ -588,7 +588,7 @@ production vault code, not physical browser OPFS.
 
 Evidence-only PR #1349, `bb350569e2020b945823f8210af12715a19e99ee`, preserves
 [the Infisical
-observations](../evidence/2026-10-15-infisical-lifetime/README.md). Fresh
+observations](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-15-infisical-lifetime/README.md). Fresh
 normal/root/subpath artifacts were compiled from fffa; all 14,868 tracked input
 identities were restored, independent graphs passed and the five ordinary
 budgets remained unchanged and passed. Old subpath is a508; old root is dbb.

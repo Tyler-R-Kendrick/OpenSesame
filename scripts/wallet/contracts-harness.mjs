@@ -12,16 +12,16 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isNumber } from "./lib/primitive-guards.mjs";
-
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import {
   EVIDENCE_REL,
   readWalletClaims,
   writeWalletEvidence,
 } from "./lib/evidence.mjs";
-
+import { isNumber } from "./lib/primitive-guards.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 const PIN = "bff4b08f8006ad94322a6e3da8d90f274e20325d";
 const vendorDir = join(root, "packages/wallet-evm/vendor/delegation-framework");
 const forgeTestSrc = join(

@@ -9,6 +9,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import {
   EVIDENCE_REL,
   readWalletClaims,
@@ -16,6 +17,7 @@ import {
 } from "./lib/evidence.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 const claimsPath = join(
   root,
   "work/evidence/wallet/wallet/cross-platform/claims.json",

@@ -2,7 +2,6 @@
 import {
   existsSync,
   lstatSync,
-  readFileSync,
   readdirSync,
   readlinkSync,
   realpathSync,
@@ -11,6 +10,7 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readPinnedFile } from "../lib/read-pinned-file.mjs";
 
 /** Reject paths that escape the checkout, including nested symlinks. */
 function inside(root, path) {
@@ -27,12 +27,10 @@ function files(root, directory) {
       for (const entry of readdirSync(path).sort())
         visit(join(path, entry), name ? `${name}/${entry}` : entry);
     } else if (stat.isFile() || stat.isSymbolicLink()) {
-      const actual = lstatSync(realpathSync(path));
+      const target = realpathSync(path);
+      const actual = lstatSync(target);
       if (!actual.isFile()) throw new Error(`Unexpected skill link: ${path}`);
-      result.set(name, {
-        bytes: readFileSync(path),
-        executable: actual.mode & 0o111,
-      });
+      result.set(name, readPinnedFile(target, actual));
     } else throw new Error(`Unexpected skill entry: ${path}`);
   }
   visit(realpathSync(directory), "");

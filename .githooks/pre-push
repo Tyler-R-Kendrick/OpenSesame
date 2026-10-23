@@ -14,10 +14,6 @@ unset NODE_OPTIONS
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-node scripts/quality/evidence-gate.mjs
-node scripts/quality/repository-size-gate.mjs
-node scripts/dev/sync-agent-skills.mjs --check
-
 mode="${OPENSESAME_PREPUSH:-fast}"
 
 echo "pre-push: mode=$mode (set with: export OPENSESAME_PREPUSH=off|fast|full)"
@@ -27,11 +23,15 @@ case "$mode" in
     echo "pre-push: OPENSESAME_PREPUSH=off, skipping checks"
     exit 0
     ;;
-  fast)
-    pnpm lint:anti-slop && pnpm test:anti-slop && pnpm typecheck && pnpm test
-    ;;
-  full)
-    pnpm verify
+  fast|full)
+    node scripts/quality/evidence-gate.mjs
+    node scripts/quality/repository-size-gate.mjs
+    node scripts/dev/sync-agent-skills.mjs --check
+    if [ "$mode" = "full" ]; then
+      pnpm verify
+    else
+      pnpm lint:anti-slop && pnpm test:anti-slop && pnpm typecheck && pnpm test
+    fi
     ;;
   *)
     echo "pre-push: unknown OPENSESAME_PREPUSH value '$mode' (expected off|fast|full)" >&2
