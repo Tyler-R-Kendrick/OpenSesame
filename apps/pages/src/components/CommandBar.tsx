@@ -16,10 +16,12 @@ import { CommandBarForm } from "./command-bar-form.js";
 import { CommandBarNotice } from "./command-bar-notice.js";
 import { useSupportRoad } from "./command-bar-support.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
+import { useCommandActivation } from "./use-command-activation.js";
 import "./command-bar.css";
 
 function useCommandRunner() {
   const navigate = useNavigate();
+  const activation = useCommandActivation();
   // The on-device model reads what the parser cannot, when it is on.
   const [assist] = useContributions("command-assist");
   const copy = useCopySecret();
@@ -51,13 +53,16 @@ function useCommandRunner() {
   const run = useCallback(
     async (utterance: string) => {
       const text = utterance.trim();
-      if (text === "" || busy) return;
+      if (text === "" || busy || !activation.ready) return;
+      const current = activation.capture();
+      if (current === null || !current()) return;
       setBusy(true);
       setNotice("Working…");
       try {
         const interpreted = assist
           ? await assist.interpret(text, { itemNames: names })
           : readCommand(text);
+        if (!current()) return;
         if (interpreted.source === "none") {
           if (canAsk && support !== null) {
             support.open();
@@ -69,14 +74,24 @@ function useCommandRunner() {
           setNotice(interpreted.reason);
           return;
         }
-        const outcome = await executeCommand(interpreted.command, ports);
+        const outcome = await executeCommand(interpreted.command, {
+          navigate: (path) => {
+            if (current()) ports.navigate(path);
+          },
+          copy: (value) =>
+            current() ? ports.copy(value) : Promise.resolve("unavailable"),
+          items: () => (current() ? ports.items() : []),
+          vaultLocked: () => !current() || ports.vaultLocked(),
+        });
+        if (!current()) return;
         setNotice(outcome.message);
         if (outcome.ok) setValue("");
       } finally {
+        if (!current()) setNotice(null);
         setBusy(false);
       }
     },
-    [assist, busy, canAsk, names, ports, support],
+    [activation, assist, busy, canAsk, names, ports, support],
   );
 
   return {
@@ -84,7 +99,7 @@ function useCommandRunner() {
     setValue,
     notice,
     setNotice,
-    busy,
+    busy: busy || !activation.ready,
     run,
     names,
     input,
@@ -116,6 +131,7 @@ export function CommandBar() {
   });
 
   const choose = (suggestion: SlashSuggestion) => {
+    if (busy) return;
     setValue(suggestion.insert);
     if (!suggestion.run) {
       suggestions.setDismissed(false);
@@ -127,6 +143,7 @@ export function CommandBar() {
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (busy) return;
     suggestions.setDismissed(true);
     if (search.live !== null) {
       search.commit();
