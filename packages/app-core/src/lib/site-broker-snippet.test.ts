@@ -14,12 +14,12 @@ describe("the embeddable sign-in snippet", () => {
   it("emits a declarative snippet and an explicit escape hatch", () => {
     configureHost(
       createTestHost({
-        staticAuth: { version: "1.0.2", sri: "sha384-release" },
+        staticAuth: { version: "1.0.4", sri: "sha384-release" },
       }),
     );
     const base = "https://tyler-r-kendrick.github.io/OpenSesame/";
     expect(scriptTagSrc(base)).toBe(
-      "https://tyler-r-kendrick.github.io/OpenSesame/static-auth/1.0.2/opensesame-auth.min.js",
+      "https://tyler-r-kendrick.github.io/OpenSesame/static-auth/1.0.4/opensesame-auth.min.js",
     );
     expect(
       brokerAuthorizeUrl({ origin: "http://localhost:5173", state: "x" }, base),

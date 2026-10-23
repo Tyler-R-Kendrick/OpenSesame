@@ -179,7 +179,7 @@ export function recordOutboundDrop(input: {
  * be opened.
  */
 function syncOutboundDropLedger(now = Date.now()): void {
-  disposeExpiredLocalDropClaims(now);
+  void disposeExpiredLocalDropClaims(now);
   expireOutboundDrops(now);
   flushHeldDropNotes();
 }

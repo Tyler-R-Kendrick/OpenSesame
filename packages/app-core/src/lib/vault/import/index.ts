@@ -29,6 +29,7 @@ import {
 } from "./formats/managers.js";
 import { onepasswordCsv, onepasswordPux } from "./formats/onepassword.js";
 import { protonpassJson } from "./formats/protonpass.js";
+import { sharedText } from "./formats/shared-text.js";
 import type {
   DetectInput,
   DraftItem,
@@ -65,6 +66,7 @@ export { parseDotenv } from "./formats/env.js";
  * `genericCsv` is last because it accepts almost any CSV.
  */
 export const ADAPTERS: ImportAdapter[] = [
+  sharedText,
   envFile,
   bitwardenJson,
   fidoCxf,

@@ -47,16 +47,26 @@ export async function relayFetch(
   if (init.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+  const signal = init.signal
+    ? AbortSignal.any([init.signal, controller.signal])
+    : controller.signal;
   let response: Response;
   try {
     response = await fetch(`${base}${path}`, {
       ...init,
       headers,
+      signal,
       credentials: "omit",
       mode: "cors",
     });
   } catch {
+    if (controller.signal.aborted)
+      throw new RelayError(0, "timeout", "The Connect relay timed out.");
     throw new RelayError(0, "unreachable", "Couldn't reach the Connect relay.");
+  } finally {
+    clearTimeout(timer);
   }
   const body: BoundaryValue = await response.json().catch(() => null);
   if (!response.ok) {

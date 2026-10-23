@@ -131,10 +131,9 @@ export function newItemDraft(rawTypeId: string, name?: string): VaultItem {
 function newNativeDraft(kind: LegacyItemKind, labels: DraftLabels): VaultItem {
   const item = createItem(kind, labels.name);
   if (item.kind === "account") {
-    // A generated password has no site to bind to yet. Start with the visible
-    // all-domains rule instead of an empty address that matches nothing, so
-    // the person sees what to replace with the real site.
-    item.uris = [newUri("*", "wildcard")];
+    // A draft has no site yet. An explicit wildcard would autofill its
+    // generated password on every domain; an empty list waits for the person
+    // to bind it to the one site they mean.
     item.username = labels.username;
     // The first password method keeps what its generator makes, in the clear:
     // a draft has no pepper yet. A derived method keeps a fresh root.

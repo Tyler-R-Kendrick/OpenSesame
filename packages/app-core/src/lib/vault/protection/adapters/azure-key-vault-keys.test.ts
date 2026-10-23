@@ -179,3 +179,41 @@ describe("azure-key-vault-keys live (opt-in)", () => {
     });
   });
 });
+
+describe("Azure Key Vault HTTPS key pinning", () => {
+  it("refuses a wrap response for a different key version", async () => {
+    const transport = createAzureKeyVaultKeysHttpsTransport({
+      bearerToken: "token",
+      fetchImpl: async () =>
+        Response.json({
+          value: Buffer.from("wrapped").toString("base64"),
+          kid: `${VERSIONED_KEY.replace(/[^/]+$/u, "ffffffffffffffffffffffffffffffff")}`,
+        }),
+    });
+    await expect(
+      transport.wrapKey({
+        versionedKeyId: VERSIONED_KEY,
+        algorithm: AZURE_WRAP_ALGORITHM,
+        plaintext: new Uint8Array([1, 2, 3]),
+      }),
+    ).rejects.toMatchObject({ code: "provider_denied" });
+  });
+
+  it("accepts a response that names the pinned version", async () => {
+    const transport = createAzureKeyVaultKeysHttpsTransport({
+      bearerToken: "token",
+      fetchImpl: async () =>
+        Response.json({
+          value: Buffer.from("wrapped").toString("base64"),
+          kid: VERSIONED_KEY,
+        }),
+    });
+    await expect(
+      transport.wrapKey({
+        versionedKeyId: VERSIONED_KEY,
+        algorithm: AZURE_WRAP_ALGORITHM,
+        plaintext: new Uint8Array([1, 2, 3]),
+      }),
+    ).resolves.toMatchObject({ versionedKeyId: VERSIONED_KEY });
+  });
+});

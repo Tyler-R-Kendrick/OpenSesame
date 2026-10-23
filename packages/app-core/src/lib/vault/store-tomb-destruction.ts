@@ -18,12 +18,15 @@ export async function destroyStoredTomb(
     .then(() =>
       withExclusiveOpenLease(scope.tomb, () =>
         withBodyWriteLock(scope.tomb, async () => {
+          // The header is the tomb's recoverability marker. Delete it last:
+          // a failed body or key wipe must leave a header that still says a
+          // vault exists, never an empty store a later create can overwrite.
           await Promise.all([
-            deletePlaintextFile(scope.tomb, HEADER_PATH),
             discardVaultBody(scope.tomb),
             kvDeleteDurable(scope.attempts),
             wipeTombOnDestroy(scope.tomb),
           ]);
+          await deletePlaintextFile(scope.tomb, HEADER_PATH);
         }),
       ),
     );

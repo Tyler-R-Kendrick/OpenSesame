@@ -25,6 +25,10 @@ export type AzureKeyVaultHttpsOptions = {
   apiVersion?: string;
 };
 
+function normalizedKeyId(value: string): string {
+  return value.replace(/\/+$/u, "");
+}
+
 export function createAzureKeyVaultKeysHttpsTransport(
   options: AzureKeyVaultHttpsOptions,
 ): AzureKeyVaultKeysTransport {
@@ -35,6 +39,7 @@ export function createAzureKeyVaultKeysHttpsTransport(
   return {
     async wrapKey(request: AzureWrapKeyRequest): Promise<AzureWrapKeyResponse> {
       const url = assertAzureVersionedKeyId(request.versionedKeyId);
+      const versionedKeyId = normalizedKeyId(url.toString());
       const base = `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
       const endpoint = `${base}/wrapkey?api-version=${apiVersion}`;
       let response: Response;
@@ -62,15 +67,24 @@ export function createAzureKeyVaultKeysHttpsTransport(
           `Azure Key Vault wrap denied (${response.status}).`,
         );
       }
-      const json: { value?: string } = await response.json();
+      const json: { value?: string; kid?: string } = await response.json();
       if (!json.value) {
         throw new ProtectionError(
           "provider_denied",
           "Azure Key Vault wrap response missing value.",
         );
       }
+      if (
+        json.kid === undefined ||
+        normalizedKeyId(json.kid) !== versionedKeyId
+      ) {
+        throw new ProtectionError(
+          "provider_denied",
+          "Azure Key Vault wrap response key id does not match the pinned version.",
+        );
+      }
       return {
-        versionedKeyId: request.versionedKeyId,
+        versionedKeyId: normalizedKeyId(json.kid),
         algorithm: AZURE_WRAP_ALGORITHM,
         ciphertext: b64ToBytes(json.value),
       };
@@ -80,6 +94,7 @@ export function createAzureKeyVaultKeysHttpsTransport(
       request: AzureUnwrapKeyRequest,
     ): Promise<AzureUnwrapKeyResponse> {
       const url = assertAzureVersionedKeyId(request.versionedKeyId);
+      const versionedKeyId = normalizedKeyId(url.toString());
       const base = `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
       const endpoint = `${base}/unwrapkey?api-version=${apiVersion}`;
       let response: Response;
@@ -107,15 +122,24 @@ export function createAzureKeyVaultKeysHttpsTransport(
           `Azure Key Vault unwrap denied (${response.status}).`,
         );
       }
-      const json: { value?: string } = await response.json();
+      const json: { value?: string; kid?: string } = await response.json();
       if (!json.value) {
         throw new ProtectionError(
           "provider_denied",
           "Azure Key Vault unwrap response missing value.",
         );
       }
+      if (
+        json.kid === undefined ||
+        normalizedKeyId(json.kid) !== versionedKeyId
+      ) {
+        throw new ProtectionError(
+          "provider_denied",
+          "Azure Key Vault unwrap response key id does not match the pinned version.",
+        );
+      }
       return {
-        versionedKeyId: request.versionedKeyId,
+        versionedKeyId: normalizedKeyId(json.kid),
         algorithm: AZURE_WRAP_ALGORITHM,
         plaintext: b64ToBytes(json.value),
       };
