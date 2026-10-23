@@ -81,6 +81,9 @@ async function allowSystemNotifications(t) {
   const { main, context } = t;
   await main.goto(`${BASE}/settings/features`);
   await unlockVault(main);
+  await main
+    .getByRole("link", { name: "Local notifications", exact: true })
+    .click();
   const allow = main.getByRole("button", {
     name: "Allow system notifications",
   });
