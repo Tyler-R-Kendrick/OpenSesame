@@ -30,6 +30,7 @@ import {
   catalogConnectorAction,
   preferredCatalogConnection,
 } from "./catalog-connector-action.js";
+import { apiFamilyFor } from "./catalog-families.js";
 import {
   catalogTags,
   curatedCatalogProviders,
@@ -104,6 +105,7 @@ export function CatalogPanel({
   const normalizedQuery = (search.query ?? "").trim().toLocaleLowerCase();
   const catalogProviders = curatedCatalogProviders(providers ?? [], {
     includeFeatured: true,
+    includeFamilies: true,
   }).filter((provider) => matchesCatalog(provider, normalizedQuery));
 
   const sealKeyMissing = (providers ?? []).some((provider) =>
@@ -137,6 +139,7 @@ export function CatalogPanel({
                 <ProviderTile
                   key={provider.id}
                   provider={provider}
+                  providers={catalogProviders}
                   tags={catalogTags(provider)}
                   connection={preferredCatalogConnection(provider, connections)}
                 />
@@ -159,15 +162,74 @@ export function CatalogPanel({
   );
 }
 
+function FamilyTile({
+  provider,
+  members,
+  tags,
+}: {
+  provider: Provider;
+  members: readonly Provider[];
+  tags: readonly string[];
+}) {
+  return (
+    <li
+      className="conn-tile conn-tile--family"
+      id={`catalog-${encodeURIComponent(provider.id)}`}
+    >
+      <details>
+        <summary className="conn-tile__link">
+          <ConnectorMark
+            providerId={provider.id}
+            displayName={provider.displayName}
+            size={32}
+          />
+          <span className="conn-tile__copy">
+            <span className="conn-tile__name">{provider.displayName}</span>
+            <span className="conn-tile__kind">{members.length} APIs</span>
+            <span className="conn-tile__tags">
+              {tags.map((tag) => (
+                <span className="conn-tag" key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </span>
+          </span>
+        </summary>
+        <ul className="conn-family__apis">
+          {members.map((member) => (
+            <li key={member.id}>
+              <Link to={connectorPath(member.id)}>{member.displayName}</Link>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </li>
+  );
+}
+
 function ProviderTile({
   provider,
+  providers,
   tags,
   connection,
 }: {
   provider: Provider;
+  providers: readonly Provider[];
   tags: readonly string[];
   connection: Connection | null;
 }) {
+  const family = apiFamilyFor(provider.id);
+  if (family) {
+    return (
+      <FamilyTile
+        provider={provider}
+        members={providers.filter((candidate) =>
+          family.members.includes(candidate.id),
+        )}
+        tags={tags}
+      />
+    );
+  }
   const action = catalogConnectorAction(provider, connection);
   const note =
     action.kind === "configure" || action.kind === "resume"

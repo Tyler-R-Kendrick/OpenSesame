@@ -92,6 +92,41 @@ describe("the curated Connections list", () => {
     expect(ids).not.toContain("github-app");
   });
 
+  it("shows one family tile and hides its member APIs", () => {
+    const grouped = curatedCatalogProviders(
+      mergeVercelCatalog(getBundledProviders()),
+      { includeFeatured: true, includeFamilies: true },
+    );
+    const ids = grouped.map((provider) => provider.id);
+    for (const id of [
+      "microsoft",
+      "vercel",
+      "cloudflare",
+      "google",
+      "azure",
+      "aws",
+      "gcp",
+    ])
+      expect(ids, id).toContain(id);
+    for (const id of [
+      "m365",
+      "microsoft-teams",
+      "vercel-ai-gateway",
+      "cloudflare-workers-ai",
+      "google-drive",
+      "azure-sm",
+      "aws-kms",
+      "gcp-kms",
+    ])
+      expect(ids, id).not.toContain(id);
+    expect(grouped.find((provider) => provider.id === "aws")?.displayName).toBe(
+      "AWS",
+    );
+    expect(
+      grouped.find((provider) => provider.id === "azure")?.displayName,
+    ).toBe("Azure");
+  });
+
   it("offers the featured additions in Add a connection", () => {
     const featured = curatedCatalogProviders(
       mergeVercelCatalog(getBundledProviders()),
