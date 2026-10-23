@@ -101,8 +101,11 @@ export async function loopbackLogin(
   const fetchImpl = config.fetchImpl ?? fetch;
   const discoveryRes = await fetchImpl(
     `${issuer}/.well-known/openid-configuration`,
-    { redirect: "error" },
+    { redirect: "manual" },
   );
+  if (discoveryRes.status >= 300 && discoveryRes.status < 400) {
+    throw new Error("discovery endpoint redirected; refusing to follow it");
+  }
   if (!discoveryRes.ok)
     throw new Error(`discovery failed: ${discoveryRes.status}`);
   const rawMeta: BoundaryValue = await discoveryRes.json();
@@ -179,10 +182,19 @@ export async function loopbackLogin(
           });
           const tokenRes = await fetchImpl(tokenEndpoint, {
             method: "POST",
-            redirect: "error",
+            redirect: "manual",
             headers: { "content-type": "application/x-www-form-urlencoded" },
             body,
           });
+          if (tokenRes.status >= 300 && tokenRes.status < 400) {
+            res.writeHead(500);
+            res.end("token exchange redirect refused");
+            shutdown();
+            reject(
+              new Error("token endpoint redirected; refusing to follow it"),
+            );
+            return;
+          }
           if (!tokenRes.ok) {
             res.writeHead(500);
             res.end("token exchange failed");
@@ -231,8 +243,9 @@ export async function loopbackLogin(
       } else {
         // Evaluate inside the promise chain so a synchronous opener throw
         // rejects through the same path as an async opener rejection.
+        const open = config.openBrowser;
         void Promise.resolve()
-          .then(() => config.openBrowser?.(authorizationUrl))
+          .then(() => open(authorizationUrl))
           .catch(() => undefined);
       }
       timer = setTimeout(() => {
