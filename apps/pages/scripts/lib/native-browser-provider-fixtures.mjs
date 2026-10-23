@@ -249,7 +249,8 @@ function setField(root, path, value) {
   for (const [index, part] of parts.entries()) {
     if (index === parts.length - 1) parent[part] = value;
     else {
-      parent[part] ??= /^\d+$/.test(parts[index + 1]) ? [] : {};
+      if (!isJsonObject(parent[part]) && !Array.isArray(parent[part]))
+        parent[part] = /^\d+$/.test(parts[index + 1]) ? [] : {};
       parent = parent[part];
     }
   }
