@@ -862,7 +862,6 @@ button.conn-tile__link {
   justify-content: center;
   font-weight: 700;
   letter-spacing: -0.04em;
-  font-size: 0.42em;
 }
 
 .conn-family__apis a {
@@ -895,6 +894,8 @@ button.conn-tile__link {
 
 .conn-add-methods li > button,
 .conn-add-methods li > a {
+  font: inherit;
+  cursor: pointer;
   display: grid;
   gap: 0.25rem;
   width: 100%;
@@ -931,6 +932,10 @@ button.conn-tile__link {
 }
 
 .conn-method-filter button {
+  font: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
   color: var(--accent);
   text-decoration: underline;
 }

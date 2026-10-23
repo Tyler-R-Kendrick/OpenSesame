@@ -41,6 +41,7 @@ export const API_FAMILIES: readonly ApiFamily[] = [
     id: "azure",
     name: "Azure",
     members: [
+      "azure",
       "azure-kms",
       "azure-sm",
       "azure-ac",
