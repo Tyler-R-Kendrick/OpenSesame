@@ -401,9 +401,6 @@ async function dispatch(
         } catch {
           // local clear still happens
         }
-        // A provisional revoke is a no-op for an OIDC session. Revoke the
-        // refresh/access token at the issuer before the local file goes away,
-        // or a copied refresh token would outlive "Signed out."
         const revocationConfirmed =
           session.anonymous === true ||
           (await revokeIssuerSession(session, fetchImpl));
@@ -421,7 +418,6 @@ async function dispatch(
       emit(command.flags, "Signed out.", { ok: true });
       return 0;
     }
-
     case "whoami": {
       const session = await sessionFor(await loadSession(), issuer, fetchImpl);
       if (!session) {
