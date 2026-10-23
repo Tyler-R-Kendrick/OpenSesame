@@ -6,10 +6,7 @@
 
 import type { Admission } from "@opensesame/app-core/lib/live/host.js";
 import type { SharePolicy } from "@opensesame/app-core/lib/live/messages.js";
-import {
-  DEFAULT_LIVE_CARRIER,
-  LiveRoutesRefused,
-} from "@opensesame/app-core/lib/live/routes.js";
+import { LiveRoutesRefused } from "@opensesame/app-core/lib/live/routes.js";
 import {
   type HostInput,
   startHosting,
@@ -64,10 +61,8 @@ export async function startInput(form: StartForm): Promise<HostInput> {
   const routes = await settledTransport();
   return {
     ...fields,
-    routes:
-      routes.carriers.length > 0
-        ? routes
-        : { ...routes, carriers: [DEFAULT_LIVE_CARRIER] },
+    // Empty is the owner's manual-pairing configuration; no relay is implied.
+    routes,
   };
 }
 
