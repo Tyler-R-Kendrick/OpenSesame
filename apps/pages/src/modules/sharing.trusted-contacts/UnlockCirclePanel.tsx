@@ -96,19 +96,21 @@ function useUnlockCircle(tomb: string) {
   };
 }
 
-function EditSheet({
-  tomb,
-  people,
-  policy,
-  onClose,
-  onSaved,
-}: {
+type EditSheetProps = {
   tomb: string;
   people: readonly Person[];
   policy: TrustedUnlockPolicy | null;
   onClose: () => void;
   onSaved: () => void;
-}) {
+};
+
+function useCircleDraft({
+  tomb,
+  people,
+  policy,
+  onClose,
+  onSaved,
+}: EditSheetProps) {
   const [name, setName] = useState(policy?.name ?? "Trusted contacts");
   const [selected, setSelected] = useState<readonly string[]>(
     policy?.memberIds ?? [],
@@ -168,40 +170,47 @@ function EditSheet({
     }
   }
 
+  return {
+    fields: {
+      name,
+      setName,
+      people,
+      selected,
+      setSelected,
+      maximum,
+      wanted,
+      setThreshold,
+      onEnroll: (person: Person) => void enroll(person),
+      enrolling,
+    },
+    save,
+    error,
+    busy,
+    disabled: busy || enrolling !== null || chosen.length === 0,
+  };
+}
+
+function EditSheet(props: EditSheetProps) {
+  const draft = useCircleDraft(props);
   return (
     <CeremonySheet
       title="Trusted contacts"
       mark={<IconLayers size={20} />}
-      onClose={onClose}
+      onClose={props.onClose}
     >
       <form
         aria-label="Trusted contacts circle"
         onSubmit={(event) => {
           event.preventDefault();
-          void save();
+          void draft.save();
         }}
       >
-        <UnlockCircleFields
-          name={name}
-          setName={setName}
-          people={people}
-          selected={selected}
-          setSelected={setSelected}
-          maximum={maximum}
-          wanted={wanted}
-          setThreshold={setThreshold}
-          onEnroll={(person) => void enroll(person)}
-          enrolling={enrolling}
-        />
-        {error ? <StatusMark tone="err" label={error} /> : null}
+        <UnlockCircleFields {...draft.fields} />
+        {draft.error ? <StatusMark tone="err" label={draft.error} /> : null}
         <div className="actions">
-          <button
-            type="submit"
-            className="go-row"
-            disabled={busy || enrolling !== null || chosen.length === 0}
-          >
+          <button type="submit" className="go-row" disabled={draft.disabled}>
             <span className="go-verb">
-              {busy ? "Saving…" : "Save the circle"}
+              {draft.busy ? "Saving…" : "Save the circle"}
             </span>
           </button>
         </div>
