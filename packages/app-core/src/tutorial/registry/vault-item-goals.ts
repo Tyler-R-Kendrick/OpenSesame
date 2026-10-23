@@ -139,9 +139,9 @@ export const VAULT_ITEM_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "vaults.manage"',
-      'say "A device can hold several vaults. Settings → Vaults lists every one, and is the one place a project vault is created or deleted."',
-      'navigate "/settings/item-types"',
-      'wait route "/settings/item-types" timeout=15000',
+      'say "A device can hold several vaults. User Settings → Vaults lists every one, and is the one place a project vault is created or deleted."',
+      'navigate "/settings/vaults"',
+      'wait route "/settings/vaults" timeout=15000',
       'focus "vaults.list" "Each row is a vault: its name, when it was sealed and how it opens. Press a row to switch to it. The delete key on a project vault asks first, and is never on the personal vault or the one that is open." side=top',
       'success "The plus key in this panel head seals a new vault."',
       "end",
