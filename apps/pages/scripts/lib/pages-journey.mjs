@@ -142,7 +142,22 @@ export async function openGeneral(page) {
 
 /** Open a Settings category without a full document navigation (keeps the vault open). */
 export async function openSettingsCategory(page, label) {
-  await openSection(page, "settings/");
+  if (label === "Keybindings" || label === "Vaults") {
+    await page
+      .getByTitle("Switch account", { exact: true })
+      .filter({ visible: true })
+      .first()
+      .click({ button: "right" });
+    const account = page.getByRole("menu", { name: "Account", exact: true });
+    await account
+      .getByRole("menuitem", { name: "User Settings", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "User Settings", exact: true })
+      .waitFor();
+  } else {
+    await openSection(page, "settings/");
+  }
   // Inside a category the breadcrumb names it too: the sections list is the one.
   const section = page
     .locator(".set__nav")
@@ -189,10 +204,7 @@ export async function openConfigFile(page, category) {
 
 /** The directory's own page, by its tab (drops any open file). */
 export async function openConfigForm(page, label) {
-  await page
-    .locator(".set__nav")
-    .getByRole("link", { name: label, exact: true })
-    .click();
+  await openSettingsCategory(page, label);
 }
 
 /**
