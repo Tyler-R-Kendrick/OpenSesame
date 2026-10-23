@@ -1,6 +1,6 @@
 // A live session walked with the keyboard alone (ADR 0150 + the keyboard
-// contract in AGENTS.md §5): the owner starts and ends one from Settings ›
-// Live sessions, a second device asks, is let in, connects over real WebRTC
+// contract in AGENTS.md §5): the owner starts and ends one from the vault's
+// Share sheet, a second device asks, is let in, connects over real WebRTC
 // and is turned away — and after every swap the keyboard is somewhere a
 // person can see and use, never <body>.
 //
@@ -15,6 +15,7 @@
 
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
+import { joinerAsks, sealLiveKeyboardOwner } from "./live-keyboard-entry.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
@@ -92,23 +93,11 @@ async function copied(page) {
   return page.evaluate(() => navigator.clipboard.readText());
 }
 
-/** A guest device with one login in it, and Live sessions chosen. */
+/** An owner vault sealed with a PIN, one item, and Live sessions chosen. */
 async function ownerEnters(page, { origin, base, tabTo, width }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await expect(
-    page.getByRole("button", { name: "Set up your own" }),
-  ).toBeFocused();
-  await page.keyboard.press("Shift+Tab");
-  await expect(
-    page.getByRole("button", { name: "Skip sign-in and continue as guest" }),
-  ).toBeFocused();
-  await page.keyboard.press("Enter");
+  await sealLiveKeyboardOwner(page, tabTo, width);
   const create = page.getByRole("link", { name: "New item", exact: true });
-  // A phone opens the vault on its section tree; Enter on it opens the list.
-  if (width !== 1280) {
-    await expect(page.locator(".railtree")).toBeFocused();
-    await page.keyboard.press("Enter");
-  }
   await expect(create).toBeFocused();
   await page.keyboard.press("Enter");
   await tabTo(page, page.getByLabel("Name", { exact: true }));
@@ -123,70 +112,62 @@ async function ownerEnters(page, { origin, base, tabTo, width }) {
   await approveByKeyboard(page, tabTo, ["Live sessions"]);
 }
 
-/** Settings › Live sessions, by keyboard, with the session panel showing. */
+/** The vault's Share key, reached and opened by keyboard alone. */
 async function openLive(page, tabTo) {
   await page.keyboard.press("Escape");
-  await page.keyboard.press("g");
-  await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/settings(?:[/?].*)?$/, { timeout: 10_000 });
-  const tab = page.getByRole("link", { name: "Live sessions", exact: true });
-  await tabTo(page, tab.first());
+  const share = page
+    .getByRole("button", {
+      name: /^(Share this vault|Sharing — live session)$/,
+    })
+    .filter({ visible: true });
+  await tabTo(page, share);
   await page.keyboard.press("Enter");
-  await expect(page.locator("#live-session")).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByRole("dialog", { name: "Share personal", exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
 }
 
 /** The owner names a session and starts it; the keyboard lands in the live view. */
 async function ownerStarts(page, tabTo) {
-  const panel = page.locator("#live-session");
+  const panel = page.getByRole("dialog", {
+    name: "Share personal",
+    exact: true,
+  });
   await tabTo(page, panel.getByLabel("Session name"));
+  await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Team");
+  await tabTo(page, panel.getByLabel("Share", { exact: true }));
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(panel.getByLabel("Share", { exact: true })).toHaveValue("items");
   await tabTo(page, panel.getByRole("checkbox", { name: "GitHub" }));
   await page.keyboard.press("Space");
-  const start = panel.getByRole("button", { name: "Start the live session" });
+  const start = panel.getByRole("button", { name: "Share this vault" });
   await expect(start).toBeEnabled();
   await tabTo(page, start);
   await page.keyboard.press("Enter");
   const copyLink = panel.getByRole("button", { name: "Copy the link" });
   await expect(copyLink, "Start lands on the Copy link key").toBeFocused();
   if (process.env.LIVE_MEASURE) await measure(page, "after Start");
-  await focusIn(page, "#live-session", "after Start");
+  await focusIn(
+    page,
+    '[role="dialog"][aria-label="Share personal"]',
+    "after Start",
+  );
   await page.keyboard.press("Enter");
   const link = await copied(page);
   const code = (await panel.locator(".live-code").innerText()).trim();
   return { link, code };
 }
 
-/** The joiner opens the link, fills the form and asks; the request code. */
-async function joinerAsks(page, { link, code, tabTo }) {
-  await page.goto(link, { waitUntil: "networkidle" });
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Join a session" }),
-  ).toBeVisible({ timeout: 20_000 });
-  // A device that has not chosen Live sessions is asked first (ADR 0130).
-  const apply = page.getByRole("button", { name: "Apply configuration" });
-  if (await apply.isVisible().catch(() => false)) {
-    await tabTo(page, apply);
-    await page.keyboard.press("Enter");
-  }
-  await tabTo(page, page.getByLabel("Code", { exact: true }));
-  await page.keyboard.insertText(code.toLowerCase());
-  await tabTo(page, page.getByLabel("Your name"));
-  await page.keyboard.insertText("Ada Lovelace");
-  await page.keyboard.press("Enter");
-  const copy = page.getByRole("button", { name: "Copy your request code" });
-  // A request code waits on this browser's ICE gathering.
-  await expect(copy, "asking lands on the request code").toBeFocused({
-    timeout: 20_000,
-  });
-  await focusIn(page, ".live-join", "after asking");
-  await page.keyboard.press("Enter");
-  return copied(page);
-}
-
 /** The owner pastes the request, lets the joiner in, and copies the reply. */
 async function ownerAdmits(page, { request, tabTo }) {
-  const panel = page.locator("#live-session");
-  const field = panel.getByLabel("A request code", { exact: true });
+  const panel = page.getByRole("dialog", {
+    name: "Share personal",
+    exact: true,
+  });
+  const field = panel.getByLabel("Paste a join request", { exact: true });
   await tabTo(page, field);
   await page.keyboard.insertText(request);
   await page.keyboard.press("Enter");
@@ -195,14 +176,22 @@ async function ownerAdmits(page, { request, tabTo }) {
   });
   await expect(letIn).toBeVisible();
   await expect(field, "a paste returns to its field").toBeFocused();
-  await focusIn(page, "#live-session", "after a paste");
+  await focusIn(
+    page,
+    '[role="dialog"][aria-label="Share personal"]',
+    "after a paste",
+  );
   await tabTo(page, letIn);
   await page.keyboard.press("Enter");
   const reply = panel.getByRole("button", {
     name: "Copy the reply code for Ada Lovelace",
   });
   await expect(reply, "Admit lands on the reply code").toBeFocused();
-  await focusIn(page, "#live-session", "after admit");
+  await focusIn(
+    page,
+    '[role="dialog"][aria-label="Share personal"]',
+    "after admit",
+  );
   await page.keyboard.press("Enter");
   return copied(page);
 }
@@ -234,7 +223,10 @@ async function joinerConnects(page, { reply, tabTo }) {
 
 /** The owner removes the guest, the joiner starts over and closes; the owner ends. */
 async function endings(owner, joiner, { tabTo }) {
-  const panel = owner.locator("#live-session");
+  const panel = owner.getByRole("dialog", {
+    name: "Share personal",
+    exact: true,
+  });
   const remove = panel.getByRole("button", { name: "Remove Ada Lovelace" });
   await tabTo(owner, remove);
   await owner.keyboard.press("Enter");
@@ -242,10 +234,14 @@ async function endings(owner, joiner, { tabTo }) {
     panel.getByRole("img", { name: "Left" }).or(panel.getByText("Left")),
   ).toBeVisible();
   await expect(
-    panel.getByLabel("A request code", { exact: true }),
+    panel.getByLabel("Paste a join request", { exact: true }),
     "Remove lands on the request field",
   ).toBeFocused();
-  await focusIn(owner, "#live-session", "after Remove");
+  await focusIn(
+    owner,
+    '[role="dialog"][aria-label="Share personal"]',
+    "after Remove",
+  );
 
   await expect(
     joiner.getByRole("img", { name: "The session ended" }),
@@ -278,7 +274,11 @@ async function endings(owner, joiner, { tabTo }) {
     panel.getByLabel("Session name"),
     "End lands on the form",
   ).toBeFocused();
-  await focusIn(owner, "#live-session", "after End");
+  await focusIn(
+    owner,
+    '[role="dialog"][aria-label="Share personal"]',
+    "after End",
+  );
 }
 
 /**
@@ -331,7 +331,7 @@ export async function liveKeyboardContract({
         ["joiner", joiner],
       ]) {
         const shown = await page
-          .locator("#live-session, .live-join")
+          .locator('[role="dialog"][aria-label="Share personal"], .live-join')
           .first()
           .innerText({ timeout: 2000 })
           .catch(() => "(no live panel)");
@@ -348,7 +348,12 @@ export async function liveKeyboardContract({
         await openLive(owner.page, tabTo);
         const { link, code } = await ownerStarts(owner.page, tabTo);
         joiner = await device();
-        const request = await joinerAsks(joiner.page, { link, code, tabTo });
+        const request = await joinerAsks(joiner.page, {
+          link,
+          code,
+          tabTo,
+          focusIn,
+        });
         const reply = await ownerAdmits(owner.page, { request, tabTo });
         await joinerConnects(joiner.page, { reply, tabTo }).catch(
           async (error) => {
