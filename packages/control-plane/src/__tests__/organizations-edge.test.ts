@@ -627,9 +627,11 @@ describe("device approve edge cases", () => {
 
   it("maps Host failures to statuses and keeps the operator token server-side", async () => {
     const { app } = createControlPlane({ config: testConfig() });
-    const owner = await provisional(app);
-    const approve = () =>
-      app.request("/v1/device/approve", {
+    // A fresh principal per probe: the per-principal device throttle is
+    // deliberately lower than the Host's deployment-global failure fence.
+    const approve = async () => {
+      const owner = await provisional(app);
+      return app.request("/v1/device/approve", {
         method: "POST",
         headers: {
           ...auth(owner.accessToken),
@@ -637,6 +639,7 @@ describe("device approve edge cases", () => {
         },
         body: JSON.stringify({ user_code: "ABCD-EFGH" }),
       });
+    };
 
     const fetchSpy = mockHostFetch(() =>
       Promise.resolve(new Response("gone", { status: 404 })),

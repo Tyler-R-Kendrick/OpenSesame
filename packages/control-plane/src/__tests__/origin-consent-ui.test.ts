@@ -657,6 +657,39 @@ describe("interaction pages", () => {
     expect(html).not.toContain("Automatically admitted application");
   });
 
+  it("shows resource indicators, scopes and claims instead of hiding them", () => {
+    const html = renderConsentPage({
+      uid: "u1",
+      csrfToken: "t",
+      confirmAction: "/interaction/u1/confirm",
+      abortAction: "/interaction/u1/abort",
+      origin: "https://app.example",
+      showAutoAdmitted: false,
+      scopes: ["openid"],
+      resources: [
+        { indicator: "https://api.example", scopes: ["invoices.read"] },
+      ],
+      claims: ["email", "name"],
+    });
+    expect(html).toContain("https://api.example");
+    expect(html).toContain("invoices.read");
+    expect(html).toContain("email");
+    expect(html).toContain("name");
+  });
+
+  it("does not present a raw client id as a web origin", () => {
+    const html = renderConsentPage({
+      uid: "u1",
+      csrfToken: "t",
+      confirmAction: "/interaction/u1/confirm",
+      abortAction: "/interaction/u1/abort",
+      showAutoAdmitted: false,
+      scopes: ["openid"],
+    });
+    expect(html).toContain("no registered web origin");
+    expect(html).not.toContain("This application runs at");
+  });
+
   it("collects scopes from params and missingOIDCScope", () => {
     expect(collectConsentScopes("openid profile", ["email"])).toEqual([
       "email",

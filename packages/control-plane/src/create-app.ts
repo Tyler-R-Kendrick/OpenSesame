@@ -224,6 +224,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const authentication = createAuthenticationService(
     authenticationStores,
     clock,
+    { aliasPepper: config.claimPepper },
   );
   // The system owner principal must exist before the first auto-admission
   // writes owner_principal_id (a FK against Postgres). createControlPlane is

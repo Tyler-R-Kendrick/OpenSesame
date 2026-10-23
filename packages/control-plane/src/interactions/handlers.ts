@@ -5,12 +5,12 @@ import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import type { OrganizationAuthMethod } from "@opensesame/contracts";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
-  type ByoUpstream,
   type Principal,
   type ProvisionalSession,
   isString,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
+import { deleteSecurityMapEntry } from "../repos/durable-map.js";
 import {
   ensurePersonalOrganization,
   tenantAuthMethods,
@@ -19,6 +19,7 @@ import {
   MAX_PROVISIONAL,
   consumeProvisionalMintBudget,
 } from "../routes/principals.js";
+import { serializeKeyed } from "../serialize.js";
 import {
   type ConsentPageModel,
   type LoginPageModel,
@@ -132,25 +133,12 @@ export function preferredProviderForDetails(
 }
 
 /**
- * An ACTIVE bring-your-own record the hint names — by issuer URL, or by bare
- * host (the two spellings a client that registered the issuer would send).
- * Misses answer `undefined`; nothing here consults the network.
+ * A hint no registry provider claims adds nothing. Bring-your-own records are
+ * deliberately not matched here: an unauthenticated login page that turns an
+ * arbitrary issuer string into a rendered "preferred provider" button is an
+ * enumeration oracle for every issuer this deployment has seen, and the form
+ * below already lets the visitor enter that issuer explicitly.
  */
-async function matchByoHint(
-  ctx: AppContext,
-  hint: string | undefined,
-): Promise<ByoUpstream | undefined> {
-  const needle = (hint ?? "").trim().replace(/\/+$/, "");
-  if (!needle) return undefined;
-  const candidates = needle.includes("://")
-    ? [needle]
-    : [`https://${needle}`, `http://${needle}`];
-  for (const candidate of candidates) {
-    const record = await ctx.repos.byoUpstreams.findByIssuer(candidate);
-    if (record?.state === "active") return record;
-  }
-  return undefined;
-}
 
 /**
  * The tenant's configured sign-in methods, as buttons.
@@ -273,13 +261,9 @@ export async function buildLoginPageModel(
       ? details.params.kc_idp_hint
       : undefined;
   const preferred = matchProviderHint(providers, hint);
-  // A hint no registry provider claims may name a bring-your-own issuer the
-  // visitor registered earlier (routes/byo-public.ts). Rendering it as the
-  // preferred button spares them re-typing the issuer into the BYO form; the
-  // form still posts the issuer to /federated/start, which re-validates it
-  // through the trust fence's byo branch — this is presentation, never trust.
-  const byoPreferred =
-    preferred === undefined ? await matchByoHint(ctx, hint) : undefined;
+  // A hint that names no registry provider is not resolved against durable
+  // BYO rows. Doing so would let an unauthenticated caller probe which issuers
+  // this deployment has registered; the BYO form below still accepts one.
   const base = interactionBase(details.uid);
   const organization = await resolveOrganizationBlock(ctx, base, options);
 
@@ -294,21 +278,14 @@ export async function buildLoginPageModel(
     publicUrl: ctx.config.publicUrl,
     federated: {
       startAction: `${base}/federated/start`,
-      upstreams: [
-        ...providers.map((provider) => ({
-          issuer: provider.issuer,
-          label: provider.label,
-          provider: provider.id,
-        })),
-        ...(byoPreferred !== undefined
-          ? [{ issuer: byoPreferred.issuer, label: byoPreferred.label }]
-          : []),
-      ],
+      upstreams: providers.map((provider) => ({
+        issuer: provider.issuer,
+        label: provider.label,
+        provider: provider.id,
+      })),
       ...(preferred !== undefined
         ? { preferredIssuer: preferred.issuer }
-        : byoPreferred !== undefined
-          ? { preferredIssuer: byoPreferred.issuer }
-          : undefined),
+        : undefined),
     },
     byo: {
       startAction: `${base}/federated/byo`,
@@ -352,22 +329,34 @@ export async function buildConsentPageModel(
   const clientId = String(details.params.client_id ?? "");
   const clientRecord = await ctx.oauth.clientStore.findById(clientId);
   const parsedOrigin = parseOriginClientId(clientId);
-  const origin = clientRecord?.origin ?? parsedOrigin ?? clientId;
+  // A client id is not an origin. Only a recorded canonical origin, or the
+  // origin spelling of the client id, may be presented as where the app runs.
+  const origin = clientRecord?.origin ?? parsedOrigin;
   const scopes = collectConsentScopes(
     isString(details.params.scope) ? details.params.scope : undefined,
     details.prompt.details?.missingOIDCScope,
   );
+  const missingResources = details.prompt.details?.missingResourceScopes ?? {};
+  const resources = Object.entries(missingResources)
+    .map(([indicator, resourceScopes]) => ({
+      indicator,
+      scopes: [...resourceScopes],
+    }))
+    .sort((a, b) => a.indicator.localeCompare(b.indicator));
+  const claims = [...(details.prompt.details?.missingOIDCClaims ?? [])].sort();
 
   return {
     uid: details.uid,
     csrfToken,
     confirmAction: `${interactionBase(details.uid)}/confirm`,
     abortAction: `${interactionBase(details.uid)}/abort`,
-    origin,
+    ...(origin !== undefined ? { origin } : undefined),
     showAutoAdmitted:
       clientRecord?.admissionMode === "origin_profile" &&
       (clientRecord.ownershipStatus ?? "unclaimed") === "unclaimed",
     scopes,
+    ...(resources.length > 0 ? { resources } : undefined),
+    ...(claims.length > 0 ? { claims } : undefined),
     ...(clientRecord?.displayName !== undefined
       ? { clientDisplayName: clientRecord.displayName }
       : undefined),
@@ -395,85 +384,167 @@ export async function mintProvisionalForInteraction(
   ctx: AppContext,
   fingerprint: string,
   correlationId: string,
+  options: {
+    /**
+     * Session profile written on the row. SAML passes a tenant-scoped value so
+     * one tenant's minted sessions can be counted against that tenant.
+     */
+    quotaProfile?: string;
+    /** Live sessions this profile may hold at once. */
+    maxLiveForProfile?: number;
+    /** Live sessions whose profile starts with this prefix may exist. */
+    profilePrefix?: string;
+    maxLiveForProfilePrefix?: number;
+  } = {},
 ): Promise<ProvisionalInteractionCredentials> {
-  const now = ctx.clock();
+  // The same serialized section the public mint route uses: capacity is a
+  // read-then-write, and two interaction logins racing it could both observe
+  // room for the last slot.
+  return serializeKeyed(
+    ctx.stores.principalMutations,
+    "provisional-mint",
+    async () => {
+      const now = ctx.clock();
 
-  if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL) {
-    throw new ProvisionalMintRefusedError("provisional_capacity");
-  }
-  if (
-    !consumeProvisionalMintBudget(
-      ctx.stores.provisionalMints,
-      fingerprint,
-      now.getTime(),
-    )
-  ) {
-    throw new ProvisionalMintRefusedError("rate_limited");
-  }
+      // Expiry removes both the live lease and its unclaimed durable identity,
+      // exactly as the public route does, so a burst of abandoned logins does
+      // not hold the capacity fence shut.
+      for (const [
+        id,
+        session,
+      ] of await ctx.stores.provisionalSessions.entries()) {
+        if (session.expiresAt.getTime() > now.getTime()) continue;
+        await deleteSecurityMapEntry(ctx.stores.provisionalSessions, id);
+        const deleted = await ctx.repos.principals.deleteUnlinkedProvisional(
+          session.principalId,
+        );
+        if (deleted) {
+          await ctx.mappings.deleteProvisional(session.principalId);
+        }
+      }
+      await removeOrphanTokens(ctx.stores);
 
-  const { mapping, session } = await createProvisionalPrincipal(ctx.mappings, {
-    ttlMs: ctx.config.provisionalTtlMs,
-    quotaProfile: "anonymous",
-    allowedActions: [
-      "project.create",
-      "project.create_temporary",
-      "resource.create_temporary",
-      "claim.create",
-      "agent.register_ephemeral",
-      "session.continue_anonymous",
-    ],
-  });
+      if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL) {
+        throw new ProvisionalMintRefusedError("provisional_capacity");
+      }
+      if (options.maxLiveForProfile !== undefined) {
+        let mine = 0;
+        let prefixed = 0;
+        const profile = options.quotaProfile ?? "anonymous";
+        for (const [
+          ,
+          session,
+        ] of await ctx.stores.provisionalSessions.entries()) {
+          if (session.quotaProfile === profile) mine += 1;
+          if (
+            options.profilePrefix !== undefined &&
+            session.quotaProfile.startsWith(options.profilePrefix)
+          ) {
+            prefixed += 1;
+          }
+        }
+        if (mine >= options.maxLiveForProfile) {
+          throw new ProvisionalMintRefusedError("provisional_capacity");
+        }
+        if (
+          options.maxLiveForProfilePrefix !== undefined &&
+          prefixed >= options.maxLiveForProfilePrefix
+        ) {
+          throw new ProvisionalMintRefusedError("provisional_capacity");
+        }
+      }
+      if (
+        !consumeProvisionalMintBudget(
+          ctx.stores.provisionalMints,
+          fingerprint,
+          now.getTime(),
+          "interaction",
+        )
+      ) {
+        throw new ProvisionalMintRefusedError("rate_limited");
+      }
 
-  const provisionalSession: ProvisionalSession = {
-    ...session,
-    createdAt: now,
-    expiresAt: new Date(now.getTime() + ctx.config.provisionalTtlMs),
-  };
-  const principal: Principal = {
-    id: mapping.principalId,
-    state: "provisional",
-    assurance: "provisional",
-    createdAt: now,
-    updatedAt: now,
-    version: 1,
-  };
-  try {
-    await ctx.repos.principals.create(principal);
-    await ctx.repos.betterAuthSubjects.link({
-      betterAuthUserId: mapping.betterAuthUserId,
-      principalId: mapping.principalId,
-      linkedAt: now,
-    });
-  } catch (error) {
-    await ctx.repos.principals.deleteUnlinkedProvisional(principal.id);
-    await ctx.mappings.deleteProvisional(principal.id);
-    throw error;
-  }
+      const { mapping, session } = await createProvisionalPrincipal(
+        ctx.mappings,
+        {
+          ttlMs: ctx.config.provisionalTtlMs,
+          quotaProfile: options.quotaProfile ?? "anonymous",
+          allowedActions: [
+            "project.create",
+            "project.create_temporary",
+            "resource.create_temporary",
+            "claim.create",
+            "agent.register_ephemeral",
+            "session.continue_anonymous",
+          ],
+        },
+      );
 
-  if (ctx.config.bootstrapPersonalOrganization) {
-    // Durable (C6): awaited so a failed write surfaces here rather than as an
-    // unhandled rejection after the response has gone out.
-    await ensurePersonalOrganization(ctx, principal.id);
-  }
+      const provisionalSession: ProvisionalSession = {
+        ...session,
+        createdAt: now,
+        expiresAt: new Date(now.getTime() + ctx.config.provisionalTtlMs),
+      };
+      const principal: Principal = {
+        id: mapping.principalId,
+        state: "provisional",
+        assurance: "provisional",
+        createdAt: now,
+        updatedAt: now,
+        version: 1,
+      };
 
-  const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
-  await saveProvisional(ctx.stores, provisionalSession, accessToken);
+      let accessToken = "";
+      try {
+        await ctx.repos.principals.create(principal);
+        await ctx.repos.betterAuthSubjects.link({
+          betterAuthUserId: mapping.betterAuthUserId,
+          principalId: mapping.principalId,
+          linkedAt: now,
+        });
 
-  await appendAuditEvent(ctx.repos.auditEvents, {
-    eventType: "principal.provisional_created",
-    outcome: "succeeded",
-    principalId: principal.id,
-    sessionId: provisionalSession.id,
-    correlationId,
-    actorType: "human",
-    metadata: {
-      action: "principal.provisional_create",
-      quotaProfile: "anonymous",
-      via: "interaction_login",
+        if (ctx.config.bootstrapPersonalOrganization) {
+          // Durable (C6): awaited so a failed write surfaces here rather than
+          // as an unhandled rejection after the response has gone out.
+          await ensurePersonalOrganization(ctx, principal.id);
+        }
+
+        accessToken = `pst_${randomBytes(24).toString("base64url")}`;
+        await saveProvisional(ctx.stores, provisionalSession, accessToken);
+      } catch (error) {
+        // No half-minted identity survives a failed mint: the principal, its
+        // unclaimed mapping and any session row are all removed before the
+        // failure is re-thrown.
+        for (const [
+          id,
+          candidate,
+        ] of await ctx.stores.provisionalSessions.entries()) {
+          if (candidate.principalId !== principal.id) continue;
+          await deleteSecurityMapEntry(ctx.stores.provisionalSessions, id);
+        }
+        await ctx.repos.principals.deleteUnlinkedProvisional(principal.id);
+        await ctx.mappings.deleteProvisional(principal.id);
+        await removeOrphanTokens(ctx.stores);
+        throw error;
+      }
+
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "principal.provisional_created",
+        outcome: "succeeded",
+        principalId: principal.id,
+        sessionId: provisionalSession.id,
+        correlationId,
+        actorType: "human",
+        metadata: {
+          action: "principal.provisional_create",
+          quotaProfile: "anonymous",
+          via: "interaction_login",
+        },
+      });
+
+      return { principalId: principal.id, accessToken };
     },
-  });
-
-  return { principalId: principal.id, accessToken };
+  );
 }
 
 /** Finish the login prompt; returns the oidc-provider resume URL. */
@@ -604,4 +675,7 @@ export async function finishConsentAllow(
     { mergeWithLastSubmission: true },
   );
 }
-import { saveProvisional } from "../repos/session-storage.js";
+import {
+  removeOrphanTokens,
+  saveProvisional,
+} from "../repos/session-storage.js";

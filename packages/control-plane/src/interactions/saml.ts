@@ -1,4 +1,9 @@
-import { createHash, randomBytes } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from "node:crypto";
 import {
   SAML,
   ValidateInResponseTo,
@@ -14,6 +19,7 @@ import { parseDomFromString, xpath } from "@node-saml/node-saml/lib/xml.js";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   type Organization,
+  isJsonObject,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -26,6 +32,7 @@ import {
 } from "../routes/organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "../routes/projects.js";
 import { provisionedRoleForSubject } from "../routes/scim.js";
+import { serializeKeyed } from "../serialize.js";
 import {
   UnsafeUpstreamError,
   assertPublicUpstreamUrl,
@@ -97,8 +104,6 @@ const MAX_SAML_RESPONSE_BYTES = 512 * 1024;
 const METADATA_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /** How long the browser has to spend a completion code. Seconds, by design. */
-const COMPLETION_CODE_TTL_MS = 2 * 60 * 1000;
-
 /** Timeout for the metadata fetch. */
 const METADATA_FETCH_MS = 5_000;
 
@@ -226,45 +231,130 @@ export function resetSamlMetadataCache(): void {
 /**
  * Completion codes: the SP-initiated hand-back from the ACS to the interaction.
  *
- * Process-local on purpose. The two durable halves of the flow — the
- * request→interaction binding and assertion replay refusal — live in
- * `ctx.stores.saml`, which is Postgres-backed wherever a database is
- * configured. What lives here is the few seconds between a 303 and the GET it
- * provokes, for one browser; it is single-use, short-lived, and carries no
- * authority of its own beyond naming an assertion this process just verified.
+ * The code is a short-lived, AES-GCM-sealed envelope rather than an entry in a
+ * process-local map. A response verified on one replica is therefore resumable
+ * on another, and a restart between the ACS redirect and the GET it provokes
+ * does not strand the browser. The sealed payload names the interaction and the
+ * assertion this process just verified; it carries no standing authority of its
+ * own, and single use is claimed in the durable SAML replay ledger so a copied
+ * completion URL cannot be spent twice.
  */
-const completionCodes = new Map<
-  string,
-  { completion: SamlCompletion; expiresAt: number }
->();
+const COMPLETION_CODE_TTL_MS = 2 * 60 * 1000;
 
+function completionCodeKey(ctx: AppContext): Buffer {
+  return createHash("sha256")
+    .update("opensesame:saml-completion:v1\0")
+    .update(ctx.config.claimPepper)
+    .digest();
+}
+
+/** Test hook retained for suites that reset module state between cases. */
 export function resetSamlCompletionCodes(): void {
-  completionCodes.clear();
+  // Completion codes are stateless; single use lives in the durable replay
+  // ledger, which the suite resets through its own SAML store.
 }
 
-function issueCompletionCode(completion: SamlCompletion, now: number): string {
-  for (const [code, entry] of completionCodes) {
-    if (entry.expiresAt <= now) completionCodes.delete(code);
+function issueCompletionCode(
+  ctx: AppContext,
+  completion: SamlCompletion,
+  now: number,
+): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", completionCodeKey(ctx), iv);
+  const plaintext = Buffer.from(
+    JSON.stringify({
+      exp: now + COMPLETION_CODE_TTL_MS,
+      interactionUid: completion.interactionUid,
+      result: completion.result,
+    }),
+    "utf8",
+  );
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return [
+    "v1",
+    iv.toString("base64url"),
+    cipher.getAuthTag().toString("base64url"),
+    ciphertext.toString("base64url"),
+  ].join(".");
+}
+
+function completionFromPayload(payload: unknown): SamlCompletion | undefined {
+  const record = overlapCast(payload);
+  if (!isJsonObject(record)) return undefined;
+  const interactionUid = record.interactionUid;
+  const result = record.result;
+  if (!isString(interactionUid) || !isJsonObject(result)) return undefined;
+  const subject = result.subject;
+  const nameIdFormat = result.nameIdFormat;
+  const organizationId = result.organizationId;
+  if (
+    !isString(subject) ||
+    !isString(nameIdFormat) ||
+    !isString(organizationId)
+  ) {
+    return undefined;
   }
-  const code = randomBytes(32).toString("base64url");
-  completionCodes.set(code, {
-    completion,
-    expiresAt: now + COMPLETION_CODE_TTL_MS,
-  });
-  return code;
+  const email = isString(result.email) ? result.email : undefined;
+  const name = isString(result.name) ? result.name : undefined;
+  return {
+    interactionUid,
+    result: {
+      subject,
+      nameIdFormat,
+      organizationId,
+      ...(email !== undefined ? { email } : undefined),
+      ...(name !== undefined ? { name } : undefined),
+    },
+  };
 }
 
-/** Single-use: the read that finds a code consumes it. */
-export function takeSamlCompletion(
+/** Single-use: the durable replay claim is what consumes the code. */
+export async function takeSamlCompletion(
+  ctx: AppContext,
   code: string | undefined,
   now: number,
-): SamlCompletion | undefined {
+): Promise<SamlCompletion | undefined> {
   if (!code) return undefined;
-  const entry = completionCodes.get(code);
-  if (!entry) return undefined;
-  completionCodes.delete(code);
-  if (entry.expiresAt <= now) return undefined;
-  return entry.completion;
+  const [version, ivRaw, tagRaw, ciphertextRaw] = code.split(".");
+  if (
+    version !== "v1" ||
+    !ivRaw ||
+    !tagRaw ||
+    !ciphertextRaw ||
+    code.length > 8192
+  ) {
+    return undefined;
+  }
+  let payload: unknown;
+  try {
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      completionCodeKey(ctx),
+      Buffer.from(ivRaw, "base64url"),
+    );
+    decipher.setAuthTag(Buffer.from(tagRaw, "base64url"));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(ciphertextRaw, "base64url")),
+      decipher.final(),
+    ]).toString("utf8");
+    payload = JSON.parse(plaintext);
+  } catch {
+    return undefined;
+  }
+  const record = overlapCast(payload);
+  if (!isJsonObject(record) || typeof record.exp !== "number") {
+    return undefined;
+  }
+  if (record.exp <= now || record.exp > now + COMPLETION_CODE_TTL_MS) {
+    return undefined;
+  }
+  const completion = completionFromPayload(record);
+  if (!completion) return undefined;
+  const replayKey = `otc:${createHash("sha256").update(code).digest("hex")}`;
+  if (await ctx.stores.saml.replay.seen(replayKey, new Date(record.exp))) {
+    return undefined;
+  }
+  return completion;
 }
 
 function pemFromBase64(certificate: string): string {
@@ -336,7 +426,10 @@ async function fetchMetadataDocument(
   return body;
 }
 
-async function parseIdpMetadata(xml: string): Promise<ResolvedIdpMetadata> {
+async function parseIdpMetadata(
+  xml: string,
+  options: { allowHttp: boolean },
+): Promise<ResolvedIdpMetadata> {
   let doc: Document;
   try {
     doc = await parseDomFromString(xml);
@@ -367,13 +460,27 @@ async function parseIdpMetadata(xml: string): Promise<ResolvedIdpMetadata> {
         `//*[local-name()='IDPSSODescriptor']/*[local-name()='SingleSignOnService'][@Binding='${BINDING_REDIRECT}']/@Location`,
       )
       .at(0)?.nodeValue ?? "";
-  if (entityId.length === 0 || certificates.length === 0) {
+  if (entityId.length === 0 || certificates.length === 0 || !ssoUrl) {
     throw new SamlAuthError(
       "metadata_unavailable",
-      "The organization's SAML metadata declares no entityID or signing certificate.",
+      "The organization's SAML metadata declares no entityID, signing certificate, or SSO endpoint.",
     );
   }
-  return { entityId, ssoUrl, certificates };
+  let safeSso: URL;
+  try {
+    safeSso = new URL(ssoUrl);
+    const allowedProtocol =
+      safeSso.protocol === "https:" ||
+      (options.allowHttp && safeSso.protocol === "http:");
+    if (!allowedProtocol || safeSso.username || safeSso.password)
+      throw new Error("unsafe SSO URL");
+  } catch {
+    throw new SamlAuthError(
+      "metadata_unavailable",
+      "The organization's SAML SSO endpoint must be an https URL.",
+    );
+  }
+  return { entityId, ssoUrl: safeSso.href, certificates };
 }
 
 /**
@@ -398,7 +505,9 @@ export async function resolveIdpMetadata(
   const xml =
     cfg.metadataXml ??
     (await fetchMetadataDocument(ctx, cfg.metadataUrl ?? ""));
-  const resolved = await parseIdpMetadata(xml);
+  const resolved = await parseIdpMetadata(xml, {
+    allowHttp: ctx.config.allowDevDefaults,
+  });
   metadataCache.set(key, {
     value: resolved,
     expiresAt: now + METADATA_CACHE_TTL_MS,
@@ -423,6 +532,59 @@ function assertEntity(
     );
   }
   return resolved;
+}
+
+function samlOrganizationSignsIn(organization: Organization): boolean {
+  return organization.state !== "suspended" && organization.state !== "deleted";
+}
+
+/**
+ * One IdP entityID belongs to one tenant.
+ *
+ * An entityID that is not already recorded on the organization row is adopted
+ * on first use, inside the same serialized claim as the uniqueness check. Two
+ * tenants configured with the same metadata therefore cannot both accept that
+ * IdP's assertions: the first resolves the entityID, writes it to its row, and
+ * the second's lookup finds the existing owner and refuses. Without the write,
+ * an empty `samlIssuer` would make every assertion look unclaimed forever.
+ */
+async function claimSamlEntityId(
+  ctx: AppContext,
+  organizationId: string,
+  entityId: string,
+): Promise<void> {
+  await serializeKeyed(
+    ctx.stores.principalMutations,
+    `saml-entity:${entityId}`,
+    async () => {
+      const owner = await ctx.stores.organizations.findByIssuer(entityId);
+      if (owner && owner.id !== organizationId) {
+        throw new SamlAuthError(
+          "not_configured",
+          "This identity provider belongs to another tenant.",
+        );
+      }
+      const organization = await ctx.stores.organizations.get(organizationId);
+      if (!organization || !samlOrganizationSignsIn(organization)) {
+        throw new SamlAuthError(
+          "not_configured",
+          "No organization on this server accepts that identity provider.",
+        );
+      }
+      if (organization.samlIssuer === entityId) return;
+      if (organization.samlIssuer) {
+        throw new SamlAuthError(
+          "metadata_unavailable",
+          "The organization's SAML metadata does not match its configured entityID.",
+        );
+      }
+      await ctx.stores.organizations.set(organization.id, {
+        ...organization,
+        samlIssuer: entityId,
+        updatedAt: ctx.clock(),
+      });
+    },
+  );
 }
 
 function buildSamlClient(
@@ -482,6 +644,7 @@ export async function beginSamlAuth(
       "The organization's SAML metadata publishes no HTTP-Redirect sign-on endpoint.",
     );
   }
+  await claimSamlEntityId(ctx, org.organizationId, metadata.entityId);
   // An XML ID is an NCName: it may not start with a digit.
   const requestId = `_${randomBytes(20).toString("hex")}`;
   const client = buildSamlClient(ctx, metadata, requestId);
@@ -586,6 +749,17 @@ export function samlRelayPath(
 async function readResponseRouting(
   samlResponse: string,
 ): Promise<SamlResponseRouting> {
+  // Base64 expands by 4/3. Refuse before allocating a decoded buffer, so a
+  // multi-megabyte form field cannot turn the ACS into a memory amplifier.
+  if (
+    samlResponse.length === 0 ||
+    samlResponse.length > Math.ceil((MAX_SAML_RESPONSE_BYTES * 4) / 3) + 4
+  ) {
+    throw new SamlAuthError(
+      "invalid_assertion",
+      "That sign-in could not be completed.",
+    );
+  }
   const raw = Buffer.from(samlResponse, "base64");
   if (raw.byteLength === 0 || raw.byteLength > MAX_SAML_RESPONSE_BYTES) {
     throw new SamlAuthError(
@@ -630,11 +804,128 @@ async function readResponseRouting(
  * 4. Re-check the things the library does not: the issuer of the *assertion*,
  *    the signed `InResponseTo`, and assertion-id replay.
  */
+const SAML_ACS_WINDOW_MS = 60_000;
+const SAML_ACS_PER_ISSUER = 30;
+const SAML_ACS_GLOBAL = 200;
+const SAML_ACS_MAX_KEYS = 2048;
+const SAML_ACS_GLOBAL_KEY = "__global__";
+const samlAcsAttempts = new Map<string, number[]>();
+
+function consumeSamlAcsBudget(
+  issuer: string | undefined,
+  now: number,
+  chargeGlobal = true,
+): boolean {
+  for (const [key, times] of samlAcsAttempts) {
+    const live = times.filter((at) => now - at < SAML_ACS_WINDOW_MS);
+    if (live.length === 0) samlAcsAttempts.delete(key);
+    else if (live.length !== times.length) samlAcsAttempts.set(key, live);
+  }
+  const global = samlAcsAttempts.get(SAML_ACS_GLOBAL_KEY) ?? [];
+  const issuerKey = issuer ? `issuer:${issuer}` : undefined;
+  const mine = issuerKey ? (samlAcsAttempts.get(issuerKey) ?? []) : [];
+  if (
+    (chargeGlobal && global.length >= SAML_ACS_GLOBAL) ||
+    mine.length >= SAML_ACS_PER_ISSUER
+  ) {
+    return false;
+  }
+  if (chargeGlobal) {
+    global.push(now);
+    samlAcsAttempts.set(SAML_ACS_GLOBAL_KEY, global);
+  }
+  if (issuerKey) {
+    mine.push(now);
+    samlAcsAttempts.set(issuerKey, mine);
+  }
+  while (samlAcsAttempts.size > SAML_ACS_MAX_KEYS) {
+    const victim = [...samlAcsAttempts.keys()].find(
+      (key) => key !== SAML_ACS_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    samlAcsAttempts.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook. */
+export function resetSamlAcsBudget(): void {
+  samlAcsAttempts.clear();
+}
+
+/**
+ * New principal mints attributable to a tenant-supplied SAML IdP.
+ *
+ * The fleet provisional pool is shared. A tenant owner who controls their
+ * metadata can forge assertions for fresh NameIDs, so without a per-tenant
+ * ceiling one tenant can fill the pool and stop every other sign-in. The
+ * ceiling is per organization, with a global SAML-only cap that still leaves
+ * the majority of `MAX_PROVISIONAL` for every other admission leg.
+ */
+const SAML_MINT_WINDOW_MS = 60_000;
+const SAML_MINTS_PER_ORGANIZATION = 6;
+const SAML_MINTS_GLOBAL = 60;
+const SAML_MINT_MAX_KEYS = 2_048;
+const SAML_MINT_GLOBAL_KEY = "__global__";
+const samlMintAttempts = new Map<string, number[]>();
+
+function consumeSamlMintBudget(organizationId: string, now: number): boolean {
+  for (const [key, times] of samlMintAttempts) {
+    const live = times.filter((at) => now - at < SAML_MINT_WINDOW_MS);
+    if (live.length === 0) samlMintAttempts.delete(key);
+    else if (live.length !== times.length) samlMintAttempts.set(key, live);
+  }
+  const global = samlMintAttempts.get(SAML_MINT_GLOBAL_KEY) ?? [];
+  const key = `organization:${organizationId}`;
+  const mine = samlMintAttempts.get(key) ?? [];
+  if (
+    global.length >= SAML_MINTS_GLOBAL ||
+    mine.length >= SAML_MINTS_PER_ORGANIZATION
+  ) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  samlMintAttempts.set(SAML_MINT_GLOBAL_KEY, global);
+  samlMintAttempts.set(key, mine);
+  while (samlMintAttempts.size > SAML_MINT_MAX_KEYS) {
+    const victim = [...samlMintAttempts.keys()].find(
+      (candidate) => candidate !== SAML_MINT_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    samlMintAttempts.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook. */
+export function resetSamlMintBudget(): void {
+  samlMintAttempts.clear();
+}
+
 export async function completeSamlResponse(
   ctx: AppContext,
   body: { SAMLResponse: string; RelayState?: string },
 ): Promise<SamlResponseOutcome> {
+  // The global bucket is charged before XML parsing: a request that names no
+  // issuer at all still costs a parse, and the per-issuer key would otherwise
+  // let an attacker skip the endpoint budget by omitting it.
+  if (!consumeSamlAcsBudget(undefined, Date.now())) {
+    throw new SamlAuthError(
+      "invalid_assertion",
+      "That sign-in could not be completed.",
+    );
+  }
   const routing = await readResponseRouting(body.SAMLResponse);
+  if (
+    routing.issuer &&
+    !consumeSamlAcsBudget(routing.issuer, Date.now(), false)
+  ) {
+    throw new SamlAuthError(
+      "invalid_assertion",
+      "That sign-in could not be completed.",
+    );
+  }
 
   let organization: Organization | undefined;
   let interactionUid: string | undefined;
@@ -652,7 +943,12 @@ export async function completeSamlResponse(
     organization = await ctx.stores.organizations.findByIssuer(routing.issuer);
   }
 
-  const cfg = organization ? samlOrgConfig(organization) : undefined;
+  const cfg =
+    organization &&
+    organization.state !== "suspended" &&
+    organization.state !== "deleted"
+      ? samlOrgConfig(organization)
+      : undefined;
   if (!cfg) {
     throw new SamlAuthError(
       "not_configured",
@@ -661,6 +957,27 @@ export async function completeSamlResponse(
   }
 
   const metadata = await resolveIdpMetadata(ctx, cfg);
+  // A metadata document's entityID is an identity key. Two tenants may not
+  // share one, or one tenant's assertion would resolve to the other's rows.
+  // The check and the adoption of an empty `samlIssuer` are one serialized
+  // claim, so two first-use tenants cannot both pass the check.
+  await claimSamlEntityId(ctx, cfg.organizationId, metadata.entityId);
+  const claimed = await ctx.stores.organizations.findByIssuer(
+    metadata.entityId,
+  );
+  if (claimed && claimed.id !== cfg.organizationId) {
+    throw new SamlAuthError(
+      "not_configured",
+      "This identity provider belongs to another tenant.",
+    );
+  }
+  const signingOrganization = claimed ?? organization;
+  if (!signingOrganization || !samlOrganizationSignsIn(signingOrganization)) {
+    throw new SamlAuthError(
+      "not_configured",
+      "No organization on this server accepts that identity provider.",
+    );
+  }
   const client = buildSamlClient(ctx, metadata);
   let profile: Profile | null;
   try {
@@ -741,7 +1058,7 @@ export async function completeSamlResponse(
   }
 
   const nameId = profile.nameID;
-  if (nameId.length === 0) {
+  if (nameId.length === 0 || nameId.length > 1024) {
     throw new SamlAuthError(
       "invalid_assertion",
       "That sign-in could not be completed.",
@@ -769,8 +1086,8 @@ export async function completeSamlResponse(
     subject: nameId,
     nameIdFormat: profile.nameIDFormat || NAMEID_FORMAT_PERSISTENT,
     organizationId: cfg.organizationId,
-    ...(email !== undefined ? { email } : undefined),
-    ...(name !== undefined ? { name } : undefined),
+    ...(email !== undefined && email.length <= 320 ? { email } : undefined),
+    ...(name !== undefined && name.length <= 512 ? { name } : undefined),
   };
 
   if (interactionUid !== undefined) {
@@ -779,6 +1096,7 @@ export async function completeSamlResponse(
       interactionUid,
       result,
       completionCode: issueCompletionCode(
+        ctx,
         { interactionUid, result },
         ctx.clock().getTime(),
       ),
@@ -819,6 +1137,10 @@ export async function admitSamlSubject(
     result: SamlAssertionResult;
     correlationId: string;
     userAgent: string;
+    /** The browser ceremony, when the assertion came through one. */
+    interactionUid?: string | undefined;
+    /** Server-observed peer, used only for the mint-abuse key. */
+    remoteAddress?: string | undefined;
   },
 ): Promise<SamlAdmission> {
   const issuer = await issuerForResult(ctx, input.result);
@@ -829,30 +1151,63 @@ export async function admitSamlSubject(
       message: "That organization no longer accepts SAML sign-in.",
     };
   }
+  const tenant = input.result.organizationId;
 
   const existing = await ctx.repos.externalIdentities.findByTuple({
     kind: "saml",
     issuer,
+    tenant,
     subject: input.result.subject,
   });
+  // Rows created before SAML identity keys carried a tenant were global.
+  // Accept one only when its principal already belongs to this tenant, so a
+  // forged assertion through another organization cannot resolve it.
+  const legacy = existing
+    ? undefined
+    : await ctx.repos.externalIdentities.findByTuple({
+        kind: "saml",
+        issuer,
+        subject: input.result.subject,
+      });
+  const legacyOrganization = legacy
+    ? await ctx.stores.organizations.get(tenant)
+    : undefined;
+  const legacyMembership = legacy
+    ? await ctx.stores.organizationMemberships.find(tenant, legacy.principalId)
+    : undefined;
+  // Legacy rows predate tenant-scoped keys. Accept one only for the SAML
+  // tenant that actually owns this entityID (not an organization that merely
+  // names it as an OIDC issuer) and only if the principal is already a member.
+  const legacyAllowed =
+    legacyOrganization?.samlIssuer === issuer && legacyMembership !== undefined;
+  const resolved = existing ?? (legacyAllowed ? legacy : null);
 
   let principalId: string;
   let sessionToken: string | undefined;
-  if (existing) {
-    const principal = await ctx.repos.principals.getById(existing.principalId);
-    if (principal && principal.state !== "active") {
+  if (resolved) {
+    const principal = await ctx.repos.principals.getById(resolved.principalId);
+    if (
+      !principal ||
+      principal.state === "suspended" ||
+      principal.state === "closed"
+    ) {
       return {
         ok: false,
         status: 403,
         message: "This account is not able to sign in.",
       };
     }
-    principalId = existing.principalId;
+    principalId = resolved.principalId;
   } else {
+    if (!consumeSamlMintBudget(tenant, ctx.clock().getTime())) {
+      return { ok: false, status: 429, message: "rate_limited" };
+    }
     const fingerprint = createHash("sha256")
-      .update(input.userAgent)
+      .update(tenant)
       .update("|")
-      .update(ctx.config.publicUrl)
+      .update(input.interactionUid ?? "")
+      .update("|")
+      .update(input.remoteAddress ?? input.userAgent)
       .digest("hex")
       .slice(0, 16);
     let minted: { principalId: string; accessToken: string };
@@ -861,6 +1216,12 @@ export async function admitSamlSubject(
         ctx,
         fingerprint,
         input.correlationId,
+        {
+          quotaProfile: `saml:${tenant}`,
+          maxLiveForProfile: 128,
+          profilePrefix: "saml:",
+          maxLiveForProfilePrefix: 256,
+        },
       );
     } catch (error) {
       if (error instanceof ProvisionalMintRefusedError) {
@@ -894,6 +1255,7 @@ export async function admitSamlSubject(
       {
         kind: "saml",
         issuer,
+        tenant,
         subject: input.result.subject,
         correlationId: input.correlationId,
         // The NameID Format is provenance, not a claim about the human: it is
@@ -965,7 +1327,10 @@ async function issuerForResult(
   const organization = await ctx.stores.organizations.get(
     result.organizationId,
   );
-  const cfg = organization ? samlOrgConfig(organization) : undefined;
+  if (!organization || !samlOrganizationSignsIn(organization)) {
+    return undefined;
+  }
+  const cfg = samlOrgConfig(organization);
   if (!cfg) return undefined;
   if (cfg.idpEntityId.length > 0) return cfg.idpEntityId;
   try {

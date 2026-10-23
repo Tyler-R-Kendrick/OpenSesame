@@ -329,6 +329,7 @@ describe("native SAML SP, SP-initiated", () => {
     const identity = await started.ctx.repos.externalIdentities.findByTuple({
       kind: "saml",
       issuer: idp.saml.entityId,
+      tenant: organizationId,
       subject,
     });
     expect(identity).toBeTruthy();
@@ -380,6 +381,7 @@ describe("native SAML SP, SP-initiated", () => {
       return started.ctx.repos.externalIdentities.findByTuple({
         kind: "saml",
         issuer: idp.saml.entityId,
+        tenant: organizationId,
         subject,
       });
     }
@@ -499,6 +501,7 @@ describe("native SAML SP, SP-initiated", () => {
     const identity = await started.ctx.repos.externalIdentities.findByTuple({
       kind: "saml",
       issuer: idp.saml.entityId,
+      tenant: organizationId,
       subject,
     });
     expect(identity).toBeTruthy();
@@ -520,6 +523,35 @@ describe("native SAML SP, SP-initiated", () => {
     // T13: the verify above consumed the token, so the re-render must carry a
     // fresh one or the user's next submit 403s.
     expect(extractCsrf(body)).not.toBe(extractCsrf(html));
+  }, 30_000);
+
+  it("refuses to start a second tenant on the same IdP entityID", async () => {
+    const other = "org_saml_sp_same_entity";
+    const now = started.ctx.clock();
+    await started.ctx.stores.organizations.set(other, {
+      id: other,
+      slug: "acme-two",
+      displayName: "Acme Two",
+      state: "active",
+      createdBy: "prn_seed_owner",
+      createdAt: now,
+      updatedAt: now,
+      samlMetadataUrl: idp.saml.metadataUrl,
+    });
+
+    const { jar, uid, html } = await openLoginPage(base);
+    const res = await req(base, jar, `/interaction/${uid}/federated/saml`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        _csrf: extractCsrf(html),
+        slug: "acme-two",
+      }),
+    });
+    // The first tenant already owns this metadata entityID. Adopting it for a
+    // second tenant would route one IdP's assertions into two organizations.
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("not available right now");
   }, 30_000);
 
   it("refuses a start without the synchronizer token", async () => {
