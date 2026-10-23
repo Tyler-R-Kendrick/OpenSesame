@@ -123,7 +123,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 # Maintained serde_yaml fork (serde_yaml itself is RUSTSEC-2024-0320).
 serde_norway = "0.9.42"
-sha1 = "0.10.7"
+sha1 = "0.11.0"
 sha2 = "0.10.9"
 sqlx = { package = "opensesame-sql", path = "crates/sql" }
 thiserror = "2.0.12"
