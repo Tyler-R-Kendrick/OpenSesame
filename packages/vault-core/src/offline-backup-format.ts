@@ -84,6 +84,23 @@ export function refuseDeploymentSealWrap(label: string): void {
   }
 }
 
+/**
+ * The reader refuses these bounds; the writer must refuse them too, or it
+ * produces a disaster-recovery file the same application cannot restore.
+ * Size is UTF-8 bytes, not JavaScript string length.
+ */
+function assertEnvelopeLimits(
+  envelope: OfflineBackupEnvelope,
+  json: string,
+): void {
+  if (envelope.syncBlobs.length > MAX_SYNC_BLOBS) {
+    throw new Error("offline backup has too many sync blobs");
+  }
+  if (new TextEncoder().encode(json).byteLength > MAX_OFFLINE_BACKUP_BYTES) {
+    throw new Error("That offline backup is larger than 64 MB.");
+  }
+}
+
 export function buildOfflineBackupEnvelope(input: {
   projectId?: string | null;
   header: VaultHeader;
@@ -95,6 +112,22 @@ export function buildOfflineBackupEnvelope(input: {
   if (!input.header || !input.body?.ivB64 || !input.body?.ctB64) {
     throw new Error("offline backup requires sealed vault header and body");
   }
+  const syncBlobs = (input.syncBlobs ?? []).map((blob) => ({
+    id: blob.id,
+    epoch: blob.epoch,
+    ciphertextB64: blob.ciphertextB64,
+  }));
+  if (
+    syncBlobs.some(
+      (blob) =>
+        blob.id.length === 0 ||
+        !Number.isSafeInteger(blob.epoch) ||
+        blob.epoch < 0 ||
+        blob.ciphertextB64.length === 0,
+    )
+  ) {
+    throw new Error("offline backup has a malformed sync blob");
+  }
   const envelope: OfflineBackupEnvelope = {
     format: OFFLINE_BACKUP_FORMAT,
     v: OFFLINE_BACKUP_VERSION,
@@ -104,14 +137,12 @@ export function buildOfflineBackupEnvelope(input: {
       header: input.header,
       body: input.body,
     },
-    syncBlobs: (input.syncBlobs ?? []).map((blob) => ({
-      id: blob.id,
-      epoch: blob.epoch,
-      ciphertextB64: blob.ciphertextB64,
-    })),
+    syncBlobs,
     deploymentSealUsed: false,
   };
-  assertCiphertextOnlyBackupJson(JSON.stringify(envelope));
+  const json = JSON.stringify(envelope);
+  assertEnvelopeLimits(envelope, json);
+  assertCiphertextOnlyBackupJson(json);
   return envelope;
 }
 
@@ -122,6 +153,7 @@ export function serializeOfflineBackupEnvelope(
     throw new Error("offline backup must not use deployment seal");
   }
   const json = `${JSON.stringify(envelope, null, 2)}\n`;
+  assertEnvelopeLimits(envelope, json);
   assertCiphertextOnlyBackupJson(json);
   return json;
 }
@@ -135,7 +167,10 @@ function objectOr(value: BoundaryValue, message: string): BoundaryObject {
 
 /** The envelope's top level: size, JSON, format, version, no deployment seal. */
 function readEnvelopeRow(fileText: string): BoundaryObject {
-  if (fileText.length > MAX_OFFLINE_BACKUP_BYTES) {
+  // The reader and writer share a byte limit; UTF-16 code units are not bytes.
+  if (
+    new TextEncoder().encode(fileText).byteLength > MAX_OFFLINE_BACKUP_BYTES
+  ) {
     throw new Error("That offline backup is larger than 64 MB.");
   }
   assertCiphertextOnlyBackupJson(fileText);
@@ -167,9 +202,15 @@ function readVaultCiphertext(
   value: BoundaryValue,
 ): OfflineBackupEnvelope["vault"] {
   const vault = objectOr(value, MISSING_VAULT);
-  if (!vault.header) throw new Error(MISSING_VAULT);
+  if (!vault.header || !isTypeofObject(vault.header))
+    throw new Error(MISSING_VAULT);
   const body = objectOr(vault.body, MISSING_VAULT);
-  if (!isString(body.ivB64) || !isString(body.ctB64))
+  if (
+    !isString(body.ivB64) ||
+    !body.ivB64 ||
+    !isString(body.ctB64) ||
+    !body.ctB64
+  )
     throw new Error(MISSING_VAULT);
   const header: VaultHeader = overlapCast(vault.header);
   return { header, body: { ivB64: body.ivB64, ctB64: body.ctB64 } };
@@ -179,7 +220,10 @@ function readSyncBlob(value: BoundaryValue): SyncBlobCiphertext {
   const blob = objectOr(value, "That backup has a malformed sync blob.");
   if (
     !isString(blob.id) ||
+    !blob.id ||
     !isNumber(blob.epoch) ||
+    !Number.isSafeInteger(blob.epoch) ||
+    blob.epoch < 0 ||
     !isString(blob.ciphertextB64) ||
     !blob.ciphertextB64
   ) {
