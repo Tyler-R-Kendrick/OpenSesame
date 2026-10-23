@@ -22,9 +22,8 @@ export async function waitOpen(page) {
     .locator("visible=true")
     .first()
     .waitFor({ timeout: 20000 });
-  // The lock key mounts behind the doors. Walks install a frozen Playwright
-  // clock, so advance the 1.6s ceremony before waiting for the gate to leave.
-  await page.clock?.runFor(2_000)?.catch(() => undefined);
+  // Let the ceremony finish on the existing clock. Calling runFor here
+  // would install a clock on ordinary pages and reset their wall time.
   // Readiness also requires the ceremony to finish; keep its existing 10s
   // bound within the 20s open budget.
   await page.locator(".unlock").waitFor({
