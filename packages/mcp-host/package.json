@@ -24,7 +24,7 @@
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/telemetry": "workspace:*",
     "posthog-node": "5.48.1",
-    "zod": "4.6.6"
+    "zod": "3.25.67"
   },
   "devDependencies": {
     "@opensesame/capability-registry": "workspace:*",
