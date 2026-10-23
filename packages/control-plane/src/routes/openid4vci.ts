@@ -99,6 +99,45 @@ function newOfferId(): string {
   return randomBytes(16).toString("base64url");
 }
 
+/** Offers are durable rows and grants; a signed-in caller still gets a fence. */
+const OFFER_WINDOW_MS = 60_000;
+const OFFERS_PER_PRINCIPAL = 20;
+const OFFERS_GLOBAL = 500;
+const OFFER_MAX_KEYS = 2048;
+const OFFER_GLOBAL_KEY = "__global__";
+const offerBudget = new Map<string, number[]>();
+
+function consumeOfferBudget(principalId: string, now: number): boolean {
+  for (const [key, times] of offerBudget) {
+    const live = times.filter((at) => now - at < OFFER_WINDOW_MS);
+    if (live.length === 0) offerBudget.delete(key);
+    else if (live.length !== times.length) offerBudget.set(key, live);
+  }
+  const global = offerBudget.get(OFFER_GLOBAL_KEY) ?? [];
+  const key = `principal:${principalId}`;
+  const mine = offerBudget.get(key) ?? [];
+  if (global.length >= OFFERS_GLOBAL || mine.length >= OFFERS_PER_PRINCIPAL) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  offerBudget.set(OFFER_GLOBAL_KEY, global);
+  offerBudget.set(key, mine);
+  while (offerBudget.size > OFFER_MAX_KEYS) {
+    const victim = [...offerBudget.keys()].find(
+      (candidate) => candidate !== OFFER_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    offerBudget.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook: the budget is process-global. */
+export function resetOpenid4vciOfferBudget(): void {
+  offerBudget.clear();
+}
+
 // Writable views of otherwise-readonly inputs, so an optional field is set
 // only when present rather than spread from an empty object — the repo runs
 // exactOptionalPropertyTypes, and anti-slop forbids the `...(x ? {} : {…})`
@@ -199,6 +238,9 @@ export function createOpenid4vciRoutes(
     const principalId = c.get("principalId");
     if (principalId === undefined)
       return c.json({ error: "unauthorized" }, 401);
+    if (!consumeOfferBudget(principalId, runtime.clock().getTime())) {
+      return c.json({ error: "rate_limited" }, 429);
+    }
     const body = await readBody(c);
     const transactionCode = isString(body.transactionCode)
       ? body.transactionCode

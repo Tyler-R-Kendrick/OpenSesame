@@ -16,24 +16,40 @@ import { Facts } from "./fields.js";
 
 const WAIT_MS = 10 * 60_000;
 
-/** Resolves when the popup reports back, closes, or gives up. */
-function settled(popup: Window | null): Promise<void> {
+/** Resolves true only when this popup reports the connection it was opened for. */
+function settled(popup: Window | null, connectionId: string): Promise<boolean> {
   return new Promise((resolve) => {
+    if (!popup) {
+      resolve(false);
+      return;
+    }
     const started = Date.now();
-    const done = () => {
+    let done = false;
+    let timer = 0;
+    const finish = (approved: boolean) => {
+      if (done) return;
+      done = true;
       window.removeEventListener("message", onMessage);
-      clearInterval(timer);
-      resolve();
+      if (timer !== 0) window.clearInterval(timer);
+      resolve(approved);
     };
     const onMessage = (event: MessageEvent) => {
+      if (event.source !== popup) return;
       if (event.origin !== window.location.origin) return;
       const data: BoundaryValue = event.data;
-      if (isJsonObject(data) && data.type === "opensesame:connection") done();
+      if (
+        isJsonObject(data) &&
+        data.type === "opensesame:connection" &&
+        data.connectionId === connectionId
+      )
+        finish(true);
     };
-    const timer = setInterval(() => {
-      if (!popup || popup.closed || Date.now() - started > WAIT_MS) done();
-    }, 500);
+    const poll = () => {
+      if (popup.closed || Date.now() - started > WAIT_MS) finish(false);
+    };
     window.addEventListener("message", onMessage);
+    poll();
+    if (!done) timer = window.setInterval(poll, 500);
   });
 }
 
@@ -176,17 +192,23 @@ export function UserTokenPanel({
         subject,
         scopes,
       );
-      if (popup) popup.location.href = authorizationUrl;
-      else window.location.href = authorizationUrl;
-      await settled(popup);
+      // `openConsentPopup` opens with `noopener`, so a browser does not hand
+      // back a handle. Never wait on a window we cannot observe: a same-tab
+      // navigation is the flow, and the callback page owns what follows.
+      if (!popup) {
+        window.location.assign(authorizationUrl);
+        return;
+      }
+      popup.location.href = authorizationUrl;
+      const approved = await settled(popup, connectorId);
+      if (!approved) return;
+      if (canProve) await prove();
     } catch (error) {
       popup?.close();
       onFlash({ tone: "err", text: errorText(error) });
+    } finally {
       setBusy(null);
-      return;
     }
-    setBusy(null);
-    if (canProve) await prove();
   }
 
   const wait = !online || busy !== null;

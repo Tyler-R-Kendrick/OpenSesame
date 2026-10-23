@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   AddOrganizationMemberRequestSchema,
@@ -92,6 +92,66 @@ const JOIN_MAX_TOKEN_AGE_SECONDS = 600;
  * them. Recorded as `unchecked` instead of quietly changed (ADR 0178).
  */
 const MEMBER_ADMIN: OrgOwnerSource = { param: "id", liveness: "unchecked" };
+
+/**
+ * The public tenant lookup is unauthenticated and does a durable read plus an
+ * LDAP-configuration read. A budget keeps one caller from turning that into a
+ * database load generator; the global bucket is the ceiling a spoofed
+ * fingerprint cannot rotate away from.
+ */
+const TENANT_LOOKUP_WINDOW_MS = 60_000;
+const TENANT_LOOKUP_PER_CLIENT = 120;
+const TENANT_LOOKUP_GLOBAL = 1_000;
+const TENANT_LOOKUP_MAX_KEYS = 2_048;
+const TENANT_LOOKUP_GLOBAL_KEY = "__global__";
+const tenantLookupAttempts = new Map<string, number[]>();
+
+/** Test hook: the budget is process-global. */
+export function resetTenantLookupBudget(): void {
+  tenantLookupAttempts.clear();
+}
+
+function consumeTenantLookupBudget(fingerprint: string, now: number): boolean {
+  for (const [key, times] of tenantLookupAttempts) {
+    const live = times.filter((at) => now - at < TENANT_LOOKUP_WINDOW_MS);
+    if (live.length === 0) tenantLookupAttempts.delete(key);
+    else if (live.length !== times.length) {
+      tenantLookupAttempts.set(key, live);
+    }
+  }
+  const clientKey = `client:${fingerprint}`;
+  const global = tenantLookupAttempts.get(TENANT_LOOKUP_GLOBAL_KEY) ?? [];
+  const client = tenantLookupAttempts.get(clientKey) ?? [];
+  if (
+    global.length >= TENANT_LOOKUP_GLOBAL ||
+    client.length >= TENANT_LOOKUP_PER_CLIENT
+  ) {
+    return false;
+  }
+  global.push(now);
+  client.push(now);
+  tenantLookupAttempts.set(TENANT_LOOKUP_GLOBAL_KEY, global);
+  tenantLookupAttempts.set(clientKey, client);
+  while (tenantLookupAttempts.size > TENANT_LOOKUP_MAX_KEYS) {
+    const victim = [...tenantLookupAttempts.keys()].find(
+      (key) => key !== TENANT_LOOKUP_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    tenantLookupAttempts.delete(victim);
+  }
+  return true;
+}
+
+function tenantLookupFingerprint(c: {
+  req: { header: (name: string) => string | undefined };
+}): string {
+  return createHash("sha256")
+    .update(c.req.header("user-agent") ?? "")
+    .update("|")
+    .update(c.req.header("origin") ?? "")
+    .digest("hex")
+    .slice(0, 16);
+}
 
 export function authenticatedPrincipalId(value: string | undefined): string {
   if (!value) throw new Error("requirePrincipal middleware invariant violated");
@@ -398,10 +458,7 @@ organizationRoutes.post(
             if (await ctx.stores.organizations.getBySlug(parsed.data.slug)) {
               return c.json({ error: "slug_taken" }, 409);
             }
-            if (
-              (await issuerClaimed(ctx, parsed.data.ssoIssuer)) ||
-              (await issuerClaimed(ctx, parsed.data.samlIssuer))
-            ) {
+            if (await issuerClaimed(ctx, parsed.data.samlIssuer)) {
               return c.json(
                 {
                   error: "issuer_taken",
@@ -453,6 +510,15 @@ organizationRoutes.post(
 
 organizationRoutes.get("/tenants/:slug", async (c) => {
   const ctx = c.get("ctx");
+  if (
+    !consumeTenantLookupBudget(
+      tenantLookupFingerprint(c),
+      ctx.clock().getTime(),
+    )
+  ) {
+    c.header("retry-after", "60");
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const org = await orgBySlug(ctx, c.req.param("slug"));
   if (!org) return c.json({ error: "not_found" }, 404);
   return c.json(
@@ -482,6 +548,15 @@ organizationRoutes.get("/tenants/:slug", async (c) => {
  */
 organizationRoutes.get("/by-domain/:domain", async (c) => {
   const ctx = c.get("ctx");
+  if (
+    !consumeTenantLookupBudget(
+      tenantLookupFingerprint(c),
+      ctx.clock().getTime(),
+    )
+  ) {
+    c.header("retry-after", "60");
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const domain = normalizeEmailDomain(c.req.param("domain"));
   const claim = domain
     ? await ctx.stores.orgFederation.emailDomains.findVerified(domain)
@@ -660,10 +735,8 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
       });
       if (samlError) return c.json(samlError, 400);
       if (
-        (parsed.data.ssoIssuer !== undefined &&
-          (await issuerClaimed(ctx, ssoIssuer, org.id))) ||
-        (parsed.data.samlIssuer !== undefined &&
-          (await issuerClaimed(ctx, samlIssuer, org.id)))
+        parsed.data.samlIssuer !== undefined &&
+        (await issuerClaimed(ctx, samlIssuer, org.id))
       ) {
         return c.json(
           {

@@ -179,6 +179,55 @@ describe("oauth clients routes edge cases", () => {
     });
   });
 
+  it("preserves origin/claim fields and refuses to clear an operator suspension", async () => {
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    const owner = await verified(app, "oauth-origin-patch-owner");
+    const origin = "https://origin-patch.example";
+    await ctx.oauth.clientStore.insertAtomic({
+      id: `origin:${origin}`,
+      admissionMode: "origin_profile",
+      displayName: "Origin RP",
+      redirectUris: [`${origin}/opensesame/callback`],
+      sectorIdentifier: `sector_${origin}`,
+      grantTypes: ["authorization_code"],
+      responseTypes: ["code"],
+      tokenEndpointAuthMethod: "none",
+      allowedScopes: ["openid"],
+      allowedResources: [],
+      state: "active",
+      origin,
+      ownershipStatus: "unclaimed",
+      ownerPrincipalId: owner.principalId,
+    });
+    const id = `origin:${origin}`;
+    const patch = (body: BoundaryValue) =>
+      app.request(`/v1/oauth/clients/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: {
+          ...auth(owner.accessToken),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+    expect((await patch({ displayName: "Renamed origin" })).status).toBe(200);
+    const stored = await ctx.oauth.clientStore.findById(`origin:${origin}`);
+    expect(stored).toMatchObject({
+      displayName: "Renamed origin",
+      origin,
+      admissionMode: "origin_profile",
+      ownershipStatus: "unclaimed",
+    });
+
+    const suspended = { ...stored, state: "suspended" as const };
+    await ctx.oauth.clientStore.update(suspended);
+    expect((await patch({ state: "active" })).status).toBe(403);
+    expect((await patch({ displayName: "Still suspended" })).status).toBe(200);
+    expect(
+      (await ctx.oauth.clientStore.findById(`origin:${origin}`))?.state,
+    ).toBe("suspended");
+  });
+
   it("rotates a client, retiring the old registration", async () => {
     const { app } = createControlPlane({ config: testConfig() });
     const owner = await verified(app, "oauth-rotate-owner");

@@ -11,7 +11,8 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
-import type { WebStorage } from "../../ports.js";
+import { type WebStorage, lockManager } from "../../ports.js";
+import { kvRefresh } from "../kv.js";
 import { sha256Url } from "./local-drop-codec.js";
 import { originKvSlot } from "./origin-kv-slot.js";
 
@@ -92,11 +93,27 @@ export function writeLocalDropClaimStore(store: LocalClaimStore): void {
 
 export async function localDropDevicePepper(): Promise<string> {
   const slot = localDropClaimStorage();
-  const existing = slot.getItem(PEPPER_KEY);
-  if (isString(existing) && existing.length >= 32) return existing;
-  const next = bytesToB64url(crypto.getRandomValues(new Uint8Array(32)));
-  slot.setItem(PEPPER_KEY, next);
-  return next;
+  const read = (): string | null => {
+    const existing = slot.getItem(PEPPER_KEY);
+    return isString(existing) && existing.length >= 32 ? existing : null;
+  };
+  const existing = read();
+  if (existing) return existing;
+  // Two tabs opening their first drop at once must not each mint a different
+  // pepper: the loser's token digest would never verify. Re-read under the
+  // origin-wide lock before creating one.
+  const locks = lockManager();
+  const create = async (): Promise<string> => {
+    await kvRefresh(PEPPER_KEY, 64 * 1024);
+    const raced = read();
+    if (raced) return raced;
+    const next = bytesToB64url(crypto.getRandomValues(new Uint8Array(32)));
+    slot.setItem(PEPPER_KEY, next);
+    return next;
+  };
+  return locks
+    ? locks.request("opensesame.local-drop-pepper", create)
+    : create();
 }
 
 function manifestNeedsWipe(record: LocalClaimRecord): boolean {

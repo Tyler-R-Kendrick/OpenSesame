@@ -64,12 +64,14 @@ function rpFromConfig(publicUrl: string) {
  * verification is not free. Both get the same small fence.
  */
 const MAX_MFA_FAILURES = 5;
-const MAX_MFA_FENCE_ENTRIES = 4096;
+const MAX_PASSKEY_FIELD_LENGTH = 16 * 1024;
 const MFA_ANON_WINDOW_MS = 60_000;
 const MFA_ANON_MAX = 20;
 const MFA_ANON_GLOBAL_MAX = 200;
 const MFA_ANON_FENCE_ENTRIES = 4096;
-const MAX_PASSKEY_FIELD_LENGTH = 16 * 1024;
+/** A global send ceiling: cheap principals must not turn into a SMS gateway. */
+const CODE_SEND_GLOBAL_WINDOW_MS = 60 * 60_000;
+const CODE_SEND_GLOBAL_MAX = 200;
 
 function clientFingerprint(c: {
   req: { header: (name: string) => string | undefined };
@@ -279,8 +281,6 @@ mfaRoutes.post("/passkey/assert", async (c) => {
   ) {
     return c.json({ error: "invalid_request" }, 400);
   }
-  if ((await ctx.stores.mfaFailures.size) > MAX_MFA_FENCE_ENTRIES)
-    return c.json({ error: "rate_limited" }, 429);
   const credentialDigest = createHash("sha256")
     .update(body.credentialId)
     .digest("hex")
@@ -466,6 +466,35 @@ async function pruneCodes(
   }
 }
 
+/**
+ * Charge the deployment-wide send ceiling.
+ *
+ * Per-principal and per-destination budgets cannot see a caller who mints a
+ * fresh provisional principal for every send. This one can: it counts every
+ * delivered email or text in the window, whatever principal asked for it.
+ */
+async function chargeGlobalCodeSend(
+  ctx: AppContext,
+  channel: CodeChannel,
+  now: number,
+): Promise<boolean> {
+  let admitted = false;
+  await updateSecurityMap(
+    ctx.stores.mfaCodeSends,
+    `global:${channel}`,
+    (current) => {
+      const live = (current?.sentAt ?? []).filter(
+        (at) => now - at < CODE_SEND_GLOBAL_WINDOW_MS,
+      );
+      admitted = live.length < CODE_SEND_GLOBAL_MAX;
+      if (admitted) live.push(now);
+      const newest = live.at(-1) ?? now;
+      return { sentAt: live, expiresAt: newest + CODE_SEND_GLOBAL_WINDOW_MS };
+    },
+  );
+  return admitted;
+}
+
 mfaRoutes.post("/code/send", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
@@ -508,6 +537,15 @@ mfaRoutes.post("/code/send", requirePrincipal(), async (c) => {
     await auditMfaDenial(ctx, {
       eventType: "mfa.code.send",
       reason: "too_many_codes",
+      principalId,
+      correlationId: c.get("correlationId"),
+    });
+    return c.json({ ok: false, error: "too_many_codes" }, 429);
+  }
+  if (!(await chargeGlobalCodeSend(ctx, channel, now))) {
+    await auditMfaDenial(ctx, {
+      eventType: "mfa.code.send",
+      reason: "deployment_send_budget_exhausted",
       principalId,
       correlationId: c.get("correlationId"),
     });

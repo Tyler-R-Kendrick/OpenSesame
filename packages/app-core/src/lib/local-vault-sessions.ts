@@ -57,7 +57,14 @@ async function readAll(tomb: string): Promise<LocalVaultSession[]> {
       !value.sessions.every(isSession)
     )
       throw new LocalDirectoryError("Session storage is invalid.");
-    return value.sessions;
+    const sessions = value.sessions;
+    if (
+      sessions.some((session) => session.boundTomb !== tomb) ||
+      new Set(sessions.map((session) => session.id)).size !== sessions.length ||
+      new Set(sessions.map((session) => session.code)).size !== sessions.length
+    )
+      throw new LocalDirectoryError("Session storage is invalid.");
+    return sessions;
   } catch (error) {
     if (error instanceof VfsError && error.code === "not-found") return [];
     throw error;
@@ -185,9 +192,11 @@ export async function createVaultSession(
       const current = await readAll(tomb);
       if (current.length >= MAX_SESSIONS)
         throw new LocalDirectoryError("Session capacity is full.");
+      let code = mintSessionCode();
+      while (current.some((row) => row.code === code)) code = mintSessionCode();
       const created: LocalVaultSession = {
         id: crypto.randomUUID(),
-        code: mintSessionCode(),
+        code,
         label,
         status: "stopped",
         durationSeconds: input.durationSeconds,

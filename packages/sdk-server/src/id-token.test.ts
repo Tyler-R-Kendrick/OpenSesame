@@ -77,6 +77,32 @@ describe("verifyIdToken", () => {
     ).rejects.toMatchObject({ code: "invalid_algorithm" });
   });
 
+  it("requires an expiry and refuses an access-token type header", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    const noExpiry = await new SignJWT({})
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("pairwise-sub")
+      .setIssuedAt()
+      .sign(privateKey);
+    await expect(
+      verifyIdToken(noExpiry, { issuer: ISSUER, audience: AUDIENCE, jwks }),
+    ).rejects.toBeInstanceOf(AuthError);
+
+    const accessToken = await new SignJWT({})
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("pairwise-sub")
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    await expect(
+      verifyIdToken(accessToken, { issuer: ISSUER, audience: AUDIENCE, jwks }),
+    ).rejects.toMatchObject({ code: "invalid_token" });
+  });
+
   it("maps a wrong audience to invalid_audience", async () => {
     const { privateKey, jwks } = await mintKeys();
     const token = await new SignJWT({ nonce: "abc" })

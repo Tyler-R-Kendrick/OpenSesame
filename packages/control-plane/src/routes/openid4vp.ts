@@ -51,6 +51,8 @@ export interface Openid4vpPendingPresentation {
   readonly principalId: string;
   readonly protocolDigest: string;
   readonly approvalBindingDigest: string;
+  /** The response mode the request actually asked for. */
+  readonly responseMode: "direct_post" | "dc_api";
   /**
    * Binding validity. Named so DurableMap does not treat it as row TTL —
    * otherwise an expired binding vanishes and surfaces as presentation_unknown
@@ -97,6 +99,15 @@ async function pendingDelete(
   else store.delete(state);
 }
 
+/** Delete a row discovered through `entries()`, whose key is already stored. */
+async function pendingDeleteEntry(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+  storedKey: string,
+): Promise<void> {
+  if (store instanceof DurableMap) await store.deleteEntry(storedKey);
+  else store.delete(storedKey);
+}
+
 const BeginSchema = z.object({
   interactionId: z.string().min(8).max(128),
   requestDigest: z.string().min(16).max(256),
@@ -116,6 +127,41 @@ function fail(
   status: FailStatus = 400,
 ): Response {
   return c.json({ error }, status);
+}
+
+async function pendingEntries(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+): Promise<[string, Openid4vpPendingPresentation][]> {
+  if (store instanceof DurableMap) return store.entries();
+  return [...store.entries()];
+}
+
+const MAX_PENDING_PRESENTATIONS_PER_PRINCIPAL = 5;
+const MAX_PENDING_PRESENTATIONS_GLOBAL = 1_000;
+
+async function presentationCapacityAvailable(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+  principalId: string,
+  now: Date,
+): Promise<boolean> {
+  let mine = 0;
+  let total = 0;
+  for (const [state, entry] of await pendingEntries(store)) {
+    if (entry.bindingExpiresAt.getTime() <= now.getTime()) {
+      await pendingDeleteEntry(store, state);
+      continue;
+    }
+    total += 1;
+    if (entry.principalId === principalId) mine += 1;
+  }
+  return (
+    mine < MAX_PENDING_PRESENTATIONS_PER_PRINCIPAL &&
+    total < MAX_PENDING_PRESENTATIONS_GLOBAL
+  );
+}
+
+function interactionDeadlinePassed(row: Interaction, now: Date): boolean {
+  return row.status === "expired" || row.expiresAt.getTime() <= now.getTime();
 }
 
 export function createOpenid4vpRoutes(
@@ -148,13 +194,19 @@ export function createOpenid4vpRoutes(
       parsed.data.interactionId,
       principalId,
     );
+    const now = options.clock();
     if (!row) return fail(c, "interaction_not_found", 404);
-    if (row.status === "expired") return fail(c, "interaction_expired", 409);
+    if (interactionDeadlinePassed(row, now)) {
+      return fail(c, "interaction_expired", 409);
+    }
     if (
       row.requestDigest === undefined ||
       !digestsEqual(row.requestDigest, parsed.data.requestDigest)
     ) {
       return fail(c, "digest_mismatch");
+    }
+    if (!(await presentationCapacityAvailable(pending, principalId, now))) {
+      return fail(c, "presentation_capacity", 409);
     }
 
     const base = options.publicUrl.replace(/\/$/, "");
@@ -188,6 +240,7 @@ export function createOpenid4vpRoutes(
       principalId,
       protocolDigest: begun.digests.protocol,
       approvalBindingDigest: begun.digests.approval,
+      responseMode,
       bindingExpiresAt: begun.request.expiresAt,
     });
 
@@ -223,6 +276,9 @@ export function createOpenid4vpRoutes(
       await pendingDelete(pending, parsed.data.state);
       return fail(c, "presentation_expired", 409);
     }
+    if (attempt.responseMode !== parsed.data.responseMode) {
+      return fail(c, "response_mode_mismatch", 409);
+    }
 
     const row = await loadApproverInteraction(
       ctx,
@@ -230,12 +286,20 @@ export function createOpenid4vpRoutes(
       principalId,
     );
     if (!row?.requestDigest) return fail(c, "interaction_not_found", 404);
+    if (interactionDeadlinePassed(row, options.clock())) {
+      await pendingDelete(pending, parsed.data.state);
+      return fail(c, "interaction_expired", 409);
+    }
 
     let verified: VerifiedPresentation;
     try {
       const delivery: CourierDelivery = {
         responseMode: parsed.data.responseMode,
         body: asCourierBody(bodyValue),
+        // DC API responses carry no state in the body; the pending binding is
+        // the session that supplied it, and the verifier must check that same
+        // state rather than reading it off the wallet's message.
+        state: parsed.data.state,
       };
       verified = await finishPresentation(verifierConfig, {
         delivery,

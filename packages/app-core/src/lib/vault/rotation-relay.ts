@@ -1,7 +1,9 @@
 /** Optional provider-side rotation relay. It sees metadata, never a secret. */
-import { withLocalAccessLedgerLock } from "../local-access-ledger-lock.js";
+import { lockManager } from "../../ports.js";
+import { kvDurability, kvGet, kvRefresh, kvSetDurable } from "../kv.js";
 import {
   ROTATION_EVENT_KEY,
+  ROTATION_SCHEDULE_KEY,
   type RotationEvent,
   loadRotationEvents,
   loadRotationSchedules,
@@ -22,7 +24,7 @@ export const rotationSeams = {
   relay: null as RotationRelay | null,
 };
 
-function complete(event: RotationEvent, at: Date): void {
+async function complete(event: RotationEvent, at: Date): Promise<void> {
   const schedules = loadRotationSchedules().map((schedule) =>
     schedule.scope === event.scope && schedule.itemId === event.itemId
       ? {
@@ -33,9 +35,33 @@ function complete(event: RotationEvent, at: Date): void {
       : schedule,
   );
   saveRotationSchedules(schedules);
+  // The queue lives outside any vault; make the schedule advance durable
+  // before the event is removed, so a crash cannot retry a completed rotation.
+  await kvSetDurable(
+    ROTATION_SCHEDULE_KEY,
+    kvGet(ROTATION_SCHEDULE_KEY) ?? "[]",
+  );
 }
 
 let processing: Promise<unknown> = Promise.resolve();
+const ROTATION_LOCK = "opensesame:local-rotation";
+const ROTATION_STORE_BYTES = 1024 * 1024;
+
+async function withRotationLock<T>(action: () => Promise<T>): Promise<T> {
+  const run = async () => {
+    // Schedules and events are origin-wide, not tomb-scoped. Refresh both
+    // under one origin-wide lock or another vault's tab can overwrite them
+    // from a stale in-memory copy.
+    await kvRefresh(ROTATION_EVENT_KEY, ROTATION_STORE_BYTES);
+    await kvRefresh(ROTATION_SCHEDULE_KEY, ROTATION_STORE_BYTES);
+    return action();
+  };
+  const locks = lockManager();
+  if (locks) return locks.request(ROTATION_LOCK, run);
+  if (kvDurability() === "persistent")
+    throw new Error("Web Locks are required for shared rotation writes.");
+  return run();
+}
 
 /**
  * Offer every waiting event to the relay. Without one, mark the event out of
@@ -47,13 +73,7 @@ export function processRotationQueue(
   now = new Date(),
 ): Promise<RotationEvent[]> {
   const run = processing.then(() =>
-    withLocalAccessLedgerLock(
-      scope,
-      "rotation",
-      ROTATION_EVENT_KEY,
-      1024 * 1024,
-      () => processRotationQueueNow(scope, now),
-    ),
+    withRotationLock(() => processRotationQueueNow(scope, now)),
   );
   processing = run.catch(() => undefined);
   return run;
@@ -79,7 +99,7 @@ async function processRotationQueueNow(
     try {
       const result = await relay(event);
       if (result.ok) {
-        complete(event, now);
+        await complete(event, now);
         outcomes.set(event.id, null);
         continue;
       }
@@ -104,6 +124,7 @@ async function processRotationQueueNow(
     return outcome === null || outcome === undefined ? [] : [outcome];
   });
   saveRotationEvents(retained);
+  await kvSetDurable(ROTATION_EVENT_KEY, kvGet(ROTATION_EVENT_KEY) ?? "[]");
   notify();
   return retained.filter((event) => event.scope === scope);
 }

@@ -103,6 +103,8 @@ const BUDGET_PER_FINGERPRINT = 5;
 /** Bounded so a fingerprint flood cannot grow the map without limit. */
 const BUDGET_TOTAL = 200;
 const BUDGET_MAX_KEYS = 2048;
+const BUDGET_GLOBAL_KEY = "__total__";
+const BUDGET_CLIENT_PREFIX = "client:";
 
 /**
  * The discovery budget, module-local by contract (D5).
@@ -125,16 +127,21 @@ function consumeRegistrationBudget(fingerprint: string, now: number): boolean {
     if (live.length === 0) registrationBudget.delete(key);
     else if (live.length !== attempts.length) registrationBudget.set(key, live);
   }
-  const total = registrationBudget.get("__total__") ?? [];
-  const attempts = registrationBudget.get(fingerprint) ?? [];
+  const clientKey = `${BUDGET_CLIENT_PREFIX}${fingerprint}`;
+  const total = registrationBudget.get(BUDGET_GLOBAL_KEY) ?? [];
+  const attempts = registrationBudget.get(clientKey) ?? [];
   if (total.length >= BUDGET_TOTAL || attempts.length >= BUDGET_PER_FINGERPRINT)
     return false;
   attempts.push(now);
   total.push(now);
-  registrationBudget.set("__total__", total);
-  registrationBudget.set(fingerprint, attempts);
+  registrationBudget.set(BUDGET_GLOBAL_KEY, total);
+  registrationBudget.set(clientKey, attempts);
   while (registrationBudget.size > BUDGET_MAX_KEYS) {
-    const victim = registrationBudget.keys().next().value;
+    // The global counter is the ceiling an attacker cannot rotate away from.
+    // Evicting it with the per-client keys would hand them a fresh budget.
+    const victim = [...registrationBudget.keys()].find(
+      (key) => key !== BUDGET_GLOBAL_KEY,
+    );
     if (victim === undefined) break;
     registrationBudget.delete(victim);
   }
@@ -349,6 +356,18 @@ async function register(
 ): Promise<ByoUpstream> {
   const issuer = checkedByoIssuer(input.issuer ?? "");
   const issuerUrl = assertSafeUpstreamUrl(ctx, issuer);
+
+  // A tenant's issuer is not a visitor's to claim. Registering it first would
+  // squat the row with credentials the tenant never supplied (and, on a later
+  // tenant removal, leave those credentials standing in front of its users).
+  // The uniform discovery refusal keeps this from naming which issuers tenants
+  // have configured.
+  if (await ctx.stores.organizations.findByIssuer(issuer)) {
+    throw new ByoRegistrationError(
+      "discovery_failed",
+      DISCOVERY_FAILED_MESSAGE,
+    );
+  }
 
   // The budget sits in front of the store lookup as well as the network: a
   // stranger enumerating issuers against this endpoint is exactly the traffic

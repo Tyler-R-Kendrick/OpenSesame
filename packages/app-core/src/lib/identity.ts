@@ -444,7 +444,21 @@ async function adoptTokenDefault(accessToken: string): Promise<void> {
   // Only now end what came before, detected orphan or not: a cookie this tab
   // never saw would otherwise keep acting alongside the pasted token.
   endSession();
+  const adoptionEpoch = sessionEpoch;
   await settleRevokes();
+  if (sessionEpoch !== adoptionEpoch) {
+    // A sign-out landed while the old session's revoke was in flight. The
+    // pasted token was never adopted, so drop it server-side too rather than
+    // resurrect a credential after the person ended the session.
+    pendingRevoke = (pendingRevoke ?? Promise.resolve())
+      .then(() => revokeRequest(token))
+      .then(() => undefined)
+      .catch(() => undefined);
+    throw new IdentityError(
+      "The session was ended while adopting that token. Try again.",
+      409,
+    );
+  }
   session = {
     principalId: me.id ?? "unknown",
     accessToken: token,
@@ -613,6 +627,11 @@ export function restoreSession(
   expectedEpoch?: number,
 ): void {
   identitySeams.restoreSession(next, expectedEpoch);
+}
+
+/** Fence value for work that must not restore across a sign-out. */
+export function identitySessionEpoch(): number {
+  return sessionEpoch;
 }
 
 /** Original bearer transport DATA only; the private Store must prove primary/all configured factors. */

@@ -123,15 +123,23 @@ function providerInteractions(
 }
 
 function clientFingerprint(
+  remoteAddress: string | undefined,
   userAgent: string | undefined,
   origin: string | undefined,
 ): string {
-  return createHash("sha256")
-    .update(userAgent ?? "")
-    .update("|")
-    .update(origin ?? "")
-    .digest("hex")
-    .slice(0, 16);
+  return (
+    createHash("sha256")
+      // The peer address is server-observed; headers are a secondary component
+      // so a whole NAT or test runner does not share one tiny budget. Rotating
+      // the headers still cannot escape the endpoint's global ceiling.
+      .update(remoteAddress ?? "")
+      .update("|")
+      .update(userAgent ?? "")
+      .update("|")
+      .update(origin ?? "")
+      .digest("hex")
+      .slice(0, 16)
+  );
 }
 
 export function createLdapInteractionRoutes(
@@ -198,6 +206,7 @@ export function createLdapInteractionRoutes(
     const password = isString(fields.password) ? fields.password : "";
     const correlationId = c.get("correlationId");
     const fingerprint = clientFingerprint(
+      c.env?.incoming?.socket?.remoteAddress,
       c.req.header("user-agent"),
       c.req.header("origin") ?? ctx.config.publicUrl,
     );

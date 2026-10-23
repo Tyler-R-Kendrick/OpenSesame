@@ -304,6 +304,8 @@ export function rawFileUrl(
   path: string,
   ref: string | null = source.forge === "raw" ? null : source.ref,
 ): string {
+  if (!isSafeRelativePath(path, 512))
+    throw new Error("marketplace path is not a safe relative path");
   if (source.forge === "raw") return `${source.base}${encodePath(path)}`;
   const full = source.root === "" ? path : `${source.root}/${path}`;
   const repo = source.repo;

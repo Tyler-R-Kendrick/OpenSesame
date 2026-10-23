@@ -115,8 +115,9 @@ export class AppClaimService {
   }
 
   #canonicalize(origin: string): string {
+    let canonical: string;
     try {
-      return canonicalizeOrigin(origin, {
+      canonical = canonicalizeOrigin(origin, {
         allowLoopbackHttp: true,
         production: this.options.isProduction,
       });
@@ -127,6 +128,18 @@ export class AppClaimService {
         err instanceof Error ? err.message : "Origin is not canonicalizable",
       );
     }
+    // A public claim needs a registrable multi-label host. A single label
+    // (`https://com`) names a public suffix, not a site its claimant owns.
+    const host = new URL(canonical).hostname.toLowerCase();
+    const loopback = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+    if (!host.includes(".") && !loopback.has(host)) {
+      throw new ClaimError(
+        "invalid_origin",
+        400,
+        "Claim origin must name a multi-label host",
+      );
+    }
+    return canonical;
   }
 
   /**
@@ -344,6 +357,17 @@ export class AppClaimService {
 
     const alias = input.attachAlias === true || canonical !== client.origin;
     if (alias) {
+      // An origin that is another application's canonical origin is already
+      // owned through `oauth_clients.origin`; the alias table does not hold
+      // that row, so check both fences before the challenge is spent.
+      const canonicalOwner = await clientStore.findByOrigin(canonical);
+      if (canonicalOwner && canonicalOwner.id !== client.id) {
+        throw new ClaimError(
+          "alias_conflict",
+          409,
+          `Origin ${canonical} is already the origin of another application`,
+        );
+      }
       // Detect cross-application alias conflicts before the challenge is
       // spent: a conflicted attach must not burn the single-use challenge.
       const existing = await clientOriginStore.findByOrigin(canonical);
@@ -374,7 +398,6 @@ export class AppClaimService {
       ownerPrincipalId: owner.value,
       ownershipStatus: "claimed",
       claimedAt: now,
-      updatedAt: now,
     });
 
     if (alias) {

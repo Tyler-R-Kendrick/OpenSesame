@@ -101,10 +101,18 @@ export function assertSecureUrl(raw: string, what: string): string {
 
 /** Hosts that only mean something inside the user's own network. */
 function mappedIpv4(host: string): string | null {
-  const mapped =
-    /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host) ??
-    /^(?:0{1,4}:){0,5}:?ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host);
-  return mapped?.[1] ?? null;
+  const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host);
+  if (dotted) return dotted[1] ?? null;
+  // URL normalizes `::ffff:127.0.0.1` to `::ffff:7f00:1` in some engines.
+  const mappedHex =
+    /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host) ??
+    /^(?:0{1,4}:){5}ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
+  if (mappedHex?.[1] && mappedHex[2]) {
+    const hi = Number.parseInt(mappedHex[1], 16);
+    const lo = Number.parseInt(mappedHex[2], 16);
+    return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
+  }
+  return null;
 }
 
 function isPrivateHost(hostname: string): boolean {

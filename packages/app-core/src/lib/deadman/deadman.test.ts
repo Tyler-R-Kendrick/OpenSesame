@@ -9,11 +9,13 @@ import {
   deadmanStateKey,
   deadmanStatusForUnlock,
   disarmDeadmanSwitch,
+  generateSigningPair,
   loadDeadmanRelease,
   prepareDeadmanSwitch,
   readDeadmanState,
   recordDeadmanAuthentication,
   releaseDeadmanSwitch,
+  signDeadmanState,
 } from "./index.js";
 
 const PASSWORD = "correct horse battery staple";
@@ -100,6 +102,56 @@ describe("deadman switch", () => {
       JSON.stringify({ ...current, lastAuthenticatedAt: 0 }),
     );
     await expect(loadDeadmanRelease(tomb)).rejects.toThrow(/did not verify/i);
+  });
+
+  it("refuses a local record signed with a key the sealed config does not hold", async () => {
+    await arm();
+    const current = readDeadmanState(tomb);
+    if (!current) throw new Error("expected a deadman record");
+    const attacker = await generateSigningPair();
+    const forged = await signDeadmanState(
+      {
+        ...current,
+        publicKeyJwk: attacker.publicKeyJwk,
+        lastAuthenticatedAt: 0,
+      },
+      attacker.privateKeyJwk,
+    );
+    kvSet(deadmanStateKey(tomb), JSON.stringify(forged));
+    deadmanSeams.now = () => T0 + 31 * DAY;
+    await expect(loadDeadmanRelease(tomb)).rejects.toThrow(/did not verify/i);
+  });
+
+  it("lets only one of two concurrent commits arm the switch", async () => {
+    const item = note("Instructions", "one switch");
+    const first = await prepareDeadmanSwitch({
+      tomb,
+      items: [item],
+      itemIds: [item.id],
+      timeoutDays: 30,
+      relayUrl: "https://relay.example.test/deadman",
+      webhookUrl: "https://agent.example.test/deadman",
+      relayToken: "relay-token",
+    });
+    const second = await prepareDeadmanSwitch({
+      tomb,
+      items: [item],
+      itemIds: [item.id],
+      timeoutDays: 30,
+      relayUrl: "https://relay.example.test/deadman",
+      webhookUrl: "https://agent.example.test/deadman",
+      relayToken: "relay-token",
+    });
+    const outcomes = await Promise.allSettled([
+      commitDeadmanSwitch(first),
+      commitDeadmanSwitch(second),
+    ]);
+    expect(outcomes.filter((row) => row.status === "fulfilled")).toHaveLength(
+      1,
+    );
+    expect(readDeadmanState(tomb)?.id).toBe(
+      outcomes[0]?.status === "fulfilled" ? first.id : second.id,
+    );
   });
 
   it("moves the deadline on the next authenticated unlock", async () => {

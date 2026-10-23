@@ -642,6 +642,82 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
     }
   });
 
+  it("refuses a single-label claim origin", async () => {
+    const doc = await startDocServer();
+    const started = await startControlPlane();
+    try {
+      await admit(started, doc.clientId, doc.origin);
+      const user = await verifiedUser(started.app, `user-${randomUUID()}`);
+      const res = await claimStart(
+        started.app,
+        doc.clientId,
+        user.accessToken,
+        { origin: "https://com" },
+      );
+      expect(res.status).toBe(400);
+      expect(overlapCast(await res.json()).error).toBe("invalid_origin");
+    } finally {
+      await stop(started);
+      await stopDocServer(doc);
+    }
+  });
+
+  it("refuses to attach another application's canonical origin as an alias", async () => {
+    const owned = await startDocServer();
+    const rival = await startDocServer();
+    const started = await startControlPlane();
+    try {
+      await admit(started, owned.clientId, owned.origin);
+      await admit(started, rival.clientId, rival.origin);
+      const user = await verifiedUser(started.app, `user-${randomUUID()}`);
+      const first = await startAndHostClaim(
+        started,
+        owned,
+        user.accessToken,
+        user.principalId,
+      );
+      expect(
+        (
+          await claimVerify(started.app, owned.clientId, user.accessToken, {
+            challenge: first.challenge,
+          })
+        ).status,
+      ).toBe(200);
+
+      const stealStart = await claimStart(
+        started.app,
+        rival.clientId,
+        user.accessToken,
+        { origin: owned.origin },
+      );
+      expect(stealStart.status).toBe(201);
+      const steal = overlapCast(await stealStart.json());
+      owned.host(overlapCast(steal.document));
+      const stealVerify = await claimVerify(
+        started.app,
+        rival.clientId,
+        user.accessToken,
+        {
+          challenge: steal.challenge,
+          origin: owned.origin,
+          attachAlias: true,
+        },
+      );
+      expect(stealVerify.status).toBe(409);
+      expect(overlapCast(await stealVerify.json()).error).toBe(
+        "alias_conflict",
+      );
+      expect(
+        (await started.ctx.oauth.clientStore.findById(rival.clientId))
+          ?.ownerPrincipalId,
+      ).toBe(started.ctx.systemOwnerPrincipalId);
+    } finally {
+      await stop(started);
+      await stopDocServer(owned);
+      await stopDocServer(rival);
+    }
+  });
+
   it("attaches a verified alias origin; re-attach is idempotent, cross-application attach conflicts", async () => {
     const doc = await startDocServer();
     const aliasDoc = await startDocServer();

@@ -53,6 +53,21 @@ rejects a mismatch, so a behavioural change needs a version bump. Changes to
 local sessions, grants or popup transport also run
 `pnpm --filter @opensesame/pages verify:local-iam`.
 
+## Security note: legacy 1.0.1 / 1.0.2 artifacts
+
+`apps/pages/public/static-auth/1.0.2/opensesame-auth.min.js` (and earlier)
+predates ADR 0149 and writes the hosted-flow transaction — state, nonce and
+PKCE verifier — to `sessionStorage` unsealed. Those bytes are a frozen,
+SRI-pinned release: the artifact validator refuses to rewrite or remove them.
+Do not load 1.0.2 in a new integration.
+
+The current source (`src/hosted.ts`, `src/browser.ts`) always goes through
+`@opensesame/browser-at-rest`; an origin that cannot keep a key gets no
+storage at all and `begin()` fails with `storage_unavailable`. Version 1.0.4
+is the first published artifact built from that source. Integrators embed
+`/static-auth/<current version>/opensesame-auth.min.js` through the manifest,
+not a hand-written 1.0.2 URL.
+
 ## Related
 
 - [ADR 0096](../../docs/adr/0096-static-auth-profiles-and-immutable-distribution.md) — the profiles and immutable distribution

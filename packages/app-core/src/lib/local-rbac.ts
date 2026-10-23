@@ -159,9 +159,11 @@ export async function resolveCurrentAccessRole(
     // Sole guest setup can administer; once a claimed operator exists, stop.
     return claimed ? "guest" : "operator";
   }
+  let presented = false;
   try {
     const { currentLocalIdentityActor, hasPresentedLocalIdentity } =
       await import("./local-sessions.js");
+    presented = hasPresentedLocalIdentity(tomb);
     const actor = await currentLocalIdentityActor(tomb);
     if (actor) {
       return resolveAccessRole(directory, actor.principalId) ?? "member";
@@ -169,9 +171,12 @@ export async function resolveCurrentAccessRole(
     // A tab that authenticated someone before has no custodian fallback:
     // revoking or expiring that session must not turn its holder into the
     // vault custodian. A fresh unlock with no presentation still does.
-    if (hasPresentedLocalIdentity(tomb)) return "guest";
+    if (presented) return "guest";
   } catch {
-    // A session read failure fails closed once an operator exists.
+    // A session read failure is not proof that nobody signed in here. If this
+    // tab presented an identity, the unreadable session fails closed to guest;
+    // only a tab that never presented one may fall back to the custodian.
+    if (presented) return "guest";
     return claimed ? "guest" : "operator";
   }
 

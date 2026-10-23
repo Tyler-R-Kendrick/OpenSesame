@@ -166,6 +166,8 @@ describe("assertDiscoveredUrl", () => {
       "https://[fd00::1]/token",
       "https://[fe80::1]/token",
       "https://[fe90::1]/token",
+      "https://[::ffff:127.0.0.1]/token",
+      "https://[::ffff:7f00:1]/token",
       "https://printer.internal/token",
       "https://nas.local/token",
     ]) {

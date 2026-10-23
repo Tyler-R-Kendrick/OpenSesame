@@ -127,6 +127,54 @@ describe("Web Share Target ingress", () => {
     expect(response?.status).toBe(400);
   });
 
+  it("refuses a cross-origin Origin or Referer even without sec-fetch-site", async () => {
+    const env = new FakeWorkerEnv(SCOPE);
+    worker(env);
+    const form = new FormData();
+    form.set("text", "planted");
+    const foreignOrigin = await env.fetchEvent(
+      new Request(`${SCOPE}share-target`, {
+        method: "POST",
+        body: form,
+        headers: { origin: "https://evil.test" },
+      }),
+    );
+    expect(foreignOrigin?.status).toBe(403);
+    const planted = new FormData();
+    planted.set("text", "planted");
+    const foreignReferer = await env.fetchEvent(
+      new Request(`${SCOPE}share-target`, {
+        method: "POST",
+        body: planted,
+        headers: { referer: "https://evil.test/page" },
+      }),
+    );
+    expect(foreignReferer?.status).toBe(403);
+    const cache = await env.cacheStorage.open(CACHE);
+    expect(cache.urls()).toEqual([]);
+  });
+
+  it("sweeps expired and malformed staged ciphertext on any share attempt", async () => {
+    const env = new FakeWorkerEnv(SCOPE);
+    worker(env);
+    const longAgo = Date.now() - 2 * 60 * 60 * 1000;
+    const stale = shareTargetEntryUrl(
+      SCOPE,
+      "00000000-0000-4000-8000-000000000001",
+      longAgo,
+      "meta",
+    );
+    const malformed = new URL(
+      `${new URL(SCOPE).pathname}__share-target/token/not-a-time/meta`,
+      SCOPE,
+    ).href;
+    await env.cacheStorage.seed(CACHE, { [stale]: "old", [malformed]: "bad" });
+    const response = await post(env, new FormData());
+    expect(response?.status).toBe(400);
+    const cache = await env.cacheStorage.open(CACHE);
+    expect(cache.urls()).toEqual([]);
+  });
+
   it("leaves ordinary POSTs to the normal fetch path", async () => {
     const env = new FakeWorkerEnv(SCOPE);
     worker(env);

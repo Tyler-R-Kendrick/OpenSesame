@@ -24,7 +24,6 @@ import {
   requireLocalApplicationAdmission,
 } from "./local-applications.js";
 import { LocalDirectoryError } from "./local-directory.js";
-import { resolveCurrentAccessRole } from "./local-rbac.js";
 import {
   type LocalSession,
   withLocalIdentitySession,
@@ -58,11 +57,10 @@ const SOCIAL_PROOF_LIFETIME_MS = 10 * 60_000;
 async function assertSocialActor(tomb: string, principalId: string) {
   const { currentLocalIdentityActor } = await import("./local-sessions.js");
   const actor = await currentLocalIdentityActor(tomb);
-  if (actor) {
-    if (actor.principalId !== principalId) refused();
-  } else if ((await resolveCurrentAccessRole(tomb)) !== "operator") {
-    refused();
-  }
+  // The social leg proves the upstream account, never which local person the
+  // caller selected. The person must also hold the live local session this tab
+  // is acting under; a custodian role is not a substitute for that person.
+  if (!actor || actor.principalId !== principalId) refused();
 }
 
 async function assertSocialProof(

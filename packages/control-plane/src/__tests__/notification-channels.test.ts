@@ -190,6 +190,49 @@ describe("channel bindings", () => {
     );
   });
 
+  it("adversarial: an unverified hint cannot squat another person's destination", async () => {
+    const { app } = plane();
+    const attacker = await principal(app);
+    const victim = await principal(app);
+    const hint = "T_ACME/U_SQUATTED";
+
+    // The attacker starts a ceremony naming the victim's provider subject.
+    // That used to write a pending row, which blocked the real owner forever.
+    const attackerBegun = await app.request(
+      "/v1/notification-channels/bindings",
+      {
+        method: "POST",
+        headers: authed(attacker.accessToken),
+        body: JSON.stringify({ kind: "slack", destinationHint: hint }),
+      },
+    );
+    expect(attackerBegun.status).toBe(201);
+
+    const begun = await app.request("/v1/notification-channels/bindings", {
+      method: "POST",
+      headers: authed(victim.accessToken),
+      body: JSON.stringify({
+        kind: "slack",
+        displayLabel: "Victim workspace",
+        destinationHint: hint,
+      }),
+    });
+    expect(begun.status).toBe(201);
+    const { challengeId, nonce } = overlapCast(await begun.json());
+    const done = await app.request(
+      "/v1/notification-channels/bindings/complete",
+      {
+        method: "POST",
+        headers: authed(victim.accessToken),
+        body: JSON.stringify({ challengeId, nonce }),
+      },
+    );
+    expect(done.status).toBe(201);
+    expect(overlapCast(await done.json()).displayLabel).toBe(
+      "Victim workspace",
+    );
+  });
+
   it("adversarial: somebody else's binding answers 404, not 403", async () => {
     const { app } = plane();
     const owner = await principal(app);

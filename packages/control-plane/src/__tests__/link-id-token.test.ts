@@ -44,6 +44,7 @@ describe("claiming a guest principal with an upstream id_token", () => {
     const token = await new SignJWT({})
       .setProtectedHeader({ alg: "RS256", kid: "claim-1" })
       .setIssuer(ISSUER)
+      .setAudience("origin:http://127.0.0.1:8788")
       .setSubject("alice@upstream")
       .setIssuedAt()
       .setExpirationTime("5m")
@@ -78,7 +79,8 @@ describe("claiming a guest principal with an upstream id_token", () => {
 
   it("promotes the same principal when self-asserted links are off", async () => {
     const { privateKey, jwks } = await mintKeys();
-    orgAssertionSeams.discoverJwksUri = async () => `${ISSUER}/jwks`;
+    orgAssertionSeams.discoverJwksUri = async () =>
+      "http://127.0.0.1:9090/jwks";
     vi.stubGlobal(
       "fetch",
       vi.fn(() => Promise.resolve(Response.json(jwks))),
@@ -104,7 +106,8 @@ describe("claiming a guest principal with an upstream id_token", () => {
     const created = await guest(app);
     const token = await new SignJWT({})
       .setProtectedHeader({ alg: "RS256", kid: "claim-1" })
-      .setIssuer(ISSUER)
+      .setIssuer("http://127.0.0.1:9090")
+      .setAudience("origin:http://127.0.0.1:8788")
       .setSubject("alice@upstream")
       .setIssuedAt()
       .setExpirationTime("5m")

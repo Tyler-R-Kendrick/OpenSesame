@@ -189,6 +189,28 @@ describe("authentication service", () => {
     });
   });
 
+  it("does not reveal whether an alias or user id exists", async () => {
+    const { service } = await setup();
+    const unknownAlias = await service.authenticationOptions({
+      applicationId: "authapp_one",
+      origin: "https://login.example.com",
+      mode: "alias",
+      alias: "nobody@example.com",
+    });
+    const unknownUser = await service.authenticationOptions({
+      applicationId: "authapp_one",
+      origin: "https://login.example.com",
+      mode: "user_id",
+      userId: "user-nobody",
+    });
+    // Both are ordinary challenges with nothing to bind, not a distinct
+    // unknown_credential error a caller could use to enumerate accounts.
+    for (const options of [unknownAlias, unknownUser]) {
+      expect(options.challenge).toBeTruthy();
+      expect(options.allowCredentials ?? []).toEqual([]);
+    }
+  });
+
   it("binds registration tokens and challenges to one app and origin", async () => {
     const { service } = await setup();
     const registration = await service.createRegistrationToken({

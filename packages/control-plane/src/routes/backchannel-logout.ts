@@ -27,7 +27,7 @@ import {
   assertPublicUpstreamUrl,
   guardedLibraryFetch,
 } from "../services/guarded-fetch.js";
-import { orgAssertionSeams } from "./org-assertion.js";
+import { orgAssertionSeams, originAudiences } from "./org-assertion.js";
 import { revokeOrganizationMembership } from "./organizations.js";
 
 /**
@@ -78,6 +78,12 @@ const BUDGET_PER_ISSUER = 30;
  * that, and it sits well above any plausible real logout rate.
  */
 const BUDGET_TOTAL = 120;
+/** Bounded map keys, with the global bucket never evicted. */
+const BUDGET_MAX_KEYS = 2048;
+const BUDGET_GLOBAL_KEY = "*";
+const BUDGET_ISSUER_PREFIX = "issuer:";
+/** Remote key sets are cached; an unauthenticated caller must not grow it forever. */
+const JWKS_CACHE_MAX_ENTRIES = 256;
 
 const attempts = new Map<string, number[]>();
 const jwksCache = new Map<string, RemoteJWKSet>();
@@ -95,15 +101,32 @@ export function resetBackchannelLogoutBudget(): void {
 }
 
 function withinBudget(key: string, limit: number, now: number): boolean {
-  const window = (attempts.get(key) ?? []).filter(
-    (at) => at > now - BUDGET_WINDOW_MS,
-  );
+  // Prune every bucket on every request, not just the one being charged: the
+  // key is attacker-chosen, so otherwise each token adds one row for the life
+  // of the process.
+  for (const [candidate, times] of attempts) {
+    const live = times.filter((at) => at > now - BUDGET_WINDOW_MS);
+    if (live.length === 0) attempts.delete(candidate);
+    else if (live.length !== times.length) attempts.set(candidate, live);
+  }
+  const bucket = `${BUDGET_ISSUER_PREFIX}${key}`;
+  const window = attempts.get(bucket) ?? [];
   if (window.length >= limit) {
-    attempts.set(key, window);
+    attempts.set(bucket, window);
     return false;
   }
   window.push(now);
-  attempts.set(key, window);
+  attempts.set(bucket, window);
+  while (attempts.size > BUDGET_MAX_KEYS) {
+    // Never evict the global bucket: it is the one ceiling an attacker cannot
+    // rotate their own key to escape.
+    const victim = [...attempts.keys()].find(
+      (candidate) =>
+        candidate !== `${BUDGET_ISSUER_PREFIX}${BUDGET_GLOBAL_KEY}`,
+    );
+    if (victim === undefined) break;
+    attempts.delete(victim);
+  }
   return true;
 }
 
@@ -170,10 +193,56 @@ async function keysFor(
     [customFetch]: guardedLibraryFetch(blockPrivateHosts),
   });
   jwksCache.set(jwksUri, keys);
+  while (jwksCache.size > JWKS_CACHE_MAX_ENTRIES) {
+    const oldest = jwksCache.keys().next().value;
+    if (oldest === undefined) break;
+    jwksCache.delete(oldest);
+  }
   return keys;
 }
 
 type VerifiedLogoutToken = { subject?: string; sessionId?: string };
+
+/**
+ * Audience values this deployment will accept for a logout token.
+ *
+ * OIDC Back-Channel Logout §2.6 requires `aud` to identify the relying party
+ * the token was issued to. Accepting any audience would let a token minted for
+ * another application at the same issuer end sessions here. The set is built
+ * from what this deployment actually is: its own issuer, its origin-profile
+ * clients, and the client id the tenant or BYO record registered.
+ */
+async function expectedAudiences(
+  ctx: AppContext,
+  issuer: string,
+  resolution: TrustResolution,
+): Promise<string[]> {
+  const accepted = new Set<string>([
+    ctx.config.issuer,
+    ctx.config.publicUrl,
+    ...originAudiences(ctx.config),
+  ]);
+  const credentials = ctx.config.upstreamClientCredentials;
+  if (
+    credentials &&
+    normalizeIssuer(credentials.issuer) === normalizeIssuer(issuer)
+  ) {
+    accepted.add(credentials.clientId);
+  }
+  if (resolution.source === "static") {
+    if (resolution.provider.clientId) {
+      accepted.add(resolution.provider.clientId);
+    }
+  } else if (resolution.source === "byo") {
+    accepted.add(resolution.record.clientId);
+  } else {
+    const organization = await ctx.stores.organizations.get(
+      resolution.organizationId,
+    );
+    if (organization?.ssoClientId) accepted.add(organization.ssoClientId);
+  }
+  return [...accepted].filter((audience) => audience.length > 0);
+}
 
 async function claimLogout(ctx: AppContext, token: string): Promise<boolean> {
   const callbackDigest = createHash("sha256").update(token).digest("hex");
@@ -285,8 +354,10 @@ export function createBackchannelLogoutRoutes(): Hono<{
 
     let claims: VerifiedLogoutToken | undefined;
     try {
+      const audiences = await expectedAudiences(ctx, issuer, resolution);
       const verified = await jwtVerify(token, keys, {
         issuer,
+        audience: audiences,
         algorithms: [...ALLOWED_ALGS],
         clockTolerance: 5,
         maxTokenAge: LOGOUT_TOKEN_MAX_AGE_SECONDS,

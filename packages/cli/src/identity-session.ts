@@ -257,12 +257,20 @@ export async function saveSession(session: SessionFile): Promise<void> {
     clientId: session.clientId,
     sealed,
   };
-  await writeFile(temp, JSON.stringify(envelope), {
-    mode: 0o600,
-    flag: "wx",
-  });
-  await chmod(temp, 0o600);
-  await rename(temp, path);
+  let committed = false;
+  try {
+    await writeFile(temp, JSON.stringify(envelope), {
+      mode: 0o600,
+      flag: "wx",
+    });
+    await chmod(temp, 0o600);
+    await rename(temp, path);
+    committed = true;
+  } finally {
+    // A failed write or rename must not leave a sealed bearer token behind in
+    // a predictable temp name beside the session file.
+    if (!committed) await rm(temp, { force: true }).catch(() => undefined);
+  }
 }
 
 export async function clearSession(): Promise<void> {

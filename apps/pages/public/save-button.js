@@ -25,6 +25,30 @@ const READY = "opensesame.save.ready";
 const REQUEST = "opensesame.save.request";
 const SAVED = "opensesame.save.saved";
 const FAILED = "opensesame.save.failed";
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+/**
+ * The secret travels in the postMessage payload, so the vault must be TLS.
+ * Plain HTTP is allowed only on loopback, where the browser's own network
+ * cannot be read or rewritten by anyone else.
+ */
+function secureVaultUrl(raw) {
+  if (!raw) return null;
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.username || url.password) return null;
+  if (url.protocol === "https:") return url;
+  if (
+    url.protocol === "http:" &&
+    LOOPBACK_HOSTS.has(url.hostname.toLowerCase())
+  )
+    return url;
+  return null;
+}
 
 const STYLE = `
   :host { all: initial; display: inline-block; font: 600 14px/1.2 system-ui, sans-serif; }
@@ -86,36 +110,29 @@ export class OpenSesameSaveButton extends HTMLElement {
     this.#button.textContent = label;
     this.#button.dataset.theme = this.getAttribute("data-theme") || "light";
     this.#button.disabled = !this.#ready();
-    if (!this.#ready() && !this.#status.textContent)
-      this.#status.textContent = "Add value and vault-url";
+    if (!this.#ready() && !this.#status.textContent) {
+      this.#status.textContent =
+        this.getAttribute("value") &&
+        ITEM_TYPES.has(this.getAttribute("data-opensesame-type") || "")
+          ? "vault-url must be https (http only on loopback)"
+          : "Add value and vault-url";
+    }
   }
 
   #ready() {
-    const raw = this.getAttribute("vault-url");
-    if (
-      !this.getAttribute("value") ||
-      !raw ||
-      !ITEM_TYPES.has(this.getAttribute("data-opensesame-type") || "")
-    )
-      return false;
-    try {
-      return /^https?:$/.test(new URL(raw).protocol);
-    } catch {
-      return false;
-    }
+    return (
+      Boolean(this.getAttribute("value")) &&
+      ITEM_TYPES.has(this.getAttribute("data-opensesame-type") || "") &&
+      secureVaultUrl(this.getAttribute("vault-url")) !== null
+    );
   }
 
   #open() {
     if (!this.#ready()) return;
-    let vault;
-    try {
-      vault = new URL(this.getAttribute("vault-url"));
-    } catch {
-      this.#status.textContent = "vault-url is not a URL";
-      return;
-    }
-    if (!/^https?:$/.test(vault.protocol)) {
-      this.#status.textContent = "vault-url must be http or https";
+    const vault = secureVaultUrl(this.getAttribute("vault-url"));
+    if (!vault) {
+      this.#status.textContent =
+        "vault-url must be https (http is allowed only on loopback)";
       return;
     }
     const base = new URL(
@@ -152,7 +169,7 @@ export class OpenSesameSaveButton extends HTMLElement {
     }
     if (event.origin !== origin) return;
     const data = event.data;
-    if (!data || typeof data !== "object") return;
+    if (data === null || data === undefined || Object(data) !== data) return;
     if (data.type === READY) {
       window.clearTimeout(this.#timer);
       this.#timer = 0;
@@ -182,7 +199,7 @@ export class OpenSesameSaveButton extends HTMLElement {
     }
     if (data.type === FAILED) {
       this.#status.textContent =
-        typeof data.message === "string" ? data.message : "Save failed";
+        data.message === undefined ? "Save failed" : String(data.message);
       this.#close();
     }
   }

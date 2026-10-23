@@ -405,6 +405,37 @@ describe("completeSignIn", () => {
     );
   }
 
+  it("refuses to complete a sign-in after the person signed out", async () => {
+    seedPending();
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        await gate;
+        return Response.json({
+          id_token: jwt({
+            iss: "http://127.0.0.1:9090",
+            aud: originClientId(),
+            exp: 4_000_000_000,
+            pairwise_sub: "sub-1",
+          }),
+        });
+      }),
+    );
+    const completing = completeSignIn();
+    await Promise.resolve();
+    clearSession();
+    release();
+    await expect(completing).rejects.toMatchObject({
+      code: "sign_in_cancelled",
+    });
+    expect(loadSession()).toBeNull();
+  });
+
   it("returns null when this load is not an upstream response", async () => {
     await expect(completeSignIn()).resolves.toBeNull();
   });

@@ -23,32 +23,40 @@ export function GithubCardDetails({ connection }: { connection: Connection }) {
   useEffect(() => {
     let cancel = false;
     void (async () => {
-      const initial = await loadGithubInstallationSnapshot(tomb, connection);
-      if (shouldEnsureGithubAccessGrant(initial, connection)) {
-        await ensureGithubAccessGrant(tomb, connection);
+      try {
+        const initial = await loadGithubInstallationSnapshot(tomb, connection);
+        if (cancel) return;
+        if (shouldEnsureGithubAccessGrant(initial, connection)) {
+          await ensureGithubAccessGrant(tomb, connection);
+        }
+        if (cancel) return;
+        const nextAccounts = initial.installations.map((row) => ({
+          id: row.id,
+          login: row.accountLogin,
+          type: row.accountType,
+        }));
+        if (nextAccounts.length === 0 && connection.accountLabel) {
+          nextAccounts.push({
+            id: connection.connectionId,
+            login: connection.accountLabel,
+            type: "",
+          });
+        }
+        const scopes = connection.grantedScopes.length
+          ? connection.grantedScopes
+          : connection.requestedScopes;
+        setAccounts(nextAccounts);
+        setPermissions([
+          ...initial.installations.flatMap((row) => row.permissions ?? []),
+          ...scopes.map((name) => ({ name, access: "" })),
+        ]);
+        setRepos(
+          initial.installations.flatMap((row) => row.repositories ?? []),
+        );
+      } catch {
+        // A locked or unreadable vault is not an error the card can recover
+        // from; it simply has no snapshot to show.
       }
-      if (cancel) return;
-      const nextAccounts = initial.installations.map((row) => ({
-        id: row.id,
-        login: row.accountLogin,
-        type: row.accountType,
-      }));
-      if (nextAccounts.length === 0 && connection.accountLabel) {
-        nextAccounts.push({
-          id: connection.connectionId,
-          login: connection.accountLabel,
-          type: "",
-        });
-      }
-      const scopes = connection.grantedScopes.length
-        ? connection.grantedScopes
-        : connection.requestedScopes;
-      setAccounts(nextAccounts);
-      setPermissions([
-        ...initial.installations.flatMap((row) => row.permissions ?? []),
-        ...scopes.map((name) => ({ name, access: "" })),
-      ]);
-      setRepos(initial.installations.flatMap((row) => row.repositories ?? []));
     })();
     return () => {
       cancel = true;

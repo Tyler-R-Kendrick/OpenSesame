@@ -221,3 +221,47 @@ describe("gcp-kms live (opt-in)", () => {
     });
   });
 });
+
+describe("GCP KMS HTTPS integrity", () => {
+  it("refuses an encrypt response without the provider's ciphertext checksum", async () => {
+    const transport = createGcpKmsHttpsTransport({
+      bearerToken: "token",
+      fetchImpl: async () =>
+        Response.json({
+          name: KEY_VERSION,
+          ciphertext: Buffer.from("ct").toString("base64"),
+        }),
+    });
+    await expect(
+      transport.encrypt({
+        keyName: KEY_NAME,
+        plaintext: new Uint8Array([1, 2, 3]),
+        aad: new Uint8Array(),
+      }),
+    ).rejects.toMatchObject({ code: "provider_denied" });
+  });
+
+  it("carries decrypt checksums and verified flags to the adapter", async () => {
+    const plaintext = new Uint8Array([9, 8, 7]);
+    const transport = createGcpKmsHttpsTransport({
+      bearerToken: "token",
+      fetchImpl: async () =>
+        Response.json({
+          plaintext: Buffer.from(plaintext).toString("base64"),
+          plaintextCrc32c: { value: crc32cDecimalString(plaintext) },
+          verifiedCiphertextCrc32c: false,
+          verifiedAdditionalAuthenticatedDataCrc32c: true,
+        }),
+    });
+    const result = await transport.decrypt({
+      keyName: KEY_NAME,
+      ciphertext: new Uint8Array([1]),
+      aad: new Uint8Array(),
+    });
+    expect(result).toMatchObject({
+      plaintextCrc32c: crc32cDecimalString(plaintext),
+      verifiedCiphertextCrc32c: false,
+      verifiedAdditionalAuthenticatedDataCrc32c: true,
+    });
+  });
+});

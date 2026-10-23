@@ -54,6 +54,41 @@ describe("login CSRF and session fixation", () => {
     expect(real.status).toBe(200);
   });
 
+  it("keeps concurrent logins' binding cookies distinct", async () => {
+    const { config, base } = await relyingParty();
+    const first = await start(base);
+    const second = await start(base);
+    expect(first.cookie).not.toBe(second.cookie);
+    for (const login of [first, second]) {
+      const { idToken } = await pagesAnswer({ nonce: login.nonce, config });
+      const done = await complete(
+        base,
+        "/callback",
+        fragment(idToken, login.state),
+        login.cookie,
+      );
+      expect(done.status).toBe(200);
+    }
+  });
+
+  it("does not let a spoofed forwarding header reset the start budget", async () => {
+    const { base } = await relyingParty({ SIOP_RP_STARTS_PER_MINUTE: "2" });
+    const ask = (forwarded: string) =>
+      fetch(`${base}/auth/start`, {
+        redirect: "manual",
+        headers: { "x-forwarded-for": forwarded },
+      });
+    expect((await ask("198.51.100.1")).status).toBe(302);
+    expect((await ask("198.51.100.2")).status).toBe(302);
+    expect((await ask("198.51.100.3")).status).toBe(429);
+  });
+
+  it("refuses a callback path that would shadow an application route", async () => {
+    await expect(
+      relyingParty({ SIOP_RP_CALLBACK_PATHS: "/auth/start" }),
+    ).rejects.toThrow(/Invalid callback path/u);
+  });
+
   it("does not let a forged #error without the cookie close a login", async () => {
     const { config, base } = await relyingParty();
     const login = await start(base);

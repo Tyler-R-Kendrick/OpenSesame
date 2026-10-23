@@ -5,8 +5,14 @@ import {
   originClientId,
 } from "../origin/canonical.js";
 import type { OAuthClientRecord } from "../types.js";
-import type { ClientAdmissionPolicy } from "./admission.js";
+import {
+  ClientAdmissionError,
+  type ClientAdmissionPolicy,
+} from "./admission.js";
 import type { ClientRecordStore } from "./store.js";
+
+/** A deployment bounds how many rows unauthenticated /auth probes can create. */
+export const DEFAULT_MAX_AUTO_ADMITTED_ORIGIN_CLIENTS = 1024;
 
 export type ResolveOriginClientOptions = {
   store: ClientRecordStore;
@@ -23,6 +29,12 @@ export type ResolveOriginClientOptions = {
    * option is a plain string so this package stays free of principal concepts.
    */
   systemOwnerPrincipalId?: string;
+  /**
+   * Cap on origin-profile rows owned by the deployment. Every first-seen
+   * origin used to insert one row, so an unauthenticated caller could grow
+   * the client table without bound.
+   */
+  maxAutoAdmittedOriginClients?: number;
 };
 
 function canonicalOptions(options: ResolveOriginClientOptions) {
@@ -60,6 +72,24 @@ export async function resolveOriginClient(
     const nowTouch = (options.clock ?? (() => new Date()))();
     await options.store.touchLastUsed?.(existing.id, nowTouch);
     return existing;
+  }
+
+  if (options.systemOwnerPrincipalId) {
+    const max =
+      options.maxAutoAdmittedOriginClients ??
+      DEFAULT_MAX_AUTO_ADMITTED_ORIGIN_CLIENTS;
+    const owned = await options.store.listByOwner(
+      options.systemOwnerPrincipalId,
+    );
+    if (
+      owned.filter((client) => client.admissionMode === "origin_profile")
+        .length >= max
+    ) {
+      throw new ClientAdmissionError(
+        "origin_admission_budget",
+        "Origin auto-admission budget is exhausted",
+      );
+    }
   }
 
   const now = (options.clock ?? (() => new Date()))();

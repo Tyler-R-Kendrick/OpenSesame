@@ -31,6 +31,7 @@ import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { serializeKeyed } from "../serialize.js";
 import { createAuthenticationApplication } from "../services/verified-admin.js";
 import { consumePublicBudget } from "./authentication-budget.js";
 import { authenticatedPrincipalId } from "./organizations.js";
@@ -88,6 +89,26 @@ async function managedApplication(
   return application && (await canManage(ctx, application, principalId))
     ? application
     : undefined;
+}
+
+/**
+ * Serialize read-modify-write on one application row.
+ *
+ * The key ring is a list on the row, so two concurrent API-key operations each
+ * reading the same snapshot would have the last writer silently restore the
+ * other's deleted or locked key. Rotation replaces the whole ring and is the
+ * sharpest case: a concurrent key creation must not vanish.
+ */
+function withApplicationLock<T>(
+  ctx: AppContext,
+  applicationId: string,
+  mutation: () => Promise<T>,
+): Promise<T> {
+  return serializeKeyed(
+    ctx.stores.principalMutations,
+    `authentication-application:${applicationId}`,
+    mutation,
+  );
 }
 
 function presentedSecret(header: string | undefined): string | undefined {
@@ -284,42 +305,48 @@ authenticationServiceRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const application = await managedApplication(
-      ctx,
-      c.req.param("applicationId"),
-      principalId,
-    );
-    if (!application) return c.json({ error: "not_found" }, 404);
-    const minted = mintAuthenticationApplicationSecret();
-    const updated = await ctx.authenticationStores.applications.update({
-      ...application,
-      secretHash: minted.secretHash,
-      secretPrefix: minted.secretPrefix,
-      apiKeys: [
-        {
-          id: `authkey_${randomUUID()}`,
-          secretHash: minted.secretHash,
-          secretPrefix: minted.secretPrefix,
-          state: "active",
-          createdAt: ctx.clock().toISOString(),
-        },
-      ],
-      updatedAt: ctx.clock(),
-    });
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "authentication.application.secret_rotated",
-      outcome: "succeeded",
-      principalId,
-      clientId: application.id,
-      ...(application.organizationId
-        ? { organizationId: application.organizationId }
-        : undefined),
-      correlationId: c.get("correlationId"),
-      metadata: {},
-    });
-    return c.json({
-      application: applicationResponse(updated),
-      apiSecret: minted.secret,
+    const applicationId = c.req.param("applicationId");
+    return withApplicationLock(ctx, applicationId, async () => {
+      const application = await managedApplication(
+        ctx,
+        applicationId,
+        principalId,
+      );
+      if (!application) return c.json({ error: "not_found" }, 404);
+      const latest =
+        await ctx.authenticationStores.applications.get(applicationId);
+      if (!latest) return c.json({ error: "not_found" }, 404);
+      const minted = mintAuthenticationApplicationSecret();
+      const updated = await ctx.authenticationStores.applications.update({
+        ...latest,
+        secretHash: minted.secretHash,
+        secretPrefix: minted.secretPrefix,
+        apiKeys: [
+          {
+            id: `authkey_${randomUUID()}`,
+            secretHash: minted.secretHash,
+            secretPrefix: minted.secretPrefix,
+            state: "active",
+            createdAt: ctx.clock().toISOString(),
+          },
+        ],
+        updatedAt: ctx.clock(),
+      });
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "authentication.application.secret_rotated",
+        outcome: "succeeded",
+        principalId,
+        clientId: application.id,
+        ...(application.organizationId
+          ? { organizationId: application.organizationId }
+          : undefined),
+        correlationId: c.get("correlationId"),
+        metadata: {},
+      });
+      return c.json({
+        application: applicationResponse(updated),
+        apiSecret: minted.secret,
+      });
     });
   },
 );
@@ -330,45 +357,51 @@ authenticationServiceRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const application = await managedApplication(
-      ctx,
-      c.req.param("applicationId"),
-      principalId,
-    );
-    if (!application) return c.json({ error: "not_found" }, 404);
-    const minted = mintAuthenticationApplicationSecret();
-    const key = {
-      id: `authkey_${randomUUID()}`,
-      secretHash: minted.secretHash,
-      secretPrefix: minted.secretPrefix,
-      state: "active" as const,
-      createdAt: ctx.clock().toISOString(),
-    };
-    const updated = await ctx.authenticationStores.applications.update({
-      ...application,
-      apiKeys: [...application.apiKeys, key],
-      updatedAt: ctx.clock(),
+    const applicationId = c.req.param("applicationId");
+    return withApplicationLock(ctx, applicationId, async () => {
+      const application = await managedApplication(
+        ctx,
+        applicationId,
+        principalId,
+      );
+      if (!application) return c.json({ error: "not_found" }, 404);
+      const latest =
+        await ctx.authenticationStores.applications.get(applicationId);
+      if (!latest) return c.json({ error: "not_found" }, 404);
+      const minted = mintAuthenticationApplicationSecret();
+      const key = {
+        id: `authkey_${randomUUID()}`,
+        secretHash: minted.secretHash,
+        secretPrefix: minted.secretPrefix,
+        state: "active" as const,
+        createdAt: ctx.clock().toISOString(),
+      };
+      const updated = await ctx.authenticationStores.applications.update({
+        ...latest,
+        apiKeys: [...latest.apiKeys, key],
+        updatedAt: ctx.clock(),
+      });
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "authentication.application.key_created",
+        outcome: "succeeded",
+        principalId,
+        clientId: application.id,
+        ...(application.organizationId
+          ? { organizationId: application.organizationId }
+          : undefined),
+        correlationId: c.get("correlationId"),
+        targetType: "authentication_api_key",
+        targetId: key.id,
+        metadata: {},
+      });
+      return c.json(
+        {
+          application: applicationResponse(updated),
+          apiKey: { id: key.id, secret: minted.secret },
+        },
+        201,
+      );
     });
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "authentication.application.key_created",
-      outcome: "succeeded",
-      principalId,
-      clientId: application.id,
-      ...(application.organizationId
-        ? { organizationId: application.organizationId }
-        : undefined),
-      correlationId: c.get("correlationId"),
-      targetType: "authentication_api_key",
-      targetId: key.id,
-      metadata: {},
-    });
-    return c.json(
-      {
-        application: applicationResponse(updated),
-        apiKey: { id: key.id, secret: minted.secret },
-      },
-      201,
-    );
   },
 );
 
@@ -378,36 +411,42 @@ authenticationServiceRoutes.patch(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const application = await managedApplication(
-      ctx,
-      c.req.param("applicationId"),
-      principalId,
-    );
-    if (!application) return c.json({ error: "not_found" }, 404);
+    const applicationId = c.req.param("applicationId");
     const parsed = PatchAuthenticationApiKeyRequestSchema.safeParse(
       await c.req.json(),
     );
     if (!parsed.success) return c.json({ error: "validation_error" }, 400);
-    const keyId = c.req.param("keyId");
-    if (!application.apiKeys.some((key) => key.id === keyId)) {
-      return c.json({ error: "not_found" }, 404);
-    }
-    if (
-      parsed.data.state === "locked" &&
-      application.apiKeys.filter(
-        (key) => key.state === "active" && key.id !== keyId,
-      ).length === 0
-    ) {
-      return c.json({ error: "last_active_key" }, 409);
-    }
-    const updated = await ctx.authenticationStores.applications.update({
-      ...application,
-      apiKeys: application.apiKeys.map((key) =>
-        key.id === keyId ? { ...key, state: parsed.data.state } : key,
-      ),
-      updatedAt: ctx.clock(),
+    return withApplicationLock(ctx, applicationId, async () => {
+      const application = await managedApplication(
+        ctx,
+        applicationId,
+        principalId,
+      );
+      if (!application) return c.json({ error: "not_found" }, 404);
+      const latest =
+        await ctx.authenticationStores.applications.get(applicationId);
+      if (!latest) return c.json({ error: "not_found" }, 404);
+      const keyId = c.req.param("keyId");
+      if (!latest.apiKeys.some((key) => key.id === keyId)) {
+        return c.json({ error: "not_found" }, 404);
+      }
+      if (
+        parsed.data.state === "locked" &&
+        latest.apiKeys.filter(
+          (key) => key.state === "active" && key.id !== keyId,
+        ).length === 0
+      ) {
+        return c.json({ error: "last_active_key" }, 409);
+      }
+      const updated = await ctx.authenticationStores.applications.update({
+        ...latest,
+        apiKeys: latest.apiKeys.map((key) =>
+          key.id === keyId ? { ...key, state: parsed.data.state } : key,
+        ),
+        updatedAt: ctx.clock(),
+      });
+      return c.json({ application: applicationResponse(updated) });
     });
-    return c.json({ application: applicationResponse(updated) });
   },
 );
 
@@ -417,24 +456,30 @@ authenticationServiceRoutes.delete(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const application = await managedApplication(
-      ctx,
-      c.req.param("applicationId"),
-      principalId,
-    );
-    if (!application) return c.json({ error: "not_found" }, 404);
-    const keyId = c.req.param("keyId");
-    const key = application.apiKeys.find((candidate) => candidate.id === keyId);
-    if (!key) return c.json({ error: "not_found" }, 404);
-    if (key.state !== "locked") return c.json({ error: "lock_key_first" }, 409);
-    const updated = await ctx.authenticationStores.applications.update({
-      ...application,
-      apiKeys: application.apiKeys.filter(
-        (candidate) => candidate.id !== keyId,
-      ),
-      updatedAt: ctx.clock(),
+    const applicationId = c.req.param("applicationId");
+    return withApplicationLock(ctx, applicationId, async () => {
+      const application = await managedApplication(
+        ctx,
+        applicationId,
+        principalId,
+      );
+      if (!application) return c.json({ error: "not_found" }, 404);
+      const latest =
+        await ctx.authenticationStores.applications.get(applicationId);
+      if (!latest) return c.json({ error: "not_found" }, 404);
+      const keyId = c.req.param("keyId");
+      const key = latest.apiKeys.find((candidate) => candidate.id === keyId);
+      if (!key) return c.json({ error: "not_found" }, 404);
+      if (key.state !== "locked") {
+        return c.json({ error: "lock_key_first" }, 409);
+      }
+      const updated = await ctx.authenticationStores.applications.update({
+        ...latest,
+        apiKeys: latest.apiKeys.filter((candidate) => candidate.id !== keyId),
+        updatedAt: ctx.clock(),
+      });
+      return c.json({ application: applicationResponse(updated) });
     });
-    return c.json({ application: applicationResponse(updated) });
   },
 );
 

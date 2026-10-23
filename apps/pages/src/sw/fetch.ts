@@ -70,6 +70,12 @@ async function cachedShell(ctx: WorkerContext, url: URL): Promise<Response> {
   throw new Error("offline shell unavailable");
 }
 
+function isShellPath(ctx: WorkerContext, url: URL): boolean {
+  const path = url.pathname.replace(/\/+$/u, "") || "/";
+  const scope = ctx.scopePath.replace(/\/+$/u, "");
+  return path === scope || path === `${scope}/index.html`;
+}
+
 async function navigation(
   ctx: WorkerContext,
   request: Request,
@@ -79,7 +85,10 @@ async function navigation(
     const response = await ctx.fetch(request);
     if (!response.ok)
       return (await freshShell(ctx, url)) ?? cachedShell(ctx, url);
-    await saveShell(ctx, response.clone());
+    // Only the app shell may replace the offline shell. A deep link that the
+    // host happens to answer with some other same-origin document must never
+    // become the document every later offline navigation receives.
+    if (isShellPath(ctx, url)) await saveShell(ctx, response.clone());
     return isolated(response, url, ctx.scopePath);
   } catch {
     return cachedShell(ctx, url);

@@ -167,7 +167,8 @@ export function createSamlInteractionRoutes(
       return c.text("Prompt mismatch", 400);
     }
 
-    const completion = takeSamlCompletion(
+    const completion = await takeSamlCompletion(
+      ctx,
       c.req.query("otc"),
       ctx.clock().getTime(),
     );

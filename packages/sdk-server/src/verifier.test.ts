@@ -264,6 +264,38 @@ describe("createOpenSesameVerifier", () => {
     expect(asked[0]).toBe(`${ISSUER}/.well-known/openid-configuration`);
   });
 
+  it("refuses a JWKS fetch that redirects", async () => {
+    const { privateKey } = await mintKeys();
+    let jwksRedirect: RequestRedirect | undefined;
+    const verifier = createOpenSesameVerifier({
+      issuer: "https://remote.example",
+      audience: AUDIENCE,
+      fetchImpl: async (input, init) => {
+        if (String(input).endsWith("/.well-known/openid-configuration"))
+          return Response.json({
+            issuer: "https://remote.example",
+            jwks_uri: "https://remote.example/jwks",
+          });
+        jwksRedirect = init?.redirect;
+        return new Response(null, {
+          status: 302,
+          headers: { location: "http://169.254.169.254/latest/meta-data" },
+        });
+      },
+    });
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer("https://remote.example")
+      .setAudience(AUDIENCE)
+      .setSubject("x")
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    await expect(verifier.verifyAccessToken(token)).rejects.toThrow(
+      /redirect/i,
+    );
+    expect(jwksRedirect).toBe("manual");
+  });
+
   it("requires the RFC 9068 type header when asked to", async () => {
     const { privateKey, jwks } = await mintKeys();
     const verifier = createOpenSesameVerifier({

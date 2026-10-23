@@ -100,6 +100,23 @@ export function assertAllowedJwtAlgorithm(
   }
 }
 
+/**
+ * OIDC says `typ` is optional; when an issuer stamps one, an ID token must
+ * say `JWT`. An access token (`at+jwt`) with an ID-token audience must never
+ * be accepted as one.
+ */
+export function assertIdTokenTypeHeader(token: string): void {
+  let typ: unknown;
+  try {
+    typ = decodeProtectedHeader(token).typ;
+  } catch {
+    throw new AuthError("invalid_token", "Token header is malformed");
+  }
+  if (typ !== undefined && typ !== "JWT") {
+    throw new AuthError("invalid_token", "Token is not an ID token");
+  }
+}
+
 export function mapJwtVerifyError(error: Error | undefined): AuthError {
   if (error instanceof AuthError) return error;
 

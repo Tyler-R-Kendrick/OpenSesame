@@ -77,6 +77,18 @@ describe("dirty forms", () => {
     stop();
   });
 
+  it("releases a dirty hold when the watcher stops", () => {
+    const stop = watchDirtyForms();
+    const input = document.createElement("input");
+    const form = appendForm("editor", input);
+    input.value = "Dirty";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(anyDirtyEdit()).toBe(true);
+    stop();
+    expect(anyDirtyEdit()).toBe(false);
+    form.remove();
+  });
+
   it("drops the hold when the edit is committed or the form leaves", async () => {
     const stop = watchDirtyForms();
     const input = document.createElement("input");

@@ -282,6 +282,26 @@ describe("runCli — logout", () => {
     expect(out).toMatch(/Signed out\./);
     await expect(readFile(sessionFile(), "utf8")).rejects.toThrow();
   });
+
+  it("revokes an expired local session rather than refreshing first", async () => {
+    await writeSession({
+      accessToken: "at-expired",
+      issuer: ISSUER,
+      clientId: "opensesame-cli",
+      expiresAt: Date.now() - 60_000,
+    });
+    let revoked = false;
+    const fetchImpl = routerFetch((url) => {
+      if (url.endsWith("/v1/principals/provisional/revoke")) {
+        revoked = true;
+        return new Response(null, { status: 204 });
+      }
+      return undefined;
+    });
+    const code = await runCli(["logout", "--issuer", ISSUER], { fetchImpl });
+    expect(code).toBe(0);
+    expect(revoked).toBe(true);
+  });
 });
 
 describe("runCli — whoami", () => {
@@ -453,7 +473,7 @@ describe("runCli — agent init", () => {
     expect(seen[1]?.auth).toBe("Bearer pst_guest");
     expect(seen[1]?.body).toMatchObject({
       displayName: "robo",
-      publicKeyJkt: expect.any(String),
+      publicKeyJkt: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
     });
   });
 });

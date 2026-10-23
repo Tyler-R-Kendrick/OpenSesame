@@ -1,4 +1,5 @@
 /** Official Go/WireGuard runs in this terminable, privately governed realm. */
+import { isString } from "@opensesame/os-domain";
 import "./worker-csp.js";
 import { type HostEvent, WorkerMessage } from "./protocol.js";
 import {
@@ -12,6 +13,31 @@ type WorkerDependencies = {
   load: typeof loadBrowserNode;
   egress: typeof installWorkerEgress;
 };
+/** A peer GET is a plain HTTP(S) URL with no credential in its authority. */
+function peerGetUrl(raw: string): URL | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (!["http:", "https:"].includes(url.protocol)) return null;
+  if (url.username || url.password) return null;
+  return url;
+}
+/** The peer must not redirect the GET somewhere the controller did not approve. */
+function unapprovedRedirect(
+  response: Awaited<ReturnType<BrowserNodeClient["fetch"]>>,
+  requested: URL,
+): boolean {
+  if (response.redirected === true) return true;
+  if (!isString(response.url) || response.url === "") return false;
+  try {
+    return new URL(response.url).href !== requested.href;
+  } catch {
+    return true;
+  }
+}
 /** One owned realm/client; injection substitutes only the existing SDK boundary in tests. */
 export class BrowserNodeWorker {
   private client: BrowserNodeClient | null = null;
@@ -71,10 +97,17 @@ export class BrowserNodeWorker {
       notifyPanicRecover: () => this.panic(),
     });
   }
-  private get(id: number, url: string) {
+  private get(id: number, rawUrl: string) {
+    const url = peerGetUrl(rawUrl);
+    if (!url) {
+      this.post({ kind: "error" });
+      return;
+    }
     void this.client
-      ?.fetch(url)
+      ?.fetch(url.href)
       .then(async (response) => {
+        if (unapprovedRedirect(response, url))
+          throw new Error("Tailscale peer redirected an approved GET.");
         const text = await response.text();
         this.post({ kind: "get", id, status: response.status, text });
       })

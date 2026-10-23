@@ -299,6 +299,78 @@ describe("POST /v1/principals/federated-session", () => {
     }
   }, 30_000);
 
+  it("refuses adoption at the provisional-session ceiling", async () => {
+    currentSubject = `capacity-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(currentSubject);
+    const { accessToken } = await brokeredAccessToken();
+    const added: string[] = [];
+    try {
+      let index = 0;
+      while (
+        (await started.ctx.stores.provisionalSessions.size) < 1024 &&
+        index < 1024
+      ) {
+        const id = `ps_capacity_${index}`;
+        await started.ctx.stores.provisionalSessions.set(id, {
+          id,
+          principalId: started.ctx.systemOwnerPrincipalId,
+          quotaProfile: "anonymous",
+          allowedActions: [],
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+        });
+        added.push(id);
+        index += 1;
+      }
+      const res = await fetch(`${base}/v1/principals/federated-session`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ accessToken }),
+      });
+      expect(res.status).toBe(429);
+      expect(await res.json()).toEqual({ error: "provisional_capacity" });
+    } finally {
+      for (const id of added)
+        await started.ctx.stores.provisionalSessions.delete(id);
+    }
+  }, 30_000);
+
+  it("prunes expired sessions instead of letting them exhaust capacity", async () => {
+    currentSubject = `prune-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(currentSubject);
+    const { accessToken, principalId } = await brokeredAccessToken();
+    const added: string[] = [];
+    try {
+      let index = 0;
+      while (
+        (await started.ctx.stores.provisionalSessions.size) < 1024 &&
+        index < 1024
+      ) {
+        const id = `ps_expired_${index}`;
+        await started.ctx.stores.provisionalSessions.set(id, {
+          id,
+          principalId: started.ctx.systemOwnerPrincipalId,
+          quotaProfile: "anonymous",
+          allowedActions: [],
+          createdAt: new Date(Date.now() - 120_000),
+          expiresAt: new Date(Date.now() - 60_000),
+        });
+        added.push(id);
+        index += 1;
+      }
+      const res = await fetch(`${base}/v1/principals/federated-session`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ accessToken }),
+      });
+      expect(res.status).toBe(200);
+      expect(overlapCast(await res.json()).principalId).toBe(principalId);
+    } finally {
+      for (const id of added)
+        await started.ctx.stores.provisionalSessions.delete(id);
+    }
+  }, 30_000);
+
   it.each([
     ["a token nobody issued", randomBytes(32).toString("base64url")],
     ["an empty token", ""],

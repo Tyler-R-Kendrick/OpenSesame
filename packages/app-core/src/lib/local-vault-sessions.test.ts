@@ -200,6 +200,43 @@ describe("local vault sessions", () => {
     expect(await listVaultSessions(tomb)).toEqual([]);
   });
 
+  it("rejects sessions bound to another tomb or reusing an id or code", async () => {
+    const guest = mintGuestSessionPerson();
+    const directory = await ensureOwnerPerson(tomb, "Ada");
+    await changeLocalDirectory(tomb, directory.revision, {
+      action: "create",
+      kind: "person",
+      name: guest.name,
+      id: guest.id,
+    });
+    const session = await createVaultSession(tomb, {
+      label: "Pairing",
+      durationSeconds: 3600,
+      grants: [
+        {
+          subject: { kind: "accessRole", role: "guest" },
+          resourceKind: "vault",
+          resourceId: tomb,
+          resourceLabel: "this vault",
+          policy: "open",
+        },
+      ],
+    });
+    const { writeFile } = await import("./vfs.js");
+    const write = (rows: unknown[]) =>
+      writeFile(
+        tomb,
+        "config/vault-sessions",
+        new TextEncoder().encode(
+          JSON.stringify({ version: 1, sessions: rows }),
+        ),
+      );
+    await write([{ ...session, boundTomb: "another-vault" }]);
+    await expect(listVaultSessions(tomb)).rejects.toThrow(/invalid/i);
+    await write([session, { ...session }]);
+    await expect(listVaultSessions(tomb)).rejects.toThrow(/invalid/i);
+  });
+
   it("redeems a running session code for a principal mid-run", async () => {
     const guest = mintGuestSessionPerson();
     const directory = await ensureOwnerPerson(tomb, "Ada");

@@ -95,6 +95,22 @@ export function buildOfflineBackupEnvelope(input: {
   if (!input.header || !input.body?.ivB64 || !input.body?.ctB64) {
     throw new Error("offline backup requires sealed vault header and body");
   }
+  const syncBlobs = (input.syncBlobs ?? []).map((blob) => ({
+    id: blob.id,
+    epoch: blob.epoch,
+    ciphertextB64: blob.ciphertextB64,
+  }));
+  if (
+    syncBlobs.some(
+      (blob) =>
+        blob.id.length === 0 ||
+        !Number.isSafeInteger(blob.epoch) ||
+        blob.epoch < 0 ||
+        blob.ciphertextB64.length === 0,
+    )
+  ) {
+    throw new Error("offline backup has a malformed sync blob");
+  }
   const envelope: OfflineBackupEnvelope = {
     format: OFFLINE_BACKUP_FORMAT,
     v: OFFLINE_BACKUP_VERSION,
@@ -104,11 +120,7 @@ export function buildOfflineBackupEnvelope(input: {
       header: input.header,
       body: input.body,
     },
-    syncBlobs: (input.syncBlobs ?? []).map((blob) => ({
-      id: blob.id,
-      epoch: blob.epoch,
-      ciphertextB64: blob.ciphertextB64,
-    })),
+    syncBlobs,
     deploymentSealUsed: false,
   };
   assertCiphertextOnlyBackupJson(JSON.stringify(envelope));
@@ -167,9 +179,15 @@ function readVaultCiphertext(
   value: BoundaryValue,
 ): OfflineBackupEnvelope["vault"] {
   const vault = objectOr(value, MISSING_VAULT);
-  if (!vault.header) throw new Error(MISSING_VAULT);
+  if (!vault.header || !isTypeofObject(vault.header))
+    throw new Error(MISSING_VAULT);
   const body = objectOr(vault.body, MISSING_VAULT);
-  if (!isString(body.ivB64) || !isString(body.ctB64))
+  if (
+    !isString(body.ivB64) ||
+    !body.ivB64 ||
+    !isString(body.ctB64) ||
+    !body.ctB64
+  )
     throw new Error(MISSING_VAULT);
   const header: VaultHeader = overlapCast(vault.header);
   return { header, body: { ivB64: body.ivB64, ctB64: body.ctB64 } };
@@ -179,7 +197,10 @@ function readSyncBlob(value: BoundaryValue): SyncBlobCiphertext {
   const blob = objectOr(value, "That backup has a malformed sync blob.");
   if (
     !isString(blob.id) ||
+    !blob.id ||
     !isNumber(blob.epoch) ||
+    !Number.isSafeInteger(blob.epoch) ||
+    blob.epoch < 0 ||
     !isString(blob.ciphertextB64) ||
     !blob.ciphertextB64
   ) {

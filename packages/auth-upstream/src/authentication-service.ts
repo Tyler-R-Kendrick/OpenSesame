@@ -373,37 +373,39 @@ export function createAuthenticationService(
       );
       let user: AuthenticationUser | undefined;
       if (input.mode === "alias") {
-        user = input.alias
-          ? ((await stores.users.findByAlias(
-              application.id,
-              storedAlias(input.alias, true),
-            )) ??
-            (await stores.users.findByAlias(
-              application.id,
-              storedAlias(input.alias, false),
-            )) ??
-            (await stores.users.findByAlias(
-              application.id,
-              normalizeAlias(input.alias),
-            )))
-          : undefined;
+        if (input.alias) {
+          // Perform every representation's lookup, even after a hit, so a
+          // hashed alias and an unknown one cost the same number of reads.
+          const hashed = await stores.users.findByAlias(
+            application.id,
+            storedAlias(input.alias, true),
+          );
+          const plain = await stores.users.findByAlias(
+            application.id,
+            storedAlias(input.alias, false),
+          );
+          const legacy = await stores.users.findByAlias(
+            application.id,
+            normalizeAlias(input.alias),
+          );
+          user = hashed ?? plain ?? legacy;
+        }
       } else if (input.mode === "user_id") {
         user = input.userId
           ? await stores.users.get(application.id, input.userId)
           : undefined;
       }
-      if ((input.mode === "alias" || input.mode === "user_id") && !user) {
-        throw new AuthenticationServiceError("unknown_credential");
-      }
+      // Do not reveal whether an alias or user id exists. An unknown
+      // credential gets the same option shape as a known one: a challenge
+      // with no allowCredentials list. Verification still binds whatever
+      // authenticates to that credential's own user.
       const credentials = user
         ? await stores.credentials.listByUser(application.id, user.userId)
         : [];
-      if (user && credentials.length === 0) {
-        throw new AuthenticationServiceError("unknown_credential");
-      }
+      const knownUser = user && credentials.length > 0 ? user : undefined;
       const options = await generatePasskeyAuthenticationOptions({
         rp: { rpID: application.rpId, origin: input.origin },
-        ...(user
+        ...(knownUser
           ? {
               allowCredentialIds: credentials.map(
                 (credential) => credential.credentialId,
@@ -423,7 +425,7 @@ export function createAuthenticationService(
           requireUserVerification:
             authConfiguration.userVerification === "required",
           origin: input.origin,
-          ...(user ? { userId: user.userId } : undefined),
+          ...(knownUser ? { userId: knownUser.userId } : undefined),
           expiresAt: new Date(now.getTime() + CHALLENGE_TTL_MS),
         },
         now,

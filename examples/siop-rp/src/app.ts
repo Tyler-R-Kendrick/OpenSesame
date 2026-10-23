@@ -50,8 +50,39 @@ export type SiopRpAppOptions = {
   now?: (() => number) | undefined;
 };
 
-const BINDING_COOKIE = "__Host-siop_binding";
+const BINDING_COOKIE_PREFIX = "__Host-siop_binding_";
 const BINDING_MAX_AGE_SECONDS = 600;
+const RESERVED_PATHS = new Set([
+  "/",
+  "/auth/start",
+  "/example.css",
+  "/siop-callback.js",
+]);
+const CALLBACK_PATH = /^\/[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~-]+)*$/u;
+const BINDING_STATE = /^[A-Za-z0-9_-]{1,256}$/u;
+
+/** One cookie per login, so a second start cannot overwrite the first. */
+function bindingCookieName(state: string): string {
+  return `${BINDING_COOKIE_PREFIX}${state}`;
+}
+
+function stateFromAuthorizationUrl(raw: string): string | null {
+  try {
+    const state = new URL(raw).searchParams.get("state");
+    return state && BINDING_STATE.test(state) ? state : null;
+  } catch {
+    return null;
+  }
+}
+
+function stateFromResponse(raw: string): string | null {
+  const marker = raw.indexOf("#") < 0 ? raw.indexOf("?") : raw.indexOf("#");
+  const params = new URLSearchParams(raw.slice(marker + 1));
+  const states = params.getAll("state");
+  if (states.length !== 1) return null;
+  const state = states[0] ?? "";
+  return BINDING_STATE.test(state) ? state : null;
+}
 
 /** What the page is told: a stable code, never a message and never the token. */
 function refusalCode(failure: Error): string {
@@ -87,14 +118,16 @@ function responseFrom(req: Request): string | null {
  * page's own) from reading it; SameSite=Lax keeps it off cross-site requests
  * other than the top-level navigation the redirect back is.
  */
-function bindingCookie(value: string, maxAge: number): string {
-  return `${BINDING_COOKIE}=${value}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+function bindingCookie(name: string, value: string, maxAge: number): string {
+  return `${name}=${value}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`;
 }
 
-function bindingFrom(req: Request): string {
+function bindingFrom(req: Request, state: string | null): string {
+  if (state === null) return "";
+  const wanted = bindingCookieName(state);
   for (const part of (req.headers.cookie ?? "").split(";")) {
     const [name, ...value] = part.trim().split("=");
-    if (name === BINDING_COOKIE) return value.join("=");
+    if (name === wanted) return value.join("=");
   }
   return "";
 }
@@ -140,7 +173,11 @@ function refusalOfStart(
  */
 function startRoute({ relyingParty, limit, redirectFor }: StartDeps) {
   return async (req: Request, res: Response): Promise<void> => {
-    if (!limit.allow(req.ip ?? "unknown")) {
+    // Key on the socket peer, not a forwarding header. `req.ip` follows a
+    // proxy only when the operator configured one, and a spoofed header must
+    // never buy a fresh bucket. A missing peer address fails closed.
+    const client = req.socket.remoteAddress;
+    if (!client || client.length > 64 || !limit.allow(client)) {
       res.setHeader("retry-after", "60");
       res.status(429).json({ error: "rate_limited" });
       return;
@@ -156,9 +193,18 @@ function startRoute({ relyingParty, limit, redirectFor }: StartDeps) {
     }
     try {
       const started = await relyingParty.startLogin({ clientId, redirectUri });
+      const state = stateFromAuthorizationUrl(started.authorizationUrl);
+      if (state === null) {
+        res.status(500).json({ error: "unavailable" });
+        return;
+      }
       res.setHeader(
         "set-cookie",
-        bindingCookie(started.binding, BINDING_MAX_AGE_SECONDS),
+        bindingCookie(
+          bindingCookieName(state),
+          started.binding,
+          BINDING_MAX_AGE_SECONDS,
+        ),
       );
       res.redirect(302, started.authorizationUrl);
     } catch (failure) {
@@ -172,6 +218,23 @@ function startRoute({ relyingParty, limit, redirectFor }: StartDeps) {
       res.status(refused.status).json({ error: refused.error });
     }
   };
+}
+
+/** Refuse callback routes that would shadow a fixed application route. */
+function checkedCallbackPaths(paths: readonly string[]): string[] {
+  const seen = new Set<string>();
+  for (const path of paths) {
+    if (
+      !CALLBACK_PATH.test(path) ||
+      path.includes("//") ||
+      path.endsWith("/") ||
+      RESERVED_PATHS.has(path) ||
+      seen.has(path)
+    )
+      throw new Error(`Invalid callback path: ${path}`);
+    seen.add(path);
+  }
+  return [...seen];
 }
 
 /** The redirect URI each callback path was registered as. */
@@ -204,7 +267,8 @@ export function createSiopRpApp(
   // deployment its 302 sends the browser on to (a form's redirect is checked
   // against `form-action` too).
   const pagesOrigin = new URL(issuerOf(config)).origin;
-  const redirectFor = redirectsByPath(config);
+  const callbackPaths = checkedCallbackPaths(config.callbackPaths);
+  const redirectFor = redirectsByPath({ ...config, callbackPaths });
   const limit = new StartRateLimit(config.startsPerMinute, options.now);
   const app = express();
   app.disable("x-powered-by");
@@ -229,7 +293,7 @@ export function createSiopRpApp(
   app.get("/auth/start", startRoute({ relyingParty, limit, redirectFor }));
 
   const json = express.json({ limit: "20kb", type: "application/json" });
-  for (const path of config.callbackPaths) {
+  for (const path of callbackPaths) {
     app.get(path, (_req, res) => {
       res.type("html").send(callbackHtml());
     });
@@ -239,10 +303,11 @@ export function createSiopRpApp(
         res.status(400).json({ error: "malformed_request" });
         return;
       }
+      const state = stateFromResponse(response);
       try {
         const result = await relyingParty.completeLogin({
           response,
-          binding: bindingFrom(req),
+          binding: bindingFrom(req, state),
           // The address this server was asked at, query included: not a
           // value the page sent.
           receivedRedirectUri: `${origin}${req.originalUrl}`,
@@ -250,7 +315,11 @@ export function createSiopRpApp(
         // Your session starts here: set your own cookie for `result.subject`.
         // The subject is the thumbprint of a key the person holds for this
         // application; it proves possession, not an email address or a name.
-        res.setHeader("set-cookie", bindingCookie("", 0));
+        if (state !== null)
+          res.setHeader(
+            "set-cookie",
+            bindingCookie(bindingCookieName(state), "", 0),
+          );
         res.json(sessionBody(result));
       } catch (failure) {
         respondRefused(res, failure instanceof Error ? failure : new Error());

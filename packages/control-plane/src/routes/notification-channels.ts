@@ -10,6 +10,7 @@ import {
   NotificationPreferencesResponseSchema,
   UpdateNotificationPreferencesSchema,
 } from "@opensesame/contracts";
+import { ConflictError } from "@opensesame/database";
 import {
   CHANNEL_CAPABILITIES,
   DEFAULT_NOTIFICATION_PREFERENCE,
@@ -65,6 +66,37 @@ const STEP_UP_MAX_AGE_SECONDS = 900;
 const BINDING_CHALLENGE_TTL_SECONDS = 900;
 const BINDING_CHALLENGE_MAX_ATTEMPTS = 5;
 const MAX_BINDINGS_PER_PRINCIPAL = 20;
+
+/**
+ * A label typed when the ceremony begins, held until it completes.
+ *
+ * A pending binding row used to carry this, which made an unverified hint a
+ * durable reservation on somebody else's provider subject. The row is now
+ * written only when the challenge completes; the label is presentation, so it
+ * waits here for the minutes the challenge lives.
+ */
+const pendingBindingLabels = new Map<
+  string,
+  { label: string; expiresAt: number }
+>();
+
+function rememberBindingLabel(
+  challengeId: string,
+  label: string | undefined,
+  expiresAt: number,
+): void {
+  for (const [id, entry] of pendingBindingLabels) {
+    if (entry.expiresAt <= Date.now()) pendingBindingLabels.delete(id);
+  }
+  if (label === undefined) return;
+  pendingBindingLabels.set(challengeId, { label, expiresAt });
+}
+
+function takeBindingLabel(challengeId: string): string | undefined {
+  const entry = pendingBindingLabels.get(challengeId);
+  pendingBindingLabels.delete(challengeId);
+  return entry && entry.expiresAt > Date.now() ? entry.label : undefined;
+}
 
 async function hasFreshAuthentication(
   ctx: AppContext,
@@ -233,55 +265,52 @@ notificationChannelRoutes.post("/bindings", requirePrincipal(), async (c) => {
       proposed.tenantId,
       proposed.subjectId,
     );
-    // One destination, one owner. Two principals holding the same provider
-    // identity would make a callback ambiguous, and the way that resolves is
-    // whichever row the lookup happens to return — which is a coin toss
-    // between an approver and whoever registered the collision.
-    if (taken && taken.principalId !== principalId) {
+    // One live destination, one owner. A pending row is not a live
+    // destination: writing one here from an unverified hint let the first
+    // caller reserve somebody else's Slack subject forever. The row is now
+    // created at completion, after the challenge has been spent.
+    if (
+      taken &&
+      taken.principalId !== principalId &&
+      taken.state === "active"
+    ) {
       return c.json({ error: "destination_already_bound" }, 409);
-    }
-    if (!taken) {
-      // Born `pending`, which `isBindingUsable` refuses: it holds the label
-      // the person typed and can carry nothing until the ceremony completes.
-      await ctx.repos.channelBindings.create({
-        id: `chbd_${randomBytes(12).toString("base64url")}`,
-        principalId,
-        kind,
-        providerId: kind,
-        providerTenantId: proposed.tenantId,
-        providerSubjectId: proposed.subjectId,
-        ...(parsed.data.displayLabel
-          ? { displayLabel: parsed.data.displayLabel }
-          : undefined),
-        state: "pending",
-        verification: "provider_callback_challenge",
-        createdAt: now,
-        metadata: {},
-        version: 1,
-      });
     }
   }
   const expiresAt = new Date(
     now.getTime() + BINDING_CHALLENGE_TTL_SECONDS * 1000,
   );
-  await ctx.repos.channelBindingChallenges.create({
-    id: challengeId,
-    principalId,
-    kind,
-    providerId: kind,
-    nonceDigest: nonceDigest(challengeId, nonce, ctx.config.claimPepper),
-    ...(proposed?.tenantId
-      ? { expectedTenantId: proposed.tenantId }
-      : undefined),
-    ...(proposed?.subjectId
-      ? { expectedSubjectId: proposed.subjectId }
-      : undefined),
-    attempts: 0,
-    maxAttempts: BINDING_CHALLENGE_MAX_ATTEMPTS,
-    createdAt: now,
-    expiresAt,
-    version: 1,
-  });
+  rememberBindingLabel(
+    challengeId,
+    parsed.data.displayLabel,
+    expiresAt.getTime(),
+  );
+  try {
+    await ctx.repos.channelBindingChallenges.create({
+      id: challengeId,
+      principalId,
+      kind,
+      providerId: kind,
+      nonceDigest: nonceDigest(challengeId, nonce, ctx.config.claimPepper),
+      ...(proposed?.tenantId
+        ? { expectedTenantId: proposed.tenantId }
+        : undefined),
+      ...(proposed?.subjectId
+        ? { expectedSubjectId: proposed.subjectId }
+        : undefined),
+      attempts: 0,
+      maxAttempts: BINDING_CHALLENGE_MAX_ATTEMPTS,
+      createdAt: now,
+      expiresAt,
+      version: 1,
+    });
+  } catch (error) {
+    pendingBindingLabels.delete(challengeId);
+    if (error instanceof ConflictError) {
+      return c.json({ error: "binding_conflict" }, 409);
+    }
+    throw error;
+  }
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "notification.binding.began",
     principalId,
@@ -394,32 +423,43 @@ notificationChannelRoutes.post(
     );
     if (!completed) return c.json({ error: "binding_already_completed" }, 409);
 
-    // The row minted alongside the challenge, found by the identity it was
-    // minted for. Flipping it to `active` keeps the label the person typed
-    // and keeps one row per destination — a second row would make the
-    // callback lookup a coin toss.
-    const pending = await ctx.repos.channelBindings.findByProviderIdentity(
+    // The destination row is written only now. An active row owned by someone
+    // else is the one real collision; a pending row from an older version (or
+    // a revoked row) cannot be reactivated across owners here, so it is
+    // reported rather than silently rebound.
+    const existing = await ctx.repos.channelBindings.findByProviderIdentity(
       challenge.kind,
       challenge.providerId,
       challenge.expectedTenantId ?? "",
       challenge.expectedSubjectId,
     );
-    if (pending && pending.principalId !== principalId) {
+    if (existing && existing.principalId !== principalId) {
       return c.json({ error: "destination_already_bound" }, 409);
     }
-    const created: ExternalChannelBinding = pending
-      ? await ctx.repos.channelBindings.updateWithVersion(
-          pending.id,
-          pending.version,
-          { state: "active", verifiedAt: now },
-        )
-      : await ctx.repos.channelBindings.create({
+    const displayLabel = takeBindingLabel(challenge.id);
+    let created: ExternalChannelBinding;
+    try {
+      if (existing && existing.state === "active") {
+        created = existing;
+      } else if (existing) {
+        created = await ctx.repos.channelBindings.updateWithVersion(
+          existing.id,
+          existing.version,
+          {
+            state: "active",
+            verifiedAt: now,
+            ...(displayLabel !== undefined ? { displayLabel } : undefined),
+          },
+        );
+      } else {
+        created = await ctx.repos.channelBindings.create({
           id: `chbd_${randomBytes(12).toString("base64url")}`,
           principalId,
           kind: challenge.kind,
           providerId: challenge.providerId,
           providerTenantId: challenge.expectedTenantId ?? "",
           providerSubjectId: challenge.expectedSubjectId,
+          ...(displayLabel !== undefined ? { displayLabel } : undefined),
           state: "active",
           verification: "operator_provisioned",
           createdAt: now,
@@ -427,6 +467,13 @@ notificationChannelRoutes.post(
           metadata: {},
           version: 1,
         });
+      }
+    } catch (error) {
+      if (error instanceof ConflictError) {
+        return c.json({ error: "destination_already_bound" }, 409);
+      }
+      throw error;
+    }
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "notification.binding.created",
       principalId,

@@ -56,7 +56,6 @@ describe("service agent identity assertion", () => {
     });
     expect(verified.sub).toBe("areg_abc");
     expect(verified.os_claimed).toBe(false);
-
     const idJag = await new SignJWT({ sub: "areg_abc" })
       .setProtectedHeader({ alg: "ES256", typ: PROVIDER_ID_JAG_TYP })
       .setIssuer("http://127.0.0.1:8788")
@@ -67,6 +66,63 @@ describe("service agent identity assertion", () => {
       verifyServiceAgentIdentityAssertion(idJag, {
         issuer: "http://127.0.0.1:8788",
         audience: "http://127.0.0.1:8788",
+        getKey: async () => publicKey,
+      }),
+    ).rejects.toBeInstanceOf(AgentAuthError);
+  });
+
+  it("requires the assertion to name the resource the exchange asks for", async () => {
+    const { privateKey, publicKey } = await generateKeyPair("ES256", {
+      extractable: true,
+    });
+    const key = {
+      privateKey,
+      publicJwk: await exportJWK(publicKey),
+      kid: "k1",
+      alg: "ES256" as const,
+    };
+    const withResource = await issueServiceAgentIdentityAssertion(key, {
+      issuer: "https://issuer.example",
+      audience: "https://issuer.example",
+      registrationId: "areg_abc",
+      claimed: false,
+      assertionVersion: 1,
+      scopes: ["resource:read"],
+      expiresAt: new Date(Date.now() + 60_000),
+      resource: "https://api.example",
+    });
+    await expect(
+      verifyServiceAgentIdentityAssertion(withResource.jwt, {
+        issuer: "https://issuer.example",
+        audience: "https://issuer.example",
+        resource: "https://api.example",
+        getKey: async () => publicKey,
+      }),
+    ).resolves.toMatchObject({ resource: "https://api.example" });
+    await expect(
+      verifyServiceAgentIdentityAssertion(withResource.jwt, {
+        issuer: "https://issuer.example",
+        audience: "https://issuer.example",
+        resource: "https://other.example",
+        getKey: async () => publicKey,
+      }),
+    ).rejects.toBeInstanceOf(AgentAuthError);
+
+    const withoutResource = await issueServiceAgentIdentityAssertion(key, {
+      issuer: "https://issuer.example",
+      audience: "https://issuer.example",
+      registrationId: "areg_abc",
+      claimed: false,
+      assertionVersion: 1,
+      scopes: ["resource:read"],
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    // A missing resource claim is not a wildcard when the caller pinned one.
+    await expect(
+      verifyServiceAgentIdentityAssertion(withoutResource.jwt, {
+        issuer: "https://issuer.example",
+        audience: "https://issuer.example",
+        resource: "https://api.example",
         getKey: async () => publicKey,
       }),
     ).rejects.toBeInstanceOf(AgentAuthError);

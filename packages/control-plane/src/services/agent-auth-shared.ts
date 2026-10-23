@@ -60,18 +60,28 @@ export function consumeAgentAuthMintBudget(
   const windowMs = 60_000;
   const perClient = 8;
   const global = 80;
+  const maxKeys = 2048;
+  const globalKey = "__global__";
   for (const [key, values] of map) {
     const live = values.filter((at) => now - at < windowMs);
     if (live.length === 0) map.delete(key);
     else if (live.length !== values.length) map.set(key, live);
   }
-  const g = map.get("__global__") ?? [];
-  const c = map.get(fingerprint) ?? [];
+  const clientKey = `client:${fingerprint}`;
+  const g = map.get(globalKey) ?? [];
+  const c = map.get(clientKey) ?? [];
   if (g.length >= global || c.length >= perClient) return false;
   g.push(now);
   c.push(now);
-  map.set("__global__", g);
-  map.set(fingerprint, c);
+  map.set(globalKey, g);
+  map.set(clientKey, c);
+  while (map.size > maxKeys) {
+    // The global counter is the ceiling a caller cannot rotate their
+    // spoofable fingerprint to escape; never evict it.
+    const victim = [...map.keys()].find((key) => key !== globalKey);
+    if (victim === undefined) break;
+    map.delete(victim);
+  }
   return true;
 }
 

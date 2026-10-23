@@ -29,6 +29,7 @@ import type { Context } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { incrementSecurityCounter } from "../repos/durable-map.js";
 import { webAuthnRpFromPublicUrl } from "./approval-ceremony.js";
 import {
   INTERACTION_APPROVAL_POLICY,
@@ -46,6 +47,49 @@ export {
 
 const MAX_ACTIVATION_TTL_SECONDS = 5 * 60;
 const MAX_ASSERTION_FIELD_LENGTH = 8_192;
+
+/** A person approving has no reason to mint ceremonies in a hot loop. */
+const ACTIVATION_WINDOW_MS = 60_000;
+const ACTIVATION_PER_PRINCIPAL = 20;
+const ACTIVATION_GLOBAL = 500;
+const ACTIVATION_MAX_KEYS = 2048;
+const ACTIVATION_GLOBAL_KEY = "__global__";
+const MAX_ACTIVATION_FAILURES = 5;
+const activationBudget = new Map<string, number[]>();
+
+function consumeActivationBudget(principalId: string, now: number): boolean {
+  for (const [key, times] of activationBudget) {
+    const live = times.filter((at) => now - at < ACTIVATION_WINDOW_MS);
+    if (live.length === 0) activationBudget.delete(key);
+    else if (live.length !== times.length) activationBudget.set(key, live);
+  }
+  const global = activationBudget.get(ACTIVATION_GLOBAL_KEY) ?? [];
+  const key = `principal:${principalId}`;
+  const mine = activationBudget.get(key) ?? [];
+  if (
+    global.length >= ACTIVATION_GLOBAL ||
+    mine.length >= ACTIVATION_PER_PRINCIPAL
+  ) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  activationBudget.set(ACTIVATION_GLOBAL_KEY, global);
+  activationBudget.set(key, mine);
+  while (activationBudget.size > ACTIVATION_MAX_KEYS) {
+    const victim = [...activationBudget.keys()].find(
+      (candidate) => candidate !== ACTIVATION_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    activationBudget.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook: the budget is process-global and must not leak between suites. */
+export function resetInteractionActivationBudget(): void {
+  activationBudget.clear();
+}
 
 function challengeDigest(challenge: string): string {
   return `v1:${createHash("sha256")
@@ -108,6 +152,9 @@ async function beginActivation(
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   const now = ctx.clock();
+  if (!consumeActivationBudget(principalId, now.getTime())) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const row = await deps.loadByRef(ctx, c.req.param("ref") ?? "", now);
   if (!row || !deps.isApprover(row, principalId)) {
     return deps.fail(c, "interaction_not_found");
@@ -191,6 +238,9 @@ async function completeActivation(
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   const ref = c.req.param("ref") ?? "";
   const now = ctx.clock();
+  if (!consumeActivationBudget(principalId, now.getTime())) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const row = await deps.loadByRef(ctx, ref, now);
   if (!row || !deps.isApprover(row, principalId)) {
     return deps.fail(c, "interaction_not_found");
@@ -250,6 +300,13 @@ async function completeActivation(
     return c.json({ error: "activation_challenge_mismatch" }, 401);
   }
 
+  const failureKey = `interaction-activation:${activation.id}`;
+  const prior =
+    (await incrementSecurityCounter(ctx.stores.mfaFailures, failureKey)) - 1;
+  if (prior >= MAX_ACTIVATION_FAILURES) {
+    return c.json({ error: "too_many_attempts" }, 429);
+  }
+
   // Always the real verifier, never the dev-defaulted `ctx.passkeys` seam:
   // an interaction approval is an authorization-assurance decision (ADR
   // 0084 phishing resistance), so it must be a genuine cryptographic check
@@ -277,6 +334,8 @@ async function completeActivation(
     });
     return c.json({ error: "activation_verification_failed" }, 401);
   }
+
+  await ctx.stores.mfaFailures.delete(failureKey);
 
   // No `trustSessionId`, and so no `credentialRef` on the sealed proof: the
   // audit row records the mechanism the authority verified and the digest it

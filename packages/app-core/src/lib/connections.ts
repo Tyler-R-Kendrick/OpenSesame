@@ -331,6 +331,9 @@ async function awaitConsentDefault(
   const messaged = new Promise<void>((resolve) => {
     onMessage = (event: MessageEvent) => {
       if (event.origin !== origin) return;
+      // When the popup handle survived `noopener`, the message must come from
+      // that window, not merely from a same-origin iframe in this tab.
+      if (popup && event.source !== popup) return;
       const data = obj(event.data);
       if (data.type !== "opensesame:connection") return;
       if (data.connectionId !== connectionId) return;

@@ -3,7 +3,7 @@
  * clipboard tool's stdin and nowhere else.
  */
 import { spawn } from "node:child_process";
-import { resolveCredentialHelper } from "./parity-node.js";
+import { helperEnvironment, resolveCredentialHelper } from "./parity-node.js";
 
 const TOOLS: readonly (readonly string[])[] = [
   ["wl-copy"],
@@ -16,12 +16,17 @@ function writeTo(command: string, args: readonly string[], text: string) {
   return new Promise<void>((resolve, reject) => {
     const child = spawn(resolveCredentialHelper(command), args, {
       stdio: ["pipe", "ignore", "ignore"],
+      // Clipboard helpers are credential-bearing: they get the same screened
+      // environment as every other secret-bearing helper.
+      env: helperEnvironment(process.env),
+      shell: false,
     });
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) resolve();
       else reject(new Error(`${command} exited ${code}`));
     });
+    child.stdin.on("error", reject);
     child.stdin.end(text);
   });
 }

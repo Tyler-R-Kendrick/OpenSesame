@@ -176,7 +176,7 @@ describe("principals routes edge cases", () => {
     }
   });
 
-  it("answers 404 for /me when the principal record is gone", async () => {
+  it("answers 401 for /me when the principal record is gone", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig() });
     const created = await provisional(app);
     expect(
@@ -186,7 +186,9 @@ describe("principals routes edge cases", () => {
     const me = await app.request("/v1/principals/me", {
       headers: { authorization: `Bearer ${created.accessToken}` },
     });
-    expect(me.status).toBe(404);
+    // The session points at a principal that no longer exists; authentication
+    // itself is withdrawn before the route can answer 404.
+    expect(me.status).toBe(401);
   });
 
   it("accepts prn_ bearer tokens only when explicitly enabled", async () => {
@@ -235,12 +237,12 @@ describe("principals routes edge cases", () => {
       subject: "suspended-sub",
       assurance: "verified",
     });
-    expect(suspended.status).toBe(403);
-    expect(overlapCast(await suspended.json()).error).toBe(
-      "principal_inactive",
-    );
+    // The middleware checks the principal's live state, so a suspended
+    // session is unauthenticated before the route can return its own 403.
+    expect(suspended.status).toBe(401);
+    expect(overlapCast(await suspended.json()).error).toBe("unauthorized");
 
-    // A principal record that vanished mid-request is a 404.
+    // A principal record that vanished mid-request is a 401.
     const ghost = await provisional(app);
     expect(
       await ctx.repos.principals.deleteUnlinkedProvisional(ghost.principalId),
@@ -251,7 +253,7 @@ describe("principals routes edge cases", () => {
       subject: "ghost-sub",
       assurance: "verified",
     });
-    expect(missing.status).toBe(404);
+    expect(missing.status).toBe(401);
   });
 
   it("refuses self-asserted identity links when dev defaults are off", async () => {

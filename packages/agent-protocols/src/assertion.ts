@@ -154,11 +154,9 @@ export async function verifyServiceAgentIdentityAssertion(
     );
   }
   const resource = readString(payload.resource);
-  if (
-    expected.resource &&
-    resource !== undefined &&
-    resource !== expected.resource
-  ) {
+  if (expected.resource !== undefined && resource !== expected.resource) {
+    // A caller that names the resource it is redeeming for requires the
+    // assertion to name that exact resource. A missing claim is not a wildcard.
     throw agentAuthError("invalid_grant", 400, "assertion resource mismatch");
   }
 

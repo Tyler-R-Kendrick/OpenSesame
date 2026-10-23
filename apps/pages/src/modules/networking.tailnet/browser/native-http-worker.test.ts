@@ -122,6 +122,43 @@ afterEach(async () => {
   await settle();
   vi.unstubAllGlobals();
 });
+it("refuses a peer GET that redirects away from the approved URL", async () => {
+  await load();
+  client.fetch.mockResolvedValue({
+    status: 200,
+    statusText: "OK",
+    redirected: true,
+    url: "https://elsewhere.example/stolen",
+    text: async () => "peer body",
+  } as never);
+  send({ kind: "get", id: 9, url: "http://100.64.0.1:8080/proof" });
+  await vi.waitFor(() => expect(sent).toContainEqual({ kind: "error" }));
+  expect(sent).not.toContainEqual(expect.objectContaining({ kind: "get" }));
+});
+
+it("refuses a peer GET whose final URL differs from the approved URL", async () => {
+  await load();
+  client.fetch.mockResolvedValue({
+    status: 200,
+    statusText: "OK",
+    redirected: false,
+    url: "http://100.64.0.2:8080/proof",
+    text: async () => "peer body",
+  } as never);
+  send({ kind: "get", id: 10, url: "http://100.64.0.1:8080/proof" });
+  await vi.waitFor(() => expect(sent).toContainEqual({ kind: "error" }));
+  expect(sent).not.toContainEqual(expect.objectContaining({ kind: "get" }));
+});
+
+it("refuses a peer GET with credentials or a non-HTTP scheme before egress", async () => {
+  await load();
+  send({ kind: "get", id: 11, url: "http://user:secret@100.64.0.1:8080/" });
+  send({ kind: "get", id: 12, url: "file:///etc/passwd" });
+  await settle();
+  expect(client.fetch).not.toHaveBeenCalled();
+  expect(sent).toEqual([{ kind: "error" }, { kind: "error" }]);
+});
+
 it("protocol bounds binary/header/status input and rejects mixed trust without promoting HTTP", () => {
   expect(WorkerMessage.safeParse({ kind: "start", config }).success).toBe(true);
   expect(

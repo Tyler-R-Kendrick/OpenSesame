@@ -38,6 +38,8 @@ type SecretBinding = { appId: string; itemId: string };
 let pending: PendingSecret | null = null;
 let sealing: Promise<void> | null = null;
 let stopWatchingVault: (() => void) | null = null;
+const pendingPurges = new Set<string>();
+let stopPurgeWatch: (() => void) | null = null;
 
 /** Only an `RSA PRIVATE KEY` or PKCS#8 `PRIVATE KEY` block, END line included. */
 const APP_PEM_BLOCK =
@@ -130,6 +132,37 @@ function watchVaultUntilSealed(): void {
   });
 }
 
+/**
+ * A removed App's item can only be purged while its vault is unlocked. Keep
+ * the id until a later unlock, so Remove does not silently leave the sealed
+ * key behind when pressed during a lock transition.
+ */
+function purgeQueuedSecrets(): void {
+  if (!durableVaultOpen()) return;
+  for (const id of pendingPurges) {
+    void vaultStore
+      .purgeItem(id)
+      .then(() => {
+        pendingPurges.delete(id);
+        if (pendingPurges.size === 0) {
+          stopPurgeWatch?.();
+          stopPurgeWatch = null;
+        }
+      })
+      .catch(() => undefined);
+  }
+  if (pendingPurges.size === 0) {
+    stopPurgeWatch?.();
+    stopPurgeWatch = null;
+  }
+}
+
+function scheduleSecretPurge(itemId: string): void {
+  pendingPurges.add(itemId);
+  stopPurgeWatch ??= vaultStore.subscribe(purgeQueuedSecrets);
+  purgeQueuedSecrets();
+}
+
 /** Hold a freshly claimed secret in memory until a durable vault seals it. */
 export function stashPendingGithubAppSecret(
   app: GithubAppRef,
@@ -147,14 +180,19 @@ export function hasPendingGithubAppSecret(appId: string): boolean {
   return pending !== null && pending.appId === appId;
 }
 
-/** Forget the unsealed secret and the item binding (Remove / uninstall). */
+/** Forget the unsealed secret, the item binding, and the sealed vault copy. */
 export function forgetGithubAppSecret(): void {
+  const binding = readBinding();
   pending = null;
   stopWatchingVault?.();
   stopWatchingVault = null;
   removeStorage(maybeLocalStore(), BINDING_KEY);
   removeStorage(maybeLocalStore(), LEGACY_PENDING_PEM_KEY);
   removeStorage(sessionOrNone(), LEGACY_PENDING_PEM_KEY);
+  // Removal is a request to stop holding the key, not merely to forget where
+  // it is. Purge the bound item too; a locked vault queues it for its next
+  // unlock instead of leaving an orphan.
+  if (binding) scheduleSecretPurge(binding.itemId);
 }
 
 function dropPending(sealed: PendingSecret): void {

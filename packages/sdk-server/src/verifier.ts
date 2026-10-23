@@ -12,6 +12,7 @@ import {
   type JWTVerifyGetKey,
   createLocalJWKSet,
   createRemoteJWKSet,
+  customFetch,
   jwtVerify,
 } from "jose";
 import { AuthorizationError } from "./errors.js";
@@ -103,7 +104,9 @@ function isLoopbackV4(host: string): boolean {
 function ipv4FromMappedIpv6(host: string): string | null {
   const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host);
   if (dotted) return dotted[1] ?? null;
-  const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
+  const mappedHex =
+    /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host) ??
+    /^(?:0{1,4}:){5}ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
   if (mappedHex?.[1] && mappedHex[2]) {
     return hextetsToIpv4(mappedHex[1], mappedHex[2]);
   }
@@ -218,10 +221,35 @@ export function createJwksKeySource(
     config.jwksUri === undefined
       ? undefined
       : assertSecureUrl(config.jwksUri, "jwksUri");
+  const issuerIsPrivate = isPrivateHost(new URL(issuer).hostname);
+  const fetchImpl = config.fetchImpl ?? globalThis.fetch;
+  // jose follows redirects by default. A public JWKS URI that redirects to
+  // loopback or metadata would turn the verifier into an SSRF probe, so the
+  // fetch is manual and any redirect is refused.
+  const guardedKeyFetch = async (
+    url: string,
+    init: RequestInit,
+  ): Promise<Response> => {
+    const target = new URL(url);
+    if (!issuerIsPrivate && isPrivateHost(target.hostname)) {
+      throw new Error(
+        "jwks_uri names a private or loopback host, but the issuer is remote",
+      );
+    }
+    const response = await (fetchImpl ?? fetch)(url, {
+      ...init,
+      redirect: "manual",
+      credentials: "omit",
+    });
+    if (response.status >= 300 && response.status < 400) {
+      throw new Error("jwks_uri redirect refused");
+    }
+    return response;
+  };
+  const remoteOptions = { [customFetch]: guardedKeyFetch };
 
   async function discoverJwksUri(): Promise<URL> {
     const issuerUrl = new URL(issuer);
-    const fetchImpl = config.fetchImpl ?? globalThis.fetch;
     const fallback = (): URL => assertSecureUrl(`${issuer}/jwks`, "jwksUri");
     if (!fetchImpl) return fallback();
     let meta: BoundaryValue;
@@ -272,13 +300,13 @@ export function createJwksKeySource(
       return createLocalJWKSet(config.jwks);
     }
     if (configuredJwksUri) {
-      remoteKeys ??= createRemoteJWKSet(configuredJwksUri);
+      remoteKeys ??= createRemoteJWKSet(configuredJwksUri, remoteOptions);
       return remoteKeys;
     }
     if (remoteKeys) return remoteKeys;
     pending ??= discoverJwksUri()
       .then((uri) => {
-        remoteKeys = createRemoteJWKSet(uri);
+        remoteKeys = createRemoteJWKSet(uri, remoteOptions);
         return remoteKeys;
       })
       .finally(() => {

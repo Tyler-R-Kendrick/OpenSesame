@@ -146,6 +146,23 @@ export function createOrgDomainRoutes(): Hono<{ Variables: Variables }> {
         );
       }
 
+      // An unverified claim is a pending DNS check, not an estate. Letting it
+      // reserve a domain forever means one abandoned attempt permanently
+      // blocks the organization that actually controls the name. The
+      // incumbent loses only a token nobody proved; a verified claim is never
+      // displaced.
+      const incumbent = await ctx.stores.orgFederation.emailDomains.get(domain);
+      if (
+        incumbent &&
+        incumbent.organizationId !== organization.id &&
+        !incumbent.verifiedAt
+      ) {
+        await ctx.stores.orgFederation.emailDomains.remove(
+          incumbent.organizationId,
+          domain,
+        );
+      }
+
       // Re-claiming your own domain re-rolls the token: an owner who lost the
       // value has no other way back, and the old record stops proving anything
       // the moment it is replaced.
@@ -206,9 +223,7 @@ export function createOrgDomainRoutes(): Hono<{ Variables: Variables }> {
       asOrgOwner(c, OWNER, async ({ ctx, org, proof, actor, organization }) => {
         const principalId = actor.value;
 
-        const domain = normalizeEmailDomain(
-          decodeURIComponent(c.req.param("domain") ?? ""),
-        );
+        const domain = normalizeEmailDomain(c.req.param("domain") ?? "");
         const record = domain
           ? await ctx.stores.orgFederation.emailDomains.get(domain)
           : null;
@@ -264,9 +279,7 @@ export function createOrgDomainRoutes(): Hono<{ Variables: Variables }> {
       asOrgOwner(c, OWNER, async ({ ctx, org, proof, actor, organization }) => {
         const principalId = actor.value;
 
-        const domain = normalizeEmailDomain(
-          decodeURIComponent(c.req.param("domain") ?? ""),
-        );
+        const domain = normalizeEmailDomain(c.req.param("domain") ?? "");
         const removed =
           domain !== undefined &&
           (await releaseEmailDomain(ctx, org, proof, domain));

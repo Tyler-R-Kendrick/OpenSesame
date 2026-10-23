@@ -5,6 +5,7 @@ import { AuthError } from "./errors.js";
 import {
   ID_TOKEN_ALGORITHMS,
   assertAllowedJwtAlgorithm,
+  assertIdTokenTypeHeader,
   isJwtString,
   mapJwtVerifyError,
   parseJwtPayload,
@@ -39,6 +40,7 @@ export async function verifyIdToken(
   options: VerifyIdTokenOptions,
 ): Promise<VerifiedIdToken> {
   assertAllowedJwtAlgorithm(token, ID_TOKEN_ALGORITHMS);
+  assertIdTokenTypeHeader(token);
 
   const issuer = trimSlash(options.issuer);
   const getKey: JWTVerifyGetKey = await createJwksKeySource({
@@ -58,6 +60,7 @@ export async function verifyIdToken(
       issuer,
       audience: options.audience,
       algorithms: [...ID_TOKEN_ALGORITHMS],
+      requiredClaims: ["iss", "sub", "aud", "exp", "iat"],
       clockTolerance: options.clockToleranceSeconds ?? 5,
     });
     payload = parseJwtPayload(overlapCast(verified.payload));

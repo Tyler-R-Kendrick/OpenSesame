@@ -9,6 +9,21 @@ import type { Variables } from "./context.js";
  * `Authorization: Bearer prn_…` is opt-in for local tests only
  * (`OPENSESAME_ALLOW_PRINCIPAL_BEARER=true`, never in production).
  */
+async function principalStillAuthenticates(
+  ctx: AppContext,
+  principalId: string,
+): Promise<boolean> {
+  const principal = await ctx.repos.principals.getById(principalId);
+  // A session is a lease on a principal, not a copy of it. Suspension or
+  // closure must take effect on the next request, not when the lease expires.
+  return (
+    principal !== null &&
+    principal !== undefined &&
+    principal.state !== "suspended" &&
+    principal.state !== "closed"
+  );
+}
+
 async function resolveProvisionalSession(
   ctx: AppContext,
   token: string,
@@ -18,6 +33,9 @@ async function resolveProvisionalSession(
   if (!sessionId) return undefined;
   const session = await ctx.stores.provisionalSessions.get(sessionId);
   if (!session || session.expiresAt <= ctx.clock() || session.revokedAt) {
+    return undefined;
+  }
+  if (!(await principalStillAuthenticates(ctx, session.principalId))) {
     return undefined;
   }
   return { principalId: session.principalId, sessionId: session.id };
@@ -70,7 +88,11 @@ export function authMiddleware() {
       }
       if (ctx.config.allowPrincipalBearer && token.startsWith("prn_")) {
         const principal = await ctx.repos.principals.getById(token);
-        if (principal) {
+        if (
+          principal &&
+          principal.state !== "suspended" &&
+          principal.state !== "closed"
+        ) {
           c.set("principalId", principal.id);
           await next();
           return;

@@ -125,7 +125,7 @@ On success the pre-claim access token is revoked; use the returned post-claim to
 POST /oauth2/token
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=<identity_assertion>&resource=https://api.opensesame.test/
+grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=<identity_assertion>&resource=https://api.opensesame.test
 \`\`\`
 
 There is no OAuth refresh_token in this flow. Re-exchange the still-valid service
@@ -133,7 +133,7 @@ assertion. Service assertions use \`typ: os-sia+jwt\` and are not ID-JAGs.
 
 ## Step 6 — Use the access_token
 
-\`Authorization: Bearer <aat_…>\` against \`https://api.opensesame.test/\`.
+\`Authorization: Bearer <aat_…>\` against \`https://api.opensesame.test\`.
 
 ## Revocation
 

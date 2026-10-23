@@ -45,7 +45,8 @@ function fail(status: number, message: string): Response {
 
 function bounded(value: FormDataEntryValue | null, max: number): string | null {
   if (value === null) return "";
-  return typeof value === "string" && value.length <= max ? value : null;
+  if (value instanceof File) return null;
+  return value.length <= max ? value : null;
 }
 
 function safeName(value: string): string {
@@ -76,7 +77,7 @@ function fileProblem(file: File | null): Response | null {
 function parseForm(form: FormData): Staged | Response {
   const files = form
     .getAll("files")
-    .filter((entry): entry is File => typeof entry !== "string");
+    .filter((entry): entry is File => entry instanceof File);
   if (files.length > 1) return fail(413, "Share one file at a time.");
   const file = files[0] ?? null;
   const problem = fileProblem(file);
@@ -109,11 +110,32 @@ function parseForm(form: FormData): Staged | Response {
 /** Remove ciphertext older than one hour; never wipe a live pending share. */
 async function sweep(cache: Cache, now: number): Promise<void> {
   for (const request of await cache.keys()) {
-    const match = /\/__share-target\/[^/]+\/(\d+)\//u.exec(request.url);
+    const match = /\/__share-target\/[^/]+\/([^/]+)\//u.exec(request.url);
     if (!match) continue;
-    if (now - Number(match[1] ?? 0) > 60 * 60 * 1000)
+    const createdAt = Number(match[1]);
+    if (
+      !Number.isSafeInteger(createdAt) ||
+      createdAt <= 0 ||
+      now - createdAt > 60 * 60 * 1000
+    )
       await cache.delete(request);
   }
+}
+
+/** Origin/Referer, when present, must name this worker's own origin. */
+function sameOriginRequest(ctx: WorkerContext, request: Request): boolean {
+  const origin = new URL(ctx.scopeUrl).origin;
+  const claimedOrigin = request.headers.get("origin");
+  if (claimedOrigin !== null && claimedOrigin !== origin) return false;
+  const referer = request.headers.get("referer");
+  if (referer !== null) {
+    try {
+      if (new URL(referer).origin !== origin) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 async function boundedForm(request: Request): Promise<FormData | null> {
@@ -217,8 +239,20 @@ export async function respondToShareTarget(
 
   // An OS share is a user-initiated navigation (`none`) or the app itself.
   // A cross-site form in a hidden iframe must not clear or fill this cache.
+  if (!sameOriginRequest(ctx, request))
+    return fail(403, "Cross-origin shares are not accepted.");
   if (request.headers.get("sec-fetch-site") === "cross-site")
     return fail(403, "Cross-site shares are not accepted.");
+
+  const createdAt = Date.now();
+  try {
+    const cache = await ctx.caches.open(shareTargetCacheName(ctx.scopePath));
+    // Sweep even when this share is rejected below: old ciphertext must not
+    // wait for a later successful share to be collected.
+    await sweep(cache, createdAt);
+  } catch {
+    // The cache is unavailable; staging reports that below.
+  }
 
   const rawLength = request.headers.get("content-length");
   if (
@@ -239,7 +273,6 @@ export async function respondToShareTarget(
   if (staged instanceof Response) return staged;
 
   const token = crypto.randomUUID();
-  const createdAt = Date.now();
   const key = await stage(ctx, token, createdAt, staged);
   if (key === null) return fail(507, "This device could not stage that share.");
   return new Response(null, {

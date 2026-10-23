@@ -403,7 +403,17 @@ export const betterAuthAccounts = pgTable(
     password: text("password"),
     ...timestamps,
   },
-  (t) => [index("better_auth_accounts_user_idx").on(t.userId)],
+  (t) => [
+    // One upstream account maps to one local account. The sealed-secret
+    // migration binds each token to `provider_id` + `account_id`; two rows
+    // with the same pair would share a purpose and make that binding
+    // ambiguous.
+    uniqueIndex("better_auth_accounts_provider_account_uidx").on(
+      t.providerId,
+      t.accountId,
+    ),
+    index("better_auth_accounts_user_idx").on(t.userId),
+  ],
 );
 
 /**

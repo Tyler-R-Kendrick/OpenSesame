@@ -29,6 +29,7 @@ import {
   noteUnauthorized,
   probeIdentity,
   probeOrphanSession,
+  settleRevokes,
 } from "./identity.js";
 import { localNetworkFetchSeams } from "./local-network-fetch.js";
 import { saveSettings } from "./settings.js";
@@ -281,6 +282,39 @@ describe("adopted tokens", () => {
     await identityFetch("/v1/principals/me");
     const call = spy.mock.calls.at(-1);
     expect(call?.[1]?.credentials).toBe("omit");
+  });
+
+  it("does not adopt a token when a sign-out lands during the old revoke", async () => {
+    let releaseRevoke: () => void = () => undefined;
+    const blocked = new Promise<void>((resolve) => {
+      releaseRevoke = resolve;
+    });
+    let revokes = 0;
+    stubFetch((url, init) => {
+      if (url === `${IDENTITY}/v1/principals/me`) {
+        return new Headers(init?.headers).get("authorization") ===
+          "Bearer pasted_token"
+          ? jsonResponse({ id: "principal_adopted" })
+          : jsonResponse({}, 401);
+      }
+      if (url.endsWith("/v1/principals/provisional/revoke")) {
+        revokes += 1;
+        return revokes === 1
+          ? blocked.then(() => jsonResponse({ ok: true }))
+          : jsonResponse({ ok: true });
+      }
+      return jsonResponse({ error: "unexpected" }, 500);
+    });
+
+    const adopting = adoptToken("pasted_token");
+    await vi.waitFor(() => expect(revokes).toBe(1));
+    // The person signs out while the previous session's revoke is in flight.
+    clearSession();
+    releaseRevoke();
+    await expect(adopting).rejects.toMatchObject({ status: 409 });
+    await settleRevokes();
+    expect(currentSession()).toBeNull();
+    expect(revokes).toBeGreaterThanOrEqual(2);
   });
 
   it("rejects a token the API refuses, with its message", async () => {

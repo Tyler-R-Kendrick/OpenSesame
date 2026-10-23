@@ -52,6 +52,7 @@ import {
 } from "./federation-session-store.js";
 import {
   type IdentitySession,
+  identitySessionEpoch,
   remoteIdentityApi,
   restoreSession,
 } from "./identity.js";
@@ -653,10 +654,9 @@ async function adoptBrokeredSessionDefault(
   accessToken: string,
   expectedGeneration?: FederationSessionGeneration,
 ): Promise<IdentitySession> {
-  if (
-    expectedGeneration !== undefined &&
-    federationSessionGeneration() !== expectedGeneration
-  )
+  const generation = expectedGeneration ?? federationSessionGeneration();
+  const sessionEpoch = identitySessionEpoch();
+  if (federationSessionGeneration() !== generation)
     throw new FederationError(
       "sign_in_cancelled",
       "That sign-in was ended by a sign-out. Start again.",
@@ -712,9 +712,14 @@ async function adoptBrokeredSessionDefault(
     issuerOrigin: new URL(base).origin,
     ...(isString(body.expiresAt) ? { expiresAt: body.expiresAt } : undefined),
   };
-  // The generation was checked immediately above; no await can interleave
-  // between that check and this synchronous adoption.
-  restoreSession(session);
+  // The generation was checked before the request; check it again before the
+  // synchronous adoption so a sign-out during the exchange cannot be undone.
+  if (federationSessionGeneration() !== generation)
+    throw new FederationError(
+      "sign_in_cancelled",
+      "That sign-in was ended by a sign-out. Start again.",
+    );
+  restoreSession(session, sessionEpoch);
   return session;
 }
 

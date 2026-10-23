@@ -18,6 +18,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { decodeJwt } from "jose";
+import { normalizeIssuer } from "../interactions/issuer-normalization.js";
 import { resolveTrustedIssuer } from "../interactions/trust.js";
 import { cookieAuthAllowed, requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
@@ -45,6 +46,8 @@ const PROVISIONAL_MINT_WINDOW_MS = 60_000;
 const PROVISIONAL_MINT_PER_CLIENT = 10;
 const PROVISIONAL_MINT_GLOBAL = 120;
 const PROVISIONAL_MINT_KEYS = 2048;
+const PROVISIONAL_MINT_GLOBAL_KEY = "__global__";
+const PROVISIONAL_MINT_CLIENT_PREFIX = "client:";
 
 export function consumeProvisionalMintBudget(
   map: Map<string, number[]>,
@@ -56,8 +59,9 @@ export function consumeProvisionalMintBudget(
     if (live.length === 0) map.delete(key);
     else if (live.length !== values.length) map.set(key, live);
   }
-  const global = map.get("__global__") ?? [];
-  const client = map.get(fingerprint) ?? [];
+  const clientKey = `${PROVISIONAL_MINT_CLIENT_PREFIX}${fingerprint}`;
+  const global = map.get(PROVISIONAL_MINT_GLOBAL_KEY) ?? [];
+  const client = map.get(clientKey) ?? [];
   if (
     global.length >= PROVISIONAL_MINT_GLOBAL ||
     client.length >= PROVISIONAL_MINT_PER_CLIENT
@@ -66,14 +70,40 @@ export function consumeProvisionalMintBudget(
   }
   global.push(now);
   client.push(now);
-  map.set("__global__", global);
-  map.set(fingerprint, client);
+  map.set(PROVISIONAL_MINT_GLOBAL_KEY, global);
+  map.set(clientKey, client);
   while (map.size > PROVISIONAL_MINT_KEYS) {
-    const victim = [...map.keys()].find((key) => key !== "__global__");
+    // The global ceiling is never the victim: evicting it would reset the one
+    // budget a caller cannot rotate their fingerprint to escape.
+    const victim = [...map.keys()].find(
+      (key) => key !== PROVISIONAL_MINT_GLOBAL_KEY,
+    );
     if (victim === undefined) break;
     map.delete(victim);
   }
   return true;
+}
+
+/**
+ * The mint budget's client key. The connection address is server-observed;
+ * the user agent is only a fallback for in-process tests and for a listener
+ * that cannot expose a peer address.
+ */
+function provisionalMintFingerprint(
+  c: Context<{ Variables: Variables }>,
+): string {
+  const env = c.env as
+    | { incoming?: { socket?: { remoteAddress?: string } } }
+    | undefined;
+  const address = env?.incoming?.socket?.remoteAddress;
+  return createHash("sha256")
+    .update(address ?? "")
+    .update("|")
+    .update(c.req.header("user-agent") ?? "")
+    .update("|")
+    .update(c.req.header("origin") ?? "")
+    .digest("hex")
+    .slice(0, 16);
 }
 
 principalRoutes.post(
@@ -111,12 +141,7 @@ principalRoutes.post(
           );
         }
 
-        const fingerprint = createHash("sha256")
-          .update(c.req.header("user-agent") ?? "")
-          .update("|")
-          .update(c.req.header("origin") ?? "")
-          .digest("hex")
-          .slice(0, 16);
+        const fingerprint = provisionalMintFingerprint(c);
         if (
           !consumeProvisionalMintBudget(
             ctx.stores.provisionalMints,
@@ -531,7 +556,7 @@ principalRoutes.post(
 );
 
 function issuerKey(issuer: string): string {
-  return issuer.trim().replace(/\/+$/, "");
+  return normalizeIssuer(issuer);
 }
 
 /**
@@ -568,7 +593,7 @@ async function linkFromVerifiedIdToken(
   try {
     verified = await verifyOrgIdToken(idToken, issuer, {
       expectedAudiences: originAudiences(ctx.config),
-      blockPrivateIssuerHosts: !ctx.config.allowDevDefaults,
+      blockPrivateIssuerHosts: ctx.config.isProduction,
     });
   } catch (error) {
     if (error instanceof OrgAssertionError) {

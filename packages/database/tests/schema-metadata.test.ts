@@ -325,6 +325,11 @@ describe("schema metadata contract", () => {
     expect(uniqueNames(schema.organizationMemberships)).toContain(
       "organization_memberships_org_principal_uidx",
     );
+    // A sealed upstream token is bound to provider+account; that pair must
+    // name exactly one row.
+    expect(uniqueNames(schema.betterAuthAccounts)).toContain(
+      "better_auth_accounts_provider_account_uidx",
+    );
   });
 
   it("leaves external_identities.email_normalized non-unique (T32)", () => {

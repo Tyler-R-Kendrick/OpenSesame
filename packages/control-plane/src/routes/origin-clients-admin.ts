@@ -84,11 +84,9 @@ async function applyTransition(
       409,
     );
   }
-  const now = ctx.clock();
   const updated = await ctx.stores.oauthClients.update({
     ...client,
     state: target,
-    updatedAt: now,
   });
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType:

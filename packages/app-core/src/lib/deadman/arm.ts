@@ -29,6 +29,7 @@ import {
   type DeadmanConfig,
   type DeadmanState,
   type DeadmanStatus,
+  deadmanKeyMatchesState,
   deadmanSeams,
   deleteDeadmanConfig,
   deleteDeadmanLocal,
@@ -184,13 +185,39 @@ export async function prepareDeadmanSwitch(
  * package and the public record. A failed write tells the relay to disarm so a
  * half-armed switch cannot fire for a package this device does not have.
  */
-export async function commitDeadmanSwitch(
+const deadmanOperations = new Map<string, Promise<unknown>>();
+
+/** One arm/disarm at a time per vault: check-then-write must not interleave. */
+function serialize<T>(tomb: string, run: () => Promise<T>): Promise<T> {
+  const previous = deadmanOperations.get(tomb) ?? Promise.resolve();
+  const next = previous.then(run, run);
+  deadmanOperations.set(
+    tomb,
+    next.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return next;
+}
+
+export function commitDeadmanSwitch(plan: DeadmanPlan): Promise<DeadmanState> {
+  return serialize(plan.tomb, () => commitDeadmanSwitchNow(plan));
+}
+
+async function commitDeadmanSwitchNow(
   plan: DeadmanPlan,
 ): Promise<DeadmanState> {
   if (readDeadmanState(plan.tomb))
     throw new Error("Turn off the current deadman switch before replacing it.");
   if (!(await verifyDeadmanState(plan.state)))
     throw new Error("The deadman record did not verify before arming.");
+  if (
+    !(await deadmanKeyMatchesState(plan.privateKeyJwk, plan.state.publicKeyJwk))
+  )
+    throw new Error(
+      "The deadman state key does not match the armed private key.",
+    );
   const packageValue = readDeadmanPackage(plan.tomb);
   if (packageValue)
     throw new Error("A deadman package is already stored for this vault.");
@@ -231,14 +258,22 @@ export async function commitDeadmanSwitch(
  * Disarm only after the relay accepts the signed disarm. Otherwise a local
  * "off" would leave the relay still counting down and still able to notify.
  */
-export async function disarmDeadmanSwitch(tomb: string): Promise<void> {
+export function disarmDeadmanSwitch(tomb: string): Promise<void> {
+  return serialize(tomb, () => disarmDeadmanSwitchNow(tomb));
+}
+
+async function disarmDeadmanSwitchNow(tomb: string): Promise<void> {
   const state = readDeadmanState(tomb);
   if (!state) return;
   if (!(await verifyDeadmanState(state)))
     throw new Error("The deadman record did not verify.");
   const config = await readDeadmanConfig(tomb);
-  if (!config || config.id !== state.id)
-    throw new Error("The deadman private record is missing.");
+  if (
+    !config ||
+    config.id !== state.id ||
+    !(await deadmanKeyMatchesState(config.privateKeyJwk, state.publicKeyJwk))
+  )
+    throw new Error("The deadman private record is missing or does not match.");
   await sendDisarm(
     { relayUrl: state.relayUrl, relayToken: config.relayToken },
     await disarmFor(state, config.privateKeyJwk),

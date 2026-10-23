@@ -173,6 +173,13 @@ export function watchDirtyForms(root: ParentNode = document): () => void {
     doc.removeEventListener("reset", onReset, true);
     doc.removeEventListener("os-edit-committed", onCommit);
     observer.disconnect();
+    // The watcher owns every hold it created. Stopping it without releasing
+    // them leaves a dirty latch behind that no editor can ever clear.
+    for (const [form, release] of releases) {
+      forget(form);
+      release();
+    }
+    releases.clear();
   };
 }
 

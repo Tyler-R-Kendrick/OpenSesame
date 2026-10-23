@@ -1,4 +1,7 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { configuredEndpoint, overlapCast } from "@opensesame/os-domain";
 import {
   DeviceFlowClient,
@@ -56,11 +59,87 @@ interface DispatchContext {
   deps: RunDependencies | undefined;
 }
 
-function publicKeyJktPlaceholder(): string {
-  return createHash("sha256")
-    .update(randomBytes(32))
-    .digest("base64url")
-    .slice(0, 43);
+/**
+ * The agent's public-key thumbprint is an identity, not a random label. Keep
+ * the private half in the CLI state directory so the same agent can prove
+ * possession when a person claims it, and reuse it across `agent init` runs.
+ */
+async function agentPublicKeyThumbprint(): Promise<string> {
+  const base =
+    process.env.OPENSESAME_STATE_DIR ??
+    process.env.XDG_RUNTIME_DIR ??
+    join(homedir(), ".config", "opensesame");
+  const path = join(base, "agent-identity.json");
+  const thumbprint = (jwk: JsonWebKey): string =>
+    createHash("sha256")
+      .update(
+        JSON.stringify({
+          crv: jwk.crv,
+          kty: jwk.kty,
+          x: jwk.x,
+          y: jwk.y,
+        }),
+      )
+      .digest("base64url");
+
+  try {
+    const raw = JSON.parse(await readFile(path, "utf8")) as {
+      privateJwk?: JsonWebKey;
+      publicJwk?: JsonWebKey;
+    };
+    const privateJwk = raw.privateJwk;
+    const publicJwk = raw.publicJwk;
+    if (
+      !privateJwk ||
+      !publicJwk ||
+      privateJwk.d === undefined ||
+      publicJwk.kty !== "EC" ||
+      publicJwk.crv !== "P-256" ||
+      !publicJwk.x ||
+      !publicJwk.y
+    )
+      throw new Error("Agent identity file is invalid.");
+    return thumbprint(publicJwk);
+  } catch (error) {
+    if (
+      !(
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "ENOENT"
+      )
+    ) {
+      throw error;
+    }
+  }
+
+  const pair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+  const [publicJwk, privateJwk] = await Promise.all([
+    crypto.subtle.exportKey("jwk", pair.publicKey),
+    crypto.subtle.exportKey("jwk", pair.privateKey),
+  ]);
+  await mkdir(base, { recursive: true, mode: 0o700 });
+  try {
+    await writeFile(path, JSON.stringify({ v: 1, publicJwk, privateJwk }), {
+      mode: 0o600,
+      flag: "wx",
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "EEXIST"
+    ) {
+      return agentPublicKeyThumbprint();
+    }
+    throw error;
+  }
+  return thumbprint(publicJwk);
 }
 
 export async function runCli(
@@ -250,8 +329,15 @@ async function dispatch(
     }
 
     case "logout": {
-      // The local file goes either way; only a session minted here can be revoked.
-      const session = await sessionFor(await loadSession(), issuer, fetchImpl);
+      // Revoke the credential that is actually on disk. A refresh is not
+      // needed to log out, and a failed/expired refresh must not silently
+      // skip revocation and leave a live server session behind.
+      const stored = await loadSession();
+      const session =
+        stored &&
+        stored.issuer.replace(/\/+$/u, "") === issuer.replace(/\/+$/u, "")
+          ? stored
+          : null;
       if (session) {
         const cp = createControlPlaneClient({
           baseUrl: api,
@@ -331,7 +417,7 @@ async function dispatch(
       const cp = createControlPlaneClient({ baseUrl: api, fetchImpl });
       const agent = await cp.registerAnonymousAgent({
         displayName: command.displayName,
-        publicKeyJkt: publicKeyJktPlaceholder(),
+        publicKeyJkt: await agentPublicKeyThumbprint(),
       });
       emit(
         command.flags,
