@@ -219,11 +219,7 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   return asVerifiedPrincipal(c, refusal("modify"), async ({ actor, proof }) => {
-    const client = await loadOwnedClient(ctx, principalId, c.req.param("id"));
-    if (!client) {
-      return c.json({ error: "not_found" }, 404);
-    }
-
+    const id = c.req.param("id");
     const parsed = PatchOAuthClientRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
       return c.json(
@@ -231,61 +227,92 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
         400,
       );
     }
+    // The operator's suspend path takes this same lock. Re-reading and
+    // writing under it means a concurrent suspension is either visible to
+    // this patch (and refuses `active`) or lands after it.
+    return serializeKeyed(
+      ctx.stores.principalMutations,
+      `origin-client:${id}`,
+      async () => {
+        const client = await loadOwnedClient(ctx, principalId, id);
+        if (!client) {
+          return c.json({ error: "not_found" }, 404);
+        }
 
-    const now = ctx.clock();
-    const next: OAuthClientRecord = {
-      ...client,
-      updatedAt: now,
-    };
-    if (parsed.data.displayName !== undefined) {
-      next.displayName = parsed.data.displayName;
-    }
-    if (parsed.data.redirectUris !== undefined) {
-      next.redirectUris = parsed.data.redirectUris;
-    }
-    if (parsed.data.allowedScopes !== undefined) {
-      next.allowedScopes = parsed.data.allowedScopes;
-    }
-    if (parsed.data.allowedResources !== undefined) {
-      next.allowedResources = parsed.data.allowedResources;
-    }
-    if (parsed.data.grantTypes !== undefined) {
-      next.grantTypes = parsed.data.grantTypes;
-    }
-    if (parsed.data.tokenEndpointAuthMethod !== undefined) {
-      next.tokenEndpointAuthMethod = parsed.data.tokenEndpointAuthMethod;
-    }
-    if (parsed.data.state !== undefined) {
-      next.state = parsed.data.state;
-    }
-    if (parsed.data.jwks !== undefined) {
-      next.jwks = parsed.data.jwks;
-    }
-    const publicCc = confidentialClientCredentialsError(next);
-    if (publicCc) {
-      return c.json({ error: "invalid_client_auth", message: publicCc }, 400);
-    }
-    if (parsed.data.redirectUris !== undefined) {
-      const unproven = await sectorControlRefusal(
-        ctx,
-        next.sectorIdentifier,
-        next.redirectUris,
-        parsed.data.sectorIdentifierUri,
-      );
-      if (unproven) return unproven;
-    }
-    await replaceOAuthClient(ctx, actor, proof, toStoreRecord(next));
+        const stored = await ctx.stores.oauthClients.findById(client.id);
+        if (!stored) return c.json({ error: "not_found" }, 404);
+        if (stored.state === "suspended" && parsed.data.state === "active") {
+          return c.json(
+            {
+              error: "operator_suspended",
+              message:
+                "An operator suspension cannot be cleared by the client owner.",
+            },
+            403,
+          );
+        }
+        const next: OAuthClientRecord = {
+          ...client,
+        };
+        if (parsed.data.displayName !== undefined) {
+          next.displayName = parsed.data.displayName;
+        }
+        if (parsed.data.redirectUris !== undefined) {
+          next.redirectUris = parsed.data.redirectUris;
+        }
+        if (parsed.data.allowedScopes !== undefined) {
+          next.allowedScopes = parsed.data.allowedScopes;
+        }
+        if (parsed.data.allowedResources !== undefined) {
+          next.allowedResources = parsed.data.allowedResources;
+        }
+        if (parsed.data.grantTypes !== undefined) {
+          next.grantTypes = parsed.data.grantTypes;
+        }
+        if (parsed.data.tokenEndpointAuthMethod !== undefined) {
+          next.tokenEndpointAuthMethod = parsed.data.tokenEndpointAuthMethod;
+        }
+        // Omitted state means "leave it as stored": a stale domain projection
+        // must not resurrect a row an operator suspended.
+        next.state =
+          parsed.data.state === undefined ? stored.state : parsed.data.state;
+        if (parsed.data.jwks !== undefined) {
+          next.jwks = parsed.data.jwks;
+        }
+        const publicCc = confidentialClientCredentialsError(next);
+        if (publicCc) {
+          return c.json(
+            { error: "invalid_client_auth", message: publicCc },
+            400,
+          );
+        }
+        if (parsed.data.redirectUris !== undefined) {
+          const unproven = await sectorControlRefusal(
+            ctx,
+            next.sectorIdentifier,
+            next.redirectUris,
+            parsed.data.sectorIdentifierUri,
+          );
+          if (unproven) return unproven;
+        }
+        // The service merges the owner projection into the stored row, so
+        // registration-owned fields (origin, admission mode, claim state and
+        // the pairwise sector) survive a patch even though they are not in
+        // the projection this route edits.
+        await replaceOAuthClient(ctx, actor, proof, toStoreRecord(next));
 
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "oauth_client.updated",
-      outcome: "succeeded",
-      principalId,
-      clientId: next.id,
-      correlationId: c.get("correlationId"),
-      metadata: { action: "oauth_client.patch" },
-    });
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "oauth_client.updated",
+          outcome: "succeeded",
+          principalId,
+          clientId: next.id,
+          correlationId: c.get("correlationId"),
+          metadata: { action: "oauth_client.patch" },
+        });
 
-    return c.json(toResponse(next));
+        return c.json(toResponse(next));
+      },
+    );
   });
 });
 
@@ -294,8 +321,33 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   return asVerifiedPrincipal(c, refusal("rotate"), async ({ actor, proof }) => {
     const client = await loadOwnedClient(ctx, principalId, c.req.param("id"));
-    if (!client) {
+    const stored = client
+      ? await ctx.stores.oauthClients.findById(client.id)
+      : undefined;
+    if (!client || !stored) {
       return c.json({ error: "not_found" }, 404);
+    }
+    if (stored.admissionMode === "origin_profile") {
+      // An origin-profile client is bound to its canonical origin. A rotated
+      // `cli_` row would hit the origin uniqueness rule and leave the original
+      // revoked with no usable successor, so rotation is not offered.
+      return c.json(
+        {
+          error: "rotation_not_supported",
+          message:
+            "Origin-profile clients cannot be rotated; register a new client.",
+        },
+        409,
+      );
+    }
+    if (stored.state !== "active") {
+      return c.json(
+        {
+          error: "client_not_active",
+          message: "Only an active client can be rotated.",
+        },
+        409,
+      );
     }
     const refused = await rotationRefusal(
       ctx,
@@ -305,8 +357,8 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     );
     if (refused) return refused;
     const now = ctx.clock();
-    const rotated: OAuthClientRecord = {
-      ...client,
+    const rotated = {
+      ...stored,
       id: `cli_${randomUUID()}`,
       createdAt: now,
       updatedAt: now,
@@ -315,22 +367,16 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     // the claim refuses changes nothing. `successorOf` re-decides the pre-check
     // under the claim lock: a release that lands in between refuses it.
     try {
-      await insertOAuthClient(ctx, actor, proof, toStoreRecord(rotated), {
+      await insertOAuthClient(ctx, actor, proof, rotated, {
         successorOf: client.id,
       });
     } catch (err) {
       return sectorTakenOrThrow(overlapCast(err));
     }
-    await replaceOAuthClient(
-      ctx,
-      actor,
-      proof,
-      toStoreRecord({
-        ...client,
-        state: "revoked",
-        updatedAt: now,
-      }),
-    );
+    await replaceOAuthClient(ctx, actor, proof, {
+      ...stored,
+      state: "revoked",
+    });
 
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "oauth_client.rotated",
@@ -344,7 +390,7 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
       },
     });
 
-    return c.json(toResponse(rotated), 201);
+    return c.json(toResponse(toDomain(rotated)), 201);
   });
 });
 
@@ -355,16 +401,14 @@ oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
     const client = await loadOwnedClient(ctx, principalId, c.req.param("id"), {
       includeRevoked: true,
     });
-    if (!client) {
+    const stored = client
+      ? await ctx.stores.oauthClients.findById(client.id)
+      : undefined;
+    if (!client || !stored) {
       return c.json({ error: "not_found" }, 404);
     }
-    const now = ctx.clock();
-    const revoked: OAuthClientRecord = {
-      ...client,
-      state: "revoked",
-      updatedAt: now,
-    };
-    await replaceOAuthClient(ctx, actor, proof, toStoreRecord(revoked));
+    const revoked = { ...stored, state: "revoked" as const };
+    await replaceOAuthClient(ctx, actor, proof, revoked);
 
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "oauth_client.revoked",
@@ -375,6 +419,6 @@ oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
       metadata: { action: "oauth_client.revoke" },
     });
 
-    return c.json(toResponse(revoked));
+    return c.json(toResponse(toDomain(revoked)));
   });
 });

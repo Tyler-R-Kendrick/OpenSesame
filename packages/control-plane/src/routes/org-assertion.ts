@@ -9,6 +9,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import {
+  type RemoteJWKSet,
   createRemoteJWKSet,
   customFetch,
   decodeProtectedHeader,
@@ -112,6 +113,46 @@ async function safeIssuerFetch(
   }
 }
 
+/**
+ * Discovery and JWKS results are cached per issuer. The tenant-join route is
+ * reachable with a provisional principal, and a tenant can point its issuer at
+ * a slow host; without a cache every join is two outbound requests. TTLs are
+ * short enough that key rotation is still picked up.
+ */
+const DISCOVERY_CACHE_TTL_MS = 10 * 60_000;
+const DISCOVERY_CACHE_MAX = 256;
+const discoveryCache = new Map<
+  string,
+  { jwksUri: string; expiresAt: number }
+>();
+const jwksCache = new Map<string, RemoteJWKSet>();
+
+/** Test hook: a fresh reference IdP must not reuse a prior issuer's cache. */
+export function resetOrgAssertionCaches(): void {
+  discoveryCache.clear();
+  jwksCache.clear();
+}
+
+async function discoverJwksUriCached(
+  issuer: string,
+  blockPrivateHosts: boolean,
+): Promise<string> {
+  const key = `${blockPrivateHosts ? "pinned" : "dev"}:${issuerOrigin(issuer)}`;
+  const cached = discoveryCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.jwksUri;
+  const jwksUri = await discoverJwksUriDefault(issuer, blockPrivateHosts);
+  discoveryCache.set(key, {
+    jwksUri,
+    expiresAt: Date.now() + DISCOVERY_CACHE_TTL_MS,
+  });
+  while (discoveryCache.size > DISCOVERY_CACHE_MAX) {
+    const oldest = discoveryCache.keys().next().value;
+    if (oldest === undefined) break;
+    discoveryCache.delete(oldest);
+  }
+  return jwksUri;
+}
+
 async function discoverJwksUriDefault(
   issuer: string,
   blockPrivateHosts = false,
@@ -212,31 +253,41 @@ async function verifyOrgIdTokenDefault(
   );
   const jwksUrl = assertSafeIssuerUrl(jwksUri, blockPrivateHosts);
   const audiences = options.expectedAudiences?.filter(Boolean) ?? [];
+  const cacheKey = `${blockPrivateHosts ? "pinned" : "dev"}:${jwksUrl.href}`;
+  let keySet = jwksCache.get(cacheKey);
+  if (!keySet) {
+    keySet = createRemoteJWKSet(jwksUrl, {
+      // The key set is fetched through the same guard as discovery, and a
+      // redirect off it is refused rather than followed.
+      [customFetch]: (url, init) => {
+        const guarded: GuardedFetchInit = {
+          headers: init.headers,
+          signal: init.signal,
+        };
+        return safeIssuerFetch(url, blockPrivateHosts, guarded);
+      },
+    });
+    jwksCache.set(cacheKey, keySet);
+    while (jwksCache.size > DISCOVERY_CACHE_MAX) {
+      const oldest = jwksCache.keys().next().value;
+      if (oldest === undefined) break;
+      jwksCache.delete(oldest);
+    }
+  }
   let payload: JsonObject;
   try {
-    const verified = await jwtVerify(
-      idToken,
-      createRemoteJWKSet(jwksUrl, {
-        // The key set is fetched through the same guard as discovery, and a
-        // redirect off it is refused rather than followed.
-        [customFetch]: (url, init) => {
-          const guarded: GuardedFetchInit = {
-            headers: init.headers,
-            signal: init.signal,
-          };
-          return safeIssuerFetch(url, blockPrivateHosts, guarded);
-        },
-      }),
-      {
-        issuer: issuerOrigin(issuer),
-        algorithms: [...ALLOWED_ALGS],
-        clockTolerance: 5,
-        ...(audiences.length > 0 ? { audience: audiences } : undefined),
-        ...(options.maxTokenAgeSec !== undefined
-          ? { maxTokenAge: options.maxTokenAgeSec }
-          : undefined),
-      },
-    );
+    const verified = await jwtVerify(idToken, keySet, {
+      // OIDC issuer identifiers compare exactly, including a trailing slash.
+      // Discovery strips it for URL construction; the `iss` check must not,
+      // or a valid token from the spelling the caller configured is refused.
+      issuer,
+      algorithms: [...ALLOWED_ALGS],
+      clockTolerance: 5,
+      ...(audiences.length > 0 ? { audience: audiences } : undefined),
+      ...(options.maxTokenAgeSec !== undefined
+        ? { maxTokenAge: options.maxTokenAgeSec }
+        : undefined),
+    });
     payload = overlapCast(verified.payload);
   } catch (error) {
     if (error instanceof OrgAssertionError) throw error;
@@ -262,7 +313,7 @@ async function verifyOrgIdTokenDefault(
 }
 
 export const orgAssertionSeams = {
-  discoverJwksUri: discoverJwksUriDefault,
+  discoverJwksUri: discoverJwksUriCached,
   verifyOrgIdToken: verifyOrgIdTokenDefault,
 };
 

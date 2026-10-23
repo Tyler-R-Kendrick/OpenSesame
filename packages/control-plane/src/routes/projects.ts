@@ -15,6 +15,7 @@ import {
   type Project,
   type ProjectMembership,
   type ProjectRole,
+  isJsonObject,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -484,6 +485,19 @@ projectRoutes.post(
     const slug =
       parsed.data.slug ??
       (derivedSlug.length > 0 ? derivedSlug : `temp-${projectId.slice(4, 12)}`);
+    // The personal project's slug is reserved for the one personal project
+    // every principal owns. A temporary project must not impersonate it in a
+    // picker or a URL.
+    if (slug === PERSONAL_PROJECT_SLUG) {
+      return c.json(
+        {
+          error: "validation_error",
+          message:
+            "Use POST /v1/projects/personal/ensure for the personal project",
+        },
+        400,
+      );
+    }
     const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
     const project: Project = {
       id: projectId,
@@ -591,18 +605,22 @@ function applyProjectPatch(
 projectRoutes.patch("/:id", requirePrincipal(), (c) =>
   asProjectMember(
     c,
-    // PATCH has never taken the per-project lock, unlike DELETE. A stale
-    // `{...project}` write can therefore race a DELETE; recorded in ADR 0178
-    // rather than changed here, so this refactor alters no behavior.
-    { serialize: false },
+    // PATCH is a read-modify-write of the whole row. Without the per-project
+    // lock a stale `{...project}` write can resurrect a concurrent DELETE or
+    // overwrite a concurrent PATCH.
+    { serialize: true },
     async ({ ctx, actor, project: named, access }) => {
       if (access.role === "member") {
         return c.json({ error: "admin_required" }, 403);
       }
       const { project, role } = access;
 
+      const body = await c.req.json().catch(() => undefined);
+      if (!isJsonObject(body)) {
+        return c.json({ error: "validation_error" }, 400);
+      }
       const next: Project = { ...project, updatedAt: ctx.clock() };
-      const invalid = applyProjectPatch(next, overlapCast(await c.req.json()));
+      const invalid = applyProjectPatch(next, body);
       if (invalid) {
         return c.json({ error: "validation_error", message: invalid }, 400);
       }

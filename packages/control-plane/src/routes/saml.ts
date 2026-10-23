@@ -93,6 +93,7 @@ export function createSamlRoutes(): Hono<{ Variables: Variables } & NodeEnv> {
       result: outcome.result,
       correlationId,
       userAgent: c.req.header("user-agent") ?? "",
+      remoteAddress: c.env?.incoming?.socket?.remoteAddress,
     });
     if (!admitted.ok) {
       if (admitted.status === 429) {

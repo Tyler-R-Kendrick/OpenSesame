@@ -18,6 +18,48 @@ import { authenticatedPrincipalId } from "./organizations.js";
 
 export const siopLinkRoutes = new Hono<{ Variables: Variables }>();
 
+/** Challenge minting is authenticated but still cheap to loop. */
+const CHALLENGE_WINDOW_MS = 10 * 60_000;
+const CHALLENGES_PER_PRINCIPAL = 10;
+const CHALLENGES_GLOBAL = 500;
+const CHALLENGE_MAX_KEYS = 2048;
+const CHALLENGE_GLOBAL_KEY = "__global__";
+const challengeBudget = new Map<string, number[]>();
+
+function consumeChallengeBudget(principalId: string, now: number): boolean {
+  for (const [key, times] of challengeBudget) {
+    const live = times.filter((at) => now - at < CHALLENGE_WINDOW_MS);
+    if (live.length === 0) challengeBudget.delete(key);
+    else if (live.length !== times.length) challengeBudget.set(key, live);
+  }
+  const global = challengeBudget.get(CHALLENGE_GLOBAL_KEY) ?? [];
+  const key = `principal:${principalId}`;
+  const mine = challengeBudget.get(key) ?? [];
+  if (
+    global.length >= CHALLENGES_GLOBAL ||
+    mine.length >= CHALLENGES_PER_PRINCIPAL
+  ) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  challengeBudget.set(CHALLENGE_GLOBAL_KEY, global);
+  challengeBudget.set(key, mine);
+  while (challengeBudget.size > CHALLENGE_MAX_KEYS) {
+    const victim = [...challengeBudget.keys()].find(
+      (candidate) => candidate !== CHALLENGE_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    challengeBudget.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook: the budget is process-global. */
+export function resetSiopChallengeBudget(): void {
+  challengeBudget.clear();
+}
+
 type SiopLinkErrorResponse = {
   error: string;
   code?: string;
@@ -39,6 +81,9 @@ siopLinkRoutes.post("/challenges", requirePrincipal(), async (c) => {
     ? body.expectedIssuer.trim()
     : undefined;
   const requireDynamicSiopMarker = body.requireDynamicSiopMarker === true;
+  if (!consumeChallengeBudget(principalId, ctx.clock().getTime())) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const challengeInput: CreateSiopLinkChallengeInput = {
     audience,
     requireDynamicSiopMarker,
@@ -50,9 +95,16 @@ siopLinkRoutes.post("/challenges", requirePrincipal(), async (c) => {
   try {
     challenge = await createSiopLinkChallenge(ctx, principalId, challengeInput);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "invalid challenge parameters";
-    return c.json({ error: "invalid_request", message }, 400);
+    // The thrown message can name a rejected parameter. Keep it in the log,
+    // where an operator can correlate it, and answer the caller uniformly.
+    ctx.log.warn(
+      { err: error, principalId },
+      "siop link challenge could not be created",
+    );
+    return c.json(
+      { error: "invalid_request", hint: "invalid challenge parameters" },
+      400,
+    );
   }
   return c.json(
     {

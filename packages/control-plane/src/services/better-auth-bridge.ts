@@ -391,6 +391,13 @@ export async function principalForBetterAuthSubject(
   // address to a principal that already owned it through another leg, and the
   // principal minted a moment ago is then not the account signing in.
   const principalId = attached.identity.principalId;
+  const attachedPrincipal = await ctx.repos.principals.getById(principalId);
+  if (!attachedPrincipal || attachedPrincipal.state !== "active") {
+    throw new BetterAuthBridgeError(
+      "principal_unavailable",
+      "This account is not able to sign in.",
+    );
+  }
 
   await ctx.repos.betterAuthSubjects.link({
     betterAuthUserId: subject.id,

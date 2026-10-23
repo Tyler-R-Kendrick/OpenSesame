@@ -15,6 +15,7 @@
  */
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { deriveSubjectRef } from "@opensesame/openid4vci";
 import {
   type CourierDelivery,
   InMemoryRequestSessionStore,
@@ -51,6 +52,8 @@ export interface Openid4vpPendingPresentation {
   readonly principalId: string;
   readonly protocolDigest: string;
   readonly approvalBindingDigest: string;
+  /** The response mode the request actually asked for. */
+  readonly responseMode: "direct_post" | "dc_api";
   /**
    * Binding validity. Named so DurableMap does not treat it as row TTL —
    * otherwise an expired binding vanishes and surfaces as presentation_unknown
@@ -63,6 +66,16 @@ export interface Openid4vpRouteOptions {
   readonly publicUrl: string;
   readonly clock: () => Date;
   readonly vct: string;
+  /**
+   * The credential issuer and pairwise pepper this deployment uses for
+   * OpenSesame VCs. When present, a presentation only satisfies an approval
+   * when its `sub` claim is the pairwise subject of the authenticated
+   * approver. Without them there is no way to bind the credential to the
+   * approver, so completion refuses rather than treating any trusted issuer's
+   * credential as the approver's own.
+   */
+  readonly credentialIssuer?: string;
+  readonly subjectPepper?: string | Uint8Array;
   readonly trustedIssuers?: readonly TrustedIssuer[];
   /** Protocol request sessions (`state` → AuthorizationRequest). */
   readonly sessionStore?: RequestSessionStore;
@@ -97,6 +110,15 @@ async function pendingDelete(
   else store.delete(state);
 }
 
+/** Delete a row discovered through `entries()`, whose key is already stored. */
+async function pendingDeleteEntry(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+  storedKey: string,
+): Promise<void> {
+  if (store instanceof DurableMap) await store.deleteEntry(storedKey);
+  else store.delete(storedKey);
+}
+
 const BeginSchema = z.object({
   interactionId: z.string().min(8).max(128),
   requestDigest: z.string().min(16).max(256),
@@ -108,7 +130,7 @@ const CompleteSchema = z.object({
   responseMode: z.enum(["direct_post", "dc_api"]),
 });
 
-type FailStatus = 400 | 401 | 404 | 409;
+type FailStatus = 400 | 401 | 403 | 404 | 409;
 
 function fail(
   c: Context<{ Variables: Variables }>,
@@ -116,6 +138,73 @@ function fail(
   status: FailStatus = 400,
 ): Response {
   return c.json({ error }, status);
+}
+
+async function pendingEntries(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+): Promise<[string, Openid4vpPendingPresentation][]> {
+  if (store instanceof DurableMap) return store.entries();
+  return [...store.entries()];
+}
+
+const MAX_PENDING_PRESENTATIONS_PER_PRINCIPAL = 5;
+const MAX_PENDING_PRESENTATIONS_GLOBAL = 1_000;
+
+async function presentationCapacityAvailable(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+  principalId: string,
+  now: Date,
+): Promise<boolean> {
+  let mine = 0;
+  let total = 0;
+  for (const [state, entry] of await pendingEntries(store)) {
+    if (entry.bindingExpiresAt.getTime() <= now.getTime()) {
+      await pendingDeleteEntry(store, state);
+      continue;
+    }
+    total += 1;
+    if (entry.principalId === principalId) mine += 1;
+  }
+  return (
+    mine < MAX_PENDING_PRESENTATIONS_PER_PRINCIPAL &&
+    total < MAX_PENDING_PRESENTATIONS_GLOBAL
+  );
+}
+
+function interactionDeadlinePassed(row: Interaction, now: Date): boolean {
+  return row.status === "expired" || row.expiresAt.getTime() <= now.getTime();
+}
+
+/** A settled interaction must not mint another activated approval. */
+function interactionSettled(row: Interaction): boolean {
+  return (
+    row.status === "approved" ||
+    row.status === "denied" ||
+    row.status === "consumed" ||
+    row.status === "revoked"
+  );
+}
+
+/**
+ * The `sub` this deployment mints into an OpenSesame VC for a principal.
+ * `undefined` when the route was mounted without the issuance material, in
+ * which case completion refuses instead of accepting an unbound credential.
+ */
+function expectedApproverSubject(
+  options: Openid4vpRouteOptions,
+  principalId: string,
+): string | undefined {
+  if (
+    options.credentialIssuer === undefined ||
+    options.subjectPepper === undefined
+  ) {
+    return undefined;
+  }
+  return deriveSubjectRef({
+    id: principalId,
+    audience: options.credentialIssuer,
+    pepper: options.subjectPepper,
+  });
 }
 
 export function createOpenid4vpRoutes(
@@ -148,13 +237,22 @@ export function createOpenid4vpRoutes(
       parsed.data.interactionId,
       principalId,
     );
+    const now = options.clock();
     if (!row) return fail(c, "interaction_not_found", 404);
-    if (row.status === "expired") return fail(c, "interaction_expired", 409);
+    if (interactionDeadlinePassed(row, now)) {
+      return fail(c, "interaction_expired", 409);
+    }
+    if (interactionSettled(row)) {
+      return fail(c, "interaction_settled", 409);
+    }
     if (
       row.requestDigest === undefined ||
       !digestsEqual(row.requestDigest, parsed.data.requestDigest)
     ) {
       return fail(c, "digest_mismatch");
+    }
+    if (!(await presentationCapacityAvailable(pending, principalId, now))) {
+      return fail(c, "presentation_capacity", 409);
     }
 
     const base = options.publicUrl.replace(/\/$/, "");
@@ -174,6 +272,9 @@ export function createOpenid4vpRoutes(
             id: "opensesame",
             format: "dc+sd-jwt",
             vctValues: [options.vct],
+            // The approval is bound to the approver by this claim, so ask the
+            // wallet for it explicitly rather than hoping it is disclosed.
+            claims: [{ path: ["sub"] }],
           },
         ],
       },
@@ -188,6 +289,7 @@ export function createOpenid4vpRoutes(
       principalId,
       protocolDigest: begun.digests.protocol,
       approvalBindingDigest: begun.digests.approval,
+      responseMode,
       bindingExpiresAt: begun.request.expiresAt,
     });
 
@@ -223,6 +325,9 @@ export function createOpenid4vpRoutes(
       await pendingDelete(pending, parsed.data.state);
       return fail(c, "presentation_expired", 409);
     }
+    if (attempt.responseMode !== parsed.data.responseMode) {
+      return fail(c, "response_mode_mismatch", 409);
+    }
 
     const row = await loadApproverInteraction(
       ctx,
@@ -230,12 +335,24 @@ export function createOpenid4vpRoutes(
       principalId,
     );
     if (!row?.requestDigest) return fail(c, "interaction_not_found", 404);
+    if (interactionDeadlinePassed(row, options.clock())) {
+      await pendingDelete(pending, parsed.data.state);
+      return fail(c, "interaction_expired", 409);
+    }
+    if (interactionSettled(row)) {
+      await pendingDelete(pending, parsed.data.state);
+      return fail(c, "interaction_settled", 409);
+    }
 
     let verified: VerifiedPresentation;
     try {
       const delivery: CourierDelivery = {
         responseMode: parsed.data.responseMode,
         body: asCourierBody(bodyValue),
+        // DC API responses carry no state in the body; the pending binding is
+        // the session that supplied it, and the verifier must check that same
+        // state rather than reading it off the wallet's message.
+        state: parsed.data.state,
       };
       verified = await finishPresentation(verifierConfig, {
         delivery,
@@ -253,6 +370,21 @@ export function createOpenid4vpRoutes(
     }
     if (!digestsEqual(verified.boundDigest, row.requestDigest)) {
       return fail(c, "digest_mismatch");
+    }
+
+    // A trusted-issuer credential is not the approver's credential unless the
+    // issuer-asserted subject is the one this deployment minted for this
+    // principal. Otherwise a hijacked approver session plus any VC from a
+    // trusted issuer would satisfy a phishing-resistant requirement.
+    const expectedSubject = expectedApproverSubject(options, principalId);
+    const presentedSubject = verified.claims.sub;
+    if (
+      expectedSubject === undefined ||
+      verified.assurance.issuer !== options.credentialIssuer ||
+      !isString(presentedSubject) ||
+      !digestsEqual(presentedSubject, expectedSubject)
+    ) {
+      return fail(c, "approver_credential_mismatch", 403);
     }
 
     const activation = await activateFromPresentation({

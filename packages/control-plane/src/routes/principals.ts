@@ -18,6 +18,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { decodeJwt } from "jose";
+import { normalizeIssuer } from "../interactions/issuer-normalization.js";
 import { resolveTrustedIssuer } from "../interactions/trust.js";
 import { cookieAuthAllowed, requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
@@ -27,7 +28,11 @@ import { serializeKeyed } from "../serialize.js";
 import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { authorizeMappingResolve } from "../transport/mapping-auth.js";
-import { OrgAssertionError, verifyOrgIdToken } from "./org-assertion.js";
+import {
+  OrgAssertionError,
+  originAudiences,
+  verifyOrgIdToken,
+} from "./org-assertion.js";
 import {
   authenticatedPrincipalId,
   ensurePersonalOrganization,
@@ -37,39 +42,89 @@ import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
 export const principalRoutes = new Hono<{ Variables: Variables }>();
 
 export const MAX_PROVISIONAL = 1024;
+/** Public anonymous mints are capped so interactive sign-in always has room. */
+const PUBLIC_PROVISIONAL_MAX = 256;
 const PROVISIONAL_MINT_WINDOW_MS = 60_000;
 const PROVISIONAL_MINT_PER_CLIENT = 10;
 const PROVISIONAL_MINT_GLOBAL = 120;
-const PROVISIONAL_MINT_KEYS = 2048;
+const PROVISIONAL_MINT_KEYS = 2_048;
+const PROVISIONAL_MINT_CLIENT_PREFIX = "client:";
 
+export type ProvisionalMintScope = "public" | "interaction";
+
+/**
+ * Charge one mint against a scope. Public minting and interactive sign-in keep
+ * separate global ceilings: exhausting the unauthenticated public route must
+ * not lock every user out of SAML/OIDC/LDAP/email sign-in.
+ */
 export function consumeProvisionalMintBudget(
   map: Map<string, number[]>,
   fingerprint: string,
   now: number,
+  scope: ProvisionalMintScope = "public",
+  perClientLimit = PROVISIONAL_MINT_PER_CLIENT,
 ): boolean {
   for (const [key, values] of map) {
     const live = values.filter((at) => now - at < PROVISIONAL_MINT_WINDOW_MS);
     if (live.length === 0) map.delete(key);
     else if (live.length !== values.length) map.set(key, live);
   }
-  const global = map.get("__global__") ?? [];
-  const client = map.get(fingerprint) ?? [];
+  const globalKey = `__global__:${scope}`;
+  const clientKey = `${PROVISIONAL_MINT_CLIENT_PREFIX}${scope}:${fingerprint}`;
+  const global = map.get(globalKey) ?? [];
+  const client = map.get(clientKey) ?? [];
   if (
     global.length >= PROVISIONAL_MINT_GLOBAL ||
-    client.length >= PROVISIONAL_MINT_PER_CLIENT
+    client.length >= perClientLimit
   ) {
     return false;
   }
   global.push(now);
   client.push(now);
-  map.set("__global__", global);
-  map.set(fingerprint, client);
+  map.set(globalKey, global);
+  map.set(clientKey, client);
   while (map.size > PROVISIONAL_MINT_KEYS) {
-    const victim = [...map.keys()].find((key) => key !== "__global__");
+    // Global ceilings are never the victim: evicting one would reset the one
+    // budget a caller cannot rotate their fingerprint to escape.
+    const victim = [...map.keys()].find((key) => !key.startsWith("__global__"));
     if (victim === undefined) break;
     map.delete(victim);
   }
   return true;
+}
+
+/**
+ * The mint budget's client key. The connection address is server-observed. A
+ * caller cannot rotate User-Agent or Origin to get another bucket while a peer
+ * address is available; those headers are a fallback for in-process tests only.
+ */
+function provisionalMintFingerprint(
+  c: Context<{ Variables: Variables }>,
+): string {
+  const env = c.env as
+    | { incoming?: { socket?: { remoteAddress?: string } } }
+    | undefined;
+  const address = env?.incoming?.socket?.remoteAddress;
+  return createHash("sha256")
+    .update(address ?? "")
+    .update("|")
+    .update(address ? "" : (c.req.header("user-agent") ?? ""))
+    .digest("hex")
+    .slice(0, 16);
+}
+
+/**
+ * A shared peer address (NAT, office, test runner) is one bucket, so allow a
+ * larger ceiling than the old spoofable-header bucket. The 60/minute cap still
+ * bounds one host, while the global public ceiling stays at 120/minute.
+ */
+function provisionalMintPerClient(
+  c: Context<{ Variables: Variables }>,
+): number {
+  const env = c.env as
+    | { incoming?: { socket?: { remoteAddress?: string } } }
+    | undefined;
+  return env?.incoming?.socket?.remoteAddress ? 60 : 10;
 }
 
 principalRoutes.post(
@@ -97,7 +152,9 @@ principalRoutes.post(
             await ctx.mappings.deleteProvisional(session.principalId);
         }
         await removeOrphanTokens(ctx.stores);
-        if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL) {
+        if (
+          (await ctx.stores.provisionalSessions.size) >= PUBLIC_PROVISIONAL_MAX
+        ) {
           return c.json(
             {
               error: "provisional_capacity",
@@ -107,17 +164,14 @@ principalRoutes.post(
           );
         }
 
-        const fingerprint = createHash("sha256")
-          .update(c.req.header("user-agent") ?? "")
-          .update("|")
-          .update(c.req.header("origin") ?? "")
-          .digest("hex")
-          .slice(0, 16);
+        const fingerprint = provisionalMintFingerprint(c);
         if (
           !consumeProvisionalMintBudget(
             ctx.stores.provisionalMints,
             fingerprint,
             now.getTime(),
+            "public",
+            provisionalMintPerClient(c),
           )
         ) {
           return c.json({ error: "rate_limited" }, 429);
@@ -527,7 +581,7 @@ principalRoutes.post(
 );
 
 function issuerKey(issuer: string): string {
-  return issuer.trim().replace(/\/+$/, "");
+  return normalizeIssuer(issuer);
 }
 
 /**
@@ -542,10 +596,12 @@ async function linkFromVerifiedIdToken(
   idToken: string,
 ) {
   const ctx = c.get("ctx");
+  let rawIssuer = "";
   let issuer = "";
   try {
     const claims = decodeJwt(idToken);
-    issuer = isString(claims.iss) ? issuerKey(claims.iss) : "";
+    rawIssuer = isString(claims.iss) ? claims.iss : "";
+    issuer = rawIssuer ? issuerKey(rawIssuer) : "";
   } catch {
     return c.json({ error: "invalid_token", message: "Not a JWT." }, 400);
   }
@@ -562,7 +618,13 @@ async function linkFromVerifiedIdToken(
 
   let verified: Awaited<ReturnType<typeof verifyOrgIdToken>>;
   try {
-    verified = await verifyOrgIdToken(idToken, issuer);
+    // The allowlist is compared normalized, but jose compares `iss` exactly.
+    // Hand it the token's own spelling (a trailing slash is legal in an
+    // issuer identifier) or a valid token from that issuer is refused.
+    verified = await verifyOrgIdToken(idToken, rawIssuer, {
+      expectedAudiences: originAudiences(ctx.config),
+      blockPrivateIssuerHosts: ctx.config.isProduction,
+    });
   } catch (error) {
     if (error instanceof OrgAssertionError) {
       const status = error.code === "upstream_unavailable" ? 502 : 401;

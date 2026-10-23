@@ -278,7 +278,14 @@ async function verifyAssertion(
       error: "step_up_failed",
     });
   if ((await ctx.stores.mfaFailures.size) > MAX_FENCE_ENTRIES) {
-    return c.json({ ok: false, error: "rate_limited" }, 429);
+    // The route has already proved the credential belongs to this principal
+    // (`findOwnFactor`), so real passkeys only. Keep the fence but never turn
+    // a filled map into a deployment-wide refusal: the durable counter below
+    // still refuses the one credential being guessed.
+    ctx.log.warn(
+      { entries: await ctx.stores.mfaFailures.size },
+      "passkey failure fence is large; continuing per-credential checks",
+    );
   }
   const fenceKey = `passkey:${passkeyDigest(proof.credentialId)}`;
   const prior =

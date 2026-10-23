@@ -6,6 +6,7 @@ import type { AppContext } from "../context.js";
 import { requireOperatorToken } from "../middleware/admin-auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { serializeKeyed } from "../serialize.js";
 
 /**
  * Deployment-admin lifecycle for origin-profile clients (ADR 0050 R-B).
@@ -48,7 +49,21 @@ async function transition(
   action: "suspend" | "revoke",
 ) {
   const ctx = c.get("ctx");
-  const client = await loadOriginClient(ctx, c.req.param("id") ?? "");
+  const id = c.req.param("id") ?? "";
+  return serializeKeyed(
+    ctx.stores.principalMutations,
+    `origin-client:${id}`,
+    () => applyTransition(c, action, id),
+  );
+}
+
+async function applyTransition(
+  c: Context<{ Variables: Variables }>,
+  action: "suspend" | "revoke",
+  id: string,
+) {
+  const ctx = c.get("ctx");
+  const client = await loadOriginClient(ctx, id);
   if (!client) {
     return c.json(
       { error: "not_found", message: "Origin client not found" },
@@ -69,11 +84,9 @@ async function transition(
       409,
     );
   }
-  const now = ctx.clock();
   const updated = await ctx.stores.oauthClients.update({
     ...client,
     state: target,
-    updatedAt: now,
   });
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType:
