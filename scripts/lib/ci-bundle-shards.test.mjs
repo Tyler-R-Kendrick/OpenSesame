@@ -52,6 +52,7 @@ const GATES = [
   "verify:encrypted-search",
   "verify:portable-drop",
   "verify:auth",
+  "verify:trusted-unlock",
   "verify:customer-vault-browser",
   "verify-experience-journeys.mjs",
   "verify:relay-join-live",
@@ -255,4 +256,27 @@ it("runs the unchanged whole secret backend profile and driver in an independent
         legs().map((leg) => leg.shard),
       ),
     ).toEqual(["native-public-protocol"]);
+});
+
+it("runs trusted-contact unlock in the auth shard and selects it for driver edits", () => {
+  const matching = steps().filter((step) =>
+    step.text.includes("verify:trusted-unlock"),
+  );
+  expect(matching).toHaveLength(1);
+  expect(
+    shardsOf(
+      matching[0].when,
+      legs().map((leg) => leg.shard),
+    ),
+  ).toEqual(["auth"]);
+  expect(matching[0].text).toContain(
+    "PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome",
+  );
+  expect(matching[0].text).toContain("VITE_BASE: /OpenSesame/");
+  expect(DRIVER_GATES["verify-trusted-unlock.mjs"]).toEqual(["auth"]);
+  expect(
+    bundleMatrix(DRIVER_GATES["verify-trusted-unlock.mjs"], legs()).map(
+      (leg) => leg.shard,
+    ),
+  ).toEqual(["auth"]);
 });

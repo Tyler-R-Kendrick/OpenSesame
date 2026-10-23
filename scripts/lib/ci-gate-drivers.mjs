@@ -15,6 +15,7 @@ export const DRIVER_GATES = {
   "verify-encrypted-search.mjs": ["static"],
   "verify-portable-drop.mjs": ["static"],
   "verify-auth-flow.mjs": ["auth"],
+  "verify-trusted-unlock.mjs": ["auth"],
   "verify-experience-journeys.mjs": ["journeys"],
   "verify-webmcp.mjs": ["budgets"],
   "verify-push-worker.mjs": ["budgets"],

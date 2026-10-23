@@ -399,6 +399,13 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:auth
+      - name: Trusted-contact vault unlock quorum
+        if: matrix.shard == 'auth'
+        # Real browser passkeys: below-threshold stays locked for 2-of-3 and 3-of-3.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:trusted-unlock
       - name: Customer vault and file envelopes in real WebCrypto
         if: matrix.shard == 'customer-crypto'
         env:
