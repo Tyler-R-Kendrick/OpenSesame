@@ -55,6 +55,11 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
     id: "/settings/features/networking",
     title: "Settings — Networking",
   },
+  // The core feature page is viewable before its optional controls activate.
+  {
+    id: "/settings/features/ai/support.local-ai",
+    title: "Settings — AI — On-device model",
+  },
 ];
 
 function settingsRoute(category: string): GuideRouteDescriptor {

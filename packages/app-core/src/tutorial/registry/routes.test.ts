@@ -1,4 +1,8 @@
-import { isGuideRouteId } from "@opensesame/guide-lang";
+import {
+  GUIDE_LANG_HEADER,
+  compileGuide,
+  isGuideRouteId,
+} from "@opensesame/guide-lang";
 import { SUPPORT_LIMITS } from "@opensesame/support-agent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
@@ -50,6 +54,50 @@ describe("a core-only plan", () => {
     expect(isKnownGuideRoute("/identity/authorize")).toBe(false);
     expect(isKnownGuideRoute("/vault")).toBe(true);
     expect(isKnownGuideRoute("/settings/security")).toBe(true);
+  });
+
+  it("names the local AI settings view without registering other capability pages", () => {
+    const route = "/settings/features/ai/support.local-ai";
+    expect(isKnownGuideRoute(route)).toBe(true);
+    expect(guideRouteForPath(route)).toBe(route);
+    expect(guideRouteForLocation(`${route}/details`)).toBe(route);
+    for (const unknown of [
+      "/settings/features/ai",
+      "/settings/features/ai/support.remote-ai",
+      `${route}/details`,
+      `${route}-other`,
+    ]) {
+      expect(isKnownGuideRoute(unknown), unknown).toBe(false);
+    }
+  });
+
+  it("compiles navigation and a wait against the core AI settings descriptor", () => {
+    const route = "/settings/features/ai/support.local-ai";
+    const result = compileGuide(
+      [
+        GUIDE_LANG_HEADER,
+        'goal "settings.ai"',
+        `navigate "${route}"`,
+        `wait route "${route}" timeout=1000`,
+      ].join("\n"),
+      {
+        goals: ["settings.ai"],
+        targets: [],
+        routes: mergedGuideRoutes().map((entry) => entry.id),
+        predicates: [],
+      },
+    );
+    expect(result).toEqual({
+      ok: true,
+      program: {
+        version: 1,
+        goal: "settings.ai",
+        instructions: [
+          { kind: "navigate", route },
+          { kind: "wait", subject: "route", route, timeoutMs: 1000 },
+        ],
+      },
+    });
   });
 });
 
