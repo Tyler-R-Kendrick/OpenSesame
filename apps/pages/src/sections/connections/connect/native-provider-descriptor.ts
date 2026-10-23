@@ -151,7 +151,6 @@ function apiDescriptor(
 }
 
 function mcpDescriptor(
-  plan: ConnectPlan,
   method: Extract<ConnectMethod, { kind: "mcp" }>,
   availability: BrowserProviderAvailability["mcp"],
 ): NativeMethodDescriptor {
@@ -191,7 +190,7 @@ function mcpDescriptor(
               name: scope,
               description:
                 "Permission advertised by the provider's MCP authorization server.",
-              default: plan.id === "linear" && scope === "read",
+              default: false,
             })),
           },
         ]
@@ -240,12 +239,25 @@ function publicOAuthDescriptor(
       }),
       preferredRank: 35,
     };
-  if (profile)
+  if (profile && !preset)
     return oauthDescriptor(
       method,
       availability.oauth,
       availability.callbackUrl,
     );
+  if (profile && preset) {
+    // A public profile is not an alternative to a confidential OAuth app.
+    // Keep the token-auth selector and its client-secret field so a user can
+    // register their own application even when the public popup is refused.
+    return nativePublicApplicationDescriptor(
+      preset,
+      availability.callbackUrl,
+      availability.oauth.available ||
+        availability.oauth.registeredAvailable === true,
+      nativeBrowserOAuthDescriptor(plan, profile, availability.callbackUrl),
+      profile,
+    );
+  }
   if (preset)
     return {
       ...nativeOAuthResourceDescriptor(
@@ -301,13 +313,11 @@ function providerMethods(
       methods.push(publicOAuthDescriptor(plan, availability, method));
     if (method.kind === "mcp")
       methods.push(
-        plan.id === "linear"
-          ? mcpDescriptor(plan, method, availability.mcp)
-          : configuredMcpDescriptor(
-              plan.id,
-              method.mcp,
-              mcpDescriptor(plan, method, availability.mcp),
-            ),
+        configuredMcpDescriptor(
+          plan.id,
+          method.mcp,
+          mcpDescriptor(method, availability.mcp),
+        ),
       );
   }
   if (!methods.some((method) => method.id === "oauth")) {
@@ -321,11 +331,9 @@ export function nativeProviderDescriptor(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
 ): NativeConnectorDescriptor {
-  const methods = providerMethods(plan, availability)
-    .map((method) => nativePolicyMethod(plan.id, method))
-    // Linear's GraphQL OAuth/API-key route is an explicit advanced fallback;
-    // the primary page is only the provider's MCP authorization.
-    .filter((method) => plan.id !== "linear" || method.id === "mcp");
+  const methods = providerMethods(plan, availability).map((method) =>
+    nativePolicyMethod(plan.id, method),
+  );
   if (methods.length === 0)
     methods.push({
       id: "oauth",

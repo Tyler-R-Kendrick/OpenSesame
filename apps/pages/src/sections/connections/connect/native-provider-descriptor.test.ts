@@ -46,6 +46,26 @@ describe("compiled provider credential variants", () => {
   );
 });
 
+it("keeps the client-secret field when a Google popup is refused", () => {
+  const plan = connectPlan("google");
+  const profile = nativeBrowserOAuthProfile("google");
+  if (!plan || !profile) throw new Error("Expected Google OAuth profile");
+  const descriptor = nativeProviderDescriptor(plan, {
+    callbackUrl: "https://app.example/auth/native-connector.html",
+    apiKey: { available: true },
+    oauth: {
+      available: false,
+      registeredAvailable: true,
+      profile,
+    },
+    mcp: { available: false, actor: "user" },
+  });
+  const oauth = descriptor.methods.find((method) => method.id === "oauth");
+  expect(oauth?.fields.some((field) => field.id === "client_secret")).toBe(
+    true,
+  );
+});
+
 it("exposes configured WorkOS fields without promoting a missing runtime", () => {
   const plan = connectPlan("workos");
   if (!plan) throw new Error("Expected compiled WorkOS provider");
@@ -251,26 +271,4 @@ it("does not open a new connection on a configurable but blocked method", () => 
     ],
   } satisfies NativeConnectorDescriptor;
   expect(nativeInitialMethod(descriptor)?.id).toBe("oauth");
-});
-
-it("keeps Linear's primary page on MCP with read-only defaults and no app registration", () => {
-  const plan = connectPlan("linear");
-  if (!plan) throw new Error("Missing Linear contract");
-  const descriptor = nativeProviderDescriptor(plan, {
-    callbackUrl: "https://app.example/auth/native-connector.html",
-    apiKey: { available: true },
-    oauth: { available: true, registeredAvailable: true },
-    mcp: { available: true, actor: "user" },
-  });
-  expect(descriptor.methods.map((method) => method.id)).toEqual(["mcp"]);
-  const mcp = descriptor.methods[0];
-  expect(mcp?.fields).toEqual([]);
-  expect(
-    mcp?.scopeGroups[0]?.choices.find((scope) => scope.name === "read"),
-  ).toMatchObject({ default: true });
-  expect(
-    mcp?.scopeGroups[0]?.choices
-      .filter((scope) => scope.name !== "read")
-      .every((scope) => scope.default === false),
-  ).toBe(true);
 });
