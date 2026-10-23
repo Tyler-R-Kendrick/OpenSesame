@@ -223,6 +223,7 @@ export function ConnectionsSection() {
     return (
       <ConnectorSettingsPage
         provider={provider}
+        providers={providers ?? []}
         providerId={providerId}
         connection={connection}
         connections={providerConnections}

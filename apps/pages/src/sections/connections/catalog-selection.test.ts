@@ -105,7 +105,7 @@ describe("the curated Connections list", () => {
       "vercel",
       "cloudflare",
       "google",
-      "azure",
+      "azure-kms",
       "aws",
       "gcp",
     ])
@@ -125,7 +125,7 @@ describe("the curated Connections list", () => {
       "AWS",
     );
     expect(
-      grouped.find((provider) => provider.id === "azure")?.displayName,
+      grouped.find((provider) => provider.id === "azure-kms")?.displayName,
     ).toBe("Azure");
   });
 
@@ -174,8 +174,7 @@ describe("the curated Connections list", () => {
       expect(apiFamilyFor(family.id)?.id, family.id).toBe(family.id);
       expect(family.members.length, family.id).toBeGreaterThan(1);
     }
-    expect(apiFamilyFor("azure")?.members).toContain("azure");
-    expect(apiFamilyFor("azure")?.members).toContain("azure-kms");
+    expect(apiFamilyFor("azure-kms")?.members).toContain("azure-kms");
   });
 
   it("labels each card with supported auth methods, not internal tags", () => {
