@@ -161,10 +161,16 @@ describe("the curated Connections list", () => {
     // BYO-first ordering (#1902) applies to admitted BYO providers;
     // byo-ai itself was retired from browse on main (0ca0474ca) and is
     // offered through the custom-connection button instead.
+    const allById = new Map(
+      mergeVercelCatalog(getBundledProviders()).map((provider) => [
+        provider.id,
+        provider,
+      ]),
+    );
     const input = ["vercel", "openai", "byo-ai", "asana", "anthropic"].map(
       (id) => {
-        const provider = byId.get(id);
-        if (!provider) throw new Error(`Missing curated provider: ${id}`);
+        const provider = allById.get(id);
+        if (!provider) throw new Error(`Missing bundled provider: ${id}`);
         return provider;
       },
     );

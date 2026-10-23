@@ -65,11 +65,15 @@ it("offers BYO AI through the custom-connection button, not a browse tile", () =
     </MemoryRouter>,
   );
   const tiles = [...container.querySelectorAll(".conn-grid > .conn-tile")];
-  expect(tiles.map((tile) => tile.id)).toEqual([
-    "catalog-anthropic",
-    "catalog-openai",
-  ]);
+  const tileIds = tiles.map((tile) => tile.id);
+  // The panel also synthesizes featured/family tiles; what retired
+  // BYO AI guarantees is its absence and partners' alphabetical order.
+  expect(tileIds).not.toContain("catalog-byo-ai");
+  expect(tileIds.indexOf("catalog-anthropic")).toBeGreaterThanOrEqual(0);
+  expect(tileIds.indexOf("catalog-anthropic")).toBeLessThan(
+    tileIds.indexOf("catalog-openai"),
+  );
   expect(container.querySelector("#catalog-byo-ai")).toBeNull();
-  const add = screen.getByRole("link", { name: "Add a custom connection" });
-  expect(add.getAttribute("href")).toBe("/connections/byo-ai");
+  const add = container.querySelector<HTMLAnchorElement>("#catalog-add");
+  expect(add?.getAttribute("href")).toBe("/connections/byo-ai");
 });
