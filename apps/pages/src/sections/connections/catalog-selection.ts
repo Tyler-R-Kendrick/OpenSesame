@@ -4,6 +4,7 @@
  * a provider's catalog row still exists for a saved connection and for
  * Settings › Integrations, but the browse page only offers the curated set.
  */
+import { byoProvidersFirst } from "@opensesame/app-core/lib/catalog-provider.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
@@ -91,22 +92,24 @@ const ALLOWED = new Set([
   ...AI,
 ]);
 
-/** The curated providers, in one alphabetical browse list. */
+/** BYO leads the curated browse list; partner providers stay alphabetical. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
 ): Provider[] {
-  return providers
-    .filter((provider) => isConnectionCatalogProvider(provider))
-    .filter(
-      (provider) =>
-        provider.category !== "ai_model_provider" || AI.has(provider.id),
-    )
-    .filter((provider) => ALLOWED.has(provider.id))
-    .sort((left, right) =>
-      left.displayName.localeCompare(right.displayName, "en", {
-        sensitivity: "base",
-      }),
-    );
+  return byoProvidersFirst(
+    providers
+      .filter((provider) => isConnectionCatalogProvider(provider))
+      .filter(
+        (provider) =>
+          provider.category !== "ai_model_provider" || AI.has(provider.id),
+      )
+      .filter((provider) => ALLOWED.has(provider.id))
+      .sort((left, right) =>
+        left.displayName.localeCompare(right.displayName, "en", {
+          sensitivity: "base",
+        }),
+      ),
+  );
 }
 
 /** Tags shown on the tile; they replace the former category headings. */

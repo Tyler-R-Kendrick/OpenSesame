@@ -90,6 +90,31 @@ describe("the curated Connections list", () => {
     );
   });
 
+  it("puts BYO before partners while preserving alphabetical partner order and the input", () => {
+    const input = ["vercel", "openai", "byo-ai", "asana", "anthropic"].map(
+      (id) => {
+        const provider = byId.get(id);
+        if (!provider) throw new Error(`Missing curated provider: ${id}`);
+        return provider;
+      },
+    );
+    const original = [...input];
+    const ordered = curatedCatalogProviders(input);
+    expect(ordered.map((provider) => provider.id)).toEqual([
+      "byo-ai",
+      "anthropic",
+      "asana",
+      "openai",
+      "vercel",
+    ]);
+    expect(input).toEqual(original);
+    expect(
+      ordered
+        .filter((provider) => matchesCatalog(provider, "model provider"))
+        .map((provider) => provider.id),
+    ).toEqual(["byo-ai", "anthropic", "openai"]);
+  });
+
   it("never admits an AI provider outside the Settings list", () => {
     const fake = {
       ...providers[0],

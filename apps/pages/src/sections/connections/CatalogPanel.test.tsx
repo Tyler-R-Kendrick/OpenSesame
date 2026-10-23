@@ -1,3 +1,4 @@
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 /** @vitest-environment jsdom */
 import { render, screen } from "@testing-library/react";
@@ -45,4 +46,30 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   const blocked = stripe?.querySelector(".conn-tile__go title");
   expect(blocked?.textContent).toBe("No way to check a key");
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
+});
+
+it("renders BYO AI as the first selectable catalog tile before alphabetical partners", () => {
+  const ids = new Set(["openai", "anthropic", "byo-ai"]);
+  const { container } = render(
+    <MemoryRouter>
+      <CatalogPanel
+        providers={getBundledProviders().filter((provider) =>
+          ids.has(provider.id),
+        )}
+      />
+    </MemoryRouter>,
+  );
+  const tiles = [...container.querySelectorAll(".conn-grid > .conn-tile")];
+  expect(tiles.map((tile) => tile.id)).toEqual([
+    "catalog-byo-ai",
+    "catalog-anthropic",
+    "catalog-openai",
+  ]);
+  expect(tiles[0]?.querySelector("a")?.getAttribute("href")).toBe(
+    "/connections/byo-ai",
+  );
+  expect(tiles[0]?.querySelector(".conn-tile__name")?.textContent).toBe(
+    "BYO AI",
+  );
+  expect(tiles[0]?.querySelector(".conn-tile__tags")?.textContent).toBe("AI");
 });
