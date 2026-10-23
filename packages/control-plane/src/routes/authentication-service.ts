@@ -258,44 +258,50 @@ authenticationServiceRoutes.patch(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const application = await managedApplication(
-      ctx,
-      c.req.param("applicationId"),
-      principalId,
-    );
-    if (!application) return c.json({ error: "not_found" }, 404);
-    const parsed = PatchAuthenticationApplicationRequestSchema.safeParse(
-      await c.req.json(),
-    );
-    if (!parsed.success) {
-      return c.json(
-        { error: "validation_error", details: parsed.error.flatten() },
-        400,
+    const applicationId = c.req.param("applicationId");
+    return withApplicationLock(ctx, applicationId, async () => {
+      const application = await managedApplication(
+        ctx,
+        applicationId,
+        principalId,
       );
-    }
-    const updated = await ctx.authenticationStores.applications.update({
-      ...application,
-      displayName: parsed.data.displayName ?? application.displayName,
-      state: parsed.data.state ?? application.state,
-      manualTokensEnabled:
-        parsed.data.manualTokensEnabled ?? application.manualTokensEnabled,
-      magicLinksEnabled:
-        parsed.data.magicLinksEnabled ?? application.magicLinksEnabled,
-      configurations: parsed.data.configurations ?? application.configurations,
-      updatedAt: ctx.clock(),
+      if (!application) return c.json({ error: "not_found" }, 404);
+      const parsed = PatchAuthenticationApplicationRequestSchema.safeParse(
+        await c.req.json(),
+      );
+      if (!parsed.success) {
+        return c.json(
+          { error: "validation_error", details: parsed.error.flatten() },
+          400,
+        );
+      }
+      const latest =
+        await ctx.authenticationStores.applications.get(applicationId);
+      if (!latest) return c.json({ error: "not_found" }, 404);
+      const updated = await ctx.authenticationStores.applications.update({
+        ...latest,
+        displayName: parsed.data.displayName ?? latest.displayName,
+        state: parsed.data.state ?? latest.state,
+        manualTokensEnabled:
+          parsed.data.manualTokensEnabled ?? latest.manualTokensEnabled,
+        magicLinksEnabled:
+          parsed.data.magicLinksEnabled ?? latest.magicLinksEnabled,
+        configurations: parsed.data.configurations ?? latest.configurations,
+        updatedAt: ctx.clock(),
+      });
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "authentication.application.updated",
+        outcome: "succeeded",
+        principalId,
+        clientId: application.id,
+        ...(application.organizationId
+          ? { organizationId: application.organizationId }
+          : undefined),
+        correlationId: c.get("correlationId"),
+        metadata: { state: updated.state },
+      });
+      return c.json({ application: applicationResponse(updated) });
     });
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "authentication.application.updated",
-      outcome: "succeeded",
-      principalId,
-      clientId: application.id,
-      ...(application.organizationId
-        ? { organizationId: application.organizationId }
-        : undefined),
-      correlationId: c.get("correlationId"),
-      metadata: { state: updated.state },
-    });
-    return c.json({ application: applicationResponse(updated) });
   },
 );
 
@@ -735,12 +741,25 @@ authenticationServiceRoutes.post("/backend/auth-configurations", async (c) => {
   ) {
     return c.json({ error: "configuration_exists" }, 409);
   }
-  const updated = await ctx.authenticationStores.applications.update({
-    ...application,
-    configurations: [...application.configurations, parsed.data],
-    updatedAt: ctx.clock(),
+  return withApplicationLock(ctx, application.id, async () => {
+    const latest = await ctx.authenticationStores.applications.get(
+      application.id,
+    );
+    if (!latest) return c.json({ error: "unauthorized" }, 401);
+    if (
+      latest.configurations.some(
+        (configuration) => configuration.purpose === parsed.data.purpose,
+      )
+    ) {
+      return c.json({ error: "configuration_exists" }, 409);
+    }
+    const updated = await ctx.authenticationStores.applications.update({
+      ...latest,
+      configurations: [...latest.configurations, parsed.data],
+      updatedAt: ctx.clock(),
+    });
+    return c.json({ application: applicationResponse(updated) }, 201);
   });
-  return c.json({ application: applicationResponse(updated) }, 201);
 });
 
 authenticationServiceRoutes.patch(
@@ -765,12 +784,18 @@ authenticationServiceRoutes.patch(
     ) {
       return c.json({ error: "not_found" }, 404);
     }
-    await ctx.authenticationStores.applications.update({
-      ...application,
-      configurations: application.configurations.map((item) =>
-        item.purpose === parsed.data.purpose ? parsed.data : item,
-      ),
-      updatedAt: ctx.clock(),
+    await withApplicationLock(ctx, application.id, async () => {
+      const latest = await ctx.authenticationStores.applications.get(
+        application.id,
+      );
+      if (!latest) return;
+      await ctx.authenticationStores.applications.update({
+        ...latest,
+        configurations: latest.configurations.map((item) =>
+          item.purpose === parsed.data.purpose ? parsed.data : item,
+        ),
+        updatedAt: ctx.clock(),
+      });
     });
     return c.body(null, 204);
   },
@@ -798,12 +823,18 @@ authenticationServiceRoutes.delete(
     if (!application.configurations.some((item) => item.purpose === purpose)) {
       return c.json({ error: "not_found" }, 404);
     }
-    await ctx.authenticationStores.applications.update({
-      ...application,
-      configurations: application.configurations.filter(
-        (item) => item.purpose !== purpose,
-      ),
-      updatedAt: ctx.clock(),
+    await withApplicationLock(ctx, application.id, async () => {
+      const latest = await ctx.authenticationStores.applications.get(
+        application.id,
+      );
+      if (!latest) return;
+      await ctx.authenticationStores.applications.update({
+        ...latest,
+        configurations: latest.configurations.filter(
+          (item) => item.purpose !== purpose,
+        ),
+        updatedAt: ctx.clock(),
+      });
     });
     return c.body(null, 204);
   },

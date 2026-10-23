@@ -37,6 +37,22 @@ describe("offline backup format", () => {
     );
   });
 
+  it("refuses more sync blobs than the reader accepts", async () => {
+    const base = await envelope();
+    const syncBlobs = Array.from({ length: 4097 }, (_, index) => ({
+      id: `blob-${index}`,
+      epoch: 1,
+      ciphertextB64: "x",
+    }));
+    expect(() =>
+      buildOfflineBackupEnvelope({
+        header: base.vault.header,
+        body: base.vault.body,
+        syncBlobs,
+      }),
+    ).toThrow(/too many sync blobs/i);
+  });
+
   it("rejects malformed sync blob metadata on both sides", async () => {
     const base = await envelope();
     expect(() =>

@@ -35,6 +35,20 @@ describe("GitHub installation snapshot", () => {
     expect(view.container.textContent).toBe("");
   });
 
+  it("reports a snapshot failure through the card flash instead of rejecting", async () => {
+    access.load.mockRejectedValue(new Error("vault locked"));
+    const onFlash = vi.fn();
+    render(
+      <GithubCardDetails connection={makeConnection()} onFlash={onFlash} />,
+    );
+    await vi.waitFor(() =>
+      expect(onFlash).toHaveBeenCalledWith({
+        tone: "err",
+        text: "vault locked",
+      }),
+    );
+  });
+
   it("does not mint a grant after the card unmounts while loading", async () => {
     let finish: (value: unknown) => void = () => {};
     access.load.mockReturnValue(

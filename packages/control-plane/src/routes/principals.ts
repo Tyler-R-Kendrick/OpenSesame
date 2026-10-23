@@ -45,39 +45,46 @@ export const MAX_PROVISIONAL = 1024;
 const PROVISIONAL_MINT_WINDOW_MS = 60_000;
 const PROVISIONAL_MINT_PER_CLIENT = 10;
 const PROVISIONAL_MINT_GLOBAL = 120;
-const PROVISIONAL_MINT_KEYS = 2048;
-const PROVISIONAL_MINT_GLOBAL_KEY = "__global__";
+const PROVISIONAL_MINT_KEYS = 2_048;
 const PROVISIONAL_MINT_CLIENT_PREFIX = "client:";
 
+export type ProvisionalMintScope = "public" | "interaction";
+
+/**
+ * Charge one mint against a scope. Public minting and interactive sign-in keep
+ * separate global ceilings: exhausting the unauthenticated public route must
+ * not lock every user out of SAML/OIDC/LDAP/email sign-in.
+ */
 export function consumeProvisionalMintBudget(
   map: Map<string, number[]>,
   fingerprint: string,
   now: number,
+  scope: ProvisionalMintScope = "public",
+  perClientLimit = PROVISIONAL_MINT_PER_CLIENT,
 ): boolean {
   for (const [key, values] of map) {
     const live = values.filter((at) => now - at < PROVISIONAL_MINT_WINDOW_MS);
     if (live.length === 0) map.delete(key);
     else if (live.length !== values.length) map.set(key, live);
   }
-  const clientKey = `${PROVISIONAL_MINT_CLIENT_PREFIX}${fingerprint}`;
-  const global = map.get(PROVISIONAL_MINT_GLOBAL_KEY) ?? [];
+  const globalKey = `__global__:${scope}`;
+  const clientKey = `${PROVISIONAL_MINT_CLIENT_PREFIX}${scope}:${fingerprint}`;
+  const global = map.get(globalKey) ?? [];
   const client = map.get(clientKey) ?? [];
   if (
     global.length >= PROVISIONAL_MINT_GLOBAL ||
-    client.length >= PROVISIONAL_MINT_PER_CLIENT
+    client.length >= perClientLimit
   ) {
     return false;
   }
   global.push(now);
   client.push(now);
-  map.set(PROVISIONAL_MINT_GLOBAL_KEY, global);
+  map.set(globalKey, global);
   map.set(clientKey, client);
   while (map.size > PROVISIONAL_MINT_KEYS) {
-    // The global ceiling is never the victim: evicting it would reset the one
+    // Global ceilings are never the victim: evicting one would reset the one
     // budget a caller cannot rotate their fingerprint to escape.
-    const victim = [...map.keys()].find(
-      (key) => key !== PROVISIONAL_MINT_GLOBAL_KEY,
-    );
+    const victim = [...map.keys()].find((key) => !key.startsWith("__global__"));
     if (victim === undefined) break;
     map.delete(victim);
   }
@@ -85,9 +92,9 @@ export function consumeProvisionalMintBudget(
 }
 
 /**
- * The mint budget's client key. The connection address is server-observed;
- * the user agent is only a fallback for in-process tests and for a listener
- * that cannot expose a peer address.
+ * The mint budget's client key. The connection address is server-observed. A
+ * caller cannot rotate User-Agent or Origin to get another bucket while a peer
+ * address is available; those headers are a fallback for in-process tests only.
  */
 function provisionalMintFingerprint(
   c: Context<{ Variables: Variables }>,
@@ -99,11 +106,23 @@ function provisionalMintFingerprint(
   return createHash("sha256")
     .update(address ?? "")
     .update("|")
-    .update(c.req.header("user-agent") ?? "")
-    .update("|")
-    .update(c.req.header("origin") ?? "")
+    .update(address ? "" : (c.req.header("user-agent") ?? ""))
     .digest("hex")
     .slice(0, 16);
+}
+
+/**
+ * A shared peer address (NAT, office, test runner) is one bucket, so allow a
+ * larger ceiling than the old spoofable-header bucket. The 60/minute cap still
+ * bounds one host, while the global public ceiling stays at 120/minute.
+ */
+function provisionalMintPerClient(
+  c: Context<{ Variables: Variables }>,
+): number {
+  const env = c.env as
+    | { incoming?: { socket?: { remoteAddress?: string } } }
+    | undefined;
+  return env?.incoming?.socket?.remoteAddress ? 60 : 10;
 }
 
 principalRoutes.post(
@@ -147,6 +166,8 @@ principalRoutes.post(
             ctx.stores.provisionalMints,
             fingerprint,
             now.getTime(),
+            "public",
+            provisionalMintPerClient(c),
           )
         ) {
           return c.json({ error: "rate_limited" }, 429);
@@ -571,10 +592,12 @@ async function linkFromVerifiedIdToken(
   idToken: string,
 ) {
   const ctx = c.get("ctx");
+  let rawIssuer = "";
   let issuer = "";
   try {
     const claims = decodeJwt(idToken);
-    issuer = isString(claims.iss) ? issuerKey(claims.iss) : "";
+    rawIssuer = isString(claims.iss) ? claims.iss : "";
+    issuer = rawIssuer ? issuerKey(rawIssuer) : "";
   } catch {
     return c.json({ error: "invalid_token", message: "Not a JWT." }, 400);
   }
@@ -591,7 +614,10 @@ async function linkFromVerifiedIdToken(
 
   let verified: Awaited<ReturnType<typeof verifyOrgIdToken>>;
   try {
-    verified = await verifyOrgIdToken(idToken, issuer, {
+    // The allowlist is compared normalized, but jose compares `iss` exactly.
+    // Hand it the token's own spelling (a trailing slash is legal in an
+    // issuer identifier) or a valid token from that issuer is refused.
+    verified = await verifyOrgIdToken(idToken, rawIssuer, {
       expectedAudiences: originAudiences(ctx.config),
       blockPrivateIssuerHosts: ctx.config.isProduction,
     });

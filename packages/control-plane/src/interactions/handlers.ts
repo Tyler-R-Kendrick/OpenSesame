@@ -384,6 +384,18 @@ export async function mintProvisionalForInteraction(
   ctx: AppContext,
   fingerprint: string,
   correlationId: string,
+  options: {
+    /**
+     * Session profile written on the row. SAML passes a tenant-scoped value so
+     * one tenant's minted sessions can be counted against that tenant.
+     */
+    quotaProfile?: string;
+    /** Live sessions this profile may hold at once. */
+    maxLiveForProfile?: number;
+    /** Live sessions whose profile starts with this prefix may exist. */
+    profilePrefix?: string;
+    maxLiveForProfilePrefix?: number;
+  } = {},
 ): Promise<ProvisionalInteractionCredentials> {
   // The same serialized section the public mint route uses: capacity is a
   // read-then-write, and two interaction logins racing it could both observe
@@ -415,11 +427,38 @@ export async function mintProvisionalForInteraction(
       if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL) {
         throw new ProvisionalMintRefusedError("provisional_capacity");
       }
+      if (options.maxLiveForProfile !== undefined) {
+        let mine = 0;
+        let prefixed = 0;
+        const profile = options.quotaProfile ?? "anonymous";
+        for (const [
+          ,
+          session,
+        ] of await ctx.stores.provisionalSessions.entries()) {
+          if (session.quotaProfile === profile) mine += 1;
+          if (
+            options.profilePrefix !== undefined &&
+            session.quotaProfile.startsWith(options.profilePrefix)
+          ) {
+            prefixed += 1;
+          }
+        }
+        if (mine >= options.maxLiveForProfile) {
+          throw new ProvisionalMintRefusedError("provisional_capacity");
+        }
+        if (
+          options.maxLiveForProfilePrefix !== undefined &&
+          prefixed >= options.maxLiveForProfilePrefix
+        ) {
+          throw new ProvisionalMintRefusedError("provisional_capacity");
+        }
+      }
       if (
         !consumeProvisionalMintBudget(
           ctx.stores.provisionalMints,
           fingerprint,
           now.getTime(),
+          "interaction",
         )
       ) {
         throw new ProvisionalMintRefusedError("rate_limited");
@@ -429,7 +468,7 @@ export async function mintProvisionalForInteraction(
         ctx.mappings,
         {
           ttlMs: ctx.config.provisionalTtlMs,
-          quotaProfile: "anonymous",
+          quotaProfile: options.quotaProfile ?? "anonymous",
           allowedActions: [
             "project.create",
             "project.create_temporary",

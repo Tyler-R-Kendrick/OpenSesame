@@ -39,7 +39,7 @@ import {
   shellEntry,
 } from "./release.js";
 import { createSamlPostIngress } from "./saml-post.js";
-import { respondToShareTarget } from "./share-target.js";
+import { respondToShareTarget, sweepShareTargetCache } from "./share-target.js";
 
 export type CoreWorkerOptions = Readonly<{
   /** `core-only` or `push`; the last cache-name segment. */
@@ -119,6 +119,7 @@ async function activate(ctx: WorkerContext, takeover: Takeover): Promise<void> {
     releaseId: ctx.releaseId,
     retained: takeover.retained,
   });
+  await sweepShareTargetCache(ctx);
   await ctx.sw.clients.claim();
 }
 

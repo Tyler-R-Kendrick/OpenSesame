@@ -84,6 +84,23 @@ export function refuseDeploymentSealWrap(label: string): void {
   }
 }
 
+/**
+ * The reader refuses these bounds; the writer must refuse them too, or it
+ * produces a disaster-recovery file the same application cannot restore.
+ * Size is UTF-8 bytes, not JavaScript string length.
+ */
+function assertEnvelopeLimits(
+  envelope: OfflineBackupEnvelope,
+  json: string,
+): void {
+  if (envelope.syncBlobs.length > MAX_SYNC_BLOBS) {
+    throw new Error("offline backup has too many sync blobs");
+  }
+  if (new TextEncoder().encode(json).byteLength > MAX_OFFLINE_BACKUP_BYTES) {
+    throw new Error("That offline backup is larger than 64 MB.");
+  }
+}
+
 export function buildOfflineBackupEnvelope(input: {
   projectId?: string | null;
   header: VaultHeader;
@@ -123,7 +140,9 @@ export function buildOfflineBackupEnvelope(input: {
     syncBlobs,
     deploymentSealUsed: false,
   };
-  assertCiphertextOnlyBackupJson(JSON.stringify(envelope));
+  const json = JSON.stringify(envelope);
+  assertEnvelopeLimits(envelope, json);
+  assertCiphertextOnlyBackupJson(json);
   return envelope;
 }
 
@@ -134,6 +153,7 @@ export function serializeOfflineBackupEnvelope(
     throw new Error("offline backup must not use deployment seal");
   }
   const json = `${JSON.stringify(envelope, null, 2)}\n`;
+  assertEnvelopeLimits(envelope, json);
   assertCiphertextOnlyBackupJson(json);
   return json;
 }
@@ -147,7 +167,10 @@ function objectOr(value: BoundaryValue, message: string): BoundaryObject {
 
 /** The envelope's top level: size, JSON, format, version, no deployment seal. */
 function readEnvelopeRow(fileText: string): BoundaryObject {
-  if (fileText.length > MAX_OFFLINE_BACKUP_BYTES) {
+  // The reader and writer share a byte limit; UTF-16 code units are not bytes.
+  if (
+    new TextEncoder().encode(fileText).byteLength > MAX_OFFLINE_BACKUP_BYTES
+  ) {
     throw new Error("That offline backup is larger than 64 MB.");
   }
   assertCiphertextOnlyBackupJson(fileText);

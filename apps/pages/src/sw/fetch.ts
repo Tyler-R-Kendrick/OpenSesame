@@ -56,6 +56,7 @@ async function freshShell(
   try {
     const response = await ctx.fetch(ctx.shellUrl);
     if (!response.ok) return null;
+    if (!isShellResponse(ctx, response, new URL(ctx.shellUrl))) return null;
     await saveShell(ctx, response.clone());
     return isolated(response, url, ctx.scopePath);
   } catch {
@@ -76,6 +77,44 @@ function isShellPath(ctx: WorkerContext, url: URL): boolean {
   return path === scope || path === `${scope}/index.html`;
 }
 
+/**
+ * A navigation may only replace the offline shell when it really is the
+ * shell: same-origin, final URL still the shell path, and an HTML body. A
+ * redirect to some other document (or a deep link the host answers with one)
+ * is served to that navigation but never becomes every later offline boot.
+ */
+function isShellResponse(
+  ctx: WorkerContext,
+  response: Response,
+  requested: URL,
+): boolean {
+  if (response.type !== "basic" && response.type !== "default") return false;
+  if (response.redirected && response.url === "") return false;
+  let final = requested;
+  if (response.url !== "") {
+    try {
+      final = new URL(response.url);
+    } catch {
+      return false;
+    }
+  }
+  if (final.origin !== new URL(ctx.scopeUrl).origin) return false;
+  if (!isShellPath(ctx, final)) return false;
+  const type = response.headers.get("content-type")?.toLowerCase() ?? "";
+  return type === "" || type.startsWith("text/html");
+}
+
+/** A cache entry may only be written when the final URL is the requested one. */
+function isFinalSameUrl(response: Response, requested: string): boolean {
+  if (response.redirected && response.url === "") return false;
+  if (response.url === "") return true;
+  try {
+    return new URL(response.url).href === new URL(requested).href;
+  } catch {
+    return false;
+  }
+}
+
 async function navigation(
   ctx: WorkerContext,
   request: Request,
@@ -88,7 +127,8 @@ async function navigation(
     // Only the app shell may replace the offline shell. A deep link that the
     // host happens to answer with some other same-origin document must never
     // become the document every later offline navigation receives.
-    if (isShellPath(ctx, url)) await saveShell(ctx, response.clone());
+    if (isShellPath(ctx, url) && isShellResponse(ctx, response, url))
+      await saveShell(ctx, response.clone());
     return isolated(response, url, ctx.scopePath);
   } catch {
     return cachedShell(ctx, url);
@@ -102,7 +142,7 @@ async function runtimeConfig(
   const cache = await releaseCache(ctx);
   try {
     const response = await ctx.fetch(request);
-    if (response.ok) {
+    if (response.ok && isFinalSameUrl(response, request.url)) {
       await cache.put(request, response.clone()).catch(() => undefined);
       return response;
     }

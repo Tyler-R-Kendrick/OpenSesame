@@ -84,11 +84,17 @@ describe("PACT — Identity plane mutation oracles", () => {
     ]);
   });
 
-  it("MFA fingerprints and increments before verify", () => {
+  it("MFA bounds anonymous attempts before verify and records failures after", () => {
     assertSourceOrder(src("../routes/mfa.ts"), [
       "consumeAnonymousMfaBudget(ctx.stores.mfaAnon, fingerprint, now)",
-      "incrementSecurityCounter(ctx.stores.mfaFailures, fenceKey)",
+      "passkeyFailureCount(fenceKey, now)",
       "ctx.passkeys.verify",
+    ]);
+    // An unknown credential id must not create durable state before the
+    // verifier has established it exists; failure recording follows verify.
+    assertSourceOrder(src("../routes/mfa.ts"), [
+      "ctx.passkeys.verify",
+      "recordPasskeyFailure(fenceKey, now)",
     ]);
   });
 

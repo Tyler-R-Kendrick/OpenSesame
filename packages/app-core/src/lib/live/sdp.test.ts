@@ -10,7 +10,7 @@ import others from "./__fixtures__/firefox-webkit-sdp.json";
 import { withAddressHints } from "./candidates.js";
 import { fakeSdp } from "./live-fakes.js";
 import { readJoinReply, readJoinRequest } from "./messages.js";
-import { isDataChannelSdp } from "./sdp.js";
+import { filterDataChannelSdp, isDataChannelSdp } from "./sdp.js";
 
 const ID = "abcdefghijklmnopqrstuv";
 
@@ -238,6 +238,26 @@ describe("what is refused", () => {
     refused(`${GOOD}a=mid:0\r`);
     refused(`${GOOD}${"a=x-a:b\r\n".repeat(400)}`);
     refused(`${GOOD}${"a=x-a:".padEnd(48 * 1024, "b")}`);
+  });
+
+  it("removes candidates aimed at loopback, link-local or private addresses", () => {
+    const filtered = filterDataChannelSdp(
+      withLines(
+        "a=candidate:1 1 udp 2113937151 192.168.1.5 54400 typ host",
+        "a=candidate:2 1 udp 2113937151 169.254.169.254 54400 typ host",
+        "a=candidate:3 1 udp 2113937151 127.0.0.1 54400 typ host",
+        "a=candidate:4 1 udp 2113937151 ::1 54400 typ host",
+        "a=candidate:5 1 udp 2113937151 203.0.113.9 54400 typ srflx raddr 0.0.0.0 rport 0",
+        "a=candidate:6 1 udp 2113937151 4f2e9f5a-0c1d-4c5e-9d0e-0a1b2c3d4e5f.local 54400 typ host",
+      ),
+    );
+    expect(filtered).not.toBeNull();
+    expect(filtered).not.toContain("a=candidate:1 ");
+    expect(filtered).not.toContain("a=candidate:2 ");
+    expect(filtered).not.toContain("a=candidate:3 ");
+    expect(filtered).not.toContain("a=candidate:4 ");
+    expect(filtered).toContain("203.0.113.9");
+    expect(filtered).toContain(".local");
   });
 
   it("an address that is not an IP or an mDNS name, and a bad candidate", () => {

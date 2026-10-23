@@ -206,6 +206,37 @@ function truthyDefaultOn(v: string | undefined): boolean {
   return !(v === "false" || v === "0");
 }
 
+/**
+ * Parse an environment duration (milliseconds) through a checked integer
+ * parser. `Number("24h")` is NaN, and a NaN added to the clock yields an
+ * Invalid Date, which compares false against every expiry check. A malformed
+ * value must fail the boot rather than silently disabling expiry.
+ */
+function parseBoundedDurationMs(
+  raw: string | undefined,
+  fallback: number,
+  bounds: { name: string; min: number; max: number },
+): number {
+  const text = raw?.trim();
+  if (!text) return fallback;
+  if (!/^\d+$/u.test(text)) {
+    throw new Error(
+      `${bounds.name} must be an integer number of milliseconds between ${bounds.min} and ${bounds.max}; got \`${text}\``,
+    );
+  }
+  const value = Number(text);
+  if (
+    !Number.isSafeInteger(value) ||
+    value < bounds.min ||
+    value > bounds.max
+  ) {
+    throw new Error(
+      `${bounds.name} must be an integer number of milliseconds between ${bounds.min} and ${bounds.max}; got \`${text}\``,
+    );
+  }
+  return value;
+}
+
 function parseOriginList(raw: string): string[] {
   return raw
     .split(",")
@@ -270,6 +301,16 @@ export function loadConfig(
   // fails for one user at a time.
   const providers = loadProviderRegistry(env);
 
+  const provisionalTtlMs = parseBoundedDurationMs(
+    env.OPENSESAME_PROVISIONAL_TTL_MS,
+    86_400_000,
+    {
+      name: "OPENSESAME_PROVISIONAL_TTL_MS",
+      min: 60_000,
+      max: 30 * 86_400_000,
+    },
+  );
+
   const config: ControlPlaneConfig = {
     supportProxy: readSupportProxyConfig(env),
     host,
@@ -279,9 +320,7 @@ export function loadConfig(
     claimPepper: claimPepper ?? randomBytes(32).toString("base64url"),
     provisionalCookieName:
       env.OPENSESAME_PROVISIONAL_COOKIE ?? "os_provisional",
-    provisionalTtlMs: Number(
-      env.OPENSESAME_PROVISIONAL_TTL_MS ?? String(86_400_000),
-    ),
+    provisionalTtlMs,
     logLevel: env.OPENSESAME_LOG_LEVEL ?? env.LOG_LEVEL ?? "info",
     allowPrincipalBearer,
     allowDevDefaults,

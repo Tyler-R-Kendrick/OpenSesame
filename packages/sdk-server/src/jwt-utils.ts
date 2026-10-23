@@ -78,14 +78,21 @@ export function assertAllowedJwtAlgorithm(
   token: string,
   allowed: readonly string[] = ID_TOKEN_ALGORITHMS,
 ): void {
-  let alg: string | undefined;
+  let alg: unknown;
   try {
     alg = decodeProtectedHeader(token).alg;
   } catch {
     throw new AuthError("invalid_token", "Token header is malformed");
   }
 
-  if (alg === undefined || alg.toLowerCase() === "none") {
+  if (typeof alg !== "string" || alg === "") {
+    throw new AuthError(
+      "invalid_algorithm",
+      "Token uses a disallowed signing algorithm",
+    );
+  }
+
+  if (alg.toLowerCase() === "none") {
     throw new AuthError(
       "invalid_algorithm",
       "Token uses a disallowed signing algorithm",

@@ -55,7 +55,7 @@ export {
 };
 export async function registerAnonymous(
   ctx: AppContext,
-  headers: { userAgent?: string; origin?: string },
+  headers: { userAgent?: string; origin?: string; remoteAddress?: string },
   correlationId: string,
 ) {
   const cfg = ctx.config.agentAuth;
@@ -156,7 +156,7 @@ export async function registerAnonymous(
 export async function registerServiceAuth(
   ctx: AppContext,
   loginHint: string,
-  headers: { userAgent?: string; origin?: string },
+  headers: { userAgent?: string; origin?: string; remoteAddress?: string },
   correlationId: string,
 ) {
   const cfg = ctx.config.agentAuth;

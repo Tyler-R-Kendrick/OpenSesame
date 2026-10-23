@@ -52,7 +52,11 @@ import {
 import { stampedEdit } from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
 import { type ItemWriteHost, originalItemWriteHost } from "./item-writes.js";
-import { emitVaultLock } from "./lock-events.js";
+import {
+  announceVaultDestroyed,
+  emitVaultLock,
+  onVaultDestroyed,
+} from "./lock-events.js";
 import {
   adoptedMasterWrap,
   headerWithoutPassword,
@@ -152,6 +156,7 @@ import {
   openTotpSecret,
   totpCodeMatches,
 } from "./unlock-methods.js";
+import { acquireOpenLease } from "./vault-shared-locks.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
 export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
@@ -285,6 +290,9 @@ export class VaultStore {
   #sendGuard = new CodeSendGuard();
   /** Serializes body writes so overlapping mutations cannot land out of order. */
   #writeQueue = new StoreWriteQueue();
+  /** Shared Web Lock held for as long as this tab has the vault open. */
+  #openLease: { tomb: string; release: () => Promise<void> } | null = null;
+  #stopDestroyWatch: (() => void) | null = null;
   #itemOperations = createStoreItemOperations({
     body: () => this.#body,
     items: () => this.getSnapshot().items,
@@ -611,8 +619,10 @@ export class VaultStore {
       rawVaultKey.fill(0);
       throw error;
     }
+    const lease = await this.#acquireSessionLease(scope.tomb);
     this.#scope = scope;
     this.#header = header;
+    this.#commitSessionLease(lease);
     this.#vaultKey = vaultKey;
     this.#stashRaw(rawVaultKey);
     this.#pendingVaultKey = null;
@@ -635,10 +645,13 @@ export class VaultStore {
   ): Promise<void> {
     const scope = this.#scope;
     let boundHeader: VaultHeader;
+    let lease: { tomb: string; release: () => Promise<void> } | null = null;
     try {
       boundHeader = await bindNewVaultMaterialHeader(header, rawVaultKey);
       check();
+      lease = await this.#acquireSessionLease(scope.tomb);
     } catch (error) {
+      await this.#abandonSessionLease(lease);
       rawVaultKey.fill(0);
       throw error;
     }
@@ -662,7 +675,9 @@ export class VaultStore {
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
       await this.#preferences.load(() => this.#scope.tomb);
       check();
+      this.#commitSessionLease(lease);
     } catch (error) {
+      await this.#abandonSessionLease(lease);
       if (this.#scope !== scope || this.#vaultKey !== vaultKey) {
         rawVaultKey.fill(0);
         throw error;
@@ -779,8 +794,47 @@ export class VaultStore {
     this.#emit();
   }
 
+  /**
+   * Acquire the shared open lock before an unlock/create makes the key usable.
+   * The lease itself is what makes `destroyStoredTomb`'s exclusive request
+   * fail closed while any tab still holds this vault.
+   */
+  async #acquireSessionLease(
+    tomb: string,
+  ): Promise<{ tomb: string; release: () => Promise<void> } | null> {
+    if (this.#openLease?.tomb === tomb) return null;
+    return { tomb, release: await acquireOpenLease(tomb) };
+  }
+
+  #commitSessionLease(
+    lease: { tomb: string; release: () => Promise<void> } | null,
+  ): void {
+    if (!lease) return;
+    const previous = this.#openLease;
+    this.#openLease = lease;
+    this.#stopDestroyWatch ??= onVaultDestroyed((tomb) => {
+      if (tomb === this.#scope.tomb) this.lock({ recordLastVault: false });
+    });
+    if (previous) void previous.release().catch(() => undefined);
+  }
+
+  async #abandonSessionLease(
+    lease: { tomb: string; release: () => Promise<void> } | null,
+  ): Promise<void> {
+    if (lease) await lease.release().catch(() => undefined);
+  }
+
+  #releaseSessionLease(): void {
+    const lease = this.#openLease;
+    this.#openLease = null;
+    this.#stopDestroyWatch?.();
+    this.#stopDestroyWatch = null;
+    if (lease) void lease.release().catch(() => undefined);
+  }
+
   async #activateSession(vaultKey: CryptoKey): Promise<void> {
     this.#refuseWhileFrozen();
+    const lease = await this.#acquireSessionLease(this.#scope.tomb);
     this.#vaultKey = vaultKey;
     this.#pendingVaultKey = null;
     this.#pendingTrustedKey = null;
@@ -798,6 +852,7 @@ export class VaultStore {
       this.#sealMark = sealMark(this.#scope.tomb);
       syncInstalledTypes(this.#body.itemTypes);
     } catch (error) {
+      await this.#abandonSessionLease(lease);
       this.#vaultKey = null;
       lockTomb(this.#scope.tomb);
       this.#zeroRaw();
@@ -808,6 +863,7 @@ export class VaultStore {
     await this.#protection.ensureProtectionProjected();
     kvDelete(this.#scope.attempts);
     writeLastVaultId(this.#scope.tomb);
+    this.#commitSessionLease(lease);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -1245,6 +1301,7 @@ export class VaultStore {
   onLock = this.#lockHandlers.subscribe;
 
   lock = (options?: { recordLastVault?: boolean }): void => {
+    this.#releaseSessionLease();
     this.#protection.cancelPendingOps();
     const retiredOrigin = this.#retiredSynthetic?.origin;
     this.#retiredSynthetic = null;
@@ -1511,6 +1568,7 @@ export class VaultStore {
     // delete must leave a recoverable vault, not an empty store that the next
     // create can overwrite.
     await destroyStoredTomb(this.#writeQueue, scope);
+    announceVaultDestroyed(scope.tomb);
     if (isGuestSessionTomb(scope.tomb)) {
       this.#scope = scopedVaultScope();
       this.#header = this.#readHeader();

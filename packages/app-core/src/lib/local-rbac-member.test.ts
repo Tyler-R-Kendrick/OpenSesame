@@ -1,6 +1,10 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { registerLocalAgentKey } from "./local-agent-keys.js";
+import {
+  readLocalAgentKeys,
+  registerLocalAgentKey,
+  revokeLocalAgentKey,
+} from "./local-agent-keys.js";
 import { configureLocalApplication } from "./local-applications.js";
 import { authenticator } from "./local-authenticator.fixture.js";
 import { revokeRecordedLocalGrant } from "./local-grant-admin.js";
@@ -43,6 +47,18 @@ describe("local Access capabilities for a signed-in member", () => {
     });
     const agent = withAgent.entries.find((row) => row.name === "Build bot");
     await signInLocalIdentity(fixture.tomb, fixture.personId);
+    const enrolled = await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    );
+    await registerLocalAgentKey(
+      fixture.tomb,
+      agent?.id ?? "",
+      overlapCast(await crypto.subtle.exportKey("jwk", enrolled.publicKey)),
+    );
+    const enrolledId = (await readLocalAgentKeys(fixture.tomb))[0]
+      ?.credentialId;
     await fixture.change({
       action: "membership",
       organizationId: fixture.organizationId,
@@ -94,6 +110,9 @@ describe("local Access capabilities for a signed-in member", () => {
         agent?.id ?? "",
         overlapCast(publicJwk),
       ),
+    ).rejects.toThrow(OPERATOR_ONLY);
+    await expect(
+      revokeLocalAgentKey(fixture.tomb, agent?.id ?? "", enrolledId ?? ""),
     ).rejects.toThrow(OPERATOR_ONLY);
     await revokeLocalIdentitySession(fixture.tomb, session.id);
     // A member's own sign-out is not a road back to the custodian role.

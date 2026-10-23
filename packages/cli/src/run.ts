@@ -2,7 +2,12 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { configuredEndpoint, overlapCast } from "@opensesame/os-domain";
+import {
+  configuredEndpoint,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   DeviceFlowClient,
   createControlPlaneClient,
@@ -36,6 +41,53 @@ import { type VaultSyncDependencies, runVaultSync } from "./vault-sync.js";
 
 function defaultIssuer(): string {
   return process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
+}
+
+type StoredSession = NonNullable<Awaited<ReturnType<typeof loadSession>>>;
+
+/**
+ * Revoke an OIDC session at its issuer (RFC 7009). The provisional endpoint
+ * only ends guest sessions; a loopback/device login holds a refresh token that
+ * stays valid until the issuer revokes it. Returns false when no endpoint is
+ * published or the issuer refuses, so `logout` can say the session may remain.
+ */
+async function revokeIssuerSession(
+  session: StoredSession,
+  fetchImpl: typeof fetch,
+): Promise<boolean> {
+  if (!session.refreshToken && !session.accessToken) return true;
+  const issuer = session.issuer.replace(/\/+$/u, "");
+  try {
+    const discovery = await fetchImpl(
+      `${issuer}/.well-known/openid-configuration`,
+      {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(5_000),
+      },
+    );
+    if (!discovery.ok) return false;
+    const meta = overlapCast(await discovery.json());
+    if (!isJsonObject(meta) || !isString(meta.revocation_endpoint))
+      return false;
+    if (new URL(meta.revocation_endpoint).origin !== new URL(issuer).origin)
+      return false;
+    const token = session.refreshToken ?? session.accessToken;
+    const response = await fetchImpl(meta.revocation_endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      signal: AbortSignal.timeout(5_000),
+      body: new URLSearchParams({
+        token,
+        token_type_hint: session.refreshToken
+          ? "refresh_token"
+          : "access_token",
+        client_id: session.clientId,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 interface RunDependencies
@@ -348,6 +400,17 @@ async function dispatch(
           await cp.logout();
         } catch {
           // local clear still happens
+        }
+        // A provisional revoke is a no-op for an OIDC session. Revoke the
+        // refresh/access token at the issuer before the local file goes away,
+        // or a copied refresh token would outlive "Signed out."
+        if (
+          session.anonymous !== true &&
+          !(await revokeIssuerSession(session, fetchImpl))
+        ) {
+          process.stderr.write(
+            "Signed out locally, but the issuer did not confirm revocation; the remote session may remain active.\n",
+          );
         }
       }
       await clearSession();

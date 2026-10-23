@@ -295,11 +295,19 @@ async function endOrganizationMemberships(
   if (resolution.source !== "org") return 0;
   const principalIds = new Set<string>();
   for (const kind of ["oidc", "oauth2", "saml", "ldap", "email"]) {
-    const identity = await ctx.repos.externalIdentities.findByTuple({
+    const scoped = await ctx.repos.externalIdentities.findByTuple({
       kind,
       issuer,
+      tenant: resolution.organizationId,
       subject,
     });
+    const identity =
+      scoped ??
+      (await ctx.repos.externalIdentities.findByTuple({
+        kind,
+        issuer,
+        subject,
+      }));
     if (identity) principalIds.add(identity.principalId);
   }
   let ended = 0;

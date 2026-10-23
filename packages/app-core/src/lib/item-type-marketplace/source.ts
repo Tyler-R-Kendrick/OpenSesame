@@ -113,6 +113,9 @@ function forgeSource(
   if (repo === null || cleanedRef === undefined || cleanedRoot === undefined)
     return null;
   if (!HOST.test(host)) return null;
+  // A forge reference is untrusted input too: `gitlab+https://10.0.0.5/…`
+  // must not turn the PWA into a probe of loopback or private networks.
+  if (targetAddressSpaceFor(`https://${host}/`) !== undefined) return null;
   // Their raw routes live on the public service's own hosts, so a GitHub or
   // Bitbucket source anywhere else would be read from the same-named
   // repository on the public site. A self-hosted instance is listed by the

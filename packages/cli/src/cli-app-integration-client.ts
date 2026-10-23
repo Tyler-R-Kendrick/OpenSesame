@@ -43,9 +43,12 @@ async function pollEnsure(
   const deadline =
     Date.now() + cliAppIntegrationPolicy.requestTimeoutSeconds * 1000;
   while (Date.now() < deadline) {
+    const remaining = deadline - Date.now();
     const response = await fetch(`${base}${path}`, {
       method: "POST",
-      signal: AbortSignal.timeout(8_000),
+      // Never wait longer than the approval window itself: a listener that
+      // accepts the connection and then stalls cannot outlive the deadline.
+      signal: AbortSignal.timeout(Math.max(1, Math.min(8_000, remaining))),
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         terminalSessionId,

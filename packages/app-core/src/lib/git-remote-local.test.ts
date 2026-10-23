@@ -5,6 +5,12 @@ import {
   revokeLocalGitConnection,
 } from "./connections-local-git.js";
 import {
+  readDeviceRows,
+  readDeviceSecrets,
+  writeDeviceRows,
+  writeDeviceSecrets,
+} from "./device-connector-records.js";
+import {
   forgetAllLocalGitRemotes,
   forgetLocalGitRemote,
   getLocalGitRemote,
@@ -104,6 +110,40 @@ describe("git-remote-local", () => {
     vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
     vi.spyOn(vaultStore, "trashItem").mockResolvedValue(undefined);
     await forgetLocalGitRemote(remote.id);
+  });
+
+  it("deletes the device-connector token copy and refuses an unknown id", async () => {
+    vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
+    vi.spyOn(vaultStore, "trashItem").mockResolvedValue(undefined);
+    vi.spyOn(vaultStore, "addItems").mockResolvedValue(undefined);
+    const remote = await rememberLocalGitRemote({
+      displayName: "Mirrored forge",
+      configuration: {
+        remote_url: "https://git.example/a.git",
+        auth_mode: "https_token",
+        token: "glpat-secret",
+      },
+    });
+    writeDeviceRows([
+      {
+        connectionId: remote.id,
+        providerId: "git",
+        displayName: "Mirrored forge",
+        scopes: [],
+        fields: {},
+        createdAt: remote.createdAt,
+        updatedAt: remote.updatedAt,
+      },
+    ]);
+    writeDeviceSecrets({ [remote.id]: { token: "glpat-secret" } });
+    expect(await revokeLocalGitConnection(remote.id)).toMatchObject({
+      revoked: true,
+    });
+    expect(readDeviceRows().some((row) => row.connectionId === remote.id)).toBe(
+      false,
+    );
+    expect(readDeviceSecrets()[remote.id]).toBeUndefined();
+    expect(await revokeLocalGitConnection(remote.id)).toBeNull();
   });
 
   it("revokes the remote and its history binding together", async () => {

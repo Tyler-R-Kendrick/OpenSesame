@@ -120,6 +120,16 @@ describe("github app PEM lookup", () => {
     ).toBeNull();
   });
 
+  it("purges a pre-binding App key by its exact name on removal", async () => {
+    rememberApp();
+    const legacy = secret(APP.displayName, APP_PEM);
+    openVault([legacy], "unlocked");
+    const purge = vi.spyOn(vaultStore, "purgeItem").mockResolvedValue();
+    forgetLocalGithubApp();
+    await Promise.resolve();
+    expect(purge).toHaveBeenCalledWith(legacy.id);
+  });
+
   it("finds a pre-binding record by its exact App name only", () => {
     openVault(
       [secret("Other", SSH_RSA), secret(APP.displayName, APP_PEM)],

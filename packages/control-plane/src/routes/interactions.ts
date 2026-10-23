@@ -360,9 +360,13 @@ export function createInteractionRoutes(): Hono<
       accountId = principalId;
     } else if (action === "start") {
       const fingerprint = createHash("sha256")
-        .update(c.req.header("user-agent") ?? "")
+        .update(c.env?.incoming?.socket?.remoteAddress ?? "")
         .update("|")
-        .update(c.req.header("origin") ?? "")
+        .update(
+          c.env?.incoming?.socket?.remoteAddress
+            ? ""
+            : (c.req.header("user-agent") ?? ""),
+        )
         .digest("hex")
         .slice(0, 16);
       try {
@@ -592,9 +596,13 @@ export function createInteractionRoutes(): Hono<
       // session" action would, then promote it in place by attaching the
       // verified identity. The principal id never changes (ADR 0033).
       const fingerprint = createHash("sha256")
-        .update(c.req.header("user-agent") ?? "")
+        .update(c.env?.incoming?.socket?.remoteAddress ?? "")
         .update("|")
-        .update(ctx.config.publicUrl)
+        .update(
+          c.env?.incoming?.socket?.remoteAddress
+            ? ""
+            : (c.req.header("user-agent") ?? ""),
+        )
         .digest("hex")
         .slice(0, 16);
       let minted: { principalId: string; accessToken: string };

@@ -217,19 +217,21 @@ export async function enrollAgeWebauthn(input: {
     buildPayload(context, input.rootKey),
     identity,
   );
-  const opened = parsePayload(
-    await cryptoApi.decrypt(capsule, identity),
-    context,
-  );
+  const decrypted = await cryptoApi.decrypt(capsule, identity);
   try {
-    if (!equalBytes(opened, input.rootKey)) {
-      throw new ProtectionError(
-        "enrollment_proof_failed",
-        "Age WebAuthn enrollment recovered a different root key.",
-      );
+    const opened = parsePayload(decrypted, context);
+    try {
+      if (!equalBytes(opened, input.rootKey)) {
+        throw new ProtectionError(
+          "enrollment_proof_failed",
+          "Age WebAuthn enrollment recovered a different root key.",
+        );
+      }
+    } finally {
+      opened.fill(0);
     }
   } finally {
-    opened.fill(0);
+    decrypted.fill(0);
   }
   const evidence = softwareEvidence(`age-webauthn-enroll:${protectorId}`);
   const record: AgeWebauthnProtectorRecord = {

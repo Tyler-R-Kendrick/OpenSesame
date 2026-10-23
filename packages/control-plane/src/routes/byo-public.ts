@@ -58,10 +58,13 @@ byoPublicRoutes.post("/byo-upstreams", async (c) => {
   // The same user-agent-derived abuse key the interaction's unauthenticated
   // POSTs mint. A fence against one browser hammering the endpoint, never an
   // identifier: nothing durable is keyed by it.
+  const peer = (
+    c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined
+  )?.incoming?.socket?.remoteAddress;
   const fingerprint = createHash("sha256")
-    .update(c.req.header("user-agent") ?? "")
+    .update(peer ?? "")
     .update("|")
-    .update(c.req.header("origin") ?? "")
+    .update(peer ? "" : (c.req.header("user-agent") ?? ""))
     .digest("hex")
     .slice(0, 16);
 

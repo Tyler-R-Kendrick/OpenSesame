@@ -27,9 +27,11 @@ export const ACCOUNTS = "accounts";
 export const ENTRIES = "entries";
 
 let legacySwept = false;
+let legacySweep: Promise<void> | null = null;
 
 export function resetLegacyHistorySweep(): void {
   legacySwept = false;
+  legacySweep = null;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -159,43 +161,47 @@ export function present<T>(value: T | null): value is T {
 /** Seal, once per document, any row written before rows were sealed. */
 async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
   if (legacySwept) return;
-  legacySwept = true;
-  const tx = db.transaction([ACCOUNTS, ENTRIES], "readwrite");
-  try {
-    for (const store of [ACCOUNTS, ENTRIES]) {
-      const rows: BoundaryValue[] = await idbReq(
-        tx.objectStore(store).getAll(),
-      );
-      for (const row of rows) {
-        if (!isJsonObject(row) || isString(row.sealed)) continue;
-        const account = store === ACCOUNTS ? asAccount(row) : null;
-        const entry = store === ENTRIES ? asEntry(row) : null;
-        if (account) {
-          await idbReq(
-            tx.objectStore(store).put(sealRow(atRest, store, account)),
-          );
-        } else if (entry) {
-          const sealed = sealRow(atRest, store, entry, entry.accountId);
-          await idbReq(tx.objectStore(store).put(sealed));
-        } else if (isString(row.id)) {
-          // Unreadable to the app either way: sealed whole rather than dropped
-          // or left in the clear.
-          const sealed = sealAtRest(
-            atRest.key,
-            rowBinding(store, row.id),
-            JSON.stringify(row),
-          );
-          await idbReq(tx.objectStore(store).put({ id: row.id, sealed }));
+  if (legacySweep) return legacySweep;
+  const sweep = (async () => {
+    const tx = db.transaction([ACCOUNTS, ENTRIES], "readwrite");
+    try {
+      for (const store of [ACCOUNTS, ENTRIES]) {
+        const rows: BoundaryValue[] = await idbReq(
+          tx.objectStore(store).getAll(),
+        );
+        for (const row of rows) {
+          if (!isJsonObject(row) || isString(row.sealed)) continue;
+          const account = store === ACCOUNTS ? asAccount(row) : null;
+          const entry = store === ENTRIES ? asEntry(row) : null;
+          if (account) {
+            await idbReq(
+              tx.objectStore(store).put(sealRow(atRest, store, account)),
+            );
+          } else if (entry) {
+            const sealed = sealRow(atRest, store, entry, entry.accountId);
+            await idbReq(tx.objectStore(store).put(sealed));
+          } else if (isString(row.id)) {
+            // Unreadable to the app either way: sealed whole rather than dropped
+            // or left in the clear.
+            const sealed = sealAtRest(
+              atRest.key,
+              rowBinding(store, row.id),
+              JSON.stringify(row),
+            );
+            await idbReq(tx.objectStore(store).put({ id: row.id, sealed }));
+          }
         }
       }
+      await txDone(tx);
+      // Latch only after every row and the transaction committed. A transient
+      // IndexedDB failure leaves the next call free to retry.
+      legacySwept = true;
+    } finally {
+      legacySweep = null;
     }
-    await txDone(tx);
-  } catch (error) {
-    // A transient IndexedDB failure must not latch the sweep off forever:
-    // later writes would keep serving unsealed legacy rows.
-    legacySwept = false;
-    throw error;
-  }
+  })();
+  legacySweep = sweep;
+  return sweep;
 }
 
 async function withDb<T>(

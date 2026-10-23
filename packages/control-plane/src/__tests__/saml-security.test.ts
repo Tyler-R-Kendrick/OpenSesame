@@ -373,6 +373,7 @@ describe("SAML IdP-initiated sign-in", () => {
     const identity = await started.ctx.repos.externalIdentities.findByTuple({
       kind: "saml",
       issuer: idp.saml.entityId,
+      tenant: organizationId,
       subject,
     });
     expect(identity).toBeTruthy();

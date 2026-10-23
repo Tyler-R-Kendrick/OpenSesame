@@ -119,6 +119,39 @@ describe("user token authorization popup", () => {
     expect(seams.check).not.toHaveBeenCalled();
   });
 
+  it("removes its consent listener when the panel unmounts", async () => {
+    const opened = popup();
+    seams.open.mockReturnValue(opened);
+    seams.authorize.mockResolvedValue({
+      authorizationUrl: "https://connect.example/authorize",
+    });
+    const view = render(
+      <UserTokenPanel
+        connectorId="con_1"
+        subjectId="you"
+        scopes={["read"]}
+        canManage
+        canProve
+        online
+        onFlash={vi.fn()}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Authorize as you" }),
+    );
+    await waitFor(() => expect(seams.authorize).toHaveBeenCalledTimes(1));
+    view.unmount();
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: window.location.origin,
+        source: popupSource(opened),
+        data: { type: "opensesame:connection", connectionId: "con_1" },
+      }),
+    );
+    await Promise.resolve();
+    expect(seams.check).not.toHaveBeenCalled();
+  });
+
   it("navigates this tab and never polls when noopener returns no handle", async () => {
     seams.open.mockReturnValue(null);
     seams.authorize.mockResolvedValue({

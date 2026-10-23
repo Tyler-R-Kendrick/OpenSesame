@@ -245,6 +245,24 @@ describe("channel bindings", () => {
     expect(res.status).toBe(404);
   });
 
+  it("maps a lost revoke compare-and-set to 409, never 500", async () => {
+    const { app } = plane();
+    const me = await principal(app);
+    const bindingId = await bind(app, me.accessToken);
+    const revoke = () =>
+      app.request(`/v1/notification-channels/bindings/${bindingId}`, {
+        method: "DELETE",
+        headers: authed(me.accessToken),
+      });
+    const [first, second] = await Promise.all([revoke(), revoke()]);
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([200, 409]);
+    const conflict = first.status === 409 ? first : second;
+    expect(overlapCast<{ error: string }>(await conflict.json()).error).toBe(
+      "conflict",
+    );
+  });
+
   it("contract: revoking is audited and leaves the destination unusable", async () => {
     const { app, ctx } = plane();
     const me = await principal(app);

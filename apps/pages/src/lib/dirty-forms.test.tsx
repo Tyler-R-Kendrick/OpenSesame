@@ -77,6 +77,37 @@ describe("dirty forms", () => {
     stop();
   });
 
+  it("drops the hold when a single dirty control leaves a still-mounted form", async () => {
+    const stop = watchDirtyForms();
+    const input = document.createElement("input");
+    const form = appendForm("editor", input);
+    input.value = "Dirty";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(anyDirtyEdit()).toBe(true);
+    input.remove();
+    await Promise.resolve();
+    expect(anyDirtyEdit()).toBe(false);
+    expect(form.isConnected).toBe(true);
+    form.remove();
+    stop();
+  });
+
+  it("drops the hold when a subtree containing the dirty control is removed", async () => {
+    const stop = watchDirtyForms();
+    const input = document.createElement("input");
+    const wrapper = document.createElement("div");
+    wrapper.append(input);
+    const form = appendForm("editor", wrapper);
+    input.value = "Dirty";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(anyDirtyEdit()).toBe(true);
+    wrapper.remove();
+    await Promise.resolve();
+    expect(anyDirtyEdit()).toBe(false);
+    form.remove();
+    stop();
+  });
+
   it("releases a dirty hold when the watcher stops", () => {
     const stop = watchDirtyForms();
     const input = document.createElement("input");

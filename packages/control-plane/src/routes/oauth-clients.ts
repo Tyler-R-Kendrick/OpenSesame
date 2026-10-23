@@ -327,6 +327,28 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     if (!client || !stored) {
       return c.json({ error: "not_found" }, 404);
     }
+    if (stored.admissionMode === "origin_profile") {
+      // An origin-profile client is bound to its canonical origin. A rotated
+      // `cli_` row would hit the origin uniqueness rule and leave the original
+      // revoked with no usable successor, so rotation is not offered.
+      return c.json(
+        {
+          error: "rotation_not_supported",
+          message:
+            "Origin-profile clients cannot be rotated; register a new client.",
+        },
+        409,
+      );
+    }
+    if (stored.state !== "active") {
+      return c.json(
+        {
+          error: "client_not_active",
+          message: "Only an active client can be rotated.",
+        },
+        409,
+      );
+    }
     const refused = await rotationRefusal(
       ctx,
       principalId,

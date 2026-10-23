@@ -12,6 +12,7 @@ import type { AppContext } from "../context.js";
 import type { OrganizationId } from "../lib/ids.js";
 import type { Variables } from "../middleware/context.js";
 import type { OrgOwner } from "../proofs/org-owner.js";
+import { serializeKeyed } from "../serialize.js";
 import { SCIM_ROLE_ATTRIBUTE, applyRole, roleOf } from "./scim-effects.js";
 import {
   memberIds,
@@ -225,21 +226,35 @@ async function syncDerivedRole(
   memberId: string,
   c?: Context<{ Variables: Variables }>,
 ): Promise<void> {
+  // The same lock SCIM Users PATCH/DELETE take. Without it a Group push can
+  // read `active: true`, race a deactivation's deprovision, then write the
+  // stale row back and re-admit the departed subject.
+  await serializeKeyed(
+    ctx.stores.principalMutations,
+    `scim-user:${organization.id}:${memberId}`,
+    async () => {
+      const user = await ctx.stores.scim.users.getById(
+        organization.id,
+        memberId,
+      );
+      if (!user) return;
+      const derived = await derivedRoleForUser(ctx, organization.id, memberId);
+      const previous = roleOf(user);
+      if (derived === previous) return;
+      const raw = { ...user.raw };
+      if (derived) raw[SCIM_ROLE_ATTRIBUTE] = derived;
+      else delete raw[SCIM_ROLE_ATTRIBUTE];
+      await ctx.stores.scim.users.update({
+        ...user,
+        raw,
+        updatedAt: ctx.clock(),
+      });
+      await applyRole(ctx, organization, user, derived ?? "member");
+    },
+  );
+  if (!c) return;
   const user = await ctx.stores.scim.users.getById(organization.id, memberId);
   if (!user) return;
-  const derived = await derivedRoleForUser(ctx, organization.id, memberId);
-  const previous = roleOf(user);
-  if (derived === previous) return;
-  const raw = { ...user.raw };
-  if (derived) raw[SCIM_ROLE_ATTRIBUTE] = derived;
-  else delete raw[SCIM_ROLE_ATTRIBUTE];
-  await ctx.stores.scim.users.update({
-    ...user,
-    raw,
-    updatedAt: ctx.clock(),
-  });
-  await applyRole(ctx, organization, user, derived ?? "member");
-  if (!c) return;
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "organization.scim_role_mapped",
     outcome: "succeeded",
@@ -250,7 +265,7 @@ async function syncDerivedRole(
     targetId: user.id,
     metadata: {
       action: "organization.scim_group.map_role",
-      type: derived ?? "member",
+      type: roleOf(user) ?? "member",
     },
   });
 }

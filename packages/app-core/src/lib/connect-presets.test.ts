@@ -333,16 +333,13 @@ describe("drafts", () => {
     });
   });
 
-  it("keys a person's tokens by principal, or by a device-random id when signed out", () => {
+  it("keys a person's tokens by principal, or by the vault instance when signed out", () => {
     const store = memoryStore();
     expect(connectSubjectId("prn_1", "tomb", store)).toBe("prn_1");
-    const mine = connectSubjectId(null, "personal", store);
-    expect(mine).toMatch(/^local-[0-9a-f]{32}$/);
-    // Stable for this vault on this device…
-    expect(connectSubjectId(null, "personal", store)).toBe(mine);
-    // …but never the vault's name, which every device's personal vault shares.
-    expect(connectSubjectId(null, "personal", memoryStore())).not.toBe(mine);
-    expect(connectSubjectId(null, "project-x", store)).not.toBe(mine);
+    // No durable instance id means no signed-out subject: a vault name is
+    // not an identity and must never inherit another vault's token.
+    expect(connectSubjectId(null, "personal", store)).toBeNull();
+    expect(connectSubjectId(null, "personal", memoryStore())).toBeNull();
     expect(connectSubjectId(" ", "", store)).toBeNull();
     const instanceStore = memoryStore();
     const firstVault = connectSubjectId(
@@ -351,7 +348,7 @@ describe("drafts", () => {
       instanceStore,
       "vault-one",
     );
-    expect(firstVault).not.toBeNull();
+    expect(firstVault).toMatch(/^local-[0-9a-f]{32}$/);
     expect(connectSubjectId(null, "personal", instanceStore, "vault-one")).toBe(
       firstVault,
     );

@@ -56,7 +56,7 @@ function ImportedConnectPanels({
   // A recreated vault with the same display name has a new header; bind the
   // signed-out Connect subject to that instance, not the name alone.
   const vaultInstance =
-    vault.header?.protection?.vaultId ?? vault.header?.createdAt ?? tomb;
+    vault.header?.protection?.vaultId ?? vault.header?.createdAt ?? null;
   if (!plan) return null;
   return (
     <div className="cx-setup">

@@ -223,6 +223,54 @@ describe("gcp-kms live (opt-in)", () => {
 });
 
 describe("GCP KMS HTTPS integrity", () => {
+  it("decrypts the pinned key version, not whatever is primary", async () => {
+    const seen: string[] = [];
+    const plaintext = new Uint8Array([4, 5, 6]);
+    const transport = createGcpKmsHttpsTransport({
+      bearerToken: "token",
+      fetchImpl: async (input) => {
+        seen.push(String(input));
+        return Response.json({
+          plaintext: Buffer.from(plaintext).toString("base64"),
+          plaintextCrc32c: { value: crc32cDecimalString(plaintext) },
+        });
+      },
+    });
+    await transport.decrypt({
+      keyName: KEY_NAME,
+      expectedKeyVersionName: KEY_VERSION,
+      ciphertext: new Uint8Array([1]),
+      aad: new Uint8Array(),
+    });
+    expect(seen).toEqual([
+      `https://cloudkms.googleapis.com/v1/${KEY_VERSION}:decrypt`,
+    ]);
+    await expect(
+      transport.decrypt({
+        keyName: KEY_NAME,
+        expectedKeyVersionName: `${KEY_NAME}/cryptoKeyVersions/2`,
+        ciphertext: new Uint8Array([1]),
+        aad: new Uint8Array(),
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("rejects a pinned version from another key", async () => {
+    const transport = createGcpKmsHttpsTransport({
+      bearerToken: "token",
+      fetchImpl: async () => Response.json({}),
+    });
+    await expect(
+      transport.decrypt({
+        keyName: KEY_NAME,
+        expectedKeyVersionName:
+          "projects/other/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1",
+        ciphertext: new Uint8Array([1]),
+        aad: new Uint8Array(),
+      }),
+    ).rejects.toMatchObject({ code: "malformed_encoding" });
+  });
+
   it("refuses an encrypt response without the provider's ciphertext checksum", async () => {
     const transport = createGcpKmsHttpsTransport({
       bearerToken: "token",

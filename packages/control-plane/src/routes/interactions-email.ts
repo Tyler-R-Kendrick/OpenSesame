@@ -79,6 +79,8 @@ const UNDELIVERABLE_MESSAGE =
   "That link could not be sent right now. Try another sign-in method.";
 const EXPIRED_LINK_MESSAGE =
   "That sign-in link has expired or was already used. Request a new one.";
+const THROTTLED_MESSAGE =
+  "Too many sign-in links were requested for that address. Wait a few minutes and try again.";
 
 /**
  * Per-address budget for outbound links.
@@ -94,6 +96,10 @@ const EXPIRED_LINK_MESSAGE =
 const EMAIL_BUDGET_WINDOW_MS = 10 * 60 * 1000;
 const EMAIL_BUDGET_MAX = 5;
 const EMAIL_GLOBAL_MAX = 200;
+/** A caller rotating recipient addresses still gets a source-address ceiling. */
+const EMAIL_PEER_MAX = 20;
+const EMAIL_BUDGET_MAX_KEYS = 2_048;
+const EMAIL_GLOBAL_KEY = "__global__";
 const emailBudget = new Map<string, number[]>();
 
 /** Test hook: drop every recorded send window. */
@@ -101,20 +107,35 @@ export function resetEmailLinkBudget(): void {
   emailBudget.clear();
 }
 
+function peerKey(c: { env: HttpBindings }): string {
+  const address = c.env?.incoming?.socket?.remoteAddress;
+  return address ? `peer:${address}` : "peer:unknown";
+}
+
 function consumeEmailBudget(
   key: string,
   now: number,
   limit = EMAIL_BUDGET_MAX,
 ): boolean {
-  const recent = (emailBudget.get(key) ?? []).filter(
-    (at) => now - at < EMAIL_BUDGET_WINDOW_MS,
-  );
+  for (const [candidate, times] of emailBudget) {
+    const live = times.filter((at) => now - at < EMAIL_BUDGET_WINDOW_MS);
+    if (live.length === 0) emailBudget.delete(candidate);
+    else if (live.length !== times.length) emailBudget.set(candidate, live);
+  }
+  const recent = emailBudget.get(key) ?? [];
   if (recent.length >= limit) {
     emailBudget.set(key, recent);
     return false;
   }
   recent.push(now);
   emailBudget.set(key, recent);
+  while (emailBudget.size > EMAIL_BUDGET_MAX_KEYS) {
+    const victim = [...emailBudget.keys()].find(
+      (candidate) => candidate !== EMAIL_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    emailBudget.delete(victim);
+  }
   return true;
 }
 
@@ -203,15 +224,23 @@ export function createEmailInteractionRoutes(
       return rerender({ emailError: INVALID_EMAIL_MESSAGE });
     }
 
-    // Budget exhaustion answers exactly like a successful send. Saying "too
-    // many links have been sent to that address" would confirm the address is
-    // one somebody signs in with.
+    // Charge the deployment-wide and source-address fences first, so a loop
+    // through arbitrary addresses cannot grow the per-address map. The
+    // per-address fence remains: one inbox must not be floodable at will.
+    const now = ctx.clock().getTime();
     const budgetKey = createHash("sha256").update(email).digest("hex");
     if (
-      !consumeEmailBudget(budgetKey, ctx.clock().getTime()) ||
-      !consumeEmailBudget("__global__", ctx.clock().getTime(), EMAIL_GLOBAL_MAX)
+      !consumeEmailBudget(EMAIL_GLOBAL_KEY, now, EMAIL_GLOBAL_MAX) ||
+      !consumeEmailBudget(peerKey(c), now, EMAIL_PEER_MAX)
     ) {
       return rerender({ emailSent: true });
+    }
+    // Over the per-address fence, say so rather than pretending a mail went
+    // out. The answer is the same for every address, so it is a throttling
+    // signal, not an account-existence oracle — and a victim is told why the
+    // link never arrives instead of being silently locked out.
+    if (!consumeEmailBudget(budgetKey, now)) {
+      return rerender({ emailError: THROTTLED_MESSAGE });
     }
 
     try {

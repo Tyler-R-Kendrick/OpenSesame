@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { configureHost } from "../../host.js";
+import { createTestHost } from "../../test-host.js";
+import { atRestReady } from "../at-rest/key.js";
+import { sealOriginFile } from "../at-rest/origin-files.js";
+import {
+  installOpfs,
+  makeOpfs,
+} from "../duress/wipe/fake-opfs.test-support.js";
 import { kvGet } from "../kv.js";
 import { sealDrop } from "./drop.js";
 import {
@@ -88,6 +96,44 @@ describe("local drop claims — no Identity API", () => {
         [session.claimId]: { targetManifest: {} },
       },
     });
+  });
+
+  it("re-reads a claim presented by another tab instead of its stale cache", async () => {
+    const root = makeOpfs();
+    installOpfs(root);
+    try {
+      const { manifest } = await sealDrop({
+        kind: "text",
+        name: "cross-tab",
+        text: "one use",
+      });
+      const session = await createLocalDropClaim(manifest, 600_000);
+      // This tab still holds the pending copy in its in-memory kv cache.
+      const stored = JSON.parse(
+        String(kvGet(LOCAL_DROP_CLAIM_STORAGE_KEY)),
+      ) as {
+        claims: Record<string, { state: string; targetManifest: unknown }>;
+      };
+      const record = stored.claims[session.claimId];
+      if (!record) throw new Error("expected the pending claim");
+      record.state = "presented";
+      record.targetManifest = {};
+      // Another tab commits the presentation durably; this tab's cache does
+      // not see `kvSet`, so only a refresh under the claim lock can.
+      const name = "opensesame-pages-opensesame.local-drop-claims.v1.json";
+      const atRest = await atRestReady();
+      root.files.set(
+        name,
+        sealOriginFile(atRest, name, JSON.stringify(stored)),
+      );
+      await expect(
+        presentLocalDropClaim(session.bearerToken, session.userCode),
+      ).rejects.toThrow(/already opened/);
+    } finally {
+      vi.unstubAllGlobals();
+      configureHost(createTestHost());
+      resetLocalDropClaimsForTests();
+    }
   });
 
   it("revokes a pending claim and refuses presentation afterward", async () => {

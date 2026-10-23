@@ -169,4 +169,31 @@ describe("a flood of logins", () => {
     clock += 61_000;
     expect((await start(base)).status).toBe(302);
   });
+
+  it("keys behind an operator-trusted proxy but ignores a direct client's forwarding header", async () => {
+    let clock = 1_000_000;
+    const direct = await relyingParty(
+      { SIOP_RP_STARTS_PER_MINUTE: "1" },
+      { now: () => clock },
+    );
+    const spoofed = (base: string, client: string) =>
+      fetch(`${base}/auth/start`, {
+        redirect: "manual",
+        headers: { "x-forwarded-for": client },
+      });
+    expect((await spoofed(direct.base, "203.0.113.1")).status).toBe(302);
+    // The socket peer is the key, so a new header value does not buy a bucket.
+    expect((await spoofed(direct.base, "203.0.113.2")).status).toBe(429);
+
+    clock += 61_000;
+    const proxied = await relyingParty(
+      {
+        SIOP_RP_STARTS_PER_MINUTE: "1",
+        SIOP_RP_TRUSTED_PROXY: "127.0.0.1",
+      },
+      { now: () => clock },
+    );
+    expect((await spoofed(proxied.base, "203.0.113.1")).status).toBe(302);
+    expect((await spoofed(proxied.base, "203.0.113.2")).status).toBe(302);
+  });
 });

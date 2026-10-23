@@ -7,7 +7,6 @@ import {
 } from "@opensesame/database";
 import {
   type ClientRecordStore,
-  SafeMetadataFetcher,
   canonicalizeOrigin,
   originClientId,
 } from "@opensesame/oauth-provider";
@@ -20,6 +19,8 @@ import {
 } from "@opensesame/os-domain";
 import type { ActorId } from "../lib/ids.js";
 import type { VerifiedPrincipal } from "../proofs/verified-principal.js";
+import { serializeKeyed } from "../serialize.js";
+import { guardedFetch } from "./guarded-fetch.js";
 
 /** F5: claim challenges live at most ten minutes. */
 export const CLAIM_CHALLENGE_TTL_MS = 600_000;
@@ -87,11 +88,13 @@ export interface AppClaimServiceOptions {
   clock: Clock;
   isProduction: boolean;
   /**
-   * Direct (non-pinned) proof fetch. Loopback origins cannot pass the
-   * SSRF-pinned fetcher, so development claims of `http://127.0.0.1:*` sites
-   * fetch directly — never in production.
+   * Direct fetch is limited to the literal loopback hosts under dev defaults;
+   * every other destination — in every environment — goes through the
+   * DNS-pinned guarded fetch.
    */
   allowDirectFetch: boolean;
+  /** Server-side logging seam for fetch failures. */
+  onFetchFailure?: ((detail: unknown) => void) | undefined;
   /** Test seam for the proof document fetch. */
   fetchImpl?: typeof fetch;
 }
@@ -105,12 +108,11 @@ export interface AppClaimServiceOptions {
  * (`client_origins`) that shares the application's pairwise sector.
  */
 export class AppClaimService {
-  readonly #fetcher: SafeMetadataFetcher;
   readonly #fetchImpl: typeof fetch;
+  /** Process-local serialization for the consume-and-transfer section. */
+  readonly #locks = new Map<string, Promise<void>>();
 
   constructor(private readonly options: AppClaimServiceOptions) {
-    // cimdEnabled only gates the fetcher; claim proof fetch is its own feature.
-    this.#fetcher = new SafeMetadataFetcher({ cimdEnabled: true });
     this.#fetchImpl = options.fetchImpl ?? fetch;
   }
 
@@ -140,6 +142,38 @@ export class AppClaimService {
       );
     }
     return canonical;
+  }
+
+  /**
+   * The claim must prove an origin this application is actually allowed to
+   * use. A caller cannot take over `origin:https://victim.example` by hosting
+   * its challenge at an unrelated origin: for a system-owned client the
+   * canonical origin must match the client, and any other origin must already
+   * be a verified alias of this application.
+   */
+  async #assertOriginBound(
+    client: {
+      id: string;
+      origin?: string | undefined;
+      ownerPrincipalId?: string | undefined;
+    },
+    canonical: string,
+  ): Promise<void> {
+    if (canonical === client.origin) return;
+    // A system-owned (unclaimed) client can only be taken by proving its own
+    // canonical origin. Letting a caller pick an unrelated origin was the
+    // ownership hijack: it transferred `origin:https://victim.example` to
+    // whoever could host a challenge at `https://attacker.example`.
+    if (client.ownerPrincipalId === this.options.systemOwnerPrincipalId) {
+      throw new ClaimError(
+        "proof_mismatch",
+        400,
+        "Claim must prove the application's canonical origin",
+      );
+    }
+    // An application already owned by the caller may attach a new alias; the
+    // ownership check above (and the alias-conflict fences below) decide
+    // whether that origin is available.
   }
 
   /**
@@ -184,6 +218,7 @@ export class AppClaimService {
       );
     }
     const canonical = this.#canonicalize(input.origin ?? client.origin ?? "");
+    await this.#assertOriginBound(client, canonical);
 
     const challenge = randomBytes(32).toString("base64url");
     const expiresAt = new Date(
@@ -216,17 +251,21 @@ export class AppClaimService {
 
   async #fetchProof(wellKnown: string): Promise<JsonObject> {
     let text: string;
-    const directHost = (() => {
+    const host = (() => {
       try {
         return new URL(wellKnown).hostname.replace(/^\[|\]$/gu, "");
       } catch {
-        return "";
+        throw new ClaimError(
+          "proof_fetch_failed",
+          400,
+          "Well-known document could not be verified",
+        );
       }
     })();
-    const directLoopback = new Set(["localhost", "127.0.0.1", "::1"]).has(
-      directHost,
+    const literalLoopback = new Set(["localhost", "127.0.0.1", "::1"]).has(
+      host,
     );
-    if (this.options.allowDirectFetch && directLoopback) {
+    if (this.options.allowDirectFetch && literalLoopback) {
       let res: Response;
       try {
         res = await this.#fetchImpl(wellKnown, {
@@ -234,39 +273,59 @@ export class AppClaimService {
           headers: { accept: "application/json" },
           signal: AbortSignal.timeout(5_000),
         });
-      } catch {
+      } catch (err) {
+        this.options.onFetchFailure?.(err);
         throw new ClaimError(
           "proof_fetch_failed",
           400,
-          "Well-known document fetch failed",
+          "Well-known document could not be verified",
         );
       }
       if (!res.ok) {
+        this.options.onFetchFailure?.(`HTTP ${res.status}`);
         throw new ClaimError(
           "proof_fetch_failed",
           400,
-          `Well-known document fetch failed: HTTP ${res.status}`,
+          "Well-known document could not be verified",
         );
       }
       text = await res.text();
     } else {
-      let result: Awaited<ReturnType<SafeMetadataFetcher["fetch"]>>;
+      let result: Response;
       try {
-        result = await this.#fetcher.fetch(wellKnown);
+        // Every environment uses the DNS-pinned, redirect-refusing fetch.
+        // `blockPrivateHosts` is on even under dev defaults unless this is the
+        // literal loopback path above: a development stack may host the claim
+        // document on 127.0.0.1, but a public name that resolves into private
+        // space is never a legitimate claim proof.
+        result = await guardedFetch(wellKnown, true, {
+          headers: { accept: "application/json" },
+          signal: AbortSignal.timeout(5_000),
+          maxBytes: MAX_WELL_KNOWN_BYTES,
+        });
       } catch (err) {
+        this.options.onFetchFailure?.(err);
         throw new ClaimError(
           "proof_fetch_failed",
           400,
-          err instanceof Error ? err.message : "Well-known fetch failed",
+          "Well-known document could not be verified",
         );
       }
-      text = result.body;
+      if (!result.ok) {
+        this.options.onFetchFailure?.(`HTTP ${result.status}`);
+        throw new ClaimError(
+          "proof_fetch_failed",
+          400,
+          "Well-known document could not be verified",
+        );
+      }
+      text = await result.text();
     }
     if (text.length > MAX_WELL_KNOWN_BYTES) {
       throw new ClaimError(
         "proof_fetch_failed",
         400,
-        "Well-known document exceeds 16KiB",
+        "Well-known document could not be verified",
       );
     }
     let parsed: BoundaryValue;
@@ -276,14 +335,14 @@ export class AppClaimService {
       throw new ClaimError(
         "proof_fetch_failed",
         400,
-        "Well-known document is not JSON",
+        "Well-known document could not be verified",
       );
     }
     if (!isJsonObject(parsed)) {
       throw new ClaimError(
         "proof_fetch_failed",
         400,
-        "Well-known document must be a JSON object",
+        "Well-known document could not be verified",
       );
     }
     return parsed;
@@ -337,6 +396,7 @@ export class AppClaimService {
       );
     }
     const canonical = this.#canonicalize(input.origin ?? client.origin ?? "");
+    await this.#assertOriginBound(client, canonical);
 
     const doc = await this.#fetchProof(
       `${canonical}/.well-known/opensesame-client.json`,
@@ -382,48 +442,84 @@ export class AppClaimService {
 
     // Single-use: the conditional consume decides concurrent verifiers. A
     // replay or a lost race gets nothing back and ownership never moves twice.
-    const consumed = await challengeStore.consume(input.challenge, now);
-    if (!consumed) {
-      throw new ClaimError(
-        "challenge_consumed",
-        409,
-        "Claim challenge was already consumed",
-      );
-    }
-
-    // R-A: claiming transfers ownership from the system principal to the
-    // claiming verified principal.
-    const updated = await clientStore.update({
-      ...client,
-      ownerPrincipalId: owner.value,
-      ownershipStatus: "claimed",
-      claimedAt: now,
-    });
-
-    if (alias) {
-      try {
-        await clientOriginStore.insert({
-          id: `cor_${randomUUID()}`,
-          applicationId: client.id,
-          canonicalOrigin: canonical,
-          publicClientId: originClientId(canonical),
-          verificationMethod: "well-known",
-          status: "active",
-        });
-      } catch (err) {
-        if (err instanceof ClientOriginConflictError) {
-          throw new ClaimError("alias_conflict", 409, err.message);
-        }
-        throw err;
+    // The ownership transfer and alias insert share the same serialized
+    // section so a partial failure cannot leave an alias on a client whose
+    // ownership moved elsewhere.
+    return serializeKeyed(this.#locks, `app-claim:${client.id}`, async () => {
+      const fresh = await this.#loadClaimable(row.applicationId, owner.value);
+      if (fresh.state !== "active") {
+        throw new ClaimError(
+          "client_inactive",
+          409,
+          `Application is ${fresh.state}`,
+        );
       }
-    }
+      await this.#assertOriginBound(fresh, canonical);
 
-    return {
-      applicationId: updated.id,
-      sectorIdentifier: updated.sectorIdentifier,
-      origin: canonical,
-      ownershipStatus: "claimed",
-      aliasAttached: alias,
-    };
+      // Re-check the alias fences now that the lock is held; another claim
+      // may have attached this origin while this request fetched the proof.
+      if (alias) {
+        const canonicalOwner = await clientStore.findByOrigin(canonical);
+        if (canonicalOwner && canonicalOwner.id !== fresh.id) {
+          throw new ClaimError(
+            "alias_conflict",
+            409,
+            `Origin ${canonical} is already the origin of another application`,
+          );
+        }
+        const existing = await clientOriginStore.findByOrigin(canonical);
+        if (existing && existing.applicationId !== fresh.id) {
+          throw new ClaimError(
+            "alias_conflict",
+            409,
+            `Origin ${canonical} is already attached to another application`,
+          );
+        }
+      }
+
+      const consumed = await challengeStore.consume(input.challenge, now);
+      if (!consumed) {
+        throw new ClaimError(
+          "challenge_consumed",
+          409,
+          "Claim challenge was already consumed",
+        );
+      }
+
+      // R-A: claiming transfers ownership from the system principal to the
+      // claiming verified principal.
+      const updated = await clientStore.update({
+        ...fresh,
+        ownerPrincipalId: owner.value,
+        ownershipStatus: "claimed",
+        claimedAt: now,
+      });
+
+      if (alias) {
+        try {
+          await clientOriginStore.insert({
+            id: `cor_${randomUUID()}`,
+            applicationId: fresh.id,
+            canonicalOrigin: canonical,
+            publicClientId: originClientId(canonical),
+            verificationMethod: "well-known",
+            status: "active",
+          });
+        } catch (err) {
+          if (err instanceof ClientOriginConflictError) {
+            throw new ClaimError("alias_conflict", 409, err.message);
+          }
+          throw err;
+        }
+      }
+
+      return {
+        applicationId: updated.id,
+        sectorIdentifier: updated.sectorIdentifier,
+        origin: canonical,
+        ownershipStatus: "claimed",
+        aliasAttached: alias,
+      };
+    });
   }
 }

@@ -41,6 +41,10 @@ function secureVaultUrl(raw) {
     return null;
   }
   if (url.username || url.password) return null;
+  // Query and fragment are not part of the vault origin contract, and the
+  // save URL is built from the pathname only. Refuse them rather than let an
+  // integrator think they were carried.
+  if (url.search || url.hash) return null;
   if (url.protocol === "https:") return url;
   if (
     url.protocol === "http:" &&

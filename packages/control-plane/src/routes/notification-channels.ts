@@ -519,11 +519,19 @@ notificationChannelRoutes.delete(
       return c.json({ error: "not_found" }, 404);
     }
     const now = ctx.clock();
-    const revoked = await ctx.repos.channelBindings.updateWithVersion(
-      binding.id,
-      binding.version,
-      { state: "revoked", revokedAt: now },
-    );
+    let revoked: ExternalChannelBinding;
+    try {
+      revoked = await ctx.repos.channelBindings.updateWithVersion(
+        binding.id,
+        binding.version,
+        { state: "revoked", revokedAt: now },
+      );
+    } catch (error) {
+      if (error instanceof ConflictError) {
+        return c.json({ error: "conflict" }, 409);
+      }
+      throw error;
+    }
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "notification.binding.revoked",
       principalId,

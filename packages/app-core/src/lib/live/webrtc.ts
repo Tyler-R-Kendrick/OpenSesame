@@ -35,7 +35,7 @@ import {
   type TransportFactory,
 } from "./p2p.js";
 import type { IceServerSpec } from "./routes.js";
-import { isDataChannelSdp } from "./sdp.js";
+import { filterDataChannelSdp, isDataChannelSdp } from "./sdp.js";
 
 export type PeerFactory = (config: RTCConfiguration) => RTCPeerConnection;
 
@@ -264,9 +264,11 @@ class RtcLink implements DialLink {
   }
 
   async accept(answer: string): Promise<void> {
-    // Read here too: whatever reaches the browser has been read strictly.
-    if (!isDataChannelSdp(answer)) throw new Error("bad_answer");
-    await this.#pc.setRemoteDescription({ type: "answer", sdp: answer });
+    // Read and sanitize here too: whatever reaches the browser has been read
+    // strictly and has no candidate aimed at an internal address.
+    const safe = filterDataChannelSdp(answer);
+    if (!safe) throw new Error("bad_answer");
+    await this.#pc.setRemoteDescription({ type: "answer", sdp: safe });
   }
 
   close(): void {
@@ -306,7 +308,8 @@ async function answer(
   routing: PeerRouting,
   offer: string,
 ): Promise<PeerLink> {
-  if (!isDataChannelSdp(offer)) throw new Error("bad_offer");
+  const safe = filterDataChannelSdp(offer);
+  if (!safe) throw new Error("bad_offer");
   const pc = peers(rtcConfig(routing));
   const ready = new Promise<PeerChannel>((resolve, reject) => {
     pc.addEventListener("datachannel", (event: RTCDataChannelEvent) => {
@@ -315,7 +318,7 @@ async function answer(
     });
   });
   try {
-    await pc.setRemoteDescription({ type: "offer", sdp: offer });
+    await pc.setRemoteDescription({ type: "offer", sdp: safe });
     await pc.setLocalDescription(await pc.createAnswer());
     return new RtcLink(pc, await gathered(pc, routing), ready);
   } catch (error) {

@@ -50,6 +50,13 @@ export type AttachIdentityInput = {
   /** Defaults to `"oidc"` — the tuple lookup AND the stored row use it. */
   kind?: AttachIdentityKind;
   issuer: string;
+  /**
+   * Tenant the identity namespace belongs to, when the issuer string alone is
+   * not globally unique. SAML entityIDs are tenant-asserted, so two
+   * organizations can name the same entityID; scoping by organization keeps a
+   * forged assertion in one tenant from resolving another tenant's principal.
+   */
+  tenant?: string;
   subject: string;
   correlationId: string;
   displayHint?: string;
@@ -108,6 +115,7 @@ export async function attachVerifiedExternalIdentity(
   const existing = await ctx.repos.externalIdentities.findByTuple({
     kind,
     issuer: input.issuer,
+    ...(input.tenant !== undefined ? { tenant: input.tenant } : undefined),
     subject: input.subject,
   });
   if (existing) {
@@ -169,6 +177,7 @@ export async function attachVerifiedExternalIdentity(
     principalId: ownerPrincipalId,
     kind,
     issuer: input.issuer,
+    ...(input.tenant !== undefined ? { tenant: input.tenant } : undefined),
     subject: input.subject,
     assurance: "verified",
     linkedAt: now,

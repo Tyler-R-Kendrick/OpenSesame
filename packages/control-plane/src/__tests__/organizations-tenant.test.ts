@@ -75,6 +75,48 @@ describe("organization tenant discovery and join", () => {
     return overlapCast(await created.json());
   }
 
+  it("refuses to claim an entityID another tenant holds in either column", async () => {
+    const { app } = createControlPlane({ config: testConfig() });
+    const acme = await seedOrg(app);
+    const other = await verified(app, "tenant-other-owner");
+
+    const sameAsSaml = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...auth(other.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        slug: "other",
+        displayName: "Other",
+        ssoIssuer: acme.samlIssuer,
+      }),
+    });
+    expect(sameAsSaml.status).toBe(409);
+    expect(overlapCast(await sameAsSaml.json()).error).toBe("issuer_taken");
+
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...auth(other.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ slug: "other", displayName: "Other" }),
+    });
+    expect(created.status).toBe(201);
+    const org = overlapCast(await created.json());
+    const patched = await app.request(`/v1/organizations/${org.id}`, {
+      method: "PATCH",
+      headers: {
+        ...auth(other.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ ssoIssuer: acme.samlIssuer }),
+    });
+    expect(patched.status).toBe(409);
+    expect(overlapCast(await patched.json()).error).toBe("issuer_taken");
+  });
+
   it("advertises SSO and SAML methods without authentication", async () => {
     const { app } = createControlPlane({ config: testConfig() });
     await seedOrg(app);

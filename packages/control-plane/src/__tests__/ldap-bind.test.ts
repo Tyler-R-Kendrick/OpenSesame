@@ -594,6 +594,49 @@ describe("directory sign-in from the hosted login page", () => {
     expect(identity.emailVerified).toBe(false);
   });
 
+  it("applies a directory group demotion on the next sign-in", async () => {
+    const first = await loginInteraction();
+    const firstResponse = await req(
+      first.jar,
+      `/interaction/${first.uid}/federated/ldap`,
+      postCredentials(first.csrf, "bob", directory.bobPassword),
+    );
+    expect(await hopUrl(firstResponse)).toContain("/auth/");
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "ldap",
+      issuer: directory.server.url,
+      subject: directory.bobUuid,
+    });
+    if (!identity) throw new Error("no bob identity");
+    const membership = await started.ctx.stores.organizationMemberships.find(
+      ORG_ID,
+      identity.principalId,
+    );
+    expect(membership?.role).toBe("member");
+
+    // Simulate a stale elevated role: the next bind sees only the engineers
+    // group, which maps to `member`, and must reconcile it downward.
+    if (!membership) throw new Error("no bob membership");
+    await started.ctx.stores.organizationMemberships.upsert({
+      ...membership,
+      role: "owner",
+      updatedAt: started.ctx.clock(),
+    });
+
+    const second = await loginInteraction();
+    const secondResponse = await req(
+      second.jar,
+      `/interaction/${second.uid}/federated/ldap`,
+      postCredentials(second.csrf, "bob", directory.bobPassword),
+    );
+    expect(await hopUrl(secondResponse)).toContain("/auth/");
+    const demoted = await started.ctx.stores.organizationMemberships.find(
+      ORG_ID,
+      identity.principalId,
+    );
+    expect(demoted?.role).toBe("member");
+  });
+
   it("signs the same directory user back in without minting a second principal", async () => {
     const first = await started.ctx.repos.externalIdentities.findByTuple({
       kind: "ldap",

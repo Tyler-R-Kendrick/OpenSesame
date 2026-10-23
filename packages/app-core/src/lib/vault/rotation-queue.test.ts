@@ -1,6 +1,6 @@
 import { createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { kvGet } from "../kv.js";
+import { kvGet, kvSeams } from "../kv.js";
 import {
   ROTATION_EVENT_KEY,
   ROTATION_SCHEDULE_KEY,
@@ -159,6 +159,36 @@ describe("the queue while locked", () => {
       lastRotatedAt: "2026-03-03T00:00:00.000Z",
       nextDueAt: "2026-04-02T00:00:00.000Z",
     });
+  });
+
+  it("does not consume the event when the schedule write cannot land", async () => {
+    const login = account();
+    syncRotationSchedules(
+      [login],
+      "personal",
+      new Date("2026-01-01T00:00:00Z"),
+    );
+    tickRotationSchedules(new Date("2026-02-01T00:00:00Z"));
+    rotationSeams.relay = async () => ({ ok: true });
+    const original = kvSeams.kvSetDurable;
+    kvSeams.kvSetDurable = async (key, value) => {
+      if (key === ROTATION_SCHEDULE_KEY) throw new Error("disk full");
+      return original(key, value);
+    };
+    try {
+      const remaining = await processRotationQueue(
+        "personal",
+        new Date("2026-03-03T00:00:00Z"),
+      );
+      // The write failed, so the event is retained as out-of-sync rather
+      // than being reported as a completed rotation.
+      expect(remaining).toEqual([
+        expect.objectContaining({ state: "out-of-sync" }),
+      ]);
+      expect(loadRotationEvents()).toHaveLength(1);
+    } finally {
+      kvSeams.kvSetDurable = original;
+    }
   });
 
   it("keeps another vault's schedule and queues each due event", async () => {

@@ -1,5 +1,7 @@
 /** Independent in-repo client against createControlPlane OID4VP/OID4VCI HTTP. */
 
+import { createHash } from "node:crypto";
+import { deriveSubjectRef } from "@opensesame/openid4vci";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
@@ -272,6 +274,141 @@ describe("OID4VP HTTP (T-18, T-20, T-21)", () => {
       },
     );
     expect(completeWrong.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("refuses a valid trusted-issuer credential minted for another subject", async () => {
+    const issuerKey = await createTestKeyPair("ES256");
+    const holderKey = await createTestKeyPair("ES256");
+    const cp = plane({
+      openid4vpTrustedIssuers: [
+        { issuer: ISSUER, keys: [issuerKey.publicJwk] },
+      ],
+    });
+    const { approver, requester, created, opened } =
+      await raiseDeviceInteraction(
+        cp,
+        "oid4vp-subject-binding",
+        "dev-oid4vp-subject-binding",
+      );
+    const session = await beginDirectPost(
+      cp.app,
+      approver.accessToken,
+      opened.id,
+      created.requestDigest,
+    );
+    const transactionDataHashes =
+      (
+        session.parameters as { transaction_data?: string[] }
+      ).transaction_data?.map((entry) =>
+        createHash("sha256").update(entry, "utf8").digest("base64url"),
+      ) ?? [];
+    const credential = await issueCredential({
+      issuerKey,
+      issuer: ISSUER,
+      holderPublicJwk: holderKey.publicJwk,
+      vct: VCT,
+      plaintext: {
+        // A credential for somebody else, from an issuer this deployment
+        // trusts. Possession alone must not satisfy the approver's own
+        // phishing-resistant requirement.
+        sub: deriveSubjectRef({
+          id: requester.principalId,
+          audience: ISSUER,
+          pepper: "oid4vc-factory-test-pepper-32bytes!!",
+        }),
+      },
+      issuedAt: new Date(),
+      expiresAt: new Date(Date.now() + 86_400_000),
+    });
+    const vp = await present({
+      credential,
+      holderKey,
+      audience: session.parameters.client_id,
+      nonce: session.parameters.nonce,
+      issuedAt: new Date(),
+      transactionDataHashes,
+      transactionDataHashesAlg: "sha-256",
+    });
+    const complete = await cp.app.request(
+      "/v1/openid4vp/presentations/complete",
+      {
+        method: "POST",
+        headers: {
+          ...bearer(approver.accessToken),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          state: session.state,
+          responseMode: "direct_post",
+          body: {
+            vp_token: { opensesame: [vp] },
+            state: session.state,
+          },
+        }),
+      },
+    );
+    expect(complete.status).toBe(403);
+    expect(overlapCast<{ error: string }>(await complete.json()).error).toBe(
+      "approver_credential_mismatch",
+    );
+  });
+
+  it("refuses to begin or complete after the interaction is settled", async () => {
+    const cp = plane();
+    const { app, ctx } = cp;
+    const { approver, created, opened } = await raiseDeviceInteraction(
+      cp,
+      "oid4vp-settled",
+      "dev-oid4vp-settled",
+    );
+    const session = await beginDirectPost(
+      app,
+      approver.accessToken,
+      opened.id,
+      created.requestDigest,
+    );
+    const current = await ctx.repos.interactions.getById(opened.id);
+    if (!current) throw new Error("interaction missing");
+    await ctx.repos.interactions.updateWithVersion(opened.id, current.version, {
+      status: "approved",
+      decidedAt: ctx.clock(),
+    });
+
+    const beginAgain = await app.request("/v1/openid4vp/presentations", {
+      method: "POST",
+      headers: {
+        ...bearer(approver.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        interactionId: opened.id,
+        requestDigest: created.requestDigest,
+      }),
+    });
+    expect(beginAgain.status).toBe(409);
+    expect(overlapCast<{ error: string }>(await beginAgain.json()).error).toBe(
+      "interaction_settled",
+    );
+
+    const completeSettled = await app.request(
+      "/v1/openid4vp/presentations/complete",
+      {
+        method: "POST",
+        headers: {
+          ...bearer(approver.accessToken),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          state: session.state,
+          responseMode: "direct_post",
+          body: {},
+        }),
+      },
+    );
+    expect(completeSettled.status).toBe(409);
+    expect(
+      overlapCast<{ error: string }>(await completeSettled.json()).error,
+    ).toBe("interaction_settled");
   });
 
   it("T-15: a presentation with a swapped nonce cannot settle", async () => {

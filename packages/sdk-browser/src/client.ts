@@ -74,7 +74,10 @@ function scrubCallbackUrl(href: string): void {
 }
 
 function isLoopbackHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  const host = hostname
+    .replace(/^\[|\]$/gu, "")
+    .replace(/\.+$/u, "")
+    .toLowerCase();
   if (host === "localhost" || host.endsWith(".localhost")) return true;
   if (host === "::1") return true;
   return /^127(?:\.\d{1,3}){3}$/u.test(host);
@@ -112,11 +115,20 @@ function mappedIpv4(host: string): string | null {
     const lo = Number.parseInt(mappedHex[2], 16);
     return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
   }
+  const compatible = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
+  if (compatible?.[1] && compatible[2] && compatible[1] !== "ffff") {
+    const hi = Number.parseInt(compatible[1], 16);
+    const lo = Number.parseInt(compatible[2], 16);
+    return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
+  }
   return null;
 }
 
 function isPrivateHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  const host = hostname
+    .replace(/^\[|\]$/gu, "")
+    .replace(/\.+$/u, "")
+    .toLowerCase();
   if (isLoopbackHost(host)) return true;
   const mapped = mappedIpv4(host);
   if (mapped !== null) return isPrivateHost(mapped);
@@ -125,13 +137,16 @@ function isPrivateHost(hostname: string): boolean {
   if (v4) {
     const [a, b] = [Number(v4[1]), Number(v4[2])];
     if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
     if (a === 169 && b === 254) return true;
     if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
+    if (a === 192 && (b === 168 || b === 0)) return true;
+    if (a === 198 && (b === 18 || b === 19)) return true;
     return false;
   }
   if (/^f[cd][0-9a-f]{2}:/u.test(host)) return true;
   if (/^fe[89ab][0-9a-f]:/u.test(host)) return true;
+  if (/^fe[c-f][0-9a-f]:/u.test(host)) return true;
   return host.endsWith(".internal") || host.endsWith(".local");
 }
 

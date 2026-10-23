@@ -3,7 +3,10 @@
  * clipboard tool's stdin and nowhere else.
  */
 import { spawn } from "node:child_process";
-import { helperEnvironment, resolveCredentialHelper } from "./parity-node.js";
+import {
+  clipboardEnvironment,
+  resolveCredentialHelper,
+} from "./parity-node.js";
 
 const TOOLS: readonly (readonly string[])[] = [
   ["wl-copy"],
@@ -14,19 +17,35 @@ const TOOLS: readonly (readonly string[])[] = [
 
 function writeTo(command: string, args: readonly string[], text: string) {
   return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve();
+    };
     const child = spawn(resolveCredentialHelper(command), args, {
       stdio: ["pipe", "ignore", "ignore"],
       // Clipboard helpers are credential-bearing: they get the same screened
       // environment as every other secret-bearing helper.
-      env: helperEnvironment(process.env),
+      env: clipboardEnvironment(process.env),
       shell: false,
+      // A wedged helper must not hold the vault value or the CLI forever.
+      timeout: 5_000,
+      killSignal: "SIGKILL",
     });
-    child.on("error", reject);
+    child.on("error", () =>
+      finish(new Error(`${command} could not be started`)),
+    );
     child.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${command} exited ${code}`));
+      if (code === 0) finish();
+      else finish(new Error(`${command} exited ${code}`));
     });
-    child.stdin.on("error", reject);
+    // A helper that exits before reading stdin emits EPIPE here. Attach the
+    // listener before writing so that never becomes an uncaught error.
+    child.stdin.on("error", () =>
+      finish(new Error(`${command} closed its input`)),
+    );
     child.stdin.end(text);
   });
 }

@@ -20,7 +20,7 @@ import {
 export async function verifyProviderAssertionRequest(
   ctx: AppContext,
   input: { assertionType: string; assertion: string },
-  headers: { userAgent?: string; origin?: string },
+  headers: { userAgent?: string; origin?: string; remoteAddress?: string },
 ): Promise<VerifiedProviderIdentity> {
   const cfg = ctx.config.agentAuth;
   if (!providerAssertionIsAdvertised(cfg)) {

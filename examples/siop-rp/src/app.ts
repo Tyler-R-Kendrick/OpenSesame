@@ -152,6 +152,8 @@ type StartDeps = {
   relyingParty: SiopRelyingParty;
   limit: StartRateLimit;
   redirectFor: Map<string, string>;
+  /** The socket peer, or Express's validated client when a proxy is trusted. */
+  clientAddress: (req: Request) => string | undefined;
 };
 
 /** What `startLogin` refusing means to the visitor, as a status and a code. */
@@ -171,12 +173,18 @@ function refusalOfStart(
  * for many people takes it per login: `?client_id=local_<uuid>`. A second
  * registered callback is chosen the same way: `?callback=/path`.
  */
-function startRoute({ relyingParty, limit, redirectFor }: StartDeps) {
+function startRoute({
+  relyingParty,
+  limit,
+  redirectFor,
+  clientAddress,
+}: StartDeps) {
   return async (req: Request, res: Response): Promise<void> => {
-    // Key on the socket peer, not a forwarding header. `req.ip` follows a
-    // proxy only when the operator configured one, and a spoofed header must
-    // never buy a fresh bucket. A missing peer address fails closed.
-    const client = req.socket.remoteAddress;
+    // Key on the socket peer by default. Only when the operator names trusted
+    // proxies does Express derive `req.ip` from `X-Forwarded-For`; a direct
+    // client's own header is then still ignored because its socket is not a
+    // trusted hop. A missing peer address fails closed.
+    const client = clientAddress(req);
     if (!client || client.length > 64 || !limit.allow(client)) {
       res.setHeader("retry-after", "60");
       res.status(429).json({ error: "rate_limited" });
@@ -270,8 +278,14 @@ export function createSiopRpApp(
   const callbackPaths = checkedCallbackPaths(config.callbackPaths);
   const redirectFor = redirectsByPath({ ...config, callbackPaths });
   const limit = new StartRateLimit(config.startsPerMinute, options.now);
+  const trustedProxies = config.trustedProxies;
+  const clientAddress = (req: Request): string | undefined =>
+    trustedProxies.length > 0 ? req.ip : req.socket.remoteAddress;
   const app = express();
   app.disable("x-powered-by");
+  // Express only honours X-Forwarded-For from these peers. An empty list is
+  // omitted entirely so a direct client can never choose its rate-limit key.
+  if (trustedProxies.length > 0) app.set("trust proxy", trustedProxies);
   app.use(pageHeaders(pagesOrigin));
 
   app.get("/", (_req, res) => {
@@ -290,7 +304,15 @@ export function createSiopRpApp(
     res.type("js").send(CALLBACK_SCRIPT);
   });
 
-  app.get("/auth/start", startRoute({ relyingParty, limit, redirectFor }));
+  app.get(
+    "/auth/start",
+    startRoute({
+      relyingParty,
+      limit,
+      redirectFor,
+      clientAddress,
+    }),
+  );
 
   const json = express.json({ limit: "20kb", type: "application/json" });
   for (const path of callbackPaths) {

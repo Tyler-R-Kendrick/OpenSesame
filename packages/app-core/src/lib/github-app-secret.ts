@@ -181,7 +181,7 @@ export function hasPendingGithubAppSecret(appId: string): boolean {
 }
 
 /** Forget the unsealed secret, the item binding, and the sealed vault copy. */
-export function forgetGithubAppSecret(): void {
+export function forgetGithubAppSecret(app?: GithubAppRef): void {
   const binding = readBinding();
   pending = null;
   stopWatchingVault?.();
@@ -192,7 +192,23 @@ export function forgetGithubAppSecret(): void {
   // Removal is a request to stop holding the key, not merely to forget where
   // it is. Purge the bound item too; a locked vault queues it for its next
   // unlock instead of leaving an orphan.
-  if (binding) scheduleSecretPurge(binding.itemId);
+  if (binding) {
+    scheduleSecretPurge(binding.itemId);
+    return;
+  }
+  // A record sealed before bindings existed has no item id. Find it the same
+  // way pemFromVault would have, and purge those exact-name App keys so a
+  // later App with the same display name cannot inherit one.
+  if (!app || app.displayName === "") return;
+  for (const item of vaultStore.getSnapshot().items) {
+    if (
+      item.kind === "secret" &&
+      !item.deletedAt &&
+      item.name === app.displayName &&
+      extractGithubAppPem(item.value) !== null
+    )
+      scheduleSecretPurge(item.id);
+  }
 }
 
 function dropPending(sealed: PendingSecret): void {

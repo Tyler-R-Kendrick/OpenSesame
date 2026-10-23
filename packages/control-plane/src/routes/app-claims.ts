@@ -23,6 +23,8 @@ function claimService(ctx: AppContext): AppClaimService {
     // Loopback static sites cannot pass the SSRF-pinned fetcher; direct proof
     // fetch is a development-only posture (ADR 0050 F5).
     allowDirectFetch: !ctx.config.isProduction && ctx.config.allowDevDefaults,
+    onFetchFailure: (detail) =>
+      ctx.log.warn({ err: detail }, "app claim proof fetch failed"),
   });
 }
 

@@ -329,6 +329,7 @@ describe("native SAML SP, SP-initiated", () => {
     const identity = await started.ctx.repos.externalIdentities.findByTuple({
       kind: "saml",
       issuer: idp.saml.entityId,
+      tenant: organizationId,
       subject,
     });
     expect(identity).toBeTruthy();
@@ -380,6 +381,7 @@ describe("native SAML SP, SP-initiated", () => {
       return started.ctx.repos.externalIdentities.findByTuple({
         kind: "saml",
         issuer: idp.saml.entityId,
+        tenant: organizationId,
         subject,
       });
     }
@@ -499,6 +501,7 @@ describe("native SAML SP, SP-initiated", () => {
     const identity = await started.ctx.repos.externalIdentities.findByTuple({
       kind: "saml",
       issuer: idp.saml.entityId,
+      tenant: organizationId,
       subject,
     });
     expect(identity).toBeTruthy();

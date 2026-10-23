@@ -283,6 +283,39 @@ describe("runCli — logout", () => {
     await expect(readFile(sessionFile(), "utf8")).rejects.toThrow();
   });
 
+  it("revokes an OIDC refresh token at the issuer before clearing the session", async () => {
+    await writeSession({
+      accessToken: "at-oidc",
+      refreshToken: "rt-oidc",
+      issuer: ISSUER,
+      clientId: "opensesame-cli",
+    });
+    const captured: { revoked: URLSearchParams | null } = { revoked: null };
+    const fetchImpl = routerFetch(
+      (url) =>
+        url.includes("/.well-known/openid-configuration")
+          ? json({
+              issuer: ISSUER,
+              revocation_endpoint: `${ISSUER}/oauth2/revoke`,
+            })
+          : undefined,
+      (url, init) => {
+        if (url.endsWith("/oauth2/revoke")) {
+          captured.revoked = new URLSearchParams(String(init?.body));
+          return new Response(null, { status: 200 });
+        }
+        if (url.endsWith("/v1/principals/provisional/revoke"))
+          return new Response(null, { status: 204 });
+        return undefined;
+      },
+    );
+    const code = await runCli(["logout", "--issuer", ISSUER], { fetchImpl });
+    expect(code).toBe(0);
+    expect(captured.revoked?.get("token")).toBe("rt-oidc");
+    expect(captured.revoked?.get("token_type_hint")).toBe("refresh_token");
+    await expect(readFile(sessionFile(), "utf8")).rejects.toThrow();
+  });
+
   it("revokes an expired local session rather than refreshing first", async () => {
     await writeSession({
       accessToken: "at-expired",

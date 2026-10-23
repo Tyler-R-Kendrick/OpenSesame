@@ -106,6 +106,47 @@ const TENANT_LOOKUP_MAX_KEYS = 2_048;
 const TENANT_LOOKUP_GLOBAL_KEY = "__global__";
 const tenantLookupAttempts = new Map<string, number[]>();
 
+/**
+ * The tenant-join route performs an OIDC discovery + JWKS fetch on its first
+ * request for an issuer. A provisional principal can reach it, so bound it per
+ * principal and deployment-wide before any network work.
+ */
+const JOIN_WINDOW_MS = 60_000;
+const JOIN_PER_PRINCIPAL = 10;
+const JOIN_GLOBAL = 300;
+const JOIN_MAX_KEYS = 2_048;
+const joinAttempts = new Map<string, number[]>();
+
+export function resetTenantJoinBudget(): void {
+  joinAttempts.clear();
+}
+
+function consumeJoinBudget(principalId: string, now: number): boolean {
+  for (const [key, times] of joinAttempts) {
+    const live = times.filter((at) => now - at < JOIN_WINDOW_MS);
+    if (live.length === 0) joinAttempts.delete(key);
+    else if (live.length !== times.length) joinAttempts.set(key, live);
+  }
+  const global = joinAttempts.get("__global__") ?? [];
+  const key = `principal:${principalId}`;
+  const mine = joinAttempts.get(key) ?? [];
+  if (global.length >= JOIN_GLOBAL || mine.length >= JOIN_PER_PRINCIPAL) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  joinAttempts.set("__global__", global);
+  joinAttempts.set(key, mine);
+  while (joinAttempts.size > JOIN_MAX_KEYS) {
+    const victim = [...joinAttempts.keys()].find(
+      (candidate) => candidate !== "__global__",
+    );
+    if (victim === undefined) break;
+    joinAttempts.delete(victim);
+  }
+  return true;
+}
+
 /** Test hook: the budget is process-global. */
 export function resetTenantLookupBudget(): void {
   tenantLookupAttempts.clear();
@@ -302,6 +343,12 @@ export type OrganizationRevocationInput = {
   correlationId: string;
   /** Why authority was withdrawn — recorded on the audit row. */
   reason: string;
+  /**
+   * Finish session revocation even when the membership row was already gone.
+   * A deprovisioning retry after a partial failure needs this: the first
+   * attempt removed the row and then failed before ending sessions.
+   */
+  revokeSessionsWithoutMembership?: boolean;
 };
 
 export type OrganizationRevocationResult = {
@@ -331,13 +378,16 @@ export async function revokeOrganizationMembership(
       ),
   );
 
-  // A membership that was already gone authorized nothing here, and the
-  // holder's sessions are not this tenant's to end (a repeated sync pass, or a
-  // subject some other tenant's directory happens to name).
+  // A membership that was already gone normally authorized nothing here, and
+  // the holder's sessions are not this tenant's to end (a repeated sync pass,
+  // or a subject some other tenant's directory happens to name). A SCIM retry
+  // is the exception: it named the principal through this tenant's own
+  // identity tuple, so finishing an interrupted revocation is still in scope.
   let sessionsRevoked = 0;
-  const sessions = membershipRemoved
-    ? await ctx.stores.provisionalSessions.entries()
-    : [];
+  const sessions =
+    membershipRemoved || input.revokeSessionsWithoutMembership
+      ? await ctx.stores.provisionalSessions.entries()
+      : [];
   for (const [, session] of sessions) {
     if (session.principalId !== input.principalId) continue;
     await ctx.stores.provisionalSessions.delete(session.id);
@@ -458,7 +508,10 @@ organizationRoutes.post(
             if (await ctx.stores.organizations.getBySlug(parsed.data.slug)) {
               return c.json({ error: "slug_taken" }, 409);
             }
-            if (await issuerClaimed(ctx, parsed.data.samlIssuer)) {
+            if (
+              (await issuerClaimed(ctx, parsed.data.samlIssuer)) ||
+              (await issuerClaimed(ctx, parsed.data.ssoIssuer))
+            ) {
               return c.json(
                 {
                   error: "issuer_taken",
@@ -594,6 +647,10 @@ organizationRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
+    if (!consumeJoinBudget(principalId, ctx.clock().getTime())) {
+      c.header("retry-after", "60");
+      return c.json({ error: "rate_limited" }, 429);
+    }
     const org = await orgBySlug(ctx, c.req.param("slug"));
     if (!org) return c.json({ error: "not_found" }, 404);
 
@@ -735,8 +792,10 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
       });
       if (samlError) return c.json(samlError, 400);
       if (
-        parsed.data.samlIssuer !== undefined &&
-        (await issuerClaimed(ctx, samlIssuer, org.id))
+        (parsed.data.samlIssuer !== undefined &&
+          (await issuerClaimed(ctx, samlIssuer, org.id))) ||
+        (parsed.data.ssoIssuer !== undefined &&
+          (await issuerClaimed(ctx, ssoIssuer, org.id)))
       ) {
         return c.json(
           {

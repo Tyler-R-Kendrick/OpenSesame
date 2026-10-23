@@ -23,6 +23,16 @@ export type RelayTarget = Readonly<{
   relayToken?: string;
 }>;
 
+export class DeadmanRelayError extends Error {
+  readonly name = "DeadmanRelayError";
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
+
 export type DeadmanHeartbeat = Readonly<{
   v: 1;
   type: "opensesame.deadman.heartbeat";
@@ -84,13 +94,16 @@ async function post(target: RelayTarget, payload: unknown): Promise<void> {
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError")
-      throw new Error("The relay did not answer in time.");
-    throw new Error("The relay could not be reached.");
+      throw new DeadmanRelayError("The relay did not answer in time.");
+    throw new DeadmanRelayError("The relay could not be reached.");
   } finally {
     clearTimeout(timer);
   }
   if (!response.ok) {
-    throw new Error(`The relay refused the request (${response.status}).`);
+    throw new DeadmanRelayError(
+      `The relay refused the request (${response.status}).`,
+      response.status,
+    );
   }
 }
 

@@ -2,7 +2,10 @@ import { overlapCast } from "@opensesame/os-domain";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { orgAssertionSeams } from "../routes/org-assertion.js";
+import {
+  orgAssertionSeams,
+  resetOrgAssertionCaches,
+} from "../routes/org-assertion.js";
 
 const ISSUER = "http://127.0.0.1:9090";
 
@@ -28,6 +31,7 @@ describe("claiming a guest principal with an upstream id_token", () => {
 
   afterEach(() => {
     orgAssertionSeams.discoverJwksUri = originalDiscover;
+    resetOrgAssertionCaches();
     vi.unstubAllGlobals();
   });
 
@@ -75,6 +79,44 @@ describe("claiming a guest principal with an upstream id_token", () => {
       id: created.principalId,
       assurance: "verified",
     });
+  });
+
+  it("accepts a token whose issuer carries a legal trailing slash", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    orgAssertionSeams.discoverJwksUri = async () => `${ISSUER}/jwks`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(Response.json(jwks))),
+    );
+
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        trustedUpstreamIssuers: [ISSUER],
+      },
+    });
+    const created = await guest(app);
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "RS256", kid: "claim-1" })
+      .setIssuer(`${ISSUER}/`)
+      .setAudience("origin:http://127.0.0.1:8788")
+      .setSubject("slash@upstream")
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(privateKey);
+
+    const linked = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${created.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ idToken: token }),
+    });
+    expect(linked.status).toBe(201);
+    expect(overlapCast(await linked.json()).identity.issuer).toBe(ISSUER);
   });
 
   it("promotes the same principal when self-asserted links are off", async () => {

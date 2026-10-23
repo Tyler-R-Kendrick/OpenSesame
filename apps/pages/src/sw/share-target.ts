@@ -125,8 +125,19 @@ async function sweep(cache: Cache, now: number): Promise<void> {
 /** Origin/Referer, when present, must name this worker's own origin. */
 function sameOriginRequest(ctx: WorkerContext, request: Request): boolean {
   const origin = new URL(ctx.scopeUrl).origin;
+  const site = request.headers.get("sec-fetch-site");
+  const mode = request.headers.get("sec-fetch-mode");
+  // An OS share is a browser-initiated navigation: `none` or the app's own
+  // origin. Missing or unknown fetch metadata is not evidence of either.
+  if (site !== "none" && site !== "same-origin") return false;
+  if (mode !== null && mode !== "navigate") return false;
   const claimedOrigin = request.headers.get("origin");
-  if (claimedOrigin !== null && claimedOrigin !== origin) return false;
+  if (
+    claimedOrigin !== null &&
+    claimedOrigin !== origin &&
+    !(claimedOrigin === "null" && site === "none")
+  )
+    return false;
   const referer = request.headers.get("referer");
   if (referer !== null) {
     try {
@@ -136,6 +147,18 @@ function sameOriginRequest(ctx: WorkerContext, request: Request): boolean {
     }
   }
   return true;
+}
+
+/** Remove expired staged ciphertext without waiting for another share. */
+export async function sweepShareTargetCache(ctx: WorkerContext): Promise<void> {
+  try {
+    const name = shareTargetCacheName(ctx.scopePath);
+    if (!(await ctx.caches.has(name))) return;
+    const cache = await ctx.caches.open(name);
+    await sweep(cache, Date.now());
+  } catch {
+    // No cache, nothing to collect.
+  }
 }
 
 async function boundedForm(request: Request): Promise<FormData | null> {

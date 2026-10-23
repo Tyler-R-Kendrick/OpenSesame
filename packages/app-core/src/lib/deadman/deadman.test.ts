@@ -184,6 +184,33 @@ describe("deadman switch", () => {
     expect(readDeadmanState(tomb)).toBeNull();
   });
 
+  it("keeps the local half when an ambiguous arm cannot be disarmed", async () => {
+    const item = note("Instructions", "ambiguous");
+    const plan = await prepareDeadmanSwitch({
+      tomb,
+      items: [item],
+      itemIds: [item.id],
+      timeoutDays: 7,
+      relayUrl: "https://relay.example.test/deadman",
+      webhookUrl: "https://agent.example.test/deadman",
+    });
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        calls.push("relay");
+        if (calls.length === 1) throw new TypeError("network cut");
+        return { ok: false, status: 503 } as Response;
+      }),
+    );
+    await expect(commitDeadmanSwitch(plan)).rejects.toThrow(/kept|confirm/i);
+    expect(readDeadmanState(tomb)?.id).toBe(plan.id);
+    // The retry path still has a record to disarm; the relay copy is the
+    // only thing left, and it is not silently forgotten.
+    await expect(disarmDeadmanSwitch(tomb)).rejects.toThrow(/503/);
+    expect(readDeadmanState(tomb)?.id).toBe(plan.id);
+  });
+
   it("disarms only after the relay accepts and removes the local package", async () => {
     await arm();
     await disarmDeadmanSwitch(tomb);

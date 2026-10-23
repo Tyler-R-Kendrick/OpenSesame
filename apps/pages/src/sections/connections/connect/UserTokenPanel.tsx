@@ -9,7 +9,7 @@ import {
   errorText,
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconCheck, IconLogin } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { Facts } from "./fields.js";
@@ -17,9 +17,13 @@ import { Facts } from "./fields.js";
 const WAIT_MS = 10 * 60_000;
 
 /** Resolves true only when this popup reports the connection it was opened for. */
-function settled(popup: Window | null, connectionId: string): Promise<boolean> {
+function settled(
+  popup: Window | null,
+  connectionId: string,
+  signal: AbortSignal,
+): Promise<boolean> {
   return new Promise((resolve) => {
-    if (!popup) {
+    if (!popup || signal.aborted) {
       resolve(false);
       return;
     }
@@ -30,9 +34,11 @@ function settled(popup: Window | null, connectionId: string): Promise<boolean> {
       if (done) return;
       done = true;
       window.removeEventListener("message", onMessage);
+      signal.removeEventListener("abort", onAbort);
       if (timer !== 0) window.clearInterval(timer);
       resolve(approved);
     };
+    const onAbort = () => finish(false);
     const onMessage = (event: MessageEvent) => {
       if (event.source !== popup) return;
       if (event.origin !== window.location.origin) return;
@@ -47,6 +53,7 @@ function settled(popup: Window | null, connectionId: string): Promise<boolean> {
     const poll = () => {
       if (popup.closed || Date.now() - started > WAIT_MS) finish(false);
     };
+    signal.addEventListener("abort", onAbort, { once: true });
     window.addEventListener("message", onMessage);
     poll();
     if (!done) timer = window.setInterval(poll, 500);
@@ -167,7 +174,12 @@ export function UserTokenPanel({
 }) {
   const [busy, setBusy] = useState<"authorize" | "check" | null>(null);
   const [check, setCheck] = useState<TokenCheck | null>(null);
+  const consent = useRef<AbortController | null>(null);
   const subject = subjectId ? { type: "user" as const, id: subjectId } : null;
+
+  // A route change while a popup is open must remove the message listener and
+  // its poll timer; otherwise both outlive the panel for up to WAIT_MS.
+  useEffect(() => () => consent.current?.abort(), []);
 
   async function prove() {
     if (!subject) return;
@@ -200,13 +212,16 @@ export function UserTokenPanel({
         return;
       }
       popup.location.href = authorizationUrl;
-      const approved = await settled(popup, connectorId);
+      const controller = new AbortController();
+      consent.current = controller;
+      const approved = await settled(popup, connectorId, controller.signal);
       if (!approved) return;
       if (canProve) await prove();
     } catch (error) {
       popup?.close();
       onFlash({ tone: "err", text: errorText(error) });
     } finally {
+      consent.current = null;
       setBusy(null);
     }
   }

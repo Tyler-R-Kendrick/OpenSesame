@@ -335,6 +335,47 @@ describe("POST /v1/principals/federated-session", () => {
     }
   }, 30_000);
 
+  it("admits exactly one of two concurrent exchanges at the capacity boundary", async () => {
+    currentSubject = `race-capacity-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(currentSubject);
+    const { accessToken } = await brokeredAccessToken();
+    const added: string[] = [];
+    try {
+      let index = 0;
+      while (
+        (await started.ctx.stores.provisionalSessions.size) < 1023 &&
+        index < 1023
+      ) {
+        const id = `ps_race_capacity_${index}`;
+        await started.ctx.stores.provisionalSessions.set(id, {
+          id,
+          principalId: started.ctx.systemOwnerPrincipalId,
+          quotaProfile: "anonymous",
+          allowedActions: [],
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+        });
+        added.push(id);
+        index += 1;
+      }
+      const exchange = () =>
+        fetch(`${base}/v1/principals/federated-session`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ accessToken }),
+        });
+      const [a, b] = await Promise.all([exchange(), exchange()]);
+      const statuses = [a.status, b.status].sort();
+      expect(statuses).toEqual([200, 429]);
+      expect(await started.ctx.stores.provisionalSessions.size).toBe(1024);
+      const denied = a.status === 429 ? a : b;
+      expect(await denied.json()).toEqual({ error: "provisional_capacity" });
+    } finally {
+      for (const id of added)
+        await started.ctx.stores.provisionalSessions.delete(id);
+    }
+  }, 30_000);
+
   it("prunes expired sessions instead of letting them exhaust capacity", async () => {
     currentSubject = `prune-${randomBytes(4).toString("hex")}`;
     upstream.setSubject(currentSubject);

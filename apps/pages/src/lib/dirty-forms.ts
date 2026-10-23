@@ -113,6 +113,14 @@ function forget(form: HTMLFormElement): void {
   releases.delete(form);
 }
 
+/** Drop a removed control's snapshot, including any controls it contained. */
+function forgetControl(node: Element): void {
+  snapshots.delete(node);
+  for (const el of node.querySelectorAll("input, textarea, select")) {
+    snapshots.delete(el);
+  }
+}
+
 function note(el: Element, form: HTMLFormElement): void {
   if (!counts(el, form)) return;
   if (!snapshots.has(el)) {
@@ -152,13 +160,25 @@ export function watchDirtyForms(root: ParentNode = document): () => void {
   if (!doc) return () => undefined;
   const observer = new MutationObserver((records) => {
     for (const record of records) {
+      // A removed control is already detached, so its enclosing form is found
+      // from the mutation target: the parent it was removed from.
+      const target =
+        record.target instanceof Element ? record.target.closest("form") : null;
+      const enclosing = target instanceof HTMLFormElement ? target : null;
       for (const node of record.removedNodes) {
         if (!(node instanceof Element)) continue;
-        const forms =
-          node instanceof HTMLFormElement
-            ? [node]
-            : [...node.querySelectorAll("form")];
-        for (const form of forms) forget(form);
+        if (node instanceof HTMLFormElement) {
+          forget(node);
+          continue;
+        }
+        for (const form of node.querySelectorAll("form")) {
+          if (form instanceof HTMLFormElement) forget(form);
+        }
+        forgetControl(node);
+        // The form itself can stay mounted while one conditional field goes
+        // away. Re-evaluate it so the hold is released when nothing dirty is
+        // left, instead of waiting for an input event that may never come.
+        if (enclosing) refresh(enclosing);
       }
     }
   });
@@ -175,10 +195,7 @@ export function watchDirtyForms(root: ParentNode = document): () => void {
     observer.disconnect();
     // The watcher owns every hold it created. Stopping it without releasing
     // them leaves a dirty latch behind that no editor can ever clear.
-    for (const [form, release] of releases) {
-      forget(form);
-      release();
-    }
+    for (const form of [...releases.keys()]) forget(form);
     releases.clear();
   };
 }

@@ -39,6 +39,8 @@ describe("save button vault transport", () => {
   it.each([
     "https://consumer:password@vault.example",
     "http://vault.example:8443",
+    "https://vault.example/?next=https://evil.example",
+    "https://vault.example/#token",
     "ftp://vault.example",
   ])("refuses an unusable vault URL %s", (url) => {
     expect(saveButton(button(url)).disabled).toBe(true);

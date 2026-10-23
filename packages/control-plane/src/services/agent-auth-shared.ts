@@ -43,11 +43,18 @@ export function encodeActSubject(
 export function fingerprintOf(headers: {
   userAgent?: string;
   origin?: string;
+  remoteAddress?: string;
 }): string {
+  // A server-observed peer address cannot be rotated per request. The headers
+  // are a fallback for in-process callers only.
   return createHash("sha256")
-    .update(headers.userAgent ?? "")
+    .update(headers.remoteAddress ?? "")
     .update("|")
-    .update(headers.origin ?? "")
+    .update(
+      headers.remoteAddress
+        ? ""
+        : `${headers.userAgent ?? ""}|${headers.origin ?? ""}`,
+    )
     .digest("hex")
     .slice(0, 16);
 }

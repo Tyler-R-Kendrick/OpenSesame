@@ -16,20 +16,43 @@ import {
 export const deviceRoutes = new Hono<{ Variables: Variables }>();
 
 const DEVICE_WINDOW_MS = 60_000;
-const DEVICE_PER_PRINCIPAL = 10;
+/**
+ * The Host's failure fence is deployment-global (10 misses/minute), so a
+ * per-principal limit equal to it would let one caller saturate the fence for
+ * everyone. Stay below it at both the principal and organization layers.
+ */
+const DEVICE_PER_PRINCIPAL = 3;
+const DEVICE_PER_ORGANIZATION = 6;
+const DEVICE_MAX_KEYS = 2_048;
 const deviceApprovals = new Map<string, number[]>();
 
-function deviceAllowed(principalId: string, now: number): boolean {
-  const recent = (deviceApprovals.get(principalId) ?? []).filter(
-    (at) => now - at < DEVICE_WINDOW_MS,
-  );
-  if (recent.length >= DEVICE_PER_PRINCIPAL) {
-    deviceApprovals.set(principalId, recent);
+function consumeDeviceBudget(key: string, limit: number, now: number): boolean {
+  for (const [candidate, times] of deviceApprovals) {
+    const live = times.filter((at) => now - at < DEVICE_WINDOW_MS);
+    if (live.length === 0) deviceApprovals.delete(candidate);
+    else if (live.length !== times.length) deviceApprovals.set(candidate, live);
+  }
+  const recent = deviceApprovals.get(key) ?? [];
+  if (recent.length >= limit) {
+    deviceApprovals.set(key, recent);
     return false;
   }
   recent.push(now);
-  deviceApprovals.set(principalId, recent);
+  deviceApprovals.set(key, recent);
+  while (deviceApprovals.size > DEVICE_MAX_KEYS) {
+    const oldest = deviceApprovals.keys().next().value;
+    if (oldest === undefined) break;
+    deviceApprovals.delete(oldest);
+  }
   return true;
+}
+
+function deviceAllowed(principalId: string, now: number): boolean {
+  return consumeDeviceBudget(
+    `principal:${principalId}`,
+    DEVICE_PER_PRINCIPAL,
+    now,
+  );
 }
 
 export function resetDeviceApprovalBudgetForTest(): void {
@@ -83,6 +106,14 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       400,
     );
   }
+  if (
+    !consumeDeviceBudget(
+      `organization:${organizationId}`,
+      DEVICE_PER_ORGANIZATION,
+      ctx.clock().getTime(),
+    )
+  )
+    return c.json({ error: "rate_limited" }, 429);
   return serializeMembershipMutation(ctx, organizationId, async () => {
     // Membership changes use the same per-organization fence. Holding it from
     // this authoritative re-read through Host approval gives a strict order:

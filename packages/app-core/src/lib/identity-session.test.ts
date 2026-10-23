@@ -330,6 +330,20 @@ describe("adopted tokens", () => {
     expect(currentSession()).toBeNull();
   });
 
+  it("keeps the working session when a pasted token is refused", async () => {
+    stubBasic();
+    await connectProvisional();
+    expect(currentSession()?.accessToken).toBe("identity_tok");
+    stubFetch((url) => {
+      if (url === `${IDENTITY}/v1/principals/me`) {
+        return jsonResponse({ message: "token expired" }, 401);
+      }
+      return jsonResponse({}, 500);
+    });
+    await expect(adoptToken("bad")).rejects.toThrow(/token expired/);
+    expect(currentSession()?.accessToken).toBe("identity_tok");
+  });
+
   it("falls back to the status when the refusal is not JSON", async () => {
     stubFetch(() => new Response("nope", { status: 403 }));
     await expect(adoptToken("bad")).rejects.toThrow(/Request failed \(403\)/);

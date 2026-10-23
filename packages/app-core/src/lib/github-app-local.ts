@@ -48,9 +48,10 @@ function notifyLocalGithubApp(): void {
 
 /** Drop the local App record (uninstall on GitHub or Remove on this device). */
 export function forgetLocalGithubApp(): void {
+  const app = readLocalGithubApp();
   invalidateGithubAppAuthority();
   maybeLocalStore()?.removeItem(PUBLIC_KEY);
-  forgetGithubAppSecret();
+  forgetGithubAppSecret(app ?? undefined);
   try {
     sessionStore().removeItem(STATE_KEY);
   } catch {

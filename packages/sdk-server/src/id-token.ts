@@ -39,9 +39,6 @@ export async function verifyIdToken(
   token: string,
   options: VerifyIdTokenOptions,
 ): Promise<VerifiedIdToken> {
-  assertAllowedJwtAlgorithm(token, ID_TOKEN_ALGORITHMS);
-  assertIdTokenTypeHeader(token);
-
   const issuer = trimSlash(options.issuer);
   const getKey: JWTVerifyGetKey = await createJwksKeySource({
     issuer,
@@ -56,6 +53,8 @@ export async function verifyIdToken(
 
   let payload: JsonObject;
   try {
+    assertAllowedJwtAlgorithm(token, ID_TOKEN_ALGORITHMS);
+    assertIdTokenTypeHeader(token);
     const verified = await jwtVerify(token, getKey, {
       issuer,
       audience: options.audience,

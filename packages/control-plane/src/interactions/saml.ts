@@ -426,7 +426,10 @@ async function fetchMetadataDocument(
   return body;
 }
 
-async function parseIdpMetadata(xml: string): Promise<ResolvedIdpMetadata> {
+async function parseIdpMetadata(
+  xml: string,
+  options: { allowHttp: boolean },
+): Promise<ResolvedIdpMetadata> {
   let doc: Document;
   try {
     doc = await parseDomFromString(xml);
@@ -466,16 +469,15 @@ async function parseIdpMetadata(xml: string): Promise<ResolvedIdpMetadata> {
   let safeSso: URL;
   try {
     safeSso = new URL(ssoUrl);
-    if (
-      (safeSso.protocol !== "https:" && safeSso.protocol !== "http:") ||
-      safeSso.username ||
-      safeSso.password
-    )
+    const allowedProtocol =
+      safeSso.protocol === "https:" ||
+      (options.allowHttp && safeSso.protocol === "http:");
+    if (!allowedProtocol || safeSso.username || safeSso.password)
       throw new Error("unsafe SSO URL");
   } catch {
     throw new SamlAuthError(
       "metadata_unavailable",
-      "The organization's SAML SSO endpoint is not an HTTP(S) URL.",
+      "The organization's SAML SSO endpoint must be an https URL.",
     );
   }
   return { entityId, ssoUrl: safeSso.href, certificates };
@@ -503,7 +505,9 @@ export async function resolveIdpMetadata(
   const xml =
     cfg.metadataXml ??
     (await fetchMetadataDocument(ctx, cfg.metadataUrl ?? ""));
-  const resolved = await parseIdpMetadata(xml);
+  const resolved = await parseIdpMetadata(xml, {
+    allowHttp: ctx.config.allowDevDefaults,
+  });
   metadataCache.set(key, {
     value: resolved,
     expiresAt: now + METADATA_CACHE_TTL_MS,
@@ -849,6 +853,56 @@ export function resetSamlAcsBudget(): void {
   samlAcsAttempts.clear();
 }
 
+/**
+ * New principal mints attributable to a tenant-supplied SAML IdP.
+ *
+ * The fleet provisional pool is shared. A tenant owner who controls their
+ * metadata can forge assertions for fresh NameIDs, so without a per-tenant
+ * ceiling one tenant can fill the pool and stop every other sign-in. The
+ * ceiling is per organization, with a global SAML-only cap that still leaves
+ * the majority of `MAX_PROVISIONAL` for every other admission leg.
+ */
+const SAML_MINT_WINDOW_MS = 60_000;
+const SAML_MINTS_PER_ORGANIZATION = 6;
+const SAML_MINTS_GLOBAL = 60;
+const SAML_MINT_MAX_KEYS = 2_048;
+const SAML_MINT_GLOBAL_KEY = "__global__";
+const samlMintAttempts = new Map<string, number[]>();
+
+function consumeSamlMintBudget(organizationId: string, now: number): boolean {
+  for (const [key, times] of samlMintAttempts) {
+    const live = times.filter((at) => now - at < SAML_MINT_WINDOW_MS);
+    if (live.length === 0) samlMintAttempts.delete(key);
+    else if (live.length !== times.length) samlMintAttempts.set(key, live);
+  }
+  const global = samlMintAttempts.get(SAML_MINT_GLOBAL_KEY) ?? [];
+  const key = `organization:${organizationId}`;
+  const mine = samlMintAttempts.get(key) ?? [];
+  if (
+    global.length >= SAML_MINTS_GLOBAL ||
+    mine.length >= SAML_MINTS_PER_ORGANIZATION
+  ) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  samlMintAttempts.set(SAML_MINT_GLOBAL_KEY, global);
+  samlMintAttempts.set(key, mine);
+  while (samlMintAttempts.size > SAML_MINT_MAX_KEYS) {
+    const victim = [...samlMintAttempts.keys()].find(
+      (candidate) => candidate !== SAML_MINT_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    samlMintAttempts.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook. */
+export function resetSamlMintBudget(): void {
+  samlMintAttempts.clear();
+}
+
 export async function completeSamlResponse(
   ctx: AppContext,
   body: { SAMLResponse: string; RelayState?: string },
@@ -1083,6 +1137,10 @@ export async function admitSamlSubject(
     result: SamlAssertionResult;
     correlationId: string;
     userAgent: string;
+    /** The browser ceremony, when the assertion came through one. */
+    interactionUid?: string | undefined;
+    /** Server-observed peer, used only for the mint-abuse key. */
+    remoteAddress?: string | undefined;
   },
 ): Promise<SamlAdmission> {
   const issuer = await issuerForResult(ctx, input.result);
@@ -1093,17 +1151,41 @@ export async function admitSamlSubject(
       message: "That organization no longer accepts SAML sign-in.",
     };
   }
+  const tenant = input.result.organizationId;
 
   const existing = await ctx.repos.externalIdentities.findByTuple({
     kind: "saml",
     issuer,
+    tenant,
     subject: input.result.subject,
   });
+  // Rows created before SAML identity keys carried a tenant were global.
+  // Accept one only when its principal already belongs to this tenant, so a
+  // forged assertion through another organization cannot resolve it.
+  const legacy = existing
+    ? undefined
+    : await ctx.repos.externalIdentities.findByTuple({
+        kind: "saml",
+        issuer,
+        subject: input.result.subject,
+      });
+  const legacyOrganization = legacy
+    ? await ctx.stores.organizations.get(tenant)
+    : undefined;
+  const legacyMembership = legacy
+    ? await ctx.stores.organizationMemberships.find(tenant, legacy.principalId)
+    : undefined;
+  // Legacy rows predate tenant-scoped keys. Accept one only for the SAML
+  // tenant that actually owns this entityID (not an organization that merely
+  // names it as an OIDC issuer) and only if the principal is already a member.
+  const legacyAllowed =
+    legacyOrganization?.samlIssuer === issuer && legacyMembership !== undefined;
+  const resolved = existing ?? (legacyAllowed ? legacy : null);
 
   let principalId: string;
   let sessionToken: string | undefined;
-  if (existing) {
-    const principal = await ctx.repos.principals.getById(existing.principalId);
+  if (resolved) {
+    const principal = await ctx.repos.principals.getById(resolved.principalId);
     if (
       !principal ||
       principal.state === "suspended" ||
@@ -1115,12 +1197,17 @@ export async function admitSamlSubject(
         message: "This account is not able to sign in.",
       };
     }
-    principalId = existing.principalId;
+    principalId = resolved.principalId;
   } else {
+    if (!consumeSamlMintBudget(tenant, ctx.clock().getTime())) {
+      return { ok: false, status: 429, message: "rate_limited" };
+    }
     const fingerprint = createHash("sha256")
-      .update(input.userAgent)
+      .update(tenant)
       .update("|")
-      .update(ctx.config.publicUrl)
+      .update(input.interactionUid ?? "")
+      .update("|")
+      .update(input.remoteAddress ?? input.userAgent)
       .digest("hex")
       .slice(0, 16);
     let minted: { principalId: string; accessToken: string };
@@ -1129,6 +1216,12 @@ export async function admitSamlSubject(
         ctx,
         fingerprint,
         input.correlationId,
+        {
+          quotaProfile: `saml:${tenant}`,
+          maxLiveForProfile: 128,
+          profilePrefix: "saml:",
+          maxLiveForProfilePrefix: 256,
+        },
       );
     } catch (error) {
       if (error instanceof ProvisionalMintRefusedError) {
@@ -1162,6 +1255,7 @@ export async function admitSamlSubject(
       {
         kind: "saml",
         issuer,
+        tenant,
         subject: input.result.subject,
         correlationId: input.correlationId,
         // The NameID Format is provenance, not a claim about the human: it is

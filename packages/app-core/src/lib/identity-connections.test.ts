@@ -380,3 +380,16 @@ it("projects multiple brokered organizations and ordinary members can begin sign
   );
   expect(list).toHaveBeenCalledTimes(2);
 });
+
+it("rejects an off-origin returnTo before it can reach navigation", async () => {
+  await expect(
+    beginIdentityConnectionSignIn("missing-connection", {
+      returnTo: "https://evil.example/steal",
+    }),
+  ).rejects.toThrow(/return address/i);
+  await expect(
+    beginIdentityConnectionSignIn("missing-connection", {
+      returnTo: "//evil.example/steal",
+    }),
+  ).rejects.toThrow(/return address/i);
+});

@@ -15,6 +15,7 @@
  */
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { deriveSubjectRef } from "@opensesame/openid4vci";
 import {
   type CourierDelivery,
   InMemoryRequestSessionStore,
@@ -65,6 +66,16 @@ export interface Openid4vpRouteOptions {
   readonly publicUrl: string;
   readonly clock: () => Date;
   readonly vct: string;
+  /**
+   * The credential issuer and pairwise pepper this deployment uses for
+   * OpenSesame VCs. When present, a presentation only satisfies an approval
+   * when its `sub` claim is the pairwise subject of the authenticated
+   * approver. Without them there is no way to bind the credential to the
+   * approver, so completion refuses rather than treating any trusted issuer's
+   * credential as the approver's own.
+   */
+  readonly credentialIssuer?: string;
+  readonly subjectPepper?: string | Uint8Array;
   readonly trustedIssuers?: readonly TrustedIssuer[];
   /** Protocol request sessions (`state` → AuthorizationRequest). */
   readonly sessionStore?: RequestSessionStore;
@@ -119,7 +130,7 @@ const CompleteSchema = z.object({
   responseMode: z.enum(["direct_post", "dc_api"]),
 });
 
-type FailStatus = 400 | 401 | 404 | 409;
+type FailStatus = 400 | 401 | 403 | 404 | 409;
 
 function fail(
   c: Context<{ Variables: Variables }>,
@@ -164,6 +175,38 @@ function interactionDeadlinePassed(row: Interaction, now: Date): boolean {
   return row.status === "expired" || row.expiresAt.getTime() <= now.getTime();
 }
 
+/** A settled interaction must not mint another activated approval. */
+function interactionSettled(row: Interaction): boolean {
+  return (
+    row.status === "approved" ||
+    row.status === "denied" ||
+    row.status === "consumed" ||
+    row.status === "revoked"
+  );
+}
+
+/**
+ * The `sub` this deployment mints into an OpenSesame VC for a principal.
+ * `undefined` when the route was mounted without the issuance material, in
+ * which case completion refuses instead of accepting an unbound credential.
+ */
+function expectedApproverSubject(
+  options: Openid4vpRouteOptions,
+  principalId: string,
+): string | undefined {
+  if (
+    options.credentialIssuer === undefined ||
+    options.subjectPepper === undefined
+  ) {
+    return undefined;
+  }
+  return deriveSubjectRef({
+    id: principalId,
+    audience: options.credentialIssuer,
+    pepper: options.subjectPepper,
+  });
+}
+
 export function createOpenid4vpRoutes(
   options: Openid4vpRouteOptions,
 ): Hono<{ Variables: Variables }> {
@@ -199,6 +242,9 @@ export function createOpenid4vpRoutes(
     if (interactionDeadlinePassed(row, now)) {
       return fail(c, "interaction_expired", 409);
     }
+    if (interactionSettled(row)) {
+      return fail(c, "interaction_settled", 409);
+    }
     if (
       row.requestDigest === undefined ||
       !digestsEqual(row.requestDigest, parsed.data.requestDigest)
@@ -226,6 +272,9 @@ export function createOpenid4vpRoutes(
             id: "opensesame",
             format: "dc+sd-jwt",
             vctValues: [options.vct],
+            // The approval is bound to the approver by this claim, so ask the
+            // wallet for it explicitly rather than hoping it is disclosed.
+            claims: [{ path: ["sub"] }],
           },
         ],
       },
@@ -290,6 +339,10 @@ export function createOpenid4vpRoutes(
       await pendingDelete(pending, parsed.data.state);
       return fail(c, "interaction_expired", 409);
     }
+    if (interactionSettled(row)) {
+      await pendingDelete(pending, parsed.data.state);
+      return fail(c, "interaction_settled", 409);
+    }
 
     let verified: VerifiedPresentation;
     try {
@@ -317,6 +370,21 @@ export function createOpenid4vpRoutes(
     }
     if (!digestsEqual(verified.boundDigest, row.requestDigest)) {
       return fail(c, "digest_mismatch");
+    }
+
+    // A trusted-issuer credential is not the approver's credential unless the
+    // issuer-asserted subject is the one this deployment minted for this
+    // principal. Otherwise a hijacked approver session plus any VC from a
+    // trusted issuer would satisfy a phishing-resistant requirement.
+    const expectedSubject = expectedApproverSubject(options, principalId);
+    const presentedSubject = verified.claims.sub;
+    if (
+      expectedSubject === undefined ||
+      verified.assurance.issuer !== options.credentialIssuer ||
+      !isString(presentedSubject) ||
+      !digestsEqual(presentedSubject, expectedSubject)
+    ) {
+      return fail(c, "approver_credential_mismatch", 403);
     }
 
     const activation = await activateFromPresentation({

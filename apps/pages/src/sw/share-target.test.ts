@@ -22,7 +22,15 @@ function worker(env: FakeWorkerEnv) {
 
 function post(env: FakeWorkerEnv, form: FormData): Promise<Response | null> {
   return env.fetchEvent(
-    new Request(`${SCOPE}share-target`, { method: "POST", body: form }),
+    new Request(`${SCOPE}share-target`, {
+      method: "POST",
+      body: form,
+      headers: {
+        // What a browser sends for an OS-initiated share navigation.
+        "sec-fetch-site": "none",
+        "sec-fetch-mode": "navigate",
+      },
+    }),
   );
 }
 
@@ -127,7 +135,7 @@ describe("Web Share Target ingress", () => {
     expect(response?.status).toBe(400);
   });
 
-  it("refuses a cross-origin Origin or Referer even without sec-fetch-site", async () => {
+  it("refuses a cross-origin Origin or Referer even when fetch metadata says none", async () => {
     const env = new FakeWorkerEnv(SCOPE);
     worker(env);
     const form = new FormData();
@@ -136,7 +144,11 @@ describe("Web Share Target ingress", () => {
       new Request(`${SCOPE}share-target`, {
         method: "POST",
         body: form,
-        headers: { origin: "https://evil.test" },
+        headers: {
+          origin: "https://evil.test",
+          "sec-fetch-site": "none",
+          "sec-fetch-mode": "navigate",
+        },
       }),
     );
     expect(foreignOrigin?.status).toBe(403);
@@ -146,10 +158,39 @@ describe("Web Share Target ingress", () => {
       new Request(`${SCOPE}share-target`, {
         method: "POST",
         body: planted,
-        headers: { referer: "https://evil.test/page" },
+        headers: {
+          referer: "https://evil.test/page",
+          "sec-fetch-site": "none",
+          "sec-fetch-mode": "navigate",
+        },
       }),
     );
     expect(foreignReferer?.status).toBe(403);
+    const cache = await env.cacheStorage.open(CACHE);
+    expect(cache.urls()).toEqual([]);
+  });
+
+  it("refuses a share with missing or same-site fetch metadata", async () => {
+    const env = new FakeWorkerEnv(SCOPE);
+    worker(env);
+    const cases: Array<Record<string, string>> = [
+      {},
+      { "sec-fetch-site": "same-site" },
+      { "sec-fetch-site": "cross-site" },
+      { "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors" },
+    ];
+    for (const headers of cases) {
+      const form = new FormData();
+      form.set("text", "planted");
+      const response = await env.fetchEvent(
+        new Request(`${SCOPE}share-target`, {
+          method: "POST",
+          body: form,
+          headers,
+        }),
+      );
+      expect(response?.status).toBe(403);
+    }
     const cache = await env.cacheStorage.open(CACHE);
     expect(cache.urls()).toEqual([]);
   });
@@ -171,6 +212,22 @@ describe("Web Share Target ingress", () => {
     await env.cacheStorage.seed(CACHE, { [stale]: "old", [malformed]: "bad" });
     const response = await post(env, new FormData());
     expect(response?.status).toBe(400);
+    const cache = await env.cacheStorage.open(CACHE);
+    expect(cache.urls()).toEqual([]);
+  });
+
+  it("sweeps abandoned ciphertext at worker activation", async () => {
+    const env = new FakeWorkerEnv(SCOPE);
+    worker(env);
+    const longAgo = Date.now() - 2 * 60 * 60 * 1000;
+    const stale = shareTargetEntryUrl(
+      SCOPE,
+      "00000000-0000-4000-8000-000000000002",
+      longAgo,
+      "meta",
+    );
+    await env.cacheStorage.seed(CACHE, { [stale]: "old" });
+    await env.activate();
     const cache = await env.cacheStorage.open(CACHE);
     expect(cache.urls()).toEqual([]);
   });

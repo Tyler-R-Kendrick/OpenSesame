@@ -22,7 +22,11 @@ import {
 } from "./local-access-audit.js";
 import { readLocalDirectory } from "./local-directory.js";
 import { ensureLocalShare } from "./local-share-grants-approvals.js";
-import { type LocalShare, listLocalShares } from "./local-share-grants.js";
+import {
+  type LocalShare,
+  listLocalShares,
+  revokeLocalShare,
+} from "./local-share-grants.js";
 import { standingConnectionRevoked } from "./standing-connection-grants.js";
 
 export const GITHUB_PROVIDER_ID = "github";
@@ -133,6 +137,7 @@ export async function loadGithubInstallationSnapshot(
 export async function ensureGithubAccessGrant(
   tomb: string,
   connection: Connection | null,
+  stillWanted?: () => boolean,
 ): Promise<LocalShare[]> {
   if (isGuestSession()) {
     throw new Error(
@@ -142,6 +147,24 @@ export async function ensureGithubAccessGrant(
   const owner = await ownerPersonId(tomb);
   if (!owner) return githubShares(await listLocalShares(tomb));
   const before = githubShares(await listLocalShares(tomb));
+  if (stillWanted !== undefined && !stillWanted()) return before;
+  // Re-read the revocation trail immediately before writing. A person who
+  // revokes while the card is loading must not have that decision undone by
+  // the card's stale snapshot. An unreadable trail fails closed.
+  const trail = await listAccessAuditEvents(tomb).then(
+    (events) => ({ events, readable: true }),
+    () => ({ events: [], readable: false }),
+  );
+  if (
+    !trail.readable ||
+    standingConnectionRevoked(trail.events, {
+      resourceId: GITHUB_PROVIDER_ID,
+      principalId: owner.id,
+      policy: GITHUB_ACCESS_POLICY,
+    })
+  )
+    return before;
+  if (stillWanted !== undefined && !stillWanted()) return before;
   const hadGrant = ownerGrant(before, owner.id) !== undefined;
   await ensureLocalShare(tomb, {
     principalId: owner.id,
@@ -150,6 +173,29 @@ export async function ensureGithubAccessGrant(
     resourceLabel: "GitHub",
     policy: GITHUB_ACCESS_POLICY,
   });
+  // A revocation can land between the pre-write read and the write itself.
+  // Re-read the trail and withdraw the grant we just created rather than
+  // silently undoing the person's decision.
+  const afterTrail = await listAccessAuditEvents(tomb).then(
+    (events) => ({ events, readable: true }),
+    () => ({ events: [], readable: false }),
+  );
+  if (
+    (stillWanted !== undefined && !stillWanted()) ||
+    !afterTrail.readable ||
+    standingConnectionRevoked(afterTrail.events, {
+      resourceId: GITHUB_PROVIDER_ID,
+      principalId: owner.id,
+      policy: GITHUB_ACCESS_POLICY,
+    })
+  ) {
+    const created = ownerGrant(
+      githubShares(await listLocalShares(tomb)),
+      owner.id,
+    );
+    if (created) await revokeLocalShare(tomb, created.id);
+    return githubShares(await listLocalShares(tomb));
+  }
   // Renewals rewrite the share id — only the first standing grant is an event.
   if (!hadGrant) {
     const grantMetadata: JsonObject = {

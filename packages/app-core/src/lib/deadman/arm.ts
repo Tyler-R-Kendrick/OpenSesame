@@ -8,6 +8,7 @@
  */
 
 import type { VaultItem } from "@opensesame/vault-core";
+import { withVfsCrossTabLock } from "../vfs-cross-tab-lock.js";
 import { canonicalJson, generateSigningPair, signText } from "./crypto.js";
 import { DEADMAN_MAX_ITEMS, DEADMAN_MAX_TIMEOUT_DAYS } from "./keys.js";
 import {
@@ -19,6 +20,7 @@ import {
 } from "./package.js";
 import {
   type DeadmanDisarm,
+  DeadmanRelayError,
   type RelayTarget,
   normalizeRelayUrl,
   normalizeWebhookUrl,
@@ -202,7 +204,9 @@ function serialize<T>(tomb: string, run: () => Promise<T>): Promise<T> {
 }
 
 export function commitDeadmanSwitch(plan: DeadmanPlan): Promise<DeadmanState> {
-  return serialize(plan.tomb, () => commitDeadmanSwitchNow(plan));
+  return withVfsCrossTabLock(`opensesame:deadman:${plan.tomb}`, () =>
+    serialize(plan.tomb, () => commitDeadmanSwitchNow(plan)),
+  );
 }
 
 async function commitDeadmanSwitchNow(
@@ -232,7 +236,9 @@ async function commitDeadmanSwitchNow(
     relayUrl: committed.relayUrl,
     relayToken: plan.relayToken,
   };
-  await sendArm(target, committed, plan.webhookUrl);
+  // The local half must exist before the relay can be armed; otherwise a
+  // successful registration has no package this device can release. Any
+  // failure here means the relay has not been asked yet.
   try {
     const config: DeadmanConfig = {
       v: 1,
@@ -244,13 +250,37 @@ async function commitDeadmanSwitchNow(
     await writeDeadmanConfig(plan.tomb, config);
     await writeDeadmanPackage(plan.tomb, plan.packageJson);
     await writeDeadmanState(plan.tomb, committed);
-    return committed;
   } catch (error) {
-    await disarmFor(committed, plan.privateKeyJwk)
-      .then((disarm) => sendDisarm(target, disarm))
-      .catch(() => undefined);
     await deleteDeadmanLocal(plan.tomb);
     throw error;
+  }
+  try {
+    await sendArm(target, committed, plan.webhookUrl);
+    return committed;
+  } catch (error) {
+    // A response that explicitly refused the arm proves the relay is not
+    // armed. A network/abort failure is ambiguous, so ask it to disarm and
+    // keep the local half if that cannot be confirmed: a retry can then
+    // disarm, whereas deleting it would leave an unreleasable relay record.
+    const refused =
+      error instanceof DeadmanRelayError && error.status !== undefined;
+    if (refused) {
+      await deleteDeadmanLocal(plan.tomb);
+      throw error;
+    }
+    const disarmed = await disarmFor(committed, plan.privateKeyJwk)
+      .then((disarm) => sendDisarm(target, disarm))
+      .then(
+        () => true,
+        () => false,
+      );
+    if (disarmed) {
+      await deleteDeadmanLocal(plan.tomb);
+      throw error;
+    }
+    throw new Error(
+      "The relay did not confirm the arm or the disarm. The local deadman record was kept so you can retry turning it off.",
+    );
   }
 }
 
@@ -259,7 +289,9 @@ async function commitDeadmanSwitchNow(
  * "off" would leave the relay still counting down and still able to notify.
  */
 export function disarmDeadmanSwitch(tomb: string): Promise<void> {
-  return serialize(tomb, () => disarmDeadmanSwitchNow(tomb));
+  return withVfsCrossTabLock(`opensesame:deadman:${tomb}`, () =>
+    serialize(tomb, () => disarmDeadmanSwitchNow(tomb)),
+  );
 }
 
 async function disarmDeadmanSwitchNow(tomb: string): Promise<void> {

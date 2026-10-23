@@ -186,6 +186,8 @@ export function createSamlInteractionRoutes(
       result: completion.result,
       correlationId: c.get("correlationId"),
       userAgent: c.req.header("user-agent") ?? "",
+      interactionUid: uid,
+      remoteAddress: c.env?.incoming?.socket?.remoteAddress,
     });
     if (!admitted.ok) {
       if (admitted.status === 429) {

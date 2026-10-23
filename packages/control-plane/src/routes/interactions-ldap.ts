@@ -74,15 +74,22 @@ const SLUG_MAX_LENGTH = 64;
 const MAX_CREDENTIAL_LENGTH = 512;
 
 const ATTEMPT_WINDOW_MS = 600_000;
-const ATTEMPT_PER_CLIENT = 10;
-const ATTEMPT_GLOBAL = 200;
-const ATTEMPT_KEYS = 2048;
+/** One source address, whatever it puts in User-Agent or Origin. */
+const ATTEMPT_PER_PEER = 10;
+/** One tenant's directory, so a single slug cannot consume the fleet ceiling. */
+const ATTEMPT_PER_TENANT = 100;
+/**
+ * Fleet backstop, deliberately far above a plausible sign-in burst. A small
+ * shared ceiling let one unauthenticated caller lock every tenant out.
+ */
+const ATTEMPT_GLOBAL = 10_000;
+const ATTEMPT_KEYS = 4_096;
 
 /**
  * Module-local, like the BYO discovery budget (D5): the login page is
- * unauthenticated, so the fence has to exist before any principal does. Keyed
- * by a coarse client fingerprint plus a global ceiling, because an attacker
- * spreading guesses across fingerprints is the expected shape of this attack.
+ * unauthenticated, so the fence has to exist before any principal does.
+ * Keyed on the server-observed peer address, the tenant, and a global ceiling;
+ * header values are never used because a caller can rotate them per request.
  */
 const attempts = new Map<string, number[]>();
 
@@ -91,27 +98,42 @@ export function resetLdapAttemptBudget(): void {
   attempts.clear();
 }
 
-function consumeAttemptBudget(fingerprint: string, now: number): boolean {
+function consumeAttemptBudget(
+  scopes: readonly { key: string; limit: number }[],
+  now: number,
+): boolean {
   for (const [key, values] of attempts) {
     const live = values.filter((at) => now - at < ATTEMPT_WINDOW_MS);
     if (live.length === 0) attempts.delete(key);
     else if (live.length !== values.length) attempts.set(key, live);
   }
-  const global = attempts.get("__global__") ?? [];
-  const client = attempts.get(fingerprint) ?? [];
-  if (global.length >= ATTEMPT_GLOBAL || client.length >= ATTEMPT_PER_CLIENT) {
-    return false;
+  for (const scope of scopes) {
+    const bucket = attempts.get(scope.key) ?? [];
+    if (bucket.length >= scope.limit) return false;
   }
-  global.push(now);
-  client.push(now);
-  attempts.set("__global__", global);
-  attempts.set(fingerprint, client);
+  for (const scope of scopes) {
+    const bucket = attempts.get(scope.key) ?? [];
+    bucket.push(now);
+    attempts.set(scope.key, bucket);
+  }
   while (attempts.size > ATTEMPT_KEYS) {
-    const victim = [...attempts.keys()].find((key) => key !== "__global__");
+    const victim = [...attempts.keys()].find(
+      (key) => key !== "global" && !key.startsWith("peer:"),
+    );
     if (victim === undefined) break;
     attempts.delete(victim);
   }
   return true;
+}
+
+/**
+ * The peer address is the only attacker-resistant input available before
+ * authentication. A test or a listener with no peer falls back to a constant,
+ * which makes the fence stricter, never weaker.
+ */
+function peerScope(c: { env?: HttpBindings }): string {
+  const address = c.env?.incoming?.socket?.remoteAddress;
+  return `peer:${address ?? "unknown"}`;
 }
 
 function providerInteractions(
@@ -122,24 +144,8 @@ function providerInteractions(
   return overlapCast(provider);
 }
 
-function clientFingerprint(
-  remoteAddress: string | undefined,
-  userAgent: string | undefined,
-  origin: string | undefined,
-): string {
-  return (
-    createHash("sha256")
-      // The peer address is server-observed; headers are a secondary component
-      // so a whole NAT or test runner does not share one tiny budget. Rotating
-      // the headers still cannot escape the endpoint's global ceiling.
-      .update(remoteAddress ?? "")
-      .update("|")
-      .update(userAgent ?? "")
-      .update("|")
-      .update(origin ?? "")
-      .digest("hex")
-      .slice(0, 16)
-  );
+function clientFingerprint(peer: string): string {
+  return createHash("sha256").update(peer).digest("hex").slice(0, 16);
 }
 
 export function createLdapInteractionRoutes(
@@ -205,11 +211,7 @@ export function createLdapInteractionRoutes(
     const username = isString(fields.username) ? fields.username : "";
     const password = isString(fields.password) ? fields.password : "";
     const correlationId = c.get("correlationId");
-    const fingerprint = clientFingerprint(
-      c.env?.incoming?.socket?.remoteAddress,
-      c.req.header("user-agent"),
-      c.req.header("origin") ?? ctx.config.publicUrl,
-    );
+    const fingerprint = clientFingerprint(peerScope(c));
 
     /** Re-render with a spendable token (T13) and the one uniform message. */
     const refuse = async (status: 401 | 429) =>
@@ -232,10 +234,6 @@ export function createLdapInteractionRoutes(
         status,
       );
 
-    if (!consumeAttemptBudget(fingerprint, ctx.clock().getTime())) {
-      return refuse(429);
-    }
-
     if (
       !slug ||
       slug.length > SLUG_MAX_LENGTH ||
@@ -254,6 +252,21 @@ export function createLdapInteractionRoutes(
     // form is unauthenticated, and "this org uses LDAP" is itself a fact worth
     // not leaking.
     if (!config) return refuse(401);
+    // Malformed slugs and tenants without a directory are cheap refusals and
+    // are not charged: only a request that can reach a credential check spends
+    // a budget. One tenant's bucket cannot consume the fleet ceiling.
+    if (
+      !consumeAttemptBudget(
+        [
+          { key: "global", limit: ATTEMPT_GLOBAL },
+          { key: peerScope(c), limit: ATTEMPT_PER_PEER },
+          { key: `tenant:${organization.id}`, limit: ATTEMPT_PER_TENANT },
+        ],
+        ctx.clock().getTime(),
+      )
+    ) {
+      return refuse(429);
+    }
 
     let bound: LdapBoundIdentity | { ok: false };
     try {
@@ -287,7 +300,7 @@ export function createLdapInteractionRoutes(
       const principal = await ctx.repos.principals.getById(
         existing.principalId,
       );
-      if (principal && principal.state !== "active") {
+      if (!principal || principal.state !== "active") {
         return c.text("This account is not able to sign in.", 403);
       }
       accountId = existing.principalId;

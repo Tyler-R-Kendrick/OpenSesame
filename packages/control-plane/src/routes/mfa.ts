@@ -7,6 +7,7 @@ import {
 } from "@opensesame/auth-upstream";
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
@@ -73,15 +74,45 @@ const MFA_ANON_FENCE_ENTRIES = 4096;
 const CODE_SEND_GLOBAL_WINDOW_MS = 60 * 60_000;
 const CODE_SEND_GLOBAL_MAX = 200;
 
-function clientFingerprint(c: {
-  req: { header: (name: string) => string | undefined };
-}): string {
+function clientFingerprint(c: Context<{ Variables: Variables }>): string {
+  const env = c.env as
+    | { incoming?: { socket?: { remoteAddress?: string } } }
+    | undefined;
   return createHash("sha256")
-    .update(c.req.header("user-agent") ?? "")
-    .update("|")
-    .update(c.req.header("origin") ?? c.req.header("x-forwarded-for") ?? "")
+    .update(env?.incoming?.socket?.remoteAddress ?? "unknown")
     .digest("hex")
     .slice(0, 16);
+}
+
+/**
+ * Anonymous passkey assertions are verified for a caller-chosen credential id.
+ * Writing a durable failure row per id let an unauthenticated loop fill the
+ * shared `mfaFailures` map and lock every step-up. Keep that fence
+ * process-local and bounded; the durable map is only for authenticated,
+ * ownership-checked factors.
+ */
+const PASSKEY_FAILURE_WINDOW_MS = 15 * 60_000;
+const PASSKEY_FAILURE_MAX_ENTRIES = 4_096;
+const passkeyFailures = new Map<string, number[]>();
+
+function passkeyFailureCount(key: string, now: number): number {
+  const live = (passkeyFailures.get(key) ?? []).filter(
+    (at) => now - at < PASSKEY_FAILURE_WINDOW_MS,
+  );
+  if (live.length === 0) passkeyFailures.delete(key);
+  else passkeyFailures.set(key, live);
+  return live.length;
+}
+
+function recordPasskeyFailure(key: string, now: number): void {
+  const live = passkeyFailures.get(key) ?? [];
+  live.push(now);
+  passkeyFailures.set(key, live);
+  while (passkeyFailures.size > PASSKEY_FAILURE_MAX_ENTRIES) {
+    const oldest = passkeyFailures.keys().next().value;
+    if (oldest === undefined) break;
+    passkeyFailures.delete(oldest);
+  }
 }
 
 function consumeAnonymousMfaBudget(
@@ -286,9 +317,7 @@ mfaRoutes.post("/passkey/assert", async (c) => {
     .digest("hex")
     .slice(0, 32);
   const fenceKey = `passkey:${credentialDigest}`;
-  const prior =
-    (await incrementSecurityCounter(ctx.stores.mfaFailures, fenceKey)) - 1;
-  if (prior >= MAX_MFA_FAILURES) {
+  if (passkeyFailureCount(fenceKey, now) >= MAX_MFA_FAILURES) {
     if (shouldAuditAnonymousDenial(ctx.stores.mfaAnon, now)) {
       await auditMfaDenial(ctx, {
         eventType: "mfa.passkey.assert",
@@ -307,6 +336,7 @@ mfaRoutes.post("/passkey/assert", async (c) => {
     signature: Buffer.from(body.signature, "base64"),
   });
   if (!result.ok) {
+    recordPasskeyFailure(fenceKey, now);
     if (shouldAuditAnonymousDenial(ctx.stores.mfaAnon, now)) {
       await auditMfaDenial(ctx, {
         eventType: "mfa.passkey.assert",
@@ -318,7 +348,7 @@ mfaRoutes.post("/passkey/assert", async (c) => {
     }
     return c.json({ ok: false }, 401);
   }
-  await ctx.stores.mfaFailures.delete(fenceKey);
+  passkeyFailures.delete(fenceKey);
   return c.json({ ok: true, principalId: result.principalId });
 });
 

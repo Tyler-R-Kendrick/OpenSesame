@@ -138,6 +138,59 @@ export function resetOpenid4vciOfferBudget(): void {
   offerBudget.clear();
 }
 
+/**
+ * The nonce endpoint is unauthenticated and every call writes a durable row.
+ * Bound it per source address and across the process, with the map capped so
+ * the limiter itself cannot be grown by rotating keys.
+ */
+const NONCE_WINDOW_MS = 60_000;
+const NONCES_PER_PEER = 60;
+const NONCES_GLOBAL = 1_000;
+const NONCE_MAX_KEYS = 2_048;
+const NONCE_GLOBAL_KEY = "__global__";
+const nonceBudget = new Map<string, number[]>();
+
+function noncePeerKey(c: Context<{ Variables: Variables }>): string {
+  const env = c.env as
+    | { incoming?: { socket?: { remoteAddress?: string } } }
+    | undefined;
+  return `peer:${env?.incoming?.socket?.remoteAddress ?? "unknown"}`;
+}
+
+function consumeNonceBudget(
+  c: Context<{ Variables: Variables }>,
+  now: number,
+): boolean {
+  for (const [key, times] of nonceBudget) {
+    const live = times.filter((at) => now - at < NONCE_WINDOW_MS);
+    if (live.length === 0) nonceBudget.delete(key);
+    else if (live.length !== times.length) nonceBudget.set(key, live);
+  }
+  const global = nonceBudget.get(NONCE_GLOBAL_KEY) ?? [];
+  const key = noncePeerKey(c);
+  const mine = nonceBudget.get(key) ?? [];
+  if (global.length >= NONCES_GLOBAL || mine.length >= NONCES_PER_PEER) {
+    return false;
+  }
+  global.push(now);
+  mine.push(now);
+  nonceBudget.set(NONCE_GLOBAL_KEY, global);
+  nonceBudget.set(key, mine);
+  while (nonceBudget.size > NONCE_MAX_KEYS) {
+    const victim = [...nonceBudget.keys()].find(
+      (candidate) => candidate !== NONCE_GLOBAL_KEY,
+    );
+    if (victim === undefined) break;
+    nonceBudget.delete(victim);
+  }
+  return true;
+}
+
+/** Test hook. */
+export function resetOpenid4vciNonceBudget(): void {
+  nonceBudget.clear();
+}
+
 // Writable views of otherwise-readonly inputs, so an optional field is set
 // only when present rather than spread from an empty object — the repo runs
 // exactOptionalPropertyTypes, and anti-slop forbids the `...(x ? {} : {…})`
@@ -300,6 +353,9 @@ export function createOpenid4vciRoutes(
 
   // ---- a fresh challenge -------------------------------------------------
   app.post("/oid4vci/nonce", async (c) => {
+    if (!consumeNonceBudget(c, runtime.clock().getTime())) {
+      return c.json({ error: "rate_limited" }, 429);
+    }
     const issued = await runtime.nonces.issue(runtime.clock());
     const expiresIn = Math.max(
       0,

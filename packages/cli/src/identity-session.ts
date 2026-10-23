@@ -7,6 +7,7 @@ import {
   access,
   chmod,
   mkdir,
+  open,
   readFile,
   rename,
   rm,
@@ -53,6 +54,57 @@ function sessionPath(): string {
 
 function trimSlash(url: string): string {
   return url.replace(/\/+$/u, "");
+}
+
+const REFRESH_LOCK_WAIT_MS = 10_000;
+const REFRESH_LOCK_STALE_MS = 30_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Serialize the read-refresh-write window across processes. In-process callers
+ * already share `refreshes`; two CLI invocations do not, and rotating refresh
+ * tokens mean the loser's token is already revoked. The lock file lives beside
+ * the session and is removed by its holder.
+ */
+async function acquireRefreshLock(): Promise<() => Promise<void>> {
+  const path = `${sessionPath()}.lock`;
+  const deadline = Date.now() + REFRESH_LOCK_WAIT_MS;
+  for (;;) {
+    try {
+      const handle = await open(path, "wx", 0o600);
+      try {
+        await handle.writeFile(`${process.pid}\n`);
+      } finally {
+        await handle.close();
+      }
+      return async () => {
+        await rm(path, { force: true });
+      };
+    } catch (error) {
+      if (
+        typeof error !== "object" ||
+        error === null ||
+        !("code" in error) ||
+        error.code !== "EEXIST"
+      )
+        throw error;
+      try {
+        const info = await stat(path);
+        if (Date.now() - info.mtimeMs > REFRESH_LOCK_STALE_MS) {
+          await rm(path, { force: true });
+          continue;
+        }
+      } catch {
+        // The holder released it between our open and stat; retry.
+      }
+      if (Date.now() >= deadline)
+        throw new Error("Session refresh lock is held by another process");
+      await sleep(25);
+    }
+  }
 }
 
 /**
@@ -193,7 +245,15 @@ async function refreshSession(
         ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
         : undefined),
     };
-    await saveSession(next);
+    try {
+      await saveSession(next);
+    } catch {
+      // The issuer already rotated the token, so the file on disk holds a
+      // refresh token that can no longer be used. Remove it rather than keep
+      // presenting a dead session; the next command can sign in cleanly.
+      await clearSession();
+      return null;
+    }
     return next;
   } catch {
     return null;
@@ -214,11 +274,43 @@ function refreshOnce(
   const key = `${session.issuer}\n${session.clientId}`;
   const existing = refreshes.get(key);
   if (existing) return existing;
-  const run = refreshSession(session, fetchImpl).finally(() => {
+  const run = refreshAcrossProcesses(session, fetchImpl).finally(() => {
     if (refreshes.get(key) === run) refreshes.delete(key);
   });
   refreshes.set(key, run);
   return run;
+}
+
+/**
+ * Acquire the cross-process lock, then reload the session: another command may
+ * have refreshed it while this one waited. Only the holder that still sees an
+ * expired session performs the rotation.
+ */
+async function refreshAcrossProcesses(
+  session: SessionFile,
+  fetchImpl: typeof fetch,
+): Promise<SessionFile | null> {
+  let release: (() => Promise<void>) | null;
+  try {
+    release = await acquireRefreshLock();
+  } catch {
+    const current = sessionMatchesIssuer(await loadSession(), session.issuer);
+    return current &&
+      current.clientId === session.clientId &&
+      (current.expiresAt === undefined || current.expiresAt > Date.now())
+      ? current
+      : null;
+  }
+  try {
+    const current = sessionMatchesIssuer(await loadSession(), session.issuer);
+    const next =
+      current && current.clientId === session.clientId ? current : session;
+    if (next.expiresAt === undefined || next.expiresAt > Date.now())
+      return next;
+    return await refreshSession(next, fetchImpl);
+  } finally {
+    await release().catch(() => undefined);
+  }
 }
 
 export async function sessionFor(

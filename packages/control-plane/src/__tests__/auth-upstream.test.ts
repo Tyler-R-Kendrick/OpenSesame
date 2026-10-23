@@ -332,16 +332,26 @@ describe("email magic-link sign-in", () => {
     expect(ctx.mailer.outbox.length).toBe(before);
   });
 
-  it("caps how many links one address can be sent, without saying so", async () => {
+  it("caps how many links one address can be sent and reports throttling uniformly", async () => {
     const email = "flooded@example.test";
     const before = ctx.mailer.outbox.length;
     for (let attempt = 0; attempt < 7; attempt += 1) {
       const { html } = await requestLink(email);
-      // Every attempt gets the same page: a budget that announced itself would
-      // be an oracle for which addresses are worth flooding.
-      expect(html).toContain("Check your email");
+      // The first five send; the rest say throttled. The same answer is given
+      // for every address, so this is not an account-existence oracle, and a
+      // victim is no longer silently told to check an inbox that will never
+      // receive anything.
+      if (attempt < 5) {
+        expect(html).toContain("Check your email");
+      } else {
+        expect(html).toContain("Too many sign-in links");
+      }
     }
     expect(ctx.mailer.outbox.length - before).toBe(5);
+
+    // A different address is not blocked by this one's budget.
+    const other = await requestLink("not-flooded@example.test");
+    expect(other.html).toContain("Check your email");
   });
 });
 

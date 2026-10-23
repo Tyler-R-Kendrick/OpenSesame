@@ -12,7 +12,7 @@ import {
 } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { type WebStorage, lockManager } from "../../ports.js";
-import { kvRefresh } from "../kv.js";
+import { kvDurability, kvRefresh, kvSetDurable } from "../kv.js";
 import { sha256Url } from "./local-drop-codec.js";
 import { originKvSlot } from "./origin-kv-slot.js";
 
@@ -89,6 +89,35 @@ export function writeLocalDropClaimStore(store: LocalClaimStore): void {
     LOCAL_DROP_CLAIM_STORAGE_KEY,
     JSON.stringify(store),
   );
+}
+
+export type LocalClaimChange<T> = { value: T; changed: boolean };
+
+const CLAIM_LOCK = "opensesame.local-drop-claims.v1";
+const CLAIM_STORE_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Read-modify-write a claim record under one origin-wide Web Lock and persist
+ * durably before returning. `kvGet` is only this tab's cache: without the
+ * refresh a second tab's `presented`/`revoked` record never reaches this one,
+ * and an older tab's whole-store write can undo it.
+ */
+export async function updateLocalDropClaimStore<T>(
+  change: (store: LocalClaimStore) => LocalClaimChange<T>,
+): Promise<T> {
+  const run = async (): Promise<T> => {
+    await kvRefresh(LOCAL_DROP_CLAIM_STORAGE_KEY, CLAIM_STORE_BYTES);
+    const store = readLocalDropClaimStore();
+    const result = change(store);
+    if (result.changed)
+      await kvSetDurable(LOCAL_DROP_CLAIM_STORAGE_KEY, JSON.stringify(store));
+    return result.value;
+  };
+  const locks = lockManager();
+  if (locks) return locks.request(CLAIM_LOCK, run);
+  if (kvDurability() === "persistent")
+    throw new Error("Web Locks are required for shared drop-claim writes.");
+  return run();
 }
 
 export async function localDropDevicePepper(): Promise<string> {

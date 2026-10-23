@@ -57,8 +57,10 @@ export interface OpenSesameVerifierConfig {
    */
   algorithms?: string[];
   /**
-   * Require the RFC 9068 `typ` header (`at+jwt`) when the issuer stamps one.
-   * Off by default: not every issuer emits it.
+   * Require the RFC 9068 `typ` header (`at+jwt`) for access tokens. Defaults
+   * to true: an ID token carries `typ: JWT` (or no type) and would otherwise
+   * be accepted as a bearer token when the audiences overlap. Set false only
+   * for a legacy issuer that cannot stamp the header.
    */
   requireAccessTokenTypeHeader?: boolean;
 }
@@ -140,6 +142,7 @@ function isPrivateHost(hostname: string): boolean {
   if (isPrivateV4(host)) return true;
   if (/^f[cd][0-9a-f]{2}:/u.test(host)) return true;
   if (/^fe[89ab][0-9a-f]:/u.test(host)) return true;
+  if (/^fe[c-f][0-9a-f]:/u.test(host)) return true;
   return host.endsWith(".internal") || host.endsWith(".local");
 }
 
@@ -148,9 +151,11 @@ function isPrivateV4(host: string): boolean {
   if (!v4) return false;
   const [a, b] = [Number(v4[1]), Number(v4[2])];
   if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
+  if (a === 192 && (b === 168 || b === 0)) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
   return false;
 }
 
@@ -231,10 +236,26 @@ export function createJwksKeySource(
     init: RequestInit,
   ): Promise<Response> => {
     const target = new URL(url);
-    if (!issuerIsPrivate && isPrivateHost(target.hostname)) {
-      throw new Error(
-        "jwks_uri names a private or loopback host, but the issuer is remote",
-      );
+    if (!issuerIsPrivate) {
+      if (isPrivateHost(target.hostname)) {
+        throw new Error(
+          "jwks_uri names a private or loopback host, but the issuer is remote",
+        );
+      }
+      // A public name can still resolve into this network. Check every A/AAAA
+      // record before letting the fetch connect (a custom fetch in tests is
+      // not resolved here, and jose itself never follows a redirect).
+      if (config.fetchImpl === undefined) {
+        const addresses = await lookup(
+          target.hostname.replace(/^\[|\]$/gu, "").replace(/\.+$/u, ""),
+          { all: true, verbatim: true },
+        );
+        if (addresses.some((entry) => isPrivateHost(entry.address))) {
+          throw new Error(
+            "jwks_uri resolves to a private or loopback address, but the issuer is remote",
+          );
+        }
+      }
     }
     const response = await (fetchImpl ?? fetch)(url, {
       ...init,
@@ -259,10 +280,15 @@ export function createJwksKeySource(
         {
           headers: { accept: "application/json" },
           redirect: "error",
+          credentials: "omit",
+          signal: AbortSignal.timeout(5_000),
         },
       );
       if (!res.ok) return fallback();
-      meta = await res.json();
+      const text = await res.text();
+      if (new TextEncoder().encode(text).byteLength > 262_144)
+        throw new Error("Discovery document is too large");
+      meta = JSON.parse(text);
     } catch {
       return fallback();
     }
@@ -355,7 +381,7 @@ export function createOpenSesameVerifier(
       const { protectedHeader } = verified;
 
       if (
-        config.requireAccessTokenTypeHeader === true &&
+        config.requireAccessTokenTypeHeader !== false &&
         protectedHeader.typ?.toLowerCase() !== "at+jwt"
       ) {
         throw new Error("Token is not an RFC 9068 access token");

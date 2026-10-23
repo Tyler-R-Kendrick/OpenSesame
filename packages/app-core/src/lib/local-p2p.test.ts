@@ -31,6 +31,37 @@ describe("Local Peer-to-Peer adapter", () => {
     expect(localP2PAvailable()).toBe(false);
   });
 
+  it("stops advertising and closes every accepted peer on stop", async () => {
+    const connection = {
+      createDataChannel: vi.fn(),
+      addEventListener: vi.fn(),
+      close: vi.fn(),
+    };
+    class Receiver {
+      onconnection: ((event: { connection: unknown }) => void) | null = null;
+      stop = vi.fn(async () => undefined);
+      start = vi.fn(async () => undefined);
+    }
+    vi.stubGlobal("isSecureContext", true);
+    vi.stubGlobal("LP2PReceiver", Receiver);
+    vi.stubGlobal(
+      "LP2PRequest",
+      class {
+        start = vi.fn(async () => connection);
+      },
+    );
+    const seen = vi.fn();
+    const handle = await startLocalPeerReceiver({ onConnection: seen });
+    const receiver = handle.receiver as InstanceType<typeof Receiver>;
+    receiver.onconnection?.({ connection });
+    expect(seen).toHaveBeenCalledWith(connection);
+    handle.stop();
+    handle.stop();
+    expect(receiver.stop).toHaveBeenCalledOnce();
+    expect(receiver.onconnection).toBeNull();
+    expect(connection.close).toHaveBeenCalledOnce();
+  });
+
   it("starts a receiver and requests a peer", async () => {
     const connection = {
       createDataChannel: vi.fn(),

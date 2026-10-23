@@ -24,6 +24,7 @@ import {
 import {
   type Openid4vciIssuerRuntime,
   createOpenid4vciRoutes,
+  resetOpenid4vciNonceBudget,
 } from "../routes/openid4vci.js";
 import { migratedPGlite, warmMigratedPGlite } from "./migrated-pglite.js";
 
@@ -372,5 +373,21 @@ describe("T-25: grants are durable and not process-local", () => {
     } finally {
       await client.close();
     }
+  });
+});
+
+describe("OpenID4VCI nonce endpoint budget", () => {
+  it("refuses a caller that floods the unauthenticated nonce mint", async () => {
+    resetOpenid4vciNonceBudget();
+    const app = mount(memoryRuntime());
+    for (let i = 0; i < 60; i += 1) {
+      const res = await app.request("/oid4vci/nonce", { method: "POST" });
+      expect(res.status).toBe(200);
+    }
+    const limited = await app.request("/oid4vci/nonce", { method: "POST" });
+    expect(limited.status).toBe(429);
+    expect(overlapCast<{ error: string }>(await limited.json()).error).toBe(
+      "rate_limited",
+    );
   });
 });
