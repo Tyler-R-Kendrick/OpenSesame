@@ -18,6 +18,7 @@ import {
   switchCapability,
   switchFeature,
 } from "@opensesame/app-core/lib/capabilities/features.js";
+import type { CompositionSnapshot } from "@opensesame/app-core/lib/capabilities/store-types.js";
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { setGuestsAllowed } from "@opensesame/app-core/lib/guest-access.js";
 import { pluginForCapability } from "@opensesame/app-core/lib/plugins/catalog.js";
@@ -42,21 +43,23 @@ import { useCapabilityChange } from "./useCapabilityChange.js";
  * the capability. These are the panels Features used to draw inline, named
  * for the row that now owns each one.
  */
-const PANELS_BY_CAPABILITY: Readonly<Record<string, readonly string[]>> = {
-  "support.local-ai": ["model-provider"],
-  "support.remote-ai": ["model-provider"],
-  "sharing.relay": ["org-vault-directory"],
-  "vault.security-checks": ["capability-security-checks"],
-  "ai.password-reset": ["password-reset-mail"],
-  "notifications.local": ["local-notifications"],
-  "networking.tailnet": ["tailnet-sync"],
-  "networking.tailnet-devices": ["tailnet-sync"],
-  "sharing.trusted-contacts": ["trusted-contacts"],
-};
+const PANELS_BY_CAPABILITY = new Map(
+  Object.entries({
+    "support.local-ai": ["model-provider"],
+    "support.remote-ai": ["model-provider"],
+    "sharing.relay": ["org-vault-directory"],
+    "vault.security-checks": ["capability-security-checks"],
+    "ai.password-reset": ["password-reset-mail"],
+    "notifications.local": ["local-notifications"],
+    "networking.tailnet": ["tailnet-sync"],
+    "networking.tailnet-devices": ["tailnet-sync"],
+    "sharing.trusted-contacts": ["trusted-contacts"],
+  }),
+);
 
 function panelIdsFor(capabilityId: string): readonly string[] {
-  const known = PANELS_BY_CAPABILITY[capabilityId] ?? [];
-  const plugin = pluginForCapability(capabilityId as CapabilityId);
+  const known = PANELS_BY_CAPABILITY.get(capabilityId) ?? [];
+  const plugin = pluginForCapability(capabilityId);
   return [...known, ...(plugin ? [`plugin-${plugin.id}`] : [])];
 }
 
@@ -66,6 +69,56 @@ function BackToFeatures() {
       <IconChevronLeft size={14} />
       Features
     </Link>
+  );
+}
+
+function WholeFeatureSwitch({
+  feature,
+  current,
+  onPropose,
+  plan,
+}: {
+  feature: Feature;
+  current: FeatureProposal;
+  onPropose: (proposal: FeatureProposal) => void;
+  plan: CompositionSnapshot["plan"];
+}) {
+  const state = featureState(feature, plan);
+  const held = state.on ? heldOutside(plan, feature) : [];
+  if (held.length > 0) {
+    return (
+      <StatusMark
+        tone="ok"
+        label={`needed by ${held.map(titleOf).join(", ")}`}
+      />
+    );
+  }
+  if (!state.on && state.available.length === 0) {
+    const status = capabilityStatus(
+      plan?.capabilities[feature.capabilities[0] ?? ""],
+      undefined,
+    );
+    return <StatusMark tone={status.tone} label={status.label} />;
+  }
+  return (
+    <span className="capsection__controls">
+      <BesideSwitch id={feature.capabilities[0]} />
+      <CapabilitySwitch
+        label={feature.title}
+        on={state.on}
+        onToggle={() =>
+          onPropose(
+            switchFeature(
+              current,
+              feature,
+              !state.on,
+              plan,
+              capabilityPorts.CAPABILITY_CATALOG,
+            ),
+          )
+        }
+      />
+    </span>
   );
 }
 
@@ -82,46 +135,17 @@ function FeatureSwitch({
 }) {
   const snapshot = useComposition();
   if (capabilityId === undefined) {
-    const state = featureState(feature, snapshot.plan);
-    const held = state.on ? heldOutside(snapshot.plan, feature) : [];
-    if (held.length > 0) {
-      return (
-        <StatusMark
-          tone="ok"
-          label={`needed by ${held.map(titleOf).join(", ")}`}
-        />
-      );
-    }
-    if (!state.on && state.available.length === 0) {
-      const status = capabilityStatus(
-        snapshot.plan?.capabilities[feature.capabilities[0] ?? ""],
-        undefined,
-      );
-      return <StatusMark tone={status.tone} label={status.label} />;
-    }
     return (
-      <span className="capsection__controls">
-        <BesideSwitch id={feature.capabilities[0]} />
-        <CapabilitySwitch
-          label={feature.title}
-          on={state.on}
-          onToggle={() =>
-            onPropose(
-              switchFeature(
-                current,
-                feature,
-                !state.on,
-                snapshot.plan,
-                capabilityPorts.CAPABILITY_CATALOG,
-              ),
-            )
-          }
-        />
-      </span>
+      <WholeFeatureSwitch
+        feature={feature}
+        current={current}
+        onPropose={onPropose}
+        plan={snapshot.plan}
+      />
     );
   }
 
-  const id = capabilityId as CapabilityId;
+  const id = capabilityId;
   const state = snapshot.plan?.capabilities[id];
   const on = state?.approved === true;
   const needers = on
@@ -304,9 +328,8 @@ export function FeatureConfigPanel({
     );
   }
   const selectedCapability =
-    capabilityId !== undefined &&
-    feature.capabilities.includes(capabilityId as CapabilityId)
-      ? (capabilityId as CapabilityId)
+    capabilityId !== undefined && feature.capabilities.includes(capabilityId)
+      ? capabilityId
       : undefined;
   if (capabilityId !== undefined && selectedCapability === undefined) {
     return (
