@@ -149,6 +149,45 @@ describe("GitConnectForm", () => {
     });
   });
 
+  it("keeps the saved connector when backup binding fails, without a duplicate retry", async () => {
+    vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
+    vi.spyOn(vaultStore, "addItems").mockResolvedValue(undefined);
+    Object.assign(backupSeams, {
+      putBackupTarget: vi
+        .fn()
+        .mockRejectedValue(new ConnectionsError(0, "unreachable", "offline")),
+    });
+    Object.assign(connectionSeams, {
+      createConnection: vi.fn(async () => {
+        throw new ConnectionsError(0, "unreachable", "offline");
+      }),
+      setConnectionConfiguration: vi.fn(async () => undefined),
+    });
+    const onFlash = vi.fn();
+    const onConnected = vi.fn();
+    render(
+      <GitConnectForm
+        provider={gitProvider("gitlab")}
+        online
+        onFlash={onFlash}
+        onConnected={onConnected}
+      />,
+    );
+    await userEvent.type(
+      screen.getByLabelText(/Remote URL/i),
+      "https://gitlab.com/org/store.git",
+    );
+    await userEvent.type(screen.getByLabelText(/^Token$/i), "glpat-secret");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Save Git remote/i }),
+    );
+    await waitFor(() => expect(onConnected).toHaveBeenCalledTimes(1));
+    expect(listLocalGitRemotes()).toHaveLength(1);
+    expect(onFlash).toHaveBeenCalledWith(
+      expect.objectContaining({ tone: "warn" }),
+    );
+  });
+
   it("accepts an SSH remote URL in the remote field", async () => {
     render(
       <GitConnectForm

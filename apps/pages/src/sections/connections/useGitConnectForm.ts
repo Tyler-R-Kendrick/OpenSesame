@@ -22,6 +22,20 @@ type GitConnectPersistInput = GitAuthFields & {
   name: string;
 };
 
+/** A backup target needs the address, never the credential in its userinfo. */
+function sanitizedRemote(remoteUrl: string): string {
+  try {
+    const url = new URL(remoteUrl);
+    if (url.username || url.password) {
+      url.username = "";
+      url.password = "";
+    }
+    return url.href;
+  } catch {
+    return remoteUrl;
+  }
+}
+
 async function bindBackupRemote(
   providerId: string,
   connectionId: string,
@@ -37,25 +51,37 @@ async function bindBackupRemote(
     repo: parsed.repo,
     branch: "main",
     enabled: true,
-    config: { remoteUrl },
+    config: { remoteUrl: sanitizedRemote(remoteUrl) },
   });
 }
 
+type GitConnectPersistResult = {
+  connection: Connection;
+  bindError: unknown;
+};
+
 async function persistGitRemote(
   input: GitConnectPersistInput,
-): Promise<Connection> {
+): Promise<GitConnectPersistResult> {
   const configuration = gitConfigurationPayload(input);
   const displayName = input.name.trim() || input.provider.displayName;
   const connection = await saveForgeConnector(input.provider, {
     displayName,
     configuration,
   });
-  await bindBackupRemote(
-    input.provider.id,
-    connection.connectionId,
-    input.remoteUrl,
-  );
-  return connection;
+  try {
+    await bindBackupRemote(
+      input.provider.id,
+      connection.connectionId,
+      input.remoteUrl,
+    );
+    return { connection, bindError: null };
+  } catch (bindError) {
+    // The connector is already saved and its credentials sealed. Letting the
+    // whole save fail here would invite a retry that creates a second
+    // connector for the same remote.
+    return { connection, bindError };
+  }
 }
 
 export function useGitConnectForm({
@@ -96,7 +122,7 @@ export function useGitConnectForm({
     setBusy(true);
     let created = false;
     try {
-      const connection = await persistGitRemote({
+      const { connection, bindError } = await persistGitRemote({
         provider,
         name,
         remoteUrl,
@@ -112,7 +138,14 @@ export function useGitConnectForm({
       setPassword("");
       setSshKey("");
       setSshPassphrase("");
-      onFlash({ tone: "ok", text: "Git remote saved." });
+      onFlash(
+        bindError === null
+          ? { tone: "ok", text: "Git remote saved." }
+          : {
+              tone: "warn",
+              text: `Git remote saved, but its backup target could not be bound: ${errorText(bindError)}`,
+            },
+      );
       // Local remotes already seal credentials in the vault — no reminder offer.
       if (!isLocalGitRemoteId(connection.connectionId)) {
         onRememberOffer?.(connection);

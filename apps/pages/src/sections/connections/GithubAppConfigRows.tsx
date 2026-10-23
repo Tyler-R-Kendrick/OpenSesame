@@ -12,7 +12,18 @@ export function GithubAppForgetButton() {
       data-testid="github-app-forget"
       aria-label="Remove GitHub App from this device"
       title="Remove GitHub App from this device"
-      onClick={() => forgetLocalGithubApp()}
+      onClick={() => {
+        // Remove destroys the sealed private key and client secret. Ask first;
+        // an accidental click cannot be undone.
+        if (
+          typeof globalThis.confirm === "function" &&
+          !globalThis.confirm(
+            "Remove the GitHub App from this device? Its private key and client secret will be deleted.",
+          )
+        )
+          return;
+        forgetLocalGithubApp();
+      }}
     >
       <IconTrash size={16} />
     </button>

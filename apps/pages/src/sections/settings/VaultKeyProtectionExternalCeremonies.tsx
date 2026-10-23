@@ -78,11 +78,16 @@ export function AgeRecipientBody({
           protection: store.protection,
           tomb,
           entry,
-          deliver: (delivery) =>
-            externalCeremonyDependencies.downloadOnce(
+          deliver: async (delivery) => {
+            const delivered = await externalCeremonyDependencies.downloadOnce(
               "opensesame-vault-age-identity.txt",
               identityFile(delivery.identity, delivery.recipient),
-            ),
+            );
+            if (delivered === "cancelled")
+              throw new Error(
+                "The age identity was not saved. Nothing was enrolled.",
+              );
+          },
         });
       status(
         "info",
