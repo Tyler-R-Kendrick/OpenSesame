@@ -102,9 +102,9 @@ export function CatalogPanel({
     return () => pickerRef(null);
   }, [pickerRef]);
   const normalizedQuery = (search.query ?? "").trim().toLocaleLowerCase();
-  const catalogProviders = curatedCatalogProviders(providers ?? []).filter(
-    (provider) => matchesCatalog(provider, normalizedQuery),
-  );
+  const catalogProviders = curatedCatalogProviders(providers ?? [], {
+    includeFeatured: true,
+  }).filter((provider) => matchesCatalog(provider, normalizedQuery));
 
   const sealKeyMissing = (providers ?? []).some((provider) =>
     provider.missingConfig.some((name) => name.includes("CONNECTION_KEY")),
