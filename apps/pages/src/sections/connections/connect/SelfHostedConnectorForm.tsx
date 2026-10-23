@@ -19,7 +19,6 @@ import { type FormEvent, useState } from "react";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconPlus } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import { LinearConnectorForm } from "./LinearConnectorForm.js";
 
 import {
   SelfHostedConfigFields,
@@ -51,11 +50,7 @@ type Props = {
 };
 
 export function SelfHostedConnectorForm(props: Props) {
-  return props.plan.id === "linear" ? (
-    <LinearConnectorForm {...props} />
-  ) : (
-    <LocalConfigurationForm {...props} />
-  );
+  return <LocalConfigurationForm {...props} />;
 }
 
 function LocalConfigurationForm({
