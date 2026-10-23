@@ -80,13 +80,58 @@ function CardFields({ draft, onChange }: Props) {
   return <CardEditor draft={draft} onPatch={onChange} />;
 }
 
-function CardEditor({
-  draft,
-  onPatch,
-}: {
+type CardEditorProps = {
   draft: CardItem;
   onPatch: (changes: Partial<VaultItem>) => void;
-}) {
+};
+
+function CardExpiryAndCode({ draft, onPatch }: CardEditorProps) {
+  return (
+    <div className="editor__row">
+      <div className="field">
+        <label htmlFor="exp">Expires</label>
+        <div className="editor__inline">
+          <input
+            id="exp"
+            inputMode="numeric"
+            placeholder="MM"
+            maxLength={2}
+            value={draft.expMonth}
+            onChange={(event) =>
+              onPatch({ expMonth: event.target.value.replace(/\D/g, "") })
+            }
+          />
+          <input
+            inputMode="numeric"
+            placeholder="YYYY"
+            maxLength={4}
+            aria-label="Expiry year"
+            value={draft.expYear}
+            onChange={(event) =>
+              onPatch({ expYear: event.target.value.replace(/\D/g, "") })
+            }
+          />
+        </div>
+      </div>
+      <div className="field">
+        <label htmlFor="cvc">Security code (optional)</label>
+        <input
+          id="cvc"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={4}
+          placeholder="CVV"
+          value={draft.code}
+          onChange={(event) =>
+            onPatch({ code: event.target.value.replace(/\D/g, "") })
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function CardEditor({ draft, onPatch }: CardEditorProps) {
   const initialDetected = detectCardBrand(draft.number);
   const manualBrand = useRef(
     Boolean(draft.brand.trim()) && draft.brand !== initialDetected?.name,
@@ -147,47 +192,7 @@ function CardEditor({
           onChange={(event) => changeNumber(event.target.value)}
         />
       </div>
-      <div className="editor__row">
-        <div className="field">
-          <label htmlFor="exp">Expires</label>
-          <div className="editor__inline">
-            <input
-              id="exp"
-              inputMode="numeric"
-              placeholder="MM"
-              maxLength={2}
-              value={draft.expMonth}
-              onChange={(event) =>
-                onPatch({ expMonth: event.target.value.replace(/\D/g, "") })
-              }
-            />
-            <input
-              inputMode="numeric"
-              placeholder="YYYY"
-              maxLength={4}
-              aria-label="Expiry year"
-              value={draft.expYear}
-              onChange={(event) =>
-                onPatch({ expYear: event.target.value.replace(/\D/g, "") })
-              }
-            />
-          </div>
-        </div>
-        <div className="field">
-          <label htmlFor="cvc">Security code (optional)</label>
-          <input
-            id="cvc"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={4}
-            placeholder="CVV"
-            value={draft.code}
-            onChange={(event) =>
-              onPatch({ code: event.target.value.replace(/\D/g, "") })
-            }
-          />
-        </div>
-      </div>
+      <CardExpiryAndCode draft={draft} onPatch={onPatch} />
     </div>
   );
 }

@@ -14,6 +14,10 @@ unset NODE_OPTIONS
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+node scripts/quality/evidence-gate.mjs
+node scripts/quality/repository-size-gate.mjs
+node scripts/dev/sync-agent-skills.mjs --check
+
 mode="${OPENSESAME_PREPUSH:-fast}"
 
 echo "pre-push: mode=$mode (set with: export OPENSESAME_PREPUSH=off|fast|full)"

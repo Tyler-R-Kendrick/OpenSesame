@@ -92,3 +92,12 @@ release gate only after a complete scan.
 Report tool versions, exact scope, base/head when applicable, auth mode, model,
 effort, cap and estimated cost, completed/total files, findings, fixes, tests,
 and residual unreviewed scope. Never publish exploit details or secrets.
+
+## Artifact lifecycle
+
+Follow `docs/contributing/repository-footprint.md`. Keep raw findings, coverage
+ledgers, scanner transcripts, agent assignments and successive runs in private
+run storage outside the checkout. Maintain one concise findings/disposition
+record with source and review references when needed; do not commit a run chain,
+copy rejected findings into every run folder, or publish raw security artifacts.
+Clean only this task's temporary output after its conclusions are reviewed.

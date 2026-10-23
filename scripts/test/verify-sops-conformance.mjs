@@ -22,7 +22,7 @@ import {
 } from "../../packages/app-core/scripts/sops-oracle/oracle.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const evidence = join(root, "docs/evidence/2026-09-22-browser-local-sops");
+const evidence = join(root, "work/evidence/sops/pages/browser");
 mkdirSync(evidence, { recursive: true });
 
 const CASES = [
@@ -49,8 +49,7 @@ function write(status, reason, detail = {}) {
     test: "packages/app-core/src/lib/sops/engine.conformance.test.ts + engine.oracle.test.ts",
     command: "pnpm verify:sops-conformance",
     runtime: `sops ${SOPS_VERSION} (${SOPS_SOURCE_COMMIT.slice(0, 12)})`,
-    artifact:
-      "docs/evidence/2026-09-22-browser-local-sops/conformance-results.json",
+    artifact: "work/evidence/sops/pages/browser/conformance-results.json",
     reason,
     ...detail,
   }));

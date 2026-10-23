@@ -8,10 +8,11 @@
     "OPENSESAME_ISSUER": "http://host.docker.internal:8788",
     "OPENSESAME_AGENT_SOCK": "/tmp/opensesame-agent.sock",
     "OPENSESAME_AGENT_URL": "http://host.docker.internal:18790",
-    "OPENSESAME_DAEMON_API": "http://host.docker.internal:18790"
+    "OPENSESAME_DAEMON_API": "http://host.docker.internal:18790",
+    "CARGO_TARGET_DIR": "/home/vscode/.cache/packages/cargo-target"
   },
   "forwardPorts": [8787, 8788, 18790],
-  "postCreateCommand": "cargo build -p opensesame-cli && corepack enable && pnpm install",
+  "postCreateCommand": "corepack enable && corepack prepare pnpm@9.15.0 --activate && bash scripts/dev/install-dependencies.sh",
   "customizations": {
     "vscode": {
       "settings": {

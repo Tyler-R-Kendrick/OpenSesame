@@ -1,9 +1,9 @@
 /**
- * Write docs/evidence/wallet/last-run.json — command results only, no secrets.
+ * Write work/evidence/wallet/wallet/cross-platform/last-run.json — command results only, no secrets.
  */
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -37,7 +37,7 @@ import { join } from "node:path";
  * @returns {WalletEvidence}
  */
 export function writeWalletEvidence(root, partial) {
-  const evidenceDir = join(root, "docs", "evidence", "wallet");
+  const evidenceDir = join(root, "work/evidence/wallet/wallet/cross-platform");
   mkdirSync(evidenceDir, { recursive: true });
 
   /** @type {WalletEvidence} */
@@ -125,4 +125,15 @@ function tail(text, max) {
   return text.slice(text.length - max);
 }
 
-export const EVIDENCE_REL = "docs/evidence/wallet/last-run.json";
+export const EVIDENCE_REL =
+  "work/evidence/wallet/wallet/cross-platform/last-run.json";
+
+/** Read scratch claims or seed a run from the source-owned claim registry. */
+export function readWalletClaims(root) {
+  const scratch = join(
+    root,
+    "work/evidence/wallet/wallet/cross-platform/claims.json",
+  );
+  const seed = join(root, "spec/conformance/wallet-claims.json");
+  return JSON.parse(readFileSync(existsSync(scratch) ? scratch : seed, "utf8"));
+}

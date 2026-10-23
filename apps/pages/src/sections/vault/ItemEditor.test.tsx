@@ -3,12 +3,9 @@ import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.
 import { folderKey } from "@opensesame/app-core/lib/vault/path-suggest.js";
 import {
   type AccountItem,
-  type CertificateItem,
   type Folder,
-  type PasswordMethod,
   type VaultItem,
   createItem,
-  passwordMethod,
 } from "@opensesame/vault-core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -23,6 +20,13 @@ import {
   it,
   vi,
 } from "vitest";
+import {
+  inputByLabel,
+  issuedCertificate,
+  makeCertificate,
+  passwordOf,
+  renderEditor,
+} from "./ItemEditor.test-support.js";
 import { choose, shown } from "./path-field.test-support.js";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
@@ -68,22 +72,6 @@ import {
   makeAccount as makeAccountBase,
 } from "./account.test-support.js";
 
-/** The editor at `path`, new or edit, with a catch-all for where saving goes. */
-function renderEditor(path = "/vault/new/account") {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/vault/new/:kind?" element={<ItemEditor mode="new" />} />
-        <Route
-          path="/vault/:itemId/edit"
-          element={<ItemEditor mode="edit" />}
-        />
-        <Route path="*" element={<div>navigated away</div>} />
-      </Routes>
-    </MemoryRouter>,
-  );
-}
-
 function makeAccount(overrides: AccountSeed = {}): AccountItem {
   return makeAccountBase({
     id: "itm_1",
@@ -92,46 +80,6 @@ function makeAccount(overrides: AccountSeed = {}): AccountItem {
     passwordChangedAt: "2026-08-01T00:00:00Z",
     ...overrides,
   });
-}
-
-function makeCertificate(
-  overrides: Partial<CertificateItem> = {},
-): CertificateItem {
-  return {
-    ...createItem("certificate", "Local TLS"),
-    id: "itm_cert",
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    commonName: "localhost",
-    ...overrides,
-  };
-}
-
-const issuedCertificate: IssuedCertificate = {
-  certificate: "-----BEGIN CERTIFICATE-----\nleaf\n-----END CERTIFICATE-----",
-  privateKey: "-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----",
-  caCertificate: "-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----",
-  serial: "aabbcc",
-  commonName: "barber.local",
-  dnsNames: ["barber.local", "www.barber.local"],
-  notBefore: "2026-08-21T00:00:00Z",
-  notAfter: "2026-08-22T00:00:00Z",
-  deliveryId: "certificate-request:one",
-};
-
-function inputByLabel(label: string | RegExp): HTMLInputElement {
-  const element = screen.getByLabelText(label);
-  if (!(element instanceof HTMLInputElement)) {
-    throw new Error(`expected input for ${String(label)}`);
-  }
-  return element;
-}
-
-function passwordOf(item: VaultItem): PasswordMethod {
-  if (item.kind !== "account") throw new Error("expected a saved account");
-  const method = passwordMethod(item);
-  if (!method) throw new Error("expected a password method");
-  return method;
 }
 
 function savedItem(): VaultItem {

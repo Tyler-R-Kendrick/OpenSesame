@@ -170,17 +170,7 @@ export function SettingsSection({
           <h1>{group.label}</h1>
         </div>
 
-        <nav className="set__nav" aria-label="Settings sections">
-          {groupTabs.map((entry) => (
-            <CategoryLink
-              key={entry.id}
-              guideId={entry.guideId}
-              to={settingsPath(entry.id)}
-              label={entry.label}
-              current={category === entry.id}
-            />
-          ))}
-        </nav>
+        <SettingsCategoryNav tabs={groupTabs} category={category} />
         {file === null ? null : (
           <SettingsFiles
             category={category}
@@ -230,6 +220,28 @@ export function SettingsSection({
         {form && category === "danger" ? <SettingsDangerPanel /> : null}
       </div>
     </SettingsFileContext.Provider>
+  );
+}
+
+function SettingsCategoryNav({
+  tabs,
+  category,
+}: {
+  tabs: ReturnType<typeof settingsTabsForGroup>;
+  category: string;
+}) {
+  return (
+    <nav className="set__nav" aria-label="Settings sections">
+      {tabs.map((entry) => (
+        <CategoryLink
+          key={entry.id}
+          guideId={entry.guideId}
+          to={settingsPath(entry.id)}
+          label={entry.label}
+          current={category === entry.id}
+        />
+      ))}
+    </nav>
   );
 }
 

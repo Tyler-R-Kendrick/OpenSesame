@@ -122,7 +122,7 @@ export default defineConfig({
       name: "desktop",
       use: {
         ...devices["Desktop Chrome"],
-        // Matches the actual .impeccable/screenshots/*-desktop.png baseline
+        // Matches the actual tests/visual-contract/baselines/*-desktop.png baseline
         // dimensions (verified via their PNG IHDR chunks), not an assumed
         // 1280x800 — a mismatch here fails every desktop shot on size alone,
         // independent of any real visual regression.

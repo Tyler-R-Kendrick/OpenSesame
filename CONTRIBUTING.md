@@ -44,8 +44,13 @@ layout: `pnpm --filter @opensesame/pages verify:<keyboard|mobile|static|auth|loc
   key registered on your GitHub account, or commits GitHub itself creates). CI
   rejects any other commit and the default-branch ruleset will not merge it.
 - **A user-visible change carries before/after evidence** from two real
-  builds, committed under `docs/evidence/<yyyy-mm-dd>-<topic>/` and linked
-  from the PR ([how](skills/visual-evidence/SKILL.md)).
+  builds for PR review ([how](skills/visual-evidence/SKILL.md)). Keep comparisons,
+  raw recordings and drafts in ignored `work/evidence/` or temp storage. Persist
+  only approved current-state evidence under
+  `docs/evidence/<feature>/<project>/<platform>/` (lowercase kebab-case), replacing
+  the affected slot and deleting superseded files. Record source and approval
+  provenance. Use commit-SHA links for history; do not carry historical media
+  forward into `main`. See the [persistence contract](docs/evidence/README.md).
 - **A consequential decision gets an ADR** in `docs/adr/`, then
   `pnpm docs:index`.
 - **A new user-facing capability gets a `packages/capability-registry` entry**
@@ -88,3 +93,5 @@ This project is built with coding agents under human direction and review.
 Disclose significant AI-generated content in the pull request. When an agent
 makes a commit, name the tool and model in the commit message or in the pull
 request provenance.
+
+Keep changes within the [repository footprint policy](docs/contributing/repository-footprint.md). Run `node scripts/quality/repository-size-gate.mjs`; do not commit raw reviews, scanner run histories, caches or reproducible task output.

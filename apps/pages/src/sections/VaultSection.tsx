@@ -49,6 +49,7 @@ import {
   username,
 } from "@opensesame/app-core/sections/vault-section-model.js";
 
+/** Match the status line to the crumb's type label, including its plural. */
 function vaultListTitle(filter: string, folderId: string | null): string {
   return folderId
     ? "Folder"
@@ -100,10 +101,6 @@ export function VaultSection() {
   const narrow = useNarrow();
   // A phone draws one pane at a time, the first being the section tree.
   const showing = vaultPane(location.pathname, params);
-  // The crumb's own label (a type's plural from its definition), so the
-  // status line under a filter says what the crumb above it says — it used
-  // to say "All items" under "Certificates".
-  const title = vaultListTitle(filter, folderId);
   // A filtered "+ new" creates the filter's kind only when that kind may be
   // created on this installation (SURFACE-08); otherwise the default kind.
   const createPath = itemCreatePath(
@@ -316,7 +313,7 @@ export function VaultSection() {
             activeItemId={itemId}
             sharedItems={sharedItems}
             actions={actions}
-            title={title}
+            title={vaultListTitle(filter, folderId)}
             total={total}
             emptyMessage={
               filter === "trash" ? "Trash is empty" : "Nothing here"

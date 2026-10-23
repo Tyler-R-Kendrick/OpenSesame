@@ -88,8 +88,6 @@ paths = [
   '''(^|/)packages/control-plane/src/__tests__/oauth2-proxy-live\.test\.ts$''',
   '''(^|/)apps/pages/index\.html$''',
   '''(^|/)crates/human-vault/tests/fixtures/root_protection_shared_vectors\.json$''',
-  '''(^|/)docs/evidence/2026-09-21-duress/browser/capabilities\.json$''',
-  '''(^|/)docs/evidence/2026-09-21-duress/browser/journeys\.json$''',
   '''(^|/)packages/app-core/src/lib/age-keys\.test\.ts$''',
   '''(^|/)packages/app-core/src/lib/capabilities/keys\.ts$''',
   '''(^|/)packages/app-core/src/lib/capabilities/trust/accepted-revision\.ts$''',
@@ -104,11 +102,6 @@ paths = [
   '''(^|/)packages/app-core/src/lib/vault/protection/fixtures/shared-vectors\.json$''',
   '''(^|/)packages/app-core/src/lib/vault/protection/browser-enroll\.ts$''',
   '''(^|/)scripts/lib/mtls-manifest\.test\.mjs$''',
-  '''(^|/)docs/evidence/2026-09-25-claim-route/README\.md$''',
-  '''(^|/)docs/evidence/2026-09-25-claim-route/journey\.json$''',
-  '''(^|/)docs/evidence/2026-09-25-browser-sessions/time-authority-validation\.json$''',
-  '''(^|/)docs/evidence/2026-09-24-tailnet-sync/journey\.json$''',
-  '''(^|/)docs/evidence/2026-09-25-approval-routes/journey\.json$''',
   '''(^|/)spec/conformance/vault-drive-protocol\.json$''',
   '''(^|/)spec/conformance/item-type-cases\.json$''',
   '''(^|/)crates/bitwarden-server/tests/protocol\.rs$''',
@@ -187,18 +180,6 @@ regexes = ['''(?s)\Aosc_clm_AbC\.s3cr3tpart\z''']
 description = "Reviewed synthetic fixture or public identifier: crates/storage/src/bitwarden/debug_redaction.rs"
 regexes = ['''(?s)\Adigest\-12345\z''']
 [[allowlists]]
-description = "Reviewed synthetic fixture or public identifier: docs/evidence/2026-09-27-sample-data-and-manifest/manifest.json"
-regexes = ['''(?s)\AFjord\-Lantern\-9\z''']
-[[allowlists]]
-description = "Reviewed synthetic fixture or public identifier: docs/evidence/2026-09-28-live-routes/journey.json"
-regexes = ['''(?s)\AbWludGVkLWZvci10aGlzLXNlc3Npb24=\z''']
-[[allowlists]]
-description = "Reviewed synthetic fixture or public identifier: docs/evidence/2026-10-03-live-sessions-stack/journey.json"
-regexes = ['''(?s)\AbWludGVkLWZvci10aGlzLXNlc3Npb24=\z''']
-[[allowlists]]
-description = "Reviewed synthetic fixture or public identifier: docs/evidence/2026-10-05-travel-hidden-items/journey.json"
-regexes = ['''(?s)\Apw\-quartz\-7f3a\z''']
-[[allowlists]]
 description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/activity-log.test.ts"
 regexes = ['''(?s)\Aosc_clm_AbC\.s3cr3tpart\z''']
 [[allowlists]]
@@ -274,16 +255,8 @@ regexes = ['''(?s)\A\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMIIEvQIBADANBg\\n\
 description = "Ignored task scratch artifacts (never shipped)"
 paths = ['''(^|/)work(?:/|$)''']
 
-# Public CDP virtual-authenticator ID in two reviewed captures, not a credential.
-# Rule scope avoids global directory-pruning behavior and requires both criteria.
 [[rules]]
 id = "generic-api-key"
-[[rules.allowlists]]
-description = "Reviewed public CDP virtual-authenticator identifier"
-condition = "AND"
-regexTarget = "secret"
-regexes = ['\A2c4c3bf6-621a-43c7-96db-92c657496656\z']
-paths = ['(^|/)docs/evidence/2026-10-05-customer-envelope/duress/(capabilities|journeys)\.json$']
 
 [[rules.allowlists]]
 description = "Public synthetic vault-drive part identifier"

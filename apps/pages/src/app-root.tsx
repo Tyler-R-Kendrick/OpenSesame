@@ -250,6 +250,11 @@ function VaultApp() {
 
   useVaultLanding(status, location.pathname, navigate);
 
+  const settingsElement = (
+    <Framed>
+      <slots.SettingsSection />
+    </Framed>
+  );
   const shell = (
     // The shell is one Suspense boundary and the section inside it another,
     // so a section still loading never blanks the rail around it.
@@ -283,20 +288,9 @@ function VaultApp() {
               />
               <Route
                 path="/settings/features/:featureId/:capabilityId?"
-                element={
-                  <Framed>
-                    <slots.SettingsSection />
-                  </Framed>
-                }
+                element={settingsElement}
               />
-              <Route
-                path="/settings/:category?"
-                element={
-                  <Framed>
-                    <slots.SettingsSection />
-                  </Framed>
-                }
-              />
+              <Route path="/settings/:category?" element={settingsElement} />
               <Route path={JOIN_COMMAND_PATH} element={<JoinRoadRoute />} />
               <Route path="*" element={<Fallback />} />
             </Routes>

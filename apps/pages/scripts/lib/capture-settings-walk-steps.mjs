@@ -1,5 +1,5 @@
 /**
- * Capture verbs for the second Settings walk (docs/evidence/2026-10-03-settings-walk):
+ * Capture verbs for the second Settings walk (work/evidence/settings/pages/browser):
  * the sheet, label and disabled-key readings a walk of Security and Settings
  * needs.
  */

@@ -1,5 +1,4 @@
 /** The owner's side of a live session (ADR 0150). A peer-trust ask waits for the SAS. */
-
 import { noteLiveSessionGranted } from "../sharing-receipts.js";
 import { DeviceBroker } from "./device-broker.js";
 import { NO_DEVICES } from "./device-types.js";
@@ -30,10 +29,8 @@ import type { Carrier } from "./rendezvous.js";
 import { NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
 import { seatName } from "./seat-channel.js";
-
 // What a host is made of lives in `host-types.ts`; it is named here as well.
 export * from "./host-types.js";
-
 /** One live session, hosted by this tab. */
 export class LiveHost {
   readonly link: LiveLink;
@@ -57,7 +54,6 @@ export class LiveHost {
   readonly #closed = new Set<string>();
   #ended: HostState["endedBecause"] = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
-
   private constructor(
     private readonly options: HostOptions,
     owner: Keypair,
@@ -86,13 +82,11 @@ export class LiveHost {
       : null;
     this.devices?.subscribe(() => this.#emit());
   }
-
   /** One more line in the owner's log, the last two hundred kept. */
   #record(entry: LogEntry): void {
     this.#log = [...this.#log.slice(-199), entry];
     this.#emit();
   }
-
   /** Start a session: a fresh owner key, link secret and code. */
   static async start(options: HostOptions): Promise<LiveHost> {
     return new LiveHost(options, await newKeypair());

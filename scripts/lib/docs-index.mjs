@@ -48,11 +48,9 @@ export function evidenceRow(name, text) {
   return [`[\`${name}/\`](${name}/README.md)`, title(text)];
 }
 
-/** Dated directories newest first, then the undated programme directories. */
+/** Stable feature/project/platform slots sort by ownership, never capture date. */
 export function evidenceOrder(a, b) {
-  const dated = (name) => /^\d{4}-/u.test(name);
-  if (dated(a) !== dated(b)) return dated(a) ? -1 : 1;
-  return dated(a) ? b.localeCompare(a) : a.localeCompare(b);
+  return a.localeCompare(b);
 }
 
 /** Replace everything after the marker with a Markdown table. */
