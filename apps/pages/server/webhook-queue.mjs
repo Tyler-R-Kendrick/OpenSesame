@@ -13,6 +13,7 @@ import {
   fstatSync,
   lstatSync,
   mkdirSync,
+  mkdtempSync,
   openSync,
   readFileSync,
 } from "node:fs";
@@ -27,6 +28,8 @@ const REDIS_KEY = "opensesame:github-app:webhook-pending";
 
 /** @type {WebhookNudge[]} */
 let memoryQueue = [];
+/** @type {string | null} */
+let cachedQueueDir = null;
 
 function queuePath() {
   const raw =
@@ -35,15 +38,9 @@ function queuePath() {
       : "";
   if (raw) return raw;
   if (typeof process !== "undefined" && process.env.VERCEL) return null;
-  const dir = join(
-    tmpdir(),
-    `opensesame-webhooks-${process.getuid?.() ?? "local"}`,
-  );
-  try {
-    mkdirSync(dir, { mode: 0o700 });
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error;
-  }
+  const dir =
+    cachedQueueDir ?? mkdtempSync(join(tmpdir(), "opensesame-webhooks-"));
+  cachedQueueDir = dir;
   const stat = lstatSync(dir);
   if (
     !stat.isDirectory() ||

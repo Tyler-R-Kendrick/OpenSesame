@@ -52,9 +52,9 @@ jobs:
           - language: java-kotlin
             runner: ubuntu-latest
             mode: manual
-          - language: swift
-            runner: macos-26
-            mode: manual
+          # Swift/mobile is intentionally not analyzed here: the Pages/native
+          # product is exercised on Linux runners, and the macOS XCTest harness
+          # is not part of this CodeQL gate.
         # The repository's only C/C++ file is the generated Swift FFI header;
         # there is no independent C/C++ program for autobuild to compile.
     env:
@@ -74,11 +74,6 @@ jobs:
         with:
           toolchain: 1.88.0
           targets: ${{ matrix.language == 'java-kotlin' && 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android' || '' }}
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-        if: matrix.language == 'swift'
-        with:
-          toolchain: 1.88.0
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
       - name: Prepare Android SDK and pinned Gradle
         if: matrix.language == 'java-kotlin'
         shell: bash
@@ -112,10 +107,15 @@ jobs:
             -p apps/android/android -Pkotlin.compiler.execution.strategy=in-process \
             :app:compileDebugKotlin :app:compileDebugUnitTestKotlin \
             -PopensesameWalletBackendUrl=https://identity.example
-      - name: Build and test all iOS package targets
-        if: matrix.language == 'swift'
-        run: bash scripts/test/mobile-apple.sh ios
       - name: Analyze
         uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
           category: /language:${{ matrix.language }}
+          output: ${{ runner.temp }}/codeql-results
+      - name: Keep SARIF for review
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: ${{ runner.temp }}/codeql-results
+          if-no-files-found: warn

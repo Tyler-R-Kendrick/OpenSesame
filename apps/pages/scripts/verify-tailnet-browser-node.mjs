@@ -184,7 +184,10 @@ async function runViewport(width) {
   });
   context.on("request", (request) => {
     const url = new URL(request.url());
-    if (url.origin === origin && /go-runtime|\.wasm\.gz$/.test(url.pathname))
+    if (
+      url.origin === origin &&
+      /^(?:.*go-runtime.*|.*\.wasm\.gz)$/.test(url.pathname)
+    )
       h.record("official-sdk-resource", url.pathname);
   });
   try {

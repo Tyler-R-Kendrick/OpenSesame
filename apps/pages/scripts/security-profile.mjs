@@ -4,19 +4,32 @@ export function securityProfile(env) {
   const profile = env.PAGES_DEPLOYMENT_PROFILE ?? "shared_origin_demo";
   const raw =
     env.PAGES_CANONICAL_ORIGIN ?? "https://tyler-r-kendrick.github.io";
-  const url = new URL(raw);
-  if (url.origin !== raw || url.username || url.password)
-    throw new Error("Invalid PAGES_CANONICAL_ORIGIN");
-  const local = isLoopback(url.hostname);
-  const headerSecurity = env.PAGES_HEADER_SECURITY === "1";
   if (
     ![
       "shared_origin_demo",
       "loopback_development",
       "dedicated_origin",
+      "isolated_web_app",
     ].includes(profile)
   )
     throw new Error("Invalid PAGES_DEPLOYMENT_PROFILE");
+  if (profile === "isolated_web_app") {
+    if (raw !== "isolated-app:")
+      throw new Error(
+        "IWA profile requires PAGES_CANONICAL_ORIGIN=isolated-app:",
+      );
+    return {
+      version: 1,
+      profile,
+      canonicalOrigin: "isolated-app:",
+      headerSecurity: true,
+    };
+  }
+  const url = new URL(raw);
+  if (url.origin !== raw || url.username || url.password)
+    throw new Error("Invalid PAGES_CANONICAL_ORIGIN");
+  const local = isLoopback(url.hostname);
+  const headerSecurity = env.PAGES_HEADER_SECURITY === "1";
   if (
     profile === "dedicated_origin" &&
     (local ||
