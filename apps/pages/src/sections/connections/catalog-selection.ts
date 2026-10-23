@@ -1,3 +1,4 @@
+import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 /**
  * The connections a person sees in Add a connection, and the tags that
  * replace the old category subheaders. The allowlist is deliberately small:
@@ -264,6 +265,29 @@ export function curatedCatalogProviders(
         sensitivity: "base",
       }),
     );
+}
+
+/** The auth/integration methods a tile supports, as user-facing pills. */
+export function catalogAuthMethods(provider: Provider): readonly string[] {
+  const methods = new Set<string>();
+  for (const method of connectPlan(provider.id)?.methods ?? []) {
+    if (method.kind === "oauth") methods.add("OAuth");
+    else if (method.kind === "api-key") methods.add("API key");
+    else if (method.kind === "mcp") methods.add("MCP");
+  }
+  if (provider.authKind === "oauth2_authorization_code") methods.add("OAuth");
+  if (provider.authKind === "api_key") methods.add("API key");
+  if (provider.authKind === "configuration") methods.add("Configuration");
+  if (isManagedConnector(provider.id)) methods.add("Managed");
+  return [
+    "OAuth",
+    "API key",
+    "MCP",
+    "OIDC",
+    "Local",
+    "Configuration",
+    "Managed",
+  ].filter((method) => methods.has(method));
 }
 
 /** Tags shown on the tile; they replace the former category headings. */

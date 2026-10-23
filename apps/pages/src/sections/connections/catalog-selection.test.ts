@@ -3,6 +3,7 @@ import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-lab
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { describe, expect, it } from "vitest";
 import {
+  catalogAuthMethods,
   catalogTags,
   curatedCatalogProviders,
   matchesCatalog,
@@ -165,6 +166,15 @@ describe("the curated Connections list", () => {
       autoConfigurable: false,
     };
     expect(curatedCatalogProviders([fake])).toEqual([]);
+  });
+
+  it("labels each card with supported auth methods, not internal tags", () => {
+    const openai = byId.get("openai");
+    const github = byId.get("github");
+    if (!openai || !github) throw new Error("Expected curated providers");
+    expect(catalogAuthMethods(openai)).toContain("API key");
+    expect(catalogAuthMethods(github).length).toBeGreaterThan(0);
+    expect(catalogAuthMethods(openai)).not.toContain("Managed");
   });
 
   it("tags former headers and searches them", () => {
