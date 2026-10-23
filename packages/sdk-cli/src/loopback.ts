@@ -221,9 +221,20 @@ export async function loopbackLogin(
       auth.searchParams.set("state", state);
       auth.searchParams.set("code_challenge", challenge);
       auth.searchParams.set("code_challenge_method", "S256");
-      void Promise.resolve(config.openBrowser?.(auth.toString())).catch(
-        () => undefined,
-      );
+      const authorizationUrl = auth.toString();
+      if (config.openBrowser === undefined) {
+        // The server cannot open a browser itself. Never discard the URL and
+        // wait for a timeout: the caller can paste it or open it manually.
+        process.stderr.write(
+          `Open this URL to finish signing in:\n${authorizationUrl}\n`,
+        );
+      } else {
+        // Evaluate inside the promise chain so a synchronous opener throw
+        // rejects through the same path as an async opener rejection.
+        void Promise.resolve()
+          .then(() => config.openBrowser?.(authorizationUrl))
+          .catch(() => undefined);
+      }
       timer = setTimeout(() => {
         shutdown();
         reject(new Error("timed out waiting for the authorization redirect"));

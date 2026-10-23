@@ -1,5 +1,3 @@
-/** Official Go/WireGuard runs in this terminable, privately governed realm. */
-import { isString } from "@opensesame/os-domain";
 import "./worker-csp.js";
 import { type HostEvent, WorkerMessage } from "./protocol.js";
 import {
@@ -24,19 +22,6 @@ function peerGetUrl(raw: string): URL | null {
   if (!["http:", "https:"].includes(url.protocol)) return null;
   if (url.username || url.password) return null;
   return url;
-}
-/** The peer must not redirect the GET somewhere the controller did not approve. */
-function unapprovedRedirect(
-  response: Awaited<ReturnType<BrowserNodeClient["fetch"]>>,
-  requested: URL,
-): boolean {
-  if (response.redirected === true) return true;
-  if (!isString(response.url) || response.url === "") return false;
-  try {
-    return new URL(response.url).href !== requested.href;
-  } catch {
-    return true;
-  }
 }
 /** One owned realm/client; injection substitutes only the existing SDK boundary in tests. */
 export class BrowserNodeWorker {
@@ -103,12 +88,33 @@ export class BrowserNodeWorker {
       this.post({ kind: "error" });
       return;
     }
-    void this.client
-      ?.fetch(url.href)
-      .then(async (response) => {
-        if (unapprovedRedirect(response, url))
+    const port = this.client?.nativeHTTP;
+    if (!port || !port.ready()) {
+      // The Go SDK's fetch() follows redirects internally and exposes no
+      // final URL, so it cannot prove the approved peer was the destination.
+      // Use the native bridge, which returns the final URL for comparison.
+      this.post({ kind: "error" });
+      return;
+    }
+    const controller = new AbortController();
+    // Native operations have their own id space; keep peer GETs out of the
+    // host-driven range.
+    const nativeId = 1_000_000_000 + (this.sequence % 1_000_000_000);
+    void port
+      .nativeHTTP(
+        nativeId,
+        {
+          method: "GET",
+          url: url.href,
+          headers: [],
+          body: new Uint8Array(),
+        },
+        controller.signal,
+      )
+      .then((response) => {
+        if (response.url !== url.href)
           throw new Error("Tailscale peer redirected an approved GET.");
-        const text = await response.text();
+        const text = new TextDecoder().decode(response.body);
         this.post({ kind: "get", id, status: response.status, text });
       })
       .catch(() => this.post({ kind: "error" }));

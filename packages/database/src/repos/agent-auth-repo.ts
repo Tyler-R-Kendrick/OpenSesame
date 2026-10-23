@@ -4,7 +4,7 @@ import type {
   AgentRegistration,
   AgentServiceAssertionRecord,
 } from "@opensesame/os-domain";
-import { and, desc, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, lte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema/index.js";
 import {
@@ -206,6 +206,23 @@ export class MemoryAgentAuthRepository implements AgentAuthRepository {
       });
     });
     return cloneAttempt(row);
+  };
+
+  consumeClaimAttempt = async (
+    id: string,
+    maxAttempts: number,
+  ): Promise<boolean> => {
+    const current = this.attempts.get(id);
+    if (!current || current.completedAt) return false;
+    if (current.failedAttempts >= maxAttempts) return false;
+    this.attempts.set(
+      id,
+      cloneAttempt({
+        ...current,
+        failedAttempts: current.failedAttempts + 1,
+      }),
+    );
+    return true;
   };
 
   createAccessToken = async (
@@ -513,6 +530,23 @@ export function createPostgresAgentAuthRepository(
         throw new ConflictError(`agent claim attempt missing: ${attempt.id}`);
       }
       return mapAttempt(row);
+    },
+
+    async consumeClaimAttempt(id, maxAttempts) {
+      const [row] = await db
+        .update(schema.agentClaimAttempts)
+        .set({
+          failedAttempts: sql`${schema.agentClaimAttempts.failedAttempts} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.agentClaimAttempts.id, id),
+            isNull(schema.agentClaimAttempts.completedAt),
+            lt(schema.agentClaimAttempts.failedAttempts, maxAttempts),
+          ),
+        )
+        .returning({ id: schema.agentClaimAttempts.id });
+      return row !== undefined;
     },
 
     async createAccessToken(record, uow) {

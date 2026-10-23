@@ -42,6 +42,8 @@ import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
 export const principalRoutes = new Hono<{ Variables: Variables }>();
 
 export const MAX_PROVISIONAL = 1024;
+/** Public anonymous mints may never consume the capacity new sign-ins need. */
+const PUBLIC_PROVISIONAL_RESERVE = 256;
 const PROVISIONAL_MINT_WINDOW_MS = 60_000;
 const PROVISIONAL_MINT_PER_CLIENT = 10;
 const PROVISIONAL_MINT_GLOBAL = 120;
@@ -150,7 +152,10 @@ principalRoutes.post(
             await ctx.mappings.deleteProvisional(session.principalId);
         }
         await removeOrphanTokens(ctx.stores);
-        if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL) {
+        if (
+          (await ctx.stores.provisionalSessions.size) >=
+          MAX_PROVISIONAL - PUBLIC_PROVISIONAL_RESERVE
+        ) {
           return c.json(
             {
               error: "provisional_capacity",

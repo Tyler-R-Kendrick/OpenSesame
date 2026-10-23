@@ -366,10 +366,12 @@ export async function completeClaim(
       attempt.userCodeDigest,
     )
   ) {
-    await ctx.repos.agentAuth.updateClaimAttempt({
-      ...attempt,
-      failedAttempts: attempt.failedAttempts + 1,
-    });
+    // Spend the attempt atomically before answering. Parallel guesses all
+    // pass a stale read otherwise; only five may ever reach verification.
+    await ctx.repos.agentAuth.consumeClaimAttempt(
+      attempt.id,
+      ctx.config.agentAuth.maxUserCodeAttempts,
+    );
     return { ok: false, error: "invalid_user_code", status: 400 };
   }
   const principal = await loadPrincipal(ctx, principalId);

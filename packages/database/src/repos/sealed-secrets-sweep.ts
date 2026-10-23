@@ -147,17 +147,25 @@ export async function sealLegacySecrets(
         // Compare every input the envelope is bound to, not just the secret:
         // a concurrent owner/binding change must leave the row for the next
         // sweep under its new scope instead of writing a stale envelope.
-        await db.execute(
+        const updated = await db.execute(
           sql`update ${table} set ${value} = ${sealed}
               where ${id} = ${row.id}
                 and ${value} = ${row.value}
                 and ${scope} = ${row.scope}
                 ${column.bindingId ? sql`and ${bindingId} = ${row.bindingId}` : sql``}
-                ${column.betterAuthField ? sql`and ${sql.identifier("provider_id")} = ${row.providerId} and ${sql.identifier("account_id")} = ${row.accountId}` : sql``}`,
+                ${column.betterAuthField ? sql`and ${sql.identifier("provider_id")} = ${row.providerId} and ${sql.identifier("account_id")} = ${row.accountId}` : sql``}
+              returning ${id}`,
         );
-        // A refused conditional update is a concurrent rotation; leaving the
-        // row untouched is the point, so the count need not distinguish it.
-        changed += 1;
+        // Drizzle drivers expose execute() results either as an array or as
+        // { rows }. Count a match from either shape; a zero-row CAS is a
+        // concurrent rotation and stays unsealed for the next pass.
+        const result = updated as unknown as {
+          readonly rows?: readonly unknown[];
+        };
+        const matched = Array.isArray(updated)
+          ? updated.length
+          : (result.rows?.length ?? 0);
+        if (matched > 0) changed += 1;
       }
     }
   }

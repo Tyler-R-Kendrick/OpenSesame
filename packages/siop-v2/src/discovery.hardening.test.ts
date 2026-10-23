@@ -155,12 +155,8 @@ describe("the timeout is an AbortController, not AbortSignal.timeout", () => {
 
   it("clears its timer once the document is in", async () => {
     vi.useFakeTimers();
-    const fetch: MetadataFetch = async () => ({
-      ok: true,
-      status: 200,
-      headers: { get: () => "application/json" },
-      text: async () => GOOD,
-    });
+    const fetch: MetadataFetch = async () =>
+      streamed([new TextEncoder().encode(GOOD)]).response;
     await fetchSiopMetadata({ fetch, expectedIssuer: ISSUER });
     expect(vi.getTimerCount()).toBe(0);
   });

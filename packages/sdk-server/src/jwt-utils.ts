@@ -85,7 +85,9 @@ export function assertAllowedJwtAlgorithm(
     throw new AuthError("invalid_token", "Token header is malformed");
   }
 
-  if (typeof alg !== "string" || alg === "") {
+  // decodeProtectedHeader only guarantees an object. A crafted header such
+  // as {"alg":123} must become a typed auth refusal, never a TypeError.
+  if (alg === null || typeof alg !== "string" || alg.length === 0) {
     throw new AuthError(
       "invalid_algorithm",
       "Token uses a disallowed signing algorithm",

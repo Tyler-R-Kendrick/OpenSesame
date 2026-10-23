@@ -75,7 +75,7 @@ export function createAzureKeyVaultKeysHttpsTransport(
         );
       }
       if (
-        json.kid !== undefined &&
+        json.kid === undefined ||
         normalizedKeyId(json.kid) !== versionedKeyId
       ) {
         throw new ProtectionError(
@@ -84,7 +84,7 @@ export function createAzureKeyVaultKeysHttpsTransport(
         );
       }
       return {
-        versionedKeyId,
+        versionedKeyId: normalizedKeyId(json.kid),
         algorithm: AZURE_WRAP_ALGORITHM,
         ciphertext: b64ToBytes(json.value),
       };
@@ -130,7 +130,7 @@ export function createAzureKeyVaultKeysHttpsTransport(
         );
       }
       if (
-        json.kid !== undefined &&
+        json.kid === undefined ||
         normalizedKeyId(json.kid) !== versionedKeyId
       ) {
         throw new ProtectionError(
@@ -139,7 +139,7 @@ export function createAzureKeyVaultKeysHttpsTransport(
         );
       }
       return {
-        versionedKeyId,
+        versionedKeyId: normalizedKeyId(json.kid),
         algorithm: AZURE_WRAP_ALGORITHM,
         plaintext: b64ToBytes(json.value),
       };

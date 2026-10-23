@@ -25,16 +25,27 @@ export type NativeFederationSessionPort = Readonly<{
   read: () => NativeFederationIdentity | null;
   clear: () => void;
 }>;
+import { currentAuthGeneration } from "./auth-generation.js";
 const brand: unique symbol = Symbol("federation-session-generation");
 export type FederationSessionGeneration = Readonly<{ [brand]: true }>;
 let generation: FederationSessionGeneration = Object.freeze({ [brand]: true });
+let durableGeneration = currentAuthGeneration();
 let active: NativeFederationSessionPort | null = null;
 
+function syncDurableGeneration(): void {
+  const current = currentAuthGeneration();
+  if (current === durableGeneration) return;
+  durableGeneration = current;
+  generation = Object.freeze({ [brand]: true });
+}
+
 export function federationSessionGeneration(): FederationSessionGeneration {
+  syncDurableGeneration();
   return generation;
 }
 /** An opaque object prevents integer reset/wraparound from reviving an old initiating generation. */
 export function advanceFederationSessionGeneration(): void {
+  durableGeneration = currentAuthGeneration();
   generation = Object.freeze({ [brand]: true });
   active?.clear();
 }
