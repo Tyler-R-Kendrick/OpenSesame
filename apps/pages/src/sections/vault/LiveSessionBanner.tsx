@@ -5,50 +5,10 @@
  * shared.
  */
 
-import {
-  currentGuest,
-  onLiveSessionChange,
-} from "@opensesame/app-core/lib/live/session.js";
-import { useEffect, useState } from "react";
-import { Link } from "react-router";
-import { StatusMark } from "../../components/StatusMark.js";
+import { useVaultShare } from "../../components/vault-share-seat.js";
 
+/** The live capability provides the view; the vault owns only its seat. */
 export function LiveSessionBanner() {
-  const [count, setCount] = useState<number | null>(null);
-  useEffect(() => {
-    let stopStatus = () => {};
-    const listen = () => {
-      stopStatus();
-      const guest = currentGuest();
-      if (!guest) {
-        setCount(null);
-        return;
-      }
-      const read = (
-        status: NonNullable<ReturnType<typeof currentGuest>>["status"],
-      ) =>
-        setCount(status.at === "joined" ? status.catalog.items.length : null);
-      read(guest.status);
-      stopStatus = guest.subscribe(read);
-    };
-    listen();
-    const stopSession = onLiveSessionChange(listen);
-    return () => {
-      stopStatus();
-      stopSession();
-    };
-  }, []);
-  if (count === null) return null;
-  return (
-    <div className="vault-live-banner" aria-label="Live session">
-      <StatusMark tone="ok" label="In a live session" />
-      <span>
-        {count === 1 ? "1 shared item" : `${count} shared items`} from the
-        owner's session.
-      </span>
-      <Link className="btn btn--sm" to="/live">
-        Open shared items
-      </Link>
-    </div>
-  );
+  const Banner = useVaultShare()?.Banner;
+  return Banner ? <Banner /> : null;
 }
