@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 450,
-    "violations": 719,
+    "files": 449,
+    "violations": 718,
     "oversizedLines": 221262
   },
   "files": {
@@ -206,9 +206,6 @@
     },
     "apps/pages/src/sections/identity/LocalMemberships.tsx": {
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/settings/FeatureConfigPanel.tsx": {
-      "complexity": 1
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.tsx": {
       "complexity": 1,
