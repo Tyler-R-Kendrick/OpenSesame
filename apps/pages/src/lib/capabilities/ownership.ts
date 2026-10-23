@@ -120,6 +120,9 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   "icon.svg": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,
+  // The relying-site <opensesame-save-button> element: it only opens the
+  // core `/save` review route in a popup, so it ships in every build.
+  "save-button.js": null,
   "auth/native-client.json": "connectors.external",
   "auth.js": "identity.site-broker",
   "auth.js.sha384": "identity.site-broker",
