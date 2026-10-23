@@ -97,12 +97,12 @@ export class BrowserNodeWorker {
       return;
     }
     const controller = new AbortController();
-    // Native operations have their own id space; keep peer GETs out of the
-    // host-driven range.
-    const nativeId = 1_000_000_000 + (this.sequence % 1_000_000_000);
+    // The controller allocates `id` from the same monotonically increasing
+    // sequence it uses for native operations, so the bridge's high-water mark
+    // stays valid for both paths.
     void port
       .nativeHTTP(
-        nativeId,
+        id,
         {
           method: "GET",
           url: url.href,

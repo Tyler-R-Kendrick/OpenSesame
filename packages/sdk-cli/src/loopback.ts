@@ -246,7 +246,11 @@ export async function loopbackLogin(
         const open = config.openBrowser;
         void Promise.resolve()
           .then(() => open(authorizationUrl))
-          .catch(() => undefined);
+          .catch(() => {
+            process.stderr.write(
+              `Could not open a browser. Open this URL manually:\n${authorizationUrl}\n`,
+            );
+          });
       }
       timer = setTimeout(() => {
         shutdown();

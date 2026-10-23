@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
-import type { ScimUserRecord } from "@opensesame/database";
+import { ConflictError, type ScimUserRecord } from "@opensesame/database";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -361,17 +361,30 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
     const now = ctx.clock();
     const externalId = boundedScimString(body.externalId, MAX_USER_NAME_LENGTH);
     const displayName = boundedScimString(body.displayName, MAX_DISPLAY_LENGTH);
-    const created = await ctx.stores.scim.users.create({
-      id: randomUUID(),
-      organizationId: organization.id,
-      userName,
-      active: asActive(body.active) ?? true,
-      raw: sanitizeRaw(body),
-      createdAt: now,
-      updatedAt: now,
-      ...(externalId !== undefined ? { externalId } : undefined),
-      ...(displayName !== undefined ? { displayName } : undefined),
-    });
+    let created: ScimUserRecord;
+    try {
+      created = await ctx.stores.scim.users.create({
+        id: randomUUID(),
+        organizationId: organization.id,
+        userName,
+        active: asActive(body.active) ?? true,
+        raw: sanitizeRaw(body),
+        createdAt: now,
+        updatedAt: now,
+        ...(externalId !== undefined ? { externalId } : undefined),
+        ...(displayName !== undefined ? { displayName } : undefined),
+      });
+    } catch (error) {
+      if (error instanceof ConflictError) {
+        return scimError(
+          c,
+          409,
+          "A user with that userName already exists.",
+          "uniqueness",
+        );
+      }
+      throw error;
+    }
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "organization.scim_user_provisioned",
       outcome: "succeeded",
@@ -485,9 +498,22 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
             ? { externalId: patch.externalId }
             : undefined),
         };
-        const updated = await ctx.stores.scim.users.update(
-          withRememberedSubjects(user, next),
-        );
+        let updated: ScimUserRecord;
+        try {
+          updated = await ctx.stores.scim.users.update(
+            withRememberedSubjects(user, next),
+          );
+        } catch (error) {
+          if (error instanceof ConflictError) {
+            return scimError(
+              c,
+              409,
+              "A user with that userName already exists.",
+              "uniqueness",
+            );
+          }
+          throw error;
+        }
 
         // Always reconcile an inactive row, not only the first transition:
         // deprovisioning touches several durable rows and a retry after a

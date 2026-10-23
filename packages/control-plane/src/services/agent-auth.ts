@@ -358,6 +358,16 @@ export async function completeClaim(
   );
   if (!registration || registration.status === "claimed")
     return { ok: false, error: "claimed_or_in_flight", status: 400 };
+  // Spend the attempt before verification. Parallel guesses all pass a stale
+  // read otherwise; the conditional SQL update is the actual five-try fence.
+  if (
+    !(await ctx.repos.agentAuth.consumeClaimAttempt(
+      attempt.id,
+      ctx.config.agentAuth.maxUserCodeAttempts,
+    ))
+  ) {
+    return { ok: false, error: "invalid_user_code", status: 400 };
+  }
   if (
     !verifyAgentUserCode(
       ctx.config.claimPepper,
@@ -366,12 +376,6 @@ export async function completeClaim(
       attempt.userCodeDigest,
     )
   ) {
-    // Spend the attempt atomically before answering. Parallel guesses all
-    // pass a stale read otherwise; only five may ever reach verification.
-    await ctx.repos.agentAuth.consumeClaimAttempt(
-      attempt.id,
-      ctx.config.agentAuth.maxUserCodeAttempts,
-    );
     return { ok: false, error: "invalid_user_code", status: 400 };
   }
   const principal = await loadPrincipal(ctx, principalId);
