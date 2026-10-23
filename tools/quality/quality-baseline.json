@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 446,
-    "violations": 713,
-    "oversizedLines": 220664
+    "files": 445,
+    "violations": 712,
+    "oversizedLines": 220260
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -47,9 +47,6 @@
     },
     "apps/pages/scripts/security-profile.mjs": {
       "complexity": 1
-    },
-    "apps/pages/scripts/verify-tailnet-sync.mjs": {
-      "max-lines": 404
     },
     "apps/pages/server/github-app.mjs": {
       "complexity": 3,
