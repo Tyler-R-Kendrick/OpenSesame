@@ -83,5 +83,5 @@ it("links the + button to the custom connector form", () => {
     </MemoryRouter>,
   );
   const add = screen.getByRole("link", { name: "Add a custom connection" });
-  expect(add.getAttribute("href")).toBe("/connections/byo-ai");
+  expect(add.getAttribute("href")).toBe("/connections/custom-oidc");
 });
