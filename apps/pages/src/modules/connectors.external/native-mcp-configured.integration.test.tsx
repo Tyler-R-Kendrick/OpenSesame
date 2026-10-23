@@ -243,11 +243,16 @@ it("selects the actual public MCP permissions contract before consent without cl
       onChanged={vi.fn()}
     />,
   );
-  expect(
-    screen.getByRole("radio", {
-      name: "Bring Your Own OAuth App",
-    }),
-  ).toHaveProperty("checked", true);
+  expect(screen.getByRole("radio", { name: "MCP" })).toHaveProperty(
+    "checked",
+    true,
+  );
+  const ownApp = screen.getByRole("radio", {
+    name: "Bring Your Own OAuth App",
+  });
+  expect(ownApp).toHaveProperty("checked", false);
+  fireEvent.click(ownApp);
+  expect(ownApp).toHaveProperty("checked", true);
   expect(
     screen.queryByLabelText("MCP permissions", { selector: "summary" }),
   ).toBeNull();

@@ -81,6 +81,9 @@ async function allowSystemNotifications(t) {
   const { main, context } = t;
   await main.goto(`${BASE}/settings/features`);
   await unlockVault(main);
+  await main
+    .getByRole("link", { name: "Local notifications", exact: true })
+    .click();
   const allow = main.getByRole("button", {
     name: "Allow system notifications",
   });
@@ -231,12 +234,27 @@ async function withdrawnAndDenied(t) {
   await receipts(main, width);
 }
 
+/** Headless Chrome can start denied; seed the native prompt state this walk tests. */
+async function startWithNotificationPrompt(context, page) {
+  const cdp = await context.newCDPSession(page);
+  const { targetInfo } = await cdp.send("Target.getTargetInfo");
+  await cdp.send("Browser.setPermission", {
+    permission: { name: "notifications" },
+    setting: "prompt",
+    browserContextId: targetInfo.browserContextId,
+    origin: ORIGIN,
+  });
+  // Overrides belong to this CDP session. Context.close() owns its lifetime;
+  // detaching here would immediately restore the headless denied default.
+}
+
 export async function deviceInboxJourney({ width, rig }) {
   const {
     page: rp,
     context,
     credentials,
   } = await rig.seedJourney(false, INBOX_CAPABILITIES);
+  await startWithNotificationPrompt(context, rp);
   expect(hostChunk(), "the device host is its own chunk").toBeDefined();
   await lockedDevice(context, width);
   // The second tab: in the background, and it hears what the first does.

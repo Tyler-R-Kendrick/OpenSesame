@@ -37,7 +37,10 @@ async function turnOn({ page, check, snap }) {
     "the duress code is off until it is set",
   );
   // A code that is not eight to twelve digits is refused before anything is sealed.
-  await page.getByRole("button", { name: "Add" }).last().click();
+  await page
+    .locator("#duress-profiles")
+    .getByRole("button", { name: "Add", exact: true })
+    .click();
   const fields = page.locator("[role=dialog] input[type=password]");
   await fields.nth(0).fill("2468");
   await fields.nth(1).fill("2468");
@@ -49,7 +52,14 @@ async function turnOn({ page, check, snap }) {
     "a four-digit code cannot be turned on",
   );
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Add" }).last().click();
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("dialog", { name: "Duress code", exact: true })
+    .waitFor({ state: "detached" });
+  await page
+    .locator("#duress-profiles")
+    .getByRole("button", { name: "Add", exact: true })
+    .click();
   await setCode(page, CODE, "Turn on duress code");
   await page.getByText("Duress code is on.").waitFor({ timeout: 15000 });
   await snap(page, "J-DURESS-on");

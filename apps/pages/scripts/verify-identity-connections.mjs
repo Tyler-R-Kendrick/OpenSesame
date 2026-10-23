@@ -173,13 +173,21 @@ try {
     await configured(page, "byo-identity");
     for (const [protocol, field] of [
       ["oidc", "Issuer URL"],
-      ["saml", "SAML entity ID"],
+      ["saml", "Identity provider entity ID"],
       ["ldap", "LDAP server URL"],
       ["better-auth", "Auth API base URL"],
       ["supabase", "Project URL"],
     ]) {
       await page.getByLabel("Protocol", { exact: true }).selectOption(protocol);
       await expect(page.getByLabel(field, { exact: true })).toBeVisible();
+      if (protocol === "saml") {
+        await expect(
+          page.getByLabel("Service provider entity ID", { exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByLabel("SAML metadata URL", { exact: true }),
+        ).toBeVisible();
+      }
       check(true, `${width}: BYO ${protocol} composes the common fields`);
       await snapshot(page, `${width}-byo-${protocol}`);
     }

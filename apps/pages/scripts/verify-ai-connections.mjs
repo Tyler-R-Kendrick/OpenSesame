@@ -58,7 +58,7 @@ async function settingsComposition(page, width) {
       (await page.getByRole("combobox", { name, exact: true }).count()) === 0,
       `${width}: ${name} is absent from Integrations`,
     );
-  await visitBackendRoute(page, base, "settings/features#feature-ai");
+  await visitBackendRoute(page, base, "settings/features/ai");
   for (const name of ["Voice model", "Inference model"])
     await expect(
       page.getByRole("combobox", { name, exact: true }),

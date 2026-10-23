@@ -79,7 +79,7 @@ describe("the clocks", () => {
         name: "A key can approve by touch alone, without a PIN or biometric.",
       }),
     ).toBeTruthy();
-    const hours = screen.getByLabelText("Hours before a share is released");
+    const hours = screen.getByLabelText("Hours before it takes effect");
     await user.clear(hours);
     await user.type(hours, "0");
     expect(

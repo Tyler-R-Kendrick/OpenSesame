@@ -131,34 +131,19 @@ export async function addCapabilities(page, titles) {
 }
 
 export async function openGeneral(page) {
-  // Settings is the heading the section opens on (it has no "Preferences"
-  // heading — that name went with an earlier shape of the panel).
-  const heading = page.getByRole("heading", { name: "Vault Settings" });
-  if (!(await heading.isVisible().catch(() => false))) {
-    await openSection(page, "settings/");
-    await heading.waitFor({ timeout: 15000 });
-  }
+  await openSettingsCategory(page, "General");
 }
 
 /** Open a Settings category without a full document navigation (keeps the vault open). */
 export async function openSettingsCategory(page, label) {
   await openSection(page, "settings/");
-  // Inside a category the breadcrumb names it too: the sections list is the one.
-  const section = page
+  // Categories now belong to different settings groups. The command bar opens
+  // their canonical documents even when the current group's tabs omit them.
+  await openConfigFile(page, label.toLowerCase().replaceAll(" ", "-"));
+  await page
     .locator(".set__nav")
-    .getByRole("link", { name: label, exact: true });
-  const link = (await section.count())
-    ? section
-    : page.getByRole("link", { name: label, exact: true });
-  if (await link.count()) {
-    await link.click();
-  } else {
-    await page
-      .getByText(label, { exact: true })
-      .locator("visible=true")
-      .first()
-      .click();
-  }
+    .getByRole("link", { name: label, exact: true })
+    .click();
 }
 
 export async function runCommand(page, utterance) {
@@ -189,10 +174,7 @@ export async function openConfigFile(page, category) {
 
 /** The directory's own page, by its tab (drops any open file). */
 export async function openConfigForm(page, label) {
-  await page
-    .locator(".set__nav")
-    .getByRole("link", { name: label, exact: true })
-    .click();
+  await openSettingsCategory(page, label);
 }
 
 /**

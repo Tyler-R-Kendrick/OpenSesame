@@ -100,6 +100,9 @@ async function savedVaultUnlock(width) {
   await expect(page.getByLabel("PIN", { exact: true })).toBeFocused();
   await page.keyboard.insertText(pin);
   await page.keyboard.press("Enter");
+  // PIN decryption remounts the vault asynchronously, as the initial seal does.
+  // Wait for that semantic readiness without moving focus or extending its check.
+  await expect(page.locator(".vault")).toBeVisible({ timeout: 30_000 });
   // The reload kept the address, which is already the list.
   await expect(create).toBeFocused();
   if (width === 1280) {

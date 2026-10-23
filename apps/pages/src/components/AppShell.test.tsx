@@ -13,7 +13,7 @@ import {
  * SURFACE-01/02/03. Every ordinary surface of the shell derives from
  * contributions: with nothing registered the rail is the two core
  * directories, the drawer names the same two, the keymap sheet advertises
- * only their jumps, and Settings has only its six core categories.
+ * only their jumps, and Settings has only its core categories.
  */
 describe("AppShell on a core-only plan", () => {
   beforeEach(seedVault);
@@ -59,7 +59,7 @@ describe("AppShell on a core-only plan", () => {
     ).toBe("Settings");
   });
 
-  it("lists the six core Settings categories and no contributed one", () => {
+  it("lists the core Settings categories and no contributed one", () => {
     const { container } = renderShell("/settings/security");
     const rail = container.querySelector(".railtree");
     const tabs = [
@@ -72,6 +72,7 @@ describe("AppShell on a core-only plan", () => {
       "/settings/keybindings",
       "/settings/security",
       "/settings/vaults",
+      "/settings/item-types",
       "/settings/features",
       "/settings/integrations",
       "/settings/danger",
@@ -156,6 +157,7 @@ describe("AppShell", () => {
     const rail = container.querySelector(".railtree");
     for (const href of [
       "/settings/vaults",
+      "/settings/item-types",
       "/settings/features",
       "/settings/integrations",
     ]) {

@@ -9,6 +9,7 @@ import {
   mergedGuideGoals,
 } from "./goals.js";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
+import { isKnownGuideRoute } from "./routes.js";
 
 let revoke = () => {};
 beforeAll(() => {
@@ -132,5 +133,38 @@ describe("what a section tour needs before it is offered", () => {
     expect(noFeatures).not.toContain("feature.identity");
     expect(noIntegrations).toContain("feature.identity");
     expect(noIntegrations).not.toContain("integration.identity");
+  });
+});
+
+describe("tutorial panel destinations", () => {
+  it.each([
+    ["vaults.manage", "/settings/vaults", "vaults.list"],
+    ["vault.item-types.install", "/settings/item-types", "settings.item-types"],
+    [
+      "settings.model-provider",
+      "/settings/features/ai",
+      "settings.model-provider",
+    ],
+    [
+      "settings.local-notifications",
+      "/settings/features/local-notifications",
+      "settings.local-notifications",
+    ],
+  ])("navigates %s to the page that owns its target", (goal, route, target) => {
+    expect(isKnownGuideRoute(route)).toBe(true);
+    const guide = guideGoal(goal)?.guide;
+    expect(guide).toBeDefined();
+    const lines = guide?.split("\n") ?? [];
+    const focus = lines.findIndex((line) =>
+      line.startsWith(`focus "${target}"`),
+    );
+    expect(focus).toBeGreaterThan(0);
+    const navigations = lines
+      .slice(0, focus)
+      .filter((line) => line.startsWith("navigate "));
+    expect(navigations.at(-1)).toBe(`navigate "${route}"`);
+    expect(lines.slice(0, focus)).toContain(
+      `wait route "${route}" timeout=15000`,
+    );
   });
 });

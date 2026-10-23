@@ -167,19 +167,15 @@ async function connectorsContract(page, tabTo) {
   await page.keyboard.press("c");
   await expandNamed(page, tree, /^Connections/);
   await expandNamed(page, tree, /Add a connection/);
-  const groups = page.locator(
+  // The curated catalog is flat: providers are level-three leaves, not groups.
+  const leaves = page.locator(
     '#catalog-tree [role="treeitem"][aria-level="3"]',
   );
-  await expect(groups.first()).toBeVisible();
-  await expect(groups.first()).toHaveAttribute("aria-expanded", "false");
-  await expandNamed(page, tree, groups.first());
-  const leaves = page.locator(
-    '#catalog-tree [role="treeitem"][aria-level="4"]',
-  );
+  await expect(leaves.first()).not.toHaveAttribute("aria-expanded");
   await expect(leaves.first()).toBeVisible();
   await tabTo(page, tree);
   const selectedLeaf = page.locator(
-    '#catalog-tree [role="treeitem"][aria-level="4"][aria-selected="true"]',
+    '#catalog-tree [role="treeitem"][aria-level="3"][aria-selected="true"]',
   );
   for (let step = 0; step < 8 && (await selectedLeaf.count()) === 0; step++)
     await page.keyboard.press("ArrowDown");

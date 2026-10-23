@@ -45,7 +45,7 @@ export const settingsTabs: readonly SettingsTab[] = [
   {
     id: "item-types",
     label: "Item types",
-    guideId: "settings.item-types",
+    guideId: "nav.settings.item-types",
     order: 350,
   },
   {

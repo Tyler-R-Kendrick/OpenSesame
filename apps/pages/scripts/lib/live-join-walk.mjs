@@ -206,7 +206,7 @@ export async function startSession(
   await session
     .getByRole("button", { name: "Share this vault", exact: true })
     .click({ timeout: 20_000 });
-  await session.getByRole("img", { name: "Live" }).waitFor();
+  await session.getByRole("img", { name: "Live", exact: true }).waitFor();
   const code =
     admission === "invite"
       ? (await session.locator(".live-code").innerText()).trim()

@@ -35,7 +35,9 @@ const fileRoute = (category, file) =>
 function measureViewer() {
   const box = (el) => {
     const r = el?.getBoundingClientRect();
-    return r && { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width };
+    return r
+      ? { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width }
+      : null;
   };
   const drawn = (el) => el.getClientRects().length > 0;
   const list = document.querySelector(".vfiles__list");
@@ -191,7 +193,7 @@ async function openBuiltin(ctx) {
  * audit, stop, base }`, the pieces `verify-mobile.mjs` already holds.
  */
 export async function settingsFileStops(ctx) {
-  await openStop(ctx, "file-draft", fileRoute("vaults", DRAFT));
+  await openStop(ctx, "file-draft", fileRoute("item-types", DRAFT));
   await longLine(ctx);
   // The list is real: tap the built-in's directory and its row.
   await ctx.page.waitForTimeout(100);

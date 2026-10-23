@@ -133,6 +133,8 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
       'wait route "/settings/features" timeout=15000',
       'scroll "feature.ai"',
       'focus "feature.ai" "The AI section of Features. Its switches control AI capabilities, and its model choices select what voice and inference use." side=bottom',
+      'navigate "/settings/features/ai"',
+      'wait route "/settings/features/ai" timeout=15000',
       'focus "settings.model-provider" "Pick one provider/model slug for voice and one for inference. Hosted providers appear after Agent Harnesses connects them." side=bottom',
       "end",
     ].join("\n"),

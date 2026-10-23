@@ -127,11 +127,12 @@ async function chooseAndColdReload(
   { base, fixture, entry, name, width, check, beforeReload },
 ) {
   const form = fields(fixture, entry);
-  await visit(page, base, "settings/features");
+  await visit(page, base, "settings/features/ai");
   const select = page.getByRole("combobox", {
     name: "Inference model",
     exact: true,
   });
+  await expect(select).toBeVisible();
   const label = `${name} · ${form.model}`;
   await expect(
     select.getByRole("option", { name: label, exact: true }),
@@ -148,7 +149,7 @@ async function chooseAndColdReload(
   await beforeReload();
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPin(page);
-  await visit(page, base, "settings/features");
+  await visit(page, base, "settings/features/ai");
   await expect(
     page.getByRole("combobox", { name: "Inference model", exact: true }),
   ).toHaveValue(selected);

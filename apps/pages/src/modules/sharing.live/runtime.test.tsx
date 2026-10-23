@@ -66,27 +66,31 @@ describe("sharing.live runtime", () => {
 
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    const active = liveUiSeams.carriers;
-    expect(active).not.toBe(carriersUnavailable);
-    // No plan has resolved in this realm: a socket carrier is not allowed.
-    await expect(
-      active({ kind: "nostr", url: "wss://relay.example.test" }, "t"),
-    ).rejects.toThrow("capability-not-approved");
-    // ntfy goes through the context's port, under the declared purpose.
-    const ntfy = await active(
-      { kind: "ntfy", url: "https://ntfy.example.test" },
-      "t",
-    );
-    ntfy.close();
-    expect(t.egressCalls).toEqual([
-      {
-        input: "https://ntfy.example.test/t/json",
-        capability: "sharing.live",
-        purpose: CARRIER_PURPOSE,
-      },
-    ]);
-
-    await handle.dispose();
+    try {
+      const active = liveUiSeams.carriers;
+      expect(active).not.toBe(carriersUnavailable);
+      // No plan has resolved in this realm: a socket carrier is not allowed.
+      await expect(
+        active({ kind: "nostr", url: "wss://relay.example.test" }, "t"),
+      ).rejects.toThrow("capability-not-approved");
+      // Opening timestamp lets the first stream catch up without replaying history.
+      vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+      // ntfy goes through the context's port, under the declared purpose.
+      const ntfy = await active(
+        { kind: "ntfy", url: "https://ntfy.example.test" },
+        "t",
+      );
+      ntfy.close();
+      expect(t.egressCalls).toEqual([
+        {
+          input: "https://ntfy.example.test/t/json?since=1700000000",
+          capability: "sharing.live",
+          purpose: CARRIER_PURPOSE,
+        },
+      ]);
+    } finally {
+      await handle.dispose();
+    }
     expect(liveUiSeams.carriers).toBe(carriersUnavailable);
   });
 

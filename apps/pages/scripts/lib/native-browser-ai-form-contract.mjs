@@ -32,30 +32,37 @@ async function sharedAiLayout(page, form) {
   return read();
 }
 
-function sharedAiDefaultFields(preset) {
-  const azure = preset.azure;
-  const prediction = preset.family === "replicate_predictions";
-  const speech = [
+function sharedAiCredentialLabel(preset) {
+  if (!preset.azure) return "API key";
+  return preset.azure.credential === "api-key"
+    ? "Azure API key"
+    : "Entra access token";
+}
+
+function mandatoryAiKey(family) {
+  return [
+    "replicate_predictions",
     "elevenlabs_scribe",
     "deepgram_listen",
     "assemblyai_transcript",
-  ].includes(preset.family);
-  const key = azure
-    ? azure.credential === "api-key"
-      ? "Azure API key"
-      : "Entra access token"
-    : "API key";
+    "stability_sd3",
+  ].includes(family);
+}
+
+function sharedAiDefaultFields(preset) {
+  const azure = preset.azure;
+  const key = sharedAiCredentialLabel(preset);
   const fields = [
     ["Connection name", preset.name],
     ["API family", preset.family],
     [azure ? "Azure resource endpoint" : "API base URL", preset.baseUrl],
     [azure ? "Deployment ID" : "Model ID", preset.model ?? ""],
-    [key, ""],
+    ...(preset.authentication === "none" ? [] : [[key, ""]]),
   ];
-  if (!prediction && !speech)
+  if (!mandatoryAiKey(preset.family))
     fields.push([
       azure ? "Azure authentication" : "Authentication",
-      azure?.credential ?? "api-key",
+      azure?.credential ?? preset.authentication,
     ]);
   if (azure) fields.push(["Azure API mode", azure.api]);
   if (azure?.api === "dated-chat")
@@ -103,7 +110,7 @@ async function sharedAiDefaults(form, row, preset, check) {
     "deepgram_listen",
     "assemblyai_transcript",
   ].includes(preset.family);
-  const finite = prediction || speech;
+  const finite = mandatoryAiKey(preset.family);
   const authentication = finite ? [] : await selectOptions(form, defaults.auth);
   if (prediction)
     check(
@@ -119,16 +126,19 @@ async function sharedAiDefaults(form, row, preset, check) {
           JSON.stringify(
             preset.azure ? ["api-key", "entra-token"] : ["api-key", "none"],
           ),
-    `${row.id}: ${prediction ? "prediction requires its API token without an unauthenticated mode" : speech ? "transcription requires its API key without an unauthenticated mode" : "published authentication choices are explicit"}`,
+    `${row.id}: ${finite ? "this protocol requires its API key without an unauthenticated mode" : "published authentication choices are explicit"}`,
   );
   if (speech) await speechInputDefaults(form, row, check);
-  const apiKeyType = await form
-    .getByLabel(defaults.key, { exact: true })
-    .getAttribute("type");
-  check(
-    apiKeyType === "password",
-    `${row.id}: the blank API key is write-only`,
-  );
+  if (preset.family === "stability_sd3") {
+    const prompt = form.getByLabel("Verification image prompt", {
+      exact: true,
+    });
+    check(
+      (await prompt.inputValue()) === "" && (await prompt.isEditable()),
+      `${row.id}: image verification requires an explicit transient prompt`,
+    );
+  }
+  const apiKeyType = await sharedAiCredentialDefault(form, row, preset, check);
   const actionsDisabled = await sharedDisabledActions(form, row, check);
   const apiModes = await sharedAiModeDefaults(form, row, preset, check);
   return {
@@ -139,6 +149,30 @@ async function sharedAiDefaults(form, row, preset, check) {
     apiKeyType,
     actionsDisabled,
   };
+}
+
+/** Anonymous local endpoints expose a key only after authentication is chosen. */
+async function sharedAiCredentialDefault(form, row, preset, check) {
+  const { key, auth } = sharedAiDefaultFields(preset);
+  const anonymous = preset.authentication === "none";
+  if (anonymous) {
+    check(
+      (await form.getByLabel(key, { exact: true }).count()) === 0,
+      `${row.id}: unauthenticated local inference collects no API key`,
+    );
+    await form.getByLabel(auth, { exact: true }).selectOption("api-key");
+  }
+  const field = form.getByLabel(key, { exact: true });
+  const type = await field.getAttribute("type");
+  check(
+    type === "password" &&
+      (await field.inputValue()) === "" &&
+      (await field.isEditable()),
+    `${row.id}: the blank API key is write-only and configurable`,
+  );
+  if (anonymous)
+    await form.getByLabel(auth, { exact: true }).selectOption("none");
+  return anonymous ? null : type;
 }
 
 async function speechInputDefaults(form, row, check) {
@@ -171,6 +205,14 @@ async function sharedAiModeDefaults(form, row, preset, check) {
 }
 
 function custodyPatterns(preset) {
+  if (preset.family === "stability_sd3")
+    return [
+      /generate an actual PNG/,
+      /prompt and verification/,
+      /image are not saved/,
+      /does not confirm that provider processing or charges stopped/,
+      /API key is sealed in the owning vault/,
+    ];
   if (preset.vertex)
     return [
       /private key stays in this browser/,
@@ -232,10 +274,15 @@ export async function nativeAiFormContract(
     );
   const observed = await sharedAiDefaults(form, row, preset, check);
   const prediction = preset.family === "replicate_predictions";
-  const setup = prediction
-    ? form.locator("p").filter({ hasText: "Enter the model owner/name" })
+  const inline = prediction || preset.family === "stability_sd3";
+  const setup = inline
+    ? form.locator("p").filter({
+        hasText: prediction
+          ? "Enter the model owner/name"
+          : "generate an actual PNG",
+      })
     : form.locator("details").filter({ hasText: "Connection setup" });
-  const wasOpen = prediction || (await setup.getAttribute("open")) !== null;
+  const wasOpen = inline || (await setup.getAttribute("open")) !== null;
   if (!wasOpen) await setup.locator("summary").click();
   const custody = await setup.innerText();
   check(

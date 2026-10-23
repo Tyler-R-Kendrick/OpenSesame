@@ -10,8 +10,8 @@
  * Two arrivals, neither with a click, injected focus or synthetic key — a cold
  *     load of the file's own address, which is what a link or a bookmark
  *     leaves, then the front door's guest road, then Tab to the file:
- *   - the read-only built-in, `settings/vaults?file=…/builtin/secret.json`;
- *   - a new draft, which is editable, `settings/vaults?file=…/installed/new.json`.
+ *   - the read-only built-in, `settings/item-types?file=…/builtin/secret.json`;
+ *   - a new draft, which is editable, `settings/item-types?file=…/installed/new.json`.
  * Shift+Tab then leaves the file and the cue goes back to the unfocused one.
  *
  * A page's own document (`settings?file=config.yaml`) is not one of these: it
@@ -112,7 +112,7 @@ export async function settingsFileKeyboardContract({
     // The built-ins are not listed on the Form any more, so the arrival is the
     // address a link or a bookmark leaves: a cold load of the file itself.
     await page.goto(
-      `${origin}${base}settings/vaults?file=${encodeURIComponent(BUILTIN)}`,
+      `${origin}${base}settings/item-types?file=${encodeURIComponent(BUILTIN)}`,
       { waitUntil: "networkidle" },
     );
     await enterAsGuest(page);
@@ -131,7 +131,7 @@ export async function settingsFileKeyboardContract({
     const { page, context } = await harness.newPage(browser);
     await page.setViewportSize({ width, height: 900 });
     await page.goto(
-      `${origin}${base}settings/vaults?file=${encodeURIComponent(DRAFT)}`,
+      `${origin}${base}settings/item-types?file=${encodeURIComponent(DRAFT)}`,
       { waitUntil: "networkidle" },
     );
     await enterAsGuest(page);
