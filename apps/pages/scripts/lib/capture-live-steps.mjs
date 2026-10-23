@@ -11,6 +11,22 @@
  * page that serves the build under test.
  */
 
+import { PIN } from "./pages-journey.mjs";
+
+/** Complete the device seal fields when the joiner needs their own vault. */
+async function sealOwnJoinerVault(page) {
+  const pin = page.getByLabel("Your vault PIN", { exact: true });
+  if (await pin.isVisible()) {
+    await pin.fill(PIN);
+    await page.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
+    await page
+      .getByLabel("I understand this vault cannot be recovered.", {
+        exact: true,
+      })
+      .check();
+  }
+}
+
 /** Letters of the invite alphabet that are not any real code. */
 const WRONG_CODES = [
   "BCDFGHJK",
@@ -103,6 +119,7 @@ export async function ask(page, { link, code, name }) {
   await page.getByLabel("Your name").waitFor({ timeout: 20_000 });
   await page.getByLabel("Code").fill(code.toLowerCase());
   await page.getByLabel("Your name").fill(name);
+  await sealOwnJoinerVault(page);
   await page.getByRole("button", { name: "Ask to join" }).click();
   const copy = page.getByRole("button", { name: "Copy your request code" });
   await copy.waitFor({ timeout: 30_000 });
@@ -139,6 +156,7 @@ function readingSteps() {
         return console.log("  liveAsk: no form (the link was refused)");
       await field.fill(code.toLowerCase());
       await form.getByLabel("Your name").fill(name);
+      await sealOwnJoinerVault(page);
       const ask = form.getByRole("button", { name: "Ask to join" });
       console.log(`  liveAsk: Ask to join enabled=${await ask.isEnabled()}`);
     },
