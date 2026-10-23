@@ -365,9 +365,10 @@ try {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(2);
 }
-checkSafeAreas({ dist, harness });
-const browser = await harness.launch();
+let browser;
 try {
+  checkSafeAreas({ dist, harness });
+  browser = await harness.launch();
   for (const phone of walked.phones) {
     await walk(browser, phone);
     await protectorUnlock(browser, phone);
@@ -375,13 +376,16 @@ try {
   }
   for (const size of walked.tablets) await tablet(browser, size);
 } finally {
-  await browser.close();
+  // Preserve every recorded fault even when a journey or browser cleanup throws.
+  try {
+    await browser?.close();
+  } finally {
+    fs.writeFileSync(
+      path.join(out, "log.json"),
+      JSON.stringify(harness.log, null, 2),
+    );
+  }
 }
-
-fs.writeFileSync(
-  path.join(out, "log.json"),
-  JSON.stringify(harness.log, null, 2),
-);
 
 if (harness.failures.length > 0) {
   console.error(`\n${harness.failures.length} mobile contract failures:`);
