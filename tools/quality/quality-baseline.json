@@ -17,7 +17,7 @@
   },
   "totals": {
     "files": 446,
-    "violations": 714,
+    "violations": 713,
     "oversizedLines": 220664
   },
   "files": {
@@ -158,8 +158,7 @@
       "max-lines-per-function": 2
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
-      "complexity": 1,
-      "max-lines-per-function": 1
+      "complexity": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
       "max-lines": 674

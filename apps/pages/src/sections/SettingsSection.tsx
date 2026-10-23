@@ -20,8 +20,8 @@ import {
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
 import {
-  CategoryLink,
   SECURITY_FRAGMENT_REDIRECT,
+  SettingsCategoryHeader,
   type SettingsPanels,
   defaultPanels,
   useSettingsTabs,
@@ -166,21 +166,11 @@ export function SettingsSection({
   return (
     <SettingsFileContext.Provider value={fileNav}>
       <div className="section__inner">
-        <div className="section__head">
-          <h1>{group.label}</h1>
-        </div>
-
-        <nav className="set__nav" aria-label="Settings sections">
-          {groupTabs.map((entry) => (
-            <CategoryLink
-              key={entry.id}
-              guideId={entry.guideId}
-              to={settingsPath(entry.id)}
-              label={entry.label}
-              current={category === entry.id}
-            />
-          ))}
-        </nav>
+        <SettingsCategoryHeader
+          title={group.label}
+          tabs={groupTabs}
+          category={category}
+        />
         {file === null ? null : (
           <SettingsFiles
             category={category}
