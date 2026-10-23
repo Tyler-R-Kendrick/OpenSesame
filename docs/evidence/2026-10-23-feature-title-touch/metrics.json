@@ -1,0 +1,450 @@
+{
+  "before": [
+    {
+      "view": "phone-430",
+      "url": "https://tyler-r-kendrick.github.io/OpenSesame/settings/features",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "coarse": true,
+      "fine": false,
+      "links": [
+        {
+          "title": "Access",
+          "href": "/OpenSesame/settings/features/access",
+          "x": 16,
+          "y": 733.296875,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Connections",
+          "href": "/OpenSesame/settings/features/connections",
+          "x": 16,
+          "y": 815.078125,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Directory",
+          "href": "/OpenSesame/settings/features/directory",
+          "x": 16,
+          "y": 896.859375,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Encrypted search",
+          "href": "/OpenSesame/settings/features/encrypted-search",
+          "x": 16,
+          "y": 978.640625,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Environments",
+          "href": "/OpenSesame/settings/features/environments",
+          "x": 16,
+          "y": 1343.328125,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Breach checks",
+          "href": "/OpenSesame/settings/features/security-checks",
+          "x": 16,
+          "y": 1425.109375,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Browser autofill",
+          "href": "/OpenSesame/settings/features/autofill",
+          "x": 16,
+          "y": 1506.890625,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Payments",
+          "href": "/OpenSesame/settings/features/payments",
+          "x": 16,
+          "y": 1871.578125,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Password reset",
+          "href": "/OpenSesame/settings/features/password-reset",
+          "x": 16,
+          "y": 2236.265625,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Surrogate credentials",
+          "href": "/OpenSesame/settings/features/surrogates",
+          "x": 16,
+          "y": 2318.046875,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Local notifications",
+          "href": "/OpenSesame/settings/features/local-notifications",
+          "x": 16,
+          "y": 2615.359375,
+          "width": 342,
+          "height": 22.5,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "view": "desktop-1280",
+      "url": "https://tyler-r-kendrick.github.io/OpenSesame/settings/features",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "coarse": false,
+      "fine": true,
+      "links": [
+        {
+          "title": "Access",
+          "href": "/OpenSesame/settings/features/access",
+          "x": 280,
+          "y": 493.8125,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Connections",
+          "href": "/OpenSesame/settings/features/connections",
+          "x": 280,
+          "y": 554.09375,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Directory",
+          "href": "/OpenSesame/settings/features/directory",
+          "x": 280,
+          "y": 614.375,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Encrypted search",
+          "href": "/OpenSesame/settings/features/encrypted-search",
+          "x": 280,
+          "y": 674.65625,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Environments",
+          "href": "/OpenSesame/settings/features/environments",
+          "x": 280,
+          "y": 931.515625,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Breach checks",
+          "href": "/OpenSesame/settings/features/security-checks",
+          "x": 280,
+          "y": 991.796875,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Browser autofill",
+          "href": "/OpenSesame/settings/features/autofill",
+          "x": 280,
+          "y": 1052.078125,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Payments",
+          "href": "/OpenSesame/settings/features/payments",
+          "x": 280,
+          "y": 1308.9375,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Password reset",
+          "href": "/OpenSesame/settings/features/password-reset",
+          "x": 280,
+          "y": 1565.796875,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Surrogate credentials",
+          "href": "/OpenSesame/settings/features/surrogates",
+          "x": 280,
+          "y": 1626.078125,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Local notifications",
+          "href": "/OpenSesame/settings/features/local-notifications",
+          "x": 280,
+          "y": 1837.171875,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "view": "phone-430",
+      "url": "https://tyler-r-kendrick.github.io/OpenSesame/settings/features",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "coarse": true,
+      "fine": false,
+      "links": [
+        {
+          "title": "Access",
+          "href": "/OpenSesame/settings/features/access",
+          "x": 16,
+          "y": 722.546875,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Connections",
+          "href": "/OpenSesame/settings/features/connections",
+          "x": 16,
+          "y": 804.328125,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Directory",
+          "href": "/OpenSesame/settings/features/directory",
+          "x": 16,
+          "y": 886.109375,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Encrypted search",
+          "href": "/OpenSesame/settings/features/encrypted-search",
+          "x": 16,
+          "y": 967.890625,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Environments",
+          "href": "/OpenSesame/settings/features/environments",
+          "x": 16,
+          "y": 1332.578125,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Breach checks",
+          "href": "/OpenSesame/settings/features/security-checks",
+          "x": 16,
+          "y": 1414.359375,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Browser autofill",
+          "href": "/OpenSesame/settings/features/autofill",
+          "x": 16,
+          "y": 1496.140625,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Payments",
+          "href": "/OpenSesame/settings/features/payments",
+          "x": 16,
+          "y": 1860.828125,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Password reset",
+          "href": "/OpenSesame/settings/features/password-reset",
+          "x": 16,
+          "y": 2225.515625,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Surrogate credentials",
+          "href": "/OpenSesame/settings/features/surrogates",
+          "x": 16,
+          "y": 2307.296875,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        },
+        {
+          "title": "Local notifications",
+          "href": "/OpenSesame/settings/features/local-notifications",
+          "x": 16,
+          "y": 2604.609375,
+          "width": 342,
+          "height": 44,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "view": "desktop-1280",
+      "url": "https://tyler-r-kendrick.github.io/OpenSesame/settings/features",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "coarse": false,
+      "fine": true,
+      "links": [
+        {
+          "title": "Access",
+          "href": "/OpenSesame/settings/features/access",
+          "x": 280,
+          "y": 493.8125,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Connections",
+          "href": "/OpenSesame/settings/features/connections",
+          "x": 280,
+          "y": 554.09375,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Directory",
+          "href": "/OpenSesame/settings/features/directory",
+          "x": 280,
+          "y": 614.375,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Encrypted search",
+          "href": "/OpenSesame/settings/features/encrypted-search",
+          "x": 280,
+          "y": 674.65625,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Environments",
+          "href": "/OpenSesame/settings/features/environments",
+          "x": 280,
+          "y": 931.515625,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Breach checks",
+          "href": "/OpenSesame/settings/features/security-checks",
+          "x": 280,
+          "y": 991.796875,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Browser autofill",
+          "href": "/OpenSesame/settings/features/autofill",
+          "x": 280,
+          "y": 1052.078125,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Payments",
+          "href": "/OpenSesame/settings/features/payments",
+          "x": 280,
+          "y": 1308.9375,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Password reset",
+          "href": "/OpenSesame/settings/features/password-reset",
+          "x": 280,
+          "y": 1565.796875,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Surrogate credentials",
+          "href": "/OpenSesame/settings/features/surrogates",
+          "x": 280,
+          "y": 1626.078125,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        },
+        {
+          "title": "Local notifications",
+          "href": "/OpenSesame/settings/features/local-notifications",
+          "x": 280,
+          "y": 1837.171875,
+          "width": 909.609375,
+          "height": 22.5,
+          "visible": true
+        }
+      ]
+    }
+  ]
+}
