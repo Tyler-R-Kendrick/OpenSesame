@@ -15,10 +15,6 @@
     {
       "path": "apps/pages/public/static-auth/1.0.3/opensesame-auth.min.js",
       "sri": "sha384-Ip4DufPtepvR+h5OWpMhiVD9+gYdYofpb1r6rrrIE1+G8VnZ6W8Zbpxb5LWhVls6"
-    },
-    {
-      "path": "apps/pages/public/static-auth/1.0.2/opensesame-auth.min.js",
-      "sri": "sha384-5qJEXhBSxA616rfDLO7qmrAKhzf6eIhizbRUsPeumqZa2G8Sj95enxl0OhSaKGCr"
     }
   ]
 }
