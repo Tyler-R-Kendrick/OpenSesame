@@ -23,6 +23,7 @@ import {
   peerStates,
   startSession,
 } from "./lib/live-join-walk.mjs";
+import { PIN } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -241,6 +242,21 @@ async function changedKey(browser, session) {
   if (session.code)
     await page.getByLabel("Code").fill(session.code.toLowerCase());
   await page.getByLabel("Your name").fill("Casey");
+  const pin = page.getByLabel("Your vault PIN", { exact: true });
+  if (await pin.isVisible()) {
+    await pin.fill(PIN);
+    await page.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
+    await page
+      .getByLabel("I understand this vault cannot be recovered.", {
+        exact: true,
+      })
+      .check();
+  }
+  const advanced = page.locator("details.live-advanced").filter({
+    has: page.getByLabel("Peer trust signal", { exact: true }),
+  });
+  if ((await advanced.getAttribute("open")) === null)
+    await advanced.locator("summary").click();
   await page
     .getByLabel("Peer trust signal", { exact: true })
     .fill(session.signal);
