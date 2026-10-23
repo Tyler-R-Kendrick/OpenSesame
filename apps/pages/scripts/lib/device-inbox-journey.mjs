@@ -151,9 +151,12 @@ async function arrivedFromTheDoorbell(t) {
   await accessCollection(background, "sessions", "local-sessions");
   await expect(background).toHaveURL(onView("sessions"));
   await bell(background, width).first().click();
-  // A phone has no strip: its bell is a row of the More sheet.
+  // Exercise the phone's More sheet road alongside its direct header bell.
   if (width < 900)
-    await background.getByRole("button", { name: /^Notifications/ }).click();
+    await background
+      .getByRole("dialog", { name: "More", exact: true })
+      .getByRole("button", { name: /^Notifications/ })
+      .click();
   await background.getByRole("button", { name: "Review requests" }).click();
   await expect(background).toHaveURL(onView("requests"));
   await expectFocusLanded(background, "the bell's key");
@@ -235,12 +238,27 @@ async function withdrawnAndDenied(t) {
   await receipts(main, width);
 }
 
+/** Headless Chrome can start denied; seed the native prompt state this walk tests. */
+async function startWithNotificationPrompt(context, page) {
+  const cdp = await context.newCDPSession(page);
+  const { targetInfo } = await cdp.send("Target.getTargetInfo");
+  await cdp.send("Browser.setPermission", {
+    permission: { name: "notifications" },
+    setting: "prompt",
+    browserContextId: targetInfo.browserContextId,
+    origin: ORIGIN,
+  });
+  // Overrides belong to this CDP session. Context.close() owns its lifetime;
+  // detaching here would immediately restore the headless denied default.
+}
+
 export async function deviceInboxJourney({ width, rig }) {
   const {
     page: rp,
     context,
     credentials,
   } = await rig.seedJourney(false, INBOX_CAPABILITIES);
+  await startWithNotificationPrompt(context, rp);
   expect(hostChunk(), "the device host is its own chunk").toBeDefined();
   await lockedDevice(context, width);
   // The second tab: in the background, and it hears what the first does.

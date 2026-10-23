@@ -93,6 +93,12 @@ export async function finishUnlockWithCode(
   // A full code submits itself; the wrong one is refused without a click.
   await page.getByLabel("Authenticator code", { exact: true }).fill("000000");
   await page.waitForTimeout(800);
+  const corner = await page.locator(".notice-corner").boundingBox();
+  const gate = await page.locator(".unlock.unlock--lock-v5").boundingBox();
+  check(
+    corner !== null && gate !== null && corner.y + corner.height <= gate.y,
+    "the refusal and its bell sit above the unlock form without covering controls",
+  );
   const refused = `${await snap(page, `${name}-wrong-code`)} ${await readTray(page)}`;
   check(/not valid/i.test(refused), "a wrong code is refused in plain words");
   check(

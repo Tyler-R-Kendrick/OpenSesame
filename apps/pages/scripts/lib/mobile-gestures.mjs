@@ -112,17 +112,23 @@ async function closeSheet(page) {
   await page.waitForTimeout(350);
 }
 
-/** The Keybindings tab, reached the way a thumb reaches it. */
+/** User Settings is reached from the account menu, including on a phone. */
 async function openKeybindings(page) {
-  const link = page
-    .locator('nav[aria-label="Settings sections"] a', {
-      hasText: /^Keybindings$/,
-    })
+  const account = page
+    .locator('.account-switcher button[title="Switch account"]')
     .first();
-  if ((await link.count()) === 0) return false;
-  await link.scrollIntoViewIfNeeded();
-  await link.tap();
-  await page.waitForTimeout(900);
+  if ((await account.count()) === 0) return false;
+  await account.tap();
+  const settings = page.getByRole("button", {
+    name: "User Settings",
+    exact: true,
+  });
+  if ((await settings.count()) === 0) return false;
+  await settings.tap();
+  await page
+    .getByRole("heading", { name: "User Settings", exact: true })
+    .waitFor();
+  await page.getByRole("tab", { name: "Gestures", exact: true }).waitFor();
   return true;
 }
 
@@ -248,7 +254,10 @@ async function swipeRuns(page, harness, label) {
 export async function auditGestures(page, harness, stop, audit) {
   const label = stop("settings-gestures");
   if (!(await openKeybindings(page))) {
-    harness.check(false, `${label}: no Keybindings tab on the phone`);
+    harness.check(
+      false,
+      `${label}: User Settings / Keybindings is not reachable by touch`,
+    );
     return;
   }
   await pageContract(page, harness, label, audit);

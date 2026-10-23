@@ -20,6 +20,13 @@ import type { TrustedUpstream } from "@opensesame/app-core/lib/federation.js";
 import { providerUpstream } from "@opensesame/app-core/lib/providers.js";
 import { signInMethods } from "@opensesame/app-core/lib/settings.js";
 import { sessionStore } from "@opensesame/app-core/ports.js";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isNumber,
+  isString,
+  readString,
+} from "@opensesame/os-domain";
 import { useEffect, useMemo, useState } from "react";
 import { useFederatedProviders } from "../screens/unlock/use-federated-providers.js";
 
@@ -158,18 +165,28 @@ export function readSiopSocialAttempt(
   const raw = sessionStore().getItem(ATTEMPT_KEY);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as Partial<SiopSocialAttempt>;
+    const parsed: BoundaryValue = JSON.parse(raw);
     if (
+      !isJsonObject(parsed) ||
       parsed.id !== id ||
       (parsed.source !== "identity" && parsed.source !== "connection") ||
-      typeof parsed.providerId !== "string" ||
-      typeof parsed.label !== "string" ||
-      typeof parsed.personId !== "string" ||
-      typeof parsed.at !== "number" ||
+      !isString(parsed.providerId) ||
+      !isString(parsed.label) ||
+      !isString(parsed.personId) ||
+      !isNumber(parsed.at) ||
       Date.now() - parsed.at > ATTEMPT_LIFETIME_MS
     )
       return null;
-    return parsed as SiopSocialAttempt;
+    return {
+      id: parsed.id,
+      source: parsed.source,
+      providerId: parsed.providerId,
+      label: parsed.label,
+      personId: parsed.personId,
+      at: parsed.at,
+      upstreamId: readString(parsed.upstreamId),
+      connectionId: readString(parsed.connectionId),
+    };
   } catch {
     return null;
   }

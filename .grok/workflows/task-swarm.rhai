@@ -41,6 +41,7 @@ for slice in slices {
     prompt += "Do not copy node_modules or target directories. ";
     prompt += "Cargo builds must set CARGO_TARGET_DIR to the home cache at .cache/packages/cargo-target. ";
     prompt += "pnpm install must use the existing pnpm store. ";
+    prompt += "Follow docs/contributing/repository-footprint.md: no tracked scanner run histories, raw review transcripts, copied skill trees or caches. Task output stays ignored or private; clean only this task output after review. ";
     prompt += slice.prompt;
     jobs.push(#{
         prompt: prompt,
@@ -63,6 +64,7 @@ log(failed.to_string() + " slice(s) failed");
 phase("Verify");
 let verify_prompt = "Read the git diff in " + worktree + " with git diff and git status. ";
 verify_prompt += "Confirm edits stay inside that worktree. ";
+verify_prompt += "Check the repository footprint policy: no execution histories, raw transcripts, duplicate skill copies or generated task output in the tracked diff. ";
 verify_prompt += "Set ok true only when every intended slice is present and no file outside the worktree changed. ";
 verify_prompt += "List concrete gaps otherwise. Use read-only git commands.";
 let verdict = agent(verify_prompt, #{

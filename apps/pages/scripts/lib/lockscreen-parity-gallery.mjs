@@ -126,7 +126,7 @@ function finishReadme(readme) {
     "PLAYWRIGHT_CHROMIUM=/path/to/chromium PAGES_VERIFY_DIST=/absolute/after/dist \\",
     "  node apps/pages/scripts/capture-lockscreen-parity.mjs after /tmp/lockscreen-parity",
     "PLAYWRIGHT_CHROMIUM=/path/to/chromium \\",
-    "  node apps/pages/scripts/capture-lockscreen-parity-gallery.mjs /tmp/lockscreen-parity docs/evidence/2026-10-20-lockscreen-parity",
+    "  node apps/pages/scripts/capture-lockscreen-parity-gallery.mjs /tmp/lockscreen-parity work/evidence/lockscreen/pages/browser",
     "```",
     "",
   );

@@ -288,7 +288,7 @@ it.each([
   },
 );
 it.each(["record-close", "trust-callback"] as const)(
-  "restores an earlier configured connection with a phase-appropriate revision after %s withdrawal",
+  "restores an earlier configured connection with a fresh durable revision after %s withdrawal",
   async (phase) => {
     const fixture = await samlSaveFixture();
     const prior = { ...draft(), name: "Earlier saved identity" };
@@ -310,16 +310,17 @@ it.each(["record-close", "trust-callback"] as const)(
       held.resume();
       expect(await outcome).toBe(false);
       expect(getIdentityConnectionRuntime(saved.connectionId)).toEqual(prior);
-      if (phase === "trust-callback")
-        expect(identityConnectionRevision(saved.connectionId)).not.toBe(
-          revision,
-        );
-      else
-        expect(identityConnectionRevision(saved.connectionId)).toBe(revision);
+      // Compensation republishes the previous bytes, never its retired identity.
+      const restoredRevision = identityConnectionRevision(saved.connectionId);
+      expect(restoredRevision).toEqual(expect.any(String));
+      expect(restoredRevision).not.toBe(revision);
       expect(signInMethods().providers).toEqual(providers);
       kvForgetAll();
       await kvHydrate([...DEVICE_CONNECTOR_KEYS, "settings.v1"]);
       expect(getIdentityConnectionRuntime(saved.connectionId)).toEqual(prior);
+      expect(identityConnectionRevision(saved.connectionId)).toBe(
+        restoredRevision,
+      );
       expect(signInMethods().providers).toEqual(providers);
     } finally {
       await held.close();

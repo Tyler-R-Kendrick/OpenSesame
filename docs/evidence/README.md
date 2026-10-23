@@ -1,314 +1,77 @@
-# Visual evidence
+# Approved current implementation evidence
 
-Before/after images for user-visible changes, one directory per change
-(`<yyyy-mm-dd>-<topic>/`). They exist so a reviewer can see what a change did
-to the interface without cloning the branch, installing, building and walking
-the app.
+Persist only reviewed evidence of the current implementation in:
 
-Most directories hold:
-
-- the composed sheets — one PNG per comparison, each a before and an after of
-  the same screen with the measurement that makes the difference a fact;
-- `README.md` — the sheets laid out in reading order with their captions. This
-  is the page a pull request links to, because GitHub renders a repository
-  Markdown file's relative images and will not render an image embed pasted
-  into a PR body through a tool;
-- `journey.json` — the screens visited, the steps taken to reach them, and the
-  captions. It lives here rather than in the script because a caption that
-  outlives its change is a caption nobody rechecks.
-
-A few carry other evidence instead of, or beside, sheets: command output, JSON
-ledgers or measurements (for example `2026-09-24-bitwarden-oracle/`,
-`2026-09-17-ambient-sso/` and the programme directories
-`capability-composition/` and `general-authority/`), with no `journey.json` or
-no images.
-
-Both halves of every pair come from a real build: the base branch's for the
-before, the branch's for the after, walked the same way. Nothing here is a
-mockup and nothing is staged.
-
-Regenerate a directory with `skills/visual-evidence/SKILL.md`:
-
-```bash
-J=docs/evidence/<dir>/journey.json
-git checkout "$(git merge-base HEAD origin/main)" -- apps/pages/src
-VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
-PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
-  node apps/pages/scripts/capture-evidence.mjs capture before "$J"
-git checkout HEAD -- apps/pages/src
-VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
-PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
-  node apps/pages/scripts/capture-evidence.mjs capture after "$J"
-PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
-  node apps/pages/scripts/capture-evidence.mjs compose "$J"
+```text
+docs/evidence/<feature>/<project>/<platform>/
+  README.md
+  manifest.json
+  current-state.png
 ```
 
-Raw captures go to the system temp directory; only the composed sheets are
-committed, and only enough of them to show one thing each.
+Use stable lowercase kebab-case ownership names, for example
+`unlock/pages/web` or `tailnet/cli/linux`. Dates, branch names, revisions,
+review rounds and task titles are metadata, never ownership folders.
+Each slot represents one implementation surface. A branch replaces only its
+impacted slots, including removing obsolete files; unrelated slots stay intact.
+The default branch holds the latest approved set. Git history holds prior sets.
 
-The dated directories are one change each. The undated ones collect the
-evidence for a programme that ran across many pull requests.
+Evidence also counts toward the [repository footprint limits](../contributing/repository-footprint.md):
+2 MiB per file and 100 MiB for all tracked content. Keep captures focused and small.
+
+## Capture and review
+
+Capture raw screenshots, recordings, comparison sheets, test reports and draft
+notes into ignored `work/evidence/<feature>/<project>/<platform>/` or private
+temporary storage. Before/after comparisons remain review material outside HEAD.
+Use the [visual-evidence skill](../../skills/visual-evidence/SKILL.md) for two-build
+comparisons. A successful test alone does not approve its artifacts.
+
+After review, prepare a candidate directory containing a `README.md` and only
+approved current-state artifacts. Record what was captured, implementation source
+commit, checks and results, environment/platform, scope and known limitations.
+Keep comparison images, base captures and historical recordings out of this set.
+Then promote using the actual implementation commit and recorded approval:
+
+```bash
+node scripts/dev/promote-evidence.mjs unlock/pages/web work/evidence/unlock/pages/web/current \
+  --source <implementation-commit-sha> \
+  --approved-by <reviewer> --approval-ref <review-url-or-reference>
+node scripts/quality/evidence-gate.mjs
+node scripts/quality/docs-index.mjs
+```
+
+Promotion replaces the whole named slot, removes its superseded files and writes
+`manifest.json`: version 1, status `approved`, sourceCommit, approval `{by,
+reference}`, and a SHA-256 inventory of all files including README.md. Do not
+invent approval or relabel old captures as current. Approval metadata records the
+review; it is not an automatic proof that the approval occurred. Promotion requires an existing implementation commit on the branch. The manifest
+keeps that commit as provenance after squash merges; persisted validation does
+not require old branch commits to remain ancestors of the default branch.
+
+`evidence-gate.mjs --staged` validates the Git index before commit; the regular
+gate runs before push, in lint and in CI, including documentation-only changes.
+It rejects dated layouts, missing approval, symlinks, unsafe paths, comparison
+artifacts, hash mismatches and unlisted files. Approved current recordings are
+allowed when listed in the manifest. Generated run output never writes here.
+
+## Cleanup and historical references
+
+The cleanup removed 2,091 historical files from this directory (including 1,375
+images), rather than claiming their old checks approved today's implementation.
+No existing collection established reviewed current state: sampled receipts
+reported dirty trees, pending checks or older paired builds. The approved set is
+therefore empty until new evidence is reviewed and promoted.
+
+Historical artifacts remain available in Git at
+[`fd554446241e32962e82763ddb772f9420096279`](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence).
+Link an exact historical file by commit SHA when discussing a prior change;
+never restore its entire evidence chain into the working tree. Durable wallet
+claim definitions live in `spec/conformance/wallet-claims.json`; active visual
+regression fixtures live in `tests/visual-contract/baselines/`. These are test
+inputs, not implementation approval receipts.
 
 <!-- generated by scripts/quality/docs-index.mjs; do not edit below -->
 
 | Directory | What it shows |
 |---|---|
-| [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
-| [`2026-10-23-feature-title-touch/`](2026-10-23-feature-title-touch/README.md) | Feature heading touch targets |
-| [`2026-10-22-deepsec/`](2026-10-22-deepsec/README.md) | DeepSec scan evidence |
-| [`2026-10-21-ollama/`](2026-10-21-ollama/README.md) | Ollama shared configuration |
-| [`2026-10-20-unused-css/`](2026-10-20-unused-css/README.md) | Unreachable CSS cleanup |
-| [`2026-10-20-lockscreen-parity/`](2026-10-20-lockscreen-parity/README.md) | Lock screen parity |
-| [`2026-10-20-linq-native-configuration/`](2026-10-20-linq-native-configuration/README.md) | Linq native configuration |
-| [`2026-10-20-global-title-bar/`](2026-10-20-global-title-bar/README.md) | Global title bar |
-| [`2026-10-20-azure-native-configuration/`](2026-10-20-azure-native-configuration/README.md) | Azure Key Vault Secrets native configuration |
-| [`2026-10-20-ai-provider-cards/`](2026-10-20-ai-provider-cards/README.md) | AI provider cards |
-| [`2026-10-19-tailscale-peer-route/`](2026-10-19-tailscale-peer-route/README.md) | Tailscale peer routing in the shared connection form |
-| [`2026-10-19-snowflake-configuration/`](2026-10-19-snowflake-configuration/README.md) | Snowflake configuration |
-| [`2026-10-19-cloudflare-wallet-removal/`](2026-10-19-cloudflare-wallet-removal/README.md) | Cloudflare Wallet removal |
-| [`2026-10-18-tailscale-native-transport/`](2026-10-18-tailscale-native-transport/README.md) | Tailscale integration transport controls |
-| [`2026-10-18-native-item-edit/`](2026-10-18-native-item-edit/README.md) | Native password-manager item editing |
-| [`2026-10-17-p8-2-peer-trust-profiles/`](2026-10-17-p8-2-peer-trust-profiles/README.md) | Peer trust on four install profiles |
-| [`2026-10-17-p8-1-portable-drop-profiles/`](2026-10-17-p8-1-portable-drop-profiles/README.md) | Portable drop on four install profiles |
-| [`2026-10-16-s3-connected-removal/`](2026-10-16-s3-connected-removal/README.md) | S3 removal clears the Connected list |
-| [`2026-10-16-native-s3-backup/`](2026-10-16-native-s3-backup/README.md) | Native S3 encrypted vault backups |
-| [`2026-10-16-native-api-setup/`](2026-10-16-native-api-setup/README.md) | Native API setup stays configurable |
-| [`2026-10-16-linear-saved-authorization/`](2026-10-16-linear-saved-authorization/README.md) | Saved Linear authorization shares the pending controls |
-| [`2026-10-16-linear-pending-cancel/`](2026-10-16-linear-pending-cancel/README.md) | Linear pending consent keeps Cancel available |
-| [`2026-10-15-tailscale-status/`](2026-10-15-tailscale-status/README.md) | Tailscale browser-node live status: actual browser evidence |
-| [`2026-10-15-tailscale-service-probe/`](2026-10-15-tailscale-service-probe/README.md) | Tailscale service-probe HTTP results |
-| [`2026-10-15-tailscale-primary-ui/`](2026-10-15-tailscale-primary-ui/README.md) | Peering-only Tailscale primary UI: actual browser evidence |
-| [`2026-10-15-secret-react-session/`](2026-10-15-secret-react-session/README.md) | Secret backend session cancellation |
-| [`2026-10-15-secret-react-action/`](2026-10-15-secret-react-action/README.md) | Mounted secret-backend action ownership |
-| [`2026-10-15-secret-probe-cancellation/`](2026-10-15-secret-probe-cancellation/README.md) | Secret backend Test cancellation |
-| [`2026-10-15-panel-status-touch/`](2026-10-15-panel-status-touch/README.md) | Panel status touch target |
-| [`2026-10-15-onepassword-native-configuration/`](2026-10-15-onepassword-native-configuration/README.md) | Native 1Password configuration |
-| [`2026-10-15-infisical-lifetime/`](2026-10-15-infisical-lifetime/README.md) | Infisical lifetime observations and preserved failures |
-| [`2026-10-15-github-app-entry/`](2026-10-15-github-app-entry/README.md) | Native GitHub App configuration entry: browser evidence |
-| [`2026-10-15-ai-connection-projection/`](2026-10-15-ai-connection-projection/README.md) | Verified AI connection projection: actual browser evidence |
-| [`2026-10-14-integration-settings/`](2026-10-14-integration-settings/README.md) | Integration settings: AI and Tailscale |
-| [`2026-10-14-identity-integrations/`](2026-10-14-identity-integrations/README.md) | Configurable identity integrations |
-| [`2026-10-14-byo-first/`](2026-10-14-byo-first/README.md) | BYO configuration first |
-| [`2026-10-14-backup-integrations/`](2026-10-14-backup-integrations/README.md) | Configurable secret backends and encrypted vault backups |
-| [`2026-10-12-transfer-vault-ownership/`](2026-10-12-transfer-vault-ownership/README.md) | Transfer ownership in Settings › Danger (ADR 0195) |
-| [`2026-10-12-key-driven-providers/`](2026-10-12-key-driven-providers/README.md) | Connections — providers that connect with the person's own key |
-| [`2026-10-12-honest-dispositions/`](2026-10-12-honest-dispositions/README.md) | Connections — honest reasons, real docs links, AWS in the browser |
-| [`2026-10-12-connector-bridge/`](2026-10-12-connector-bridge/README.md) | Connections — the connector bridge |
-| [`2026-10-11-vault-environments/`](2026-10-11-vault-environments/README.md) | Vault environments — before / after |
-| [`2026-10-11-toast-notices/`](2026-10-11-toast-notices/README.md) | Toasts for notices — before and after |
-| [`2026-10-11-password-reset-mailboxes/`](2026-10-11-password-reset-mailboxes/README.md) | Password reset: mailboxes as vault items |
-| [`2026-10-11-lock-v5-dial-shimmer/`](2026-10-11-lock-v5-dial-shimmer/README.md) | Lock-v5: the shimmer runs on, the dial is on the front door, the key is in front |
-| [`2026-10-11-hero-field-on-phones/`](2026-10-11-hero-field-on-phones/README.md) | Every gate's hero is the particle field, a phone's included |
-| [`2026-10-11-health-key-danger-bin/`](2026-10-11-health-key-danger-bin/README.md) | The health report's add key, and the Danger row's bin at the row end |
-| [`2026-10-11-first-run-import/`](2026-10-11-first-run-import/README.md) | A vault that begins from a file — before / after |
-| [`2026-10-11-features-and-integrations/`](2026-10-11-features-and-integrations/README.md) | Settings splits into Features and Integrations (ADR 0189) |
-| [`2026-10-11-dial-under-card/`](2026-10-11-dial-under-card/README.md) | The cipher dial carries on behind the gate's card |
-| [`2026-10-11-chrome-wordmark-field/`](2026-10-11-chrome-wordmark-field/README.md) | The rail, the drawer and the setup bar draw the particle field |
-| [`2026-10-11-ai-model-providers/`](2026-10-11-ai-model-providers/README.md) | AI model providers: their own section, a one-sheet add, and keys for apps |
-| [`2026-10-10-wordmark-decode/`](2026-10-10-wordmark-decode/README.md) | Wordmark decode: every slot visible from the first frame |
-| [`2026-10-10-trusted-contacts/`](2026-10-10-trusted-contacts/README.md) | Settings › Trusted contacts (ADR 0187) — visual evidence |
-| [`2026-10-10-persona-r3-c3-live-listed-items/`](2026-10-10-persona-r3-c3-live-listed-items/README.md) | C3 / F10 — live host item picker uses listedItems |
-| [`2026-10-10-persona-r3-c2-claim-different-link/`](2026-10-10-persona-r3-c2-claim-different-link/README.md) | C2 / F5 — claim route different link |
-| [`2026-10-10-persona-r3-b1-share-revoke-armed/`](2026-10-10-persona-r3-b1-share-revoke-armed/README.md) | B1 / F7 — share revoke armed state |
-| [`2026-10-10-persona-r3-a-sent-drops/`](2026-10-10-persona-r3-a-sent-drops/README.md) | A1 / F6 — sent drops lockout and receipts |
-| [`2026-10-10-passkey-authenticator-choice/`](2026-10-10-passkey-authenticator-choice/README.md) | Sealing with a security key, and a seal that moves on instead of failing |
-| [`2026-10-10-lock-v5-title-screen/`](2026-10-10-lock-v5-title-screen/README.md) | Lock v5 title screen evidence (2026-10-10) |
-| [`2026-10-10-live-join-greeting/`](2026-10-10-live-join-greeting/README.md) | Live join: the catalog answers a greeting (ADR 0186) |
-| [`2026-10-10-live-join-browsers/`](2026-10-10-live-join-browsers/README.md) | Live join across three browsers: the road to transport.json |
-| [`2026-10-10-frontdoor-contract/`](2026-10-10-frontdoor-contract/README.md) | Front-door visual contract after the merged brand update |
-| [`2026-10-10-design-tooling/`](2026-10-10-design-tooling/README.md) | Design tooling: Storybook on the app's own CSS |
-| [`2026-10-10-connector-self-review/`](2026-10-10-connector-self-review/README.md) | Connector self-review |
-| [`2026-10-10-cli-authorize-ui/`](2026-10-10-cli-authorize-ui/README.md) | CLI Authorize UI (D4) |
-| [`2026-10-10-brand-plates/`](2026-10-10-brand-plates/README.md) | The brand on plates: one mark, one wordmark, three size tiers |
-| [`2026-10-09-retired-credential-management/`](2026-10-09-retired-credential-management/README.md) | Retired-password management: original journey |
-| [`2026-10-09-provider-authentication/`](2026-10-09-provider-authentication/README.md) | Provider authentication and connector actions |
-| [`2026-10-09-native-public-protocol/`](2026-10-09-native-public-protocol/README.md) | Native public OAuth and MCP protocol evidence |
-| [`2026-10-09-native-connectors/`](2026-10-09-native-connectors/README.md) | Native connector configuration evidence |
-| [`2026-10-09-main-visual-baselines/`](2026-10-09-main-visual-baselines/README.md) | Reviewed visual baselines from merged main |
-| [`2026-10-09-greyscale/`](2026-10-09-greyscale/README.md) | Greyscale Pages (before / after) |
-| [`2026-10-09-connector-controls/`](2026-10-09-connector-controls/README.md) | Linear connector controls — production browser comparisons |
-| [`2026-10-08-visual-contract-baselines/`](2026-10-08-visual-contract-baselines/README.md) | Reviewed visual contract baselines |
-| [`2026-10-08-vault-style-sections/`](2026-10-08-vault-style-sections/README.md) | Vault style for Identity, Access and Wallet |
-| [`2026-10-08-static-pwa-no-backend/`](2026-10-08-static-pwa-no-backend/README.md) | Evidence — static PWA, no Host/Identity/daemon backend (2026-10-08) |
-| [`2026-10-08-self-hosted-connectors/`](2026-10-08-self-hosted-connectors/README.md) | Self-hosted provider configuration |
-| [`2026-10-08-s3-setup-step/`](2026-10-08-s3-setup-step/README.md) | S3-compatible bucket in the Custom setup ceremony |
-| [`2026-10-08-s3-bucket-connector/`](2026-10-08-s3-bucket-connector/README.md) | S3-compatible bucket connector — Settings › Capabilities › Local storage |
-| [`2026-10-08-linear-runtime/`](2026-10-08-linear-runtime/README.md) | Functional Linear connector |
-| [`2026-10-07-rotate-without-password/`](2026-10-07-rotate-without-password/README.md) | Rotating the vault key without inventing a password — before / after |
-| [`2026-10-07-release-notes-default/`](2026-10-07-release-notes-default/README.md) | Release notes default state |
-| [`2026-10-07-path-field/`](2026-10-07-path-field/README.md) | The editor's title row is one path control |
-| [`2026-10-07-password-workflows-in-place/`](2026-10-07-password-workflows-in-place/README.md) | Password workflows, in place |
-| [`2026-10-07-password-no-account/`](2026-10-07-password-no-account/README.md) | A password's form names no account |
-| [`2026-10-07-no-hint-captions/`](2026-10-07-no-hint-captions/README.md) | Hint captions removed (2026-10-07) |
-| [`2026-10-07-mobile-toolbar/`](2026-10-07-mobile-toolbar/README.md) | Mobile toolbar and share icon |
-| [`2026-10-07-mobile-gates/`](2026-10-07-mobile-gates/README.md) | Mobile lock screen and front door |
-| [`2026-10-07-item-timestamps/`](2026-10-07-item-timestamps/README.md) | Item timestamps |
-| [`2026-10-07-account-detail/`](2026-10-07-account-detail/README.md) | Account password and website rows |
-| [`2026-10-06-sharp-plain-sheets/`](2026-10-06-sharp-plain-sheets/README.md) | Sharp corners, no red controls, one way out |
-| [`2026-10-06-share-key-and-api-rows/`](2026-10-06-share-key-and-api-rows/README.md) | Share once as a toolbar key, and an account's credentials that all copy |
-| [`2026-10-06-passkey-only-unlock/`](2026-10-06-passkey-only-unlock/README.md) | Passkey-only sealing — before / after |
-| [`2026-10-06-pages-are-pages/`](2026-10-06-pages-are-pages/README.md) | A page's own files are the page |
-| [`2026-10-06-credentials-as-entries/`](2026-10-06-credentials-as-entries/README.md) | Credentials are entries of their own, bound to an account |
-| [`2026-10-06-credential-lines/`](2026-10-06-credential-lines/README.md) | A credential is one line, like a website |
-| [`2026-10-06-account-takes-credentials/`](2026-10-06-account-takes-credentials/README.md) | An account can always take a credential |
-| [`2026-10-06-account-credentials/`](2026-10-06-account-credentials/README.md) | Account credential workflows |
-| [`2026-10-06-account-credential-lines/`](2026-10-06-account-credential-lines/README.md) | Account credential workflows |
-| [`2026-10-05-travel-hidden-items/`](2026-10-05-travel-hidden-items/README.md) | Leave items at home — before and after |
-| [`2026-10-05-tailnet-sync-finished/`](2026-10-05-tailnet-sync-finished/README.md) | Tailnet sync, finished — visual evidence (2026-10-05) |
-| [`2026-10-05-tailnet-devices/`](2026-10-05-tailnet-devices/README.md) | Identity › Devices manages the real tailnet (ADR 0169) |
-| [`2026-10-05-sops-gone-prompt-lines/`](2026-10-05-sops-gone-prompt-lines/README.md) | SOPS row removed from Security; the prompt's two identities on two lines |
-| [`2026-10-05-security-rows-for-guests/`](2026-10-05-security-rows-for-guests/README.md) | Security › Duress and Travel for a guest with no key yet |
-| [`2026-10-05-remove-visual-source-toggle/`](2026-10-05-remove-visual-source-toggle/README.md) | Remove the Visual / Source toggle |
-| [`2026-10-05-password-workflows/`](2026-10-05-password-workflows/README.md) | Password workflows |
-| [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |
-| [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
-| [`2026-10-05-generator-form/`](2026-10-05-generator-form/README.md) | The password form: one field and one Options line |
-| [`2026-10-05-gate-help-launcher/`](2026-10-05-gate-help-launcher/README.md) | A help key on the gates — before / after |
-| [`2026-10-05-file-viewer-painted/`](2026-10-05-file-viewer-painted/README.md) | The file viewer paints its files, and the open key is the settings icon |
-| [`2026-10-05-encrypted-search/`](2026-10-05-encrypted-search/README.md) | Encrypted search: Settings › Capabilities |
-| [`2026-10-05-duress-mode-wipe/`](2026-10-05-duress-mode-wipe/README.md) | Duress mode: wipe this device's copy — visual evidence |
-| [`2026-10-05-duress-mode-visible-items/`](2026-10-05-duress-mode-visible-items/README.md) | Show my vault without the items I hide — visual evidence |
-| [`2026-10-05-duress-mode-freeze/`](2026-10-05-duress-mode-freeze/README.md) | Duress mode: Freeze for a while — visual evidence |
-| [`2026-10-05-duress-mode-decoy-items/`](2026-10-05-duress-mode-decoy-items/README.md) | Decoy with everyday items — visual evidence |
-| [`2026-10-05-decoy-reads-like-unlock/`](2026-10-05-decoy-reads-like-unlock/README.md) | A duress-code unlock reads like an ordinary unlock — visual evidence |
-| [`2026-10-05-customer-envelope/`](2026-10-05-customer-envelope/README.md) | Customer envelope encryption validation, 2026-10-05 |
-| [`2026-10-05-confirm-sheets/`](2026-10-05-confirm-sheets/README.md) | Confirmation sheets: the shape the design contract asks for, enforced |
-| [`2026-10-05-add-button-slide/`](2026-10-05-add-button-slide/README.md) | The Add button: a sharp square, held and slid |
-| [`2026-10-05-accounts/`](2026-10-05-accounts/README.md) | An account owns its login methods; a password is one of them |
-| [`2026-10-05-account-credentials/`](2026-10-05-account-credentials/README.md) | Account credential workflows |
-| [`2026-10-04-unlock-bell/`](2026-10-04-unlock-bell/README.md) | The unlock screen has a bell now |
-| [`2026-10-04-tutorial-mode/`](2026-10-04-tutorial-mode/README.md) | Tutorial mode — before / after |
-| [`2026-10-04-sops-document-panel/`](2026-10-04-sops-document-panel/README.md) | SOPS document key under Settings › Security — before and after |
-| [`2026-10-04-siop-op/`](2026-10-04-siop-op/README.md) | The Self-issued OpenID card is unchanged (ADR 0161) |
-| [`2026-10-04-search-in-prompt-fab/`](2026-10-04-search-in-prompt-fab/README.md) | Search in the prompt, Add as one button |
-| [`2026-10-04-push-enrolment-copy/`](2026-10-04-push-enrolment-copy/README.md) | Push enrolment: the Push row and its notices, before and after |
-| [`2026-10-04-phone-tree-actions/`](2026-10-04-phone-tree-actions/README.md) | The phone's section tree carries the vault's command row |
-| [`2026-10-04-phone-search-resets/`](2026-10-04-phone-search-resets/README.md) | A phone's search ends when the tree comes back |
-| [`2026-10-04-phone-add/`](2026-10-04-phone-add/README.md) | The phone's section tree opens on a search field and one Add key |
-| [`2026-10-04-mobile-visual-polish/`](2026-10-04-mobile-visual-polish/README.md) | Mobile visual polish |
-| [`2026-10-04-item-type-switches/`](2026-10-04-item-type-switches/README.md) | Item types: a list of switches (ADR 0165) |
-| [`2026-10-04-glyph-identity/`](2026-10-04-glyph-identity/README.md) | Glyphs for vaults and people on a phone (ADR 0164) |
-| [`2026-10-04-gesture-loadout/`](2026-10-04-gesture-loadout/README.md) | The keymap has two loadouts, and a phone leads with gestures |
-| [`2026-10-04-failures-in-the-tray/`](2026-10-04-failures-in-the-tray/README.md) | Failures live in the tray |
-| [`2026-10-04-device-inbox/`](2026-10-04-device-inbox/README.md) | Device-mode receipts, inbox and local notifications (ADR 0162) — before and after |
-| [`2026-10-04-device-identity-carry/`](2026-10-04-device-identity-carry/README.md) | The device identity key travels with the vault (ADR 0160 §5a) — before and after |
-| [`2026-10-04-device-identity/`](2026-10-04-device-identity/README.md) | The device is the Identity plane (ADR 0160) — before and after |
-| [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
-| [`2026-10-03-touch-copy/`](2026-10-03-touch-copy/README.md) | Keyboard-only copy stands down under a finger |
-| [`2026-10-03-share-once-phone/`](2026-10-03-share-once-phone/README.md) | Share once on an item's page, seated for the phone |
-| [`2026-10-03-settings-walk/`](2026-10-03-settings-walk/README.md) | Settings walk: every row acts, or is not drawn (ADR 0158, second pass) |
-| [`2026-10-03-settings-keybindings-touch/`](2026-10-03-settings-keybindings-touch/README.md) | Settings has no Keybindings tab on a touch-only device |
-| [`2026-10-03-plugin-switch-absent/`](2026-10-03-plugin-switch-absent/README.md) | Plugin tiles draw no switch they cannot act on (ADR 0150, settings rows act or are absent) |
-| [`2026-10-03-phone-vault-tree/`](2026-10-03-phone-vault-tree/README.md) | Phone vault opens on the section tree |
-| [`2026-10-03-phone-menus/`](2026-10-03-phone-menus/README.md) | Phone menus, and gestures where the keyboard was |
-| [`2026-10-03-live-sessions-stack/`](2026-10-03-live-sessions-stack/README.md) | Live sessions: the feature and the stack that followed it (ADR 0150) |
-| [`2026-10-03-keybindings-statusline/`](2026-10-03-keybindings-statusline/README.md) | Keybindings: the half-typed keys on the statusline |
-| [`2026-10-03-keybindings-review-fixes/`](2026-10-03-keybindings-review-fixes/README.md) | Keybindings review fixes: the `?` sheet and the Fixed keys |
-| [`2026-10-03-extension-runner-options/`](2026-10-03-extension-runner-options/README.md) | Extension local runner: the options page |
-| [`2026-10-03-duress-sheet-hardening/`](2026-10-03-duress-sheet-hardening/README.md) | Duress sheet hardening — visual evidence |
-| [`2026-10-03-connectors/`](2026-10-03-connectors/README.md) | Connector pages: no Host road, and no tile that links to a page nothing routes (ADR 0151) |
-| [`2026-10-02-vault-share/`](2026-10-02-vault-share/README.md) | Vault share, support, and a new item |
-| [`2026-10-01-vault-export/`](2026-10-01-vault-export/README.md) | Vault export for a PIN seal |
-| [`2026-10-01-vault-environments/`](2026-10-01-vault-environments/README.md) | Vault environments |
-| [`2026-10-01-statusline-icons/`](2026-10-01-statusline-icons/README.md) | Status line without the identity and key vault glyphs |
-| [`2026-10-01-slash-commands/`](2026-10-01-slash-commands/README.md) | Slash completions in the status line |
-| [`2026-10-01-secret-ceiling/`](2026-10-01-secret-ceiling/README.md) | Secret without the capability ceiling |
-| [`2026-10-01-file-secret/`](2026-10-01-file-secret/README.md) | File item in the minimal install |
-| [`2026-10-01-activity-item-log/`](2026-10-01-activity-item-log/README.md) | A secret save names what happened |
-| [`2026-09-30-setup-configuration/`](2026-09-30-setup-configuration/README.md) | Setup configuration choice |
-| [`2026-09-29-trash-commands/`](2026-09-29-trash-commands/README.md) | Trash commands |
-| [`2026-09-29-secret-plain-text/`](2026-09-29-secret-plain-text/README.md) | Secret is one concealed value |
-| [`2026-09-29-password-reset/`](2026-09-29-password-reset/README.md) | Password reset mailboxes |
-| [`2026-09-29-password-history/`](2026-09-29-password-history/README.md) | Retired passwords stay retired |
-| [`2026-09-29-minimal-pwa-sections/`](2026-09-29-minimal-pwa-sections/README.md) | Minimal PWA sections |
-| [`2026-09-29-live-session-edit/`](2026-09-29-live-session-edit/README.md) | Authorized edit on a live session |
-| [`2026-09-29-item-shares/`](2026-09-29-item-shares/README.md) | A drop is a share of an item |
-| [`2026-09-29-activity-detail/`](2026-09-29-activity-detail/README.md) | An activity row opens that event |
-| [`2026-09-28-vaults-ceremonies/`](2026-09-28-vaults-ceremonies/README.md) | Settings › Vaults as ceremonies — visual evidence |
-| [`2026-09-28-travel-hardening/`](2026-09-28-travel-hardening/README.md) | Travel mode hardening |
-| [`2026-09-28-travel-grants/`](2026-09-28-travel-grants/README.md) | Travel: site grants on the way home |
-| [`2026-09-28-surrogate-plugins-pairing/`](2026-09-28-surrogate-plugins-pairing/README.md) | Plugin settings pairing — Settings reaches the daemon's plugin routes (ADR 0150 §7) |
-| [`2026-09-28-surrogate-plugins/`](2026-09-28-surrogate-plugins/README.md) | Surrogate credentials and Browser autofill in Settings › Capabilities |
-| [`2026-09-28-settings-security-rows/`](2026-09-28-settings-security-rows/README.md) | Settings › Security: every row acts, or is not drawn |
-| [`2026-09-28-settings-no-approvals-view/`](2026-09-28-settings-no-approvals-view/README.md) | Settings › General: no approvals view |
-| [`2026-09-28-protector-enrollment/`](2026-09-28-protector-enrollment/README.md) | Enrolling an age recipient, AWS KMS and Google Cloud KMS from Security |
-| [`2026-09-28-member-organizations/`](2026-09-28-member-organizations/README.md) | The signed-in member's organizations |
-| [`2026-09-28-manifest-export-sheet/`](2026-09-28-manifest-export-sheet/README.md) | The sealed-store manifest is saved from a sheet, and never for a guest |
-| [`2026-09-28-live-sessions/`](2026-09-28-live-sessions/README.md) | Live sessions and the two-road front door (ADR 0150) |
-| [`2026-09-28-live-routes/`](2026-09-28-live-routes/README.md) | Live sessions across networks: optional routes (ADR 0150 §6) |
-| [`2026-09-28-keybindings/`](2026-09-28-keybindings/README.md) | Keybindings get their own Settings tab |
-| [`2026-09-28-host-less-connect/`](2026-09-28-host-less-connect/README.md) | Connector pages on a device with no Host: they act, or are not drawn |
-| [`2026-09-28-duress-and-travel-usable/`](2026-09-28-duress-and-travel-usable/README.md) | Duress and travel, usable from Settings — visual evidence |
-| [`2026-09-28-connectors-access/`](2026-09-28-connectors-access/README.md) | Access lists access; Connections imports |
-| [`2026-09-28-completion-not-repeated/`](2026-09-28-completion-not-repeated/README.md) | The config.yaml editor no longer offers back what is typed |
-| [`2026-09-28-capabilities-as-files/`](2026-09-28-capabilities-as-files/README.md) | Capabilities as files; `config.yaml` first |
-| [`2026-09-28-activity-rail-listing/`](2026-09-28-activity-rail-listing/README.md) | Activity: a paged, searchable listing in the rail and on the page |
-| [`2026-09-27-webmcp-review/`](2026-09-27-webmcp-review/README.md) | The WebMCP review no longer claims a reload |
-| [`2026-09-27-vault-import-export/`](2026-09-27-vault-import-export/README.md) | The vault's Import and Export keys, restored |
-| [`2026-09-27-unlock-phone-gutter/`](2026-09-27-unlock-phone-gutter/README.md) | The seal and unlock forms keep the front door's width on a phone |
-| [`2026-09-27-sentence-case/`](2026-09-27-sentence-case/README.md) | Sentence case, as DESIGN.md asks |
-| [`2026-09-27-sample-data-and-manifest/`](2026-09-27-sample-data-and-manifest/README.md) | Sample data and the sealed-store manifest, restored |
-| [`2026-09-27-reset-browser/`](2026-09-27-reset-browser/README.md) | Reset this browser, from the lock screens |
-| [`2026-09-27-rail-siblings/`](2026-09-27-rail-siblings/README.md) | Every rail tab is a sibling, and every panel link lands |
-| [`2026-09-27-rail-panels/`](2026-09-27-rail-panels/README.md) | Every rail entry is a panel the page draws |
-| [`2026-09-27-provider-wide-grants/`](2026-09-27-provider-wide-grants/README.md) | Access › Connectors lists provider-wide grants |
-| [`2026-09-27-provider-pages/`](2026-09-27-provider-pages/README.md) | The identity provider's own pages |
-| [`2026-09-27-identity-followups/`](2026-09-27-identity-followups/README.md) | Identity follow-ups — the claim key arms before it fires |
-| [`2026-09-27-identity-devices/`](2026-09-27-identity-devices/README.md) | Identity › Devices — register, edit, claim and remove, like every other Identity list |
-| [`2026-09-27-family-preset-transport/`](2026-09-27-family-preset-transport/README.md) | The Family preset fills the transport Household sharing needs |
-| [`2026-09-27-connect-forget-key/`](2026-09-27-connect-forget-key/README.md) | Forget Vercel Connect, and a hand-off that clears an earlier refusal |
-| [`2026-09-27-access-rail/`](2026-09-27-access-rail/README.md) | Access tabs are siblings in the rail |
-| [`2026-09-27-access-connectors/`](2026-09-27-access-connectors/README.md) | Access › Connectors lists what Connections configures |
-| [`2026-09-26-status-touch/`](2026-09-26-status-touch/README.md) | A status mark's touch twin |
-| [`2026-09-26-real-x509/`](2026-09-26-real-x509/README.md) | Local certificates are real X.509 now |
-| [`2026-09-26-passkey-verify/`](2026-09-26-passkey-verify/README.md) | A new account passkey is tried once (ADR 0140 plan step 11c) |
-| [`2026-09-26-org-signin/`](2026-09-26-org-signin/README.md) | Organization sign-in in Identity › Organizations (ADR 0140 plan step 12) |
-| [`2026-09-26-factor-stepup/`](2026-09-26-factor-stepup/README.md) | Removing an account factor takes a step-up (ADR 0146) |
-| [`2026-09-26-connect-photon-similarweb/`](2026-09-26-connect-photon-similarweb/README.md) | Connections: Photon and Similarweb presets (ADR 0147) |
-| [`2026-09-26-connect-catalog-ownership/`](2026-09-26-connect-catalog-ownership/README.md) | Connections: which rows Connect owns (ADR 0147) |
-| [`2026-09-26-capability-isolation/`](2026-09-26-capability-isolation/README.md) | Capability isolation: controls arrive with their capability (ADR 0130) |
-| [`2026-09-26-aliases-config/`](2026-09-26-aliases-config/README.md) | `/guest` and `/delegate` aliases — before/after |
-| [`2026-09-25-notification-routing/`](2026-09-25-notification-routing/README.md) | Settings › Notifications: the `notifications.routing` capability (ADR 0140 step 11a) |
-| [`2026-09-25-invoke-route/`](2026-09-25-invoke-route/README.md) | `/invoke/:kind`, the authenticator hand-off (ADR 0140 step 10) |
-| [`2026-09-25-device-route/`](2026-09-25-device-route/README.md) | `/device` — approve a device sign-in from its link (ADR 0140 step 7) |
-| [`2026-09-25-connect-connectors/`](2026-09-25-connect-connectors/README.md) | Connections: every connector configurable, with a proven user token (ADR 0147) |
-| [`2026-09-25-claim-route/`](2026-09-25-claim-route/README.md) | `/claim` and `/device` open before unlock (ADR 0140 step 8, §2, D2, D7) |
-| [`2026-09-25-approval-routes/`](2026-09-25-approval-routes/README.md) | `/i/:ref`, `/approve/:ref` and Access › Requests' hosted rows (ADR 0140 step 9) |
-| [`2026-09-25-account-factors/`](2026-09-25-account-factors/README.md) | Account factors in Settings › Security (ADR 0140 D10, plan step 11b) |
-| [`2026-09-24-travel-mode/`](2026-09-24-travel-mode/README.md) | Travel mode — visual evidence |
-| [`2026-09-24-tailnet-sync/`](2026-09-24-tailnet-sync/README.md) | Tailnet vault sync — a Settings › Vaults panel, and two devices in step |
-| [`2026-09-24-reviewer-findings/`](2026-09-24-reviewer-findings/README.md) | Reviewer findings fixed — before / after |
-| [`2026-09-24-join-a-session/`](2026-09-24-join-a-session/README.md) | Join a session, restored (ADR 0136) |
-| [`2026-09-24-capabilities-sections/`](2026-09-24-capabilities-sections/README.md) | Settings › Capabilities: one list, one style, honest defaults |
-| [`2026-09-24-bitwarden-oracle/`](2026-09-24-bitwarden-oracle/README.md) | Bitwarden parity: the official CLI as oracle (ADR 0141) |
-| [`2026-09-23-layout-smells/`](2026-09-23-layout-smells/README.md) | Layout smells — keys with a home, fields with a measure, a phone that can find its way |
-| [`2026-09-23-item-type-marketplace/`](2026-09-23-item-type-marketplace/README.md) | Visual evidence: item-type marketplaces and Settings as files |
-| [`2026-09-23-item-type-directories/`](2026-09-23-item-type-directories/README.md) | Visual evidence — one vault directory per item type |
-| [`2026-09-23-duress-code-digest/`](2026-09-23-duress-code-digest/README.md) | Duress trigger codes: no digest prefix — visual evidence |
-| [`2026-09-23-context-menus/`](2026-09-23-context-menus/README.md) | Context menus, hidden items and settings `config.yaml` |
-| [`2026-09-23-context-menu-input/`](2026-09-23-context-menu-input/README.md) | Context menus by keyboard and by touch |
-| [`2026-09-23-capability-features/`](2026-09-23-capability-features/README.md) | Settings › Capabilities — features, always-on, Allow guests |
-| [`2026-09-22-transport-status/`](2026-09-22-transport-status/README.md) | Settings › Security › Transport |
-| [`2026-09-22-item-types-panel/`](2026-09-22-item-types-panel/README.md) | Visual evidence — the Item types panel |
-| [`2026-09-22-guest-tomb-gate/`](2026-09-22-guest-tomb-gate/README.md) | The guest tomb keeps its gate |
-| [`2026-09-22-duress-passkey-code/`](2026-09-22-duress-passkey-code/README.md) | Visual evidence — duress passkey-then-code |
-| [`2026-09-22-capability-composition/`](2026-09-22-capability-composition/README.md) | Operator-controlled capability composition — before / after |
-| [`2026-09-22-browser-local-sops-visual/`](2026-09-22-browser-local-sops-visual/README.md) | Visual evidence — browser-local SOPS |
-| [`2026-09-22-browser-local-sops/`](2026-09-22-browser-local-sops/README.md) | Browser-local SOPS — evidence |
-| [`2026-09-21-sops-browser/`](2026-09-21-sops-browser/README.md) | Browser-local SOPS |
-| [`2026-09-21-duress/`](2026-09-21-duress/README.md) | Evidence — duress profiles (2026-09-21) |
-| [`2026-09-20-vault-key-protection/`](2026-09-20-vault-key-protection/README.md) | Vault key protection — evidence index |
-| [`2026-09-18-chrome-polish/`](2026-09-18-chrome-polish/README.md) | One field in the chrome, the strip back to keys, the door's corners apart |
-| [`2026-09-17-connections-catalog/`](2026-09-17-connections-catalog/README.md) | Connections catalog — Managed group and Vercel browse tiles |
-| [`2026-09-17-connect-github/`](2026-09-17-connect-github/README.md) | Connect GitHub without a Host — journey only |
-| [`2026-09-17-ambient-sso/`](2026-09-17-ambient-sso/README.md) | Evidence — ambient SSO |
-| [`2026-09-17-access-authority/`](2026-09-17-access-authority/README.md) | Access › Sessions — hierarchical local authority (GA-P-02 / GA-Q-03) |
-| [`2026-09-14-tablet-chrome/`](2026-09-14-tablet-chrome/README.md) | A finger above 900px |
-| [`2026-09-14-phone-chrome/`](2026-09-14-phone-chrome/README.md) | A phone draws no status bar, and no line that only repeats the nav |
-| [`2026-09-14-one-bar/`](2026-09-14-one-bar/README.md) | One bar of chrome on a phone, and one tomb path per pane |
-| [`2026-09-14-mobile-declutter/`](2026-09-14-mobile-declutter/README.md) | Decluttering the phone: the status strip and the vault filters |
-| [`2026-09-13-mobile-touch/`](2026-09-13-mobile-touch/README.md) | The phone layout and touch contract |
-| [`capability-composition/`](capability-composition/README.md) | Capability composition — verification evidence |
-| [`general-authority/`](general-authority/README.md) | General authority — verification evidence |
-| [`product-experience/`](product-experience/README.md) | Product experience — verification evidence |
-| [`wallet/`](wallet/README.md) | Wallet spending authority — verification evidence |

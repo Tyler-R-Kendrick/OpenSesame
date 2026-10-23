@@ -89,6 +89,12 @@ jobs:
           persist-credentials: false
           # The classifier diffs the pull request against its merge base.
           fetch-depth: 0
+      - name: Validate approved current evidence
+        run: node scripts/quality/evidence-gate.mjs
+      - name: Validate repository footprint and shared skills
+        run: |
+          node scripts/quality/repository-size-gate.mjs
+          node scripts/dev/sync-agent-skills.mjs --check
       - name: Verify merge-required commit signatures
         if: github.event_name == 'pull_request'
         env:

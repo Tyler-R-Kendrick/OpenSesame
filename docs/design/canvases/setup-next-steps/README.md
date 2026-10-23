@@ -86,7 +86,7 @@ be composed.
 
 The artboards are **generated**. `_style.css` holds the shared design system
 and `parts/<Name>.html` holds only what differs; `build.mjs` stamps the two
-together into each committed `<Name>.dc.html`.
+together into each ignored `<Name>.dc.html` build output.
 
 ```bash
 cd docs/design/canvases/setup-next-steps
@@ -104,3 +104,17 @@ may well be the browser's own model.
 
 The invite and device sheets, the board, and the link/access two-clock picker
 are not implemented.
+
+## Source-only storage
+
+Commit `parts/*.html`, the shared CSS, build script and canvas metadata. The
+`.dc.html` files in this directory are ignored build outputs; run `node build.mjs`
+before every seed or publish. Do not force-add generated artboards or seeded
+editor payloads. Keep alternate renders and review captures under ignored
+`work/` or temporary storage.
+
+For an editor round trip, extract the published canvas into temporary storage,
+review the changes, and reconcile markup into `parts/*.html` and shared styles
+into `_style.css` (icons into `icons.json` where present). Rebuild and compare
+the result before committing the source changes. An extracted generated file
+is never the only persisted copy of an accepted edit.

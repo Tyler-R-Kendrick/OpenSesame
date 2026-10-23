@@ -5,15 +5,27 @@
  * must not overwrite WAL-B10–B12 back to blocked.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import { initializeWalletVerification } from "./lib/claims.mjs";
+import {
+  EVIDENCE_REL,
+  readWalletClaims,
+  writeWalletEvidence,
+} from "./lib/evidence.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const claimsPath = join(root, "docs/evidence/wallet/claims.json");
-const outDir = join(root, "docs/evidence/wallet/adapters");
+initializeWalletVerification(root);
+const claimsPath = join(
+  root,
+  "work/evidence/wallet/wallet/cross-platform/claims.json",
+);
+const outDir = join(
+  root,
+  "work/evidence/wallet/wallet/cross-platform/adapters",
+);
 
 mkdirSync(outDir, { recursive: true });
 
@@ -54,7 +66,7 @@ writeFileSync(
   )}\n`,
 );
 
-const claims = JSON.parse(readFileSync(claimsPath, "utf8"));
+const claims = readWalletClaims(root);
 claims.claims = claims.claims ?? {};
 claims.adapters = claims.adapters ?? {};
 
@@ -65,7 +77,7 @@ for (const id of channelClaimIds) {
     reason: channelReason,
     productionEnabled: false,
     evidenceRefs: [
-      "docs/evidence/wallet/adapters/channel-blocked.json",
+      "work/evidence/wallet/wallet/cross-platform/adapters/channel-blocked.json",
       "pnpm wallet:evidence:blocked-adapters",
     ],
   };
@@ -83,7 +95,7 @@ for (const id of mandateClaimIds) {
       trust: "fixture-local",
       evidenceRefs: [
         "packages/wallet-mandates",
-        "docs/evidence/wallet/adapters/mandates-blocked.json",
+        "work/evidence/wallet/wallet/cross-platform/adapters/mandates-blocked.json",
       ],
     };
   }

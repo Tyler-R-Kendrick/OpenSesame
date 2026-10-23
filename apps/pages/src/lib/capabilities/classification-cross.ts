@@ -114,6 +114,7 @@ const CONNECTOR_RECORDS = [
   "connect-update",
   "connections",
   "connections-integrations",
+  "integration-ai-labs", // data shared by core Settings and optional Connections
   "connections-local-git",
   "model-api",
   "provider-category",

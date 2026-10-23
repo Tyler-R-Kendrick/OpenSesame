@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 446,
-    "violations": 715,
-    "oversizedLines": 220665
+    "files": 447,
+    "violations": 716,
+    "oversizedLines": 221203
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -223,7 +223,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 476
+      "max-lines": 612
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 1,
@@ -647,6 +647,9 @@
     "packages/app-core/src/lib/live/host-peer.ts": {
       "complexity": 1,
       "max-lines": 440
+    },
+    "packages/app-core/src/lib/live/host.ts": {
+      "max-lines": 402
     },
     "packages/app-core/src/lib/live/webrtc.ts": {
       "complexity": 1

@@ -7,10 +7,12 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 const suite = process.argv[2];
 
 const KNOWN = new Set(["contracts", "protocols", "browser", "security"]);

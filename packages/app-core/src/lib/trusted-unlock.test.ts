@@ -120,6 +120,37 @@ describe("trusted-contact unlock policy", () => {
     expect(vaultStore.getSnapshot().trustedUnlock).toBeNull();
   });
 
+  it("rejects malformed policy files before a trusted-contact unlock can start", async () => {
+    const policy = {
+      version: 1,
+      name: "Family",
+      threshold: 1,
+      memberIds: IDS,
+      createdAt: new Date().toISOString(),
+    };
+    for (const invalid of [
+      null,
+      [],
+      { ...policy, version: 2 },
+      { ...policy, name: " Family " },
+      { ...policy, threshold: "1" },
+      { ...policy, threshold: 1.5 },
+      { ...policy, threshold: 0 },
+      { ...policy, threshold: 3 },
+      { ...policy, memberIds: [null] },
+      { ...policy, memberIds: ["remote-person"] },
+      { ...policy, memberIds: [IDS[0], IDS[0]] },
+      { ...policy, createdAt: null },
+    ]) {
+      await writeFile(
+        "personal",
+        "config/trusted-unlock",
+        new TextEncoder().encode(JSON.stringify(invalid)),
+      );
+      await expect(readTrustedUnlock("personal")).rejects.toThrow(/policy/i);
+    }
+  });
+
   it("refuses a policy whose people have no passkey", async () => {
     const third = `local_${crypto.randomUUID()}`;
     await expect(

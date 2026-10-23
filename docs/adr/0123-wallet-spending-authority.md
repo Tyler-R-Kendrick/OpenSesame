@@ -19,8 +19,8 @@ ADR 0121 ([durable authority invalidation fencing](0121-durable-authority-invali
 **Implementation is in progress on a dirty tree at baseline `4358f7fe`.**
 This ADR records binding product decisions for the Wallet spending programme.
 No protocol profile may be marked `local_execution_verified` or
-`productionEnabled: true` without command-backed evidence under
-`docs/evidence/wallet/`. Compatibility rows start `productionEnabled: false`.
+`productionEnabled: true` without command-backed evidence in temporary
+`work/evidence/wallet/wallet/cross-platform/`. Compatibility rows start `productionEnabled: false`.
 
 ## Context
 
@@ -181,7 +181,7 @@ boundary, not claimed as governed.
   the threat model rather than papered over.
 - No test, build, or protocol execution evidence is claimed by this ADR alone.
   Compatibility and claim matrices stay honest until swarms land command
-  output under `docs/evidence/wallet/`.
+  output in ignored `work/evidence/wallet/wallet/cross-platform/`.
 
 ## Related
 
@@ -190,3 +190,6 @@ boundary, not claimed as governed.
 - [wallet protocol compatibility](../reference/wallet-protocol-compatibility.md)
 - [wallet swarm coordination](../archive/wallet-swarm-coordination.md)
 - [wallet interaction layer](../architecture/wallet-interaction-layer.md)
+
+Current run output is temporary. Persist only approved current-state artifacts
+under the [evidence persistence contract](../evidence/README.md).

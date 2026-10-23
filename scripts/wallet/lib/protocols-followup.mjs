@@ -3,8 +3,9 @@
  * AP2/UCP fixture tests, and honest claims.json bumps.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { readWalletClaims } from "./evidence.mjs";
 
 /**
  * @typedef {(cmd: string, args: string[], cwd: string, extraEnv?: Record<string, string>) => {
@@ -101,8 +102,11 @@ export function runMandates(run, root) {
  * }} input
  */
 export function bumpProtocolClaims(input) {
-  const claimsPath = join(input.root, "docs/evidence/wallet/claims.json");
-  const claims = JSON.parse(readFileSync(claimsPath, "utf8"));
+  const claimsPath = join(
+    input.root,
+    "work/evidence/wallet/wallet/cross-platform/claims.json",
+  );
+  const claims = readWalletClaims(input.root);
   claims.claims = claims.claims ?? {};
   claims.adapters = claims.adapters ?? {};
   if (input.ok) bumpX402(claims, input.evidenceRel);

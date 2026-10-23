@@ -1,7 +1,7 @@
 # Wallet protocol compatibility
 
 Companion to [ADR 0123](../adr/0123-wallet-spending-authority.md).
-Evidence rule: command output under `docs/evidence/wallet/`.
+Evidence rule: command output under `work/evidence/wallet/wallet/cross-platform/`.
 
 Every profile has `productionEnabled: false`. Local Anvil/forge is not a
 target deployment. Fixture issuer keys are not public merchant trust.
@@ -53,7 +53,7 @@ fixture-local; this is not public merchant acceptance.
 | Unlimited ERC-20 / Permit2 approvals as spending pass | refused | Out of scope; escape hatch for enforcers |
 | Calendar-day mapped to 86400 seconds | `PERIOD_SEMANTICS_UNSUPPORTED` | Duration ≠ calendar |
 | Worker as origin isolation for root keys | refused | Same-origin; workers are not a trust boundary |
-| Claiming `productionEnabled` from this table alone | refused | Requires `docs/evidence/wallet/` command output |
+| Claiming `productionEnabled` from this table alone | refused | Requires `work/evidence/wallet/wallet/cross-platform/` command output |
 
 ## Current execution evidence
 

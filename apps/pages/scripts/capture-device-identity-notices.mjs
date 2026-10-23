@@ -1,12 +1,12 @@
 // Capture the two bell notices the device identity key raises (ADR 0160 §5a),
 // from a real build, for the before/after sheets under
-// docs/evidence/2026-10-04-device-identity-carry/.
+// work/evidence/device-identity/pages/browser/.
 //
 //   EVIDENCE_DIST=<base worktree>/apps/pages/dist \
 //     node apps/pages/scripts/capture-device-identity-notices.mjs before
 //   node apps/pages/scripts/capture-device-identity-notices.mjs after
 //   node apps/pages/scripts/capture-evidence.mjs compose \
-//     docs/evidence/2026-10-04-device-identity-carry/journey.json
+//     work/evidence/device-identity/pages/browser/journey.json
 //
 // The flow is two devices, each its own browser context with its own storage
 // and vault, passing one file. It is the app's own path: the Export key makes
@@ -30,9 +30,9 @@ import {
   hostCall,
   mintInit,
 } from "./lib/device-identity-scenarios.mjs";
+import { captureShotsDirectory } from "./lib/evidence-paths.mjs";
 import { passTheDoor } from "./lib/front-door.mjs";
 import { PIN, sealLocalOnly } from "./lib/pages-journey.mjs";
-import { privateSharedTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const side = process.argv[2];
@@ -46,8 +46,13 @@ const ORIGIN = "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 // The directory `capture-evidence.mjs compose` reads for this journey file.
 const OUT = path.join(
-  privateSharedTempDir("opensesame-evidence"),
-  "journey",
+  captureShotsDirectory(
+    process.env.EVIDENCE_JOURNEY ??
+      new URL(
+        "../../../work/evidence/device-identity/pages/browser/journey.json",
+        import.meta.url,
+      ),
+  ),
   side,
 );
 fs.rmSync(OUT, { recursive: true, force: true });

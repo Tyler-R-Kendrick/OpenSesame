@@ -26,6 +26,7 @@ import {
   type VaultShare,
   VaultShareProvider,
 } from "../../components/vault-share-seat.js";
+import { LiveSessionBanner } from "./LiveSessionBanner.js";
 import { LiveShareButton } from "./LiveShareButton.js";
 import { LiveSharePanel, useVaultName } from "./LiveSharePanel.js";
 

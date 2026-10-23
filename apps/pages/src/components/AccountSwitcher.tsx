@@ -40,7 +40,13 @@ import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AddOrganization } from "./AddOrganization.js";
 import { GlyphMark } from "./GlyphMark.js";
-import { IconCheck, IconChevronDown, IconPlus, IconUser } from "./Icons.js";
+import {
+  IconCheck,
+  IconChevronDown,
+  IconPlus,
+  IconSettings,
+  IconUser,
+} from "./Icons.js";
 import { PromptGlyph } from "./PromptGlyph.js";
 import { openContextMenu } from "./context-menu/menu-model.js";
 import { glyphStandsForName } from "./prompt-glyph.js";
@@ -59,18 +65,35 @@ function guestLabel(hasSession: boolean, assurance?: string): string {
 
 export type AccountSwitcherProps = { glyphHost?: HTMLElement | null };
 
+function useUserSettingsAction(onClose: () => void) {
+  const navigate = useNavigate();
+  return () => {
+    onClose();
+    navigate("/settings/user");
+  };
+}
+
+function UserSettingsEntry({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button type="button" className="account-switcher__exit" onClick={onOpen}>
+      <IconSettings size={14} />
+      User Settings
+    </button>
+  );
+}
+
 function AccountSwitcherDefault({ glyphHost }: AccountSwitcherProps = {}) {
   const session = useIdentitySession();
   const account = useAccount();
   const vault = useVault();
   const [localName, setLocalName] = useState<string | null>(null);
-  const navigate = useNavigate();
   const segRef = useGuideTarget<HTMLButtonElement>("shell.account");
   const activeId = useSyncExternalStore(
     subscribeOrgProfile,
     activeOrgProfileId,
   );
   const [open, setOpen] = useState(false);
+  const openUserSettings = useUserSettingsAction(() => setOpen(false));
   const [memberships, setMemberships] = useState<OrgMembership[]>([]);
 
   useEffect(() => {
@@ -200,10 +223,7 @@ function AccountSwitcherDefault({ glyphHost }: AccountSwitcherProps = {}) {
               {
                 id: "user-settings",
                 label: "User Settings",
-                run: () => {
-                  setOpen(false);
-                  navigate("/settings/user");
-                },
+                run: openUserSettings,
               },
             ],
           ]);
@@ -278,6 +298,7 @@ function AccountSwitcherDefault({ glyphHost }: AccountSwitcherProps = {}) {
             {/* The roads out. Each one lands on the unlock screen's Sign in
                 tab, which says what just happened. */}
             <div className="account-switcher__exits">
+              <UserSettingsEntry onOpen={openUserSettings} />
               {account && !account.guest ? (
                 <button
                   type="button"

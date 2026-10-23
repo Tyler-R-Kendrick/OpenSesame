@@ -12,6 +12,10 @@ unset NODE_OPTIONS
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+node scripts/quality/evidence-gate.mjs --staged
+node scripts/quality/repository-size-gate.mjs --staged
+node scripts/dev/sync-agent-skills.mjs --check
+
 staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
 
 if [ -z "$staged_files" ]; then

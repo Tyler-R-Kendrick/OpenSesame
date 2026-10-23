@@ -29,7 +29,7 @@ index page with one line per document.
 | [design/](design/README.md) | Interface design: the control vocabulary, screens, and design canvases for major flows. | Explanation |
 | [security/](security/README.md) | Threat models, trust boundaries, the key hierarchy, and the dated [audit log](security/audits/README.md). | Reference |
 | [validation/](validation/README.md) | Test strategy, coverage, quality gates, and the evidence each feature shipped with. | Reference |
-| [evidence/](evidence/README.md) | Before/after screenshots for every user-visible change, one directory per change. | Record |
+| [evidence/](evidence/README.md) | Approved current-state evidence in feature/project/platform slots; Git history preserves prior states. | Record |
 | [implementation/](implementation/README.md) | Working plans and baselines for multi-part features still being built out. | Record |
 | [research/](research/README.md) | Ecosystem research and [competitor notes](research/competitors/index.md). | Explanation |
 | [contributing/](contributing/README.md) | How work gets done here: gates, automation routines, team runbooks. | How-to |
@@ -69,8 +69,11 @@ A few words carry specific meaning everywhere in these documents.
   with one line. The ADR, audit and evidence indexes are generated: run
   `pnpm docs:index`.
 - **Link relatively**, so links work on GitHub and in a checkout alike.
-- **Decisions go in ADRs**, dated audits in `security/audits/`, screenshots in
-  `evidence/<yyyy-mm-dd>-<topic>/`. None of the three is edited after the fact
-  except to mark a decision superseded.
+- **Decisions go in ADRs**, dated audits in `security/audits/`. Persist only
+  approved current-state artifacts in `evidence/<feature>/<project>/<platform>/`,
+  replacing the impacted slot and removing superseded assets. Comparisons, raw
+  recordings and drafts stay in ignored `work/evidence/` or temp. Preserve prior
+  evidence through Git history and commit-SHA links; follow the
+  [persistence contract](evidence/README.md).
 - **Plans that are done move to `archive/`**, with a line in its index saying
   what replaced them.

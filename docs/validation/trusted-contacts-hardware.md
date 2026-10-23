@@ -84,8 +84,11 @@ for every cell. **Nothing in this table has been run.** An empty cell means
 
 When a pair fails, keep the browser's own error (name and message), the
 authenticator and firmware, and whether `prf.enabled` came back at `create()`.
-File the result under `docs/evidence/<date>-trusted-contacts-hardware/` and link
-it here. A pair that cannot do PRF is not a defect in the circle: it is a key
+File the result in ignored `work/evidence/trusted-contacts/pages/hardware/`.
+After review, promote only approved current-state artifacts to
+`docs/evidence/trusted-contacts/pages/hardware/`, with source and approval
+provenance under [the persistence contract](../evidence/README.md), and link
+the approved gallery here by commit SHA. A pair that cannot do PRF is not a defect in the circle: it is a key
 that belongs in an approvals-only circle, and the owner's screen says so.
 
 ## Reading the result

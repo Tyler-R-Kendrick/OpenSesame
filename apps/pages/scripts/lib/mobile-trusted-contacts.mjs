@@ -6,10 +6,10 @@
  *
  * Guest, decoy and locked vaults draw no panel, so the walk seals a vault with
  * a PIN first (the door's no-account road), chooses the capability the way a
- * person does, and then opens the tab. Nothing here makes a circle: a circle
- * needs other people's packets. What a phone has to hold is the empty tab, the
- * one owner sheet, and the new-circle sheet's second step (an invitation and
- * its QR code).
+ * person does, and then opens the tab. Nothing here saves a circle: people
+ * first need enrolled passkeys in Identity. What a phone has to hold is the
+ * local-circle form, including its name, people and disabled save key when
+ * no enrolled people have been selected.
  */
 import { chooseCapabilitiesHere } from "./mobile-capabilities.mjs";
 import { sealWithPin } from "./mobile-protector-unlock.mjs";
@@ -69,19 +69,38 @@ async function auditSheet(page, name, label, { harness, audit, stop }) {
   return true;
 }
 
-/** The new-circle sheet's next step: a name, then the invitation to hand on. */
-async function invitationStep(page, run) {
+/** The local unlock circle: a name and enrolled people, never copied packets. */
+async function circleForm(page, run) {
   const { harness, audit, stop } = run;
-  const name = page.getByLabel("Name", { exact: true });
+  const form = page.getByRole("form", { name: "Trusted contacts circle" });
+  await form.waitFor();
+  const name = form.getByLabel("Name", { exact: true });
   await name.fill("Family");
-  await page.getByRole("button", { name: "Make the invitation" }).tap();
-  await page.waitForTimeout(900);
-  const copy = page.getByRole("button", { name: "Copy invitation" });
   harness.check(
-    (await copy.count()) === 1,
-    `${stop("trusted-contacts-invitation")}: the invitation can be copied`,
+    (await name.inputValue()) === "Family",
+    `${stop("trusted-contacts-form")}: the circle name can be entered`,
   );
-  await audit(page, stop("trusted-contacts-invitation"));
+  harness.check(
+    (await form.getByRole("group", { name: "People", exact: true }).count()) ===
+      1,
+    `${stop("trusted-contacts-form")}: the circle's people are grouped and named`,
+  );
+  harness.check(
+    (await form
+      .getByRole("img", {
+        name: "Add a person with a passkey in Identity first.",
+        exact: true,
+      })
+      .count()) === 1,
+    `${stop("trusted-contacts-form")}: an empty directory explains how to enroll people`,
+  );
+  harness.check(
+    await form
+      .getByRole("button", { name: "Save the circle", exact: true })
+      .isDisabled(),
+    `${stop("trusted-contacts-form")}: a circle cannot be saved without people`,
+  );
+  await audit(page, stop("trusted-contacts-form"));
 }
 
 export async function trustedContactsStops(
@@ -100,7 +119,7 @@ export async function trustedContactsStops(
   for (const [name, label] of KEYS) {
     if (!(await auditSheet(page, name, `trusted-contacts-${label}`, run)))
       continue;
-    if (label === "circle") await invitationStep(page, run);
+    if (label === "circle") await circleForm(page, run);
     await closeSheet(page);
   }
 }

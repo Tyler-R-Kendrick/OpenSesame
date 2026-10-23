@@ -33,10 +33,8 @@ async function openSecurity(page, openTab) {
   const security = page
     .getByRole("link", { name: "Security", exact: true })
     .first();
-  if (await security.count()) {
-    await security.tap();
-    await page.waitForTimeout(900);
-  }
+  await security.waitFor({ state: "visible", timeout: 15000 });
+  await security.tap();
 }
 
 export async function protectorUnlockStops(
@@ -46,8 +44,12 @@ export async function protectorUnlockStops(
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);
   await openSecurity(page, openTab);
+  harness.setStep(stop("unlock-protectors"));
   const add = page.getByRole("button", { name: "Add key protection method" });
-  if ((await add.count()) === 0) {
+  await add
+    .waitFor({ state: "visible", timeout: 15000 })
+    .catch(() => undefined);
+  if (!(await add.isVisible().catch(() => false))) {
     harness.check(false, `${stop("unlock-protectors")}: Add is not reachable`);
     return;
   }

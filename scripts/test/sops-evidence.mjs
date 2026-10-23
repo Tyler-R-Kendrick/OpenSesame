@@ -9,12 +9,13 @@
  * reported as `not-run`, and the exit code is non-zero so a missing gate
  * cannot be mistaken for a pass.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const dir = join(root, "docs/evidence/2026-09-22-browser-local-sops");
+const dir = join(root, "work/evidence/sops/pages/browser");
+mkdirSync(dir, { recursive: true });
 
 const SOURCES = [
   ["browser-results.json", "pnpm verify:sops-browser"],

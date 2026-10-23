@@ -78,6 +78,12 @@
   text-decoration: none;
 }
 
+@media (pointer: coarse), (max-width: 900px) {
+  .capsection__titlelink {
+    min-height: 2.75rem;
+  }
+}
+
 .capsection__titlelink:hover .capsection__title {
   text-decoration: underline;
   text-underline-offset: 2px;

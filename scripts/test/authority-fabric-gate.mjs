@@ -4,7 +4,7 @@
  *
  * Reads the tree, resolves every scenario in the registry against what is
  * actually wired, runs the tests that exist, and writes the report under
- * docs/evidence/general-authority/. A scenario the harness cannot settle is
+ * work/evidence/general-authority/authority/cross-platform/. A scenario the harness cannot settle is
  * reported blocked and fails the gate; nothing here can produce a pass without
  * a named test having run.
  *
@@ -43,7 +43,10 @@ import {
 } from "../lib/authority-fabric.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const evidenceDir = join(root, "docs", "evidence", "general-authority");
+const evidenceDir = join(
+  root,
+  "work/evidence/general-authority/authority/cross-platform",
+);
 const reportOnly = process.argv.includes("--report");
 const noRun = process.argv.includes("--no-run");
 

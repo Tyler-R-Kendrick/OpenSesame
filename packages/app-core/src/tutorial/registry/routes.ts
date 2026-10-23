@@ -51,6 +51,11 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
     title: "Trash — the items that were moved out of the list",
   },
   { id: "/settings", title: "Settings — this deployment's preferences" },
+  { id: "/settings/features/ai", title: "Settings — AI models" },
+  {
+    id: "/settings/features/local-notifications",
+    title: "Settings — Local notifications",
+  },
   {
     id: "/settings/features/networking",
     title: "Settings — Networking",

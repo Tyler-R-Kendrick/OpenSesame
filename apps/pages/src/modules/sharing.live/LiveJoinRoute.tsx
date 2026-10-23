@@ -25,6 +25,7 @@ import { leaveLive } from "@opensesame/app-core/lib/live/session.js";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { IconChevronLeft, IconX } from "../../components/Icons.js";
+import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { useLandOnChange } from "./live-focus.js";
 import { clearJoinDraft, joinDraft, useLiveGuest } from "./live-hooks.js";
 import {
@@ -32,6 +33,7 @@ import {
   LiveJoinSession,
   liveJoinLandingFor,
 } from "./live-join-route-parts.js";
+import { revealClear } from "./live-reveal.js";
 import "./live.css";
 
 export function LiveJoinRoute() {
@@ -63,6 +65,15 @@ export function LiveJoinRoute() {
   useLandOnChange(guest ? (status?.at ?? "starting") : "ask", () =>
     liveJoinLandingFor(root.current, guest ? status?.at : "ask"),
   );
+  useEffect(() => {
+    // Creating the joiner's vault can remount this route after the request
+    // already exists. That arrival has no phase change for useLandOnChange.
+    if (!guest || status?.at !== "request") return;
+    const fallback = document.getElementById("main");
+    if (!keyboardIsIdle() && document.activeElement !== fallback) return;
+    const target = liveJoinLandingFor(root.current, "request");
+    if (landFocus(target) && target) revealClear(target);
+  }, [guest, status?.at]);
 
   return (
     <div className="section__inner live-join" ref={root}>
