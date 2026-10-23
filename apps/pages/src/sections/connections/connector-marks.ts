@@ -2,9 +2,9 @@
  * Brand marks for connector tiles and rows.
  *
  * Official logomarks come from the simple-icons catalog (CC0; each icon is a
- * single 24×24 path in the brand's official color). Providers whose marks are
- * not distributable (AWS, Azure) or not in the catalog fall back to a neutral
- * monogram — no fake branding.
+ * single 24×24 path in the brand's official color). AWS and Azure publish
+ * wordmarks that simple-icons no longer carries, so those render as their
+ * official wordmarks; any other missing mark falls back to a neutral monogram.
  *
  * Marks whose official color would vanish on one of the two themes (GitHub's
  * near-black, Vercel's black) render in the app ink color instead, which is
@@ -35,6 +35,7 @@ import {
   siGnuprivacyguard,
   siGoogle,
   siGooglecloud,
+  siGoogledrive,
   siGooglegemini,
   siHubspot,
   siHuggingface,
@@ -43,6 +44,7 @@ import {
   siMistralai,
   siNetlify,
   siNgrok,
+  siObsidian,
   siOpenai,
   siPagerduty,
   siPerplexity,
@@ -65,6 +67,8 @@ export type ConnectorMarkDef = {
   path: string;
   /** Brand hex like "5E6AD2", or null to render in the app ink color. */
   hex: string | null;
+  /** A brand wordmark used when the vendor's mark is a word rather than a glyph. */
+  wordmark?: string;
 };
 
 /** Below this relative luminance the brand color is unreadable on the dark
@@ -96,6 +100,10 @@ const MARKS = {
   bitbucket: markOf(siBitbucket),
   codeberg: markOf(siCodeberg),
   google: markOf(siGoogle),
+  "google-drive": markOf(siGoogledrive),
+  "google-wallet": markOf(siGoogle),
+  "google-vertex": markOf(siGooglecloud),
+  "google-cloud": markOf(siGooglecloud),
   slack: markOf(siSlack),
   linear: markOf(siLinear),
   hubspot: markOf(siHubspot),
@@ -131,6 +139,19 @@ const MARKS = {
   "1password": markOf(si1password),
   gcp: markOf(siGooglecloud),
   "gcp-kms": markOf(siGooglecloud),
+  "gcp-iam": markOf(siGooglecloud),
+  azure: { path: "", hex: "#0078D4", wordmark: "Azure" },
+  aws: { path: "", hex: "#FF9900", wordmark: "aws" },
+  "aws-kms": { path: "", hex: "#FF9900", wordmark: "aws" },
+  "aws-ps": { path: "", hex: "#FF9900", wordmark: "aws" },
+  "aws-sts": { path: "", hex: "#FF9900", wordmark: "aws" },
+  "aws-bedrock": { path: "", hex: "#FF9900", wordmark: "aws" },
+  "amazon-nova": { path: "", hex: "#FF9900", wordmark: "aws" },
+  "vercel-ai-gateway": markOf(siVercel),
+  "cloudflare-origin-ca": markOf(siCloudflare),
+  "cloudflare-ai-gateway": markOf(siCloudflare),
+  "cloudflare-workers-ai": markOf(siCloudflare),
+  obsidian: markOf(siObsidian),
   bitwarden: markOf(siBitwarden),
   "bitwarden-sm": markOf(siBitwarden),
   vaultwarden: markOf(siVaultwarden),
@@ -164,6 +185,9 @@ export const MICROSOFT_PROVIDER_IDS = new Set([
   "azure-sm",
   "azure-ac",
   "azure-openai",
+  "azure-access-token",
+  "m365",
+  "microsoft-teams",
 ]);
 
 export function monogram(displayName: string): string {

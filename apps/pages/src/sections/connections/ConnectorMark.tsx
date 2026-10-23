@@ -20,9 +20,12 @@ const MICROSOFT_PROVIDER_IDS = new Set([
   "azure-sm",
   "azure-ac",
   "azure-openai",
+  "azure-access-token",
+  "m365",
+  "microsoft-teams",
 ]);
 
-type MarkPath = { path: string; hex: string | null };
+type MarkPath = { path: string; hex: string | null; wordmark?: string };
 
 type ConnectorMarkLookup = {
   find: (providerId: string) => MarkPath | null;
@@ -74,6 +77,17 @@ export function ConnectorMark({
   }
 
   const mark = connectorMarkLookup.find(providerId);
+  if (mark?.wordmark) {
+    return (
+      <span
+        className="conn-mark conn-mark--wordmark"
+        style={{ width: size, height: size, color: mark.hex ?? "currentColor" }}
+        aria-hidden="true"
+      >
+        {mark.wordmark}
+      </span>
+    );
+  }
   if (!mark) {
     return (
       <span

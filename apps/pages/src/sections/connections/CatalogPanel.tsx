@@ -198,7 +198,14 @@ function FamilyTile({
         <ul className="conn-family__apis">
           {members.map((member) => (
             <li key={member.id}>
-              <Link to={connectorPath(member.id)}>{member.displayName}</Link>
+              <Link to={connectorPath(member.id)}>
+                <ConnectorMark
+                  providerId={member.id}
+                  displayName={member.displayName}
+                  size={20}
+                />
+                <span>{member.displayName}</span>
+              </Link>
             </li>
           ))}
         </ul>
