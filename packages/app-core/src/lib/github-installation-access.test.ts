@@ -170,6 +170,53 @@ it("revoking the grant in Access removes the share and the card does not re-issu
   expect(hostFetch).not.toHaveBeenCalled();
 });
 
+it("withdraws a grant written after the caller stopped waiting", async () => {
+  const fixture = await localRequestFixture();
+  let checks = 0;
+  const shares = await ensureGithubAccessGrant(
+    fixture.tomb,
+    baseConnection,
+    () => {
+      checks += 1;
+      return checks <= 2;
+    },
+  );
+  expect(checks).toBe(3);
+  expect(shares).toEqual([]);
+  expect(await listLocalShares(fixture.tomb)).toEqual([]);
+});
+
+it("a concurrent revocation is not undone by a stale ensure call", async () => {
+  const fixture = await localRequestFixture();
+  const [share] = await ensureGithubAccessGrant(fixture.tomb, baseConnection);
+  if (!share) throw new Error("expected a GitHub share");
+  await revokeLocalShare(fixture.tomb, share.id);
+
+  // The card may call ensure from a snapshot read before the revocation
+  // landed; the write path re-checks the trail and leaves the decision alone.
+  const shares = await ensureGithubAccessGrant(fixture.tomb, baseConnection);
+  expect(shares).toEqual([]);
+  const after = await loadGithubInstallationSnapshot(
+    fixture.tomb,
+    baseConnection,
+  );
+  expect(after.auditEvents.map((event) => event.eventType).sort()).toEqual([
+    "access.connection.granted",
+    "access.connection.revoked",
+  ]);
+});
+
+it("does not write a grant after the caller withdraws interest", async () => {
+  const fixture = await localRequestFixture();
+  const shares = await ensureGithubAccessGrant(
+    fixture.tomb,
+    baseConnection,
+    () => false,
+  );
+  expect(shares).toEqual([]);
+  expect(await listLocalShares(fixture.tomb)).toEqual([]);
+});
+
 it("an unreadable trail is answered as revoked: the card does not issue the grant", async () => {
   const fixture = await localRequestFixture();
   await writeFile(

@@ -6,6 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LiveGuest } from "./guest.js";
+import { MAX_SEAT_IN_FLIGHT } from "./host-peer.js";
 import {
   type Admission,
   LiveHost,
@@ -45,12 +46,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function open(admission: Admission, net = new FakeNet()) {
+async function open(
+  admission: Admission,
+  net = new FakeNet(),
+  readField: () => Promise<string | null> = async () => SECRET_VALUE,
+) {
   const host = await LiveHost.start({
     admission,
     expiresAt: Date.now() + 8 * 60 * 60_000,
     catalog: () => catalog,
-    readField: async () => SECRET_VALUE,
+    readField,
     transport: net.transport(),
   });
   hosts.push(host);
@@ -295,6 +300,34 @@ describe("a seat does not wait for ever", () => {
     host.refuse(turnedKey);
     expect(host.state.guests).toEqual([]);
     expect(host.state.status).toBe("live");
+  });
+
+  it("caps one seat's concurrent vault reads", async () => {
+    let active = 0;
+    let peak = 0;
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { net, host } = await open("open", new FakeNet(), async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await gate;
+      active -= 1;
+      return SECRET_VALUE;
+    });
+    const ada = joiner(net, host, host.code);
+    await join(net, host, ada);
+    const asks = Array.from({ length: MAX_SEAT_IN_FLIGHT * 3 }, () =>
+      ada.request("reveal", "item-1", "password"),
+    );
+    await settle();
+    expect(peak).toBeLessThanOrEqual(MAX_SEAT_IN_FLIGHT);
+    release();
+    const values = await Promise.all(asks);
+    expect(values.filter((value) => value === SECRET_VALUE)).toHaveLength(
+      MAX_SEAT_IN_FLIGHT,
+    );
   });
 
   it("ending the session stops every seat's clock", async () => {

@@ -4,9 +4,12 @@ import {
   saveConfiguredNativeSaml,
 } from "../browser/identity-saml-dispatch.js";
 /** One configurable identity road, composed by partner presets and the BYO surface. */
+import { env } from "../host.js";
+import { pageOrigin } from "../ports.js";
 import type { Connection } from "./connections.js";
 import { deviceConnection } from "./device-connectors.js";
 import { remoteIdentityApi } from "./device-identity.js";
+import { assertSafeReturnTo } from "./federation-callback.js";
 import {
   beginSignIn,
   clearSession,
@@ -241,6 +244,11 @@ export async function beginIdentityConnectionSignIn(
   connectionId: string,
   options: IdentityConnectionSignInOptions = {},
 ): Promise<void> {
+  const returnTo = options.returnTo
+    ? assertSafeReturnTo(options.returnTo, pageOrigin(), env().BASE_URL || "/")
+    : undefined;
+  if (options.returnTo && !returnTo)
+    throw new Error("That return address is not part of this app.");
   if (
     signInMethods().providers.some(
       (provider) =>
@@ -264,7 +272,7 @@ export async function beginIdentityConnectionSignIn(
     return beginSignIn(operatorUpstream(provider), {
       providerHint: `org:${draft.organizationSlug}`,
       prompt: "login",
-      returnTo: options.returnTo || undefined,
+      returnTo,
     });
   }
   if (draft.protocol === "better-auth" || draft.protocol === "supabase") {
@@ -283,7 +291,7 @@ export async function beginIdentityConnectionSignIn(
     throw new Error("This identity connection is not enabled for sign-in");
   return beginSignIn(operatorUpstream(provider), {
     scope: draft.scope,
-    returnTo: options.returnTo || undefined,
+    returnTo,
   });
 }
 

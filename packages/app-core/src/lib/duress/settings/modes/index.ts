@@ -1,6 +1,7 @@
 import { DECOY_ITEMS } from "./decoy-items.js";
 import { DECOY } from "./decoy.js";
 import { FREEZE } from "./freeze.js";
+import { HONEY_VAULT } from "./honey-vault.js";
 import type { DuressMode } from "./mode.js";
 import { VISIBLE_ITEMS } from "./visible-items.js";
 import { WIPE } from "./wipe.js";
@@ -34,6 +35,7 @@ export const MODES = [
   DECOY,
   VISIBLE_ITEMS,
   DECOY_ITEMS,
+  HONEY_VAULT,
   WRONG_PASSWORD,
   FREEZE,
   WIPE,

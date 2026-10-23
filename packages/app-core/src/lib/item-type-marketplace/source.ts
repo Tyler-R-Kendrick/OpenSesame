@@ -13,6 +13,8 @@
  * host of its choosing.
  */
 
+import { targetAddressSpaceFor } from "../local-network-fetch.js";
+
 export type MarketplaceForge = "github" | "gitlab" | "gitea" | "bitbucket";
 
 export type ForgeSource = {
@@ -111,6 +113,9 @@ function forgeSource(
   if (repo === null || cleanedRef === undefined || cleanedRoot === undefined)
     return null;
   if (!HOST.test(host)) return null;
+  // A forge reference is untrusted input too: `gitlab+https://10.0.0.5/…`
+  // must not turn the PWA into a probe of loopback or private networks.
+  if (targetAddressSpaceFor(`https://${host}/`) !== undefined) return null;
   // Their raw routes live on the public service's own hosts, so a GitHub or
   // Bitbucket source anywhere else would be read from the same-named
   // repository on the public site. A self-hosted instance is listed by the
@@ -177,6 +182,9 @@ function guessForge(host: string): MarketplaceForge | undefined {
 
 function rawSource(url: URL): RawSource | null {
   if (url.search !== "" || url.hash !== "") return null;
+  // A marketplace reference is untrusted input; a raw source must not turn
+  // the PWA into a probe for loopback, link-local or private-network hosts.
+  if (targetAddressSpaceFor(url.href) !== undefined) return null;
   const base = url.href.slice(0, -INDEX_PATH.length);
   return { forge: "raw", base };
 }
@@ -299,6 +307,8 @@ export function rawFileUrl(
   path: string,
   ref: string | null = source.forge === "raw" ? null : source.ref,
 ): string {
+  if (!isSafeRelativePath(path, 512))
+    throw new Error("marketplace path is not a safe relative path");
   if (source.forge === "raw") return `${source.base}${encodePath(path)}`;
   const full = source.root === "" ? path : `${source.root}/${path}`;
   const repo = source.repo;

@@ -18,6 +18,7 @@ import {
   describeErrors,
   parseDefinition,
 } from "@opensesame/vault-item-types";
+import { targetAddressSpaceFor } from "../local-network-fetch.js";
 import {
   type IndexedType,
   MAX_INDEX_BYTES,
@@ -91,6 +92,11 @@ async function readCapped(response: Response, max: number): Promise<string> {
 
 /** One anonymous GET, capped, timed, and never redirected. */
 export async function fetchText(url: string, max: number): Promise<string> {
+  if (targetAddressSpaceFor(url) !== undefined)
+    throw new MarketplaceError(
+      "unanswered",
+      "The repository addresses a private or loopback host.",
+    );
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {

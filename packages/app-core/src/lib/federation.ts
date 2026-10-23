@@ -11,10 +11,13 @@ import {
   sha256Base64Url,
 } from "@opensesame/sdk-browser";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
-import { page } from "../ports.js";
+import { page, pageOrigin } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
-import { parseAuthCallback } from "./federation-callback.js";
+import {
+  assertSafeReturnTo,
+  parseAuthCallback,
+} from "./federation-callback.js";
 import {
   applyConfiguredIdentityNonce,
   configuredIdentityNonce,
@@ -22,13 +25,15 @@ import {
   verifyConfiguredIdentityToken,
 } from "./federation-configured-token.js";
 import { FederationError } from "./federation-error.js";
-import { isOperatorIdpIssuer } from "./federation-operator.js";
 import {
+  type FederationSessionGeneration,
   type UpstreamIdentity,
   advanceFederationSessionGeneration,
   upstreamIdentityDisplayName as displayNameDefault,
+  federationSessionGeneration,
   readNativeFederationSession,
 } from "./federation-native-session.js";
+import { isOperatorIdpIssuer } from "./federation-operator.js";
 import {
   originCallbackUri,
   originClientId,
@@ -47,6 +52,7 @@ import {
 } from "./federation-session-store.js";
 import {
   type IdentitySession,
+  identitySessionEpoch,
   remoteIdentityApi,
   restoreSession,
 } from "./identity.js";
@@ -353,6 +359,14 @@ async function beginSignInDefault(
   const returnUri = isBrokeredIssuer(upstream.issuer)
     ? originCallbackUri()
     : redirectUri();
+  const safeReturnTo = options.returnTo
+    ? assertSafeReturnTo(options.returnTo, pageOrigin(), "/")
+    : undefined;
+  if (options.returnTo && !safeReturnTo)
+    throw new FederationError(
+      "invalid_request",
+      "That return address is not part of this app.",
+    );
   const clientId = upstream.clientId ?? originClientId();
 
   storePending({
@@ -499,6 +513,7 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
       "This sign-in response was not usable.",
     );
   }
+  const generation = federationSessionGeneration();
   const state = parsed.state;
   const { pending, stale, unmatched } = takeMatchingPending(state);
   clearAuthResponseFromUrl();
@@ -609,7 +624,7 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   );
   // Org SSO/SAML is a one-shot assertion for Identity join, not a durable
   // Pages federation session. Saving it would collide with Shoo/mock sign-in.
-  if (!pending.orgSlug) saveSession(identity);
+  if (!pending.orgSlug) saveSession(identity, generation);
   // Only the brokered issuer's access token is ever carried out of here: it is
   // the one this app is entitled to spend, at the one endpoint that accepts it.
   const brokered =
@@ -618,7 +633,7 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     isString(tokens.access_token);
   return {
     identity,
-    returnTo: pending.returnTo,
+    returnTo: assertSafeReturnTo(pending.returnTo, pageOrigin(), "/"),
     orgSlug: pending.orgSlug,
     orgMethod: pending.orgMethod,
     ...(brokered && isString(tokens.access_token)
@@ -637,7 +652,15 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
  */
 async function adoptBrokeredSessionDefault(
   accessToken: string,
+  expectedGeneration?: FederationSessionGeneration,
 ): Promise<IdentitySession> {
+  const generation = expectedGeneration ?? federationSessionGeneration();
+  const sessionEpoch = identitySessionEpoch();
+  if (federationSessionGeneration() !== generation)
+    throw new FederationError(
+      "sign_in_cancelled",
+      "That sign-in was ended by a sign-out. Start again.",
+    );
   const base = remoteIdentityApi();
   if (!base) {
     throw new FederationError(
@@ -689,7 +712,14 @@ async function adoptBrokeredSessionDefault(
     issuerOrigin: new URL(base).origin,
     ...(isString(body.expiresAt) ? { expiresAt: body.expiresAt } : undefined),
   };
-  restoreSession(session);
+  // The generation was checked before the request; check it again before the
+  // synchronous adoption so a sign-out during the exchange cannot be undone.
+  if (federationSessionGeneration() !== generation)
+    throw new FederationError(
+      "sign_in_cancelled",
+      "That sign-in was ended by a sign-out. Start again.",
+    );
+  restoreSession(session, sessionEpoch);
   return session;
 }
 
@@ -803,10 +833,21 @@ export function clearAuthResponseFromUrl(): void {
  * session check vetted it once, when the sign-in completed; an upstream
  * revocation after that takes effect only when `exp` passes.
  */
-export function saveSession(identity: UpstreamIdentity): void {
+export function saveSession(
+  identity: UpstreamIdentity,
+  expectedGeneration?: FederationSessionGeneration,
+): void {
   if (identity.assertionFormat === "saml")
     throw new Error(
       "Native SAML evidence must remain in its verified browser session",
+    );
+  if (
+    expectedGeneration !== undefined &&
+    federationSessionGeneration() !== expectedGeneration
+  )
+    throw new FederationError(
+      "sign_in_cancelled",
+      "That sign-in was ended by a sign-out. Start again.",
     );
   advanceFederationSessionGeneration();
   writeFederationSessionJson(JSON.stringify(identity));
@@ -877,8 +918,9 @@ export async function completeSignIn(): Promise<CompletedSignIn | null> {
 
 export async function adoptBrokeredSession(
   accessToken: string,
+  expectedGeneration?: FederationSessionGeneration,
 ): Promise<IdentitySession> {
-  return federationSeams.adoptBrokeredSession(accessToken);
+  return federationSeams.adoptBrokeredSession(accessToken, expectedGeneration);
 }
 
 export function loadSession(): UpstreamIdentity | null {
