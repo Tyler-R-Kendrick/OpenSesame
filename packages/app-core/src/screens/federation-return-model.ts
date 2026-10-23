@@ -1,8 +1,3 @@
-/**
- * View-model logic for `FederationReturn` (ADR 0133 §8): the pure part of that
- * screen — no React, no DOM — so any shell can drive the same behaviour.
- */
-import { pageOrigin } from "@opensesame/app-core/ports.js";
 import { ambientAuthSeams, isAmbientIntent } from "../lib/ambient-auth-seam.js";
 import { storeAuthOutcome } from "../lib/auth-outcome.js";
 import { assertSafeReturnTo } from "../lib/federation-callback.js";
@@ -18,6 +13,11 @@ import {
 } from "../lib/guest-auth.js";
 import { ensureIdentitySession } from "../lib/identity.js";
 import { joinOrgTenant } from "../lib/orgs.js";
+/**
+ * View-model logic for `FederationReturn` (ADR 0133 §8): the pure part of that
+ * screen — no React, no DOM — so any shell can drive the same behaviour.
+ */
+import { pageOrigin } from "../ports.js";
 
 export type ReturnOutcome = { returnTo?: string };
 

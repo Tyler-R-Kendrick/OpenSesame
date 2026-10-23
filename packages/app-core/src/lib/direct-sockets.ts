@@ -7,6 +7,8 @@
  * The constructor types are local because the DOM lib does not ship them yet.
  */
 
+import { maybePage } from "../ports.js";
+
 export type DirectSocketAvailability =
   | "available"
   | "unavailable"
@@ -81,7 +83,7 @@ function host(): DirectSocketsHost {
 
 /** Whether this document is an `isolated-app://` bundle. */
 export function isIsolatedWebApp(): boolean {
-  return globalThis.location?.protocol === "isolated-app:";
+  return maybePage()?.location.protocol === "isolated-app:";
 }
 
 /** Whether the Direct Sockets constructors are present in this context. */

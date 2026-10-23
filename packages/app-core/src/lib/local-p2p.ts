@@ -55,13 +55,15 @@ type LocalP2PHost = {
   LP2PRequest?: new (options?: { nickname?: string }) => Lp2pRequest;
 };
 
+import { maybePage } from "../ports.js";
+
 function host(): LocalP2PHost {
   return globalThis as LocalP2PHost;
 }
 
 /** Whether this secure context exposes the draft Local P2P constructors. */
 export function localP2PAvailable(): boolean {
-  if (globalThis.isSecureContext !== true) return false;
+  if (maybePage()?.isSecureContext !== true) return false;
   return (
     typeof host().LP2PReceiver === "function" &&
     typeof host().LP2PRequest === "function"

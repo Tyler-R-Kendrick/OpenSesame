@@ -10,7 +10,7 @@
 import {
   localGitToConnection,
   mergeLocalGitConnections,
-} from "./connections-local-git.js";
+} from "./connections-local-git-view.js";
 import type { Connection, Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
 import {
