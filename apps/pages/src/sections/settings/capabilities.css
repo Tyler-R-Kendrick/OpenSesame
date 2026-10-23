@@ -175,6 +175,12 @@
   margin-top: 0;
 }
 
+@media (pointer: coarse), (max-width: 900px) {
+  .capsection__titlelink {
+    min-height: 2.75rem;
+  }
+}
+
 @media (max-width: 900px) {
   .capsection__cap .sw__name {
     overflow-wrap: anywhere;
