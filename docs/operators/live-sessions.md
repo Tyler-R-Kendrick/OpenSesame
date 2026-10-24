@@ -391,7 +391,9 @@ The roads:
   that speaks UDP, TCP and TLS at once and counts what each transport saw. The
   walk asks it, not the browser: the transport named must have authenticated
   and allocated for both peers, and no client traffic may have reached the
-  others.
+  others. Every TURN server listens and relays on this machine's
+  default-route address, not on loopback: the app refuses a loopback ICE
+  server, which no public one is.
 
 - NATS in operator mode (`pnpm dev:live-nats`), named through the Form with
   its signing key: `nats-always` reveals a value over the server with no
