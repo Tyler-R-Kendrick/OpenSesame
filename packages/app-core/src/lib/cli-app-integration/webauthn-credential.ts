@@ -111,7 +111,6 @@ export function cliAppWebAuthnSupported(
     credentials?.get instanceof Function
   );
 }
-
 function defaultCredentials(): CredentialCeremony | null {
   const container = hostCredentials();
   if (!container?.create || !container.get) return null;
@@ -164,7 +163,7 @@ export async function loadCliAppPasskeyReady(): Promise<CliAppPasskeyReady> {
 
 function isCredential(value: Credential | null): value is PublicKeyCredential {
   if (!value || value.type !== "public-key") return false;
-  // SAFETY: type "public-key" was checked above; WebAuthn's contract makes it a PublicKeyCredential.
+  // SAFETY: the guard above checked value.type; the DOM only constructs that union member for PublicKeyCredential instances.
   const cred = value as PublicKeyCredential;
   return cred.rawId instanceof ArrayBuffer && cred.response instanceof Object;
 }
@@ -239,7 +238,7 @@ function assertionFromCredential(
       "The passkey did not match the one stored at pairing.",
     );
   }
-  // SAFETY: isCredential checked it; WebAuthn's get contract gives an AuthenticatorAssertionResponse.
+  // SAFETY: isCredential verified the PublicKeyCredential contract; its response is the browser's AuthenticatorAssertionResponse.
   const response = value.response as AuthenticatorAssertionResponse;
   if (
     !response.authenticatorData ||
@@ -309,7 +308,7 @@ export async function createCliAppPasskeyCredential(
     return failure("webauthn_cancelled", "Passkey creation was cancelled.");
   }
   const rawId = bytesOf(created.rawId);
-  // SAFETY: isCredential checked it; WebAuthn's create contract gives an AuthenticatorAttestationResponse.
+  // SAFETY: isCredential verified the created PublicKeyCredential contract; creation responses attest as AuthenticatorAttestationResponse.
   const attestation = created.response as AuthenticatorAttestationResponse;
   const material = publicKeyMaterial(attestation);
   if (!material) {
@@ -378,5 +377,27 @@ export async function assertStoredCliAppPasskey(
     ok: true,
     proof: formatCliAppHumanProofPasskey(proof.wire),
     signCount: proof.signCount,
+  };
+}
+
+/** The body the CLI's pairing endpoint takes to register this passkey. */
+export interface CliAppWebAuthnRegisterPayload {
+  readonly vaultSessionRootDigest: string;
+  readonly humanProof: string;
+  readonly credentialIdB64: string;
+  readonly publicKeySpkiB64: string;
+  readonly signCount: number;
+}
+
+export function cliAppWebAuthnRegisterPayload(
+  vaultSessionRootDigest: string,
+  registration: CliAppPasskeyRegistration,
+): CliAppWebAuthnRegisterPayload {
+  return {
+    vaultSessionRootDigest,
+    humanProof: registration.humanProof,
+    credentialIdB64: registration.credentialIdB64,
+    publicKeySpkiB64: registration.publicKeySpkiB64,
+    signCount: registration.signCount,
   };
 }
