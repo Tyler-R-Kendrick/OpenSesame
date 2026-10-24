@@ -1,5 +1,6 @@
 /** Detection, exact-type parsing, synthetic generation, and explicit coverage. */
 import type { FieldValues } from "@opensesame/vault-item-types";
+import { itemTypeHasFormatGenerator } from "./format-capabilities.js";
 import { DETECTED_FORMATS, formatsForType } from "./formats.js";
 import { Random } from "./random.js";
 import type {
@@ -186,9 +187,7 @@ export function itemFormatCoverage(typeId: string): ItemFormatCoverage {
     };
   }
   return {
-    status: formats.some((format) => format.generate !== undefined)
-      ? "parser+generator"
-      : "parser",
+    status: itemTypeHasFormatGenerator(typeId) ? "parser+generator" : "parser",
     formats: formats.map((format) => format.id),
   };
 }
