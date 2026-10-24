@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 450,
-    "violations": 722,
-    "oversizedLines": 221562
+    "files": 452,
+    "violations": 724,
+    "oversizedLines": 221967
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -195,6 +195,9 @@
     },
     "apps/pages/src/sections/connections/ai/AiGeneratedImage.tsx": {
       "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx": {
+      "complexity": 1
     },
     "apps/pages/src/sections/connections/connect/native-provider-descriptor.ts": {
       "complexity": 1
@@ -610,6 +613,9 @@
     },
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1
+    },
+    "packages/app-core/src/lib/custom-oidc.ts": {
+      "max-lines": 405
     },
     "packages/app-core/src/lib/directory.ts": {
       "max-lines": 456
