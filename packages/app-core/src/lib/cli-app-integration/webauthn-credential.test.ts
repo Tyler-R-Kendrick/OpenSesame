@@ -1,3 +1,9 @@
+import {
+  type JsonValue,
+  overlapCast,
+  readJsonObject,
+  readString,
+} from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { b64urlDecode, b64urlEncode } from "./device-crypto.js";
 import {
@@ -125,10 +131,11 @@ describe("CLI WebAuthn credential", () => {
     };
     let allowId: BufferSource | undefined;
     const credentials = {
-      create: async () => created as unknown as Credential,
-      get: async (options: CredentialRequestOptions) => {
+      // The fakes carry only the members a ceremony reads.
+      create: async (): Promise<Credential> => overlapCast(created),
+      get: async (options: CredentialRequestOptions): Promise<Credential> => {
         allowId = options.publicKey?.allowCredentials?.[0]?.id;
-        return asserted as unknown as Credential;
+        return overlapCast(asserted);
       },
     };
     vi.stubGlobal("location", { hostname: "localhost" });
@@ -146,12 +153,11 @@ describe("CLI WebAuthn credential", () => {
     expect(allowId).toBeTruthy();
     expect(same(bytesOf(allowId ?? new Uint8Array()), rawId)).toBe(true);
     expect(registered.humanProof.startsWith("oschip2:passkey:")).toBe(true);
-    const wire = JSON.parse(
+    const wire: JsonValue = JSON.parse(
       registered.humanProof.slice("oschip2:passkey:".length),
-    ) as {
-      signatureB64: string;
-    };
-    expect(b64urlDecode(wire.signatureB64)?.length).toBe(64);
+    );
+    const signature = readString(readJsonObject(wire)?.signatureB64);
+    expect(b64urlDecode(signature ?? "")?.length).toBe(64);
     const storedCose = b64urlDecode(registered.coseKeyB64);
     expect(
       storedCose &&
@@ -169,9 +175,9 @@ describe("CLI WebAuthn credential", () => {
     let approvalId: BufferSource | undefined;
     const approval = await assertStoredCliAppPasskey(challenge, {
       create: async () => null,
-      get: async (options: CredentialRequestOptions) => {
+      get: async (options: CredentialRequestOptions): Promise<Credential> => {
         approvalId = options.publicKey?.allowCredentials?.[0]?.id;
-        return asserted as unknown as Credential;
+        return overlapCast(asserted);
       },
     });
     expect(approval.ok).toBe(true);

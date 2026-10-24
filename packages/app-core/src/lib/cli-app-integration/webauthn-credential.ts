@@ -106,9 +106,9 @@ export function cliAppWebAuthnSupported(
   credentials: CredentialCeremony | null = defaultCredentials(),
 ): boolean {
   return (
-    typeof publicKeyCredentialApi() === "function" &&
-    typeof credentials?.create === "function" &&
-    typeof credentials?.get === "function"
+    publicKeyCredentialApi() instanceof Function &&
+    credentials?.create instanceof Function &&
+    credentials?.get instanceof Function
   );
 }
 
@@ -164,22 +164,23 @@ export async function loadCliAppPasskeyReady(): Promise<CliAppPasskeyReady> {
 
 function isCredential(value: Credential | null): value is PublicKeyCredential {
   if (!value || value.type !== "public-key") return false;
+  // SAFETY: type "public-key" was checked above; WebAuthn's contract makes it a PublicKeyCredential.
   const cred = value as PublicKeyCredential;
-  return cred.rawId instanceof ArrayBuffer && typeof cred.response === "object";
+  return cred.rawId instanceof ArrayBuffer && cred.response instanceof Object;
 }
 
-function webauthnDomFailure(error: unknown): CliAppPasskeyFailure {
-  if (error instanceof DOMException) {
-    if (error.name === "NotAllowedError" || error.name === "AbortError") {
+function webauthnDomFailure(cause: unknown): CliAppPasskeyFailure {
+  if (cause instanceof DOMException) {
+    if (cause.name === "NotAllowedError" || cause.name === "AbortError") {
       return failure(
         "webauthn_cancelled",
         "Passkey confirmation was cancelled.",
       );
     }
     if (
-      error.name === "NotSupportedError" ||
-      error.name === "SecurityError" ||
-      error.name === "InvalidStateError"
+      cause.name === "NotSupportedError" ||
+      cause.name === "SecurityError" ||
+      cause.name === "InvalidStateError"
     ) {
       return UNSUPPORTED;
     }
@@ -207,7 +208,7 @@ function publicKeyMaterial(response: AuthenticatorAttestationResponse): {
   const fromBrowser = response.getPublicKey?.() ?? null;
   const spkiFromBrowser = fromBrowser ? bytesOf(fromBrowser) : null;
   const authData =
-    typeof response.getAuthenticatorData === "function"
+    response.getAuthenticatorData instanceof Function
       ? bytesOf(response.getAuthenticatorData())
       : authDataFromAttestation(bytesOf(response.attestationObject));
   const coseFromAuth = authData ? coseFromAuthData(authData) : null;
@@ -238,6 +239,7 @@ function assertionFromCredential(
       "The passkey did not match the one stored at pairing.",
     );
   }
+  // SAFETY: isCredential checked it; WebAuthn's get contract gives an AuthenticatorAssertionResponse.
   const response = value.response as AuthenticatorAssertionResponse;
   if (
     !response.authenticatorData ||
@@ -307,9 +309,9 @@ export async function createCliAppPasskeyCredential(
     return failure("webauthn_cancelled", "Passkey creation was cancelled.");
   }
   const rawId = bytesOf(created.rawId);
-  const material = publicKeyMaterial(
-    created.response as AuthenticatorAttestationResponse,
-  );
+  // SAFETY: isCredential checked it; WebAuthn's create contract gives an AuthenticatorAttestationResponse.
+  const attestation = created.response as AuthenticatorAttestationResponse;
+  const material = publicKeyMaterial(attestation);
   if (!material) {
     return failure(
       "webauthn_key_unusable",
@@ -379,16 +381,19 @@ export async function assertStoredCliAppPasskey(
   };
 }
 
-export function cliAppWebAuthnRegisterPayload(
-  vaultSessionRootDigest: string,
-  registration: CliAppPasskeyRegistration,
-): Readonly<{
+/** The body the CLI's pairing endpoint takes to register this passkey. */
+export type CliAppWebAuthnRegisterPayload = Readonly<{
   vaultSessionRootDigest: string;
   humanProof: string;
   credentialIdB64: string;
   publicKeySpkiB64: string;
   signCount: number;
-}> {
+}>;
+
+export function cliAppWebAuthnRegisterPayload(
+  vaultSessionRootDigest: string,
+  registration: CliAppPasskeyRegistration,
+): CliAppWebAuthnRegisterPayload {
   return {
     vaultSessionRootDigest,
     humanProof: registration.humanProof,
