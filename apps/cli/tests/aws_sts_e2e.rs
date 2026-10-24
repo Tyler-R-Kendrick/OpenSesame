@@ -1,7 +1,7 @@
 //! The AWS mint end to end (ADR 0213), every hop a real process: the
 //! `opensesame host run` Host, `opensesame daemon run` over a Unix socket, and
 //! the `opensesame-credential-process` helper, with a loopback STS stand-in
-//! that verifies SigV4 with `aws-sigv4` from the secret it was given.
+//! that verifies `SigV4` with `aws-sigv4` from the secret it was given.
 //!
 //! The build under test carries the `sts-stand-in` feature, which is the only
 //! way the Host reads `OPENSESAME_TEST_AWS_STS_ENDPOINT`; a shipped build has

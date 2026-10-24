@@ -335,7 +335,7 @@ pub struct DerivedMaterialization {
 /// `actor` is how the mint is recorded, and may add a note such as
 /// `on_behalf_of=uid:1000,pid:4242` for a local process the daemon forwarded.
 /// Only the principal reaches a provider: an AWS mint's `SourceIdentity`, which
-/// STS carries through role chaining and CloudTrail records, names who was
+/// STS carries through role chaining and `CloudTrail` records, names who was
 /// authenticated and nothing else (ADR 0213).
 #[derive(Clone, Copy)]
 pub struct MintCaller<'a> {
