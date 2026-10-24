@@ -58,11 +58,9 @@ const LOCAL_RECORDS = [
   "local-request-store",
   "local-sessions",
   "local-share-grants",
-  // What local-share-grants reads to record a share: who is acting, whether
-  // two shares are one standing grant, and the sealed Access trail entry.
-  "local-actor",
   "local-share-audit",
   "local-share-match",
+  "local-actor",
   // Who may write a share (ADR 0178): the proofs local-share-grants takes.
   "proofs/share-write",
   // A circle of trusted contacts approving a grant while the owner is away
@@ -71,10 +69,10 @@ const LOCAL_RECORDS = [
   // Core vault workflows and WebMCP enforce standing shares even while the
   // optional Access administration surface is absent.
   "local-share-reach",
-  "local-vault-session-code",
   "local-vault-session-issue",
-  "local-vault-session-shape",
   "local-vault-session-types",
+  "local-vault-session-code",
+  "local-vault-session-shape",
   "local-vault-sessions",
   "pages-dogfood",
   "standing-connection-grants",

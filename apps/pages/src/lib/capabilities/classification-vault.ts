@@ -158,7 +158,7 @@ export const VAULT_LIB_RULES = [
   optional(
     "src/lib/local-p2p",
     "sharing.live",
-    "Local Peer-to-Peer over the live frame protocol, for live sharing's Nearby mode (docs/design/local-p2p.md)",
+    "Local P2P transport and tests import the live session channel protocol",
   ),
   optional(
     "src/lib/peer-trust/",
