@@ -49,7 +49,11 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });
 
-it("puts BYO AI first and keeps partner tiles alphabetical", () => {
+it("offers BYO AI through the custom entry in the add builder, not a browse tile", () => {
+  // #1902 put BYO first among tiles; main then retired byo-ai from
+  // browse (0ca0474ca) in favor of a custom entry — now the Custom /
+  // self-hosted link in the auth-method builder — so partners render
+  // alphabetically without a BYO tile.
   const ids = new Set(["openai", "anthropic", "byo-ai"]);
   const { container } = render(
     <MemoryRouter>
@@ -61,21 +65,15 @@ it("puts BYO AI first and keeps partner tiles alphabetical", () => {
     </MemoryRouter>,
   );
   const tiles = [...container.querySelectorAll(".conn-grid > .conn-tile")];
-  expect(tiles[0]?.id).toBe("catalog-byo-ai");
-  expect(
-    tiles
-      .map((tile) => tile.id)
-      .filter((id) =>
-        ["catalog-byo-ai", "catalog-anthropic", "catalog-openai"].includes(id),
-      ),
-  ).toEqual(["catalog-byo-ai", "catalog-anthropic", "catalog-openai"]);
-  const byo = container.querySelector("#catalog-byo-ai");
-  expect(byo?.querySelector("a")?.getAttribute("href")).toBe(
-    "/connections/byo-ai",
+  const tileIds = tiles.map((tile) => tile.id);
+  // The panel also synthesizes featured/family tiles; what retired
+  // BYO AI guarantees is its absence and partners' alphabetical order.
+  expect(tileIds).not.toContain("catalog-byo-ai");
+  expect(tileIds.indexOf("catalog-anthropic")).toBeGreaterThanOrEqual(0);
+  expect(tileIds.indexOf("catalog-anthropic")).toBeLessThan(
+    tileIds.indexOf("catalog-openai"),
   );
-  expect(byo?.querySelector(".conn-tag--method")?.textContent).toBe(
-    "Configuration",
-  );
+  expect(container.querySelector("#catalog-byo-ai")).toBeNull();
 });
 
 it("links the + button to the custom connector form", () => {
