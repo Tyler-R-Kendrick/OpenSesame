@@ -4,11 +4,16 @@
  */
 import type { BackupTargetView } from "../../lib/backup.js";
 
+export function needsInitialBackup(target: BackupTargetView): boolean {
+  return target.kind === "github_app" && target.lastSyncedAt === null;
+}
+
 export function syncTone(
   target: BackupTargetView,
 ): "ok" | "err" | "warn" | "idle" {
   if (!target.enabled) return "idle";
   if (target.status === "error" || target.status === "suspended") return "err";
+  if (needsInitialBackup(target)) return "warn";
   if (target.status === "ok") return "ok";
   return "warn";
 }
@@ -16,6 +21,7 @@ export function syncTone(
 export function syncLabel(target: BackupTargetView, pending: number): string {
   if (!target.enabled) return "Backup off";
   if (target.lastError) return target.lastError;
+  if (needsInitialBackup(target)) return "Automatic backups have not started";
   const synced = target.lastSyncedAt
     ? `Last sync ${target.lastSyncedAt}`
     : "Waiting for first sync";
