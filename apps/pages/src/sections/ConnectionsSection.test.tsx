@@ -152,17 +152,18 @@ describe("ConnectionsSection gallery", () => {
       originalEmbeddedCatalogSeams.bundledProviders;
   });
 
-  it("renders the catalog as one tagged list", async () => {
+  it("renders the catalog as one auth-method-tagged list", async () => {
     renderAt("/connections");
     expect(
       await screen.findByRole("heading", { name: "Connections" }),
     ).toBeTruthy();
-    expect(screen.getAllByText("Linear").length).toBeGreaterThan(0);
+    for (const name of ["GitHub", "Linear", "Vercel"])
+      expect(screen.getAllByText(name).length).toBeGreaterThan(0);
     expect(screen.queryByText("Vaultwarden")).toBeNull();
     expect(screen.queryByText("Better Auth")).toBeNull();
     expect(
-      screen.getAllByText("Developer tools").length,
-    ).toBeGreaterThanOrEqual(2);
+      document.querySelector("#catalog-github-tags")?.textContent,
+    ).toContain("OAuth");
     expect(screen.queryByText("Password managers")).toBeNull();
     expect(
       screen.queryByRole("switch", { name: /Enable Plain storage/i }),
@@ -184,8 +185,10 @@ describe("ConnectionsSection gallery", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Clear search/i }),
     );
-    // Catalog tiles: github, linear, vercel (feature + automatic excluded).
-    expect(container.querySelectorAll(".conn-tile").length).toBe(3);
+    // Featured rows and deduplicated API families also return after clearing.
+    expect(Array.from(grid.children, (tile) => tile.id).join(" ")).toBe(
+      "catalog-aws catalog-azure-kms catalog-cloudflare catalog-fal-ai catalog-gcp catalog-github catalog-google catalog-higgsfield catalog-linear catalog-microsoft catalog-obsidian catalog-polar catalog-vercel",
+    );
   });
   it("does not report an unreachable Host as a notification", async () => {
     listConnections.mockRejectedValue(
