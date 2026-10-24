@@ -1,4 +1,9 @@
 /** @vitest-environment jsdom */
+import {
+  clearLocalBackupTarget,
+  readLocalBackupTarget,
+} from "@opensesame/app-core/lib/backup-target-local.js";
+import { putBackupTarget } from "@opensesame/app-core/lib/backup.js";
 import { ensureDeviceIdentityKey } from "@opensesame/app-core/lib/device-identity-key.js";
 import { useGithubBackupProviderFixture } from "@opensesame/app-core/lib/github-app-backup-provider.test-support.js";
 import { credentials } from "@opensesame/app-core/lib/github-app-direct.test-support.js";
@@ -11,6 +16,7 @@ import {
   setActiveProject,
 } from "@opensesame/app-core/lib/projects.js";
 import * as github from "@opensesame/app-core/lib/vault-backup-github.js";
+import { stopVaultBackupObserver } from "@opensesame/app-core/lib/vault-backup-observer.js";
 import { syncVaultBackup } from "@opensesame/app-core/lib/vault-backup-sync.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { vfsFlush } from "@opensesame/app-core/lib/vfs.js";
@@ -26,18 +32,18 @@ import {
 import { afterEach, expect, it, vi } from "vitest";
 import { BackupSyncControls } from "./BackupSyncControls.js";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  stopVaultBackupObserver();
+});
 const fixture = useGithubBackupProviderFixture();
 const reference = "opensesame-vault.backup.json";
-function holdAutomaticBackup() {
-  // ADR0142's legitimate manual-only envelope isolates restore from the separately measured autosync race.
-  fixture.network.network.mockReturnValue({
-    externalServices: "deny",
-    allowedServiceOrigins: ["https://api.github.com"],
-  });
-}
 async function destinationVault() {
+  stopVaultBackupObserver();
   await syncVaultBackup("github");
+  const ciphertext = fixture.contents?.toString();
+  const sourceCommit = fixture.head;
+  clearLocalBackupTarget("github");
   await vaultStore.flushPendingWrites();
   const project = await createProject(
     `Mounted GitHub restore ${crypto.randomUUID()}`,
@@ -53,8 +59,16 @@ async function destinationVault() {
   stashPendingGithubAppSecret(fixture.app, credentials.privateKey);
   await sealPendingGithubAppSecret();
   await vaultStore.flushPendingWrites();
-  holdAutomaticBackup();
-  return { kept, identity };
+  await putBackupTarget({
+    kind: "github_app",
+    providerId: "github",
+    installationId: "77",
+    owner: "fixture-owner",
+    repo: "backups",
+    branch: "backup/primary",
+    enabled: true,
+  });
+  return { kept, identity, ciphertext, sourceCommit };
 }
 async function readThroughMountedControls() {
   await waitFor(() =>
@@ -77,15 +91,45 @@ async function submitSourcePin(pin: string) {
   });
   fireEvent.submit(screen.getByRole("form", { name: "Restore vault backup" }));
 }
+async function explicitlyBackUpMergedVault() {
+  // Only this deliberate write publishes the merged vault and admits autosync.
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Back up this vault and enable automatic backups",
+    }),
+  );
+  await waitFor(() =>
+    expect(readLocalBackupTarget("github")?.lastCommitSha).toBe(fixture.head),
+  );
+  expect(fixture.requests.filter((row) => row.method === "PUT")).toHaveLength(
+    2,
+  );
+  expect(readLocalBackupTarget("github")?.lastSyncedAt).not.toBeNull();
+  await screen.findByRole("button", { name: "Sync vault backup now" });
+  await vaultStore.saveItem(
+    createItem("note", "Automatic update after recovered manual backup"),
+  );
+  await vaultStore.flushPendingWrites();
+  await waitFor(() =>
+    expect(fixture.requests.filter((row) => row.method === "PUT")).toHaveLength(
+      3,
+    ),
+  );
+  await waitFor(() =>
+    expect(readLocalBackupTarget("github")?.lastCommitSha).toBe(fixture.head),
+  );
+}
 it("restores actual provider ciphertext through mounted shared controls into a distinct cold PIN vault", async () => {
-  const { kept, identity } = await destinationVault();
+  const { kept, identity, ciphertext, sourceCommit } = await destinationVault();
   const readsBefore = fixture.requests.filter(
-    (row) => row.method === "GET",
+    (row) => row.method === "GET" && row.path.includes("/contents/"),
   ).length;
   render(<BackupSyncControls providerId="github" />);
   await readThroughMountedControls();
   expect(
-    fixture.requests.filter((row) => row.method === "GET").length,
+    fixture.requests.filter(
+      (row) => row.method === "GET" && row.path.includes("/contents/"),
+    ).length,
   ).toBeGreaterThan(readsBefore);
   const fixed = screen.getByLabelText("Backup name or ID");
   expect(fixed).toHaveProperty("value", reference);
@@ -112,6 +156,11 @@ it("restores actual provider ciphertext through mounted shared controls into a d
     "value",
     "",
   );
+  expect(fixture.contents?.toString()).toBe(ciphertext);
+  expect(fixture.head).toBe(sourceCommit);
+  expect(fixture.requests.filter((row) => row.method === "PUT")).toHaveLength(
+    1,
+  );
   await submitSourcePin("83619472");
   await waitFor(() =>
     expect(
@@ -128,9 +177,17 @@ it("restores actual provider ciphertext through mounted shared controls into a d
     (await ensureDeviceIdentityKey(vaultStore.getSnapshot().tomb)).keyId,
   ).toBe(identity.keyId);
   // Authentication and each restore perform fresh real reads; restore never uploads or caches a local snapshot as remote proof.
-  expect(fixture.requests.filter((row) => row.method === "GET")).toHaveLength(
-    readsBefore + 6,
-  );
+  const immutableReads = fixture.requests
+    .filter((row) => row.method === "GET" && row.path.includes("/contents/"))
+    .slice(readsBefore);
+  expect(immutableReads).toHaveLength(3);
+  for (const read of immutableReads)
+    expect(
+      new URL(read.path, "https://api.github.com").searchParams.get("ref"),
+    ).toBe(sourceCommit);
+  expect(fixture.contents?.toString()).toBe(ciphertext);
+  expect(fixture.head).toBe(sourceCommit);
+  expect(readLocalBackupTarget("github")?.lastSyncedAt).toBeNull();
   expect(fixture.requests.filter((row) => row.method === "PUT")).toHaveLength(
     1,
   );
@@ -150,6 +207,7 @@ it("restores actual provider ciphertext through mounted shared controls into a d
   expect(
     (await ensureDeviceIdentityKey(vaultStore.getSnapshot().tomb)).keyId,
   ).toBe(identity.keyId);
+  await explicitlyBackUpMergedVault();
 });
 it("does not open restore controls when actual provider authentication refuses the App", async () => {
   await destinationVault();

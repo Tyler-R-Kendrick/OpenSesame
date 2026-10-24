@@ -8,6 +8,7 @@ import type { SecretBackendBackupHandle } from "@opensesame/app-core/lib/secret-
 import { openSavedGithubBackup } from "@opensesame/app-core/lib/vault-backup-github.js";
 import { startVaultBackupObserver } from "@opensesame/app-core/lib/vault-backup-observer.js";
 import {
+  needsInitialBackup,
   syncLabel,
   syncTone,
   targetMatchesProvider,
@@ -88,6 +89,29 @@ export function BackupSyncControls({
   } = useBackupSyncStatus(providerId);
 
   if (!target) return null;
+  const initial = needsInitialBackup(target);
+  const syncNow = () => {
+    if (busy || !target.enabled) return;
+    setBusy(true);
+    setFlash(null);
+    void resyncBackup(providerId)
+      .then(() => {
+        setFlash("ok");
+        return getBackupStatus(providerId);
+      })
+      .then((status) => {
+        if (status.target) setTarget(status.target);
+        setPending(status.pendingEvents);
+      })
+      .catch(() => {
+        setFlash("err");
+        return getBackupStatus(providerId).then((status) => {
+          if (status.target) setTarget(status.target);
+          setPending(status.pendingEvents);
+        });
+      })
+      .finally(() => setBusy(false));
+  };
 
   const repo =
     target.owner && target.repo ? `${target.owner}/${target.repo}` : null;
@@ -102,38 +126,19 @@ export function BackupSyncControls({
             label={syncLabel(target, pending)}
           />
           {repo ? <span className="conn-backup-sync__repo">{repo}</span> : null}
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            disabled={busy || !target.enabled}
-            aria-busy={busy || undefined}
-            aria-label="Sync vault backup now"
-            title="Sync vault backup now"
-            onClick={() => {
-              if (busy || !target.enabled) return;
-              setBusy(true);
-              setFlash(null);
-              void resyncBackup(providerId)
-                .then(() => {
-                  setFlash("ok");
-                  return getBackupStatus(providerId);
-                })
-                .then((status) => {
-                  if (status.target) setTarget(status.target);
-                  setPending(status.pendingEvents);
-                })
-                .catch(() => {
-                  setFlash("err");
-                  return getBackupStatus(providerId).then((status) => {
-                    if (status.target) setTarget(status.target);
-                    setPending(status.pendingEvents);
-                  });
-                })
-                .finally(() => setBusy(false));
-            }}
-          >
-            <IconRefresh size={16} />
-          </button>
+          {!initial ? (
+            <button
+              type="button"
+              className="icon-btn icon-btn--sm"
+              disabled={busy || !target.enabled}
+              aria-busy={busy || undefined}
+              aria-label="Sync vault backup now"
+              title="Sync vault backup now"
+              onClick={syncNow}
+            >
+              <IconRefresh size={16} />
+            </button>
+          ) : null}
           {flash === "ok" ? (
             <StatusMark tone="ok" label="Synced" />
           ) : flash === "err" ? (
@@ -148,7 +153,41 @@ export function BackupSyncControls({
           enabled={target.enabled}
         />
       ) : null}
+      {initial ? (
+        <InitialGithubBackup
+          busy={busy}
+          enabled={target.enabled}
+          onBackup={syncNow}
+        />
+      ) : null}
     </>
+  );
+}
+
+function InitialGithubBackup({
+  busy,
+  enabled,
+  onBackup,
+}: {
+  busy: boolean;
+  enabled: boolean;
+  onBackup: () => void;
+}) {
+  return (
+    <section className="cx-block cx-form" aria-label="Choose backup direction">
+      <p>
+        Recovering this vault? Read and restore its encrypted backup first.
+        Backing up this vault replaces the repository's backup. Automatic
+        updates start after a successful manual backup.
+      </p>
+      <FormCommit
+        label="Back up this vault and enable automatic backups"
+        disabled={busy || !enabled}
+        busy={busy}
+        icon={<IconRefresh size={18} />}
+        onClick={onBackup}
+      />
+    </section>
   );
 }
 
