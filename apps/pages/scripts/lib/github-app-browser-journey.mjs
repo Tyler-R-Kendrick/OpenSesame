@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { expect } from "@playwright/test";
+import { removeAppInPage } from "./github-app-browser-remove.mjs";
 import {
   SOURCE_PIN,
   TARGET_PIN,
@@ -222,16 +223,7 @@ async function cancelHeldRead(page, options) {
 async function withdrawApp(page, options) {
   const { fixture, base, record } = options;
   await githubPage(page, base);
-  page.once("dialog", (dialog) => dialog.accept());
-  await page
-    .getByRole("button", {
-      name: "Remove GitHub App from this device",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Create GitHub App", exact: true })
-    .waitFor();
+  await removeAppInPage(page);
   const before = fixture.rows.length;
   await page.reload({ waitUntil: "networkidle" });
   await unlockAt(page, TARGET_PIN);
