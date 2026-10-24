@@ -4,6 +4,7 @@ import { AGE_KEYS_CONFIG_PATH } from "../../lib/age-keys.js";
 import { AWS_KMS_CONFIG_PATH } from "../../lib/aws-kms-config.js";
 import { GCP_KMS_CONFIG_PATH } from "../../lib/gcp-kms-config.js";
 import { kvDelete, kvGet } from "../../lib/kv.js";
+import { crc32cDecimalString } from "../../lib/vault/protection/adapters/gcp-kms.js";
 import { ATTEMPTS_KEY, VaultStore } from "../../lib/vault/store.js";
 import { LEGACY_PREFS_KEY } from "../../lib/vault/tomb-migration.js";
 import {
@@ -99,7 +100,14 @@ async function serviceAccountJson(): Promise<string> {
   });
 }
 
-/** Cloud KMS REST plus the Google token endpoint. */
+const crc32cOfB64 = (value: string) =>
+  crc32cDecimalString(Uint8Array.from(atob(value), (c) => c.charCodeAt(0)));
+
+/**
+ * Cloud KMS REST plus the Google token endpoint. Encrypt and decrypt answer
+ * with the CRC32C integrity fields Cloud KMS returns, and encrypt verifies the
+ * plaintext checksum it was sent, as the service does.
+ */
 function gcpFetch(log: GcpCall[]) {
   const held = new Map<string, string>();
   const impl: typeof fetch = async (url, init) => {
@@ -110,17 +118,23 @@ function gcpFetch(log: GcpCall[]) {
     }
     const body = JSON.parse(String(init?.body));
     if (String(url).endsWith(":encrypt")) {
+      if (body.plaintextCrc32c?.value !== crc32cOfB64(body.plaintext))
+        return new Response("{}", { status: 400 });
       const ct = b64(crypto.getRandomValues(new Uint8Array(40)));
       held.set(ct, body.plaintext);
       return Response.json({
         ciphertext: ct,
+        ciphertextCrc32c: { value: crc32cOfB64(ct) },
         name: `${GCP_KEY}/cryptoKeyVersions/1`,
         verifiedPlaintextCrc32c: true,
       });
     }
     const plaintext = held.get(body.ciphertext);
     if (!plaintext) return new Response("{}", { status: 400 });
-    return Response.json({ plaintext });
+    return Response.json({
+      plaintext,
+      plaintextCrc32c: { value: crc32cOfB64(plaintext) },
+    });
   };
   return impl;
 }

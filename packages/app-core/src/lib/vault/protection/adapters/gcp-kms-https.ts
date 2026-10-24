@@ -110,8 +110,10 @@ async function gcpKmsHttpsDecrypt(
         "GCP KMS key version does not belong to the configured key.",
       );
   }
-  const resource = pinned ?? request.keyName;
-  const endpoint = `https://cloudkms.googleapis.com/v1/${resource}:decrypt`;
+  // Decrypt is a CryptoKey method: the ciphertext carries the version that
+  // sealed it, and cryptoKeyVersions has no decrypt (only asymmetricDecrypt
+  // and rawDecrypt). The recorded version is checked above, not addressed.
+  const endpoint = `https://cloudkms.googleapis.com/v1/${request.keyName}:decrypt`;
   assertAllowedCloudEndpoint(endpoint, "gcp-kms");
   let response: Response;
   try {

@@ -223,7 +223,7 @@ describe("gcp-kms live (opt-in)", () => {
 });
 
 describe("GCP KMS HTTPS integrity", () => {
-  it("decrypts the pinned key version, not whatever is primary", async () => {
+  it("decrypts on the CryptoKey, whose ciphertext names its own version", async () => {
     const seen: string[] = [];
     const plaintext = new Uint8Array([4, 5, 6]);
     const transport = createGcpKmsHttpsTransport({
@@ -242,8 +242,9 @@ describe("GCP KMS HTTPS integrity", () => {
       ciphertext: new Uint8Array([1]),
       aad: new Uint8Array(),
     });
+    // Cloud KMS has no cryptoKeyVersions decrypt; a version URL would 404.
     expect(seen).toEqual([
-      `https://cloudkms.googleapis.com/v1/${KEY_VERSION}:decrypt`,
+      `https://cloudkms.googleapis.com/v1/${KEY_NAME}:decrypt`,
     ]);
     await expect(
       transport.decrypt({
