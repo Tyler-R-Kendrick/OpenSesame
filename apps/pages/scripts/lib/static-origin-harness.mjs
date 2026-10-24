@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import "./expect-timeout.mjs";
+import { emulateFilePickers } from "./file-pickers.mjs";
 import { observeHttpFailures } from "./http-failures.mjs";
 
 const MIME = {
@@ -177,6 +178,7 @@ async function newPage(
     serviceWorkers: "block",
     ...(device ?? {}),
   });
+  await emulateFilePickers(context);
   const shooCalls = [];
   // Every request but a blob or data URL, which is the page's own bytes and
   // never a file of the deployment: WebKit offers them to a route ("**/*"
