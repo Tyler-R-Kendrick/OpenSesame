@@ -5,26 +5,26 @@
  * the person allows them, or the join goes on without them.
  */
 
-import type {
-  GuestStatus,
-  LiveGuest,
-} from "@opensesame/app-core/lib/live/guest.js";
 import { FieldRow } from "../../components/FieldRow.js";
 import { IconCheck, IconSkip } from "../../components/Icons.js";
 
 export const ALLOW_ADDRESSES = "Allow the owner's addresses";
 export const JOIN_WITHOUT_ADDRESSES = "Join without them";
 
+/**
+ * `onAnswer(true)` allows the addresses; `onAnswer(false)` joins without
+ * them. The join view passes the guest's `allowAddresses`.
+ */
 export function ReplyAddresses({
-  guest,
-  status,
+  addresses,
+  onAnswer,
 }: {
-  guest: LiveGuest;
-  status: Extract<GuestStatus, { at: "addresses" }>;
+  addresses: readonly string[];
+  onAnswer: (allow: boolean) => void;
 }) {
   return (
     <div className="setup__stack" id="live-addresses">
-      {status.addresses.map((address) => (
+      {addresses.map((address) => (
         <FieldRow key={address} label="Owner's address">
           <span className="frow__value frow__value--mono">{address}</span>
         </FieldRow>
@@ -36,7 +36,7 @@ export function ReplyAddresses({
           id="live-addresses-allow"
           aria-label={ALLOW_ADDRESSES}
           title={ALLOW_ADDRESSES}
-          onClick={() => void guest.allowAddresses(true)}
+          onClick={() => onAnswer(true)}
         >
           <IconCheck size={18} />
         </button>
@@ -48,7 +48,7 @@ export function ReplyAddresses({
           className="icon-btn"
           aria-label={JOIN_WITHOUT_ADDRESSES}
           title={JOIN_WITHOUT_ADDRESSES}
-          onClick={() => void guest.allowAddresses(false)}
+          onClick={() => onAnswer(false)}
         >
           <IconSkip size={18} />
         </button>
