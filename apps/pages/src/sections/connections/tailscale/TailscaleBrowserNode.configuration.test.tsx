@@ -333,3 +333,45 @@ it("saves shared peer controls, restores exact CA/peer fields cold, and withdraw
   });
   expect(() => nodeState.readBrowserNodeState(stored.record)).toThrow();
 });
+it("saves and withdraws independent peer CA trust with browser integration transport", async () => {
+  const original = node();
+  render(<TailscaleBrowserNode ready online />);
+  expect(screen.getByLabelText("Integration HTTP transport")).toHaveProperty(
+    "value",
+    "browser",
+  );
+  field("Tailnet service TLS trust", "operator");
+  field("Tailnet service CA certificates (PEM)", "invalid-ca");
+  save();
+  await saved();
+  expect(nodeState.savedBrowserNodeConfiguration()).toBeNull();
+  field("Tailnet service CA certificates (PEM)", rootCertificates[0] ?? "");
+  save();
+  await saved();
+  const initial = configuration();
+  expect(initial.nativeHTTP).toBeUndefined();
+  expect(initial.peerTLS).toEqual({
+    trustMode: "operator",
+    operatorCAPEM: rootCertificates[0],
+  });
+  cleanup();
+  render(<TailscaleBrowserNode ready online />);
+  expect(
+    screen.getByLabelText("Tailnet service CA certificates (PEM)"),
+  ).toHaveProperty("value", rootCertificates[0]);
+  vi.mocked(original.stop).mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "Connect browser node" }));
+  await waitFor(() =>
+    expect(original.start).toHaveBeenCalledWith({ ...initial, authKey: "" }),
+  );
+  await saved();
+  field("Tailnet service TLS trust", "public");
+  expect(
+    screen.queryByLabelText("Tailnet service CA certificates (PEM)"),
+  ).toBeNull();
+  save();
+  await saved();
+  expect(original.stop).toHaveBeenCalledTimes(1);
+  expect(configuration()).not.toHaveProperty("peerTLS");
+  expect(configuration()).not.toHaveProperty("nativeHTTP");
+});
