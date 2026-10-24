@@ -7,13 +7,17 @@ import {
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
 import {
+  publishBackupSyncEvent,
   startVaultBackupObserver,
   stopVaultBackupObserver,
+  subscribeBackupSyncEvents,
+  vaultBackupObserverSeams,
 } from "./vault-backup-observer.js";
 import {
   drainBackupWebhooks,
   vaultBackupSyncSeams,
 } from "./vault-backup-sync.js";
+import { vaultStore } from "./vault/store.js";
 
 const original = { ...vaultBackupSyncSeams };
 beforeEach(() => {
@@ -90,4 +94,35 @@ it("continues the normal poll schedule after a refusal without inventing a write
   expect(drain).toHaveBeenCalledTimes(2);
   expect(push).not.toHaveBeenCalled();
   expect(readLocalBackupTarget("github")).toEqual(previous);
+});
+
+it("notifies manual listeners without duplicating the explicitly owned dispatch", async () => {
+  // This event-port unit fixture carries no genuine-session or provider proof.
+  vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
+    ...vaultStore.getSnapshot(),
+    tomb: "personal",
+  });
+  const put = vi.fn(async () => ({ commitSha: "b".repeat(40) }));
+  Object.assign(vaultBackupSyncSeams, {
+    putContents: put,
+    sealedEnvelopeJson: () => "{}",
+    resolveCredentials: () => ({
+      appId: "unit-owner",
+      pem: "unit-operation-port",
+    }),
+  });
+  const listener = vi.fn();
+  const unsubscribe = subscribeBackupSyncEvents(listener);
+  try {
+    const before = readLocalBackupTarget("github");
+    publishBackupSyncEvent("manual");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ reason: "manual" });
+    expect(put).not.toHaveBeenCalled();
+    expect(readLocalBackupTarget("github")).toEqual(before);
+    await vaultBackupObserverSeams.runSync("manual");
+    expect(put).toHaveBeenCalledTimes(1);
+  } finally {
+    unsubscribe();
+  }
 });
