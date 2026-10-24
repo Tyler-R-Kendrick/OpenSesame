@@ -1,3 +1,4 @@
+import { federationSessionGeneration } from "@opensesame/app-core/lib/federation-native-session.js";
 import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   cleanup,
@@ -256,9 +257,13 @@ describe("FederationReturn", () => {
       accessToken: "at_brokered",
       identity: { idToken: "pairwise-id-token" },
     });
+    const generation = federationSessionGeneration();
     renderReturn();
     expect(await screen.findByText("settings landed")).toBeTruthy();
-    expect(fed.adoptBrokeredSession).toHaveBeenCalledWith("at_brokered");
+    expect(fed.adoptBrokeredSession.mock.calls).toEqual([
+      ["at_brokered", generation],
+    ]);
+    expect(fed.adoptBrokeredSession.mock.calls[0]?.[1]).toBe(generation);
     // T23: the pairwise id_token beside it is never linked to this tab's
     // session, and the org join is not this branch either.
     expect(fed.adoptFederatedIdentity).not.toHaveBeenCalled();
