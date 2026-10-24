@@ -294,3 +294,35 @@ it("keeps only characters a repository name can hold", () => {
     ).kind,
   ).toBe("invalid");
 });
+
+it("keeps what a person typed when the connection's account label arrives", async () => {
+  const view = render(
+    <GithubBackupField
+      connection={{ ...connection, accountLabel: null }}
+      online
+      onFlash={() => undefined}
+    />,
+  );
+  const input = await screen.findByRole<HTMLInputElement>("combobox", {
+    name: "Repository",
+  });
+  await waitFor(() => expect(input.value).toBe("octocat/opensesame-passwords"));
+  const user = userEvent.setup();
+  await user.clear(input);
+  await user.type(input, "octocat/mine");
+  // The same connection, its account read: the lists load again, and the
+  // load must not write the default over the person's slug.
+  const loads = getBackupStatus.mock.calls.length;
+  view.rerender(
+    <GithubBackupField
+      connection={connection}
+      online
+      onFlash={() => undefined}
+    />,
+  );
+  await waitFor(() =>
+    expect(getBackupStatus.mock.calls.length).toBeGreaterThan(loads),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(input.value).toBe("octocat/mine");
+});

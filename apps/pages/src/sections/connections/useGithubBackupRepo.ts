@@ -118,6 +118,8 @@ function backupRepoView(state: RepoView) {
 
 type RepoOwner = {
   scope: string;
+  /** The connection itself, apart from the account label shown for it. */
+  identity: string;
   draftOwned: boolean;
   sequence: number;
   live: boolean;
@@ -125,25 +127,30 @@ type RepoOwner = {
   flight: { current: boolean };
 };
 function useRepoOwner(connection: Connection) {
-  const scope = JSON.stringify([
+  const identity = JSON.stringify([
     connection.connectionId,
     connection.connectionRef,
     connection.providerId,
     connection.integrationId,
-    connection.accountLabel,
   ]);
+  const scope = JSON.stringify([identity, connection.accountLabel]);
   const latest = useRef<RepoOwner | null>(null);
   const owner = useMemo(() => {
+    const previous = latest.current;
     const next: RepoOwner = {
       scope,
-      draftOwned: false,
+      identity,
+      // The same connection under another label (the account's login read
+      // after its install) starts its lists again, but what the person is
+      // typing stays theirs: a load must not write over it.
+      draftOwned: previous?.identity === identity && previous.draftOwned,
       sequence: 0,
       live: false,
       flight: { current: false },
       current: () => latest.current === next && next.live,
     };
     return next;
-  }, [scope]);
+  }, [scope, identity]);
   latest.current = owner;
   useLayoutEffect(() => {
     owner.live = true;
@@ -173,8 +180,10 @@ function useRepoState(seedAccounts: AppInstallAccount[], owner: RepoOwner) {
     setTarget(null);
     setRepos([]);
     setAccounts(seed.current);
-    setDraft(DEFAULT_PASSWORD_REPO_NAME);
-    setEditing(false);
+    if (!owner.draftOwned) {
+      setDraft(DEFAULT_PASSWORD_REPO_NAME);
+      setEditing(false);
+    }
     setBusy(false);
     setLoading(true);
     setIssue(null);
