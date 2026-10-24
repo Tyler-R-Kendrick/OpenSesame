@@ -11,20 +11,20 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 156,
-    "violations": 548,
+    "files": 155,
+    "violations": 544,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
-      "anti-slop/no-conditional-empty-object-spread": 16,
+      "anti-slop/no-conditional-empty-object-spread": 15,
       "anti-slop/no-known-value-widening": 198,
-      "anti-slop/no-object-parameters": 11,
+      "anti-slop/no-object-parameters": 10,
       "anti-slop/no-reflect-get": 6,
       "anti-slop/no-runtime-typeof": 154,
       "anti-slop/no-shape-in-symbol-names": 11,
       "anti-slop/no-unknown-parameters": 34,
       "anti-slop/no-unknown-returns": 2,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 100
+      "anti-slop/require-safety-comment-for-type-assertion": 98
     }
   },
   "files": {
@@ -541,11 +541,6 @@
     },
     "packages/oauth-provider/src/__tests__/mtls-pki.ts": {
       "anti-slop/no-object-parameters": 1
-    },
-    "packages/oauth-provider/src/__tests__/mtls.test.ts": {
-      "anti-slop/no-conditional-empty-object-spread": 1,
-      "anti-slop/no-object-parameters": 1,
-      "anti-slop/require-safety-comment-for-type-assertion": 2
     },
     "packages/oauth-provider/src/mtls/feature.ts": {
       "anti-slop/no-known-value-widening": 4,
