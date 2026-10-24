@@ -46,7 +46,7 @@ import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
-import { SettingsPageConnectPanels } from "./SettingsPageConnectPanels.js";
+import * as SettingsPanels from "./SettingsPageConnectPanels.js";
 import {
   AuthorizedAccount,
   githubConnectorStatus,
@@ -54,7 +54,6 @@ import {
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import { apiFamilyFor } from "./catalog-families.js";
 import { isConnectConnection } from "./connect/ConnectPanels.js";
-import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
 import { isIdentityConnectionProvider } from "./identity/IdentityConnectionPanels.js";
 import { useTailscaleHeaderStatus } from "./tailscale/useTailscaleConnectionState.js";
 
@@ -141,7 +140,7 @@ export function ConnectorSettingsPage({
     !isConnectConnection(connection);
   const nativeDescriptor =
     provider && !identityExperience && !secretBackendExperience
-      ? nativeSettingsDescriptor(provider)
+      ? SettingsPanels.nativeSettingsPageDescriptor(provider, connection)
       : null;
   const nativeExperience =
     nativeDescriptor !== null && !isConnectConnection(connection);
@@ -414,7 +413,7 @@ export function ConnectorSettingsPage({
           }
         />
       )}
-      <SettingsPageConnectPanels
+      <SettingsPanels.SettingsPageConnectPanels
         provider={provider}
         connection={connection}
         online={online}
