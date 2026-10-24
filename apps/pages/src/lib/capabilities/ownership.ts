@@ -123,8 +123,6 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   "contact.html": null,
   "privacy.html": null,
   "icon.svg": null,
-  // Standalone save widget for the core vault /save review route.
-  "save-button.js": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,
   "auth/native-client.json": "connectors.external",

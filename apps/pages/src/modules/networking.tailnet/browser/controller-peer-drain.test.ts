@@ -83,7 +83,7 @@ it("bounds a drain that never acknowledges", async () => {
     );
     const admission = retirement.ready().then(
       () => null,
-      (error: unknown) => error,
+      (error: Error) => error,
     );
     await vi.advanceTimersByTimeAsync(5_000);
     await expect(admission).resolves.toMatchObject({

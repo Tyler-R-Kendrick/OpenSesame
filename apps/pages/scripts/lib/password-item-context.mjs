@@ -20,7 +20,7 @@ async function visit(page, base, route) {
  */
 async function download(page, press) {
   const picker = await page.evaluate(() => {
-    if (typeof window.showSaveFilePicker !== "function") return false;
+    if (!window.showSaveFilePicker) return false;
     window.__walkSavedFile = null;
     window.showSaveFilePicker = async (options = {}) => {
       if (!navigator.userActivation.isActive)
