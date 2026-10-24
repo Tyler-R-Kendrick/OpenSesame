@@ -1,3 +1,4 @@
+import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
 import * as deviceIdentity from "@opensesame/app-core/lib/device-identity.js";
 import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
 import { mintGuestSessionPerson } from "@opensesame/app-core/lib/local-guest.js";
@@ -43,18 +44,8 @@ afterEach(() => {
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
-  let queue = Promise.resolve();
   vi.stubGlobal("navigator", {
-    locks: {
-      request: (_name: string, action: () => Promise<void>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   vi.spyOn(deviceIdentity, "isRemoteIdentityConfigured").mockReturnValue(true);
 });

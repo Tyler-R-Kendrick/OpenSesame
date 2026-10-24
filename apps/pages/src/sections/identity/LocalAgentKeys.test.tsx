@@ -1,3 +1,4 @@
+import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
 import * as agentAuthentication from "@opensesame/app-core/lib/local-agent-auth.js";
 import { readLocalAgentKeys } from "@opensesame/app-core/lib/local-agent-keys.js";
 import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
@@ -28,18 +29,8 @@ beforeEach(async () => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   tomb = `agent-ui-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("navigator", {
-    locks: {
-      request: <T,>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   const directory = await changeLocalDirectory(tomb, 0, {
     action: "create",
