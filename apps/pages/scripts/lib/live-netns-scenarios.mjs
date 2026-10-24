@@ -84,7 +84,10 @@ const meets = (page, ms) =>
 /** Owner asks nobody to be let in: an open session, codes passed by hand. */
 async function pairByHand(ctx, joiner, { name = JOINER } = {}) {
   const { owner } = ctx;
-  const session = await startSession(owner.page, { admission: "open" });
+  const session = await startSession(owner.page, {
+    admission: "open",
+    sameMachine: false,
+  });
   const request = await joinerAsks(joiner.page, { link: session.link, name });
   const reply = await ownerAdmitsByHand(
     owner.page,
@@ -202,7 +205,9 @@ export async function carried(ctx) {
       addresses: [ADDRESS.a],
       carriers: [{ kind: "nostr", url: relay.url }],
     });
-    const { panel, code, link } = await startSession(owner.page);
+    const { panel, code, link } = await startSession(owner.page, {
+      sameMachine: false,
+    });
     await panel
       .getByRole("img", { name: /^Carrying codes: / })
       .waitFor({ timeout: 20_000 });
@@ -256,7 +261,9 @@ export async function relayed(ctx) {
       relay: true,
       carriers: [{ kind: "nostr", url: relay.url }],
     });
-    const { panel, code, link } = await startSession(owner.page);
+    const { panel, code, link } = await startSession(owner.page, {
+      sameMachine: false,
+    });
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     const admit = admitControl(panel, JOINER);

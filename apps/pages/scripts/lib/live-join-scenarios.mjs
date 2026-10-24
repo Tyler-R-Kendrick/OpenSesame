@@ -17,6 +17,7 @@ import { engineOf } from "./live-engines.mjs";
 import {
   WATCH_RTC,
   admitControl,
+  answerAddresses,
   assertSameMachineSdpPrivacy,
   endSession,
   gatheredHosts,
@@ -215,6 +216,8 @@ export async function carried(browser, owner, kind) {
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
+    // The reply crossed on the carrier too, naming this machine: allowed.
+    await answerAddresses(joiner.page);
     await joined(joiner.page).waitFor({ timeout: 45_000 });
     await shot(joiner.page, `carrier-${kind}-joined`);
     check(true, `${kind}: joined with no code pasted either way`);

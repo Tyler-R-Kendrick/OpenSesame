@@ -40,6 +40,11 @@ export type GuestStatus =
       sas?: string;
       unverified?: boolean;
     }>
+  /**
+   * The owner's reply names addresses to try (ADR 0150 §6): nothing is
+   * checked until the person allows them or joins without them.
+   */
+  | Readonly<{ at: "addresses"; addresses: readonly string[] }>
   | Readonly<{
       at: "connecting";
       since: number;
