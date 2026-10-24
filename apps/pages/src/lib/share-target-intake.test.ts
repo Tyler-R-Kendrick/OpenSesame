@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { takePendingImport } from "@opensesame/app-core/lib/vault/pending-import.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureShareTarget } from "./share-target-intake.js";
