@@ -1,5 +1,5 @@
-import type { Capability, CapabilityExclusion } from "./index.js";
 import { awsStsCapabilities } from "./aws-sts.js";
+import type { Capability, CapabilityExclusion } from "./index.js";
 import { modelKeyCapabilities } from "./model-keys.js";
 
 const ADR_CONNECTOR_DIRECTORY = "0115-front-door-and-connector-directory.md";
