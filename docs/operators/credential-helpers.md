@@ -65,7 +65,10 @@ The tag is only as strong as the token's custody. The daemon reads the token
 from its environment, and a process running as the same user can usually read
 that (`/proc/<pid>/environ`) or the file you keep it in, so the tag keeps out
 a process that can write the state directory but does not hold the token.
-That token can write grants anyway. A token-less mint of any
+That token can write grants anyway. `helpers revoke` takes effect at once in
+the running daemon; to end a grant against a same-user process that may have
+copied the grant file, rotate the operator token or revoke the connection at
+the Host. A token-less mint of any
 other connection or installation is `403 helper_mint_not_allowed`. A socket caller that presents the operator token may
 mint any connection, as before. The daemon then forwards to the Host with its
 own operator token (`operator_forward`, loopback Host only) and names the peer
