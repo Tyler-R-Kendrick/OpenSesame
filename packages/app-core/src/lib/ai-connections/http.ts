@@ -8,6 +8,25 @@ import {
   type AiConnectionTransport,
 } from "./types.js";
 
+// A transport may retire its physical cancellation link only at actual body EOF.
+// The original Response is retained unchanged; logical authority remains separate.
+const responseLifetimes = new WeakMap<Response, () => void>();
+
+export function bindAiResponseLifetime(response: Response, retire: () => void) {
+  if (responseLifetimes.has(response))
+    throw new AiConnectionError(
+      "response",
+      "The AI transport reused a live response.",
+    );
+  responseLifetimes.set(response, retire);
+}
+
+function finishAiResponseBody(response: Response) {
+  const retire = responseLifetimes.get(response);
+  responseLifetimes.delete(response);
+  retire?.();
+}
+
 export {
   type AiCompletionObservation,
   aiCompletionSeams,
@@ -155,6 +174,7 @@ export async function readAiJson(
       check();
       const next = await reader.read();
       ended = next.done;
+      if (next.done) finishAiResponseBody(response);
       check();
       if (next.done) break;
       length += next.value.byteLength;
