@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { assertApproval } from "../lib/evidence-approval.mjs";
 import {
   EVIDENCE_ROOT,
   assertNoSymlinkParents,
@@ -47,6 +48,11 @@ try {
       throw new Error(`invalid option ${key}`);
     flags[key] = options[i + 1];
   }
+  // The rule the gate applies to the manifest this writes (evidence-approval.mjs).
+  assertApproval(
+    { by: flags["--approved-by"], reference: flags["--approval-ref"] },
+    slot,
+  );
   const root = git(["rev-parse", "--show-toplevel"]);
   const destination = join(root, EVIDENCE_ROOT, slot);
   const candidate = resolve(input);
