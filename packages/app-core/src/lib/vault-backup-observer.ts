@@ -11,7 +11,9 @@ import {
   subscribeLocalBackupTarget,
 } from "./backup-target-local.js";
 import { drainBackupWebhooks, syncVaultBackup } from "./vault-backup-sync.js";
+import { sealMark } from "./vault/store-fresh.js";
 import { GUEST_TOMB, vaultStore } from "./vault/store.js";
+import { HEADER_PATH, readPlaintextFile } from "./vfs.js";
 
 export type BackupSyncReason =
   | "configured"
@@ -32,7 +34,14 @@ let lastStatus = "";
 
 function statusKey(): string {
   const snap = vaultStore.getSnapshot();
-  return `${snap.tomb}:${snap.status}:${snap.items.length}:${snap.folders.length}`;
+  // A seal names a committed body, including edits that keep item counts fixed.
+  // The header also carries enrollment/wrap changes; its revision may lag a body.
+  return JSON.stringify([
+    snap.tomb,
+    snap.status,
+    sealMark(snap.tomb),
+    readPlaintextFile(snap.tomb, HEADER_PATH),
+  ]);
 }
 
 /** A push the device makes on its own, as opposed to one a person asked for. */
@@ -50,6 +59,30 @@ function admitted(
   );
 }
 
+async function syncTarget(
+  row: LocalBackupTarget,
+  reason: BackupSyncReason,
+): Promise<void> {
+  const providerId = row.providerId ?? "github";
+  const current = readLocalBackupTarget(providerId);
+  if (!current || !admitted(current, reason)) return;
+  await syncVaultBackup(providerId).catch(() => undefined);
+}
+
+async function syncOtherTargets(
+  targets: LocalBackupTarget[],
+  reason: BackupSyncReason,
+): Promise<void> {
+  if (!targets.length) return;
+  if (inflight) return inflight;
+  inflight = (async () => {
+    for (const row of targets) await syncTarget(row, reason);
+  })().finally(() => {
+    inflight = null;
+  });
+  await inflight;
+}
+
 async function runSync(reason: BackupSyncReason): Promise<void> {
   // Withdrawn by the operator: nothing, not even a sync asked for by hand.
   if (!backupEgressGate.running()) return;
@@ -61,27 +94,16 @@ async function runSync(reason: BackupSyncReason): Promise<void> {
   );
   if (enabled.length === 0) return;
   if (reason === "webhook" || reason === "vault" || reason === "configured") {
-    for (const row of enabled) {
-      bumpLocalBackupPending(row.providerId, 1);
-    }
+    for (const row of enabled) bumpLocalBackupPending(row.providerId, 1);
   }
-  if (inflight) {
-    await inflight;
-    return;
-  }
-  // Dispatch only admitted targets: sync-all could also push an uninitialized
-  // App target when another provider is already ready.
-  inflight = (async () => {
-    for (const row of enabled) {
-      const providerId = row.providerId ?? "github";
-      const current = readLocalBackupTarget(providerId);
-      if (!current || !admitted(current, reason)) continue;
-      await syncVaultBackup(providerId).catch(() => undefined);
-    }
-  })().finally(() => {
-    inflight = null;
-  });
-  await inflight;
+  // App writes already have a bounded per-destination FIFO. Submit each sealed
+  // revision now so its original session, transport and ciphertext are captured
+  // before any wait. Joining an older observer write would lose this revision.
+  const appWrites = enabled
+    .filter((row) => row.kind === "github_app")
+    .map((row) => syncTarget(row, reason));
+  const others = enabled.filter((row) => row.kind !== "github_app");
+  await Promise.all([...appWrites, syncOtherTargets(others, reason)]);
 }
 
 export function publishBackupSyncEvent(reason: BackupSyncReason): void {
