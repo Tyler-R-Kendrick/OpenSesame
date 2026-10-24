@@ -8,24 +8,29 @@
 //! `OPENSESAME_HOST_API`) — and passes the gateway's status and body through
 //! untouched.
 //!
-//! Auth depends on the transport (ADR 0138 §2). On the Unix socket the caller
-//! is admitted by its kernel-attested peer credentials alone, the same check
-//! as the agent-capability exchange (`agent_capability::require_peer`): an
-//! `Origin` header is refused, an unattested peer is `503`, and a UID outside
-//! `allowed_uids` is `401` even with a valid operator token. A helper therefore
-//! holds no bearer, so a process that answered at the socket path in the
-//! daemon's place would capture nothing that authorizes anything. Over TCP
-//! the route is `require_operator`, exactly like `/v1/discover`. Every other
-//! operator route still demands the token on the socket too.
+//! Auth depends on the transport (ADR 0138 §2, as amended). Over TCP the route
+//! is `require_operator`, exactly like `/v1/discover`. On the Unix socket the
+//! caller is first admitted by its kernel-attested peer credentials, the same
+//! check as the agent-capability exchange (`agent_capability::require_peer`):
+//! an `Origin` header is refused, an unattested peer is `503`, and a UID
+//! outside `allowed_uids` is `401` even with a valid operator token. Peer
+//! credentials say who asks, not what it should get, so a socket caller then
+//! needs either the operator token, which admits any connection as before, or
+//! a connection the operator allowed for helper minting (`helper_mints`, empty
+//! until `opensesame helpers allow`); anything else is `403
+//! helper_mint_not_allowed`. A helper therefore holds no bearer, and a process
+//! that answered at the socket path in the daemon's place would capture
+//! nothing that authorizes anything. Every other operator route still demands
+//! the token on the socket too.
 //!
 //! The mint response carries `derived_token` bytes — permitted only because
 //! it is a provider-minted, short-lived, revocable derived token on a
 //! connection whose owner opted into `materialization = derived_short_lived`
 //! (ADR 0049 §1/§2/§6). The daemon does not inspect, cache, or log it; the
-//! body crosses this route as opaque JSON. What it does log is the receipt:
-//! the connection id, the gateway's status and the caller — the peer's UID
-//! and pid on the socket, `operator` over TCP — since the gateway's mint body
-//! has no field to carry the peer.
+//! body crosses this route as opaque JSON. It forwards the socket peer as
+//! `on_behalf_of` (UID and pid), which the Host records as the actor of the
+//! mint, and logs a receipt line: the connection id, the gateway's status and
+//! the caller.
 
 use axum::{
     extract::{ConnectInfo, State},
@@ -59,8 +64,9 @@ pub struct MintRequest {
 
 /// Who a mint is for, once admitted.
 enum Caller {
-    /// A process on the Unix socket, by its kernel-attested credentials.
-    Peer { uid: u32, pid: u32 },
+    /// A process on the Unix socket, by its kernel-attested credentials, and
+    /// whether it also presented the operator token.
+    Peer { uid: u32, pid: u32, operator: bool },
     /// A TCP caller holding the operator token.
     Operator,
 }
@@ -75,16 +81,41 @@ impl Caller {
 
     fn actor(&self) -> String {
         match self {
-            Self::Peer { uid, pid } => format!("uid:{uid} pid:{pid}"),
+            Self::Peer {
+                uid,
+                pid,
+                operator: false,
+            } => format!("uid:{uid} pid:{pid}"),
+            Self::Peer {
+                uid,
+                pid,
+                operator: true,
+            } => format!("operator uid:{uid} pid:{pid}"),
             Self::Operator => "operator".to_string(),
+        }
+    }
+
+    /// The process the Host mints for, when the daemon knows it: the Host
+    /// records it as the actor of the mint (ADR 0049 §5).
+    fn on_behalf_of(&self) -> Option<Value> {
+        match self {
+            Self::Peer { uid, pid, .. } => Some(json!({"uid": uid, "pid": pid})),
+            Self::Operator => None,
         }
     }
 }
 
-/// Admit the caller: peer credentials on the socket, the operator token on
-/// TCP (ADR 0138 §2).
+/// Admit the caller (ADR 0138 §2). Over TCP, the operator token. On the
+/// socket, the attested peer, and then either the operator token, which
+/// admits any connection as it always has, or no token at all, which admits
+/// only a connection the operator allowed for helper minting.
 #[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
-fn admit(st: &App, headers: &HeaderMap, uds: &UdsPeer) -> Result<Caller, Response> {
+fn admit(
+    st: &App,
+    headers: &HeaderMap,
+    uds: &UdsPeer,
+    connection_id: &str,
+) -> Result<Caller, Response> {
     if uds.is_none() {
         require_operator(st, headers, uds)?;
         return Ok(Caller::Operator);
@@ -94,7 +125,31 @@ fn admit(st: &App, headers: &HeaderMap, uds: &UdsPeer) -> Result<Caller, Respons
         .as_ref()
         .and_then(|Extension(ConnectInfo(info))| info.0)
         .map_or(0, |cred| cred.pid);
-    Ok(Caller::Peer { uid, pid })
+    if opensesame_host_core::operator::token_from_headers(headers).is_some() {
+        // A token on the socket must be the operator's; a wrong one is 401,
+        // never a quiet fall back to the allowlist.
+        require_operator(st, headers, uds)?;
+        return Ok(Caller::Peer {
+            uid,
+            pid,
+            operator: true,
+        });
+    }
+    if !st.helper_mints.allows(connection_id) {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "helper_mint_not_allowed",
+                "hint": "the operator allows a connection with `opensesame helpers allow`"
+            })),
+        )
+            .into_response());
+    }
+    Ok(Caller::Peer {
+        uid,
+        pid,
+        operator: false,
+    })
 }
 
 /// `POST /v1/mint` — forward to the gateway mint route, pass the answer back.
@@ -104,7 +159,7 @@ pub async fn mint_via_daemon(
     headers: HeaderMap,
     Json(req): Json<MintRequest>,
 ) -> Response {
-    let caller = match admit(&st, &headers, &uds) {
+    let caller = match admit(&st, &headers, &uds, &req.connection_id) {
         Ok(caller) => caller,
         Err(resp) => return resp,
     };
@@ -132,6 +187,9 @@ pub async fn mint_via_daemon(
     }
     if let Some(duration_seconds) = req.duration_seconds {
         body["duration_seconds"] = json!(duration_seconds);
+    }
+    if let Some(peer) = caller.on_behalf_of() {
+        body["on_behalf_of"] = peer;
     }
     let response = match forward.json(&body).send().await {
         Ok(upstream) => {

@@ -107,10 +107,11 @@ credential STS was built to derive from.
   loopback stand-in that verifies SigV4 with the same crate and answers the
   documented XML; a deployment should mint once against a role it controls
   before handing the profile to an agent.
-- The aws helper reaches a real daemon because the daemon's `/v1/mint` admits
-  a Unix-socket caller by its kernel-attested peer credentials, with no
-  operator token (ADR 0138 §2). That change is its own pull request, and this
-  one builds on it.
+- The aws helper reaches a real daemon because the daemon's `/v1/mint`
+  authenticates a Unix-socket caller by its kernel-attested peer credentials
+  and mints, with no operator token, a connection the operator allowed
+  (`opensesame daemon helpers allow`; ADR 0138 §2 as amended). That change is
+  its own pull request, and this one builds on it.
 - The Host reads `OPENSESAME_TEST_AWS_STS_ENDPOINT` only in a build with the
   broker's `sts-stand-in` feature, which the CLI's tests enable and a shipped
   build never does; the endpoint then admits loopback hosts alone.

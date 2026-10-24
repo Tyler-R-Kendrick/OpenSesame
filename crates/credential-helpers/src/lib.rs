@@ -15,11 +15,13 @@
 //!
 //! **Authentication is the socket itself.** The helpers connect over the
 //! daemon's Unix socket, where the kernel attests the peer UID, and the
-//! daemon's `/v1/mint` admits a peer whose UID it allows — by those peer
-//! credentials alone, never by a bearer the caller could leak (ADR 0138 §2,
-//! ADR 0048 §8). Helpers therefore carry no secret of their own: they never
-//! read `OPENSESAME_OPERATOR_TOKEN` and send no operator header, so whatever
-//! answers at the socket path learns nothing that authorizes anything.
+//! daemon's `/v1/mint` authenticates a peer whose UID it allows by those
+//! credentials, never by a bearer the caller could leak (ADR 0138 §2, ADR
+//! 0048 §8), then mints only a connection the operator allowed for helpers
+//! (`opensesame daemon helpers allow`). Helpers therefore carry no secret of
+//! their own: they never read `OPENSESAME_OPERATOR_TOKEN` and send no operator
+//! header, so whatever answers at the socket path learns nothing that
+//! authorizes anything.
 //!
 //! Failure discipline: any non-200 from the daemon, any I/O error, any
 //! malformed response → non-zero exit with **nothing on stdout** and only a

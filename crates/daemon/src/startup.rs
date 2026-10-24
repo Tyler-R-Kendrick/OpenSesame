@@ -79,6 +79,7 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
             promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
             invoke_limiter: Arc::new(ratelimit::TokenBucket::default()),
             mint_limiter: Arc::new(ratelimit::TokenBucket::new(4.0, 1.0)),
+            helper_mints: Arc::new(crate::helper_mints::HelperMints::open(state_dir.as_deref())),
             invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
             token_source_factory: cli_token_source_factory(),
             duress_peer,

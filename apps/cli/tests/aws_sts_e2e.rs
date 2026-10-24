@@ -132,6 +132,8 @@ fn opensesame(dir: &Path) -> Command {
 
 struct Stack {
     host: Host,
+    /// The daemon's loopback TCP address, for its operator routes.
+    daemon: String,
     sock: PathBuf,
     dir: tempfile::TempDir,
     stand_in: stand_in::StandIn,
@@ -194,6 +196,7 @@ fn boot(reply: Reply) -> Stack {
     wait_for("the daemon socket", || sock.exists());
     Stack {
         host: Host { api, http: client },
+        daemon: format!("http://127.0.0.1:{daemon_port}"),
         sock,
         dir,
         stand_in,
@@ -242,6 +245,19 @@ fn bound_connection(host: &Host) -> String {
     id
 }
 
+/// The operator allows the helpers to mint `id` on the daemon's socket with
+/// no token (ADR 0138 §2); until then a helper's mint is refused.
+fn allow_helpers(stack: &Stack, id: &str) {
+    let response = stack
+        .host
+        .http
+        .put(format!("{}/v1/helper-mints/{id}", stack.daemon))
+        .header("x-opensesame-operator", OPERATOR)
+        .send()
+        .expect("daemon over TCP");
+    assert_eq!(response.status().as_u16(), 200, "allow {id}");
+}
+
 /// The aws helper as an AWS SDK starts it: no operator token, which it would
 /// not read anyway — the daemon admits it by its peer credentials (ADR 0138 §2).
 fn helper(stack: &Stack, id: &str) -> std::process::Output {
@@ -262,6 +278,7 @@ fn helper(stack: &Stack, id: &str) -> std::process::Output {
 fn the_helper_prints_the_minted_credential_and_nothing_leaks() {
     let stack = boot(Reply::Assume { expires_in: 1800 });
     let id = bound_connection(&stack.host);
+    allow_helpers(&stack, &id);
 
     let out = helper(&stack, &id);
     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
@@ -336,6 +353,7 @@ fn an_sts_refusal_reaches_the_helper_as_a_class_and_no_credential() {
         code: "AccessDenied",
     });
     let id = bound_connection(&stack.host);
+    allow_helpers(&stack, &id);
     let out = helper(&stack, &id);
     assert!(!out.status.success());
     assert!(out.stdout.is_empty());

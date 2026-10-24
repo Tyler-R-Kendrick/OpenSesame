@@ -25,20 +25,42 @@ helper (git/docker/aws/kubectl)
         STS credentials for an aws connection's bound role, ADR 0213)
 ```
 
-The helpers send **no token**, and never read `OPENSESAME_OPERATOR_TOKEN`: on
-the Unix socket the daemon's `/v1/mint` admits a caller by its kernel-attested
-peer credentials alone (ADR 0138 §2) — the peer UID must be one of
-`OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the daemon's own UID). A process that
-replaced the socket would learn nothing from a helper that authorizes anything.
-A request with an `Origin` header is `401`, a peer outside the allowed UIDs is
-`401 uds_peer_unauthorized` even if it presents a valid operator token, and a
-peer the kernel did not attest is `503 uds_peer_unattested`. The daemon then
-forwards to the Host with its own operator token (`operator_forward`, loopback
-Host only), logs the peer's UID and pid as the actor of the mint, and passes
-the Host's answer back. Over TCP the same route still demands the operator
-token (`X-OpenSesame-Operator`), as every other operator route does on both
-transports. Any non-200 from the daemon is a hard failure: non-zero exit,
-nothing on stdout, only a failure class on stderr.
+The helpers send **no token**, and never read `OPENSESAME_OPERATOR_TOKEN`, so a
+process that replaced the socket would learn nothing from a helper that
+authorizes anything. On the Unix socket the daemon's `/v1/mint` first
+authenticates the caller by its kernel-attested peer credentials (ADR 0138 §2):
+the peer UID must be one of `OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the
+daemon's own UID). A request with an `Origin` header is `401`, a peer outside
+the allowed UIDs is `401 uds_peer_unauthorized` even if it presents a valid
+operator token, and a peer the kernel did not attest is `503
+uds_peer_unattested`.
+
+Peer credentials say who asks, not what it should get, so **the operator
+names the connections a helper may mint**. The list starts empty:
+
+```bash
+export OPENSESAME_OPERATOR_TOKEN=…          # the daemon's operator token
+opensesame daemon helpers allow conn_…      # helpers may mint this connection
+opensesame daemon helpers list
+opensesame daemon helpers revoke conn_…
+```
+
+The daemon keeps the list owner-only in its state directory
+(`helper-mints.json`), so it survives a restart; a list it cannot read admits
+nothing. A token-less mint of any other connection is `403
+helper_mint_not_allowed`. A socket caller that presents the operator token may
+mint any connection, as before. The daemon then forwards to the Host with its
+own operator token (`operator_forward`, loopback Host only) and names the peer
+in `on_behalf_of`; the Host records `operator on_behalf_of=uid:<uid>,pid:<pid>`
+as the actor of the mint, in its answer and on the connection's event trail.
+Over TCP the route demands the operator token, as every other operator route
+does on both transports. Any non-200 from the daemon is a hard failure:
+non-zero exit, nothing on stdout, only a failure class on stderr.
+
+**Residual risk.** Any process running as an allowed user can mint every
+allowed connection on the socket, an agent run included. Give a sandbox or an
+agent run its own narrower path (ADR 0099's launch capability), never the raw
+socket, and allow only the connections the helpers on this machine need.
 
 ## Socket location
 
@@ -104,6 +126,7 @@ credential_process = opensesame-credential-process
 ```bash
 export OPENSESAME_AWS_CONNECTION_ID="conn_…"            # required
 # export OPENSESAME_AWS_DURATION_SECONDS=1800           # 900 up to the binding's cap
+opensesame daemon helpers allow conn_…                  # once, with the operator token
 ```
 
 The Host assumes an IAM role with STS and the helper prints STS's temporary

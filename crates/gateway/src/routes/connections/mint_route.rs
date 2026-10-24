@@ -21,6 +21,27 @@ pub struct MintBody {
     /// The lifetime asked for, in seconds. An AWS mint honours it from 900 up
     /// to its binding's cap and refuses anything outside; GitHub ignores it.
     pub duration_seconds: Option<u32>,
+    /// The process the daemon minted for, when a credential helper asked on
+    /// its Unix socket (ADR 0138 §2). It authorizes nothing: the caller is
+    /// still the one `authorize` resolved. It names who asked, in the receipt.
+    pub on_behalf_of: Option<OnBehalfOf>,
+}
+
+/// A local process, by the credentials its kernel attested to the daemon.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OnBehalfOf {
+    pub uid: u32,
+    pub pid: u32,
+}
+
+/// The RFC 8693 actor recorded for a mint: the caller, and the local process
+/// it minted for when there is one (`operator on_behalf_of=uid:1000,pid:4242`).
+fn mint_actor(caller: String, on_behalf_of: Option<&OnBehalfOf>) -> String {
+    match on_behalf_of {
+        Some(peer) => format!("{caller} on_behalf_of=uid:{},pid:{}", peer.uid, peer.pid),
+        None => caller,
+    }
 }
 
 /// Administrator-only provider tokens. Connection ownership and
@@ -47,7 +68,10 @@ pub async fn mint(
         Ok(body) => body,
         Err(resp) => return resp,
     };
-    let actor = caller_subject(&who).unwrap_or_else(|| "operator".into());
+    let actor = mint_actor(
+        caller_subject(&who).unwrap_or_else(|| "operator".into()),
+        body.on_behalf_of.as_ref(),
+    );
     match st
         .connection_broker
         .mint_derived_token_for(
