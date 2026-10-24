@@ -13,9 +13,9 @@ import {
   connectorLabel,
 } from "./capabilities.js";
 import {
-  type ProvisionalHistoryAccount,
+  captureHistoryRows,
   listHistoryAccounts,
-  putHistoryAccount,
+  loadHistoryActions,
 } from "./history-backup-idb.js";
 import { loadSettings, saveSettings } from "./settings.js";
 
@@ -182,39 +182,20 @@ export function bindHistoryConnection(
 export async function claimProvisionalHistoryAccounts(
   principalId: string,
 ): Promise<number> {
-  const accounts = await listHistoryAccounts();
-  let claimed = 0;
-  const now = new Date().toISOString();
-  for (const account of accounts) {
-    if (account.claimState !== "provisional") continue;
-    const next: ProvisionalHistoryAccount = {
-      id: account.id,
-      providerId: account.providerId,
-      anonToken: account.anonToken,
-      claimState: "claimed",
-      principalId,
-      createdAt: account.createdAt,
-      claimedAt: now,
-    };
-    await putHistoryAccount(next);
-    claimed += 1;
-  }
-  if (claimed > 0) {
-    const selections = loadHistorySelections().map((row) => {
-      if (row.group !== "postgres" || !row.provisionalAccountId) return row;
-      const next: HistoryBackupSelection = {
-        providerId: row.providerId,
-        group: row.group,
-        claimState: "claimed",
-        provisionalAccountId: row.provisionalAccountId,
-      };
-      if (row.connectionId) next.connectionId = row.connectionId;
-      if (row.remote) next.remote = row.remote;
-      return next;
-    });
-    persistHistoryBinding(selections);
-  }
-  return claimed;
+  const rows = captureHistoryRows();
+  // Finish the selected store's immutable account snapshot before code loading
+  // can expose a longer pause in which the original records may be edited.
+  const captured = await rows.listAccounts();
+  rows.assertCurrent();
+  const actions = await loadHistoryActions();
+  rows.assertCurrent();
+  return actions.claimHistoryAccounts(
+    principalId,
+    captured,
+    rows.putAccount,
+    loadHistorySelections,
+    persistHistoryBinding,
+  );
 }
 
 export function historyBackupSummary(
