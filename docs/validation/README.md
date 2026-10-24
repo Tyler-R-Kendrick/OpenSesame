@@ -11,6 +11,7 @@ with. The test suites themselves are described in [`tests/`](../../tests/README.
 | [Test coverage](test-coverage.md) | Coverage floors for both languages and the test-type matrix. |
 | [PACT](pact.md) | The shared failure-scenario pattern: property, adversarial, chaos, contract. |
 | [Structural quality gates](code-quality-gates.md) | File size, complexity and component-coupling ratchets — the working guide to `pnpm quality`. |
+| [Public web-score gate](web-score.md) | Lighthouse desktop and Is Agentic on the canonical public score page, and why the network check stays out of `pnpm verify`. |
 | [Fuzzing, proofs and concurrency](fuzzing.md) | cargo-fuzz, Jazzer.js, Kani, Miri and Shuttle: how to run each and what it covers. |
 | [Keyboard navigation](keyboard-navigation.md) | The keyboard-access regression contract `verify:keyboard` enforces. |
 | [Visual baseline review, 2026-10-05](2026-10-05-visual-baseline-review.md) | Why four Pages pixel baselines were replaced, the old and new hashes, and what stayed unchanged. |
