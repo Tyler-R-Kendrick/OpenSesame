@@ -156,6 +156,11 @@ export const VAULT_LIB_RULES = [
     "live sessions: pairing codes, WebRTC peers, host and guest (ADR 0150)",
   ),
   optional(
+    "src/lib/local-p2p",
+    "sharing.live",
+    "Local Peer-to-Peer over the live frame protocol, for live sharing's Nearby mode (docs/design/local-p2p.md)",
+  ),
+  optional(
     "src/lib/peer-trust/",
     "sharing.live",
     "browser-only peer trust for live sessions: ARK store, signaling, SAS alarms (D7-2)",

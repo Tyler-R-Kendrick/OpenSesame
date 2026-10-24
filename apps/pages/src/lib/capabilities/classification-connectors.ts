@@ -21,6 +21,8 @@ const CONNECTOR_FILES = [
   "secret-backends/",
   "ai-connections/",
   "tailscale/",
+  // The operator-supplied OIDC client the Connections page configures.
+  "custom-oidc",
 ];
 
 export const CONNECTOR_LIB_RULES = [

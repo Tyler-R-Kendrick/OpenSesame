@@ -1,5 +1,5 @@
 /** Core storage, input, and shell infrastructure classification. */
-import { core, each } from "./classification-rule.js";
+import { core, each, shared } from "./classification-rule.js";
 
 const CORE_INFRA = [
   "kv",
@@ -64,6 +64,43 @@ const CORE_INFRA = [
   "__snapshots__/",
 ];
 
-export const CORE_INFRA_RULES = each("src/lib/", CORE_INFRA, (p) =>
-  core(p, null, "storage, focus, theme and shell infrastructure"),
-);
+/** What the installed app hands the page on boot (`main.tsx` reads each). */
+const INSTALLED_APP = [
+  "launch-intake", // a file opened through the manifest's File Handling
+  "share-target", // the service worker's private Web Share Target hand-off
+  "share-target-intake",
+  "pwa-refresh", // reload once when a newer service worker takes control
+];
+
+/** The person's own files: the browser's save and open pickers, kept awake. */
+const PERSON_FILES = ["file-system", "wake-lock"];
+
+export const CORE_INFRA_RULES = [
+  ...each("src/lib/", CORE_INFRA, (p) =>
+    core(p, null, "storage, focus, theme and shell infrastructure"),
+  ),
+  ...each("src/lib/", INSTALLED_APP, (p) =>
+    core(p, "install.pwa", "installed-app launch, share and update hand-offs"),
+  ),
+  ...each("src/lib/", PERSON_FILES, (p) =>
+    core(
+      p,
+      null,
+      "save/open pickers and a wake lock core export, import, settings and vault fields share",
+    ),
+  ),
+  core(
+    "src/lib/honey-tokens",
+    null,
+    "honey tokens the core vault store seals and boot reads; no provider, no network",
+  ),
+  core(
+    "src/lib/save-request",
+    null,
+    "the request a site hands the core /save review screen; nothing is saved before review",
+  ),
+  shared(
+    "src/lib/direct-sockets",
+    "IWA-only platform adapter over TCPSocket/TCPServerSocket/UDPSocket; docs/design/iwa.md names several intended consumers (terminal transports, printers/IoT, mDNS discovery, pairing listeners), so it is infrastructure several capabilities will import and owns no feature itself; nothing imports it today",
+  ),
+];
