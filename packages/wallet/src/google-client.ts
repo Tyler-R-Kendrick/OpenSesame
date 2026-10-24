@@ -26,6 +26,11 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { SignJWT, importPKCS8 } from "jose";
 import type { GoogleWalletEnabled } from "./config.js";
+import {
+  type GoogleResponseReader,
+  verifyGoogleGenericClass,
+} from "./google-class.js";
+import { readGoogleTokenReply } from "./google-token-reply.js";
 import { assertPassPayloadSafe } from "./payload.js";
 import { WalletInputError, WalletRequestError } from "./provider.js";
 
@@ -60,6 +65,8 @@ export interface GoogleClientOptions {
   fetchImpl?: typeof fetch;
   /** Injected clock, so validity windows and token expiry are assertable. */
   now?: () => Date;
+  /** A browser consumer supplies its original bounded native-body owner here. */
+  readResponseJson?: GoogleResponseReader;
 }
 
 /**
@@ -78,6 +85,8 @@ export interface GoogleClient {
    * link is a URL a human has to be able to open.
    */
   signSaveUrl(genericObjects: readonly BoundaryValue[]): Promise<string>;
+  /** Read-only issuer permission proof for this exact configured class. */
+  verifyGenericClass(): Promise<void>;
   /** PATCH one Generic object. Screened, then sent. */
   patchGenericObject(passId: string, body: BoundaryValue): Promise<void>;
   /**
@@ -117,6 +126,8 @@ export function createGoogleClient(options: GoogleClientOptions): GoogleClient {
   const { config } = options;
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   const now = options.now ?? (() => new Date());
+  const readResponseJson: GoogleResponseReader =
+    options.readResponseJson ?? ((response) => response.json());
 
   let signingKey: Promise<CryptoKey> | null = null;
   const key = (): Promise<CryptoKey> => {
@@ -172,24 +183,10 @@ export function createGoogleClient(options: GoogleClientOptions): GoogleClient {
         `Google refused the service-account assertion (HTTP ${response.status}).`,
       );
     }
-    /*
-     * SAFETY: `Response.json` is `any`; narrowing it to the two fields this
-     * function actually reads keeps the rest of the code honest about what it
-     * relies on, and both fields are re-checked below — a response that does
-     * not match yields a typed error rather than a bad token.
-     */
-    const body = (await response.json()) as {
-      access_token?: string;
-      expires_in?: number;
-    };
-    const value = body.access_token ?? "";
-    if (value.length === 0) {
-      throw new WalletRequestError(
-        response.status,
-        "Google's token response carried no access token.",
-      );
-    }
-    const lifetime = body.expires_in ?? 3600;
+    const { value, lifetime } = readGoogleTokenReply(
+      await readResponseJson(response, 16 * 1024),
+      response.status,
+    );
     token = {
       value,
       expiresAtMs: nowMs + Math.max(lifetime - TOKEN_SKEW_SECONDS, 0) * 1000,
@@ -325,6 +322,13 @@ export function createGoogleClient(options: GoogleClientOptions): GoogleClient {
     hasFetch: fetchImpl !== undefined,
     now,
     signSaveUrl,
+    verifyGenericClass: async () =>
+      verifyGoogleGenericClass(
+        fetchImpl,
+        await accessToken(),
+        config.classId,
+        readResponseJson,
+      ),
     patchGenericObject,
     patchGenericObjectUnscreened: (passId, body) => sendPatch(passId, body),
     insertGenericObject: (body) =>
