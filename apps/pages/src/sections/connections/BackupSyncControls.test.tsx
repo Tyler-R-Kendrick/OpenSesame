@@ -104,3 +104,33 @@ describe("BackupSyncControls", () => {
     );
   });
 });
+
+it("offers explicit recovery or initial write without automatically syncing a newly bound App target", async () => {
+  const status = await backupSeams.getBackupStatus("github");
+  if (!status.target) throw new Error("Fixture target required");
+  status.target = {
+    ...status.target,
+    status: "pending",
+    lastCommitSha: null,
+    lastSyncedAt: null,
+  };
+  Object.assign(backupSeams, { getBackupStatus: vi.fn(async () => status) });
+  render(<BackupSyncControls providerId="github" />);
+  const firstWrite = await screen.findByRole("button", {
+    name: "Back up this vault and enable automatic backups",
+  });
+  expect(
+    screen.getByRole("button", { name: "Read encrypted vault backup" }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("img", { name: "Automatic backups have not started" }),
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole("button", { name: "Sync vault backup now" }),
+  ).toBeNull();
+  expect(backupSeams.resyncBackup).not.toHaveBeenCalled();
+  fireEvent.click(firstWrite);
+  await waitFor(() =>
+    expect(backupSeams.resyncBackup).toHaveBeenCalledExactlyOnceWith("github"),
+  );
+});
