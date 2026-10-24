@@ -37,6 +37,18 @@ function putStatuses() {
     .filter((row) => row.method === "PUT")
     .map((row) => row.status);
 }
+async function initializedLedger() {
+  // This is a real first manual backup, not a fabricated readiness timestamp.
+  await resyncBackup("github");
+  expect(putStatuses()).toEqual([201]);
+  expect(readLocalBackupTarget("github")).toMatchObject({
+    status: "ok",
+    lastCommitSha: fixture.head,
+    pendingEvents: 0,
+  });
+  expect(readLocalBackupTarget("github")?.lastSyncedAt).not.toBeNull();
+  return { puts: putRequests().length, statuses: putStatuses().length };
+}
 async function providerBarrier() {
   // Two genuine signed/provider roundtrips prove other provider work progresses while the first PUT remains held.
   await drainBackupWebhooks();
@@ -62,6 +74,7 @@ async function freshPayload() {
 it.each(["manual", "configured"] as const)(
   "serializes %s-first requests without joining their distinct original payloads",
   async (first) => {
+    const baseline = await initializedLedger();
     const held = fixture.holdNextWrite();
     const manual = () => resyncBackup("github");
     const configured = () => vaultBackupObserverSeams.runSync("configured");
@@ -78,19 +91,21 @@ it.each(["manual", "configured"] as const)(
       });
       await providerBarrier();
       await freshPayload(); // Later vault edits must not replace the already queued snapshot.
-      expect(putRequests()).toHaveLength(1);
+      expect(putRequests()).toHaveLength(baseline.puts + 1);
       expect(settled).toBe(false);
-      expect(putStatuses()).toEqual([]);
+      expect(putStatuses().slice(baseline.statuses)).toEqual([]);
       held.release();
       expect((await firstResult).status).toBe("fulfilled");
       expect((await secondResult).status).toBe("fulfilled");
-      expect(putStatuses()).toEqual([201, 201]);
-      expect(putRequests()).toHaveLength(2);
-      const payloads = putRequests().map((row) =>
-        JSON.parse(
-          Buffer.from(JSON.parse(row.body).content, "base64").toString(),
-        ),
-      );
+      expect(putStatuses().slice(baseline.statuses)).toEqual([201, 201]);
+      expect(putRequests()).toHaveLength(baseline.puts + 2);
+      const payloads = putRequests()
+        .slice(baseline.puts)
+        .map((row) =>
+          JSON.parse(
+            Buffer.from(JSON.parse(row.body).content, "base64").toString(),
+          ),
+        );
       expect(originalPayloads).toHaveLength(2);
       expect(payloads).toEqual(originalPayloads);
       expect(payloads[0]).not.toEqual(payloads[1]);
@@ -193,6 +208,7 @@ it("refuses queued policy withdrawal before any next credential or provider egre
   }
 });
 it("retains queued work and prior success when a later producer is denied, then permits a fresh retry", async () => {
+  const baseline = await initializedLedger();
   const held = fixture.holdNextWrite();
   const first = observed(resyncBackup("github"));
   let queued: ReturnType<typeof observed> | null = null;
@@ -206,7 +222,7 @@ it("retains queued work and prior success when a later producer is denied, then 
     held.release();
     expect((await first).status).toBe("fulfilled");
     await queued; // Observer owns its rejection, actual provider denial remains observable below.
-    expect(putStatuses()).toEqual([201]);
+    expect(putStatuses().slice(baseline.statuses)).toEqual([201]);
     expect(fixture.outcomes.some((row) => row.status === 403)).toBe(true);
     expect(readLocalBackupTarget("github")).toMatchObject({
       status: "error",
@@ -216,7 +232,7 @@ it("retains queued work and prior success when a later producer is denied, then 
     fixture.mode = "normal";
     fixture.onWrite = () => {};
     await resyncBackup("github");
-    expect(putStatuses()).toEqual([201, 201]);
+    expect(putStatuses().slice(baseline.statuses)).toEqual([201, 201]);
     expect(readLocalBackupTarget("github")).toMatchObject({
       status: "ok",
       pendingEvents: 0,
