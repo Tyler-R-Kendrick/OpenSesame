@@ -999,8 +999,7 @@ export class VaultStore {
     try {
       const known = new Set<string>();
       for (const item of this.getSnapshot().items) {
-        if (!(HONEY_VAULT_ITEMS as readonly string[]).includes(item.name))
-          continue;
+        if (!HONEY_VAULT_ITEMS.some((title) => title === item.name)) continue;
         if (known.has(item.name)) await this.purgeItem(item.id);
         else known.add(item.name);
       }

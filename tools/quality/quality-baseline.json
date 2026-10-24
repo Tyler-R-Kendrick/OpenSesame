@@ -612,7 +612,7 @@
       "complexity": 1
     },
     "packages/app-core/src/lib/custom-oidc.ts": {
-      "max-lines": 405
+      "max-lines": 402
     },
     "packages/app-core/src/lib/directory.ts": {
       "max-lines": 456
@@ -677,9 +677,6 @@
     },
     "packages/app-core/src/lib/projects.ts": {
       "max-lines": 466
-    },
-    "packages/app-core/src/lib/save-request.ts": {
-      "complexity": 1
     },
     "packages/app-core/src/lib/siop-authority.test.ts": {
       "max-lines": 437
@@ -760,7 +757,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1680,
+      "max-lines": 1679,
       "max-statements": 1
     },
     "packages/app-core/src/lib/vault/unlock-methods-extra.test.ts": {

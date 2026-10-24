@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decodeSaveRequest, saveRequestField } from "./save-request.js";
 
-function encode(value: unknown): string {
+function encode<Value>(value: Value): string {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);

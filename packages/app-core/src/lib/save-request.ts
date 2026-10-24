@@ -6,6 +6,8 @@
  * a title, a bounded list of autocomplete field values, and optional notes.
  */
 
+import { type JsonValue, isJsonObject, isString } from "@opensesame/os-domain";
+
 export const SAVE_REQUEST_TYPES = [
   "login",
   "credit-card",
@@ -32,50 +34,64 @@ const MAX_FIELD_VALUE = 8192;
 const MAX_FIELDS = 64;
 const MAX_NOTES = 16_384;
 
-function text(value: unknown, max: number): string | null {
-  return typeof value === "string" && value.length > 0 && value.length <= max
+function text(value: JsonValue | undefined, max: number): string | null {
+  return isString(value) && value.length > 0 && value.length <= max
     ? value
     : null;
 }
 
-/** Decode and validate a Base64 save request. `null` means refuse it. */
-export function decodeSaveRequest(encoded: string): SaveRequest | null {
-  if (typeof encoded !== "string" || encoded.length > MAX_ENCODED) return null;
-  let parsed: unknown;
+/** The request's JSON, or null when it is not Base64 of UTF-8 JSON. */
+function readEncoded(encoded: string): JsonValue {
+  if (!isString(encoded) || encoded.length > MAX_ENCODED) return null;
   try {
     const binary = atob(encoded);
     const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    parsed = JSON.parse(
+    const parsed: JsonValue = JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(bytes),
     );
+    return parsed;
   } catch {
     return null;
   }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
-    return null;
-  const record = parsed as Record<string, unknown>;
-  const title = typeof record.title === "string" ? record.title.trim() : "";
-  if (title.length === 0 || title.length > MAX_TITLE) return null;
-  if (!Array.isArray(record.fields) || record.fields.length === 0) return null;
-  if (record.fields.length > MAX_FIELDS) return null;
+}
+
+function readField(value: JsonValue): SaveRequestField | null {
+  if (!isJsonObject(value)) return null;
+  const autocomplete = text(value.autocomplete, MAX_FIELD_NAME);
+  const fieldValue = text(value.value, MAX_FIELD_VALUE);
+  if (autocomplete === null || fieldValue === null) return null;
+  return { autocomplete, value: fieldValue };
+}
+
+/** One to `MAX_FIELDS` fields, every one of them readable, or null. */
+function readFields(value: JsonValue | undefined): SaveRequestField[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  if (value.length > MAX_FIELDS) return null;
   const fields: SaveRequestField[] = [];
-  for (const value of record.fields) {
-    if (value === null || typeof value !== "object" || Array.isArray(value))
-      return null;
-    const field = value as Record<string, unknown>;
-    const autocomplete = text(field.autocomplete, MAX_FIELD_NAME);
-    const fieldValue = text(field.value, MAX_FIELD_VALUE);
-    if (autocomplete === null || fieldValue === null) return null;
-    fields.push({ autocomplete, value: fieldValue });
+  for (const entry of value) {
+    const field = readField(entry);
+    if (field === null) return null;
+    fields.push(field);
   }
-  const notes =
-    record.notes === undefined
-      ? undefined
-      : typeof record.notes === "string" && record.notes.length <= MAX_NOTES
-        ? record.notes
-        : null;
-  if (notes === null) return null;
-  return { title, fields, ...(notes === undefined ? {} : { notes }) };
+  return fields;
+}
+
+/** Absent notes are undefined; notes that do not read refuse the request. */
+function readNotes(value: JsonValue | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  return isString(value) && value.length <= MAX_NOTES ? value : null;
+}
+
+/** Decode and validate a Base64 save request. `null` means refuse it. */
+export function decodeSaveRequest(encoded: string): SaveRequest | null {
+  const parsed = readEncoded(encoded);
+  if (!isJsonObject(parsed)) return null;
+  const title = isString(parsed.title) ? parsed.title.trim() : "";
+  if (title.length === 0 || title.length > MAX_TITLE) return null;
+  const fields = readFields(parsed.fields);
+  const notes = readNotes(parsed.notes);
+  if (fields === null || notes === null) return null;
+  return notes === undefined ? { title, fields } : { title, fields, notes };
 }
 
 /** The first value for an autocomplete name, if the site supplied one. */

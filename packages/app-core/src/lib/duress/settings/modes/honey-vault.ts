@@ -3,7 +3,7 @@
  * proxy credentials. Each planted credential is a honey token; its use through
  * the surrogate proxy is a critical notice in the owner's store.
  */
-import type { JsonValue } from "@opensesame/os-domain";
+import { type JsonValue, isJsonObject, isString } from "@opensesame/os-domain";
 import { mintHoneyToken } from "../../../honey-tokens.js";
 import type { DuressMode, DuressPlan } from "./mode.js";
 
@@ -24,26 +24,21 @@ export type HoneyVaultBody = Readonly<{
   items: readonly HoneyVaultItem[];
 }>;
 
+const DECOY_TOKEN =
+  /^(?:osr_hny_[0-9a-f]{32}_[0-9a-f]{32}|osr_c0de[0-9a-f]{28})$/u;
+
+function honeyVaultRecord(raw: JsonValue): HoneyVaultItem[] {
+  if (!isJsonObject(raw)) return [];
+  const { title, token } = raw;
+  if (!isString(title) || title.length === 0 || title.length > 128) return [];
+  if (!isString(token) || !DECOY_TOKEN.test(token)) return [];
+  return [{ title, token }];
+}
+
 export function honeyVaultRecords(body: JsonValue): readonly HoneyVaultItem[] {
-  if (typeof body !== "object" || body === null || Array.isArray(body))
-    return [];
-  const value = body as Record<string, unknown>;
-  if (value.v !== 1 || !Array.isArray(value.items)) return [];
-  return value.items.flatMap((raw) => {
-    if (typeof raw !== "object" || raw === null) return [];
-    const row = raw as Record<string, unknown>;
-    if (
-      typeof row.title !== "string" ||
-      row.title.length === 0 ||
-      row.title.length > 128 ||
-      typeof row.token !== "string" ||
-      !/^(?:osr_hny_[0-9a-f]{32}_[0-9a-f]{32}|osr_c0de[0-9a-f]{28})$/u.test(
-        row.token,
-      )
-    )
-      return [];
-    return [{ title: row.title, token: row.token }];
-  });
+  if (!isJsonObject(body)) return [];
+  if (body.v !== 1 || !Array.isArray(body.items)) return [];
+  return body.items.flatMap(honeyVaultRecord);
 }
 
 function planFor(): DuressPlan {
