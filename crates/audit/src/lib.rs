@@ -124,6 +124,7 @@ pub struct ReceiptSigner {
 impl ReceiptSigner {
     /// Ephemeral key. Receipts signed with it can only be verified by this
     /// process: use it for tests and dev, never against a persistent receipt store.
+    #[must_use]
     pub fn generate() -> Self {
         // Seed from the OS RNG directly: ed25519-dalek 3's CryptoRng comes
         // from rand_core 0.10, while the workspace rand is still 0.8.
