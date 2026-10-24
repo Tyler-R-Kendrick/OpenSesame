@@ -3,9 +3,11 @@ import type { BrowserUnavailableKind } from "@opensesame/app-core/lib/browser-di
 import type {
   ConnectMethod,
   ConnectPlan,
+  McpInfo,
   OauthPreset,
 } from "@opensesame/app-core/lib/connect-plan.js";
 import type { NativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
+import { nativeMcpMetadataUnavailableReason } from "@opensesame/app-core/lib/native-mcp-availability.js";
 import { configuredNativeOAuthPreset } from "@opensesame/app-core/lib/native-oauth-resource-preset.js";
 import { nativeBrowserOAuthDescriptor } from "./native-browser-oauth-descriptor.js";
 import type {
@@ -155,7 +157,31 @@ function apiDescriptor(
   };
 }
 
+function mcpUnavailableAdvice(
+  providerId: string,
+  metadata: McpInfo,
+  availability: BrowserProviderAvailability["mcp"],
+): Pick<NativeMethodDescriptor, "unavailableReason" | "unavailableKind"> {
+  const reason =
+    availability.reason ??
+    nativeMcpMetadataUnavailableReason(providerId, metadata) ??
+    undefined;
+  if (!availability.available && reason === undefined)
+    return {
+      unavailableKind: "runtime-inactive",
+      unavailableReason:
+        "Enable External connectors in Settings › Features to activate this connection on this device.",
+    };
+  return {
+    unavailableKind: "no-public-contract",
+    unavailableReason:
+      reason ??
+      "The provider has not advertised a public browser authorization contract for its MCP server.",
+  };
+}
+
 function mcpDescriptor(
+  providerId: string,
   method: Extract<ConnectMethod, { kind: "mcp" }>,
   availability: BrowserProviderAvailability["mcp"],
 ): NativeMethodDescriptor {
@@ -168,10 +194,7 @@ function mcpDescriptor(
     label:
       metadata && metadata.registration !== "manual" ? "Managed MCP" : "MCP",
     available: availability.available,
-    unavailableReason:
-      availability.reason ??
-      "The provider has not advertised a public browser authorization contract for its MCP server.",
-    unavailableKind: "no-public-contract",
+    ...mcpUnavailableAdvice(providerId, method.mcp, availability),
     instructions:
       "Connect to this provider's published MCP server. OpenSesame verifies its advertised tools before reporting a connection.",
     fields:
@@ -321,7 +344,7 @@ function providerMethods(
         configuredMcpDescriptor(
           plan.id,
           method.mcp,
-          mcpDescriptor(method, availability.mcp),
+          mcpDescriptor(plan.id, method, availability.mcp),
         ),
       );
   }
