@@ -43,7 +43,7 @@ function privateSource(file, realm, sdk) {
   )
     return true;
   return realm === "tailscale-node"
-    ? /\/(?:src\/modules\/networking\.tailnet\/browser\/(?:worker|worker-csp|worker-native-http|protocol|sdk|worker-egress)|packages\/app-core\/src\/lib\/tailscale\/(?:browser-node-peer-http|browser-node-port))\.ts$/.test(
+    ? /\/(?:src\/modules\/networking\.tailnet\/browser\/(?:worker|worker-csp|worker-native-http|worker-peer-get|protocol|sdk|sdk-peer-get|worker-egress)|packages\/app-core\/src\/lib\/tailscale\/(?:browser-node-peer-http|browser-node-port))\.ts$/.test(
         path,
       )
     : /\/packages\/app-core\/src\/lib\/secret-backends\/[^/]+\.(?:ts|json)$/.test(
