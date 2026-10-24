@@ -83,7 +83,6 @@ function nativeApiKeyAvailable(provider: Provider): boolean {
 export function nativeSettingsDescriptor(
   provider: Provider,
 ): NativeConnectorDescriptor | null {
-  if (provider.id === "linear") return null;
   if (provider.id === "github")
     return nativeGithubDescriptor(
       provider,
