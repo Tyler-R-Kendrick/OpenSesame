@@ -25,6 +25,7 @@ const projection = buildSync({
       import {isConnectionCatalogProvider} from './packages/app-core/src/lib/catalog-provider.ts';
       import {isAiModelProvider} from './packages/app-core/src/lib/ai-model-provider.ts';
       import {aiConnectionDraft,aiConnectionPreset,aiConnectionFamilies} from './packages/app-core/src/lib/ai-connections/presets.ts';
+      export {isAiImageFamily} from './packages/app-core/src/lib/ai-connections/types.ts';
       import {nativeBrowserMcpPolicy,bindNativeBrowserPolicyOrigin} from './packages/app-core/src/lib/native-browser-policy.ts';
       // Schema projection only: availability does not authorize a browser road.
       // The real browser still owns runtime/transport admission and all requests.
@@ -110,3 +111,6 @@ export const NATIVE_AUDITED_ADOBE_ADMISSION = source.auditedAdobeAdmission;
 
 /** Canonical field schemas only; never a substitute for executable admission. */
 export const nativeAuthFieldMethods = source.authFieldMethods;
+
+/** The same image-family discriminator used by the rendered shared form. */
+export const nativeIsAiImageFamily = source.isAiImageFamily;
