@@ -53,8 +53,18 @@ that names no installation admits a mint that names none. The installation is
 the only field a helper sends that selects what is minted; the rest of the
 request names the connection or, for an AWS connection, asks for a shorter
 lifetime under the binding's cap. The daemon keeps the grants owner-only in its
-state directory (`helper-mints.json`), so they survive a restart; a file it
-cannot read, or one in another shape, admits nothing. A token-less mint of any
+state directory (`helper-mints.json`), so they survive a restart. The file
+carries an HMAC under a key derived from the operator token, so only the token
+can write grants the daemon will read back: a file edited by hand, one written
+under a previous token, one it cannot read and one in another shape all admit
+nothing, and `helpers list` shows `"stored": "unauthenticated"` (or
+`"unreadable"`) instead of an empty list with no reason. **Rotating the
+operator token invalidates every grant**: allow each again under the new token.
+The tag is only as strong as the token's custody. The daemon reads the token
+from its environment, and a process running as the same user can usually read
+that (`/proc/<pid>/environ`) or the file you keep it in, so the tag keeps out
+a process that can write the state directory but does not hold the token.
+That token can write grants anyway. A token-less mint of any
 other connection or installation is `403 helper_mint_not_allowed`. A socket caller that presents the operator token may
 mint any connection, as before. The daemon then forwards to the Host with its
 own operator token (`operator_forward`, loopback Host only) and names the peer

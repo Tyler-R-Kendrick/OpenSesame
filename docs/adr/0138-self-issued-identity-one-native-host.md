@@ -138,9 +138,20 @@ account's repositories, so the caller's `installation_id` must match the
 grant exactly, and a grant that names none admits none. Any other mint is
 `403 helper_mint_not_allowed`. A socket caller that presents the operator
 token may still mint any connection and installation. The daemon forwards the peer (UID and pid) as `on_behalf_of`,
-and the Host records it in the actor of the mint receipt and event. Residual
-risk: a same-user process can mint every allowed connection, so a sandbox
-must not mount the raw socket. Not done: narrowing a mint by an ADR 0099
+and the Host records it in the actor of the mint receipt and event. The
+grant file carries an HMAC-SHA256 over its grants under a key HKDF-derived
+from the operator token (info `opensesame/daemon/helper-mints/v3`), because
+owner-only permissions do not keep out a process running as that owner, which
+could otherwise add a grant and wait for a restart. A file whose tag is
+missing or does not verify admits nothing, and `helpers list` reports it as
+`unauthenticated`; so rotating the operator token invalidates every grant, and
+the operator allows each again. That raises the bar from "can write the
+daemon's state directory" to "holds the operator token", the authority that
+may write grants anyway, and no further: the daemon reads the token from its
+environment, and a process running as the same user can usually read another
+process's environment (`/proc/<pid>/environ`) or the file the operator keeps
+the token in. Residual risk: a same-user process can mint every allowed
+connection, so a sandbox must not mount the raw socket. Not done: narrowing a mint by an ADR 0099
 agent capability. That capability is a Host-checked bearer whose operation
 ceiling has no mint, and the daemon cannot verify it locally, so a mint does
 not carry or check one yet; until it does, the allowlist is the only bound
