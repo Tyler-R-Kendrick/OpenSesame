@@ -1,0 +1,25 @@
+{
+  "out": ".",
+  "screens": [
+    { "name": "desktop", "desktop": true, "width": 1280, "height": 800 },
+    { "name": "phone", "width": 390, "height": 844 }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-changed-key",
+      "width": 1280,
+      "title": "Joiner's first ask refused: the owner's key changed — 1280 × 800",
+      "caption": "Two Chromium contexts. A new device that remembers another peer opens the owner's invite link, gives the code, a name, a PIN for its own vault and the owner's peer trust signal, and asks. The ask creates the joiner's vault, the form mounts again, and the remembered-key check refuses. Read from the joiner's page once the tray holds the notice.",
+      "before": "Row mark \"This peer's key changed\" absent; Ask to join enabled (40×40 @280,511). Form marks: Link in hand",
+      "after": "Row mark \"This peer's key changed\" present (20×20 @280,511); Ask to join disabled (40×40 @280,545), named \"Ask to join. This peer's key changed\""
+    },
+    {
+      "shot": "phone-changed-key",
+      "width": 390,
+      "title": "Joiner's first ask refused: the owner's key changed — 390 × 844 (touch)",
+      "caption": "Same walk, joiner in a phone context (coarse pointer). Read from the joiner's page once the More menu marks the tray.",
+      "before": "Row mark absent; Ask to join enabled (44×44 @16,629). Form marks: Link in hand",
+      "after": "Row mark present (44×44 touch box @4,617); Ask to join disabled (44×44 @16,663), named \"Ask to join. This peer's key changed\""
+    }
+  ]
+}

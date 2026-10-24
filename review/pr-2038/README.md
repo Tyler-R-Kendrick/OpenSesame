@@ -54,3 +54,9 @@ node scripts/dev/promote-evidence.mjs live-join/pages/web <dir-with-current-file
 node scripts/quality/evidence-gate.mjs
 node scripts/quality/docs-index.mjs
 ```
+
+## Further evidence
+
+- [changed-key-remount/](changed-key-remount/): the join form keeps a changed
+  peer key's mark after the ask that creates the joiner's vault mounts it
+  again (`886185fbe` → `88d2733e1`).
