@@ -158,6 +158,12 @@ async function coldReload(pin?: string) {
   if (pin) await vaultStore.unlockWithPin(pin);
   return mount();
 }
+// Each PIN here has more than 50 bits by the PIN KDF's estimate, so it is
+// wrapped at the PIN floor (1.2M PBKDF2 rounds). An eight-digit PIN is scaled
+// to the 10M ceiling instead, and the six wraps and unwraps this walk makes
+// would take the test past its timeout on a loaded runner (pin-kdf.ts).
+const SOURCE_PIN = "k7m2q9x4p1";
+const TARGET_PIN = "r5t8w3z6n0";
 async function targetVault() {
   cleanup();
   await vaultStore.flushPendingWrites();
@@ -168,7 +174,7 @@ async function targetVault() {
   );
   await setActiveProject(project.id);
   vaultStore.loadActiveProjectScope();
-  await vaultStore.createWithPin("68391527");
+  await vaultStore.createWithPin(TARGET_PIN);
   const kept = createItem("note", "Keep destination note");
   await vaultStore.saveItem(kept);
   const identity = await ensureDeviceIdentityKey(vaultStore.getSnapshot().tomb);
@@ -177,13 +183,13 @@ async function targetVault() {
   return { kept, identity };
 }
 it("configures, cold reloads, backs up and restores through shared forms into a different PIN vault", async () => {
-  await vaultStore.enrollPin("83619472");
+  await vaultStore.enrollPin(SOURCE_PIN);
   await vaultStore.removePassword();
   const source = createItem("secret", "Mounted Bitbucket source");
   source.value = "mounted-bitbucket-ciphertext-canary";
   await vaultStore.saveItem(source);
   await configureTarget();
-  await coldReload("83619472");
+  await coldReload(SOURCE_PIN);
   expect(screen.getByLabelText("Backup branch (optional)")).toHaveProperty(
     "value",
     parameters.backup_branch,
@@ -200,7 +206,7 @@ it("configures, cold reloads, backs up and restores through shared forms into a 
     target: { value: id },
   });
   fireEvent.change(screen.getByLabelText("Backup password or PIN"), {
-    target: { value: "83619472" },
+    target: { value: SOURCE_PIN },
   });
   fireEvent.submit(screen.getByRole("form", { name: "Restore vault backup" }));
   expect(screen.getByLabelText("Backup password or PIN")).toHaveProperty(
@@ -223,8 +229,8 @@ it("configures, cold reloads, backs up and restores through shared forms into a 
   await vaultStore.flushPendingWrites();
   await vfsFlush();
   vaultStore.lock();
-  await expect(vaultStore.unlockWithPin("83619472")).rejects.toThrow();
-  await vaultStore.unlockWithPin("68391527");
+  await expect(vaultStore.unlockWithPin(SOURCE_PIN)).rejects.toThrow();
+  await vaultStore.unlockWithPin(TARGET_PIN);
   expect(
     vaultStore
       .getSnapshot()
