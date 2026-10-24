@@ -70,6 +70,9 @@ it("offers Asana and Attio browser routes instead of a lock", () => {
   expect(
     attio?.methods.find((method) => method.id === "api-key")?.available,
   ).toBe(true);
+  expect(
+    attio?.methods.find((method) => method.id === "oauth")?.available,
+  ).toBe(true);
 });
 
 it("keeps a saved local git URL from claiming browser installation or authorization", () => {
