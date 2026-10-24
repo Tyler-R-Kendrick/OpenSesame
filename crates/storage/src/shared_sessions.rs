@@ -27,6 +27,7 @@ use crate::Db;
 use session_links::{admission_from, link_from, link_str};
 
 mod session_admission;
+mod session_grant_expiry;
 mod session_join_decision;
 mod session_links;
 pub use session_join_decision::{ClosedOrDecided, SessionClosed};
@@ -541,36 +542,5 @@ impl Db {
         .await
         .context("select join request")?;
         row.as_ref().map(stored_join_request).transpose()
-    }
-
-    /// Live grants approaching their deadline, for the lifecycle scanner.
-    ///
-    /// Revoked grants are excluded: a withdrawn grant has no deadline worth
-    /// narrating, and telling somebody their access expires in an hour when it
-    /// ended yesterday is worse than silence.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the query or a stored row cannot be read.
-    pub async fn session_grants_expiring(
-        &self,
-        organization_id: &str,
-        limit: i64,
-    ) -> anyhow::Result<Vec<SessionGrant>> {
-        let rows = sqlx::query(
-            "SELECT * FROM session_grants \
-             WHERE organization_id = ?1 AND revoked_at IS NULL \
-             ORDER BY expires_at LIMIT ?2",
-        )
-        .bind(organization_id)
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await
-        .context("select expiring grants")?;
-        let mut grants = Vec::with_capacity(rows.len());
-        for row in &rows {
-            grants.push(self.stored_grant(row).await?);
-        }
-        Ok(grants)
     }
 }

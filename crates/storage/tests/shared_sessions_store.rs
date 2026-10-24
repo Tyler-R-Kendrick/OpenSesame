@@ -498,8 +498,8 @@ async fn the_expiry_sweep_skips_what_was_already_withdrawn() {
         .await
         .expect("revoke");
 
-    let sweep = db.session_grants_expiring(ORG, 50).await.expect("sweep");
-    let ids: Vec<_> = sweep.iter().map(|grant| grant.id).collect();
+    let sweep = db.session_grants_expiring(ORG, Utc::now(), 50).await;
+    let ids: Vec<_> = sweep.expect("sweep").iter().map(|grant| grant.id).collect();
     assert!(ids.contains(&live.id));
     assert!(!ids.contains(&withdrawn.id));
 }

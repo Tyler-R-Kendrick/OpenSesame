@@ -189,6 +189,16 @@ serializing what a caller handed it. An expiry notification for a grant
 therefore **structurally cannot** carry the granted material, however carelessly
 a future subscriber is written.
 
+A lapsed grant is neither revoked nor deleted while its session stays open
+(closing a session revokes the grants it minted, and a `referenced` grant
+outlives it), so a long-running session keeps every lapsed grant, each with its
+`expired` already published. The collector therefore reads unrevoked grants
+twice per pass, each read bounded at 512 per organization: live grants soonest
+first, and lapsed ones most recently lapsed first (ADR 0074 §1). Published
+expiries never crowd a live grant out of a pass. A live grant waits only while
+512 others in its organization end before it, and a lapsed one is missed only
+when more than 512 in its organization lapse after it before the next pass.
+
 ### 5. Expiry webhooks are wiring, not new infrastructure
 
 `webhook_endpoints` (per-principal URL + secret) and `webhook_deliveries`

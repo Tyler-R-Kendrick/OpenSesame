@@ -63,6 +63,18 @@ carries no foreign key into the registry, per the consequence noted below). A
 per-organization failure is logged and skipped — one tenant's unreadable table
 must not stop another tenant's certificate from being renewed.
 
+A collector reads a bounded number of rows per organization per pass. A source
+that keeps a subject after its deadline, so that a later pass can still
+publish `expired`, must not read live and lapsed rows as one soonest-first
+list: its lapsed rows only accumulate, their `expired` already published, and
+once they fill the bound no live subject is collected again, so nothing warns
+before it lapses and nothing publishes its `expired` after. Such a collector
+reads twice, each read under the same bound: live subjects soonest first, then
+lapsed ones most recently lapsed first. A live subject then competes only with
+subjects that end before it, and a lapsed one only with subjects that lapsed
+after it. Session grants (ADR 0079 §4) and authority grants (ADR 0120 §5) are
+read this way, 512 rows per read.
+
 ### 2. Two ladders, because one aliases itself
 
 Stages are seconds-remaining thresholds, and a monotonic watermark — the

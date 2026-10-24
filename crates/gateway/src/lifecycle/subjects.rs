@@ -33,7 +33,7 @@ pub const CERTIFICATE_HORIZON_DAYS: i64 = 400;
 /// due time fires it, preserving `policy_due_at`'s original semantics exactly.
 pub const SCHEDULE_RENEW_BEFORE_SECONDS: i64 = 1;
 
-/// Cap on unrevoked session grants per org per pass (soonest-first; ADR 0079).
+/// Cap per org on each of a pass's two session-grant reads, live and lapsed (ADR 0074 §1).
 pub const SESSION_GRANT_SCAN_LIMIT: i64 = 512;
 
 /// Minimal renewal lead: kind is non-renewable, so the rung only shapes the ladder.
@@ -85,12 +85,12 @@ pub async fn collect(
     );
     absorb(
         &mut subjects,
-        session_grants(&state.db, &organization).await,
+        session_grants(&state.db, &organization, now).await,
         "session grants",
     );
     absorb(
         &mut subjects,
-        super::authority_subjects::authority_grants(&state.db, &organization).await,
+        super::authority_subjects::authority_grants(&state.db, &organization, now).await,
         "authority grants",
     );
     absorb(
@@ -271,18 +271,18 @@ async fn connections(
 /// not renewable, so the ladder narrates a grant's last hours and the
 /// responder table has nothing to answer it with.
 ///
-/// Revoked grants are already excluded by the query. A revoked grant has no
-/// deadline left worth announcing — it ended when it was revoked, and
-/// re-announcing it as "expiring" would tell subscribers a participant still
-/// has reach they lost.
-async fn session_grants(db: &Db, organization: &str) -> anyhow::Result<Vec<ExpirySubject>> {
-    let grants = db
-        .session_grants_expiring(organization, SESSION_GRANT_SCAN_LIMIT)
-        .await?;
-    Ok(grants
-        .into_iter()
-        .map(|grant| session_grant_subject(&grant, organization))
-        .collect())
+/// The read leaves out revoked grants: one ended when it was revoked, and
+/// announcing it as "expiring" would tell subscribers a participant still has
+/// reach they lost. It reads lapsed grants apart from live ones, so expiries
+/// already published never crowd a live grant out of a pass.
+async fn session_grants(
+    db: &Db,
+    organization: &str,
+    now: DateTime<Utc>,
+) -> anyhow::Result<Vec<ExpirySubject>> {
+    let grants = db.session_grants_expiring(organization, now, SESSION_GRANT_SCAN_LIMIT);
+    let subject = |grant| session_grant_subject(&grant, organization);
+    Ok(grants.await?.into_iter().map(subject).collect())
 }
 
 /// A grant's deadline, carrying its identity and nothing else.
