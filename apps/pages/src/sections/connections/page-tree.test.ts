@@ -48,7 +48,9 @@ describe("connections page tree", () => {
         "vercel",
       ]),
     );
-    expect(ids).not.toContain("byo-ai");
+    // BYO AI leads the curated list and partners follow (#1984,
+    // curatedCatalogProviders), as CatalogPanel draws it.
+    expect(ids[0]).toBe("byo-ai");
     expect(ids).not.toContain("cohere");
     expect(ids).not.toContain("deepgram");
     expect(ids).not.toContain("mistral");
