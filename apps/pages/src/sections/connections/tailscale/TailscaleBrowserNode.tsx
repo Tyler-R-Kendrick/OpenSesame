@@ -6,6 +6,7 @@ import { IconKey } from "../../../components/IconKey.js";
 import { IconTrash, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { TailscaleNativeHTTPFields } from "./TailscaleNativeHTTPFields.js";
+import { TailscalePeerTLSFields } from "./TailscalePeerTLSFields.js";
 import {
   type BrowserNodeEditor,
   useTailscaleBrowserNode,
@@ -38,6 +39,11 @@ function NodeFields({ model }: { model: BrowserNodeEditor }) {
           onValueChange={model.setAuthKey}
         />
       </details>
+      <TailscalePeerTLSFields
+        values={model.peerTLSValues}
+        onChange={model.setPeerTLSValue}
+        disabled={disabled}
+      />
       <TailscaleNativeHTTPFields
         values={model.nativeHTTPValues}
         onChange={model.setNativeHTTPValue}

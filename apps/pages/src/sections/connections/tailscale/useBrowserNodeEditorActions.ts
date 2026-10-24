@@ -10,6 +10,7 @@ import {
   configureBrowserNodeState,
   savedBrowserNodeConfiguration,
 } from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
+import { browserNodeTransportOptions } from "@opensesame/app-core/lib/tailscale/browser-node-transport-options.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { NativeFieldValues } from "../connect/native-connector-ui.js";
@@ -17,6 +18,10 @@ import {
   nativeHTTPConfiguration,
   nativeHTTPDraft,
 } from "./tailscale-native-http-values.js";
+import {
+  peerTLSConfiguration,
+  peerTLSDraft,
+} from "./tailscale-server-trust-values.js";
 type Action = "save" | "start" | "forget";
 type Editor = {
   ready: boolean;
@@ -25,6 +30,8 @@ type Editor = {
   controlURL: string;
   authKey: string;
   nativeHTTPValues: NativeFieldValues;
+  peerTLSValues: NativeFieldValues;
+  setPeerTLSValues: (value: NativeFieldValues) => void;
   setFailure: (value: string) => void;
   setHasSaved: (value: boolean) => void;
   setHostname: (value: string) => void;
@@ -50,7 +57,8 @@ async function saveConfiguration(
     const saved = savedBrowserNodeConfiguration();
     if (
       JSON.stringify(saved?.nativeHTTP) !==
-      JSON.stringify(configuration.nativeHTTP)
+        JSON.stringify(configuration.nativeHTTP) ||
+      JSON.stringify(saved?.peerTLS) !== JSON.stringify(configuration.peerTLS)
     )
       node?.stop();
     await configureBrowserNodeState(
@@ -70,13 +78,16 @@ async function perform(action: Action, editor: Editor, check: () => void) {
     editor.setHasSaved(false);
     editor.setHostname(`opensesame-${crypto.randomUUID().slice(0, 12)}`);
     editor.setNativeHTTPValues(nativeHTTPDraft());
+    editor.setPeerTLSValues(peerTLSDraft());
     return;
   }
   const identity = normalizeTailscaleNodeIdentity(editor);
   const nativeHTTP = nativeHTTPConfiguration(editor.nativeHTTPValues);
-  const configuration: TailscaleNodeConfiguration = nativeHTTP
-    ? { ...identity, nativeHTTP }
-    : identity;
+  const peerTLS = peerTLSConfiguration(editor.peerTLSValues);
+  const configuration: TailscaleNodeConfiguration = {
+    ...identity,
+    ...browserNodeTransportOptions({ nativeHTTP, peerTLS }),
+  };
   const saved = savedBrowserNodeConfiguration();
   if (
     saved &&
@@ -88,7 +99,8 @@ async function perform(action: Action, editor: Editor, check: () => void) {
     );
   if (
     action === "save" ||
-    JSON.stringify(saved?.nativeHTTP) !== JSON.stringify(nativeHTTP)
+    JSON.stringify(saved?.nativeHTTP) !== JSON.stringify(nativeHTTP) ||
+    JSON.stringify(saved?.peerTLS) !== JSON.stringify(peerTLS)
   ) {
     await saveConfiguration(configuration, editor.node, check);
     check();
