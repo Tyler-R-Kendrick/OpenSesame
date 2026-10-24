@@ -143,6 +143,14 @@ async function ownerStarts(page, tabTo) {
   await expect(panel.getByLabel("Share", { exact: true })).toHaveValue("items");
   await tabTo(page, panel.getByRole("checkbox", { name: "GitHub" }));
   await page.keyboard.press("Space");
+  // This walk hands the joiner a code as well as a link. The default is
+  // link-only admission, so choose the existing invite road explicitly.
+  const admission = panel.getByLabel("Who gets in", { exact: true });
+  await tabTo(page, admission);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(admission).toHaveValue("invite");
   const start = panel.getByRole("button", { name: "Share this vault" });
   await expect(start).toBeEnabled();
   await tabTo(page, start);
