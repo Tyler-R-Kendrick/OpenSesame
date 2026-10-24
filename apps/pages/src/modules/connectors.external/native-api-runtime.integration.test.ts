@@ -1,3 +1,4 @@
+import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { deviceProviderRevokers } from "@opensesame/app-core/lib/device-connectors.js";
 import { modelMemoryBackend } from "@opensesame/app-core/lib/hosted-model.test-support.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
@@ -146,4 +147,64 @@ it("retained old instance drivers and revokers refuse to borrow a new capability
       .status,
   ).toBe("connected");
   expect(fresh.fetcher).toHaveBeenCalledOnce();
+});
+
+it("the actual API configuration runtime cancels its original mounted caller before a held provider result can save", async () => {
+  const { fetcher } = activate();
+  let started!: () => void;
+  const arrived = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  let finish!: (response: Response) => void;
+  let physical: AbortSignal | undefined;
+  fetcher.mockImplementation((_input, init) => {
+    physical = init?.signal ?? undefined;
+    started();
+    return new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
+  });
+  const caller = new AbortController();
+  const owner = {
+    signal: caller.signal,
+    assertCurrent: () => caller.signal.throwIfAborted(),
+  };
+  const job = nativeConnectorDriver("api-key", "vault").configure({
+    ...input,
+    owner,
+  });
+  const denied = expect(job).rejects.toThrow();
+  await arrived;
+  caller.abort();
+  await denied;
+  expect(physical?.aborted).toBe(true);
+  finish(
+    Response.json({
+      data: { id: token, policies: ["default"], ttl: 3600, renewable: false },
+    }),
+  );
+  expect(readDeviceRows()).toHaveLength(0);
+});
+
+it("retires transient configure authority without retaining it as the saved connection's cleanup authority", async () => {
+  activate();
+  let current = true;
+  const owner = {
+    signal: new AbortController().signal,
+    assertCurrent() {
+      if (!current) throw new Error("Original form ended");
+    },
+  };
+  const view = await nativeConnectorDriver("api-key", "vault").configure({
+    ...input,
+    owner,
+  });
+  current = false;
+  const controller = nativeConnectorController(
+    { id: "vault", refused: false },
+    view.connectionId,
+  );
+  controller.load();
+  await controller.remove();
+  expect(readDeviceRows()).toHaveLength(0);
 });
