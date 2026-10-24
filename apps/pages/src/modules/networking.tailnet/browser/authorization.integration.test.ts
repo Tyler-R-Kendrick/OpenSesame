@@ -135,7 +135,9 @@ it.each([
         },
       );
     await rejected;
-    expect(worker.terminated).toBe(true);
+    expect(worker.terminated).toBe(false);
+    worker.emit({ kind: "closeHTTP", closed: true });
+    await vi.waitFor(() => expect(worker.terminated).toBe(true));
     expect(JSON.stringify(vaultStore.getSnapshot().items)).toBe(token);
     expect(tailscaleNodeAuthorization()).toBeNull();
     const row = readDeviceRows().find(
