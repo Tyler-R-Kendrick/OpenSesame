@@ -13,6 +13,7 @@ import { OnePasswordSaveButton } from "./OnePasswordSaveButton.js";
 import { SecretBackendBackupControls } from "./SecretBackendBackupControls.js";
 import { SecretBackendFileFields } from "./SecretBackendFileFields.js";
 import { SecretBackendForm } from "./SecretBackendForm.js";
+import { SecretBackendHTTPRoute } from "./SecretBackendHTTPRoute.js";
 import { SecretBackendWorkspace } from "./SecretBackendWorkspace.js";
 import {
   type SecretBackendConnectionEditor,
@@ -216,6 +217,15 @@ export function SecretBackendPanels(props: SecretBackendPanelProps) {
         editor={editor}
         provider={props.provider}
         online={props.online}
+      />
+      <SecretBackendHTTPRoute
+        draft={{
+          mode: editor.draft.mode,
+          baseUrl: editor.draft.baseUrl,
+          identityUrl: editor.draft.identityUrl,
+        }}
+        online={props.online}
+        busy={editor.busy || !!editor.active}
       />
       <SessionPanel editor={editor} />
       {editor.active ? (
