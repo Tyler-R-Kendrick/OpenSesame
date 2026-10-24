@@ -21,10 +21,64 @@
     />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
-    <title>OpenSesame</title>
+    <title>OpenSesame — encrypted vault and agent auth broker</title>
     <script type="module" crossorigin src="/OpenSesame/assets/index-B4G5V8F0.js"></script>
     <link rel="stylesheet" crossorigin href="/OpenSesame/assets/index-WY_i3P6h.css">
-  <link rel="manifest" href="/OpenSesame/manifest.webmanifest"></head>
+  <link rel="manifest" href="/OpenSesame/manifest.webmanifest">    <link rel="canonical" href="https://tyler-r-kendrick.github.io/OpenSesame/" />
+    <link rel="alternate" type="text/markdown" href="./index.md" title="OpenSesame in Markdown" />
+    <meta name="is-agentic-site-type" content="app" />
+    <meta name="application-name" content="OpenSesame" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="OpenSesame — encrypted vault and agent auth broker" />
+    <meta property="og:description" content="An end-to-end-encrypted vault for passwords, passkeys, and agent secrets, with an auth broker for static sites." />
+    <meta property="og:url" content="https://tyler-r-kendrick.github.io/OpenSesame/" />
+    <meta name="twitter:card" content="summary" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://tyler-r-kendrick.github.io/OpenSesame/#organization",
+            "name": "OpenSesame",
+            "url": "https://tyler-r-kendrick.github.io/OpenSesame/",
+            "sameAs": ["https://github.com/Tyler-R-Kendrick/OpenSesame"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://tyler-r-kendrick.github.io/OpenSesame/#website",
+            "name": "OpenSesame",
+            "url": "https://tyler-r-kendrick.github.io/OpenSesame/",
+            "description": "An end-to-end-encrypted vault for passwords, passkeys, and agent secrets, with an auth broker for static sites.",
+            "publisher": { "@id": "https://tyler-r-kendrick.github.io/OpenSesame/#organization" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://tyler-r-kendrick.github.io/OpenSesame/#application",
+            "name": "OpenSesame",
+            "url": "https://tyler-r-kendrick.github.io/OpenSesame/",
+            "applicationCategory": "SecurityApplication",
+            "operatingSystem": "Any",
+            "description": "A local-first encrypted vault with passkeys, an auth broker for static sites, and scoped secrets for agents.",
+            "isPartOf": { "@id": "https://tyler-r-kendrick.github.io/OpenSesame/#website" },
+            "sameAs": ["https://github.com/Tyler-R-Kendrick/OpenSesame"]
+          }
+        ]
+      }
+    </script>
+    <style>
+      .static-door { box-sizing: border-box; min-height: 100vh; margin: 0; padding: clamp(2rem, 8vw, 6rem); display: grid; place-content: center; gap: 1rem; background: #0f172a; color: #f8fafc; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .static-door * { box-sizing: border-box; }
+      .static-door__eyebrow { margin: 0; color: #5eead4; font: 600 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.18em; text-transform: uppercase; }
+      .static-door h1 { max-width: 17ch; margin: 0; font-size: clamp(2.25rem, 7vw, 4.5rem); line-height: 0.98; letter-spacing: -0.04em; }
+      .static-door__lede { max-width: 58ch; margin: 0; color: #cbd5e1; font-size: clamp(1rem, 2vw, 1.25rem); line-height: 1.6; }
+      .static-door__facts { max-width: 58ch; margin: 0; padding-left: 1.1rem; color: #cbd5e1; line-height: 1.6; }
+      .static-door__links { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; margin-top: 0.5rem; }
+      .static-door a { color: #5eead4; text-underline-offset: 0.2em; }
+      .static-door a:focus-visible { outline: 2px solid #5eead4; outline-offset: 4px; }
+    </style>
+</head>
   <body>
     <!--
       THESIS: A real end-to-end-encrypted vault. The master password derives the key that decrypts
@@ -43,6 +97,31 @@
         fidelity — no irony, no smuggled quirk. Craft bar: Bitwarden, 1Password.
       FINISH: pending — full redesign in flight; DESIGN.md rewritten from the built result.
     -->
-    <div id="root"></div>
+    <div id="root">
+      <main class="static-door">
+        <p class="static-door__eyebrow">OpenSesame</p>
+        <h1>An encrypted vault for people, agents, and websites.</h1>
+        <p class="static-door__lede">
+          OpenSesame is a local-first, end-to-end-encrypted vault. Your master
+          password derives the key that opens it; the server never sees that
+          key. Keep passwords, passkeys, cards, notes, and agent secrets in one
+          place, then let a website or an approved agent ask for a narrow,
+          time-boxed grant instead of your password.
+        </p>
+        <ul class="static-door__facts">
+          <li>Passwords, passkeys, TOTP, cards, and secure notes.</li>
+          <li>An auth broker for static sites, with scoped share grants.</li>
+          <li>Agent access that is explicit, auditable, and revocable.</li>
+        </ul>
+        <nav class="static-door__links" aria-label="OpenSesame resources">
+          <a href="./">Open the vault</a>
+          <a href="./llms.txt">Agent guide (llms.txt)</a>
+          <a href="./about.html">About</a>
+          <a href="./privacy.html">Privacy</a>
+          <a href="https://github.com/Tyler-R-Kendrick/OpenSesame">Source code</a>
+          <a href="https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/docs">Documentation</a>
+        </nav>
+      </main>
+    </div>
   </body>
 </html>

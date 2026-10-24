@@ -1,48 +1,35 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <!--
-      frame-ancestors is deliberately absent: browsers ignore it from a <meta>
-      tag and only warn. Serve it as a real header where the host allows one;
-      main.tsx refuses to render in a frame regardless.
-    -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' data: http: https: ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self' https://github.com; frame-src 'none'"
-    />
-    <meta name="referrer" content="no-referrer" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#101a2b" />
-    <meta
-      name="description"
-      content="OpenSesame — an end-to-end-encrypted vault for passwords, passkeys, and agent secrets, with an auth broker for static sites."
-    />
-    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="./icon.svg" />
-    <title>OpenSesame</title>
-    <script type="module" crossorigin src="/OpenSesame/assets/index-B4G5V8F0.js"></script>
-    <link rel="stylesheet" crossorigin href="/OpenSesame/assets/index-WY_i3P6h.css">
-  <link rel="manifest" href="/OpenSesame/manifest.webmanifest"></head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Page not found — OpenSesame</title>
+    <style>
+      body { margin: 0; padding: 3rem 1.5rem; background: #0f172a; color: #f8fafc; font-family: ui-sans-serif, system-ui, sans-serif; line-height: 1.6; }
+      main { max-width: 44rem; margin: 0 auto; }
+      a { color: #5eead4; }
+      pre { overflow-x: auto; padding: 1rem; border: 1px solid #334155; border-radius: 0.5rem; background: #111c33; }
+    </style>
+  </head>
   <body>
-    <!--
-      THESIS: A real end-to-end-encrypted vault. The master password derives the key that decrypts
-        every item; nothing else does, and nothing leaves the device. Four audiences, one store:
-        humans keep passwords and passkeys, agents draw scoped grants, websites authenticate
-        against it, developers govern it.
-      OWN-WORLD: Password-manager canon (Bitwarden / 1Password craft bar) in OpenSesame navy and
-        teal. Three-pane desktop frame — navy rail, list, detail. System UI stack; mono reserved
-        for codes, digests, and measurements. Light and dark both first-class.
-      STORY: Create or unlock the vault → land on the item list → reveal, copy, generate, rotate →
-        step sideways into Agents, Sites, or Authority when the same identity governs more than
-        passwords.
-      FIRST VIEWPORT: The unlock card, stating plainly that there is no recovery, over a navy
-        ground. First run adds a strength meter and an explicit acknowledgement.
-      FORM: Canon taken by the user's own words ("it's a Bitwarden alternative"), executed at full
-        fidelity — no irony, no smuggled quirk. Craft bar: Bitwarden, 1Password.
-      FINISH: pending — full redesign in flight; DESIGN.md rewritten from the built result.
-    -->
-    <div id="root"></div>
+    <main>
+      <p><strong>404</strong></p>
+      <h1>Page not found</h1>
+      <p>This address does not exist in the OpenSesame public site. The app may have moved, or the link may be incomplete.</p>
+      <pre id="markdown-error"># Page not found
+
+This address does not exist in the OpenSesame public site.
+
+- [Open the vault](https://tyler-r-kendrick.github.io/OpenSesame/)
+- [Read the agent guide](https://tyler-r-kendrick.github.io/OpenSesame/llms.txt)
+- [Sitemap](https://tyler-r-kendrick.github.io/OpenSesame/sitemap.xml)
+</pre>
+      <nav aria-label="Recovery links">
+        <a href="./">Open the vault</a> ·
+        <a href="./llms.txt">Agent guide</a> ·
+        <a href="./sitemap.xml">Sitemap</a>
+      </nav>
+    </main>
   </body>
 </html>
