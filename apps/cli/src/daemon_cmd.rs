@@ -5,6 +5,8 @@ use crate::daemon_toolbar::ToolbarCmd;
 mod daemon_drive;
 #[path = "daemon_fill.rs"]
 mod daemon_fill;
+#[path = "daemon_helpers.rs"]
+mod daemon_helpers;
 #[path = "daemon_root_trust.rs"]
 mod daemon_root_trust;
 #[path = "daemon_tailnet.rs"]
@@ -74,6 +76,10 @@ enum DaemonCmd {
     /// (the optional `browser-autofill` plugin, ADR 0150 §7).
     #[command(subcommand)]
     Fill(daemon_fill::FillCmd),
+    /// Allow, revoke or list the connections the credential helpers may mint
+    /// on the daemon's socket with no operator token (ADR 0138 §2).
+    #[command(subcommand)]
+    Helpers(daemon_helpers::HelpersCmd),
     /// Manage the tailnet's devices from this machine (ADR 0169).
     #[command(subcommand)]
     Tailnet(daemon_tailnet::TailnetCmd),
@@ -113,6 +119,9 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
         DaemonCmd::Tailnet(verb) => daemon_tailnet::run(verb).await?,
         DaemonCmd::Fill(verb) => {
             daemon_fill::run(base, operator_token.as_deref(), verb).await?;
+        }
+        DaemonCmd::Helpers(verb) => {
+            daemon_helpers::run(base, operator_token.as_deref(), verb).await?;
         }
         DaemonCmd::Toolbar(verb) => {
             crate::daemon_toolbar::run(base, operator_token.as_deref(), verb).await?;

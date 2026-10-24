@@ -737,6 +737,37 @@
     }
   },
   {
+    "id": "helpers.mint_allowlist",
+    "title": "Allow, revoke or list the connections the credential helpers may mint on the daemon's socket",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame daemon helpers allow",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "the allowlist decides which connections a same-user process may mint with no token; an agent that could change it could widen its own reach",
+        "adr": "0138-self-issued-identity-one-native-host.md"
+      },
+      "mcp_client": {
+        "reason": "the allowlist decides which connections a same-user process may mint with no token; an agent that could change it could widen its own reach",
+        "adr": "0138-self-issued-identity-one-native-host.md"
+      }
+    }
+  },
+  {
     "id": "host.auth.doctor",
     "title": "Diagnose the local sign-in state",
     "plane": "host",
