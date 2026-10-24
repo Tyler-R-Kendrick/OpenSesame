@@ -138,6 +138,13 @@ jobs:
       - name: The checkout is the commit the tag check passed
         # A tag moved after that check would otherwise be built from here.
         run: '[ "$(git rev-parse HEAD)" = "$VERIFIED_SHA" ] || { echo "::error::checked out $(git rev-parse HEAD), not $VERIFIED_SHA"; exit 1; }'
+      - name: Install Linux keychain build dependencies
+        # opensesame links the Linux keychain through libdbus-sys, whose build
+        # script needs libdbus-1-dev and pkg-config; the runner image has
+        # neither (the CI journeys-1 shard failed on the same build).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
         with:
           toolchain: 1.88.0
