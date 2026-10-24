@@ -1,28 +1,32 @@
 // @vitest-environment jsdom
-// A peer GET is authorized in the page by the egress policy, then carried to
-// the worker on a port only that decision holds: the Worker object is reachable
-// from the page (`tailscaleBrowserNode()`), so its own channel grants nothing.
+// The Worker object is reachable from the page (`tailscaleBrowserNode()`), so
+// anything can post to it or dispatch a synthetic event on it. The controller
+// therefore trusts only the port its `start` transferred: every message the
+// worker sends and every grant or decision the controller answers rides it.
 import { runtimeFixture } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import * as nodeState from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { expect, it, vi } from "vitest";
-import { StatusWorker, netmap } from "./authorization.test-support.js";
-import { BrowserNodeRequests } from "./controller-requests.js";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createBrowserNodeController } from "./controller.js";
 
 const approved = "http://100.64.0.1/proof";
-const config = {
-  hostname: "peer-grant",
-  controlURL: "https://control.example",
-  authKey: "",
-  state: {},
-  assets: {
-    runtime: "https://app.example/runtime.js",
-    wasm: "https://app.example/node.gz",
-  },
-};
-class GrantWorker {
+const control = "wss://controlplane.tailscale.com/ts2021";
+/** A Worker as the browser draws it: `onmessage` is a handler on its events. */
+class EventWorker extends EventTarget {
+  static current: EventWorker;
   sent: BoundaryValue[] = [];
-  ports: MessagePort[] = [];
+  received: BoundaryValue[] = [];
+  port: MessagePort | null = null;
+  terminated = false;
+  onerror: (() => void) | null = null;
+  onmessage: ((event: MessageEvent<BoundaryValue>) => void) | null = null;
+  constructor() {
+    super();
+    EventWorker.current = this;
+    this.addEventListener("message", (event) => {
+      if (event instanceof MessageEvent) this.onmessage?.(event);
+    });
+  }
   postMessage(
     value: BoundaryValue,
     options: Transferable[] | StructuredSerializeOptions = [],
@@ -30,73 +34,121 @@ class GrantWorker {
     this.sent.push(value);
     const transfer = Array.isArray(options) ? options : options.transfer;
     for (const item of transfer ?? [])
-      if (item instanceof MessagePort) this.ports.push(item);
+      if (item instanceof MessagePort) {
+        this.port = item;
+        item.onmessage = (event: MessageEvent<BoundaryValue>) => {
+          this.received.push(event.data);
+        };
+      }
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  /** What the worker itself says, on the port only it holds. */
+  say(data: BoundaryValue) {
+    this.port?.postMessage(data);
   }
 }
-function listen(port: MessagePort) {
-  const grants: BoundaryValue[] = [];
-  port.onmessage = (event: MessageEvent<BoundaryValue>) => {
-    grants.push(event.data);
-  };
-  return grants;
-}
-
-it("posts an approved peer GET only on the port it started the worker with", async () => {
-  const worker = new GrantWorker();
-  const requests = new BrowserNodeRequests(
-    worker,
-    () => {},
-    () => true,
-    (url) => url === approved,
-    vi.fn(),
-    false,
-  );
-  requests.start(config);
-  expect(worker.sent).toEqual([{ kind: "start", config }]);
-  expect(worker.ports).toHaveLength(1);
-  const grants = listen(worker.ports[0]);
-  const pending = requests.get(approved);
-  await expect(requests.get("http://100.64.0.9/other")).rejects.toThrow(
-    "allow this tailnet service",
-  );
-  await vi.waitFor(() =>
-    expect(grants).toEqual([{ kind: "get", id: 1, url: approved }]),
-  );
-  expect(worker.sent).toEqual([{ kind: "start", config }]);
-  requests.receive({ kind: "get", id: 1, status: 200, text: "proof" });
-  await expect(pending).resolves.toEqual({ status: 200, text: "proof" });
-  worker.ports[0].close();
+const netmap = {
+  kind: "netmap",
+  value: JSON.stringify({
+    self: { machineStatus: "MachineAuthorized", addresses: ["100.64.0.3"] },
+    peers: [{}],
+    lockedOut: false,
+  }),
+};
+const storage = { kind: "storage", state: { key: "worker-state" } };
+const running = { kind: "state", state: "Running" };
+let vault: Awaited<ReturnType<typeof runtimeFixture>>;
+beforeEach(async () => {
+  vault = await runtimeFixture();
+  vi.stubGlobal("Worker", EventWorker);
 });
-
-it("keeps the peer egress decision it was created with", async () => {
-  const vault = await runtimeFixture();
-  vi.stubGlobal("Worker", StatusWorker);
+afterEach(async () => {
+  EventWorker.current?.port?.close();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  await vault.close();
+});
+function controller(approvePeer = (_url: string) => true) {
   const policy = {
     assertCurrent() {},
     approve: (_url: string, _method: string) => true,
-    approvePeer: (_url: string) => false,
+    approvePeer,
   };
-  const node = createBrowserNodeController(policy);
+  return { policy, node: createBrowserNodeController(policy) };
+}
+async function start(node: ReturnType<typeof controller>["node"]) {
+  await node.start({
+    hostname: "peer-grant",
+    controlURL: "https://controlplane.tailscale.com",
+  });
+  return EventWorker.current;
+}
+
+it("acts on no message dispatched on the Worker, only on its start port", async () => {
+  const write = vi.spyOn(nodeState, "writeBrowserNodeState");
+  const { node } = controller();
   try {
-    await node.start({
-      hostname: "peer-grant",
-      controlURL: "https://controlplane.tailscale.com",
-    });
-    const worker = StatusWorker.current;
-    netmap(worker);
-    worker.emit({ kind: "state", state: "Running" });
+    const worker = await start(node);
+    expect(worker.sent).toEqual([expect.objectContaining({ kind: "start" })]);
+    for (const data of [storage, netmap, running])
+      worker.dispatchEvent(new MessageEvent("message", { data }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(write).not.toHaveBeenCalled();
+    expect(node.snapshot().status).toBe("starting");
+    for (const data of [storage, netmap, running]) worker.say(data);
     await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));
-    policy.approvePeer = () => true;
-    const outcome = node.get(approved).then(
-      () => "answered",
-      (error: Error) => error.message,
+    expect(write).toHaveBeenCalledTimes(1);
+    worker.say({ kind: "decision", id: 7, url: control, method: "CONNECT" });
+    await vi.waitFor(() =>
+      expect(worker.received).toEqual([
+        {
+          kind: "decision",
+          id: 7,
+          url: control,
+          method: "CONNECT",
+          allowed: true,
+        },
+      ]),
     );
+    const pending = node.get(approved);
+    await vi.waitFor(() =>
+      expect(worker.received).toContainEqual({
+        kind: "get",
+        id: 1,
+        url: approved,
+      }),
+    );
+    worker.dispatchEvent(
+      new MessageEvent("message", {
+        data: { kind: "get", id: 1, status: 200, text: "forged" },
+      }),
+    );
+    worker.say({ kind: "get", id: 1, status: 200, text: "proof" });
+    await expect(pending).resolves.toEqual({ status: 200, text: "proof" });
+    expect(worker.sent).toHaveLength(1);
     node.stop();
-    worker.emit({ kind: "closeHTTP", closed: true });
-    expect(await outcome).toContain("allow this tailnet service");
+    worker.say({ kind: "closeHTTP", closed: true });
+    await vi.waitFor(() => expect(worker.terminated).toBe(true));
   } finally {
     node.stop();
-    vi.unstubAllGlobals();
-    await vault.close();
+  }
+});
+
+it("keeps the peer egress decision it was created with", async () => {
+  const { policy, node } = controller(() => false);
+  try {
+    const worker = await start(node);
+    for (const data of [netmap, running]) worker.say(data);
+    await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));
+    policy.approvePeer = () => true;
+    await expect(node.get(approved)).rejects.toThrow(
+      "allow this tailnet service",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(worker.received).toEqual([]);
+  } finally {
+    node.stop();
   }
 });
