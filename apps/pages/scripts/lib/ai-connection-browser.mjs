@@ -69,32 +69,40 @@ function fields(fixture, entry) {
   };
 }
 async function datedTokenParameter(page, select = false) {
-  const summary = page.getByText("Connection setup", { exact: true });
+  const panel = page.getByRole("region", {
+    name: "AI configuration",
+    exact: true,
+  });
+  const summary = panel.getByText("Connection setup", { exact: true });
   if ((await summary.locator("..").getAttribute("open")) === null)
     await summary.click();
-  const field = page.getByLabel("Output token parameter", { exact: true });
+  const field = panel.getByLabel("Output token parameter", { exact: true });
   if (select) await field.selectOption("max_tokens");
   await expect(field).toHaveValue("max_tokens");
 }
 async function configure(page, fixture, entry, name, check, width) {
+  const panel = page.getByRole("region", {
+    name: "AI configuration",
+    exact: true,
+  });
   const form = fields(fixture, entry);
-  await page.getByLabel("Connection name", { exact: true }).fill(name);
-  await page
+  await panel.getByLabel("Connection name", { exact: true }).fill(name);
+  await panel
     .getByLabel("API family", { exact: true })
     .selectOption(entry.family);
-  await page.getByLabel(form.baseLabel, { exact: true }).fill(form.baseUrl);
-  await page.getByLabel(form.modelLabel, { exact: true }).fill(form.model);
+  await panel.getByLabel(form.baseLabel, { exact: true }).fill(form.baseUrl);
+  await panel.getByLabel(form.modelLabel, { exact: true }).fill(form.model);
   if (!entry.azure)
-    await page
+    await panel
       .getByLabel("Authentication", { exact: true })
       .selectOption("api-key");
-  await page.getByLabel(form.keyLabel, { exact: true }).fill(form.key);
+  await panel.getByLabel(form.keyLabel, { exact: true }).fill(form.key);
   if (entry.dated) await datedTokenParameter(page, true);
   const before = fixture.requests.length;
-  await page
+  await panel
     .getByRole("button", { name: "Test AI connection", exact: true })
     .click();
-  await page
+  await panel
     .getByRole("img", { name: "Model inference verified", exact: true })
     .waitFor();
   const tested = requestsSince(fixture, before, entry.family);
@@ -105,13 +113,15 @@ async function configure(page, fixture, entry, name, check, width) {
       !tested[0].stream,
     `${width}: ${entry.providerId}/${entry.family} Test performs authenticated inference on its exact custom mount`,
   );
-  await page
+  await panel
     .getByRole("button", { name: "Save AI connection", exact: true })
     .click();
   await page
     .getByRole("region", { name: "Model inference", exact: true })
     .waitFor();
-  await expect(page.getByLabel(form.keyLabel, { exact: true })).toHaveValue("");
+  await expect(panel.getByLabel(form.keyLabel, { exact: true })).toHaveValue(
+    "",
+  );
   const saved = requestsSince(fixture, before, entry.family);
   check(
     saved.length === 2 &&
@@ -157,19 +167,25 @@ async function chooseAndColdReload(
     `${width}: ${entry.providerId}/${entry.family} exact inference choice survives cold reload and PIN unlock`,
   );
   await open(page, base, entry.providerId);
-  await expect(page.getByLabel("Connection name", { exact: true })).toHaveValue(
-    name,
-  );
-  await expect(page.getByLabel("API family", { exact: true })).toHaveValue(
+  const panel = page.getByRole("region", {
+    name: "AI configuration",
+    exact: true,
+  });
+  await expect(
+    panel.getByLabel("Connection name", { exact: true }),
+  ).toHaveValue(name);
+  await expect(panel.getByLabel("API family", { exact: true })).toHaveValue(
     entry.family,
   );
-  await expect(page.getByLabel(form.baseLabel, { exact: true })).toHaveValue(
+  await expect(panel.getByLabel(form.baseLabel, { exact: true })).toHaveValue(
     form.baseUrl,
   );
-  await expect(page.getByLabel(form.modelLabel, { exact: true })).toHaveValue(
+  await expect(panel.getByLabel(form.modelLabel, { exact: true })).toHaveValue(
     form.model,
   );
-  await expect(page.getByLabel(form.keyLabel, { exact: true })).toHaveValue("");
+  await expect(panel.getByLabel(form.keyLabel, { exact: true })).toHaveValue(
+    "",
+  );
   if (entry.dated) await datedTokenParameter(page);
   return selected;
 }
