@@ -8,6 +8,7 @@ import type { VaultItem } from "@opensesame/vault-core";
 import { Effect } from "effect";
 import { kvForgetAll } from "../kv.js";
 import { VaultStore } from "../vault/store.js";
+import { forgetOpenLeasesForTest } from "../vault/vault-shared-locks.js";
 import { lockAllTombs } from "../vfs.js";
 import type { SecretFsError } from "./errors.js";
 import type { FilesHarness } from "./files.conformance.js";
@@ -19,15 +20,21 @@ export const MARKER = "S3CR3T-VALUE-THAT-MUST-NEVER-REST-IN-THE-CLEAR";
 export const text = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 export const bytes = (value: string) => new TextEncoder().encode(value);
 
-/** A fresh process over the same files: nothing remembered but what is stored. */
+/**
+ * A fresh process over the same files: nothing remembered but what is stored.
+ * The last process's stores are never locked, so their open leases are
+ * forgotten here with their keys, as that process's exit would drop them.
+ */
 export async function startProcess(files: SecretFiles): Promise<() => void> {
   lockAllTombs();
   kvForgetAll();
+  forgetOpenLeasesForTest();
   const restore = await installFileBackedVfs(files);
   return () => {
     restore();
     lockAllTombs();
     kvForgetAll();
+    forgetOpenLeasesForTest();
   };
 }
 
