@@ -267,6 +267,17 @@ async function changedKey(browser, session) {
   const alarm = page.getByRole("img", { name: CHANGED });
   const blocked = page.getByRole("button", { name: CHANGED });
   const tray = page.locator(".notice-card").filter({ hasText: CHANGED });
+  // Asking creates the joiner's own vault first, and the join form drawn
+  // after it no longer carries the mark; the refusal waits in the tray.
+  const bell = page.getByRole("button", { name: /^Notifications — / });
+  await alarm
+    .or(blocked)
+    .or(tray)
+    .or(bell)
+    .first()
+    .waitFor({ timeout: 20_000 });
+  if (!(await alarm.or(blocked).or(tray).first().isVisible()))
+    await bell.click();
   await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
   check(
     (await page
