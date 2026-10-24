@@ -20,6 +20,7 @@ import {
   joinerSessionSas,
   openLive,
   ownerAdmitsByHand,
+  ownerComparedSas,
   ownerEnters,
   peerStates,
   startSession,
@@ -154,17 +155,15 @@ async function verifiedJoin(browser, session) {
     (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
     "verified join is not marked unverified",
   );
-  // ownerAdmitsByHand pastes the request and reads the guest-row SAS.
-  // Reading it earlier waits on a row that does not exist yet.
+  // ownerAdmitsByHand pastes the request and compares the guest-row SAS
+  // while the guest is asking; the row drops it once they are let in.
   const reply = await ownerAdmitsByHand(
     session.page,
     session.panel,
     request,
     VERIFIED_NAME,
   );
-  const ownerSas = (
-    await session.panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
+  const ownerSas = ownerComparedSas(session.panel);
   check(
     SAS.test(joinerSas) && joinerSas === ownerSas,
     "verified join shows the same session SAS on both sides",
