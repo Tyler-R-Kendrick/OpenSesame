@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { TailscaleNativeHTTPConfiguration } from "./browser-node-port.js";
+import {
+  NativeNodeID,
+  NativeTargets,
+  TailscaleNativeHTTPConfiguration,
+} from "./browser-node-port.js";
 
 const [PublicExit, OperatorExit] = TailscaleNativeHTTPConfiguration.options;
 /** Direct peer addresses only; subnet/default routes need a separate authority. */
@@ -16,8 +20,8 @@ function peerPrefix(text: string): boolean {
 const PeerRoute = {
   version: z.literal(2),
   routeMode: z.literal("peer"),
-  peerID: PublicExit.shape.exitNodeID,
-  targets: PublicExit.shape.targets.refine((targets) =>
+  peerID: NativeNodeID,
+  targets: NativeTargets.refine((targets) =>
     targets.every((target) => target.prefixes.every(peerPrefix)),
   ),
 };

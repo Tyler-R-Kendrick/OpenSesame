@@ -32,7 +32,7 @@ beforeEach(async () => {
   deadmanSeams.now = () => T0;
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({ ok: true, status: 200 }) as Response),
+    vi.fn(async () => new Response(null, { status: 200 })),
   );
   store = new VaultStore();
   await store.create(PASSWORD);
@@ -178,7 +178,7 @@ describe("deadman switch", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({ ok: false, status: 503 }) as Response),
+      vi.fn(async () => new Response(null, { status: 503 })),
     );
     await expect(commitDeadmanSwitch(plan)).rejects.toThrow(/503/);
     expect(readDeadmanState(tomb)).toBeNull();
@@ -200,7 +200,7 @@ describe("deadman switch", () => {
       vi.fn(async () => {
         calls.push("relay");
         if (calls.length === 1) throw new TypeError("network cut");
-        return { ok: false, status: 503 } as Response;
+        return new Response(null, { status: 503 });
       }),
     );
     await expect(commitDeadmanSwitch(plan)).rejects.toThrow(/kept|confirm/i);

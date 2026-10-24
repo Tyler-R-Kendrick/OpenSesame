@@ -223,7 +223,7 @@ describe("local vault sessions", () => {
       ],
     });
     const { writeFile } = await import("./vfs.js");
-    const write = (rows: unknown[]) =>
+    const write = <Row>(rows: readonly Row[]) =>
       writeFile(
         tomb,
         "config/vault-sessions",

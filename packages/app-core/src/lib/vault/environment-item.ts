@@ -36,13 +36,23 @@ export type EnvironmentSchemaProblem = Readonly<{
 
 const KEY = /^([A-Za-z_][A-Za-z0-9_]*)\s*=/;
 const ALIAS = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/;
-const CONTROL = /[\u0000-\u001f\u007f]/;
+/** C0 controls and DEL, which no key, alias or file name may hold. */
+function isControl(character: string): boolean {
+  const code = character.codePointAt(0) ?? 0;
+  return code < 0x20 || code === 0x7f;
+}
+
+function hasControl(line: string): boolean {
+  return Array.from(line).some(isControl);
+}
 
 /** A filesystem-safe item name; separators never escape the download name. */
 function filePart(value: string): string {
-  return value
-    .trim()
-    .replaceAll(/[\\/:*?"<>|\u0000-\u001f\u007f]/gu, "-")
+  return Array.from(value.trim(), (character) =>
+    isControl(character) ? "-" : character,
+  )
+    .join("")
+    .replaceAll(/[\\/:*?"<>|]/gu, "-")
     .replaceAll(/\s+/gu, " ")
     .replaceAll(/^-+|-+$/gu, "");
 }
@@ -76,7 +86,7 @@ export function scanEnvironmentSchema(schema: string): SchemaScan {
   lines.forEach((line, index) => {
     const text = line.trim();
     if (text === "" || text.startsWith("#")) return;
-    if (CONTROL.test(line)) {
+    if (hasControl(line)) {
       problems.push({
         field: "schema",
         message: `Line ${index + 1} contains a control character.`,
@@ -105,10 +115,13 @@ export function scanEnvironmentSchema(schema: string): SchemaScan {
 }
 
 /** One `KEY=vault/item/path` binding per line; comments and blank lines ignored. */
-export function parseEnvironmentAliases(aliasText: string): Readonly<{
+/** The alias bindings read from an item's alias text, and what was wrong. */
+export type EnvironmentAliases = Readonly<{
   aliases: readonly EnvironmentAlias[];
   problems: readonly EnvironmentSchemaProblem[];
-}> {
+}>;
+
+export function parseEnvironmentAliases(aliasText: string): EnvironmentAliases {
   const aliases: EnvironmentAlias[] = [];
   const seen = new Set<string>();
   const problems: EnvironmentSchemaProblem[] = [];
@@ -119,7 +132,7 @@ export function parseEnvironmentAliases(aliasText: string): Readonly<{
     .forEach((line, index) => {
       const text = line.trim();
       if (text === "" || text.startsWith("#")) return;
-      if (CONTROL.test(line)) {
+      if (hasControl(line)) {
         problems.push({
           field: "aliases",
           message: `Alias line ${index + 1} contains a control character.`,
@@ -149,15 +162,18 @@ export function parseEnvironmentAliases(aliasText: string): Readonly<{
 }
 
 /** The schema with alias bindings inserted above their keys, never a value. */
-export function renderEnvironmentSchemaItem(
-  itemName: string,
-  values: EnvironmentSchemaValues,
-): Readonly<{
+/** The generated schema file, or null with the problems that stopped it. */
+export type RenderedEnvironmentSchema = Readonly<{
   file: EnvironmentSchemaFile | null;
   keys: readonly string[];
   aliases: readonly EnvironmentAlias[];
   problems: readonly EnvironmentSchemaProblem[];
-}> {
+}>;
+
+export function renderEnvironmentSchemaItem(
+  itemName: string,
+  values: EnvironmentSchemaValues,
+): RenderedEnvironmentSchema {
   const { environment, schema } = values;
   const env = normalizeEnvironmentName(environment);
   const scan = scanEnvironmentSchema(schema);
