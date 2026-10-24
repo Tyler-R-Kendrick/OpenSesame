@@ -21,6 +21,7 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 import artifacts from "../../../lib/capabilities/tailscale-artifacts.json";
 import {
   type BrowserNodePolicy,
+  browserNodeAuthURL,
   browserNodeControlURL,
 } from "./browser-node-policy.js";
 import {
@@ -64,7 +65,15 @@ class BrowserNodeController implements TailscaleBrowserNode {
   private authorized = false;
   private requests: BrowserNodeRequests | null = null;
   private readonly retirement = new BrowserNodeRetirement();
-  constructor(private readonly policy: BrowserNodePolicy) {}
+  // Bound before the node is published; reassigning `policy` widens nothing.
+  readonly #approve: BrowserNodePolicy["approve"];
+  readonly #approvePeer: BrowserNodePolicy["approvePeer"];
+  /** This start's end of the only channel its worker trusts. */
+  #port: MessagePort | null = null;
+  constructor(private readonly policy: BrowserNodePolicy) {
+    this.#approve = policy.approve;
+    this.#approvePeer = policy.approvePeer;
+  }
   snapshot = () => this.view;
   authorization = () => {
     const turn = this.turn;
@@ -169,11 +178,13 @@ class BrowserNodeController implements TailscaleBrowserNode {
         type: "module",
         name: "opensesame-tailscale",
       });
+      const channel = new MessageChannel();
+      this.#port = channel.port1;
       this.requests = new BrowserNodeRequests(
-        this.worker,
+        channel.port1,
         () => this.check(turn),
         () => this.view.status === "connected" && this.writing === 0,
-        (url) => this.policy.approvePeer(url),
+        this.#approvePeer,
         () => this.stop(),
         stored.record.nativeHTTP !== undefined,
       );
@@ -182,29 +193,21 @@ class BrowserNodeController implements TailscaleBrowserNode {
         artifacts.assets,
         new URL(import.meta.env.BASE_URL, location.origin),
       );
-      const originalRequests = this.requests;
-      this.worker.onmessage = (event) => {
-        const cleanup = HostMessage.safeParse(event.data);
-        if (cleanup.success && cleanup.data.kind === "closeHTTP") {
-          originalRequests.receive(cleanup.data);
-          return;
-        }
-        this.receive(event.data, turn);
-      };
+      this.listen(channel.port1, this.requests, turn);
       this.worker.onerror = () => this.fail(turn);
-      this.worker.postMessage({
-        kind: "start",
-        config: {
-          ...config,
-          state: stored.state,
-          nativeHTTP: options.nativeHTTP,
-          peerTLS: stored.record.peerTLS,
-          assets: {
-            ...config.assets,
-            ...options.asset,
+      this.worker.postMessage(
+        {
+          kind: "start",
+          config: {
+            ...config,
+            state: stored.state,
+            nativeHTTP: options.nativeHTTP,
+            peerTLS: stored.record.peerTLS,
+            assets: { ...config.assets, ...options.asset },
           },
         },
-      });
+        [channel.port2],
+      );
     } catch (error) {
       if (turn === this.turn) {
         this.stop();
@@ -218,6 +221,19 @@ class BrowserNodeController implements TailscaleBrowserNode {
       }
       throw error;
     }
+  }
+  /** Nothing dispatched on the Worker object reaches here; only its start port does. */
+  private listen(
+    port: MessagePort,
+    requests: BrowserNodeRequests,
+    turn: number,
+  ) {
+    port.onmessage = (event: MessageEvent<BoundaryValue>) => {
+      const cleanup = HostMessage.safeParse(event.data);
+      if (cleanup.success && cleanup.data.kind === "closeHTTP")
+        requests.receive(cleanup.data);
+      else this.receive(event.data, turn);
+    };
   }
   private receive(raw: BoundaryValue, turn: number) {
     if (turn !== this.turn) return;
@@ -281,9 +297,9 @@ class BrowserNodeController implements TailscaleBrowserNode {
       // Optional upstream diagnostic uploads never leave this PWA.
       const allowed =
         url.hostname !== "log.tailscale.com" &&
-        this.policy.approve(url.href, message.method);
+        this.#approve(url.href, message.method);
       this.check(turn);
-      this.worker?.postMessage({ kind: "decision", id: message.id, allowed });
+      this.#port?.postMessage({ ...message, allowed });
     } else if (message.kind === "state") {
       this.running = message.state === "Running";
       if (message.state === "NeedsLogin") this.publish({ status: "login" });
@@ -299,7 +315,11 @@ class BrowserNodeController implements TailscaleBrowserNode {
         peerCount: map.peers.length,
       });
       this.connected();
-    } else if (message.kind === "auth") this.authorize(message.url);
+    } else if (message.kind === "auth")
+      this.publish({
+        status: "login",
+        authURL: browserNodeAuthURL(message.url, this.view.controlURL),
+      });
     else if (message.kind === "error") this.fail(turn);
   }
   private connected() {
@@ -307,21 +327,6 @@ class BrowserNodeController implements TailscaleBrowserNode {
       this.publish({ status: "connected", authURL: "" });
     else if (this.view.status === "connected")
       this.publish({ status: "starting", addresses: [] });
-  }
-  private authorize(href: string) {
-    const url = new URL(href);
-    const control = new URL(this.view.controlURL);
-    if (
-      url.username ||
-      url.password ||
-      (url.origin !== control.origin &&
-        !(
-          control.hostname === "controlplane.tailscale.com" &&
-          url.origin === "https://login.tailscale.com"
-        ))
-    )
-      throw new Error("Unexpected Tailscale authorization destination.");
-    this.publish({ status: "login", authURL: url.href });
   }
   async forget(): Promise<void> {
     this.stop();
@@ -339,7 +344,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
   }
   login(): void {
     this.check();
-    this.worker?.postMessage({ kind: "login" });
+    this.#port?.postMessage({ kind: "login" });
   }
   captureNativeHTTP(owner: AbortSignal): TailscaleNativeHTTPPort {
     this.check();
@@ -367,6 +372,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
     this.retirement.retire(this.requests, this.worker);
     this.requests = null;
     this.worker = null;
+    this.#port = null;
     this.releaseVault?.();
     this.releaseVault = null;
     this.releaseRows?.();
