@@ -135,8 +135,9 @@ function checkLink(link, server, label) {
   check(
     allow.length === 2 &&
       allow.every((subject) => subject.startsWith("opensesame.live.")) &&
-      // The start form's default: a session of an hour.
-      Math.abs(claims.exp - (Date.now() / 1000 + 60 * 60)) < 120,
+      // The start form's default: until the tab closes, seven days at most.
+      // The credential ends with the session.
+      Math.abs(claims.exp - (Date.now() / 1000 + 7 * 24 * 60 * 60)) < 120,
     `${label}: scoped to the session's subjects, expiring with it (${allow.join(", ")})`,
   );
   return allow[0];
