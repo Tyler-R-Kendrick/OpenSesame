@@ -219,15 +219,10 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-        // Merge a chunk under 32 KB into one that every path loading it
-        // already loads. The precache gzips each file alone; a 32 KB floor
-        // reduces that repeated compression overhead. A pure chunk still
-        // folds into a neighbour at this floor. Pin a chunk that must keep its
-        // name (`device-identity-host` below; web-push enrolment in
-        // `capability-lazy-leaves.mjs`) so the bootstrap does not
-        // static-import an optional module (ADR 0130 §4) and the device
-        // walks can still import the host by file name.
-        experimentalMinChunkSize: 32_000,
+        // Keep Rollup's ordinary split points: pure action-only modules must
+        // not fold into bootstrap just because evaluating them has no effects.
+        // The emitted entry/static closure and preload contract is pinned by
+        // dynamic-module-preload.test.mjs; existing owner/crypto pins remain.
         manualChunks: bundleChunk,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook

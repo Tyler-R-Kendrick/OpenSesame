@@ -207,3 +207,111 @@ test("dynamic JS hints preserve the real Vite ESM graph, entry preloads, assets 
     rmSync(fixture, { recursive: true, force: true });
   }
 });
+
+/** Read the real app merge policy without importing its native build plugins. */
+function actionOutputPolicy() {
+  const config = ts.createSourceFile(
+    "vite.config.ts",
+    readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const minimum = find(
+    config,
+    (node) =>
+      ts.isPropertyAssignment(node) &&
+      node.name.getText(config) === "experimentalMinChunkSize",
+  );
+  return minimum
+    ? {
+        experimentalMinChunkSize: runInNewContext(
+          minimum.initializer.getText(config),
+        ),
+      }
+    : {};
+}
+
+/** Actual transitive ESM loads, rather than largest-file size or chunk names. */
+function requireActionDeferred(output, implementation) {
+  const all = chunks(output);
+  const entry = all.find((chunk) => chunk.isEntry);
+  assert.ok(entry);
+  const byFile = new Map(all.map((chunk) => [chunk.fileName, chunk]));
+  const loaded = new Set();
+  function visit(chunk) {
+    if (loaded.has(chunk.fileName)) return;
+    loaded.add(chunk.fileName);
+    for (const dependency of chunk.imports) {
+      const imported = byFile.get(dependency);
+      assert.ok(imported);
+      visit(imported);
+    }
+  }
+  visit(entry);
+  const action = all.find((chunk) => implementation in chunk.modules);
+  assert.ok(action, "fixture action remains emitted");
+  assert.equal(
+    loaded.has(action.fileName),
+    false,
+    "action implementation is boot-loaded",
+  );
+  assert.ok(
+    entry.dynamicImports.includes(action.fileName),
+    "action remains a native dynamic import",
+  );
+  assert.ok(
+    initialHints(output).every((tag) => !tag.includes(action.fileName)),
+    "action has no initial modulepreload",
+  );
+  const table = /m\.f=\[(.*?)\]/.exec(entry.code);
+  if (table)
+    assert.ok(
+      !JSON.parse(`[${table[1]}]`).includes(action.fileName),
+      "action has no generated JS preload hint",
+    );
+}
+
+test("pure action implementations stay outside the real boot graph and reject a static-import regression", async () => {
+  const fixture = mkdtempSync(join(tmpdir(), "opensesame-action-boundary-"));
+  try {
+    const main =
+      'import { shared } from "./shared.js"; globalThis.boot = shared; globalThis.runAction = () => import("./action.js").then((module) => module.perform("captured-owner"));';
+    for (const [name, source] of Object.entries({
+      "index.html": '<script type="module" src="/main.js"></script>',
+      "main.js": main,
+      "shared.js": "export const shared = 7;",
+      "action.js":
+        'import { shared } from "./shared.js"; export function perform(owner) { return `${owner}:${shared}:action-body`; }',
+    }))
+      writeFileSync(join(fixture, name), source, { flag: "wx" });
+    const options = {
+      configFile: false,
+      root: fixture,
+      base: "/OpenSesame/",
+      publicDir: false,
+      logLevel: "silent",
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+        target: "es2022",
+        modulePreload: policy(),
+        rollupOptions: { output: actionOutputPolicy() },
+      },
+    };
+    const dynamic = (await build(options)).output;
+    requireActionDeferred(dynamic, join(fixture, "action.js"));
+    writeFileSync(
+      join(fixture, "main.js"),
+      `${main} import { perform } from "./action.js"; globalThis.eagerAction = perform;`,
+    );
+    const eager = (await build(options)).output;
+    assert.throws(
+      () => requireActionDeferred(eager, join(fixture, "action.js")),
+      /action implementation is boot-loaded/,
+    );
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
