@@ -14,7 +14,7 @@ import {
   openFromRest,
   sealForRest,
 } from "@opensesame/browser-at-rest";
-import type { BoundaryValue } from "@opensesame/os-domain";
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 
 export const STORE = "chrome.storage.local";
 const PREFIX = "runner.";
@@ -106,7 +106,7 @@ export function browserStore(): RawStore {
     async get(key) {
       const found = await area.get(key);
       const value = found[key];
-      return typeof value === "string" ? value : undefined;
+      return isString(value) ? value : undefined;
     },
     async set(key, value) {
       await area.set({ [key]: value });
