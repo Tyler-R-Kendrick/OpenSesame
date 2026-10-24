@@ -194,7 +194,7 @@ describe("resetBrowser: other tabs and this tab's own writes", () => {
             maybeRun?: () => Promise<BrowserResetReport>,
           ) => {
             const run =
-              typeof _optionsOrRun === "function" ? _optionsOrRun : maybeRun;
+              _optionsOrRun instanceof Function ? _optionsOrRun : maybeRun;
             if (!run) throw new Error("no lock action");
             order.push(`lock:${name}`);
             try {

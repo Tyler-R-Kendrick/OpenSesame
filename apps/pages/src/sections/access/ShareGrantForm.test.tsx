@@ -57,10 +57,10 @@ it("does not fall back to another item when the requested item is unavailable", 
       /That item is no longer available to share\. Choose another item or resource\./,
     ),
   ).toBeTruthy();
-  expect(
-    (screen.getByRole("button", { name: "Grant" }) as HTMLButtonElement)
-      .disabled,
-  ).toBe(true);
+  expect(screen.getByRole("button", { name: "Grant" })).toHaveProperty(
+    "disabled",
+    true,
+  );
 });
 
 it("disambiguates duplicate identity names with distinct option labels", async () => {

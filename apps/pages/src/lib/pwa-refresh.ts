@@ -11,10 +11,11 @@ type ReloadHost = {
 };
 
 export const pwaRefreshSeams = {
+  // SAFETY: every ReloadHost member is optional, so the global matches it wherever it runs; installPwaRefresh checks each member before using it.
   host: (): ReloadHost => globalThis as ReloadHost,
 };
 
-export function installPwaRefresh(check: () => Promise<unknown>): () => void {
+export function installPwaRefresh(check: () => Promise<boolean>): () => void {
   const host = pwaRefreshSeams.host();
   const worker = host.serviceWorker;
   if (!worker || !host.addEventListener) return () => undefined;

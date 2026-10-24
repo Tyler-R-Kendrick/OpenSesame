@@ -68,10 +68,13 @@ export type PrepareDeadmanInput = Readonly<{
   relayToken?: string;
 }>;
 
+/** The config input, checked: the relay token as it will be sent. */
+type CheckedConfig = { relayToken: string };
+
 function validateConfigInput(input: {
   timeoutDays: number;
   relayToken?: string;
-}): { relayToken: string } {
+}): CheckedConfig {
   if (
     !Number.isSafeInteger(input.timeoutDays) ||
     input.timeoutDays < 1 ||
@@ -101,10 +104,13 @@ function selectedItems(
   if (new Set(itemIds).size !== itemIds.length)
     throw new Error("An item was chosen twice.");
   const byId = new Map(items.map((item) => [item.id, item]));
-  const selected = itemIds.map((id) => byId.get(id));
-  if (selected.some((item) => !item))
-    throw new Error("One of the chosen items is no longer in this vault.");
-  const real = selected as VaultItem[];
+  const real: VaultItem[] = [];
+  for (const id of itemIds) {
+    const item = byId.get(id);
+    if (!item)
+      throw new Error("One of the chosen items is no longer in this vault.");
+    real.push(item);
+  }
   if (real.some((item) => item.deletedAt !== null || item.kind === "drop"))
     throw new Error(
       "Trash, lost, passkeys and one-time drop items cannot be released.",

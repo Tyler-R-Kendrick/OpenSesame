@@ -28,18 +28,23 @@ type PickerHost = {
   }) => Promise<FileSystemDirectoryHandle>;
 };
 
+function pickerHost(): PickerHost {
+  // SAFETY: every PickerHost member is optional, so the global matches it whether or not this browser has the File System Access API; each caller checks its picker before using it.
+  return globalThis as PickerHost;
+}
+
 function picker(): PickerHost["showSaveFilePicker"] {
-  const host = globalThis as PickerHost;
+  const host = pickerHost();
   return host.showSaveFilePicker?.bind(host);
 }
 
 function openPicker(): PickerHost["showOpenFilePicker"] {
-  const host = globalThis as PickerHost;
+  const host = pickerHost();
   return host.showOpenFilePicker?.bind(host);
 }
 
 function directoryPicker(): PickerHost["showDirectoryPicker"] {
-  const host = globalThis as PickerHost;
+  const host = pickerHost();
   return host.showDirectoryPicker?.bind(host);
 }
 
@@ -79,8 +84,8 @@ function download(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function cancelled(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
+function cancelled(cause: unknown): boolean {
+  return cause instanceof DOMException && cause.name === "AbortError";
 }
 
 /**
@@ -216,7 +221,7 @@ export async function saveTextToDirectory(
 /** Whether this context exposes the browser's origin private file system. */
 export function originPrivateFilesAvailable(): boolean {
   return (
-    typeof navigator !== "undefined" &&
-    typeof navigator.storage?.getDirectory === "function"
+    "navigator" in globalThis &&
+    globalThis.navigator.storage?.getDirectory instanceof Function
   );
 }

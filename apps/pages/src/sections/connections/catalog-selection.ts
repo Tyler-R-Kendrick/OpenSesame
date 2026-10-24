@@ -20,6 +20,16 @@ import {
   isFamilyCanonical,
 } from "./catalog-families.js";
 
+type CatalogFamilyCategories = {
+  readonly microsoft: Provider["category"];
+  readonly vercel: Provider["category"];
+  readonly cloudflare: Provider["category"];
+  readonly google: Provider["category"];
+  readonly azure: Provider["category"];
+  readonly aws: Provider["category"];
+  readonly gcp: Provider["category"];
+};
+
 // Every managed connector stays except Linq, which the operator retired from
 // this browse list. The source set is the managed-connector registry itself.
 const MANAGED = new Set(
@@ -209,7 +219,7 @@ function featuredProviders(
       scopes: [],
     },
   ];
-  const categories: Record<string, Provider["category"]> = {
+  const categories: CatalogFamilyCategories = {
     microsoft: "productivity",
     vercel: "developer",
     cloudflare: "developer",
@@ -221,16 +231,27 @@ function featuredProviders(
   for (const family of API_FAMILIES) {
     if (!present.has(family.id))
       rows.push(
-        clone(base, family.id, family.name, categories[family.id] ?? "custom"),
+        clone(
+          base,
+          family.id,
+          family.name,
+          Object.entries(categories).find(([id]) => id === family.id)?.[1] ??
+            "custom",
+        ),
       );
   }
   return rows.filter((provider) => !present.has(provider.id));
 }
 
+export type CatalogSelectionOptions = {
+  includeFeatured?: boolean;
+  includeFamilies?: boolean;
+};
+
 /** BYO leads the curated browse list; partner providers stay alphabetical. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
-  options: { includeFeatured?: boolean; includeFamilies?: boolean } = {},
+  options: CatalogSelectionOptions = {},
 ): Provider[] {
   const source = options.includeFeatured
     ? [...providers, ...featuredProviders(providers)]

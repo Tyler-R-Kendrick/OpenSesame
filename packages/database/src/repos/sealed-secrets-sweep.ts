@@ -10,6 +10,19 @@ import type { Database } from "./postgres.js";
 import { sealLegacyOidc } from "./sealed-oidc-sweep.js";
 import { sealLegacySessions } from "./sealed-sessions-sweep.js";
 
+/**
+ * What a Drizzle `execute()` answered: postgres-js returns the rows as an
+ * array, PGlite returns `{ rows }`. Either carries the matched count.
+ */
+type ExecuteAnswer = {
+  readonly length?: number;
+  readonly rows?: { readonly length: number };
+};
+
+function matchedRows(answer: ExecuteAnswer): number {
+  return answer.length ?? answer.rows?.length ?? 0;
+}
+
 interface SecretColumn {
   table: string;
   column: string;
@@ -156,16 +169,9 @@ export async function sealLegacySecrets(
                 ${column.betterAuthField ? sql`and ${sql.identifier("provider_id")} = ${row.providerId} and ${sql.identifier("account_id")} = ${row.accountId}` : sql``}
               returning ${id}`,
         );
-        // Drizzle drivers expose execute() results either as an array or as
-        // { rows }. Count a match from either shape; a zero-row CAS is a
-        // concurrent rotation and stays unsealed for the next pass.
-        const result = updated as unknown as {
-          readonly rows?: readonly unknown[];
-        };
-        const matched = Array.isArray(updated)
-          ? updated.length
-          : (result.rows?.length ?? 0);
-        if (matched > 0) changed += 1;
+        // A zero-row CAS is a concurrent rotation and stays unsealed for the
+        // next pass.
+        if (matchedRows(updated) > 0) changed += 1;
       }
     }
   }

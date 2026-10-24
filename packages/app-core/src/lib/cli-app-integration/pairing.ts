@@ -11,6 +11,7 @@ import {
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
 import type { CliAppPasskeyRegistration } from "./webauthn-credential.js";
+import { cliAppWebAuthnRegisterPayload } from "./webauthn-register-payload.js";
 
 /** 32 random bytes, unpadded base64url — same as `plugin-pairing.ts` SECRET. */
 export const CLI_APP_PAIRING_SECRET = /^[A-Za-z0-9_-]{43}$/;
@@ -40,35 +41,48 @@ export type CliAppPairingConfirmOutcome = Readonly<{
   registrationCode: string;
 }>;
 
-const PAIRING_REFUSAL_MESSAGES: Readonly<Record<string, string>> = {
-  origin_required: "This page's origin cannot pair.",
-  root_key_not_enrolled:
+const PAIRING_REFUSAL_MESSAGES = new Map<string, string>([
+  ["origin_required", "This page's origin cannot pair."],
+  [
+    "root_key_not_enrolled",
     "The root trust key is not enrolled, so pairing cannot finish.",
-  pairing_confirm_required: "Confirm the pairing code before finishing.",
-  pairing_registration_required:
+  ],
+  ["pairing_confirm_required", "Confirm the pairing code before finishing."],
+  [
+    "pairing_registration_required",
     "Type the registration code into the terminal, then finish pairing.",
-  pairing_registration_mismatch: "The registration code did not match.",
-  too_many_pairings:
+  ],
+  ["pairing_registration_mismatch", "The registration code did not match."],
+  [
+    "too_many_pairings",
     "Too many pairings are stored. Remove one, then try again.",
-  invalid_proof: "The passkey proof was rejected.",
-  pairing_expired: "That pairing code expired.",
-  pairing_unknown: "That pairing code is not waiting.",
-  pairing_wrong_origin: "That pairing code was issued for another origin.",
-  invalid_origin: "That origin cannot pair.",
-  cli_app_pairing_required: "Pairing did not stick. Start again from the code.",
-  ark_enrollment_required:
+  ],
+  ["invalid_proof", "The passkey proof was rejected."],
+  ["pairing_expired", "That pairing code expired."],
+  ["pairing_unknown", "That pairing code is not waiting."],
+  ["pairing_wrong_origin", "That pairing code was issued for another origin."],
+  ["invalid_origin", "That origin cannot pair."],
+  [
+    "cli_app_pairing_required",
+    "Pairing did not stick. Start again from the code.",
+  ],
+  [
+    "ark_enrollment_required",
     "Approver enrollment is required before pairing can finish.",
-  client_supplied_spki_rejected:
+  ],
+  [
+    "client_supplied_spki_rejected",
     "A software key cannot stand in for the passkey.",
-  vault_locked: "Unlock the vault before pairing.",
-  challenge_unavailable: "The pairing challenge could not be read.",
-  network: "The pairing service could not be reached.",
-  pairing_unreadable: "The pairing refusal could not be read.",
-};
+  ],
+  ["vault_locked", "Unlock the vault before pairing."],
+  ["challenge_unavailable", "The pairing challenge could not be read."],
+  ["network", "The pairing service could not be reached."],
+  ["pairing_unreadable", "The pairing refusal could not be read."],
+]);
 
 /** One sentence per daemon or local refusal. Unknown codes keep their code. */
 export function cliAppPairingRefusalMessage(code: string): string {
-  return PAIRING_REFUSAL_MESSAGES[code] ?? `Pairing was refused (${code}).`;
+  return PAIRING_REFUSAL_MESSAGES.get(code) ?? `Pairing was refused (${code}).`;
 }
 
 function refused(code: string, message?: string): CliAppPairingFailure {
@@ -271,8 +285,9 @@ export async function submitCliAppWebAuthnRegistration(
   vaultSessionRootDigest: string,
   registration: CliAppPasskeyRegistration,
 ): Promise<true | CliAppPairingFailure> {
-  const { cliAppWebAuthnRegisterPayload, saveCliAppWebAuthnCredential } =
-    await import("./webauthn-credential.js");
+  const { saveCliAppWebAuthnCredential } = await import(
+    "./webauthn-credential.js"
+  );
   let res: Response;
   try {
     res = await localNetworkFetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {

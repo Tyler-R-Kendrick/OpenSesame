@@ -15,6 +15,7 @@
 import {
   type BoundaryValue,
   isJsonObject,
+  isNumber,
   isString,
 } from "@opensesame/os-domain";
 import {
@@ -110,11 +111,8 @@ function parseSchedule(value: BoundaryValue): RotationSchedule | null {
   if (!isString(value.itemId) || !isString(value.typeId)) return null;
   if (!isString(value.scope)) return null;
   if (!isIso(value.lastRotatedAt) || !isIso(value.nextDueAt)) return null;
-  if (typeof value.enabled !== "boolean") return null;
-  if (
-    typeof value.intervalDays !== "number" ||
-    !Number.isFinite(value.intervalDays)
-  )
+  if (value.enabled !== true && value.enabled !== false) return null;
+  if (!isNumber(value.intervalDays) || !Number.isFinite(value.intervalDays))
     return null;
   return {
     scope: value.scope,

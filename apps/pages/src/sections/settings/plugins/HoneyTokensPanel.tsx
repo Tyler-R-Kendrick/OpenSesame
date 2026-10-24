@@ -22,10 +22,12 @@ import { StatusMark } from "../../../components/StatusMark.js";
 import { useVaultStore } from "../../../lib/vault/hooks.js";
 import "./plugins.css";
 
-function statusOf(token: HoneyTokenRecord): {
+type TokenStatus = {
   tone: "ok" | "warn" | "idle";
   label: string;
-} {
+};
+
+function statusOf(token: HoneyTokenRecord): TokenStatus {
   switch (honeyTokenStatus(token)) {
     case "triggered":
       return { tone: "warn", label: "Triggered" };

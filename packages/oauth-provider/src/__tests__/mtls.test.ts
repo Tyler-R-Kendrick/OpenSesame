@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import http from "node:http";
 import https from "node:https";
-import type { AddressInfo } from "node:net";
+import type { AddressInfo, Server } from "node:net";
 import type { TLSSocket } from "node:tls";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -16,7 +16,7 @@ import {
 const API = "https://api.example.test";
 
 /** What the Identity plane's listener does: register only verified peers. */
-function socketTransport(peers: WeakMap<object, MtlsPeer>): MtlsTransport {
+function socketTransport(peers: WeakMap<TLSSocket, MtlsPeer>): MtlsTransport {
   return {
     peerOf: (socket) => (socket ? peers.get(overlapCast(socket)) : undefined),
   };
@@ -35,6 +35,12 @@ function peerFor(socket: TLSSocket): MtlsPeer | undefined {
         .map((s) => s.slice(4).toLowerCase()),
     uris: () => sans.filter((s) => s.startsWith("URI:")).map((s) => s.slice(4)),
   };
+}
+
+/** The TCP port a listener bound. */
+function portOf(server: Server): number {
+  // SAFETY: listen(0, host) binds a TCP port, and Node's contract for a TCP listener's address() is an AddressInfo.
+  return (server.address() as AddressInfo).port;
 }
 
 type Fetched = { status: number; json: JsonObject; text: string };
@@ -59,13 +65,16 @@ function contentType(body: URLSearchParams | string | undefined) {
 
 function tlsOptions(options: RequestOptions) {
   if (options.plain) return {};
-  return {
+  const anonymous = {
     ca: options.pki.caCertPem,
     servername: "localhost",
-    ...(options.identity
-      ? { cert: options.identity.certPem, key: options.identity.keyPem }
-      : {}),
     agent: false,
+  };
+  if (!options.identity) return anonymous;
+  return {
+    ...anonymous,
+    cert: options.identity.certPem,
+    key: options.identity.keyPem,
   };
 }
 
@@ -137,7 +146,7 @@ describe("RFC 8705 over a real TLS listener", () => {
     stranger = pki
       .otherCa()
       .issueClient("stranger", { dns: ["svc.a.example"] });
-    const peers = new WeakMap<object, MtlsPeer>();
+    const peers = new WeakMap<TLSSocket, MtlsPeer>();
     tlsServer = https.createServer(
       {
         cert: serverLeaf.certPem,
@@ -168,9 +177,9 @@ describe("RFC 8705 over a real TLS listener", () => {
     await new Promise<void>((r) => tlsServer.listen(0, "127.0.0.1", r));
     await new Promise<void>((r) => anonymousServer.listen(0, "127.0.0.1", r));
     await new Promise<void>((r) => plainServer.listen(0, "127.0.0.1", r));
-    port = (tlsServer.address() as AddressInfo).port;
-    anonymousPort = (anonymousServer.address() as AddressInfo).port;
-    plainPort = (plainServer.address() as AddressInfo).port;
+    port = portOf(tlsServer);
+    anonymousPort = portOf(anonymousServer);
+    plainPort = portOf(plainServer);
     issuer = `https://127.0.0.1:${port}`;
     const { provider } = createOpenSesameProvider({
       issuer,

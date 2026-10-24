@@ -6,6 +6,7 @@ import {
   type BoundaryValue,
   type JsonObject,
   isJsonObject,
+  isNumber,
   isString,
 } from "@opensesame/os-domain";
 import { lockManager } from "../ports.js";
@@ -64,11 +65,7 @@ export const activitySeams = {
 };
 
 function isCategory(value: BoundaryValue): value is ActivityCategory {
-  if (!isString(value)) return false;
-  for (const category of ACTIVITY_CATEGORIES) {
-    if (category === value) return true;
-  }
-  return false;
+  return ACTIVITY_CATEGORIES.some((category) => category === value);
 }
 
 function isOutcome(value: BoundaryValue): value is ActivityOutcome {
@@ -386,7 +383,7 @@ export async function patchActivityCount(
     const event = current[index];
     if (!event) return;
     const prior = event.metadata.count;
-    if (typeof prior === "number" && prior >= count) return;
+    if (isNumber(prior) && prior >= count) return;
     const next = current.slice();
     next[index] = {
       ...event,

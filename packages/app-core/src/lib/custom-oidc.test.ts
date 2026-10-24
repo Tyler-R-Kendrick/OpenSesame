@@ -27,14 +27,13 @@ const config: OidcConnectorConfig = {
 
 describe("custom OIDC", () => {
   it("discovers only the exact configured issuer", async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl: typeof fetch = async () =>
       Response.json({
         issuer: "https://idp.example",
         authorization_endpoint: "https://idp.example/authorize",
         token_endpoint: "https://idp.example/token",
         jwks_uri: "https://idp.example/jwks",
-      }),
-    ) as unknown as typeof fetch;
+      });
     await expect(discoverOidc(config.issuer, fetchImpl)).resolves.toMatchObject(
       {
         issuer: config.issuer,
@@ -78,7 +77,7 @@ describe("custom OIDC", () => {
       .setIssuedAt()
       .setExpirationTime("5m")
       .sign(privateKey);
-    const fetchImpl = vi.fn(async (_url, init) => {
+    const fetchImpl: typeof fetch = async (_url, init) => {
       const form = new URLSearchParams(String(init?.body));
       expect(form.get("client_secret")).toBe("secret-1");
       expect(form.get("code_verifier")).toBe(pending.codeVerifier);
@@ -89,7 +88,7 @@ describe("custom OIDC", () => {
         token_type: "Bearer",
         expires_in: 300,
       });
-    }) as unknown as typeof fetch;
+    };
     const callbackUrl = `${config.callbackUrl}?code=code-1&state=${pending.state}`;
     const tokens = await completeOidcLogin(pending, callbackUrl, {
       fetchImpl,
@@ -123,7 +122,7 @@ describe("custom OIDC", () => {
       ...config,
       tokenRelayUrl: "https://relay.example/oidc/token",
     });
-    const fetchImpl = vi.fn(async (url, init) => {
+    const fetchImpl: typeof fetch = async (url, init) => {
       expect(String(url)).toBe("https://relay.example/oidc/token");
       const form = new URLSearchParams(String(init?.body));
       expect(form.get("client_secret")).toBeNull();
@@ -132,7 +131,7 @@ describe("custom OIDC", () => {
         access_token: "access-1",
         token_type: "Bearer",
       });
-    }) as unknown as typeof fetch;
+    };
     await expect(
       completeOidcLogin(
         pending,
@@ -143,20 +142,21 @@ describe("custom OIDC", () => {
   });
 
   it("starts a device authorization and handles pending then tokens", async () => {
-    const authorization = await beginOidcDevice(config, (async () =>
+    const device: typeof fetch = async () =>
       Response.json({
         device_code: "device-1",
         user_code: "ABCD-EFGH",
         verification_uri: "https://idp.example/device",
         expires_in: 60,
         interval: 1,
-      })) as unknown as typeof fetch);
+      });
+    const authorization = await beginOidcDevice(config, device);
     expect(authorization).toMatchObject({
       deviceCode: "device-1",
       userCode: "ABCD-EFGH",
     });
     let calls = 0;
-    const fetchImpl = (async () => {
+    const fetchImpl: typeof fetch = async () => {
       calls += 1;
       return calls === 1
         ? Response.json({ error: "authorization_pending" })
@@ -165,7 +165,7 @@ describe("custom OIDC", () => {
             token_type: "Bearer",
             expires_in: 300,
           });
-    }) as unknown as typeof fetch;
+    };
     await expect(
       pollOidcDevice(config, authorization, { fetchImpl }),
     ).resolves.toMatchObject({ status: "pending" });
@@ -183,7 +183,7 @@ describe("custom OIDC", () => {
       completeOidcLogin(
         pending,
         `${config.callbackUrl}?code=code-1&state=wrong`,
-        { fetchImpl: vi.fn() as unknown as typeof fetch },
+        { fetchImpl: vi.fn<typeof fetch>() },
       ),
     ).rejects.toThrow("state does not match");
   });

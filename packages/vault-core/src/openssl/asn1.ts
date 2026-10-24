@@ -19,10 +19,10 @@ export class DerError extends Error {
 const MAX_CHILDREN = 256;
 const MAX_DEPTH = 24;
 
-function readLength(
-  bytes: Uint8Array,
-  at: number,
-): { length: number; next: number } {
+/** A DER length, and the offset just past its encoding. */
+type DerLength = { length: number; next: number };
+
+function readLength(bytes: Uint8Array, at: number): DerLength {
   const first = bytes[at];
   if (first === undefined) throw new DerError("missing DER length");
   if (first < 0x80) return { length: first, next: at + 1 };
@@ -36,11 +36,11 @@ function readLength(
   return { length, next: at + 1 + count };
 }
 
+/** One TLV, and the offset just past it. */
+export type DerRead = { node: DerNode; next: number };
+
 /** Read exactly one definite-length TLV at `at`; `next` must be its end. */
-export function readDer(
-  bytes: Uint8Array,
-  at = 0,
-): { node: DerNode; next: number } {
+export function readDer(bytes: Uint8Array, at = 0): DerRead {
   const tag = bytes[at];
   if (tag === undefined) throw new DerError("missing DER tag");
   const length = readLength(bytes, at + 1);

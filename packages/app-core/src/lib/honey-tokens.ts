@@ -13,6 +13,13 @@
  * carries.
  */
 
+import {
+  type JsonObject,
+  type JsonValue,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import { kvGet, kvSetDurable } from "./kv.js";
 
 export const HONEY_TOKEN_KEY = "settings.honey-tokens.v1";
@@ -40,7 +47,10 @@ type Stored = { version: 1; tokens: HoneyTokenRecord[] };
 const ID = /^[0-9a-f]{32}$/u;
 const TOKEN = /^(?:osr_hny_[0-9a-f]{32}_[0-9a-f]{32}|osr_c0de[0-9a-f]{28})$/u;
 
-export function mintHoneyToken(): { id: string; token: string } {
+/** A freshly minted decoy: its public id and the token a person plants. */
+export type HoneyTokenMint = { id: string; token: string };
+
+export function mintHoneyToken(): HoneyTokenMint {
   // The HoneyVault token is a normal proxy-key shape. Only the reserved id
   // namespace tells the proxy it is a decoy; nothing says "honey" in the value.
   const id = `${HONEY_ID_PREFIX}${hex(16).slice(4)}`;
@@ -53,40 +63,40 @@ function hex(bytes: number): string {
     .join("");
 }
 
-function optionalTime(value: unknown): number | null | undefined {
+function optionalTime(value: JsonValue | undefined): number | null | undefined {
   if (value === null) return null;
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+  return isNumber(value) && Number.isSafeInteger(value) && value > 0
     ? value
     : undefined;
 }
 
-function identity(row: Record<string, unknown>): boolean {
-  return (
-    typeof row.id === "string" &&
-    ID.test(row.id) &&
-    typeof row.scope === "string" &&
-    row.scope.length > 0 &&
-    row.scope.length <= 128 &&
-    typeof row.label === "string" &&
-    row.label.length > 0 &&
-    row.label.length <= 80 &&
-    typeof row.token === "string" &&
-    TOKEN.test(row.token) &&
-    row.token.slice(
-      HONEY_TOKEN_MARKER.length,
-      HONEY_TOKEN_MARKER.length + 32,
-    ) === row.id
+type HoneyTokenIdentity = Pick<
+  HoneyTokenRecord,
+  "id" | "scope" | "label" | "token"
+>;
+
+/** The record's identity fields, when every one of them reads. */
+function identity(row: JsonObject): HoneyTokenIdentity | null {
+  const { id, scope, label, token } = row;
+  if (!isString(id) || !ID.test(id)) return null;
+  if (!isString(scope) || scope.length === 0 || scope.length > 128) return null;
+  if (!isString(label) || label.length === 0 || label.length > 80) return null;
+  if (!isString(token) || !TOKEN.test(token)) return null;
+  const marked = token.slice(
+    HONEY_TOKEN_MARKER.length,
+    HONEY_TOKEN_MARKER.length + 32,
   );
+  return marked === id ? { id, scope, label, token } : null;
 }
 
-function normalize(value: unknown): HoneyTokenRecord | null {
-  if (typeof value !== "object" || value === null) return null;
-  const row = value as Record<string, unknown>;
-  if (!identity(row)) return null;
-  const createdAt = optionalTime(row.createdAt);
-  const revokedAt = optionalTime(row.revokedAt);
-  const triggeredAt = optionalTime(row.triggeredAt);
-  const lastTriggeredAt = optionalTime(row.lastTriggeredAt);
+function normalize(value: JsonValue): HoneyTokenRecord | null {
+  if (!isJsonObject(value)) return null;
+  const named = identity(value);
+  if (!named) return null;
+  const createdAt = optionalTime(value.createdAt);
+  const revokedAt = optionalTime(value.revokedAt);
+  const triggeredAt = optionalTime(value.triggeredAt);
+  const lastTriggeredAt = optionalTime(value.lastTriggeredAt);
   if (
     createdAt === null ||
     createdAt === undefined ||
@@ -95,27 +105,17 @@ function normalize(value: unknown): HoneyTokenRecord | null {
     lastTriggeredAt === undefined
   )
     return null;
-  return {
-    id: row.id as string,
-    scope: row.scope as string,
-    label: row.label as string,
-    token: row.token as string,
-    createdAt,
-    revokedAt,
-    triggeredAt,
-    lastTriggeredAt,
-  };
+  return { ...named, createdAt, revokedAt, triggeredAt, lastTriggeredAt };
 }
 
 function readAll(): HoneyTokenRecord[] {
   const raw = kvGet(HONEY_TOKEN_KEY);
   if (raw === null) return [];
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return [];
-    const record = parsed as Record<string, unknown>;
-    if (record.version !== 1 || !Array.isArray(record.tokens)) return [];
-    return record.tokens
+    const parsed: JsonValue = JSON.parse(raw);
+    if (!isJsonObject(parsed)) return [];
+    if (parsed.version !== 1 || !Array.isArray(parsed.tokens)) return [];
+    return parsed.tokens
       .map(normalize)
       .filter((row): row is HoneyTokenRecord => row !== null);
   } catch {

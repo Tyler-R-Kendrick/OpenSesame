@@ -9,6 +9,11 @@
  * cycle imports the singleton.
  */
 
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { type BroadcastLike, openBroadcast } from "../../ports.js";
 import { idleLockSeams } from "./idle-lock.js";
 
@@ -45,15 +50,8 @@ export function onVaultDestroyed(handler: (tomb: string) => void): () => void {
   const channel = destroyNotice();
   if (!channel) return () => undefined;
   const listener = (event: MessageEvent) => {
-    const data: unknown = event.data;
-    if (
-      data !== null &&
-      typeof data === "object" &&
-      "type" in data &&
-      data.type === "destroyed" &&
-      "tomb" in data &&
-      typeof data.tomb === "string"
-    )
+    const data: BoundaryValue = event.data;
+    if (isJsonObject(data) && data.type === "destroyed" && isString(data.tomb))
       handler(data.tomb);
   };
   channel.addEventListener("message", listener);

@@ -1,27 +1,35 @@
 /** @vitest-environment jsdom */
+import {
+  EMPTY_GITHUB_SNAPSHOT,
+  type GithubInstallationSnapshot,
+} from "@opensesame/app-core/lib/github-installation-access.js";
 import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import {
+  GithubCardDetails,
+  githubInstallationSeams,
+} from "./GithubInstallationPanel.js";
 import { makeConnection } from "./section-fixtures.test-support.js";
 
-const access = vi.hoisted(() => ({
+const access = {
   load: vi.fn(),
   ensure: vi.fn(),
   should: vi.fn(),
-}));
+};
+const seams = { ...githubInstallationSeams };
+const vaultHooks = { ...vaultHooksSeams };
 
-vi.mock("@opensesame/app-core/lib/github-installation-access.js", () => ({
-  loadGithubInstallationSnapshot: access.load,
-  ensureGithubAccessGrant: access.ensure,
-  shouldEnsureGithubAccessGrant: access.should,
-}));
-vi.mock("../../lib/vault/hooks.js", () => ({
-  useVault: () => ({ tomb: "tomb" }),
-}));
-
-const { GithubCardDetails } = await import("./GithubInstallationPanel.js");
+beforeEach(() => {
+  Object.assign(githubInstallationSeams, access);
+  // SAFETY: the card reads only `tomb` from the vault state, which this fixture state carries.
+  vaultHooksSeams.useVault = () => ({ tomb: "tomb" }) as never;
+});
 
 afterEach(() => {
   cleanup();
+  Object.assign(githubInstallationSeams, seams);
+  Object.assign(vaultHooksSeams, vaultHooks);
   vi.clearAllMocks();
 });
 
@@ -50,7 +58,7 @@ describe("GitHub installation snapshot", () => {
   });
 
   it("does not mint a grant after the card unmounts while loading", async () => {
-    let finish: (value: unknown) => void = () => {};
+    let finish: (value: GithubInstallationSnapshot) => void = () => {};
     access.load.mockReturnValue(
       new Promise((resolve) => {
         finish = resolve;
@@ -59,7 +67,7 @@ describe("GitHub installation snapshot", () => {
     access.should.mockReturnValue(true);
     const view = render(<GithubCardDetails connection={makeConnection()} />);
     view.unmount();
-    finish({ installations: [], shares: [], ownerId: "owner" });
+    finish({ ...EMPTY_GITHUB_SNAPSHOT, ownerId: "owner" });
     await Promise.resolve();
     expect(access.ensure).not.toHaveBeenCalled();
   });

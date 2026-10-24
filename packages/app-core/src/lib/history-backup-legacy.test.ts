@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../host.js";
 import { createTestHost } from "../test-host.js";
@@ -9,72 +9,81 @@ import {
   resetLegacyHistorySweep,
 } from "./history-backup-legacy.js";
 
-type Row = Record<string, unknown>;
+type Callback = () => void;
+type Row = JsonObject;
+type FakeDatabase = { transaction(): FakeTransaction; close(): void };
+type FakeRequest = {
+  onsuccess?: Callback;
+  onerror?: Callback;
+  onupgradeneeded?: Callback;
+  result?: FakeDatabase;
+  error?: Error;
+};
+type FakeListing = { onsuccess?: Callback; result: Row[] };
+type FakeStore = { getAll(): FakeListing; put(row: Row): FakeRequest };
+type FakeTransaction = {
+  oncomplete: Callback | null;
+  onabort: Callback | null;
+  onerror: Callback | null;
+  error: Error | null;
+  objectStore(name: string): FakeStore;
+};
 
 function fakeIndexedDb() {
-  const rows: Record<string, Row[]> = {
-    [ACCOUNTS]: [
-      {
-        id: "acct_1",
-        providerId: "github",
-        anonToken: "token",
-        claimState: "provisional",
-        createdAt: "2026-01-01T00:00:00.000Z",
-      },
+  const rows = new Map<string, Row[]>([
+    [
+      ACCOUNTS,
+      [
+        {
+          id: "acct_1",
+          providerId: "github",
+          anonToken: "token",
+          claimState: "provisional",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
     ],
-    [ENTRIES]: [],
-  };
+    [ENTRIES, []],
+  ]);
   let failNextPut = true;
+  const store = (tx: FakeTransaction, name: string): FakeStore => ({
+    getAll: () => {
+      const listed: FakeListing = { result: rows.get(name) ?? [] };
+      queueMicrotask(() => listed.onsuccess?.());
+      return listed;
+    },
+    put: (row) => {
+      const request: FakeRequest = {};
+      if (failNextPut) {
+        failNextPut = false;
+        setTimeout(() => {
+          request.error = new Error("transient");
+          request.onerror?.();
+          tx.error = new Error("transient");
+          tx.onerror?.();
+        }, 0);
+        return request;
+      }
+      rows.set(name, [
+        ...(rows.get(name) ?? []).filter((entry) => entry.id !== row.id),
+        row,
+      ]);
+      queueMicrotask(() => request.onsuccess?.());
+      setTimeout(() => tx.oncomplete?.(), 0);
+      return request;
+    },
+  });
   return {
     rows,
     factory: () => ({
       open: () => {
-        const request: {
-          onsuccess?: () => void;
-          onerror?: () => void;
-          onupgradeneeded?: () => void;
-          result?: unknown;
-        } = {};
-        const tx = {
-          oncomplete: null as null | (() => void),
-          onabort: null as null | (() => void),
-          onerror: null as null | (() => void),
-          error: null as null | Error,
-          objectStore(name: string) {
-            return {
-              getAll: () => {
-                const listed: { onsuccess?: () => void; result: Row[] } = {
-                  result: rows[name] ?? [],
-                };
-                queueMicrotask(() => listed.onsuccess?.());
-                return listed;
-              },
-              put: (row: Row) => {
-                const request: {
-                  onsuccess?: () => void;
-                  onerror?: () => void;
-                  error?: Error;
-                } = {};
-                if (failNextPut) {
-                  failNextPut = false;
-                  setTimeout(() => {
-                    request.error = new Error("transient");
-                    request.onerror?.();
-                    tx.error = new Error("transient");
-                    tx.onerror?.();
-                  }, 0);
-                  return request;
-                }
-                rows[name] = [
-                  ...(rows[name] ?? []).filter((entry) => entry.id !== row.id),
-                  row,
-                ];
-                queueMicrotask(() => request.onsuccess?.());
-                setTimeout(() => tx.oncomplete?.(), 0);
-                return request;
-              },
-            };
-          },
+        const request: FakeRequest = {};
+        const tx: FakeTransaction = {
+          oncomplete: null,
+          onabort: null,
+          onerror: null,
+          error: null,
+          objectStore: (name) => store(tx, name),
         };
         request.result = { transaction: () => tx, close: () => undefined };
         queueMicrotask(() => request.onsuccess?.());
@@ -96,15 +105,15 @@ afterEach(() => {
 describe("legacy history plaintext sweep", () => {
   it("retries after a failed seal and latches only once the swap succeeded", async () => {
     const db = fakeIndexedDb();
-    configureHost(
-      createTestHost({ indexedDB: overlapCast(db.factory()) as IDBFactory }),
-    );
+    // The fake carries the members the legacy sweep calls.
+    const indexedDB: IDBFactory = overlapCast(db.factory());
+    configureHost(createTestHost({ indexedDB }));
     // The failed sweep falls back to memory instead of rejecting the read.
     await expect(legacyHistoryStore.listAccounts()).resolves.toBeUndefined();
-    expect(db.rows[ACCOUNTS]?.[0]?.sealed).toBeUndefined();
+    expect(db.rows.get(ACCOUNTS)?.[0]?.sealed).toBeUndefined();
 
     const accounts = await legacyHistoryStore.listAccounts();
     expect(accounts?.map((row) => row.id)).toEqual(["acct_1"]);
-    expect(db.rows[ACCOUNTS]?.[0]?.sealed).toEqual(expect.any(String));
+    expect(db.rows.get(ACCOUNTS)?.[0]?.sealed).toEqual(expect.any(String));
   });
 });

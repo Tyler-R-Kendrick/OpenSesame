@@ -58,9 +58,9 @@ describe("a selected contact whose passkey was revoked", () => {
     }
     render(<Harness />);
     const box = screen.getByRole("checkbox", { name: "Ada" });
-    expect((box as HTMLInputElement).disabled).toBe(false);
+    expect(box).toHaveProperty("disabled", false);
     await userEvent.click(box);
-    expect((box as HTMLInputElement).checked).toBe(false);
+    expect(box).toHaveProperty("checked", false);
   });
 });
 
@@ -115,7 +115,7 @@ describe("the trusted-contact circle from the directory", () => {
     await user.click(screen.getByRole("button", { name: "Start a circle" }));
 
     const adaBox = await screen.findByRole("checkbox", { name: "Ada" });
-    expect((adaBox as HTMLInputElement).disabled).toBe(true);
+    expect(adaBox).toHaveProperty("disabled", true);
     expect(
       screen.getByRole("button", { name: "Enroll a passkey for Ada" }),
     ).toBeTruthy();
@@ -123,24 +123,24 @@ describe("the trusted-contact circle from the directory", () => {
       screen.getByRole("button", { name: "Enroll a passkey for Ada" }),
     );
     await waitFor(() =>
-      expect(
-        (screen.getByRole("checkbox", { name: "Ada" }) as HTMLInputElement)
-          .disabled,
-      ).toBe(false),
+      expect(screen.getByRole("checkbox", { name: "Ada" })).toHaveProperty(
+        "disabled",
+        false,
+      ),
     );
     await user.click(
       screen.getByRole("button", { name: "Enroll a passkey for Ben" }),
     );
     await waitFor(() =>
-      expect(
-        (screen.getByRole("checkbox", { name: "Ben" }) as HTMLInputElement)
-          .disabled,
-      ).toBe(false),
+      expect(screen.getByRole("checkbox", { name: "Ben" })).toHaveProperty(
+        "disabled",
+        false,
+      ),
     );
 
     for (const name of ["Ada", "Ben"]) {
       const box = screen.getByRole("checkbox", { name });
-      if (!(box as HTMLInputElement).checked) await user.click(box);
+      if (!box.matches(":checked")) await user.click(box);
     }
     await user.selectOptions(
       screen.getByLabelText("Required approvals"),
