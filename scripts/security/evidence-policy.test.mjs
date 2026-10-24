@@ -25,6 +25,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const promotion = join(root, "scripts/dev/promote-evidence.mjs");
 const gate = join(root, "scripts/quality/evidence-gate.mjs");
 const slot = "unlock/pages/web";
+// A real reviewer's login and a review of this repository; the approval rule
+// itself is evidence-approval.test.mjs.
+const reviewer = "Tyler-R-Kendrick";
+const review =
+  "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045#pullrequestreview-3412345678";
 function payload() {
   const files = new Map([
     ["README.md", Buffer.from("# Current unlock\n")],
@@ -37,7 +42,7 @@ function payload() {
         version: 1,
         status: "approved",
         sourceCommit: "a".repeat(40),
-        approval: { by: "reviewer", reference: "https://review.example/42" },
+        approval: { by: reviewer, reference: review },
         files: [...files].map(([path, bytes]) => ({
           path,
           sha256: sha256(bytes),
@@ -80,9 +85,9 @@ function fixture(t) {
       "--source",
       commit,
       "--approved-by",
-      "Reviewer",
+      reviewer,
       "--approval-ref",
-      "https://review.example/42",
+      review,
     ]);
   return { directory, git, candidate, promote, run };
 }
