@@ -1,11 +1,11 @@
 /** @vitest-environment node */
 import { expect, it } from "vitest";
 import { catalogProvider } from "../../../../packages/app-core/src/lib/connector-catalog.ts";
+import { getBundledProviders } from "../../../../packages/app-core/src/lib/embedded-catalog.ts";
 import { API_FAMILIES } from "../../src/sections/connections/catalog-families.ts";
 import { nativeAuthFieldViolations } from "./native-browser-auth-field-contract.mjs";
 import { nativeCatalogRouteRow } from "./native-browser-catalog-journey.mjs";
 import {
-  NATIVE_CANONICAL_PROVIDERS,
   nativeAuthFieldMethods,
   nativeCanonicalRouteProvider,
 } from "./native-browser-catalog-projection.mjs";
@@ -18,9 +18,7 @@ const families = API_FAMILIES.flatMap((family) => {
 it("resolves the actual AWS family route through its bundled Secrets Manager alias", () => {
   const family = API_FAMILIES.find((entry) => entry.id === "aws");
   const provider = nativeCanonicalRouteProvider("aws");
-  expect(NATIVE_CANONICAL_PROVIDERS.some((entry) => entry.id === "aws")).toBe(
-    false,
-  );
+  expect(getBundledProviders().some((entry) => entry.id === "aws")).toBe(false);
   expect(provider).toEqual({
     id: "aws-secrets-manager",
     name: catalogProvider("aws")?.displayName,
