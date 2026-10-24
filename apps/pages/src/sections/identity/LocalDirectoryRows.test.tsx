@@ -68,6 +68,27 @@ async function rowOf(name: string) {
   return row;
 }
 
+/**
+ * A directory change (the panel's seed, a new row) ends every local session
+ * (ADR 0104, 0105), and a tab that signed the owner in then has no custodian
+ * fallback (97d68ee57). The way back is the owner's own row: Passkeys, then
+ * Sign in locally. Sign in locally is also shut while the sign-in is in
+ * flight, so the owner is in only once Sign out locally opens; acting before
+ * that is decided on the session the seed ended, as a guest.
+ */
+async function signInFromOwnRow() {
+  const row = within(await rowOf("Test person"));
+  await userEvent.click(row.getByText("Passkeys", { exact: true }));
+  const signIn = await row.findByRole("button", { name: "Sign in locally" });
+  await waitFor(() => expect(signIn).toHaveProperty("disabled", false));
+  await userEvent.click(signIn);
+  const signOut = row.getByRole("button", { name: "Sign out locally" });
+  await waitFor(
+    () => expect(signOut).toHaveProperty("disabled", false),
+    SEALED_WRITE,
+  );
+}
+
 it("arms delete, keeps focus on keep, and lands focus on the add key once the row leaves", async () => {
   await addPerson("Temp person");
   openPeople();
@@ -78,6 +99,7 @@ it("arms delete, keeps focus on keep, and lands focus on the add key once the ro
     () => expect(remove).toHaveProperty("disabled", false),
     SEALED_WRITE,
   );
+  await signInFromOwnRow();
   await userEvent.click(remove);
   expect(remove.className).toContain("is-armed");
   expect(remove.getAttribute("aria-label")).toBe("Confirm deletion");
@@ -120,6 +142,7 @@ it("reports a refused delete and keeps the row", async () => {
     () => expect(remove).toHaveProperty("disabled", false),
     SEALED_WRITE,
   );
+  await signInFromOwnRow();
   await userEvent.click(remove);
   await userEvent.click(
     within(row).getByRole("button", { name: "Confirm deletion" }),

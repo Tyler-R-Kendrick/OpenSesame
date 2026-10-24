@@ -1,5 +1,6 @@
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { signInLocalIdentity } from "@opensesame/app-core/lib/local-sessions.js";
 import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
@@ -51,6 +52,21 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/**
+ * A directory change ends every session, and a tab that signed someone in
+ * administers only as that person (97d68ee57): the owner signs in again after
+ * each change, before the next administrative act.
+ */
+async function changeAsOwner(
+  fixture: Awaited<ReturnType<typeof localRequestFixture>>,
+  input: Parameters<
+    Awaited<ReturnType<typeof localRequestFixture>>["change"]
+  >[0],
+) {
+  await fixture.change(input);
+  fixture.session = await signInLocalIdentity(fixture.tomb, fixture.personId);
+}
+
 it("shares a vault with a person from the grants command", async () => {
   const fixture = await localRequestFixture();
   render(
@@ -85,10 +101,14 @@ it("offers a new application and grants it a vault", async () => {
   await waitFor(() => {
     expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);
   });
-  await fixture.change({
+  await changeAsOwner(fixture, {
     action: "create",
     kind: "application",
     name: "Payroll",
+  });
+  // The change is announced, and the panel reads the directory again.
+  await waitFor(() => {
+    expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);
   });
   await userEvent.click(grant);
   await screen.findByLabelText("Identity");
@@ -158,7 +178,11 @@ it("asks twice before revoking an active share", async () => {
 
 it("lists a pending agent grant on the requests tab", async () => {
   const fixture = await localRequestFixture();
-  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await changeAsOwner(fixture, {
+    action: "create",
+    kind: "agent",
+    name: "Helper",
+  });
   render(<LocalSharePanel tomb={fixture.tomb} />);
   const grant = screen.getByRole("button", { name: "Grant identity share" });
   await waitFor(() => {
@@ -181,7 +205,11 @@ it("lists a pending agent grant on the requests tab", async () => {
 
 it("asks for approval before an agent share is active", async () => {
   const fixture = await localRequestFixture();
-  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await changeAsOwner(fixture, {
+    action: "create",
+    kind: "agent",
+    name: "Helper",
+  });
   render(
     <LocalSharePanel tomb={fixture.tomb} />,
     "/access?view=grants#identity-shares",
