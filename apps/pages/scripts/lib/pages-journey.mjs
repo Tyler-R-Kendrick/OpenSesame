@@ -102,6 +102,24 @@ export async function openSection(page, label) {
 }
 
 /**
+ * Close the toasts on screen, as a person does before reaching a control
+ * under one. A toast floats over the page and holds while the pointer rests
+ * on it (components/ToastStack.tsx), so a click aimed at a control beneath it
+ * keeps it there for as long as the click is retried.
+ */
+async function dismissToasts(page) {
+  const dismiss = page
+    .locator(".toasts")
+    .getByRole("button", { name: "Dismiss", exact: true });
+  for (let left = await dismiss.count(); left > 0; left -= 1) {
+    await dismiss
+      .first()
+      .click({ timeout: 5000 })
+      .catch(() => undefined);
+  }
+}
+
+/**
  * Choose capabilities the way a person does — Settings › Features and the
  * capability's switch, which commits in place. A device that has approved
  * nothing has no rail row for the sections those capabilities contribute
@@ -120,6 +138,7 @@ export async function addCapabilities(page, titles) {
       continue;
     }
     await add.waitFor({ timeout: 15000 });
+    await dismissToasts(page);
     await add.click();
     await page.getByTestId("capability-review").waitFor({
       state: "detached",
