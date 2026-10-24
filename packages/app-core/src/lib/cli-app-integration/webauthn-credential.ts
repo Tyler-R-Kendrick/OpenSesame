@@ -379,25 +379,3 @@ export async function assertStoredCliAppPasskey(
     signCount: proof.signCount,
   };
 }
-
-/** The body the CLI's pairing endpoint takes to register this passkey. */
-export interface CliAppWebAuthnRegisterPayload {
-  readonly vaultSessionRootDigest: string;
-  readonly humanProof: string;
-  readonly credentialIdB64: string;
-  readonly publicKeySpkiB64: string;
-  readonly signCount: number;
-}
-
-export function cliAppWebAuthnRegisterPayload(
-  vaultSessionRootDigest: string,
-  registration: CliAppPasskeyRegistration,
-): CliAppWebAuthnRegisterPayload {
-  return {
-    vaultSessionRootDigest,
-    humanProof: registration.humanProof,
-    credentialIdB64: registration.credentialIdB64,
-    publicKeySpkiB64: registration.publicKeySpkiB64,
-    signCount: registration.signCount,
-  };
-}
