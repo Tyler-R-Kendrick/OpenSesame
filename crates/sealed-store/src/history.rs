@@ -224,7 +224,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         git_init(dir.path());
         let root = init_store(dir.path(), &[]).unwrap();
-        let key = ItemDataKey([9u8; 32]);
+        let key = ItemDataKey::generate();
         root.insert("Dev/a", &entry("one"), &key).unwrap();
         root.insert_or_replace("Dev/a", &entry("two"), &key)
             .unwrap();
