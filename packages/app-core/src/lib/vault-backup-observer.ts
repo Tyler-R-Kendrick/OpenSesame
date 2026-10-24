@@ -65,7 +65,8 @@ export function publishBackupSyncEvent(reason: BackupSyncReason): void {
   if (tomb === GUEST_TOMB) return;
   const event: BackupSyncEvent = { reason };
   for (const listener of listeners) listener(event);
-  void runSync(reason);
+  // resyncBackup owns and awaits manual dispatch for its selected provider.
+  if (reason !== "manual") void runSync(reason);
 }
 
 export function subscribeBackupSyncEvents(
