@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@opensesame/agent-client": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.32.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@opensesame/api-client": "workspace:*",
     "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
@@ -27,7 +27,7 @@
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
-    "tsx": "4.19.4",
+    "tsx": "4.23.15",
     "typescript": "5.8.3",
     "vitest": "4.1.11"
   },
