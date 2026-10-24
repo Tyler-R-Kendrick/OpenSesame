@@ -465,6 +465,21 @@ jobs:
         run: |
           pnpm --filter @opensesame/pages build:secret-backends-verify
           pnpm --filter @opensesame/pages verify:secret-backends
+          PAGES_VERIFY_OUT=${{ runner.temp }}/github-app-browser GITHUB_APP_VERIFY_PHASE=after pnpm --filter @opensesame/pages verify:github-app-browser
+      - name: Preserve GitHub App browser evidence
+        if: always() && matrix.shard == 'native-secret-backends'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: github-app-browser-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/github-app-browser/receipt.json
+            ${{ runner.temp }}/github-app-browser/progress.json
+            ${{ runner.temp }}/github-app-browser/after-*.png
+            ${{ runner.temp }}/github-app-browser/after-*.json
+            ${{ runner.temp }}/github-app-browser/failure-*.png
+            !${{ runner.temp }}/github-app-browser/*.encrypted.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Experience journeys
         # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
         if: startsWith(matrix.shard, 'journeys')
