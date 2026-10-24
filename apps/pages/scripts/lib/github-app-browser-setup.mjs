@@ -224,6 +224,11 @@ export async function bindRepository(
       .waitFor();
   }
   await repository.fill(`fixture-owner/${name}`);
+  assert.equal(
+    await repository.inputValue(),
+    `fixture-owner/${name}`,
+    "The editable repository field preserves the exact filled slug",
+  );
   await page
     .getByRole("option", {
       name: `${create ? "New · " : ""}fixture-owner/${name}`,
