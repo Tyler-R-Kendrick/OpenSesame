@@ -223,7 +223,7 @@ describe("gcp-kms live (opt-in)", () => {
 });
 
 describe("GCP KMS HTTPS integrity", () => {
-  it("decrypts on the CryptoKey, whose ciphertext names its own version", async () => {
+  it("uses the CryptoKey decrypt endpoint for the captured key version", async () => {
     const seen: string[] = [];
     const plaintext = new Uint8Array([4, 5, 6]);
     const transport = createGcpKmsHttpsTransport({
@@ -232,7 +232,7 @@ describe("GCP KMS HTTPS integrity", () => {
         seen.push(String(input));
         return Response.json({
           plaintext: Buffer.from(plaintext).toString("base64"),
-          plaintextCrc32c: { value: crc32cDecimalString(plaintext) },
+          plaintextCrc32c: crc32cDecimalString(plaintext),
         });
       },
     });
@@ -242,7 +242,6 @@ describe("GCP KMS HTTPS integrity", () => {
       ciphertext: new Uint8Array([1]),
       aad: new Uint8Array(),
     });
-    // Cloud KMS has no cryptoKeyVersions decrypt; a version URL would 404.
     expect(seen).toEqual([
       `https://cloudkms.googleapis.com/v1/${KEY_NAME}:decrypt`,
     ]);
@@ -297,7 +296,7 @@ describe("GCP KMS HTTPS integrity", () => {
       fetchImpl: async () =>
         Response.json({
           plaintext: Buffer.from(plaintext).toString("base64"),
-          plaintextCrc32c: { value: crc32cDecimalString(plaintext) },
+          plaintextCrc32c: crc32cDecimalString(plaintext),
           verifiedCiphertextCrc32c: false,
           verifiedAdditionalAuthenticatedDataCrc32c: true,
         }),
