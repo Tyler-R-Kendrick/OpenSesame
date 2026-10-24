@@ -18,7 +18,7 @@
   "totals": {
     "files": 447,
     "violations": 717,
-    "oversizedLines": 221527
+    "oversizedLines": 221526
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -183,7 +183,7 @@
     },
     "apps/pages/src/sections/connections/SettingsPage.tsx": {
       "complexity": 1,
-      "max-lines": 431,
+      "max-lines": 430,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/SettingsPageConnectPanels.tsx": {
