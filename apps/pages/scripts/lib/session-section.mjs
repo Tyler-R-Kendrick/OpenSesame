@@ -53,6 +53,28 @@ export async function openSessionMenu(page) {
   await page.getByRole("menu", { name: "Session", exact: true }).waitFor();
 }
 
+/** What the Session menu lists: the session roots (RailRows' SESSION_SECTIONS). */
+const SESSION_ROOTS = new Set(["Settings", "Activity"]);
+
+/**
+ * A rail directory such as the vault is never in the Session menu. A tree
+ * rooted in Settings or Activity comes back by its `<` key, and the rail draws
+ * the directory's row once it has re-rendered for the new route, so the walk
+ * waits for that row rather than reading the tree the instant it pressed.
+ */
+async function openRailDirectory(page, name) {
+  const back = page.getByRole("treeitem", {
+    name: "Back to vault",
+    exact: true,
+  });
+  if (await back.isVisible().catch(() => false)) await back.click();
+  await page
+    .getByRole("treeitem", { name, exact: true })
+    .filter({ visible: true })
+    .first()
+    .click();
+}
+
 export async function openSessionSection(page, name) {
   const sections = page.getByRole("button", { name: "Sections", exact: true });
   if (await sections.isVisible().catch(() => false)) {
@@ -63,6 +85,10 @@ export async function openSessionSection(page, name) {
     return;
   }
   await dismissVaultSwitcher(page);
+  if (!SESSION_ROOTS.has(name)) {
+    await openRailDirectory(page, name);
+    return;
+  }
   const rooted = page.getByRole("treeitem", { name, exact: true });
   if (
     (await rooted.count()) > 0 &&
