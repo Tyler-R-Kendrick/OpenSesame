@@ -15,6 +15,14 @@ beforeEach(async () => {
   kvForgetAll();
 });
 const retired = "9382751946048271";
+/**
+ * The locks an open session holds once an operation settles: only its shared
+ * open lease (store.ts `#acquireSessionLease`), never a credential or body
+ * write lock.
+ */
+const openSessionLocks = (store: VaultStore) => [
+  `opensesame:vault-open:${store.activeTomb()}`,
+];
 async function fixture() {
   const f = await retiredOwnerFixture();
   try {
@@ -58,6 +66,10 @@ test("current password replacement cannot reuse a retained credential", async ()
       f.store.changeMasterPassword(OWNER_PASSWORD, retired),
     ).rejects.toThrow("retained");
     expect(f.store.getSnapshot()).toEqual(before);
+    expect(f.held).toEqual(openSessionLocks(f.store));
+    // The lease is the session's: locking lets it go.
+    f.store.lock();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(f.held).toEqual([]);
   } finally {
     await f.store.flushPendingWrites();
@@ -75,7 +87,7 @@ test("unlocked owner cannot enroll retained password or PIN as an ordinary alter
     await expect(f.store.enrollPin(retired)).rejects.toThrow("retained");
     expect(f.store.getSnapshot()).toEqual(before);
     expect(f.store.isGenuineSession()).toBe(true);
-    expect(f.held).toEqual([]);
+    expect(f.held).toEqual(openSessionLocks(f.store));
   } finally {
     await f.store.flushPendingWrites();
     await vfsFlush();
@@ -135,7 +147,7 @@ test("genuinely empty physical selected scope permits creation and intentional o
     await store.create("fresh original owner password security 39746");
     expect(store.isGenuineSession()).toBe(true);
     expect(store.getSnapshot().status).toBe("unlocked");
-    expect(f.held).toEqual([]);
+    expect(f.held).toEqual(openSessionLocks(store));
     expect(f.closed()).toBeGreaterThan(0);
   } finally {
     await store.flushPendingWrites();

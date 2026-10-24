@@ -4,6 +4,7 @@ import { AGE_KEYS_CONFIG_PATH } from "../../lib/age-keys.js";
 import { AWS_KMS_CONFIG_PATH } from "../../lib/aws-kms-config.js";
 import { GCP_KMS_CONFIG_PATH } from "../../lib/gcp-kms-config.js";
 import { kvDelete, kvGet } from "../../lib/kv.js";
+import { crc32cDecimalString } from "../../lib/vault/protection/adapters/gcp-kms.js";
 import { ATTEMPTS_KEY, VaultStore } from "../../lib/vault/store.js";
 import { LEGACY_PREFS_KEY } from "../../lib/vault/tomb-migration.js";
 import {
@@ -110,17 +111,24 @@ function gcpFetch(log: GcpCall[]) {
     }
     const body = JSON.parse(String(init?.body));
     if (String(url).endsWith(":encrypt")) {
+      expect(body.plaintextCrc32c).toBe(
+        crc32cDecimalString(unb64(body.plaintext)),
+      );
       const ct = b64(crypto.getRandomValues(new Uint8Array(40)));
       held.set(ct, body.plaintext);
       return Response.json({
         ciphertext: ct,
+        ciphertextCrc32c: crc32cDecimalString(unb64(ct)),
         name: `${GCP_KEY}/cryptoKeyVersions/1`,
         verifiedPlaintextCrc32c: true,
       });
     }
     const plaintext = held.get(body.ciphertext);
     if (!plaintext) return new Response("{}", { status: 400 });
-    return Response.json({ plaintext });
+    return Response.json({
+      plaintext,
+      plaintextCrc32c: crc32cDecimalString(unb64(plaintext)),
+    });
   };
   return impl;
 }

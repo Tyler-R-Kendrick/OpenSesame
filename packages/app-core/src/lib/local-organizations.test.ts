@@ -1,5 +1,6 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
@@ -50,7 +51,6 @@ async function signIn(principalId: string) {
 beforeEach(async () => {
   tomb = `org-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
@@ -58,16 +58,7 @@ beforeEach(async () => {
       create: (options: CredentialCreationOptions) => device.create(options),
       get: (options: CredentialRequestOptions) => device.get(options),
     },
-    locks: {
-      request: <T>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   owner = await create("person", "Owner");
   admin = await create("person", "Admin");
