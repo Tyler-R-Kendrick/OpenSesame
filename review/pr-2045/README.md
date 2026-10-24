@@ -7,18 +7,23 @@ Review storage for this pull request. Nothing here is approved yet.
 | Side | Commit | What it is |
 |---|---|---|
 | Before | `e17991f70` | `origin/main`, the merge-base when the PR was captured |
-| After | `aa12f0388` | PR head when the PR was captured (the fix is `cd172001a`) |
+| After | `8431be4f5` | PR head at capture time: the fix `cd172001a`, plus `8431be4f5`, which also starts a fresh shell for a decoy actor (#2071) |
 
 Both were `VITE_BASE=/OpenSesame/` Pages builds, served by the repository's
 static-origin harness as `https://tyler-r-kendrick.github.io/OpenSesame/` in
 headless Chromium. Both captures used the same journey
 ([journey.json](journey.json)) through `apps/pages/scripts/capture-evidence.mjs`:
-the guest Skip, Settings › Security, Add on Authenticator app, "Use a PIN
-instead", PIN 48291037 twice, Set PIN, then a 15 s settle before the reads.
+the guest Skip, Settings › Security, a 3 s settle, Add on Authenticator app,
+"Use a PIN instead", PIN 48291037 twice, Set PIN, then a 15 s settle before
+the reads. Both sides were captured again on 2026-10-24 for `8431be4f5`.
+
+An earlier after-side capture from `aa12f0388` gave the same readings. Its
+screenshots differ from these only in the wordmark's random cipher reels and
+in the QR code, which encodes a fresh random setup key on every run.
 
 ## Measurements (read from the browser)
 
-| Viewport | Before (`e17991f70`) | After (`aa12f0388`) |
+| Viewport | Before (`e17991f70`) | After (`8431be4f5`) |
 |---|---|---|
 | 1280 × 800, mouse | `[role=dialog]` count 0. The sheet closed. The PIN row shows ✓ and Authenticator app still shows + | `[role=dialog]` count 1, box 424×800 at (856, 0). `.steps__seg.is-now .steps__label` = "2 · Scan" |
 | 390 × 844, touch | `[role=dialog]` count 0. The sheet closed. The PIN row shows ✓ and Authenticator app still shows + | `[role=dialog]` count 1, box 390×616 at (0, 229). Current step = "2 · Scan" |
@@ -47,7 +52,7 @@ Before Set PIN, both builds read "1 · Key" at both widths.
 
 ```bash
 node scripts/dev/promote-evidence.mjs security-unlock/pages/web <dir-with-current-files> \
-  --source aa12f03883dc3be9fb707edb3b7e721201f3f7ea \
+  --source 8431be4f531ad0ef7d36831034a10f0b58671452 \
   --approved-by <reviewer> --approval-ref <approval-url>
 node scripts/quality/evidence-gate.mjs
 node scripts/quality/docs-index.mjs

@@ -17,9 +17,10 @@ stays on the pull request; it is not kept here.
 
 ## Source
 
-- Implementation commit: `aa12f0388` (branch
+- Implementation commit: `8431be4f5` (branch
   `claude/ecstatic-mayer-wbm2c3-auth-rail`, PR #2045). The change is
-  `cd172001a` (`useOpenVaultKey` keys the unlocked shell per opened vault).
+  `cd172001a` (`useOpenVaultKey` keys the unlocked shell per opened vault),
+  with `8431be4f5` keying it by the decoy actor too.
 - Base for the comparison: `e17991f70` (`origin/main` at the time).
 
 ## Method
@@ -28,7 +29,7 @@ stays on the pull request; it is not kept here.
   repository's static-origin harness as `https://tyler-r-kendrick.github.io/OpenSesame/`
   in headless Chromium (`/opt/pw-browsers/chromium`).
 - `apps/pages/scripts/capture-evidence.mjs capture after <journey>` with the
-  steps: `guest`, `visit settings/security`,
+  steps: `guest`, `visit settings/security`, `settle 3000`,
   `pressIn [.sw--method:has-text("Authenticator app"), Add]`,
   `press Use a PIN instead`, `fill PIN` and `fill Confirm PIN` (48291037, the
   walks' PIN), `press Set PIN`, `settle 15000`, then `count`, `report` and
