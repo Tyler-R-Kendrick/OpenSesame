@@ -40,13 +40,29 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   // Nothing leads to a page that does not exist: the catalog's own tiles are
   // its only links.
   expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();
-  const stripe = container.querySelector("#catalog-stripe");
-  // A catalog entry Vercel Connect cannot broker is no link at all, and says
-  // so with a StatusMark glyph — the sentence is its name, not a pill.
-  expect(stripe?.querySelector("a")).toBeNull();
-  const blocked = stripe?.querySelector(".conn-tile__go title");
-  expect(blocked?.textContent).toBe("No way to check a key");
-  expect(stripe?.textContent).not.toMatch(/Not connectable/);
+  // An entry whose API-key preset names an authenticated check (Stripe's
+  // GET /v1/balance) is connectable before External connectors activates
+  // (4798795f8), so its tile opens the connection page like any other link,
+  // and that link too stays out of sequential Tab order.
+  const stripe = container.querySelector<HTMLAnchorElement>(
+    "#catalog-stripe a.conn-tile__link",
+  );
+  expect(stripe?.getAttribute("href")).toBe("/connections/stripe");
+  expect(stripe?.getAttribute("aria-label")).toBe("Connect Stripe");
+  expect(stripe?.tabIndex).toBe(-1);
+  expect(stripe?.getAttribute("aria-describedby")).toBe("catalog-stripe-tags");
+  expect(container.querySelector("#catalog-stripe-tags")?.textContent).toBe(
+    "API key",
+  );
+  // An entry with no browser road is no link at all, and says why with a
+  // StatusMark glyph — the sentence is its name, not a pill. Zapier's MCP
+  // preflight refuses the audited origin (spec/connectors/browser-policy.json).
+  const zapier = container.querySelector("#catalog-zapier");
+  expect(zapier).toBeTruthy();
+  expect(zapier?.querySelector("a")).toBeNull();
+  const blocked = zapier?.querySelector(".conn-tile__go title");
+  expect(blocked?.textContent).toBe("Provider blocks browsers");
+  expect(zapier?.textContent).not.toMatch(/Not connectable/);
 });
 
 it("offers BYO AI through the custom entry in the add builder, not a browse tile", () => {
