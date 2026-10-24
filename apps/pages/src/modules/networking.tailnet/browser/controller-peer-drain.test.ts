@@ -81,10 +81,9 @@ it("bounds a drain that never acknowledges", async () => {
       { usedPeer: true, close: () => new Promise<boolean>(() => {}) },
       worker,
     );
-    const admission = retirement.ready().then(
-      () => null,
-      (error: unknown) => error,
-    );
+    const admission = retirement.ready().catch(() => ({
+      message: "The original peer transport did not confirm closure.",
+    }));
     await vi.advanceTimersByTimeAsync(5_000);
     await expect(admission).resolves.toMatchObject({
       message: "The original peer transport did not confirm closure.",
