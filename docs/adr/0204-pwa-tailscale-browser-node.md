@@ -109,14 +109,24 @@ wrapped. Its own message channel therefore grants nothing.
   a pending request only with a reply for that same request.
 - **Everything else after `start` rides it too**, in both directions:
   `login`, the native HTTP and close commands, and every message the worker
-  sends.
+  sends. That includes the `closeHTTP` acknowledgement retirement waits for:
+  a node that made a peer request is terminated once its worker acknowledges
+  on the port, or after 60 seconds, and a replacement `start` is refused
+  unless that acknowledgement confirmed the peer transport closed.
 - **Nothing on the Worker channel is trusted.** The worker acts on nothing
   but `start` posted to the Worker. The controller sets no message handler on
   the Worker, so a message posted or dispatched there reaches nothing. The
   Worker's `error` event only stops the node, which `stop()` already permits.
 - **The page's end of the port stays private.** It is kept only in `#private`
-  fields, beside `approve` and `approvePeer`, which are bound when the
-  controller is created, before the node is published.
+  fields, beside `assertCurrent`, `approve` and `approvePeer`, which are bound
+  when the controller is created, before the node is published.
+- **No reachable object holds a sender over the port.** Every member of the
+  controller and of `BrowserNodeRequests` that touches the port, the pending
+  requests or the host messages is `#private`, so at run time the controller
+  shows only the `TailscaleBrowserNode` methods. A native stream holds a frozen
+  channel that sends only its own `nativeHTTPStream`, `pullHTTP` and
+  `cancelHTTP`; the worker refuses a reused id, a pull out of sequence and a
+  command for a stream it does not hold.
 
 Residual risk: script that runs on this origin before the node starts can
 wrap `Worker`, `MessageChannel` or `MessagePort` and stand between the two.
@@ -128,7 +138,8 @@ No check in the page can see that. The deployment bounds it:
 - on the shared `github.io` origin, every other Pages site of the same
   account is same-origin, and a dedicated origin removes that.
 
-Audit: `docs/security/audits/2026-10-24-tailnet-worker-peer-get.md`.
+Audits: `docs/security/audits/2026-10-24-tailnet-worker-peer-get.md`, and the
+follow-up `docs/security/audits/2026-10-24-tailnet-worker-port-reland.md`.
 
 References:
 

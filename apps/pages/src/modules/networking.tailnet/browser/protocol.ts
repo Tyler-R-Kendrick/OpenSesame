@@ -118,6 +118,11 @@ export const Configuration = z.object({
   nativeHTTP: NativeHTTPConfiguration.optional(),
   peerTLS: PeerTLSConfiguration.optional(),
 });
+/**
+ * The Worker's own channel reaches anything holding the Worker object, so it
+ * carries `start` alone. Everything else, both ways, rides the one port that
+ * `start` transferred, which only the controller and the worker hold.
+ */
 export const WorkerMessage = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("nativeHTTPReady") }),
   z.object({
@@ -143,14 +148,18 @@ export const WorkerMessage = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("closeHTTP") }),
   z.object({ kind: z.literal("start"), config: Configuration }),
   z.object({ kind: z.literal("login") }),
+  // A peer GET the page's egress policy approved for this exact URL.
   z.object({
     kind: z.literal("get"),
     id: z.number().int(),
     url: z.string().url(),
   }),
+  // Names the request it answers; a reply for another URL or method settles nothing.
   z.object({
     kind: z.literal("decision"),
     id: z.number().int(),
+    url: z.string().url(),
+    method: z.string(),
     allowed: z.boolean(),
   }),
 ]);

@@ -30,24 +30,52 @@ export const config = {
   hostname: "status-browser",
   controlURL: "https://controlplane.tailscale.com",
 };
+/** Delivers on the same turn, so a test reads the controller as the worker left it. */
+class SyncPort {
+  onmessage: ((event: { data: BoundaryValue }) => void) | null = null;
+  other: SyncPort | null = null;
+  postMessage(data: BoundaryValue) {
+    this.other?.onmessage?.({ data });
+  }
+  close() {
+    this.other = null;
+  }
+}
+export class SyncChannel {
+  readonly port1 = new SyncPort();
+  readonly port2 = new SyncPort();
+  constructor() {
+    this.port1.other = this.port2;
+    this.port2.other = this.port1;
+  }
+}
+/** `start` arrives on the Worker; everything after it, both ways, on its port. */
 export class StatusWorker {
   static current: StatusWorker;
-  onmessage: ((event: { data: BoundaryValue }) => void) | null = null;
   onerror: (() => void) | null = null;
   sent: BoundaryValue[] = [];
   terminated = false;
+  private port: SyncPort | null = null;
   constructor() {
     StatusWorker.current = this;
   }
-  postMessage(value: BoundaryValue) {
+  postMessage(value: BoundaryValue, transfer: SyncPort[] = []) {
     this.sent.push(value);
+    const [port] = transfer;
+    if (!port) return;
+    this.port = port;
+    port.onmessage = (event) => this.sent.push(event.data);
   }
   terminate() {
     this.terminated = true;
   }
   emit(data: BoundaryValue) {
-    this.onmessage?.({ data });
+    this.port?.postMessage(data);
   }
+}
+export function stubBrowserNodeWorker() {
+  vi.stubGlobal("Worker", StatusWorker);
+  vi.stubGlobal("MessageChannel", SyncChannel);
 }
 export function netmap(
   worker: StatusWorker,
@@ -99,7 +127,7 @@ function networkingPlan() {
 }
 export async function statusFixture() {
   const vault = await runtimeFixture();
-  vi.stubGlobal("Worker", StatusWorker);
+  stubBrowserNodeWorker();
   const test = createTestContext();
   const authority = mintLease(test.ctx.lease.identity, 1);
   const plan = networkingPlan();

@@ -23,3 +23,20 @@ export function browserNodeControlURL(value: string): URL {
     );
   return url;
 }
+
+/** Where the node may send a person to sign in: its own control server, or Tailscale's login for Tailscale's. */
+export function browserNodeAuthURL(href: string, controlURL: string): string {
+  const url = new URL(href);
+  const control = new URL(controlURL);
+  if (
+    url.username ||
+    url.password ||
+    (url.origin !== control.origin &&
+      !(
+        control.hostname === "controlplane.tailscale.com" &&
+        url.origin === "https://login.tailscale.com"
+      ))
+  )
+    throw new Error("Unexpected Tailscale authorization destination.");
+  return url.href;
+}

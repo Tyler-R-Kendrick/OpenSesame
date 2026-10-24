@@ -7,6 +7,7 @@ import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { anySignal } from "../../signals.js";
 import {
   NativeStreamRequest,
+  nativeStreamChannel,
   wantsNativeStream,
 } from "./controller-native-stream.js";
 import {
@@ -22,26 +23,33 @@ type Pending = {
 };
 /** One original worker, node session and saved route/trust grant. Never ambient fetch. */
 export class BrowserNodeRequests {
-  private lifetime = new AbortController();
-  private next = 0;
-  private pending = new Map<number, Pending>();
-  private readiness = new Set<(ready: boolean) => void>();
+  #lifetime = new AbortController();
+  #next = 0;
+  #pending = new Map<number, Pending>();
+  #readiness = new Set<(ready: boolean) => void>();
   private peerUsed = false;
   get usedPeer() {
     return this.peerUsed;
   }
   private retirement: Promise<boolean> | null = null;
   private retired: ((closed: boolean) => void) | null = null;
+  // Truly private: nothing outside this object reaches the port, the pending
+  // entries or a sender over the port; each stream holds only its own commands.
+  readonly #port: Pick<MessagePort, "postMessage">;
+  readonly #approvePeer: (url: string) => boolean;
   constructor(
-    private readonly worker: Pick<Worker, "postMessage">,
+    port: Pick<MessagePort, "postMessage">,
     private readonly check: () => void,
     private readonly connected: () => boolean,
-    private readonly approvePeer: (url: string) => boolean,
+    approvePeer: (url: string) => boolean,
     private readonly stop: () => void,
     private readonly nativeEnabled: boolean,
-  ) {}
+  ) {
+    this.#port = port;
+    this.#approvePeer = approvePeer;
+  }
   private assertCurrent = () => {
-    this.lifetime.signal.throwIfAborted();
+    this.#lifetime.signal.throwIfAborted();
     this.check();
     if (!this.connected())
       throw new Error("Connect the original browser node first.");
@@ -53,7 +61,7 @@ export class BrowserNodeRequests {
       return true;
     }
     if (message.kind === "nativeHTTPReady") {
-      for (const resolve of [...this.readiness]) resolve(message.ready);
+      for (const resolve of [...this.#readiness]) resolve(message.ready);
       return true;
     }
     if (
@@ -64,7 +72,7 @@ export class BrowserNodeRequests {
       message.kind !== "get"
     )
       return false;
-    this.pending.get(message.id)?.complete(message);
+    this.#pending.get(message.id)?.complete(message);
     return true;
   }
   close(): Promise<boolean> {
@@ -72,13 +80,13 @@ export class BrowserNodeRequests {
     this.retirement = new Promise<boolean>((resolve) => {
       this.retired = resolve;
     });
-    this.lifetime.abort();
-    for (const pending of [...this.pending.values()]) pending.fail();
-    this.pending.clear();
-    for (const resolve of [...this.readiness]) resolve(false);
-    this.readiness.clear();
+    this.#lifetime.abort();
+    for (const pending of [...this.#pending.values()]) pending.fail();
+    this.#pending.clear();
+    for (const resolve of [...this.#readiness]) resolve(false);
+    this.#readiness.clear();
     try {
-      this.worker.postMessage({ kind: "closeHTTP" });
+      this.#port.postMessage({ kind: "closeHTTP" });
     } catch {
       this.retired?.(false);
       this.retired = null;
@@ -86,20 +94,20 @@ export class BrowserNodeRequests {
     return this.retirement;
   }
   get(url: string): Promise<{ status: number; text: string }> {
-    this.lifetime.signal.throwIfAborted();
+    this.#lifetime.signal.throwIfAborted();
     this.check();
-    if (this.pending.size >= 4 || !this.connected() || !this.approvePeer(url))
+    if (this.#pending.size >= 4 || !this.connected() || !this.#approvePeer(url))
       return Promise.reject(
         new Error(
           "Connect a browser node and allow this tailnet service first.",
         ),
       );
     this.peerUsed = true;
-    const id = ++this.next;
+    const id = ++this.#next;
     return new Promise((resolve, reject) => {
       const finish = () => {
         clearTimeout(timer);
-        this.pending.delete(id);
+        this.#pending.delete(id);
       };
       const timer = setTimeout(() => {
         finish();
@@ -110,7 +118,7 @@ export class BrowserNodeRequests {
           ),
         );
       }, 30_000);
-      this.pending.set(id, {
+      this.#pending.set(id, {
         fail: () => {
           finish();
           reject(new Error("Tailscale node stopped."));
@@ -120,7 +128,7 @@ export class BrowserNodeRequests {
           finish();
           try {
             this.assertCurrent();
-            if (!this.approvePeer(url))
+            if (!this.#approvePeer(url))
               throw new Error("The original peer grant ended.");
             resolve({ status: message.status, text: message.text });
           } catch {
@@ -128,7 +136,7 @@ export class BrowserNodeRequests {
           }
         },
       });
-      this.worker.postMessage({ kind: "get", id, url });
+      this.#port.postMessage({ kind: "get", id, url });
     });
   }
   capture(owner: AbortSignal): TailscaleNativeHTTPPort {
@@ -138,7 +146,7 @@ export class BrowserNodeRequests {
       throw new Error(
         "Configure native HTTPS routing and trust for this browser node.",
       );
-    const signal = anySignal([this.lifetime.signal, owner]);
+    const signal = anySignal([this.#lifetime.signal, owner]);
     const assertCurrent = () => {
       signal.throwIfAborted();
       this.assertCurrent();
@@ -172,20 +180,20 @@ export class BrowserNodeRequests {
           headers: [...request.headers],
           body,
         });
-        await this.ready(caller);
+        await this.#ready(caller);
         assertCurrent();
         caller.throwIfAborted();
         return wantsNativeStream(request)
-          ? this.stream(value, caller, assertCurrent)
-          : this.request(value, caller, assertCurrent);
+          ? this.#stream(value, caller, assertCurrent)
+          : this.#request(value, caller, assertCurrent);
       },
     });
   }
-  private ready(signal: AbortSignal): Promise<void> {
+  #ready(signal: AbortSignal): Promise<void> {
     return new Promise((resolve, reject) => {
       const finish = (ready: boolean) => {
         signal.removeEventListener("abort", abort);
-        this.readiness.delete(finish);
+        this.#readiness.delete(finish);
         if (ready && !signal.aborted) resolve();
         else
           reject(
@@ -195,59 +203,58 @@ export class BrowserNodeRequests {
           );
       };
       const abort = () => finish(false);
-      this.readiness.add(finish);
+      this.#readiness.add(finish);
       signal.addEventListener("abort", abort, { once: true });
       if (signal.aborted) finish(false);
-      else this.worker.postMessage({ kind: "nativeHTTPReady" });
+      else this.#port.postMessage({ kind: "nativeHTTPReady" });
     });
   }
-  private stream(
+  #stream(
     request: ReturnType<typeof NativeHTTPRequest.parse>,
     signal: AbortSignal,
     check: () => void,
   ): Promise<Response> {
     check();
     signal.throwIfAborted();
-    if (this.pending.size >= 4)
+    if (this.#pending.size >= 4)
       return Promise.reject(
         new Error("Native HTTPS request capacity reached."),
       );
-    const id = ++this.next;
+    const id = ++this.#next;
     const stream = new NativeStreamRequest({
-      id,
       request,
       signal,
       check,
-      post: (message) => this.worker.postMessage(message),
-      retire: () => this.pending.delete(id),
+      channel: nativeStreamChannel(this.#port, id, request),
+      retire: () => this.#pending.delete(id),
     });
-    this.pending.set(id, stream);
+    this.#pending.set(id, stream);
     stream.start();
     return stream.response;
   }
-  private request(
+  #request(
     request: ReturnType<typeof NativeHTTPRequest.parse>,
     signal: AbortSignal,
     check: () => void,
   ): Promise<Response> {
     check();
     signal.throwIfAborted();
-    if (this.pending.size >= 4)
+    if (this.#pending.size >= 4)
       return Promise.reject(
         new Error("Native HTTPS request capacity reached."),
       );
-    const id = ++this.next;
+    const id = ++this.#next;
     return new Promise((resolve, reject) => {
       const finish = () => {
         signal.removeEventListener("abort", abort);
-        this.pending.delete(id);
+        this.#pending.delete(id);
       };
       const abort = () => {
         finish();
-        this.worker.postMessage({ kind: "cancelHTTP", id });
+        this.#port.postMessage({ kind: "cancelHTTP", id });
         reject(new Error("The original native HTTPS request ended."));
       };
-      this.pending.set(id, {
+      this.#pending.set(id, {
         fail: abort,
         complete: (message) => {
           if (message.kind === "get") return;
@@ -289,7 +296,7 @@ export class BrowserNodeRequests {
       });
       signal.addEventListener("abort", abort, { once: true });
       if (signal.aborted) abort();
-      else this.worker.postMessage({ kind: "nativeHTTP", id, request });
+      else this.#port.postMessage({ kind: "nativeHTTP", id, request });
     });
   }
 }

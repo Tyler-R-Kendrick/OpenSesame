@@ -86,9 +86,13 @@ function createClient() {
   };
 }
 let client: ReturnType<typeof createClient>;
+let ports = new MessageChannel();
+/** `start` carries the one port; every later command rides it. */
 function send(data: ReturnType<typeof WorkerMessage.parse>) {
   if (!driver) throw new Error("Worker fixture not initialized.");
-  driver.receive(new MessageEvent("message", { data }));
+  if (data.kind === "start")
+    driver.receive(new MessageEvent("message", { data, ports: [ports.port2] }));
+  else driver.command(new MessageEvent("message", { data }));
 }
 async function load(start = true) {
   const { BrowserNodeWorker } = await import("./worker.js");
@@ -110,6 +114,7 @@ beforeEach(() => {
   held = new Map();
   sent = [];
   driver = null;
+  ports = new MessageChannel();
   client = createClient();
   loader.mockReset().mockResolvedValue(client);
   egress.mockReset();
@@ -117,7 +122,8 @@ beforeEach(() => {
   vi.stubGlobal("postMessage", vi.fn());
 });
 afterEach(async () => {
-  driver?.receive(new MessageEvent("message", { data: { kind: "closeHTTP" } }));
+  driver?.command(new MessageEvent("message", { data: { kind: "closeHTTP" } }));
+  ports.port1.close();
   for (const gate of held.values()) gate.reject(new Error("owned teardown"));
   await settle();
   vi.unstubAllGlobals();
@@ -274,7 +280,7 @@ it("close during asynchronous SDK startup retires native binding before ordinary
 
 it("invalid boundary messages never admit work and a synchronous SDK failure is correlated", async () => {
   await load();
-  driver?.receive(
+  driver?.command(
     new MessageEvent("message", {
       data: {
         kind: "nativeHTTP",
