@@ -20,7 +20,7 @@ import type {
 } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { planIsSettling } from "@opensesame/app-core/lib/capabilities/settling.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
-import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
+import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation-response.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { Notices } from "./components/Notices.js";
 import { VaultShellSkeleton } from "./components/VaultShellSkeleton.js";
