@@ -452,7 +452,14 @@ jobs:
           EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
       # Rust 1.88, same action and toolchain as the Rust tests job. Only this
-      # shard builds the CLI the live relay walk spawns.
+      # shard builds the CLI the live relay walk spawns. The CLI links the
+      # Linux keychain through libdbus-sys, so it needs the same build
+      # dependencies the Rust tests job installs.
+      - name: Install Linux keychain build dependencies
+        if: matrix.shard == 'journeys-1'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
         if: matrix.shard == 'journeys-1'
         with:
