@@ -20,7 +20,7 @@ export async function unlockAt(page, pin) {
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
 }
-export async function newVault(page, { origin, base, pin }) {
+export async function newVault(page, { origin, base, pin, record }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await passTheDoor(page);
   await page
@@ -37,6 +37,80 @@ export async function newVault(page, { origin, base, pin }) {
     .click();
   await waitOpen(page);
   await nativeEnableConnections(page, base);
+  return await useDeviceIdentity(page, record);
+}
+/** Lazy key creation is a genuine first identity use, before any backup or export. */
+async function useDeviceIdentity(page, record) {
+  const original = page.viewportSize();
+  assert.ok(original, "The browser run has an explicit viewport");
+  const ceremony =
+    original.width > 900 ? { width: 700, height: original.height } : original;
+  record(
+    "identity-setup",
+    JSON.stringify({ viewport: ceremony, restoredViewport: original }),
+  );
+  try {
+    if (ceremony.width !== original.width) await page.setViewportSize(ceremony);
+    const open = async () => {
+      await page
+        .getByRole("button", { name: /^More —/ })
+        .filter({ visible: true })
+        .click();
+      const menu = page.getByRole("dialog", { name: "More", exact: true });
+      await menu
+        .getByRole("button")
+        .filter({ has: page.locator(".conn__name", { hasText: /^Identity$/ }) })
+        .click();
+      const sheet = page.getByRole("dialog", {
+        name: "Identity connection",
+        exact: true,
+      });
+      await sheet.waitFor({ timeout: 10000 });
+      return sheet;
+    };
+    const first = await open();
+    await expect(first.getByText("No session", { exact: true })).toBeVisible();
+    await first
+      .getByRole("button", { name: "Use this device", exact: true })
+      .click();
+    await first.waitFor({ state: "detached", timeout: 15000 });
+    const active = await open();
+    await active
+      .getByText("Session active", { exact: true })
+      .waitFor({ timeout: 15000 });
+    const principal = /\bprn_[A-Za-z0-9_-]{43}\b/.exec(
+      await active.innerText(),
+    )?.[0];
+    assert.ok(
+      principal,
+      "Normal device identity UI exposes the actual vault-key principal",
+    );
+    await active.getByRole("button", { name: "Close", exact: true }).click();
+    await active.waitFor({ state: "detached", timeout: 10000 });
+    record(
+      "identity",
+      JSON.stringify({
+        principal,
+        ceremonyViewport: ceremony,
+        restoredViewport: original,
+      }),
+    );
+    return principal;
+  } finally {
+    if (ceremony.width !== original.width) await page.setViewportSize(original);
+    assert.deepEqual(
+      page.viewportSize(),
+      original,
+      "Device identity setup preserves the declared journey viewport",
+    );
+  }
+}
+export function assertCarriedPrincipal(principal, identity, label) {
+  assert.equal(
+    principal,
+    `prn_${identity.keyId}`,
+    `${label} carried key matches its normal UI principal`,
+  );
 }
 export async function githubPage(page, base) {
   await nativeVisit(page, base, "connections/github");
