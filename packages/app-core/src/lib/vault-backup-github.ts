@@ -5,6 +5,7 @@ import { backupOriginAllowed } from "./backup-egress-gate.js";
 import {
   listLocalBackupTargets,
   readLocalBackupTarget,
+  subscribeLocalBackupTarget,
 } from "./backup-target-local.js";
 import {
   putGithubAppBackup,
@@ -19,8 +20,16 @@ import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { captureGithubAuthority } from "./github-app-vault-transport.js";
 import { base64ToBytes, bytesToBase64 } from "./native-base64.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
-import type { VaultBackupPort } from "./secret-backends/backup-transfer.js";
+import type {
+  SecretBackendBackupHandle,
+  VaultBackupPort,
+} from "./secret-backends/backup-transfer.js";
 import { localVaultSessionGuard } from "./secret-backends/local-vault-port.js";
+import {
+  type SecretBackend,
+  SecretBackendError,
+  type SecretBackendSession,
+} from "./secret-backends/types.js";
 import { sealedVaultText } from "./vault/offline-backup-file.js";
 import { vaultStore } from "./vault/store.js";
 
@@ -55,6 +64,7 @@ function boundTarget(saved: SavedGithubBackupRequest) {
 function capture(
   input: SavedGithubBackupRequest,
   native?: NativeProviderTransport,
+  caller?: GithubRestoreOwner,
 ) {
   const saved = { ...input };
   const { providerId, receipt } = boundTarget(saved);
@@ -74,10 +84,12 @@ function capture(
     const nativeSignal = native?.signal;
     const signal = AbortSignal.any([
       operation.transport.signal,
+      ...(caller ? [caller.signal] : []),
       ...(nativeSignal ? [nativeSignal] : []),
     ]);
     const check = () => {
       signal.throwIfAborted();
+      caller?.assertCurrent();
       operation.transport.assertCurrent();
       if (native) {
         if (
@@ -90,6 +102,7 @@ function capture(
         assertNative?.call(native);
         operation.transport.assertCurrent();
       }
+      caller?.assertCurrent();
     };
     const transport: GithubDirectTransport = {
       signal,
@@ -262,4 +275,121 @@ export async function pollSavedGithubBackups(): Promise<number> {
     }
   }
   return changed;
+}
+
+const BACKUP_REFERENCE = "opensesame-vault.backup.json";
+type GithubRestoreOwner = { signal: AbortSignal; assertCurrent: () => void };
+function readonlyGithubBackup(
+  operation: ReturnType<typeof capture>,
+  owner: GithubRestoreOwner,
+) {
+  let closed = false;
+  let authenticated = false;
+  let unsubscribe = () => {};
+  const check = () => {
+    if (closed) stale();
+    owner.assertCurrent();
+    operation.transport.assertCurrent();
+  };
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    unsubscribe();
+    operation.transport.signal.removeEventListener("abort", close);
+    operation.close();
+  };
+  const session: SecretBackendSession = Object.freeze({
+    id: crypto.randomUUID(),
+    backendId: "github-app-backup",
+    authenticatedAt: new Date().toISOString(),
+    signal: operation.transport.signal,
+  });
+  const read = async () => {
+    check();
+    const text = await readGithubAppBackup(
+      operation.transport,
+      operation.credentials,
+      operation.target,
+    );
+    check();
+    return text;
+  };
+  const getItem: SecretBackend["getItem"] = async (reference, provided) => {
+    check();
+    if (!authenticated || provided !== session) stale();
+    if (reference !== BACKUP_REFERENCE)
+      throw new SecretBackendError(
+        "configuration",
+        "Choose this connection's encrypted vault backup.",
+      );
+    return {
+      id: BACKUP_REFERENCE,
+      name: BACKUP_REFERENCE,
+      kind: "note",
+      notes: await read(),
+      secret: "",
+    };
+  };
+  const authenticate = async () => {
+    await read();
+    check();
+    authenticated = true;
+    return session;
+  };
+  const backend: SecretBackend = {
+    id: session.backendId,
+    name: "GitHub encrypted vault backup",
+    signal: operation.transport.signal,
+    capabilities: {
+      list: false,
+      get: true,
+      create: false,
+      update: false,
+      delete: false,
+      import: false,
+    },
+    authenticate,
+    getItem,
+    getNotes: async (reference, provided) =>
+      (await getItem(reference, provided)).notes,
+    listItems: async (provided) => {
+      check();
+      if (!authenticated || provided !== session) stale();
+      return [];
+    },
+    disconnect: async (provided) => {
+      if (provided !== session) stale();
+      close();
+    },
+  };
+  operation.transport.signal.addEventListener("abort", close, { once: true });
+  unsubscribe = subscribeLocalBackupTarget(() => {
+    try {
+      check();
+    } catch {
+      close();
+    }
+  });
+  return { backend, authenticate, check, close };
+}
+
+/** Capture before any await; authentication reads and validates the actual provider backup. */
+export async function openSavedGithubBackup(
+  providerId: string,
+  caller: GithubRestoreOwner,
+  native?: NativeProviderTransport,
+): Promise<SecretBackendBackupHandle> {
+  const owner = { signal: caller.signal, assertCurrent: caller.assertCurrent };
+  owner.signal.throwIfAborted();
+  owner.assertCurrent();
+  const operation = capture(request(providerId), native, owner);
+  const open = readonlyGithubBackup(operation, owner);
+  try {
+    const session = await open.authenticate();
+    open.check();
+    return { backend: open.backend, session };
+  } catch (error) {
+    open.close();
+    throw error;
+  }
 }
