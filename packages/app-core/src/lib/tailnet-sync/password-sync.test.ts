@@ -9,6 +9,7 @@ import {
 } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SEALED_UNDER_ANOTHER_KEY } from "../vault/store-merge.js";
+import { forgetOpenLeasesForTest } from "../vault/vault-shared-locks.js";
 import { adoptSnapshot } from "./adopt.js";
 import { type Device, as, device } from "./devices.fixture.js";
 import { type MemoryDrive, PAIRING, memoryDrive } from "./drive.fixture.js";
@@ -156,7 +157,11 @@ describe("a vault key rotated on another device", () => {
       "bank",
     ]);
 
-    // Removed from the phone and set up from the drive, it opens again.
+    // Removed from the phone and set up from the drive, it opens again. The
+    // two devices share this test's realm, whose open-vault count is per
+    // tomb; the laptop's open vault is another device's and does not hold
+    // the phone's tomb, so it is forgotten as a separate process's would be.
+    forgetOpenLeasesForTest();
     await as(phone, () => phone.store.destroy());
     await adopt(phone, drive, OLD);
     expect(phone.store.getSnapshot().items.map((item) => item.name)).toEqual([
