@@ -1,0 +1,34 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "name": "desktop",
+      "desktop": true,
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-remove-pressed",
+      "width": 1280,
+      "title": "Connections \u203a GitHub, Saved app: one press of the remove key \u2014 1280 \u00d7 800",
+      "caption": "A guest switches External connectors on and registers a GitHub App through the app's own Manifest flow (github.com form and api.github.com stood in for). Then one press of \"Remove GitHub App from this device\". Read from the browser.",
+      "before": "window.confirm fired: \"Remove the GitHub App from this device? Its private key and client secret will be deleted.\" (a browser dialog, not in the page; dismissed). In-page: one key, unchanged, 24\u00d724 @598,426",
+      "after": "no browser dialog; key relabelled \"Confirm removing the GitHub App from this device\", class is-armed, 24\u00d724 @598,426; \"Keep the GitHub App\" 24\u00d724 @622,426; focus on the armed key"
+    },
+    {
+      "shot": "phone-remove-pressed",
+      "width": 390,
+      "title": "Connections \u203a GitHub, Saved app: one press of the remove key \u2014 390 \u00d7 844 (touch)",
+      "caption": "Same walk in a phone context (coarse pointer), the key tapped once. Read from the browser.",
+      "before": "window.confirm fired (browser dialog, dismissed); in-page: one key, unchanged, 44\u00d744 @178,532",
+      "after": "no browser dialog; armed key 44\u00d744 @178,532 (is-armed); \"Keep the GitHub App\" 44\u00d744 @222,532; focus on the armed key"
+    }
+  ]
+}
