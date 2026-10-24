@@ -17,7 +17,7 @@ const specifier = "../../src/modules/networking.tailnet/browser/worker.ts";
 const dir = await mkdtemp(join(tmpdir(), "opensesame-worker-entry-csp-"));
 afterAll(() => rm(dir, { recursive: true, force: true }));
 
-async function bundledEntry() {
+async function bundledEntry(attempt) {
   let bundle;
   await build({
     configFile: false,
@@ -52,7 +52,7 @@ async function bundledEntry() {
       item.fileName.startsWith("assets/tailscale-node-"),
   );
   assert.ok(root?.opensesameWorkerChunk);
-  const input = join(dir, "entry.json");
+  const input = join(attempt, "entry.json");
   await writeFile(
     input,
     JSON.stringify({
@@ -74,6 +74,7 @@ import {createContext,SourceTextModule} from 'node:vm';
 const {root,outputs}=JSON.parse(await readFile(process.argv[1],'utf8'));
 const messages=[],listeners=new Map();let network=0;
 const context=createContext({URL,TextEncoder,TextDecoder,EventTarget,Event,AbortController,atob,btoa,
+location:new URL('https://app.example.test/assets/tailscale-node.js'),
 addEventListener:(kind,callback)=>{assert.equal(kind,'message');assert.equal(listeners.has(kind),false);listeners.set(kind,callback)},
 postMessage:value=>messages.push(value),fetch:()=>{network++;throw Error('Invalid start must not reach SDK fetch')}},
 {codeGeneration:{strings:false,wasm:false}});
@@ -83,7 +84,10 @@ globalThis.Function=new Proxy(Function,{apply(target,receiver,args){globalThis.e
 await monitor.link(()=>{throw Error('Monitor has no imports')});await monitor.evaluate();
 const modules=new Map();const load=file=>{if(!modules.has(file))modules.set(file,new SourceTextModule(outputs[file],{context,identifier:file}));return modules.get(file)};
 const actual=load(root);await actual.link((source,parent)=>load(new URL(source,'file:///'+parent.identifier).pathname.slice(1)));await actual.evaluate();
-assert.equal(listeners.size,1);const receive=listeners.get('message');
+assert.equal(listeners.size,1);const dispatch=listeners.get('message');
+const receive=event=>dispatch({origin:'',...event});
+receive({origin:'https://foreign.example.test',data:{kind:'nativeHTTPReady'}});
+assert.deepEqual(messages,[],'Cross-origin messages cannot reach the Worker');
 receive({data:{kind:'nativeHTTPReady'}});
 const config={hostname:'csp-browser',controlURL:'https://controlplane.tailscale.com',authKey:'',state:{},assets:{runtime:'https://assets.example/runtime.js',wasm:'https://assets.example/main.wasm.gz'},nativeHTTP:{routeMode:'peer',peerID:'',trustMode:'public',targets:[{origin:'https://byo.example.test',prefixes:['100.64.0.1/32']}]}};
 receive({data:{kind:'start',config}});
@@ -95,9 +99,10 @@ assert.equal(context.evalAttempts,0,'Actual production Worker must never probe d
 process.stdout.write('actual-worker-entry-csp-ok');`;
 
 test("the actual shipped Tailscale Worker initializes CSP-safe peer parsing before its first message", async () => {
-  const input = await bundledEntry();
-  const stdoutFile = join(dir, "entry.stdout");
-  const stderrFile = join(dir, "entry.stderr");
+  const attempt = await mkdtemp(join(dir, "attempt-"));
+  const input = await bundledEntry(attempt);
+  const stdoutFile = join(attempt, "entry.stdout");
+  const stderrFile = join(attempt, "entry.stderr");
   const stdout = await open(stdoutFile, "wx", 0o600);
   const stderr = await open(stderrFile, "wx", 0o600);
   let exit;
