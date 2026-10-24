@@ -15,7 +15,9 @@ import {
   readSeed,
   withdrawSelfAuthenticator,
 } from "./auth-flow-enroll.mjs";
+import { unlockArrival } from "./auth-flow-nav.mjs";
 import { passTheDoor } from "./front-door.mjs";
+import { waitOpen } from "./pages-journey.mjs";
 import { readTray } from "./tray-contract.mjs";
 
 const tabs = (page) =>
@@ -34,7 +36,7 @@ async function sealWithPin(page, pin) {
     .getByLabel("I understand this vault cannot be recovered.", { exact: true })
     .check();
   await page.getByRole("button", { name: "Seal with PIN" }).click();
-  await page.waitForTimeout(5000);
+  await waitOpen(page);
 }
 
 /** Add a recovery key from Settings and return the secret the page handed over. */
@@ -155,7 +157,6 @@ async function unlockFromRecoveryKey(page, h, { key, seed }) {
   // The right key, from the keyboard: Enter submits. The code is still asked.
   await page.keyboard.type(key);
   await page.keyboard.press("Enter");
-  await page.waitForTimeout(2500);
   await finishUnlockWithCode(page, seed, "3-protector", { check, snap, totp });
 }
 
@@ -177,9 +178,9 @@ async function preferRecoveryKey(page, h) {
   );
   setStep("3-protector-reload");
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(1500);
+  const arrived = await unlockArrival(page);
   const reloaded = await snap(page, "3-protector-reloaded");
-  check(/^Unlock$/m.test(reloaded), "a reload lands on Unlock");
+  check(arrived && /^Unlock$/m.test(reloaded), "a reload lands on Unlock");
   const selected = await recoveryTab.getAttribute("aria-selected");
   check(
     (await tabs(page)).join(",") === "PIN,Recovery key" && selected === "true",

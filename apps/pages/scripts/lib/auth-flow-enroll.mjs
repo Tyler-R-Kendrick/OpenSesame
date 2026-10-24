@@ -1,3 +1,4 @@
+import { arrives } from "./auth-flow-nav.mjs";
 import { toTheList } from "./phone-vault.mjs";
 import { openSessionSection } from "./session-section.mjs";
 import { readTray } from "./tray-contract.mjs";
@@ -112,6 +113,8 @@ export async function finishUnlockWithCode(
   name,
   { check, snap, totp },
 ) {
+  // The key is checked before the code is asked: wait for step 2's title.
+  await arrives(page.getByRole("heading", { name: "Confirm it is you" }));
   const asked = await snap(page, `${name}-code-asked`);
   check(/Confirm it is you/.test(asked), "the code is asked for after the key");
   check(/Authenticator code/.test(asked), "code field on screen");
@@ -150,6 +153,13 @@ export async function finishUnlockWithCode(
 
 /** A self-supplied code opens without asking — the point of the whole thing. */
 export async function finishUnlockSelfSupplied(page, name, { check, snap }) {
+  // Whichever arrives first, the shell or a code step; the checks say which.
+  await arrives(
+    page
+      .getByRole("button", { name: "Lock vault" })
+      .locator("visible=true")
+      .or(page.getByRole("heading", { name: "Confirm it is you" })),
+  );
   const open = await snap(page, `${name}-self-supplied`);
   check(!/Confirm it is you/.test(open), "no code is asked — it is supplied");
   check(
