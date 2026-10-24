@@ -16,6 +16,8 @@ Downstream OAuth 2.0 / OpenID Connect authority built on panva [`oidc-provider`]
 - `MemoryAdapter` for tests; `createPostgresAdapterConstructor` for production Postgres store
 - Client admission: `pre_registered` default; origin / DCR / CIMD feature-gated
 - `SafeMetadataFetcher` with SSRF denylist (localhost, private IPs, cloud metadata)
+- Native `sector_identifier_uri` and `jwks_uri` responses capped at 64 KiB,
+  including streamed bodies without a `Content-Length` header
 
 ## Environment variables
 
