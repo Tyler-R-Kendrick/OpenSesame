@@ -180,16 +180,15 @@ fn the_real_stat_reaches_the_decision_for_owner_and_group() {
 }
 
 #[test]
-fn the_current_directory_is_skipped_on_windows_even_when_named_absolutely() {
+fn the_current_directory_is_skipped_on_every_platform_even_when_named_absolutely() {
     let cwd = dir(0o700);
     let other = dir(0o700);
     let path = joined(&[cwd.path(), other.path()]);
-    let on_windows = search(&path, &host(&path, Platform::Windows, Some(cwd.path())));
-    assert_eq!(on_windows.trusted, [other.path()]);
-    assert_eq!(on_windows.skipped[0].1, Skip::CurrentDirectory);
-    // On Unix an absolute entry is a deliberate choice, so it is kept.
-    let on_unix = search(&path, &host(&path, Platform::Unix, Some(cwd.path())));
-    assert_eq!(on_unix.trusted, [cwd.path(), other.path()]);
+    for platform in [Platform::Windows, Platform::Unix] {
+        let found = search(&path, &host(&path, platform, Some(cwd.path())));
+        assert_eq!(found.trusted, [other.path()], "{platform:?}");
+        assert_eq!(found.skipped[0].1, Skip::CurrentDirectory, "{platform:?}");
+    }
 }
 
 #[test]
