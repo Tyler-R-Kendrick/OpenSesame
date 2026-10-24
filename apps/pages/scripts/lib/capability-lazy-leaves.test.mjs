@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import { LIB_RULES } from "../../src/lib/capabilities/classification-lib.js";
+import { classifyModule } from "./capability-graph.mjs";
 import {
   lazyLeafChunk,
   secretBackendSdkChunk,
@@ -267,4 +269,29 @@ test("virtual IDs, unrelated packages and query lookalikes cannot claim the nati
       "secret-backend-onepassword-sdk",
     );
   }
+});
+
+// Actual owner, not a test-only reclassification of the pure organization model.
+test("keeps the directory sign-in model off the bootstrap without promoting its owner", () => {
+  const file = "/workspace/packages/app-core/src/lib/org-signin.ts";
+  const entry = classifyModule(file, LIB_RULES, { repoRoot: "/workspace" });
+  assert.equal(entry.classification, "optional");
+  assert.equal(entry.capability, "enterprise.directory-provisioning");
+  for (const id of [file, file.replaceAll("/", "\\")])
+    assert.equal(lazyLeafChunk(id, entry), "directory-signin-model");
+  for (const owner of [
+    { classification: "shared", capability: null },
+    { classification: "core", capability: null },
+    { classification: "optional", capability: "connectors.external" },
+  ])
+    assert.equal(lazyLeafChunk(file, owner), undefined);
+  for (const name of [
+    "org-signin.test.ts",
+    "org-signin-other.ts",
+    "identity-enterprise.ts",
+  ])
+    assert.equal(
+      lazyLeafChunk(file.replace("org-signin.ts", name), entry),
+      undefined,
+    );
 });
