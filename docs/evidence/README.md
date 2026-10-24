@@ -75,4 +75,3 @@ inputs, not implementation approval receipts.
 
 | Directory | What it shows |
 |---|---|
-| [`security-unlock/pages/web/`](security-unlock/pages/web/README.md) | Security sheet: a guest's first key leads on to the scan |
