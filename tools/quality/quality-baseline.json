@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 451,
-    "violations": 723,
+    "files": 450,
+    "violations": 721,
     "oversizedLines": 221968
   },
   "files": {
@@ -142,8 +142,7 @@
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
-      "max-lines-per-function": 1,
-      "max-statements": 1
+      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
       "max-lines": 815
@@ -195,9 +194,6 @@
     },
     "apps/pages/src/sections/connections/connect/native-provider-descriptor.ts": {
       "complexity": 1
-    },
-    "apps/pages/src/sections/connections/custom-oidc/CustomOidcConnector.tsx": {
-      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/identity/ApplicationDiagnostics.tsx": {
       "max-lines-per-function": 1

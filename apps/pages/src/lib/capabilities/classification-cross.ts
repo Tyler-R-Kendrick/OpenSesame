@@ -58,6 +58,9 @@ const LOCAL_RECORDS = [
   "local-request-store",
   "local-sessions",
   "local-share-grants",
+  "local-share-audit",
+  "local-share-match",
+  "local-actor",
   // Who may write a share (ADR 0178): the proofs local-share-grants takes.
   "proofs/share-write",
   // A circle of trusted contacts approving a grant while the owner is away
@@ -68,6 +71,8 @@ const LOCAL_RECORDS = [
   "local-share-reach",
   "local-vault-session-issue",
   "local-vault-session-types",
+  "local-vault-session-code",
+  "local-vault-session-shape",
   "local-vault-sessions",
   "pages-dogfood",
   "standing-connection-grants",

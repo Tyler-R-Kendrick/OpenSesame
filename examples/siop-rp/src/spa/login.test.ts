@@ -53,12 +53,12 @@ beforeEach(async () => {
 });
 
 function metadataFetch(body: string, type = "application/json"): MetadataFetch {
-  return async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => type },
-    text: async () => body,
-  });
+  // A real Response, so the bounded reader sees the streaming body it requires.
+  return async () =>
+    new Response(body, {
+      status: 200,
+      headers: { "content-type": type },
+    });
 }
 
 function browser(hash = "", fetch: MetadataFetch = metadataFetch("{}")) {
