@@ -74,7 +74,6 @@ describe("the curated Connections list", () => {
       expect(ids, id).toContain(id);
     for (const retired of [
       "assemblyai",
-      "byo-ai",
       "cohere",
       "deepgram",
       "minimax",
@@ -158,10 +157,7 @@ describe("the curated Connections list", () => {
     );
   });
 
-  it("keeps retired BYO AI out of browse while partners stay alphabetical and the input is preserved", () => {
-    // BYO-first ordering (#1902) applies to admitted BYO providers;
-    // byo-ai itself was retired from browse on main (0ca0474ca) and is
-    // offered through the custom-connection button instead.
+  it("puts BYO AI first while partners stay alphabetical and the input is preserved", () => {
     const allById = new Map(
       mergeVercelCatalog(getBundledProviders()).map((provider) => [
         provider.id,
@@ -178,6 +174,7 @@ describe("the curated Connections list", () => {
     const original = [...input];
     const ordered = curatedCatalogProviders(input);
     expect(ordered.map((provider) => provider.id)).toEqual([
+      "byo-ai",
       "anthropic",
       "asana",
       "openai",
@@ -188,7 +185,7 @@ describe("the curated Connections list", () => {
       ordered
         .filter((provider) => matchesCatalog(provider, "model provider"))
         .map((provider) => provider.id),
-    ).toEqual(["anthropic", "openai"]);
+    ).toEqual(["byo-ai", "anthropic", "openai"]);
   });
 
   it("never admits an AI provider outside the Settings list", () => {
