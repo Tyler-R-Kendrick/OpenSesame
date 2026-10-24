@@ -22,6 +22,7 @@ const EMPTY: OidcConnectorConfig = {
   clientId: "",
   clientSecret: "",
   callbackUrl: "",
+  tokenRelayUrl: "",
   scopes: ["openid", "profile", "email"],
   tokenAuth: "client_secret_post",
 };
@@ -195,6 +196,20 @@ export function CustomOidcConnector() {
               placeholder="https://your-tunnel.example/oidc/callback"
               onChange={(event) => set("callbackUrl", event.target.value)}
             />
+          </div>
+          <div className="field">
+            <label htmlFor="oidc-relay">Token relay URL (optional)</label>
+            <input
+              id="oidc-relay"
+              value={config.tokenRelayUrl}
+              placeholder="https://relay.example/oidc/token"
+              onChange={(event) => set("tokenRelayUrl", event.target.value)}
+            />
+            <p className="hint">
+              Use a relay you control to keep the client secret off this device.
+              The relay receives the same authorization-code form and performs
+              the exchange at the token endpoint.
+            </p>
           </div>
           <div className="field">
             <label htmlFor="oidc-scopes">Scopes</label>
