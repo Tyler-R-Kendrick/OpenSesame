@@ -331,8 +331,12 @@ export async function presentLocalDropClaim(
     noteDropOpened(claimId);
     return { claimId, state: "consumed", targetManifest: decision.manifest };
   }
+  // The code that locks the drop was a wrong code too: it is counted on the
+  // refused receipt before the lockout is noted, so the tally reaches five.
+  if (decision.wrongCodes !== undefined)
+    noteDropRefused(claimId, decision.wrongCodes);
+  else if (decision.note === "refused") noteDropRefused(claimId);
   if (decision.note === "locked") noteDropLockedOut(claimId);
-  else noteDropRefused(claimId, decision.wrongCodes);
   throw refuse(decision.wire, decision.message, decision.attemptsLeft);
 }
 
