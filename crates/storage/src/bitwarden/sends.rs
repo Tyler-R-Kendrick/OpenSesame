@@ -7,6 +7,7 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::Row as _;
 
 use super::accounts::{bitwarden_timestamp, parse_bitwarden_timestamp};
+use super::file_quota;
 use crate::Db;
 
 /// A Send: text or a file shared by link. `data` is the client's encrypted
@@ -25,6 +26,7 @@ pub struct BitwardenSend {
     pub disabled: bool,
     pub hide_email: bool,
     pub file_id: Option<String>,
+    /// Protocol size; uploaded files are charged by their stored blob length.
     pub file_size: Option<i64>,
     pub uploaded: bool,
     pub created_at: DateTime<Utc>,
@@ -131,21 +133,24 @@ impl Db {
     ///
     /// Returns an error when the query fails.
     pub async fn bitwarden_storage_used(&self, user_id: &str) -> anyhow::Result<i64> {
-        Ok(sqlx::query_scalar(
-            "SELECT COALESCE((SELECT SUM(size) FROM bitwarden_attachments WHERE user_id = ?), 0) \
-             + COALESCE((SELECT SUM(file_size) FROM bitwarden_sends WHERE user_id = ?), 0)",
-        )
-        .bind(user_id)
-        .bind(user_id)
-        .fetch_one(&self.pool)
-        .await?)
+        Ok(sqlx::query_scalar(file_quota::USER_STORAGE_USED)
+            .bind(user_id)
+            .bind(user_id)
+            .fetch_one(&self.pool)
+            .await?)
     }
     /// Create or replace a Send the account owns.
     ///
     /// # Errors
     ///
     /// Returns an error when the write fails.
-    pub async fn bitwarden_put_send(&self, send: &BitwardenSend) -> anyhow::Result<()> {
+    pub async fn bitwarden_put_send(&self, send: &BitwardenSend, quota: i64) -> anyhow::Result<()> {
+        let mut tx = super::policy_rules::begin_write(&self.pool).await?;
+        let exists: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM bitwarden_sends WHERE id = ?)")
+                .bind(&send.id)
+                .fetch_one(&mut *tx)
+                .await?;
         // Only compile-time column lists are interpolated; all caller values use bound parameters.
         // ast-grep-ignore: sql-format-injection
         sqlx::query(&format!(
@@ -173,8 +178,14 @@ impl Db {
         .bind(bitwarden_timestamp(send.revision_at))
         .bind(send.expiration_at.map(bitwarden_timestamp))
         .bind(bitwarden_timestamp(send.deletion_at))
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        // Metadata edits reserve no additional storage, including when old
+        // uploaded files have put the owner over quota under exact accounting.
+        if !exists && !send.uploaded {
+            file_quota::check_user(&mut tx, &send.user_id, quota).await?;
+        }
+        tx.commit().await?;
         Ok(())
     }
     /// The account's Sends, past their deletion date or not.
@@ -237,6 +248,7 @@ impl Db {
         id: &str,
         file_id: &str,
         bytes: &[u8],
+        quota: i64,
     ) -> anyhow::Result<bool> {
         let mut tx = self.pool.begin().await?;
         let done = sqlx::query(
@@ -256,6 +268,7 @@ impl Db {
             .bind(bytes)
             .execute(&mut *tx)
             .await?;
+        file_quota::check_user(&mut tx, user_id, quota).await?;
         tx.commit().await?;
         Ok(true)
     }

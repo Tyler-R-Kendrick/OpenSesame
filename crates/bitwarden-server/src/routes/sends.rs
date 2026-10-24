@@ -55,7 +55,10 @@ async fn create_send(
         expiration_at: input.expiration_at,
         deletion_at: input.deletion_at,
     };
-    server.db.bitwarden_put_send(&send).await?;
+    server
+        .db
+        .bitwarden_put_send(&send, server.config.storage_quota_bytes)
+        .await?;
     super::touch(server, &user.id).await?;
     Ok(send)
 }
@@ -173,13 +176,21 @@ pub async fn upload_file(
     super::policy_rules::may_send(&server, &user.id, send.hide_email).await?;
     let (data, _, _) = super::attachments::read_upload(form).await?;
     let length = i64::try_from(data.len()).unwrap_or(i64::MAX);
-    if (length - send.file_size.unwrap_or(0)).abs() > super::attachments::SIZE_LEEWAY || length == 0
+    if length.abs_diff(send.file_size.unwrap_or(0)) > super::attachments::SIZE_LEEWAY.unsigned_abs()
+        || length == 0
     {
         return Err(ApiError::bad_request("File size does not match."));
     }
+    super::attachments::admit(&server, 0, length)?;
     if !server
         .db
-        .bitwarden_upload_send_file(&user.id, &id, &file, &data)
+        .bitwarden_upload_send_file(
+            &user.id,
+            &id,
+            &file,
+            &data,
+            server.config.storage_quota_bytes,
+        )
         .await?
     {
         return Err(ApiError::not_found());
@@ -222,7 +233,10 @@ pub async fn update(
         deletion_at: input.deletion_at,
         ..current
     };
-    server.db.bitwarden_put_send(&send).await?;
+    server
+        .db
+        .bitwarden_put_send(&send, server.config.storage_quota_bytes)
+        .await?;
     super::touch(&server, &user.id).await?;
     Ok(Json(send_json(&send)))
 }
@@ -240,7 +254,10 @@ pub async fn remove_password(
         revision_at: Utc::now(),
         ..current
     };
-    server.db.bitwarden_put_send(&send).await?;
+    server
+        .db
+        .bitwarden_put_send(&send, server.config.storage_quota_bytes)
+        .await?;
     super::touch(&server, &user.id).await?;
     Ok(Json(send_json(&send)))
 }

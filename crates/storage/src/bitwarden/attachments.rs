@@ -9,6 +9,7 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::Row as _;
 
 use super::accounts::{bitwarden_timestamp, parse_bitwarden_timestamp};
+use super::file_quota;
 use crate::Db;
 
 /// A file on a cipher. `file_name` and `key` are `EncString`s.
@@ -21,7 +22,7 @@ pub struct BitwardenAttachment {
     pub user_id: Option<String>,
     pub file_name: String,
     pub key: Option<String>,
-    /// The size the client declared, in bytes; the upload must match it.
+    /// Protocol size declared by the client. Quota uses the stored blob length.
     pub size: i64,
     pub uploaded: bool,
     pub created_at: DateTime<Utc>,
@@ -52,7 +53,9 @@ impl Db {
     pub async fn bitwarden_add_attachment(
         &self,
         attachment: &BitwardenAttachment,
+        quota: i64,
     ) -> anyhow::Result<()> {
+        let mut tx = self.pool.begin().await?;
         sqlx::query(
             "INSERT INTO bitwarden_attachments (id, cipher_id, user_id, file_name, key, size, \
              uploaded, created_at) VALUES (?,?,?,?,?,?,?,?)",
@@ -65,8 +68,10 @@ impl Db {
         .bind(attachment.size)
         .bind(i64::from(attachment.uploaded))
         .bind(bitwarden_timestamp(attachment.created_at))
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        file_quota::check_cipher(&mut tx, &attachment.cipher_id, quota).await?;
+        tx.commit().await?;
         Ok(())
     }
     /// Every attachment on the account's ciphers.
@@ -143,6 +148,7 @@ impl Db {
         cipher_id: &str,
         id: &str,
         bytes: &[u8],
+        quota: i64,
     ) -> anyhow::Result<bool> {
         let mut tx = self.pool.begin().await?;
         let done = sqlx::query(
@@ -161,6 +167,7 @@ impl Db {
             .bind(bytes)
             .execute(&mut *tx)
             .await?;
+        file_quota::check_cipher(&mut tx, cipher_id, quota).await?;
         tx.commit().await?;
         Ok(true)
     }
@@ -211,6 +218,7 @@ impl Db {
         &self,
         replacement: &BitwardenAttachment,
         bytes: &[u8],
+        quota: i64,
     ) -> anyhow::Result<bool> {
         let mut tx = self.pool.begin().await?;
         let done = sqlx::query(
@@ -232,6 +240,7 @@ impl Db {
             .bind(bytes)
             .execute(&mut *tx)
             .await?;
+        file_quota::check_cipher(&mut tx, &replacement.cipher_id, quota).await?;
         tx.commit().await?;
         Ok(true)
     }
@@ -242,13 +251,10 @@ impl Db {
     ///
     /// Returns an error when the query fails.
     pub async fn bitwarden_org_storage_used(&self, org_id: &str) -> anyhow::Result<i64> {
-        Ok(sqlx::query_scalar(
-            "SELECT COALESCE(SUM(size), 0) FROM bitwarden_attachments WHERE cipher_id IN \
-             (SELECT id FROM bitwarden_ciphers WHERE organization_id = ?)",
-        )
-        .bind(org_id)
-        .fetch_one(&self.pool)
-        .await?)
+        Ok(sqlx::query_scalar(file_quota::ORG_STORAGE_USED)
+            .bind(org_id)
+            .fetch_one(&self.pool)
+            .await?)
     }
 
     /// Record an attachment with its bytes at once, as the importer does.
