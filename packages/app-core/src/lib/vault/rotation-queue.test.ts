@@ -1,4 +1,7 @@
-import { createItem } from "@opensesame/vault-core";
+import { type VaultItem, createItem } from "@opensesame/vault-core";
+import { base } from "@opensesame/vault-core/item-factory.js";
+import { TYPED_FORMATS } from "@opensesame/vault-core/item-formats/formats.js";
+import { FORMAT_ITEM_TYPE_IDS } from "@opensesame/vault-core/item-formats/registry.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { kvGet, kvSeams } from "../kv.js";
 import {
@@ -318,5 +321,59 @@ describe("the queue while locked", () => {
     ].join(" ");
     expect(stored).not.toContain("hunter2-not-queued");
     expect(stored).not.toContain("Private mail");
+  });
+});
+
+describe("rotation capability boundary compatibility", () => {
+  it("creates and retains manual events for every real generator while refusing none", async () => {
+    const generatedTypes = new Set(
+      TYPED_FORMATS.filter((format) => format.generate !== undefined).map(
+        (format) => format.typeId,
+      ),
+    );
+    const typed: VaultItem[] = [...FORMAT_ITEM_TYPE_IDS, "unknown-type"].map(
+      (typeId) => ({
+        ...base("typed", "Not queued"),
+        kind: "typed",
+        typeId,
+        values: {},
+      }),
+    );
+    const login = account();
+    const items = [login, ...typed];
+    const expectedIds: string[] = [];
+    for (const item of items) {
+      const typeId = item.kind === "typed" ? item.typeId : item.kind;
+      const allowed = typeId === "account" || generatedTypes.has(typeId);
+      const event = enqueueManualRotation(item, "personal");
+      expect(event !== null, typeId).toBe(allowed);
+      if (allowed) expectedIds.push(item.id);
+    }
+    expect(loadRotationEvents().map((event) => event.itemId)).toEqual(
+      expectedIds,
+    );
+
+    syncRotationSchedules(items, "personal");
+    expect(loadRotationSchedules().map((row) => row.itemId)).toEqual([
+      login.id,
+    ]);
+    expect(loadRotationEvents().map((event) => event.itemId)).toEqual(
+      expectedIds,
+    );
+    expect(
+      loadRotationEvents().every((event) => event.reason === "manual"),
+    ).toBe(true);
+
+    const remaining = await processRotationQueue("personal");
+    expect(remaining.map((event) => event.itemId)).toEqual(expectedIds);
+    expect(remaining.every((event) => event.state === "out-of-sync")).toBe(
+      true,
+    );
+    expect(loadRotationSchedules()).toHaveLength(1);
+
+    syncRotationSchedules([login], "personal");
+    expect(loadRotationEvents().map((event) => event.itemId)).toEqual([
+      login.id,
+    ]);
   });
 });
