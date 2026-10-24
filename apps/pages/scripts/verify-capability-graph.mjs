@@ -35,6 +35,7 @@ import {
   readDiskView,
   walk,
 } from "./lib/verify-dist-checks.mjs";
+import { forbidsEval, jitlessOrderProblem } from "./lib/zod-jitless-order.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(here, "..");
@@ -99,6 +100,21 @@ function checkRecordAgreement(graph, distribution, options, mode, note) {
     );
 }
 
+/**
+ * Every page whose CSP forbids eval and that builds zod before the chunk that
+ * sets it jitless (`lib/zod-jitless-order.mjs`).
+ */
+function jitlessOrderProblems(dist, disk) {
+  const staticImports = (file) => [...(disk.chunks.get(file)?.static ?? [])];
+  const codeOf = (file) =>
+    existsSync(join(dist, file)) ? readFileSync(join(dist, file), "utf8") : "";
+  return disk.entries
+    .filter((entry) => forbidsEval(codeOf(entry.html)))
+    .flatMap((entry) => entry.scripts)
+    .map((script) => jitlessOrderProblem(script, staticImports, codeOf))
+    .filter((problem) => problem !== null);
+}
+
 export async function verifyDist(options) {
   const dist = resolve(APP_ROOT, options.dist);
   const { graph, distribution } = readRecords(dist);
@@ -115,6 +131,11 @@ export async function verifyDist(options) {
   const onDisk = new Set(files);
   const disk = readDiskView(dist, files, graph, base, parse);
   compareGraphToDisk(graph, disk, onDisk, note);
+  for (const problem of jitlessOrderProblems(dist, disk))
+    note(
+      "ZOD_BEFORE_JITLESS",
+      `${problem.entry} evaluates zod in ${problem.zod} before ${problem.jitless ?? "any chunk"} sets it jitless`,
+    );
 
   // Re-run the invariants over the disk edges with the graph's classifications.
   const diskGraph = diskGraphOf(graph, disk, onDisk);
