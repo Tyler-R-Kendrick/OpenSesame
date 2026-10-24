@@ -1,5 +1,6 @@
 import { createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { webLocksDouble } from "../__tests__/web-locks-double.js";
 import { ensureOwnerPerson } from "../local-directory-bootstrap.js";
 import { readLocalDirectory } from "../local-directory.js";
 import { listLocalShares } from "../local-share-grants.js";
@@ -10,19 +11,7 @@ import { provisionLiveSessionGuest } from "./session-provision.js";
 const PIN = "48291037";
 
 beforeEach(async () => {
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: <T>(_name: string, action: () => Promise<T>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
-  });
+  vi.stubGlobal("navigator", { locks: webLocksDouble() });
   lockAllTombs();
   await vaultStore.createWithPin(PIN);
 });

@@ -88,20 +88,27 @@ it("shares exact organization and self-consent eligibility with the approver sel
 
 it("preserves member self-consent without allowing ordinary request administration", async () => {
   const { tomb, personId, organizationId, change } = fixture;
-  const directory = await change({
+  // A directory change ends every session, and a tab that has signed someone
+  // in administers only as that person, never as the vault's custodian. The
+  // owner signs in again before each further change.
+  const asOwner = async (input: Parameters<typeof change>[0]) => {
+    fixture.session = await signInLocalIdentity(tomb, personId);
+    return change(input);
+  };
+  const directory = await asOwner({
     action: "create",
     kind: "person",
     name: "Other owner",
   });
   const owner = directory.entries.find((row) => row.name === "Other owner");
   if (!owner) throw new Error("Missing second owner");
-  await change({
+  await asOwner({
     action: "membership",
     principalId: owner.id,
     organizationId,
     role: "owner",
   });
-  await change({
+  await asOwner({
     action: "membership",
     principalId: personId,
     organizationId,
