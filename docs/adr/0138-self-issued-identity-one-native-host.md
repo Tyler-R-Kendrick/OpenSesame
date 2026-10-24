@@ -150,7 +150,9 @@ daemon's state directory" to "holds the operator token", the authority that
 may write grants anyway, and no further: the daemon reads the token from its
 environment, and a process running as the same user can usually read another
 process's environment (`/proc/<pid>/environ`) or the file the operator keeps
-the token in. Residual risk: a same-user process can mint every allowed
+the token in. `helpers revoke` takes effect at once in the running daemon; to
+end a grant against a same-user process that may have copied the grant file,
+rotate the operator token or revoke the connection at the Host. Residual risk: a same-user process can mint every allowed
 connection, so a sandbox must not mount the raw socket. Not done: narrowing a mint by an ADR 0099
 agent capability. That capability is a Host-checked bearer whose operation
 ceiling has no mint, and the daemon cannot verify it locally, so a mint does
