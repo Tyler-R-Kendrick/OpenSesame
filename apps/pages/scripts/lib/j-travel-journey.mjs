@@ -101,9 +101,10 @@ async function markSafe({ page, check, snap }) {
 async function depart({ page, check, snap }) {
   await page.getByRole("button", { name: "Pack the rest for travel" }).click();
   const code = (await page.locator(".travel__code").innerText()).trim();
+  await page.getByRole("button", { name: "Travel bundle actions" }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Save the travel bundle" }).click(),
+    page.getByRole("menuitem", { name: "Download the travel bundle" }).click(),
   ]);
   const bundle = path.join(os.tmpdir(), `travel-${Date.now()}.json`);
   await download.saveAs(bundle);
