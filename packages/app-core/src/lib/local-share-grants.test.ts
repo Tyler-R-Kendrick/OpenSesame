@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readLocalDirectory } from "./local-directory.js";
 import { ALL_USERS_GROUP_ID } from "./local-groups.js";
 import { localRequestFixture } from "./local-request.fixture.js";
+import { signInLocalIdentity } from "./local-sessions.js";
 import {
   approvePendingShare,
   denyPendingShare,
@@ -237,6 +238,22 @@ it("covers an item grant only for that item", async () => {
   ).toBe(false);
 });
 
+/**
+ * A directory change ends every session, and a tab that has signed someone in
+ * administers only as that person (97d68ee57): the owner signs in again after
+ * each change before the next administrative act.
+ */
+async function changeAsOwner(
+  fixture: Awaited<ReturnType<typeof localRequestFixture>>,
+  input: Parameters<
+    Awaited<ReturnType<typeof localRequestFixture>>["change"]
+  >[0],
+) {
+  const directory = await fixture.change(input);
+  fixture.session = await signInLocalIdentity(fixture.tomb, fixture.personId);
+  return directory;
+}
+
 async function agentNamed(tomb: string, name: string) {
   const directory = await readLocalDirectory(tomb);
   const agent = directory.entries.find(
@@ -248,7 +265,11 @@ async function agentNamed(tomb: string, name: string) {
 
 it("holds an agent grant until it is approved", async () => {
   const fixture = await localRequestFixture();
-  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await changeAsOwner(fixture, {
+    action: "create",
+    kind: "agent",
+    name: "Helper",
+  });
   const agent = await agentNamed(fixture.tomb, "Helper");
   const input = {
     principalId: agent.id,
@@ -284,9 +305,13 @@ it("holds an agent grant until it is approved", async () => {
 
 it("refuses a grant to a disabled agent", async () => {
   const fixture = await localRequestFixture();
-  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await changeAsOwner(fixture, {
+    action: "create",
+    kind: "agent",
+    name: "Helper",
+  });
   const agent = await agentNamed(fixture.tomb, "Helper");
-  await fixture.change({
+  await changeAsOwner(fixture, {
     action: "update",
     id: agent.id,
     name: agent.name,
