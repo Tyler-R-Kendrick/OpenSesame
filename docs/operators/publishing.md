@@ -17,7 +17,11 @@ Workflow: `.github/workflows/publish-npm.yml`
 
 1. Create an npm Automation token with publish rights to `@opensesame/*`.
 2. Add it as repository secret `NPM_TOKEN`.
-3. Run the workflow and pass a comma-separated `packages` input.
+3. Run the workflow and pass a comma-separated `packages` input of exact names
+   under `packages/`, for example `@opensesame/os-domain,@opensesame/api-client`.
+   Spaces around names are trimmed and duplicates publish once. Empty entries,
+   newlines, unknown or private packages, and pnpm selectors are rejected before
+   any package publishes.
 
 Packages remain private in the monorepo until you remove `"private": true` from
 their `package.json` and set `"publishConfig": { "access": "public" }` where

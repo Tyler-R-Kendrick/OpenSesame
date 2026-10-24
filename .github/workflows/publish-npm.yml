@@ -1,7 +1,7 @@
 # Publish workspace packages to npm (manual).
 #
 # Tyler action: add repository secret NPM_TOKEN (Automation token with
-# publish access to @opensesame scope). Set `NPM_PACKAGES` variable to a
+# publish access to @opensesame scope). Pass the `packages` workflow input as a
 # comma-separated list of package names to publish, e.g.
 # `@opensesame/os-domain,@opensesame/api-client`.
 name: Publish npm
@@ -39,16 +39,5 @@ jobs:
       - name: Publish selected packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "NPM_TOKEN secret is not configured on this repository."
-            exit 1
-          fi
-          IFS=',' read -ra PKGS <<< "${{ inputs.packages }}"
-          for pkg in "${PKGS[@]}"; do
-            trimmed="$(echo "$pkg" | xargs)"
-            [ -n "$trimmed" ] || continue
-            echo "Publishing $trimmed"
-            pnpm --filter "$trimmed" publish --access public --no-git-checks
-          done
+          NPM_PACKAGES: ${{ inputs.packages }}
+        run: node scripts/release/publish-npm.mjs
