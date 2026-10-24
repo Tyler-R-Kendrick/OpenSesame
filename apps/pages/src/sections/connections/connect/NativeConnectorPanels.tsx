@@ -11,6 +11,7 @@ import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connec
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
@@ -80,6 +81,11 @@ function nativeApiKeyAvailable(provider: Provider): boolean {
   );
 }
 
+function mcpInactiveReason(): string | undefined {
+  if (vaultStore.isGenuineSession()) return undefined;
+  return "Open your own vault to connect this provider. Guest sessions do not store provider credentials.";
+}
+
 export function nativeSettingsDescriptor(
   provider: Provider,
   savedMethod?: NativeConnectorView["configuration"]["method"],
@@ -132,6 +138,7 @@ export function nativeSettingsDescriptor(
     mcp: {
       available: hasNativeConnectorDriver("mcp", provider.id),
       reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
+      inactiveReason: mcpInactiveReason(),
       actor: "user",
       defaultScopes: provider.id === "linear" ? ["read"] : undefined,
     },

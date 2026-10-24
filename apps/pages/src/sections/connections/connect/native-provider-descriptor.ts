@@ -41,6 +41,7 @@ export type BrowserProviderAvailability = {
   mcp: {
     available: boolean;
     reason?: string;
+    inactiveReason?: string;
     actor: string;
     defaultScopes?: readonly string[];
   };
@@ -170,6 +171,7 @@ function mcpUnavailableAdvice(
     return {
       unavailableKind: "runtime-inactive",
       unavailableReason:
+        availability.inactiveReason ??
         "Enable External connectors in Settings › Features to activate this connection on this device.",
     };
   return {
