@@ -11,6 +11,7 @@ import {
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
 import type { CliAppPasskeyRegistration } from "./webauthn-credential.js";
+import { cliAppWebAuthnRegisterPayload } from "./webauthn-register-payload.js";
 
 /** 32 random bytes, unpadded base64url — same as `plugin-pairing.ts` SECRET. */
 export const CLI_APP_PAIRING_SECRET = /^[A-Za-z0-9_-]{43}$/;
@@ -284,8 +285,9 @@ export async function submitCliAppWebAuthnRegistration(
   vaultSessionRootDigest: string,
   registration: CliAppPasskeyRegistration,
 ): Promise<true | CliAppPairingFailure> {
-  const { cliAppWebAuthnRegisterPayload, saveCliAppWebAuthnCredential } =
-    await import("./webauthn-credential.js");
+  const { saveCliAppWebAuthnCredential } = await import(
+    "./webauthn-credential.js"
+  );
   let res: Response;
   try {
     res = await localNetworkFetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {
