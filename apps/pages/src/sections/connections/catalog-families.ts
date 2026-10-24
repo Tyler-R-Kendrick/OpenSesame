@@ -88,23 +88,53 @@ export function apiFamilyFor(providerId: string): ApiFamily | undefined {
   return BY_MEMBER.get(providerId) ?? BY_MEMBER.get(catalogId(providerId));
 }
 
+/** The row this build has for a member, which may carry an alias of its id. */
+function memberRow<Row extends { readonly id: string }>(
+  member: string,
+  providers: readonly Row[],
+): Row | undefined {
+  return (
+    providers.find((candidate) => candidate.id === member) ??
+    providers.find((candidate) => catalogId(candidate.id) === member)
+  );
+}
+
 /**
  * The family's APIs as its provider page offers them: each member by the row
  * this build has for it, which may carry an alias of the member's catalog id.
+ * A member with no row is not offered; its page would be "Connector not found".
  */
 export function familyOptionsFor(
   family: ApiFamily,
   providers: readonly { readonly id: string; readonly displayName: string }[],
 ): { id: string; label: string }[] {
-  return family.members.map((member) => {
-    const row =
-      providers.find((candidate) => candidate.id === member) ??
-      providers.find((candidate) => catalogId(candidate.id) === member);
-    return { id: row?.id ?? member, label: row?.displayName ?? member };
+  return family.members.flatMap((member) => {
+    const row = memberRow(member, providers);
+    return row ? [{ id: row.id, label: row.displayName }] : [];
   });
 }
 
-/** Hide non-canonical members from the browse list; their family tile owns them. */
-export function isFamilyCanonical(providerId: string): boolean {
-  return API_FAMILIES.some((family) => family.id === providerId);
+/**
+ * The row a family's tile opens: the family's own row where this build carries
+ * it, else the first member it does. A browser cannot hold Azure Key Vault
+ * Keys (ADR 0152), so the Azure tile opens Key Vault Secrets, whose page
+ * offers the rest of the family.
+ */
+export function familyTileRow<Row extends { readonly id: string }>(
+  family: ApiFamily,
+  providers: readonly Row[],
+): Row | undefined {
+  for (const member of family.members) {
+    const row = memberRow(member, providers);
+    if (row) return row;
+  }
+  return undefined;
+}
+
+/**
+ * The id a catalog tile goes by: its family's catalog id for the row a family
+ * tile opens, else the row's own id. Either names a catalog row.
+ */
+export function catalogTileId(providerId: string): string {
+  return apiFamilyFor(providerId)?.id ?? providerId;
 }

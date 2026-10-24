@@ -2,7 +2,11 @@ import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.j
 import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { describe, expect, it } from "vitest";
-import { API_FAMILIES, apiFamilyFor } from "./catalog-families.js";
+import {
+  API_FAMILIES,
+  apiFamilyFor,
+  catalogTileId,
+} from "./catalog-families.js";
 import {
   catalogAuthMethods,
   catalogTags,
@@ -99,17 +103,17 @@ describe("the curated Connections list", () => {
       mergeVercelCatalog(getBundledProviders()),
       { includeFeatured: true, includeFamilies: true },
     );
-    const ids = grouped.map((provider) => provider.id);
-    for (const id of [
-      "microsoft",
-      "vercel",
-      "cloudflare",
-      "google",
-      "azure-kms",
-      "aws",
-      "gcp",
-    ])
-      expect(ids, id).toContain(id);
+    const ids = grouped.map((provider) => catalogTileId(provider.id));
+    for (const family of API_FAMILIES) {
+      const tiles = grouped.filter(
+        (provider) => apiFamilyFor(provider.id)?.id === family.id,
+      );
+      expect(
+        tiles.map((provider) => provider.displayName),
+        family.id,
+      ).toEqual([family.name]);
+      expect(ids, family.id).toContain(family.id);
+    }
     for (const id of [
       "m365",
       "microsoft-teams",
@@ -121,12 +125,20 @@ describe("the curated Connections list", () => {
       "gcp-kms",
     ])
       expect(ids, id).not.toContain(id);
-    expect(grouped.find((provider) => provider.id === "aws")?.displayName).toBe(
-      "AWS",
+  });
+
+  it("opens a family's tile on a row the browser carries", () => {
+    const grouped = curatedCatalogProviders(
+      mergeVercelCatalog(getBundledProviders()),
+      { includeFeatured: true, includeFamilies: true },
     );
-    expect(
-      grouped.find((provider) => provider.id === "azure-kms")?.displayName,
-    ).toBe("Azure");
+    const tile = (id: string) =>
+      grouped.find((provider) => catalogTileId(provider.id) === id)?.id;
+    expect(tile("aws")).toBe("aws-secrets-manager");
+    expect(tile("gcp")).toBe("gcp-secret-manager");
+    // Azure Key Vault Keys is not drawn in a browser (ADR 0152), so the Azure
+    // tile opens the next member it carries.
+    expect(tile("azure-kms")).toBe("azure-key-vault-secrets");
   });
 
   it("offers the featured additions in Add a connection", () => {

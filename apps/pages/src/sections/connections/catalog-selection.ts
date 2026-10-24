@@ -17,7 +17,8 @@ import { CATEGORY_LABELS } from "@opensesame/app-core/sections/connections/share
 import {
   API_FAMILIES,
   apiFamilyFor,
-  isFamilyCanonical,
+  catalogTileId,
+  familyTileRow,
 } from "./catalog-families.js";
 
 // Every managed connector stays except Linq, which the operator retired from
@@ -130,9 +131,9 @@ const ALLOWED = new Set([
 ]);
 
 /**
- * Tiles that have no bundled Host catalog row yet. They are browse entries
- * backed by the provider's own auth details; a Host that later supplies the
- * same id wins and this copy is not added twice.
+ * Family members that have no catalog row yet (Google Drive, M365). A family
+ * tile hides them from the browse list; a Host that later supplies the same id
+ * wins and this copy is not added twice.
  */
 function featuredProviders(
   providers: readonly Provider[],
@@ -160,87 +161,53 @@ function featuredProviders(
   const rows: Provider[] = [
     clone(google, "google-drive", "Google Drive", "storage"),
     clone(microsoft, "m365", "M365", "productivity"),
-    {
-      ...clone(base, "obsidian", "Obsidian", "storage"),
-      authKind: "api_key",
-      docsUrl: "https://help.obsidian.md/",
-      egress: {
-        scheme: "https",
-        authorities: ["127.0.0.1:27124"],
-        pathPrefixes: [],
-      },
-      operations: [],
-      scopes: [],
-    },
-    {
-      ...clone(base, "polar", "Polar", "crm"),
-      authKind: "api_key",
-      docsUrl: "https://docs.polar.sh/",
-      egress: {
-        scheme: "https",
-        authorities: ["api.polar.sh"],
-        pathPrefixes: [],
-      },
-      operations: [],
-      scopes: [],
-    },
-    {
-      ...clone(base, "higgsfield", "Higgsfield", "ai_model_provider"),
-      authKind: "api_key",
-      docsUrl: "https://docs.higgsfield.ai/",
-      egress: {
-        scheme: "https",
-        authorities: ["api.higgsfield.ai"],
-        pathPrefixes: [],
-      },
-      operations: [],
-      scopes: [],
-    },
-    {
-      ...clone(base, "fal-ai", "FAL.ai", "ai_model_provider"),
-      authKind: "api_key",
-      docsUrl: "https://docs.fal.ai/",
-      egress: {
-        scheme: "https",
-        authorities: ["fal.run", "queue.fal.run"],
-        pathPrefixes: [],
-      },
-      operations: [],
-      scopes: [],
-    },
   ];
-  const categories: Record<string, Provider["category"]> = {
-    microsoft: "productivity",
-    vercel: "developer",
-    cloudflare: "developer",
-    google: "productivity",
-    azure: "encryption",
-    aws: "cloud_secret_storage",
-    gcp: "cloud_secret_storage",
-  };
-  for (const family of API_FAMILIES) {
-    if (!present.has(family.id))
-      rows.push(
-        clone(base, family.id, family.name, categories[family.id] ?? "custom"),
-      );
-  }
   return rows.filter((provider) => !present.has(provider.id));
 }
+
+/**
+ * One tile per family: the row it opens (`familyTileRow`), named for the
+ * family. Its members' own rows leave the list; the tile's page offers them.
+ */
+function withFamilyTiles(providers: readonly Provider[]): Provider[] {
+  const tiles = API_FAMILIES.flatMap((family) => {
+    const row = familyTileRow(family, providers);
+    return row ? [{ ...row, displayName: family.name }] : [];
+  });
+  return [
+    ...providers.filter((provider) => apiFamilyFor(provider.id) === undefined),
+    ...tiles,
+  ];
+}
+
+/** What a browse list draws beyond the rows it is given. */
+export type CatalogListing = {
+  /** Family members with no catalog row yet (`featuredProviders`). */
+  readonly includeFeatured?: boolean;
+  /** One tile per provider family in place of its members (`withFamilyTiles`). */
+  readonly includeFamilies?: boolean;
+};
+
+const ROWS_ONLY: CatalogListing = {};
 
 /** BYO leads the curated browse list; partner providers stay alphabetical. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
-  options: { includeFeatured?: boolean; includeFamilies?: boolean } = {},
+  options: CatalogListing = ROWS_ONLY,
 ): Provider[] {
-  const source = options.includeFeatured
+  const featured = options.includeFeatured
     ? [...providers, ...featuredProviders(providers)]
     : providers;
+  const source = options.includeFamilies ? withFamilyTiles(featured) : featured;
+  // A family tile is listed by its family's id, which names a catalog row.
+  const listedId = (provider: Provider) =>
+    options.includeFamilies ? catalogTileId(provider.id) : provider.id;
   return byoProvidersFirst(
     source
       .filter(
         (provider) =>
           isConnectionCatalogProvider(provider) ||
-          (options.includeFamilies === true && isFamilyCanonical(provider.id)),
+          FAMILY.has(listedId(provider)),
       )
       .filter(
         (provider) =>
@@ -248,20 +215,9 @@ export function curatedCatalogProviders(
       )
       .filter(
         (provider) =>
-          ALLOWED.has(provider.id) &&
-          !RETIRED_FROM_BROWSE.has(provider.id) &&
-          (!options.includeFamilies ||
-            isFamilyCanonical(provider.id) ||
-            apiFamilyFor(provider.id) === undefined),
+          ALLOWED.has(listedId(provider)) &&
+          !RETIRED_FROM_BROWSE.has(provider.id),
       )
-      .map((provider) => {
-        const family = options.includeFamilies
-          ? apiFamilyFor(provider.id)
-          : undefined;
-        return family && family.id === provider.id
-          ? { ...provider, displayName: family.name }
-          : provider;
-      })
       .sort((left, right) =>
         left.displayName.localeCompare(right.displayName, "en", {
           sensitivity: "base",

@@ -30,6 +30,7 @@ import {
   catalogConnectorAction,
   preferredCatalogConnection,
 } from "./catalog-connector-action.js";
+import { catalogTileId } from "./catalog-families.js";
 import {
   catalogAuthMethods,
   curatedCatalogProviders,
@@ -187,12 +188,13 @@ function ProviderTile({
   const repeats =
     provider.displayName.toLowerCase() === kind.toLowerCase() ||
     methods.some((method) => method.toLowerCase() === kind.toLowerCase());
-  const tagsId = `catalog-${encodeURIComponent(provider.id)}-tags`;
+  const anchor = `catalog-${encodeURIComponent(catalogTileId(provider.id))}`;
+  const tagsId = `${anchor}-tags`;
   const { hash } = useLocation();
   return (
     <li
-      className={`conn-tile${hash === `#catalog-${encodeURIComponent(provider.id)}` ? " is-selected" : ""}`}
-      id={`catalog-${encodeURIComponent(provider.id)}`}
+      className={`conn-tile${hash === `#${anchor}` ? " is-selected" : ""}`}
+      id={anchor}
     >
       <TileBody provider={provider} action={action} describedBy={tagsId}>
         <ConnectorMark

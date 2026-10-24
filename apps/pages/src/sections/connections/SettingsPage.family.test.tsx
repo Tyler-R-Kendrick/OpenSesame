@@ -82,6 +82,31 @@ describe("a family tile's provider page", () => {
     ]);
   });
 
+  it("offers Azure OpenAI from Key Vault Secrets, the page the Azure tile opens", () => {
+    draw("azure-key-vault-secrets", "azure-key-vault-secrets");
+    // Key Vault Keys (ADR 0152) and the access-token row are not drawn in a
+    // browser, so neither is offered: an option must open a page.
+    expect(
+      within(familySelect())
+        .getAllByRole("option")
+        .map((option) => [option.getAttribute("value"), option.textContent]),
+    ).toEqual([
+      ["azure-key-vault-secrets", "Azure Key Vault Secrets"],
+      ["azure-app-configuration", "Azure App Configuration"],
+      ["azure-openai", "Azure OpenAI"],
+    ]);
+  });
+
+  it("offers no member this build has no row for", () => {
+    draw("microsoft", "microsoft");
+    const select = screen.queryByRole("combobox", { name: "API family" });
+    for (const option of select ? within(select).getAllByRole("option") : [])
+      expect(
+        providers.some((row) => row.id === option.getAttribute("value")),
+        option.getAttribute("value") ?? "",
+      ).toBe(true);
+  });
+
   it("keeps the select a row named by its catalog id already had", () => {
     draw("google", "google");
     expect(familySelect()).toHaveProperty("value", "google");

@@ -46,12 +46,15 @@ function routeProvider(id) {
 }
 
 /**
- * The page a catalog row opens is named for the provider its route draws. A
- * family tile (`catalog-families.ts`) is named for the family instead ("AWS")
- * and opens its canonical member's page ("AWS Secrets Manager").
+ * The page a catalog row opens is named for the provider its link routes to.
+ * A family tile (`catalog-families.ts`) goes by the family's id and name
+ * ("azure-kms", "Azure") and links to the row it stands for, whose page has
+ * that row's name ("Azure Key Vault Secrets").
  */
 function providerPage(row) {
-  return { ...row, name: routeProvider(row.id)?.name ?? row.name };
+  const path = new URL(row.href, "https://route.invalid").pathname;
+  const route = decodeURIComponent(path.split("/").pop() ?? "");
+  return { ...row, name: routeProvider(route)?.name ?? row.name };
 }
 
 /**

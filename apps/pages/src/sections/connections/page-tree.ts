@@ -18,6 +18,7 @@ import {
   type PageTreeSource,
   pageToTree,
 } from "../../lib/page-to-tree.js";
+import { catalogTileId } from "./catalog-families.js";
 import {
   curatedCatalogProviders,
   matchesCatalog,
@@ -46,7 +47,7 @@ export function catalogPageItems(
     .filter((provider) => matchesCatalog(provider, normalized))
     .map((provider) =>
       leaf(
-        provider.id,
+        catalogTileId(provider.id),
         provider.displayName,
         connectorPath(provider.id),
         "catalog",
