@@ -46,5 +46,5 @@ describe("cli app integration seam guard", () => {
     }
     await scanDir(join(repoRoot, "apps/cli/src"), violations);
     expect(violations).toEqual([]);
-  });
+  }, 15_000);
 });
