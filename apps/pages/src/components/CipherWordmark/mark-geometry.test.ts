@@ -50,7 +50,7 @@ describe("the mark's geometry", () => {
     expect(iconSvg).not.toMatch(/#2fb3a3|#0d7268/i);
   });
 
-  it("embeds the canonical tab icon while retaining the raster install icon", () => {
+  it("embeds the canonical tab icon while retaining the external install icon", () => {
     const html = readFileSync(
       new FileURL("../../../index.html", import.meta.url),
       "utf8",
@@ -75,16 +75,16 @@ describe("the mark's geometry", () => {
       'link[rel~="apple-touch-icon"]',
     );
     expect(installIcons).toHaveLength(1);
-    // A home-screen icon is a raster: Safari ignores an SVG apple-touch-icon.
-    // scripts/generate-pwa-icons.mjs draws it from the same geometry.
     expect(installIcons[0].getAttribute("href")).toBe("%BASE_URL%icon-192.png");
-    const png = readFileSync(
+    const installIcon = readFileSync(
       new FileURL("../../../public/icon-192.png", import.meta.url),
     );
-    expect([...png.subarray(0, 8)]).toEqual([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    expect([...installIcon.subarray(0, 8)]).toEqual([
+      137, 80, 78, 71, 13, 10, 26, 10,
     ]);
-    expect(png.subarray(12, 16).toString("latin1")).toBe("IHDR");
-    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([192, 192]);
+    expect(installIcon.readUInt32BE(8)).toBe(13);
+    expect(installIcon.toString("ascii", 12, 16)).toBe("IHDR");
+    expect(installIcon.readUInt32BE(16)).toBe(192);
+    expect(installIcon.readUInt32BE(20)).toBe(192);
   });
 });
