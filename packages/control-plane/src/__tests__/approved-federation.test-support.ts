@@ -46,9 +46,8 @@ export async function setApprovedOrganizationFixture(
 export async function createApprovedOrganizationFixture(
   app: Plane["app"],
   ctx: Context,
-  init: RequestInit,
+  init: RequestInit & { body: string },
 ) {
-  if (typeof init.body !== "string") throw new Error("fixture body missing");
   const { ssoIssuer, samlIssuer, samlMetadataUrl, samlMetadataXml, ...plain } =
     JSON.parse(init.body);
   const created = await app.request("/v1/organizations", {
@@ -65,18 +64,19 @@ export async function createApprovedOrganizationFixture(
       samlMetadataUrl,
       samlMetadataXml,
     });
+    const configuredInit: RequestInit = {
+      method: "PATCH",
+      body: JSON.stringify({
+        ssoIssuer,
+        samlIssuer,
+        samlMetadataUrl,
+        samlMetadataXml,
+      }),
+    };
+    if (init.headers) configuredInit.headers = init.headers;
     const configured = await app.request(
       `/v1/organizations/${encodeURIComponent(organization.id)}`,
-      {
-        method: "PATCH",
-        ...(init.headers ? { headers: init.headers } : {}),
-        body: JSON.stringify({
-          ssoIssuer,
-          samlIssuer,
-          samlMetadataUrl,
-          samlMetadataXml,
-        }),
-      },
+      configuredInit,
     );
     expect(configured.status).toBe(200);
     return new Response(await configured.text(), {
