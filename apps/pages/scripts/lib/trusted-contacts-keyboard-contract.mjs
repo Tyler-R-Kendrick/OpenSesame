@@ -10,10 +10,8 @@
 //   - a sheet opens with the keyboard on its close key, Tab and Shift+Tab stay
 //     inside it, Escape closes it and gives the keyboard back to the key that
 //     opened it;
-//   - Enter in the one-field form commits the step, and the step that replaces
-//     it leaves the keyboard on a control, never on <body>;
-//   - a paste that is not a packet is refused on its field and its commit key
-//     stays off.
+//   - the circle's name takes typing, and with no contact chosen its commit
+//     key stays off and Enter keeps the sheet open with the keyboard in it.
 //
 // Every step is a real key press. Nothing is clicked, focused or dispatched;
 // the only `evaluate` calls read the page, as a person would.
@@ -138,11 +136,11 @@ async function sheetHoldsFocus(page, label) {
 }
 
 /** Open a sheet with Enter, check where the keyboard landed, run `inside`, Escape. */
-async function sheet(page, tabTo, name, inside) {
+async function sheet(page, tabTo, name, inside, title = name) {
   const key = page.getByRole("button", { name, exact: true });
   await tabTo(page, key);
   await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", { name, exact: true });
+  const dialog = page.getByRole("dialog", { name: title, exact: true });
   await expect(dialog, `${name} opens`).toBeVisible();
   expect(
     await focusedName(page),
@@ -159,19 +157,30 @@ async function sheet(page, tabTo, name, inside) {
   ).toBeFocused();
 }
 
-/** A name, Enter, and the step that replaces the form leaves the keyboard on a control. */
-async function newCircleStep(page, tabTo) {
-  const name = page.getByLabel("Name", { exact: true });
+/** A name typed; with no contact chosen, Enter saves nothing and the keyboard stays. */
+async function newCircleStep(page, tabTo, dialog) {
+  const name = dialog.getByLabel("Name", { exact: true });
   await tabTo(page, name);
   await page.keyboard.insertText("Family");
-  await page.keyboard.press("Enter");
+  await expect(name).toHaveValue(/Family$/);
+  const save = dialog.getByRole("button", { name: "Save the circle" });
   await expect(
-    page.getByRole("button", { name: "Copy invitation" }),
-  ).toBeVisible({ timeout: 20_000 });
+    save,
+    "no contact chosen: the circle cannot be saved",
+  ).toBeDisabled();
+  await page.keyboard.press("Enter");
+  await expect(dialog, "Enter with no contact keeps the sheet").toBeVisible();
+  await focusIn(page, '[role="dialog"]', "the circle form keeps the keyboard");
+  // Escape leaves the text field for its sheet before it closes the sheet.
+  await page.keyboard.press("Escape");
+  await expect(
+    dialog,
+    "Escape in the name leaves the field, not the sheet",
+  ).toBeVisible();
   await focusIn(
     page,
     '[role="dialog"]',
-    "the invitation step takes the keyboard",
+    "Escape from the name stays in the sheet",
   );
 }
 
@@ -192,7 +201,13 @@ export async function trustedContactsKeyboardContract({
   await openTab(page, tabTo);
   await expect(page.locator(":focus")).not.toHaveJSProperty("tagName", "BODY");
   await keysInOrder(page, tabTo);
-  await sheet(page, tabTo, "Start a circle", () => newCircleStep(page, tabTo));
+  await sheet(
+    page,
+    tabTo,
+    "Start a circle",
+    (dialog) => newCircleStep(page, tabTo, dialog),
+    "Trusted contacts",
+  );
   // The hidden file input carries the key's name too, so the key is found by id.
   await context.close();
   if (harness.failures.length === before)
