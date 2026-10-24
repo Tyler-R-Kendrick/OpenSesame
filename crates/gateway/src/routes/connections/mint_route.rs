@@ -68,16 +68,19 @@ pub async fn mint(
         Ok(body) => body,
         Err(resp) => return resp,
     };
-    let actor = mint_actor(
-        caller_subject(&who).unwrap_or_else(|| "operator".into()),
-        body.on_behalf_of.as_ref(),
-    );
+    let principal = caller_subject(&who).unwrap_or_else(|| "operator".into());
+    let actor = mint_actor(principal.clone(), body.on_behalf_of.as_ref());
+    // The provider hears the principal; the receipt and event record the actor.
+    let caller = opensesame_connection_broker::MintCaller {
+        principal: &principal,
+        actor: &actor,
+    };
     match st
         .connection_broker
         .mint_derived_token_for(
             &organization_id,
             &id,
-            &actor,
+            caller,
             body.installation_id.as_deref(),
             body.duration_seconds,
         )

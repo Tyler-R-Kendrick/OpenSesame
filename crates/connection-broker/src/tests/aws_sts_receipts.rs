@@ -25,7 +25,13 @@ async fn a_mint_records_its_receipt_and_deadline_and_no_source_material() {
         .await
         .unwrap();
     let minted = broker
-        .mint_derived_token_for(&organization, &id, "principal:alice", None, None)
+        .mint_derived_token_for(
+            &organization,
+            &id,
+            crate::MintCaller::principal("principal:alice"),
+            None,
+            None,
+        )
         .await
         .unwrap();
     assert!(stand_in.hits()[0].signature_valid);

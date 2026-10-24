@@ -331,6 +331,29 @@ pub struct DerivedMaterialization {
     pub receipt: Option<crate::aws_sts::MintReceipt>,
 }
 
+/// Who a mint is for. `principal` is the caller the Host authenticated;
+/// `actor` is how the mint is recorded, and may add a note such as
+/// `on_behalf_of=uid:1000,pid:4242` for a local process the daemon forwarded.
+/// Only the principal reaches a provider: an AWS mint's `SourceIdentity`, which
+/// STS carries through role chaining and CloudTrail records, names who was
+/// authenticated and nothing else (ADR 0213).
+#[derive(Clone, Copy)]
+pub struct MintCaller<'a> {
+    pub principal: &'a str,
+    pub actor: &'a str,
+}
+
+impl<'a> MintCaller<'a> {
+    /// A caller recorded as itself.
+    #[must_use]
+    pub const fn principal(principal: &'a str) -> Self {
+        Self {
+            principal,
+            actor: principal,
+        }
+    }
+}
+
 /// `POST /connections`.
 #[derive(Clone, Debug)]
 pub struct CreateConnection {

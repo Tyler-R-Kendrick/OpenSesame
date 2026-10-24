@@ -41,7 +41,10 @@ credential STS was built to derive from.
    (a fresh UUIDv7 per mint, checked against STS's `[\w+=,.@-]{2,64}`), so
    CloudTrail and the Host's receipt name the same mint. `SourceIdentity` is
    the calling principal, escaped into STS's charset (`=XX` for every other
-   byte, `=` included, hashed past 64 characters). `Policy` and `ExternalId`
+   byte, `=` included, hashed past 64 characters). It is never the recorded
+   actor: a mint the daemon forwards for a local process (ADR 0138 §2) is
+   recorded as `<principal> on_behalf_of=uid:…,pid:…`, and that note stays in
+   the receipt and event, out of STS. `Policy` and `ExternalId`
    come from the binding only. STS intersects a session policy with the role's
    own permissions, so it can only narrow. The role's trust policy must allow
    `sts:AssumeRole` and `sts:SetSourceIdentity` for the source principal.

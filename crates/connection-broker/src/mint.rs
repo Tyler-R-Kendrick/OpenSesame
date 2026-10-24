@@ -8,7 +8,7 @@ use opensesame_domain::OrganizationId;
 
 use crate::{
     parse_materialization, store, BrokerError, ConnectionBroker, ConnectionStatus,
-    DerivedMaterialization, EventKind, MaterializationPolicy, Result,
+    DerivedMaterialization, EventKind, MaterializationPolicy, MintCaller, Result,
 };
 
 impl ConnectionBroker {
@@ -29,13 +29,20 @@ impl ConnectionBroker {
         actor: &str,
         installation_id: Option<&str>,
     ) -> Result<DerivedMaterialization> {
-        self.mint_derived_token_for(organization_id, id, actor, installation_id, None)
-            .await
+        self.mint_derived_token_for(
+            organization_id,
+            id,
+            MintCaller::principal(actor),
+            installation_id,
+            None,
+        )
+        .await
     }
 
-    /// [`ConnectionBroker::mint_derived_token`] with a requested lifetime, which
-    /// an AWS mint honours under its binding's cap (ADR 0213) and a GitHub
-    /// mint ignores (GitHub fixes the installation token's hour).
+    /// [`ConnectionBroker::mint_derived_token`] for a caller whose recorded
+    /// actor may differ from its principal ([`MintCaller`]), with a requested
+    /// lifetime, which an AWS mint honours under its binding's cap (ADR 0213)
+    /// and a GitHub mint ignores (GitHub fixes the installation token's hour).
     ///
     /// # Errors
     ///
@@ -44,10 +51,11 @@ impl ConnectionBroker {
         &self,
         organization_id: &OrganizationId,
         id: &str,
-        actor: &str,
+        caller: MintCaller<'_>,
         installation_id: Option<&str>,
         duration_seconds: Option<u32>,
     ) -> Result<DerivedMaterialization> {
+        let actor = caller.actor;
         let mut row = self.row_in_org(organization_id, id).await?;
         if parse_materialization(&row.materialization) != MaterializationPolicy::DerivedShortLived {
             return Err(BrokerError::MaterializationDenied);
@@ -132,7 +140,7 @@ impl ConnectionBroker {
             // ADR 0213: STS AssumeRole over the sealed key pair, for the role
             // the connection's binding names. No binding, no mint path.
             provider if crate::aws_sts::is_mintable_provider(provider) => {
-                self.mint_aws_sts(&row, subject, actor, duration_seconds)
+                self.mint_aws_sts(&row, subject, caller, duration_seconds)
                     .await
             }
             other => Err(BrokerError::Unmintable(other.to_string())),

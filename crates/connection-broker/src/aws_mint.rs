@@ -12,26 +12,28 @@ use crate::aws_sts::binding::AwsStsBinding;
 use crate::aws_sts::signer::{SigV4Signer, SourceCredential};
 use crate::aws_sts::{client, endpoint, request, AwsSessionCredentials, MintReceipt};
 use crate::store::{self, ConnectionRow};
-use crate::{BrokerError, ConnectionBroker, DerivedMaterialization, EventKind, Result};
+use crate::{BrokerError, ConnectionBroker, DerivedMaterialization, EventKind, MintCaller, Result};
 
 /// The connection event kind's detail tag for an STS mint.
 pub const KIND: &str = "aws_sts_assume_role";
 
 impl ConnectionBroker {
-    /// Assume the bound role and hand back STS's temporary credential.
+    /// Assume the bound role and hand back STS's temporary credential. STS
+    /// hears the caller's principal; the receipt and event record its actor.
     pub(crate) async fn mint_aws_sts(
         &self,
         row: &ConnectionRow,
         subject: String,
-        actor: &str,
+        caller: MintCaller<'_>,
         duration_seconds: Option<u32>,
     ) -> Result<DerivedMaterialization> {
+        let actor = caller.actor;
         let binding = self
             .open_binding(row)
             .await?
             .ok_or_else(|| BrokerError::Unmintable(row.provider_id.clone()))?;
         let grant_id = uuid::Uuid::now_v7().simple().to_string();
-        let request = assume_request(&binding, &grant_id, actor, duration_seconds)?;
+        let request = assume_request(&binding, &grant_id, caller.principal, duration_seconds)?;
         let endpoint = endpoint::endpoint(&binding.region, self.config.aws_sts_endpoint())
             .ok_or_else(|| {
                 BrokerError::Invalid("the binding's region has no STS endpoint".into())
@@ -102,12 +104,12 @@ impl ConnectionBroker {
 }
 
 /// The `AssumeRole` one mint sends: the binding's role, policy and
-/// `ExternalId`, a session name from the grant id, the caller as
+/// `ExternalId`, a session name from the grant id, the caller's principal as
 /// `SourceIdentity`, and a duration inside the binding's cap.
 fn assume_request(
     binding: &AwsStsBinding,
     grant_id: &str,
-    actor: &str,
+    principal: &str,
     duration_seconds: Option<u32>,
 ) -> Result<request::AssumeRoleRequest> {
     Ok(request::AssumeRoleRequest {
@@ -117,7 +119,7 @@ fn assume_request(
         duration_seconds: request::duration_for(duration_seconds, binding.max_duration_seconds)
             .map_err(|why| BrokerError::Invalid(why.into()))?,
         policy: binding.session_policy.clone(),
-        source_identity: request::source_identity(actor),
+        source_identity: request::source_identity(principal),
         external_id: binding.external_id.clone(),
     })
 }

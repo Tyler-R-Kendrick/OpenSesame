@@ -187,8 +187,9 @@ curl -sS -X PUT "$OPENSESAME_HOST_API/api/v1/connections/conn_…/aws-sts-bindin
   binding, after which the connection is `422 unmintable` again.
 - The role's trust policy must let the source principal call
   `sts:AssumeRole` **and** `sts:SetSourceIdentity`: every mint sets
-  `SourceIdentity` to the calling principal, and `RoleSessionName` to
-  `opensesame-<grant id>`, the id the Host's receipt records.
+  `SourceIdentity` to the calling principal (never the `on_behalf_of` note
+  the receipt records), and `RoleSessionName` to `opensesame-<grant id>`, the
+  id the Host's receipt records.
 
 Every mint writes a value-blind receipt (role, session name, source identity,
 duration, expiry, STS request id) as the connection's `materialized` event, and
