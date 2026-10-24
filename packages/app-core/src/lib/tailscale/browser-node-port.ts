@@ -82,7 +82,7 @@ function nativePEM(text: string): boolean {
     return false;
   }
 }
-export const NativeTargets = z
+const NativeTargets = z
   .array(
     z
       .object({
@@ -100,23 +100,21 @@ export const NativeTargets = z
     (targets) =>
       new Set(targets.map((target) => target.origin)).size === targets.length,
   );
-/** A Tailscale node id: printable, untrimmed text of at most 256 bytes. */
-export const NativeNodeID = z
-  .string()
-  .min(1)
-  .max(256)
-  .refine(
-    (value) =>
-      value.trim() === value &&
-      !Array.from(value).some(
-        (character) =>
-          character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
-      ) &&
-      new TextEncoder().encode(value).length <= 256,
-  );
 const NativeBase = z.object({
   version: z.literal(1),
-  exitNodeID: NativeNodeID,
+  exitNodeID: z
+    .string()
+    .min(1)
+    .max(256)
+    .refine(
+      (value) =>
+        value.trim() === value &&
+        !Array.from(value).some(
+          (character) =>
+            character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
+        ) &&
+        new TextEncoder().encode(value).length <= 256,
+    ),
   targets: NativeTargets,
 });
 export const TailscaleNativeHTTPConfiguration = z.discriminatedUnion(
