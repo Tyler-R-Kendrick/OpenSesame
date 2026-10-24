@@ -9,7 +9,7 @@
  */
 
 import { ask, grantClipboard, owners } from "./capture-live-steps.mjs";
-import { admitControl } from "./live-join-walk.mjs";
+import { admitControl, joinerConnects } from "./live-join-walk.mjs";
 import { phoneContext } from "./mobile-contract.mjs";
 
 /** Which page a `shot` takes, per owner page: absent means the owner's own. */
@@ -95,8 +95,7 @@ async function joinThrough(page, harness, { link, code }, name) {
   await grantClipboard(page);
   await reply.click();
   const answer = await page.evaluate(() => navigator.clipboard.readText());
-  await seat.getByLabel("The owner's reply code", { exact: true }).fill(answer);
-  await seat.getByRole("button", { name: "Connect" }).click();
+  await joinerConnects(seat, answer);
   return seat;
 }
 

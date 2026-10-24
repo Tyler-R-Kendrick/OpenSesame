@@ -8,6 +8,7 @@
 
 import { startNostrRelay, startTurnServer } from "./live-carriers.mjs";
 import {
+  admitAndAnswer,
   admitControl,
   endSession,
   joinerAsks,
@@ -213,9 +214,8 @@ export async function carried(ctx) {
       .waitFor({ timeout: 20_000 });
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = admitControl(panel, JOINER);
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
+    // The reply names the owner's address: the joiner allows it.
+    await admitAndAnswer(admitControl(panel, JOINER), joiner.page);
     await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
     check(true, "carrier: joined with no code pasted either way");
     const made = await pairs(joiner.page);
@@ -266,9 +266,8 @@ export async function relayed(ctx) {
     });
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = admitControl(panel, JOINER);
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
+    // A relay seat's reply names no address: nothing to answer.
+    await admitAndAnswer(admitControl(panel, JOINER), joiner.page);
     await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
     for (const [who, page] of [
       ["owner", owner.page],
