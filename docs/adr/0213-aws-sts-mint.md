@@ -92,8 +92,11 @@ credential STS was built to derive from.
    code. The deadline goes to a plain-column register (`aws_sts_mints`) that
    the lifecycle scanner reads, so each minted credential is a
    `connection_credential` subject (`aws-sts-mint:<grant id>`) whose expiry
-   publishes on the `lifecycle.*` feed. It never auto-responds: nothing renews a
-   minted credential; the agent that needs another mints again.
+   publishes on the `lifecycle.*` feed. Like a session or authority grant it
+   is on the alert ladder, so subscribers hear `lifecycle.expiry.expired` when
+   it lapses; a credential that lives under a day reaches `urgent` on its first
+   pass. It never auto-responds: nothing renews a minted credential; the agent
+   that needs another mints again.
 
 ## Consequences
 

@@ -3,9 +3,11 @@
 //! An STS credential the Host minted expires on STS's clock, and that deadline
 //! is published on the lifecycle feed like any other: from the mint register's
 //! plain columns, never from a sealed one. Each mint is a
-//! `connection_credential` subject named by its grant id, alert-free and never
-//! auto-responded to — nothing renews a minted credential; the agent that
-//! needs another one mints again. Subscribers are told when it lapses.
+//! `connection_credential` subject named by its grant id. Like a session or
+//! authority grant it alerts and is never auto-responded to: nothing renews a
+//! minted credential, and the agent that needs another one mints again. The
+//! alert track is what tells subscribers it lapsed (`lifecycle.expiry.expired`);
+//! a credential that lives under a day reaches `urgent` on its first pass.
 
 use chrono::{DateTime, Duration, Utc};
 use opensesame_domain::OrganizationId;
@@ -50,7 +52,7 @@ pub async fn aws_sts_mints(
             expires_at: deadline.expires_at,
             renew_before_seconds: Some(MINT_RENEW_BEFORE_SECONDS),
             auto_respond: false,
-            alerting: false,
+            alerting: true,
             label: Some("aws-sts".into()),
         })
         .collect())
