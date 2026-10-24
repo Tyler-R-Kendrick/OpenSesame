@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { startReferenceLdapServer } from "@opensesame/mock-upstream-idp/ldap-server";
 import { startReferenceIdp } from "@opensesame/mock-upstream-idp/testkit";
 import { describe, expect, it } from "vitest";
+import { approveFederationFixture } from "./approved-federation.test-support.js";
 import {
   closeEnterpriseServer,
   enterpriseLogin,
@@ -21,6 +22,11 @@ describe("saved enterprise connections", () => {
       const id = "org:saml-saved";
       const slug = "saved-saml";
       const headers = await enterpriseOwner(started, id, slug);
+      approveFederationFixture(started.ctx, {
+        organizationId: id,
+        samlIssuer: idp.saml.entityId,
+        samlMetadataUrl: idp.saml.metadataUrl,
+      });
       const saved = await started.app.request(
         `/v1/organizations/${encodeURIComponent(id)}`,
         {

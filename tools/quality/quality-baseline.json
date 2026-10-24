@@ -18,7 +18,7 @@
   "totals": {
     "files": 452,
     "violations": 724,
-    "oversizedLines": 221968
+    "oversizedLines": 221871
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -851,7 +851,7 @@
       "max-lines": 996
     },
     "packages/control-plane/src/__tests__/federated-interaction.test.ts": {
-      "max-lines": 1618
+      "max-lines": 1610
     },
     "packages/control-plane/src/__tests__/federated-leg.chaos.test.ts": {
       "complexity": 1,
@@ -888,16 +888,16 @@
       "max-lines": 536
     },
     "packages/control-plane/src/__tests__/org-domains.test.ts": {
-      "max-lines": 551
+      "max-lines": 545
     },
     "packages/control-plane/src/__tests__/org-signin-flow.test.ts": {
-      "max-lines": 561
+      "max-lines": 540
     },
     "packages/control-plane/src/__tests__/organizations-edge.test.ts": {
       "max-lines": 683
     },
     "packages/control-plane/src/__tests__/organizations-tenant.test.ts": {
-      "max-lines": 455
+      "max-lines": 449
     },
     "packages/control-plane/src/__tests__/origin-claim-admin.test.ts": {
       "max-lines": 1041
@@ -921,13 +921,13 @@
       "max-lines": 1164
     },
     "packages/control-plane/src/__tests__/saml-security.test.ts": {
-      "max-lines": 464
+      "max-lines": 455
     },
     "packages/control-plane/src/__tests__/saml-sp.test.ts": {
-      "max-lines": 566
+      "max-lines": 562
     },
     "packages/control-plane/src/__tests__/scim.test.ts": {
-      "max-lines": 633
+      "max-lines": 604
     },
     "packages/control-plane/src/app.ts": {
       "max-lines-per-function": 1,
@@ -935,7 +935,7 @@
     },
     "packages/control-plane/src/config.ts": {
       "complexity": 2,
-      "max-lines": 522,
+      "max-lines": 517,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -1093,7 +1093,7 @@
     },
     "packages/control-plane/src/routes/organizations.ts": {
       "complexity": 1,
-      "max-lines": 1042,
+      "max-lines": 1033,
       "max-lines-per-function": 2
     },
     "packages/control-plane/src/routes/principals.ts": {

@@ -1,5 +1,10 @@
+import type { Organization } from "@opensesame/os-domain";
+import type { Context } from "hono";
 import type { ControlPlaneConfig } from "../config.js";
+import type { AppContext } from "../context.js";
 import { normalizeIssuer } from "../interactions/registry.js";
+import type { Variables } from "../middleware/context.js";
+import { hasUnapprovedOrganizationFederation } from "../organization-issuer-assignments.js";
 import {
   UnsafeUpstreamError,
   assertPublicUpstreamUrl,
@@ -91,4 +96,45 @@ export function samlConfigurationError(
       : issuerConfigurationError(config, upstream.issuer)) ??
     issuerConfigurationError(config, upstream.metadataUrl);
   return unsafe ? { error: "unsafe_issuer", message: unsafe } : undefined;
+}
+
+/** A tenant issuer may name exactly one organization. */
+export async function issuerClaimed(
+  ctx: AppContext,
+  issuer: string | undefined,
+  exceptOrganizationId?: string,
+): Promise<boolean> {
+  if (!issuer) return false;
+  const owner = await ctx.stores.organizations.findByIssuer(issuer);
+  return owner !== undefined && owner.id !== exceptOrganizationId;
+}
+
+/** Organization ownership alone cannot confer authority over an external IdP. */
+export function issuerAssignmentDenial(
+  c: Context<{ Variables: Variables }>,
+  org: Organization,
+): Response | undefined {
+  if (
+    !hasUnapprovedOrganizationFederation(
+      org,
+      c.get("ctx").config.organizationIssuerAssignments,
+    )
+  )
+    return undefined;
+  return c.json(
+    {
+      error: "issuer_assignment_required",
+      message:
+        "The deployment operator must approve this organization and federation configuration. Create organizations without issuers first.",
+    },
+    403,
+  );
+}
+/** Keep URL safety refusals beside the issuer assignment fence. */
+export function issuerUrlDenial(
+  c: Context<{ Variables: Variables }>,
+  value: string | null | undefined,
+): Response | undefined {
+  const message = issuerConfigurationError(c.get("ctx").config, value);
+  return message ? c.json({ error: "unsafe_issuer", message }, 400) : undefined;
 }

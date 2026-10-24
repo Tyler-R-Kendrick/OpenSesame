@@ -1,6 +1,7 @@
 import type { UpdateOrganizationRequest } from "@opensesame/contracts";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { approveFederationFixture } from "./approved-federation.test-support.js";
 
 describe("native SAML entity configuration fences", () => {
   it("accepts a native URN while preserving broker, metadata and deployment claim guards", async () => {
@@ -50,6 +51,11 @@ describe("native SAML entity configuration fences", () => {
       samlMetadataUrl: "https://idp.example/metadata",
       samlMetadataXml: null,
     };
+    approveFederationFixture(ctx, {
+      organizationId: id,
+      samlIssuer: native.samlIssuer,
+      samlMetadataUrl: native.samlMetadataUrl,
+    });
     expect((await patch(native)).status).toBe(200);
     expect((await ctx.stores.organizations.get(id))?.samlIssuer).toBe(
       native.samlIssuer,

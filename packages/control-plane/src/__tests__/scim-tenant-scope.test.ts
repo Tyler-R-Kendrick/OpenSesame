@@ -112,7 +112,7 @@ describe("SCIM tenant scope", () => {
     },
   );
 
-  it("deprovisioning never reaches a principal outside the organization", async () => {
+  it("an unapproved legacy deployment issuer grants no deprovisioning authority", async () => {
     const { app, ctx } = plane();
     const owner = await verified(app, "scope-owner");
     const orgId = await createOrg(app, String(owner.accessToken), "scope-org");
@@ -155,11 +155,12 @@ describe("SCIM tenant scope", () => {
       expect(deactivated.status).toBe(200);
     }
 
-    // The stranger is untouched; the member is gone, session and all.
+    // The legacy self-issuer claim is filtered even for this tenant's member.
+    // Neither principal belongs to an operator-approved directory here.
     expect(await stillSignedIn(app, stranger.token)).toBe(200);
-    expect(await stillSignedIn(app, member.token)).toBe(401);
+    expect(await stillSignedIn(app, member.token)).toBe(200);
     expect(
       await ctx.stores.organizationMemberships.find(orgId, member.principalId),
-    ).toBeUndefined();
+    ).toMatchObject({ role: "member" });
   });
 });

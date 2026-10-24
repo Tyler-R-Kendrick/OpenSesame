@@ -11,7 +11,9 @@ import {
   provisionedRoleForSubject,
   roleForGroupName,
 } from "../routes/scim.js";
+import { createApprovedOrganizationFixture } from "./approved-federation.test-support.js";
 import { putGroupRoleMappingAsOwner } from "./org-owner-fixture.js";
+import { auth, json, provisional, verified } from "./scim-test-helpers.js";
 /**
  * SCIM 2.0 provisioning, end to end (C15, D11).
  *
@@ -30,38 +32,6 @@ function testConfig(issuer: string) {
     issuer: "http://127.0.0.1:8788",
     trustedUpstreamIssuers: [issuer],
   } as const;
-}
-
-function auth(token: string) {
-  return { authorization: `Bearer ${token}` };
-}
-
-function json(token: string) {
-  return { ...auth(token), "content-type": "application/json" };
-}
-
-async function provisional(app: App) {
-  const res = await app.request("/v1/principals/provisional", {
-    method: "POST",
-  });
-  expect(res.status).toBe(201);
-  return overlapCast(await res.json());
-}
-
-async function verified(app: App, subject: string) {
-  const created = await provisional(app);
-  const linked = await app.request("/v1/principals/link-identities", {
-    method: "POST",
-    headers: json(created.accessToken),
-    body: JSON.stringify({
-      kind: "oidc",
-      issuer: "https://mock.example",
-      subject,
-      assurance: "verified",
-    }),
-  });
-  expect(linked.status).toBe(201);
-  return created;
 }
 
 /** The browser leg Pages runs, against the real IdP — see org-signin-flow. */
@@ -127,11 +97,12 @@ afterAll(async () => {
 
 async function seedTenant(
   app: App,
+  ctx: ReturnType<typeof createControlPlane>["ctx"],
   slug: string,
   ssoIssuer: string | null = idp.issuer,
 ) {
   const owner = await verified(app, `${slug}-owner`);
-  const created = await app.request("/v1/organizations", {
+  const created = await createApprovedOrganizationFixture(app, ctx, {
     method: "POST",
     headers: json(owner.accessToken),
     body: JSON.stringify({
@@ -201,7 +172,7 @@ function joinTenant(app: App, slug: string, bearer: string, idToken: string) {
 describe("SCIM provisioning lifecycle", () => {
   it("admits a provisioned subject and refuses it once deactivated", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "acme");
+    const { owner, org } = await seedTenant(app, ctx, "acme");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
 
@@ -258,7 +229,7 @@ describe("SCIM provisioning lifecycle", () => {
 
   it("refuses a subject the directory deactivated before it ever signed in", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "leaver-org");
+    const { owner, org } = await seedTenant(app, ctx, "leaver-org");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     idp.setSubject("leaver");
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
@@ -293,7 +264,7 @@ describe("SCIM provisioning lifecycle", () => {
 
   it("treats DELETE as deactivation, keeping the refusal durable", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "delete-org");
+    const { owner, org } = await seedTenant(app, ctx, "delete-org");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const created = await provisionUser(app, org.id, token, {
       userName: "grace@acme.example",
@@ -325,7 +296,7 @@ describe("SCIM provisioning lifecycle", () => {
 describe("SCIM provisioning-token custody", () => {
   it("shows the plaintext once and stores only its hash", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "custody");
+    const { owner, org } = await seedTenant(app, ctx, "custody");
     const { token, id } = await mintScimToken(app, org.id, owner.accessToken);
 
     expect(token.startsWith(SCIM_TOKEN_PREFIX)).toBe(true);
@@ -363,11 +334,11 @@ describe("SCIM provisioning-token custody", () => {
   });
 
   it("refuses a revoked token, and a token belonging to another tenant", async () => {
-    const { app } = createControlPlane({ config: testConfig(idp.issuer) });
-    const first = await seedTenant(app, "tenant-one");
+    const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
+    const first = await seedTenant(app, ctx, "tenant-one");
     // One idp issuer belongs to one tenant; the second tenant is a SCIM-only
     // tenant, which is enough for the token-scoping assertion.
-    const second = await seedTenant(app, "tenant-two", null);
+    const second = await seedTenant(app, ctx, "tenant-two", null);
     const firstToken = await mintScimToken(
       app,
       first.org.id,
@@ -402,8 +373,8 @@ describe("SCIM provisioning-token custody", () => {
   });
 
   it("fences token management to the organization owner", async () => {
-    const { app } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, "owner-only");
+    const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
+    const { org } = await seedTenant(app, ctx, "owner-only");
     const stranger = await verified(app, "stranger");
 
     const refused = await app.request(
@@ -423,8 +394,8 @@ describe("SCIM provisioning-token custody", () => {
 
 describe("SCIM Users surface", () => {
   it("answers SCIM-shaped errors and the userName filter", async () => {
-    const { app } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "users-org");
+    const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
+    const { owner, org } = await seedTenant(app, ctx, "users-org");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
 
     const unauthenticated = await app.request(usersPath(org.id), {
@@ -501,7 +472,7 @@ describe("SCIM Users surface", () => {
 
   it("reads Entra's stringly-typed active flag", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "entra-org");
+    const { owner, org } = await seedTenant(app, ctx, "entra-org");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const created = await provisionUser(app, org.id, token, {
       userName: "alan@entra.example",
@@ -536,7 +507,7 @@ describe("SCIM Groups role mapping", () => {
 
   it("moves an existing member to the mapped role, and back on removal", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "groups-org");
+    const { owner, org } = await seedTenant(app, ctx, "groups-org");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
     await putGroupRoleMappingAsOwner(ctx, org.id, "acme-owners", "owner");
@@ -607,7 +578,7 @@ describe("SCIM Groups role mapping", () => {
 
   it("accepts and ignores a group that maps to nothing", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "ignored-org");
+    const { owner, org } = await seedTenant(app, ctx, "ignored-org");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const created = await provisionUser(app, org.id, token, {
       userName: "ada@ignored.example",

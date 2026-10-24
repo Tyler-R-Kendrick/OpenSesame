@@ -9,6 +9,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { startServer } from "../server.js";
+import { approveFederationFixture } from "./approved-federation.test-support.js";
 import {
   ccBody,
   clientAssertion,
@@ -151,7 +152,16 @@ describe("J-REPLICA enrollment, SCIM, and client_credentials", () => {
     expect(replayTicket.status).toBe(401);
 
     const keys = rsaPair("replica-cc-1");
-    const { owner, org } = await seedTenant(first.app, "replica-cc-org", idp);
+    const { owner, org } = await seedTenant(
+      first.app,
+      first.ctx,
+      "replica-cc-org",
+      idp,
+    );
+    approveFederationFixture(second.ctx, {
+      organizationId: String(org.id),
+      ssoIssuer: idp.issuer,
+    });
     const created = await first.app.request("/v1/oauth/clients", {
       method: "POST",
       headers: {

@@ -44,6 +44,7 @@ import type { Clock } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import { withAccountSecretCodec } from "./account-secret-codec.js";
 import { createHonoApp } from "./app.js";
+import { withApprovedOrganizationStores } from "./approved-organization-stores.js";
 import { withChainedAudit } from "./chained-audit.js";
 import type { AppContext } from "./context.js";
 import type { CreateControlPlaneOptions } from "./create-app-options.js";
@@ -200,11 +201,13 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   // read on the login path, so it has to outlive the process that configured
   // it. The rest of the federation storage follows the same rule — memory in
   // tests/dev, Postgres the moment a database is configured.
-  const organizationStores =
+  const organizationStores = withApprovedOrganizationStores(
     options.organizationStores ??
-    (drizzleBundle
-      ? createPostgresOrganizationStores(drizzleBundle.db, eventSealer)
-      : undefined);
+      (drizzleBundle
+        ? createPostgresOrganizationStores(drizzleBundle.db, eventSealer)
+        : undefined),
+    config.organizationIssuerAssignments,
+  );
   const scimStores =
     options.scimStores ??
     (drizzleBundle ? createPostgresScimStores(drizzleBundle.db) : undefined);

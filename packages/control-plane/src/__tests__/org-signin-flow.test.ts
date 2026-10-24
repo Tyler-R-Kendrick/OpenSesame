@@ -15,7 +15,12 @@ import {
 } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import type { startServer } from "../server.js";
+import {
+  createApprovedOrganizationFixture,
+  setApprovedOrganizationFixture,
+} from "./approved-federation.test-support.js";
 import { onFreePort } from "./free-port.js";
+import { auth, provisional, verified } from "./scim-test-helpers.js";
 
 /**
  * Organization sign-in, end to end against the reference IdP.
@@ -40,37 +45,6 @@ function testConfig(issuer: string) {
     issuer: "http://127.0.0.1:8788",
     trustedUpstreamIssuers: [issuer],
   } as const;
-}
-
-function auth(token: string) {
-  return { authorization: `Bearer ${token}` };
-}
-
-async function provisional(app: App) {
-  const res = await app.request("/v1/principals/provisional", {
-    method: "POST",
-  });
-  expect(res.status).toBe(201);
-  return overlapCast(await res.json());
-}
-
-async function verified(app: App, subject: string) {
-  const created = await provisional(app);
-  const linked = await app.request("/v1/principals/link-identities", {
-    method: "POST",
-    headers: {
-      ...auth(created.accessToken),
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      kind: "oidc",
-      issuer: "https://mock.example",
-      subject,
-      assurance: "verified",
-    }),
-  });
-  expect(linked.status).toBe(201);
-  return created;
 }
 
 /**
@@ -134,9 +108,14 @@ function subjectOf(idToken: string): string {
   return sub;
 }
 
-async function seedTenant(app: App, idp: ReferenceIdp, slug: string) {
+async function seedTenant(
+  app: App,
+  ctx: ReturnType<typeof createControlPlane>["ctx"],
+  idp: ReferenceIdp,
+  slug: string,
+) {
   const owner = await verified(app, `${slug}-owner`);
-  const created = await app.request("/v1/organizations", {
+  const created = await createApprovedOrganizationFixture(app, ctx, {
     method: "POST",
     headers: { ...auth(owner.accessToken), "content-type": "application/json" },
     body: JSON.stringify({
@@ -174,7 +153,7 @@ describe("organization tenant join — hardened against the reference IdP", () =
 
   it("binds the asserted subject to the caller and grants membership", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, idp, "acme");
+    const { org } = await seedTenant(app, ctx, idp, "acme");
     const guest = await provisional(app);
     const idToken = await mintOrgIdToken(idp, PAGES_ORIGIN);
 
@@ -201,7 +180,7 @@ describe("organization tenant join — hardened against the reference IdP", () =
 
   it("refuses a token minted for an audience that is not one of ours", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, idp, "aud-org");
+    const { org } = await seedTenant(app, ctx, idp, "aud-org");
     const guest = await provisional(app);
     const idToken = await mintOrgIdToken(idp, FOREIGN_ORIGIN);
 
@@ -215,7 +194,7 @@ describe("organization tenant join — hardened against the reference IdP", () =
 
   it("refuses a token older than the ten-minute join window", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, idp, "stale-org");
+    const { org } = await seedTenant(app, ctx, idp, "stale-org");
     const guest = await provisional(app);
     // Minted now, presented later: the token stays inside its own one-hour
     // expiry, so only the max-age fence can refuse it.
@@ -237,7 +216,7 @@ describe("organization tenant join — hardened against the reference IdP", () =
 
   it("refuses an assertion whose subject already belongs to someone else", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, idp, "bound-org");
+    const { org } = await seedTenant(app, ctx, idp, "bound-org");
     const idToken = await mintOrgIdToken(idp, PAGES_ORIGIN);
     const subject = subjectOf(idToken);
 
@@ -275,10 +254,10 @@ describe("organization tenant join — hardened against the reference IdP", () =
 
   it("refuses a native-SAML tenant an id_token join", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, idp, "saml-org");
+    const { org } = await seedTenant(app, ctx, idp, "saml-org");
     const stored = await ctx.stores.organizations.get(org.id);
     if (!stored) throw new Error("org missing");
-    await ctx.stores.organizations.set(org.id, {
+    await setApprovedOrganizationFixture(ctx, org.id, {
       ...stored,
       samlIssuer: idp.issuer,
       samlMetadataUrl: `${idp.issuer}/saml/metadata`,
@@ -307,7 +286,7 @@ describe("organization tenant join — hardened against the reference IdP", () =
 
   it("refuses a subject the tenant's directory has not provisioned", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, idp, "scim-org");
+    const { org } = await seedTenant(app, ctx, idp, "scim-org");
     const stored = await ctx.stores.organizations.get(org.id);
     if (!stored) throw new Error("org missing");
     await ctx.stores.organizations.set(org.id, {
@@ -344,7 +323,7 @@ describe("organization tenant join — hardened against the reference IdP", () =
    */
   it("joins a provisioned subject at the role its directory assigned", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, idp, "role-org");
+    const { org } = await seedTenant(app, ctx, idp, "role-org");
     const guest = await provisional(app);
     const idToken = await mintOrgIdToken(idp, PAGES_ORIGIN);
 
@@ -373,7 +352,7 @@ describe("organization tenant join — hardened against the reference IdP", () =
 
   it("survives a store round-trip: an org is read back through the interface", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { org } = await seedTenant(app, idp, "durable-org");
+    const { org } = await seedTenant(app, ctx, idp, "durable-org");
 
     const bySlug = await ctx.stores.organizations.getBySlug("durable-org");
     expect(bySlug?.id).toBe(org.id);
@@ -444,7 +423,7 @@ describe("organization sign-in from the hosted login page", () => {
     base = `http://127.0.0.1:${started.port}`;
 
     const now = started.ctx.clock();
-    await started.ctx.stores.organizations.set("org:hosted", {
+    await setApprovedOrganizationFixture(started.ctx, "org:hosted", {
       id: "org:hosted",
       slug: "hosted-acme",
       displayName: "Hosted Acme",

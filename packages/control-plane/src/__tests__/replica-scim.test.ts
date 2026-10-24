@@ -13,6 +13,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { approveFederationFixture } from "./approved-federation.test-support.js";
 import {
   DEFAULT_IDP_SUBJECT,
   PAGES_ORIGIN,
@@ -71,7 +72,16 @@ describe("J-REPLICA SCIM cleanup", () => {
       second.ctx.systemPrincipalReady,
     ]);
 
-    const { owner, org } = await seedTenant(first.app, "replica-scim", idp);
+    const { owner, org } = await seedTenant(
+      first.app,
+      first.ctx,
+      "replica-scim",
+      idp,
+    );
+    approveFederationFixture(second.ctx, {
+      organizationId: String(org.id),
+      ssoIssuer: idp.issuer,
+    });
     const { token } = await mintScimToken(first.app, org.id, owner.accessToken);
     idp.setSubject("replica-scim-user");
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);

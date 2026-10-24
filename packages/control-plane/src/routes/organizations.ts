@@ -40,7 +40,10 @@ import {
 } from "./org-assertion.js";
 import { normalizeEmailDomain } from "./org-domains.js";
 import {
+  issuerAssignmentDenial,
+  issuerClaimed,
   issuerConfigurationError,
+  issuerUrlDenial,
   samlConfigurationError,
 } from "./org-issuer-guard.js";
 import { type OrgOwnerSource, asOrgOwner } from "./org-owner-gate.js";
@@ -63,17 +66,6 @@ export {
 export type { JitJoinInput, JitJoinResult } from "./organization-membership.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
-
-/** A tenant issuer may name exactly one organization. */
-async function issuerClaimed(
-  ctx: AppContext,
-  issuer: string | undefined,
-  exceptOrganizationId?: string,
-): Promise<boolean> {
-  if (!issuer) return false;
-  const owner = await ctx.stores.organizations.findByIssuer(issuer);
-  return owner !== undefined && owner.id !== exceptOrganizationId;
-}
 
 /**
  * How stale an organization assertion may be at the join route (ADR 0055).
@@ -535,6 +527,8 @@ organizationRoutes.post(
             };
             if (parsed.data.ssoIssuer) org.ssoIssuer = parsed.data.ssoIssuer;
             if (parsed.data.samlIssuer) org.samlIssuer = parsed.data.samlIssuer;
+            const denied = issuerAssignmentDenial(c, org);
+            if (denied) return denied;
             await createOrganization(ctx, actor, proof, org);
             await ctx.stores.organizationMemberships.upsert({
               organizationId: org.id,
@@ -806,13 +800,8 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
           409,
         );
       }
-      const unsafeIssuer = issuerConfigurationError(
-        ctx.config,
-        parsed.data.ssoIssuer,
-      );
-      if (unsafeIssuer) {
-        return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
-      }
+      const unsafeIssuer = issuerUrlDenial(c, parsed.data.ssoIssuer);
+      if (unsafeIssuer) return unsafeIssuer;
       const updated: Organization = {
         id: org.id,
         slug: org.slug,
@@ -833,6 +822,8 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
       if (samlIssuer) updated.samlIssuer = samlIssuer;
       if (samlMetadataUrl) updated.samlMetadataUrl = samlMetadataUrl;
       if (samlMetadataXml) updated.samlMetadataXml = samlMetadataXml;
+      const denied = issuerAssignmentDenial(c, updated);
+      if (denied) return denied;
       const provisioningEnabled =
         parsed.data.provisioningEnabled ?? org.provisioningEnabled;
       if (provisioningEnabled) updated.provisioningEnabled = true;

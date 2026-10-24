@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { orgAssertionSeams } from "../routes/org-assertion.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
+import { createApprovedOrganizationFixture } from "./approved-federation.test-support.js";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -54,9 +55,12 @@ describe("verified email retarget on tenant join", () => {
     orgAssertionSeams.verifyOrgIdToken = originalVerify;
   });
 
-  async function seedOrg(app: App) {
+  async function seedOrg(
+    app: App,
+    ctx: ReturnType<typeof createControlPlane>["ctx"],
+  ) {
     const owner = await verified(app, "tenant-owner");
-    const created = await app.request("/v1/organizations", {
+    const created = await createApprovedOrganizationFixture(app, ctx, {
       method: "POST",
       headers: {
         ...auth(owner.accessToken),
@@ -75,7 +79,7 @@ describe("verified email retarget on tenant join", () => {
 
   it("does not grant the caller a membership when verified email retargets the identity", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig() });
-    const org = await seedOrg(app);
+    const org = await seedOrg(app, ctx);
     await ctx.stores.orgFederation.emailDomains.claim({
       organizationId: String(org.id),
       domain: "acme.test",

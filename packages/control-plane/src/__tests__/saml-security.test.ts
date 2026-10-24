@@ -10,6 +10,7 @@ import {
   resetSamlMetadataCache,
 } from "../interactions/saml.js";
 import type { startServer } from "../server.js";
+import { seedApprovedOrganizationFixture } from "./approved-federation.test-support.js";
 import { onFreePort } from "./free-port.js";
 import { hopUrl } from "./upstream-hop.js";
 
@@ -203,15 +204,10 @@ describe("SAML assertion validation", () => {
     started = await onFreePort((port) => startControlPlane(idp.issuer, port));
     base = `http://127.0.0.1:${started.port}`;
     acsUrl = `${base}/v1/saml/acs`;
-    const now = started.ctx.clock();
-    await started.ctx.stores.organizations.set(organizationId, {
+    await seedApprovedOrganizationFixture(started.ctx, {
       id: organizationId,
       slug: "acme",
       displayName: "Acme",
-      state: "active",
-      createdBy: "prn_seed_owner",
-      createdAt: now,
-      updatedAt: now,
       samlIssuer: idp.saml.entityId,
       samlMetadataUrl: idp.saml.metadataUrl,
     });
@@ -334,15 +330,10 @@ describe("SAML IdP-initiated sign-in", () => {
     started = await onFreePort((port) => startControlPlane(idp.issuer, port));
     base = `http://127.0.0.1:${started.port}`;
     acsUrl = `${base}/v1/saml/acs`;
-    const now = started.ctx.clock();
-    await started.ctx.stores.organizations.set(organizationId, {
+    await seedApprovedOrganizationFixture(started.ctx, {
       id: organizationId,
       slug: "beta",
       displayName: "Beta",
-      state: "active",
-      createdBy: "prn_seed_owner",
-      createdAt: now,
-      updatedAt: now,
       // The entityID is what routes an unsolicited response to this tenant —
       // there is no request to match it against.
       samlIssuer: idp.saml.entityId,

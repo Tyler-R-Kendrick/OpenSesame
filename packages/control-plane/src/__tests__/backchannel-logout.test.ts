@@ -7,6 +7,7 @@ import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { resetBackchannelLogoutBudget } from "../routes/backchannel-logout.js";
+import { createApprovedOrganizationFixture } from "./approved-federation.test-support.js";
 
 /**
  * OIDC Back-Channel Logout (C17, D13).
@@ -281,7 +282,7 @@ describe("back-channel logout", () => {
     const { app, ctx } = createControlPlane({ config: tenantOnlyConfig() });
     // The owner's own identity is unrelated to the tenant's IdP.
     const owner = await signedIn(app, "https://mock.example", "tenant-owner");
-    const created = await app.request("/v1/organizations", {
+    const created = await createApprovedOrganizationFixture(app, ctx, {
       method: "POST",
       headers: json(owner.accessToken),
       body: JSON.stringify({

@@ -6,6 +6,13 @@ import {
   OrgAssertionError,
   orgAssertionSeams,
 } from "../routes/org-assertion.js";
+import {
+  approveFederationFixture,
+  createApprovedOrganizationFixture,
+  createApprovedTenantFixture,
+  setApprovedOrganizationFixture,
+} from "./approved-federation.test-support.js";
+import { auth, provisional, verified } from "./scim-test-helpers.js";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -17,37 +24,6 @@ function testConfig() {
   } as const;
 }
 
-async function provisional(app: App) {
-  const res = await app.request("/v1/principals/provisional", {
-    method: "POST",
-  });
-  expect(res.status).toBe(201);
-  return overlapCast(await res.json());
-}
-
-async function verified(app: App, subject: string) {
-  const created = await provisional(app);
-  const linked = await app.request("/v1/principals/link-identities", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${created.accessToken}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      kind: "oidc",
-      issuer: "https://mock.example",
-      subject,
-      assurance: "verified",
-    }),
-  });
-  expect(linked.status).toBe(201);
-  return created;
-}
-
-function auth(token: string) {
-  return { authorization: `Bearer ${token}` };
-}
-
 describe("organization tenant discovery and join", () => {
   const originalVerify = orgAssertionSeams.verifyOrgIdToken;
 
@@ -56,28 +32,22 @@ describe("organization tenant discovery and join", () => {
     orgAssertionSeams.verifyOrgIdToken = originalVerify;
   });
 
-  async function seedOrg(app: App) {
+  async function seedOrg(
+    app: App,
+    ctx: ReturnType<typeof createControlPlane>["ctx"],
+  ) {
     const owner = await verified(app, "tenant-owner");
-    const created = await app.request("/v1/organizations", {
-      method: "POST",
-      headers: {
-        ...auth(owner.accessToken),
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        slug: "acme",
-        displayName: "Acme",
-        ssoIssuer: "http://127.0.0.1:9090",
-        samlIssuer: "http://127.0.0.1:8080/realms/acme",
-      }),
+    return createApprovedTenantFixture(app, ctx, String(owner.accessToken), {
+      slug: "acme",
+      displayName: "Acme",
+      ssoIssuer: "http://127.0.0.1:9090",
+      samlIssuer: "http://127.0.0.1:8080/realms/acme",
     });
-    expect(created.status).toBe(201);
-    return overlapCast(await created.json());
   }
 
   it("refuses to claim an entityID another tenant holds in either column", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
-    const acme = await seedOrg(app);
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    const acme = await seedOrg(app, ctx);
     const other = await verified(app, "tenant-other-owner");
 
     const sameAsSaml = await app.request("/v1/organizations", {
@@ -118,8 +88,8 @@ describe("organization tenant discovery and join", () => {
   });
 
   it("advertises SSO and SAML methods without authentication", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
-    await seedOrg(app);
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    await seedOrg(app, ctx);
 
     const res = await app.request("/v1/organizations/tenants/acme");
     expect(res.status).toBe(200);
@@ -144,7 +114,7 @@ describe("organization tenant discovery and join", () => {
 
   it("hides missing and suspended tenants", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig() });
-    const org = await seedOrg(app);
+    const org = await seedOrg(app, ctx);
     expect(
       (await app.request("/v1/organizations/tenants/missing")).status,
     ).toBe(404);
@@ -161,8 +131,8 @@ describe("organization tenant discovery and join", () => {
   });
 
   it("lets a provisional guest join after a verified org assertion", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
-    await seedOrg(app);
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    await seedOrg(app, ctx);
     orgAssertionSeams.verifyOrgIdToken = vi.fn(async () => ({ sub: "user-1" }));
 
     const guest = await provisional(app);
@@ -188,8 +158,8 @@ describe("organization tenant discovery and join", () => {
   });
 
   it("is idempotent when the guest is already a member", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
-    await seedOrg(app);
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    await seedOrg(app, ctx);
     orgAssertionSeams.verifyOrgIdToken = vi.fn(async () => ({ sub: "user-1" }));
     const guest = await provisional(app);
     const first = await app.request("/v1/organizations/tenants/acme/join", {
@@ -214,9 +184,9 @@ describe("organization tenant discovery and join", () => {
   });
 
   it("refuses an unconfigured method and a bad assertion", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
+    const { app, ctx } = createControlPlane({ config: testConfig() });
     const owner = await verified(app, "no-saml-owner");
-    const created = await app.request("/v1/organizations", {
+    const created = await createApprovedOrganizationFixture(app, ctx, {
       method: "POST",
       headers: {
         ...auth(owner.accessToken),
@@ -256,7 +226,7 @@ describe("organization tenant discovery and join", () => {
   });
 
   it("lets an owner set and clear tenant issuers", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
+    const { app, ctx } = createControlPlane({ config: testConfig() });
     const owner = await verified(app, "patch-owner");
     const created = await app.request("/v1/organizations", {
       method: "POST",
@@ -268,6 +238,10 @@ describe("organization tenant discovery and join", () => {
     });
     const org = overlapCast(await created.json());
 
+    approveFederationFixture(ctx, {
+      organizationId: org.id,
+      ssoIssuer: "https://idp.example",
+    });
     const patched = await app.request(`/v1/organizations/${org.id}`, {
       method: "PATCH",
       headers: {
@@ -299,13 +273,13 @@ describe("organization tenant discovery and join", () => {
 
   it("distinguishes native SAML from a brokering Keycloak, and advertises LDAP", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig() });
-    const org = await seedOrg(app);
+    const org = await seedOrg(app, ctx);
 
     // Metadata configured: the method becomes native SAML, runs server-side,
     // and stops offering the browser an issuer to redirect to.
     const stored = await ctx.stores.organizations.get(org.id);
     if (!stored) throw new Error("org missing");
-    await ctx.stores.organizations.set(org.id, {
+    await setApprovedOrganizationFixture(ctx, org.id, {
       ...stored,
       samlMetadataUrl: "https://idp.example/metadata",
     });
@@ -378,6 +352,10 @@ describe("organization tenant discovery and join", () => {
     }
 
     // A public issuer still lands.
+    approveFederationFixture(ctx, {
+      organizationId: org.id,
+      ssoIssuer: "https://idp.example",
+    });
     const allowed = await app.request(`/v1/organizations/${org.id}`, {
       method: "PATCH",
       headers: {
@@ -390,7 +368,7 @@ describe("organization tenant discovery and join", () => {
   });
 
   it("refuses two SAML metadata sources at once and stores the surviving one", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
+    const { app, ctx } = createControlPlane({ config: testConfig() });
     const owner = await verified(app, "metadata-owner");
     const created = await app.request("/v1/organizations", {
       method: "POST",
@@ -417,12 +395,28 @@ describe("organization tenant discovery and join", () => {
     });
     expect(both.status).toBe(400);
 
+    approveFederationFixture(ctx, {
+      organizationId: org.id,
+      samlIssuer: "urn:example:idp:metadata",
+      samlMetadataUrl: "https://idp.example/metadata",
+    });
     expect(
-      (await patch({ samlMetadataUrl: "https://idp.example/metadata" })).status,
+      (
+        await patch({
+          samlIssuer: "urn:example:idp:metadata",
+          samlMetadataUrl: "https://idp.example/metadata",
+        })
+      ).status,
     ).toBe(200);
     // Swapping to inline XML must clear the URL, or a later fetch has two
     // answers to "which document describes this IdP".
+    approveFederationFixture(ctx, {
+      organizationId: org.id,
+      samlIssuer: "urn:example:idp:metadata",
+      samlMetadataXml: `<EntityDescriptor>${"x".repeat(64)}</EntityDescriptor>`,
+    });
     const swapped = await patch({
+      samlIssuer: "urn:example:idp:metadata",
       samlMetadataUrl: null,
       samlMetadataXml: `<EntityDescriptor>${"x".repeat(64)}</EntityDescriptor>`,
     });
@@ -436,7 +430,7 @@ describe("organization tenant discovery and join", () => {
   });
 
   it("rejects issuer URLs with credentials", async () => {
-    const { app } = createControlPlane({ config: testConfig() });
+    const { app, ctx } = createControlPlane({ config: testConfig() });
     const owner = await verified(app, "bad-issuer");
     const created = await app.request("/v1/organizations", {
       method: "POST",

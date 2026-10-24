@@ -14,6 +14,7 @@ import {
   notificationChannelsFromEnv,
   parseChannelKinds,
 } from "./config-channels.js";
+import { loadFederationConfig } from "./config-federation.js";
 import {
   type ProtocolFeatures,
   loadProtocolFeatures,
@@ -27,11 +28,10 @@ import {
   type ProviderDescriptor,
   assertProviderDescriptor,
   configuredProviders,
-  loadProviderRegistry,
-  mergeProviderIssuers,
   normalizeIssuer,
 } from "./interactions/registry.js";
 import { assertClientAppUrl } from "./interactions/rendezvous.js";
+import type { OrganizationIssuerAssignment } from "./organization-issuer-assignments.js";
 import { readSupportProxyConfig } from "./services/support-proxy.js";
 import {
   type TransportConfig,
@@ -42,6 +42,8 @@ import {
 export type { AgentAuthTrustedProvider };
 
 export interface ControlPlaneConfig {
+  /** Operator-approved organization/issuer bindings, including native metadata. */
+  organizationIssuerAssignments?: OrganizationIssuerAssignment[];
   supportProxy?:
     | import("./services/support-proxy.js").SupportProxyConfig
     | undefined;
@@ -212,10 +214,16 @@ function truthyDefaultOn(v: string | undefined): boolean {
  * Invalid Date, which compares false against every expiry check. A malformed
  * value must fail the boot rather than silently disabling expiry.
  */
+interface DurationBounds {
+  name: string;
+  min: number;
+  max: number;
+}
+
 function parseBoundedDurationMs(
   raw: string | undefined,
   fallback: number,
-  bounds: { name: string; min: number; max: number },
+  bounds: DurationBounds,
 ): number {
   const text = raw?.trim();
   if (!text) return fallback;
@@ -295,12 +303,6 @@ export function loadConfig(
     );
   }
 
-  // Parsed before the config literal: a provider entry that configuration
-  // cannot satisfy (a multi-tenant Microsoft issuer, an Apple entry with no
-  // signing key) must refuse the boot rather than surface as a sign-in that
-  // fails for one user at a time.
-  const providers = loadProviderRegistry(env);
-
   const provisionalTtlMs = parseBoundedDurationMs(
     env.OPENSESAME_PROVISIONAL_TTL_MS,
     86_400_000,
@@ -339,14 +341,7 @@ export function loadConfig(
     operatorToken: env.OPENSESAME_OPERATOR_TOKEN ?? "",
     mappingResolveToken: env.OPENSESAME_MAPPING_RESOLVE_TOKEN ?? "",
     transport: loadTransportConfig(env),
-    trustedUpstreamIssuers: mergeProviderIssuers(
-      (env.OPENSESAME_TRUSTED_UPSTREAMS ?? "")
-        .split(",")
-        .map((s) => normalizeIssuer(s.trim()))
-        .filter(Boolean),
-      providers,
-    ),
-    providers,
+    ...loadFederationConfig(env),
     notifications: {
       // `in_app` is the durable inbox and is always configured: it is the
       // surface every other channel merely points at.

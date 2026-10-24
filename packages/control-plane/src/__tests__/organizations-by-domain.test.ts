@@ -1,3 +1,4 @@
+import { createApprovedOrganizationFixture } from "./approved-federation.test-support.js";
 /**
  * `GET /v1/organizations/by-domain/:domain` — the JSON twin of the login
  * page's realm router (routes/interactions-realm.ts).
@@ -53,18 +54,22 @@ async function seedOrgWithDomain(
   options: SeedOptions = { verify: true },
 ) {
   const owner = await verifiedOwner(plane);
-  const created = await plane.app.request("/v1/organizations", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${owner.accessToken}`,
-      "content-type": "application/json",
+  const created = await createApprovedOrganizationFixture(
+    plane.app,
+    plane.ctx,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${owner.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        slug: "acme-corp",
+        displayName: "Acme Corp",
+        ssoIssuer: "http://127.0.0.1:9090",
+      }),
     },
-    body: JSON.stringify({
-      slug: "acme-corp",
-      displayName: "Acme Corp",
-      ssoIssuer: "http://127.0.0.1:9090",
-    }),
-  });
+  );
   expect(created.status).toBe(201);
   const org = overlapCast(await created.json());
   await plane.ctx.stores.orgFederation.emailDomains.claim({

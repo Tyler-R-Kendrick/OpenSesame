@@ -4,6 +4,10 @@ import { createControlPlane } from "../create-app.js";
 import { ldapIssuer } from "../interactions/ldap.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import {
+  createApprovedOrganizationFixture,
+  setApprovedOrganizationFixture,
+} from "./approved-federation.test-support.js";
+import {
   type App,
   auth,
   json,
@@ -33,8 +37,12 @@ function plane() {
   });
 }
 
-async function createOrg(app: App, ownerToken: string) {
-  const created = await app.request("/v1/organizations", {
+async function createOrg(
+  app: App,
+  ctx: ReturnType<typeof createControlPlane>["ctx"],
+  ownerToken: string,
+) {
+  const created = await createApprovedOrganizationFixture(app, ctx, {
     method: "POST",
     headers: json(ownerToken),
     body: JSON.stringify({
@@ -53,7 +61,7 @@ describe("SCIM directory issuers", () => {
   it("revokes a member admitted by the organization LDAP directory", async () => {
     const { app, ctx } = plane();
     const owner = await verified(app, "dir-owner");
-    const orgId = await createOrg(app, String(owner.accessToken));
+    const orgId = await createOrg(app, ctx, String(owner.accessToken));
     const directoryUrl = "ldaps://dir.acme.example:636/dc=acme?x=1";
     await ctx.stores.orgFederation.ldapConfigs.put({
       organizationId: orgId,
@@ -127,10 +135,10 @@ describe("SCIM directory issuers", () => {
   it("revokes a native SAML member stored under the metadata entityID", async () => {
     const { app, ctx } = plane();
     const owner = await verified(app, "saml-owner");
-    const orgId = await createOrg(app, String(owner.accessToken));
+    const orgId = await createOrg(app, ctx, String(owner.accessToken));
     const org = await ctx.stores.organizations.get(orgId);
     if (!org) throw new Error("org missing");
-    await ctx.stores.organizations.set(orgId, {
+    await setApprovedOrganizationFixture(ctx, orgId, {
       ...org,
       samlIssuer: SAML_ENTITY,
       samlMetadataXml: SAML_METADATA,

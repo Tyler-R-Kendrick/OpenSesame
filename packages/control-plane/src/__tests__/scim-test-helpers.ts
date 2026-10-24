@@ -3,6 +3,7 @@ import type { ReferenceIdp } from "@opensesame/mock-upstream-idp/testkit";
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { expect } from "vitest";
 import type { createControlPlane } from "../create-app.js";
+import { createApprovedOrganizationFixture } from "./approved-federation.test-support.js";
 
 export type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -103,9 +104,14 @@ export async function mintOrgIdToken(idp: ReferenceIdp, origin: string) {
   return { idToken, subject };
 }
 
-export async function seedTenant(app: App, slug: string, idp: ReferenceIdp) {
+export async function seedTenant(
+  app: App,
+  ctx: ReturnType<typeof createControlPlane>["ctx"],
+  slug: string,
+  idp: ReferenceIdp,
+) {
   const owner = await verified(app, `${slug}-owner`);
-  const created = await app.request("/v1/organizations", {
+  const created = await createApprovedOrganizationFixture(app, ctx, {
     method: "POST",
     headers: json(requireToken(owner)),
     body: JSON.stringify({
