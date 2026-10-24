@@ -35,6 +35,7 @@ const MANAGED = new Set(
 /** Retired from browse; saved connections and Settings retain these rows. */
 const RETIRED_FROM_BROWSE = new Set([
   "assemblyai",
+  "byo-ai",
   "cohere",
   "deepgram",
   "minimax",
