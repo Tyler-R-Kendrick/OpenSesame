@@ -288,6 +288,9 @@ export function admitControl(root, name) {
   });
 }
 
+/** The session SAS each owner's panel compared before letting someone in. */
+const compared = new WeakMap();
+
 async function confirmSessionSas(panel) {
   // The owner's fingerprint is also `.live-sas`. The session string is the
   // one on the guest row, which is what the joiner is showing.
@@ -297,6 +300,16 @@ async function confirmSessionSas(panel) {
   if (!SAS_TEXT.test(text)) {
     throw new Error(`session SAS is not readable: ${text}`);
   }
+  compared.set(panel, text);
+}
+
+/**
+ * The session SAS the owner compared on the guest's row before "Yes, they
+ * match". The row shows it only while the guest is asking, so it is read
+ * there, the way a person compares it, and not after the guest is let in.
+ */
+export function ownerComparedSas(panel) {
+  return compared.get(panel) ?? "";
 }
 
 /**
@@ -342,7 +355,8 @@ export async function ownerAdmitsByHand(
 
 export async function joinerConnects(page, reply) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
-  await page.getByRole("button", { name: "Connect" }).click();
+  // Exact: the top bar's "More — all connected" also contains the word.
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
 }
 
 /** Open a folded `<details>` the way a person does: by its summary. */
