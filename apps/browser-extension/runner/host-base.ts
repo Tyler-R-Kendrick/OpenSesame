@@ -22,9 +22,10 @@ export async function resolveHostBase(): Promise<string> {
     const stored = await browser.storage.local.get("hostApiBase");
     const raw = stored.hostApiBase;
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
-    const value = typeof raw === "string"
-      ? await openFromRest(STORE, "hostApiBase", raw)
-      : null;
+    const value =
+      typeof raw === "string"
+        ? await openFromRest(STORE, "hostApiBase", raw)
+        : null;
     if (typeof raw === "string" && value && !isSealedForRest(raw)) {
       // Written in the clear by an older build: seal it where it lies.
       const sealed = await sealForRest(STORE, "hostApiBase", value);

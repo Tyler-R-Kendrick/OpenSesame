@@ -22,9 +22,10 @@ async function loadHostInput() {
   try {
     const stored = await browser.storage.local.get("hostApiBase");
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
-    const value = typeof stored.hostApiBase === "string"
-      ? await openFromRest(STORE, "hostApiBase", stored.hostApiBase)
-      : null;
+    const value =
+      typeof stored.hostApiBase === "string"
+        ? await openFromRest(STORE, "hostApiBase", stored.hostApiBase)
+        : null;
     input.value = value?.trim() ? value : DEFAULT_HOST;
   } catch {
     input.value = DEFAULT_HOST;

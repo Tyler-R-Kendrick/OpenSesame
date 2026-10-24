@@ -14,7 +14,7 @@ import {
   openFromRest,
   sealForRest,
 } from "@opensesame/browser-at-rest";
-import { type BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 
 export const STORE = "chrome.storage.local";
 const PREFIX = "runner.";
