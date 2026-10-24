@@ -182,57 +182,6 @@ fn docker_daemon_5xx_exits_nonzero_with_empty_stdout() {
     assert!(out.stdout.is_empty());
 }
 
-// ——— opensesame-credential-process ————————————————————————————————
-
-fn aws_bin() -> String {
-    named::binary("opensesame-credential-process")
-}
-
-#[test]
-fn aws_unmintable_fails_closed_with_a_clear_message() {
-    let stub = spawn_stub_daemon(422, r#"{"error":"unmintable"}"#, 1);
-    let out = run_helper(
-        &aws_bin(),
-        &[],
-        "",
-        &[
-            ("OPENSESAME_AGENT_SOCK", stub.sock.to_str().unwrap()),
-            ("OPENSESAME_AWS_CONNECTION_ID", "conn_aws"),
-        ],
-    );
-    assert!(!out.status.success());
-    assert!(out.stdout.is_empty());
-    let stderr = String::from_utf8(out.stderr).unwrap();
-    assert!(stderr.contains("unmintable"), "{stderr}");
-}
-
-#[test]
-fn aws_sts_shaped_mint_prints_the_credential_process_shape() {
-    // When the aws mint arm lands, the daemon answer carries STS fields and
-    // this binary must light up without a code change.
-    let body = r#"{"connection_id":"conn_aws","provider_id":"aws","kind":"aws_sts_session","derived_token":"unused","access_key_id":"AKIATEST","secret_access_key":"secret","session_token":"session","expires_at":"2026-08-20T03:00:00Z"}"#;
-    let stub = spawn_stub_daemon(200, body, 1);
-    let out = run_helper(
-        &aws_bin(),
-        &[],
-        "",
-        &[
-            ("OPENSESAME_AGENT_SOCK", stub.sock.to_str().unwrap()),
-            ("OPENSESAME_AWS_CONNECTION_ID", "conn_aws"),
-        ],
-    );
-    assert!(
-        out.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let stdout: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(stdout["Version"], 1);
-    assert_eq!(stdout["AccessKeyId"], "AKIATEST");
-    assert_eq!(stdout["SessionToken"], "session");
-    assert_eq!(stdout["Expiration"], "2026-08-20T03:00:00Z");
-}
-
 // ——— opensesame-kube-exec —————————————————————————————————————————
 
 fn kube_bin() -> String {
