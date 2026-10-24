@@ -1,4 +1,4 @@
-// kit-archive.sh sums (ADR 0207): the bridge published on its own is the one
+// kit-archive.sh sums (ADR 0212): the bridge published on its own is the one
 // inside every kit, checked when the sums are written.
 import { spawnSync } from "node:child_process";
 import {

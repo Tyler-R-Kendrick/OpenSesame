@@ -1,4 +1,4 @@
-// The release kit (ADR 0207): the workflow's shape, where its edits send CI,
+// The release kit (ADR 0212): the workflow's shape, where its edits send CI,
 // and the archive script's bytes.
 import { execFileSync, spawnSync } from "node:child_process";
 import {

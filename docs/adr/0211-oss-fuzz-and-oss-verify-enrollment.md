@@ -5,7 +5,7 @@
 - Amends: [ADR 0036](0036-coverage-guided-fuzz-and-bounded-proofs.md)
   (Decision 7: "do not file `google/oss-fuzz` until there is a convincing
   acceptance case")
-- Builds on: [ADR 0207](0207-release-kit-binaries.md) (the release posture this
+- Builds on: [ADR 0212](0212-release-kit-binaries.md) (the release posture this
   makes public), [ADR 0080](0080-security-event-hooks.md) (every security fact
   becomes a `SecurityNotice` — a hosted-fuzzer crash is triaged through the
   same audit trail)
@@ -22,7 +22,7 @@ directory and no public release posture.
 
 That posture now exists: the repository runs the required CI checks, publishes
 the Pages app on every merge, ships native binaries through the release kit
-(ADR 0207), carries a public SECURITY.md with private vulnerability
+(ADR 0212), carries a public SECURITY.md with private vulnerability
 reporting, and scans itself on a schedule (`security.yml`). The remaining
 honest gap is that the fuzz estate runs only where a maintainer remembers to
 run it: a hosted fuzzer is the one layer that keeps running when nobody is
