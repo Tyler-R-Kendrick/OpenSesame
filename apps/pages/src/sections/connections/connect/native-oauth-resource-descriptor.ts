@@ -148,6 +148,14 @@ export function nativeOAuthResourceDescriptor(
         preset.authorizationEndpoint,
       ),
       publicEndpoint("token_endpoint", "Token endpoint", preset.tokenEndpoint),
+      {
+        id: "token_relay_url",
+        label: "Token relay URL (optional)",
+        kind: "url",
+        secret: false,
+        required: false,
+        help: "Use a relay you control to keep the client secret off this device. The relay receives the authorization-code form and performs the exchange at the token endpoint.",
+      },
       publicEndpoint(
         "resource",
         "API resource URL",
