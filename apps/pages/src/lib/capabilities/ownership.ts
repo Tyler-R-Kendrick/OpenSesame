@@ -117,6 +117,11 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   [tailscaleArtifacts.assets.license]: "networking.tailnet",
   [tailscaleArtifacts.assets.nativeHTTP]: "networking.tailnet",
   [tailscaleArtifacts.assets.notices]: "networking.tailnet",
+  // Unconditional copied public-site documents, independently parsed as graph entries.
+  "404.html": null,
+  "about.html": null,
+  "contact.html": null,
+  "privacy.html": null,
   "icon.svg": null,
   // Standalone save widget for the core vault /save review route.
   "save-button.js": null,
