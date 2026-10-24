@@ -52,6 +52,12 @@ declare module "oidc-provider" {
     cookies?: import("@opensesame/os-domain").JsonObject;
     features?: import("@opensesame/os-domain").BoundaryValue;
     jwks?: { keys: import("@opensesame/os-domain").JsonObject[] };
+    /** Maximum bytes read by oidc-provider's native external-resource reader. */
+    fetchResponseBodyLimits?: {
+      sector_identifier_uri?: number;
+      jwks_uri?: number;
+      "client_id metadata document"?: number;
+    };
     pkce?: {
       required?: (
         ctx: KoaContext,
