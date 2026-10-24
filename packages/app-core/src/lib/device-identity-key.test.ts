@@ -128,7 +128,12 @@ describe("one key across tabs", () => {
   it("mints only inside the vault's lock, and never with two inside at once", async () => {
     const tomb = await openTomb();
     await twoTabs(tomb);
-    expect(locks.requested).toEqual([
+    // The VFS's own cross-tab locks are asked for too; the mint's lock is this.
+    expect(
+      locks.requested.filter((name) =>
+        name.startsWith("opensesame-device-identity-"),
+      ),
+    ).toEqual([
       `opensesame-device-identity-${tomb}`,
       `opensesame-device-identity-${tomb}`,
     ]);
