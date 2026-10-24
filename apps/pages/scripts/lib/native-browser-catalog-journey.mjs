@@ -6,10 +6,12 @@ import {
   nativeAuthFieldViolations,
 } from "./native-browser-auth-field-contract.mjs";
 import {
+  NATIVE_API_FAMILIES,
   NATIVE_CANONICAL_CATALOG_IDS,
   NATIVE_CANONICAL_PROVIDERS,
   NATIVE_SHARED_AI_PRESETS,
   nativeAuthFieldMethods,
+  nativeCatalogId,
 } from "./native-browser-catalog-projection.mjs";
 import { addCapabilities } from "./pages-journey.mjs";
 
@@ -28,18 +30,54 @@ export async function nativeEnableConnections(page, base) {
     .waitFor();
 }
 
-const PROVIDER_NAMES = new Map(
-  NATIVE_CANONICAL_PROVIDERS.map((provider) => [provider.id, provider.name]),
-);
+/**
+ * The provider a connector route draws, found the way `connectionRouteProvider`
+ * finds it: the row with that id, else the row whose catalog id the route's
+ * id names. This build keeps some rows under an alias (`aws-secrets-manager`
+ * for the catalog's `aws`).
+ */
+function routeProvider(id) {
+  return (
+    NATIVE_CANONICAL_PROVIDERS.find((provider) => provider.id === id) ??
+    NATIVE_CANONICAL_PROVIDERS.find(
+      (provider) => nativeCatalogId(provider.id) === nativeCatalogId(id),
+    )
+  );
+}
 
 /**
- * The page a catalog row opens is named for its provider. A family tile
- * (`catalog-families.ts`) is named for the family instead ("AWS") and opens
- * its canonical member's page ("AWS Secrets Manager"), whose "API family"
- * select reaches the family's other APIs.
+ * The page a catalog row opens is named for the provider its route draws. A
+ * family tile (`catalog-families.ts`) is named for the family instead ("AWS")
+ * and opens its canonical member's page ("AWS Secrets Manager").
  */
 function providerPage(row) {
-  return { ...row, name: PROVIDER_NAMES.get(row.id) ?? row.name };
+  return { ...row, name: routeProvider(row.id)?.name ?? row.name };
+}
+
+/**
+ * A family tile hides the family's other APIs from the catalog, so the page it
+ * opens must offer every member this build has a row for in its "API family"
+ * select, or a person has no way to reach them from Add a connection.
+ */
+async function nativeFamilyContract(page, row, { check }) {
+  const family = NATIVE_API_FAMILIES.find(
+    (candidate) => nativeCatalogId(candidate.id) === nativeCatalogId(row.id),
+  );
+  const members = (family?.members ?? [])
+    .map(routeProvider)
+    .filter(Boolean)
+    .map((provider) => provider.name);
+  if (members.length < 2) return;
+  const offered = await page
+    .locator(".conn-settings__family")
+    .getByRole("combobox", { name: "API family", exact: true })
+    .locator("option")
+    .allTextContents();
+  const missing = members.filter((name) => !offered.includes(name));
+  check(
+    missing.length === 0,
+    `${row.id}: the family page offers ${members.join(", ")} under API family${missing.length ? ` (missing: ${missing.join(", ")})` : ""}`,
+  );
 }
 
 async function catalogRows(page) {
@@ -262,6 +300,7 @@ export async function nativeCatalogJourney(
     const target = providerPage(row);
     const sheet = await nativeArrival(page, target);
     await nativePageContract(page, target, { check: harness.check, phone });
+    if (!sheet) await nativeFamilyContract(page, row, { check: harness.check });
     const preset = NATIVE_SHARED_AI_PRESETS.get(row.id);
     if (preset)
       await nativeAiFormContract(page, target, preset, {
