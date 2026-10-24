@@ -2,29 +2,37 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 import { aiCompletionSeams } from "../ai-completion-observation.js";
 import { aiConnectionBase } from "./configuration.js";
 import { aiConnectionHeaders, type aiInferenceRequest } from "./protocol.js";
+import { aiStreamBody } from "./stream-body.js";
 import {
   type AiConnectionDraft,
   AiConnectionError,
   type AiConnectionTransport,
 } from "./types.js";
 
-// A transport may retire its physical cancellation link only at actual body EOF.
+// A transport retires physical forwarding only after bounded EOF and native drain.
 // The original Response is retained unchanged; logical authority remains separate.
-const responseLifetimes = new WeakMap<Response, () => void>();
+const responseLifetimes = new WeakMap<
+  Response,
+  { signal: AbortSignal; retire?: () => void }
+>();
 
-export function bindAiResponseLifetime(response: Response, retire: () => void) {
+export function bindAiResponseLifetime(
+  response: Response,
+  retire: () => void,
+  signal: AbortSignal,
+) {
   if (responseLifetimes.has(response))
     throw new AiConnectionError(
       "response",
       "The AI transport reused a live response.",
     );
-  responseLifetimes.set(response, retire);
+  responseLifetimes.set(response, { signal, retire });
 }
 
 function finishAiResponseBody(response: Response) {
-  const retire = responseLifetimes.get(response);
+  const lifetime = responseLifetimes.get(response);
   responseLifetimes.delete(response);
-  retire?.();
+  lifetime?.retire?.();
 }
 
 export {
@@ -141,6 +149,8 @@ export async function aiProtocolFetch(
     transport.assertCurrent();
     transport.signal.throwIfAborted();
     checkAiResponse(response);
+    if (!responseLifetimes.has(response))
+      responseLifetimes.set(response, { signal });
     aiCompletionSeams.observe?.({
       phase: "request",
       response,
@@ -151,6 +161,7 @@ export async function aiProtocolFetch(
     return response;
   } catch (error) {
     await response.body?.cancel().catch(() => undefined);
+    finishAiResponseBody(response);
     throw error;
   }
 }
@@ -159,23 +170,29 @@ export async function readAiJson(
   response: Response,
   check: () => void,
 ): Promise<BoundaryValue> {
-  const reader = response.body?.getReader();
-  if (!reader)
+  if (!response.body) {
+    finishAiResponseBody(response);
     throw new AiConnectionError(
       "response",
       "The AI service returned no response body.",
     );
+  }
+  const body = aiStreamBody(
+    response,
+    check,
+    responseLifetimes.get(response)?.signal,
+    () =>
+      new AiConnectionError(
+        "response",
+        "The AI service returned an incomplete JSON response.",
+      ),
+  );
   const chunks: Uint8Array[] = [];
   let length = 0;
-  let ended = false;
   let value: BoundaryValue = null;
   try {
     for (;;) {
-      check();
-      const next = await reader.read();
-      ended = next.done;
-      if (next.done) finishAiResponseBody(response);
-      check();
+      const next = await body.read();
       if (next.done) break;
       length += next.value.byteLength;
       if (length > 512 * 1024)
@@ -199,10 +216,15 @@ export async function readAiJson(
         "The AI service returned an unreadable JSON response.",
       );
     }
+    await body.finish(length);
   } finally {
-    if (!ended) await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
+    try {
+      await body.close();
+    } finally {
+      finishAiResponseBody(response);
+    }
   }
+  check();
   aiCompletionSeams.observe?.({
     phase: "body",
     response,

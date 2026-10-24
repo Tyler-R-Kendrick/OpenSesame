@@ -66,7 +66,8 @@ function aiFetch(
           await response.body?.cancel().catch(() => undefined);
           request.signal.throwIfAborted();
         }
-        if (response.body) bindAiResponseLifetime(response, request.retire);
+        if (response.body)
+          bindAiResponseLifetime(response, request.retire, request.signal);
         else request.retire();
         return response;
       });
