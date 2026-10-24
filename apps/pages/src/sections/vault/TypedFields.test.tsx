@@ -1,3 +1,4 @@
+import { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   type Folder,
   type VaultItem,
@@ -41,16 +42,15 @@ const vault = vi.hoisted(
   (): VaultFixture => ({ current: { items: [], folders: [] } }),
 );
 const saveItem = vi.hoisted(() => vi.fn<(item: VaultItem) => Promise<void>>());
+// The renderer uses the store's real scope contract; only UI saves are recorded.
+const store = new VaultStore();
+const saveItemSpy = vi.spyOn(store, "saveItem").mockImplementation(saveItem);
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
-  useVaultStore: () => ({
-    saveItem,
-    trashItem: vi.fn(),
-    toggleFavorite: vi.fn(),
-  }),
+  useVaultStore: () => store,
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 
@@ -158,6 +158,7 @@ afterEach(() => {
 
 afterAll(() => {
   Object.assign(vaultHooksSeams, originalVaultHooksSeams);
+  saveItemSpy.mockRestore();
 });
 
 describe("the editor for a type installed at runtime", () => {
