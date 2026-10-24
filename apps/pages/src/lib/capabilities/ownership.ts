@@ -118,6 +118,8 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   [tailscaleArtifacts.assets.nativeHTTP]: "networking.tailnet",
   [tailscaleArtifacts.assets.notices]: "networking.tailnet",
   "icon.svg": null,
+  // Standalone save widget for the core vault /save review route.
+  "save-button.js": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,
   "auth/native-client.json": "connectors.external",
