@@ -92,6 +92,44 @@ profiles must omit the Networking runtime and all three Tailscale public assets;
 their ceilings, and every structural ceiling, remain unchanged. Final profile
 builds and installed-PWA cache checks are recorded separately before readiness.
 
+## Amendment 2026-10-24 — the Worker trusts one transferred port
+
+The Worker object is reachable from code on the page.
+`tailscaleBrowserNode()` returns the controller, whose TypeScript-private
+`worker` is an ordinary property, and `Worker.prototype.postMessage` can be
+wrapped. Its own message channel therefore grants nothing.
+
+- **One port per start.** Each `start` creates a `MessageChannel` and
+  transfers one port with the `start` message. The worker binds the single
+  port of its first `start`. A later `start`, or one carrying no port or
+  several, starts nothing.
+- **Grants and decisions travel only on that port.** A peer GET is posted
+  there only after the egress policy approved that exact URL. An egress
+  decision reply names the URL and method it decided, and the worker settles
+  a pending request only with a reply for that same request.
+- **Everything else after `start` rides it too**, in both directions:
+  `login`, the native HTTP and close commands, and every message the worker
+  sends.
+- **Nothing on the Worker channel is trusted.** The worker acts on nothing
+  but `start` posted to the Worker. The controller sets no message handler on
+  the Worker, so a message posted or dispatched there reaches nothing. The
+  Worker's `error` event only stops the node, which `stop()` already permits.
+- **The page's end of the port stays private.** It is kept only in `#private`
+  fields, beside `approve` and `approvePeer`, which are bound when the
+  controller is created, before the node is published.
+
+Residual risk: script that runs on this origin before the node starts can
+wrap `Worker`, `MessageChannel` or `MessagePort` and stand between the two.
+No check in the page can see that. The deployment bounds it:
+
+- the PWA's Content-Security-Policy (`script-src 'self' 'wasm-unsafe-eval'`)
+  admits no inline or third-party script;
+- the origin serves no other script;
+- on the shared `github.io` origin, every other Pages site of the same
+  account is same-origin, and a dedicated origin removes that.
+
+Audit: `docs/security/audits/2026-10-24-tailnet-worker-peer-get.md`.
+
 References:
 
 - [Official AI guidance](https://tailscale.com/docs/develop-with-ai)

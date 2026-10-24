@@ -32,14 +32,20 @@ export class BrowserNodeRequests {
   }
   private retirement: Promise<boolean> | null = null;
   private retired: ((closed: boolean) => void) | null = null;
+  // Truly private: the page reaches this object and its Worker, never these.
+  readonly #port: Pick<MessagePort, "postMessage">;
+  readonly #approvePeer: (url: string) => boolean;
   constructor(
-    private readonly worker: Pick<Worker, "postMessage">,
+    port: Pick<MessagePort, "postMessage">,
     private readonly check: () => void,
     private readonly connected: () => boolean,
-    private readonly approvePeer: (url: string) => boolean,
+    approvePeer: (url: string) => boolean,
     private readonly stop: () => void,
     private readonly nativeEnabled: boolean,
-  ) {}
+  ) {
+    this.#port = port;
+    this.#approvePeer = approvePeer;
+  }
   private assertCurrent = () => {
     this.lifetime.signal.throwIfAborted();
     this.check();
@@ -78,7 +84,7 @@ export class BrowserNodeRequests {
     for (const resolve of [...this.readiness]) resolve(false);
     this.readiness.clear();
     try {
-      this.worker.postMessage({ kind: "closeHTTP" });
+      this.#port.postMessage({ kind: "closeHTTP" });
     } catch {
       this.retired?.(false);
       this.retired = null;
@@ -88,7 +94,7 @@ export class BrowserNodeRequests {
   get(url: string): Promise<{ status: number; text: string }> {
     this.lifetime.signal.throwIfAborted();
     this.check();
-    if (this.pending.size >= 4 || !this.connected() || !this.approvePeer(url))
+    if (this.pending.size >= 4 || !this.connected() || !this.#approvePeer(url))
       return Promise.reject(
         new Error(
           "Connect a browser node and allow this tailnet service first.",
@@ -120,7 +126,7 @@ export class BrowserNodeRequests {
           finish();
           try {
             this.assertCurrent();
-            if (!this.approvePeer(url))
+            if (!this.#approvePeer(url))
               throw new Error("The original peer grant ended.");
             resolve({ status: message.status, text: message.text });
           } catch {
@@ -128,7 +134,7 @@ export class BrowserNodeRequests {
           }
         },
       });
-      this.worker.postMessage({ kind: "get", id, url });
+      this.#port.postMessage({ kind: "get", id, url });
     });
   }
   capture(owner: AbortSignal): TailscaleNativeHTTPPort {
@@ -198,7 +204,7 @@ export class BrowserNodeRequests {
       this.readiness.add(finish);
       signal.addEventListener("abort", abort, { once: true });
       if (signal.aborted) finish(false);
-      else this.worker.postMessage({ kind: "nativeHTTPReady" });
+      else this.#port.postMessage({ kind: "nativeHTTPReady" });
     });
   }
   private stream(
@@ -218,7 +224,7 @@ export class BrowserNodeRequests {
       request,
       signal,
       check,
-      post: (message) => this.worker.postMessage(message),
+      post: (message) => this.#port.postMessage(message),
       retire: () => this.pending.delete(id),
     });
     this.pending.set(id, stream);
@@ -244,7 +250,7 @@ export class BrowserNodeRequests {
       };
       const abort = () => {
         finish();
-        this.worker.postMessage({ kind: "cancelHTTP", id });
+        this.#port.postMessage({ kind: "cancelHTTP", id });
         reject(new Error("The original native HTTPS request ended."));
       };
       this.pending.set(id, {
@@ -289,7 +295,7 @@ export class BrowserNodeRequests {
       });
       signal.addEventListener("abort", abort, { once: true });
       if (signal.aborted) abort();
-      else this.worker.postMessage({ kind: "nativeHTTP", id, request });
+      else this.#port.postMessage({ kind: "nativeHTTP", id, request });
     });
   }
 }
