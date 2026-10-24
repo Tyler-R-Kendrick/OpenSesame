@@ -6,22 +6,14 @@
  * assertion against trusted configuration, or refuses.
  */
 
-import {
-  type BoundaryValue,
-  type JsonObject,
-  isJsonObject,
-  isNumber,
-  isString,
-} from "@opensesame/os-domain";
+import { type JsonObject, isNumber, isString } from "@opensesame/os-domain";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
-import {
-  decodeJwtEnvelope,
-  verifyRestoredBrowserIdToken,
-} from "@opensesame/sdk-browser";
+import { verifyRestoredBrowserIdToken } from "@opensesame/sdk-browser";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import { restoreConfiguredIdentityIfNative } from "./federation-configured-lazy.js";
-import { configuredSamlIdentity } from "./federation-configured-token.js";
-import type { UpstreamIdentity } from "./federation.js";
+import type { UpstreamIdentity } from "./federation-native-session.js";
+import { parseStoredAssertion } from "./federation-stored-session.js";
+export { readStoredSessionSync } from "./federation-stored-session.js";
 
 export type RestorationTrust = {
   issuer: string;
@@ -40,24 +32,6 @@ export type RestorationResult =
       kind: "rejected";
       reason: "suppressed" | "untrusted" | "invalid" | "expired" | "revoked";
     };
-
-function parseStoredAssertion(raw: string): JsonObject | null {
-  try {
-    const stored: BoundaryValue = JSON.parse(raw);
-    if (
-      !isJsonObject(stored) ||
-      !isString(stored.idToken) ||
-      !isString(stored.issuer) ||
-      stored.assertionFormat === "saml" ||
-      (isString(stored.upstreamId) && configuredSamlIdentity(stored.upstreamId))
-    ) {
-      return null;
-    }
-    return stored;
-  } catch {
-    return null;
-  }
-}
 
 function trustMatches(
   stored: JsonObject,
@@ -120,97 +94,4 @@ export async function restoreAuthenticatedSession(
 
 function trim(value: string): string {
   return value.replace(/\/+$/, "");
-}
-
-function looksLikeJwt(token: string): boolean {
-  return token.split(".").length === 3;
-}
-
-function jwtAudience(aud: BoundaryValue): string | null {
-  if (isString(aud)) return aud;
-  if (Array.isArray(aud) && isString(aud[0])) return aud[0];
-  return null;
-}
-
-function identityFromJwt(stored: JsonObject): UpstreamIdentity | null {
-  if (!isString(stored.idToken) || !looksLikeJwt(stored.idToken)) return null;
-  if (!isString(stored.upstreamId) || !isString(stored.jwksUri)) return null;
-  try {
-    const { claims } = decodeJwtEnvelope(stored.idToken);
-    const audience = jwtAudience(claims.aud);
-    const pairwiseSub = isString(claims.pairwise_sub)
-      ? claims.pairwise_sub
-      : isString(claims.sub)
-        ? claims.sub
-        : null;
-    if (
-      !isString(claims.iss) ||
-      !pairwiseSub ||
-      !isNumber(claims.exp) ||
-      !audience
-    ) {
-      return null;
-    }
-    return {
-      issuer: claims.iss,
-      upstreamId: stored.upstreamId,
-      idToken: stored.idToken,
-      pairwiseSub,
-      audience,
-      jwksUri: stored.jwksUri,
-      expiresAt: claims.exp * 1000,
-      ...(isString(claims.email) ? { email: claims.email } : undefined),
-      ...(isString(claims.name) ? { name: claims.name } : undefined),
-      ...(isString(claims.picture) ? { picture: claims.picture } : undefined),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function identityFromStoredJson(stored: JsonObject): UpstreamIdentity | null {
-  if (
-    !isString(stored.issuer) ||
-    !isString(stored.upstreamId) ||
-    !isString(stored.idToken) ||
-    !isString(stored.pairwiseSub) ||
-    !isString(stored.audience) ||
-    !isString(stored.jwksUri) ||
-    !isNumber(stored.expiresAt)
-  ) {
-    return null;
-  }
-  return {
-    issuer: stored.issuer,
-    upstreamId: stored.upstreamId,
-    idToken: stored.idToken,
-    pairwiseSub: stored.pairwiseSub,
-    audience: stored.audience,
-    jwksUri: stored.jwksUri,
-    expiresAt: stored.expiresAt,
-    ...(isString(stored.email) ? { email: stored.email } : undefined),
-    ...(isString(stored.name) ? { name: stored.name } : undefined),
-  };
-}
-
-/**
- * Synchronous restoration used by `loadSession`. JWT payload claims override
- * mutable JSON `expiresAt` / `name` / `sub`. Suppression wins. This is not a
- * signature check — `restoreAuthenticatedSession` does that online.
- */
-export function readStoredSessionSync(
-  raw: string | null,
-  isTrustedIssuer: (issuer: string) => boolean,
-): UpstreamIdentity | null {
-  if (!raw) return null;
-  if (ambientAuthSeams.autoAuthSuppressed()) return null;
-  const stored = parseStoredAssertion(raw);
-  if (!stored || !isString(stored.idToken)) return null;
-  const identity = looksLikeJwt(stored.idToken)
-    ? identityFromJwt(stored)
-    : identityFromStoredJson(stored);
-  if (!identity) return null;
-  if (identity.expiresAt <= Date.now()) return null;
-  if (!isTrustedIssuer(identity.issuer)) return null;
-  return identity;
 }
