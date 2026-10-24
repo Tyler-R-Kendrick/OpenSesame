@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
+import { rememberLocalGithubApp } from "@opensesame/app-core/lib/github-app-local.js";
+import {
+  forgetLocalGithubApp,
+  readLocalGithubApp,
+} from "@opensesame/app-core/lib/github-app-manifest.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+<<<<<<< HEAD
 import {
   GithubAppForgetButton,
   githubAppForgetSeams,
@@ -12,40 +18,71 @@ const original = { ...githubAppForgetSeams };
 
 beforeEach(() => {
   githubAppForgetSeams.forget = forget;
+=======
+import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
+
+const REMOVE = "Remove GitHub App from this device";
+const CONFIRM = "Confirm removing the GitHub App from this device";
+const KEEP = "Keep the GitHub App";
+
+beforeEach(() => {
+  rememberLocalGithubApp({
+    id: "42",
+    key: "github-oauth",
+    displayName: "Browser app",
+    htmlUrl: "https://github.com/apps/browser-app",
+    ownerLogin: "operator",
+    ownerType: "User",
+    installedByLogin: null,
+    installations: [],
+  });
+>>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
 });
 
 afterEach(() => {
   cleanup();
+<<<<<<< HEAD
   Object.assign(githubAppForgetSeams, original);
   vi.clearAllMocks();
+=======
+  forgetLocalGithubApp();
+>>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
   vi.unstubAllGlobals();
 });
 
 describe("GitHub App remove control", () => {
-  it("does not delete the sealed key when confirmation is declined", async () => {
-    const confirm = vi.fn(() => false);
-    vi.stubGlobal("confirm", confirm);
+  it("arms on the first press and deletes nothing", async () => {
     render(<GithubAppForgetButton />);
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "Remove GitHub App from this device",
-      }),
-    );
-    expect(confirm).toHaveBeenCalledTimes(1);
-    expect(forget).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: REMOVE }));
+    expect(readLocalGithubApp()).not.toBeNull();
+    expect(screen.getByRole("button", { name: CONFIRM })).toBeTruthy();
+    expect(screen.getByRole("button", { name: KEEP })).toBeTruthy();
   });
 
-  it("forgets the local App after explicit confirmation", async () => {
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
+  it("forgets the local App on the second press", async () => {
     render(<GithubAppForgetButton />);
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "Remove GitHub App from this device",
-      }),
+    await userEvent.click(screen.getByRole("button", { name: REMOVE }));
+    await userEvent.click(screen.getByRole("button", { name: CONFIRM }));
+    expect(readLocalGithubApp()).toBeNull();
+  });
+
+  it("keeps the App and hands focus back to the remove key", async () => {
+    render(<GithubAppForgetButton />);
+    await userEvent.click(screen.getByRole("button", { name: REMOVE }));
+    await userEvent.click(screen.getByRole("button", { name: KEEP }));
+    expect(readLocalGithubApp()).not.toBeNull();
+    expect(screen.queryByRole("button", { name: KEEP })).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: REMOVE }),
     );
-    expect(forget).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks in the page, never through a browser dialog", async () => {
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirm);
+    render(<GithubAppForgetButton />);
+    await userEvent.click(screen.getByRole("button", { name: REMOVE }));
+    await userEvent.click(screen.getByRole("button", { name: CONFIRM }));
+    expect(confirm).not.toHaveBeenCalled();
   });
 });

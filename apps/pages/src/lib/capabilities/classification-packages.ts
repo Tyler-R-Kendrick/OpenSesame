@@ -81,6 +81,11 @@ export const PACKAGE_RULES = [
     "reached only through @nats-io/nats-core",
   ),
   optional(
+    `${NM}tweetnacl`,
+    "sharing.live",
+    "reached only through @nats-io/nkeys; unclaimed, it left live-nats in a chunk cycle",
+  ),
+  optional(
     `${NM}nostr-tools`,
     "sharing.live",
     "Nostr carrier, loaded when a session names one (modules/sharing.live/carriers/nostr.ts)",

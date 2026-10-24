@@ -1,5 +1,6 @@
 /** The current owner seal and joiner-local-vault ceremonies, using only keys. */
 import { expect } from "@playwright/test";
+import { inLiveSession, joinedTeam } from "./live-joined.mjs";
 
 const PIN = "48291037";
 
@@ -135,4 +136,29 @@ export async function asksForTheCode(page, panel, tabTo) {
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Tab");
   await expect(who).toHaveValue("invite");
+}
+
+/**
+ * Joining opens the joiner's own vault (893f1831c), with the keyboard on a
+ * control there. The prompt's "Open live session" key leads back to the
+ * shared items and keeps the keyboard, as a key that changes the route does;
+ * Tab goes on to the session's status, whose key returns to the vault.
+ */
+export async function returnsToSession(page, { tabTo, focusIn }) {
+  await expect(inLiveSession(page), "the two browsers connected").toBeAttached({
+    timeout: 45_000,
+  });
+  await focusIn(page, "body", "after joining opens the vault");
+  const key = page
+    .getByRole("button", { name: "Open live session", exact: true })
+    .filter({ visible: true });
+  await tabTo(page, key);
+  await page.keyboard.press("Enter");
+  await expect(joinedTeam(page)).toBeVisible();
+  await focusIn(page, "body", "after Open live session");
+  await tabTo(
+    page,
+    page.locator("#live-status").getByRole("link", { name: "Open my vault" }),
+  );
+  await focusIn(page, ".live-join", "on the session's status");
 }

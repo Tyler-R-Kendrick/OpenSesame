@@ -18,6 +18,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { joinedSession } from "./live-joined.mjs";
 import { ADDRESS } from "./live-netns-topology.mjs";
 
 const JOINER = "Ada Lovelace";
@@ -73,14 +74,11 @@ function selected(page) {
   });
 }
 
-const joinedMark = (page) => page.getByRole("img", { name: "Joined Team" });
 const meets = (page, ms) =>
-  joinedMark(page)
-    .waitFor({ timeout: ms })
-    .then(
-      () => true,
-      () => false,
-    );
+  joinedSession(page, ms).then(
+    () => true,
+    () => false,
+  );
 
 /** Owner asks nobody to be let in: an open session, codes passed by hand. */
 async function pairByHand(ctx, joiner, { name = JOINER } = {}) {
@@ -163,7 +161,7 @@ export async function withAddress(ctx) {
     !session.link.includes(ADDRESS.a),
     "address: the owner's address is not in the link",
   );
-  await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
+  await joinedSession(joiner.page);
   const theirs = await pairs(joiner.page);
   check(
     theirs.length > 0 &&
@@ -216,7 +214,7 @@ export async function carried(ctx) {
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     // The reply names the owner's address: the joiner allows it.
     await admitAndAnswer(admitControl(panel, JOINER), joiner.page);
-    await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
+    await joinedSession(joiner.page);
     check(true, "carrier: joined with no code pasted either way");
     const made = await pairs(joiner.page);
     check(
@@ -268,7 +266,7 @@ export async function relayed(ctx) {
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     // A relay seat's reply names no address: nothing to answer.
     await admitAndAnswer(admitControl(panel, JOINER), joiner.page);
-    await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
+    await joinedSession(joiner.page);
     for (const [who, page] of [
       ["owner", owner.page],
       ["joiner", joiner.page],

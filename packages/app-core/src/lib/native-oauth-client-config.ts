@@ -72,6 +72,24 @@ const PARAMETERS: string[] = [
   ...NativeOAuthClientTarget.keyof().options,
   "redirect_uri",
 ];
+/** Optional target fields a form submits as "" when left empty. */
+const BLANK_MEANS_ABSENT = [
+  "token_relay_url",
+  "resource_protocol",
+  "mcp_transport",
+  "mcp_post_endpoint",
+  "mcp_endpoint",
+];
+/** Drop the optional fields left empty, so a blank one never fails the target's URL or enum rule. */
+export function nativeOAuthClientParameters(
+  supplied: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(supplied).filter(
+      ([key, value]) => value !== "" || !BLANK_MEANS_ABSENT.includes(key),
+    ),
+  );
+}
 const CREDENTIALS = [
   "oauth_client_reference",
   "oauth_client_vault",
@@ -166,7 +184,11 @@ async function configuration(
   owner: NativeOAuthClientOwner,
 ): Promise<NativeConfiguration> {
   const { client_id, ...supplied } = input.parameters;
+<<<<<<< HEAD
   const parameters = normalizeNativeOAuthClientParameters(supplied);
+=======
+  const parameters = nativeOAuthClientParameters(supplied);
+>>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
   NativeOAuthClientTarget.parse(parameters);
   if (
     input.method !== "oauth" ||

@@ -16,6 +16,7 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
+import { joinedSession } from "./lib/live-joined.mjs";
 import { observePeeringDiagnostic } from "./lib/peering-diagnostic-observation.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -84,7 +85,7 @@ async function configs(page) {
   return raw.map((entry) => JSON.parse(entry));
 }
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
+const joined = joinedSession;
 
 bindWalk({
   check,

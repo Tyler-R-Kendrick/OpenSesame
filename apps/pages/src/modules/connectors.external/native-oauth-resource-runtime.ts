@@ -13,6 +13,7 @@ import type {
 } from "@opensesame/app-core/lib/native-connector-transport.js";
 import {
   NativeOAuthClientTarget,
+  nativeOAuthClientParameters,
   nativeOAuthClientTarget,
   normalizeNativeOAuthClientParameters,
 } from "@opensesame/app-core/lib/native-oauth-client-config.js";
@@ -43,7 +44,11 @@ export function nativeOAuthClientConfigured(
 }
 function registeredInput(input: NativeDriverInput): boolean {
   const { client_id, redirect_uri, ...supplied } = input.parameters;
+<<<<<<< HEAD
   const target = normalizeNativeOAuthClientParameters(supplied);
+=======
+  const target = nativeOAuthClientParameters(supplied);
+>>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
   if (!NativeOAuthClientTarget.keyof().options.some((key) => key in target))
     return false;
   const parsed = NativeOAuthClientTarget.parse(target);

@@ -320,6 +320,8 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "node_modules/ai": "support.local-ai",
       "node_modules/@ai-sdk/provider": "support.local-ai",
       "node_modules/kdbxweb": "vault.interop-formats",
+      "node_modules/@nats-io/nkeys": "sharing.live",
+      "node_modules/tweetnacl/nacl-fast.js": "sharing.live",
       "node_modules/simple-icons": "connectors.external",
       "node_modules/@opensesame/wallet-consent/verify": "wallet.spending",
       "node_modules/@opensesame/siop-v2": "identity.siop",

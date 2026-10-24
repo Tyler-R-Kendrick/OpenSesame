@@ -17,6 +17,7 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
+import { joinedSession } from "./lib/live-joined.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -86,7 +87,7 @@ async function configs(page) {
   );
 }
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
+const joined = joinedSession;
 
 bindWalk({
   check,

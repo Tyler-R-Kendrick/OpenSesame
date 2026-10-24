@@ -34,6 +34,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
@@ -134,8 +135,9 @@ function checkLink(link, server, label) {
   check(
     allow.length === 2 &&
       allow.every((subject) => subject.startsWith("opensesame.live.")) &&
-      // The start form's default: a session of an hour.
-      Math.abs(claims.exp - (Date.now() / 1000 + 60 * 60)) < 120,
+      // The start form's default: until the tab closes, seven days at most.
+      // The credential ends with the session.
+      Math.abs(claims.exp - (Date.now() / 1000 + 7 * 24 * 60 * 60)) < 120,
     `${label}: scoped to the session's subjects, expiring with it (${allow.join(", ")})`,
   );
   return allow[0];
@@ -180,8 +182,7 @@ function checkFrames(server, base, label) {
 
 /** One NATS walk: `always`, or the default fallback with no route between. */
 export async function natsSession(browser, owner, binary, mode) {
-  const { setStep, failures, device, shot, joined, check, SECRET, PHONE, TLS } =
-    walk;
+  const { setStep, failures, device, shot, check, SECRET, PHONE, TLS } = walk;
   const label = `nats-${mode}`;
   setStep(label);
   const started = await startMintedNats(binary);
@@ -218,7 +219,8 @@ export async function natsSession(browser, owner, binary, mode) {
       true,
       60_000,
     );
-    await joined(joiner.page).waitFor({ timeout: 60_000 });
+    // Joining opens the joiner's vault; the shared items are one key away.
+    await opensSharedItems(joiner.page, 60_000);
     await joiner.page
       .getByRole("button", { name: "Reveal GitHub Value" })
       .click();

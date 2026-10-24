@@ -26,8 +26,10 @@ import {
   startSession,
   unfoldPeerTrust,
 } from "./lib/live-join-walk.mjs";
+import { joinedMarks, joinedSession } from "./lib/live-joined.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { expectInTray, waitForTray } from "./lib/tray-contract.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, "../../..");
@@ -169,9 +171,7 @@ async function verifiedJoin(browser, session) {
     "verified join shows the same session SAS on both sides",
   );
   await joinerConnects(joiner.page, reply);
-  await joiner.page
-    .getByRole("img", { name: "Joined Team" })
-    .waitFor({ timeout: 45_000 });
+  await joinedSession(joiner.page);
   check(true, "copied peer trust signal joins");
   await shot(joiner.page, "verified-join");
   await joiner.context.close();
@@ -204,7 +204,7 @@ async function crossedSignal(browser, source, target) {
       `crossed signal refused before a request (${words})`,
     );
     check(
-      (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+      (await joinedMarks(joiner.page).count()) === 0,
       "crossed signal does not join",
     );
     await shot(joiner.page, "mitm-joiner");
@@ -216,7 +216,7 @@ async function crossedSignal(browser, source, target) {
     .getByRole("img", { name: "Not a request code" })
     .waitFor({ timeout: 20_000 });
   check(
-    (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+    (await joinedMarks(joiner.page).count()) === 0,
     "a signal from the first session does not join the second",
   );
   await shot(target.page, "mitm-owner");
@@ -264,10 +264,10 @@ async function changedKey(browser, session) {
     .fill(session.signal);
   const ask = page.getByRole("button", { name: "Ask to join" });
   if (await ask.isEnabled()) await ask.click();
-  const alarm = page.getByRole("img", { name: CHANGED });
-  const blocked = page.getByRole("button", { name: CHANGED });
-  const tray = page.locator(".notice-card").filter({ hasText: CHANGED });
-  await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
+  // The refusal lives in the tray (ADR 0163): the bell announces it, and the
+  // card behind the bell names the changed key.
+  await waitForTray(page, 20_000);
+  await expectInTray(page, CHANGED);
   check(
     (await page
       .getByRole("button", { name: "Copy your join request" })

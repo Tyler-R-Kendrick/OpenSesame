@@ -1,16 +1,30 @@
 import type { GithubAppPermission } from "@opensesame/app-core/lib/backup.js";
 import { forgetLocalGithubApp } from "@opensesame/app-core/lib/github-app-manifest.js";
 import type { GithubAppInstallView } from "@opensesame/app-core/lib/github-app-presence.js";
-import { IconTrash } from "../../components/Icons.js";
+import { useRef, useState } from "react";
+import { IconKey } from "../../components/IconKey.js";
+import { IconTrash, IconX } from "../../components/Icons.js";
 
+<<<<<<< HEAD
 /** What Remove does; a test stands in for it. */
 export const githubAppForgetSeams = {
   forget: (): void => forgetLocalGithubApp(),
 };
 
 /** Unregister the local GitHub App — lives next to the connector title. */
+=======
+/**
+ * Unregister the local GitHub App — lives next to the connector title.
+ * Removing destroys the sealed private key and client secret, so it asks
+ * first the way every destructive key does (DESIGN.md): one press arms the
+ * key, a second removes, and the keep beside it disarms and hands focus back.
+ */
+>>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
 export function GithubAppForgetButton() {
+  const [armed, setArmed] = useState(false);
+  const primary = useRef<HTMLButtonElement>(null);
   return (
+<<<<<<< HEAD
     <button
       type="button"
       className="icon-btn icon-btn--sm"
@@ -32,6 +46,36 @@ export function GithubAppForgetButton() {
     >
       <IconTrash size={16} />
     </button>
+=======
+    <>
+      <IconKey
+        keyRef={primary}
+        small
+        armed={armed}
+        data-testid="github-app-forget"
+        label={
+          armed
+            ? "Confirm removing the GitHub App from this device"
+            : "Remove GitHub App from this device"
+        }
+        onClick={() => (armed ? forgetLocalGithubApp() : setArmed(true))}
+      >
+        <IconTrash size={16} />
+      </IconKey>
+      {armed ? (
+        <IconKey
+          small
+          label="Keep the GitHub App"
+          onClick={() => {
+            setArmed(false);
+            primary.current?.focus();
+          }}
+        >
+          <IconX size={16} />
+        </IconKey>
+      ) : null}
+    </>
+>>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
   );
 }
 
