@@ -40,18 +40,19 @@ export const LOCAL_NOTIFICATIONS_GOALS: readonly GuideGoalDescriptor[] = [
     id: "settings.local-notifications",
     title: "Choose how this device tells you a request is waiting",
     routes: ["/settings"],
+    // `identity.notification.local.manage` answers with this guide, so it
+    // stays within a model's eight instructions. It is offered only on
+    // Settings, where the vault is already open, so it does not wait for unlock.
     guide: [
       "guide/1",
       'goal "settings.local-notifications"',
-      'say "A request that is waiting is shown on the bell. Here you can also have it in the tab title and, if you allow it, as a system notification when the app is in the background. Nothing leaves this device, and a notification never approves anything."',
-      'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/features"',
       'wait route "/settings/features" timeout=15000',
       'scroll "feature.local-notifications"',
-      'focus "feature.local-notifications" "The Local notifications section. Its switch adds this device\'s own requests list, bell and system notifications." side=bottom',
+      'focus "feature.local-notifications" "The Local notifications section. Its switch adds this device\'s own requests list, bell and system notifications. Nothing leaves this device, and a notification never approves anything." side=bottom',
       'navigate "/settings/features/local-notifications"',
       'wait route "/settings/features/local-notifications" timeout=15000',
-      'focus "settings.local-notifications" "The browser asks for permission only when you press the key for system notifications. The bell and the Requests list always show what is waiting." side=bottom',
+      'focus "settings.local-notifications" "A waiting request is always on the bell and in the Requests list. Here you can also show it in the tab title and, if you allow it, as a system notification when the app is in the background. The browser asks for permission only when you press that key." side=bottom',
       "end",
     ].join("\n"),
   },

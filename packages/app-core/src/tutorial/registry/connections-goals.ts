@@ -125,10 +125,12 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
     // section drawn while that model, and the remote support model, are off.
     requires: ["support.model-picks"],
     capabilities: ["support.local-ai"],
+    // The model-plane and model-key capabilities answer with this guide, so it
+    // stays within a model's eight instructions. It is offered only in the
+    // shell, where the vault is already open, so it does not wait for unlock.
     guide: [
       "guide/1",
       'goal "settings.model-provider"',
-      'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/features"',
       'wait route "/settings/features" timeout=15000',
       'scroll "feature.ai"',
