@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "status": "approved",
+  "sourceCommit": "aa12f03883dc3be9fb707edb3b7e721201f3f7ea",
+  "approval": {
+    "by": "pending review",
+    "reference": "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045 (review pending)"
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "ef475ef6287418f491b2bc4610d5339bc1401cc0d3872ee7cf5f92dd8914e41c"
+    },
+    {
+      "path": "scan-step-desktop.png",
+      "sha256": "046d175ed65d8459be802e08c60681445654173c3990e4c4f3f925386310b8bc"
+    },
+    {
+      "path": "scan-step-phone.png",
+      "sha256": "952cefb84ad6906013fbb1ad839007de627c06158b7276add9c92e7acb3b8137"
+    }
+  ]
+}
