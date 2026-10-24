@@ -23,7 +23,7 @@ const HOST_API_ONLY: CapabilityExclusion = {
 
 export const awsStsCapabilities: readonly Capability[] = [
   {
-    id: "connections.aws-sts-binding",
+    id: "connections.aws_sts_binding",
     title: "Bind, read or remove the STS role an AWS connection mints for",
     plane: "host",
     kind: "admin",

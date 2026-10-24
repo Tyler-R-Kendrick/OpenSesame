@@ -107,7 +107,7 @@ credential STS was built to derive from.
   scoped to one role and, optionally, a narrower session policy, and never sees
   the key it was derived from.
 - The binding route is a new Host API capability
-  (`connections.aws-sts-binding`); it is administrator configuration and is
+  (`connections.aws_sts_binding`); it is administrator configuration and is
   excluded from every agent surface under this ADR and ADR 0065.
 - Not verified here: a real AWS account. The STS behaviour is held to by a
   loopback stand-in that verifies SigV4 with the same crate and answers the
