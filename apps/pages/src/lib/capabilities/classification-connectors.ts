@@ -14,6 +14,7 @@ const CONNECTOR_FILES = [
   "connector-bridge", // the page's side of the connector bridge (ADR 0199)
   "use-native-bridge",
   "connect-",
+  "custom-oidc", // operator-supplied OIDC connector and its PKCE regression tests
   "self-hosted-config",
   "self-hosted-connectors",
   "github-installation-access",

@@ -54,6 +54,15 @@ const CORE_INFRA = [
   "urls",
   "agent-page-dump",
   "local-network-fetch",
+  // Browser file operations shared by core exports, settings and intake.
+  "file-system",
+  "wake-lock",
+  // Platform socket constructors confer no policy grant; callers own admission.
+  "direct-sockets",
+  // Vault boot, duress and the proxy settings surface share sealed decoy records.
+  "honey-tokens",
+  // Core SaveRequestScreen validates a site-authored payload before vault review.
+  "save-request",
   "queue",
   "pact",
   // Playwright harness clock shared by CipherDial, VaultDoors, CipherWordmark.
