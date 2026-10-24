@@ -252,6 +252,7 @@ it("withdraws a timed-out peer GET before terminating its original drained worke
     expect(worker.terminated).toBe(false);
     worker.emit({ kind: "closeHTTP", closed: true });
     await Promise.resolve();
+    await Promise.resolve();
     expect(worker.terminated).toBe(true);
     expect(node.snapshot().status).toBe("stopped");
   } finally {

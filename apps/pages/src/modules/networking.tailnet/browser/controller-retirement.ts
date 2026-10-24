@@ -2,7 +2,7 @@ import type { BrowserNodeRequests } from "./controller-requests.js";
 
 type RetiringRequests = Pick<BrowserNodeRequests, "usedPeer" | "close">;
 
-const DRAIN_TIMEOUT_MS = 5_000;
+const DRAIN_TIMEOUT_MS = 60_000;
 
 /** A replacement realm waits for every original peer transport to drain. */
 export class BrowserNodeRetirement {
