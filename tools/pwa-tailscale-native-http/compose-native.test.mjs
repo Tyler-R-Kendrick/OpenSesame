@@ -106,6 +106,7 @@ test("fixed composition patches actual source while preserving original manifest
     { name: "select-native-toolchain", status: 0 },
     { name: "native-node-patch", status: 0 },
     { name: "disable-remote-logtail", status: 0 },
+    { name: "native-peer-get-patch", status: 0 },
   ]);
   await selected.verify();
   const dnsPath = join(scope.source, "ipn/ipnlocal/native-extra-dns.go");
@@ -128,6 +129,9 @@ test("fixed composition patches actual source while preserving original manifest
     names.sort(),
     [
       ...pins.nativeHttp.files.map((file) => file.path),
+      ...pins.peerGET.files
+        .filter((file) => !file.path.startsWith("nodepeerget"))
+        .map((file) => file.path),
       "nativehttp_js.go",
       "streaming_js.go",
       "public-roots.go",
@@ -299,5 +303,23 @@ test("changed compiler shim/WASM/dependency/license/notice never produces an ass
       readFile(join(scope.output, "native-artifacts.json")),
       { code: "ENOENT" },
     );
+  }
+});
+
+test("returned composition verifier retains all staged peer byte ownership", async () => {
+  const scope = await fixture();
+  const selected = await composeNative(scope);
+  for (const file of pins.peerGET.files) {
+    const target = join(
+      scope.source,
+      "cmd/tsconnect",
+      file.path.startsWith("nodepeerget") ? "wasm" : "nativehttp",
+      file.path,
+    );
+    const originalBytes = await readFile(target);
+    await writeFile(target, "changed peer source");
+    await assert.rejects(selected.verify(), /Pinned source changed/);
+    await writeFile(target, originalBytes);
+    await selected.verify();
   }
 });

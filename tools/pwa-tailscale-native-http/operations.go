@@ -40,20 +40,22 @@ type Registry struct {
 // Operation is an original entry, never looked up in a replacement registry.
 // All mutable fields are protected by registry.mu. Context and guard are immutable.
 type Operation struct {
-	registry *Registry
-	id       uint64
-	ctx      context.Context
-	guard    Guard
-	input    Request
-	dial     Dial
-	roots    *x509.CertPool
-	cancel   context.CancelFunc
-	stop     func() bool
-	phase    operationPhase
-	stopped  bool
-	response Response
-	stream   *streamResponse
-	retired  chan struct{}
+	registry    *Registry
+	id          uint64
+	ctx         context.Context
+	guard       Guard
+	input       Request
+	dial        Dial
+	roots       *x509.CertPool
+	cancel      context.CancelFunc
+	stop        func() bool
+	phase       operationPhase
+	stopped     bool
+	response    Response
+	stream      *streamResponse
+	retired     chan struct{}
+	peerGET     bool
+	drainFailed bool
 }
 
 type operationCleanup struct {
@@ -111,7 +113,7 @@ func (registry *Registry) withdraw(op *Operation) bool {
 	return true
 }
 
-func (registry *Registry) reserveLocked(ctx context.Context, id uint64, input Request, dial Dial, roots *x509.CertPool, guard Guard, allowed bool, deadline time.Time) (*Operation, error) {
+func (registry *Registry) reserveLocked(ctx context.Context, id uint64, input Request, dial Dial, roots *x509.CertPool, guard Guard, allowed bool, deadline time.Time, peerGET bool) (*Operation, error) {
 	if id <= registry.high {
 		return nil, errOperationID
 	}
@@ -128,12 +130,16 @@ func (registry *Registry) reserveLocked(ctx context.Context, id uint64, input Re
 	if !allowed || ctx.Err() != nil {
 		return nil, errStopped
 	}
-	if _, err := prepare(ctx, input); err != nil {
+	validate := prepare
+	if peerGET {
+		validate = preparePeerGET
+	}
+	if _, err := validate(ctx, input); err != nil {
 		return nil, err
 	}
 	child, cancel := context.WithDeadline(ctx, deadline)
 	op := &Operation{registry: registry, id: id, ctx: child, cancel: cancel,
-		guard: guard, dial: dial, roots: roots.Clone(), retired: make(chan struct{}),
+		guard: guard, dial: dial, roots: roots.Clone(), retired: make(chan struct{}), peerGET: peerGET,
 		input: Request{input.Method, input.URL, append([]Header(nil), input.Headers...), bytes.Clone(input.Body)}}
 	if registry.ops == nil {
 		registry.ops = make(map[uint64]*Operation)
@@ -147,13 +153,17 @@ func (registry *Registry) reserveLocked(ctx context.Context, id uint64, input Re
 // goroutine or I/O. Caller slices and trust-constraint closures must not mutate
 // concurrently with Reserve; the bridge must own its input copies first.
 func (registry *Registry) Reserve(ctx context.Context, id uint64, input Request, dial Dial, roots *x509.CertPool, guard Guard) (*Operation, error) {
+	return registry.reserve(ctx, id, input, dial, roots, guard, false)
+}
+
+func (registry *Registry) reserve(ctx context.Context, id uint64, input Request, dial Dial, roots *x509.CertPool, guard Guard, peerGET bool) (*Operation, error) {
 	deadline := time.Now().Add(maxDuration)
 	if !validOperationID(id) {
 		return nil, errOperationID
 	}
 	allowed := ctx != nil && dial != nil && roots != nil && guard != nil && guard()
 	registry.mu.Lock()
-	op, err := registry.reserveLocked(ctx, id, input, dial, roots, guard, allowed, deadline)
+	op, err := registry.reserveLocked(ctx, id, input, dial, roots, guard, allowed, deadline, peerGET)
 	registry.mu.Unlock()
 	if err != nil {
 		return nil, err
@@ -223,8 +233,14 @@ func (op *Operation) Run() error {
 	if err != nil {
 		return op.finish(Response{}, err)
 	}
-	response, err := Do(op.ctx, op.input, owner.dial, op.roots, op.Current)
-	if drainErr := owner.sealAndWait(); err == nil {
+	run := Do
+	if op.peerGET {
+		run = doPeerGET
+	}
+	response, err := run(op.ctx, op.input, owner.dial, op.roots, op.Current)
+	drainErr := owner.sealAndWait()
+	op.drainFailed = drainErr != nil
+	if err == nil {
 		err = drainErr
 	}
 	return op.finish(response, err)

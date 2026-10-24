@@ -57,6 +57,10 @@ export async function assertNativeSourceInputs(here, expectedSourceSha256) {
     ...source.toolchainSelection.files,
     ...source.privateLogging.files,
     ...source.publicTrust.files,
+    ...(source.peerGET?.files ?? []),
+    ...(source.peerGET
+      ? [source.peerGET.patch, source.peerGET.stagingHelper]
+      : []),
     ...source.composition.files,
     { path: "exit-route.patch", sha256: source.patch.sha256 },
   ];

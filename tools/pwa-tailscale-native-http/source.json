@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Pinned original-node native HTTPS composition and owned same-deployment assets; PWA worker/controller activation and public-provider proof remain separate.",
+  "scope": "Pinned original-node native HTTPS plus independent HTTP/HTTPS selected-peer GET source plan; fresh compile/browser acceptance required.",
   "source": {
     "repository": "https://github.com/tailscale/tailscale",
     "commit": "b31d8a75af155bcf19853d1a66041782d13e56ae",
@@ -92,7 +92,7 @@
       },
       {
         "path": "operations.go",
-        "sha256": "6bdb6c6397f9fa824a0a0615cd4e71f6519cf2cd113cfd0aa1d2afde1d21da38"
+        "sha256": "9ec6b9993076f194959386b8c4abedf5424d372cb158e5c6a1300c52b3a60bc6"
       },
       {
         "path": "operations_test.go",
@@ -178,7 +178,7 @@
       },
       {
         "path": "nodepeer_test.go",
-        "sha256": "25950159bb5b760f7d29f34a1918dc702136a5cd2ff7eb771962022d9a937192"
+        "sha256": "026ea69311b8513371454f2d10c5ea278d7fdf69ef204af1f9bc8bd90e73725a"
       },
       {
         "path": "native-extra-dns.go",
@@ -384,7 +384,7 @@
       },
       {
         "path": "compose-native.mjs",
-        "sha256": "0cca86891f899da38f3c23e2201486a14a9cf885ce2e530ff3d772466719c95e"
+        "sha256": "d411ea3947d67fd5e9bfc4e6e9c830f7349b4bf78225d486c76171aec2187aa8"
       },
       {
         "path": "native-assets.mjs",
@@ -392,7 +392,7 @@
       },
       {
         "path": "compose-native.test.mjs",
-        "sha256": "f0a5ed8c9643a3c47433ad5c63e05b54a8459663c93bf0b4d7e20a1aa829daa9"
+        "sha256": "87ae31afbb910dd96cf92c2570cae0139df21b9a4ba3184f3865515d98caafe4"
       },
       {
         "path": "compress-wasm.mjs",
@@ -424,11 +424,11 @@
       },
       {
         "path": "apply-native-patch.mjs",
-        "sha256": "14c6b8edd70ca256658d551a6957070a0aac616ea9b4e2a5a7374358c1b823b4"
+        "sha256": "6578b0352eee24380dd394cfd4822c40474f25a3097152a9502f79a028a3c452"
       },
       {
         "path": "apply-native-patch.test.mjs",
-        "sha256": "2b75c643228adddd17f0237e8612675052c0b1845dd3c8dd8e09820ad28a6bfc"
+        "sha256": "0d440f29a948278ed7d72d193bd2e5cf0f29dad930cccedf1a39712e8c2f9f93"
       },
       {
         "path": "compressor-archive.mjs",
@@ -444,7 +444,23 @@
       },
       {
         "path": "distribution-cache.mjs",
-        "sha256": "c75af141f5232b0a2bbf2e009691c1ed612907a367f8740dd80cccc208bda862"
+        "sha256": "ea465366556fdb2e322aa12b823d0987a6c67b5e2f4d7c4384da00dc51e5743a"
+      },
+      {
+        "path": "stage-peer-get.mjs",
+        "sha256": "92fcf0c53cb0b19b5d2d434f908a5c0582ab82fec45cf1fdca133ffd84e4cb1d"
+      },
+      {
+        "path": "stage-peer-get.test.mjs",
+        "sha256": "54172b3a39dd5f5cb77405a5ee5113c0b1b2fca0d368cb376b04a1ea2617ecf6"
+      },
+      {
+        "path": "native-peer-get.patch",
+        "sha256": "2316c0c515d52d325069bab05213f97832ed84d8639c82a71fc81cabaeb97dc3"
+      },
+      {
+        "path": "distribution-cache.test.mjs",
+        "sha256": "378627b75b9a366f32b2ae1134eb81bf217c921c137c23f2e0a5e756d1161d49"
       }
     ],
     "compressor": {
@@ -462,5 +478,61 @@
       "licenseSha256": "901d0a7fcaccaae9917d165039c0473c354e5da2e0e94140dde67aad9ffb19da",
       "options": "ecma2022/module;compress.passes2;mangle;preserve Copyright|license comments"
     }
+  },
+  "peerGET": {
+    "status": "UNCOMPILED standalone HTTP/HTTPS peer GET source; no ABI or browser acceptance claim.",
+    "files": [
+      {
+        "path": "peer-get.go",
+        "sha256": "b91ba8c10d0fbbb72ad4dc2440441950e3a2916fca686f75c73999ebd4124105"
+      },
+      {
+        "path": "peer-get_test.go",
+        "sha256": "ee7923483882543de4f333969eca16312f842a8e954799e20adb55e64782deb1"
+      },
+      {
+        "path": "peer-get-tls_test.go",
+        "sha256": "ef3fd1c7f1320e9d414cc59d1cecab60f30a7bd614a9b01dec0e1e9a9fae0758"
+      },
+      {
+        "path": "peer-get-tls_js_test.go",
+        "sha256": "d203f28f6225ef17fe4719ee912659a821b74dd382b036835fdf3372e4c08a47"
+      },
+      {
+        "path": "peer-get-capacity_test.go",
+        "sha256": "4ef8f293f5bc8482d43f03c5d149cbbe2c77454663caeffdac7d3a32410f1a3b"
+      },
+      {
+        "path": "peer-get_js.go",
+        "sha256": "be60d0acfc0fe5bb7ad7a8fd454c8f74d5ea7a35b67c2c178b504633190eab62"
+      },
+      {
+        "path": "peer-get_js_test.go",
+        "sha256": "0b677b4e3ab15bf4fc71c6a21bdd89c25278c30e8c81abd77c24216eb5e67df3"
+      },
+      {
+        "path": "nodepeerget_js.go",
+        "sha256": "3f0dcd0967f66b1434a8ba15cde0319ec1b1af66744271b0b2a73e49bbf0e091"
+      },
+      {
+        "path": "nodepeerget-tls_js_test.go",
+        "sha256": "bfc42b03a3b0c6c276f8d2fe02741b0c0c762b8f1ef31e92988558b8db1049f4"
+      }
+    ],
+    "patch": {
+      "path": "native-peer-get.patch",
+      "sha256": "2316c0c515d52d325069bab05213f97832ed84d8639c82a71fc81cabaeb97dc3",
+      "beforeSha256": "9e60d5b63ce8f4e374d31d64886bf601364e744f7f195f1e55db70a8e855d9af",
+      "afterSha256": "68c659ce00f9dff452bcb7b1c95a7c9d93807c4c6b858a00fcd261b51f16b67b"
+    },
+    "stagingHelper": {
+      "path": "stage-peer-get.mjs",
+      "sha256": "92fcf0c53cb0b19b5d2d434f908a5c0582ab82fec45cf1fdca133ffd84e4cb1d"
+    },
+    "configuration": {
+      "peerTLS": "Independent optional base node server trust; undefined/public uses pinned PublicRoots, operator uses only explicit existing PEM/server-CA validation. No provider nativeHTTP dependency.",
+      "route": "HTTP/HTTPS GET to original selected nonself tailnet peer, original MagicDNS/ExtraRecords/literal; no public DNS/exit/subnet fallback; retain URL hostname for TLS verification/SNI."
+    },
+    "qualification": "Source plan only. Fresh pinned host/syscall-js/WASM build and matching real UI HTTP/HTTPS/cold/withdrawal tests required; old77/8b41/8f773 are not relabeled."
   }
 }
