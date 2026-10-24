@@ -273,13 +273,12 @@ impl SurrogateLedger {
 
     /// Every distinct honey token in the request. The proxy reports all of
     /// them, so a forged id placed before the real token cannot hide it.
+    /// Each id appears once, in the order it is first seen.
     #[must_use]
     pub fn honey_refusals(&self, req: &RequestView<'_>) -> Vec<Refusal> {
         let mut ids = Vec::new();
-        for id in sightings(req)
-            .iter()
-            .filter_map(|sighting| honey_token_id(&sighting.value))
-        {
+        let found = sightings(req);
+        for id in found.iter().filter_map(|s| honey_token_id(&s.value)) {
             if !ids.contains(&id) {
                 ids.push(id);
             }
