@@ -17,6 +17,7 @@ const config: OidcConnectorConfig = {
   clientId: "client-1",
   clientSecret: "secret-1",
   callbackUrl: "https://app.example/oidc/callback",
+  tokenRelayUrl: "",
   scopes: ["openid", "email"],
   tokenAuth: "client_secret_post",
 };
@@ -112,6 +113,30 @@ describe("custom OIDC", () => {
       tokens: { accessToken: "access-1" },
     });
     expect(item.fields.map((field) => field.name)).toContain("Client ID");
+  });
+
+  it("posts the authorization code to a configured relay without the secret", async () => {
+    const { pending } = await beginOidcLogin({
+      ...config,
+      tokenRelayUrl: "https://relay.example/oidc/token",
+    });
+    const fetchImpl = vi.fn(async (url, init) => {
+      expect(String(url)).toBe("https://relay.example/oidc/token");
+      const form = new URLSearchParams(String(init?.body));
+      expect(form.get("client_secret")).toBeNull();
+      expect(form.get("code")).toBe("code-1");
+      return Response.json({
+        access_token: "access-1",
+        token_type: "Bearer",
+      });
+    }) as unknown as typeof fetch;
+    await expect(
+      completeOidcLogin(
+        pending,
+        `${config.callbackUrl}?code=code-1&state=${pending.state}`,
+        { fetchImpl },
+      ),
+    ).resolves.toMatchObject({ accessToken: "access-1" });
   });
 
   it("refuses a state mismatch", async () => {
