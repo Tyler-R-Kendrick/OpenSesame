@@ -9,6 +9,11 @@ between them (`protocol.ts`). It covers the browser-node stack's default
 `nativePeerGET` port and ADR 0204. It answers a Codex security review of #2033
 (P2, `worker.ts`).
 
+The fixes were reviewed on #2072, and the commits named below are on that
+branch. #2124 landed this note and the ADR 0204 amendment without the code;
+the code re-landed afterwards from those commits, on top of the bounded
+retirement in `controller-retirement.ts`.
+
 ## Invariant
 
 Code on the page that can reach the browser node gets no network authority
@@ -72,7 +77,10 @@ the node's Worker or dispatches on it:
 - **What other reachable entry points can still do.** `node.get`,
   `captureNativeHTTP` and `stop` remain callable. They carry the same checks
   as before: the egress policy, the configured native-HTTP route, and
-  retirement.
+  retirement. Retirement is bounded: a node that made a peer request is
+  terminated when its worker acknowledges `closeHTTP` on the start port, or
+  after 60 seconds, and a replacement `start` is refused unless that
+  acknowledgement confirmed closure.
 
 ## Residual risk
 
@@ -121,4 +129,6 @@ the node's Worker or dispatches on it:
 - Negative controls: each of these tests fails against the code before its
   fix. The peer GET and reassigned-policy tests fail at `67d2aac9e`. The
   `worker-channel.test.ts` tests and the dispatched-event test fail at
-  `0ae49bfe9`. The four reachability tests fail at `c3f0c26e9`.
+  `0ae49bfe9`. The four reachability tests fail at `c3f0c26e9`. Against main
+  at `3c1320a2c`, which carried this note but not the code, every test listed
+  here fails.

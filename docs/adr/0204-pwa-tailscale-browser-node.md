@@ -109,7 +109,10 @@ wrapped. Its own message channel therefore grants nothing.
   a pending request only with a reply for that same request.
 - **Everything else after `start` rides it too**, in both directions:
   `login`, the native HTTP and close commands, and every message the worker
-  sends.
+  sends. That includes the `closeHTTP` acknowledgement retirement waits for:
+  a node that made a peer request is terminated once its worker acknowledges
+  on the port, or after 60 seconds, and a replacement `start` is refused
+  unless that acknowledgement confirmed the peer transport closed.
 - **Nothing on the Worker channel is trusted.** The worker acts on nothing
   but `start` posted to the Worker. The controller sets no message handler on
   the Worker, so a message posted or dispatched there reaches nothing. The
