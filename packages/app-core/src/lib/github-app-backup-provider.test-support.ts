@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { createHash, verify, webcrypto } from "node:crypto";
+import { createHash, webcrypto } from "node:crypto";
 import { createServer } from "node:http";
 import type { JsonValue } from "@opensesame/os-domain";
 import { createItem } from "@opensesame/vault-core";
@@ -16,7 +16,11 @@ import {
   allowGithub,
   openGithubTestOwner,
 } from "./github-app-authority.test-support.js";
-import { credentials, keyPair } from "./github-app-direct.test-support.js";
+import {
+  githubBackupDiscoveryReply,
+  verifyBackupAppAssertion,
+} from "./github-app-backup-discovery.test-support.js";
+import { credentials } from "./github-app-direct.test-support.js";
 import {
   forgetLocalGithubApp,
   rememberLocalGithubApp,
@@ -29,7 +33,7 @@ import { setActiveProject } from "./projects.js";
 import { type VaultStore, vaultStore } from "./vault/store.js";
 
 const actualFetch = globalThis.fetch;
-const app = {
+const appTemplate = {
   id: credentials.appId,
   key: "github-oauth",
   displayName: "Owned backup fixture",
@@ -41,6 +45,9 @@ const app = {
     { id: "77", accountLogin: "fixture-owner", accountType: "User" },
   ],
 };
+let app = appTemplate;
+let branch = "backup/primary";
+type FixtureOptions = { appId?: string; branch?: string };
 const base = "/repos/fixture-owner/backups";
 let server: ReturnType<typeof createServer>;
 let port = 0;
@@ -72,20 +79,31 @@ function reply(
   authorization: string,
   body: string,
 ): ProviderReply {
+  const discovery = githubBackupDiscoveryReply(
+    path,
+    method,
+    authorization,
+    app,
+    branch,
+    mode === "denied",
+  );
+  if (discovery) return discovery;
   if (path === "/app/installations/77/access_tokens") {
+    expect(method).toBe("POST");
     if (mode === "denied") return { status: 403, value: {} };
-    const jwt = authorization.replace(/^Bearer /, "").split(".");
-    expect(
-      verify(
-        "RSA-SHA256",
-        Buffer.from(`${jwt[0]}.${jwt[1]}`),
-        keyPair.publicKey,
-        Buffer.from(jwt[2] ?? "", "base64url"),
-      ),
-    ).toBe(true);
-    expect(
-      JSON.parse(Buffer.from(jwt[1] ?? "", "base64url").toString()).iss,
-    ).toBe(app.id);
+    verifyBackupAppAssertion(authorization, app.id);
+    const input = JSON.parse(body);
+    if (
+      JSON.stringify(input) ===
+      JSON.stringify({ permissions: { metadata: "read" } })
+    )
+      return {
+        status: 201,
+        value: {
+          token: "ghs_owned_repository_token",
+          expires_at: new Date(Date.now() + 600000).toISOString(),
+        },
+      };
     expect(JSON.parse(body)).toEqual({
       repositories: ["backups"],
       permissions: { contents: "write", metadata: "read" },
@@ -99,18 +117,18 @@ function reply(
     };
   }
   expect(authorization).toBe("Bearer ghs_owned_backup_token");
-  if (path === `${base}/git/ref/heads/backup/primary`)
+  if (path === `${base}/git/ref/heads/${branch}`)
     return {
       status: 200,
       value: {
-        ref: "refs/heads/backup/primary",
+        ref: `refs/heads/${branch}`,
         object: { type: "commit", sha: head },
       },
     };
   if (method === "PUT") {
     expect(path).toBe(`${base}/contents/opensesame-vault.backup.json`);
     const input = JSON.parse(body);
-    expect(input.branch).toBe("backup/primary");
+    expect(input.branch).toBe(branch);
     if (input.sha !== (contents ? blob(contents) : undefined))
       return {
         status: 409,
@@ -128,8 +146,7 @@ function reply(
   const parsed = new URL(path, "https://api.github.com");
   expect(parsed.pathname).toBe(`${base}/contents/opensesame-vault.backup.json`);
   const revision = parsed.searchParams.get("ref") ?? "";
-  const bytes =
-    revision === "backup/primary" ? contents : snapshots.get(revision);
+  const bytes = revision === branch ? contents : snapshots.get(revision);
   if (!bytes) return { status: 404, value: {} };
   const recovered = mode === "corrupt" ? Buffer.from("not a backup") : bytes;
   return {
@@ -144,7 +161,9 @@ function reply(
     },
   };
 }
-async function setupGithubBackupProvider() {
+async function setupGithubBackupProvider(options: FixtureOptions) {
+  app = { ...appTemplate, id: options.appId ?? appTemplate.id };
+  branch = options.branch ?? "backup/primary";
   configureHost(createTestHost({ locks: webLocksDouble() }));
   vi.stubGlobal("crypto", webcrypto);
   network = allowGithub();
@@ -168,7 +187,7 @@ async function setupGithubBackupProvider() {
     installationId: "77",
     owner: "fixture-owner",
     repo: "backups",
-    branch: "backup/primary",
+    branch,
     enabled: true,
     status: "pending",
     lastCommitSha: null,
@@ -263,11 +282,13 @@ async function closeGithubBackupProvider() {
 }
 
 /** Register actual source vault, sealed App key, independent RSA and HTTP provider fixture. */
-export function useGithubBackupProviderFixture() {
-  beforeEach(setupGithubBackupProvider);
+export function useGithubBackupProviderFixture(options: FixtureOptions = {}) {
+  beforeEach(() => setupGithubBackupProvider(options));
   afterEach(closeGithubBackupProvider);
   return {
-    app,
+    get app() {
+      return app;
+    },
     requests,
     outcomes,
     destinations,
