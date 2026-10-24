@@ -172,6 +172,10 @@ export const CROSS_RULES = [
   // an unavailable stub. Whoever holds it gains no networking until the
   // optional runtime binds, so core may carry the seam (as `secret-backends/seam`).
   shared(
+    `${L}native-base64`,
+    "base64 codec shared by native provider runtimes and core vault backup",
+  ),
+  shared(
     `${L}native-connector-transport`,
     "the native provider transport port and its binding; egress stays with the optional runtime",
   ),
