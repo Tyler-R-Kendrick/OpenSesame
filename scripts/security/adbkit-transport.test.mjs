@@ -142,7 +142,7 @@ test("public WXT dependency loads without the excluded crypto dependency", () =>
   assert.throws(() => adbRequire.resolve("node-forge"), {
     code: "MODULE_NOT_FOUND",
   });
-  assert.equal(typeof Adb.createClient, "function");
+  assert.ok(Adb.createClient instanceof Function);
   assert.equal(Adb.createClient().bin, "adb");
   const client = Adb.createClient({
     host: "127.0.0.2",

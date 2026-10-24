@@ -253,7 +253,7 @@ function setField(root, path, value) {
       // A documented reply may carry a scalar at a parent path while a
       // nested predicate names a child of it; replace the scalar with the
       // object/array the deeper field needs.
-      if (parent[part] === null || typeof parent[part] !== "object")
+      if (!isJsonObject(parent[part]) && !Array.isArray(parent[part]))
         parent[part] = /^\d+$/.test(next) ? [] : {};
       parent = parent[part];
     }
