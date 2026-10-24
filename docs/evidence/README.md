@@ -36,7 +36,7 @@ Then promote using the actual implementation commit and recorded approval:
 ```bash
 node scripts/dev/promote-evidence.mjs unlock/pages/web work/evidence/unlock/pages/web/current \
   --source <implementation-commit-sha> \
-  --approved-by <reviewer> --approval-ref <review-url-or-reference>
+  --approved-by <reviewer-github-login> --approval-ref <review-url>
 node scripts/quality/evidence-gate.mjs
 node scripts/quality/docs-index.mjs
 ```
@@ -44,7 +44,12 @@ node scripts/quality/docs-index.mjs
 Promotion replaces the whole named slot, removes its superseded files and writes
 `manifest.json`: version 1, status `approved`, sourceCommit, approval `{by,
 reference}`, and a SHA-256 inventory of all files including README.md. Do not
-invent approval or relabel old captures as current. Approval metadata records the
+invent approval or relabel old captures as current. `by` is the reviewer's
+GitHub login, never a placeholder such as "pending review", "tbd" or "unknown".
+`reference` is the `https://github.com/Tyler-R-Kendrick/OpenSesame/...` address
+of the pull request, review or comment that approved the captures. The promoter
+and the gate apply this rule from one module, `scripts/lib/evidence-approval.mjs`,
+so neither accepts what the other refuses. Approval metadata records the
 review; it is not an automatic proof that the approval occurred. Promotion requires an existing implementation commit on the branch. The manifest
 keeps that commit as provenance after squash merges; persisted validation does
 not require old branch commits to remain ancestors of the default branch.

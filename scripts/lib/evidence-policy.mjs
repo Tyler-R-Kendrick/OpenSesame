@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstatSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { assertApproval } from "./evidence-approval.mjs";
 import { decodeJsonText } from "./json-text.mjs";
 import { readPinnedFile } from "./read-pinned-file.mjs";
 
@@ -99,18 +100,7 @@ function validateApproval(slot, manifest) {
     throw new Error(`${slot}: evidence must be approved manifest version 1`);
   if (!/^[a-f0-9]{40}$/u.test(manifest.sourceCommit ?? ""))
     throw new Error(`${slot}: sourceCommit must be a full commit SHA`);
-  if (
-    !manifest.approval ||
-    [manifest.approval.by, manifest.approval.reference].some(
-      (value) =>
-        !decodeJsonText(
-          value,
-          `${slot}: approval by and reference are required`,
-        ).trim(),
-    )
-  ) {
-    throw new Error(`${slot}: approval by and reference are required`);
-  }
+  assertApproval(manifest.approval, slot);
 }
 
 function validateInventory(slot, files, inventory) {

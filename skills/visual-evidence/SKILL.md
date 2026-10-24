@@ -132,13 +132,18 @@ Prepare an approved-only candidate directory and replace its stable slot:
 ```bash
 node scripts/dev/promote-evidence.mjs unlock/pages/web work/evidence/unlock/pages/web/current \
   --source <implementation-commit-sha> \
-  --approved-by <reviewer> --approval-ref <review-url-or-reference>
+  --approved-by <reviewer-github-login> --approval-ref <review-url>
 node scripts/quality/evidence-gate.mjs
 node scripts/quality/docs-index.mjs
 ```
 
 The promotion command writes the approval manifest and file hashes. Supply the
-actual reviewed source commit and approval reference; do not invent either.
+actual reviewed source commit and approval; do not invent either. `--approved-by`
+is the reviewer's GitHub login, never a placeholder such as "pending review",
+"tbd" or "unknown". `--approval-ref` is the
+`https://github.com/Tyler-R-Kendrick/OpenSesame/...` address of the pull request,
+review or comment that approved the captures. The promoter and the evidence gate
+both refuse anything else (`scripts/lib/evidence-approval.mjs`).
 
 Link the current-state gallery from the PR by commit SHA:
 
