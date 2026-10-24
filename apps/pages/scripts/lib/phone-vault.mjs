@@ -45,7 +45,16 @@ export async function toTheList(page) {
     await create.or(all).first().waitFor({ state: "visible", timeout: 15000 });
     if ((await pane()) === "list") return;
   }
-  if (await all.isVisible()) await all.click();
+  if (!(await all.isVisible())) return;
+  await all.click();
+  // The list pane is drawn a frame or more after the press, and on a phone
+  // the + rides 32px higher there, above the list's status line
+  // (new-item-fab.css). A walk that reads the key before the list is drawn
+  // holds the list's own rows 4px under it, and opens their menu.
+  await page
+    .locator(".vault[data-pane='list']")
+    .first()
+    .waitFor({ timeout: 15000 });
 }
 
 /**
