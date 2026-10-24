@@ -13,7 +13,7 @@ import {
 import { processRotationQueue } from "@opensesame/app-core/lib/vault/rotation-relay.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { VaultItem } from "@opensesame/vault-core";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { NavigateFunction } from "react-router";
 import { useComposition } from "./bindings/capabilities.js";
 
@@ -87,6 +87,29 @@ export function useVaultLanding(
   }, [pathname, navigate, status]);
 }
 
+type OpenVault = { tomb: string | undefined; guest: boolean; opened: number };
+
+/**
+ * The key of the unlocked shell: one per vault that opens. Another tomb, or a
+ * guest session opening where the last vault was not one, starts a fresh
+ * shell. A guest whose vault gains its first key is still in the same vault
+ * (its tomb is unchanged; only `guest` turns off), and the sheet that set the
+ * key goes on to the authenticator's scan in place (ADR 0091), so that change
+ * keeps the shell and everything open in it.
+ */
+export function useOpenVaultKey(
+  tomb: string | undefined,
+  guest: boolean,
+): string {
+  const [seen, setSeen] = useState<OpenVault>({ tomb, guest, opened: 0 });
+  const another = seen.tomb !== tomb || (guest && !seen.guest);
+  const opened = another ? seen.opened + 1 : seen.opened;
+  if (seen.tomb !== tomb || seen.guest !== guest) {
+    setSeen({ tomb, guest, opened });
+  }
+  return JSON.stringify([tomb, opened]);
+}
+
 /** Queue due rotations at app open, and drain the active vault's queue on unlock. */
 export function useRotationQueue(
   status: string,
@@ -105,7 +128,7 @@ export function useRotationQueue(
     // provider rotation to perform.
     if (status !== "unlocked" || !tomb || guest) return;
     if (!Array.isArray(items)) return;
-    const scope = vaultStore.activeTomb();
+    const scope = vaultStore.activeTomb?.();
     if (!scope) return;
     syncRotationSchedules(items, scope);
     void processRotationQueue(scope);

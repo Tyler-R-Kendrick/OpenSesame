@@ -40,6 +40,7 @@ import { GateHost } from "./tutorial/gate-seat.js";
 import {
   type VaultStatus,
   useAfterUnlock,
+  useOpenVaultKey,
   useRotationQueue,
   useVaultLanding,
 } from "./app-root-hooks.js";
@@ -221,6 +222,10 @@ function VaultApp() {
   );
 
   useVaultLanding(status, location.pathname, navigate);
+  // Enrolling a guest's first key makes it durable in place. Keep its open
+  // ceremony while still resetting the tree for another tomb, a fresh guest
+  // session on the same tomb, or a decoy actor.
+  const openVaultKey = useOpenVaultKey(tomb, guest === true);
 
   const shell = (
     <AppVaultShell
