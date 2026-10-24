@@ -98,6 +98,39 @@ function pickConfig(
   return null;
 }
 
+function sameBackupBinding(
+  prior: LocalBackupTarget | null,
+  next: LocalBackupTarget,
+): boolean {
+  if (!prior) return false;
+  return (
+    prior.kind === next.kind &&
+    prior.providerId === next.providerId &&
+    prior.connectionId === next.connectionId &&
+    prior.integrationId === next.integrationId &&
+    prior.installationId === next.installationId &&
+    prior.owner === next.owner &&
+    prior.repo === next.repo &&
+    prior.branch === next.branch
+  );
+}
+
+function withGithubBindingConfirmation(
+  prior: LocalBackupTarget | null,
+  next: LocalBackupTarget,
+): LocalBackupTarget {
+  if (next.kind === "github_app" && !sameBackupBinding(prior, next))
+    return {
+      ...next,
+      status: "pending",
+      lastCommitSha: null,
+      lastSyncedAt: null,
+      lastError: null,
+      pendingEvents: 0,
+    };
+  return next;
+}
+
 export function buildLocalBackupTarget(
   input: PutBackupTargetInput,
   prior: LocalBackupTarget | null,
@@ -112,7 +145,7 @@ export function buildLocalBackupTarget(
   const owner = pickTrimmed(input.owner, prior?.owner);
   const repo = pickTrimmed(input.repo, prior?.repo);
   assertBackupFields(kind, owner, repo, installationId, connectionId);
-  return {
+  const next: LocalBackupTarget = {
     kind,
     providerId,
     connectionId,
@@ -129,4 +162,5 @@ export function buildLocalBackupTarget(
     config: pickConfig(input.config, prior?.config),
     pendingEvents: prior?.pendingEvents ?? 0,
   };
+  return withGithubBindingConfirmation(prior, next);
 }
