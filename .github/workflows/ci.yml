@@ -179,15 +179,17 @@ jobs:
         run: pnpm quality
       # Pages' tailscale-wasm-assets test reads the pinned native distribution.
       # A cold preparation takes minutes, so it happens here, as in the full
-      # suite, and not inside the test's 20 s deadline.
+      # suite, and not inside the test's 20 s deadline. Only on an x64 runner:
+      # the cold build needs the Linux AMD64 host, and the test skips elsewhere
+      # (the self-hosted ARM64 runner, CI_SELF_HOSTED_ARM64).
       - name: Cache the pinned native PWA distribution
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
+        if: runner.arch == 'X64' && (steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages'))
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: .cache/pwa-tailscale-native-http/distributions
           key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
       - name: Prepare and verify native PWA assets
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
+        if: runner.arch == 'X64' && (steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages'))
         # Uses the normal Vite asset loader, including verification on cache hits.
         # Cold preparation keeps its original deadlines, pins and resource limits.
         run: >-
