@@ -14,8 +14,11 @@ const MAX_SHARED_BODY_BYTES = 256 * 1024 * 1024;
 const MAX_SHARED_HEADER_BYTES = 1024 * 1024;
 const bodyWriteChains = new Map<string, Promise<unknown>>();
 const openLeaseCounts = new Map<string, number>();
+/** Moves on when this realm's leases are forgotten; an older release is then spent. */
+let leaseGeneration = 0;
 
-function releaseCount(tomb: string): void {
+function releaseCount(tomb: string, generation: number): void {
+  if (generation !== leaseGeneration) return;
   const remaining = (openLeaseCounts.get(tomb) ?? 1) - 1;
   if (remaining > 0) openLeaseCounts.set(tomb, remaining);
   else openLeaseCounts.delete(tomb);
@@ -24,9 +27,10 @@ function releaseCount(tomb: string): void {
 export async function acquireOpenLease(
   tomb: string,
 ): Promise<() => Promise<void>> {
+  const generation = leaseGeneration;
   openLeaseCounts.set(tomb, (openLeaseCounts.get(tomb) ?? 0) + 1);
   const locks = lockManager();
-  if (!locks) return async () => releaseCount(tomb);
+  if (!locks) return async () => releaseCount(tomb, generation);
   let release = () => {};
   let held: Promise<void> = Promise.resolve();
   try {
@@ -45,14 +49,28 @@ export async function acquireOpenLease(
         .catch(reject);
     });
   } catch (error) {
-    releaseCount(tomb);
+    releaseCount(tomb, generation);
     throw error;
   }
   return async () => {
     release();
-    releaseCount(tomb);
+    releaseCount(tomb, generation);
     await held;
   };
+}
+
+/**
+ * Test-only: forget every open lease this realm counts, as a process that
+ * ends leaves none behind. The secret-file conformance suites start each next
+ * "process" in this one realm (`vault-on-files.support.ts`), where a store the
+ * last one opened never locks: its lease would refuse every later destroy of
+ * the tomb. A release from before the forgetting counts for nothing. A Web
+ * Lock the realm holds is not let go here; those suites run with no lock
+ * manager, so the count is the whole lease.
+ */
+export function forgetOpenLeasesForTest(): void {
+  openLeaseCounts.clear();
+  leaseGeneration += 1;
 }
 
 export async function withExclusiveOpenLease<T>(
