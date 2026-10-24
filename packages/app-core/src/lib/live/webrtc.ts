@@ -20,9 +20,13 @@
  */
 
 import { isString } from "@opensesame/os-domain";
-import { withAddressHints } from "./candidates.js";
+import { SAME_MACHINE_HINTS, withAddressHints } from "./candidates.js";
 import { type IceDiagnosticView, watchRtcIce } from "./ice-diagnostics.js";
 import { type ChannelMessage, readChannelMessage } from "./messages.js";
+import {
+  canonicalAddresses,
+  sessionNamedAddresses,
+} from "./named-addresses.js";
 import {
   type DialLink,
   FRAME_BYTES,
@@ -144,7 +148,7 @@ async function gathered(
     ? sdp
     : withAddressHints(
         sdp,
-        routing.addresses.length ? routing.addresses : ["127.0.0.1", "::1"],
+        routing.addresses.length ? routing.addresses : SAME_MACHINE_HINTS,
       );
 }
 
@@ -263,10 +267,11 @@ class RtcLink implements DialLink {
     };
   }
 
-  async accept(answer: string): Promise<void> {
+  async accept(answer: string, named: readonly string[] = []): Promise<void> {
     // Read and sanitize here too: whatever reaches the browser has been read
-    // strictly and has no candidate aimed at an internal address.
-    const safe = filterDataChannelSdp(answer);
+    // strictly and has no candidate aimed at an internal address the owner's
+    // reply did not name.
+    const safe = filterDataChannelSdp(answer, sessionNamedAddresses(named));
     if (!safe) throw new Error("bad_answer");
     await this.#pc.setRemoteDescription({ type: "answer", sdp: safe });
   }
@@ -308,7 +313,11 @@ async function answer(
   routing: PeerRouting,
   offer: string,
 ): Promise<PeerLink> {
-  const safe = filterDataChannelSdp(offer);
+  // A joiner's offer may reach only what this owner named, and loopback.
+  const safe = filterDataChannelSdp(
+    offer,
+    sessionNamedAddresses(routing.addresses),
+  );
   if (!safe) throw new Error("bad_offer");
   const pc = peers(rtcConfig(routing));
   const ready = new Promise<PeerChannel>((resolve, reject) => {
@@ -338,6 +347,7 @@ export function webRtcTransport(
     readsAnswer: isDataChannelSdp,
     dial: () => dial(peers, routing),
     answer: (offer) => answer(peers, routing, offer),
+    named: routing.relay ? [] : canonicalAddresses(routing.addresses),
   };
 }
 

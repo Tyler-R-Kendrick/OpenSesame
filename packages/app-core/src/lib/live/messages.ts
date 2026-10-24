@@ -17,6 +17,7 @@ import {
 } from "./device-messages.js";
 import type { JoinPeerBlock, ReplyPeerBlock } from "./join-peer.js";
 import { readJoinPeerBlock, readReplyPeerBlock } from "./join-peer.js";
+import { joinReply, readNamedAddresses } from "./named-addresses.js";
 
 export const NAME_MAX = 64;
 export const NOTE_MAX = 280;
@@ -81,6 +82,8 @@ export type JoinReply = Readonly<{
   relay?: "nats";
   /** Present when the request carried a peer-trust handshake. */
   peer?: ReplyPeerBlock;
+  /** The addresses the owner named in Routes, which its answer hints at. */
+  addresses?: readonly string[];
 }>;
 
 export type SharePolicy = "read" | "use" | "edit";
@@ -275,24 +278,13 @@ export function readJoinReply(
   if (body.relay !== undefined && body.relay !== "nats") return null;
   const peer = readReplyPeerBlock(body.peer);
   if (peer === null) return null;
+  const addresses = readNamedAddresses(body.addresses);
+  if (addresses === null) return null;
   const relay = body.relay === "nats";
-  if (body.answer === "")
-    return relay ? replyWithPeer(id, "", peer, true) : null;
+  if (body.answer === "") return relay ? joinReply(id, "", peer, true) : null;
   const answer = readHandshake(body, "answer", reads);
   if (!answer) return null;
-  return replyWithPeer(id, answer, peer, relay);
-}
-
-function replyWithPeer(
-  id: string,
-  answer: string,
-  peer: ReplyPeerBlock | undefined,
-  relay: boolean,
-): JoinReply {
-  if (relay && peer) return { id, answer, relay: "nats", peer };
-  if (relay) return { id, answer, relay: "nats" };
-  if (peer) return { id, answer, peer };
-  return { id, answer };
+  return joinReply(id, answer, peer, relay, addresses);
 }
 
 function readField(value: BoundaryValue): SharedField | null {

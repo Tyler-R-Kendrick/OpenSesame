@@ -88,8 +88,11 @@ export interface PeerLink {
 
 /** The joiner's side: made first, finished by the owner's answer. */
 export interface DialLink extends PeerLink {
-  /** Take the answer the owner's reply code carried. Rejects if refused. */
-  accept(answer: string): Promise<void>;
+  /**
+   * Take the answer the owner's reply code carried, with the addresses that
+   * reply names (ADR 0150 §6). Rejects if refused.
+   */
+  accept(answer: string, named?: readonly string[]): Promise<void>;
 }
 
 /** What carries live sessions between two browsers. */
@@ -105,6 +108,8 @@ export interface PeerTransport {
   dial(): Promise<DialLink>;
   /** The owner's side, for one joiner let in: its handshake is the answer. */
   answer(offer: string): Promise<PeerLink>;
+  /** The addresses this side's handshakes offer as hints: its Routes. */
+  readonly named?: readonly string[];
 }
 
 /** Makes the transport for one session, over the routes its link names. */

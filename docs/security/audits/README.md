@@ -162,3 +162,4 @@ here. The architecture-level documents they refine live one level up in
 | 2026-10-06 | [Password parity dependency reconciliation, 2026-10-06](2026-10-06-password-parity-dependencies.md) |
 | 2026-10-13 | [The env-spec bridge inherited the store passphrase and a PATH-resolved node](2026-10-13-env-spec-bridge-environment.md) |
 | 2026-10-17 | [Fixed-name programs ran from PATH with the whole environment](2026-10-17-external-program-spawns.md) |
+| 2026-10-24 | [Live sessions admit only the ICE candidates a session names](2026-10-24-live-candidate-allowlist.md) |

@@ -236,7 +236,7 @@ export class LiveGuest {
     if (this.#relayed)
       this.#fallback.set(() => void this.#toRelay(), FALLBACK_MS);
     try {
-      await peer.accept(reply.answer);
+      await peer.accept(reply.answer, reply.addresses);
       return true;
     } catch {
       this.#finish();

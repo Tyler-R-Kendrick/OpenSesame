@@ -222,7 +222,9 @@ the vault, ADR 0134). None is ever a default, and none is ours:
   the same port (the socket is bound to every interface). One side's hint is
   enough: the other side's address is learned from its checks (a
   peer-reflexive candidate). Addresses stay with the owner; the link does not
-  carry them.
+  carry them. (Amended 2026-10-24: a received description keeps a candidate
+  at a non-public address only when the session names that address; see the
+  amendment below.)
 - **ICE servers** — STUN, and TURN over UDP, TCP or TLS on 443 (which passes a
   Pangolin raw TCP resource, a Tailscale Funnel TCP forward, or any TCP
   proxy). A TURN REST secret (coturn's `use-auth-secret`) mints credentials
@@ -383,3 +385,33 @@ for the owner's compare. The request screen shows the manual request/reply
 codes only when no carrier is ready, and the security code is folded under an
 explanation instead of standing alone. A joined guest keeps a key back to the
 live catalog after moving around the vault.
+
+## Amendment — a received description admits only the addresses the session names (2026-10-24)
+
+The security remediation of 2026-10-23 reads every received offer and answer
+through a filter that drops each candidate at a loopback, private, link-local
+or otherwise non-public literal, so a peer cannot steer this browser's ICE
+checks at an internal host. Unqualified, it also dropped the hints this ADR
+adds on purpose: the address an owner names in Routes (§6), and the
+same-machine hints 127.0.0.1 and ::1 a session offers when it names none. Two
+browsers then met only where mDNS names resolve.
+
+The filter now admits exactly the addresses the session itself names,
+compared as canonical IP literals (no prefix or range, no name resolution),
+and drops every other non-public literal as before. mDNS names are handled as
+before.
+
+- The **owner**, answering a joiner's offer, admits the addresses it named in
+  Routes and the same-machine hints. A joiner who holds the link can make the
+  owner's browser check only those.
+- The owner's **reply** names its Routes addresses in an `addresses` field, at
+  most eight canonical IP literals, sealed to the one joiner let in (§4). The
+  **joiner** admits those and the same-machine hints. A reply whose
+  `addresses` is anything else is refused whole; a reply without the field,
+  from an owner on an earlier build, admits only the same-machine hints.
+- There is no new prompt. The owner's address is the peer's own candidate,
+  not a third party the link names; the joiner's listing of hosts before
+  contact (§6) covers the link's servers and carriers, as it did.
+
+The residual risk is recorded in
+[`docs/security/audits/2026-10-24-live-candidate-allowlist.md`](../security/audits/2026-10-24-live-candidate-allowlist.md).
