@@ -144,9 +144,15 @@ beforeEach(async () => {
       expect(request.path).toBe("/app/installations/77/access_tokens");
       expect(request.method).toBe("POST");
       verifyBackupAppAssertion(request.headers.authorization ?? "", app.id);
-      expect(JSON.parse(request.body)).toEqual({
-        permissions: { metadata: "read" },
-      });
+      // Listing asks for metadata only; the backup observer's head check
+      // after the bind reads one repository. Binding never asks to write.
+      expect([
+        { permissions: { metadata: "read" } },
+        {
+          repositories: ["vault-backup"],
+          permissions: { contents: "read", metadata: "read" },
+        },
+      ]).toContainEqual(JSON.parse(request.body));
       response.statusCode = 201;
       response.end(
         JSON.stringify({

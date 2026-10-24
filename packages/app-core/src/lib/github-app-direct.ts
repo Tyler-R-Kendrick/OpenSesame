@@ -249,11 +249,17 @@ export async function listGithubAppInstallations(
   );
 }
 
+/**
+ * A token for one repository's contents, and no more than the step needs:
+ * reading the backup or its branch head asks for `read`, only the step that
+ * writes the backup asks for `write`.
+ */
 export async function createGithubInstallationToken(
   transport: GithubDirectTransport,
   credentials: GithubAppCredentials,
   installationId: number,
   repository: string,
+  access: "read" | "write",
 ): Promise<string> {
   if (!id.safeParse(installationId).success)
     throw new GithubDirectError(
@@ -275,7 +281,7 @@ export async function createGithubInstallationToken(
         token,
         body: {
           repositories: [repository],
-          permissions: { contents: "write", metadata: "read" },
+          permissions: { contents: access, metadata: "read" },
         },
       },
     ),

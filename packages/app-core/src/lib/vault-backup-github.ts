@@ -150,6 +150,7 @@ export async function pollSavedGithubBackups(): Promise<number> {
         operation.credentials,
         operation.target.installationId,
         target.repo,
+        "read",
       );
       const value = await githubApiJson(
         operation.transport,

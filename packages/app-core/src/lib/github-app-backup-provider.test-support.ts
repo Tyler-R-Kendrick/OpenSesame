@@ -73,6 +73,10 @@ function blob(bytes: Buffer) {
     .digest("hex");
 }
 type ProviderReply = { status: number; value: JsonValue };
+const TOKENS = {
+  read: "ghs_owned_backup_read_token",
+  write: "ghs_owned_backup_token",
+} as const;
 function reply(
   path: string,
   method: string,
@@ -104,19 +108,25 @@ function reply(
           expires_at: new Date(Date.now() + 600000).toISOString(),
         },
       };
-    expect(JSON.parse(body)).toEqual({
+    // One repository's contents, read for a read and write only for a write.
+    const access = input.permissions?.contents;
+    expect(["read", "write"]).toContain(access);
+    expect(input).toEqual({
       repositories: ["backups"],
-      permissions: { contents: "write", metadata: "read" },
+      permissions: { contents: access, metadata: "read" },
     });
     return {
       status: 201,
       value: {
-        token: "ghs_owned_backup_token",
+        token: TOKENS[access as keyof typeof TOKENS],
         expires_at: new Date(Date.now() + 600000).toISOString(),
       },
     };
   }
-  expect(authorization).toBe("Bearer ghs_owned_backup_token");
+  // A read token reads; only the write token may put the backup.
+  expect([`Bearer ${TOKENS.read}`, `Bearer ${TOKENS.write}`]).toContain(
+    authorization,
+  );
   if (path === `${base}/git/ref/heads/${branch}`)
     return {
       status: 200,
@@ -126,6 +136,7 @@ function reply(
       },
     };
   if (method === "PUT") {
+    expect(authorization).toBe(`Bearer ${TOKENS.write}`);
     expect(path).toBe(`${base}/contents/opensesame-vault.backup.json`);
     const input = JSON.parse(body);
     expect(input.branch).toBe(branch);

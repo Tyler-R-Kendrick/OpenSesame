@@ -50,28 +50,41 @@ it("converts a manifest without authentication, then authenticates app reads usi
   expect(JSON.stringify(fixture.requests)).not.toContain("conversion-secret");
 });
 
-it("attenuates an installation token to one repository and supported Contents/metadata permissions", async () => {
+it("attenuates an installation token to one repository and the Contents access its step needs", async () => {
   const fixture = await githubFixture((_request, response) =>
     tokenReply(response),
   );
   cleanups.push(fixture.close);
+  for (const access of ["read", "write"] as const)
+    expect(
+      await createGithubInstallationToken(
+        fixture.transport,
+        credentials,
+        77,
+        "encrypted-vault",
+        access,
+      ),
+    ).toBe("ghs_fixture_ephemeral");
+  expect(fixture.requests.map((request) => request.path)).toEqual([
+    "/app/installations/77/access_tokens",
+    "/app/installations/77/access_tokens",
+  ]);
   expect(
-    await createGithubInstallationToken(
-      fixture.transport,
-      credentials,
-      77,
-      "encrypted-vault",
-    ),
-  ).toBe("ghs_fixture_ephemeral");
-  expect(fixture.requests[0]?.path).toBe("/app/installations/77/access_tokens");
-  expect(JSON.parse(fixture.requests[0]?.body ?? "")).toEqual({
-    repositories: ["encrypted-vault"],
-    permissions: { contents: "write", metadata: "read" },
-  });
+    fixture.requests.map((request) => JSON.parse(request.body ?? "")),
+  ).toEqual([
+    {
+      repositories: ["encrypted-vault"],
+      permissions: { contents: "read", metadata: "read" },
+    },
+    {
+      repositories: ["encrypted-vault"],
+      permissions: { contents: "write", metadata: "read" },
+    },
+  ]);
   await expect(
-    createGithubInstallationToken(fixture.transport, credentials, 77, ""),
+    createGithubInstallationToken(fixture.transport, credentials, 77, "", "read"),
   ).rejects.toThrow("repository");
-  expect(fixture.requests).toHaveLength(1);
+  expect(fixture.requests).toHaveLength(2);
 });
 
 it("paginates installations on the fixed API, ignoring foreign Link headers", async () => {
@@ -214,6 +227,6 @@ it("rechecks token custody after the HTTP helper resolves", async () => {
     },
   };
   await expect(
-    createGithubInstallationToken(transport, credentials, 77, "backups"),
+    createGithubInstallationToken(transport, credentials, 77, "backups", "write"),
   ).rejects.toThrow("custody ended");
 });

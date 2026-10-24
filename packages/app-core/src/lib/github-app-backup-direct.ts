@@ -114,6 +114,7 @@ export async function readGithubAppBackup(
     credentials,
     target.installationId,
     target.repo,
+    "read",
   );
   const reference = z
     .object({
@@ -167,6 +168,7 @@ export async function putGithubAppBackup(
     credentials,
     target.installationId,
     target.repo,
+    "write",
   );
   const existing = await githubApiJson(
     transport,
