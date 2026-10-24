@@ -1,11 +1,18 @@
 /** @vitest-environment jsdom */
 import type { ServerResponse } from "node:http";
+import {
+  aiCompletionSeams,
+  aiConnectionFetch,
+  readAiJson,
+} from "@opensesame/app-core/lib/ai-connections/http.js";
 import { aiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/presets.js";
+import { aiInferenceRequest } from "@opensesame/app-core/lib/ai-connections/protocol.js";
 import { aiHttpFixture } from "@opensesame/app-core/lib/ai-connections/protocol.test-support.js";
 import {
   performSavedAiInference,
   saveAiConnection,
 } from "@opensesame/app-core/lib/ai-connections/runtime.js";
+import { captureAiConnectionTransport } from "@opensesame/app-core/lib/ai-connections/transport.js";
 import { approvedPlan } from "@opensesame/app-core/lib/capabilities/__tests__/plan-fixtures.js";
 import { describeCapability } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import { createEgressPort } from "@opensesame/app-core/lib/capabilities/egress.js";
@@ -13,6 +20,7 @@ import {
   deferred,
   runtimeFixture,
 } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { aiCompletionSnapshot } from "../../verification/ai-completion-verifier.js";
 import { createActivation } from "../activation.js";
@@ -258,3 +266,95 @@ it.each(["caller", "lease"] as const)(
     }
   },
 );
+
+it("retires only physical forwarding at real JSON EOF without replacing the native Response", async () => {
+  const transport = captureAiConnectionTransport();
+  const check = () => transport.assertCurrent();
+  const request = aiInferenceRequest(draft(), input());
+  const response = await aiConnectionFetch(
+    draft(),
+    request.url,
+    transport,
+    check,
+    request.body,
+  );
+  const capture = captures.at(-1);
+  if (!capture) throw new Error("Missing actual fetch capture");
+  expect(response).toBe(capture.response);
+  expect(response.url).toBe(capture.response.url);
+  expect(response.type).toBe(capture.response.type);
+  expect(response.redirected).toBe(false);
+  expect(response.status).toBe(200);
+  expect(response.bodyUsed).toBe(false);
+  const clone = Response.prototype.clone.call(response);
+  expect(clone.url).toBe(response.url);
+  expect(clone.type).toBe(response.type);
+  expect(clone.redirected).toBe(response.redirected);
+  expect(clone.status).toBe(response.status);
+  expect(clone.statusText).toBe(response.statusText);
+  expect([...clone.headers]).toEqual([...response.headers]);
+  expect(clone.headers).not.toBe(response.headers);
+  expect(await Response.prototype.text.call(clone)).toBe(json);
+  expect(response.bodyUsed).toBe(false);
+  await expect(readAiJson(response, check)).resolves.toEqual(JSON.parse(json));
+  expect(response.bodyUsed).toBe(true);
+  expect(response.body?.locked).toBe(false);
+  pages.abort("Original lease ended after actual JSON EOF");
+  expect(capture.signal.aborted).toBe(false);
+  expect(() => transport.assertCurrent()).toThrow();
+  expect(() => transport.fetch(request.url, { method: "POST" })).toThrow();
+  expect(captures).toHaveLength(1);
+});
+
+it("keeps physical lease cancellation connected while a JSON body remains held open", async () => {
+  holdNext = true;
+  const transport = captureAiConnectionTransport();
+  const check = () => transport.assertCurrent();
+  const request = aiInferenceRequest(draft(), input());
+  const response = await aiConnectionFetch(
+    draft(),
+    request.url,
+    transport,
+    check,
+    request.body,
+  );
+  const capture = captures.at(-1);
+  if (!capture) throw new Error("Missing actual held fetch capture");
+  const before = aiCompletionSnapshot();
+  const pending = readAiJson(response, check);
+  const settled = pending.then(
+    () => false,
+    () => true,
+  );
+  expect(response.body?.locked).toBe(true);
+  expect(capture.signal.aborted).toBe(false);
+  pages.abort("Original lease ended before JSON EOF");
+  expect(await settled).toBe(true);
+  await closed.promise;
+  expect(capture.signal.aborted).toBe(true);
+  expect(response.body?.locked).toBe(false);
+  const after = aiCompletionSnapshot();
+  expect(after.bodies).toHaveLength(before.bodies.length);
+  expect(after.operations).toHaveLength(before.operations.length);
+});
+
+it("still refuses a public Save when logical authority ends after EOF and before commit", async () => {
+  const observe = aiCompletionSeams.observe;
+  const before = aiCompletionSnapshot();
+  aiCompletionSeams.observe = (event) => {
+    observe?.(event);
+    if (event.phase === "body") pages.abort("Original lease ended after EOF");
+  };
+  try {
+    await expect(saveAiConnection(draft())).rejects.toThrow();
+    expect(captures).toHaveLength(1);
+    expect(captures[0].response.bodyUsed).toBe(true);
+    expect(captures[0].signal.aborted).toBe(false);
+    const after = aiCompletionSnapshot();
+    expect(after.bodies).toHaveLength(before.bodies.length + 1);
+    expect(after.operations).toHaveLength(before.operations.length);
+    expect(vaultStore.getSnapshot().items).toHaveLength(0);
+  } finally {
+    aiCompletionSeams.observe = observe;
+  }
+});
