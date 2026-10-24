@@ -26,7 +26,7 @@ const EMPTY: OidcConnectorConfig = {
   tokenAuth: "client_secret_post",
 };
 
-export function CustomOidcConnector() {
+function useCustomOidcEditor() {
   const store = useVaultStore();
   const [config, setConfig] = useState(EMPTY);
   const [pending, setPending] = useState<OidcPending | null>(null);
@@ -103,6 +103,208 @@ export function CustomOidcConnector() {
     }
   }
 
+  return {
+    config,
+    set,
+    pending,
+    callback,
+    setCallback,
+    failure,
+    busy,
+    saved,
+    discover,
+    start,
+    finish,
+    save,
+  };
+}
+
+type CustomOidcEditor = ReturnType<typeof useCustomOidcEditor>;
+
+function OidcEndpointFields({ editor }: { editor: CustomOidcEditor }) {
+  const { config, set, busy, discover } = editor;
+  return (
+    <>
+      <div className="field">
+        <label htmlFor="oidc-issuer">Issuer URL</label>
+        <input
+          id="oidc-issuer"
+          value={config.issuer}
+          placeholder="https://accounts.example.com"
+          onChange={(event) => set("issuer", event.target.value)}
+        />
+      </div>
+      <button
+        type="button"
+        className="btn btn--sm"
+        disabled={busy}
+        onClick={() => void discover()}
+      >
+        Discover endpoints
+      </button>
+      <div className="field">
+        <label htmlFor="oidc-authorization">Authorization endpoint</label>
+        <input
+          id="oidc-authorization"
+          value={config.authorizationEndpoint}
+          onChange={(event) => set("authorizationEndpoint", event.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="oidc-token">Token endpoint</label>
+        <input
+          id="oidc-token"
+          value={config.tokenEndpoint}
+          onChange={(event) => set("tokenEndpoint", event.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="oidc-jwks">JWKS URI</label>
+        <input
+          id="oidc-jwks"
+          value={config.jwksUri}
+          onChange={(event) => set("jwksUri", event.target.value)}
+        />
+      </div>
+    </>
+  );
+}
+
+function OidcClientFields({ editor }: { editor: CustomOidcEditor }) {
+  const { config, set } = editor;
+  return (
+    <>
+      <div className="field">
+        <label htmlFor="oidc-client">Client ID</label>
+        <input
+          id="oidc-client"
+          value={config.clientId}
+          onChange={(event) => set("clientId", event.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="oidc-secret">Client secret</label>
+        <input
+          id="oidc-secret"
+          type="password"
+          value={config.clientSecret}
+          onChange={(event) => set("clientSecret", event.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="oidc-callback">Callback URL</label>
+        <input
+          id="oidc-callback"
+          value={config.callbackUrl}
+          placeholder="https://your-tunnel.example/oidc/callback"
+          onChange={(event) => set("callbackUrl", event.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="oidc-scopes">Scopes</label>
+        <input
+          id="oidc-scopes"
+          value={config.scopes.join(" ")}
+          onChange={(event) =>
+            set("scopes", event.target.value.split(/\s+/u).filter(Boolean))
+          }
+        />
+      </div>
+    </>
+  );
+}
+
+function OidcTokenAuthentication({ editor }: { editor: CustomOidcEditor }) {
+  const { config, set } = editor;
+  return (
+    <>
+      <div className="field">
+        <label htmlFor="oidc-auth">Token endpoint authentication</label>
+        <select
+          id="oidc-auth"
+          value={config.tokenAuth}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (
+              value === "none" ||
+              value === "client_secret_basic" ||
+              value === "client_secret_post"
+            )
+              set("tokenAuth", value);
+          }}
+        >
+          <option value="none">Public client (PKCE)</option>
+          <option value="client_secret_basic">
+            Client secret in HTTP Basic
+          </option>
+          <option value="client_secret_post">
+            Client secret in request body
+          </option>
+        </select>
+      </div>
+    </>
+  );
+}
+
+function OidcActions({ editor }: { editor: CustomOidcEditor }) {
+  const {
+    busy,
+    start,
+    save,
+    pending,
+    callback,
+    setCallback,
+    finish,
+    failure,
+    saved,
+  } = editor;
+  return (
+    <>
+      <div className="button-row">
+        <button
+          type="button"
+          className="btn btn--sm btn--primary"
+          disabled={busy}
+          onClick={() => void start()}
+        >
+          <IconPlus size={14} /> Start sign-in
+        </button>
+        <button
+          type="button"
+          className="btn btn--sm"
+          disabled={busy}
+          onClick={() => void save()}
+        >
+          Save encrypted
+        </button>
+      </div>
+      {pending ? (
+        <div className="field">
+          <label htmlFor="oidc-callback-result">Paste the callback URL</label>
+          <input
+            id="oidc-callback-result"
+            value={callback}
+            onChange={(event) => setCallback(event.target.value)}
+          />
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={busy || !callback}
+            onClick={() => void finish()}
+          >
+            Complete exchange
+          </button>
+        </div>
+      ) : null}
+      {failure ? <StatusMark tone="err" label={failure} /> : null}
+      {saved ? <StatusMark tone="ok" label="Sealed in the vault" /> : null}
+    </>
+  );
+}
+
+export function CustomOidcConnector() {
+  const editor = useCustomOidcEditor();
+  const { config, set } = editor;
   return (
     <div className="section__inner conn-settings">
       <Link className="conn-back" to="/connections">
@@ -127,146 +329,10 @@ export function CustomOidcConnector() {
               onChange={(event) => set("name", event.target.value)}
             />
           </div>
-          <div className="field">
-            <label htmlFor="oidc-issuer">Issuer URL</label>
-            <input
-              id="oidc-issuer"
-              value={config.issuer}
-              placeholder="https://accounts.example.com"
-              onChange={(event) => set("issuer", event.target.value)}
-            />
-          </div>
-          <button
-            type="button"
-            className="btn btn--sm"
-            disabled={busy}
-            onClick={() => void discover()}
-          >
-            Discover endpoints
-          </button>
-          <div className="field">
-            <label htmlFor="oidc-authorization">Authorization endpoint</label>
-            <input
-              id="oidc-authorization"
-              value={config.authorizationEndpoint}
-              onChange={(event) =>
-                set("authorizationEndpoint", event.target.value)
-              }
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="oidc-token">Token endpoint</label>
-            <input
-              id="oidc-token"
-              value={config.tokenEndpoint}
-              onChange={(event) => set("tokenEndpoint", event.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="oidc-jwks">JWKS URI</label>
-            <input
-              id="oidc-jwks"
-              value={config.jwksUri}
-              onChange={(event) => set("jwksUri", event.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="oidc-client">Client ID</label>
-            <input
-              id="oidc-client"
-              value={config.clientId}
-              onChange={(event) => set("clientId", event.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="oidc-secret">Client secret</label>
-            <input
-              id="oidc-secret"
-              type="password"
-              value={config.clientSecret}
-              onChange={(event) => set("clientSecret", event.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="oidc-callback">Callback URL</label>
-            <input
-              id="oidc-callback"
-              value={config.callbackUrl}
-              placeholder="https://your-tunnel.example/oidc/callback"
-              onChange={(event) => set("callbackUrl", event.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="oidc-scopes">Scopes</label>
-            <input
-              id="oidc-scopes"
-              value={config.scopes.join(" ")}
-              onChange={(event) =>
-                set("scopes", event.target.value.split(/\s+/u).filter(Boolean))
-              }
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="oidc-auth">Token endpoint authentication</label>
-            <select
-              id="oidc-auth"
-              value={config.tokenAuth}
-              onChange={(event) =>
-                set(
-                  "tokenAuth",
-                  event.target.value as OidcConnectorConfig["tokenAuth"],
-                )
-              }
-            >
-              <option value="none">Public client (PKCE)</option>
-              <option value="client_secret_basic">
-                Client secret in HTTP Basic
-              </option>
-              <option value="client_secret_post">
-                Client secret in request body
-              </option>
-            </select>
-          </div>
-          <div className="button-row">
-            <button
-              type="button"
-              className="btn btn--sm btn--primary"
-              disabled={busy}
-              onClick={() => void start()}
-            >
-              <IconPlus size={14} /> Start sign-in
-            </button>
-            <button
-              type="button"
-              className="btn btn--sm"
-              disabled={busy}
-              onClick={() => void save()}
-            >
-              Save encrypted
-            </button>
-          </div>
-          {pending ? (
-            <div className="field">
-              <label htmlFor="oidc-callback-result">
-                Paste the callback URL
-              </label>
-              <input
-                id="oidc-callback-result"
-                value={callback}
-                onChange={(event) => setCallback(event.target.value)}
-              />
-              <button
-                type="button"
-                className="btn btn--sm"
-                disabled={busy || !callback}
-                onClick={() => void finish()}
-              >
-                Complete exchange
-              </button>
-            </div>
-          ) : null}
-          {failure ? <StatusMark tone="err" label={failure} /> : null}
-          {saved ? <StatusMark tone="ok" label="Sealed in the vault" /> : null}
+          <OidcEndpointFields editor={editor} />
+          <OidcClientFields editor={editor} />
+          <OidcTokenAuthentication editor={editor} />
+          <OidcActions editor={editor} />
         </div>
       </div>
     </div>
