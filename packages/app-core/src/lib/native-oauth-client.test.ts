@@ -298,6 +298,33 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
       expect(f.requests).toHaveLength(0);
     },
   );
+  it("saves a form's blank token relay as absent and exchanges at the token endpoint", async () => {
+    const fixture = await nativeOAuthClientFixture("client_secret_post");
+    closing.push(fixture.close);
+    const saved = await configureNativeOAuthClient(
+      {
+        ...fixture.input,
+        parameters: { ...fixture.input.parameters, token_relay_url: "" },
+      },
+      fixture.owner,
+    );
+    expect(
+      loadNativeConnectorRecord(saved.connectionId)?.configuration.parameters,
+    ).not.toHaveProperty("token_relay_url");
+    const authorization = new URL(
+      await beginNativeOAuthClient(saved.connectionId, fixture.owner),
+    );
+    fixture.state.challenge =
+      authorization.searchParams.get("code_challenge") ?? "";
+    await exchangeNativeOAuthClient(
+      new URLSearchParams({
+        native_state: authorization.searchParams.get("state") ?? "",
+        native_code: "one-use-code",
+      }).toString(),
+      fixture.owner,
+    );
+    expect(fixture.requests.map((row) => row.path)).toEqual(["/token"]);
+  });
   it("accepts a standards-compliant bearer without optional expiry while retaining it for resource verification", async () => {
     const f = await setup();
     f.state.noExpiry = true;

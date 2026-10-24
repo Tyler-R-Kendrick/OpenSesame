@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 452,
-    "violations": 724,
+    "files": 451,
+    "violations": 723,
     "oversizedLines": 221924
   },
   "files": {
@@ -195,9 +195,6 @@
     },
     "apps/pages/src/sections/connections/ai/AiGeneratedImage.tsx": {
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx": {
-      "complexity": 1
     },
     "apps/pages/src/sections/connections/connect/native-provider-descriptor.ts": {
       "complexity": 1
