@@ -275,12 +275,15 @@ export function CustomOidcConnector() {
             <select
               id="oidc-auth"
               value={config.tokenAuth}
-              onChange={(event) =>
-                set(
-                  "tokenAuth",
-                  event.target.value as OidcConnectorConfig["tokenAuth"],
+              onChange={(event) => {
+                const value = event.target.value;
+                if (
+                  value === "none" ||
+                  value === "client_secret_basic" ||
+                  value === "client_secret_post"
                 )
-              }
+                  set("tokenAuth", value);
+              }}
             >
               <option value="none">Public client (PKCE)</option>
               <option value="client_secret_basic">
