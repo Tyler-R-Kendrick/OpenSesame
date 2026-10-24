@@ -23,7 +23,7 @@ use std::process::{Child, Command, Output, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use helper_stub::{run_helper, spawn_stub_daemon};
+use helper_stub::{run_helper, spawn_stub_daemon, without_inherited_opensesame_env};
 
 /// The daemon's own operator token.
 const OPERATOR: &str = "vtok_dummy_marker_operator_0123456789abcdef";
@@ -243,8 +243,7 @@ fn boot() -> (tempfile::TempDir, Process, u16, Arc<Mutex<Vec<String>>>) {
 /// operator token or without it.
 fn allowlist(port: u16, args: &[&str], token: Option<&str>) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
-    command
-        .env_remove("OPENSESAME_OPERATOR_TOKEN")
+    without_inherited_opensesame_env(&mut command)
         .args(["daemon", "--url"])
         .arg(format!("http://127.0.0.1:{port}"))
         .arg("helpers")
