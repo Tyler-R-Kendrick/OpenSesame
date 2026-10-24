@@ -1,7 +1,6 @@
 import {
   type BoundaryValue,
   type JsonObject,
-  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -10,6 +9,7 @@ import {
   randomString,
   sha256Base64Url,
 } from "@opensesame/sdk-browser";
+import { host } from "../host.js";
 import { page, pageOrigin } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import {
@@ -20,7 +20,6 @@ import {
   applyConfiguredIdentityNonce,
   configuredIdentityNonce,
   configuredIdentitySessionTrusted,
-  verifyConfiguredIdentityToken,
 } from "./federation-configured-token.js";
 import type {
   BeginSignInOptions,
@@ -49,11 +48,7 @@ import {
   originClientId,
   redirectUri,
 } from "./federation-origin.js";
-import {
-  type PendingAuth,
-  storePending,
-  takeMatchingPending,
-} from "./federation-pending.js";
+import { storePending, takeMatchingPending } from "./federation-pending.js";
 import {
   clearFederationSessionJson,
   readFederationSessionJson,
@@ -68,6 +63,7 @@ import {
 } from "./identity.js";
 import { rememberLastSignIn } from "./last-sign-in.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
+import { signInMethods } from "./settings.js";
 export {
   operatorUpstream,
   isOperatorIdpIssuer,
@@ -351,75 +347,91 @@ async function beginSignInDefault(
 
 export { hasAuthResponse } from "./federation-response.js";
 
-/**
- * Ask the upstream whether this token is actually authorized, when it offers
- * a way to ask (shoo's CORS-enabled `POST /session/check`).
- *
- * Only the upstream's explicit "no" — a 401 with a reason — refuses the
- * sign-in: that answer is signature-verified and revocation-aware on the
- * broker's side, which is exactly the verification this static page cannot do
- * itself (the JWKS endpoint serves no CORS). A missing endpoint (404/501 from
- * an older broker) or a transport failure does not invalidate a token that
- * just arrived from the same broker's token endpoint over TLS; claims were
- * already checked in `readIdentity`.
- *
- * The URL is the compiled session check only. The pending record is shared
- * storage and must not choose where the id token is presented.
- */
-async function requireActiveUpstreamSession(
-  idToken: string,
-  endpoint: string | undefined,
-  issuer: string,
-): Promise<void> {
-  if (!endpoint) return;
-  let response: Response;
-  try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: { authorization: `Bearer ${idToken}` },
-      credentials: "omit",
-    });
-  } catch {
-    return;
-  }
-  if (response.status !== 401) return;
-  let reason = "revoked";
-  try {
-    const body: { reason?: BoundaryValue } = overlapCast(await response.json());
-    // The reason lands in on-screen copy: admit only a short token-shaped
-    // word, never an arbitrary string a broker response happens to carry.
-    if (isString(body.reason) && /^[a-z][a-z0-9_-]{0,63}$/i.test(body.reason)) {
-      reason = body.reason;
-    }
-  } catch {
-    /* the status alone is the answer */
-  }
-  throw new FederationError(
-    "login_required",
-    reason === "expired"
-      ? "That sign-in expired before it could finish. Try again."
-      : `${issuer} says this sign-in is not authorized (${reason}). Sign in again.`,
-  );
+export const federationExchangeSeams = {
+  load: (): Promise<typeof import("./federation-exchange.js")> =>
+    import("./federation-exchange.js"),
+};
+
+function callbackTrust(): string {
+  return JSON.stringify({
+    upstreams: TRUSTED_UPSTREAMS,
+    broker: remoteIdentityApi(),
+    signIn: signInMethods(),
+  });
 }
+
+/** Capture before the ambient seam's existing await; consuming and scrubbing precede the new loader await. */
+function captureCallback() {
+  const originalHost = host();
+  const { search, origin, href } = page().location;
+  const generation = federationSessionGeneration();
+  const trust = callbackTrust();
+  const originalFetch = fetch;
+  let expectedHref = href;
+  const assertCurrent = () => {
+    if (federationSessionGeneration() !== generation)
+      throw new FederationError(
+        "sign_in_cancelled",
+        "That sign-in was ended by a sign-out. Start again.",
+      );
+    if (
+      host() !== originalHost ||
+      pageOrigin() !== origin ||
+      page().location.href !== expectedHref ||
+      fetch !== originalFetch ||
+      callbackTrust() !== trust
+    )
+      throw new FederationError(
+        "invalid_request",
+        "Identity configuration changed or callback was replaced during sign-in; start again",
+      );
+  };
+  return Object.freeze({
+    search,
+    origin,
+    generation,
+    clientId: originClientId(origin),
+    redirectUri: redirectUri(),
+    assertCurrent,
+    scrub() {
+      assertCurrent();
+      const url = new URL(expectedHref);
+      for (const key of [
+        "code",
+        "state",
+        "error",
+        "error_description",
+        "scope",
+      ])
+        url.searchParams.delete(key);
+      expectedHref = url.toString();
+      page().replaceUrl(expectedHref);
+      assertCurrent();
+    },
+  });
+}
+type CallbackCapture = ReturnType<typeof captureCallback>;
 
 /**
  * Finish a redirect that `beginSignIn` started. Returns null when this load is
  * not an upstream response, so it is safe to call on every startup.
  */
-async function completeSignInDefault(): Promise<CompletedSignIn | null> {
-  const parsed = parseAuthCallback(page().location.search);
+async function completeSignInDefault(
+  captured: CallbackCapture,
+): Promise<CompletedSignIn | null> {
+  const parsed = parseAuthCallback(captured.search);
   if (parsed.kind === "none") return null;
+  captured.assertCurrent();
   if (parsed.kind === "malformed") {
-    clearAuthResponseFromUrl();
+    captured.scrub();
     throw new FederationError(
       parsed.reason,
       "This sign-in response was not usable.",
     );
   }
-  const generation = federationSessionGeneration();
   const state = parsed.state;
   const { pending, stale, unmatched } = takeMatchingPending(state);
-  clearAuthResponseFromUrl();
+  captured.scrub();
 
   if (unmatched) {
     throw new FederationError(
@@ -469,80 +481,31 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     code,
     // Byte-identical to what the authorize request carried, whichever shape
     // that was — token endpoints compare, not resolve.
-    redirect_uri: pending.redirectUri ?? redirectUri(),
-    client_id: pending.clientId ?? originClientId(),
+    redirect_uri: pending.redirectUri ?? captured.redirectUri,
+    client_id: pending.clientId ?? captured.clientId,
     code_verifier: pending.verifier,
   });
 
-  const { resolvePinnedEndpoints } = await import(
-    "./federation-endpoint-pin.js"
-  );
-  const pinned = resolvePinnedEndpoints(pending, TRUSTED_UPSTREAMS);
-  const tokenEndpoint = pinned.tokenEndpoint;
-  let response: Response;
-  try {
-    response = await fetch(tokenEndpoint, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body,
-      credentials: "omit",
-    });
-  } catch {
-    // Browser-side exchange only works if the upstream serves CORS on its
-    // token endpoint. Compiled-in brokers are required to; an operator's own
-    // provider has to be configured for a single-page app, which is the same
-    // requirement said in the provider's own words.
-    throw new FederationError(
-      "upstream_unavailable",
-      `Could not reach the token endpoint at ${pending.issuer}. It has to allow browser requests — in most providers that means registering this app as a single-page or public client.`,
-    );
-  }
-  if (!response.ok) {
-    throw new FederationError(
-      "exchange_failed",
-      `${pending.issuer} refused the code exchange (${response.status}).`,
-    );
-  }
-
-  const tokens: { id_token?: BoundaryValue; access_token?: BoundaryValue } =
-    overlapCast(await response.json());
-  if (!isString(tokens.id_token)) {
-    throw new FederationError(
-      "exchange_failed",
-      `${pending.issuer} returned no id_token.`,
-    );
-  }
-
-  await verifyConfiguredIdentityToken(tokens.id_token, pending, pinned.jwksUri);
-  const identity = readIdentity(tokens.id_token, pending, pinned.jwksUri);
-  // "We actually have an authorized user": where the broker offers a session
-  // check (shoo does; its JWKS serves no CORS, so this is the one signature-
-  // and revocation-backed answer a static page can get), ask it before the
-  // identity is saved or handed to anyone. A refusal here is a refusal of the
-  // whole sign-in.
-  await requireActiveUpstreamSession(
-    identity.idToken,
-    pinned.sessionCheckEndpoint,
-    pending.issuer,
-  );
-  // Org SSO/SAML is a one-shot assertion for Identity join, not a durable
-  // Pages federation session. Saving it would collide with Shoo/mock sign-in.
-  if (!pending.orgSlug) saveSession(identity, generation);
-  // Only the brokered issuer's access token is ever carried out of here: it is
-  // the one this app is entitled to spend, at the one endpoint that accepts it.
-  const brokered =
-    !pending.orgSlug &&
-    isBrokeredIssuer(pending.issuer) &&
-    isString(tokens.access_token);
-  return {
-    identity,
-    returnTo: assertSafeReturnTo(pending.returnTo, pageOrigin(), "/"),
-    orgSlug: pending.orgSlug,
-    orgMethod: pending.orgMethod,
-    ...(brokered && isString(tokens.access_token)
-      ? { accessToken: tokens.access_token }
-      : undefined),
-  };
+  const context = Object.freeze({
+    pending: Object.freeze({ ...pending }),
+    body: body.toString(),
+    origin: captured.origin,
+    clientId: pending.clientId ?? captured.clientId,
+    upstreams: Object.freeze(
+      TRUSTED_UPSTREAMS.map((upstream) => Object.freeze({ ...upstream })),
+    ),
+    assertCurrent: captured.assertCurrent,
+    decodeClaims: decodeJwtClaims,
+    issuerTrusted: issuerIsTrusted,
+    issuerBrokered: isBrokeredIssuer,
+    subjectIsPairwise: (issuer: string) =>
+      isBrokeredIssuer(issuer) || isOperatorIdpIssuer(issuer),
+    save: (identity: UpstreamIdentity) =>
+      saveSession(identity, captured.generation),
+  });
+  const { exchangeCapturedSignIn } = await federationExchangeSeams.load();
+  captured.assertCurrent();
+  return exchangeCapturedSignIn(context);
 }
 
 /**
@@ -626,95 +589,6 @@ async function adoptBrokeredSessionDefault(
   return session;
 }
 
-/** Read claims after configured signature validation or a compiled broker's pinned TLS exchange. */
-function readIdentity(
-  idToken: string,
-  pending: PendingAuth,
-  jwksUri: string,
-): UpstreamIdentity {
-  const claims = decodeJwtClaims(idToken);
-  const issuer = isString(claims.iss) ? claims.iss : "";
-  if (issuer.replace(/\/+$/, "") !== pending.issuer.replace(/\/+$/, "")) {
-    throw new FederationError(
-      "issuer_mismatch",
-      `Token was issued by ${issuer || "nobody"}, not ${pending.issuer}.`,
-    );
-  }
-  if (
-    !pending.orgSlug &&
-    !upstreamByIssuer(issuer) &&
-    !isBrokeredIssuer(issuer) &&
-    !isOperatorIdpIssuer(issuer)
-  ) {
-    throw new FederationError(
-      "untrusted_issuer",
-      `${issuer} is not a trusted broker.`,
-    );
-  }
-
-  const expected = pending.clientId ?? originClientId();
-  const audience = Array.isArray(claims.aud)
-    ? claims.aud.filter((value): value is string => isString(value))
-    : [String(claims.aud ?? "")];
-  if (!audience.includes(expected)) {
-    throw new FederationError(
-      "audience_mismatch",
-      `Token was minted for ${audience.join(", ") || "nobody"}, not ${expected}.`,
-    );
-  }
-
-  const exp = isNumber(claims.exp) ? claims.exp : 0;
-  if (exp * 1000 <= Date.now()) {
-    throw new FederationError("expired", "Token was already expired.");
-  }
-
-  // `sub` stands in for `pairwise_sub` on the legs whose subject is not a
-  // shared broker's:
-  //
-  //  - an org round-trip, and the brokered issuer — the Identity API mints
-  //    origin-profile subjects pairwise by construction (ADR 0050);
-  //  - the operator's own provider (ADR 0078). `pairwise_sub` exists because a
-  //    broker serving many unrelated relying parties would otherwise hand them
-  //    all the same subject to correlate on. An Okta org or an Entra directory
-  //    the operator configured is not that: they are the relying party. They
-  //    also do not mint a claim of that name — it is our brokers' contract, not
-  //    OIDC's — so demanding it would refuse every real provider. Correlation
-  //    downstream is unaffected: an origin this app brokers *to* still gets the
-  //    per-origin subject `derivedSubjectFor` computes, whatever the source.
-  //
-  // Every other broker must say `pairwise_sub` and mean it.
-  const subjectIsPairwise =
-    Boolean(pending.orgSlug) ||
-    isBrokeredIssuer(issuer) ||
-    isOperatorIdpIssuer(issuer);
-  const pairwiseSub = isString(claims.pairwise_sub)
-    ? claims.pairwise_sub
-    : subjectIsPairwise && isString(claims.sub)
-      ? claims.sub
-      : "";
-  if (!pairwiseSub) {
-    throw new FederationError(
-      "invalid_token",
-      subjectIsPairwise
-        ? "Token carries no subject, so it identifies nobody."
-        : "Token carries no pairwise_sub, so it identifies nobody.",
-    );
-  }
-
-  return {
-    issuer,
-    upstreamId: pending.upstreamId,
-    idToken,
-    pairwiseSub,
-    audience: expected,
-    jwksUri,
-    expiresAt: exp * 1000,
-    email: isString(claims.email) ? claims.email : undefined,
-    name: isString(claims.name) ? claims.name : undefined,
-    picture: isString(claims.picture) ? claims.picture : undefined,
-  };
-}
-
 /** Strip the code out of the address bar so a reload cannot replay it. */
 export function clearAuthResponseFromUrl(): void {
   const url = new URL(page().location.href);
@@ -784,14 +658,13 @@ function clearSessionDefault(): void {
 }
 
 async function completeSignInWired(): Promise<CompletedSignIn | null> {
-  const ambient = await ambientAuthSeams.completeIfPresent(
-    page().location.search,
-  );
+  const captured = captureCallback();
+  const ambient = await ambientAuthSeams.completeIfPresent(captured.search);
   if (ambient) {
     clearAuthResponseFromUrl();
     return ambient;
   }
-  return completeSignInDefault();
+  return completeSignInDefault(captured);
 }
 
 export const federationSeams = {
