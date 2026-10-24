@@ -28,7 +28,7 @@
 //! The check is by path, and bounded: it does not look at the directories
 //! above the two it reads, as for a `node` on `PATH`, and `node` opens the file
 //! a moment after it was checked. On Windows only "is a regular file" is
-//! checked; a release kit is Linux only (ADR 0207).
+//! checked; a release kit is Linux only (ADR 0212).
 
 use std::path::{Path, PathBuf};
 

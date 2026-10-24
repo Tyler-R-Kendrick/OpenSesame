@@ -1,4 +1,4 @@
-// scripts/release/tag-check.sh (ADR 0207): what a release tag has to be before
+// scripts/release/tag-check.sh (ADR 0212): what a release tag has to be before
 // anything is built for it, run against throwaway repositories with real
 // annotated and lightweight tags.
 import { execFileSync, spawnSync } from "node:child_process";
