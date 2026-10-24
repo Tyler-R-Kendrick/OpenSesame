@@ -369,9 +369,8 @@ describe("ItemDetail", () => {
   });
 
   it("never looks up receipts, whatever the Host or connection state", async () => {
-    // Pages keeps no Host fetch (ADR 0128): the line is the same whether the
-    // Host would have had no connection, been degraded, had no receipts or
-    // failed, and nothing is asked of it.
+    // Pages keeps no Host fetch (ADR 0128): no connection, a degraded Host, no
+    // receipts or a failure all draw the same line, and nothing is asked of it.
     const sent = vi.spyOn(globalThis, "fetch");
     const worlds = [
       () => listConnections.mockResolvedValue([]),
