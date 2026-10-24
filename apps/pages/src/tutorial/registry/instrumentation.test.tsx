@@ -50,6 +50,7 @@ const emptyVault: VaultSnapshot = {
 const vault: VaultFixture = { current: emptyVault };
 const connectors: ConnectorFixture = { current: [] };
 const noopStore = {
+  activeTomb: () => "personal",
   purgeItem: () => undefined,
   trashItem: () => undefined,
   toggleFavorite: () => undefined,

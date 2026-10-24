@@ -32,6 +32,7 @@ const vault: TestVaultCell = {
   current: { items: [], folders: [], header: null },
 };
 const store = {
+  activeTomb: () => "personal",
   purgeItem: vi.fn(),
   restoreItem: vi.fn(),
   trashItem: vi.fn(),

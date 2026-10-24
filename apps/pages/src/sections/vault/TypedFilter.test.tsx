@@ -46,7 +46,11 @@ import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
-  useVaultStore: () => ({ purgeItem: vi.fn(), trashItem: vi.fn() }),
+  useVaultStore: () => ({
+    activeTomb: () => "personal",
+    purgeItem: vi.fn(),
+    trashItem: vi.fn(),
+  }),
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 

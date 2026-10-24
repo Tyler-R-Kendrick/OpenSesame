@@ -42,7 +42,7 @@ Object.assign(vaultHooksSeams, {
       signOutOnLock: false,
     },
   }),
-  useVaultStore: () => ({ lock: vault.lock }),
+  useVaultStore: () => ({ lock: vault.lock, activeTomb: () => "personal" }),
 });
 
 import { notificationsBarSeams } from "./NotificationsBar.js";

@@ -25,6 +25,7 @@ const vault = vi.hoisted(
   (): VaultFixture => ({ current: { items: [], folders: [] } }),
 );
 const store = vi.hoisted(() => ({
+  activeTomb: () => "personal",
   toggleFavorite: vi.fn(),
   saveItem: vi.fn(),
   trashItem: vi.fn(),

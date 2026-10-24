@@ -30,6 +30,7 @@ const vault = vi.hoisted(
   (): VaultFixture => ({ current: { items: [], folders: [] } }),
 );
 const store = vi.hoisted(() => ({
+  activeTomb: () => "personal",
   toggleFavorite: vi.fn<(id: string) => Promise<void>>(),
   saveItem: vi.fn<(item: VaultItem) => Promise<void>>(),
   trashItem: vi.fn<(id: string) => Promise<void>>(),
