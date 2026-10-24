@@ -245,12 +245,16 @@ export async function restoreDeclined(browser) {
     .setInputFiles(backup);
   const sheet = target.page.getByRole("dialog", { name: "Import items" });
   await sheet.waitFor({ timeout: 15000 });
+  // The sheet opens before the file is read; the card with the choice, and
+  // its PIN field, are drawn once it is.
+  const pin = sheet.getByLabel("PIN", { exact: true });
+  await pin.waitFor({ timeout: 15000 });
   const box = sheet.getByRole("checkbox", { name: TAKE });
   env.check(
     (await box.count()) === 1 && !(await box.isChecked()),
     `${label}: a fresh vault is offered the backup's identity, off`,
   );
-  await sheet.getByLabel("PIN", { exact: true }).fill(PIN);
+  await pin.fill(PIN);
   await sheet.getByRole("button", { name: "Restore items" }).click();
   await sheet
     .getByText("Restored", { exact: true })
