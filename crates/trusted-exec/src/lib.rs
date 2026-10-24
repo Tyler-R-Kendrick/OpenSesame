@@ -11,11 +11,16 @@
 //!    file is the program (see [`named`]): it must be absolute, exist and after
 //!    symlinks be a regular file with an execute bit; it is exempt from the
 //!    ownership checks below, and a value that cannot be used is an error, not
-//!    a fallback. Otherwise only `PATH` entries that are absolute, exist and
-//!    that nobody else could have put the program in are searched: owned by
-//!    root or the caller, not writable by others, and group-writable only by
-//!    root's group or one of the caller's own (see [`trust`]). On Windows:
-//!    absolute, existing and not the current directory. The file itself must be
+//!    a fallback. Otherwise only `PATH` entries that are absolute, exist, are
+//!    not the current directory and that nobody else could have put the
+//!    program in are searched: owned by root or the caller, not writable by
+//!    others, and group-writable only by root's group or one of the caller's
+//!    own (see [`trust`]). Owning the current directory does not vouch for
+//!    what is in it (a repository just cloned is the caller's, but its author
+//!    chose its files), so on Unix it is compared by device and inode and
+//!    skipped however `PATH` names it; a current directory that cannot be read
+//!    leaves every entry untrusted. On Windows: absolute, existing and not the
+//!    current directory. The file itself must be
 //!    owned by root or the caller and not world-writable. Empty and relative
 //!    entries are never searched, and the inherited `PATH` is never a fallback;
 //!    the error says why each entry was skipped.
@@ -86,6 +91,8 @@ impl Platform {
 /// It holds the parent's whole environment, so it has no `Debug`.
 pub struct Lookup {
     pub vars: Vec<(OsString, OsString)>,
+    /// The working directory the program will be found from; `None` is this
+    /// process's own (a lookup built from a map of variables).
     pub cwd: Option<PathBuf>,
     pub platform: Platform,
     pub caller: Caller,

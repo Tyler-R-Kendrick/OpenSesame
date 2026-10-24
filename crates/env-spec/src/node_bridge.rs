@@ -15,9 +15,10 @@
 //!    `PATH` entries that are absolute, exist and that nobody else could have
 //!    put a `node` in are searched: owned by root or the caller, not writable
 //!    by others, and group-writable only by root's group or one of the
-//!    caller's own (`opensesame_trusted_exec::trust`). On Windows: absolute,
-//!    existing and not the current directory. The `node` itself must be owned by root or the caller
-//!    and not world-writable. An empty entry or a relative one means the
+//!    caller's own (`opensesame_trusted_exec::trust`), and never the current
+//!    directory, however `PATH` names it. On Windows: absolute, existing and
+//!    not the current directory. The `node` itself must be owned by root or
+//!    the caller and not world-writable. An empty entry or a relative one means the
 //!    working directory to a shell, and a `node` planted there would run with
 //!    everything the process holds. When nothing is found the error says so
 //!    and why each entry was skipped; the inherited `PATH` is never a fallback.
