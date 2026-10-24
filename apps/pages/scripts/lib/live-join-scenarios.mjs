@@ -22,6 +22,7 @@ import {
   gatheredHosts,
   joinerAsks,
   joinerConnects,
+  joinerSessionSas,
   ownerAdmitsByHand,
   setRoutes,
   startSession,
@@ -113,7 +114,7 @@ export async function direct(browser, owner) {
     "a sealed request code",
   );
   const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  const joinerSas = await joinerSessionSas(joiner.page);
   const ownerSas = (
     await panel.locator(".vault-row .live-sas").innerText()
   ).trim();

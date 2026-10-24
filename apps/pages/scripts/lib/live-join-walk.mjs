@@ -266,7 +266,7 @@ export async function joinerAsks(
   const choice = page.getByRole("checkbox", { name: /^Through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
-  const copy = page.getByRole("button", { name: "Copy your request code" });
+  const copy = page.getByRole("button", { name: "Copy your join request" });
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }
@@ -312,7 +312,7 @@ export async function ownerAdmitsByHand(
   name,
   { admit = true } = {},
 ) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
   const match = panel.getByRole("button", {
     name: `Yes, they match for ${name}`,
@@ -343,4 +343,26 @@ export async function ownerAdmitsByHand(
 export async function joinerConnects(page, reply) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
   await page.getByRole("button", { name: "Connect" }).click();
+}
+
+/** Open a folded `<details>` the way a person does: by its summary. */
+export async function unfold(details) {
+  if ((await details.getAttribute("open")) === null)
+    await details.locator("summary").click();
+}
+
+/** The session SAS a joiner shows, folded under "Security code". */
+export async function joinerSessionSas(page) {
+  const verify = page.locator("details.live-verify");
+  await unfold(verify);
+  return (await verify.locator(".live-sas").innerText()).trim();
+}
+
+/** The owner's peer trust signal, folded on the live session's panel. */
+export async function unfoldPeerTrust(panel) {
+  await unfold(
+    panel.locator("details.live-advanced").filter({
+      has: panel.locator("summary", { hasText: "Peer trust signal" }),
+    }),
+  );
 }
