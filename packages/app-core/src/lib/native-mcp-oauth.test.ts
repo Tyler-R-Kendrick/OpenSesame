@@ -6,7 +6,10 @@ import {
   target,
   verifier,
 } from "./native-mcp-oauth-fixtures.test-helper.js";
-import type { NativeMcpOAuthTarget } from "./native-mcp-oauth-target.js";
+import {
+  NativeMcpAuthError,
+  type NativeMcpOAuthTarget,
+} from "./native-mcp-oauth-target.js";
 
 describe("public browser MCP authorization", () => {
   it("registers an actual public client and retains it before starting S256 consent", async () => {
@@ -212,6 +215,15 @@ describe("public browser MCP authorization", () => {
         throw new Error("sealed slot rejected the record");
       }),
     ).rejects.toMatchObject({ code: "metadata" });
+  });
+
+  it("keeps a storage refusal retryable so the minted registration is not discarded", async () => {
+    const { oauth } = fixture();
+    await expect(
+      oauth.register(async () => {
+        throw new NativeMcpAuthError("storage");
+      }),
+    ).rejects.toMatchObject({ code: "storage" });
   });
 
   it("retains an unexpected confidential DCR result for cleanup before refusing it", async () => {
