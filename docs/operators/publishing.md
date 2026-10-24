@@ -4,12 +4,30 @@
 
 Workflow: `.github/workflows/publish-containers.yml`
 
-- Triggers on `workflow_dispatch` or version tags `v*`.
+- Manual publication accepts only `refs/heads/main`. Other dispatch refs are skipped.
+- Version tags `v*` must match the workspace version and name a commit already
+  on main, using the same tag check as the release kit.
+- Source verification runs with read-only permissions; publication checks out
+  its verified immutable SHA before logging into GHCR.
 - Builds `ops/compose/Dockerfile` (the `opensesame` CLI / host roles).
 - Pushes to `ghcr.io/<owner>/<repo>` using `GITHUB_TOKEN` (`packages: write`).
 
-Optional repository variable: set `OPENSESAME_FEATURES` in the workflow dispatch
-input when you need optional cargo features (for example `bitwarden-compat`).
+Set the `features` workflow dispatch input when you need optional cargo features (for example `bitwarden-compat`).
+
+### External publication boundary
+
+These checks stop accidental publication of an unapproved selected ref through
+this workflow. They do **not** stop a collaborator from pushing an edited
+workflow that grants itself `packages: write`. The release-tag ruleset alone
+also cannot constrain GHCR writes from branch workflows.
+
+For that stronger boundary, official package writes must use credentials that
+branch workflows cannot obtain: remove this repository's Actions write access
+to the official package and use a separate publisher, or an environment-scoped
+publishing credential with enforced branch/tag policies and no repository-token
+write route. Configure and verify those GitHub controls before treating the
+collaborator threat as resolved. An environment declaration in this YAML alone
+is insufficient. No such live configuration is established by this patch.
 
 ## npm packages
 
