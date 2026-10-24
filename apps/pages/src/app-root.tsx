@@ -200,7 +200,7 @@ function Fallback() {
 
 function VaultApp() {
   const slots = useContext(AppSlotsContext);
-  const { status, tomb, guest } = slots.useVault();
+  const { status, tomb, guest, decoy } = slots.useVault();
   const ceremonyActive = useSyncExternalStore(
     unlockCeremonyStore.subscribe,
     unlockCeremonyStore.getSnapshot,
@@ -222,11 +222,14 @@ function VaultApp() {
   );
 
   useVaultLanding(status, location.pathname, navigate);
-  const shellKey = useOpenVaultKey(tomb, guest === true);
+  // Enrolling a guest's first key makes it durable in place. Keep its open
+  // ceremony while still resetting the tree for another tomb, a fresh guest
+  // session on the same tomb, or a decoy actor.
+  const openVaultKey = useOpenVaultKey(tomb, guest === true);
 
   const shell = (
     <AppVaultShell
-      key={shellKey}
+      key={JSON.stringify([openVaultKey, decoy === true])}
       slots={slots}
       wrappers={wrappers}
       routes={routes}
