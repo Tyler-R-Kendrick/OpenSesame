@@ -1,4 +1,6 @@
 /** One browse tile per provider family, with its API surfaces listed inside. */
+import { canonicalProviderId } from "@opensesame/app-core/lib/connector-catalog.js";
+
 export type ApiFamily = {
   readonly id: string;
   readonly name: string;
@@ -73,8 +75,33 @@ const BY_MEMBER = new Map(
   ),
 );
 
+/**
+ * The catalog id a row stands for. A family names its members by catalog id,
+ * and this build keeps some rows under one of the catalog's aliases
+ * (`aws-secrets-manager` is `aws`, spec/connectors/catalog.json).
+ */
+function catalogId(providerId: string): string {
+  return canonicalProviderId(providerId) ?? providerId;
+}
+
 export function apiFamilyFor(providerId: string): ApiFamily | undefined {
-  return BY_MEMBER.get(providerId);
+  return BY_MEMBER.get(providerId) ?? BY_MEMBER.get(catalogId(providerId));
+}
+
+/**
+ * The family's APIs as its provider page offers them: each member by the row
+ * this build has for it, which may carry an alias of the member's catalog id.
+ */
+export function familyOptionsFor(
+  family: ApiFamily,
+  providers: readonly { readonly id: string; readonly displayName: string }[],
+): { id: string; label: string }[] {
+  return family.members.map((member) => {
+    const row =
+      providers.find((candidate) => candidate.id === member) ??
+      providers.find((candidate) => catalogId(candidate.id) === member);
+    return { id: row?.id ?? member, label: row?.displayName ?? member };
+  });
 }
 
 /** Hide non-canonical members from the browse list; their family tile owns them. */
