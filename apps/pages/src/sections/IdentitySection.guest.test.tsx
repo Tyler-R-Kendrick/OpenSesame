@@ -1,3 +1,4 @@
+import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
 import * as deviceIdentity from "@opensesame/app-core/lib/device-identity.js";
 import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
 import { mintGuestSessionPerson } from "@opensesame/app-core/lib/local-guest.js";
@@ -43,19 +44,11 @@ afterEach(() => {
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: (_name: string, action: () => Promise<void>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
-  });
+  // The store holds a shared Web Lock on the open vault for the whole session
+  // (`request(name, { mode: "shared" }, callback)`), so the double must honour
+  // both `request` overloads and per-name grants; a single queue that only
+  // reads `request(name, callback)` never runs that callback.
+  vi.stubGlobal("navigator", { locks: webLocksDouble() });
   vi.spyOn(deviceIdentity, "isRemoteIdentityConfigured").mockReturnValue(true);
 });
 
