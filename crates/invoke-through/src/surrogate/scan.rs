@@ -107,8 +107,8 @@ fn shaped_honey(haystack: &[u8]) -> Vec<String> {
             let rest = &candidate[marker.len()..];
             let id_len = super::HONEY_TOKEN_ID_LEN;
             if rest[id_len] == b'_'
-                && rest[..id_len].iter().all(|b| b.is_ascii_hexdigit())
-                && rest[id_len + 1..].iter().all(|b| b.is_ascii_hexdigit())
+                && rest[..id_len].iter().all(u8::is_ascii_hexdigit)
+                && rest[id_len + 1..].iter().all(u8::is_ascii_hexdigit)
             {
                 found.push(String::from_utf8_lossy(candidate).into_owned());
                 at += len;
