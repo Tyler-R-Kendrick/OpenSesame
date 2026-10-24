@@ -9,7 +9,11 @@ import { SHARED_ITEM } from "./live-item-labels.mjs";
 import { answerAddresses, namesSameMachine } from "./live-join-addresses.mjs";
 import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
-export { SAME_MACHINE, answerAddresses } from "./live-join-addresses.mjs";
+export {
+  SAME_MACHINE,
+  admitAndAnswer,
+  answerAddresses,
+} from "./live-join-addresses.mjs";
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
   TUNNEL_ONLY,

@@ -16,8 +16,8 @@ import {
 import { engineOf } from "./live-engines.mjs";
 import {
   WATCH_RTC,
+  admitAndAnswer,
   admitControl,
-  answerAddresses,
   assertSameMachineSdpPrivacy,
   endSession,
   gatheredHosts,
@@ -213,11 +213,8 @@ export async function carried(browser, owner, kind) {
     if (kind === "broadcast") await joiner.page.addInitScript(WATCH_RTC);
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     // The request crossed on the carrier: the owner is asked with nothing pasted.
-    const admit = admitControl(panel, JOINER);
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
     // The reply crossed on the carrier too, naming this machine: allowed.
-    await answerAddresses(joiner.page);
+    await admitAndAnswer(admitControl(panel, JOINER), joiner.page);
     await joined(joiner.page).waitFor({ timeout: 45_000 });
     await shot(joiner.page, `carrier-${kind}-joined`);
     check(true, `${kind}: joined with no code pasted either way`);
