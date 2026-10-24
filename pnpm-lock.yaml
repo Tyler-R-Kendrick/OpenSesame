@@ -1741,8 +1741,8 @@ importers:
         specifier: workspace:*
         version: link:../os-domain
       jose:
-        specifier: 6.2.13
-        version: 6.2.13
+        specifier: 6.2.8
+        version: 6.2.8
     devDependencies:
       '@opensesame/testing':
         specifier: workspace:*
@@ -1841,8 +1841,8 @@ importers:
         specifier: workspace:*
         version: link:../sdk-browser
       jose:
-        specifier: 6.2.13
-        version: 6.2.13
+        specifier: 6.2.8
+        version: 6.2.8
     devDependencies:
       '@types/node':
         specifier: 22.15.29
@@ -8240,6 +8240,9 @@ packages:
 
   jose@6.2.13:
     resolution: {integrity: sha512-7TIg10ZE1x82YediN+lcrPNvGMKge9yFHQD+Qho/b8y2adfugU3AsvvHfxV0fzyFllT6l9xCjf4RWY9g/Z9PJQ==}
+
+  jose@6.2.8:
+    resolution: {integrity: sha512-Bsdjwm3Qsd/P0jR+BHDe3LytDfY7WBq2HmCCLIwuVRHMuEC9ae7/R474GIUdF1NgCyZjzVo/A9DOiOBtXq8ZoQ==}
 
   js-base64@3.9.4:
     resolution: {integrity: sha512-PtOMXpEGuP0RRiRXsjzHzl44dMHxSu2CPvAhinupR1tBa88me+1DPqsobl7eupn5UukjLkln1ZnAOAOXOrYG0Q==}
@@ -17269,6 +17272,8 @@ snapshots:
   jose@5.10.0: {}
 
   jose@6.2.13: {}
+
+  jose@6.2.8: {}
 
   js-base64@3.9.4: {}
 
