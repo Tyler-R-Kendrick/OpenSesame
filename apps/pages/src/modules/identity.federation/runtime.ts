@@ -99,6 +99,9 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    // Targets first: a control (or a view contributed below) drawn before
+    // its target is declared binds nothing, and a tutorial finds no control.
+    registerTutorial(activation, TUTORIAL);
     activation.onDispose(
       registerCategorySend("identity", runSavedIdentityConnectors),
     );
@@ -128,7 +131,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       order: 40,
     });
     activation.register("webmcp-tool", tagWebMcpTool(IDENTITY_READ_TOOL));
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

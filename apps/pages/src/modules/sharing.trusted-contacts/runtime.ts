@@ -52,6 +52,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     // A subsection of Security, not a top-level Settings destination: the
     // three panels are one place in the security story, beside duress and
     // travel, and the page index still lists it as Trusted contacts.
+    // Targets first: a control drawn before its target is declared binds
+    // nothing, and a tutorial would find no control.
+    registerTutorial(activation, TUTORIAL);
     activation.register("settings-panel", {
       id: "trusted-contacts",
       label: "Trusted contacts",
@@ -59,7 +62,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       Panel: TrustedContacts,
       order: 330,
     });
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

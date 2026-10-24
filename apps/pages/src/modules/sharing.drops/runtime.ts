@@ -66,6 +66,12 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     refreshOutboundDropLedger();
 
+    // Targets first: a control drawn before its target is declared binds
+    // nothing, and a tutorial would find no control.
+    registerTutorial(activation, {
+      targets: DROPS_TARGETS,
+      goals: DROPS_GOALS,
+    });
     activation.register("item-kind", {
       kind: "drop",
       label: KIND_LABEL.drop,
@@ -79,10 +85,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "drop",
       order: 10,
       Panel: ShareSecretDrop,
-    });
-    registerTutorial(activation, {
-      targets: DROPS_TARGETS,
-      goals: DROPS_GOALS,
     });
     // Disposal on unlock: a claimed or lapsed drop leaves the vault. It stops
     // between drops once the lease or this run's own signal aborts.

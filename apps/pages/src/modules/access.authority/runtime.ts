@@ -75,6 +75,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
+    // Targets first: a control drawn before its target is declared binds
+    // nothing, and a tutorial would find no control.
+    registerTutorial(activation, TUTORIAL);
     activation.register("section", {
       id: "access",
       to: "/access",
@@ -124,7 +127,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "receipts-flush",
       run: ({ tomb }) => flushReceipts(tomb).then(() => undefined),
     });
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

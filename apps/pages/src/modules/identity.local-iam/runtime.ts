@@ -83,6 +83,9 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    // Targets first: a control (or a view contributed below) drawn before
+    // its target is declared binds nothing, and a tutorial finds no control.
+    registerTutorial(activation, TUTORIAL);
 
     const seedGuest = guestAuthDependencies.ensureDefaultAccess;
     guestAuthDependencies.ensureDefaultAccess = ensureDefaultAccess;
@@ -144,7 +147,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "receipts-flush",
       run: ({ tomb }) => flushReceipts(tomb).then(() => undefined),
     });
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

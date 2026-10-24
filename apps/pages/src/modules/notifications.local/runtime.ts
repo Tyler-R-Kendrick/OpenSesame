@@ -61,6 +61,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
+    // Targets first: a control drawn before its target is declared binds
+    // nothing, and a tutorial would find no control.
+    registerTutorial(activation, TUTORIAL);
     activation.register("settings-panel", {
       id: "local-notifications",
       label: "On this device",
@@ -84,8 +87,6 @@ export const capabilityRuntime: CapabilityRuntime = {
           signal,
         ),
     });
-
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

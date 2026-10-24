@@ -171,6 +171,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.onDispose(releaseManagers);
     activation.onDispose(releaseLocal);
 
+    // Targets first: a control drawn before its target is declared binds
+    // nothing, and a tutorial would find no control.
+    registerTutorial(activation, TUTORIAL);
     activation.register("section", {
       id: "connections",
       to: "/connections",
@@ -216,7 +219,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       label: "Connections",
     });
     activation.register("keymap-jump", { key: "c", path: "/connections" });
-    registerTutorial(activation, TUTORIAL);
     for (const tool of WEBMCP_TOOLS) {
       activation.register("webmcp-tool", tagWebMcpTool(tool));
     }

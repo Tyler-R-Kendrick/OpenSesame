@@ -83,6 +83,13 @@ export const capabilityRuntime: CapabilityRuntime = {
       liveSeams.onHostingEnded = priorHostingEnded;
     });
 
+    // Targets first: a control drawn before its target is declared binds
+    // nothing, and a tutorial would find no control.
+    registerTutorial(activation, {
+      targets: LIVE_TARGETS,
+      goals: LIVE_GOALS,
+      routes: LIVE_ROUTES,
+    });
     activation.register("route", {
       id: "live",
       path: "/live",
@@ -95,11 +102,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "live-share",
       Wrapper: LiveShareShell,
       order: 30,
-    });
-    registerTutorial(activation, {
-      targets: LIVE_TARGETS,
-      goals: LIVE_GOALS,
-      routes: LIVE_ROUTES,
     });
 
     return activation.handle();

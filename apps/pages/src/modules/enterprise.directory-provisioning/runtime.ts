@@ -66,6 +66,9 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    // Targets first: a view contributed below that is drawn before its
+    // target is declared binds nothing, and a tutorial finds no control.
+    registerTutorial(activation, TUTORIAL);
 
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
     // The panels behind those tabs are this module's code; the section
@@ -76,7 +79,6 @@ export const capabilityRuntime: CapabilityRuntime = {
     // capability excluded, `/identity?view=people` is not a place to go.
     // Devices is shared — the tab stays while either owner draws it.
     registerIdentityViewPaths(activation, IDENTITY_VIEWS_OWNED);
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

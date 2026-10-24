@@ -97,6 +97,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.onDispose(watchSpendingLeaseScope());
     activation.onDispose(watchWalletAssignmentScope());
 
+    // Targets first: a control drawn before its target is declared binds
+    // nothing, and a tutorial would find no control.
+    registerTutorial(activation, TUTORIAL);
     activation.register("section", {
       id: "wallet",
       to: "/wallet",
@@ -116,7 +119,6 @@ export const capabilityRuntime: CapabilityRuntime = {
     });
     activation.register("command-path", { path: "/wallet", label: "Wallet" });
     activation.register("keymap-jump", { key: "w", path: "/wallet" });
-    registerTutorial(activation, TUTORIAL);
     for (const tool of WALLET_TOOLS) {
       activation.register("webmcp-tool", tagWebMcpTool(tool));
     }

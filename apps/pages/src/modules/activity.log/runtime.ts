@@ -34,6 +34,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
+    // Targets first: a control drawn before its target is declared binds
+    // nothing, and a tutorial would find no control.
+    registerTutorial(activation, TUTORIAL);
     activation.register("section", {
       id: "activity",
       to: "/activity",
@@ -70,7 +73,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       label: "Activity",
     });
     activation.register("keymap-jump", { key: "y", path: "/activity" });
-    registerTutorial(activation, TUTORIAL);
 
     return activation.handle();
   },

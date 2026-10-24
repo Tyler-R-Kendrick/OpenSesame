@@ -74,6 +74,9 @@ export const capabilityRuntime: CapabilityRuntime = {
       if (activation.disposed()) return;
       const wanted = isRemoteIdentityConfigured();
       if (wanted && category === null) {
+        // The walkthrough navigates to the page: it lives only with the page,
+        // and is declared before the page is drawn.
+        guide = registerTutorial(activation, TUTORIAL);
         category = activation.register("settings-category", {
           id: "notifications",
           label: "Notifications",
@@ -83,8 +86,6 @@ export const capabilityRuntime: CapabilityRuntime = {
           order: 300,
           files: session.files,
         });
-        // The walkthrough navigates to the page: it lives only with the page.
-        guide = registerTutorial(activation, TUTORIAL);
       } else if (!wanted && category !== null) {
         category.revoke();
         category = null;
