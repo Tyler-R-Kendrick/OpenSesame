@@ -11,13 +11,13 @@ async fn fixture_in(db: Db) -> Db {
     for statement in [
         "INSERT INTO bitwarden_users (id, email, master_password_hash, kdf_type, kdf_iterations, \
          user_key, security_stamp, created_at, revision_at, updated_at) VALUES ('u', \
-         'quota@example.com', 'h', 0, 600000, '2.k', 's', '2026-01-01T00:00:00Z', \
-         '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+         'quota@example.com', 'h', 0, 600000, '2.k', 's', '2026-01-01T00:00:00.000Z', \
+         '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')",
         "INSERT INTO bitwarden_organizations (id, name, billing_email, created_at, revision_at) \
-         VALUES ('o', 'Org', 'billing@example.com', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+         VALUES ('o', 'Org', 'billing@example.com', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')",
         "INSERT INTO bitwarden_ciphers (id, user_id, cipher_type, data, created_at, revision_at) \
-         VALUES ('c1', 'u', 2, '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'), \
-         ('c2', 'u', 2, '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+         VALUES ('c1', 'u', 2, '{}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'), \
+         ('c2', 'u', 2, '{}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')",
     ] {
         sqlx::query(statement).execute(&db.pool).await.unwrap();
     }
