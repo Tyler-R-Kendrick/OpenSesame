@@ -7,7 +7,7 @@ import {
   capabilityOnSwitch,
 } from "./always-on.mjs";
 import { passTheDoor } from "./front-door.mjs";
-import { openSessionSection } from "./session-section.mjs";
+import { openSessionMenu, openSessionSection } from "./session-section.mjs";
 /**
  * The key every walk seals its vault with. A passkey cannot be made headless
  * and a master password is no longer offered to seal a vault (ADR 0180), so
@@ -130,11 +130,11 @@ export async function addCapabilities(page, titles) {
 }
 
 export async function openGeneral(page) {
-  // Settings is the heading the section opens on (it has no "Preferences"
-  // heading — that name went with an earlier shape of the panel).
+  // A user-category visit can leave the Settings tree rooted in User
+  // Settings. General belongs to the vault group, whose heading still exists.
   const heading = page.getByRole("heading", { name: "Vault Settings" });
   if (!(await heading.isVisible().catch(() => false))) {
-    await openSection(page, "settings/");
+    await openSettingsCategory(page, "General");
     await heading.waitFor({ timeout: 15000 });
   }
 }
@@ -155,7 +155,23 @@ export async function openSettingsCategory(page, label) {
       .getByRole("heading", { name: "User Settings", exact: true })
       .waitFor();
   } else {
-    await openSection(page, "settings/");
+    // Select the real Settings destination, not a remembered User Settings
+    // child of the desktop rail. Phone drawer links navigate there directly.
+    const sections = page.getByRole("button", {
+      name: "Sections",
+      exact: true,
+    });
+    if (await sections.isVisible()) {
+      await openSessionSection(page, "Settings");
+    } else {
+      await openSessionMenu(page);
+      await page
+        .getByRole("menuitem", { name: "Settings", exact: true })
+        .click();
+    }
+    await page
+      .getByRole("heading", { name: "Vault Settings", exact: true })
+      .waitFor({ timeout: 15000 });
   }
   // Inside a category the breadcrumb names it too: the sections list is the one.
   const section = page
