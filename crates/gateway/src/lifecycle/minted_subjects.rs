@@ -15,7 +15,9 @@ use opensesame_lifecycle::{ExpirySubject, SubjectKind};
 
 use crate::app_state::AppState;
 
-/// Cap per organization per pass, soonest first.
+/// Cap on each of a pass's two reads per organization: live mints soonest
+/// first, and lapsed ones most recently lapsed first, so a full window of
+/// mints whose expiry is already published never crowds out a newer one.
 pub const MINT_SCAN_LIMIT: i64 = 512;
 
 /// How long after its expiry a mint is still collected, so the pass that
@@ -40,7 +42,7 @@ pub async fn aws_sts_mints(
     let since = now - Duration::seconds(EXPIRED_GRACE_SECONDS);
     let deadlines = state
         .connection_broker
-        .aws_sts_mint_deadlines(organization_id, since, MINT_SCAN_LIMIT)
+        .aws_sts_mint_deadlines(organization_id, now, since, MINT_SCAN_LIMIT)
         .await
         .map_err(|error| anyhow::anyhow!("{}", error.hint()))?;
     Ok(deadlines
@@ -57,3 +59,7 @@ pub async fn aws_sts_mints(
         })
         .collect())
 }
+
+#[cfg(test)]
+#[path = "minted_subjects_tests.rs"]
+mod tests;
