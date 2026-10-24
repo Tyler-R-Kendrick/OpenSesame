@@ -35,19 +35,27 @@ operator token, and a peer the kernel did not attest is `503
 uds_peer_unattested`.
 
 Peer credentials say who asks, not what it should get, so **the operator
-names the connections a helper may mint**. The list starts empty:
+grants what a helper may mint**: a connection and, for a GitHub App
+connection, the one installation it is for. The list starts empty:
 
 ```bash
-export OPENSESAME_OPERATOR_TOKEN=…          # the daemon's operator token
-opensesame daemon helpers allow conn_…      # helpers may mint this connection
+export OPENSESAME_OPERATOR_TOKEN=…                          # the daemon's operator token
+opensesame daemon helpers allow conn_… --installation 12345678   # a GitHub App connection
+opensesame daemon helpers allow conn_…                      # a connection that takes no installation
 opensesame daemon helpers list
 opensesame daemon helpers revoke conn_…
 ```
 
-The daemon keeps the list owner-only in its state directory
-(`helper-mints.json`), so it survives a restart; a list it cannot read admits
-nothing. A token-less mint of any other connection is `403
-helper_mint_not_allowed`. A socket caller that presents the operator token may
+A GitHub App's key reaches every installation of the App, and each may be
+another account's repositories, so the installation is part of the grant: a
+helper's `OPENSESAME_GITHUB_INSTALLATION_ID` must match it exactly, and a grant
+that names no installation admits a mint that names none. The installation is
+the only field a helper sends that selects what is minted; the rest of the
+request names the connection or, for an AWS connection, asks for a shorter
+lifetime under the binding's cap. The daemon keeps the grants owner-only in its
+state directory (`helper-mints.json`), so they survive a restart; a file it
+cannot read, or one in another shape, admits nothing. A token-less mint of any
+other connection or installation is `403 helper_mint_not_allowed`. A socket caller that presents the operator token may
 mint any connection, as before. The daemon then forwards to the Host with its
 own operator token (`operator_forward`, loopback Host only) and names the peer
 in `on_behalf_of`; the Host records `operator on_behalf_of=uid:<uid>,pid:<pid>`
@@ -57,7 +65,7 @@ does on both transports. Any non-200 from the daemon is a hard failure:
 non-zero exit, nothing on stdout, only a failure class on stderr.
 
 **Residual risk.** Any process running as an allowed user can mint every
-allowed connection on the socket, an agent run included. Give a sandbox or an
+granted connection and installation on the socket, an agent run included. Give a sandbox or an
 agent run its own narrower path (ADR 0099's launch capability), never the raw
 socket, and allow only the connections the helpers on this machine need.
 
