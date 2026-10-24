@@ -84,6 +84,10 @@ const McpInfoSchema = z.discriminatedUnion("status", [
     registrationEndpoint: url.nullable().default(null),
     revocationEndpoint: url.nullable().default(null),
     tokenAuthMethods: z.array(z.string().min(1).max(64)).default([]),
+    /** Permissions the connector page selects by default (spec `mcp[].default_scopes`). */
+    defaultScopes: z.array(z.string()).optional(),
+    /** False when the page offers no configurable endpoint or authentication. */
+    configurable: z.boolean().optional(),
   }),
 ]);
 
@@ -129,6 +133,11 @@ export const ConnectPlanSchema = z.object({
   /** Payment rails OpenSesame never connects (ADR 0086 §6). */
   refused: z.boolean(),
   methods: z.array(MethodSchema),
+  /**
+   * The one method a connector page offers as its primary road (spec
+   * `mcp[].primary_only`); the plan's other methods are an explicit fallback.
+   */
+  primaryMethod: z.literal("mcp").optional(),
 });
 
 export type OauthPreset = z.infer<typeof OauthPresetSchema>;
