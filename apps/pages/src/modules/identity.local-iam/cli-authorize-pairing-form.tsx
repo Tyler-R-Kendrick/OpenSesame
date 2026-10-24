@@ -1,4 +1,6 @@
 import type { FormEvent } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconConnection } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useCliAuthorizePairingForm } from "./cli-authorize-pairing-form-model.js";
@@ -59,13 +61,10 @@ function CliAuthorizePairingRegistrationStep({
         Type <code className="identity-ref">{registrationCode}</code> into the
         terminal, then finish pairing here.
       </p>
-      <button
-        type="button"
-        className="go"
+      <FormCommit
+        label="Finish pairing"
         disabled={busy}
-        aria-busy={busy || undefined}
-        aria-label="Finish pairing"
-        title="Finish pairing"
+        busy={busy}
         onClick={onFinish}
       />
     </output>
@@ -81,13 +80,26 @@ export function CliAuthorizePairingForm({
 
   return (
     <>
-      {flow.localCliBlocked ? <p>{flow.localCliBlockedMessage}</p> : null}
-      <CliAuthorizePairingCodeField
-        code={flow.code}
-        busy={flow.busy}
-        onCodeChange={flow.setCode}
-        onSubmit={(event) => void flow.onPair(event)}
-      />
+      {flow.localCliBlocked ? (
+        <>
+          <FailureNotice
+            id="cli-authorize:site"
+            title="CLI"
+            tone="warn"
+            message={flow.localCliBlockedMessage}
+          />
+          <output aria-live="polite">
+            <StatusMark tone="warn" label={flow.localCliBlockedMessage} />
+          </output>
+        </>
+      ) : (
+        <CliAuthorizePairingCodeField
+          code={flow.code}
+          busy={flow.busy}
+          onCodeChange={flow.setCode}
+          onSubmit={(event) => void flow.onPair(event)}
+        />
+      )}
       {flow.registrationCode ? (
         <CliAuthorizePairingRegistrationStep
           registrationCode={flow.registrationCode}

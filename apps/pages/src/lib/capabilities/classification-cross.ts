@@ -21,7 +21,7 @@
  * tie with the same prefix in `classification-lib.ts` or `-sections.ts`.
  */
 
-import { optional, shared } from "./classification-rule.js";
+import { core, optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
 const S = "src/sections/identity/";
@@ -67,6 +67,7 @@ const LOCAL_RECORDS = [
   // optional Access administration surface is absent.
   "local-share-reach",
   "local-vault-session-issue",
+  "local-vault-session-types",
   "local-vault-sessions",
   "pages-dogfood",
   "standing-connection-grants",
@@ -129,6 +130,10 @@ const CONNECTOR_RECORDS = [
 
 export const CROSS_RULES = [
   shared(
+    "src/lib/integration-ai-labs.ts",
+    "pure provider names/order shared by core Settings and the optional Connections catalog; no runtime or credential code",
+  ),
+  shared(
     `${L}der.ts`,
     "pure DER encoding shared by certificate issuance and browser GitHub App signing",
   ),
@@ -143,6 +148,7 @@ export const CROSS_RULES = [
   ...[
     "hosted-inference",
     "saved-model-agent",
+    "azure-saved-model-agent",
     "hosted-model-protocol",
     "hosted-model.test-support",
   ].map((name) =>
@@ -156,6 +162,13 @@ export const CROSS_RULES = [
     `${L}native-`,
     "connectors.external",
     "native provider authorization and connection runtime",
+  ),
+  // The port the native runtime binds egress into: types, the binding and
+  // an unavailable stub. Whoever holds it gains no networking until the
+  // optional runtime binds, so core may carry the seam (as `secret-backends/seam`).
+  shared(
+    `${L}native-connector-transport`,
+    "the native provider transport port and its binding; egress stays with the optional runtime",
   ),
   // The seam between two optional capabilities: the connections an app holds
   // offer themselves to a live session through it, and neither owns the words.
@@ -191,6 +204,16 @@ export const CROSS_RULES = [
     `${L}connector-action-capability`,
     "connectors.external",
     "connector catalogue actions derived from actual browser routes and verified connections",
+  ),
+  optional(
+    `${L}connector-action-configurable.test`,
+    "connectors.external",
+    "connector configuration action regression tests",
+  ),
+  core(
+    `${L}operator-saml-config.test`,
+    "settings.core",
+    "SAML public trust settings regression tests",
   ),
   optional(
     `${L}browser-disposition`,

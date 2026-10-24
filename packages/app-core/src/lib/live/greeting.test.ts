@@ -40,12 +40,12 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function room() {
+async function room(catalog: () => Catalog = () => CATALOG) {
   const net = new MemoryNet();
   const host = await LiveHost.start({
     admission: "invite",
     expiresAt: Date.now() + 3_600_000,
-    catalog: () => CATALOG,
+    catalog,
     readField: async (item, field) =>
       item === "item-1" && field === "password" ? SECRET : null,
     transport: net.transport(),
@@ -82,6 +82,24 @@ describe("a live session over a transport that is not WebRTC", () => {
     expect(guest.status).toEqual({ at: "joined", catalog: CATALOG });
     expect(seat(host, key)).toBe("joined");
     expect(await guest.request("reveal", "item-1", "password")).toBe(SECRET);
+  });
+
+  it("pushes a changed catalog to an already-joined guest", async () => {
+    let current = CATALOG;
+    const { host, guest } = await room(() => current);
+    await pair(host, await guest.start(), guest);
+    await settle();
+    expect(guest.status.at).toBe("joined");
+    current = {
+      ...CATALOG,
+      items: [
+        ...CATALOG.items,
+        { id: "item-2", name: "New share", type: "secret", fields: [] },
+      ],
+    };
+    host.refreshCatalog();
+    await settle();
+    expect(guest.status).toEqual({ at: "joined", catalog: current });
   });
 });
 

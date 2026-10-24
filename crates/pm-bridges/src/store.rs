@@ -9,7 +9,6 @@
 //! part with branching logic worth testing exhaustively, and they are what
 //! two different bridges (browserpass and keepassxc) share.
 
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use opensesame_sealed_store::{
@@ -18,6 +17,11 @@ use opensesame_sealed_store::{
 use zeroize::Zeroize;
 
 use crate::BridgeError;
+
+#[path = "store_identity.rs"]
+mod identity;
+pub use identity::entry_uuid;
+use identity::hex;
 
 /// Env var carrying the sealed-store passphrase for a non-interactive bridge.
 ///
@@ -79,7 +83,7 @@ pub fn resolve_root(explicit: Option<PathBuf>) -> PathBuf {
 pub struct StoreAccess {
     root_path: PathBuf,
     root: StoreRoot,
-    key: ItemDataKey,
+    key: Option<ItemDataKey>,
     locked: bool,
 }
 
@@ -96,11 +100,11 @@ impl StoreAccess {
         let keyed = root_path.join(".opensesame-key").exists();
         let key = if keyed {
             let passphrase = passphrase.ok_or(BridgeError::Unconfigured(ENV_STORE_PASSWORD))?;
-            unlock_store_key(root_path, passphrase)?
+            Some(unlock_store_key(root_path, passphrase)?)
         } else {
-            // GPG/age stores route decryption through their own agent; the
-            // item key is never consulted on that path.
-            ItemDataKey([0u8; 32])
+            // Foreign formats use their own credentials. Missing native
+            // credentials must never be replaced with a usable key.
+            None
         };
         Ok(Self {
             root_path: root_path.to_path_buf(),
@@ -143,15 +147,15 @@ impl StoreAccess {
     /// There is deliberately no in-process unlock: re-entering the passphrase
     /// is a human act on a TTY, which a native-messaging host does not have.
     pub fn lock(&mut self) {
-        self.key.0.zeroize();
+        self.key = None;
         self.locked = true;
     }
 
-    fn key(&self) -> Result<&ItemDataKey, BridgeError> {
+    fn key(&self) -> Result<Option<&ItemDataKey>, BridgeError> {
         if self.locked {
             return Err(BridgeError::Locked);
         }
-        Ok(&self.key)
+        Ok(self.key.as_ref())
     }
 
     /// Logical entry names under `prefix` (`""` for the whole store).
@@ -169,7 +173,7 @@ impl StoreAccess {
     ///
     /// Returns an error when the store is locked or the entry cannot be read.
     pub fn show(&self, name: &str) -> Result<Entry, BridgeError> {
-        Ok(self.root.show(name, self.key()?)?)
+        Ok(self.root.show_with_optional_key(name, self.key()?, None)?)
     }
 
     /// Insert or overwrite one entry.
@@ -178,7 +182,9 @@ impl StoreAccess {
     ///
     /// Returns an error when the store is locked or the entry cannot be written.
     pub fn put(&self, name: &str, entry: &Entry) -> Result<(), BridgeError> {
-        Ok(self.root.insert_or_replace(name, entry, self.key()?)?)
+        Ok(self
+            .root
+            .insert_or_replace_with_optional_key(name, entry, self.key()?)?)
     }
 
     /// Current TOTP for an entry that carries an `otpauth://` trailer line.
@@ -224,7 +230,7 @@ impl StoreAccess {
         // Check the lock up front. Without this a locked store would look
         // like an *empty* one — every per-entry decrypt failing quietly and
         // the caller told "no matches" instead of "locked".
-        self.key()?;
+        let _ = self.key()?;
         let host = host_of(url).ok_or_else(|| BridgeError::Protocol("no host in url".into()))?;
         let names = self.list("")?;
 
@@ -281,25 +287,6 @@ fn entry_matches_host(entry: &Entry, host: &str) -> bool {
         .iter()
         .filter_map(|url| host_of(url))
         .any(|candidate| host_matches(&candidate, host))
-}
-
-fn hex(bytes: &[u8]) -> String {
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        write!(output, "{byte:02x}").expect("writing to a String cannot fail");
-    }
-    output
-}
-
-/// A stable, non-secret opaque id for an entry, used where a foreign protocol
-/// addresses entries by UUID. Derived from the logical path only.
-#[must_use]
-pub fn entry_uuid(name: &str) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(b"opensesame-entry\0");
-    hasher.update(name.as_bytes());
-    hex(&hasher.finalize()[..16])
 }
 
 /// Read a `key: value` trailer field, first match wins, case-insensitive key.

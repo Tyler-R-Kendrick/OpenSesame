@@ -3,6 +3,7 @@ export {};
 self.onmessage = (
   event: MessageEvent<{ pattern: string; kind: string; hostname: string }>,
 ) => {
+  if (event.origin !== "" && event.origin !== self.location.origin) return;
   const { pattern, kind, hostname } = event.data;
   if (pattern.length > 256 || hostname.length > 253 || !pattern.trim()) {
     self.postMessage("invalid");
@@ -18,9 +19,9 @@ self.onmessage = (
       kind === "regex"
         ? pattern
         : pattern
-            .replace(/[.]/g, "\\.")
-            .replace(/\*/g, ".*")
-            .replace(/\?/g, ".");
+            .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            .replace(/\\\*/g, ".*")
+            .replace(/\\\?/g, ".");
     const expression = new RegExp(`^(?:${source})$`, "i");
     self.postMessage(expression.test(hostname) ? "match" : "no-match");
   } catch {

@@ -11,6 +11,7 @@ import {
   assertNativeApiEditable,
 } from "./native-api-authority.js";
 import { NativeApiError, nativeApiHttp } from "./native-api-http.js";
+import { validateNativeApiInventory } from "./native-api-inventory.js";
 import {
   invalidateNativeApiProof,
   requireNativeApiBrowserAccess,
@@ -27,6 +28,7 @@ import {
   safeProviderText,
   verifyNativeApiResponse,
 } from "./native-api-verify.js";
+import { verifyNativeBitbucketBackupTarget } from "./native-bitbucket-backup-authority.js";
 import {
   type NativeConfiguration,
   emptyNativePrivate,
@@ -43,6 +45,7 @@ import {
   nativeProviderTransport,
 } from "./native-connector-transport.js";
 import type { NativeConnectorView } from "./native-connector-view.js";
+import { verifyNativeGitlabBackupTarget } from "./native-gitlab-backup-target.js";
 
 export type NativeApiConfigureInput = {
   providerId: string;
@@ -121,8 +124,11 @@ async function providerVerification(
   transport: NativeProviderTransport,
 ) {
   assertNativeApiBrowserTarget(target);
+  await verifyNativeGitlabBackupTarget(target, credentials, transport);
+  await verifyNativeBitbucketBackupTarget(target, credentials, transport);
   const request = nativeApiVerificationRequest(target, credentials);
   const body = await nativeApiHttp(request, transport);
+  validateNativeApiInventory(target.providerId, body);
   if (!target.profile.verify)
     throw new Error("Provider verification is unavailable");
   return {

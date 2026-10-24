@@ -1,5 +1,4 @@
-/* Settings › Features and Integrations — the page body and its sections
-   (drawn as the Connections catalogue's groups). */
+/* Settings › Features and Integrations — the page body and its sections. */
 
 /* The body is a grid with no list indent: a list inside it must not sit
    40px inside the heading it belongs to. */
@@ -30,44 +29,94 @@
   min-width: 0;
 }
 
-/* Sections: every one is the Connections catalogue's group — a subheader
-   and its tiles — so a section with a switch and one without read as the
-   same thing. The switch sits on the subheader; nothing collapses. */
+/* Features: every section is a heading row and, where it has several
+   capabilities, the same switch rows the rest of Settings uses. The section
+   heading does not become a card or a second list style. */
 .capsections {
   display: grid;
+  gap: 1.5rem;
   min-width: 0;
 }
 
 .capsection {
   display: grid;
-  gap: 0.625rem;
+  gap: 0;
   min-width: 0;
 }
 
-/* The group label keeps its own margin; the section's gap spaces the rest. */
-.capsection > .conn-group__label {
-  margin-bottom: 0;
+/* A section's own panels and notes keep the same gap below its heading or
+   rows, while the capability rows sit directly under the heading. */
+.capsection > * + * {
+  margin-top: 0.75rem;
 }
 
-/* The heading is the label's text, in the label's type: a subheader, not a
-   title. The switch or mark after it sits at the far edge. */
+.capsection > .capsection__caps {
+  margin-top: 0;
+}
+
+.capsection__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.2rem 0 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
 .capsection__title {
   margin: 0;
-  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+
+.capsection__titlelink {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
   color: inherit;
+  text-decoration: none;
 }
 
-/* What a capability does, under its switch, while its own panel is not drawn. */
-.capsection__summary {
-  margin: 0;
-  max-width: 68ch;
-  color: var(--ink-2);
-  font-size: 0.8125rem;
-  line-height: 1.5;
+@media (pointer: coarse), (max-width: 900px) {
+  .capsection__titlelink {
+    min-height: 2.75rem;
+  }
 }
 
-.capsection__head > :last-child:not(.capsection__title) {
+.capsection__titlelink:hover .capsection__title {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.capsection__head
+  > :last-child:not(.capsection__title):not(.capsection__titlelink) {
   margin-left: auto;
+}
+
+.capsection__link {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.capsection__link:hover .sw__name {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.capsection__go {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.capsection__link:hover .capsection__go,
+.capsection__titlelink:hover .capsection__go {
+  color: var(--ink);
 }
 
 /* A mark only when it says what the switch cannot, then the switch. */
@@ -77,33 +126,75 @@
   gap: 0.4rem;
 }
 
-/* A capability tile is not a link: it carries its name and its switch. */
-.capsection__cap:hover {
-  background: none;
+/* A section's switch is the whole section's switch; the rows beneath it
+   carry their own. Say "All" so the two levels do not read as duplicates. */
+.capsection__all {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
 }
 
-/* The instance policy follows the sections at the same 1.5rem rhythm the
-   groups keep between each other (the body's own gap is half of it). */
+.capsection__caps {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The capability rows use `.sw`: name at the start, control at the end, one
+   hairline between rows. */
+.capsection__cap {
+  margin: 0;
+  padding: 0.7rem 0;
+}
+
+.capsection__cap:last-child {
+  border-bottom: 0;
+}
+
+/* The instance policy follows the sections at the same rhythm the section
+   headings keep between each other. */
 .capsections + .capsection {
-  margin-top: 0.75rem;
+  margin-top: 1.5rem;
 }
 
-/* One column of switches. A section's switch sits on its subheader at the
-   column's edge while its tiles' switches sit inside the tile's border and
-   padding, so the two read as two columns a tile's inset apart; the subheader's
-   switch takes the same inset. A long name wraps to two lines instead of being
-   cut at an ellipsis a whole switch short of the edge. */
-@media (max-width: 900px) {
-  .capsection__head .capsection__switch {
-    margin-right: 0.8125rem;
-  }
+/* A feature's own page: the same panel head as the rest of Settings, with
+   one way back to the list and the feature's switch. */
+.feature-config__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
 
-  .capsection__cap .conn-tile__name {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    white-space: normal;
+.feature-config__back:hover {
+  color: var(--ink);
+}
+
+.feature-config .panel__head {
+  align-items: flex-start;
+}
+
+.feature-config .panel__head h2 {
+  margin-top: 0;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .capsection__titlelink {
+    min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .capsection__cap .sw__name {
     overflow-wrap: anywhere;
   }
+}
+
+/* The trusted-contacts panel keeps its own heading on Security; on its
+   feature page the page title is that heading. */
+.feature-config #trusted-contacts > .panel__head {
+  display: none;
 }

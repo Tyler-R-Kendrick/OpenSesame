@@ -1,11 +1,12 @@
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 /** @vitest-environment jsdom */
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
-import { screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { sectionCategory } from "./FeatureSections.js";
 import {
   installPanelFixture,
+  renderFeatureConfig,
   renderPanel,
 } from "./settings-panels.test-support.js";
 
@@ -44,13 +45,16 @@ describe("the runtime-installed plugins' sections (ADR 0150 §7)", () => {
     }
   });
 
-  it("draws a capability's panel inside its own section and nowhere else", () => {
+  it("keeps a capability's panel off Features and draws it on its feature page", () => {
     contribute("plugin-surrogate-proxy", sectionCategory("feature-surrogates"));
-    const { container } = renderPanel();
-    const tile = screen.getByTestId("plugin-surrogate-proxy");
-    expect(tile.closest("#feature-surrogates")).not.toBeNull();
+    const list = renderPanel();
     expect(
-      container.querySelectorAll('[data-testid="plugin-surrogate-proxy"]'),
-    ).toHaveLength(1);
+      list.container.querySelector('[data-testid="plugin-surrogate-proxy"]'),
+    ).toBeNull();
+    cleanup();
+
+    renderFeatureConfig("surrogates", "agents.surrogate-credentials");
+    const tile = screen.getByTestId("plugin-surrogate-proxy");
+    expect(tile.closest(".feature-config")).not.toBeNull();
   });
 });

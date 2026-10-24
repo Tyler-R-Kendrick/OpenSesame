@@ -24,6 +24,10 @@ pub enum RefusalCode {
     Cleartext,
     /// Present somewhere other than exactly its declared site, once.
     Misplaced,
+    /// A self-managed honey token was presented. It is never an issued
+    /// surrogate and never forwards; the id in `run_id` names the planted
+    /// token without carrying its secret.
+    HoneyToken,
     /// Right host, right site, but a method or path the surrogate was not
     /// scoped to — or a path with dot segments an upstream might resolve out
     /// of its prefix.
@@ -42,6 +46,7 @@ impl RefusalCode {
             Self::Misdirected => "surrogate.misdirected",
             Self::Cleartext => "surrogate.cleartext",
             Self::Misplaced => "surrogate.misplaced",
+            Self::HoneyToken => "surrogate.honey_token",
             Self::OutOfScope => "surrogate.out_of_scope",
         }
     }
@@ -75,6 +80,15 @@ impl Refusal {
             code,
             run_id: None,
             provider_id: None,
+            detail: None,
+        }
+    }
+
+    pub(super) fn honey(id: String) -> Self {
+        Self {
+            code: RefusalCode::HoneyToken,
+            run_id: Some(id),
+            provider_id: Some("honey-token".to_owned()),
             detail: None,
         }
     }

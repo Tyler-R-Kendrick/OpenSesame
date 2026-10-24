@@ -3,7 +3,7 @@
  *
  * A password, an API key, a token, an OAuth client and an authenticator are
  * each an item in the vault, with the type's own list row, detail page and
- * switch in Settings › Vaults › Item types. An account does not hold them: it
+ * switch in Settings › Item types. An account does not hold them: it
  * is *bound* to them by reference (`accountId`). A credential bound to no
  * account is a credential too: a password generated and kept for nothing in
  * particular.

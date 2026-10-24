@@ -48,10 +48,14 @@ fn event_names_are_frozen() {
             "surrogate.cleartext",
             "surrogate.misplaced",
             "surrogate.out_of_scope",
+            "surrogate.honey_token",
         ]
     );
     assert_eq!(SURROGATE_EVENT_WILDCARD, "surrogate.*");
-    assert_eq!(SURROGATE_SUBJECT_KINDS, ["agent_run", "surrogate_proxy"]);
+    assert_eq!(
+        SURROGATE_SUBJECT_KINDS,
+        ["agent_run", "surrogate_proxy", "honey_token"]
+    );
 }
 
 #[test]
@@ -97,8 +101,8 @@ fn a_surrogate_passed_as_the_code_is_not_echoed_by_the_error() {
 #[test]
 fn the_severities_follow_how_strongly_a_copy_is_loose() {
     use SurrogateFence::{
-        Ambiguous, Cleartext, Expired, ForeignCaller, Misdirected, Misplaced, OutOfScope, Revoked,
-        Unknown,
+        Ambiguous, Cleartext, Expired, ForeignCaller, HoneyToken, Misdirected, Misplaced,
+        OutOfScope, Revoked, Unknown,
     };
     for fence in [Misdirected, ForeignCaller, Revoked] {
         assert_eq!(fence.severity(), Severity::Error, "{fence:?}");
@@ -109,10 +113,12 @@ fn the_severities_follow_how_strongly_a_copy_is_loose() {
     for fence in [Unknown, Expired] {
         assert_eq!(fence.severity(), Severity::Info, "{fence:?}");
     }
-    // Critical means a credential is exposed; a refused surrogate is the case
-    // where the fence held.
+    // A planted token being used is the one case where the credential was
+    // deliberately exposed and the person must hear now.
+    assert_eq!(HoneyToken.severity(), Severity::Critical);
     assert!(SurrogateFence::ALL
         .iter()
+        .filter(|fence| **fence != HoneyToken)
         .all(|fence| fence.severity() != Severity::Critical));
 }
 
@@ -324,4 +330,19 @@ fn an_unvetted_report_does_not_print_its_text() {
     let mut coded = report(SURROGATE);
     coded.detail = None;
     assert!(!format!("{coded:?}").contains("osr_"));
+}
+
+#[test]
+fn a_honey_token_is_critical_and_reports_under_its_public_id() {
+    let mut report = report(EVENT_SURROGATE_HONEY_TOKEN);
+    report.run_id = Some("0123456789abcdef0123456789abcdef");
+    report.provider_id = Some("honey-token");
+    let notice = surrogate_refusal_notice(&report).unwrap();
+    assert_eq!(notice.severity, Severity::Critical);
+    assert_eq!(notice.subject_kind, "honey_token");
+    assert_eq!(notice.subject_id, "0123456789abcdef0123456789abcdef");
+    assert!(notice.summary.contains("honey token"));
+    assert!(!serde_json::to_string(&notice.payload)
+        .unwrap()
+        .contains("osr_hny"));
 }

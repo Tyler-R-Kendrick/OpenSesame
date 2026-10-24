@@ -56,4 +56,18 @@ describe("deployment authority", () => {
       }),
     ).toBe(false);
   });
+  it("accepts an isolated-app profile only inside an IWA origin", () => {
+    const profile = {
+      version: 1 as const,
+      profile: "isolated_web_app" as const,
+      canonicalOrigin: "isolated-app:",
+      headerSecurity: true,
+    };
+    expect(resolveDeploymentProfile("isolated-app://abc123/", profile)).toBe(
+      "isolated_web_app",
+    );
+    expect(resolveDeploymentProfile("https://example.test/", profile)).toBe(
+      "shared_origin_demo",
+    );
+  });
 });

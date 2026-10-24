@@ -25,6 +25,9 @@ describe("connector-marks", () => {
   it("knows well-known providers and not made-up ones", () => {
     expect(connectorMark("github")).not.toBeNull();
     expect(connectorMark("linear")).not.toBeNull();
+    expect(connectorMark("gcp")).not.toBeNull();
+    expect(connectorMark("google-drive")).not.toBeNull();
+    expect(connectorMark("aws")?.wordmark).toBe("aws");
     expect(connectorMark("no-such-provider")).toBeNull();
   });
 
@@ -65,6 +68,28 @@ describe("ConnectorMark", () => {
       <ConnectorMark providerId="azure-kms" displayName="Azure Key Vault" />,
     );
     expect(container.querySelectorAll("svg rect").length).toBe(4);
+  });
+
+  it("renders the Azure wordmark in its official blue", () => {
+    const { container } = render(
+      <ConnectorMark providerId="azure" displayName="Azure" />,
+    );
+    const wordmark = container.querySelector(".conn-mark--wordmark");
+    expect(wordmark?.textContent).toBe("Azure");
+    expect(wordmark?.getAttribute("style")).toContain(
+      "color: rgb(0, 120, 212)",
+    );
+  });
+
+  it("renders the AWS wordmark in its official orange", () => {
+    const { container } = render(
+      <ConnectorMark providerId="aws" displayName="AWS" />,
+    );
+    const wordmark = container.querySelector(".conn-mark--wordmark");
+    expect(wordmark?.textContent).toBe("aws");
+    expect(wordmark?.getAttribute("style")).toContain(
+      "color: rgb(255, 153, 0)",
+    );
   });
 
   it("falls back to a monogram for unknown providers", () => {

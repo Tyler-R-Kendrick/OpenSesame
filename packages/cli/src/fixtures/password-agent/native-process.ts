@@ -1,17 +1,34 @@
 import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
 import { envWithFakeCliAppIntegrationDaemon } from "../cli-app-integration-fake-daemon.js";
 type ProcessResult = { code: number; stdout: string; stderr: string };
-export async function nativeProcessFixture() {
-  const ROOT = resolve(import.meta.dirname, "../../../../..");
-  async function cli(
+function nativeCommand(
+  directory: string,
+  env: NodeJS.ProcessEnv,
+  root: string,
+) {
+  return async function cli(
     args: string[],
     input?: string,
-    cwd = ROOT,
+    cwd = root,
   ): Promise<ProcessResult> {
+    // The binary starts its helpers with a built environment, so the fake
+    // helpers cannot inherit PARITY_*; they read this file instead (see the
+    // prelude in their scripts below).
+    writeFileSync(
+      join(directory, "parity-env.json"),
+      JSON.stringify(
+        Object.fromEntries(
+          Object.entries(env).filter(
+            ([key, value]) => key.startsWith("PARITY_") && value !== undefined,
+          ),
+        ),
+      ),
+    );
     return new Promise((resolveResult, reject) => {
       const child = spawn(
         process.env.OPENSESAME_NATIVE_BINARY ??
@@ -37,7 +54,10 @@ export async function nativeProcessFixture() {
       );
       child.stdin.end(input);
     });
-  }
+  };
+}
+export async function nativeProcessFixture() {
+  const ROOT = resolve(import.meta.dirname, "../../../../..");
   async function calls() {
     return (await readFile(log, "utf8"))
       .trim()
@@ -54,14 +74,23 @@ export async function nativeProcessFixture() {
   const log = join(directory, "calls.jsonl");
   const bin = join(directory, "bin");
   await mkdir(bin);
+  const parityPrelude = `try{Object.assign(process.env,JSON.parse(require("node:fs").readFileSync(require("node:path").join(__dirname,"..","parity-env.json"),"utf8")))}catch{}\n`;
+  await writeFile(
+    join(directory, "parity-env.json"),
+    JSON.stringify({
+      PARITY_TOKEN_FILE: join(directory, "token"),
+      PARITY_DB: database,
+      PARITY_LOG: log,
+    }),
+  );
   await writeFile(
     join(bin, "op"),
-    `#!${process.execPath}\n${(await readFile(resolve(import.meta.dirname, "op.cjs"), "utf8")).split("\n").slice(1).join("\n")}`,
+    `#!${process.execPath}\n${parityPrelude}${(await readFile(resolve(import.meta.dirname, "op.cjs"), "utf8")).split("\n").slice(1).join("\n")}`,
   );
   await chmod(join(bin, "op"), 0o700);
   await writeFile(
     join(bin, "secret-tool"),
-    `#!${process.execPath}\nconst fs=require('node:fs');const p=process.env.PARITY_TOKEN_FILE;const action=process.argv[2];if(action==='lookup'){if(!fs.existsSync(p))process.exit(1);process.stdout.write(fs.readFileSync(p));}else if(action==='store'){fs.writeFileSync(p,fs.readFileSync(0),{mode:0o600});}else if(action==='clear'){fs.rmSync(p,{force:true});}`,
+    `#!${process.execPath}\n${parityPrelude}const fs=require('node:fs');const p=process.env.PARITY_TOKEN_FILE;const action=process.argv[2];if(action==='lookup'){if(!fs.existsSync(p))process.exit(1);process.stdout.write(fs.readFileSync(p));}else if(action==='store'){fs.writeFileSync(p,fs.readFileSync(0),{mode:0o600});}else if(action==='clear'){fs.rmSync(p,{force:true});}`,
   );
   await chmod(join(bin, "secret-tool"), 0o700);
   await writeFile(log, "");
@@ -87,7 +116,7 @@ export async function nativeProcessFixture() {
     directory,
     database,
     env,
-    cli,
+    cli: nativeCommand(directory, env, ROOT),
     calls,
     closeFakeDaemon: close,
   };

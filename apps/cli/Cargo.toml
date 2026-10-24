@@ -1,4 +1,5 @@
 [package]
+description = "The OpenSesame native binary: Host API, daemon, worker, credential helpers, and the pass store CLI"
 name = "opensesame-cli"
 version.workspace = true
 edition.workspace = true
@@ -18,6 +19,8 @@ opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-env-spec = { path = "../../crates/env-spec" }
+# Which `gh`, `vercel`, `kill` and browser opener run, and what each is handed.
+opensesame-trusted-exec = { path = "../../crates/trusted-exec" }
 opensesame-cli-app-integration = { path = "../../crates/cli-app-integration" }
 opensesame-invoke-through = { path = "../../crates/invoke-through" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
@@ -77,6 +80,7 @@ libc = { workspace = true }
 libc = { workspace = true }
 
 [dev-dependencies]
+opensesame-trusted-exec = { path = "../../crates/trusted-exec", features = ["testkit"] }
 # The AWS helper tests serialize the Host's real mint shape and run it against
 # the loopback STS stand-in (ADR 0207). The feature builds the stand-in and the
 # test-only endpoint knob into the binary these tests start; a shipped build

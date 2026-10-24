@@ -10,6 +10,7 @@ import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
 import { useInstallPanelShown } from "./InstallPanel.js";
 import type { SettingsRailSnapshot } from "./page-tree.js";
+import { useDeadmanPanelShown } from "./security/DeadmanPanel.js";
 import { useDuressPanelShown } from "./security/DuressPanel.js";
 import { useAccountFactorsOffered } from "./security/account-offered.js";
 import { useIntegrationsDrawn } from "./use-integrations-drawn.js";
@@ -26,6 +27,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const instancePolicy = useDeviceOperator();
   const account = useAccountFactorsOffered();
   const duress = useDuressPanelShown();
+  const deadman = useDeadmanPanelShown();
   const panels = useContributions("settings-panel");
   const { plan } = useComposition();
   const identityApi = useIdentityConfigured();
@@ -54,6 +56,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
     account,
     contributed,
     duress,
+    deadman,
     emptyFeatures,
     emptyIntegrations,
   };

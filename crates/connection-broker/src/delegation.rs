@@ -36,7 +36,9 @@ use sqlx::{sqlite::SqliteRow, Row, Sqlite, Transaction};
 
 #[path = "delegation_helpers.rs"]
 mod helpers;
-use helpers::{child_grant_from, internal, materialize_organization};
+use helpers::{
+    audiences_for, child_grant_from, default_delegate_actions, internal, materialize_organization,
+};
 
 use crate::error::{BrokerError, Result};
 use crate::model::{BindingTargetKind, EventKind};
@@ -257,30 +259,6 @@ fn parse_time(raw: &str) -> DateTime<Utc> {
         .unwrap_or(DateTime::<Utc>::MIN_UTC)
 }
 
-/// Default delegate action set: the provider vocabulary minus mutating
-/// operations. The owner may widen back up to the full set explicitly.
-fn default_delegate_actions(operations: &[String]) -> Vec<String> {
-    operations
-        .iter()
-        .filter(|op| {
-            let lower = op.to_ascii_lowercase();
-            !(lower.contains("write")
-                || lower.contains("push")
-                || lower.contains("delete")
-                || lower.contains("admin"))
-        })
-        .cloned()
-        .collect()
-}
-
-fn audiences_for(row: &ConnectionRow) -> Vec<String> {
-    row.egress
-        .authorities
-        .iter()
-        .map(|authority| format!("{}://{}", row.egress.scheme, authority))
-        .collect()
-}
-
 impl ConnectionBroker {
     /// The attenuation ceiling for one connection: a root grant persisted in
     /// the shared `grants` table, minted on first use and stable thereafter so
@@ -474,7 +452,15 @@ impl ConnectionBroker {
         items: Vec<OfferItemSpec>,
         now: DateTime<Utc>,
     ) -> Result<Vec<PreparedMintItem>> {
-        let mut prepared = Vec::with_capacity(items.len());
+        // Bound the allocation by the same ceiling `validate_mint_request`
+        // enforces at the entry point, checked here so the capacity below
+        // can never be sized by an unchecked caller-supplied length.
+        if items.len() > MAX_ITEMS {
+            return Err(BrokerError::Invalid(format!(
+                "an offer carries at most {MAX_ITEMS} items"
+            )));
+        }
+        let mut prepared = Vec::new();
         for item in items {
             prepared.push(
                 self.prepare_mint_item(organization_id, owner_subject, item, now)

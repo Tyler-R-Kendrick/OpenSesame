@@ -25,6 +25,7 @@
  * (`__fixtures__/chromium-sdp.json`).
  */
 
+import { targetAddressSpaceFor } from "../local-network-fetch.js";
 import { isAddress } from "./transport.js";
 
 export const SDP_MAX = 48 * 1024;
@@ -202,14 +203,37 @@ function lineValid(line: string, tally: Tally): boolean {
  * nothing this protocol did not ask a browser for.
  */
 export function isDataChannelSdp(sdp: string): boolean {
-  if (sdp.length > SDP_MAX || !sdp.startsWith("v=0")) return false;
+  return filterDataChannelSdp(sdp) !== null;
+}
+
+/**
+ * A readable data-channel description with any candidate naming a loopback,
+ * link-local, private or otherwise non-public literal address removed. The
+ * offer/answer is still usable through its public/mDNS/relay candidates, but
+ * a peer cannot make this browser send ICE checks into an internal host.
+ */
+export function filterDataChannelSdp(sdp: string): string | null {
+  if (sdp.length > SDP_MAX || !sdp.startsWith("v=0")) return null;
   const lines = sdp.split(/\r?\n/);
   if (lines.at(-1) === "") lines.pop();
-  if (lines.length > LINES_MAX || lines[0] !== "v=0") return false;
+  if (lines.length > LINES_MAX || lines[0] !== "v=0") return null;
   const body = lines.slice(1);
   const candidates = body.filter((line) => line.startsWith("a=candidate:"));
-  if (candidates.length > CANDIDATES_MAX) return false;
+  if (candidates.length > CANDIDATES_MAX) return null;
   const tally: Tally = { o: 0, s: 0, t: 0, m: 0, c: 0 };
-  if (!body.every((line) => lineValid(line, tally))) return false;
-  return tally.o === 1 && tally.s === 1 && tally.t === 1 && tally.m === 1;
+  if (!body.every((line) => lineValid(line, tally))) return null;
+  if (tally.o !== 1 || tally.s !== 1 || tally.t !== 1 || tally.m !== 1)
+    return null;
+  const safe = lines.filter(
+    (line) => !line.startsWith("a=candidate:") || routableCandidateLine(line),
+  );
+  return `${safe.join("\r\n")}\r\n`;
+}
+
+function routableCandidateLine(line: string): boolean {
+  const parts = CANDIDATE.exec(line.slice("a=candidate:".length));
+  const address = parts?.[2] ?? "";
+  if (MDNS.test(address)) return true;
+  const host = address.includes(":") ? `[${address}]` : address;
+  return targetAddressSpaceFor(`https://${host}/`) === undefined;
 }

@@ -110,7 +110,7 @@ receipt shows `failed` or `completion_unknown`.
 
 **Unexpected permission prompt, toast, sound, or analytics spike at trigger
 time** is a defect relative to INV-27. Disarm if safe, capture redacted
-evidence under `docs/evidence/2026-09-21-duress/browser/`, and file via the
+evidence in ignored `work/evidence/duress/pages/browser/`, and file via the
 owning swarm (SETTINGS / ALERT / BUILD) — do not “fix” by disabling
 accessibility.
 

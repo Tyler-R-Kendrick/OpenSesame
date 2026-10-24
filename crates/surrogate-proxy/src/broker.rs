@@ -62,6 +62,22 @@ pub(crate) async fn handle_tunnelled(
         headers: &headers,
         body: &body,
     };
+    let view = RequestView {
+        method: parts.method.as_str(),
+        scheme: "https",
+        host: &target.host,
+        port: target.view_port(HTTPS_PORT),
+        path_and_query,
+        headers: &headers,
+        body: &body,
+    };
+    let honey = ctx.shared.honey_refusals(&view);
+    if !honey.is_empty() {
+        for refusal in &honey {
+            ctx.report(refusal);
+        }
+        return respond::refused(StatusCode::FORBIDDEN);
+    }
     let claim = ctx.logins.as_deref().map_or(Claim::None, |logins| {
         login_route::claim(logins, target, &seen)
     });
@@ -72,15 +88,6 @@ pub(crate) async fn handle_tunnelled(
         Claim::Ambiguous => return login_route::ambiguous(ctx),
         Claim::None | Claim::Origin(_) => {}
     }
-    let view = RequestView {
-        method: parts.method.as_str(),
-        scheme: "https",
-        host: &target.host,
-        port: target.view_port(HTTPS_PORT),
-        path_and_query,
-        headers: &headers,
-        body: &body,
-    };
     match ctx.shared.admit(&view, &ctx.caller) {
         Err(refusal) => {
             ctx.report(&refusal);
@@ -144,6 +151,22 @@ pub(crate) async fn handle_plain(ctx: &RunContext, req: Request<Incoming>) -> Re
         headers: &headers,
         body: &body,
     };
+    let view = RequestView {
+        method: parts.method.as_str(),
+        scheme: "http",
+        host: &target.host,
+        port: target.view_port(HTTP_PORT),
+        path_and_query,
+        headers: &headers,
+        body: &body,
+    };
+    let honey = ctx.shared.honey_refusals(&view);
+    if !honey.is_empty() {
+        for refusal in &honey {
+            ctx.report(refusal);
+        }
+        return respond::refused(StatusCode::FORBIDDEN);
+    }
     // A login surrogate over plain http is put to its declaration, which
     // refuses it as misdirected: it never substitutes into cleartext.
     match ctx.logins.as_deref().map_or(Claim::None, |logins| {
@@ -155,15 +178,6 @@ pub(crate) async fn handle_plain(ctx: &RunContext, req: Request<Incoming>) -> Re
         Claim::Ambiguous => return login_route::ambiguous(ctx),
         Claim::None | Claim::Origin(_) => {}
     }
-    let view = RequestView {
-        method: parts.method.as_str(),
-        scheme: "http",
-        host: &target.host,
-        port: target.view_port(HTTP_PORT),
-        path_and_query,
-        headers: &headers,
-        body: &body,
-    };
     if let Err(refusal) = ctx.shared.admit(&view, &ctx.caller) {
         ctx.report(&refusal);
     }

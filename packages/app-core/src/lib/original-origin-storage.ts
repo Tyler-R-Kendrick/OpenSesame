@@ -5,7 +5,10 @@ import { host } from "../host.js";
 import { originFiles } from "../ports.js";
 import { atRestSettled } from "./at-rest/key.js";
 import { kvFileName } from "./kv.js";
-import { captureOriginalOriginDirectoryData } from "./origin-file-publication-fixed-receiver-data.js";
+import {
+  captureOriginalOriginDirectoryData,
+  captureOriginalOriginDirectoryNamesData,
+} from "./origin-file-publication-fixed-receiver-data.js";
 import {
   checkPublicationLimit,
   readOriginRecord,
@@ -19,6 +22,7 @@ const actualHost = host;
 const actualProvider = originFiles;
 const actualKey = atRestSettled;
 const actualDirectory = captureOriginalOriginDirectoryData;
+const actualNames = captureOriginalOriginDirectoryNamesData;
 const actualRead = readOriginRecord;
 const actualPublish = comparePublishOriginFile;
 const actualName = kvFileName;
@@ -52,6 +56,21 @@ export function createOriginalOriginStorageProfile() {
           await profile.revalidateRoot();
           check();
           return profile.identity;
+        }),
+      listPhysicalNames: () =>
+        accept(async () => {
+          await profile.revalidateRoot();
+          check();
+          const names: string[] = [];
+          for await (const name of profile.names.keys()) {
+            check();
+            profile.names.check();
+            if (names.length >= 4096 || name.length > 512) unavailable();
+            names.push(name);
+          }
+          await profile.revalidateRoot();
+          check();
+          return Object.freeze(names.sort());
         }),
       readRecord: (key: string, bound: number) =>
         accept(async () => {
@@ -134,12 +153,14 @@ async function captureOriginalProfile() {
   check();
   const root = await fixedProvider();
   const directory = actualDirectory(root);
+  const names = actualNames(root);
   check();
   directory.check();
   const identity = crypto.randomUUID();
   const revalidateRoot = async () => {
     check();
     directory.check();
+    names.check();
     const current = await fixedProvider();
     check();
     directory.check();
@@ -147,7 +168,7 @@ async function captureOriginalProfile() {
     check();
     directory.check();
   };
-  return Object.freeze({ root, identity, check, revalidateRoot });
+  return Object.freeze({ root, names, identity, check, revalidateRoot });
 }
 
 function originalLifetime(

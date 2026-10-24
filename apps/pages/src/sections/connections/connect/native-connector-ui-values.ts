@@ -1,4 +1,4 @@
-import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
+import { nativeConfigurationBrowserPolicy } from "@opensesame/app-core/lib/native-configuration-policy.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import type {
   NativeField,
@@ -35,19 +35,24 @@ export function nativeNextValues(
   id: string,
   value: string,
 ) {
-  const next = { ...values, [id]: value };
+  let next = { ...values, [id]: value };
   if (!fields.some((field) => field.when?.fieldId === id)) return next;
   const previous = new Set(nativeVisibleFields(fields, values));
-  return Object.fromEntries(
-    nativeVisibleFields(fields, next).map((field) => [
-      field.id,
-      field.secret
-        ? ""
-        : previous.has(field)
-          ? (next[field.id] ?? "")
-          : (field.defaultValue ?? ""),
-    ]),
-  );
+  for (let pass = 0; pass < fields.length; pass++) {
+    const updated = Object.fromEntries(
+      nativeVisibleFields(fields, next).map((field) => [
+        field.id,
+        field.secret
+          ? ""
+          : previous.has(field)
+            ? (next[field.id] ?? "")
+            : (field.defaultValue ?? ""),
+      ]),
+    );
+    if (JSON.stringify(updated) === JSON.stringify(next)) return updated;
+    next = updated;
+  }
+  return next;
 }
 
 export function nativeScopeDefaults(
@@ -108,7 +113,7 @@ export function nativeVerified(view: NativeConnectorView): boolean {
   return (
     view.status === "connected" &&
     view.verifiedAt !== null &&
-    nativeBrowserMethodPolicy(
+    nativeConfigurationBrowserPolicy(
       view.providerId,
       view.configuration.method,
       view.configuration.parameters,

@@ -34,7 +34,10 @@ type Pending = {
 function json(body: JsonValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "x-content-type-options": "nosniff",
+    },
   });
 }
 
@@ -160,8 +163,13 @@ export class ConnectEmulator {
     try {
       assertConnectAccepts(body);
     } catch (error) {
+      // The schema detail stays server-side in `refusals` (which tests
+      // read in-process); the wire answer never carries exception text.
       this.refusals.push(String(error));
-      return refuse("invalid_request", String(error).slice(0, 400));
+      return refuse(
+        "invalid_request",
+        "Connector create body was refused by the Connect schema.",
+      );
     }
     const id = `scl_${b64url(randomBytes(8))}`;
     const service = String(body.service);

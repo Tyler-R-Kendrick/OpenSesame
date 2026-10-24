@@ -35,6 +35,10 @@ import {
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { handleCallback } from "../../../server/callback.mjs";
 import { VERIFY_TARGETS } from "../../../server/connect-verify-targets.generated.mjs";
+import {
+  resolveTarget,
+  verifyWithToken,
+} from "../../../server/connect-verify.mjs";
 import { handleManage } from "../../../server/manage.mjs";
 import { CONNECT_ORIGIN, ConnectEmulator } from "./connect-emulator.js";
 import {
@@ -208,6 +212,8 @@ describe("every connector acquires a person's token", () => {
 
     const check = await checkConnectorToken(connection.connectionId, PERSON);
     const issued = [...provider.issued, ...provider.apiKeys];
+    // A truncated SHA-256 fingerprint, only to recognise the same token
+    // without logging it — not password storage or verification.
     const fingerprints = issued.map((token) =>
       createHash("sha256").update(token).digest("hex").slice(0, 12),
     );
@@ -237,9 +243,12 @@ describe("every connector acquires a person's token", () => {
       .filter(isConnectable)
       .map((plan) => plan.id)
       .filter((id) => !proven.has(id));
-    // Vercel runs these with its own app and publishes nothing a client can
-    // exercise; they are proven only against live Connect.
-    expect(unproven.sort()).toEqual([...VERCEL_ONLY].sort());
+    const managedOnly = connectPlans().filter(
+      (plan) =>
+        VERCEL_ONLY.has(plan.id) &&
+        plan.methods.every(({ kind }) => kind === "managed"),
+    );
+    expect(unproven.sort()).toEqual(managedOnly.map(({ id }) => id).sort());
   });
 });
 
@@ -316,3 +325,72 @@ describe("negative controls: a wrong setting fails the way the provider would", 
     expect(check.verified).toMatchObject({ status: 401, ok: false });
   });
 });
+
+it("preserves Neon organization authority through the actual connector create body", async () => {
+  const plan = connectPlans().find((item) => item.id === "neon");
+  assertPlan(plan);
+  const { profile, state } = scenario(plan, "api-key");
+  provider = new ProviderEmulator(profile);
+  connect = new ConnectEmulator(plan, (request) => provider.handle(request));
+  const configured = await createConfiguredConnector(
+    plan,
+    toConnectorDraft(state),
+  );
+  const held = connect.connectors.get(configured.connectionId);
+  expect(held?.data.serviceUrls).toEqual([
+    "https://console.neon.tech/api/v2",
+    "https://console.neon.tech/api/v2/projects?limit=20&org_id=acme.example",
+  ]);
+  const target = VERIFY_TARGETS.neon.apiKey;
+  if (!target) throw new Error("Missing Neon verification target.");
+  expect(resolveTarget(target, held)?.url).toBe(
+    "https://console.neon.tech/api/v2/projects?limit=20&org_id=acme.example",
+  );
+  for (const serviceUrls of [
+    [],
+    ["https://attacker.example/api/v2/projects?limit=20&org_id=acme.example"],
+  ]) {
+    const unresolved = resolveTarget(target, { data: { serviceUrls } });
+    expect(unresolved.url).toContain("{org_id}");
+    expect(
+      await verifyWithToken(unresolved, "never-sent-token", () => {
+        throw new Error(
+          "An unresolved organization must not send a credential.",
+        );
+      }),
+    ).toBeNull();
+  }
+});
+
+describe("create refusals stay generic on the wire", () => {
+  it("records schema detail in refusals, never in the response", async () => {
+    const plan = connectPlans().find(isConnectable);
+    assertPlan(plan);
+    const emulator = new ConnectEmulator(plan, () =>
+      Promise.resolve(new Response("{}")),
+    );
+    const reply = await emulator.handle(
+      new Request(`${CONNECT_ORIGIN}/v1/connect/connectors`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bogus: "<script>" }),
+      }),
+    );
+    expect(reply.status).toBe(400);
+    expect(reply.headers.get("content-type")).toBe("application/json");
+    expect(reply.headers.get("x-content-type-options")).toBe("nosniff");
+    const body = await reply.text();
+    expect(body).toContain(
+      "Connector create body was refused by the Connect schema.",
+    );
+    expect(body).not.toContain("<script>");
+    expect(emulator.refusals).toHaveLength(1);
+    expect(emulator.refusals[0]).not.toBe(body);
+  });
+});
+
+function assertPlan(
+  plan: ConnectPlan | undefined,
+): asserts plan is ConnectPlan {
+  if (!plan) throw new Error("conformance cases are empty");
+}

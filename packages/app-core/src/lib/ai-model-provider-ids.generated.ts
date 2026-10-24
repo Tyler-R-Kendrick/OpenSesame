@@ -66,6 +66,7 @@ export const AI_MODEL_PROVIDER_IDS = [
   "gmicloud",
   "tinfoil",
   "berget",
+  "ollama",
   "ollama-cloud",
   "helicone",
   "requesty",

@@ -1,8 +1,54 @@
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { z } from "zod";
+import {
+  createAiFixtureProducer,
+  sendAiFixtureFrames,
+} from "./ai-fixture-producer.mjs";
+import { AI_EXCHANGE_HEADER } from "./ai-request-lifecycle.mjs";
 
 export const AI_FIXTURE_KEY = "ai-browser-fixture-key";
 export const AI_FIXTURE_MODEL = "fixture-model";
+export const AZURE_FIXTURE_KEY = "azure-browser-fixture-key";
+export const AZURE_FIXTURE_ENTRA = "azure-browser-fixture-entra";
+const AZURE_TARGETS = [
+  [
+    "/azure/native-chat/openai/v1/chat/completions",
+    "native-chat-deployment",
+    "openai_chat",
+    false,
+  ],
+  [
+    "/azure/native-responses/openai/v1/responses",
+    "native-responses-deployment",
+    "openai_responses",
+    true,
+  ],
+  [
+    "/azure/byo-chat/openai/deployments/byo-chat-deployment/chat/completions?api-version=2024-06-01",
+    "byo-chat-deployment",
+    "openai_chat",
+    true,
+  ],
+  [
+    "/azure/byo-responses/openai/v1/responses",
+    "byo-responses-deployment",
+    "openai_responses",
+    false,
+  ],
+];
+function azureTarget(path) {
+  const row = AZURE_TARGETS.find(([url]) => url === path);
+  return row ? { model: row[1], family: row[2], bearer: row[3] } : null;
+}
+function azureAuth(target, headers) {
+  return (
+    headers["api-key"] === (target.bearer ? undefined : AZURE_FIXTURE_KEY) &&
+    headers.authorization ===
+      (target.bearer ? `Bearer ${AZURE_FIXTURE_ENTRA}` : undefined) &&
+    headers["content-type"] === "application/json"
+  );
+}
 
 function familyOf(path) {
   if (path === "/custom/v1/chat/completions") return "openai_chat";
@@ -39,7 +85,7 @@ const Body = z
     max_completion_tokens: z.number().int().optional(),
   })
   .passthrough();
-function validBody(family, supplied) {
+function validBody(family, supplied, model) {
   const result = Body.safeParse(supplied);
   if (!result.success) return false;
   const body = result.data;
@@ -50,7 +96,7 @@ function validBody(family, supplied) {
       Number.isInteger(body.generationConfig?.maxOutputTokens) &&
       !body.messages
     );
-  if (body.model !== AI_FIXTURE_MODEL) return false;
+  if (body.model !== model) return false;
   if (family === "openai_responses")
     return (
       Array.isArray(body.input) &&
@@ -128,26 +174,125 @@ function cors(request, response, origins) {
   if (origin && origins.has(origin))
     response.setHeader("access-control-allow-origin", origin);
   response.setHeader("vary", "Origin");
+  response.setHeader("access-control-expose-headers", AI_EXCHANGE_HEADER);
   response.setHeader("access-control-allow-methods", "POST, OPTIONS");
   response.setHeader(
     "access-control-allow-headers",
-    "authorization,content-type,x-api-key,x-goog-api-key,anthropic-version,anthropic-dangerous-direct-browser-access",
+    "api-key,authorization,content-type,x-api-key,x-goog-api-key,anthropic-version,anthropic-dangerous-direct-browser-access",
   );
 }
 
-function fixtureHandler({
-  port,
-  origins,
-  requests,
-  preflights,
-  errors,
-  bodies,
-  timers,
-}) {
+function deliver(response, family, text, stream, state, row, producer) {
+  const frames = streamFrames(family, text);
+  const pending = state.pending;
+  if (pending && pending.path === row.path && pending.stream === stream) {
+    state.pending = null;
+    pending.id = row.id;
+    response.on("close", () => {
+      pending.closed = !response.writableEnded;
+      state.observer?.closed(pending, pending.closed);
+    });
+    pending.release = () => {
+      if (pending.released) return;
+      pending.released = true;
+      state.observer?.release(pending);
+      producer.end(
+        stream
+          ? frames
+              .slice(1)
+              .map(
+                (frame) =>
+                  `data: ${frame === "[DONE]" ? frame : JSON.stringify(frame)}\n\n`,
+              )
+              .join("")
+          : JSON.stringify(jsonReply(family, text)),
+      );
+    };
+    Promise.resolve()
+      .then(() => state.observer?.bindHold(pending, row.correlation))
+      .then(() => {
+        pending.started = true;
+      })
+      .catch(() => {
+        state.errors.push({ id: row.id, status: "hold-binding" });
+        response.destroy();
+      });
+    response.flushHeaders();
+    if (stream) producer.write(`data: ${JSON.stringify(frames[0])}\n\n`);
+    return;
+  }
+  if (stream) sendAiFixtureFrames(producer, frames, state.timers);
+  else producer.end(JSON.stringify(jsonReply(family, text)));
+}
+function requestStatus(row, allowed, body, target) {
+  if (!row.family || row.method !== "POST") return 404;
+  if (!allowed) return 401;
+  if (!validBody(row.family, body, target?.model ?? AI_FIXTURE_MODEL))
+    return 400;
+  // This fixed dated target uses the documented legacy Chat cap.
+  if (
+    row.path ===
+      "/azure/byo-chat/openai/deployments/byo-chat-deployment/chat/completions?api-version=2024-06-01" &&
+    ("max_completion_tokens" in body || "max_output_tokens" in body)
+  )
+    return 400;
+  return 200;
+}
+function accept(request, response, raw, state) {
+  const url = new URL(request.url ?? "/", `http://127.0.0.1:${state.port}`);
+  const path = url.pathname + url.search;
+  const target = azureTarget(path);
+  const family = target?.family ?? familyOf(url.pathname);
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    body = null;
+  }
+  const allowed =
+    family &&
+    (target
+      ? azureAuth(target, request.headers)
+      : authenticated(family, request.headers));
+  const stream = Boolean(
+    body?.stream || url.pathname.endsWith(":streamGenerateContent"),
+  );
+  const row = {
+    id: `request-${state.requests.length + 1}`,
+    correlation: `${state.nonce}:request-${state.requests.length + 1}`,
+    path,
+    family,
+    method: request.method,
+    authenticated: Boolean(allowed),
+    stream,
+    bytes: Buffer.byteLength(raw),
+  };
+  state.requests.push(row);
+  state.bodies.set(row.id, body);
+  const status = requestStatus(row, allowed, body, target);
+  if (status !== 200) {
+    state.errors.push({ id: row.id, status });
+    response.writeHead(status, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: "Fixture rejected request" }));
+    return;
+  }
+  const text = target
+    ? `Fixture Azure ${target.model} answer`
+    : `Fixture ${family} answer`;
+  const producer = createAiFixtureProducer(response, row.correlation);
+  state.producers.push(producer.fact);
+  response.writeHead(200, {
+    "content-type": stream ? "text/event-stream" : "application/json",
+    "cache-control": "no-store",
+    [AI_EXCHANGE_HEADER]: row.correlation,
+  });
+  deliver(response, family, text, stream, state, row, producer);
+}
+function fixtureHandler(state) {
   return (request, response) => {
-    cors(request, response, origins);
+    cors(request, response, state.origins);
     if (request.method === "OPTIONS") {
-      preflights.push({
+      state.preflights.push({
         path: request.url,
         origin: request.headers.origin ?? "",
         method: request.headers["access-control-request-method"] ?? "",
@@ -160,75 +305,9 @@ function fixtureHandler({
     let raw = "";
     request.on("data", (chunk) => {
       raw += chunk.toString();
-      if (raw.length > 64 * 1024) request.destroy();
+      if (Buffer.byteLength(raw) > 64 * 1024) request.destroy();
     });
-    request.on("end", () => {
-      const url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
-      const family = familyOf(url.pathname);
-      let body;
-      try {
-        body = JSON.parse(raw);
-      } catch {
-        body = null;
-      }
-      const allowed = family && authenticated(family, request.headers);
-      const stream = Boolean(
-        body?.stream || url.pathname.endsWith(":streamGenerateContent"),
-      );
-      const id = `request-${requests.length + 1}`;
-      requests.push({
-        id,
-        path: url.pathname + url.search,
-        family,
-        method: request.method,
-        authenticated: Boolean(allowed),
-        stream,
-        bytes: Buffer.byteLength(raw),
-      });
-      bodies.set(id, body);
-      const status =
-        !family || request.method !== "POST"
-          ? 404
-          : !allowed
-            ? 401
-            : !validBody(family, body)
-              ? 400
-              : 200;
-      if (status !== 200) {
-        errors.push({ id, status });
-        response.writeHead(status, { "content-type": "application/json" });
-        response.end(JSON.stringify({ error: "Fixture rejected request" }));
-        return;
-      }
-      const text = `Fixture ${family} answer`;
-      if (!stream) {
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify(jsonReply(family, text)));
-        return;
-      }
-      response.writeHead(200, {
-        "content-type": "text/event-stream",
-        "cache-control": "no-store",
-      });
-      const frames = streamFrames(family, text);
-      function send(index) {
-        if (response.destroyed) return;
-        const frame = frames[index];
-        response.write(
-          `data: ${frame === "[DONE]" ? frame : JSON.stringify(frame)}\n\n`,
-        );
-        if (index === frames.length - 1) {
-          response.end();
-          return;
-        }
-        const timer = setTimeout(() => {
-          timers.delete(timer);
-          send(index + 1);
-        }, 15);
-        timers.add(timer);
-      }
-      send(0);
-    });
+    request.on("end", () => accept(request, response, raw, state));
   };
 }
 
@@ -236,36 +315,68 @@ function fixtureHandler({
 export async function createAiConnectionHttpFixture({
   port = 41912,
   appOrigin = "http://127.0.0.1:41911",
+  observer,
 } = {}) {
   const requests = [];
   const preflights = [];
+  const producers = [];
   const errors = [];
   const bodies = new Map();
   const timers = new Set();
   const origins = new Set([appOrigin, "http://localhost:41911"]);
-  const server = createServer(
-    fixtureHandler({
-      port,
-      origins,
-      requests,
-      preflights,
-      errors,
-      bodies,
-      timers,
-    }),
-  );
+  const state = {
+    nonce: randomUUID(),
+    observer,
+    port,
+    origins,
+    requests,
+    preflights,
+    producers,
+    errors,
+    bodies,
+    timers,
+    pending: null,
+  };
+  const holds = new Set();
+  const server = createServer(fixtureHandler(state));
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", resolve);
   });
+  state.port = z
+    .object({ port: z.number().int().positive() })
+    .parse(server.address()).port;
   return {
-    origin: `http://127.0.0.1:${port}`,
-    baseUrl: `http://127.0.0.1:${port}/custom/v1`,
+    origin: `http://127.0.0.1:${state.port}`,
+    baseUrl: `http://127.0.0.1:${state.port}/custom/v1`,
     requests,
     preflights,
+    producers,
     errors,
     bodies,
+    holdNext(path, stream) {
+      if (state.pending || !azureTarget(path))
+        throw new Error("Invalid overlapping fixture hold");
+      const pending = {
+        path,
+        stream,
+        started: false,
+        closed: false,
+        released: false,
+        id: null,
+        release() {},
+      };
+      observer?.reserve(pending);
+      pending.armCancellation = (reason) => {
+        if (!observer) throw new Error("Cancellation observer missing");
+        observer.arm(pending, reason);
+      };
+      state.pending = pending;
+      holds.add(pending);
+      return pending;
+    },
     async close() {
+      for (const pending of holds) pending.release();
       for (const timer of timers) clearTimeout(timer);
       server.closeAllConnections();
       await new Promise((resolve, reject) =>

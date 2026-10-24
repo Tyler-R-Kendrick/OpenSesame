@@ -234,21 +234,47 @@ export class MemoryClientRecordStore implements ClientRecordStore {
     if (!existing) {
       throw new Error(`Cannot update unknown OAuth client ${client.id}`);
     }
-    if (existing.origin !== client.origin) {
+    // Match the durable store: a stale row must not overwrite a suspension,
+    // revocation, ownership claim, or origin, and the origin is immutable.
+    if (
+      client.updatedAt !== undefined &&
+      existing.updatedAt !== undefined &&
+      client.updatedAt.getTime() !== existing.updatedAt.getTime()
+    ) {
+      throw new Error(`OAuth client update conflict: ${client.id}`);
+    }
+    if (client.origin !== undefined && client.origin !== existing.origin) {
+      throw new Error(`OAuth client origin is immutable: ${client.id}`);
+    }
+    if (
+      (existing.state === "revoked" && client.state !== "revoked") ||
+      (existing.state === "suspended" && client.state === "active")
+    ) {
+      throw new Error(`OAuth client state cannot be cleared: ${client.id}`);
+    }
+    const next: OAuthClientRecord =
+      client.origin === undefined
+        ? existing.origin === undefined
+          ? client
+          : { ...client, origin: existing.origin }
+        : client;
+    if (existing.origin !== next.origin) {
       if (existing.origin && this.byOrigin.get(existing.origin) === client.id) {
         this.byOrigin.delete(existing.origin);
       }
-      if (client.origin) this.byOrigin.set(client.origin, client.id);
+      if (next.origin) this.byOrigin.set(next.origin, client.id);
     }
-    const { sectorKey, sectorKeyBlocked, sectorGeneration, ...rest } = client;
-    const same = existing.sectorIdentifier === client.sectorIdentifier;
-    if ((!same || !existing.sectorKeyBlocked) && client.state !== "revoked") {
+    const { sectorKey, sectorKeyBlocked, sectorGeneration, ...rest } = next;
+    const same = existing.sectorIdentifier === next.sectorIdentifier;
+    if ((!same || !existing.sectorKeyBlocked) && next.state !== "revoked") {
       this.claim(keyOf(rest), ownerKeyOf(rest), client.id);
     }
-    const stored: OAuthClientRecord =
-      existing.sectorIdentifier === client.sectorIdentifier
+    const stored: OAuthClientRecord = {
+      ...(existing.sectorIdentifier === next.sectorIdentifier
         ? { ...rest, ...sectorFields(existing) }
-        : this.withGeneration(rest);
+        : this.withGeneration(rest)),
+      updatedAt: new Date(),
+    };
     this.byId.set(client.id, stored);
     return stored;
   }
@@ -269,6 +295,7 @@ export class MemoryClientRecordStore implements ClientRecordStore {
       this.byId.set(client.id, {
         ...client,
         sectorKeyBlocked: "sector_released",
+        updatedAt: new Date(),
       });
     }
     return {

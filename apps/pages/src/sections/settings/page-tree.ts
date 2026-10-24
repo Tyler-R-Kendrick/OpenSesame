@@ -37,6 +37,8 @@ export type SettingsRailSnapshot = {
   contributed?: readonly ContributedPanel[];
   /** Security › Duress draws (the owner of an open vault; never a guest or a decoy). */
   duress?: boolean;
+  /** Security › Deadman switch draws (the owner of an open vault). */
+  deadman?: boolean;
   /** Security › Your account draws (an Identity session is held). */
   account?: boolean;
   /**
@@ -145,13 +147,18 @@ const SECTION_BUILDERS = {
     ...(snapshot.account
       ? [panel("security", "account-factors", "Your account")]
       : []),
-    ...(snapshot.duress
+    ...contributed,
+    ...(snapshot.duress || snapshot.deadman
       ? [
-          panel("security", "duress-profiles", "Duress"),
-          panel("security", "travel", "Travel"),
+          ...(snapshot.duress
+            ? [panel("security", "duress-profiles", "Duress")]
+            : []),
+          ...(snapshot.deadman
+            ? [panel("security", "deadman-switch", "Deadman switch")]
+            : []),
+          ...(snapshot.duress ? [panel("security", "travel", "Travel")] : []),
         ]
       : []),
-    ...contributed,
   ],
   vaults: (snapshot, contributed) => [
     ...(snapshot.vaults ?? []).map((vault) => ({
@@ -160,7 +167,10 @@ const SECTION_BUILDERS = {
       href: settingsPath("vaults"),
       keepEmpty: true,
     })),
-    panel("vaults", "item-types", "Item types"),
+    ...contributed,
+  ],
+  "item-types": (_snapshot, contributed) => [
+    panel("item-types", "item-types", "Item types"),
     ...contributed,
   ],
   features: (snapshot, contributed) => [

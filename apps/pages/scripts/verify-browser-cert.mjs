@@ -26,11 +26,13 @@
 //   * a scenario that cannot run prints `not_executed` with its blocker and
 //     fails the run; nothing here is allowed to be silently skipped.
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { browserCertStaticHandler } from "./lib/browser-cert-static.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..", "..");
@@ -67,7 +69,24 @@ if (!process.env.IOP_BROWSER_CA) {
   process.exit(0);
 }
 
-const dir = process.env.IOP_BROWSER_DIR;
+// The PKI directory is minted by the parent invocation under the OS temp
+// root (see above). Refuse anything else: every certificate path handed to
+// the browser below is derived from this directory.
+const tmpRoot = resolve(tmpdir());
+const dir = process.env.IOP_BROWSER_DIR
+  ? resolve(process.env.IOP_BROWSER_DIR)
+  : "";
+if (!dir.startsWith(tmpRoot + sep)) {
+  console.log(
+    `IOP_BROWSER ${JSON.stringify({
+      id: "pki-directory",
+      result: "not_executed",
+      detail: "IOP_BROWSER_DIR is not a directory under the OS temp root",
+    })}`,
+  );
+  console.log("IOP_BROWSER_SUMMARY not_executed=1");
+  process.exit(1);
+}
 const { pkiPaths, writeBindings, startIdentityEndpoint } = await import(
   resolve(repoRoot, "tests/mtls-interop/harness/browser-cert-endpoint.mjs")
 );
@@ -122,45 +141,8 @@ const origin = `https://localhost:${endpoint.port}`;
 const probe = `${origin}/probe/${OPERATION}`;
 
 // ---- the real static app, served with no certificate at all ----------------
-const MIME = {
-  ".html": "text/html",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".json": "application/json",
-  ".svg": "image/svg+xml",
-  ".wasm": "application/wasm",
-  ".webmanifest": "application/manifest+json",
-  ".woff2": "font/woff2",
-};
-// A document on the app's own origin that carries no script and therefore
-// never navigates. The CORS check below needs an origin, not the application:
-// driving the real app made the probe race its client-side navigation, which
-// destroyed the evaluate's execution context on a loaded runner.
 const CORS_PROBE_PATH = "/__cors-probe";
-const staticServer = createServer((req, res) => {
-  const path = (req.url ?? "/").split("?")[0];
-  if (path === CORS_PROBE_PATH) {
-    res.writeHead(200, { "content-type": "text/html" });
-    return res.end("<!doctype html><title>cors probe</title>");
-  }
-  const rel = path.replace(/^\/OpenSesame\//, "").replace(/^\//, "");
-  const file = join(DIST, rel);
-  const send = (body, type) => {
-    res.writeHead(200, { "content-type": type });
-    res.end(body);
-  };
-  try {
-    if (rel && existsSync(file) && extname(file))
-      return send(
-        readFileSync(file),
-        MIME[extname(file)] ?? "application/octet-stream",
-      );
-    return send(readFileSync(join(DIST, "index.html")), "text/html");
-  } catch {
-    res.writeHead(404);
-    res.end("not found");
-  }
-});
+const staticServer = createServer(browserCertStaticHandler(DIST));
 await new Promise((r) => staticServer.listen(0, "127.0.0.1", r));
 const staticOrigin = `http://127.0.0.1:${staticServer.address().port}`;
 

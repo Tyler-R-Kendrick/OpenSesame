@@ -11,6 +11,7 @@ import {
 } from "./ConfiguredIdentityStage.js";
 
 beforeEach(() => {
+  vi.spyOn(dependencies, "beginSavedNativeSaml").mockResolvedValue(undefined);
   vi.spyOn(dependencies, "hydrateIdentityConnections").mockResolvedValue(
     undefined,
   );
@@ -193,4 +194,49 @@ it("returns successful native authentication to the caller's vault-key stage", a
       },
     },
   );
+});
+
+it("starts saved SAML in the initiating workflow before a deferred start handler or hydration", async () => {
+  const order: string[] = [];
+  let run: (() => Promise<void>) | undefined;
+  vi.mocked(dependencies.beginSavedNativeSaml).mockImplementation(async () => {
+    order.push("native-start");
+  });
+  startConfiguredIdentity(operator({ protocol: "saml" }), {
+    open: vi.fn(),
+    legacy: vi.fn(),
+    fail: vi.fn(),
+    start: (action) => {
+      order.push("handler");
+      run = action;
+    },
+  });
+  expect(order).toEqual(["native-start", "handler"]);
+  expect(dependencies.hydrateIdentityConnections).not.toHaveBeenCalled();
+  expect(dependencies.readIdentityConnection).not.toHaveBeenCalled();
+  expect(dependencies.beginSavedNativeSaml).toHaveBeenCalledExactlyOnceWith(
+    "idc_native",
+  );
+  if (!run) throw new Error("Missing owned SAML workflow");
+  await run();
+  expect(dependencies.beginSavedNativeSaml).toHaveBeenCalledOnce();
+});
+it("delivers an original SAML refusal through the existing start error path", async () => {
+  const error = new Error("Original native SAML owner changed");
+  vi.mocked(dependencies.beginSavedNativeSaml).mockRejectedValue(error);
+  let pending: Promise<void> | undefined;
+  const open = vi.fn();
+  const legacy = vi.fn();
+  startConfiguredIdentity(operator({ protocol: "saml" }), {
+    open,
+    legacy,
+    fail: vi.fn(),
+    start: (action) => {
+      pending = action();
+    },
+  });
+  await expect(pending).rejects.toBe(error);
+  expect(open).not.toHaveBeenCalled();
+  expect(legacy).not.toHaveBeenCalled();
+  expect(dependencies.hydrateIdentityConnections).not.toHaveBeenCalled();
 });

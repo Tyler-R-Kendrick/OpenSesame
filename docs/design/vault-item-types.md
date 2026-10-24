@@ -2,7 +2,7 @@
 
 A vault item type is a JSON file. It is not code, it is not compiled, and
 installing one does not rebuild anything — write or paste it as a new file in
-**Settings › Vaults › Item types** (the *Write a new item type* key opens
+**Settings › Item types** (the *Write a new item type* key opens
 `installed/new.json`) and the type exists, on this device and on every other
 device this vault syncs to.
 
@@ -115,6 +115,11 @@ rendering or its own validation would be code, and the whole point of a
 definition being inert is that installing one cannot introduce behaviour.
 If you need a field type that is not here, that is a change to OpenSesame —
 open an issue; it is a small one.
+
+Issuer-shaped values (payment-card checksums, IBANs, API-key prefixes, TOTP
+seeds, VINs and the like) are recognised by the platform's closed
+[item formats](item-formats.md), keyed by the built-in type id. They are not
+manifest fields and a community definition cannot add a regex or a generator.
 
 ### `spec.native` — the base secret projection
 

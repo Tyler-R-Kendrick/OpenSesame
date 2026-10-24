@@ -81,6 +81,7 @@ function pagesForTab(tab: Tab, origin: string): StepPages {
         url: "about:blank",
         focused: false,
       });
+      if (!window) return null;
       const privateTab = window.tabs?.[0]?.id;
       if (window.id === undefined || privateTab === undefined) return null;
       const windowId = window.id;

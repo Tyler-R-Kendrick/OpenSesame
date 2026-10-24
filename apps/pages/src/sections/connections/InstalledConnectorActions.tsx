@@ -10,11 +10,13 @@ export function InstalledConnectorActions({
   provider,
   connectionId,
   children,
+  describedBy,
   layout = "tile",
 }: {
   provider: Provider;
   connectionId: string;
   children?: ReactNode;
+  describedBy?: string;
   layout?: "tile" | "service";
 }) {
   const navigate = useNavigate();
@@ -27,6 +29,7 @@ export function InstalledConnectorActions({
       }
       tabIndex={layout === "tile" ? -1 : 0}
       aria-label={`Actions for ${provider.displayName}`}
+      aria-describedby={describedBy}
       aria-haspopup="menu"
       onClick={(event) => {
         const anchor = event.currentTarget;

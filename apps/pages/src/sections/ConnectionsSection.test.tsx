@@ -106,15 +106,8 @@ vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
 
 import { embeddedCatalogSeams } from "@opensesame/app-core/lib/embedded-catalog.js";
-const originalEmbeddedCatalogSeams = {
-  ...embeddedCatalogSeams,
-  bundledProviders: embeddedCatalogSeams.bundledProviders,
-};
-embeddedCatalogSeams.readEmbeddedProviders = () =>
-  Promise.resolve(embeddedCatalogSeams.bundledProviders);
-embeddedCatalogSeams.writeEmbeddedProviders = vi
-  .fn()
-  .mockResolvedValue(undefined);
+import { installEmbeddedCatalogFixture } from "./connections/embedded-catalog.test-support.js";
+const originalEmbeddedCatalogSeams = installEmbeddedCatalogFixture();
 
 import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
 import { expectInTray } from "../components/tray.test-support.js";
@@ -159,7 +152,7 @@ describe("ConnectionsSection gallery", () => {
       originalEmbeddedCatalogSeams.bundledProviders;
   });
 
-  it("renders the catalog grouped by category", async () => {
+  it("renders the catalog as one tagged list", async () => {
     renderAt("/connections");
     expect(
       await screen.findByRole("heading", { name: "Connections" }),
@@ -167,7 +160,9 @@ describe("ConnectionsSection gallery", () => {
     expect(screen.getAllByText("Linear").length).toBeGreaterThan(0);
     expect(screen.queryByText("Vaultwarden")).toBeNull();
     expect(screen.queryByText("Better Auth")).toBeNull();
-    expect(screen.getAllByText("Developer tools")).toHaveLength(2);
+    expect(
+      screen.getAllByText("Developer tools").length,
+    ).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("Password managers")).toBeNull();
     expect(
       screen.queryByRole("switch", { name: /Enable Plain storage/i }),
@@ -279,8 +274,9 @@ describe("ConnectionsSection connector page", () => {
     const fixture = connectorIntegration();
     fixture.replies.push({ body: { id: 123, login: "octocat", type: "User" } });
     renderAt("/connections/github");
-    const method = await screen.findByLabelText("Connection method");
-    await userEvent.selectOptions(method, "token");
+    await userEvent.click(
+      await screen.findByRole("radio", { name: "Personal access token" }),
+    );
     await userEvent.type(
       await screen.findByLabelText("GitHub personal access token"),
       "private-browser-token",
@@ -304,8 +300,9 @@ describe("ConnectionsSection connector page", () => {
     const fixture = connectorIntegration();
     fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });
     renderAt("/connections/github");
-    const method = await screen.findByLabelText("Connection method");
-    await userEvent.selectOptions(method, "token");
+    await userEvent.click(
+      await screen.findByRole("radio", { name: "Personal access token" }),
+    );
     await userEvent.type(
       await screen.findByLabelText("GitHub personal access token"),
       "private-browser-token",

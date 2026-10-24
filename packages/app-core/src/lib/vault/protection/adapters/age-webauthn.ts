@@ -217,17 +217,22 @@ export async function enrollAgeWebauthn(input: {
     buildPayload(context, input.rootKey),
     identity,
   );
-  const opened = parsePayload(
-    await cryptoApi.decrypt(capsule, identity),
-    context,
-  );
-  if (!equalBytes(opened, input.rootKey)) {
-    throw new ProtectionError(
-      "enrollment_proof_failed",
-      "Age WebAuthn enrollment recovered a different root key.",
-    );
+  const decrypted = await cryptoApi.decrypt(capsule, identity);
+  try {
+    const opened = parsePayload(decrypted, context);
+    try {
+      if (!equalBytes(opened, input.rootKey)) {
+        throw new ProtectionError(
+          "enrollment_proof_failed",
+          "Age WebAuthn enrollment recovered a different root key.",
+        );
+      }
+    } finally {
+      opened.fill(0);
+    }
+  } finally {
+    decrypted.fill(0);
   }
-  opened.fill(0);
   const evidence = softwareEvidence(`age-webauthn-enroll:${protectorId}`);
   const record: AgeWebauthnProtectorRecord = {
     kind: "age-webauthn",
@@ -270,7 +275,11 @@ export async function openAgeWebauthn(input: {
       "Age WebAuthn capsule could not be opened.",
     );
   }
-  return parsePayload(plaintext, input.context);
+  try {
+    return parsePayload(plaintext, input.context);
+  } finally {
+    plaintext.fill(0);
+  }
 }
 
 /** Pure existing capsule context decoder; no primary or authority claim. */

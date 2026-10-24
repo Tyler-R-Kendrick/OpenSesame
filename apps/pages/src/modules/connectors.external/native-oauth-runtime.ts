@@ -10,11 +10,12 @@ import {
   registerNativeConnectorDriver,
 } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
-import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
-import { createNativeMcpConnectorDriver } from "@opensesame/app-core/lib/native-mcp-connectors.js";
+import { captureNativeProviderAuthority } from "@opensesame/app-core/lib/native-connector-transport.js";
 import { bindNativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import type { Activation } from "../activation.js";
 import { nativeAuthPopupRuntime } from "./native-auth-popup-runtime.js";
+import { bindNativeMcpRuntime } from "./native-mcp-runtime.js";
+import { composeNativeOAuthResourceDriver } from "./native-oauth-resource-runtime.js";
 
 export function nativeCallbackUrl(): string {
   return new URL(
@@ -24,7 +25,7 @@ export function nativeCallbackUrl(): string {
 }
 
 export function bindNativeOAuthRuntime(activation: Activation): void {
-  const transport = nativeProviderTransport();
+  const transport = captureNativeProviderAuthority();
   activation.onDispose(
     bindNativeOAuthBrowserPort({
       redirectUri: nativeCallbackUrl(),
@@ -47,7 +48,7 @@ export function bindNativeOAuthRuntime(activation: Activation): void {
       googleToken: requestNativeGoogleToken,
     }),
   );
-  const oauth = createNativeBrowserOAuthDriver();
+  const oauth = createNativeBrowserOAuthDriver(transport);
   const browserOAuth = {
     ...oauth,
     configure: (input: NativeDriverInput) => {
@@ -66,18 +67,17 @@ export function bindNativeOAuthRuntime(activation: Activation): void {
   activation.onDispose(
     registerNativeConnectorDriver(
       "oauth",
-      bindNativeConnectorDriver(browserOAuth, transport),
-    ),
-  );
-  activation.onDispose(
-    registerNativeConnectorDriver(
-      "mcp",
       bindNativeConnectorDriver(
-        createNativeMcpConnectorDriver(transport),
+        composeNativeOAuthResourceDriver(
+          browserOAuth,
+          transport,
+          nativeCallbackUrl(),
+        ),
         transport,
       ),
     ),
   );
+  bindNativeMcpRuntime(activation);
 }
 
 function assertGoogleConsentAvailable(providerId: string): void {

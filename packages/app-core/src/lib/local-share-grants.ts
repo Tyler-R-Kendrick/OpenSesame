@@ -16,9 +16,13 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
-import { recordAccessAuditEvent } from "./local-access-audit.js";
+import { withLocalAccessLedgerLock } from "./local-access-ledger-lock.js";
+import { currentActorPrincipalId } from "./local-actor.js";
 import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
+import { ALL_USERS_GROUP } from "./local-groups.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
+import { recordConnectionShareEvent } from "./local-share-audit.js";
+import { sameShare } from "./local-share-match.js";
 import {
   type ShareWriteAuthority,
   requireManageGrants,
@@ -71,6 +75,8 @@ export type LocalShare = {
   policy: string;
   issuedAt: number;
   expiresAt: number;
+  /** The person or identity that issued this share, when one was acting. */
+  issuedBy?: string;
   /** Set when this share was issued by a vault session run. */
   sessionId?: string;
 };
@@ -90,7 +96,7 @@ export type ShareScopeLists = {
 export type GrantIdentity = {
   id: string;
   name: string;
-  kind: "person" | "agent" | "application";
+  kind: "person" | "agent" | "application" | "group";
 };
 
 /** People, agents, and applications a grant form can name. Organizations are not principals. */
@@ -113,6 +119,7 @@ export function grantIdentities(
       continue;
     identities.push({ id: entry.id, name: entry.name, kind: entry.kind });
   }
+  identities.push({ ...ALL_USERS_GROUP });
   return identities;
 }
 
@@ -143,6 +150,7 @@ function isShare(value: BoundaryValue): value is LocalShare {
     text(value.resourceLabel, 128) &&
     text(value.policy, 32) &&
     allowedPolicy(value.resourceKind, value.policy) &&
+    (value.issuedBy === undefined || text(value.issuedBy, 64)) &&
     (value.sessionId === undefined || text(value.sessionId, 36)) &&
     isNumber(value.issuedAt) &&
     isNumber(value.expiresAt) &&
@@ -202,6 +210,8 @@ export type CreateLocalShareInput = {
   resourceLabel: string;
   policy: string;
   durationSeconds: number;
+  /** Defaults to the current local or remote actor when the form did not name one. */
+  issuedBy?: string;
   sessionId?: string;
 };
 
@@ -240,6 +250,8 @@ export function validateShareInput(
     );
   if (!durationAllowed(input.durationSeconds, freeDuration))
     throw new LocalDirectoryError("Choose a duration.");
+  if (input.issuedBy !== undefined && !text(input.issuedBy, 64))
+    throw new LocalDirectoryError("Choose a valid sharing identity.");
 }
 
 /**
@@ -247,15 +259,17 @@ export function validateShareInput(
  * An agent or application is refused here. `submitLocalShare` records a
  * pending approval, and `approvePendingShare` is what writes that share.
  */
-export function createLocalShare(
+export async function createLocalShare(
   tomb: string,
   input: CreateLocalShareInput,
   options?: ShareWriteOptions,
 ): Promise<LocalShare[]> {
+  const issuedBy = input.issuedBy ?? (await currentActorPrincipalId(tomb));
+  const attributed = issuedBy ? { ...input, issuedBy } : input;
   return name(tomb, async (named) => {
     const authority = await requireManageGrants(named);
-    await refuseUnapprovedPrincipal(named.value, input.principalId);
-    return createLocalShareAs(named, input, authority, options);
+    await refuseUnapprovedPrincipal(named.value, attributed.principalId);
+    return createLocalShareAs(named, attributed, authority, options);
   });
 }
 
@@ -268,13 +282,18 @@ async function refuseUnapprovedPrincipal(
   if (entry?.kind === "agent" || entry?.kind === "application")
     throw new LocalDirectoryError("Approve the grant before it takes effect.");
 }
+export function createLocalShareAs<T>(
+  named: Named<T, string>,
+  input: CreateLocalShareInput,
+  authority: ShareWriteAuthority<T>,
+  options?: ShareWriteOptions,
+): Promise<LocalShare[]> {
+  return withLocalAccessLedgerLock(named.value, "share", PATH, MAX_BYTES, () =>
+    createLocalShareAsUnlocked(named, input, authority, options),
+  );
+}
 
-/**
- * Write a share under an authority for this tomb: `ManageGrants` (a person's
- * write, trailed when it grants a connector) or `SystemShareWrite` (system
- * code, never trailed).
- */
-export async function createLocalShareAs<T>(
+async function createLocalShareAsUnlocked<T>(
   named: Named<T, string>,
   input: CreateLocalShareInput,
   authority: ShareWriteAuthority<T>,
@@ -293,11 +312,15 @@ export async function createLocalShareAs<T>(
     issuedAt,
     expiresAt: issuedAt + input.durationSeconds * 1000,
   };
+  if (input.issuedBy) share.issuedBy = input.issuedBy;
   if (input.sessionId) share.sessionId = input.sessionId;
-  const next = [
-    ...(await readAll(tomb)).filter((row) => row.expiresAt > issuedAt),
-    share,
-  ];
+  const current = (await readAll(tomb)).filter(
+    (row) => row.expiresAt > issuedAt,
+  );
+  // The lock serializes writers; this makes a second create a no-op.
+  const duplicate = current.find((row) => sameShare(row, share));
+  if (duplicate) return current;
+  const next = [...current, share];
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
   await writeAll(tomb, next);
@@ -321,32 +344,17 @@ export async function createLocalShareAs<T>(
   return next.filter((row) => row.expiresAt > Date.now());
 }
 
-/** The sealed Access trail entry for a connector share granted or revoked. */
-async function recordConnectionShareEvent(
-  tomb: string,
-  eventType: "access.connection.granted" | "access.connection.revoked",
-  share: LocalShare,
-): Promise<void> {
-  await recordAccessAuditEvent(tomb, {
-    eventType,
-    outcome: "succeeded",
-    targetType: "connection",
-    targetId: share.resourceId,
-    metadata: {
-      providerId: share.resourceId,
-      resourceType: "connection",
-      resourceId: share.resourceId,
-      // Whose grant, under which policy — a standing grant a person took
-      // away is not re-issued for that principal and policy.
-      subject: share.principalId,
-      policy: share.policy,
-      action: eventType === "access.connection.granted" ? "grant" : "revoke",
-      kind: "share",
-    },
-  });
+export function revokeSharesForSession<T>(
+  named: Named<T, string>,
+  sessionId: string,
+  authority: ShareWriteAuthority<T>,
+): Promise<LocalShare[]> {
+  return withLocalAccessLedgerLock(named.value, "share", PATH, MAX_BYTES, () =>
+    revokeSharesForSessionUnlocked(named, sessionId, authority),
+  );
 }
 
-export async function revokeSharesForSession<T>(
+async function revokeSharesForSessionUnlocked<T>(
   named: Named<T, string>,
   sessionId: string,
   _authority: ShareWriteAuthority<T>,
@@ -368,7 +376,16 @@ export async function revokeSharesForSession<T>(
  * revoke with the share still in place, for the person to retry; the other
  * order could drop the share with nothing to keep it from being re-issued.
  */
-export async function revokeLocalShare(
+export function revokeLocalShare(
+  tomb: string,
+  id: string,
+): Promise<LocalShare[]> {
+  return withLocalAccessLedgerLock(tomb, "share", PATH, MAX_BYTES, () =>
+    revokeLocalShareUnlocked(tomb, id),
+  );
+}
+
+async function revokeLocalShareUnlocked(
   tomb: string,
   id: string,
 ): Promise<LocalShare[]> {

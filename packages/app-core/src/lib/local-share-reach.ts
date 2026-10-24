@@ -5,6 +5,7 @@
  */
 
 import { currentSession } from "./identity.js";
+import { ALL_USERS_GROUP_ID } from "./local-groups.js";
 import type { AccessRole } from "./local-rbac.js";
 import { canAccess, resolveCurrentAccessRole } from "./local-rbac.js";
 import { type LocalShare, listLocalShares } from "./local-share-grants.js";
@@ -38,9 +39,11 @@ export const shareReachSeams = {
 };
 
 function principalsToMatch(explicit?: string): string[] {
-  if (explicit) return [explicit];
-  const session = shareReachSeams.currentSession();
-  return session?.principalId ? [session.principalId] : [];
+  const principal = explicit ?? shareReachSeams.currentSession()?.principalId;
+  if (!principal) return [];
+  // Every enabled person is in the standing All users group; its shares are
+  // read alongside the person's own, never instead of them.
+  return [principal, ALL_USERS_GROUP_ID];
 }
 
 function policyCovers(policy: string, wanted: ShareReachRole): boolean {

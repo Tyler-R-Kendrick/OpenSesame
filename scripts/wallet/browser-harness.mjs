@@ -1,20 +1,22 @@
 #!/usr/bin/env node
-/**
- * wallet:test:browser — Vitest Wallet fixtures + Playwright QAB.
- */
+// wallet:test:browser — Vitest Wallet fixtures + Playwright QAB.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { isNumber } from "./lib/primitive-guards.mjs";
-
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
-import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import {
+  EVIDENCE_REL,
+  readWalletClaims,
+  writeWalletEvidence,
+} from "./lib/evidence.mjs";
 import { runLeaseProbe } from "./lib/lease-probe.mjs";
+import { isNumber } from "./lib/primitive-guards.mjs";
 import { runWalB20NarrowWallet } from "./lib/wallet-b20.mjs";
 import { enterAsGuest, openWallet } from "./lib/wallet-capability.mjs";
-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 const DIST = join(root, "apps/pages/dist");
 const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
@@ -206,8 +208,6 @@ async function runPlaywrightQab() {
       /No spending passes yet/i.test(passesText),
       "WAL-B03: an attached authenticator mints no spending pass by presence alone",
     );
-    // The panel's demo control is gone (bcd8d7c3); the product's lease module
-    // runs in this browser on the static origin instead (lib/lease-probe.mjs).
     const probe = await runLeaseProbe(passesCtx, ORIGIN, BASE);
     log.push({ kind: "lease-probe", detail: JSON.stringify(probe) });
     check(
@@ -338,9 +338,12 @@ async function main() {
   });
 
   if (ok) {
-    const claimsPath = join(root, "docs/evidence/wallet/claims.json");
+    const claimsPath = join(
+      root,
+      "work/evidence/wallet/wallet/cross-platform/claims.json",
+    );
     try {
-      const claims = JSON.parse(readFileSync(claimsPath, "utf8"));
+      const claims = readWalletClaims(root);
       claims.claims = claims.claims ?? {};
       claims.claims["WAL-B03"] = {
         status: "fixture_verified",

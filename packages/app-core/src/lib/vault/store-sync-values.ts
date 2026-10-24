@@ -31,6 +31,7 @@ import {
 import { graftAccountFormatOne } from "./store-sync-account.js";
 import { credentialLineOne } from "./store-sync-credential.js";
 import type { StoreCustomField } from "./store-sync-entry.js";
+import { withImportedEnvironments } from "./store-sync-environments.js";
 
 type Check = (value: JsonValue) => boolean;
 
@@ -338,12 +339,10 @@ export function graftOnto(
     return { ...graftAccountFormatOne(current, incoming), ...kept };
   }
   if (whole) {
-    const next: VaultItem = { ...incoming, ...kept };
-    // An entry written before environments cannot say what an item's cells
-    // are: it must not erase them (ADR 0194).
-    if (!incoming.environments && current.environments) {
-      next.environments = current.environments;
-    }
+    const next = withImportedEnvironments(current, incoming, {
+      ...incoming,
+      ...kept,
+    });
     // A manifest never says which account a credential is bound to.
     if (next.kind === "credential" && current.kind === "credential") {
       next.accountId = current.accountId;

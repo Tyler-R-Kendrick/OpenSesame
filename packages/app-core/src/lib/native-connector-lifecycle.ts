@@ -20,6 +20,7 @@ import {
   removeNativeConnector,
   updateNativeConnector,
 } from "./native-connector-store.js";
+import type { NativeProviderTransport } from "./native-connector-transport.js";
 import type { NativeConnectorView } from "./native-connector-view.js";
 
 export type NativeCleanupOutcome =
@@ -28,10 +29,13 @@ export type NativeCleanupOutcome =
 export interface NativeCleanupContext {
   connectionId: string;
   configuration: NativeConfiguration;
+  /** One original route, captured before this cleanup action yields. */
+  transport?: NativeProviderTransport | undefined;
   /** Await the seal before using a rotated grant for any provider mutation. */
   persistGrantRotation: (grant: NativeGrant) => Promise<void>;
 }
 export interface NativeProviderCleanup {
+  capture?: (connectionId: string) => NativeProviderTransport;
   classification: (
     configuration: NativeConfiguration,
   ) => NativeFieldClassification;
@@ -42,7 +46,10 @@ export interface NativeProviderCleanup {
         grant?: NativeGrant,
       ) => readonly string[]);
   /** Seal any retained issued grants before the cleanup snapshot or mutation. */
-  prepare?: (connectionId: string) => Promise<void>;
+  prepare?: (
+    connectionId: string,
+    transport?: NativeProviderTransport,
+  ) => Promise<void>;
   cleanup: (
     obligation: NativeRecovery,
     context: NativeCleanupContext,
@@ -153,16 +160,19 @@ async function cleanupEntry(
   connectionId: string,
   initial: NativeRecovery,
   adapter: NativeProviderCleanup,
+  transport: NativeProviderTransport | undefined,
 ): Promise<void> {
   let expected = structuredClone(initial);
   assertCleanupAdapter(connectionId, adapter);
   const initialRecord = requiredRecord(connectionId);
   await assertNativeConnectorRevision(connectionId, guard(initialRecord));
   assertCleanupAdapter(connectionId, adapter);
+  transport?.assertCurrent();
   matchingEntry(initialRecord, expected);
   const outcome = await adapter.cleanup(structuredClone(expected), {
     connectionId,
     configuration: structuredClone(initialRecord.configuration),
+    transport,
     persistGrantRotation: async (grant) => {
       if (!expected.grant)
         throw new Error("Provider cleanup has no grant to rotate");
@@ -192,6 +202,7 @@ async function cleanupEntry(
     throw new Error("Provider cleanup did not complete");
   if (outcome === "local-credential-forgotten" && expected.kind !== "revoke")
     throw new Error("Remote provider configuration requires provider cleanup");
+  transport?.assertCurrent();
   const current = requiredRecord(connectionId);
   await updateNativeConnector(
     connectionId,
@@ -199,6 +210,7 @@ async function cleanupEntry(
     adapter.classification(current.configuration),
     (record) => {
       assertCleanupAdapter(connectionId, adapter);
+      transport?.assertCurrent();
       matchingEntry(record, expected);
       record.privateState.recovery = record.privateState.recovery.filter(
         (entry) => entry.id !== expected.id,
@@ -210,10 +222,14 @@ async function cleanupEntry(
 async function retryCleanup(
   connectionId: string,
   adapter: NativeProviderCleanup,
+  transport: NativeProviderTransport | undefined,
 ): Promise<NativeConnectorView> {
   assertCleanupAdapter(connectionId, adapter);
   try {
-    await adapter.prepare?.(connectionId);
+    transport?.assertCurrent();
+    if (transport) await adapter.prepare?.(connectionId, transport);
+    else await adapter.prepare?.(connectionId);
+    transport?.assertCurrent();
     assertCleanupAdapter(connectionId, adapter);
   } catch {
     throw new Error(
@@ -223,7 +239,7 @@ async function retryCleanup(
   const record = requiredRecord(connectionId);
   for (const entry of record.privateState.recovery) {
     try {
-      await cleanupEntry(connectionId, entry, adapter);
+      await cleanupEntry(connectionId, entry, adapter, transport);
     } catch {
       throw new Error(
         "Provider cleanup failed; retry before removing this connection",
@@ -236,10 +252,13 @@ async function retryCleanup(
 }
 export async function retryNativeConnectorCleanup(
   connectionId: string,
+  original?: NativeProviderTransport,
 ): Promise<NativeConnectorView> {
   const adapter = adapterFor(requiredRecord(connectionId));
+  const transport = original ?? adapter.capture?.(connectionId);
+  transport?.assertCurrent();
   return withCleanupLock(connectionId, () =>
-    retryCleanup(connectionId, adapter),
+    retryCleanup(connectionId, adapter, transport),
   );
 }
 function cleanupCredentials(
@@ -306,11 +325,15 @@ async function journalRemoval(
 }
 export async function removeNativeConnectorWithCleanup(
   connectionId: string,
+  original?: NativeProviderTransport,
 ): Promise<boolean> {
   const adapter = adapterFor(requiredRecord(connectionId));
+  const transport = original ?? adapter.capture?.(connectionId);
+  transport?.assertCurrent();
   return withCleanupLock(connectionId, async () => {
+    transport?.assertCurrent();
     await journalRemoval(connectionId, adapter);
-    await retryCleanup(connectionId, adapter);
+    await retryCleanup(connectionId, adapter, transport);
     assertCleanupAdapter(connectionId, adapter);
     const current = requiredRecord(connectionId);
     const cleared = await updateNativeConnector(
@@ -319,6 +342,7 @@ export async function removeNativeConnectorWithCleanup(
       adapter.classification(current.configuration),
       (record) => {
         assertCleanupAdapter(connectionId, adapter);
+        transport?.assertCurrent();
         if (record.privateState.recovery.length > 0)
           throw new Error("Provider cleanup remains incomplete");
         if (

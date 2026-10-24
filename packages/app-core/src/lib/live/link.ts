@@ -87,6 +87,10 @@ export function liveValue(link: LiveLink): string {
 export function formatLiveLink(appUrl: string, link: LiveLink): string {
   const url = new URL(appUrl);
   url.search = "";
+  // A per-session query makes the link a real navigation, not only a hash
+  // change. A tab left on an older bundle therefore reloads before joining
+  // instead of reusing the code already in memory. The owner key is public.
+  url.searchParams.set("join", link.owner.slice(0, 12));
   url.hash = `live=${liveValue(link)}`;
   return url.toString();
 }

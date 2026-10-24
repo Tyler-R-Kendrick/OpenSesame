@@ -182,6 +182,7 @@ async function journey(browser, device, label) {
     serviceWorkers: "block",
   });
   const page = await context.newPage();
+  await page.clock.install({ time: new Date() });
   const responses = [];
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

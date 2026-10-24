@@ -5,6 +5,7 @@ import { IconTrash, IconX } from "../../../components/Icons.js";
 import { IdentityConnectionSignIn } from "../../../components/IdentityConnectionSignIn.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../../../lib/focus.js";
+import { ConnectorPanel } from "../connect/ConnectorPanel.js";
 import { IdentityConnectionForm } from "./IdentityConnectionForm.js";
 import { identityConnectionDependencies as dependencies } from "./identity-connection-dependencies.js";
 import {
@@ -23,24 +24,25 @@ function ConfigurationPanel({
   online,
 }: { editor: IdentityConnectionEditor; online: boolean }) {
   return (
-    <section
-      className="panel"
-      id="connector"
-      aria-label="Identity configuration"
+    <ConnectorPanel
+      step={2}
+      label="Identity configuration"
+      title="Configure"
+      actions={
+        <>
+          {editor.saved ? (
+            <ReloadKey
+              label="Reload identity connection"
+              disabled={editor.busy}
+              onReload={editor.reload}
+            />
+          ) : null}
+          {editor.result ? (
+            <StatusMark tone="ok" label={editor.result} />
+          ) : null}
+        </>
+      }
     >
-      <div className="panel__head">
-        <h2>
-          <span className="cx-step">2</span> Configure identity
-        </h2>
-        {editor.saved ? (
-          <ReloadKey
-            label="Reload identity connection"
-            disabled={editor.busy}
-            onReload={editor.reload}
-          />
-        ) : null}
-        {editor.result ? <StatusMark tone="ok" label={editor.result} /> : null}
-      </div>
       <IdentityConnectionForm
         draft={editor.draft}
         busy={editor.busy}
@@ -56,7 +58,7 @@ function ConfigurationPanel({
         onConnectService={editor.connectService}
         onSignInService={editor.signInService}
       />
-    </section>
+    </ConnectorPanel>
   );
 }
 function SignInPanel({
@@ -67,37 +69,41 @@ function SignInPanel({
   const { saved, confirming, busy } = editor;
   if (!saved) return null;
   return (
-    <section className="panel" id="complete" aria-label="Identity sign-in">
-      <div className="panel__head">
-        <h2>
-          <span className="cx-step">3</span> Sign in
-        </h2>
-        <IconKey
-          label={
-            confirming
-              ? "Confirm remove identity connection"
-              : "Remove identity connection"
-          }
-          keyRef={removeRef}
-          armed={confirming}
-          disabled={busy}
-          onClick={() => void editor.remove()}
-        >
-          <IconTrash size={17} />
-        </IconKey>
-        {confirming ? (
+    <ConnectorPanel
+      id="complete"
+      step={3}
+      label="Identity sign-in"
+      title="Sign in"
+      actions={
+        <>
           <IconKey
-            label="Keep identity connection"
+            label={
+              confirming
+                ? "Confirm remove identity connection"
+                : "Remove identity connection"
+            }
+            keyRef={removeRef}
+            armed={confirming}
             disabled={busy}
-            onClick={() => {
-              editor.setConfirming(false);
-              landFocus(removeRef.current);
-            }}
+            onClick={() => void editor.remove()}
           >
-            <IconX size={17} />
+            <IconTrash size={17} />
           </IconKey>
-        ) : null}
-      </div>
+          {confirming ? (
+            <IconKey
+              label="Keep identity connection"
+              disabled={busy}
+              onClick={() => {
+                editor.setConfirming(false);
+                landFocus(removeRef.current);
+              }}
+            >
+              <IconX size={17} />
+            </IconKey>
+          ) : null}
+        </>
+      }
+    >
       <IdentityConnectionSignIn
         className="cx-form panel__body"
         key={`${saved.connectionId}/${saved.updatedAt}`}
@@ -110,7 +116,7 @@ function SignInPanel({
         failure={editor.failure}
         onSignIn={editor.signIn}
       />
-    </section>
+    </ConnectorPanel>
   );
 }
 export function IdentityConnectionPanels(props: IdentityConnectionPanelProps) {

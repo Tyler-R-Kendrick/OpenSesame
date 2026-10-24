@@ -89,8 +89,38 @@ pub(super) fn sightings(req: &RequestView<'_>) -> Vec<Sighting> {
     out
 }
 
-/// `osr_` followed by 32 lowercase hex characters, wherever it occurs.
+/// Normal `osr_` surrogates and self-managed honey tokens, wherever they occur.
 fn shaped(haystack: &[u8]) -> Vec<String> {
+    let mut found = shaped_normal(haystack);
+    found.extend(shaped_honey(haystack));
+    found
+}
+
+fn shaped_honey(haystack: &[u8]) -> Vec<String> {
+    let marker = super::HONEY_TOKEN_MARKER.as_bytes();
+    let len = marker.len() + super::HONEY_TOKEN_ID_LEN + 1 + super::HONEY_TOKEN_SECRET_LEN;
+    let mut found = Vec::new();
+    let mut at = 0;
+    while at + len <= haystack.len() {
+        let candidate = &haystack[at..at + len];
+        if candidate.starts_with(marker) {
+            let rest = &candidate[marker.len()..];
+            let id_len = super::HONEY_TOKEN_ID_LEN;
+            if rest[id_len] == b'_'
+                && rest[..id_len].iter().all(|b| b.is_ascii_hexdigit())
+                && rest[id_len + 1..].iter().all(|b| b.is_ascii_hexdigit())
+            {
+                found.push(String::from_utf8_lossy(candidate).into_owned());
+                at += len;
+                continue;
+            }
+        }
+        at += 1;
+    }
+    found
+}
+
+fn shaped_normal(haystack: &[u8]) -> Vec<String> {
     let marker = SURROGATE_MARKER.as_bytes();
     let len = marker.len() + SURROGATE_HEX_LEN;
     let mut found = Vec::new();

@@ -94,6 +94,14 @@ impl NativeNodeDataState {
         }
         original.validate()
     }
+    /// Original state root identity DATA for cross-port coupling, never authentication.
+    /// # Errors
+    /// Refuses stale state or replaced original directories and key files.
+    pub fn original_state_identity(&self) -> io::Result<String> {
+        let _operation = gate(&self.operations)?;
+        self.check()?;
+        ciphertext_reads::identity(&self.root)
+    }
     /// Revalidate this original retained DATA resource under its synchronous operation gate.
     /// # Errors
     /// Refuses sealed/stale state, changed keys/directories/leases and IO failures.
@@ -347,3 +355,6 @@ pub use body_reader::NativeNodeDataReader;
 #[path = "node_data_bootstrap_lease.rs"]
 mod bootstrap_lease;
 pub use bootstrap_lease::{NativeNodeBodyCustody, NativeNodeBootstrapLease};
+
+#[path = "node_data_projection.rs"]
+mod projection;

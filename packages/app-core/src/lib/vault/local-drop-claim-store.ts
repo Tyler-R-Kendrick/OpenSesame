@@ -11,7 +11,8 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
-import type { WebStorage } from "../../ports.js";
+import { type WebStorage, lockManager } from "../../ports.js";
+import { kvDurability, kvRefresh, kvSetDurable } from "../kv.js";
 import { sha256Url } from "./local-drop-codec.js";
 import { originKvSlot } from "./origin-kv-slot.js";
 
@@ -90,13 +91,58 @@ export function writeLocalDropClaimStore(store: LocalClaimStore): void {
   );
 }
 
+export type LocalClaimChange<T> = { value: T; changed: boolean };
+
+const CLAIM_LOCK = "opensesame.local-drop-claims.v1";
+const CLAIM_STORE_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Read-modify-write a claim record under one origin-wide Web Lock and persist
+ * durably before returning. `kvGet` is only this tab's cache: without the
+ * refresh a second tab's `presented`/`revoked` record never reaches this one,
+ * and an older tab's whole-store write can undo it.
+ */
+export async function updateLocalDropClaimStore<T>(
+  change: (store: LocalClaimStore) => LocalClaimChange<T>,
+): Promise<T> {
+  const run = async (): Promise<T> => {
+    await kvRefresh(LOCAL_DROP_CLAIM_STORAGE_KEY, CLAIM_STORE_BYTES);
+    const store = readLocalDropClaimStore();
+    const result = change(store);
+    if (result.changed)
+      await kvSetDurable(LOCAL_DROP_CLAIM_STORAGE_KEY, JSON.stringify(store));
+    return result.value;
+  };
+  const locks = lockManager();
+  if (locks) return locks.request(CLAIM_LOCK, run);
+  if (kvDurability() === "persistent")
+    throw new Error("Web Locks are required for shared drop-claim writes.");
+  return run();
+}
+
 export async function localDropDevicePepper(): Promise<string> {
   const slot = localDropClaimStorage();
-  const existing = slot.getItem(PEPPER_KEY);
-  if (isString(existing) && existing.length >= 32) return existing;
-  const next = bytesToB64url(crypto.getRandomValues(new Uint8Array(32)));
-  slot.setItem(PEPPER_KEY, next);
-  return next;
+  const read = (): string | null => {
+    const existing = slot.getItem(PEPPER_KEY);
+    return isString(existing) && existing.length >= 32 ? existing : null;
+  };
+  const existing = read();
+  if (existing) return existing;
+  // Two tabs opening their first drop at once must not each mint a different
+  // pepper: the loser's token digest would never verify. Re-read under the
+  // origin-wide lock before creating one.
+  const locks = lockManager();
+  const create = async (): Promise<string> => {
+    await kvRefresh(PEPPER_KEY, 64 * 1024);
+    const raced = read();
+    if (raced) return raced;
+    const next = bytesToB64url(crypto.getRandomValues(new Uint8Array(32)));
+    slot.setItem(PEPPER_KEY, next);
+    return next;
+  };
+  return locks
+    ? locks.request("opensesame.local-drop-pepper", create)
+    : create();
 }
 
 function manifestNeedsWipe(record: LocalClaimRecord): boolean {

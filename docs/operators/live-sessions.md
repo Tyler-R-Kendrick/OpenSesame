@@ -8,7 +8,8 @@ are on the same network.
 
 Everything on this page is optional, and everything is yours: the product
 ships no relay, carrier, STUN or TURN server, and uses none unless the owner names
-it. You name routes in **Settings › Live sessions › Routes**. The same
+it. You name routes under **Advanced** in the sheet the Share key — beside
+the vault's name, next to the lock — opens. The same
 profile is the file `settings/live/transport.json`, sealed in the vault, so
 it can hold credentials:
 
@@ -32,6 +33,29 @@ Two different problems are solved here, and they have different answers:
 |---|---|
 | The **codes** have to reach the other person | By hand (always works), or a **carrier** that passes them |
 | The **peer connection** has to reach the other browser | Same network, a **tunnel address**, or a **TURN** server |
+
+## The share sheet
+
+The Share key beside the vault's name opens a session generator. It asks for a
+name, the scope, the value policy, who the link is for, who gets in and how
+long it lasts. **Anyone with the link** is the default admission; the default
+scope is chosen items. Routes stay under Advanced.
+
+Submitting starts the session and draws a QR beside the hidden link. A joiner
+on a device with no vault is asked to seal a local vault with a PIN and claim a
+name before asking; on an unlocked device the existing identity is used. The
+owner's vault creates a person for the claimed name when the seat is admitted,
+and writes the displayed scope as session shares.
+
+**Share with → All users** is the built-in `local_group_all_users` group. It
+appears in Access as a share target too. A join that claims a name in a
+selected-people session is matched against those selected people; the claim is
+not authentication.
+
+An open session still needs the request and reply codes to cross, or a carrier
+or relay named under Routes. The QR carries the link, not a rendezvous server.
+The link stays in the fragment until the join screen has taken it, so a reload
+while Live sessions is being approved does not lose the invitation.
 
 ## Addresses: a tailnet or VPN you already run
 
@@ -282,7 +306,7 @@ An instance policy
 like any optional capability, and a carrier is external service egress:
 
 - **The operator can prohibit `sharing.live`.** Nothing of it loads; the join
-  road and the Settings tab are absent. If the plan stops approving it while a
+  road and the Share key are absent. If the plan stops approving it while a
   session is running — the operator withdrew it, or the person switched Live
   sessions off in Settings › Features — the session ends at once, hosted
   or joined: the peer connection, the carriers and ntfy's stream are closed.

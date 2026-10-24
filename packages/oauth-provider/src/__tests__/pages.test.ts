@@ -13,10 +13,22 @@ type Page = {
   type: string;
   body: string;
   oidc: { client?: { clientId: string; clientName?: string } };
+  headers?: Record<string, string>;
+  set?: (name: string, value: string) => void;
 };
 
 function context(client?: Page["oidc"]["client"]): Page {
-  return { host: "id.example", type: "", body: "", oidc: { client } };
+  const headers: Record<string, string> = {};
+  return {
+    host: "id.example",
+    type: "",
+    body: "",
+    oidc: { client },
+    headers,
+    set(name, value) {
+      headers[name.toLowerCase()] = value;
+    },
+  };
 }
 
 const asKoa = (page: Page): KoaContext => overlapCast(page);
@@ -43,6 +55,10 @@ describe("providerPages", () => {
     expect(page.body).not.toContain("state");
     expect(page.body).not.toMatch(EXTERNAL);
     expect(page.body).toContain("<style>.btn{color:teal}");
+    expect(page.headers?.["content-security-policy"]).toContain(
+      "frame-ancestors 'none'",
+    );
+    expect(page.headers?.["x-frame-options"]).toBe("DENY");
   });
 
   it("keeps the device form and the button that submits it", async () => {

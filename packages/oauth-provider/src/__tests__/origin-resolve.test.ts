@@ -111,6 +111,39 @@ describe("resolveOriginClient", () => {
     );
   });
 
+  it("refuses a new origin once the deployment's admission budget is spent", async () => {
+    const store = new MemoryClientRecordStore();
+    const admission = enabledAdmission();
+    for (const suffix of ["a", "b"]) {
+      await store.insertAtomic({
+        id: `origin:https://${suffix}.example.com`,
+        admissionMode: "origin_profile",
+        displayName: suffix,
+        redirectUris: [`https://${suffix}.example.com/opensesame/callback`],
+        sectorIdentifier: `sector_${suffix}`,
+        grantTypes: ["authorization_code"],
+        responseTypes: ["code"],
+        tokenEndpointAuthMethod: "none",
+        allowedScopes: ["openid"],
+        allowedResources: [],
+        state: "active",
+        origin: `https://${suffix}.example.com`,
+        ownerPrincipalId: "system-owner",
+      });
+    }
+    await expect(
+      resolveOriginClient({
+        store,
+        admission,
+        origin: "https://c.example.com",
+        production: true,
+        systemOwnerPrincipalId: "system-owner",
+        maxAutoAdmittedOriginClients: 2,
+      }),
+    ).rejects.toMatchObject({ code: "origin_admission_budget" });
+    expect(await store.findByOrigin("https://c.example.com")).toBeUndefined();
+  });
+
   it("gives port-distinct origins distinct clients and sectors", async () => {
     const store = new MemoryClientRecordStore();
     const admission = enabledAdmission();

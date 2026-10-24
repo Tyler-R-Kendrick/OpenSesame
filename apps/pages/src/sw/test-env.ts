@@ -226,7 +226,21 @@ export class FakeWorkerEnv {
   /** Register a same-origin file by scope-relative path. */
   serve(path: string, body: string, init: ResponseInit = {}): string {
     const url = new URL(path, this.scope).href;
-    this.routes.set(url, () => new Response(body, { status: 200, ...init }));
+    const headers = new Headers(init.headers);
+    if (!headers.has("content-type")) {
+      const extension = path.split(".").pop()?.toLowerCase();
+      headers.set(
+        "content-type",
+        extension === "html"
+          ? "text/html; charset=utf-8"
+          : extension === "json"
+            ? "application/json"
+            : extension === "js"
+              ? "text/javascript; charset=utf-8"
+              : "text/plain; charset=utf-8",
+      );
+    }
+    this.routes.set(url, () => new Response(body, { ...init, headers }));
     return url;
   }
 

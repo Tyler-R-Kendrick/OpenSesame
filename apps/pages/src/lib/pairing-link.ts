@@ -1,6 +1,6 @@
 /**
  * A pairing link carries a secret in its fragment: a drive's slot key
- * (`…/settings/vaults#pair-drive=<code>`, ADR 0144) or a tailnet device
+ * (`…/settings/features/networking#pair-drive=<code>`, ADR 0144) or a tailnet device
  * management code (`…/identity?view=devices#pair-tailnet=<code>`, ADR 0169).
  * The fragment never reaches a server, but it stays in the address bar and in
  * history — which some browsers sync to other devices — until something
@@ -44,6 +44,9 @@ function linkCapture(key: string) {
       linked = "";
       return code;
     },
+    pending(): boolean {
+      return linked.length > 0;
+    },
   };
 }
 
@@ -76,6 +79,9 @@ export function watchLinkedPairing(
 
 /** Hear about a drive code captured while the panel is already open. */
 export const subscribeLinkedPairing = drive.subscribe;
+
+/** Whether a drive code is waiting for its panel, without taking it. */
+export const hasLinkedPairing = drive.pending;
 
 /** The drive code boot took from the address bar, handed over once. */
 export const takeLinkedPairing = drive.take;

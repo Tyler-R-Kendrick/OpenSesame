@@ -1,0 +1,11 @@
+/** Remove a slash suffix in linear time, including on malformed input. */
+export function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
+}
+
+/** Trailing slashes are not part of an issuer's identity. */
+export function normalizeIssuer(issuer: string): string {
+  return stripTrailingSlashes(issuer.trim());
+}

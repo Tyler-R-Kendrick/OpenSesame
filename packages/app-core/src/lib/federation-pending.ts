@@ -60,6 +60,13 @@ export function consumePending(): void {
   dropRawPending();
 }
 
+/** Drop an outstanding sign-in when the session ends, so its code cannot
+ * complete after a sign-out. */
+export function clearPendingSignIn(): void {
+  sessionStore().removeItem(PKCE_KEY);
+  dropRawPending();
+}
+
 export function storePending(pending: PendingAuth): void {
   // localStorage, not sessionStorage, ON PURPOSE: PWA handoff. Drop any
   // session copy so a second lane cannot shadow or swap the live record.

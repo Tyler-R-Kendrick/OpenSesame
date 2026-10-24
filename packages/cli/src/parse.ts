@@ -2,6 +2,14 @@ import { endpointAddress } from "@opensesame/os-domain";
 import { z } from "zod";
 import { type ParityCommand, parseParity } from "./parity-parse.js";
 import { leftover, takeOption } from "./parse-options.js";
+import {
+  type CanaryCliCommand,
+  parseVaultCanary,
+} from "./parse-vault-canary.js";
+import {
+  type RetiredCliCommand,
+  parseVaultRetired,
+} from "./parse-vault-retired.js";
 import { parseVaultSync } from "./parse-vault-sync.js";
 import { type SessionCommand, parseSession } from "./session-parse.js";
 
@@ -15,9 +23,17 @@ export const GlobalFlagsSchema = z.object({
 export type GlobalFlags = z.infer<typeof GlobalFlagsSchema>;
 
 export type ParsedCommand =
+  | CanaryCliCommand
+  | RetiredCliCommand
   | ParityCommand
   | SessionCommand
   | { name: "help" }
+  | {
+      name: "canary-serve";
+      pairingFile: string;
+      stateDirectory: string;
+      flags: GlobalFlags;
+    }
   | {
       name: "login";
       mode: "device" | "loopback" | "anonymous" | "auto";
@@ -168,6 +184,7 @@ export function parseArgs(argv: string[]): ParsedCommand {
     return { name: "host-discover", hostUrl, flags };
   }
 
+  if (cmd === "security") return parseSecurity(args, flags);
   if (cmd === "vault") return parseVault(args, flags);
   // session [<link>] list | invoke <connection> <operation>  (ADR 0196)
   if (cmd === "session") return parseSession(args, flags);
@@ -239,6 +256,10 @@ function parseVault(args: string[], flags: GlobalFlags): ParsedCommand {
       return parseVaultCopy(args, flags);
     case "share":
       return parseVaultShare(args, flags);
+    case "canary":
+      return parseVaultCanary(args, flags);
+    case "retired":
+      return parseVaultRetired(args, flags);
     case "sync":
       return parseVaultSync(args, flags);
     default:
@@ -318,69 +339,7 @@ export const SessionFileSchema = z.object({
 });
 export type SessionFile = z.infer<typeof SessionFileSchema>;
 
-export function helpText(): string {
-  return `opensesame-id — OpenSesame identity CLI (alias: opensesame-identity)
-
-Commands:
-  find <query...> [--vault <vault>] [--account <account>]
-  inventory | audit           Metadata and organization checks, never values
-  create api-credential --title <title> --vault <vault> --stdin|--clipboard
-  password <item> --vault <vault> --stdin|--clipboard [--apply]
-  read <op://reference|os://reference> [--reveal] [--desktop]
-                               Human-only plaintext stdout (TTY, no agent context)
-  run [--env NAME=<ref>...] [--mount NAME=<ref>...] [--agent-proxy --paths NAME=/p --methods NAME=GET] -- <command...>
-                               <ref>: op:// or os:// vault/item/field; --mount sets NAME to a private temp file holding the secret; --agent-proxy brokers os:// connections items (native CLI + plugin; this CLI fails closed)
-  env write <file> <NAME=op://reference...>
-  env resolve <file> --output <file>|--in-place
-  env run <file> -- <command...>
-  service-account setup|connect|status|recover|forget
-  request <https-url> --secret <op://reference> [--lease <id>]
-  lease approve <https-url> --secret <ref> --desktop [--expires-in 10m] [--uses 1]
-  lease list|status <id>|revoke <id>
-  doctor                      Inspect provider setup without authentication
-  login [--device|--loopback|--no-browser|--anonymous] [--qr|--no-qr]
-                  --anonymous (alias --guest): start as a provisional guest;
-                  link an identity later to keep the same principal id
-  auth status
-  logout
-  whoami
-  project create --temporary [--name <name>]
-  claim poll <claimId> --token <osc_clm_…>   (or OPENSESAME_CLAIM_TOKEN)
-  agent init --anonymous [--name <name>]
-  host health [--host <url>]   Host API (:8787) via api-client
-  host discover [--host <url>] Host PRM / readiness discovery
-  vault verify <file>          Open a vault export or offline backup
-                               (master password from the terminal only)
-  vault ls <file>              List that file: path and kind, never values
-  vault new <kind> --name <n>  Create an account, secret, note, or card
-  vault list                   List the local vault: id, kind, and name
-  vault import <file>          Merge a sealed export into the local vault
-  vault export [--out <file>]  Write a sealed export of the local vault
-  vault set|edit <item>        Change --name, --username, or --secret
-  vault copy <item> [--field secret|username]
-                               Copy a field to the clipboard, never print it
-  vault share <item>           Share a secret once; prints the link and code
-  vault sync [--pair <code>]   Sync with a tailnet drive (ADR 0144); with no
-                               vault here, set it up from the drive first
-  session [<link>] list        Join a live session as a device (ADR 0196), wait
-                               for the host's approval, list what it granted
-  session [<link>] invoke <connection> <operation> [--input key=value]...
-                               Use one granted connection through the host's tab
-                               options: --code CODE, --name LABEL, --connection
-                               ID (a hint), --timeout SECONDS (default 900)
-                               The link and code are bearers: set
-                               OPENSESAME_LIVE_LINK / OPENSESAME_LIVE_CODE
-  mcp host|client              Serve the host- or client-facing MCP tools
-                               (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
-
-Global:
-  --json          Machine-readable output (secrets redacted)
-  --issuer <url>  OIDC issuer (default OPENSESAME_ISSUER or http://127.0.0.1:8788)
-  --api <url>     Identity control plane API base
-  --client-id <id>
-  --qr / --no-qr  Device login: print a terminal QR (default: on for TTY)
-`;
-}
+export { helpText } from "./cli-help.js";
 
 function parseLogin(args: string[], flags: GlobalFlags): ParsedCommand {
   const device = takeFlag(args, "--device");
@@ -397,4 +356,15 @@ function parseLogin(args: string[], flags: GlobalFlags): ParsedCommand {
   if (noQr) qrPreference = "off";
   else if (qr) qrPreference = "on";
   return { name: "login", mode, qrPreference, flags };
+}
+
+function parseSecurity(args: string[], flags: GlobalFlags): ParsedCommand {
+  if (args.shift() !== "canary" || args.shift() !== "serve")
+    throw new Error("Unknown security command.");
+  const pairingFile = takeOption(args, "--pairing");
+  const stateDirectory = takeOption(args, "--state");
+  if (!pairingFile || !stateDirectory)
+    throw new Error("Canary service requires --pairing and --state.");
+  leftover(args, "security canary serve");
+  return { name: "canary-serve", pairingFile, stateDirectory, flags };
 }

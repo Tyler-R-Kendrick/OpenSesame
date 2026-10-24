@@ -1,6 +1,8 @@
 /** Local-clock data policy only. Expiry does not erase stolen verifiers/backups. */
 import { isString } from "@opensesame/os-domain";
-import profile from "../../../../../spec/conformance/retired-retention-v2.json";
+import profile from "../../../../../spec/conformance/retired-retention-v2.json" with {
+  type: "json",
+};
 export const DEFAULT_RETIRED_RETENTION_MS = profile.defaultLifetimeMs;
 export const MAX_RETIRED_RETENTION_MS = profile.maxLifetimeMs;
 function invalid(): never {

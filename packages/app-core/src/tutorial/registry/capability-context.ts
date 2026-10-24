@@ -44,7 +44,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "vault.item.edit": ["/vault/item"],
     "vault.health.review": ["/vault/health"],
     "settings.model-provider": ["/settings/features"],
-    "settings.tailnet-sync": ["/settings/vaults"],
+    "settings.tailnet-sync": ["/settings/features/networking"],
     "settings.notifications": ["/settings/notifications"],
     "settings.local-notifications": ["/settings/features"],
     "settings.backup": ["/settings/integrations"],
@@ -72,7 +72,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "feature.identity": ["/settings/features"],
     "feature.sharing": ["/settings/features"],
     "feature.password-reset": ["/settings/features"],
-    "feature.security-checks": ["/settings/features", "/settings/vaults"],
+    "feature.security-checks": ["/settings/features"],
     "access.connectors": ["/access"],
     "browser.pair": ["/connections", "/settings/features"],
     "browser.authenticate": ["/connections", "/settings/features"],
@@ -82,7 +82,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "authority.portal.templates.read": ["/access"],
     "identity.local.siop.authorize": ["/identity"],
     "identity.tailnet.devices.manage": ["/identity"],
-    "settings.trusted-contacts.circle": ["/settings/trusted-contacts"],
+    "settings.trusted-contacts.circle": ["/settings/security"],
   }),
 );
 

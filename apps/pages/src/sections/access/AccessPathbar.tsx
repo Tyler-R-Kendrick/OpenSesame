@@ -6,16 +6,15 @@ import { isString } from "@opensesame/os-domain";
 import { useState } from "react";
 import { IconDownload, IconUpload } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { saveTextFile } from "../../lib/file-system.js";
 
 function exportBook() {
-  const url = URL.createObjectURL(
-    new Blob([exportAccessBook()], { type: "application/json" }),
-  );
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "access.json";
-  anchor.click();
-  URL.revokeObjectURL(url);
+  void saveTextFile(
+    "access.json",
+    exportAccessBook(),
+    "application/json",
+    "Access grants",
+  ).catch(() => undefined);
 }
 
 type Outcome = { tone: "ok" | "err"; label: string };

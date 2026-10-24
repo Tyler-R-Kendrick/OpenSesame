@@ -64,7 +64,7 @@ function manifest(id: string) {
 }
 
 function Viewer({
-  category = "vaults",
+  category = "item-types",
   initial = "",
 }: {
   category?: string;

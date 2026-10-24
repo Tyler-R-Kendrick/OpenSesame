@@ -11,6 +11,7 @@ import {
   type NativeMcpAuthorizationMetadata,
   nativeMcpPublicMetadata,
 } from "./native-mcp-oauth-metadata.js";
+import type { NativeMcpRegistrationMode } from "./native-mcp-oauth-metadata.js";
 import {
   NativeMcpAuthError,
   type NativeMcpOAuthTarget,
@@ -55,10 +56,25 @@ function assertPublicClient(
     throw new NativeMcpAuthError("public-client");
 }
 
+function boundRegistrationReceipt(
+  client: NativeMcpRegisteredClient,
+): NativeMcpRegisteredClient | null {
+  const bounded = NativeMcpRegistrationReceiptSchema.safeParse(client);
+  if (!bounded.success) return null;
+  // The sealed connector caps each credential string at 32 KiB. Per-field
+  // caps are not enough: the retained receipt is JSON.stringify'd into one
+  // slot, so a provider could combine several individually-valid fields
+  // into an oversized record that makes retention throw forever.
+  if (JSON.stringify(bounded.data).length > 32_768) return null;
+  return bounded.data;
+}
+
 /** Registration/tokens are private return values for the sealed coordinator, never UI results. */
 export class NativeMcpPublicOAuth {
   private readonly target: NativeMcpOAuthTarget;
   private readonly fetcher: typeof fetch;
+  /** CIMD is preferred; a live DCR fallback is fixed for this authorization. */
+  private registrationMode: NativeMcpRegistrationMode | null = null;
 
   constructor(
     target: NativeMcpOAuthTarget,
@@ -77,9 +93,11 @@ export class NativeMcpPublicOAuth {
 
   private async metadata(): Promise<NativeMcpAuthorizationMetadata> {
     this.ports.assertCurrent();
-    return mcpOAuthAction(() =>
+    const resolved = await mcpOAuthAction(() =>
       nativeMcpPublicMetadata(this.target, this.fetcher),
     );
+    this.registrationMode ??= resolved.registration;
+    return resolved.metadata;
   }
 
   /** Retain every DCR result before deciding whether to use or compensate it. */
@@ -87,8 +105,9 @@ export class NativeMcpPublicOAuth {
     retain: (client: NativeMcpRegisteredClient) => Promise<void>,
   ): Promise<NativeMcpRegisteredClient> {
     const metadata = await this.metadata();
+    const registration = this.registrationMode ?? this.target.registration;
     let client: NativeMcpRegisteredClient;
-    if (this.target.registration === "dcr") {
+    if (registration === "dcr") {
       const receipt: RegistrationCapture = {
         value: null,
       };
@@ -131,7 +150,15 @@ export class NativeMcpPublicOAuth {
           issuer: this.target.binding.issuer ?? undefined,
         };
       } catch (error) {
-        if (receipt.value) await retain(receipt.value);
+        if (receipt.value) {
+          const boundedReceipt = boundRegistrationReceipt(receipt.value);
+          if (!boundedReceipt) throw new NativeMcpAuthError("metadata");
+          try {
+            await retain(boundedReceipt);
+          } catch {
+            throw new NativeMcpAuthError("metadata");
+          }
+        }
         throw error;
       }
     } else {
@@ -140,10 +167,18 @@ export class NativeMcpPublicOAuth {
         issuer: this.target.binding.issuer ?? undefined,
       };
     }
-    await retain(client);
+    const bounded = boundRegistrationReceipt(client);
+    if (!bounded) throw new NativeMcpAuthError("metadata");
+    try {
+      await retain(bounded);
+    } catch {
+      // Admission clears the recovery obligation on a metadata refusal. Never
+      // leave a retained copy that wedges every later retry.
+      throw new NativeMcpAuthError("metadata");
+    }
     this.ports.assertCurrent();
-    assertPublicClient(this.target, client);
-    return client;
+    assertPublicClient(this.target, bounded);
+    return bounded;
   }
 
   /** Caller seals state + this verifier atomically before navigating to authorizationUrl. */

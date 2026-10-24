@@ -6,6 +6,7 @@ import {
   nativeVerified,
   nativeVisibleFields,
 } from "./native-connector-ui-values.js";
+import { nativeMethodConfigurable } from "./native-connector-ui.js";
 import type {
   NativeConnectorDescriptor,
   NativeFieldValues,
@@ -18,12 +19,26 @@ export function nativeInitialMethod(
 ) {
   if (view)
     return descriptor.methods.find(
-      (method) => method.available && method.id === view.configuration.method,
+      (method) =>
+        nativeMethodConfigurable(method) &&
+        method.id === view.configuration.method,
     );
+  const configurable = descriptor.methods.filter(nativeMethodConfigurable);
+  // A policy-refused route stays configurable so an operator can prepare it,
+  // but a new connection must not open on a form whose Connect button is
+  // disabled when a usable route exists.
+  const usable = configurable.filter((method) => method.available);
+  const available = usable.length ? usable : configurable;
+  const ranked = available
+    .filter((method) => method.preferredRank !== undefined)
+    .sort(
+      (left, right) =>
+        (left.preferredRank ?? Number.MAX_SAFE_INTEGER) -
+        (right.preferredRank ?? Number.MAX_SAFE_INTEGER),
+    );
+  if (ranked[0]) return ranked[0];
   for (const id of ["oidc", "oauth", "mcp", "api-key", "native-local"]) {
-    const method = descriptor.methods.find(
-      (entry) => entry.available && entry.id === id,
-    );
+    const method = available.find((entry) => entry.id === id);
     if (method) return method;
   }
   return undefined;
@@ -80,9 +95,17 @@ export function nativeMethodForEdit(
   inputMethod: NativeMethodDescriptor,
   view: NativeConnectorView | null | undefined,
   values: NativeFieldValues,
+  scopes?: Readonly<Record<string, readonly string[]>>,
 ): NativeMethodDescriptor {
   const method = nativeMethodInstructions(inputMethod, values);
   if (!view || !nativeVerified(view) || view.configuration.method !== method.id)
+    return method;
+  if (
+    method.id === "oauth" &&
+    scopes &&
+    JSON.stringify(scopes) !==
+      JSON.stringify(view.configuration.requestedScopes)
+  )
     return method;
   const saved = nativeFieldValues(
     method.fields,

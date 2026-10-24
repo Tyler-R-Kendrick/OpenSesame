@@ -1,28 +1,6 @@
-/**
- * The joiner's side of a live session (ADR 0150 §3–§5, ADR 0186).
- *
- * It dials the owner over the session's transport (`p2p.ts`) and seals the
- * offer, with the person's name and note, into a request code only the owner
- * can open, for the person to send the owner — and, where the link names
- * carriers, posts it on them too. It then waits for the owner's reply code,
- * pasted or carried: one that opens under the secret this request shares
- * with the owner key, and that answers this very request — anything else is
- * ignored and the request stays open. With the reply, the two browsers
- * connect: directly, through a tunnel the owner named, or through the
- * owner's TURN server — or, when the owner offers it and no peer route
- * opens, over the owner's NATS server, sealed end to end (ADR 0167).
- *
- * Once a channel opens it greets the owner until the catalog arrives
- * (`greeting.ts`): no one frame is trusted to arrive. The wait is bounded:
- * with no catalog `CONNECTING_TIMEOUT_MS` after the reply, the attempt is
- * over — the link closes, so the owner sees the seat go — and the person may
- * ask again with a fresh request.
- *
- * Everything it receives lives in memory, dropped when the channel closes.
- * A device (ADR 0196) joins the same way, and over a relay alone when it has
- * no WebRTC: it makes no offer, and asks the owner's tab for connections.
- */
+/** The joiner's side of a live session (ADR 0150, ADR 0186). */
 
+import type { SessionBinding } from "../peer-trust/handshake.js";
 import { type ChannelRequest, ChannelRequests } from "./channel-requests.js";
 import {
   type DeviceMessage,
@@ -30,6 +8,8 @@ import {
   isDeviceMessage,
 } from "./device-messages.js";
 import { Greeter } from "./greeting.js";
+import { GuestIce } from "./guest-ice.js";
+import { makeJoinRequestCode } from "./guest-request.js";
 import {
   CONNECTING_TIMEOUT_MS,
   FALLBACK_MS,
@@ -44,8 +24,18 @@ import {
   characters,
   cleanText,
 } from "./messages.js";
-import type { DialLink, LiveChannel } from "./p2p.js";
-import { makeRequestCode, openReplyCode } from "./pairing.js";
+import {
+  DIRECT_ROUTING,
+  type DialLink,
+  type LiveChannel,
+  dialForRoute,
+} from "./p2p.js";
+import { openReplyCode } from "./pairing.js";
+import {
+  replyHonorsPeer,
+  requestView,
+  sealRequestPeer,
+} from "./peer-trust-join.js";
 import { Reposter } from "./repost.js";
 import { type Keypair, newKeypair, newRequestId } from "./seal.js";
 import { SeatChannel, seatName } from "./seat-channel.js";
@@ -68,14 +58,26 @@ export class LiveGuest {
   readonly #fallback = new TimerSlot();
   readonly #connectTimer = new TimerSlot();
   #keys: Keypair | null = null;
+  #bound: SessionBinding | null = null;
+  #trustedOwner: { fingerprint: string; epoch: number } | null = null;
   readonly #reposts = new Reposter();
   #device: ((message: DeviceMessage) => void) | null = null;
   #farewell: Promise<void> = Promise.resolve();
+  readonly #ice: GuestIce;
 
-  constructor(private readonly options: GuestOptions) {}
+  constructor(private readonly options: GuestOptions) {
+    this.#ice = new GuestIce(
+      options.routing ?? DIRECT_ROUTING,
+      options.now ?? Date.now,
+    );
+  }
 
   get status(): GuestStatus {
     return this.#status;
+  }
+
+  trustedOwner(): { fingerprint: string; epoch: number } | null {
+    return this.#trustedOwner;
   }
 
   subscribe(listener: (status: GuestStatus) => void): () => void {
@@ -89,7 +91,6 @@ export class LiveGuest {
     for (const listener of this.#listeners) listener(status);
   }
 
-  /** Dial, and make the request code; empty if the person left first. */
   async start(): Promise<string> {
     // The owner reads these cleaned (`readJoinRequest`); say the same here.
     if (!cleanText(this.options.name)) throw new Error("join_name_required");
@@ -110,19 +111,11 @@ export class LiveGuest {
     }
   }
 
-  /** The peer link a request offers, or null on a relay route (no offer). */
-  async #dial(): Promise<DialLink | null> {
-    const { transport, route } = this.options;
-    if (route === "relay") return null;
-    if (!transport) throw new Error("join_transport_required");
-    return transport.dial();
-  }
-
   async #ask(): Promise<string> {
-    const { link, code, name, note, kind, route } = this.options;
+    const { link, code, name, note, kind, route, transport } = this.options;
     const keys = this.#keys;
     if (!keys) return "";
-    const peer = await this.#dial();
+    const peer = await dialForRoute(route, transport);
     if (this.#over()) {
       // Left while the transport was dialing: `#finish` found no link.
       peer?.channel.catch(() => undefined);
@@ -130,6 +123,14 @@ export class LiveGuest {
       return "";
     }
     this.#peer = peer;
+    const sealed = await sealRequestPeer(
+      this.options.peerTrust,
+      peer?.handshake ?? "",
+    );
+    if (!sealed.ok) {
+      peer?.close();
+      throw new Error("peer_trust_refused:invalid-signal");
+    }
     peer?.channel.then(
       (channel) => {
         if (this.#peer === peer) this.#connected(channel);
@@ -139,19 +140,17 @@ export class LiveGuest {
         if (this.#peer === peer && !this.#relayed) this.#finish();
       },
     );
-    const request = await makeRequestCode(link, code, keys, {
-      id: this.#id,
-      name: cleanText(name),
-      note: cleanText(note),
-      offer: peer?.handshake ?? "",
-      greets: true,
-      // An owner from before these fields ignores them; one that knows them
-      // reads who is asking and how they will arrive.
-      kind: kind ?? "person",
-      route: route ?? "peer",
-    });
+    const request = await makeJoinRequestCode(
+      link,
+      code,
+      keys,
+      { id: this.#id, name, note, offer: peer?.handshake ?? "", kind, route },
+      sealed.peer,
+    );
     if (this.#status.at === "preparing") {
-      this.#to({ at: "request", code: request });
+      this.#bound = sealed.binding;
+      this.#trustedOwner = sealed.owner;
+      this.#to(requestView(request, sealed.sas, sealed.unverified));
       this.#carry(request);
     }
     return request;
@@ -168,10 +167,6 @@ export class LiveGuest {
     );
   }
 
-  /**
-   * Done with the carriers: the session started without them, or is over.
-   * A seat that may move to one of them keeps them, and they close with it.
-   */
   #release(after: Promise<void> | null = null): void {
     this.#reposts.stop();
     if (this.#relayed) return;
@@ -183,7 +178,6 @@ export class LiveGuest {
     else carriers.close();
   }
 
-  /** The owner's reply code; false (and nothing changes) if it is not one. */
   async accept(text: string): Promise<boolean> {
     const keys = this.#keys;
     const peer = this.#peer;
@@ -204,6 +198,8 @@ export class LiveGuest {
     // A relay-only request is answered by the relay or not at all; and an
     // answer-less reply is no answer to one that offered a peer route.
     if (relayOnly !== (reply.answer === "")) return false;
+    if (this.#bound && !(await replyHonorsPeer(this.#bound, reply)))
+      return false;
     return this.#connectWithReply(peer, reply);
   }
 
@@ -215,12 +211,16 @@ export class LiveGuest {
     this.#relayed = reply.relay === "nats" && session !== "off";
     if (!peer && !this.#relayed) {
       // Nothing to meet the owner over: this side has no peer route either.
-      this.#finish({ at: "unreachable" });
+      this.#finishUnreachable(false);
       return false;
     }
     // The carriers stay open until the catalog comes: asking again uses them.
     this.#reposts.stop();
-    this.#to({ at: "connecting" });
+    this.#ice.begin(
+      peer,
+      (status) => this.#to(status),
+      () => this.#status.at === "connecting",
+    );
     this.#connectTimer.set(() => {
       if (this.#status.at === "connecting") this.#giveUp();
     }, CONNECTING_TIMEOUT_MS);
@@ -231,7 +231,7 @@ export class LiveGuest {
     peer.onFailed(() => {
       if (this.#status.at !== "connecting" || this.#peer !== peer) return;
       if (this.#relayed) void this.#toRelay();
-      else this.#finish({ at: "unreachable" });
+      else this.#finishUnreachable(false);
     });
     if (this.#relayed)
       this.#fallback.set(() => void this.#toRelay(), FALLBACK_MS);
@@ -244,10 +244,6 @@ export class LiveGuest {
     }
   }
 
-  /**
-   * Carry the seat over the relay: the peer route, if it is still trying,
-   * is dropped, and the owner hears this side's greeting and answers it.
-   */
   async #toRelay(): Promise<void> {
     this.#fallback.clear();
     const keys = this.#keys;
@@ -256,7 +252,7 @@ export class LiveGuest {
     const shared = await keys.shared(this.options.link.owner);
     if (!carrier || !shared) {
       carrier?.close();
-      this.#finish({ at: "unreachable" });
+      this.#finishUnreachable(false);
       return;
     }
     if (this.#over() || this.#channel) {
@@ -312,12 +308,15 @@ export class LiveGuest {
     return channel.send(request);
   }
 
-  /** The first catalog is the session; a later one answered a greeting. */
+  /** The first catalog is the session; later ones replace what it shared. */
   #joined(catalog: Catalog): void {
-    if (this.#status.at !== "connecting") return;
-    this.#greeter.stop();
-    this.#connectTimer.clear();
-    this.#release();
+    const first = this.#status.at === "connecting";
+    if (!first && this.#status.at !== "joined") return;
+    if (first) {
+      this.#greeter.stop();
+      this.#connectTimer.clear();
+      this.#release();
+    }
     this.#to({ at: "joined", catalog });
   }
 
@@ -371,9 +370,14 @@ export class LiveGuest {
     this.#to({ at: "connect_timeout" });
   }
 
+  #finishUnreachable(timedOut: boolean): void {
+    this.#finish({ at: "unreachable", reason: this.#ice.reason(timedOut) });
+  }
+
   #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
     this.#relayed = false;
+    this.#ice.stop();
     // The goodbye is posted first and the carriers let go after it.
     this.#release(this.#drop());
     // The catalog goes with the status it rode on.

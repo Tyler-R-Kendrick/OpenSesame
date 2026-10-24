@@ -1,4 +1,7 @@
 import {
+  asList,
+  asParts,
+  asText,
   fieldMaxLength,
   inputType,
   partMaxLength,
@@ -6,9 +9,67 @@ import {
 import {
   FIELD_TYPES,
   type FieldDefinition,
+  type FieldValue,
 } from "@opensesame/vault-item-types";
 import { RevealButton } from "../../components/FieldRow.js";
 import { IconPlus, IconX } from "../../components/Icons.js";
+import { BlobInput } from "./BlobField.js";
+
+export type ChangeField = (fieldId: string, value: FieldValue) => void;
+
+export function FieldControl({
+  field,
+  value,
+  revealed,
+  toggle,
+  onChange,
+}: {
+  field: FieldDefinition;
+  value: FieldValue | undefined;
+  revealed: ReadonlySet<string>;
+  toggle: (key: string) => void;
+  onChange: ChangeField;
+}) {
+  const spec = FIELD_TYPES[field.type];
+  if (spec.valueKind === "record") {
+    return (
+      <RecordInput
+        field={field}
+        parts={asParts(value)}
+        revealedParts={revealed}
+        onToggle={toggle}
+        onChange={(next) => onChange(field.id, next)}
+      />
+    );
+  }
+  if (field.type === "blob") {
+    return (
+      <BlobInput
+        id={field.id}
+        value={asText(value)}
+        onChange={(next) => onChange(field.id, next)}
+      />
+    );
+  }
+  if (field.multiple === true) {
+    return (
+      <RepeatingInput
+        field={field}
+        values={asList(value)}
+        onChange={(next) => onChange(field.id, next)}
+      />
+    );
+  }
+  return (
+    <ScalarInput
+      field={field}
+      value={asText(value)}
+      revealed={revealed.has(field.id)}
+      onToggle={() => toggle(field.id)}
+      onChange={(next) => onChange(field.id, next)}
+    />
+  );
+}
 
 export function ScalarInput({
   field,

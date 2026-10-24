@@ -1,0 +1,30 @@
+diff --git a/esm/cbor/cbor.js b/esm/cbor/cbor.js
+--- a/esm/cbor/cbor.js
++++ b/esm/cbor/cbor.js
+@@ -272,8 +272,9 @@
+ }
+ const ENCODER = new TextEncoder();
+ function encodeString(data, output) {
+-    output.push(...encodeLength(MAJOR_TYPE_TEXT_STRING, data.length));
+-    output.push(ENCODER.encode(data));
++    const encoded = ENCODER.encode(data);
++    output.push(...encodeLength(MAJOR_TYPE_TEXT_STRING, encoded.length));
++    output.push(encoded);
+ }
+ function encodeBytes(data, output) {
+     output.push(...encodeLength(MAJOR_TYPE_BYTE_STRING, data.length));
+diff --git a/script/cbor/cbor.js b/script/cbor/cbor.js
+--- a/script/cbor/cbor.js
++++ b/script/cbor/cbor.js
+@@ -276,8 +276,9 @@
+ }
+ const ENCODER = new TextEncoder();
+ function encodeString(data, output) {
+-    output.push(...(0, cbor_internal_js_1.encodeLength)(cbor_internal_js_1.MAJOR_TYPE_TEXT_STRING, data.length));
+-    output.push(ENCODER.encode(data));
++    const encoded = ENCODER.encode(data);
++    output.push(...(0, cbor_internal_js_1.encodeLength)(cbor_internal_js_1.MAJOR_TYPE_TEXT_STRING, encoded.length));
++    output.push(encoded);
+ }
+ function encodeBytes(data, output) {
+     output.push(...(0, cbor_internal_js_1.encodeLength)(cbor_internal_js_1.MAJOR_TYPE_BYTE_STRING, data.length));

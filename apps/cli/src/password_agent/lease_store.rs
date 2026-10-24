@@ -2,8 +2,10 @@
 use opensesame_connector_host::password_agent::{
     lease::{Lease, Resource},
     request::Binding,
+    run_grant::{RunGrant, RunGrantBinding},
 };
 use sqlx::{Connection, Row, SqliteConnection};
+mod run_grants;
 use std::fs::OpenOptions;
 pub(super) struct Store {
     connection: SqliteConnection,
@@ -60,6 +62,11 @@ impl Store {
         sqlx::query("CREATE TABLE IF NOT EXISTS leases (id TEXT PRIMARY KEY, state TEXT NOT NULL)")
             .execute(&mut connection)
             .await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS run_grants (id TEXT PRIMARY KEY, state TEXT NOT NULL)",
+        )
+        .execute(&mut connection)
+        .await?;
         sqlx::query("INSERT OR IGNORE INTO meta(key,value) VALUES('principal',?)")
             .bind(uuid::Uuid::new_v4().to_string())
             .execute(&mut connection)
@@ -267,5 +274,45 @@ mod tests {
             .await
             .unwrap();
         assert!(store.authorize(&expired.id, &binding).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn run_grants_claim_once_match_exactly_and_revoke() {
+        let root = tempfile::tempdir().unwrap();
+        let mut store = Store::at(root.path().to_path_buf()).await.unwrap();
+        let binding = opensesame_connector_host::password_agent::run_grant::describe(
+            &["API=op://Vault/Item/token".into()],
+            &[],
+            false,
+            &[],
+            &[],
+        )
+        .unwrap();
+        let granted = store.grant_run(binding.clone(), 600, 1).await.unwrap();
+        let widened = opensesame_connector_host::password_agent::run_grant::describe(
+            &[
+                "API=op://Vault/Item/token".into(),
+                "EXTRA=op://Vault/Item/other".into(),
+            ],
+            &[],
+            false,
+            &[],
+            &[],
+        )
+        .unwrap();
+        assert!(store.claim_run(&granted.id, &widened).await.is_err());
+        assert_eq!(
+            store
+                .run_grant_status(&granted.id)
+                .await
+                .unwrap()
+                .uses_remaining,
+            1
+        );
+        store.claim_run(&granted.id, &binding).await.unwrap();
+        assert!(store.claim_run(&granted.id, &binding).await.is_err());
+        let second = store.grant_run(binding.clone(), 600, 1).await.unwrap();
+        store.revoke_run(&second.id).await.unwrap();
+        assert!(store.claim_run(&second.id, &binding).await.is_err());
     }
 }

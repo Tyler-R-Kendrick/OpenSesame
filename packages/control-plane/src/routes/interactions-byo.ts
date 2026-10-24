@@ -158,9 +158,13 @@ export function createByoInteractionRoutes(
     // enticated POSTs mint. It is a fence against one browser hammering the
     // endpoint, never an identifier: nothing durable is keyed by it.
     const fingerprint = createHash("sha256")
-      .update(c.req.header("user-agent") ?? "")
+      .update(c.env?.incoming?.socket?.remoteAddress ?? "")
       .update("|")
-      .update(c.req.header("origin") ?? "")
+      .update(
+        c.env?.incoming?.socket?.remoteAddress
+          ? ""
+          : (c.req.header("user-agent") ?? ""),
+      )
       .digest("hex")
       .slice(0, 16);
 
@@ -192,13 +196,18 @@ export function createByoInteractionRoutes(
         uid,
         outcome.record.issuer,
       );
-      setCookie(c, pendingCookieName(uid), encodePending(pending), {
-        httpOnly: true,
-        sameSite: "Lax",
-        path: interactionPath(uid),
-        maxAge: FEDERATED_PENDING_TTL_SECONDS,
-        secure: ctx.config.publicUrl.startsWith("https://"),
-      });
+      setCookie(
+        c,
+        pendingCookieName(uid),
+        encodePending(pending, ctx.config.claimPepper),
+        {
+          httpOnly: true,
+          sameSite: "Lax",
+          path: interactionPath(uid),
+          maxAge: FEDERATED_PENDING_TTL_SECONDS,
+          secure: ctx.config.publicUrl.startsWith("https://"),
+        },
+      );
       // Not a 303: Chromium refuses cross-origin redirects of a form
       // submission under `form-action 'self'` (see renderUpstreamHopPage).
       return c.html(renderUpstreamHopPage(authorizationUrl));

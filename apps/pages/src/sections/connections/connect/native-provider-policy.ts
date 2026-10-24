@@ -1,9 +1,6 @@
 /** Browser admission follows the central audited route, including public site and token choices. */
-import {
-  type BridgeGuidance,
-  bridgeGuidance,
-} from "@opensesame/app-core/lib/native-bridge.js";
-import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
+import type { NativeBrowserPolicyDecision } from "@opensesame/app-core/lib/native-browser-policy.js";
+import { nativeConfigurationBrowserPolicy } from "@opensesame/app-core/lib/native-configuration-policy.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { nativeMethodForEdit } from "./native-connector-edit-values.js";
 import { nativeFieldValues } from "./native-connector-ui-values.js";
@@ -12,16 +9,24 @@ import type {
   NativeMethodDescriptor,
 } from "./native-connector-ui.js";
 
-/** Where the bridge is explained; the extension's own README, which says what it can and cannot do. */
-export const CONNECTOR_BRIDGE_DOCS =
-  "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/apps/browser-extension-bridge/README.md";
-
-/** What a person does next so the bridge can carry this provider. */
-export function bridgeGuidanceText(guidance: BridgeGuidance): string {
-  const hosts = guidance.hosts.join(", ");
-  return guidance.state === "needs-host"
-    ? `The OpenSesame connector bridge is on. Open it and allow ${hosts}; this connects once you have.`
-    : `The OpenSesame connector bridge can make this call from your browser: install it, switch it on for this site, then allow ${hosts} in it.`;
+function withAdvice(
+  method: NativeMethodDescriptor,
+  policy: NativeBrowserPolicyDecision,
+): NativeMethodDescriptor {
+  if (!policy.advice) return method;
+  const links = [...(method.links ?? [])];
+  for (const url of policy.evidenceUrls)
+    if (!links.some((link) => link.url === url))
+      links.push({ label: "Browser access evidence", url });
+  return {
+    ...method,
+    instructions: method.instructions?.includes(policy.advice)
+      ? method.instructions
+      : method.instructions
+        ? `${method.instructions}\n\n${policy.advice}`
+        : policy.advice,
+    links,
+  };
 }
 
 export function nativePolicyMethod(
@@ -29,24 +34,35 @@ export function nativePolicyMethod(
   method: NativeMethodDescriptor,
   parameters: Readonly<Record<string, string>> = {},
 ): NativeMethodDescriptor {
-  const policy = nativeBrowserMethodPolicy(providerId, method.id, parameters);
-  if (policy.available) return method;
-  const guidance = method.id === "api-key" ? bridgeGuidance(providerId) : null;
+  if (method.unavailableKind === "policy") return method;
+  const runtimeAvailable = method.runtimeAvailable ?? method.available;
+  const policy = nativeConfigurationBrowserPolicy(
+    providerId,
+    method.id,
+    parameters,
+  );
+  if (policy.available)
+    return withAdvice(
+      runtimeAvailable
+        ? {
+            ...method,
+            runtimeAvailable,
+            available: true,
+            unavailableKind: undefined,
+            unavailableReason: undefined,
+          }
+        : { ...method, runtimeAvailable, available: false },
+      policy,
+    );
   const reason =
     policy.reason ?? "This provider route is unavailable in this browser.";
   return {
     ...method,
+    runtimeAvailable,
     available: false,
+    configurable: runtimeAvailable || method.configurable === true,
     unavailableKind: "refuses-browser",
-    unavailableReason: guidance
-      ? `${reason} ${bridgeGuidanceText(guidance)}`
-      : reason,
-    links: guidance
-      ? [
-          ...(method.links ?? []),
-          { label: "Connector bridge", url: CONNECTOR_BRIDGE_DOCS },
-        ]
-      : method.links,
+    unavailableReason: reason,
   };
 }
 
@@ -55,10 +71,17 @@ export function nativeDraftMethod(
   method: NativeMethodDescriptor,
   view: NativeConnectorView | null | undefined,
   values: NativeFieldValues,
+  scopes?: Readonly<Record<string, readonly string[]>>,
 ): NativeMethodDescriptor {
+  const configured =
+    method.id === "mcp" &&
+    ["bearer", "header", "anonymous"].includes(values.mcp_authentication ?? "");
+  const current = configured
+    ? { ...method, authorizeFirst: false, scopeGroups: [] }
+    : method;
   return nativePolicyMethod(
     providerId,
-    nativeMethodForEdit(method, view, values),
+    nativeMethodForEdit(current, view, values, scopes),
     nativeFieldValues(method.fields, values, false),
   );
 }

@@ -79,6 +79,19 @@ describe("store-sync mapping", () => {
     }
   });
 
+  it("carries environment cells and an exclusion through a store entry", () => {
+    const item = createItem("secret", "Token");
+    item.environments = { production: { value: "v", required: true } };
+    const back = entryToVaultItem(vaultItemToEntry(item, []));
+    expect(back.environments).toEqual(item.environments);
+
+    const removed = createItem("secret", "Removed");
+    removed.environmentsExcluded = true;
+    const removedBack = entryToVaultItem(vaultItemToEntry(removed, []));
+    expect(removedBack.environmentsExcluded).toBe(true);
+    expect(removedBack.environments).toBeUndefined();
+  });
+
   it("maps pass-otp trailer otpauth into the first authenticator", () => {
     const item = entryToVaultItem({
       path: "Email/site",

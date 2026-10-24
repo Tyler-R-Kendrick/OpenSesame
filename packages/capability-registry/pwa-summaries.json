@@ -880,19 +880,11 @@
     }
   },
   {
-    "id": "password_provider.read",
-    "title": "Read a credential value on the human plane",
+    "id": "password_provider.reveal",
+    "title": "Reveal a credential value on the human plane",
     "plane": "client_local",
     "surfaces": {
       "pwa": "lib/vault/password-workflows.ts:resolveLocalReference"
-    }
-  },
-  {
-    "id": "password_provider.env_resolve",
-    "title": "Write a private file with resolved credential values",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "lib/vault/password-workflows.ts:resolveLocalEnvTemplate"
     }
   },
   {
@@ -1005,6 +997,22 @@
     "plane": "client_local",
     "surfaces": {
       "pwa": "lib/vault/protection/browser-lifecycle-ops.ts:rotateCompromisedRoot"
+    }
+  },
+  {
+    "id": "vault.retired_credentials.manage",
+    "title": "Fresh-owner retired-password inspection, consented enrollment, removal and activity cleanup",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings/security"
+    }
+  },
+  {
+    "id": "vault.agent_canaries.manage",
+    "title": "Fresh-owner pairing, inspection, consented detection-only canary enrollment, removal and configuration export",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings/security"
     }
   },
   {

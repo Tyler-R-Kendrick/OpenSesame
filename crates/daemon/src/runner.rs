@@ -4,7 +4,11 @@
 //! the exit status only. This runner is the single place those child processes
 //! come from, and its job is to make them safe:
 //!
-//! - **Scrubbed environment** — `env_clear` plus a whitelist projection, never
+//! - **The CLI it means** — the bare name is found by the trusted `PATH` rule
+//!   over the snapshot (`programs`), never by the shell's search: a `gh`
+//!   planted in a directory anyone can write, or behind an empty entry, is
+//!   never run, and so never asked for a token.
+//! - **Scrubbed environment** — `env_clear` plus an allowlist per CLI, never
 //!   the daemon's own environment. The daemon holds `OPENSESAME_OPERATOR_TOKEN`
 //!   and friends; a probed CLI has no business seeing them.
 //! - **No shell** — argv is exec'd directly, so no probe argument is ever
@@ -18,13 +22,17 @@
 //!   probe: the bytes never leave this module.
 
 use opensesame_connection_detect::{CommandRunner, CommandStatus, ProbeError};
+use opensesame_trusted_exec::Platform;
 use secrecy::SecretString;
 use std::collections::BTreeMap;
 use std::io::Read;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use zeroize::Zeroizing;
+
+mod programs;
+pub(crate) use programs::present;
 
 /// How much of a child's stdout is even looked at before discarding. Probes
 /// only need non-emptiness, so this stays small; anything past it is drained
@@ -39,36 +47,22 @@ const MAX_CAPTURED_OUTPUT_BYTES: usize = 16 * 1024;
 /// Poll cadence while waiting on a child under its timeout.
 const WAIT_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// Environment variables a probed CLI legitimately needs to locate its own
-/// configuration and the OS keychain (e.g. `gh` needs `HOME` to find
-/// `~/.config/gh` and the D-Bus session address to reach Secret Service).
-/// Everything else — in particular every `OPENSESAME_*` variable the daemon
-/// itself was started with — is withheld from children.
-const CHILD_ENV_WHITELIST: &[&str] = &[
-    "HOME",
-    "PATH",
-    "USER",
-    "LOGNAME",
-    "LANG",
-    "LC_ALL",
-    "TMPDIR",
-    "XDG_RUNTIME_DIR",
-    "DBUS_SESSION_BUS_ADDRESS",
-    // Windows: process creation is unhappy without it; not a secret.
-    "SystemRoot",
-    "SYSTEMROOT",
-];
-
-/// The child environment: a whitelist projection of an environment snapshot.
-/// Callers pass the same snapshot the probes see, so `PATH` resolution and the
-/// child agree on what exists.
+/// What any probed CLI may be handed, or needs to be found by: the common
+/// set, the keychain's session bus, and each CLI's configuration locations
+/// (`programs`). Everything else — in particular every `OPENSESAME_*`
+/// variable the daemon itself was started with — is withheld from children.
 pub fn minimal_child_env(env: &BTreeMap<String, String>) -> BTreeMap<String, String> {
-    CHILD_ENV_WHITELIST
-        .iter()
-        .filter_map(|key| {
-            env.get(*key)
-                .map(|value| ((*key).to_string(), value.clone()))
-        })
+    minimal_child_env_on(Platform::current(), env)
+}
+
+/// [`minimal_child_env`] for a snapshot taken on `platform`.
+fn minimal_child_env_on(
+    platform: Platform,
+    env: &BTreeMap<String, String>,
+) -> BTreeMap<String, String> {
+    env.iter()
+        .filter(|(name, _)| programs::admitted_on(platform, name))
+        .map(|(name, value)| (name.clone(), value.clone()))
         .collect()
 }
 
@@ -183,10 +177,8 @@ impl ScrubbedCommandRunner {
         let (program, arguments) = argv
             .split_first()
             .ok_or_else(|| ProbeError::Command("empty argv".to_string()))?;
-        let mut child = Command::new(program)
+        let mut child = programs::command(program, &self.env)?
             .args(arguments)
-            .env_clear()
-            .envs(&self.env)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -243,10 +235,8 @@ impl CommandRunner for ScrubbedCommandRunner {
         let (program, arguments) = argv
             .split_first()
             .ok_or_else(|| ProbeError::Command("empty argv".to_string()))?;
-        let mut child = Command::new(program)
+        let mut child = programs::command(program, &self.env)?
             .args(arguments)
-            .env_clear()
-            .envs(&self.env)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -279,198 +269,4 @@ impl CommandRunner for ScrubbedCommandRunner {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn runner_with(env: &[(&str, &str)]) -> ScrubbedCommandRunner {
-        ScrubbedCommandRunner::new(
-            env.iter()
-                .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
-                .collect(),
-        )
-    }
-
-    #[test]
-    fn contract_child_env_is_a_whitelist_projection() {
-        let mut snapshot = BTreeMap::new();
-        snapshot.insert("HOME".to_string(), "/home/tester".to_string());
-        snapshot.insert("PATH".to_string(), "/usr/bin".to_string());
-        snapshot.insert(
-            "OPENSESAME_OPERATOR_TOKEN".to_string(),
-            "PLANTED-OPERATOR-TOKEN".to_string(),
-        );
-        snapshot.insert("AWS_SECRET_ACCESS_KEY".to_string(), "PLANTED".to_string());
-        let child_env = minimal_child_env(&snapshot);
-        assert!(child_env.contains_key("HOME"));
-        assert!(child_env.contains_key("PATH"));
-        assert!(!child_env.contains_key("OPENSESAME_OPERATOR_TOKEN"));
-        assert!(!child_env.contains_key("AWS_SECRET_ACCESS_KEY"));
-    }
-
-    #[test]
-    fn adversarial_child_never_sees_the_daemons_own_environment() {
-        // Even a variable set on the daemon process itself must not reach the
-        // child: the runner starts from env_clear, not from inheritance.
-        let planted = "OPENSESAME_PLANTED_CHILD_MUST_NOT_SEE";
-        std::env::set_var(planted, "PLANTED-SECRET");
-        let runner = runner_with(&[("HOME", "/tmp")]);
-        let status = runner
-            .run_status(
-                &[
-                    "sh",
-                    "-c",
-                    "[ -z \"$OPENSESAME_PLANTED_CHILD_MUST_NOT_SEE\" ]",
-                ],
-                2_000,
-            )
-            .expect("ran");
-        assert!(status.success, "child observed the daemon's environment");
-        std::env::remove_var(planted);
-    }
-
-    #[test]
-    fn child_gets_the_whitelisted_minimum() {
-        let runner = runner_with(&[("HOME", "/home/tester"), ("PATH", "/usr/bin:/bin")]);
-        let status = runner
-            .run_status(
-                &[
-                    "sh",
-                    "-c",
-                    "[ \"$HOME\" = /home/tester ] && [ -n \"$PATH\" ]",
-                ],
-                2_000,
-            )
-            .expect("ran");
-        assert!(status.success);
-    }
-
-    #[test]
-    fn contract_a_hung_child_is_killed_at_the_timeout() {
-        let runner = runner_with(&[]);
-        let started = Instant::now();
-        let result = runner.run_status(&["sh", "-c", "sleep 30"], 150);
-        let elapsed = started.elapsed();
-        assert!(result.is_err(), "timeout must surface as an error");
-        assert!(
-            elapsed < Duration::from_secs(5),
-            "took {elapsed:?} to give up"
-        );
-    }
-
-    #[test]
-    fn contract_stdout_is_reduced_to_a_non_empty_bit() {
-        // `gh auth token` prints a token; the runner must prove it saw output
-        // without any API that could hand the bytes back.
-        let runner = runner_with(&[]);
-        let status = runner
-            .run_status(&["sh", "-c", "echo PLANTED-TOKEN-VALUE; exit 3"], 2_000)
-            .expect("ran");
-        assert!(!status.success);
-        assert!(status.stdout_non_empty);
-    }
-
-    #[test]
-    fn a_chatty_child_cannot_deadlock_the_pipe() {
-        // Far more than the 4 KiB observation cap and more than a pipe buffer:
-        // only draining keeps this from blocking forever.
-        let runner = runner_with(&[]);
-        let started = Instant::now();
-        let status = runner
-            .run_status(
-                &[
-                    "sh",
-                    "-c",
-                    "i=0; while [ $i -lt 5000 ]; do echo PLANTED-LINE; i=$((i+1)); done; exit 0",
-                ],
-                10_000,
-            )
-            .expect("ran");
-        assert!(status.success);
-        assert!(status.stdout_non_empty);
-        assert!(started.elapsed() < Duration::from_secs(10));
-    }
-
-    #[test]
-    fn a_missing_binary_is_an_error_not_a_panic() {
-        let runner = runner_with(&[]);
-        let result = runner.run_status(&["definitely-not-a-real-binary-xyz"], 1_000);
-        assert!(result.is_err());
-    }
-
-    // ——— run_capture: the invoke-through acquisition path ————————————
-
-    #[test]
-    fn capture_returns_stdout_trimmed() {
-        use secrecy::ExposeSecret;
-        let runner = runner_with(&[]);
-        let token = runner
-            .run_capture(&["sh", "-c", "printf 'gho_abc123\\n'"], 2_000)
-            .expect("captured");
-        assert_eq!(token.expose_secret(), "gho_abc123");
-    }
-
-    #[test]
-    fn capture_error_never_carries_the_secret() {
-        // A failing child that printed a credential-shaped string: the error
-        // must name the failure class (exit status), not the output.
-        let runner = runner_with(&[]);
-        let error = runner
-            .run_capture(&["sh", "-c", "echo PLANTED-TOKEN-IN-OUTPUT; exit 3"], 2_000)
-            .expect_err("non-zero exit");
-        let rendered = format!("{error} / {error:?}");
-        assert!(!rendered.contains("PLANTED-TOKEN-IN-OUTPUT"), "{rendered}");
-    }
-
-    #[test]
-    fn capture_fails_closed_on_empty_output() {
-        let runner = runner_with(&[]);
-        let error = runner
-            .run_capture(&["sh", "-c", "true"], 2_000)
-            .expect_err("no credential printed");
-        assert!(format!("{error}").contains("no credential"));
-    }
-
-    #[test]
-    fn capture_is_capped() {
-        let runner = runner_with(&[]);
-        let error = runner
-            .run_capture(
-                &[
-                    "sh",
-                    "-c",
-                    "i=0; while [ $i -lt 5000 ]; do echo PLANTED-LINE; i=$((i+1)); done",
-                ],
-                10_000,
-            )
-            .expect_err("oversized capture");
-        assert!(format!("{error}").contains("cap"));
-    }
-
-    #[test]
-    fn capture_honors_the_timeout() {
-        let runner = runner_with(&[]);
-        let result = runner.run_capture(&["sh", "-c", "sleep 30"], 150);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn capture_child_env_is_still_scrubbed() {
-        let runner = runner_with(&[("HOME", "/tmp")]);
-        // The daemon's own variables must not reach the capturing child
-        // either; print the planted variable — empty proves the scrub.
-        let planted = "OPENSESAME_PLANTED_CAPTURE_MUST_NOT_SEE";
-        std::env::set_var(planted, "PLANTED-SECRET");
-        let result = runner.run_capture(
-            &[
-                "sh",
-                "-c",
-                "printf '%s' \"$OPENSESAME_PLANTED_CAPTURE_MUST_NOT_SEE\"",
-            ],
-            2_000,
-        );
-        std::env::remove_var(planted);
-        // Empty stdout fails closed with "no credential" — the scrub held.
-        let error = result.expect_err("scrubbed env prints nothing");
-        assert!(format!("{error}").contains("no credential"));
-    }
-}
+mod tests;

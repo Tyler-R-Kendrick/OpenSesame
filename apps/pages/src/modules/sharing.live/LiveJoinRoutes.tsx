@@ -13,6 +13,7 @@ import {
   routeHosts,
 } from "@opensesame/app-core/lib/live/transport.js";
 import { useEffect, useState } from "react";
+import { IconInfo } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { type Standing, standingMark } from "./live-hooks.js";
 
@@ -29,15 +30,22 @@ export function RoutesChoice({
 }) {
   if (!hasRoutes(routes)) return null;
   return (
-    <label className="join__choice">
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.checked)}
-      />
-      <span>Through {routeHosts(routes).join(", ")}</span>
-    </label>
+    <>
+      <label className="join__choice">
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span>Pair through {routeHosts(routes).join(", ")}</span>
+      </label>
+      <p className="live-help">
+        <IconInfo size={14} aria-hidden="true" /> This relay exchanges only the
+        sealed connection codes. Vault contents stay between the two browsers.
+        Clear it to use the manual request and reply codes instead.
+      </p>
+    </>
   );
 }
 

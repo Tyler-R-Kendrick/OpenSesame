@@ -37,6 +37,7 @@ import {
 import { ConnectorSettingsPage } from "../SettingsPage.js";
 import { declareConnectionsTutorial } from "../tutorial.test-support.js";
 import { TailscalePanels } from "./TailscalePanels.js";
+import { tailscaleAppDependencies as oauth } from "./tailscale-dependencies.js";
 let fixture: Awaited<ReturnType<typeof statusFixture>>;
 const catalog = catalogProvider("tailscale");
 if (!catalog) throw new Error("Missing Tailscale provider");
@@ -62,21 +63,22 @@ afterEach(async () => {
   clearNotices();
 });
 function primary(online = true) {
-  return render(
-    <TailscalePanels
-      provider={provider}
-      connection={null}
-      online={online}
-      onFlash={vi.fn()}
-      onChanged={vi.fn()}
-    />,
-  );
+  return render(<TailscalePanels online={online} />);
 }
 function button() {
   return screen.getByRole("button", { name: "Connect browser node" });
 }
 async function ready() {
   await waitFor(() => expect(button().hasAttribute("disabled")).toBe(false));
+}
+function prohibitOAuth() {
+  return [
+    vi.spyOn(oauth, "hydrateTailscaleApps"),
+    vi.spyOn(oauth, "optionalBrowser"),
+    vi.spyOn(oauth, "transport"),
+    vi.spyOn(oauth, "browser"),
+    vi.spyOn(oauth, "session"),
+  ];
 }
 function actualPage() {
   return render(
@@ -99,7 +101,8 @@ function actualPage() {
     </MemoryRouter>,
   );
 }
-it("mounts the browser peering panel and the OAuth provisioning panels at the actual settings entry", async () => {
+it("mounts only the browser peering panel at the actual settings entry without OAuth dependencies", async () => {
+  const spies = prohibitOAuth();
   actualPage();
   await ready();
   expect(
@@ -116,18 +119,25 @@ it("mounts the browser peering panel and the OAuth provisioning panels at the ac
     "Tailscale API base URL",
     "Redirect URI to register",
     "Returned OAuth app JSON",
+    "Admin API access token",
     "Issued device auth key",
   ])
-    expect(screen.getByLabelText(name)).toBeTruthy();
+    expect(screen.queryByLabelText(name)).toBeNull();
   expect(
-    screen.getByRole("region", { name: "Tailscale OAuth app configuration" }),
-  ).toBeTruthy();
+    screen.queryByRole("button", {
+      name: /Register app|Download registration|Save returned Tailscale|Prepare device key handoff/,
+    }),
+  ).toBeNull();
   expect(
-    screen.getByRole("region", { name: "Tailscale device provisioning" }),
-  ).toBeTruthy();
+    screen.queryByText(
+      /currently restricts direct browser CORS|completed by that device's Tailscale client/,
+    ),
+  ).toBeNull();
+  for (const spy of spies) expect(spy).not.toHaveBeenCalled();
   expect(fixture.fetcher).not.toHaveBeenCalled();
 });
 it("starts the real controller through the primary form and admits only the actual authenticated browser node", async () => {
+  const spies = prohibitOAuth();
   primary();
   await ready();
   fireEvent.change(screen.getByLabelText("Browser node hostname"), {
@@ -182,6 +192,7 @@ it("starts the real controller through the primary form and admits only the actu
   expect(document.body.textContent).not.toContain(
     "sealed-primary-private-node-state",
   );
+  for (const spy of spies) expect(spy).not.toHaveBeenCalled();
   expect(fixture.fetcher).not.toHaveBeenCalled();
 });
 it("restores the actual encrypted durable node metadata after its in-memory KV cache is empty", async () => {
@@ -190,6 +201,7 @@ it("restores the actual encrypted durable node metadata after its in-memory KV c
   await kvFlush();
   kvForgetAll();
   expect(readDeviceRows()).toEqual([]);
+  const spies = prohibitOAuth();
   primary();
   await ready();
   expect(
@@ -200,6 +212,7 @@ it("restores the actual encrypted durable node metadata after its in-memory KV c
     screen.getByRole("button", { name: "Forget local browser node" }),
   ).toBeTruthy();
   expect(tailscaleNodeAuthorization()).toBeNull();
+  for (const spy of spies) expect(spy).not.toHaveBeenCalled();
 });
 it("waits for actual metadata hydration before allowing Connect", async () => {
   const hydrate = kvSeams.kvHydrate;
@@ -214,17 +227,18 @@ it("waits for actual metadata hydration before allowing Connect", async () => {
   expect(button().hasAttribute("disabled")).toBe(true);
   expect(
     screen.getByLabelText("Browser node hostname").hasAttribute("disabled"),
-  ).toBe(false);
+  ).toBe(true);
   expect(spy).toHaveBeenCalledWith([...DEVICE_CONNECTOR_KEYS]);
   await act(async () => {
     gate.resolve();
   });
   await ready();
 });
-it("reports a real storage-load failure without enabling Connect", async () => {
+it("reports a real storage-load failure without enabling Connect or invoking OAuth fallback", async () => {
   vi.spyOn(kvSeams, "kvHydrate").mockRejectedValueOnce(
     new Error("Cannot read encrypted storage"),
   );
+  const spies = prohibitOAuth();
   primary();
   await waitFor(() =>
     expect(
@@ -234,6 +248,7 @@ it("reports a real storage-load failure without enabling Connect", async () => {
   expect(button().hasAttribute("disabled")).toBe(true);
   expect(screen.getByLabelText("Tailscale control server")).toBeTruthy();
   expect(tailscaleNodeAuthorization()).toBeNull();
+  for (const spy of spies) expect(spy).not.toHaveBeenCalled();
 });
 it.each(["Networking off", "offline"])(
   "keeps configuration fields usable with %s",

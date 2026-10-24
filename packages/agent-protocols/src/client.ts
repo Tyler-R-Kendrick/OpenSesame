@@ -25,7 +25,7 @@ async function readJson(res: Response): Promise<JsonValue> {
 }
 
 export function createAgentAuthClient(options: AgentAuthClientOptions) {
-  const base = options.authorizationServer.replace(/\/+$/u, "");
+  const base = stripTrailingSlashes(options.authorizationServer);
   const f = options.fetch ?? fetch;
 
   return {
@@ -97,4 +97,11 @@ export function createAgentAuthClient(options: AgentAuthClientOptions) {
       return { status: res.status, body: await readJson(res) };
     },
   };
+}
+
+/** Remove a slash suffix in linear time, including on malformed input. */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }

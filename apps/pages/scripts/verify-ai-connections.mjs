@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { verifyAiConnections } from "./lib/ai-connection-browser.mjs";
 import { createAiConnectionHttpFixture } from "./lib/ai-connection-http-fixture.mjs";
+import { createAiCompletionHarvest } from "./lib/ai-positive-completion.mjs";
+import { createAiRequestLifecycle } from "./lib/ai-request-lifecycle.mjs";
 import { startIdentityAppServer } from "./lib/identity-browser-server.mjs";
 import { sealWithPin } from "./lib/pages-journey.mjs";
 import {
@@ -28,6 +30,10 @@ if (!fs.existsSync(path.join(dist, "index.html")))
   throw new Error(`Build the declared AI verification profile first: ${dist}`);
 fs.mkdirSync(out, { recursive: true });
 const h = createHarness({ dist, origin, base, out });
+const lifecycle = createAiRequestLifecycle({
+  fixtureOrigin: "http://127.0.0.1:41912",
+});
+const completion = createAiCompletionHarvest();
 let browser;
 let fixture;
 let app;
@@ -52,7 +58,7 @@ async function settingsComposition(page, width) {
       (await page.getByRole("combobox", { name, exact: true }).count()) === 0,
       `${width}: ${name} is absent from Integrations`,
     );
-  await visitBackendRoute(page, base, "settings/features#feature-ai");
+  await visitBackendRoute(page, base, "settings/features/ai/support.local-ai");
   for (const name of ["Voice model", "Inference model"])
     await expect(
       page.getByRole("combobox", { name, exact: true }),
@@ -78,10 +84,21 @@ async function runViewport(width) {
     providers: [fixture.origin],
     record: h.record,
   });
+  lifecycle.attach(context, String(width));
   try {
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await sealWithPin(page);
-    await verifyAiConnections({ page, base, fixture, width, check: h.check });
+    await verifyAiConnections({
+      page,
+      base,
+      fixture,
+      width,
+      check: h.check,
+      beforeReload: async () => {
+        await lifecycle.quiesce(context);
+        await completion.harvest(page, () => lifecycle.document(page));
+      },
+    });
     await settingsComposition(page, width);
   } catch (error) {
     await page.screenshot({
@@ -90,13 +107,19 @@ async function runViewport(width) {
     });
     throw error;
   } finally {
+    await lifecycle.checkpoint(context);
+    await completion.harvest(page, () => lifecycle.document(page));
     await context.close();
+    lifecycle.finalize(context);
   }
 }
 
 try {
   app = await startIdentityAppServer(dist, origin, base);
-  fixture = await createAiConnectionHttpFixture({ appOrigin: origin });
+  fixture = await createAiConnectionHttpFixture({
+    appOrigin: origin,
+    observer: lifecycle,
+  });
   browser = await h.launch({ args: ["--no-sandbox"] });
   for (const width of [1280, 390]) await runViewport(width);
 } catch (error) {
@@ -119,18 +142,34 @@ for (const entry of h.log) {
     ].includes(entry.kind)
   )
     h.failures.push(`${entry.kind}: ${entry.detail}`);
-  if (
-    entry.kind === "network-failure" &&
-    !entry.detail.startsWith("net::ERR_ABORTED:")
-  )
-    h.failures.push(`${entry.kind}: ${entry.detail}`);
 }
+lifecycle.finalize();
+const nativeRequests = lifecycle.snapshot();
+const rawFailed = h.log.filter(
+  (entry) => entry.kind === "network-failure",
+).length;
+if (rawFailed !== nativeRequests.nativeFailed)
+  h.failures.push("raw-network-failure-ledger-mismatch");
+const rawFailures = [...h.failures, ...nativeRequests.failures];
+const originalStrictPassed = rawFailures.length === 0;
+const functionalOperationContract = completion.evaluate(
+  nativeRequests,
+  fixture?.producers ?? [],
+  fixture?.origin,
+);
+h.failures.push(...functionalOperationContract.failures);
 fs.writeFileSync(
   path.join(out, "results.json"),
   `${JSON.stringify(
     {
       failures: h.failures,
       log: h.log,
+      nativeRequests,
+      originalStrictPassed,
+      rawFailures,
+      functionalOperationContract,
+      completion: completion.snapshot(),
+      producers: fixture?.producers,
       requests: fixture?.requests,
       preflights: fixture?.preflights,
       limits: [
@@ -146,5 +185,5 @@ if (h.failures.length) {
   process.exitCode = 1;
 } else
   console.log(
-    `PASS AI configuration, vault custody, cold inference selection and real JSON/SSE: ${out}`,
+    `PASS AI positive operation contract v2; original native strict passed=${originalStrictPassed}, raw failures retained: ${out}`,
   );

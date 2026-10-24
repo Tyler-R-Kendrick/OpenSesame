@@ -1,6 +1,6 @@
 import { type RefObject, useLayoutEffect, useState } from "react";
 
-/** Prototype lock-v5 hero: max em, gap above the card (wide / narrow). */
+/** Fit the animated hero above the form without tying its width to the form. */
 const MAX_EM = 90;
 const GAP_WIDE = 34;
 const GAP_NARROW = 20;
@@ -11,9 +11,11 @@ const NARROW_BP = 1100;
  */
 const WORD_UNITS = 7.78;
 /** Min gap from the hero's right edge to the notes column divider. */
-const COL_MARGIN = 24;
-/** Left inset used when sizing the wide hero (prototype `c.x + c.w - 40`). */
+const COL_MARGIN = 60;
+/** Minimum viewport inset for the wide hero. */
 const WIDE_LEFT_INSET = 40;
+/** Hero begins near 10% of the left pane, independently of the narrower form. */
+const WIDE_LEFT_RATIO = 0.096;
 /** Narrow pane top padding when no hero is reserved (unlock.css). */
 const NARROW_BASE_PAD_TOP = 32;
 
@@ -24,8 +26,8 @@ export type UnlockHeroBox = {
 };
 
 /**
- * Place the unlock CipherWordmark as a hero above the card — the same fit as
- * lock-v5.html (`maxEm: 90`, wide right-aligned to the card, gap 34/20).
+ * Place the unlock CipherWordmark as a hero above the card. On wide screens
+ * it spans the left pane independently of the narrower unlock form.
  * On wide, clamps to the left column so the hero never touches the notes
  * divider (margin ≥ {@link COL_MARGIN}). On narrow, grows the pane's top
  * padding so the hero sits on its own row above the brand tools.
@@ -67,8 +69,12 @@ export function useUnlockHeroLayout(
           ? notes.getBoundingClientRect().left - pr.left
           : pr.width;
         // Clamp by the left column, not the viewport — stay clear of the divider.
-        alignRight = Math.min(cardRight, notesLeft - COL_MARGIN);
-        avail0 = Math.max(120, alignRight - WIDE_LEFT_INSET);
+        const leftInset = Math.max(
+          WIDE_LEFT_INSET,
+          notesLeft * WIDE_LEFT_RATIO,
+        );
+        alignRight = notesLeft - COL_MARGIN;
+        avail0 = Math.max(120, alignRight - leftInset);
       }
 
       let size = Math.max(28, Math.min(MAX_EM, avail0 / WORD_UNITS));
@@ -96,8 +102,14 @@ export function useUnlockHeroLayout(
 
       pane.style.paddingTop = "";
       const cardY = cr.top - pr.top;
-      const left = Math.max(WIDE_LEFT_INSET, alignRight - width);
-      const top = Math.max(8, cardY - gap - height);
+      const left = Math.max(
+        WIDE_LEFT_INSET,
+        (alignRight + COL_MARGIN) * WIDE_LEFT_RATIO,
+      );
+      const top = Math.max(
+        8,
+        Math.min(pr.height * 0.158, cardY - gap - height),
+      );
       setBox({ left, top, size });
     };
 

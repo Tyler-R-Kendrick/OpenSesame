@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const outDir = join(root, "docs/evidence/2026-09-20-vault-key-protection");
+const outDir = join(root, "work/evidence/key-protection/pages/browser");
 mkdirSync(outDir, { recursive: true });
 
 /** @typedef {{ id: string, command: string, result: "passed"|"failed"|"blocked", detail: string }} Case */

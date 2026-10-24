@@ -1,7 +1,7 @@
 # @opensesame/cli
 
 The Client CLI, binary `opensesame-id` (alias `opensesame-identity`; both names
-are `bin` entries of this package, pointing at `src/bin.ts`). It signs
+are `bin` entries of this package, pointing at emitted `dist/bin.js`). It signs
 in to the Identity API by device flow, loopback PKCE or as an anonymous guest,
 keeps that session in a private file, polls claims, probes the Host API, and
 opens a sealed vault export or offline backup to verify it or list its items
@@ -79,8 +79,8 @@ opensesame-id service-account setup --vault Automation --create-vault --write --
 Creation and password changes accept secrets from a pipe or `--clipboard`,
 verify every write by reading it back, and never retry a write. Passwords retain
 exact bytes; `password` compares unless `--apply` is supplied. Discovery and
-receipts contain metadata and references. `read` and `env resolve` refuse unless
-stdin and stdout are both TTYs, you pass `--reveal`, and `op://` reads also need
+receipts contain metadata and references. `reveal` refuses unless
+stdin and stdout are both TTYs, you pass `--reveal`, and `op://` reveals also need
 `--desktop`. Desktop `run` and `env run` need `--desktop` as well. Every path
 that would print or inject plaintext then asks the OpenSesame app for CLI
 integration approval for this terminal session (PIN or passkey in the app; 600 s
@@ -93,7 +93,7 @@ scripts — the same `run` wrapper pattern as `op run`, `infisical run`, and
 device's OpenSesame vault (unlocked on the terminal); `--mount NAME=<ref>`
 instead writes the secret to a private temp file for the child's lifetime,
 sets `NAME` to its path, and removes it when the child exits. Injected
-values are masked wherever the child prints them. `env resolve` is deprecated in favor of `env run`. The broker lane
+values are masked wherever the child prints them. `env resolve` is retired — it wrote plaintext at rest — in favor of `env run`. The broker lane
 (network stand-in swap) is a mode of `run`, not a separate top-level command:
 `run --agent-proxy --env NAME=os://… --paths NAME=/prefix --methods NAME=GET`
 gives the child a scoped surrogate for an `os://` item under
@@ -193,3 +193,34 @@ Credential helpers resolve through absolute executable PATH entries outside the
 current directory. Their working directory and interpreter startup environment
 are controlled before credentials enter the process. The explicitly selected
 child runs in the caller's working directory after the provider token is removed.
+
+## Installed delivery and local security
+
+`pnpm --filter @opensesame/cli build` emits a bundled Node22 ESM CLI and
+its declaration files; it does not require `tsx` at runtime. Source development
+uses `pnpm --filter @opensesame/cli dev -- <command>`.
+
+Build the native `opensesame` release binary with the pinned Rust toolchain and
+`CARGO_TARGET_DIR`, then run `pnpm --filter @opensesame/cli pack:release`.
+The release build requires and copies that platform's native companion into
+`dist/native/<platform>-<architecture>/`. The generated installable tarball
+contains the bundled CLI and companion, and no unresolved workspace dependencies.
+Create separate release artifacts for each supported platform. A missing native
+companion fails release packaging. Public declarations inline the workspace
+and Zod type closure; the archive declares the pinned Node type dependency.
+After prefetching its declared dependencies into the npm cache, validate the
+actual archive with `pnpm --filter @opensesame/cli test:archive <archive.tgz>`.
+This installs offline outside the workspace, checks normal JavaScript and strict
+TypeScript imports, and exercises the packaged companion through public commands.
+
+`vault retired inspect|enroll|remove|clear-stale|clear-events` uses fresh local
+owner authentication and configured factors. Enrollment requires an explicit
+`--response reject|synthetic_decoy`; `--retention-days` accepts 1–90. Passwords,
+PINs, retired passwords and factor codes are read from the terminal, never argv.
+`--primary password|pin` and `--factor totp|email|sms|recovery` select configured
+routes. Identity API sign-in grants no management authority.
+
+`security canary serve --pairing <file> --state <directory>` runs the paired
+loopback receiver until SIGINT/SIGTERM. The pairing file must be owner-only 0600;
+the service owns a private 0700 state directory. Only an owner-signed canary
+artifact for this pairing can reach the inert MCP service.

@@ -13,19 +13,44 @@ globalThis.__opensesameAppCoreHost = {
 const projection = buildSync({
   stdin: {
     contents: `
+      import {connectPlan} from './packages/app-core/src/lib/connect-plan.ts';
+      import {nativeBrowserOAuthProfile} from './packages/app-core/src/lib/native-browser-oauth-profile.ts';
+      import {nativeProviderDescriptor} from './apps/pages/src/sections/connections/connect/native-provider-descriptor.ts';
       import {getBundledProviders} from './packages/app-core/src/lib/embedded-catalog.ts';
       export {CONNECT_PLAN_JSON as connectPlanJson} from './packages/app-core/src/lib/connect-presets.generated.ts';
       import {mergeVercelCatalog} from './packages/app-core/src/lib/vercel-connect-catalog.ts';
       import {isConnectionCatalogProvider} from './packages/app-core/src/lib/catalog-provider.ts';
       import {isAiModelProvider} from './packages/app-core/src/lib/ai-model-provider.ts';
+      import {aiConnectionDraft,aiConnectionPreset,aiConnectionFamilies} from './packages/app-core/src/lib/ai-connections/presets.ts';
       import {nativeBrowserMcpPolicy,bindNativeBrowserPolicyOrigin} from './packages/app-core/src/lib/native-browser-policy.ts';
+      // Schema projection only: availability does not authorize a browser road.
+      // The real browser still owns runtime/transport admission and all requests.
+      export function authFieldMethods(providerId) {
+        const plan = connectPlan(providerId);
+        if (!plan || plan.refused) return [];
+        const availability = {
+          callbackUrl: 'https://tyler-r-kendrick.github.io/OpenSesame/auth/native-connector.html',
+          apiKey: {available: true},
+          oauth: {available: true, registeredAvailable: true, profile: nativeBrowserOAuthProfile(providerId) ?? undefined},
+          mcp: {available: true, actor: 'user'},
+        };
+        const methods = nativeProviderDescriptor(plan, availability).methods;
+        // Isolation can disable Google's popup while registered OAuth stays configurable.
+        return providerId === 'google' ? [...methods, ...nativeProviderDescriptor(plan, {
+          ...availability, oauth: {...availability.oauth, available: false},
+        }).methods.filter(method => method.id === 'oauth')] : methods;
+      }
       const releaseOrigin=bindNativeBrowserPolicyOrigin(()=> 'https://tyler-r-kendrick.github.io');
       export const auditedAdobeAdmission=nativeBrowserMcpPolicy('adobe');
       releaseOrigin();
-      import {catalogPageSections} from './apps/pages/src/sections/connections/page-tree.ts';
+      import {catalogPageItems} from './apps/pages/src/sections/connections/page-tree.ts';
       export const all = mergeVercelCatalog(getBundledProviders()).filter(isConnectionCatalogProvider);
-      export const listed = catalogPageSections(all).flatMap(section => section.items ?? []);
+      export const listed = catalogPageItems(all);
       export const aiModelProviderIds = all.filter(isAiModelProvider).map(provider => provider.id);
+      export const sharedAiPresets = all.flatMap(provider => {
+        const preset = aiConnectionPreset(provider.id);
+        return preset ? [{...preset,authentication:aiConnectionDraft(provider.id).authentication,families:aiConnectionFamilies(provider.id).map(family => family.id)}] : [];
+      });
     `,
     resolveDir: fileURLToPath(root),
     loader: "ts",
@@ -61,5 +86,13 @@ export const NATIVE_CONNECT_PLAN_JSON = source.connectPlanJson;
  */
 export const NATIVE_AI_MODEL_PROVIDER_IDS = new Set(source.aiModelProviderIds);
 
+/** Public defaults only; the browser's actual form must agree with its provider. */
+export const NATIVE_SHARED_AI_PRESETS = new Map(
+  source.sharedAiPresets.map((preset) => [preset.providerId, preset]),
+);
+
 /** Synthetic allowed-origin protocols never waive the real measured GH admission. */
 export const NATIVE_AUDITED_ADOBE_ADMISSION = source.auditedAdobeAdmission;
+
+/** Canonical field schemas only; never a substitute for executable admission. */
+export const nativeAuthFieldMethods = source.authFieldMethods;

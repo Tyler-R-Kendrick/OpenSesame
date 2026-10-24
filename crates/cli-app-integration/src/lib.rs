@@ -236,15 +236,8 @@ impl CliAppIntegrationStore {
         Some(("approved".into(), None))
     }
 
-    fn refuse_ambiguous_pending(&mut self) {
-        if self.pending.len() > 1 {
-            self.pending.clear();
-        }
-    }
-
     pub fn ensure(&mut self, params: EnsureParams<'_>) -> (String, Option<String>) {
         self.expire_pending();
-        self.refuse_ambiguous_pending();
         if self.denied.contains(params.terminal_session_id) {
             return ("denied".into(), None);
         }
@@ -258,6 +251,9 @@ impl CliAppIntegrationStore {
             if row.terminal_session_id == params.terminal_session_id {
                 return ("pending".into(), Some(row.request_id.clone()));
             }
+        }
+        if self.pending.len() >= MAX_PENDING_REQUESTS {
+            return ("denied".into(), None);
         }
         self.next_request += 1;
         let request_id = format!("clr_{}", self.next_request);
@@ -288,7 +284,6 @@ impl CliAppIntegrationStore {
         binding: &PairedBinding,
     ) -> (String, Option<u32>) {
         self.expire_idle();
-        self.refuse_ambiguous_pending();
         let Some(row) = self.pending.get(request_id) else {
             return ("wrongSession".into(), None);
         };
@@ -350,14 +345,22 @@ impl CliAppIntegrationStore {
 
     pub fn list_pending(&mut self) -> Vec<PendingRequest> {
         self.expire_pending();
-        self.refuse_ambiguous_pending();
-        self.pending
+        let mut rows: Vec<PendingRequest> = self
+            .pending
             .values()
             .filter(|row| row.verb != policy::daemon_pin_probe_verb())
             .cloned()
-            .collect()
+            .collect();
+        rows.sort_by(|a, b| {
+            a.created_at_ms
+                .cmp(&b.created_at_ms)
+                .then_with(|| a.request_id.cmp(&b.request_id))
+        });
+        rows
     }
 }
+
+const MAX_PENDING_REQUESTS: usize = 8;
 
 #[must_use]
 pub fn app_unavailable_message() -> &'static str {

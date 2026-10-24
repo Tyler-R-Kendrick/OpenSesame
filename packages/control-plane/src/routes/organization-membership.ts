@@ -54,7 +54,7 @@ export type JitJoinInput = {
 
 export type JitJoinResult =
   | { ok: true; membership: OrganizationMembership; created: boolean }
-  | { ok: false; error: "not_provisioned"; message: string };
+  | { ok: false; error: "not_provisioned" | "last_owner"; message: string };
 
 /**
  * Join an authenticated subject to a tenant (ADR 0055/0056).
@@ -87,8 +87,40 @@ export async function jitJoinOrganization(
 
   return serializeMembershipMutation(ctx, org.id, async () => {
     const existing = await getMembership(ctx, org.id, input.principalId);
-    if (existing)
+    if (existing) {
+      if (input.role !== undefined && input.role !== existing.role) {
+        if (
+          existing.role === "owner" &&
+          (await ctx.stores.organizationMemberships.countOwners(org.id)) === 1
+        ) {
+          return {
+            ok: false,
+            error: "last_owner",
+            message:
+              "The directory would leave this organization without an owner.",
+          };
+        }
+        const changed = await ctx.stores.organizationMemberships.upsert({
+          ...existing,
+          role: input.role,
+          updatedAt: ctx.clock(),
+        });
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "organization.member_role_changed",
+          outcome: "succeeded",
+          principalId: input.principalId,
+          organizationId: org.id,
+          correlationId: input.correlationId,
+          metadata: {
+            action: "organization.member.role.directory",
+            previousRole: existing.role,
+            role: changed.role,
+          },
+        });
+        return { ok: true as const, membership: changed, created: false };
+      }
       return { ok: true as const, membership: existing, created: false };
+    }
 
     const now = ctx.clock();
     const membership = await ctx.stores.organizationMemberships.upsert({

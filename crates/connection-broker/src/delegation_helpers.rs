@@ -81,3 +81,27 @@ where
         .map_err(internal)?;
     Ok(())
 }
+
+/// Default delegate action set: the provider vocabulary minus mutating
+/// operations. The owner may widen back up to the full set explicitly.
+pub(super) fn default_delegate_actions(operations: &[String]) -> Vec<String> {
+    operations
+        .iter()
+        .filter(|op| {
+            let lower = op.to_ascii_lowercase();
+            !(lower.contains("write")
+                || lower.contains("push")
+                || lower.contains("delete")
+                || lower.contains("admin"))
+        })
+        .cloned()
+        .collect()
+}
+
+pub(super) fn audiences_for(row: &crate::store::ConnectionRow) -> Vec<String> {
+    row.egress
+        .authorities
+        .iter()
+        .map(|authority| format!("{}://{}", row.egress.scheme, authority))
+        .collect()
+}

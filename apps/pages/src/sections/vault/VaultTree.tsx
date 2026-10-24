@@ -23,6 +23,7 @@ import { useClaimedDrags } from "../../lib/use-claimed-drags.js";
 import { VaultPathbar } from "./VaultPathbar.js";
 import { Decorations } from "./VaultRowDecorations.js";
 import { useMenuFlip } from "./use-menu-flip.js";
+import type { SharedItemMarks } from "./use-shared-items.js";
 import { useVaultSearch } from "./use-vault-search.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 import { VaultRowMenu } from "./vault-row-menu.js";
@@ -34,6 +35,8 @@ type VaultTreeProps = {
   items: VaultItem[];
   folders: Folder[];
   activeItemId?: string;
+  /** How each item is shared, from the current actor's point of view. */
+  sharedItems?: SharedItemMarks;
   title: string;
   total: number;
   actions: VaultTreeActions;
@@ -63,6 +66,7 @@ export function VaultTree({
   items,
   folders,
   activeItemId,
+  sharedItems,
   title,
   total,
   actions,
@@ -340,7 +344,10 @@ export function VaultTree({
                     <Highlight text={row.name} query={needle} />
                     <span className="vtree__dim">{row.ext}</span>
                   </span>
-                  <Decorations item={row.item} />
+                  <Decorations
+                    item={row.item}
+                    shared={sharedItems?.get(row.item.id)}
+                  />
                   <VaultRowMenu
                     actions={actions}
                     listRef={listRef}

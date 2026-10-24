@@ -71,6 +71,7 @@ describe("the edits", () => {
 
   it("refuse a cell for an environment that does not exist or an item that is not a key", () => {
     const body = vault([item("a", "Token")], "production");
+    edit(body, { op: "remove-key", itemId: "a" });
     expect(() =>
       applyEnvironmentsEdit(body, {
         op: "set-cell",
@@ -91,6 +92,17 @@ describe("the edits", () => {
     expect(() =>
       applyEnvironmentsEdit(body, { op: "add-key", itemId: "gone" }),
     ).toThrow(/not in this vault/);
+  });
+
+  it("adds a key back with no stale cells", () => {
+    const body = vault([item("a", "Token")], "production");
+    edit(body, { op: "remove-key", itemId: "a" });
+    const stale = body.items[0];
+    if (!stale) throw new Error("no item");
+    stale.environments = { production: { value: "stale" } };
+    edit(body, { op: "add-key", itemId: "a" });
+    expect(body.items[0]?.environmentsExcluded).toBeUndefined();
+    expect(body.items[0]?.environments).toEqual({});
   });
 
   it("take an item out of the schema with every value it held", () => {

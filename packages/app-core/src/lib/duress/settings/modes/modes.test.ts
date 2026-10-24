@@ -67,6 +67,7 @@ describe("duress mode registry", () => {
         "decoy",
         "decoy_items",
         "freeze",
+        "honey_vault",
         "refuse",
         "visible_items",
         "wipe",
@@ -79,7 +80,12 @@ describe("duress mode registry", () => {
     // a compelled person is given something to show before they are given a
     // refusal (ADR 0168).
     const refusals = ["refuse", "freeze", "wipe"].map(position);
-    for (const open of ["decoy", "visible_items", "decoy_items"]) {
+    for (const open of [
+      "decoy",
+      "visible_items",
+      "decoy_items",
+      "honey_vault",
+    ]) {
       for (const refusal of refusals) {
         expect(position(open)).toBeGreaterThanOrEqual(0);
         expect(position(open)).toBeLessThan(refusal);
@@ -91,7 +97,7 @@ describe("duress mode registry", () => {
     for (const mode of MODES) {
       expect(["decoy", "locked"]).toContain(mode.presentation);
     }
-    for (const id of ["decoy", "visible_items", "decoy_items"]) {
+    for (const id of ["decoy", "visible_items", "decoy_items", "honey_vault"]) {
       expect(getMode(id)?.presentation).toBe("decoy");
     }
     for (const id of ["refuse", "freeze", "wipe"]) {
@@ -105,7 +111,7 @@ describe("duress mode registry", () => {
       expect(consent).toMatch(/refusing to comply/);
       expect(consent).toMatch(/escalate/);
     }
-    for (const id of ["decoy", "visible_items", "decoy_items"]) {
+    for (const id of ["decoy", "visible_items", "decoy_items", "honey_vault"]) {
       expect(getMode(id)?.consent).not.toMatch(/escalate/);
     }
   });

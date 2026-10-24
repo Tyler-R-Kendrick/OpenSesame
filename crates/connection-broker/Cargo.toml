@@ -1,4 +1,5 @@
 [package]
+description = "Connector registry, registration ceremonies, and seal for OpenSesame connection authorization"
 name = "opensesame-connection-broker"
 version.workspace = true
 edition.workspace = true

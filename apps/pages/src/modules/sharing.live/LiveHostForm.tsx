@@ -12,10 +12,12 @@ import { IconPlay } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import {
   ADMISSIONS,
+  AUDIENCES,
   DEVICES,
   DURATIONS,
   ItemChoice,
   POLICIES,
+  PeopleChoice,
   Pick,
   SCOPES,
   routesSummary,
@@ -24,7 +26,11 @@ import { useHostForm } from "./live-host-form-state.js";
 
 export { routesSummary } from "./live-host-form-parts.js";
 
-export function LiveHostForm() {
+export function LiveHostForm({
+  initialTitle = "",
+}: {
+  initialTitle?: string;
+}) {
   const {
     values,
     set,
@@ -35,7 +41,7 @@ export function LiveHostForm() {
     refused,
     failed,
     submit,
-  } = useHostForm();
+  } = useHostForm(initialTitle);
   return (
     <form
       className="setup__stack"
@@ -77,6 +83,20 @@ export function LiveHostForm() {
         />
       ) : null}
       <Pick
+        id="live-audience"
+        name="Share with"
+        value={values.audience}
+        options={AUDIENCES}
+        onChange={set.audience}
+      />
+      {values.audience === "people" ? (
+        <PeopleChoice
+          people={values.people}
+          peopleIds={values.peopleIds}
+          onChange={set.peopleIds}
+        />
+      ) : null}
+      <Pick
         id="live-admission"
         name="Who gets in"
         value={values.admission}
@@ -97,7 +117,7 @@ export function LiveHostForm() {
       )}
       {failed ? <StatusMark tone="err" label={failed} /> : null}
       <FormCommit
-        label="Start the live session"
+        label="Share this vault"
         disabled={!ready}
         disabledReason={reason}
         icon={<IconPlay size={18} />}

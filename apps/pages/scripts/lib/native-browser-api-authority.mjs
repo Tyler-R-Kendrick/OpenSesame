@@ -25,14 +25,17 @@ function verificationUrl(fixture) {
   return url;
 }
 
-function expectedHeaders(fixture) {
+function expectedHeaders(fixture, resource) {
+  const definition = resource ? fixture.read : fixture.preset.verify;
   const headers = Object.fromEntries(
-    Object.entries(fixture.preset.verify.headers).map(([key, value]) => [
+    Object.entries(definition.headers).map(([key, value]) => [
       key.toLowerCase(),
       substitute(value, fixture),
     ]),
   );
-  const auth = fixture.preset.verify.auth ?? fixture.preset.auth;
+  const auth = resource
+    ? fixture.preset.auth
+    : (fixture.preset.verify.auth ?? fixture.preset.auth);
   if (auth.kind === "header") {
     const value = auth.valueTemplate
       ? substitute(auth.valueTemplate, fixture)
@@ -46,17 +49,80 @@ function expectedHeaders(fixture) {
   return headers;
 }
 
-function matchesRequest(fixture, request, headers, url) {
-  const payload = fixture.preset.verify.body
-    ? substitute(fixture.preset.verify.body, fixture)
-    : null;
+function matchesRequest(fixture, request, headers, url, resource) {
+  const definition = resource ? fixture.read : fixture.preset.verify;
+  if (!definition) return false;
+  const payload = definition.body ? substitute(definition.body, fixture) : null;
+  const target = resource ? new URL(definition.url) : verificationUrl(fixture);
   return (
-    Object.entries(expectedHeaders(fixture)).every(
+    request.method() === definition.method &&
+    !headers.cookie &&
+    Object.entries(expectedHeaders(fixture, resource)).every(
       ([name, value]) => headers[name] === value,
     ) &&
-    url.href === verificationUrl(fixture).href &&
-    (payload === null || request.postData() === payload)
+    (definition.absentHeaders ?? []).every(
+      (name) => headers[name] === undefined,
+    ) &&
+    url.href === target.href &&
+    request.postData() === payload
   );
+}
+function sharedContract(fixture) {
+  const read = fixture.read;
+  const verify = fixture.preset.verify;
+  if (
+    !read ||
+    read.method !== verify.method ||
+    read.url !== verificationUrl(fixture).href ||
+    substitute(read.body ?? "", fixture) !==
+      substitute(verify.body ?? "", fixture)
+  )
+    return false;
+  const readHeaders = expectedHeaders(fixture, true);
+  const verifyHeaders = expectedHeaders(fixture, false);
+  return (
+    Object.keys(readHeaders).length === Object.keys(verifyHeaders).length &&
+    Object.entries(readHeaders).every(
+      ([name, value]) => verifyHeaders[name] === value,
+    )
+  );
+}
+function matchingRequest(fixture, state, request, headers, url) {
+  for (const candidate of [
+    fixture,
+    ...(state.alternates.get(fixture.providerId) ?? []),
+  ]) {
+    const verification = matchesRequest(
+      candidate,
+      request,
+      headers,
+      url,
+      false,
+    );
+    const resource = matchesRequest(candidate, request, headers, url, true);
+    const shared = sharedContract(candidate);
+    // A shared route retains the resource contract's stricter absent-header checks.
+    if (shared && !resource) continue;
+    if (verification || resource)
+      return { fixture: candidate, resource, shared };
+  }
+  return null;
+}
+
+function protocolReply(state, fixture, resource) {
+  const id = fixture.providerId;
+  const status = state.unavailable.has(id)
+    ? 503
+    : state.reject.has(id)
+      ? 401
+      : 200;
+  const body =
+    status === 200
+      ? state.malformed.has(id)
+        ? "invalid-json"
+        : JSON.stringify(resource ? fixture.read.reply : fixture.reply)
+      : JSON.stringify({ error: "Synthetic provider refusal" });
+  return { status, body };
 }
 
 function providerRoute(fixture, state, check) {
@@ -73,20 +139,26 @@ function providerRoute(fixture, state, check) {
         },
       });
     const headers = await request.allHeaders();
-    const matched = [
-      fixture,
-      ...(state.alternates.get(fixture.providerId) ?? []),
-    ].find((candidate) => matchesRequest(candidate, request, headers, url));
-    if (!matched) return route.fallback();
+    const match = matchingRequest(fixture, state, request, headers, url);
+    if (!match) return route.fallback();
+    const matched = match.fixture;
+    const definition = match.resource ? matched.read : matched.preset.verify;
     state.calls.push({
       providerId: fixture.providerId,
+      // Identical wire contracts cannot reveal which application action sent them.
+      purpose: match.resource
+        ? match.shared
+          ? "shared"
+          : "resource"
+        : "verification",
+      operation: match.resource ? definition.id : null,
       method: request.method(),
       variant: fixture.variant?.id ?? null,
       credentialProof: matched.proof ?? "original protocol credential",
     });
     check(
-      request.method() === fixture.preset.verify.method,
-      `${fixture.providerId}: exact compiled verification method`,
+      request.method() === definition.method,
+      `${fixture.providerId}: exact compiled ${match.resource ? "resource" : "verification"} method`,
     );
     check(
       !headers.cookie,
@@ -99,18 +171,8 @@ function providerRoute(fixture, state, check) {
       );
     const pause = state.pauses.get(fixture.providerId);
     if (pause) await pause;
-    const status = state.unavailable.has(fixture.providerId)
-      ? 503
-      : state.reject.has(fixture.providerId)
-        ? 401
-        : 200;
+    const { status, body } = protocolReply(state, matched, match.resource);
     if (status >= 400) state.expectedResponses.set(request, status);
-    const body =
-      status === 200
-        ? state.malformed.has(fixture.providerId)
-          ? "invalid-json"
-          : JSON.stringify(matched.reply)
-        : JSON.stringify({ error: "Synthetic provider refusal" });
     return route.fulfill({
       status,
       contentType: "application/json",
@@ -142,11 +204,17 @@ export async function routeNativeApiAuthority(context, { check }) {
     pauses: new Map(),
   };
   for (const fixture of fixtures) {
-    const target = verificationUrl(fixture);
-    await context.route(
-      (url) => url.origin === target.origin && url.pathname === target.pathname,
-      providerRoute(fixture, state, check),
-    );
+    const targets = [
+      verificationUrl(fixture),
+      ...(fixture.read ? [new URL(fixture.read.url)] : []),
+    ];
+    for (const target of targets) {
+      await context.route(
+        (url) =>
+          url.origin === target.origin && url.pathname === target.pathname,
+        providerRoute(fixture, state, check),
+      );
+    }
   }
   return {
     state,

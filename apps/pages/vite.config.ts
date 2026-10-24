@@ -1,21 +1,31 @@
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { configDefaults } from "vitest/config";
 import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-policy.ts";
+import { pwaManifest } from "./pwa-manifest.js";
+import { bundleChunk } from "./scripts/bundle-chunk.mjs";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { kdbxNativeDOM } from "./scripts/kdbx-native-dom-plugin.mjs";
+import { writePrivateSnapshot } from "./scripts/lib/private-files.mjs";
+import { mcpBrowserValidator } from "./scripts/mcp-browser-validator.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
+import { nativeSamlCallbackPlugin } from "./scripts/native-saml-callback-plugin.mjs";
+import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
+import { samlBrowserCrypto } from "./scripts/saml-browser-crypto.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
+import { sharedWorkerGraph } from "./scripts/shared-worker-graph.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 import {
   tailscaleWasmAssets,
   tailscaleWorkerFileName,
 } from "./scripts/tailscale-wasm-assets.mjs";
+import { vercelOidcNamespace } from "./scripts/vercel-oidc-namespace.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /**
@@ -57,50 +67,6 @@ const nobleCurves = fileURLToPath(
   ),
 );
 
-/**
- * Keep the client renderer out of the entry chunk. A hardened profile's
- * largest asset is `main`, and react-dom is what puts it over the 693 KiB
- * ceiling. `onlyExplicitManualChunks` (capability-compose) keeps each name
- * to the files matched here, so the entry imports the renderer instead of
- * carrying its source.
- */
-function bundleChunk(id: string): string | undefined {
-  const path = id.split("\\").join("/");
-  if (
-    path.includes("/node_modules/react-dom/") ||
-    path.includes("/node_modules/react/") ||
-    path.includes("/node_modules/scheduler/")
-  ) {
-    return "react-dom";
-  }
-  if (
-    path.includes("/node_modules/react-router/") ||
-    path.includes("/node_modules/react-router-dom/")
-  ) {
-    return "react-router";
-  }
-  // The device-identity and device-inbox walks import this chunk by the
-  // file name `device-identity-host-*.js`. A pure chunk under
-  // `experimentalMinChunkSize` is folded into a neighbour, and the name
-  // disappears (`assets/undefined`). Manual chunks are not folded.
-  if (path.includes("/lib/device-identity-host.ts")) {
-    return "device-identity-host";
-  }
-  // The same @noble/hashes and @noble/curves modules are emitted into more
-  // than one lazy chunk. One chunk keeps a single copy. The /esm/ entry
-  // stays put: the bootstrap registration chunk imports it, and folding it
-  // in here would pull the lazy curves onto the first page.
-  if (
-    (path.includes("/node_modules/@noble/hashes/") ||
-      path.includes("/node_modules/@noble/curves/")) &&
-    !path.includes("/node_modules/@noble/hashes/esm/") &&
-    !path.includes("/node_modules/@noble/curves/esm/")
-  ) {
-    return "noble-crypto";
-  }
-  return undefined;
-}
-
 function redirectBareBase(
   req: import("node:http").IncomingMessage,
   res: import("node:http").ServerResponse,
@@ -132,7 +98,7 @@ function handleAgentPage(
     req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     req.on("end", () => {
       try {
-        writeFileSync(
+        writePrivateSnapshot(
           "/tmp/agent-page.json",
           Buffer.concat(chunks).toString("utf8"),
         );
@@ -173,9 +139,17 @@ function handlePagesDevRequest(
 export default defineConfig({
   test: {
     // The relay's suites under `server/` are `node --test` (`test:relay`).
+    // Popup arming order is a Vitest suite
+    // (`linear-consent-popup-arming.test.mjs`), with the other `scripts/lib`
+    // contracts. Root `vitest run scripts/lib` discovers `**/scripts/lib/**`,
+    // so that file cannot stay on `node:test`.
     exclude: [...configDefaults.exclude, "server/**"],
     testTimeout: 20_000,
     hookTimeout: 20_000,
+    // Real TLS/native integration fixtures occasionally miss a short deadline
+    // when the whole 7k-test suite is under load. Retry once; deterministic
+    // product failures still fail both attempts.
+    retry: 1,
     setupFiles: ["./src/host/test-setup.ts", "./src/host/test-queries.ts"],
   },
   base,
@@ -214,6 +188,12 @@ export default defineConfig({
     },
   },
   build: {
+    modulePreload: {
+      // Browser module imports load their full graph; retain entry HTML hints and
+      // Vite's separately awaited CSS without repeating JS tables per leaf.
+      resolveDependencies: (_url, dependencies, { hostType }) =>
+        hostType === "html" ? dependencies : [],
+    },
     // Compress the shipped offline PWA without changing its capability graph.
     minify: "terser",
     terserOptions: {
@@ -288,11 +268,40 @@ export default defineConfig({
     },
   },
   plugins: [
+    vercelOidcNamespace(fileURLToPath(new URL("../..", import.meta.url))),
+    process.env.OPENSESAME_AI_COMPLETION_VERIFY === "1" && {
+      name: "ai-completion-verifier-entry",
+      apply: "build",
+      transformIndexHtml: {
+        order: "pre",
+        handler(html, ctx) {
+          if (
+            ctx.filename !==
+            fileURLToPath(new URL("./index.html", import.meta.url))
+          )
+            return html;
+          const main = '<script type="module" src="/src/main.tsx"></script>';
+          if (html.split(main).length !== 2)
+            throw new Error(
+              "AI verifier requires exactly one original main entry",
+            );
+          const verifier =
+            '<script type="module" src="/src/verification/ai-completion-verifier.ts"></script>';
+          return html.replace(main, `${verifier}\n${main}`);
+        },
+      },
+    },
+    mcpBrowserValidator(fileURLToPath(new URL("../..", import.meta.url))),
+    samlBrowserCrypto(fileURLToPath(new URL("../..", import.meta.url))),
+    kdbxNativeDOM(fileURLToPath(new URL("../..", import.meta.url))),
     nativeClientMetadataPlugin(base),
+    nativeSamlCallbackPlugin(),
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
     siopMetadata(),
+    sharedWorkerGraph(),
     tailscaleWasmAssets(),
+    onePasswordWasmAssets(),
     {
       // The Identity API's auto-admitted origin client returns brokered legs
       // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which
@@ -332,27 +341,11 @@ export default defineConfig({
       registerType: "autoUpdate",
       injectRegister: false,
       includeAssets: ["icon.svg", "auth.js"],
-      manifest: {
-        name: "OpenSesame",
-        short_name: "OpenSesame",
-        description:
-          "End-to-end-encrypted vault for passwords, passkeys, and agent secrets",
-        theme_color: "#fafafa",
-        background_color: "#fafafa",
-        display: "standalone",
-        start_url: "./",
-        scope: "./",
-        icons: [
-          {
-            src: "icon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-            purpose: "any maskable",
-          },
-        ],
-      },
+      manifest: pwaManifest,
       injectManifest: {
-        globPatterns: ["**/*.{js,wasm,gz,css,html,svg,ico,webp,woff2,json}"],
+        globPatterns: [
+          "**/*.{js,wasm,gz,css,html,svg,png,ico,webp,woff2,json}",
+        ],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
       },
       devOptions: { enabled: true, navigateFallback: "index.html" },

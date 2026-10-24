@@ -41,7 +41,7 @@ pnpm test:authority-fabric
 pnpm test:authority-fabric:report
 ```
 
-Writes `docs/evidence/general-authority/authority-fabric-report.{json,md}`.
+Writes `work/evidence/general-authority/authority/cross-platform/authority-fabric-report.{json,md}`.
 Live Discord / OpenBao remain env-gated provider rows; shuttle interleaving (GA-V-29) is wired —
 they do not greenwash the gate.
 

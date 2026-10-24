@@ -1,27 +1,38 @@
 import { type ComponentType, Suspense, lazy, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { settingsPageSources } from "./settings/page-tree.js";
+import { DeadmanPanel } from "./settings/security/DeadmanPanel.js";
 import { useSettingsCategory } from "./settings/use-settings-category.js";
 
 import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { retiredSettingsAddress } from "@opensesame/app-core/lib/settings-retired.js";
-import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
+import {
+  categoryFromHash,
+  settingsGroupForCategory,
+  settingsTabsForGroup,
+} from "@opensesame/app-core/sections/settings-section-nav-model.js";
+import {
+  hasLinkedPairing,
+  subscribeLinkedPairing,
+} from "../lib/pairing-link.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
 import {
-  CategoryLink,
   SECURITY_FRAGMENT_REDIRECT,
+  SettingsCategoryHeader,
   type SettingsPanels,
   defaultPanels,
   useSettingsTabs,
 } from "./SettingsSectionNav.js";
+import { FeatureConfigPanel } from "./settings/FeatureConfigPanel.js";
 import { FeaturesPanel } from "./settings/FeaturesPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { IntegrationsPanel } from "./settings/IntegrationsPanel.js";
-import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
+import { ItemTypesPanel } from "./settings/ItemTypesPanel.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
+import { featureConfigPath } from "./settings/feature-config-path.js";
 import { SettingsFiles } from "./settings/files/SettingsFiles.js";
 import { SettingsFileContext } from "./settings/files/context.js";
 import { isSettingsDocument } from "./settings/files/documents.js";
@@ -70,6 +81,27 @@ function useSettingsLocation(
     if (target) navigate(settingsPath(target, hash), { replace: true });
   }, [hash, navigate, pathname, search]);
 
+  // A drive pairing link used to land on User Settings › Vaults. Its panel
+  // now lives on Networking's page; keep old links working by carrying the
+  // captured code there before the panel can take it.
+  useEffect(() => {
+    if (category !== "vaults") return;
+    const go = () => {
+      if (!hasLinkedPairing()) return;
+      navigate(featureConfigPath("networking"), {
+        replace: true,
+      });
+    };
+    go();
+    return subscribeLinkedPairing(go);
+  }, [category, navigate]);
+
+  // Item types were a panel of Vaults before they had their own vault tab.
+  useEffect(() => {
+    if (category !== "vaults" || hash !== "#item-types") return;
+    navigate(settingsPath("item-types"), { replace: true });
+  }, [category, hash, navigate]);
+
   // Keybindings were a panel of General before they had a tab (ADR 0156).
   useEffect(() => {
     if (category !== "general") return;
@@ -100,8 +132,14 @@ export function SettingsSection({
 } = {}) {
   const resolvedPanels = { ...defaultPanels, ...panels };
   const { hash, pathname, search } = useLocation();
+  const { featureId, capabilityId } = useParams<{
+    featureId?: string;
+    capabilityId?: string;
+  }>();
   const tabs = useSettingsTabs();
   const category = useSettingsCategory();
+  const group = settingsGroupForCategory(category);
+  const groupTabs = settingsTabsForGroup(tabs, group.id);
   const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
   const contributedPanels = useCategoryPanels(category);
   // A directory's files are addressed by `?file=` (the rail, the command bar,
@@ -128,21 +166,11 @@ export function SettingsSection({
   return (
     <SettingsFileContext.Provider value={fileNav}>
       <div className="section__inner">
-        <div className="section__head">
-          <h1>Settings</h1>
-        </div>
-
-        <nav className="set__nav" aria-label="Settings sections">
-          {tabs.map((entry) => (
-            <CategoryLink
-              key={entry.id}
-              guideId={entry.guideId}
-              to={settingsPath(entry.id)}
-              label={entry.label}
-              current={category === entry.id}
-            />
-          ))}
-        </nav>
+        <SettingsCategoryHeader
+          title={group.label}
+          tabs={groupTabs}
+          category={category}
+        />
         {file === null ? null : (
           <SettingsFiles
             category={category}
@@ -173,13 +201,21 @@ export function SettingsSection({
           />
         ) : null}
 
-        {form && category === "vaults" && (
-          <VaultsAndTypes {...resolvedPanels} />
-        )}
+        {form && category === "vaults" ? <resolvedPanels.VaultsPanel /> : null}
+        {form && category === "item-types" ? <ItemTypesPanel /> : null}
         {form && category !== "security"
           ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
           : null}
-        {form && category === "features" ? <FeaturesPanel /> : null}
+        {form && category === "features" ? (
+          featureId ? (
+            <FeatureConfigPanel
+              featureId={featureId}
+              capabilityId={capabilityId}
+            />
+          ) : (
+            <FeaturesPanel />
+          )
+        ) : null}
         {form && category === "integrations" ? <IntegrationsPanel /> : null}
         {form && category === "danger" ? <SettingsDangerPanel /> : null}
       </div>
@@ -223,11 +259,12 @@ function SecurityPanels({
     <>
       <VaultKeyProtectionPanel />
       <UnlockMethodsPanel />
-      <DuressPanel />
-      {duressShown ? <TravelPanel /> : null}
       {contributed.map(({ id, Panel }) => (
         <Panel key={id} />
       ))}
+      <DuressPanel />
+      <DeadmanPanel />
+      {duressShown ? <TravelPanel /> : null}
     </>
   );
 }

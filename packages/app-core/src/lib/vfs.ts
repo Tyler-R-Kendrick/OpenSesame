@@ -24,15 +24,18 @@ export { vfsFlush } from "./vfs-write-order.js";
 
 /**
  * Encrypted VFS (ADR 0063). AES-GCM seals bind tomb and path as additional
- * data. Unlock rewrites any unbound seal once, then only bound seals open.
- * Plaintext is tomb names, the header, and migration markers. Storage is OPFS.
+ * data. Plaintext is tomb names, headers and migration markers. Storage is OPFS.
  */
 
+import {
+  VFS_INDEX_LOCK_PREFIX,
+  VFS_REGISTRY_LOCK,
+  withVfsCrossTabLock,
+} from "./vfs-cross-tab-lock.js";
 import { VfsError } from "./vfs-error.js";
 export { VfsError, type VfsErrorCode } from "./vfs-error.js";
 
-/** The personal vault's tomb — same name as the personal project (ADR 0038). */
-export const PERSONAL_TOMB = "personal";
+export const PERSONAL_TOMB = "personal"; // same as the personal project id
 /** Isolated guest session tomb — never a project in the vault list. */
 export const GUEST_TOMB = "guest";
 
@@ -145,15 +148,19 @@ export async function registerTomb(
 ): Promise<void> {
   check();
   assertTombName(tomb);
-  const names = readRegistry();
-  if (names.includes(tomb)) return;
-  await writeRegistry([...names, tomb], check);
+  await withVfsCrossTabLock(VFS_REGISTRY_LOCK, async () => {
+    const names = readRegistry();
+    if (names.includes(tomb)) return;
+    await writeRegistry([...names, tomb], check);
+  });
 }
 
 export async function unregisterTomb(tomb: string): Promise<void> {
-  const names = readRegistry();
-  if (!names.includes(tomb)) return;
-  await writeRegistry(names.filter((name) => name !== tomb));
+  await withVfsCrossTabLock(VFS_REGISTRY_LOCK, async () => {
+    const names = readRegistry();
+    if (!names.includes(tomb)) return;
+    await writeRegistry(names.filter((name) => name !== tomb));
+  });
 }
 
 /* ------------------------------------------------------------------ index */
@@ -191,22 +198,27 @@ async function reviseIndex(
   written: boolean,
   check: () => void = () => {},
 ): Promise<void> {
-  check();
-  const index = await readIndex(tomb, key, check);
-  check();
-  if (written) {
-    index.files[path] = (index.files[path] ?? 0) + 1;
-  } else {
-    delete index.files[path];
-  }
-  const blob = await vfsSeams.seal(
-    key,
-    index,
-    vaultSealBinding(tomb, INDEX_PATH),
-  );
-  check();
-  await vfsSeams.writeRaw(tombFileKey(tomb, INDEX_PATH), JSON.stringify(blob));
-  check();
+  await withVfsCrossTabLock(`${VFS_INDEX_LOCK_PREFIX}${tomb}`, async () => {
+    check();
+    const index = await readIndex(tomb, key, check);
+    check();
+    if (written) {
+      index.files[path] = (index.files[path] ?? 0) + 1;
+    } else {
+      delete index.files[path];
+    }
+    const blob = await vfsSeams.seal(
+      key,
+      index,
+      vaultSealBinding(tomb, INDEX_PATH),
+    );
+    check();
+    await vfsSeams.writeRaw(
+      tombFileKey(tomb, INDEX_PATH),
+      JSON.stringify(blob),
+    );
+    check();
+  });
 }
 
 /* ------------------------------------------------------------------ blobs */

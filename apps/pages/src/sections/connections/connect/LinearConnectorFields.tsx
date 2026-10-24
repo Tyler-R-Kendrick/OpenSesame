@@ -1,15 +1,16 @@
 import type { DraftState } from "@opensesame/app-core/lib/connect-draft.js";
 import type { ConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+import { linearApplicationManifestUrl } from "@opensesame/app-core/lib/linear-application-manifest.js";
 import {
   linearClientId,
   linearRedirectUri,
 } from "@opensesame/app-core/lib/linear-connectors.js";
 import { selfHostedConfig } from "@opensesame/app-core/lib/self-hosted-config.js";
 import type { SelfHostedConnectorOptions } from "@opensesame/app-core/lib/self-hosted-connectors.js";
-import { useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { ConfigSelections } from "./ConfigSelections.js";
 import { ConnectorIconField } from "./ConnectorIconField.js";
+import { ConnectorModes } from "./ConnectorModes.js";
 import { CopyKey, OutLink } from "./fields.js";
 
 type Props = {
@@ -23,82 +24,44 @@ type Props = {
 };
 
 function LinearModes({ state, options, onState, onOptions }: Props) {
-  const modeName = useId();
   const managedClientId = linearClientId();
   return (
-    <>
-      <fieldset className="cx-block">
-        <legend className="visually-hidden">Configuration mode</legend>
-        <div
-          className="cx-modes"
-          role="radiogroup"
-          aria-label="Configuration mode"
-        >
-          {(
-            [
-              ["managed", "Managed"],
-              ["byo", "Bring Your Own"],
-            ] as const
-          ).map(([mode, label]) => (
-            <label className="cx-mode" key={mode}>
-              <input
-                type="radio"
-                name={modeName}
-                checked={options.mode === mode}
-                onChange={() => {
-                  onOptions({ ...options, mode });
-                  if (mode === "managed")
-                    onState({
-                      ...state,
-                      method: "oauth",
-                      oauth: {
-                        ...state.oauth,
-                        clientId: managedClientId || state.oauth.clientId,
-                      },
-                    });
-                }}
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-    </>
+    <ConnectorModes
+      label="Configuration mode"
+      legendHidden
+      value={options.mode}
+      options={[
+        { id: "managed", label: "Managed" },
+        { id: "byo", label: "Bring Your Own" },
+      ]}
+      onChange={(mode) => {
+        onOptions({ ...options, mode });
+        if (mode === "managed")
+          onState({
+            ...state,
+            method: "oauth",
+            oauth: {
+              ...state.oauth,
+              clientId: managedClientId || state.oauth.clientId,
+            },
+          });
+      }}
+    />
   );
 }
 
 function LinearMethods({ state, options, onState }: Props) {
-  const methodName = useId();
+  if (options.mode !== "byo") return null;
   return (
-    <>
-      {options.mode === "byo" ? (
-        <fieldset className="cx-block">
-          <legend>Connection method</legend>
-          <div
-            className="cx-modes"
-            role="radiogroup"
-            aria-label="Connection method"
-          >
-            {(
-              [
-                ["oauth", "OAuth"],
-                ["api-key", "API key"],
-              ] as const
-            ).map(([method, label]) => (
-              <label className="cx-mode" key={method}>
-                <input
-                  type="radio"
-                  name={methodName}
-                  checked={state.method === method}
-                  onChange={() => onState({ ...state, method })}
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      ) : null}
-    </>
+    <ConnectorModes
+      label="Connection method"
+      value={state.method as "oauth" | "api-key"}
+      options={[
+        { id: "oauth", label: "OAuth" },
+        { id: "api-key", label: "API key" },
+      ]}
+      onChange={(method) => onState({ ...state, method })}
+    />
   );
 }
 
@@ -112,6 +75,10 @@ function LinearAuthentication({
   const config = selfHostedConfig(plan);
   const redirectUri = linearRedirectUri();
   const managedClientId = linearClientId();
+  const manifestUrl = linearApplicationManifestUrl({
+    redirectUri,
+    appUrl: new URL(import.meta.env.BASE_URL, window.location.origin).href,
+  });
   return (
     <>
       {state.method === "api-key" ? (
@@ -160,6 +127,9 @@ function LinearAuthentication({
             mono
             tail={<CopyKey value={redirectUri} label="Copy redirect URI" />}
           />
+          <OutLink href={manifestUrl}>
+            Create a prefilled Linear OAuth app
+          </OutLink>
           <OutLink href="https://linear.app/settings/api/applications/new">
             Linear developer console
           </OutLink>

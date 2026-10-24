@@ -17,6 +17,12 @@
       <p class="brand">OpenSesame</p>
       <h1>Local runner</h1>
 
+      <section aria-labelledby="vault-security-h">
+        <h2 id="vault-security-h">Vault security</h2>
+        <p>Retired passwords are managed in your vault app. Your current key and second step stay there.</p>
+        <label class="field">Vault app base URL<input id="vault-app-url" type="url" autocomplete="url" placeholder="https://your-vault.example/" /></label>
+        <div class="actions"><button id="vault-app-save" type="button">Save vault app</button><a id="vault-security-open" target="_blank" rel="noopener noreferrer" hidden>Manage retired passwords in vault app</a></div>
+      </section>
       <section aria-labelledby="ready-h">
         <h2 id="ready-h">Ready</h2>
         <ul id="ready" class="status" aria-live="polite"></ul>

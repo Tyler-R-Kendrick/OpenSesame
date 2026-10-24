@@ -5,26 +5,34 @@
   "type": "module",
   "description": "The Client CLI, opensesame-id: Identity sign-in, claims, Host probes, and the Pages vault commands",
   "bin": {
-    "opensesame-id": "./src/bin.ts",
-    "opensesame-identity": "./src/bin.ts"
+    "opensesame-id": "./dist/bin.js",
+    "opensesame-identity": "./dist/bin.js"
   },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
-  "files": ["src"],
+  "files": ["dist"],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node --import tsx src/bin.ts"
+    "start": "node dist/bin.js",
+    "build": "node scripts/build.mjs",
+    "build:release": "node scripts/build.mjs --native",
+    "dev": "node --import tsx src/bin.ts",
+    "pack:release": "pnpm build:release && node scripts/pack.mjs",
+    "test:native": "vitest run --config vitest.native.config.ts",
+    "test:installed": "node scripts/build.mjs && node scripts/test-installed.mjs",
+    "test:archive": "node scripts/test-archive.mjs",
+    "test:native-installed": "node scripts/build.mjs && node scripts/test-native-installed.mjs"
   },
   "dependencies": {
     "@nats-io/nats-core": "3.4.0",
-    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/api-client": "workspace:*",
     "@opensesame/app-core": "workspace:*",
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/mcp-client": "workspace:*",
     "@opensesame/mcp-host": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
@@ -37,9 +45,16 @@
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "@types/ws": "8.18.1",
+    "dts-bundle-generator": "9.5.1",
+    "esbuild": "0.25.12",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
     "vitest": "4.1.11",
     "ws": "8.21.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
   }
 }

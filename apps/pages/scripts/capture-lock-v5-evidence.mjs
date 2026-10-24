@@ -12,8 +12,7 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 const widths = [390, 1024, 1280];
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const outDir =
-  process.argv[2] ??
-  path.join(root, "docs/evidence/2026-10-10-lock-v5-title-screen");
+  process.argv[2] ?? path.join(root, "work/evidence/lockscreen/pages/browser");
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const dist = path.join(root, "apps/pages/dist");

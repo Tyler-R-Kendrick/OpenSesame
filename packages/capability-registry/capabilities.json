@@ -7202,12 +7202,12 @@
     }
   },
   {
-    "id": "password_provider.read",
-    "title": "Read a credential value on the human plane",
+    "id": "password_provider.reveal",
+    "title": "Reveal a credential value on the human plane",
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": "opensesame-id read",
+      "cli": "opensesame-id reveal",
       "pwa": "lib/vault/password-workflows.ts:resolveLocalReference",
       "mcp_host": null,
       "mcp_client": null,
@@ -7263,37 +7263,6 @@
       },
       "extension": {
         "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
-        "adr": "0177-password-workflow-surface-boundaries.md"
-      },
-      "android": {
-        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
-        "adr": "0177-password-workflow-surface-boundaries.md"
-      }
-    }
-  },
-  {
-    "id": "password_provider.env_resolve",
-    "title": "Write a private file with resolved credential values",
-    "plane": "client_local",
-    "kind": "ceremony",
-    "surfaces": {
-      "cli": "opensesame-id env resolve",
-      "pwa": "lib/vault/password-workflows.ts:resolveLocalEnvTemplate",
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": "opensesame_open_password_workflow"
-    },
-    "excluded": {
-      "mcp_host": {
-        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
-        "adr": "0005-authority-handle-connectionref.md"
-      },
-      "mcp_client": {
-        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
-        "adr": "0005-authority-handle-connectionref.md"
-      },
-      "extension": {
-        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -8355,6 +8324,121 @@
       "webmcp": {
         "reason": "which keys open a person's vault, and which may be removed or rotated, is that person's own decision; the ceremonies take an age identity, a recovery secret or a cloud credential that never transit agent context, and an agent that could enroll or remove a protector could add a way in or lock the owner out",
         "adr": "0152-browser-key-protector-enrollment.md"
+      }
+    }
+  },
+  {
+    "id": "vault.retired_credentials.manage",
+    "title": "Fresh-owner retired-password inspection, consented enrollment, removal and activity cleanup",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id vault retired",
+      "pwa": "route:/settings/security",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "mcp_client": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "webmcp": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "extension": {
+        "reason": "the extension runner navigates to the actual vault security page and shares no vault root; Android and iOS are OpenID4VC authenticators, not the password-vault product",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "android": {
+        "reason": "the extension runner navigates to the actual vault security page and shares no vault root; Android and iOS are OpenID4VC authenticators, not the password-vault product",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      }
+    }
+  },
+  {
+    "id": "vault.agent_canaries.manage",
+    "title": "Fresh-owner pairing, inspection, consented detection-only canary enrollment, removal and configuration export",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id vault canary",
+      "pwa": "route:/settings/security",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "mcp_client": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "webmcp": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "extension": {
+        "reason": "the extension runner navigates to the actual vault security page and shares no vault root; Android and iOS are OpenID4VC authenticators, not the password-vault product",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "android": {
+        "reason": "the extension runner navigates to the actual vault security page and shares no vault root; Android and iOS are OpenID4VC authenticators, not the password-vault product",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      }
+    }
+  },
+  {
+    "id": "vault.agent_canaries.serve",
+    "title": "Run an explicitly paired, detection-only local canary receiver",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame-id security canary serve",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "mcp_client": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "webmcp": {
+        "reason": "retired credentials and canary signing custody are managed only by a freshly authenticated local owner with configured factors; agent tools never accept primary secrets, arm traps, remove detection or export canary bearers",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "extension": {
+        "reason": "binding a private loopback receiver and maintaining its authenticated filesystem state is a local Node CLI service, not a browser, extension, mobile wallet or agent operation",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "android": {
+        "reason": "binding a private loopback receiver and maintaining its authenticated filesystem state is a local Node CLI service, not a browser, extension, mobile wallet or agent operation",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
+      },
+      "pwa": {
+        "reason": "binding a private loopback receiver and maintaining its authenticated filesystem state is a local Node CLI service, not a browser, extension, mobile wallet or agent operation",
+        "adr": "0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md"
       }
     }
   },

@@ -7,7 +7,7 @@ use opensesame_domain::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 mod login;
 mod node_bridge;
@@ -79,17 +79,24 @@ pub enum EnvSpecError {
     /// No `node` the bridge may be started with (see [`node_command`]).
     #[error("{0}")]
     Node(String),
-}
-
-fn bridge_bin() -> PathBuf {
-    if let Ok(p) = std::env::var("OPENSESAME_ENV_PARSE") {
-        return PathBuf::from(p);
-    }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../packages/env-spec-bridge/bin/opensesame-env-parse.mjs")
+    /// `OPENSESAME_NODE` is set to something that cannot be run. Names the
+    /// variable; the `PATH` search is not tried instead.
+    #[error("{0}")]
+    NodeOverride(String),
+    /// An `opensesame-env-parse.mjs` beside the running executable that may not
+    /// be run: says which file or directory and why. The checkout's copy is
+    /// not tried instead. Also: no bridge to run at all (none beside the
+    /// executable, no override, no checkout copy), saying where it looked.
+    #[error("{0}")]
+    BridgeScript(String),
 }
 
 /// Invoke the Node `@env-spec/parser` bridge.
+///
+/// The script is `OPENSESAME_ENV_PARSE` when set, else an
+/// `opensesame-env-parse.mjs` beside the running executable (after symlinks)
+/// that only root or the caller could have put there, else the checkout's
+/// `packages/env-spec-bridge/bin/opensesame-env-parse.mjs`.
 ///
 /// The bridge runs under [`node_command`]: a `node` found only in trusted
 /// `PATH` entries, started by its absolute path with a minimal environment. It
@@ -99,10 +106,11 @@ fn bridge_bin() -> PathBuf {
 ///
 /// # Errors
 ///
-/// Returns an error when validation or the underlying operation fails, or when
-/// no trusted `node` exists.
+/// Returns an error when validation or the underlying operation fails, when
+/// no trusted `node` exists, when the bridge beside the executable may not
+/// be run, or when there is no bridge to run.
 pub fn parse_schema_file(path: &Path) -> Result<EnvSpecDocument, EnvSpecError> {
-    let bin = bridge_bin();
+    let bin = node_bridge::script()?;
     let out = node_command()?.arg(&bin).arg(path).output()?;
     if !out.status.success() {
         return Err(EnvSpecError::Bridge(

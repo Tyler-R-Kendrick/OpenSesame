@@ -6,17 +6,22 @@ import { contextMenuKeyboardContract } from "./lib/context-menu-keyboard-contrac
 import { liveKeyboardContract } from "./lib/live-keyboard-contract.mjs";
 import { localDirectoryContract } from "./lib/local-directory-contract.mjs";
 import { navigationTreeContract } from "./lib/navigation-tree-contract.mjs";
+import { privateTempDir } from "./lib/private-files.mjs";
 import { settingsFileKeyboardContract } from "./lib/settings-file-keyboard-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { trustedContactsKeyboardContract } from "./lib/trusted-contacts-keyboard-contract.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
+const out =
+  process.env.PAGES_VERIFY_OUT ??
+  privateTempDir("opensesame-keyboard-verification-");
+console.log(`Evidence: ${out}`);
 const harness = createHarness({
   dist: fileURLToPath(new URL("../dist", import.meta.url)),
   origin,
   base,
-  out: "/tmp/opensesame-keyboard-verification",
+  out,
 });
 const browser = await harness.launch();
 
@@ -95,6 +100,9 @@ async function savedVaultUnlock(width) {
   await expect(page.getByLabel("PIN", { exact: true })).toBeFocused();
   await page.keyboard.insertText(pin);
   await page.keyboard.press("Enter");
+  // PIN decryption remounts the vault asynchronously, as the initial seal does.
+  // Wait for that semantic readiness without moving focus or extending its check.
+  await expect(page.locator(".vault")).toBeVisible({ timeout: 30_000 });
   // The reload kept the address, which is already the list.
   await expect(create).toBeFocused();
   if (width === 1280) {

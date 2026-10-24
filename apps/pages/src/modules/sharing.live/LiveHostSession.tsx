@@ -21,18 +21,23 @@ import { Suspense, lazy, useState } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import {
-  ConcealedValue,
   CopyButton,
   FieldRow,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
 import { IconX } from "../../components/Icons.js";
+import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { DeviceRequests } from "./LiveHostDevices.js";
-import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
+import { GuestRows, RequestPaste } from "./LiveHostGuests.js";
 import { CarrierMarks } from "./LiveJoinRoutes.js";
-import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
+import {
+  formatRemaining,
+  liveUiSeams,
+  useRemaining,
+  useRendezvousReady,
+} from "./live-hooks.js";
 
 const LivePeerTrustExport = lazy(() => import("./LivePeerTrustExport.js"));
 
@@ -75,6 +80,7 @@ export function LiveHostSession({
 }: { host: LiveHost; state: HostState }) {
   const [endAsk, setEndAsk] = useState(false);
   const { copied, failed, copy } = useCopyFeedback();
+  const automatic = useRendezvousReady(currentHostCarriers());
   const left = useRemaining(host.expiresAt);
   const link = formatLiveLink(liveUiSeams.joinUrl(), host.link);
   return (
@@ -118,6 +124,7 @@ export function LiveHostSession({
           />
         </CeremonySheet>
       ) : null}
+      <QrCode value={link} label="Scan to join this live session" size={168} />
       <FieldRow
         label="Link"
         actions={
@@ -131,7 +138,7 @@ export function LiveHostSession({
           />
         }
       >
-        <ConcealedValue value={link} label="Link" revealed={false} />
+        <span className="frow__value frow__value--mono live-link">{link}</span>
       </FieldRow>
       {host.code ? (
         <FieldRow
@@ -150,14 +157,15 @@ export function LiveHostSession({
           <span className="frow__value live-code">{host.code}</span>
         </FieldRow>
       ) : null}
-      <Suspense fallback={null}>
-        <LivePeerTrustExport />
-      </Suspense>
       <CarrierMarks rendezvous={currentHostCarriers()} />
-      <RequestPaste host={host} />
-      {state.guests.map((guest) => (
-        <GuestRow key={guest.key} host={host} guest={guest} />
-      ))}
+      {automatic ? null : <RequestPaste host={host} />}
+      <details className="live-advanced">
+        <summary>Peer trust signal</summary>
+        <Suspense fallback={null}>
+          <LivePeerTrustExport />
+        </Suspense>
+      </details>
+      <GuestRows host={host} guests={state.guests} />
       <DeviceRequests host={host} state={state} />
       <Log host={host} state={state} />
     </div>

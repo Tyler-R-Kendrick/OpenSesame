@@ -179,7 +179,6 @@ describe("the one integration catalog", () => {
         "aws-kms",
         "bitwarden",
         "bitwarden-secrets-manager",
-        "cloudflare-wallet",
         "gcp-kms",
         "google-wallet",
         "keepass",

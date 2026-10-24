@@ -4,13 +4,23 @@ import { onBrowserReset } from "@opensesame/app-core/lib/browser-reset-channel.j
 import { captureLandingReset } from "@opensesame/app-core/lib/browser-reset-landing.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { registerDuressUiModule } from "@opensesame/app-core/lib/duress/feature/mode.js";
+import { staleAssetReload } from "@opensesame/app-core/lib/stale-asset-reload.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
+import { createInitialWorkerReleaseProof } from "./browser/worker-initial-release.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
+import { installLaunchQueue } from "./lib/launch-intake.js";
 import { StaleBuildError, importAppRoot } from "./lib/load-shell.js";
 import { watchLinkedPairing } from "./lib/pairing-link.js";
+import { installPwaRefresh } from "./lib/pwa-refresh.js";
+import { checkForAppUpdate } from "./lib/pwa-update.js";
+import { captureShareTarget } from "./lib/share-target-intake.js";
+import {
+  installStaleAssetReload,
+  recoverStaleAsset,
+} from "./lib/stale-asset.js";
 import { bootTrayNotices } from "./lib/tray-boot.js";
 import { ResetGate } from "./screens/unlock/ResetGate.js";
 // The shell and the vault load behind the unlock gate (app-root.tsx), but
@@ -27,6 +37,7 @@ import "./sections/vault/path-field.css";
 import "./styles.css";
 
 bootTrayNotices();
+installStaleAssetReload();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");
@@ -58,6 +69,12 @@ if (framed()) {
 // the listener goes on before anything asynchronous.
 armInstall();
 
+// A file launch from the installed app, and a Web Share Target POST that the
+// worker staged, both land in the same pending-import slot. Neither reads or
+// writes the vault; the normal Import review still asks.
+installLaunchQueue();
+void captureShareTarget().catch(() => undefined);
+
 // A drive pairing link carries a slot key in its fragment; it leaves the
 // address bar before anything renders, and on every later in-page arrival,
 // whatever is enabled (ADR 0144).
@@ -79,6 +96,11 @@ registerDuressUiModule(
   () => import("./components/duress/DuressSettingsPanel.js"),
 );
 
+const initialWorkerReleaseProof = createInitialWorkerReleaseProof(
+  import.meta.url,
+  new URL(import.meta.env.BASE_URL, location.href).href,
+);
+
 /**
  * The worker registration controller (S08) picks the variant the plan
  * requires and registers it. Until it lands, boot proceeds without a worker
@@ -92,6 +114,7 @@ async function registerWorker(): Promise<void> {
     ]);
     controller.registerWorkerForPlan(compositionStore, {
       distribution: DISTRIBUTION,
+      initialReleaseProof: initialWorkerReleaseProof ?? undefined,
     });
   } catch {
     // No controller in this build: no worker is registered.
@@ -109,11 +132,13 @@ void (async () => {
     ({ AppRoot } = await importAppRoot());
   } catch (caught) {
     if (caught instanceof StaleBuildError) {
-      root.textContent = caught.message;
+      const reloading = await recoverStaleAsset();
+      if (!reloading) root.textContent = caught.message;
       return;
     }
     throw caught;
   }
+  staleAssetReload.clear();
   createRoot(root).render(
     <StrictMode>
       <ResetGate>
@@ -127,7 +152,12 @@ void (async () => {
   // release reloads the page, the page's own move between worker variants
   // (approving or removing Push notifications) does not. A second listener
   // here would reload on both.
-  void registerWorker();
+  // An IWA is already a signed, locally bundled app. A service worker would
+  // add a second, network-shaped update path and is not registered there.
+  if (location.protocol !== "isolated-app:") {
+    void registerWorker();
+    installPwaRefresh(checkForAppUpdate);
+  }
   // A launch of the already-installed app fires no `appinstalled` and may never
   // mount the install card at all — the reader has no cause to open Settings —
   // so this is the only thing covering them.

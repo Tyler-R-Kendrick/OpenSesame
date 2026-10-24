@@ -16,6 +16,16 @@ use crate::error::{BrokerError, Result};
 use crate::store::{self, SecretConfigRow};
 use crate::sync_target::SyncSecretSource;
 
+#[path = "secret_config_refs.rs"]
+mod refs;
+use refs::{parse_references, unescape, Reference};
+
+/// Ceiling on keys accepted by one `put_config_secrets` call. The gateway
+/// body limit (256 KiB) and the per-value cap already bound a single PUT,
+/// but the broker API is callable in-process, so the intake bounds its own
+/// batch — and the result allocation it pre-sizes from the batch length.
+const MAX_SECRETS_PER_PUT: usize = 1024;
+
 /// Metadata-only wire view. Mirrors `SecretConfig` in
 /// `packages/os-domain/src/types.ts` plus host bookkeeping fields.
 #[derive(Debug, Clone, Serialize)]
@@ -91,74 +101,6 @@ pub fn valid_key_name(name: &str) -> bool {
 }
 
 // ---- secret referencing (§4.7) ---------------------------------------------
-
-/// One parsed `${…}` occurrence.
-#[derive(Debug, PartialEq)]
-enum Reference {
-    SameConfig { key: String },
-    CrossConfig { slug: String, key: String },
-}
-
-fn parse_reference(inner: &str) -> Result<Reference> {
-    if let Some(rest) = inner.strip_prefix("config:") {
-        let (slug, key) = rest.split_once('.').ok_or_else(|| {
-            BrokerError::Invalid(format!(
-                "cross-config reference `{inner}` must be `config:<slug>.<KEY>`"
-            ))
-        })?;
-        if !valid_slug(slug) || !valid_key_name(key) {
-            return Err(BrokerError::Invalid(format!(
-                "invalid cross-config reference `{inner}`"
-            )));
-        }
-        return Ok(Reference::CrossConfig {
-            slug: slug.to_string(),
-            key: key.to_string(),
-        });
-    }
-    if !valid_key_name(inner) {
-        return Err(BrokerError::Invalid(format!(
-            "invalid secret reference `{inner}`"
-        )));
-    }
-    Ok(Reference::SameConfig {
-        key: inner.to_string(),
-    })
-}
-
-/// Scan a value for references. `$${…}` is an escape for a literal `${…}` and
-/// is left alone here (unescaped during substitution). Malformed references
-/// (unclosed, bad names) are hard errors — fail closed, never pass through.
-fn parse_references(value: &str) -> Result<Vec<(usize, usize, Reference)>> {
-    let bytes = value.as_bytes();
-    let mut out = Vec::new();
-    let mut i = 0;
-    while i + 1 < bytes.len() {
-        if bytes[i] == b'$' && bytes[i + 1] == b'$' && bytes.get(i + 2) == Some(&b'{') {
-            let close = value[i + 2..]
-                .find('}')
-                .ok_or_else(|| BrokerError::Invalid("unclosed secret reference".into()))?;
-            i += 2 + close + 1;
-            continue;
-        }
-        if bytes[i] == b'$' && bytes[i + 1] == b'{' {
-            let close = value[i..]
-                .find('}')
-                .ok_or_else(|| BrokerError::Invalid("unclosed secret reference".into()))?;
-            let inner = &value[i + 2..i + close];
-            let reference = parse_reference(inner)?;
-            out.push((i, i + close + 1, reference));
-            i += close + 1;
-            continue;
-        }
-        i += 1;
-    }
-    Ok(out)
-}
-
-fn unescape(value: &str) -> String {
-    value.replace("$${", "${")
-}
 
 /// Refuse a reference that would pull production values into a non-production
 /// config — a dev sync target must never become a prod exfiltration path.
@@ -567,6 +509,11 @@ impl crate::ConnectionBroker {
         if secrets.is_empty() {
             return Err(BrokerError::Invalid("no secrets provided".into()));
         }
+        if secrets.len() > MAX_SECRETS_PER_PUT {
+            return Err(BrokerError::Invalid(format!(
+                "too many secrets in one put (max {MAX_SECRETS_PER_PUT})"
+            )));
+        }
         let key = *self.sealing_key()?;
         let config = store::get_secret_config(&self.pool, organization_id, config_id)
             .await?
@@ -588,7 +535,7 @@ impl crate::ConnectionBroker {
             self.validate_cross_config_references(organization_id, &config, value)
                 .await?;
         }
-        let mut out = Vec::with_capacity(secrets.len());
+        let mut out = Vec::new();
         let mut top_version = 0;
         for (name, value) in secrets {
             let version = store::upsert_config_value(

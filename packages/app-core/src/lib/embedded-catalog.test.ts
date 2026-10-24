@@ -28,7 +28,6 @@ describe("embedded connector catalog", () => {
       "vercel",
       "linear",
       "tailscale",
-      "cloudflare-wallet",
       "google-wallet",
       "apple-wallet",
       "samsung-wallet",

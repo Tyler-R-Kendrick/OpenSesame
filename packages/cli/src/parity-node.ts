@@ -1,13 +1,7 @@
 /** Native effects for the shared 1Password workflow core. */
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import {
-  constants,
-  accessSync,
-  lstatSync,
-  realpathSync,
-  statSync,
-} from "node:fs";
+import { constants, accessSync, realpathSync, statSync } from "node:fs";
 import { chmod, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import {
@@ -106,7 +100,11 @@ export async function readPrivateInput(
         throw new Error("Private input is too large.");
     }
   } else if (process.platform === "darwin") {
-    text = await capture(resolveCredentialHelper("pbpaste"), [], process.env);
+    text = await capture(
+      resolveCredentialHelper("pbpaste"),
+      [],
+      clipboardEnvironment(process.env),
+    );
   } else if (process.platform === "win32") {
     text = await capture(
       resolveCredentialHelper("powershell"),
@@ -116,7 +114,7 @@ export async function readPrivateInput(
         "-Command",
         "[Console]::OutputEncoding = [Text.Encoding]::UTF8; [Console]::Out.Write((Get-Clipboard -Raw))",
       ],
-      process.env,
+      clipboardEnvironment(process.env),
     );
   } else {
     throw new Error("Clipboard input requires macOS or Windows; use --stdin.");
@@ -202,7 +200,9 @@ export function resolveCredentialHelper(
         resolved,
         process.platform === "win32" ? constants.F_OK : constants.X_OK,
       );
+      // First trusted match wins; a later PATH entry must not shadow it.
       chosen = resolved;
+      break;
     } catch {
       /* Missing or unusable PATH entries grant no trust. */
     }
@@ -224,6 +224,15 @@ export function helperEnvironment(input: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return env;
 }
 
+/** Clipboard/interpreter helpers must not inherit the provider token. */
+export function clipboardEnvironment(
+  input: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  const env = helperEnvironment(input);
+  Reflect.deleteProperty(env, "OP_SERVICE_ACCOUNT_TOKEN");
+  return env;
+}
+
 function helperPathEntries(env: NodeJS.ProcessEnv): string[] {
   const screened = helperEnvironment({ ...process.env, ...env }).PATH ?? "";
   return screened.split(delimiter);
@@ -237,7 +246,16 @@ function trustedDirectory(directory: string): boolean {
     const cwd = realpathSync(process.cwd());
     if (resolved === cwd) return false;
     if (cwdUnderDirectory(cwd, resolved)) return false;
-    if (worldWritableWithoutStickyBit(resolved)) return false;
+    const info = statSync(resolved);
+    if (!info.isDirectory()) return false;
+    // A helper directory writable by another local account is plantable,
+    // whether or not the sticky bit protects deletion. Accept only the
+    // current account's directories and the system's own root-owned ones.
+    if ((info.mode & 0o022) !== 0) return false;
+    if (process.platform !== "win32" && typeof process.geteuid === "function") {
+      const uid = process.geteuid();
+      if (info.uid !== uid && info.uid !== 0) return false;
+    }
     return true;
   } catch {
     return false;
@@ -251,16 +269,6 @@ function cwdUnderDirectory(cwd: string, directory: string): boolean {
     return normalized === root || normalized.startsWith(`${root}${sep}`);
   }
   return cwd === directory || cwd.startsWith(`${directory}${sep}`);
-}
-
-function worldWritableWithoutStickyBit(directory: string): boolean {
-  if (process.platform === "win32") return false;
-  try {
-    const mode = lstatSync(directory).mode;
-    return (mode & 0o002) !== 0 && (mode & 0o1000) === 0;
-  } catch {
-    return true;
-  }
 }
 
 /** Execute only an owner-only snapshot of contents already screened by the core. */

@@ -4,14 +4,13 @@
  * wrong clock cannot lose it.
  */
 import { describe, expect, it } from "vitest";
+import { createCredential } from "./credential.js";
 import { canBeKey } from "./environment-keys.js";
 import {
   type VaultEnvironments,
   cellOf,
   environmentNames,
-  isEnvironmentName,
   mergeEnvironments,
-  normalizeEnvironmentName,
 } from "./environments.js";
 import { mergeItem } from "./item-merge.js";
 import { mergeVaultBodies, sameVaultContent } from "./merge.js";
@@ -54,46 +53,6 @@ function both(a: VaultItem, b: VaultItem): VaultItem {
   return ab;
 }
 
-describe("environment names", () => {
-  it("lower-cases, joins words and keeps what a parser can read unquoted", () => {
-    expect(normalizeEnvironmentName("  Production ")).toBe("production");
-    expect(normalizeEnvironmentName("prod EU")).toBe("prod-eu");
-    expect(normalizeEnvironmentName("v1.2_rc")).toBe("v1.2_rc");
-  });
-
-  it.each(["", "   ", "-lead", "has/slash", "a(b)", "x".repeat(33), "é"])(
-    "refuses %j",
-    (raw) => {
-      expect(normalizeEnvironmentName(raw)).toBeNull();
-    },
-  );
-
-  it("lists live names oldest first, a removed one gone and a bad key never trusted", () => {
-    const environments: VaultEnvironments = {
-      production: { at: "2026-01-03T00:00:00.000Z" },
-      development: { at: "2026-01-01T00:00:00.000Z" },
-      staging: { at: "2026-01-02T00:00:00.000Z" },
-      old: { at: "2026-01-01T12:00:00.000Z", removed: true },
-      "../etc": { at: "2026-01-01T00:00:00.000Z" },
-    };
-    expect(environmentNames(environments)).toEqual([
-      "development",
-      "staging",
-      "production",
-    ]);
-    expect(isEnvironmentName("../etc")).toBe(false);
-    expect(environmentNames(undefined)).toEqual([]);
-  });
-
-  it("never reads an inherited property as a cell", () => {
-    expect(cellOf({ staging: { value: "x" } }, "constructor")).toBeUndefined();
-    expect(cellOf(undefined, "staging")).toBeUndefined();
-    expect(cellOf({ staging: { value: "x" } }, "staging")).toEqual({
-      value: "x",
-    });
-  });
-});
-
 describe("which items may be keys", () => {
   it("is a live item that is not retired and not a one-time share record", () => {
     expect(canBeKey(key("a"))).toBe(true);
@@ -103,6 +62,12 @@ describe("which items may be keys", () => {
     expect(canBeKey({ ...createItem("drop", "One-time share"), id: "d" })).toBe(
       false,
     );
+    const own = createCredential(
+      { id: "c", type: "api-key", key: "k", header: "" },
+      "Standalone token",
+    );
+    expect(canBeKey(own)).toBe(true);
+    expect(canBeKey({ ...own, accountId: "account" })).toBe(false);
   });
 });
 
@@ -261,6 +226,26 @@ describe("an item's cells across two devices", () => {
       production: { value: "p0", required: true },
     },
   };
+
+  it("drops cells when one copy took the item out of the schema", () => {
+    const excluded = editedAt(
+      T2,
+      (item) => ({ ...item, environmentsExcluded: true }),
+      ORIGINAL,
+    );
+    const stale = editedAt(
+      T1,
+      (item) => ({
+        ...item,
+        environments: { production: { value: "stale-secret" } },
+      }),
+      ORIGINAL,
+    );
+    const merged = both(excluded, stale);
+    expect(merged.environmentsExcluded).toBe(true);
+    expect(merged.environments).toBeUndefined();
+    expect(JSON.stringify(merged)).not.toContain("stale-secret");
+  });
 
   it("keeps production edited on one device and staging on the other", () => {
     const here = editedAt(

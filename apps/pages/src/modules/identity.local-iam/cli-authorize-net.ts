@@ -1,4 +1,9 @@
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 
 type CliRespondBody = Readonly<{
@@ -9,13 +14,18 @@ type CliRespondBody = Readonly<{
   humanProof?: string;
 }>;
 
+export type CliRespondResult = Readonly<{
+  ok: boolean;
+  status: string;
+}>;
+
 export async function postCliRespond(
   origin: string,
   headers: Record<string, string>,
   row: CliAuthorizeRow,
   decision: "approve" | "deny",
   humanProof?: string,
-): Promise<boolean> {
+): Promise<CliRespondResult> {
   const base: CliRespondBody = {
     requestId: row[0],
     terminalSessionId: row[1],
@@ -34,5 +44,19 @@ export async function postCliRespond(
       body: JSON.stringify(body),
     },
   );
-  return res.ok;
+  let status = "approval_unreadable";
+  try {
+    const record: BoundaryValue = await res.json();
+    if (isJsonObject(record)) {
+      if (isString(record.status) && record.status.length > 0) {
+        status = record.status;
+      } else if (isString(record.error) && record.error.length > 0) {
+        status = record.error;
+      }
+    }
+  } catch {
+    status = res.ok ? "approval_unreadable" : "approval_failed";
+  }
+  const ok = res.ok && (status === "approved" || status === "denied");
+  return { ok, status };
 }

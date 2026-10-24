@@ -1,6 +1,13 @@
 import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import { overlapCast } from "@opensesame/os-domain";
-import type { VaultItem } from "@opensesame/vault-core";
+import {
+  type CardItem,
+  type VaultItem,
+  cardDigits,
+  detectCardBrand,
+  formatCardNumber,
+} from "@opensesame/vault-core";
+import { useRef } from "react";
 import { OptionalField } from "./EditorExtras.js";
 
 type Props = {
@@ -68,8 +75,37 @@ function PasskeyFields({ draft, onChange: patch }: Props) {
   );
 }
 
-function CardFields({ draft, onChange: patch }: Props) {
+function CardFields({ draft, onChange }: Props) {
   if (draft.kind !== "card") return null;
+  return <CardEditor draft={draft} onPatch={onChange} />;
+}
+
+type CardEditorProps = {
+  draft: CardItem;
+  onPatch: (changes: Partial<VaultItem>) => void;
+};
+
+function CardEditor({ draft, onPatch }: CardEditorProps) {
+  const initialDetected = detectCardBrand(draft.number);
+  const manualBrand = useRef(
+    Boolean(draft.brand.trim()) && draft.brand !== initialDetected?.name,
+  );
+  const detected = detectCardBrand(draft.number);
+  const brandHint = detected
+    ? `Detected from the number: ${detected.name}.`
+    : draft.number.length >= 12 && !manualBrand.current
+      ? "Card type not recognized. Enter the brand manually."
+      : "";
+
+  function changeNumber(value: string): void {
+    const digits = cardDigits(value);
+    const next = detectCardBrand(digits);
+    onPatch({
+      number: digits,
+      brand: manualBrand.current ? draft.brand : (next?.name ?? ""),
+    });
+  }
+
   return (
     <div className="editor__grid">
       <div className="editor__row">
@@ -80,73 +116,82 @@ function CardFields({ draft, onChange: patch }: Props) {
             autoComplete="off"
             maxLength={FIELD_LIMITS.line}
             value={draft.cardholder}
-            onChange={(event) => patch({ cardholder: event.target.value })}
+            onChange={(event) => onPatch({ cardholder: event.target.value })}
           />
         </div>
-        <OptionalField present={Boolean(draft.brand)} command="Add brand">
-          <div className="field">
-            <label htmlFor="brand">Brand</label>
-            <input
-              id="brand"
-              autoComplete="off"
-              maxLength={FIELD_LIMITS.label}
-              value={draft.brand}
-              onChange={(event) => patch({ brand: event.target.value })}
-            />
-          </div>
-        </OptionalField>
+        <div className="field">
+          <label htmlFor="brand">Brand</label>
+          <input
+            id="brand"
+            autoComplete="off"
+            maxLength={FIELD_LIMITS.label}
+            placeholder="Detected from the number"
+            value={draft.brand}
+            onChange={(event) => {
+              const brand = event.target.value;
+              manualBrand.current = brand.trim().length > 0;
+              onPatch({ brand });
+            }}
+          />
+        </div>
       </div>
+      {brandHint ? <p className="hint">{brandHint}</p> : null}
       <div className="field">
         <label htmlFor="number">Number</label>
         <input
           id="number"
           inputMode="numeric"
           autoComplete="off"
-          maxLength={FIELD_LIMITS.cardNumber}
-          value={draft.number}
-          onChange={(event) =>
-            patch({ number: event.target.value.replace(/[^\d]/g, "") })
-          }
+          value={formatCardNumber(draft.number, draft.brand)}
+          onChange={(event) => changeNumber(event.target.value)}
         />
       </div>
-      <div className="editor__row">
-        <div className="field">
-          <label htmlFor="exp">Expires</label>
-          <div className="editor__inline">
-            <input
-              id="exp"
-              inputMode="numeric"
-              placeholder="MM"
-              maxLength={2}
-              value={draft.expMonth}
-              onChange={(event) => patch({ expMonth: event.target.value })}
-            />
-            <input
-              inputMode="numeric"
-              placeholder="YYYY"
-              maxLength={4}
-              aria-label="Expiry year"
-              value={draft.expYear}
-              onChange={(event) => patch({ expYear: event.target.value })}
-            />
-          </div>
+      <CardValidityFields draft={draft} onPatch={onPatch} />
+    </div>
+  );
+}
+
+function CardValidityFields({ draft, onPatch }: CardEditorProps) {
+  return (
+    <div className="editor__row">
+      <div className="field">
+        <label htmlFor="exp">Expires</label>
+        <div className="editor__inline">
+          <input
+            id="exp"
+            inputMode="numeric"
+            placeholder="MM"
+            maxLength={2}
+            value={draft.expMonth}
+            onChange={(event) =>
+              onPatch({ expMonth: event.target.value.replace(/\D/g, "") })
+            }
+          />
+          <input
+            inputMode="numeric"
+            placeholder="YYYY"
+            maxLength={4}
+            aria-label="Expiry year"
+            value={draft.expYear}
+            onChange={(event) =>
+              onPatch({ expYear: event.target.value.replace(/\D/g, "") })
+            }
+          />
         </div>
-        <OptionalField
-          present={Boolean(draft.code)}
-          command="Add security code"
-        >
-          <div className="field">
-            <label htmlFor="cvc">Security code</label>
-            <input
-              id="cvc"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={4}
-              value={draft.code}
-              onChange={(event) => patch({ code: event.target.value })}
-            />
-          </div>
-        </OptionalField>
+      </div>
+      <div className="field">
+        <label htmlFor="cvc">Security code (optional)</label>
+        <input
+          id="cvc"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={4}
+          placeholder="CVV"
+          value={draft.code}
+          onChange={(event) =>
+            onPatch({ code: event.target.value.replace(/\D/g, "") })
+          }
+        />
       </div>
     </div>
   );

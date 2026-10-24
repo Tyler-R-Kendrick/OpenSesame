@@ -67,7 +67,7 @@ describe("os:// references in the CLI run lane", () => {
     const readLocal = vi.fn(async () => "local-value\n");
     try {
       const code = await withTerminal(() =>
-        runCli(["read", "os://personal/item-1/apiKey", "--reveal"], {
+        runCli(["reveal", "os://personal/item-1/apiKey", "--reveal"], {
           parityPort: {
             invoke: vi.fn(async () => ""),
             readLocal,

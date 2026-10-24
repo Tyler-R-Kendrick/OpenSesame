@@ -15,6 +15,9 @@ opensesame-invoke-through = { path = "../../crates/invoke-through" }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
 opensesame-host-core = { path = "../../crates/host-core" }
 opensesame-uds-authn = { path = "../../crates/uds-authn" }
+# Which `tailscale`, `hostname` and `kill` run, and what each is handed. std and
+# libc only, both already in this tree.
+opensesame-trusted-exec = { path = "../../crates/trusted-exec" }
 # Plugin settings only (ADR 0150 §7): the catalog and the settings file behind
 # `/v1/plugins`, and the switch `/v1/fill` answers behind (it answers only
 # while the `browser-autofill` plugin is on). serde + sha2 + hex +
@@ -56,9 +59,7 @@ tailnet-admin-test-upstream = ["opensesame-tailnet-admin/upstream-override"]
 # Platform keychain backends for connector discovery (ADR 0048 §3c, §5).
 # Budgeted additions only: labels are enumerated, values are never read.
 [target.'cfg(target_os = "linux")'.dependencies]
-secret-service = { version = "5.1.0", default-features = false, features = [
-    "rt-tokio-crypto-rust",
-] }
+dbus = "0.9.12"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3.2.0"
@@ -67,6 +68,7 @@ security-framework = "3.2.0"
 windows-sys = { version = "0.59.0", features = ["Win32_Security_Credentials"] }
 
 [dev-dependencies]
+opensesame-trusted-exec = { path = "../../crates/trusted-exec", features = ["testkit"] }
 opensesame-tailnet-admin = { path = "../../crates/tailnet-admin", features = ["upstream-override"] }
 insta = { workspace = true, features = ["redactions"] }
 tempfile = { workspace = true }

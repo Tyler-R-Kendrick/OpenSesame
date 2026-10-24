@@ -6,7 +6,10 @@
  * pairing codes are passed by hand, as people pass them; no server of any
  * kind is involved. The peers are fakes (real WebRTC: verify:live-join).
  */
-import { holdLiveLink } from "@opensesame/app-core/lib/live/link.js";
+import {
+  holdLiveLink,
+  parseLiveLink,
+} from "@opensesame/app-core/lib/live/link.js";
 import { FakeNet } from "@opensesame/app-core/lib/live/live-fakes.js";
 import {
   currentGuest,
@@ -30,8 +33,8 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
-import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
+import { LiveSharePanel } from "./LiveSharePanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { transportSeams } from "./live-transport-hooks.js";
@@ -87,13 +90,19 @@ async function startHosting(
   admission: "invite" | "open" = "invite",
   values: "read" | "use" | "edit" = "read",
 ) {
-  const { container } = render(<LiveHostPanel />);
+  const { container } = render(<LiveSharePanel />);
+  // The form lives under Advanced now; a person unfolds it to use it.
+  const advanced = container.querySelector("details");
+  if (advanced) advanced.open = true;
   const owner = container;
   const panel = within(owner);
   // The routes are read from the vault before a session can start.
-  await panel.findByRole("img", { name: "Direct only" });
+  await panel.findByRole("img", { name: /^Direct/ });
   fireEvent.change(panel.getByLabelText("Session name"), {
     target: { value: "Team" },
+  });
+  fireEvent.change(panel.getByLabelText("Share"), {
+    target: { value: "items" },
   });
   fireEvent.click(
     panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
@@ -104,9 +113,7 @@ async function startHosting(
   fireEvent.change(panel.getByLabelText("Who gets in"), {
     target: { value: admission },
   });
-  fireEvent.click(
-    panel.getByRole("button", { name: "Start the live session" }),
-  );
+  fireEvent.click(panel.getByRole("button", { name: "Share this vault" }));
   return { owner, panel };
 }
 
@@ -125,7 +132,7 @@ async function ask(joiner: ReturnType<typeof within>, name: string) {
     target: { value: name },
   });
   fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
-  await joiner.findByRole("button", { name: "Copy your request code" });
+  await joiner.findByRole("button", { name: "Copy your join request" });
   const status = currentGuest()?.status;
   return status?.at === "request" ? status.code : "";
 }
@@ -160,7 +167,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
     expect(request).not.toContain("Ada Lovelace");
 
     const created = net.created;
-    paste(panel, "A request code", "Read the request", request);
+    paste(panel, "Paste a join request", "Read the request", request);
     const admit = await panel.findByRole("button", {
       name: "Let Ada Lovelace in",
     });
@@ -210,7 +217,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
       target: { value: host?.code === "BCDF-GHJK" ? "BCDF-GHJL" : "BCDF-GHJK" },
     });
     const request = await ask(joiner, "Mallory");
-    paste(panel, "A request code", "Read the request", request);
+    paste(panel, "Paste a join request", "Read the request", request);
     await panel.findByRole("img", { name: "Not for this session (1 of 5)" });
     expect(panel.queryByText("Mallory")).toBeNull();
   });
@@ -252,7 +259,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
       target: { value: host?.code ?? "" },
     });
     const request = await ask(joiner, "Ada Lovelace");
-    paste(panel, "A request code", "Read the request", request);
+    paste(panel, "Paste a join request", "Read the request", request);
     fireEvent.click(
       await panel.findByRole("button", { name: "Let Ada Lovelace in" }),
     );
@@ -287,7 +294,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
     const joiner = within(openJoin());
     expect(joiner.queryByLabelText("Code")).toBeNull();
     const request = await ask(joiner, "Grace");
-    paste(panel, "A request code", "Read the request", request);
+    paste(panel, "Paste a join request", "Read the request", request);
     await panel.findByRole("button", { name: "Copy the reply code for Grace" });
     expect(panel.queryByRole("button", { name: "Let Grace in" })).toBeNull();
     paste(
@@ -356,10 +363,16 @@ describe("a live session, owner to joiner, paired by hand", () => {
     );
   });
 
-  it("takes a pasted link masked, and says when it is not one", () => {
+  it("shows the pasted session link and refuses one that does not parse", async () => {
+    const { panel } = await startHosting();
+    await panel.findByRole("img", { name: "Live" });
+    const link =
+      panel.getByText(
+        /^https:\/\/example\.test\/OpenSesame\/\?join=[A-Za-z0-9_-]{12}#live=/,
+      ).textContent ?? "";
     const joiner = within(openJoin());
-    const field = joiner.getByLabelText<HTMLInputElement>("Link");
-    expect(field.type).toBe("password");
+    const field = joiner.getByLabelText<HTMLInputElement>("Session link");
+    expect(field.type).toBe("text");
     fireEvent.change(field, {
       target: { value: "https://example.test/#nope" },
     });
@@ -370,5 +383,16 @@ describe("a live session, owner to joiner, paired by hand", () => {
       name: /Ask to join\. Paste a live-session link that parses/,
     });
     expect(ask.hasAttribute("disabled")).toBe(true);
+    fireEvent.change(field, { target: { value: link } });
+    expect(field.value).toBe(link);
+    expect(new URL(link).searchParams.get("join")).toBe(
+      currentHost()?.link.owner.slice(0, 12),
+    );
+    expect(parseLiveLink(field.value)).toEqual(currentHost()?.link);
+    expect(
+      joiner.queryByRole("img", { name: "Not a live-session link" }),
+    ).toBeNull();
+    expect(link).not.toContain(SECRET);
+    expect(joiner.queryByText(SECRET)).toBeNull();
   });
 });

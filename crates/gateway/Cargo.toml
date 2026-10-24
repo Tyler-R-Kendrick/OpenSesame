@@ -1,4 +1,5 @@
 [package]
+description = "The OpenSesame Host API library: ConnectionRef, authorize, invoke, receipt"
 name = "opensesame-gateway"
 version.workspace = true
 edition.workspace = true

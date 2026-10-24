@@ -4,6 +4,7 @@ name: Native platform validation
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - '.github/workflows/native-platform-validation.yml'
       - 'scripts/audit/native-release-companion-artifact.mjs'
@@ -30,10 +31,11 @@ permissions:
 
 concurrency:
   group: native-platform-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   core:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Native vault and store (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -138,6 +140,7 @@ jobs:
           path: ${{ runner.temp }}/opensesame-native-core/
           if-no-files-found: error
   cli:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Native CLI (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -174,6 +177,11 @@ jobs:
         with:
           toolchain: 1.88.0
           components: rustfmt, clippy
+      - name: Install Linux keychain build and test dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
       - name: Pin source and create isolated logs and build directory
         run: |
           set -euo pipefail
@@ -255,6 +263,7 @@ jobs:
           if-no-files-found: error
 
   release:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Native default release artifact (${{ matrix.platform }})
     needs: [core, cli]
     runs-on: ${{ matrix.runner }}
@@ -288,6 +297,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.88.0
+      - name: Install Linux keychain build and test dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
       - name: Pin original native source and release output
         run: |
           set -euo pipefail

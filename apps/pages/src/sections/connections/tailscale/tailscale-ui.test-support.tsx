@@ -103,7 +103,7 @@ function bindPorts() {
     fixture.app = null;
   });
 }
-/** The OAuth provisioning composition rendered below the peering panel. */
+/** Explicit lower-level OAuth composition; never the primary peering page. */
 function LegacyOAuthPanels() {
   const model = useTailscaleApp(undefined, fixture.changed, fixture.flash);
   const callback =

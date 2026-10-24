@@ -1,12 +1,13 @@
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
-import { useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { ConnectorIconField } from "./ConnectorIconField.js";
+import { ConnectorModes } from "./ConnectorModes.js";
 import { OutLink } from "./fields.js";
 import {
   nativePublicUrl,
   nativeVerified,
 } from "./native-connector-ui-values.js";
+import { nativeMethodConfigurable } from "./native-connector-ui.js";
 import type {
   NativeConnectorDescriptor,
   NativeMethodDescriptor,
@@ -43,33 +44,32 @@ export function NativeMethodPicker({
   locked: boolean;
   onMethod: (method: NativeMethodDescriptor) => void;
 }) {
-  const name = useId();
-  const choices = descriptor.methods.filter((choice) => choice.available);
-  const unavailable = descriptor.methods.filter((choice) => !choice.available);
+  const choices = descriptor.methods
+    .filter(nativeMethodConfigurable)
+    .sort(
+      (left, right) =>
+        (left.preferredRank ?? Number.MAX_SAFE_INTEGER) -
+        (right.preferredRank ?? Number.MAX_SAFE_INTEGER),
+    );
+  const unavailable = descriptor.methods.filter(
+    (choice) => !nativeMethodConfigurable(choice),
+  );
   return (
     <>
       {choices.length > 1 ? (
-        <fieldset className="cx-block">
-          <legend>Sign-in method</legend>
-          <div
-            className="cx-modes"
-            role="radiogroup"
-            aria-label="Sign-in method"
-          >
-            {choices.map((choice) => (
-              <label className="cx-mode" key={choice.id}>
-                <input
-                  type="radio"
-                  name={name}
-                  checked={method === choice.id}
-                  disabled={locked}
-                  onChange={() => onMethod(choice)}
-                />
-                <span>{choice.label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <ConnectorModes
+          label="Sign-in method"
+          value={method as NativeMethodDescriptor["id"]}
+          options={choices.map((choice) => ({
+            id: choice.id,
+            label: choice.label,
+          }))}
+          disabled={locked}
+          onChange={(id) => {
+            const next = choices.find((choice) => choice.id === id);
+            if (next) onMethod(next);
+          }}
+        />
       ) : null}
       {unavailable.length ? (
         // With nothing to connect, the reasons are the page: open by default.

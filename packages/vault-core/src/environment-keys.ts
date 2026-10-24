@@ -6,7 +6,21 @@
 
 import { type VaultItem, isRetired } from "./model.js";
 
-/** Live, not retired, and not a one-time share record. */
+/**
+ * Live, not retired, not a one-time share record, and not a credential that
+ * rides inside its account's sealed-store entry. A bound credential cannot keep
+ * environment cells through that entry, so it is not offered as a key.
+ */
 export function canBeKey(item: VaultItem): boolean {
-  return item.deletedAt === null && !isRetired(item) && item.kind !== "drop";
+  return (
+    item.deletedAt === null &&
+    !isRetired(item) &&
+    item.kind !== "drop" &&
+    !(item.kind === "credential" && item.accountId !== null)
+  );
+}
+
+/** Every live secret the store can carry on its own, unless taken out (ADR 0194). */
+export function isEnvironmentKey(item: VaultItem): boolean {
+  return canBeKey(item) && item.environmentsExcluded !== true;
 }

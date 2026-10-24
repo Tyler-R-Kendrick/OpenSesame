@@ -185,6 +185,30 @@ describe("waiting for consent", () => {
     expect(await outcome).toMatchObject({ result: "active" });
   });
 
+  it("ignores a same-origin message that did not come from the popup", async () => {
+    const made = await createConnection({ providerId: "anthropic" });
+    vi.useFakeTimers();
+    const outcome = awaitConsent(
+      made.connectionId,
+      overlapCast({ closed: false }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    for (const listener of listeners) {
+      listener(
+        overlapCast({
+          origin,
+          source: {},
+          data: {
+            type: "opensesame:connection",
+            connectionId: made.connectionId,
+          },
+        }),
+      );
+    }
+    await vi.advanceTimersByTimeAsync(1600);
+    expect(await outcome).toMatchObject({ result: "active" });
+  });
+
   it("abandons when the popup closes first", async () => {
     vi.useFakeTimers();
     const outcome = awaitConsent("conn_pending", overlapCast({ closed: true }));

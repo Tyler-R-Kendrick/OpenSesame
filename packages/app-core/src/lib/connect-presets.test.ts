@@ -110,7 +110,7 @@ describe("connector plans", () => {
     const parse = vi.spyOn(plans.ConnectPlanSchema, "parse");
     const catalog = await import("./vercel-connect-catalog.js");
     expect(catalog.isVercelConnectable("resend")).toBe(true);
-    expect(catalog.isVercelConnectable("stripe")).toBe(false);
+    expect(catalog.isVercelConnectable("stripe")).toBe(true);
     expect(catalog.isVercelCatalogId("github")).toBe(false);
     expect(parse).not.toHaveBeenCalled();
     expect(catalog.vercelConnectCatalog().length).toBeGreaterThan(150);
@@ -140,9 +140,116 @@ describe("connector plans", () => {
     }
   });
 
-  it("refuses payment rails", () => {
-    expect(connectPlan("stripe")?.refused).toBe(true);
+  it("offers only the compiled read-only payment contracts", () => {
+    const stripe = connectPlan("stripe");
+    expect(stripe?.refused).toBe(false);
+    expect(stripe?.methods.map((method) => method.kind)).toEqual(["api-key"]);
+    for (const id of [
+      "agentcard",
+      "stripe",
+      "stripe-issuing",
+      "razorpay",
+      "lithic",
+      "privacy",
+      "marqeta",
+    ]) {
+      expect(connectPlan(id)?.refused, id).toBe(false);
+      expect(
+        connectPlan(id)?.methods.map((method) => method.kind),
+        id,
+      ).toEqual(["api-key"]);
+    }
+    expect(connectPlan("unknown-native-payment")).toBeUndefined();
+    expect(connectPlan("stripe-issuing")?.refused).toBe(false);
+    expect(
+      connectPlan("stripe-issuing")?.methods.map((method) => method.kind),
+    ).toEqual(["api-key"]);
     expect(connectPlan("resend")?.refused).toBe(false);
+  });
+
+  it.each([
+    null,
+    { method: "POST", url: "https://api.stripe.com/v1/balance" },
+    { method: "GET", url: "https://api.stripe.com/v1/charges" },
+  ])(
+    "does not enable another Stripe method when its read-only contract is missing or changed %#",
+    (verify) => {
+      const plans = renderPlanJson(
+        services,
+        {
+          oauth: [],
+          api_key: [
+            {
+              service: "stripe",
+              header: "Authorization",
+              scheme: "Bearer",
+              verify,
+            },
+          ],
+        },
+        { providers: [] },
+      );
+      const stripe = plans
+        .map((row) => JSON.parse(row))
+        .find((row) => row.id === "stripe");
+      expect(stripe?.refused).toBe(true);
+      expect(stripe?.methods).toEqual([]);
+    },
+  );
+
+  it.each([
+    "missing",
+    "write",
+    "host",
+    "path",
+    "expand",
+    "version",
+    "header",
+    "scheme",
+    "catalog",
+  ])("retains refusal for altered Issuing read metadata %s", (change) => {
+    const verify = {
+      method: "GET",
+      url: "https://api.stripe.com/v1/issuing/cards?limit=20",
+      headers: { "Stripe-Version": "2026-09-30.endive" },
+    };
+    if (change === "write") verify.method = "POST";
+    if (change === "host")
+      verify.url = "https://other.test/v1/issuing/cards?limit=20";
+    if (change === "path")
+      verify.url = "https://api.stripe.com/v1/issuing/cardholders?limit=20";
+    if (change === "expand") verify.url += "&expand[]=data.number";
+    if (change === "version") verify.headers["Stripe-Version"] = "invalid";
+    const catalog = {
+      providers: [
+        {
+          id: "stripe-issuing",
+          category: change === "catalog" ? "developer" : "wallet",
+          auth: { kind: "api_key" },
+        },
+      ],
+    };
+    const plans = renderPlanJson(
+      services,
+      {
+        oauth: [],
+        api_key: [
+          {
+            service: "stripe-issuing",
+            header: change === "header" ? "X-Other" : "Authorization",
+            scheme: change === "scheme" ? "Basic" : "Bearer",
+            verify:
+              change === "missing" || change === "catalog" ? null : verify,
+          },
+        ],
+      },
+      catalog,
+    );
+    const plan = plans
+      .map((row) => JSON.parse(row))
+      .find((row) => row.id === "stripe-issuing");
+    expect(plan.refused).toBe(true);
+    expect(plan.methods).toEqual([]);
   });
 
   it("fills and reports placeholders", () => {
@@ -226,17 +333,28 @@ describe("drafts", () => {
     });
   });
 
-  it("keys a person's tokens by principal, or by a device-random id when signed out", () => {
+  it("keys a person's tokens by principal, or by the vault instance when signed out", () => {
     const store = memoryStore();
     expect(connectSubjectId("prn_1", "tomb", store)).toBe("prn_1");
-    const mine = connectSubjectId(null, "personal", store);
-    expect(mine).toMatch(/^local-[0-9a-f]{32}$/);
-    // Stable for this vault on this device…
-    expect(connectSubjectId(null, "personal", store)).toBe(mine);
-    // …but never the vault's name, which every device's personal vault shares.
-    expect(connectSubjectId(null, "personal", memoryStore())).not.toBe(mine);
-    expect(connectSubjectId(null, "project-x", store)).not.toBe(mine);
+    // No durable instance id means no signed-out subject: a vault name is
+    // not an identity and must never inherit another vault's token.
+    expect(connectSubjectId(null, "personal", store)).toBeNull();
+    expect(connectSubjectId(null, "personal", memoryStore())).toBeNull();
     expect(connectSubjectId(" ", "", store)).toBeNull();
+    const instanceStore = memoryStore();
+    const firstVault = connectSubjectId(
+      null,
+      "personal",
+      instanceStore,
+      "vault-one",
+    );
+    expect(firstVault).toMatch(/^local-[0-9a-f]{32}$/);
+    expect(connectSubjectId(null, "personal", instanceStore, "vault-one")).toBe(
+      firstVault,
+    );
+    expect(
+      connectSubjectId(null, "personal", instanceStore, "vault-two"),
+    ).not.toBe(firstVault);
     expect(connectSubjectId(null, "personal", undefined)).toBeNull();
   });
 });

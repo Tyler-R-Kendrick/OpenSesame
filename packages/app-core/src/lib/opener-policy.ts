@@ -11,7 +11,9 @@ export function crossOriginOpenerPolicy(
   ) {
     return null;
   }
-  return pathname === `${root}identity/authorize` ||
+  return pathname === `${root}save` ||
+    pathname === `${root}save/` ||
+    pathname === `${root}identity/authorize` ||
     pathname === `${root}identity/siop`
     ? "unsafe-none"
     : "same-origin";

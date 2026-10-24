@@ -50,5 +50,6 @@ export async function prepareNativeMcpAuthorization(
       return record;
     },
   );
+  transport.assertCurrent();
   await retryNativeConnectorCleanup(id);
 }

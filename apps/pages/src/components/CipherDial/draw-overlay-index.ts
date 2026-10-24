@@ -82,6 +82,9 @@ export function drawOverlay(
 ): void {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, layout.w, layout.h);
+  // Idle cipher rings stay behind the form; the readout belongs only to the
+  // successful alignment, when it lights before the doors open.
+  if (lit <= 0) return;
   drawIndexNeedle(g, layout, lit, ink);
   drawPlainLabels(g, layout, rings, lit, ink);
 }

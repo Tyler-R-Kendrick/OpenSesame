@@ -14,8 +14,8 @@ import type { AppContext } from "../context.js";
 import {
   ByoRegistrationError,
   type ByoRegistrationErrorCode,
-  INVALID_ISSUER_MESSAGE,
   assertSafeUpstreamUrl,
+  checkedByoIssuer,
   upstreamFetch,
 } from "./byo-fence.js";
 import { normalizeIssuer } from "./registry.js";
@@ -94,8 +94,6 @@ const REGISTRATION_UNSUPPORTED_MESSAGE =
 const RATE_LIMITED_MESSAGE =
   "Too many provider registrations from here. Try again in a few minutes.";
 
-/** Longer than any real issuer; a URL this long is not one. */
-const MAX_ISSUER_LENGTH = 512;
 /** Client identifiers and secrets an IdP hands a human to paste back. */
 const MAX_CLIENT_FIELD_LENGTH = 512;
 const DISCOVERY_TIMEOUT_MS = 5_000;
@@ -103,7 +101,10 @@ const DISCOVERY_TIMEOUT_MS = 5_000;
 const BUDGET_WINDOW_MS = 10 * 60_000;
 const BUDGET_PER_FINGERPRINT = 5;
 /** Bounded so a fingerprint flood cannot grow the map without limit. */
+const BUDGET_TOTAL = 200;
 const BUDGET_MAX_KEYS = 2048;
+const BUDGET_GLOBAL_KEY = "__total__";
+const BUDGET_CLIENT_PREFIX = "client:";
 
 /**
  * The discovery budget, module-local by contract (D5).
@@ -126,12 +127,21 @@ function consumeRegistrationBudget(fingerprint: string, now: number): boolean {
     if (live.length === 0) registrationBudget.delete(key);
     else if (live.length !== attempts.length) registrationBudget.set(key, live);
   }
-  const attempts = registrationBudget.get(fingerprint) ?? [];
-  if (attempts.length >= BUDGET_PER_FINGERPRINT) return false;
+  const clientKey = `${BUDGET_CLIENT_PREFIX}${fingerprint}`;
+  const total = registrationBudget.get(BUDGET_GLOBAL_KEY) ?? [];
+  const attempts = registrationBudget.get(clientKey) ?? [];
+  if (total.length >= BUDGET_TOTAL || attempts.length >= BUDGET_PER_FINGERPRINT)
+    return false;
   attempts.push(now);
-  registrationBudget.set(fingerprint, attempts);
+  total.push(now);
+  registrationBudget.set(BUDGET_GLOBAL_KEY, total);
+  registrationBudget.set(clientKey, attempts);
   while (registrationBudget.size > BUDGET_MAX_KEYS) {
-    const victim = registrationBudget.keys().next().value;
+    // The global counter is the ceiling an attacker cannot rotate away from.
+    // Evicting it with the per-client keys would hand them a fresh budget.
+    const victim = [...registrationBudget.keys()].find(
+      (key) => key !== BUDGET_GLOBAL_KEY,
+    );
     if (victim === undefined) break;
     registrationBudget.delete(victim);
   }
@@ -344,11 +354,20 @@ async function register(
   input: ByoRegistrationInput,
   fingerprint: string,
 ): Promise<ByoUpstream> {
-  const issuer = normalizeIssuer(input.issuer ?? "");
-  if (!issuer || issuer.length > MAX_ISSUER_LENGTH) {
-    throw new ByoRegistrationError("invalid_issuer", INVALID_ISSUER_MESSAGE);
-  }
+  const issuer = checkedByoIssuer(input.issuer ?? "");
   const issuerUrl = assertSafeUpstreamUrl(ctx, issuer);
+
+  // A tenant's issuer is not a visitor's to claim. Registering it first would
+  // squat the row with credentials the tenant never supplied (and, on a later
+  // tenant removal, leave those credentials standing in front of its users).
+  // The uniform discovery refusal keeps this from naming which issuers tenants
+  // have configured.
+  if (await ctx.stores.organizations.findByIssuer(issuer)) {
+    throw new ByoRegistrationError(
+      "discovery_failed",
+      DISCOVERY_FAILED_MESSAGE,
+    );
+  }
 
   // The budget sits in front of the store lookup as well as the network: a
   // stranger enumerating issuers against this endpoint is exactly the traffic

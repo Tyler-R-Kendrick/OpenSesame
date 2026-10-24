@@ -217,10 +217,26 @@ impl EgressBinding {
         } else {
             host.to_string()
         };
-        let ok = self.authorities.iter().any(|a| {
-            a == &authority
-                || a == host
-                || (a.contains(':') && a.as_str() == format!("{host}:{port}"))
+        let default_port = match parsed.scheme() {
+            "https" => 443,
+            "http" => 80,
+            _ => parsed.port_or_known_default().unwrap_or(443),
+        };
+        let loopback = host.eq_ignore_ascii_case("localhost")
+            || host
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback());
+        let ok = self.authorities.iter().any(|allowed| {
+            let (allowed_host, allowed_port) = match allowed.rsplit_once(':') {
+                Some((h, p)) => match p.parse::<u16>() {
+                    Ok(p) => (h, Some(p)),
+                    Err(_) => (allowed.as_str(), None),
+                },
+                None => (allowed.as_str(), None),
+            };
+            allowed_host == host
+                && (allowed_port == Some(port)
+                    || (allowed_port.is_none() && (loopback || default_port == port)))
         });
         if !ok {
             return Err(DomainError::GrantAttenuation(format!(
@@ -237,8 +253,6 @@ impl EgressBinding {
             if !self
                 .path_prefixes
                 .iter()
-                // A bare `starts_with` has no segment boundary, so an allowlisted
-                // `/repos/foo` would also authorize `/repos/foo-private`.
                 .any(|p| path == p || path.starts_with(&format!("{}/", p.trim_end_matches('/'))))
             {
                 return Err(DomainError::GrantAttenuation(
@@ -246,7 +260,6 @@ impl EgressBinding {
                 ));
             }
         }
-        // Never allow credential-bearing userinfo
         if !parsed.username().is_empty() || parsed.password().is_some() {
             return Err(DomainError::GrantAttenuation("userinfo URLs denied".into()));
         }
@@ -267,7 +280,13 @@ impl EgressBinding {
         let to = url::Url::parse(to_url).map_err(|_| DomainError::InvalidId("url".into()))?;
         let from_host = from.host_str().unwrap_or_default();
         let to_host = to.host_str().unwrap_or_default();
-        if from_host != to_host {
+        let from_port = from.port_or_known_default();
+        let to_port = to.port_or_known_default();
+        let loopback = from_host.eq_ignore_ascii_case("localhost")
+            || from_host
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback());
+        if from_host != to_host || (!loopback && from_port != to_port) {
             return Err(DomainError::GrantAttenuation(
                 "cross-authority redirect denied while holding credential".into(),
             ));
@@ -519,6 +538,10 @@ impl ConnectionAuthorityBinding {
 }
 
 #[cfg(test)]
+#[path = "authority_egress_tests.rs"]
+mod egress_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -562,29 +585,6 @@ mod tests {
         };
         assert!(binding.resolve_secret_for_agent().is_err());
         assert_eq!(binding.agent_view().handle.kind, AuthorityKind::Connection);
-    }
-
-    #[test]
-    fn egress_blocks_evil_destination() {
-        let e = EgressBinding {
-            scheme: "https".into(),
-            authorities: vec!["api.github.com".into()],
-            path_prefixes: vec!["/repos/".into()],
-            allow_redirects_cross_authority: false,
-        };
-        assert!(e
-            .allows_url("https://api.github.com/repos/acme/x/pulls")
-            .is_ok());
-        assert!(e.allows_url("https://evil.example/foo").is_err());
-        assert!(e
-            .allows_redirect(
-                "https://api.github.com/repos/x",
-                "https://evil.example/steal"
-            )
-            .is_err());
-        assert!(e
-            .allows_url("https://user:pass@api.github.com/repos/x")
-            .is_err());
     }
 
     #[test]

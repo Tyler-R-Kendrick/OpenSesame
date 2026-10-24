@@ -29,6 +29,7 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
+import { privateTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { createEmptyJourney } from "./lib/transport-empty-journey.mjs";
 import {
@@ -44,7 +45,8 @@ const DIST = path.resolve(here, "..", "dist");
 const ORIGIN = "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(
-  process.env.PAGES_VERIFY_OUT ?? "/tmp/opensesame-transport-verification",
+  process.env.PAGES_VERIFY_OUT ??
+    privateTempDir("opensesame-transport-verification-"),
 );
 const BAD_REMOTE = "https://bad-remote.invalid";
 
@@ -52,8 +54,10 @@ if (!fs.existsSync(path.join(DIST, "index.html"))) {
   console.error(`no build at ${DIST} — run the pages build first`);
   process.exit(2);
 }
-fs.rmSync(OUT, { recursive: true, force: true });
+if (process.env.PAGES_VERIFY_OUT)
+  fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
+console.log(`Evidence: ${OUT}`);
 
 const harness = createHarness({
   dist: DIST,

@@ -24,8 +24,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "The base secret and the file. Item list, editor, TOTP codes, website matching and the health report. Other item types are optional.",
     {
       operationIds: [
-        "password_provider.read",
-        "password_provider.env_resolve",
+        "password_provider.reveal",
         "vault.workflow.find_references",
         "vault.workflow.inventory",
         "vault.workflow.audit_organization",
@@ -65,7 +64,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   core(
     "vault.local-unlock",
     "Local unlock",
-    "Password, PIN and passkey protectors for the vault key, the enrolled second step, recovery codes, the device's vault list, travel mode, the duress code and resetting this browser.",
+    "Password, PIN and passkey protectors, enrolled factors, recovery codes, vault switching, travel, duress, retired-password detection, controlled canary owner ceremonies and browser reset.",
     {
       operationIds: [
         "device.browser_reset",
@@ -74,6 +73,8 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "vault.recovery_codes",
         "vault.second_step.code",
         "vaults.duress_code",
+        "vault.retired_credentials.manage",
+        "vault.agent_canaries.manage",
         "vaults.switch",
         "vaults.travel",
         "vaults.travel_items",
@@ -82,7 +83,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         {
           class: "external-service",
           purpose:
-            "the configured Identity API, only to send an emailed or texted second-step code",
+            "configured Identity API second-step codes and owner-requested management of the explicitly paired canary receiver",
           automatic: false,
         },
       ],

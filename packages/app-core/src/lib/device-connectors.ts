@@ -10,7 +10,7 @@
 import {
   localGitToConnection,
   mergeLocalGitConnections,
-} from "./connections-local-git.js";
+} from "./connections-local-git-view.js";
 import type { Connection, Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
 import {
@@ -132,7 +132,7 @@ function upsert(row: PublicRow, secrets: StringFields): void {
 
 export function deviceConnection(id: string): Connection | null {
   const row = findId(id);
-  if (!row || isLocalGitRemoteId(id)) return null;
+  if (!row) return null;
   return deviceConnectorView(row);
 }
 
@@ -268,7 +268,7 @@ export async function revokeDeviceConnection(id: string): Promise<{
   providerRevocation: "ok";
 } | null> {
   const row = findId(id);
-  if (!row || isLocalGitRemoteId(id)) return null;
+  if (!row) return null;
   if (row.fields.secret_backend_configuration !== undefined) {
     await secretBackendDeviceSeams.revoke(id);
     return { revoked: true, providerRevocation: "ok" };

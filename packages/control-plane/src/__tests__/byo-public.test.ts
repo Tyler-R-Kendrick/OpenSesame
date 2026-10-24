@@ -128,7 +128,7 @@ describe("public BYO upstream registration", () => {
     expect(body.error).toBe("invalid_request");
   });
 
-  it("renders a registered issuer as the login page's preferred button when hinted", async () => {
+  it("does not turn a registered issuer hint into a preferred login button", async () => {
     const plane = createControlPlane({ config: testConfig() });
     await post(plane, { issuer: dcrIdp.issuer });
 
@@ -139,31 +139,23 @@ describe("public BYO upstream registration", () => {
         prompt: { name: "login", details: {} },
       });
 
+    // The hint is unauthenticated input. Resolving it against durable BYO rows
+    // would tell a stranger which issuers this deployment has already seen, so
+    // only the static catalog may answer a hint.
     const hinted = await buildLoginPageModel(
       plane.ctx,
       details({ login_hint_provider: dcrIdp.issuer }),
       "csrf-token",
       undefined,
     );
-    expect(hinted.federated?.preferredIssuer).toBe(dcrIdp.issuer);
-    expect(hinted.federated?.upstreams).toContainEqual({
-      issuer: dcrIdp.issuer,
-      label: new URL(dcrIdp.issuer).host,
-    });
-
-    // An unknown hint adds nothing — presentation only, never trust.
-    const unknown = await buildLoginPageModel(
-      plane.ctx,
-      details({ login_hint_provider: "https://stranger.example" }),
-      "csrf-token",
-      undefined,
-    );
-    expect(unknown.federated?.preferredIssuer).toBeUndefined();
+    expect(hinted.federated?.preferredIssuer).toBeUndefined();
     expect(
-      unknown.federated?.upstreams.some(
-        (upstream) => upstream.issuer === "https://stranger.example",
+      hinted.federated?.upstreams.some(
+        (upstream) => upstream.issuer === dcrIdp.issuer,
       ),
     ).toBe(false);
+    // The generic BYO form still accepts the issuer on submit.
+    expect(hinted.byo?.startAction).toContain("/federated/byo");
   });
 
   it("answers 429 once the same fingerprint spends its budget", async () => {

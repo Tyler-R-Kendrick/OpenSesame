@@ -18,6 +18,7 @@ import { FieldShell } from "../../../components/FieldShell.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { ConfigSelections } from "./ConfigSelections.js";
 import { ConnectorIconField } from "./ConnectorIconField.js";
+import { ConnectorModes } from "./ConnectorModes.js";
 import { MethodFields } from "./MethodFields.js";
 import { OauthClientFields, OauthServerFields } from "./OauthFields.js";
 import { MethodPicker } from "./fields.js";
@@ -105,46 +106,27 @@ function ConfigurationMode({
   onState,
   onOptions,
 }: Props) {
-  const modeName = useId();
   const hasManaged =
     plan.methods.some((method) => method.kind === "managed") &&
     plan.methods.some((method) => method.kind === "oauth");
+  if (!hasManaged) return null;
   return (
-    <>
-      {hasManaged ? (
-        <fieldset className="cx-block">
-          <legend className="visually-hidden">Configuration mode</legend>
-          <div
-            className="cx-modes"
-            role="radiogroup"
-            aria-label="Configuration mode"
-          >
-            {(
-              [
-                ["managed", "Managed"],
-                ["byo", "Bring Your Own"],
-              ] as const
-            ).map(([mode, label]) => (
-              <label className="cx-mode" key={mode}>
-                <input
-                  type="radio"
-                  name={modeName}
-                  checked={options.mode === mode}
-                  onChange={() => {
-                    onOptions({ ...options, mode });
-                    if (mode === "managed")
-                      onState({ ...state, method: "oauth" });
-                  }}
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      ) : null}
-    </>
+    <ConnectorModes
+      label="Configuration mode"
+      legendHidden
+      value={options.mode}
+      options={[
+        { id: "managed", label: "Managed" },
+        { id: "byo", label: "Bring Your Own" },
+      ]}
+      onChange={(mode) => {
+        onOptions({ ...options, mode });
+        if (mode === "managed") onState({ ...state, method: "oauth" });
+      }}
+    />
   );
 }
+
 function PermissionFields({ plan, state, options, onState, onOptions }: Props) {
   const config = selfHostedConfig(plan);
   return (

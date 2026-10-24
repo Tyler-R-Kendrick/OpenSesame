@@ -12,15 +12,20 @@
  * (`gate: "any"`).
  */
 
-import { takeCapturedLiveLink } from "@opensesame/app-core/lib/join/invite.js";
+import {
+  takeCapturedLiveLink,
+  takePersistedLiveLink,
+} from "@opensesame/app-core/lib/join/invite.js";
 import {
   type LiveLink,
+  parseLiveLink,
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
 import { leaveLive } from "@opensesame/app-core/lib/live/session.js";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { IconChevronLeft, IconX } from "../../components/Icons.js";
+import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { useLandOnChange } from "./live-focus.js";
 import { clearJoinDraft, joinDraft, useLiveGuest } from "./live-hooks.js";
 import {
@@ -28,15 +33,30 @@ import {
   LiveJoinSession,
   liveJoinLandingFor,
 } from "./live-join-route-parts.js";
+import { revealClear } from "./live-reveal.js";
 import "./live.css";
 
 export function LiveJoinRoute() {
   const navigate = useNavigate();
   const [held] = useState<LiveLink | null>(() => {
     joinDraft.link =
-      takeHeldLiveLink() ?? takeCapturedLiveLink() ?? joinDraft.link;
+      takeHeldLiveLink() ??
+      takeCapturedLiveLink() ??
+      takePersistedLiveLink() ??
+      // Last resort: the address still has it because no earlier step got to
+      // remove it. This also survives a reload with session storage blocked.
+      parseLiveLink(window.location.href) ??
+      joinDraft.link;
     return joinDraft.link;
   });
+  useEffect(() => {
+    if (!window.location.hash.includes("live=")) return;
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}`,
+    );
+  }, []);
   const { guest, status } = useLiveGuest();
   const over =
     guest !== null && (status?.at === "ended" || status?.at === "unreachable");
@@ -45,6 +65,15 @@ export function LiveJoinRoute() {
   useLandOnChange(guest ? (status?.at ?? "starting") : "ask", () =>
     liveJoinLandingFor(root.current, guest ? status?.at : "ask"),
   );
+  useEffect(() => {
+    // Creating the joiner's vault can remount this route after the request
+    // already exists. That arrival has no phase change for useLandOnChange.
+    if (!guest || status?.at !== "request") return;
+    const fallback = document.getElementById("main");
+    if (!keyboardIsIdle() && document.activeElement !== fallback) return;
+    const target = liveJoinLandingFor(root.current, "request");
+    if (landFocus(target) && target) revealClear(target);
+  }, [guest, status?.at]);
 
   return (
     <div className="section__inner live-join" ref={root}>

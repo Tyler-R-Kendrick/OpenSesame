@@ -8,9 +8,13 @@
  */
 
 import type { DistributionContract } from "@opensesame/capability-composition";
+import { resetDirtyEdits } from "../../dirty-edit.js";
+import { staleAssetReload } from "../../stale-asset-reload.js";
 import type {
   CompositionSnapshotForWorker,
   PendingTransition,
+  RegisterWorkerOptions,
+  ReloadCause,
   WorkerStatus,
 } from "./types.js";
 
@@ -34,6 +38,8 @@ export type ControllerState = {
   bootControlled: boolean;
   /** The release the page's shell belongs to: its first controller's answer. */
   bootReleaseId: string | null;
+  initialReleaseProof: RegisterWorkerOptions["initialReleaseProof"] | null;
+  initialClaim: { cancel: () => void } | null;
   /** A hello is out and unanswered; another is not sent on top of it. */
   helloPending: boolean;
   /**
@@ -45,6 +51,11 @@ export type ControllerState = {
   afterTakeover: (() => void) | null;
   /** The page has already been told to reload for a new release. */
   reloadStarted: boolean;
+  /**
+   * A reload is owed and held. Cleared when the page reloads, when the new
+   * worker turns out to be the same release, or when a forced reload starts.
+   */
+  updateOwed: ReloadCause | null;
   reconciling: Promise<void>;
   /** The highest `?r=` this page has asked a script for. */
   asked: number;
@@ -63,6 +74,7 @@ const INITIAL_STATUS: WorkerStatus = {
   offlineStatus: "online-only",
   savedModuleIds: [],
   transition: null,
+  updateReady: false,
   diagnostics: [],
 };
 
@@ -80,10 +92,13 @@ function initialFields(): ControllerState {
     pendingTransition: null,
     bootControlled: false,
     bootReleaseId: null,
+    initialReleaseProof: null,
+    initialClaim: null,
     helloPending: false,
     takeover: null,
     afterTakeover: null,
     reloadStarted: false,
+    updateOwed: null,
     reconciling: Promise.resolve(),
     asked: 0,
     recoveries: 0,
@@ -112,9 +127,13 @@ export function diagnose(code: string): void {
 
 /** Test seam: forget every page-level decision. */
 export function resetWorkerController(): void {
+  state.takeover?.cancel();
   state.recheckCancel?.();
   Object.assign(state, initialFields());
   notify();
+  // After the owed reload is gone, so releasing an edit cannot start one.
+  resetDirtyEdits();
+  staleAssetReload.clear();
 }
 
 export function subscribeWorkerStatus(listener: () => void): () => void {

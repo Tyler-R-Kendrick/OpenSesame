@@ -4,6 +4,7 @@ import { readInkRgb } from "./ink.js";
 import type { DialLayout, QuietRect, RingSpec } from "./layout-types.js";
 import { computeDialLayout, rectRelative } from "./layout.js";
 import { buildQuietMask } from "./mask.js";
+import { paintDialStaticFrame } from "./paint-dial-static.js";
 import { syncRingCanvasElements } from "./sync-ring-canvases.js";
 
 export type DialDomRefs = {
@@ -83,12 +84,17 @@ function sizePaneCanvas(
   canvas.height = Math.round(h * dpr);
   canvas.style.width = `${w}px`;
   canvas.style.height = `${h}px`;
-  return canvas.getContext("2d");
+  const context = canvas.getContext("2d");
+  // The fixed bezel shares the rings' CSS geometry on Retina/mobile screens.
+  // Its backing store is device-sized, just like the animated canvases.
+  context?.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return context;
 }
 
 export function measureAndPaintDial(
   refs: DialDomRefs,
   prev?: RingSpec[],
+  lit = 0,
 ): RelayoutResult | null {
   const paneRect = refs.pane.getBoundingClientRect();
   const w = paneRect.width;
@@ -121,7 +127,7 @@ export function measureAndPaintDial(
 
   if (refs.fixed) {
     const g = sizePaneCanvas(refs.fixed, w, h);
-    if (g) drawOrnament(g, layout, ink, "var(--mono)");
+    if (g) drawOrnament(g, layout, ink);
   }
   if (refs.overlay) {
     sizePaneCanvas(refs.overlay, w, h);
@@ -129,6 +135,16 @@ export function measureAndPaintDial(
   }
 
   syncRingCanvasElements(layout, refs.ringCanvasRefs);
+  // Resizing a canvas clears its bitmap. Repaint here as well as in the
+  // animation hook: reduced-motion layouts have no next frame to restore it.
+  paintDialStaticFrame({
+    layout,
+    rings: layout.rings,
+    lit,
+    ink,
+    ringCanvasRefs: refs.ringCanvasRefs,
+    overlay: refs.overlay,
+  });
 
   return { layout, ink, splitX };
 }

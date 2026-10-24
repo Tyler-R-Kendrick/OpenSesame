@@ -53,6 +53,7 @@ rejects a mismatch, so a behavioural change needs a version bump. Changes to
 local sessions, grants or popup transport also run
 `pnpm --filter @opensesame/pages verify:local-iam`.
 
+
 ## Related
 
 - [ADR 0096](../../docs/adr/0096-static-auth-profiles-and-immutable-distribution.md) — the profiles and immutable distribution

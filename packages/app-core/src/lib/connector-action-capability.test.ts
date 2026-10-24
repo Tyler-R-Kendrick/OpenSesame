@@ -352,18 +352,22 @@ describe("connector card actions", () => {
       ).kind,
     ).toBe("connect");
   });
-  it("keeps payment policy refusal even when a driver or saved record is supplied", () => {
+  it("configures admitted read-only Stripe access after verification", () => {
     expect(
       connectorCardAction(
         { id: "stripe" },
         context({
-          routes: [{ method: "oauth", available: true }],
+          routes: [{ method: "api-key", available: true }],
           connection: { ...connection, providerId: "stripe" },
           specializedVerified: true,
           nativeRequired: true,
         }),
       ),
-    ).toEqual({ kind: "unavailable", glyph: "blocked", reason: "policy" });
+    ).toEqual({
+      kind: "configure",
+      glyph: "ellipsis",
+      connectionId: connection.connectionId,
+    });
   });
   it("represents outside-browser capability without inventing an installer", () => {
     expect(

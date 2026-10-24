@@ -86,8 +86,12 @@ it.each(["google", "microsoft"])(
     const sent = controller.connect.mock.calls[0]?.[0];
     expect(sent?.parameters).toEqual(
       id === "google"
-        ? { client_id: "public-browser-client" }
-        : { client_id: "public-browser-client", tenant: "common" },
+        ? { client_id: "public-browser-client", token_auth_method: "provider" }
+        : {
+            client_id: "public-browser-client",
+            tenant: "common",
+            token_auth_method: "provider",
+          },
     );
     expect(sent?.credentials).toEqual({});
     for (const scope of profile.requiredScopes)

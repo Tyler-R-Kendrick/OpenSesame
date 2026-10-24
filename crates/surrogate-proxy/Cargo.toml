@@ -59,6 +59,9 @@ opensesame-invoke-through = { path = "../invoke-through" }
 opensesame-plugin-settings = { path = "../plugin-settings" }
 opensesame-agent-events = { path = "../agent-events" }
 opensesame-session-observe = { path = "../session-observe" }
+# The credential tool is found by the trusted rule, never by the child's own
+# `PATH` search. std only, plus libc on Unix.
+opensesame-trusted-exec = { path = "../trusted-exec" }
 opensesame-rotation-web = { path = "../rotation-web", features = ["login-surrogate"] }
 base64 = { workspace = true }
 bytes = { workspace = true }
@@ -84,6 +87,8 @@ zeroize = { workspace = true }
 [dev-dependencies]
 # Disposable PKI for the loopback TLS upstream stub; never a normal edge.
 opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
+# The planted-PATH fixture for the credential tool tests.
+opensesame-trusted-exec = { path = "../trusted-exec", features = ["testkit"] }
 # The process tests point the plugin at their own settings file, which a
 # shipped build refuses to take from the environment.
 opensesame-plugin-settings = { path = "../plugin-settings", features = ["path-override"] }

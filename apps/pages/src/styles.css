@@ -414,8 +414,8 @@ kbd {
   appearance: none;
   display: grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: var(--go-size, 2.5rem);
+  height: var(--go-size, 2.5rem);
   flex: none;
   border: 0;
   border-radius: var(--radius);
@@ -442,7 +442,7 @@ kbd {
    as its accessible name, and a screen reader must not hear it twice. */
 .go-verb {
   font-family: var(--mono);
-  font-size: 0.8125rem;
+  font-size: var(--go-verb-size, 0.8125rem);
   color: var(--ink-2);
 }
 
@@ -451,8 +451,8 @@ kbd {
    never smaller than the icon key beside it in a narrow window. */
 @media (pointer: coarse), (max-width: 900px) {
   .go {
-    width: 2.75rem;
-    height: 2.75rem;
+    width: max(2.75rem, var(--go-size, 2.75rem));
+    height: max(2.75rem, var(--go-size, 2.75rem));
   }
 }
 
@@ -802,11 +802,11 @@ input[type="radio"] {
 
 .app {
   display: grid;
-  grid-template-columns: var(--rail-w) 1fr;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
+    "header header"
     "rail main"
-    "rail toasts"
     "status status";
   height: 100dvh;
   overflow: hidden;
@@ -858,6 +858,20 @@ input[type="radio"] {
 
 .rail__brand .rail__install {
   margin-left: auto;
+  flex: none;
+}
+
+/* A presence mark takes the end of the brand. Install stays beside it. */
+.rail__brand .rail__presence {
+  margin-left: auto;
+  flex: none;
+}
+
+.rail__brand .rail__presence + .rail__install {
+  margin-left: 0;
+}
+
+.mobile-toolbar .rail__presence {
   flex: none;
 }
 
@@ -1211,24 +1225,27 @@ body {
   color: var(--err);
 }
 
-/* Toasts: the transient echo of a tray notice (ADR 0162). A row of the frame,
-   right-aligned, between the content and the statusline; empty, it has no
-   height. It takes room only while a toast shows, so nothing rests on a
-   control (DESIGN.md § Layout). Shellless screens draw it as a block, as the
-   notice corner does. Neutral shadow only. */
+/* Toasts: the transient echo of a tray notice (ADR 0162). A fixed block over
+   the frame, right-aligned above the statusline. It takes no grid row and no
+   height from the app, so an arrival never resizes a pane or pushes a control
+   under a finger. Shellless screens draw the same block. Neutral shadow only. */
 .toasts {
-  grid-area: toasts;
+  position: fixed;
+  inset-block-end: calc(4rem + env(safe-area-inset-bottom, 0px));
+  inset-inline-end: max(1rem, env(safe-area-inset-right, 0px));
+  z-index: 50;
   display: grid;
   gap: 0.5rem;
-  width: min(22rem, calc(100% - 32px));
-  margin: 0.5rem 16px 0 auto;
-}
-
-.toasts:empty {
-  margin: 0;
+  inline-size: min(22rem, calc(100vw - 2rem));
+  max-block-size: min(60dvh, 30rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 .toast {
+  pointer-events: auto;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
 }
 
@@ -1670,6 +1687,11 @@ body {
     margin: -0.75rem;
   }
 
+  /* Panel headers reserve the full touch target within their bounds. */
+  .panel__head > [data-touch-twin] {
+    margin: 0;
+  }
+
   .btn,
   .fill,
   .conn-doc-link,
@@ -1752,15 +1774,15 @@ body {
 /* ——— Responsive frame ————————————————————————————————————— */
 
 @media (max-width: 900px) {
-  /* One column: main + statusline. The bell sits behind the top bar overflow
-     key; CommandBar stays in the statusline on every unlocked screen.
-     Sections stay behind the bar's menu key — no tab bar. */
+  /* One column below the shared header. CommandBar stays in the statusline
+     on every unlocked screen; the bell stays directly in the header.
+     Sections stay behind the header's menu key — no tab bar. */
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
+      "header"
       "main"
-      "toasts"
       "status";
     height: 100dvh;
   }
@@ -3636,6 +3658,11 @@ details[open] > summary::before {
    block in the document flow, right-aligned above the screen — never an
    overlay, so it cannot rest on a control. The rail's tokens are re-pointed at
    the page's own so the key reads on the canvas. */
+/* A gate's notice seat adds no empty grid row; its notice keeps normal flow. */
+.gate-notice-seat {
+  display: contents;
+}
+
 .notice-corner {
   --rail-fg: var(--ink);
   --rail-2: var(--surface-2);
@@ -3692,4 +3719,103 @@ details[open] > summary::before {
   .topbar .rail__prompt {
     padding-inline: 0;
   }
+}
+
+/* SIOP social choices: a key, its provider name in the margin voice, one row
+   per configured identity provider or active connection. */
+.siop-social {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.siop-social h2 {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.siop-social ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.siop-social__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+/* Deadman switch: a release key is read once, then item choices and the
+   relay pair below it. The package itself is never rendered here. */
+.deadman__actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.deadman__form,
+.deadman__confirm {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.deadman__items {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.deadman__items legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.deadman__list {
+  display: grid;
+  gap: 0.2rem;
+  max-height: 18rem;
+  overflow: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+}
+
+.deadman__item {
+  align-items: baseline;
+}
+
+.deadman__kind {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.deadman__key {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.vault-live-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.5rem 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.vault-live-banner .btn {
+  margin-inline-start: auto;
 }

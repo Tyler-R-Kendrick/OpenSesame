@@ -92,7 +92,7 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.
 
-After checkout, `install` runs `.cursor/install.sh` (`corepack` + `pnpm install`
+After checkout, `install` runs `.cursor/install.sh` (`corepack` + the fingerprinted frozen dependency install
 + `cargo +1.88.0 fetch`). Prefer the shared cargo target dir documented in §9
 when compiling Rust in Cloud Agents. Login and non-login bash for `vscode`
 source `/etc/profile.d/cargo.sh`, which prepends `/usr/local/cargo/bin` and
@@ -103,7 +103,8 @@ defaults `CARGO_TARGET_DIR` to `$HOME/.cache/packages/cargo-target`.
 All scripts below are defined in the root `package.json` unless noted.
 
 ```bash
-pnpm bootstrap           # install + db:generate + db:migrate + setup:hooks
+pnpm bootstrap           # install if needed + db:migrate + setup:hooks
+                          # schema generation is deliberate: pnpm db:generate
 pnpm dev                 # turbo dev (control-plane, identity-worker,
                           #   mock-upstream-idp, example-rp-alpha/beta/static-rp)
 pnpm dev:pwa             # Pages vite on :5180, no backend
@@ -555,7 +556,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/secret-fs/`, `packages/app-core/src/node/{secret-files,vault-directory}.ts`, `spec/secret-files/` | Secrets as files (ADR 0182), written on Effect 4: the `SecretFiles` contract (read/write/remove/list, revision = SHA-256, path rule, four typed failures), its backends — the emulation, a confined atomic directory over Effect `FileSystem` (Node layer in `src/node`), and an S3-compatible bucket (`s3.ts` over the `s3-sigv4.ts` signer; a browser needs no server of ours) — the `resilient` wrapper (attempt timeout, jittered retries, circuit breaker, lost-answer confirmation), the layout (`vault.json` manifest + `secrets/<folder>/<name>.<kind>.json`, one sealed document per secret), and `vfs-files.ts`, which lays the VFS seams (`vfs-seams.ts`) over any of them. One conformance suite per layer runs against every backend. The CLI keeps its vault at `<state>/vault/` through `useVaultDirectory`. Names are visible on disk by design; values never are |
 | `packages/app-core/src/lib/keymap/{gestures,gesture-bindings,gesture-recognizer}.ts`, `apps/pages/src/lib/{gesture-runtime,gesture-motion,use-gestures,gesture-help}.ts`, `apps/pages/src/sections/settings/keybindings/{LoadoutTabs,GesturesPanel,GestureRow,MotionSwitch}.tsx` | The keymap's touch loadout (ADR 0170): a closed set of two-finger swipes, a two-finger tap and a shake bound to the same commands as keys through `runTarget` (never a command that asks first, never a register key); the pure recognizer (`RECOGNIZER`, `SHAKE`) in app-core, the touch handlers that claim only a bound swipe that began in a listing, and the motion sensor behind an Allow key where the browser asks first; Settings › Keybindings draws Keyboard and Gestures as tabs and opens on the device's own |
 | `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are the vault's own sealed file (`device-receipts-store.ts`), apart from the Access audit, written after each decision and retried from a sealed pending list; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
-| `packages/vault-core/src/{environments,environment-keys}.ts`, `packages/app-core/src/lib/vault/{body-environments,environments*}.ts`, `apps/pages/src/modules/vault.environments/` | Vault environments (ADR 0194, optional `vault.environments`, off by default and absent from the minimal profile): an item is a key in the generated `.env.schema` exactly when it carries `environments` (a sealed value and a required flag per environment), the body carries the environment list (a removal is a marker), both merged cell by cell like a typed item's values; the store takes one of a closed set of typed edits (`body-environments.ts`, core); the schema is a view (`@required=forEnv(...)`, never a value); a required key with no value in any environment raises one tray notice owned by a background job, not a panel. The surface is the vault's own: an Environments key in the path strip, the Add menu and `/environments` in the command bar, opening a sheet at `/vault?environments=1` |
+| `packages/vault-core/src/{environments,environment-keys}.ts`, `packages/app-core/src/lib/vault/{body-environments,environments*,environment-item}.ts`, `apps/pages/src/modules/vault.environments/`, `apps/pages/src/sections/vault/EnvironmentFields.tsx` | Vault environments (ADR 0194 as amended): with optional `vault.environments` on, the New item type picker offers the core `environment` item type. One item stores a varlock-compatible `.env.schema`, its environment name, and `KEY=named/vault/item/path` aliases; it generates `<vault-item-name>.<env-name>.env.schema` with `@vaultItem=` comments and never a value. No Environments key, sheet, Add entry or `/environments` route remains. The old per-item cells and body names stay sealed readable data, not a surface |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
 | `packages/vault-item-types` | Vault item types: embeds the built-in corpus (`marketplace/item-types/builtin/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
@@ -595,6 +596,23 @@ Do not add new top-level directories or loose root files — find the group.
 | `tools/quality/`, `tools/mutation/`, `tools/security/`, `tools/oxlint/anti-slop/` | Ratchet ledgers and budgets, Stryker configs, ast-grep rules and negative controls, the vendored anti-slop Oxlint plugin |
 | `docs/` | Start at `docs/README.md`. `getting-started/`, `architecture/`, `adr/` (index generated by `pnpm docs:index`), `operators/`, `reference/`, `design/`, `security/` (audits in `security/audits/`), `validation/`, `evidence/`, `implementation/`, `research/` (competitors in `research/competitors/`), `contributing/`, `archive/` |
 
+### Repository footprint
+
+Follow `docs/contributing/repository-footprint.md` for every task and agent.
+Persist source, required fixtures, approved current evidence and concise maintained
+findings. Keep scanner runs, raw reviews, assignments, transcripts and generated
+working output in ignored `work/` or private temporary storage; summarize results
+on the PR. Never append per-run artifact directories to the default branch.
+
+Install third-party skills once under `.agents/skills/`, preserve intentional
+agent-specific variants, and run `node scripts/dev/sync-agent-skills.mjs` to
+restore shared links. Do not install full copied trees for each harness.
+Use the existing dependency, Cargo and browser caches; install only when needed.
+Session startup must never generate migrations, baselines or tracked reports.
+Clean only task-owned scratch/build output when the task finishes; preserve active
+sessions and shared caches. Run `node scripts/quality/repository-size-gate.mjs`
+before staging, and review any limit change as a policy change.
+
 ## 5. Design rules that gate merges
 
 - **A user-visible change ships with before/after evidence on the pull
@@ -606,12 +624,22 @@ Do not add new top-level directories or loose root files — find the group.
   real builds**: the base branch's and this one's, walked the same way, at
   phone and desktop width. Every pair carries a measurement taken from the
   browser (`statusline 99px, wrapped → 49px, one row`), never an impression.
-  The sheets are committed under `docs/evidence/<yyyy-mm-dd>-<topic>/` beside
-  a `README.md` that lays them out, and the PR body links that gallery under
-  `## Visual evidence` by commit SHA so it survives the branch. The body cannot
-  carry the images itself — the GitHub tooling here strips image embeds — so
-  read the PR back and check the markup survived whatever you posted. Never stage a screenshot, never crop away the thing you
-  changed, and where a visible change genuinely cannot be captured, say so in
+  Keep before/after captures, comparison sheets, raw recordings and review
+  drafts in ignored `work/evidence/` or the system temp directory. Persist only
+  approved evidence of the current implementation in the stable slot
+  `docs/evidence/<feature>/<project>/<platform>/`, using lowercase kebab-case
+  names (for example `docs/evidence/unlock/pages/web/`). A branch replaces the
+  impacted slot's approved files and removes superseded assets; it never adds
+  a dated, branch-named or numbered history folder. Keep unrelated slots intact.
+  Record the source revision, capture method, checks and approval provenance
+  beside the approved artifacts; a rename or a passing capture is not approval.
+  The default branch carries the latest approved state only. Git history and
+  commit-SHA links preserve earlier evidence; never restore historical media
+  into the current workspace merely to compare it. Put comparison measurements
+  and review artifact links in the PR under `## Visual evidence`, and link the
+  approved current-state gallery by commit SHA. Read the PR back to check its
+  markup. The canonical persistence contract is `docs/evidence/README.md`.
+  Never stage a screenshot or crop away the thing you changed, and where a visible change genuinely cannot be captured, say so in
   the PR and name what you verified instead — silence reads as "nothing to
   see". Procedure and tooling: `skills/visual-evidence/SKILL.md`,
   `apps/pages/scripts/capture-evidence.mjs`.
@@ -702,11 +730,13 @@ Do not add new top-level directories or loose root files — find the group.
   as the card's corner **Skip**. The door asks no sign-in question: a device
   with no vault has nothing to sign in to. Join is on every deployment, the shared GitHub
   Pages origin included: it opens a live session browser to browser over
-  WebRTC, paired by codes the two people pass each other — no server, relay,
-  STUN or TURN by default (`sharing.live`, `lib/live/`, consent first); an
-  owner may name their own in Settings › Live sessions › Routes (a tunnel
-  address, STUN/TURN, relay only, a Nostr/MQTT/NATS/ntfy carrier), never a
-  default, and the joiner sees every host before any is contacted —
+  WebRTC, paired automatically through a sealed-code ntfy.sh carrier by
+  default, with the manual request/reply codes as the fallback when no carrier
+  is ready (`sharing.live`, `lib/live/`, consent first); an owner may replace
+  the carrier in Settings › Live sessions › Routes and may name a tunnel
+  address, STUN/TURN, relay only, or a Nostr/MQTT/NATS/ntfy carrier, and the
+  joiner sees every host before any is contacted. An open session admits at
+  once; invite sessions still wait for the owner's compare —
   and a Host invite link still opens the Host ceremony
   ([ADR 0136](docs/adr/0136-join-a-session-restored.md));
   a shared link opens join by itself. Once setup is answered or skipped the
@@ -1141,7 +1171,8 @@ Do not add new top-level directories or loose root files — find the group.
   set can never enlarge the approved one. Changes to the bootstrap, a module,
   a worker or the build run `pnpm --filter @opensesame/pages build:profile`
   and `verify:capability-graph`; a contract with no landed test is recorded
-  `pending` in `docs/evidence/capability-composition/contract-test-matrix.json`
+  `pending` in the maintained uncovered-contract list in
+  `docs/validation/capability-composition.md`
   rather than left to read as covered. Operator guide:
   `docs/operators/capability-composition.md`; verification method:
   `docs/validation/capability-composition.md`.
@@ -1364,10 +1395,12 @@ other secret material in issues, logs, or scan reports.
 ## 7. Skills
 
 Agent skills live under `skills/*/SKILL.md` (canonical). `.agents/skills/`
-holds symlinks to the same directories for tools that look there instead —
-except third-party installs (`impeccable` and the design skills below), which
-are real directories there (and, for each, under `.claude/skills/` too) so
-their own updaters can refresh them.
+holds symlinks to the same directories for tools that look there instead.
+Third-party skills (`impeccable` and the design skills below) are canonical
+under `.agents/skills/`. Other harnesses use relative links for identical files
+or directories, retaining their intentional agent-specific variants. Update the
+canonical install once, then run `node scripts/dev/sync-agent-skills.mjs` and
+its `--check` mode; do not refresh mirrored trees with multi-target `--copy`.
 
 | Skill | Path | Purpose |
 |-------|------|---------|
@@ -1377,7 +1410,7 @@ their own updaters can refresh them.
 | `opensesame-mcps` | `skills/opensesame-mcps/SKILL.md` | Install, configure, initialize, and use OpenSesame MCP servers |
 | `install-anti-slop` | `skills/install-anti-slop/SKILL.md` | Install and configure the vendored Oxlint anti-slop plugin |
 | `security-review` | `skills/security-review/SKILL.md` | Run repository security gates and targeted Codex Security reviews |
-| `visual-evidence` | `skills/visual-evidence/SKILL.md` | Capture before/after screenshots from two real builds for any user-visible change and post them on the PR |
+| `visual-evidence` | `skills/visual-evidence/SKILL.md` | Compare two real builds for PR review; persist only approved current-state evidence in feature/project/platform slots |
 | `local-debug-session` | `skills/local-debug-session/SKILL.md` | Attach a live HMR debug session when asked to run the app locally; watch real console/page/network errors and patch the hot-reloaded process |
 | `impeccable` | `.agents/skills/impeccable/SKILL.md` | Third-party frontend design skill ([pbakaus/impeccable](https://github.com/pbakaus/impeccable), Apache 2.0), installed via `npx impeccable install` — lives in `.agents/skills/` (not `skills/`) so `npx impeccable update` can refresh it; design detector hook in `.codex/hooks.json` + `.claude/settings.local.json` (gitignored, machine-local) |
 | `scandinavian-design` | `.claude/skills/scandinavian-design/SKILL.md` | Third-party ([ericzakariasson/scandinavian-design](https://github.com/ericzakariasson/scandinavian-design)), installed via `npx skills add ericzakariasson/scandinavian-design` — the visual-restraint contract behind the Scandinavian retoken; its `scripts/*.js` verifiers are patched to launch the container's pinned Chromium (`/opt/pw-browsers/chromium`) instead of a system Chrome |
@@ -1385,9 +1418,9 @@ their own updaters can refresh them.
 | `design-taste-frontend` | `.claude/skills/design-taste-frontend/SKILL.md` | Third-party anti-slop frontend skill ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT; docs at [tasteskill.dev](https://www.tasteskill.dev/changelog)) |
 | `redesign-existing-projects` | `.claude/skills/redesign-existing-projects/SKILL.md` | Third-party audit-first redesign skill ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT) |
 | `design-system` | `.claude/skills/design-system/SKILL.md` | TypeUI `minimal` registry spec ([typeui.sh](https://www.typeui.sh/design-skills)), pulled via `npx typeui.sh pull minimal -f skill -p claude-code`; also mirrored at `.agents/skills/design-system/` |
-| `gdp-ts` | `.agents/skills/gdp-ts/SKILL.md` (+ `.claude/skills/`) | Third-party ([rauchg/gdp-ts](https://github.com/rauchg/gdp-ts), MIT), installed via `npx skills add rauchg/gdp-ts -s gdp-ts --copy` and pinned in `skills-lock.json`; the workflow for adding or reviewing an authorization check as a compile-time proof (ADR 0178) — brand the id, one `proofs/` module per fact, a `*.mistakes.ts` per proof, no `as` to satisfy a proof |
-| `shadcn` | `.agents/skills/shadcn/SKILL.md` (+ `.claude/skills/`, `.grok/skills/`) | Third-party ([shadcn-ui/ui](https://github.com/shadcn-ui/ui/tree/main/skills/shadcn), MIT), installed via `npx skills add shadcn/ui --skill shadcn --copy` and pinned in `skills-lock.json`; its `design-system.md` workflow turns `DESIGN.md` into a themed shadcn/ui design-system page in a scratch app (never `apps/pages`, which has no `components.json`); the shadcn MCP server (`shadcn@4.21.4 mcp`, stdio) is in every agent's MCP config (`docs/design/tooling.md` § shadcn) |
-| `stitch-*`, `design-md`, `taste-design`, `enhance-prompt`, `site-md`, `stitch-loop` | `.agents/skills/<skill>/SKILL.md` (+ `.claude/skills/`, `.grok/skills/`) | Third-party ([google-labs-code/stitch-skills](https://github.com/google-labs-code/stitch-skills), Apache 2.0), installed via `npx skills add google-labs-code/stitch-skills --copy` for every agent target and pinned in `skills-lock.json`; Google Stitch prototyping over `.stitch/DESIGN.md` and the Stitch MCP server (`docs/design/tooling.md`) |
+| `gdp-ts` | `.agents/skills/gdp-ts/SKILL.md` (+ `.claude/skills/`) | Third-party ([rauchg/gdp-ts](https://github.com/rauchg/gdp-ts), MIT), installed once under `.agents/skills/gdp-ts/` and pinned in `skills-lock.json`; the workflow for adding or reviewing an authorization check as a compile-time proof (ADR 0178) — brand the id, one `proofs/` module per fact, a `*.mistakes.ts` per proof, no `as` to satisfy a proof |
+| `shadcn` | `.agents/skills/shadcn/SKILL.md` (+ `.claude/skills/`, `.grok/skills/`) | Third-party ([shadcn-ui/ui](https://github.com/shadcn-ui/ui/tree/main/skills/shadcn), MIT), installed once under `.agents/skills/shadcn/` and pinned in `skills-lock.json`; its `design-system.md` workflow turns `DESIGN.md` into a themed shadcn/ui design-system page in a scratch app (never `apps/pages`, which has no `components.json`); the shadcn MCP server (`shadcn@4.21.4 mcp`, stdio) is in every agent's MCP config (`docs/design/tooling.md` § shadcn) |
+| `stitch-*`, `design-md`, `taste-design`, `enhance-prompt`, `site-md`, `stitch-loop` | `.agents/skills/<skill>/SKILL.md` (+ `.claude/skills/`, `.grok/skills/`) | Third-party ([google-labs-code/stitch-skills](https://github.com/google-labs-code/stitch-skills), Apache 2.0), installed once under `.agents/skills/`, linked to the other harnesses and pinned in `skills-lock.json`; Google Stitch prototyping over `.stitch/DESIGN.md` and the Stitch MCP server (`docs/design/tooling.md`) |
 
 ## 8. Verification expectations
 
@@ -1406,17 +1439,18 @@ holds; the images are the only thing that shows a reviewer what the change
 actually did:
 
 ```bash
-J=docs/evidence/<yyyy-mm-dd>-<topic>/journey.json
-git checkout "$(git merge-base HEAD origin/main)" -- apps/pages/src   # the base
-VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
-PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+J=work/evidence/unlock/pages/web/journey.json
+# Build the base in a separate worktree; point to its dist without swapping sources.
+EVIDENCE_DIST=/absolute/path/to/base-worktree/apps/pages/dist \
+  PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   node apps/pages/scripts/capture-evidence.mjs capture before "$J"
-git checkout HEAD -- apps/pages/src                                    # the branch
 VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   node apps/pages/scripts/capture-evidence.mjs capture after "$J"
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   node apps/pages/scripts/capture-evidence.mjs compose "$J"
+# Review temporary comparisons, then persist only approved current-state files
+# in docs/evidence/unlock/pages/web/ under docs/evidence/README.md's contract.
 ```
 
 For the full local gate suite (what `pnpm verify` runs — required before
@@ -1465,6 +1499,12 @@ CI lives in `.github/workflows/`:
   native mobile code; the `mTLS` job is not a required check. A docs-only diff
   passes the three checks without those suites. An unrecognized path runs
   every suite.
+  A draft pull request runs no suite and the three checks fail on it until it
+  is marked ready for review. `TypeScript tests` and `Rust tests` run on a
+  self-hosted `[self-hosted, linux, ARM64, os-devbox]` runner only when the
+  repository variable `CI_SELF_HOSTED_ARM64` is `true` and the actor is the
+  owner on a same-repository branch; every browser job stays GitHub-hosted
+  (they pin `/usr/bin/google-chrome`, which has no Linux ARM64 build).
   The ruleset also requires an up-to-date PR and squash auto-merge; this
   personal-account repository does not support merge queues. Verify
   actual settings with `node ops/github/governance.mjs --verify`.
@@ -1481,6 +1521,21 @@ CI lives in `.github/workflows/`:
   gauntlet) on pull requests that touch the CLI, Pages, the extension, the
   crates, `app-core`, `vault-core` and the other paths it lists, and on demand.
   Not a required check.
+- `release-kit.yml` — on a `v*` tag, builds `opensesame` and
+  `opensesame-surrogate-proxy` (shipped features), the plugin's test build
+  (`--features upstream-override`, its own archive named
+  `opensesame-surrogate-proxy-TEST-upstream-override_…`) and the bundled
+  env-spec bridge for x86_64 and aarch64 Linux, packs reproducible archives
+  (`scripts/release/kit-archive.sh`), writes `SHA256SUMS`, attests build
+  provenance and publishes a release that starts as a draft at the verified
+  commit ([ADR 0207](docs/adr/0207-release-kit-binaries.md),
+  `docs/operators/release-kit.md`). Its first job (`scripts/release/tag-check.sh`)
+  refuses a tag that is not the workspace version or not on `main`, and every
+  other job needs it; who may push a `v*` tag is `ops/github/release-tags.json`,
+  applied with `ops/github/governance.mjs`. Run by hand it is a dry run. An edit
+  to it, or to the scripts it runs, runs the TypeScript suite, where
+  `scripts/lib/ci-release-kit.test.mjs` pins it, and no browser gate
+  (`ci-gates.mjs`).
 
 CI is the merge gate, not the whole story: the heavier suites
 (`pnpm verify`, integration/e2e, `pnpm audit:*`) stay local — git hooks
@@ -1539,6 +1594,13 @@ one who opens pull requests.
 One logical slice per commit. A multi-slice task is a stack: the first pull
 request targets `main`, and each next pull request targets the previous
 branch.
+
+Only the bottom of a stack runs CI. Open every pull request above it as a
+draft: a draft runs no suite, and the three required checks fail on it by
+design so a draft's head SHA can never read green. Mark a pull request ready
+for review (`ready_for_review` starts CI) only once the one below has merged
+and you have restacked it. Push at checkpoints, not per file: each push to an
+open, non-draft pull request restarts CI.
 
 Commits are created with GitHub's GraphQL `createCommitOnBranch` so the
 committer is GitHub and the ruleset sees a verified signature. A local

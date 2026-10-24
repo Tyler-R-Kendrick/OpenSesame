@@ -232,6 +232,18 @@ describe("fetch routing (PWA-08)", () => {
     expect(own.urls()).toEqual([new URL("index.html", env.scope).href]);
   });
 
+  it("never caches a non-shell navigation document as the offline shell", async () => {
+    const env = new FakeWorkerEnv();
+    env.serve("privacy.html", "PRIVACY DOCUMENT");
+    coreWorker(env);
+    const response = await env.fetchEvent(
+      navigateTo(new URL("privacy.html", env.scope).href),
+    );
+    expect(await response?.text()).toBe("PRIVACY DOCUMENT");
+    const own = await env.cacheStorage.open(CURRENT);
+    expect(own.urls()).toEqual([]);
+  });
+
   it("answers os-runtime-config.json network-first and from its cache offline", async () => {
     const env = new FakeWorkerEnv();
     const url = env.serve("os-runtime-config.json", '{"a":1}');

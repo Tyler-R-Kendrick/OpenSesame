@@ -1,10 +1,10 @@
 /** Same production UI journey on both builds, with measured desktop/touch-phone frames. */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { sealWithPin } from "./lib/pages-journey.mjs";
+import { privateSharedTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -18,11 +18,14 @@ const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ??
-    path.join(here, "../../../docs/evidence/2026-10-14-integration-settings"),
+    path.join(
+      here,
+      "../../../work/evidence/integration-settings/pages/browser",
+    ),
 );
 const raw = path.join(
   process.env.PAGES_CAPTURE_RAW ??
-    path.join(os.tmpdir(), "opensesame-integration-followup-evidence"),
+    privateSharedTempDir("opensesame-integration-followup-evidence"),
   phase,
 );
 fs.mkdirSync(out, { recursive: true });

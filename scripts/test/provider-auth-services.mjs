@@ -123,6 +123,7 @@ export async function startOpenBao({
     [
       "server",
       "-dev",
+      "-dev-no-store-token",
       "-dev-tls",
       `-dev-listen-address=127.0.0.1:${port}`,
       `-dev-root-token-id=${rootToken}`,

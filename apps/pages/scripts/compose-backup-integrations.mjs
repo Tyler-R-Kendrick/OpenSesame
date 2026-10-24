@@ -1,19 +1,19 @@
 /** Compose actual captured app frames using the repository's existing compositor. */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { privateSharedTempDir } from "./lib/private-files.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ??
-    path.join(here, "../../../docs/evidence/2026-10-14-backup-integrations"),
+    path.join(here, "../../../work/evidence/backup-integrations/pages/browser"),
 );
 const raw = path.resolve(
   process.env.PAGES_CAPTURE_RAW ??
-    path.join(os.tmpdir(), "opensesame-backup-evidence"),
+    privateSharedTempDir("opensesame-backup-evidence"),
 );
 const before = JSON.parse(
   fs.readFileSync(path.join(out, "before-metrics.json"), "utf8"),

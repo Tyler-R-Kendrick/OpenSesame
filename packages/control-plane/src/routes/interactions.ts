@@ -286,7 +286,7 @@ export function createInteractionRoutes(): Hono<
             setCookie(
               c,
               pendingCookieName(details.uid),
-              encodePending(pending),
+              encodePending(pending, ctx.config.claimPepper),
               {
                 httpOnly: true,
                 sameSite: "Lax",
@@ -360,9 +360,13 @@ export function createInteractionRoutes(): Hono<
       accountId = principalId;
     } else if (action === "start") {
       const fingerprint = createHash("sha256")
-        .update(c.req.header("user-agent") ?? "")
+        .update(c.env?.incoming?.socket?.remoteAddress ?? "")
         .update("|")
-        .update(c.req.header("origin") ?? "")
+        .update(
+          c.env?.incoming?.socket?.remoteAddress
+            ? ""
+            : (c.req.header("user-agent") ?? ""),
+        )
         .digest("hex")
         .slice(0, 16);
       try {
@@ -441,13 +445,18 @@ export function createInteractionRoutes(): Hono<
         descriptor?.kind === "oauth2"
           ? await beginOAuth2Auth(ctx, uid, descriptor)
           : await beginFederatedAuth(ctx, uid, descriptor?.issuer ?? issuer);
-      setCookie(c, pendingCookieName(uid), encodePending(pending), {
-        httpOnly: true,
-        sameSite: "Lax",
-        path: interactionPath(uid),
-        maxAge: FEDERATED_PENDING_TTL_SECONDS,
-        secure: ctx.config.publicUrl.startsWith("https://"),
-      });
+      setCookie(
+        c,
+        pendingCookieName(uid),
+        encodePending(pending, ctx.config.claimPepper),
+        {
+          httpOnly: true,
+          sameSite: "Lax",
+          path: interactionPath(uid),
+          maxAge: FEDERATED_PENDING_TTL_SECONDS,
+          secure: ctx.config.publicUrl.startsWith("https://"),
+        },
+      );
       // Not a 303: Chromium refuses cross-origin redirects of a form
       // submission under `form-action 'self'` (see renderUpstreamHopPage).
       return c.html(renderUpstreamHopPage(authorizationUrl));
@@ -515,7 +524,10 @@ export function createInteractionRoutes(): Hono<
       return c.text("Prompt mismatch", 400);
     }
 
-    const pending = decodePending(getCookie(c, pendingCookieName(uid)));
+    const pending = decodePending(
+      getCookie(c, pendingCookieName(uid)),
+      ctx.config.claimPepper,
+    );
     // Single-use: drop it before the exchange so a replayed callback cannot
     // re-run the code, whatever the outcome below.
     deleteCookie(c, pendingCookieName(uid), { path: interactionPath(uid) });
@@ -584,9 +596,13 @@ export function createInteractionRoutes(): Hono<
       // session" action would, then promote it in place by attaching the
       // verified identity. The principal id never changes (ADR 0033).
       const fingerprint = createHash("sha256")
-        .update(c.req.header("user-agent") ?? "")
+        .update(c.env?.incoming?.socket?.remoteAddress ?? "")
         .update("|")
-        .update(ctx.config.publicUrl)
+        .update(
+          c.env?.incoming?.socket?.remoteAddress
+            ? ""
+            : (c.req.header("user-agent") ?? ""),
+        )
         .digest("hex")
         .slice(0, 16);
       let minted: { principalId: string; accessToken: string };

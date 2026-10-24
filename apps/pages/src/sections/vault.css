@@ -349,6 +349,17 @@
   color: var(--ink-2);
 }
 
+/* Who shared a received item: short enough for a row, named in full on hover
+   and to a screen reader. A grant this actor issued stays an icon and count. */
+.vtree__sharer {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
 .vtree__more {
   flex: none;
   display: grid;
@@ -466,6 +477,11 @@
 }
 
 /* Separators are generated so a wrapped line never ends on a dangling dot. */
+.detail__sharedby {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
 .detail__meta > span + span:not(.chip)::before {
   content: "·";
   margin-right: 0.45rem;
@@ -902,19 +918,6 @@
 .gen__opts {
   display: grid;
   gap: 0.6rem;
-}
-
-/* The one Options line; the generator, its options and the pepper open from it. */
-.gen__more > summary {
-  width: fit-content;
-  max-width: 100%;
-  color: var(--ink-2);
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.gen__more[open] > summary {
-  margin-bottom: 0.6rem;
 }
 
 .gen__slider {

@@ -2,11 +2,13 @@ import { secretBackendPreset } from "@opensesame/app-core/lib/secret-backends/pr
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FailureNotice } from "../../../components/FailureNotice.js";
+import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconKey, ReloadKey } from "../../../components/IconKey.js";
 import { IconSignOut, IconTrash, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../../../lib/focus.js";
+import { ConnectorPanel } from "../connect/ConnectorPanel.js";
 import { OnePasswordSaveButton } from "./OnePasswordSaveButton.js";
 import { SecretBackendBackupControls } from "./SecretBackendBackupControls.js";
 import { SecretBackendFileFields } from "./SecretBackendFileFields.js";
@@ -66,21 +68,26 @@ function ConfigurationPanel({
   const preset = secretBackendPreset(provider.id);
   if (!preset) return null;
   return (
-    <section className="panel" aria-label="Secret backend configuration">
-      <div className="panel__head">
-        <h2>
-          <span className="cx-step">2</span> Configure secret backend
-        </h2>
-        {editor.saved ? (
-          <ReloadKey
-            label="Reload secret backend"
-            disabled={editor.busy || !!editor.active}
-            onReload={editor.reload}
-          />
-        ) : null}
-        <RemoveKey editor={editor} />
-        {editor.result ? <StatusMark tone="ok" label={editor.result} /> : null}
-      </div>
+    <ConnectorPanel
+      step={2}
+      label="Secret backend configuration"
+      title="Configure"
+      actions={
+        <>
+          {editor.saved ? (
+            <ReloadKey
+              label="Reload secret backend"
+              disabled={editor.busy || !!editor.active}
+              onReload={editor.reload}
+            />
+          ) : null}
+          <RemoveKey editor={editor} />
+          {editor.result ? (
+            <StatusMark tone="ok" label={editor.result} />
+          ) : null}
+        </>
+      }
+    >
       <SecretBackendForm
         draft={editor.draft}
         busy={editor.busy || !!editor.active}
@@ -95,6 +102,16 @@ function ConfigurationPanel({
         onProbe={editor.probe}
         onReload={editor.reload}
       >
+        {editor.draft.mode === "bitwarden-api" ? (
+          <FieldShell
+            label="Master password (this connection only)"
+            value={editor.password}
+            type="password"
+            autoComplete="off"
+            disabled={editor.busy || !!editor.active}
+            onValueChange={editor.setPassword}
+          />
+        ) : null}
         {editor.draft.mode === "file-import" ? (
           <SecretBackendFileFields
             draft={editor.draft}
@@ -108,17 +125,18 @@ function ConfigurationPanel({
           />
         ) : null}
       </SecretBackendForm>
-    </section>
+    </ConnectorPanel>
   );
 }
 function SessionPanel({ editor }: { editor: SecretBackendConnectionEditor }) {
   return (
-    <section className="panel" aria-label="Secret backend session">
-      <div className="panel__head">
-        <h2>
-          <span className="cx-step">3</span> Connect
-        </h2>
-        {editor.active ? (
+    <ConnectorPanel
+      id="complete"
+      step={3}
+      label="Secret backend session"
+      title="Connect"
+      actions={
+        editor.active ? (
           <>
             <StatusMark tone="ok" label="Secret backend session connected" />
             <IconKey
@@ -129,8 +147,9 @@ function SessionPanel({ editor }: { editor: SecretBackendConnectionEditor }) {
               <IconSignOut size={17} />
             </IconKey>
           </>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
       {!editor.active ? (
         <div className="panel__body">
           <FormCommit
@@ -143,9 +162,16 @@ function SessionPanel({ editor }: { editor: SecretBackendConnectionEditor }) {
             busy={editor.busy}
             onClick={editor.connect}
           />
+          {editor.draft.mode === "encrypted-remote" ? (
+            <FormCommit
+              label="Initialize empty encrypted remote"
+              disabled={editor.busy || !editor.saved}
+              onClick={editor.initialize}
+            />
+          ) : null}
         </div>
       ) : null}
-    </section>
+    </ConnectorPanel>
   );
 }
 export function SecretBackendPanels(props: SecretBackendPanelProps) {
@@ -174,7 +200,12 @@ export function SecretBackendPanels(props: SecretBackendPanelProps) {
       vaultStore.onLock(() => {
         setFile(null);
         setPassword("");
-        setDraft((draft) => ({ ...draft, token: "", clientSecret: "" }));
+        setDraft((draft) => ({
+          ...draft,
+          token: "",
+          clientSecret: "",
+          encryptionKey: "",
+        }));
         clear();
       }),
     [setFile, setPassword, setDraft, clear],

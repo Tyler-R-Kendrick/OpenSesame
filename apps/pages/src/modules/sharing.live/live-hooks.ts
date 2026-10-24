@@ -5,6 +5,7 @@
  * own address (ADR 0150, ADR 0186).
  */
 
+import { forgetPersistedLiveLink } from "@opensesame/app-core/lib/join/invite.js";
 import {
   connectionPort,
   offeredBy,
@@ -20,6 +21,7 @@ import type {
   LiveHost,
 } from "@opensesame/app-core/lib/live/host.js";
 import type { LiveLink } from "@opensesame/app-core/lib/live/link.js";
+import type { Rendezvous } from "@opensesame/app-core/lib/live/rendezvous.js";
 import {
   currentGuest,
   currentHost,
@@ -29,6 +31,8 @@ import { webRtc } from "@opensesame/app-core/lib/live/webrtc.js";
 import { useEffect, useState } from "react";
 import type { StatusTone } from "../../components/StatusMark.js";
 import { carriersUnavailable } from "./carriers/index.js";
+import { liveOwnerCertificate } from "./live-dtls-pin.js";
+import { cancelVaultEntry } from "./live-entry.js";
 
 /** A glyph's tone, its short page label, and the tray sentence. */
 export type Standing = Readonly<{
@@ -89,6 +93,8 @@ export const joinDraft: JoinDraft = {
 };
 
 export function clearJoinDraft(): void {
+  cancelVaultEntry();
+  forgetPersistedLiveLink();
   Object.assign(joinDraft, {
     link: null,
     pasted: "",
@@ -118,7 +124,11 @@ export function useDraftField(
 /** Seams, so a test can stand a fake network in for the browser's. */
 export const liveUiSeams = {
   /** What carries sessions; another `PeerTransport` would plug in here. */
-  transport: webRtc((config) => new RTCPeerConnection(config)),
+  transport: webRtc((config) => {
+    const certificate = liveOwnerCertificate();
+    if (!certificate) return new RTCPeerConnection(config);
+    return new RTCPeerConnection({ ...config, certificates: [certificate] });
+  }),
   /**
    * The carrier clients, made by `runtime.ts` from this activation's egress
    * port and taken away again on dispose: until then nothing opens, and a
@@ -139,7 +149,13 @@ export function useLiveGuest(): LiveGuestView {
   const [status, setStatus] = useState<GuestStatus | null>(
     () => guest?.status ?? null,
   );
-  useEffect(() => onLiveSessionChange(() => setGuest(currentGuest())), []);
+  useEffect(() => {
+    // The route can remount while the session is starting (a new vault, a
+    // capability replan). Reconcile before subscribing so a change that
+    // landed between render and effect is not lost.
+    setGuest(currentGuest());
+    return onLiveSessionChange(() => setGuest(currentGuest()));
+  }, []);
   useEffect(() => {
     if (!guest) {
       setStatus(null);
@@ -155,7 +171,10 @@ export function useLiveHost(): LiveHostView {
   const [state, setState] = useState<HostState | null>(
     () => host?.state ?? null,
   );
-  useEffect(() => onLiveSessionChange(() => setHost(currentHost())), []);
+  useEffect(() => {
+    setHost(currentHost());
+    return onLiveSessionChange(() => setHost(currentHost()));
+  }, []);
   useEffect(() => {
     if (!host) {
       setState(null);
@@ -166,20 +185,37 @@ export function useLiveHost(): LiveHostView {
   return { host, state };
 }
 
+/** Whether a carrier has proved it can pass a code without a person. */
+export function useRendezvousReady(rendezvous: Rendezvous | null): boolean {
+  const [states, setStates] = useState(() => rendezvous?.states ?? []);
+  useEffect(() => {
+    setStates(rendezvous?.states ?? []);
+    return rendezvous?.subscribe(setStates);
+  }, [rendezvous]);
+  return states.some((state) => state.status === "ready");
+}
+
 /** Whole minutes and seconds left, for a clock that ticks once a second. */
 export function useRemaining(until: number | null): number {
   const [now, setNow] = useState(liveUiSeams.now);
+  const [mountedAt] = useState(liveUiSeams.now);
   useEffect(() => {
     if (until === null) return;
     const timer = setInterval(() => setNow(liveUiSeams.now()), 1000);
     return () => clearInterval(timer);
   }, [until]);
-  return until === null ? 0 : Math.max(0, until - now);
+  if (until === null) return 0;
+  // The catalog crosses the wire as time left in the session; the host's own
+  // expiry is an absolute epoch. Accept both rather than showing "0 s left".
+  const deadline = until < 1_000_000_000_000 ? mountedAt + until : until;
+  return Math.max(0, deadline - now);
 }
 
 export function formatRemaining(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
   const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days} d ${hours % 24} h left`;
   if (hours > 0) return `${hours} h ${minutes % 60} min left`;
   if (minutes > 0) return `${minutes} min left`;
   return `${Math.ceil(ms / 1000)} s left`;

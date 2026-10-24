@@ -11,10 +11,18 @@ import {
 import { FIELD_TYPES } from "./catalogue.js";
 import { BUILTIN_DEFINITION_JSON } from "./definitions.generated.js";
 import { importPackText, packEntries } from "./packs.js";
-import { ItemTypeRegistry } from "./registry.js";
+import { ItemTypeRegistry, directoryOf } from "./registry.js";
 import { subtitleFor } from "./values.js";
 
 import { communityDefinition } from "./registry.test-support.js";
+
+describe("directoryOf", () => {
+  it("slugifies plurals and trims edge hyphens, even adversarial ones", () => {
+    expect(directoryOf("---Foo Bars---", "fallback")).toBe("foo-bars");
+    expect(directoryOf("!".repeat(200_000), "fallback")).toBe("fallback");
+    expect(directoryOf(`-${"!".repeat(200_000)}x`, "fallback")).toBe("x");
+  });
+});
 
 describe("the built-in corpus", () => {
   it("parses every shipped definition", () => {
@@ -296,4 +304,26 @@ describe("previews", () => {
       }),
     ).toBe("Example Savings · checking");
   });
+});
+
+it("compares title suffixes with ASCII-only trimming and rejects oversized titles", () => {
+  const registry = builtinRegistry();
+  const first = communityDefinition(
+    "suffix-first",
+    "https://first.test",
+  ).replace("Community type", `Community${" ".repeat(20)}!`);
+  expect(registry.install(first, "vault")).toMatchObject({ ok: true });
+  const duplicate = communityDefinition("suffix-second", "https://first.test")
+    .replace("Community type", ` Community${" ".repeat(20)}! `)
+    .replace('".ct"', '".other"')
+    .replace("Community types", "Other types");
+  expect(registry.install(duplicate, "vault")).toMatchObject({
+    ok: false,
+    errors: [{ code: "name", path: "spec.title" }],
+  });
+  const oversized = communityDefinition(
+    "oversized",
+    "https://first.test",
+  ).replace("Community type", `Community${" ".repeat(200_000)}!`);
+  expect(registry.install(oversized, "vault").ok).toBe(false);
 });

@@ -8,18 +8,20 @@ import { unfinishedConnections } from "@opensesame/app-core/lib/identity-graph.j
 import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
 import {
   CATEGORY_LABELS,
-  CATEGORY_ORDER,
   FEATURE_BINDING_CATEGORIES,
   belongsToConnectedList,
   connectorPath,
   isFeatureBindingCategory,
-  isListedInCatalog,
 } from "@opensesame/app-core/sections/connections/shared.js";
 import {
   type PageTreeLeaf,
   type PageTreeSource,
   pageToTree,
 } from "../../lib/page-to-tree.js";
+import {
+  curatedCatalogProviders,
+  matchesCatalog,
+} from "./catalog-selection.js";
 
 function leaf(
   id: string,
@@ -34,83 +36,22 @@ function leaf(
   return node;
 }
 
-function matchesCatalog(provider: Provider, query: string): boolean {
-  if (!query) return true;
-  return `${provider.displayName} ${provider.id} ${CATEGORY_LABELS[provider.category]}`
-    .toLocaleLowerCase()
-    .includes(query);
-}
-
-/** Catalog groups in page order, with BYO first inside each category. */
-export function catalogPageSections(
+/** One flat, curated browse list. Tags live on the page tiles. */
+export function catalogPageItems(
   providers: readonly Provider[],
   query = "",
-): PageTreeSource[] {
+): PageTreeLeaf[] {
   const normalized = query.trim().toLocaleLowerCase();
-  const managed: Provider[] = [];
-  const grouped = new Map<Provider["category"], Provider[]>();
-  for (const provider of providers) {
-    if (!isConnectionCatalogProvider(provider)) continue;
-    if (!matchesCatalog(provider, normalized)) continue;
-    if (isManagedConnector(provider.id)) {
-      managed.push(provider);
-      continue;
-    }
-    const items = grouped.get(provider.category) ?? [];
-    items.push(provider);
-    grouped.set(provider.category, items);
-  }
-  const groups: PageTreeSource[] = [];
-  if (managed.length > 0) {
-    groups.push({
-      id: "managed",
-      label: "Managed",
-      href: "/connections#catalog-managed",
-      items: managed.map((provider) =>
-        leaf(
-          provider.id,
-          provider.displayName,
-          connectorPath(provider.id),
-          "catalog",
-        ),
+  return curatedCatalogProviders(providers, { includeFamilies: true })
+    .filter((provider) => matchesCatalog(provider, normalized))
+    .map((provider) =>
+      leaf(
+        provider.id,
+        provider.displayName,
+        connectorPath(provider.id),
+        "catalog",
       ),
-    });
-  }
-  for (const category of CATEGORY_ORDER) {
-    if (!isListedInCatalog(category)) continue;
-    if (!grouped.has(category)) continue;
-    groups.push({
-      id: category,
-      label: CATEGORY_LABELS[category],
-      href: `/connections#catalog-${category}`,
-      items: inCatalogOrder(category, grouped.get(category) ?? []).map(
-        (provider) =>
-          leaf(
-            provider.id,
-            provider.displayName,
-            connectorPath(provider.id),
-            "catalog",
-          ),
-      ),
-    });
-  }
-  return groups;
-}
-
-/**
- * BYO first, then source order. Model partners are listed by name because
- * the catalog has eighty-odd choices (ADR 0192).
- */
-function inCatalogOrder(
-  category: Provider["category"],
-  providers: readonly Provider[],
-): readonly Provider[] {
-  if (category !== "ai_model_provider") return byoProvidersFirst(providers);
-  return byoProvidersFirst(
-    [...providers].sort((a, b) =>
-      a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }),
-    ),
-  );
+    );
 }
 
 /** Feature bindings live under Settings → Integrations, not Add a connection. */
@@ -208,7 +149,7 @@ export function connectionsPageSources(
       label: "Add a connection",
       href: "/connections#catalog",
       keepEmpty: true,
-      sections: catalogPageSections(list, catalogQuery),
+      items: catalogPageItems(list, catalogQuery),
     },
   ];
 }

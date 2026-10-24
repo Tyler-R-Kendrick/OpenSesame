@@ -1,13 +1,16 @@
 /** Provider-owned request definitions consume one verified saved credential. */
 import {
   type BoundaryValue,
+  isBoolean,
   isJsonObject,
+  isNumber,
   isString,
 } from "@opensesame/os-domain";
 import { connectPlan } from "./connect-plan.js";
 import {
   nativeApiExposedCredentials,
   nativeApiHeaders,
+  nativeApiOperationUrl,
 } from "./native-api-auth.js";
 import { assertNativeApiAuthority } from "./native-api-authority.js";
 import {
@@ -40,7 +43,10 @@ export type NativeApiOperationDefinition = {
   providerId: string;
   operationId: string;
   method: "GET" | "POST";
+  /** Fixed trusted route, relative to the compiled credential prefix if any. */
   path: string;
+  /** Trusted driver fields, not a raw query string or unclassified UI input. */
+  query?: Readonly<Record<string, string | number | boolean>>;
   origin?: string;
   headers?: Record<string, string>;
   signal?: AbortSignal;
@@ -99,26 +105,83 @@ function operationRequest(
   const allowed = connectPlan(definition.providerId)?.methods.find(
     (method) => method.kind === "api-key",
   );
+  const origin = definition.origin ?? verifiedOrigin;
   const origins =
-    allowed?.kind === "api-key"
+    origin !== verifiedOrigin && allowed?.kind === "api-key"
       ? (allowed.preset?.serviceUrls ?? []).map(
           (url) => providerUrl(url, target, {}).origin,
         )
       : [];
-  const origin = definition.origin ?? verifiedOrigin;
   if (
     (origin !== verifiedOrigin && !origins.includes(origin)) ||
-    new URL(origin).origin !== origin ||
-    !definition.path.startsWith("/") ||
-    definition.path.startsWith("//") ||
-    /[?#\\\r\n]/.test(definition.path)
+    new URL(origin).origin !== origin
   )
     throw new Error("Provider operation does not match its compiled target");
+  const credentials = record.privateState.credentials;
+  const exposed = nativeApiExposedCredentials(target, credentials);
+  safeProjection(definition.path, exposed);
+  assertOperationPath(definition.path);
   const url = new URL(definition.path, origin);
-  if (url.origin !== origin)
+  if (url.origin !== origin || url.pathname !== definition.path)
     throw new Error("Provider operation changed its target");
+  operationQuery(url, definition.query, exposed);
   const headers = operationHeaders(record, target, definition);
-  return { url, headers };
+  return { url: nativeApiOperationUrl(target, credentials, url), headers };
+}
+function hasOperationControls(value: string, minimum = 32): boolean {
+  return [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < minimum || code === 127;
+  });
+}
+function assertOperationPath(path: string): void {
+  if (
+    path.length > 2048 ||
+    !path.startsWith("/") ||
+    /[?#\\]/.test(path) ||
+    hasOperationControls(path, 33) ||
+    path.includes("//")
+  )
+    throw new Error("Provider operation does not match its compiled path");
+  try {
+    for (const part of path.split("/")) {
+      const decoded = decodeURIComponent(part);
+      if (
+        decoded === "." ||
+        decoded === ".." ||
+        /[/%\\?#]/.test(decoded) ||
+        hasOperationControls(decoded, 33)
+      )
+        throw new Error("Invalid path segment");
+    }
+  } catch {
+    throw new Error("Provider operation does not match its compiled path");
+  }
+}
+function operationQuery(
+  url: URL,
+  query: NativeApiOperationDefinition["query"],
+  credentials: Record<string, string>,
+): void {
+  const entries = Object.entries(query ?? {});
+  if (entries.length > 16)
+    throw new Error("Provider operation query exceeds its bound");
+  for (const [name, value] of entries) {
+    if (
+      (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name) && name !== "page[limit]") ||
+      ["constructor", "prototype", "__proto__"].includes(name) ||
+      (!isString(value) && !isNumber(value) && !isBoolean(value)) ||
+      (isNumber(value) && !Number.isFinite(value))
+    )
+      throw new Error("Provider operation has an invalid query field");
+    const text = String(value);
+    if (text.length > 1024 || hasOperationControls(text))
+      throw new Error("Provider operation query exceeds its bound");
+    safeProjection({ [name]: text }, credentials);
+    url.searchParams.set(name, text);
+  }
+  if (url.search.length > 4096)
+    throw new Error("Provider operation query exceeds its bound");
 }
 function operationHeaders(
   record: NativeConnectorRecord,
@@ -126,7 +189,12 @@ function operationHeaders(
   definition: NativeApiOperationDefinition,
 ): Headers {
   const headers = nativeApiHeaders(target, record.privateState.credentials);
+  const exposed = nativeApiExposedCredentials(
+    target,
+    record.privateState.credentials,
+  );
   for (const [name, value] of Object.entries(definition.headers ?? {})) {
+    const existing = headers.get(name);
     if (
       [
         "authorization",
@@ -135,6 +203,10 @@ function operationHeaders(
         "x-api-key",
         "x-goog-api-key",
       ].includes(name.toLowerCase()) ||
+      (existing !== null &&
+        Object.values(exposed).some(
+          (secret) => secret && existing.includes(secret),
+        )) ||
       name.toLowerCase() ===
         (target.profile.auth?.kind === "header"
           ? target.profile.auth.header.toLowerCase()
@@ -143,6 +215,7 @@ function operationHeaders(
       throw new Error(
         "Provider operation cannot override credential placement",
       );
+    safeProjection({ [name]: value }, exposed);
     headers.set(name, value);
   }
   if (definition.method === "POST")
@@ -165,6 +238,7 @@ function announcing(
 ): NativeProviderTransport {
   if (!onDispatch) return transport;
   return {
+    ...transport,
     assertCurrent: () => transport.assertCurrent(),
     fetch: (input, init) => {
       onDispatch();
@@ -199,7 +273,10 @@ export async function executeNativeApiRequest(
       method: definition.method,
       headers,
     };
-    if (definition.signal) request.signal = definition.signal;
+    const signals = [definition.signal, transport.signal].filter(
+      (signal): signal is AbortSignal => signal !== undefined,
+    );
+    if (signals.length) request.signal = AbortSignal.any(signals);
     if (definition.method === "POST") {
       safeProjection(
         body,

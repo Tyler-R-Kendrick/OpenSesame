@@ -1,9 +1,9 @@
 /** Two-build evidence for password-manager connections and their shared BYO controls. */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sealWithPin } from "./lib/pages-journey.mjs";
+import { privateSharedTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -17,11 +17,11 @@ const origin = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ??
-    path.join(here, "../../../docs/evidence/2026-10-14-backup-integrations"),
+    path.join(here, "../../../work/evidence/backup-integrations/pages/browser"),
 );
 const raw = path.join(
   process.env.PAGES_CAPTURE_RAW ??
-    path.join(os.tmpdir(), "opensesame-backup-evidence"),
+    privateSharedTempDir("opensesame-backup-evidence"),
   phase,
 );
 fs.mkdirSync(raw, { recursive: true });

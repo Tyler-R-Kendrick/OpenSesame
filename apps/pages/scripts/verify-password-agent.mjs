@@ -11,15 +11,18 @@ import {
   verifyHealthFindings,
   verifySecretItem,
 } from "./lib/password-item-context.mjs";
+import { privateTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
-const out = process.env.PAGES_VERIFY_OUT ?? "/tmp/opensesame-password-agent";
+const out =
+  process.env.PAGES_VERIFY_OUT ?? privateTempDir("opensesame-password-agent-");
 const reportPath =
   process.env.PASSWORD_AGENT_REPORT ?? "work/2password-pwa-report.json";
 fs.rmSync(reportPath, { force: true });
 fs.mkdirSync(out, { recursive: true });
+console.log(`Evidence: ${out}`);
 const harness = createHarness({
   dist:
     process.env.EVIDENCE_DIST ?? path.resolve(import.meta.dirname, "../dist"),
@@ -156,7 +159,7 @@ try {
     "password.invocation",
     "env.write",
     "env.resolve",
-    "read.explicit",
+    "reveal.explicit",
   ];
   fs.writeFileSync(
     report,

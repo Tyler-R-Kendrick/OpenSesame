@@ -19,6 +19,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderPackedJsonRows } from "./pack-json.mjs";
+import {
+  READONLY_PAYMENT_IDS,
+  readonlyPaymentContract,
+} from "./readonly-payments.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const spec = (name) =>
@@ -58,14 +62,10 @@ const CATEGORY_OVERRIDE = {
   tailscale: "networking",
 };
 
-/** Payment processors and agent card issuing: never connected (ADR 0086 §6). */
-const REFUSED = new Set(["stripe", "razorpay", "agentcard"]);
+/** Payment writes remain refused; only explicit bounded read contracts are admitted. */
+const REFUSED = new Set(READONLY_PAYMENT_IDS);
 
-/**
- * Refused on Connect: payment rails, and the catalog's card-issuing rows
- * (category `wallet`), whose keys reach a spend only through the wallet's
- * leases and conserved ledger (ADR 0123) — never as a raw delegated key.
- */
+/** Spending and issuing remain outside the connector's read-only authority. */
 function refused(id, row) {
   return REFUSED.has(id) || row?.category === "wallet";
 }
@@ -289,14 +289,19 @@ function categoryFor(id, service, row) {
 }
 
 function planFor(id, service, row, oauth, apiKey) {
+  const safeRead = readonlyPaymentContract(id, apiKey);
   return {
     id,
     name: service?.name ?? row?.display_name ?? id,
     docsUrl: docsFor(service, row, oauth, apiKey),
     category: categoryFor(id, service, row),
     registry: Boolean(service),
-    refused: refused(id, row),
-    methods: methodsFor(service, oauth, apiKey),
+    refused: refused(id, row) && !safeRead,
+    methods: READONLY_PAYMENT_IDS.has(id)
+      ? safeRead
+        ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
+        : []
+      : methodsFor(service, oauth, apiKey),
   };
 }
 

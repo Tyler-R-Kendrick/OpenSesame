@@ -219,3 +219,12 @@ none was given, rather than guessing.
   environment/GitHub access already provides (the same `gh`/`git` access an
   interactive Claude Code session in this environment has). Do not paste an
   API key or token into a Routine's `prompt` field to "help" it authenticate.
+
+## Artifact retention
+
+Every routine follows [repository-footprint.md](repository-footprint.md).
+Record concise conclusions on the PR and update maintained findings in place.
+Raw scans, coverage ledgers, assignments and review transcripts stay private and
+temporary; no new per-run history directories. Reuse tool caches, skip unchanged
+dependency installs, and never generate migrations on session startup. Before
+finishing, run the footprint gate and remove only this routine's scratch output.

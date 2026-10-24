@@ -30,6 +30,8 @@ mod bootstrap;
 mod ciphertext_publication;
 #[path = "custody.rs"]
 mod custody;
+#[path = "projection.rs"]
+mod projection;
 
 fn refused() -> io::Error {
     io::Error::new(
@@ -128,6 +130,11 @@ impl OriginalSession {
             wire::Operation::Body { tomb } => self.capture_body(&tomb)?,
             operation @ (wire::Operation::PublishGeneration { .. }
             | wire::Operation::PublishDevice { .. }) => self.publish_ciphertext(operation)?,
+            operation @ (wire::Operation::PublishHeader { .. }
+            | wire::Operation::PublishProjection { .. }
+            | wire::Operation::StateIdentity {}
+            | wire::Operation::ValidateState {}
+            | wire::Operation::ReadProjection {}) => self.apply_projection(operation)?,
             wire::Operation::ReadGeneration {} => bytes_reply(self.read_scope()?.generation()?)?,
             wire::Operation::ReadDevice { logical_key } => {
                 bytes_reply(self.read_scope()?.device(&logical_key)?)?

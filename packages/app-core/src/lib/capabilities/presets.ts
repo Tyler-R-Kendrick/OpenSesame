@@ -89,7 +89,7 @@ export const PRESETS: readonly Preset[] = [
       "One person's vault on their own devices. Only local features are offered; the always-on functions stay as they are.",
     required: [],
     optional: LOCAL_FUNCTIONS,
-    defaultSelected: [],
+    defaultSelected: ["sharing.live"],
     defaultAlternatives: {},
     network: ALLOW,
   },
@@ -101,7 +101,7 @@ export const PRESETS: readonly Preset[] = [
       "A household sharing chosen items with each other. Drops are always on. No automatic call to an external service.",
     required: [],
     optional: [...LOCAL_FUNCTIONS, "sharing.household"],
-    defaultSelected: ["sharing.household"],
+    defaultSelected: ["sharing.live", "sharing.household"],
     // Household sharing still names drops as its transport. Drops are always on.
     defaultAlternatives: { transport: "sharing.drops" },
     network: DENY,

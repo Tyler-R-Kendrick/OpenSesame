@@ -22,6 +22,7 @@ import {
 } from "./local-organizations.js";
 import {
   currentLocalIdentitySession,
+  resetLocalSessions,
   revokeLocalIdentitySession,
   signInLocalAgent,
   withLocalIdentitySession,
@@ -220,6 +221,9 @@ describe("vault-local agent authentication", () => {
 
   it("never resurrects a revoked key's session when the same public key is enrolled again", async () => {
     const session = await signIn();
+    // A fresh tab (or lock) has no actor; the unlocked custodian administers
+    // the enrolled key after the agent session is invalidated.
+    resetLocalSessions();
     await revokeLocalAgentKey(tomb, agent, credentialId);
     await registerLocalAgentKey(tomb, agent, key.publicKey);
     expect((await readLocalAgentKeys(tomb))[0]?.credentialId).not.toBe(

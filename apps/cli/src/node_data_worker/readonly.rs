@@ -8,6 +8,12 @@ pub(super) enum OriginalReadScope<'a> {
     Reader(&'a NativeNodeDataReader),
 }
 impl OriginalReadScope<'_> {
+    pub(super) fn projection(&self) -> io::Result<Vec<(String, Vec<u8>)>> {
+        match self {
+            Self::Writer(value) => value.read_authentication_projection(),
+            Self::Reader(value) => value.read_authentication_projection(),
+        }
+    }
     pub(super) fn generation(&self) -> io::Result<Option<Vec<u8>>> {
         match self {
             Self::Writer(value) => value.read_optional_generation_ciphertext(),

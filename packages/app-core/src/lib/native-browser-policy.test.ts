@@ -57,16 +57,34 @@ describe("audited browser-only policy", () => {
       expect(rule.probe.request_header_names.length).toBeGreaterThan(0);
       expect(rule.evidence_urls.length).toBeGreaterThan(0);
       expect(rule.reason).not.toMatch(/api[_ -]?key[=:]|Bearer /);
-      expect(
-        nativeBrowserMethodPolicy(
-          rule.provider_id,
-          rule.method,
-          rule.parameters,
-        ),
-      ).toMatchObject({ available: false, reason: rule.reason });
+      const decision = nativeBrowserMethodPolicy(
+        rule.provider_id,
+        rule.method,
+        rule.parameters,
+      );
+      if (rule.method === "api-key") {
+        expect(decision).toMatchObject({
+          available: true,
+          reason: null,
+          evidenceUrls: rule.evidence_urls,
+        });
+        expect(decision.advice).toContain(authored.checked_date);
+        expect(decision.advice).toContain(authored.audited_origin);
+        expect(decision.advice).toContain(
+          "configured native Tailscale HTTP transport",
+        );
+        expect(decision.advice).toContain(
+          "For direct browser requests, the endpoint must permit this site's origin and required headers.",
+        );
+      } else
+        expect(decision).toMatchObject({
+          available: false,
+          reason: rule.reason,
+          evidenceUrls: rule.evidence_urls,
+        });
     }
   });
-  it("covers every finite choice before denying defaults or a whole provider", () => {
+  it("retains parameter-specific historical advice without denying finite choices", () => {
     for (const id of ["datadog", "typeform", "railway"]) {
       const method = connectPlan(id)?.methods.find(
         (entry) => entry.kind === "api-key",
@@ -76,16 +94,17 @@ describe("audited browser-only policy", () => {
       const preset = method.preset;
       for (const variant of preset.credentialVariants)
         expect(
-          nativeBrowserApiPolicy(id, { credential_variant: variant.id })
-            .available,
-        ).toBe(false);
+          nativeBrowserApiPolicy(id, { credential_variant: variant.id }).advice,
+        ).toBeTruthy();
       for (const field of preset.templateParams)
         for (const choice of field.choices ?? [])
           expect(
-            nativeBrowserApiPolicy(id, { [field.name]: choice.value })
-              .available,
-          ).toBe(false);
-      expect(nativeBrowserApiPolicy(id).available).toBe(false);
+            nativeBrowserApiPolicy(id, { [field.name]: choice.value }).advice,
+          ).toBeTruthy();
+      expect(nativeBrowserApiPolicy(id)).toMatchObject({
+        available: true,
+        reason: null,
+      });
     }
   });
   it("preserves admitted, untested dynamic, and separate MCP methods", () => {
@@ -150,8 +169,9 @@ describe("MCP admission on the deployment origin", () => {
       bindNativeBrowserPolicyOrigin(() => "https://vault.example.com"),
     );
     expect(nativeBrowserMcpPolicy("airtable").available).toBe(true);
-    // Earlier global API restrictions remain explicit; an origin override is not a waiver.
-    expect(nativeBrowserApiPolicy("datadog").available).toBe(false);
+    // Global API observations remain advice; actual requests enforce browser access.
+    expect(nativeBrowserApiPolicy("datadog").available).toBe(true);
+    expect(nativeBrowserApiPolicy("datadog").advice).toBeTruthy();
     expect(() => assertNativeBrowserMcpPolicy("airtable")).not.toThrow();
   });
 

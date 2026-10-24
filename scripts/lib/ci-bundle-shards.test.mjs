@@ -6,7 +6,7 @@ import {
   TABLETS,
 } from "../../apps/pages/scripts/lib/mobile-contract.mjs";
 import { repoRootFromHere } from "./ci-changed-areas.mjs";
-import { loadShards } from "./ci-gates.mjs";
+import { DRIVER_GATES, bundleMatrix, loadShards } from "./ci-gates.mjs";
 
 const root = repoRootFromHere();
 const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
@@ -42,19 +42,25 @@ const GATES = [
   "verify:secret-backends",
   "verify:keyboard",
   "verify:push-worker",
+  "verify:sw-dirty-edit",
   "verify:mobile",
+  "verify:header-layout",
   "verify:local-iam",
   "verify:quorum-browser",
-  "verify:trusted-contacts",
   "verify:siop",
   "verify:static",
   "verify:encrypted-search",
   "verify:portable-drop",
   "verify:auth",
+  "verify:trusted-unlock",
   "verify:customer-vault-browser",
   "verify-experience-journeys.mjs",
   "verify:relay-join-live",
   "verify:live-local-pair",
+  "verify:peer-trust-two-context",
+  "verify:peering-diagnostics",
+  "verify:fresh-vault-login",
+  "verify:cli-public-site",
 ];
 
 /** The shards a step's `if:` selects: the union of its `||` clauses. */
@@ -81,6 +87,36 @@ function shardsOf(when, shards) {
   return shards.filter((name) => picked.has(name));
 }
 
+function assertGateCoverage(shards) {
+  const all = steps();
+  for (const gate of GATES) {
+    const running = all.filter((step) => step.text.includes(gate));
+    expect(running.length, `${gate} runs in ${running.length} steps`).toBe(1);
+    const where = shardsOf(running[0].when, shards);
+    // `verify:mobile` (by viewport) and the journeys (in turn) are split across shards.
+    const split = {
+      "verify:mobile": "mobile-",
+      "verify-experience-journeys.mjs": "journeys-",
+    }[gate];
+    const expected = split
+      ? shards.filter((name) => name.startsWith(split))
+      : where.slice(0, 1);
+    expect(where, `${gate} runs in ${where.join(", ")}`).toEqual(expected);
+    expect(where.length).toBeGreaterThan(0);
+    for (const name of where) expect(shards).toContain(name);
+  }
+  for (const shard of shards) {
+    const selected = all.filter(
+      (step) =>
+        step.when &&
+        step.text.includes("run:") &&
+        shardsOf(step.when, shards).includes(shard) &&
+        !step.text.includes("ci-pages-build.mjs"),
+    );
+    expect(selected.length, `${shard} runs no gate`).toBeGreaterThan(0);
+  }
+}
+
 describe("the bundle job's shards", () => {
   const shards = legs().map((leg) => leg.shard);
 
@@ -102,40 +138,21 @@ describe("the bundle job's shards", () => {
     expect(check).toContain("bundle tests result");
   });
 
-  it("keeps every shard well inside its own timeout, a fraction of the serial job's", () => {
-    const limit = Number(/timeout-minutes: (\d+)/.exec(bundle)?.[1]);
-    expect(limit).toBeGreaterThan(0);
-    expect(limit).toBeLessThanOrEqual(15);
+  it("gives the public protocol walks 30 minutes and keeps every other shard at 15", () => {
+    const deadline =
+      /timeout-minutes: \$\{\{ matrix\.shard == '([^']+)' && (\d+) \|\| (\d+) \}\}/.exec(
+        bundle,
+      );
+    expect(deadline).not.toBeNull();
+    const [, extendedShard, extendedMinutes, defaultMinutes] = deadline;
+    expect(extendedShard).toBe("native-public-protocol");
+    expect(Number(extendedMinutes)).toBe(30);
+    expect(Number(defaultMinutes)).toBe(15);
+    expect(legs().some((leg) => leg.shard === extendedShard)).toBe(true);
   });
 
   it("runs every gate in exactly one shard (verify:mobile in its viewport shards), and gives every shard something to run", () => {
-    const all = steps();
-    for (const gate of GATES) {
-      const running = all.filter((step) => step.text.includes(gate));
-      expect(running.length, `${gate} runs in ${running.length} steps`).toBe(1);
-      const where = shardsOf(running[0].when, shards);
-      // `verify:mobile` (by viewport) and the journeys (in turn) are split across shards.
-      const split = {
-        "verify:mobile": "mobile-",
-        "verify-experience-journeys.mjs": "journeys-",
-      }[gate];
-      const expected = split
-        ? shards.filter((name) => name.startsWith(split))
-        : where.slice(0, 1);
-      expect(where, `${gate} runs in ${where.join(", ")}`).toEqual(expected);
-      expect(where.length).toBeGreaterThan(0);
-      for (const name of where) expect(shards).toContain(name);
-    }
-    for (const shard of shards) {
-      const selected = all.filter(
-        (step) =>
-          step.when &&
-          step.text.includes("run:") &&
-          shardsOf(step.when, shards).includes(shard) &&
-          !step.text.includes("ci-pages-build.mjs"),
-      );
-      expect(selected.length, `${shard} runs no gate`).toBeGreaterThan(0);
-    }
+    assertGateCoverage(shards);
   });
 
   it("builds Pages once in every shard, and in `budgets` inside the measuring step", () => {
@@ -195,4 +212,71 @@ it("runs the self-hosted connector contract in budgets with the static build and
     "PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome",
   );
   expect(matching[0].text).toContain("VITE_BASE: /OpenSesame/");
+});
+
+it("selects both native protocol legs for secret backend and public protocol changes", () => {
+  for (const driver of [
+    "verify-secret-backends.mjs",
+    "verify-native-public-protocol.mjs",
+  ])
+    expect(
+      bundleMatrix(DRIVER_GATES[driver], legs()).map((leg) => leg.shard),
+    ).toEqual(["native-public-protocol", "native-secret-backends"]);
+});
+
+it("runs the unchanged whole secret backend profile and driver in an independent leg", () => {
+  const all = steps();
+  for (const command of [
+    "build:secret-backends-verify",
+    "verify:secret-backends",
+  ])
+    expect(
+      shardsOf(
+        all.find((step) => step.text.includes(command)).when,
+        legs().map((leg) => leg.shard),
+      ),
+    ).toEqual(["native-secret-backends"]);
+  const secret = all.find((step) =>
+    step.text.includes("verify:secret-backends"),
+  );
+  expect(secret.text).toContain(
+    "pnpm --filter @opensesame/pages build:secret-backends-verify\n          pnpm --filter @opensesame/pages verify:secret-backends",
+  );
+  expect(secret.text).toContain("PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome");
+  expect(secret.text).toContain("VITE_BASE: /OpenSesame/");
+  for (const command of [
+    "verify:native-public-protocol",
+    "verify:provider-auth",
+    "build:identity-verify",
+    "verify:identity-connections",
+  ])
+    expect(
+      shardsOf(
+        all.find((step) => step.text.includes(command)).when,
+        legs().map((leg) => leg.shard),
+      ),
+    ).toEqual(["native-public-protocol"]);
+});
+
+it("runs trusted-contact unlock in the auth shard and selects it for driver edits", () => {
+  const matching = steps().filter((step) =>
+    step.text.includes("verify:trusted-unlock"),
+  );
+  expect(matching).toHaveLength(1);
+  expect(
+    shardsOf(
+      matching[0].when,
+      legs().map((leg) => leg.shard),
+    ),
+  ).toEqual(["auth"]);
+  expect(matching[0].text).toContain(
+    "PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome",
+  );
+  expect(matching[0].text).toContain("VITE_BASE: /OpenSesame/");
+  expect(DRIVER_GATES["verify-trusted-unlock.mjs"]).toEqual(["auth"]);
+  expect(
+    bundleMatrix(DRIVER_GATES["verify-trusted-unlock.mjs"], legs()).map(
+      (leg) => leg.shard,
+    ),
+  ).toEqual(["auth"]);
 });

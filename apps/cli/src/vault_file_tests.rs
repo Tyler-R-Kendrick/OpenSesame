@@ -169,3 +169,39 @@ fn ls_names_the_device_identity_key_and_never_its_value() {
         assert!(allowed.contains(&leaf), "printed {leaf:?}");
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn opensesame_id_is_the_trusted_one_and_never_sees_the_store_password() {
+    use opensesame_trusted_exec::testkit::Fixture;
+    let fixture = Fixture::new("opensesame-id");
+    let lookup = fixture.lookup(&[
+        ("OPENSESAME_STATE_DIR", "/home/dummy/.local/state/os"),
+        ("NODE_OPTIONS", "--require /planted.js"),
+    ]);
+    let mut cli = id_cli_in(&lookup).unwrap();
+    assert!(cli.args(["vault", "list"]).status().unwrap().success());
+    let env = fixture.assert_clean();
+    assert_eq!(env["OPENSESAME_STATE_DIR"], "/home/dummy/.local/state/os");
+    assert!(!env.contains_key("NODE_OPTIONS"), "{env:?}");
+    assert_eq!(fixture.args().unwrap(), ["vault", "list"]);
+}
+
+#[cfg(unix)]
+#[test]
+fn opensesame_id_bin_names_the_exact_file_and_a_bare_name_is_refused() {
+    use opensesame_trusted_exec::testkit::Fixture;
+    let fixture = Fixture::new("opensesame-id");
+    let chosen = fixture.scratch("chosen").join("opensesame-id");
+    fixture.stub_recorder(&chosen);
+    let value = chosen.display().to_string();
+    let named = id_cli_in(&fixture.lookup(&[(ID_OVERRIDE, &value)])).unwrap();
+    assert_eq!(named.get_program(), chosen.as_os_str());
+    let err = id_cli_in(&fixture.lookup(&[(ID_OVERRIDE, "opensesame-id")]))
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.starts_with("OPENSESAME_ID_BIN must be an absolute path"),
+        "{err}"
+    );
+}

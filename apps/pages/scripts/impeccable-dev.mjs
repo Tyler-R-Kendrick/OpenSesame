@@ -16,13 +16,21 @@ export function impeccableDevHtml(html, serving, enabled) {
         '<script crossorigin="anonymous" src="http://localhost:8400/',
       );
   }
-  return cleanHtml
-    .replace(
-      /<!-- impeccable-live-start -->[\s\S]*?<!-- impeccable-live-end -->/g,
-      "",
-    )
-    .replace(
-      /<script\b[^>]*\bsrc=["']http:\/\/localhost:8400\/[^"']*["'][^>]*>[\s\S]*?<\/script>/gi,
-      "",
-    );
+  // Remove to a fixed point: one pass over nested markup can leave a
+  // fresh live block behind ("<scr<script …>ipt>"-style splices).
+  let out = cleanHtml;
+  let previous;
+  do {
+    previous = out;
+    out = out
+      .replace(
+        /<!-- impeccable-live-start -->[\s\S]*?<!-- impeccable-live-end -->/g,
+        "",
+      )
+      .replace(
+        /<script\b[^>]*\bsrc=["']http:\/\/localhost:8400\/[^"']*["'][^>]*>[\s\S]*?<\/script>/gi,
+        "",
+      );
+  } while (out !== previous);
+  return out;
 }

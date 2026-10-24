@@ -217,7 +217,7 @@ export function LiveCatalog({
   save?: SaveField;
 }) {
   if (catalog.items.length === 0)
-    return <StatusMark tone="idle" label="Nothing is shared yet" />;
+    return <p className="live-help">Nothing is shared yet.</p>;
   const canEdit = catalog.policy === "edit" && save !== undefined;
   // Copy only (`use`) must not place concealed plaintext on this clipboard.
   const canCopy = catalog.policy !== "use";

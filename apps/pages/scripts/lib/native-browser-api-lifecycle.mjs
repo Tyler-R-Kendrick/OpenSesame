@@ -14,7 +14,8 @@ export async function nativeVerifiedCapture(page, path) {
 }
 
 export async function nativeApiReadJourney(page, harness, authority, fixture) {
-  const label = `Check ${fixture.name} access`;
+  const resource = fixture.read;
+  const label = resource?.label ?? `Check ${fixture.name} access`;
   const summary = page.locator("summary").filter({ hasText: label });
   await summary.click();
   const action = page.getByRole("button", { name: label, exact: true });
@@ -22,17 +23,36 @@ export async function nativeApiReadJourney(page, harness, authority, fixture) {
   await action.click();
   await expect.poll(() => authority.state.calls.length).toBeGreaterThan(before);
   await expect(action).not.toHaveAttribute("aria-busy", "true");
-  const output = page.locator("main output");
+  const panel = summary.locator("..");
+  const output = panel.locator("output");
   await output.waitFor();
   const text = await output.innerText();
   harness.check(
     authority.state.calls.length === before + 1,
-    `${fixture.providerId}: Check access reads the sealed credential through one actual provider request`,
+    `${fixture.providerId}: ${label} reads the sealed credential through one actual provider request`,
   );
-  harness.check(
-    text.trim().length > 0 && !/: none found/.test(text),
-    `${fixture.providerId}: the action returns actual verification prose without inventing an empty resource list`,
-  );
+  if (resource) {
+    await expect(output).toHaveText(resource.result.label);
+    await expect(panel.getByRole("listitem")).toHaveText(
+      resource.result.items.map((item) => item.label),
+    );
+    const call = authority.state.calls.at(-1);
+    harness.check(
+      ["resource", "shared"].includes(call?.purpose) &&
+        call.operation === resource.id,
+      `${fixture.providerId}: bounded resource response supplied the consumed typed results; identical verification/resource wire contracts are recorded as shared`,
+    );
+    for (const value of resource.excludedText)
+      harness.check(
+        !(await panel.innerText()).includes(value),
+        `${fixture.providerId}: resource results omit private upstream metadata`,
+      );
+  } else {
+    harness.check(
+      text.trim().length > 0 && !/: none found/.test(text),
+      `${fixture.providerId}: the action returns actual verification prose without inventing an empty resource list`,
+    );
+  }
   for (const value of Object.values(fixture.credentials))
     harness.check(
       !text.includes(value),

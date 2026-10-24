@@ -37,27 +37,66 @@ export type VaultTreeActions = {
 export const PURGE_CONFIRM = "Really delete permanently? This cannot be undone";
 export const TRASH_CONFIRM = "Really move to trash?";
 
-function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
-  const ways: MenuItem[] = [
-    {
-      id: "share-drop",
-      label: "Temporary drop",
-      hint: "s",
-      run: () => actions.share(item),
-    },
+/** The ways a secret can leave, shared by the row menu and the item toolbar. */
+export function shareWays(ways: {
+  drop: () => void;
+  grant?: (() => void) | undefined;
+  nativeShare?: (() => void) | undefined;
+}): MenuGroup[] {
+  const groups: MenuGroup[] = [
+    [
+      {
+        id: "share-drop",
+        label: "Temporary drop",
+        hint: "s",
+        run: ways.drop,
+      },
+    ],
   ];
-  if (isCommandSection("/access")) {
-    ways.push({
-      id: "share-grant",
-      label: "Person or agent",
-      run: () => actions.shareGrant(item),
-    });
+  if (ways.grant) {
+    groups.push([
+      {
+        id: "share-grant",
+        label: "Specific people or agents",
+        run: ways.grant,
+      },
+    ]);
   }
+  if (ways.nativeShare) {
+    groups.push([
+      {
+        id: "share-native",
+        label: "Share item label…",
+        run: ways.nativeShare,
+      },
+    ]);
+  }
+  return groups;
+}
+
+/** A label, never a secret value, is what the OS share sheet receives. */
+function nativeShareLabel(item: VaultItem): (() => void) | undefined {
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function")
+    return undefined;
+  return () => {
+    void navigator.share({ title: item.name, text: item.name }).catch(() => {
+      // A dismissed share sheet is not an error.
+    });
+  };
+}
+
+function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
   return [
     {
       id: "share",
       label: "Share",
-      submenu: [ways],
+      submenu: shareWays({
+        drop: () => actions.share(item),
+        grant: isCommandSection("/access")
+          ? () => actions.shareGrant(item)
+          : undefined,
+        nativeShare: nativeShareLabel(item),
+      }),
       run: () => undefined,
     },
   ];

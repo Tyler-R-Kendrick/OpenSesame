@@ -1,5 +1,7 @@
 /** Shared configuration for identity adapters; passwords used to sign in are never configuration. */
 import { z } from "zod";
+import { OIDC_NATIVE_FIELDS } from "./identity-oidc-config.js";
+import { SAML_NATIVE_FIELDS } from "./identity-saml-config.js";
 import { isLoopbackUrl } from "./urls.js";
 
 export const IdentityProtocolSchema = z.enum([
@@ -20,6 +22,7 @@ export const IdentityConnectionDraftSchema = z
     audience: z.string().max(2048),
     jwksUri: z.string().max(2048),
     clientSecret: z.string().max(16384),
+    ...OIDC_NATIVE_FIELDS,
     scope: z.string().max(2048),
     baseUrl: z.string().max(2048),
     publicKey: z.string().max(8192),
@@ -29,6 +32,7 @@ export const IdentityConnectionDraftSchema = z
     samlMetadataUrl: z.string().max(2048),
     samlMetadataXml: z.string().max(262144),
     samlEntityId: z.string().max(2048),
+    ...SAML_NATIVE_FIELDS,
     ldapUrl: z.string().max(2048),
     ldapBaseDn: z.string().max(2048),
     ldapBindDn: z.string().max(2048),
@@ -78,14 +82,20 @@ export function normalizeIdentityConnectionDraft(
     "brokerUrl",
     "organizationId",
     "organizationSlug",
+    "oidcOrganizationParameter",
+    "oidcOrganizationClaim",
     "samlMetadataUrl",
     "samlEntityId",
+    "samlNameIdFormat",
+    "samlAuthnContext",
     "ldapUrl",
     "ldapBaseDn",
     "ldapBindDn",
   ] as const) {
     draft[field] = draft[field].trim();
   }
+  if (draft.protocol === "oidc" && draft.clientSecret)
+    draft.oidcClientType = "confidential";
   for (const field of [
     "jwksUri",
     "baseUrl",
@@ -102,7 +112,6 @@ export function identityConnectionUsesBroker(
   draft: IdentityConnectionDraft,
 ): boolean {
   return (
-    draft.protocol === "saml" ||
     draft.protocol === "ldap" ||
     (draft.protocol === "oidc" &&
       (!!draft.clientSecret || !!draft.organizationId))
@@ -113,6 +122,7 @@ export const IDENTITY_SECRET_FIELDS = [
   "clientSecret",
   "ldapBindPassword",
   "samlMetadataXml",
+  "samlSigningPrivateKeyPkcs8",
 ] as const;
 export function publicIdentityDraft(
   draft: IdentityConnectionDraft,
@@ -122,5 +132,6 @@ export function publicIdentityDraft(
     clientSecret: "",
     ldapBindPassword: "",
     samlMetadataXml: "",
+    samlSigningPrivateKeyPkcs8: "",
   };
 }

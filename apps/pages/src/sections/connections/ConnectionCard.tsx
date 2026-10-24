@@ -162,7 +162,7 @@ export function ConnectionCard({
       ))}
 
       {provider?.id === "github" ? (
-        <GithubCardDetails connection={connection} />
+        <GithubCardDetails connection={connection} onFlash={onFlash} />
       ) : null}
 
       {provider?.id === "github" || scopes.length === 0 ? null : (

@@ -20,20 +20,18 @@ import { useTabSwipe } from "../lib/tab-swipe-hook.js";
 import { useGestures } from "../lib/use-gestures.js";
 import { useNarrow } from "../lib/use-narrow.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
+import { AppHeader } from "./AppHeader.js";
 import { Crumbs } from "./Crumbs.js";
-import { InstallMark } from "./InstallMark.js";
 import { KeymapSheet } from "./KeymapSheet.js";
-import { MobileToolbar } from "./MobileToolbar.js";
+import { LegacyIdentityNotice } from "./LegacyIdentityNotice.js";
 import { NavTree } from "./NavTree.js";
 import {
   type SectionRowModel,
   sectionForPath,
   useSections,
 } from "./RailRows.js";
-import { SessionPrompt } from "./SessionPrompt.js";
 import { Statusline } from "./Statusline.js";
 import { ToastStack } from "./ToastStack.js";
-import { Wordmark } from "./Wordmark.js";
 import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
 import { PageTreeExpansionProvider } from "./page-tree-expansion.js";
 
@@ -115,14 +113,8 @@ function Shell({ children }: { children?: ReactNode }) {
       <a href="#main" className="skip-link visually-hidden">
         Skip to content
       </a>
+      <AppHeader />
       <aside className="rail">
-        <div className="rail__brand">
-          <Wordmark className="rail__wordmark" />
-          <InstallMark />
-        </div>
-
-        <SessionPrompt />
-
         {/* One tree at a time: below the breakpoint the rail is not drawn and
             the vault's first pane carries the tree (`VaultSection`), so a
             second `role="tree"` never shares the page with it. */}
@@ -130,20 +122,17 @@ function Shell({ children }: { children?: ReactNode }) {
       </aside>
 
       <div className="main">
-        {/* Phone chrome only: on a desktop the rail carries identity and the
-            statusline carries plane truth, so the top bar exists where the
-            rail is gone. */}
-        <MobileToolbar />
-
         <Crumbs />
 
         <DuressPresentationOverlay />
         {children}
       </div>
 
-      {/* A row of the frame, not an overlay: it takes height only while a toast
-          shows, so nothing rests on a control (DESIGN.md § Layout). */}
+      {/* A fixed block over the frame: an arrival never takes a grid row or
+          resizes the pane behind it. */}
       <ToastStack />
+      {/* After the toast stack, so its arrival subscription is already up. */}
+      <LegacyIdentityNotice />
 
       <Statusline />
 

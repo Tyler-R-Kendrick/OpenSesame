@@ -8,6 +8,7 @@
 
 import { startNostrRelay, startTurnServer } from "./live-carriers.mjs";
 import {
+  admitControl,
   endSession,
   joinerAsks,
   joinerConnects,
@@ -125,7 +126,9 @@ export async function noAddress(ctx) {
   const tried = [...seen];
   check(
     tried.some((state) => state.endsWith("/checking")) &&
-      !tried.some((state) => /^connected|\/(connected|completed)$/.test(state)),
+      !tried.some((state) =>
+        /^(?:connected|\/(?:connected|completed))$/.test(state),
+      ),
     `no address: the joiner tried and was never connected (saw ${tried.join(", ")})`,
   );
   const hosts = remote.filter((line) => line.includes(" typ host"));
@@ -205,7 +208,7 @@ export async function carried(ctx) {
       .waitFor({ timeout: 20_000 });
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
+    const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
@@ -256,7 +259,7 @@ export async function relayed(ctx) {
     const { panel, code, link } = await startSession(owner.page);
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
+    const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     await joinedMark(joiner.page).waitFor({ timeout: 45_000 });

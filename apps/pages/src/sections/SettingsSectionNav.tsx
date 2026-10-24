@@ -1,3 +1,4 @@
+import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { type ComponentType, useMemo } from "react";
 import { Link } from "react-router";
 import { useStripItem } from "../lib/strip.js";
@@ -43,6 +44,37 @@ export function CategoryLink({
     >
       {label}
     </Link>
+  );
+}
+
+/** The current settings group's title and category navigation. */
+export function SettingsCategoryHeader({
+  title,
+  tabs,
+  category,
+}: {
+  title: string;
+  tabs: readonly SettingsTab[];
+  category: string;
+}) {
+  return (
+    <>
+      <div className="section__head">
+        <h1>{title}</h1>
+      </div>
+
+      <nav className="set__nav" aria-label="Settings sections">
+        {tabs.map((entry) => (
+          <CategoryLink
+            key={entry.id}
+            guideId={entry.guideId}
+            to={settingsPath(entry.id)}
+            label={entry.label}
+            current={category === entry.id}
+          />
+        ))}
+      </nav>
+    </>
   );
 }
 

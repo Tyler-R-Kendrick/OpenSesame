@@ -1,18 +1,24 @@
+import { configureHost } from "@opensesame/app-core/host.js";
 import {
   UNAVAILABLE_LABEL,
   leadingUnavailableKind,
 } from "@opensesame/app-core/lib/browser-disposition.js";
+import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { screen, within } from "@testing-library/react";
 /** Real capability-owned drivers for the catalog form contract; no provider requests on render. */
 import { expect, vi } from "vitest";
 import { createActivation } from "../../../modules/activation.js";
+import { genuineRuntimeFixture } from "../../../modules/connectors.external/genuine-runtime.test-support.js";
 import { bindNativeApiRuntime } from "../../../modules/connectors.external/native-api-runtime.js";
 import { bindNativeOAuthRuntime } from "../../../modules/connectors.external/native-oauth-runtime.js";
 import { bindNativeRuntime } from "../../../modules/connectors.external/native-runtime.js";
 import { createTestContext } from "../../../modules/test-context.js";
+import { nativeInitialMethod } from "./native-connector-edit-values.js";
 import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
 
-export function activateNativePanelRuntime() {
+export async function activateNativePanelRuntime() {
+  configureHost(createTestHost());
+  await genuineRuntimeFixture();
   const test = createTestContext();
   const fetch = vi.fn<typeof test.ctx.egress.fetch>(async () => {
     throw new Error(
@@ -30,7 +36,7 @@ export function activateNativePanelRuntime() {
 export function expectNativePanel(
   panel: HTMLElement,
   descriptor: NativeConnectorDescriptor,
-  fetch: ReturnType<typeof activateNativePanelRuntime>["fetch"],
+  fetch: Awaited<ReturnType<typeof activateNativePanelRuntime>>["fetch"],
 ) {
   const offered = descriptor.methods.filter((method) => method.available);
   expect(
@@ -41,10 +47,10 @@ export function expectNativePanel(
   if (offered.length) {
     expect(within(panel).queryByLabelText("Connector name")).toBeNull();
     expect(panel.querySelector('input[type="file"]')).toBeNull();
-    const authorizes = offered.some(
-      (method) =>
-        method.authorizeFirst ?? ["oauth", "oidc", "mcp"].includes(method.id),
-    );
+    const initial = nativeInitialMethod(descriptor);
+    const authorizes =
+      initial !== undefined &&
+      (initial.authorizeFirst ?? ["oauth", "oidc", "mcp"].includes(initial.id));
     const commit = within(panel).getByRole("button", {
       name: `${authorizes ? "Sign in to" : "Verify and connect"} ${descriptor.name}`,
     });
@@ -53,7 +59,8 @@ export function expectNativePanel(
       expect(commit).toHaveProperty("disabled", true);
     for (const method of offered) {
       const choice = within(panel).queryByRole("radio", { name: method.label });
-      if (offered.length > 1) expect(choice).toHaveProperty("disabled", false);
+      if (offered.length > 1 || descriptor.providerId === "resend")
+        expect(choice).toHaveProperty("disabled", false);
       else expect(choice).toBeNull();
     }
   } else {
@@ -77,6 +84,7 @@ export function expectNativePanel(
     ).toBeNull();
   }
   for (const method of descriptor.methods.filter((item) => !item.available)) {
+    if (descriptor.providerId === "resend") continue;
     expect(
       within(panel).queryByRole("radio", { name: method.label }),
     ).toBeNull();

@@ -7,13 +7,17 @@ import {
   testNativeApiCredential,
   verifyNativeApiConnector,
 } from "@opensesame/app-core/lib/native-api-connectors.js";
+import { invokeNativeApiResource } from "@opensesame/app-core/lib/native-api-resources.js";
 import {
   type NativeConnectorDriver,
   type NativeDriverInput,
   registerNativeConnectorDriver,
 } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
-import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  captureNativeProviderAuthority,
+} from "@opensesame/app-core/lib/native-connector-transport.js";
 import {
   configureNativeGithubPersonal,
   invokeNativeGithubPersonal,
@@ -35,6 +39,7 @@ import {
 } from "@opensesame/app-core/lib/native-s3.js";
 import { readNativeVaultToken } from "@opensesame/app-core/lib/native-vault-token-read.js";
 import type { Activation } from "../activation.js";
+import { LeaseAbortedError, anySignal } from "../signals.js";
 import { nativeVaultSecretItems } from "./native-vault-kv-output.js";
 
 function instance(providerId: string): providerId is "vault" | "openbao" {
@@ -84,7 +89,7 @@ function supportedApiProvider(id: string): boolean {
   );
 }
 function apiCleanup(
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ): NativeConnectorDriver["cleanup"] {
   const instanceAdapters = {
     vault: nativeLocalInstanceCleanup("vault", transport),
@@ -120,7 +125,7 @@ function apiCleanup(
 }
 function configureApi(
   input: NativeDriverInput,
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ) {
   transport.assertCurrent();
   if (input.providerId === "s3") return configureNativeS3(input, transport);
@@ -145,10 +150,7 @@ function configureApi(
     transport,
   );
 }
-function testApi(
-  input: NativeDriverInput,
-  transport: ReturnType<typeof nativeProviderTransport>,
-) {
+function testApi(input: NativeDriverInput, transport: NativeProviderTransport) {
   transport.assertCurrent();
   if (
     input.providerId === "s3" ||
@@ -164,10 +166,18 @@ async function invokeApi(
   id: string,
   operation: string,
   input: Record<string, string>,
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ) {
   transport.assertCurrent();
   const provider = providerOf(id);
+  const resource = invokeNativeApiResource(
+    provider,
+    id,
+    operation,
+    input,
+    transport,
+  );
+  if (resource) return resource;
   if (provider === "s3") return invokeNativeS3(id, operation, input, transport);
   const keyed = nativeKeyDriverFor(provider);
   if (keyed) return keyed.invoke(id, operation, input, transport);
@@ -181,7 +191,7 @@ async function invokeInstance(
   id: string,
   operation: string,
   input: Record<string, string>,
-  transport: ReturnType<typeof nativeProviderTransport>,
+  transport: NativeProviderTransport,
 ) {
   if (
     operation === "provider.secret.read" &&
@@ -205,15 +215,68 @@ async function invokeInstance(
     items: facts.policies.map((policy) => ({ id: policy, label: policy })),
   };
 }
+/** One caller adds cancellation to the same original route; no request recaptures. */
+async function invokeOwnedApi(
+  id: string,
+  operation: string,
+  input: Record<string, string>,
+  capture: () => NativeProviderTransport,
+  caller: AbortSignal,
+) {
+  if (caller.aborted) throw new LeaseAbortedError();
+  const original = capture();
+  const signals = [caller];
+  if (original.signal) signals.push(original.signal);
+  const signal = anySignal(signals);
+  const assertCurrent = () => {
+    try {
+      original.assertCurrent();
+      signal.throwIfAborted();
+    } catch {
+      throw new LeaseAbortedError("This provider operation ended.");
+    }
+  };
+  const transport = { ...original, signal, assertCurrent };
+  assertCurrent();
+  try {
+    const result = await invokeApi(id, operation, input, transport);
+    assertCurrent();
+    return result;
+  } catch (error) {
+    assertCurrent();
+    throw error;
+  }
+}
 export function bindNativeApiRuntime(activation: Activation): void {
-  const transport = nativeProviderTransport();
+  const authority = captureNativeProviderAuthority();
+  const cleanupRoutes = new Map<string, NativeProviderTransport>();
+  activation.onDispose(() => cleanupRoutes.clear());
+  const cleanupTransport = (id: string, fingerprint: string) => {
+    authority.assertCurrent();
+    const key = JSON.stringify([id, fingerprint]);
+    const transport = cleanupRoutes.get(key) ?? authority.capture();
+    transport.assertCurrent();
+    cleanupRoutes.set(key, transport);
+    return transport;
+  };
   activation.onDispose(
     registerNativeConnectorDriver("api-key", {
       supports: supportedApiProvider,
-      configure: (input) => configureApi(input, transport),
-      test: (input) => testApi(input, transport),
-      verify: (id) => {
+      configure: async (input) => {
+        const transport = authority.capture();
+        const configured = await configureApi(input, transport);
         transport.assertCurrent();
+        authority.assertCurrent();
+        const key = JSON.stringify([
+          configured.connectionId,
+          configured.fingerprint,
+        ]);
+        if (!cleanupRoutes.has(key)) cleanupRoutes.set(key, transport);
+        return configured;
+      },
+      test: async (input) => testApi(input, authority.capture()),
+      verify: async (id) => {
+        const transport = authority.capture();
         const provider = providerOf(id);
         if (provider === "s3") return verifyNativeS3(id, transport);
         const keyed = nativeKeyDriverFor(provider);
@@ -224,9 +287,27 @@ export function bindNativeApiRuntime(activation: Activation): void {
           ? verifyNativeLocalInstance(id, transport)
           : verifyNativeApiConnector(id, transport);
       },
-      invoke: (id, operation, input) =>
-        invokeApi(id, operation, input, transport),
-      cleanup: apiCleanup(transport),
+      invoke: async (id, operation, input, signal) =>
+        signal === undefined
+          ? invokeApi(id, operation, input, authority.capture())
+          : invokeOwnedApi(id, operation, input, authority.capture, signal),
+      cleanup: {
+        classification: (configuration) =>
+          apiCleanup(authority.capture()).classification(configuration),
+        credentialSlots: (configuration, grant) => {
+          const slots = apiCleanup(authority.capture()).credentialSlots;
+          return slots && "call" in slots
+            ? slots(configuration, grant)
+            : (slots ?? []);
+        },
+        cleanup: (obligation, context) =>
+          apiCleanup(
+            cleanupTransport(
+              context.connectionId,
+              context.configuration.fingerprint,
+            ),
+          ).cleanup(obligation, context),
+      },
     }),
   );
 }

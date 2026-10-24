@@ -18,7 +18,7 @@ invocation (`ERC20PeriodTransferEnforcer.sol`, `DelegationManager.sol`).
 Inspect the release/audit relationship before choosing a final pin. Naming this
 commit is `source_inspected` evidence at most — never
 `local_execution_verified` or `productionEnabled: true` without command output
-under `docs/evidence/wallet/`.
+under `work/evidence/wallet/wallet/cross-platform/`.
 
 ## Contract tests
 
@@ -32,7 +32,7 @@ against a clone of the delegation-framework at the pin under the git-ignored
 It needs `forge` and `anvil` on `PATH` and fails, never skips, when they are
 missing; mainnet chain ids are denied. The Vitest suite is **not**
 `local_execution_verified`. A green forge run is what records
-`local_execution_verified` in `docs/evidence/wallet/claims.json`, scoped to
+`local_execution_verified` in `work/evidence/wallet/wallet/cross-platform/claims.json`, scoped to
 those enforcer suites on a local chain, with `productionEnabled` still false.
 
 ## Simulation mode (unit tests only)

@@ -18,6 +18,27 @@ const payload = z
   })
   .strict();
 export const supportRoutes = new Hono<{ Variables: Variables }>();
+
+const SUPPORT_WINDOW_MS = 60_000;
+const SUPPORT_PER_SESSION = 6;
+const supportBudget = new Map<string, number[]>();
+
+function supportAllowed(key: string, now: number): boolean {
+  const recent = (supportBudget.get(key) ?? []).filter(
+    (at) => now - at < SUPPORT_WINDOW_MS,
+  );
+  if (recent.length >= SUPPORT_PER_SESSION) {
+    supportBudget.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  supportBudget.set(key, recent);
+  return true;
+}
+
+export function resetSupportBudgetForTest(): void {
+  supportBudget.clear();
+}
 supportRoutes.use("*", async (c, next) => {
   const ctx = c.get("ctx");
   if (!ctx.config.supportProxy) return c.json({ error: "not_found" }, 404);
@@ -36,8 +57,12 @@ supportRoutes.get("/", (c) => {
   return c.body(null, 204);
 });
 supportRoutes.post("/", async (c) => {
-  const config = c.get("ctx").config.supportProxy;
+  const ctx = c.get("ctx");
+  const config = ctx.config.supportProxy;
   if (!config) return c.json({ error: "not_found" }, 404);
+  const session = c.get("provisionalSessionId");
+  if (!session || !supportAllowed(session, ctx.clock().getTime()))
+    return c.json({ error: "rate_limited" }, 429);
   const text = await c.req.text();
   if (new TextEncoder().encode(text).length > 8192)
     return c.json({ error: "request_too_large" }, 413);

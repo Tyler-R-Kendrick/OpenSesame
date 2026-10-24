@@ -27,14 +27,23 @@ export const POLICIES: readonly Choice<SharePolicy>[] = [
   { value: "edit", label: "Can edit" },
 ];
 export const ADMISSIONS: readonly Choice<Admission>[] = [
-  { value: "invite", label: "Link and code" },
   { value: "open", label: "Anyone with the link" },
+  { value: "invite", label: "Link and code" },
+];
+
+export type SessionAudience = "anyone" | "all-users" | "people";
+export const AUDIENCES: readonly Choice<SessionAudience>[] = [
+  { value: "anyone", label: "Anyone with the link" },
+  { value: "all-users", label: "All users group" },
+  { value: "people", label: "Selected people" },
 ];
 export const DURATIONS: readonly Choice<number>[] = [
   { value: 15, label: "15 minutes" },
   { value: 60, label: "1 hour" },
   { value: 240, label: "4 hours" },
   { value: 480, label: "8 hours" },
+  { value: 1_440, label: "1 day" },
+  { value: 10_080, label: "Until this tab closes (up to 7 days)" },
 ];
 
 /** How long an allowed device keeps its grant; the session's end comes first. */
@@ -125,8 +134,47 @@ export function ItemChoice({
   );
 }
 
+/** Choose the local people this session may admit. */
+export function PeopleChoice({
+  people,
+  peopleIds,
+  onChange,
+}: {
+  people: readonly { id: string; name: string }[];
+  peopleIds: ReadonlySet<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  return (
+    <fieldset className="live-choose">
+      <legend className="visually-hidden">People</legend>
+      {people.length === 0 ? (
+        <StatusMark tone="idle" label="No people in this vault." />
+      ) : (
+        people.map((person) => (
+          <label key={person.id} className="join__choice">
+            <input
+              type="checkbox"
+              checked={peopleIds.has(person.id)}
+              onChange={(event) => {
+                const next = new Set(peopleIds);
+                if (event.target.checked) next.add(person.id);
+                else next.delete(person.id);
+                onChange(next);
+              }}
+            />
+            <span>{person.name}</span>
+          </label>
+        ))
+      )}
+    </fieldset>
+  );
+}
+
 /** What the session will use beyond a direct route, in a few words. */
-export function routesSummary(transport: LiveTransport): string {
+export function routesSummary(
+  transport: LiveTransport,
+  automaticCarrier = false,
+): string {
   const parts: string[] = [];
   const count = (n: number, one: string, many: string) =>
     n === 0 ? null : `${n} ${n === 1 ? one : many}`;
@@ -140,6 +188,7 @@ export function routesSummary(transport: LiveTransport): string {
     count(transport.carriers.length, "carrier", "carriers"),
   ])
     if (part) parts.push(part);
-  if (parts.length === 0) return "Direct only";
-  return `${transport.relay ? "Relay only" : "Direct"}, with ${parts.join(", ")}`;
+  const relay = automaticCarrier ? ["ntfy.sh pairing"] : [];
+  if (parts.length === 0 && relay.length === 0) return "Direct only";
+  return `${transport.relay ? "Relay only" : "Direct"}, with ${[...parts, ...relay].join(", ")}`;
 }

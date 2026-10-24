@@ -1,0 +1,10 @@
+--- a/cmd/tsconnect/wasm/wasm_js.go
++++ b/cmd/tsconnect/wasm/wasm_js.go
+@@ -89,6 +89,7 @@
+ 
+ 	lpc := getOrCreateLogPolicyConfig(store)
+ 	c := logtail.Config{
++		Disabled:   true, // Browser node diagnostics stay local; never upload credentials/state.
+ 		Collection: lpc.Collection,
+ 		PrivateID:  lpc.PrivateID,
+ 

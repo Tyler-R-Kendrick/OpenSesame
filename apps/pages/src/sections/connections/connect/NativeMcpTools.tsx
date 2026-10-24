@@ -1,10 +1,10 @@
 /** Tool names come from this verified MCP server; the driver validates its actual input schema. */
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
-import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
 import { useState } from "react";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconSearch } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { useSecretBackendAction } from "../secret-backends/useSecretBackendAction.js";
 import { NativeConnectorActions } from "./NativeConnectorActions.js";
 import { nativeMcpArgumentGuide } from "./NativeMcpArgumentGuide.js";
 import type {
@@ -13,6 +13,7 @@ import type {
   NativeConnectorController,
   SafeActionResult,
 } from "./native-connector-ui.js";
+import { useNativeActionWithdrawal } from "./useNativeActionWithdrawal.js";
 
 function toolAction(
   tool: SafeActionResult["items"][number],
@@ -44,27 +45,43 @@ export function NativeMcpTools({
   controller,
   onChanged,
   onFlash,
+  disabled = false,
 }: NativeConnectorCallbacks & {
   view: NativeConnectorView;
   controller: NativeConnectorController;
+  disabled?: boolean;
 }) {
   const [discovery, setDiscovery] = useState<SafeActionResult | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState("");
+  const pending = useSecretBackendAction(onFlash);
+  const { busy, failure } = pending;
+  const enabled = !disabled && view.status === "connected";
+  const scope = JSON.stringify([
+    view.providerId,
+    view.connectionId,
+    view.revision,
+    view.fingerprint,
+  ]);
+  useNativeActionWithdrawal(controller, enabled, pending, setDiscovery, {
+    scope,
+    preserveDisabledResult: true,
+  });
   async function discover() {
-    if (busy || view.status !== "connected") return;
-    setBusy(true);
-    setFailure("");
-    try {
-      setDiscovery(await controller.invoke("mcp.tools.list", {}));
-    } catch (error) {
-      const text = errorText(error);
-      setFailure(text);
-      onFlash({ tone: "err", text });
-    } finally {
-      setBusy(false);
-      onChanged(controller.load());
-    }
+    if (!enabled || busy) return;
+    setDiscovery(null);
+    await pending.run(async (owner) => {
+      try {
+        const found = await controller.invoke(
+          "mcp.tools.list",
+          {},
+          owner.signal,
+        );
+        owner.check();
+        setDiscovery(found);
+        return undefined;
+      } finally {
+        if (owner.current()) onChanged(controller.load());
+      }
+    });
   }
   return (
     <section className="panel" aria-label="MCP tools">
@@ -78,7 +95,7 @@ export function NativeMcpTools({
       <div className="panel__body cx-form">
         <IconKey
           label="Discover MCP tools"
-          disabled={busy || view.status !== "connected"}
+          disabled={disabled || busy || view.status !== "connected"}
           onClick={() => void discover()}
         >
           <IconSearch size={16} />
@@ -92,7 +109,7 @@ export function NativeMcpTools({
             <NativeConnectorActions
               controller={controller}
               view={view}
-              disabled={busy}
+              disabled={disabled || busy}
               onChanged={onChanged}
               onFlash={onFlash}
               descriptor={{

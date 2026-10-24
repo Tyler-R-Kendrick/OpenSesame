@@ -47,7 +47,6 @@
 //              allow it
 //
 // Screenshots land in $TAILNET_SYNC_OUT (default: the system temp dir).
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -58,6 +57,7 @@ import { phoneContext } from "./lib/mobile-contract.mjs";
 import { openVaultList, toTheList } from "./lib/phone-vault.mjs";
 import { seedPasswordVault, unlockSeeded } from "./lib/seeded-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { startSyncDrive } from "./lib/tailnet-sync-drive.mjs";
 import {
   attachmentCrosses,
   readSlot as readSlotWith,
@@ -90,25 +90,6 @@ const harness = createHarness({
   base,
   out: path.join(out, ".log"),
 });
-
-function startDrive() {
-  const daemon = spawn(
-    binary,
-    ["daemon", "run", "--listen", `127.0.0.1:${port}`],
-    {
-      env: {
-        ...process.env,
-        OPENSESAME_OPERATOR_TOKEN: operator,
-        OPENSESAME_CORS_ORIGINS: origin,
-        OPENSESAME_VAULT_DRIVE_DIR: slots,
-        OPENSESAME_DAEMON_NETWORK_BRIDGE: "0",
-        OPENSESAME_ENV: "development",
-      },
-      stdio: ["ignore", "ignore", "inherit"],
-    },
-  );
-  return daemon;
-}
 
 async function until(check, what, ms = 20_000) {
   const end = Date.now() + ms;
@@ -199,7 +180,7 @@ function tailnetFromEnv() {
   return { host, tlsPort, address };
 }
 
-const daemon = startDrive();
+const daemon = startSyncDrive({ binary, port, operator, origin, slots });
 const tailnet = tailnetFromEnv();
 const serve = await tailscaleServeDrive(drive, tailnet);
 console.log(
@@ -229,7 +210,7 @@ try {
   await unlockSeeded(a.page);
   await saveItem(a.page, "Bank of Example");
   await networkingOn(a.page);
-  await visit(a.page, "settings/vaults");
+  await visit(a.page, "settings/features/networking/networking.tailnet");
   // Pairing is a ceremony in a sheet: the row's key opens it, the code goes
   // in the sheet, and the sheet's commit pairs.
   await a.page
@@ -263,7 +244,10 @@ try {
   await doorGuest(b.page).tap();
   await b.page.waitForTimeout(1400);
   await networkingOn(b.page);
-  await visit(b.page, `settings/vaults#pair-drive=${code}`);
+  await visit(
+    b.page,
+    `settings/features/networking/networking.tailnet#pair-drive=${code}`,
+  );
   // The link opens the sheet by itself with the code already in the field.
   const linkSheet = b.page.getByRole("dialog");
   await expect(
@@ -298,10 +282,10 @@ try {
 
   // TS-BACK
   await saveItem(b.page, "Saved on the phone");
-  await visit(b.page, "settings/vaults");
+  await visit(b.page, "settings/features/networking/networking.tailnet");
   await inStep(b.page);
   await shot(b.page, "390-device-b-in-step");
-  await visit(a.page, "settings/vaults");
+  await visit(a.page, "settings/features/networking/networking.tailnet");
   await a.page.getByRole("button", { name: "Sync now" }).click();
   await inStep(a.page);
   await visit(a.page, "vault");
@@ -321,7 +305,7 @@ try {
   await answerPrompt(a.page, "prompt");
   const before = (await readSlot(code)).generation;
   await saveItem(a.page, "Waiting on the browser");
-  await visit(a.page, "settings/vaults");
+  await visit(a.page, "settings/features/networking/networking.tailnet");
   await expect(a.page.locator("#tailnet-sync .status-mark")).toHaveAttribute(
     "aria-label",
     /waiting for local network access/,
@@ -350,7 +334,10 @@ try {
   await doorGuest(c.page).click();
   await c.page.waitForTimeout(1400);
   await networkingOn(c.page);
-  await visit(c.page, `settings/vaults#pair-drive=${code}`);
+  await visit(
+    c.page,
+    `settings/features/networking/networking.tailnet#pair-drive=${code}`,
+  );
   const refused = c.page.getByRole("dialog");
   await refused
     .getByRole("button", {

@@ -28,13 +28,16 @@ command_groups! {
                 #[arg(long)]
                 tomb: Option<String>,
             },
-            /// Generate and insert a password.
+            /// Generate and insert a password; disclose it only with `--reveal`.
             Generate {
                 name: String,
                 #[arg(long, default_value_t = opensesame_sealed_store::default_password_length())]
                 length: usize,
                 #[arg(long)]
                 no_symbols: bool,
+                /// Print the new secret (TTY / human only).
+                #[arg(long)]
+                reveal: bool,
                 #[arg(long)]
                 path: Option<PathBuf>,
                 #[arg(long)]
@@ -180,7 +183,7 @@ command_groups! {
             },
         }
         RotationSchema {
-            /// Update / rotate secrets (pass-update parity). Prints new secret (human TTY).
+            /// Update secrets (pass-update parity); disclose only with `--reveal`.
             Update {
                 #[arg(required = true)]
                 names: Vec<String>,
@@ -200,6 +203,9 @@ command_groups! {
                 exclude: Option<String>,
                 #[arg(short = 'f', long)]
                 force: bool,
+                /// Print the new secret (TTY / human only).
+                #[arg(long)]
+                reveal: bool,
                 #[arg(long)]
                 path: Option<PathBuf>,
                 #[arg(long)]

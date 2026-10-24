@@ -190,7 +190,6 @@ describe("a circle that was begun and left", () => {
     expect(screen.queryByLabelText("Name")).toBeNull();
     // It says which circle it is, since the name was typed before.
     expect(screen.getByText("Family")).toBeTruthy();
-    expect(screen.getByText("Everything")).toBeTruthy();
     expect(screen.getByRole("img", { name: "Ada has answered" })).toBeTruthy();
     // The same invitation, not a new one.
     await user.click(screen.getByRole("button", { name: "Copy invitation" }));

@@ -50,3 +50,16 @@ export function accessViewFromLocation(
   if (params.get("request")) return "requests";
   return "grants";
 }
+
+/**
+ * The identity-share ceremony, optionally opening with one vault item
+ * preselected. A grant is not the same thing as a one-time drop: the item
+ * toolbar and row menu use this so "share this item" lands on the form that
+ * actually grants access to a person, agent, or application.
+ */
+export function accessIdentitySharePath(itemId?: string): string {
+  const params = new URLSearchParams({ view: "grants" });
+  if (itemId) params.set("shareItem", itemId);
+  else params.set("draft", "new");
+  return `/access?${params.toString()}#identity-shares`;
+}

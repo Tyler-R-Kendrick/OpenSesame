@@ -48,9 +48,24 @@ async fn persona_attack_chain_is_refused() {
     let token = pair_browser(&state, legit_origin);
     let body = ensure_body("persona-attacker");
     #[cfg(unix)]
-    let response = app.clone().oneshot(ensure_request(&body, Some(test_peer_cred()))).await.unwrap();
+    let response = app
+        .clone()
+        .oneshot(ensure_request(&body, Some(test_peer_cred())))
+        .await
+        .unwrap();
     #[cfg(not(unix))]
-    let response = { let mut ensure_req = Request::builder().method("POST").uri("/v1/cli/app-integration/ensure").header("content-type", "application/json").body(Body::from(body)).unwrap(); ensure_req.extensions_mut().insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 5151)))); app.clone().oneshot(ensure_req).await.unwrap() };
+    let response = {
+        let mut ensure_req = Request::builder()
+            .method("POST")
+            .uri("/v1/cli/app-integration/ensure")
+            .header("content-type", "application/json")
+            .body(Body::from(body))
+            .unwrap();
+        ensure_req
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 5151))));
+        app.clone().oneshot(ensure_req).await.unwrap()
+    };
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -239,7 +254,14 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     {
         let mut host = state.cli_app_integration.lock().unwrap();
         host.pairings
-            .confirm(&code2, origin, &attacker_spki, &sig2_b64, Some(TEST_VAULT_SESSION_ROOT_DIGEST), now)
+            .confirm(
+                &code2,
+                origin,
+                &attacker_spki,
+                &sig2_b64,
+                Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+                now,
+            )
             .expect("confirm2");
         assert!(matches!(
             host.pairings.exchange(&code2, origin, now),
@@ -250,9 +272,24 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     let token = pair_browser(&state, "http://localhost:5180");
     let body = ensure_body("persona-r7-attacker");
     #[cfg(unix)]
-    let response = app.clone().oneshot(ensure_request(&body, Some(test_peer_cred()))).await.unwrap();
+    let response = app
+        .clone()
+        .oneshot(ensure_request(&body, Some(test_peer_cred())))
+        .await
+        .unwrap();
     #[cfg(not(unix))]
-    let response = { let mut ensure_req = Request::builder().method("POST").uri("/v1/cli/app-integration/ensure").header("content-type", "application/json").body(Body::from(body)).unwrap(); ensure_req.extensions_mut().insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 5252)))); app.clone().oneshot(ensure_req).await.unwrap() };
+    let response = {
+        let mut ensure_req = Request::builder()
+            .method("POST")
+            .uri("/v1/cli/app-integration/ensure")
+            .header("content-type", "application/json")
+            .body(Body::from(body))
+            .unwrap();
+        ensure_req
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 5252))));
+        app.clone().oneshot(ensure_req).await.unwrap()
+    };
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -280,7 +317,12 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     #[cfg(unix)]
     let respond_body = serde_json::json!({"requestId": request_id,"terminalSessionId": terminal_session_id,"decision": "approve","respondNonce": nonce,"humanProof": pin_proof}).to_string();
     #[cfg(unix)]
-    let respond = respond_request(&respond_body, "http://localhost:5180", &token, Some(test_peer_cred()));
+    let respond = respond_request(
+        &respond_body,
+        "http://localhost:5180",
+        &token,
+        Some(test_peer_cred()),
+    );
     #[cfg(not(unix))]
     let respond = Request::builder()
         .method("POST")
@@ -308,111 +350,4 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     assert_eq!(parsed["status"], "wrongSession");
 }
 
-async fn assert_root_key_not_enrolled(response: axum::response::Response) {
-    assert_eq!(response.status(), StatusCode::FORBIDDEN);
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(parsed["error"], "root_key_not_enrolled");
-}
-
-/// Confirm, exchange, arm, and WebAuthn register are HTTP 403 until the root trust key
-/// is enrolled. Operator issue still returns a pairing code.
-#[tokio::test]
-async fn pairing_ops_refuse_until_root_key_enrolled() {
-    use crate::test_fixtures::test_router;
-
-    let (app, state) = test_router("http://127.0.0.1:8787");
-    assert!(!state
-        .cli_app_integration
-        .lock()
-        .unwrap()
-        .pairings
-        .is_root_key_enrolled());
-    let origin = "http://localhost:5180";
-    let issue = Request::builder()
-        .method("POST")
-        .uri("/v1/operator/cli-app-integration/pair")
-        .header("content-type", "application/json")
-        .header("x-opensesame-operator", crate::test_operator_token())
-        .body(Body::from(
-            serde_json::json!({ "origin": origin }).to_string(),
-        ))
-        .unwrap();
-    let response = app.clone().oneshot(issue).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let issued: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert!(issued["pairingCode"].as_str().is_some());
-
-    let confirm = Request::builder()
-        .method("POST")
-        .uri("/v1/cli/app-integration/pairing/confirm")
-        .header("content-type", "application/json")
-        .header(header::ORIGIN, origin)
-        .body(Body::from(
-            serde_json::json!({
-                "code": "unused",
-                "devicePublicKeySpkiB64": "unused",
-                "pairingSignatureB64": "unused",
-                "vaultSessionRootDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            })
-            .to_string(),
-        ))
-        .unwrap();
-    assert_root_key_not_enrolled(app.clone().oneshot(confirm).await.unwrap()).await;
-
-    let exchange = Request::builder()
-        .method("POST")
-        .uri("/v1/cli/app-integration/pairing")
-        .header("content-type", "application/json")
-        .header(header::ORIGIN, origin)
-        .body(Body::from(
-            serde_json::json!({ "code": "unused" }).to_string(),
-        ))
-        .unwrap();
-    assert_root_key_not_enrolled(app.clone().oneshot(exchange).await.unwrap()).await;
-
-    let arm = Request::builder()
-        .method("POST")
-        .uri("/v1/operator/cli-app-integration/pair/registration")
-        .header("content-type", "application/json")
-        .header("x-opensesame-operator", crate::test_operator_token())
-        .body(Body::from(
-            serde_json::json!({
-                "origin": origin,
-                "registrationCode": "unused",
-            })
-            .to_string(),
-        ))
-        .unwrap();
-    assert_root_key_not_enrolled(app.clone().oneshot(arm).await.unwrap()).await;
-
-    let register = Request::builder()
-        .method("POST")
-        .uri("/v1/cli/app-integration/pairing/webauthn")
-        .header("content-type", "application/json")
-        .header(header::ORIGIN, origin)
-        .header(header::AUTHORIZATION, "Bearer unused-token")
-        .body(Body::from(
-            serde_json::json!({
-                "vaultSessionRootDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "humanProof": "oschip2:passkey:{}",
-                "credentialIdB64": "cred",
-                "publicKeySpkiB64": "unused",
-                "signCount": 1,
-            })
-            .to_string(),
-        ))
-        .unwrap();
-    assert_root_key_not_enrolled(app.oneshot(register).await.unwrap()).await;
-    assert!(!state
-        .cli_app_integration
-        .lock()
-        .unwrap()
-        .pairings
-        .is_root_key_enrolled());
-}
+mod root_enrollment;

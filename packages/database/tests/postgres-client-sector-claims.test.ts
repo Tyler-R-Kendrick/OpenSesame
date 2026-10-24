@@ -190,11 +190,12 @@ describe("postgres client store sector claims", () => {
       registration(owner, `https://${h}`),
     );
     expect(admitted.sectorGeneration).toBe(1);
-    // The released client stays blocked through an edit, and a second
+    // The released client stays blocked through a fresh edit, and a second
     // release of a key nobody holds is a no-op.
+    const current = await clients.findById(squat.id);
+    if (!current) throw new Error("released client disappeared");
     const edited = await clients.update({
-      ...squat,
-      state: "active",
+      ...current,
       displayName: "Back",
     });
     expect(edited.sectorKeyBlocked).toBe("sector_released");

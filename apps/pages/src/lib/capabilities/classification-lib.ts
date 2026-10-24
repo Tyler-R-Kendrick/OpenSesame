@@ -2,6 +2,7 @@
 import { CLI_APP_INTEGRATION_RULES } from "./classification-cli-app.js";
 import { CONNECTOR_LIB_RULES } from "./classification-connectors.js";
 import { DEV_EVIDENCE_RULES } from "./classification-dev-evidence.js";
+import { CORE_INFRA_RULES } from "./classification-infrastructure.js";
 import { NETWORK_RELAY_RULES } from "./classification-network-relay.js";
 import { core, each, optional, shared } from "./classification-rule.js";
 import { VAULT_RELAY_RULES } from "./classification-vault-relay.js";
@@ -19,69 +20,6 @@ const LOCAL_IAM = "identity.local-iam";
 const FEDERATION = "identity.federation";
 const LOCAL_AI = "support.local-ai";
 
-const CORE_INFRA = [
-  "kv",
-  "web-push-ledger", // ids the core worker controller retires when push goes
-  "at-rest/", // every stored value's seal and the device key (ADR 0149)
-  "vfs",
-  "vault-credential-custody",
-  "projects",
-  "vaults",
-  // Glyphs for vaults, people and organizations belong to the shell prompt (ADR 0165).
-  "glyph",
-  "last-vault",
-  "theme",
-  "focus",
-  "use-focus-after",
-  "gestures",
-  "gesture-runtime",
-  "gesture-motion",
-  "use-gestures",
-  "use-claimed-drags",
-  "tab-swipe",
-  "gesture-help",
-  "pane-trail",
-  "use-narrow",
-  "vault-list-path",
-  // `?f=login` is the retired name of `?f=account` (ADR 0172): the vault list and rail read it.
-  "vault-filter-slug",
-  "modal-focus",
-  "strip",
-  "scroll-panel",
-  "hash-target",
-  "pane-escape",
-  "tree-motion",
-  "page-to-tree",
-  "listing-page",
-  // Tray history sealed at rest, and the boot that installs it (ADR 0163).
-  "notice-tray-persist",
-  "tray-boot",
-  "use-online",
-  "use-configured",
-  // A press that must count once, however fast it is pressed twice.
-  "use-once",
-  "use-settings",
-  "use-install",
-  "identifier",
-  "probe-failure",
-  "opener-policy",
-  "bounded-response",
-  // A lazy chunk a newer deploy replaced, told as a stale page (ADR 0188).
-  "chunk-load",
-  // The shell chunk itself, told the same way when a deploy replaces it.
-  "load-shell",
-  "urls",
-  "agent-page-dump",
-  "local-network-fetch",
-  "queue",
-  "pact",
-  // Playwright harness clock shared by CipherDial, VaultDoors, CipherWordmark.
-  "injected-clock",
-  "unlock-ceremony-store",
-  "unlock-ceremony-arm",
-  "__tests__/",
-  "__snapshots__/",
-];
 const SHELL_FILES = [
   "keymap",
   "keymap-help",
@@ -199,9 +137,7 @@ export const LIB_RULES = [
     "vault.passwords",
     "sealed parts of a file item",
   ),
-  ...each(L, CORE_INFRA, (p) =>
-    core(p, null, "storage, focus, theme and shell infrastructure"),
-  ),
+  ...CORE_INFRA_RULES,
   ...each(L, SHELL_FILES, (p) =>
     core(p, SHELL, "routing tables, keymap, plane truth; MIXED where noted"),
   ),
@@ -240,6 +176,10 @@ export const LIB_RULES = [
   ),
   core(`${L}guest-connections`, "vault.local-unlock", "tomb"),
   core(`${L}idp-registry`, "vault.local-unlock", "tomb IdPs"),
+  shared(
+    `${L}auth-generation.ts`,
+    "principal generation shared by native and ambient sign-in",
+  ),
   shared(`${L}origin-file-publication-read`, "device-sealed record reads"),
   shared(`${L}original-origin-storage`, "sealed origin data"),
   shared(
@@ -345,7 +285,16 @@ export const LIB_RULES = [
     "vault.local-unlock",
     "travel mode: departure bundle and return",
   ),
+  core(
+    `${L}deadman/`,
+    "vault.local-unlock",
+    "deadman release envelope, signed record and relay heartbeat",
+  ),
   shared(`${L}local-iam-events`, "change fanout the tomb and identity share"),
+  shared(
+    `${L}local-groups.ts`,
+    "built-in principals shared by core vault reach checks, standing grants and live sessions",
+  ),
   core(
     `${L}ambient-auth/entra-instances`,
     "vault.local-unlock",
@@ -357,11 +306,23 @@ export const LIB_RULES = [
   ...each(L, ["ambient-auth-seam"], (p) =>
     core(p, SIGNIN, "the ambient seam core federation calls through"),
   ),
+  // The generation fence is storage-only shared infrastructure: core native
+  // identity lineage and optional ambient sign-in both stamp in-flight work
+  // with it. Only the remaining `ambient-auth/` orchestration is optional.
+  shared(
+    `${L}ambient-auth/generation`,
+    "the auth-generation fence core identity lineage and ambient sign-in share",
+  ),
   ...each(L, ["ambient-auth/"], (p) =>
     optional(p, "identity.ambient-sso", "MSAL / OIDC ambient boot"),
   ),
   ...each(L, ["siop-authority", "siop-keys"], (p) =>
     optional(p, "identity.siop", "SIOPv2 authority"),
+  ),
+  optional(
+    `${L}siop-social.ts`,
+    "identity.siop",
+    "social proof choices and redirect attempts used only by SIOP consent",
   ),
   optional(
     `${L}site-broker`,

@@ -307,8 +307,27 @@ function domainErrorStatus(code: string): ContentfulStatusCode {
 
 /** The policy this request is judged under, resolved from the row itself. */
 function policyFor(ctx: AppContext, row: AuthorizationRequest) {
+  // `authorizationDetails` is requester-supplied, but a request that names a
+  // connection or delegation is not: it invokes authority the approver already
+  // granted, so the requester cannot lower that request to the read-only
+  // policy by describing it as a read. Delegated authority has a high floor;
+  // a plain connection has a moderate one. The classifier can still raise the
+  // class above these floors.
+  const serverFloor: JsonObject | undefined = row.delegationId
+    ? {
+        type: "urn:opensesame:authorization-detail:delegated-authority:v1",
+        actions: ["grant"],
+      }
+    : row.connectionId
+      ? {
+          type: "urn:opensesame:authorization-detail:connection-authority:v1",
+          actions: ["write"],
+        }
+      : undefined;
   return resolveApprovalPolicy({
-    authorizationDetails: row.authorizationDetails,
+    authorizationDetails: serverFloor
+      ? [...row.authorizationDetails, serverFloor]
+      : row.authorizationDetails,
     deployment: {
       directApprovalChannels: ctx.config.notifications.directApprovalChannels,
       directDenialChannels: ctx.config.notifications.directDenialChannels,

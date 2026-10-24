@@ -31,7 +31,7 @@ describe("the keyboard after the joiner's swaps", () => {
     type(joiner.getByLabelText("Your name"), "Ada");
     enter(joiner.getByLabelText("Your name"));
     const copy = await joiner.findByRole("button", {
-      name: "Copy your request code",
+      name: "Copy your join request",
     });
     await landsOn(copy);
   });
@@ -44,7 +44,7 @@ describe("the keyboard after the joiner's swaps", () => {
     const close = joiner.getByRole("button", { name: "Close" });
     act(() => close.focus());
     submit(joiner.getByLabelText("Your name"));
-    await joiner.findByRole("button", { name: "Copy your request code" });
+    await joiner.findByRole("button", { name: "Copy your join request" });
     await landsOn(close);
   });
 
@@ -52,8 +52,8 @@ describe("the keyboard after the joiner's swaps", () => {
     const { panel, session } = await hosted();
     const joiner = openJoin();
     const request = await asked(joiner, session?.code ?? "");
-    type(panel.getByLabelText("A request code"), request);
-    enter(panel.getByLabelText("A request code"));
+    type(panel.getByLabelText("Paste a join request"), request);
+    enter(panel.getByLabelText("Paste a join request"));
     press(await panel.findByRole("button", { name: "Let Ada in" }));
     await panel.findByRole("button", { name: "Copy the reply code for Ada" });
     const reply = currentHost()?.state.guests[0]?.reply ?? "";

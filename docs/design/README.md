@@ -18,6 +18,28 @@ at the repository root; the product's users and voice are in
 | [Encrypted VFS](encrypted-vfs.md) | Tombs in the browser. |
 | [Secret drop](secret-drop.md) | The one-time share ceremony and the claim page that opens it. |
 | [Writing a vault item type](vault-item-types.md) | The item-type JSON format, field by field. |
+| [Item formats](item-formats.md) | The closed parsers and synthetic generators for checksummed and issuer-shaped secrets. |
+| [Item rotation](item-rotation.md) | Default 30-day schedules, the locked-vault rotation queue, and the optional relay boundary. |
+| [Agent Vault](agent-vault.md) | The native/PWA split for brokered agent access, the Infisical parity contract, and the delivery slices. |
+| [Machine identity auth](machine-identity-auth.md) | Every Infisical machine-identity auth method, its fields, native/PWA applicability, and the parity gaps. |
+| [Group provisioning](group-provisioning.md) | GitHub team sync, SCIM Group CRUD and approval, and groups as sharing principals. |
+| [Email domain verification](email-domain-verification.md) | DNS-proved work domains, SSO routing, SCIM enforcement, expiry and the current parity gaps. |
+| [Assume privilege](assume-privilege.md) | Time-boxed, audited permission testing for owned agents and applications, scoped to one vault or project. |
+| [Connections experience](connections-experience.md) | Task-first setup, reuse/verification, connection doctor, agent invocation and 1Password Connect API parity. |
+| [Credential broker](credential-broker.md) | OIDC-bound workflow access to environment variables, GitHub Actions, SDK and the 1Password broker capability contract. |
+| [KMIP](kmip.md) | Why a static PWA cannot host KMIP, the free native daemon shape, client ACLs, KMS boundaries and conformance. |
+| [Save in OpenSesame](save-button.md) | A website button that hands a reviewed login, card or wallet to the static vault without a backend or extension. |
+| [SSH and Git](ssh-git.md) | Native SSH agent, authorization, Git commit signing, public-key autofill and the PWA boundary. |
+| [Developer Watchtower](watchtower.md) | User-invoked CLI scan for plaintext SSH keys and `.env` files, reporting metadata only. |
+| [Honey tokens](honey-tokens.md) | Self-managed synthetic proxy keys that trigger a critical notice when used. |
+| [Web Locks](web-locks.md) | Browser lock names, coverage, order, fallback and the test-queue rule. |
+| [File System API](file-system.md) | OPFS coverage and the File System Access save/open fallbacks. |
+| [Local Network Access](local-network-access.md) | Fine-grained LNA permissions, address spaces, callers and deployment policy. |
+| [mDNS Device Discovery](mdns-discovery.md) | Why browsers cannot browse mDNS, the native discovery contract, and why Tailscale remains the default transport. |
+| [OpenSSL interoperability](openssl-interop.md) | PEM/DER, X.509, PKCS#1/8/SEC1 and encrypted-key detection, plus the Bouncy Castle and cryptlib boundary. |
+| [Isolated Web App](iwa.md) | Shared-source IWA build, signed bundle, runtime gate and Direct Sockets adapter. |
+| [PWA capabilities](pwa-capabilities.md) | Full Powerful PWAs/Desktop PWA review, adopted implementation and explicit rejections. |
+| [Local Peer-to-Peer](local-p2p.md) | WICG LP2P adapter, its relation to Live sharing, and the security boundary. |
 
 ## Design canvases
 

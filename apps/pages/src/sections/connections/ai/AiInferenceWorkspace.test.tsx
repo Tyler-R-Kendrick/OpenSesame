@@ -69,5 +69,6 @@ it("reports a model request failure in the tray and keeps the prompt available f
     }),
     expect.objectContaining({ signal: expect.any(AbortSignal) }),
     expect.any(Function),
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
   );
 });

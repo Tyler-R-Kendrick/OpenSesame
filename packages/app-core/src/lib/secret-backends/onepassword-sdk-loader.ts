@@ -1,5 +1,7 @@
 import type { BoundaryValue, JsonValue } from "@opensesame/os-domain";
+import { env } from "../../host.js";
 import { pageOrigin, workerConstructor } from "../../ports.js";
+import artifacts from "./onepassword-artifacts.json" with { type: "json" };
 import { createOnePasswordWorkerHttp } from "./onepassword-worker-http.js";
 import {
   ONEPASSWORD_HTTP_MAX_PENDING,
@@ -16,6 +18,56 @@ import {
   onePasswordNetworkError,
 } from "./onepassword-worker-protocol.js";
 import type { SecretBackendTransport } from "./transport.js";
+
+function assetDirectory(origin: string, base: string): URL {
+  const target = new URL(base, `${origin}/`);
+  const unsafeSegment = base.split("/").some((segment) => {
+    const decoded = decodeURIComponent(segment);
+    return (
+      [".", ".."].includes(decoded) ||
+      /[\\/?#\s]/u.test(decoded) ||
+      [...decoded].some((character) => {
+        const code = character.charCodeAt(0);
+        return code < 32 || code === 127;
+      })
+    );
+  });
+  if (
+    !base ||
+    !base.endsWith("/") ||
+    base.startsWith("//") ||
+    (base.includes(":") &&
+      (!/^https?:\/\//u.test(base) || target.href !== base)) ||
+    unsafeSegment ||
+    target.origin !== origin ||
+    target.username ||
+    target.password ||
+    target.search ||
+    target.hash
+  )
+    throw new Error("Invalid asset directory");
+  return target;
+}
+
+/** Resolve pinned resources from the host deployment, without starting the SDK. */
+export function onePasswordBrowserAssets(): OnePasswordAssets {
+  try {
+    const origin = pageOrigin();
+    const home = new URL(origin);
+    if (home.origin !== origin || !["https:", "http:"].includes(home.protocol))
+      throw new Error("Invalid page origin");
+    const base = assetDirectory(origin, env().BASE_URL);
+    return OnePasswordAssetsSchema.parse({
+      origin,
+      runtimeUrl: new URL(artifacts.assets.runtime, base).href,
+      wasmUrl: new URL(artifacts.assets.wasm, base).href,
+    });
+  } catch {
+    throw new Error(
+      "The 1Password browser assets are not configured for this deployment.",
+    );
+  }
+}
 
 type Pending = {
   type: "initialize" | "invoke" | "dispose";

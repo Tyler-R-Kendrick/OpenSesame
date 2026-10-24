@@ -100,7 +100,7 @@ impl SealedSource {
 
 struct SealedReader {
     store: StoreRoot,
-    key: ItemDataKey,
+    key: Option<ItemDataKey>,
 }
 
 impl EntrySource for SealedSource {
@@ -110,11 +110,11 @@ impl EntrySource for SealedSource {
             let mut password = self.passphrase().ok_or(SourceError::Locked)?;
             let key = unlock_store_key(&self.root, password.as_bytes());
             password.zeroize();
-            key.map_err(|_| SourceError::Locked)?
+            Some(key.map_err(|_| SourceError::Locked)?)
         } else {
-            // GPG and age stores decrypt through their own agent or identity;
-            // the item key is never consulted on that path.
-            ItemDataKey([0u8; 32])
+            // GPG and age use their own agent or identity. Native entries
+            // still require an unlocked key, including in a mixed store.
+            None
         };
         Ok(Box::new(SealedReader { store, key }))
     }
@@ -131,13 +131,13 @@ impl EntryReader for SealedReader {
             .filter(|id| !id.is_empty());
         let entry = self
             .store
-            .show_with_age_identity(name, &self.key, identity.as_deref());
+            .show_with_optional_key(name, self.key.as_ref(), identity.as_deref());
         if let Some(id) = identity.as_mut() {
             id.zeroize();
         }
         entry.map_err(|error| match error {
             StoreError::NotFound(_) | StoreError::InvalidPath(_) => SourceError::Missing,
-            StoreError::Age(_) => SourceError::Locked,
+            StoreError::Age(_) | StoreError::NotInitialized(_) => SourceError::Locked,
             _ => SourceError::Failed,
         })
     }

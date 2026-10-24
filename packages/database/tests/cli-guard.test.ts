@@ -3,11 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The db:migrate / db:reset CLI guards run at module load when argv[1] names
- * the script. With DATABASE_URL empty, main() reports the missing URL and
- * exits 1; with process.exit stubbed as a no-op, execution then falls into the
- * (unreachable-server) migration call, whose rejection lands in the module's
- * .catch handler — a second exit(1). Waiting for both calls before restoring
- * the stub guarantees the real process.exit is never invoked.
+ * the script. With DATABASE_URL empty, main() reports the missing URL, exits 1,
+ * and returns. The return is load-bearing: process.exit is stubbed as a no-op
+ * in this test, so without it execution would continue into an unreachable
+ * server call after the assertion restored the real exit.
  */
 async function runCliGuard(script: "migrate" | "reset", message: string) {
   vi.resetModules();
@@ -25,15 +24,10 @@ async function runCliGuard(script: "migrate" | "reset", message: string) {
       await import("../src/reset.js");
     }
     expect(errorSpy).toHaveBeenCalledWith(message);
-    await vi.waitFor(
-      () => {
-        // Once: the missing-URL guard. Twice: the rejected migration call
-        // landing in the module-level .catch handler.
-        expect(exitSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-      },
-      { timeout: 15_000 },
-    );
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    await vi.waitFor(() => expect(exitSpy).toHaveBeenCalledWith(1), {
+      timeout: 15_000,
+    });
+    expect(exitSpy).toHaveBeenCalledTimes(1);
   } finally {
     if (originalArgv1 !== undefined) {
       process.argv[1] = originalArgv1;

@@ -18,7 +18,7 @@
 
 import { type JsonValue, isJsonObject, isString } from "@opensesame/os-domain";
 import { constantTimeEquals } from "./encoding.js";
-import { refuse } from "./errors.js";
+import { SiopV2Error, refuse } from "./errors.js";
 import { STATIC_SIOP_METADATA, assertAllowedIssuer } from "./issuer.js";
 
 /** The file a deployment publishes, relative to its base path. */
@@ -112,6 +112,10 @@ function baseUrl(where: PagesOrigin): URL {
     ? where.basePath
     : `/${where.basePath}`;
   const base = new URL(path.endsWith("/") ? path : `${path}/`, origin);
+  // A protocol-relative base path ("//other/") resolves to a different host.
+  // The issuer is the configured origin plus path, never an attacker-chosen
+  // origin hidden in the path.
+  if (base.origin !== origin.origin) refuse("malformed_metadata", "metadata");
   if (base.search !== "" || base.hash !== "") {
     refuse("malformed_metadata", "metadata");
   }
@@ -309,11 +313,9 @@ async function readBounded(response: MetadataResponse): Promise<string> {
   }
   const reader = response.body?.getReader();
   if (reader === undefined) {
-    const text = await response.text();
-    if (new TextEncoder().encode(text).length > MAX_SIOP_METADATA_BYTES) {
-      refuse("limit_exceeded", "limits");
-    }
-    return text;
+    // A non-streaming transport would buffer an unbounded body before the
+    // size check. Refuse it rather than weaken the documented cap.
+    refuse("limit_exceeded", "limits");
   }
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -351,7 +353,12 @@ export async function fetchSiopMetadata(
   assertAllowedIssuer(input.expectedIssuer);
   const allowLoopbackHttp = input.allowLoopbackHttp === true;
   const url = input.metadataUrl ?? siopMetadataUrl(input.expectedIssuer);
-  requireSecure(url, allowLoopbackHttp);
+  try {
+    requireSecure(url, allowLoopbackHttp);
+  } catch (error) {
+    if (error instanceof SiopV2Error) throw error;
+    refuse("malformed_metadata", "metadata");
+  }
   if (
     new URL(url).origin !== new URL(input.expectedIssuer).origin &&
     input.allowMirror !== true

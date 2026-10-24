@@ -1,6 +1,7 @@
 /** Closed hosted-model protocols. Inputs never select an origin or HTTP header. */
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
+import type { AiAudioInput } from "./ai-connections/media.js";
 
 const Message = z
   .object({
@@ -19,7 +20,7 @@ const Input = z
     maxOutputTokens: z.number().int().min(1).max(4096).optional(),
   })
   .strict();
-export type HostedModelInput = z.infer<typeof Input>;
+export type HostedModelInput = z.infer<typeof Input> & { media?: AiAudioInput };
 export type HostedModelResult = {
   providerId: string;
   model: string;

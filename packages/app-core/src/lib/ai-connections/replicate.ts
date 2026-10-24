@@ -6,24 +6,11 @@ import {
   type ReplicateInput,
   type ReplicatePrediction,
   ReplicatePredictionSchema,
+  replicatePredictionTarget,
 } from "./replicate-types.js";
 import { AiConnectionError, type AiConnectionTransport } from "./types.js";
 
 /** Official REST predictions protocol; never follows provider-returned URLs. */
-function predictionTarget(model: string) {
-  const version =
-    /^(?:[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*:)?([a-f0-9]{64})$/.exec(
-      model,
-    );
-  if (version) return { path: "predictions", version: version[1] };
-  if (/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(model))
-    return { path: `models/${model}/predictions` };
-  throw new AiConnectionError(
-    "configuration",
-    "Enter a Replicate owner/model, owner/model:version or 64-character version ID.",
-  );
-}
-
 function predictionPath(id: string): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(id))
     throw new AiConnectionError("configuration", "Invalid prediction ID.");
@@ -135,7 +122,7 @@ export function createReplicatePrediction(
   transport: AiConnectionTransport,
   check: () => void,
 ) {
-  const target = predictionTarget(config.model);
+  const target = replicatePredictionTarget(config.model);
   const body: ReplicateInput = { input: inputBody(input) };
   if (target.version) body.version = target.version;
   return request(config, target.path, "POST", transport, check, body);

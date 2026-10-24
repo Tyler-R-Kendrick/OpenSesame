@@ -6,6 +6,8 @@ import {
   approvedPlan,
   descriptorOf,
 } from "./__tests__/plan-fixtures.js";
+import { NATIVE_PROVIDER_PURPOSE } from "./catalog-always-on.js";
+import { describeCapability } from "./catalog.js";
 import { egressSeams, installPlanAwareEgress } from "./egress-default.js";
 import { EgressDenied, createEgressPort, redactUrl } from "./egress.js";
 
@@ -305,5 +307,93 @@ describe("installPlanAwareEgress (S18)", () => {
     expect(() => egressSeams.createEgressPort("not.a-capability")).toThrow(
       EgressDenied,
     );
+  });
+});
+describe("native WebSocket admission", () => {
+  const target = "wss://api.deepgram.com/v1/listen?model=nova-3";
+  const meta = { capability: CONNECTORS, purpose: NATIVE_PROVIDER_PURPOSE };
+  function socketPort(origins: string[]) {
+    const capability = describeCapability(CONNECTORS);
+    if (!capability) throw new Error("compiled connector capability missing");
+    let plan: EffectivePlan | null = approvedPlan([CONNECTORS], {
+      ...FAMILY_POLICY,
+      network: { externalServices: "allow", allowedServiceOrigins: origins },
+    });
+    const fetchImpl = fetchOk();
+    const p = createEgressPort({
+      capability,
+      plan: () => plan,
+      allowedOrigins: [SELF],
+      fetchImpl,
+    });
+    const decide = p.decideWebSocket;
+    if (!decide) throw new Error("plan-aware WebSocket admission missing");
+    return {
+      p,
+      decide,
+      fetchImpl,
+      revoke: () => {
+        plan = null;
+      },
+    };
+  }
+
+  it("uses the actual wss origin and compiled provider purpose without opening HTTP", async () => {
+    const socket = socketPort(["wss://api.deepgram.com"]);
+    expect(socket.decide(target, meta)).toMatchObject({
+      ok: true,
+      destination: "wss://api.deepgram.com/v1/listen",
+    });
+    expect(
+      socketPort(["https://api.deepgram.com"]).decide(target, meta),
+    ).toMatchObject({ ok: false, code: "origin-not-allowed" });
+    expect(socket.decide("wss://other.example/v1/listen", meta)).toMatchObject({
+      ok: false,
+      code: "origin-not-allowed",
+    });
+    expect(await denial(socket.p.fetch(target, undefined, meta))).toBe(
+      "unsupported-scheme",
+    );
+    expect(socket.fetchImpl).not.toHaveBeenCalled();
+    socket.revoke();
+    expect(socket.decide(target, meta)).toMatchObject({
+      ok: false,
+      code: "capability-not-approved",
+    });
+  });
+
+  it("requires purpose, capability, secure scheme, and a credential-free URL", () => {
+    const { decide, fetchImpl } = socketPort([]);
+    for (const args of [
+      undefined,
+      { ...meta, purpose: "unknown" },
+      { ...meta, class: "application-assets" as const },
+    ]) {
+      expect(decide(target, args)).toMatchObject({
+        ok: false,
+        code: "purpose-not-declared",
+      });
+    }
+    expect(
+      decide(target, { ...meta, capability: "vault.passwords" }),
+    ).toMatchObject({ ok: false, code: "capability-mismatch" });
+    for (const input of [
+      "https://api.deepgram.com/v1/listen",
+      "ws://api.deepgram.com/v1/listen",
+    ]) {
+      expect(decide(input, meta)).toMatchObject({
+        ok: false,
+        code: "unsupported-scheme",
+      });
+    }
+    for (const input of [
+      "wss://user:SECRET@api.deepgram.com/v1/listen",
+      `${target}#SECRET`,
+    ]) {
+      const decision = decide(input, meta);
+      expect(decision).toMatchObject({ ok: false, code: "invalid-url" });
+      expect(JSON.stringify(decision)).not.toContain("SECRET");
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

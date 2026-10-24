@@ -5,13 +5,26 @@
   "type": "module",
   "description": "The one evaluator for whether an approval stands: assurance, channel settlement and activation binding",
   "exports": {
-    ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   },
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
-  "dependencies": { "@opensesame/os-domain": "workspace:*" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
     "vitest": "4.1.11"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
   }
 }

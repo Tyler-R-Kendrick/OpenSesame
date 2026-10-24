@@ -46,9 +46,23 @@ export type WorkerStatus = Readonly<{
    */
   savedModuleIds: readonly string[];
   transition: WorkerTransition | null;
+  /**
+   * A new release is waiting and the page has not reloaded, because an edit
+   * is unsaved. Lock, idle, and a chunk that fails to load still reload.
+   */
+  updateReady: boolean;
   /** Human-readable, never secrets. */
   diagnostics: readonly string[];
 }>;
+
+/** Why a page is reloading, or why that reload is waiting on an edit. */
+export type ReloadCause =
+  | "controller-unknown"
+  | "takeover-timeout"
+  | "release-mismatch"
+  | "lock"
+  | "idle"
+  | "stale-chunk";
 
 /** The slice of §4.1's snapshot this controller reads. */
 export type CompositionSnapshotForWorker = Readonly<{
@@ -67,6 +81,11 @@ export type CompositionStoreForWorker = Readonly<{
 export type RegisterWorkerOptions = Readonly<{
   /** `virtual:opensesame-distribution`'s `DISTRIBUTION` (S07). */
   distribution: DistributionContract;
+  /** Browser-owned nonce/port proof of the executing entry in the first worker manifest. */
+  initialReleaseProof?: (
+    worker: ServiceWorker,
+    signal: AbortSignal,
+  ) => Promise<string | null>;
 }>;
 
 /** What the page may say to its worker (`src/sw/messages.ts` is the other side). */

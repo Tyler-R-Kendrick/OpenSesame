@@ -82,6 +82,7 @@ async function join() {
     transport: net.transports(),
     useRoutes: true,
     carriers,
+    unverifiedManual: true,
   });
   return { hosted, guest };
 }
@@ -175,6 +176,7 @@ describe("a session started after the plan withdrew Live sessions", () => {
       transport: net.transports(),
       useRoutes: true,
       carriers,
+      unverifiedManual: true,
     });
     await settle();
     expect(currentGuest()).toBeNull();

@@ -1,9 +1,9 @@
 /** Production-origin identity UI evidence, using the same routes the catalog links to. */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sealWithPin } from "./lib/pages-journey.mjs";
+import { privateSharedTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -17,11 +17,14 @@ const origin = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ??
-    path.join(here, "../../../docs/evidence/2026-10-14-identity-integrations"),
+    path.join(
+      here,
+      "../../../work/evidence/identity-integrations/pages/browser",
+    ),
 );
 const rawRoot = path.resolve(
   process.env.PAGES_CAPTURE_RAW ??
-    path.join(os.tmpdir(), "opensesame-identity-evidence"),
+    privateSharedTempDir("opensesame-identity-evidence"),
 );
 const raw = path.join(rawRoot, phase);
 fs.mkdirSync(out, { recursive: true });

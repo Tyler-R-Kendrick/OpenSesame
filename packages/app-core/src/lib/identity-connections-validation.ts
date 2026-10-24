@@ -6,6 +6,8 @@ import {
   identityConnectionUsesBroker,
   identityEndpoint,
 } from "./identity-connections-schema.js";
+import { nativeOidcConfigurationProblems } from "./identity-oidc-config.js";
+import { nativeSamlConfigurationProblems } from "./identity-saml-config.js";
 
 function oidcProblems(draft: IdentityConnectionDraft): string[] {
   const problems: string[] = [];
@@ -15,6 +17,9 @@ function oidcProblems(draft: IdentityConnectionDraft): string[] {
     problems.push("Enter your registered OIDC client ID");
   if (!draft.scope.split(/\s+/).includes("openid"))
     problems.push("OIDC scopes must include openid");
+  if (draft.oidcClientType === "confidential" && !draft.clientSecret)
+    problems.push("Enter the confidential OIDC client secret");
+  problems.push(...nativeOidcConfigurationProblems(draft));
   return problems;
 }
 function nativeProblems(draft: IdentityConnectionDraft): string[] {
@@ -43,16 +48,6 @@ function brokerProblems(draft: IdentityConnectionDraft): string[] {
     );
   if (!draft.organizationId.trim())
     problems.push("Select an organization you own");
-  return problems;
-}
-function samlProblems(draft: IdentityConnectionDraft): string[] {
-  const problems: string[] = [];
-  if (!draft.samlEntityId.trim())
-    problems.push("Enter the SAML identity provider entity ID");
-  if (!draft.samlMetadataXml && !identityEndpoint(draft.samlMetadataUrl))
-    problems.push("Enter an HTTPS SAML metadata URL or metadata XML");
-  if (draft.samlMetadataXml && draft.samlMetadataUrl)
-    problems.push("Choose metadata URL or XML, not both");
   return problems;
 }
 function ldapUrlProblem(value: string): string[] {
@@ -92,7 +87,7 @@ function ldapProblems(draft: IdentityConnectionDraft): string[] {
 }
 const protocolProblems = {
   oidc: oidcProblems,
-  saml: samlProblems,
+  saml: nativeSamlConfigurationProblems,
   ldap: ldapProblems,
   "better-auth": nativeProblems,
   supabase: nativeProblems,

@@ -5,9 +5,14 @@ import {
   openFile,
   sealFile,
 } from "@opensesame/vault-core";
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { FieldRow } from "../../components/FieldRow.js";
 import { IconDownload, IconUpload } from "../../components/Icons.js";
+import {
+  originPrivateFilesAvailable,
+  pickFiles,
+  saveBlob,
+} from "../../lib/file-system.js";
 
 function iconKey(label: string, onClick: () => void, icon: ReactNode) {
   return (
@@ -54,15 +59,35 @@ export function BlobInput({
   onChange: (next: string) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
   const summary = fileSummary(value);
+  const accept = (picked: File) => {
+    if (!originPrivateFilesAvailable()) {
+      setError("This browser cannot store file attachments.");
+      return;
+    }
+    setError(null);
+    void sealPicked(picked).then(
+      (manifest) => {
+        setError(null);
+        onChange(manifest);
+      },
+      () => setError("Could not store that file."),
+    );
+  };
+  const choose = () => {
+    void pickFiles().then(
+      (files) => {
+        if (files === null) input.current?.click();
+        else if (files[0]) accept(files[0]);
+      },
+      () => input.current?.click(),
+    );
+  };
   const name = summary === null || summary.name === "" ? "" : summary.name;
   return (
     <div className="editor__inline">
-      {iconKey(
-        "Choose file",
-        () => input.current?.click(),
-        <IconUpload size={15} />,
-      )}
+      {iconKey("Choose file", choose, <IconUpload size={15} />)}
       <input
         ref={input}
         id={id}
@@ -71,11 +96,11 @@ export function BlobInput({
         onChange={(event) => {
           const picked = event.target.files?.[0];
           event.target.value = "";
-          if (picked === undefined) return;
-          void sealPicked(picked).then(onChange, () => undefined);
+          if (picked !== undefined) accept(picked);
         }}
       />
       {name === "" ? null : <span className="frow__value">{name}</span>}
+      {error === null ? null : <span role="alert">{error}</span>}
     </div>
   );
 }
@@ -85,12 +110,7 @@ async function saveFile(manifest: string): Promise<void> {
   if (summary === null) return;
   const opened = await openFile(manifest, await defaultFileStores());
   const blob = new Blob([opened.bytes], { type: opened.mediaType });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = summary.name === "" ? "file" : summary.name;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  await saveBlob(blob, summary.name === "" ? "file" : summary.name, "File");
 }
 
 export function BlobRow({

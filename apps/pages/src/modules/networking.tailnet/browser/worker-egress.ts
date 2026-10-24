@@ -1,5 +1,27 @@
 /** Install only inside the disposable SDK Worker, before instantiating Go. */
 export type WorkerDecision = (url: string, method: string) => Promise<boolean>;
+/** Chromium exposes an empty stream for HEAD; Go netcheck never reads that stream. */
+async function completedWorkerFetch(
+  nativeFetch: typeof fetch,
+  request: Request,
+): Promise<Response> {
+  const response = await nativeFetch(request, {
+    redirect: "error",
+    credentials: "omit",
+  });
+  if (request.method !== "HEAD") return response;
+  request.signal.throwIfAborted();
+  // Preserve native URL/type/status/headers and a readable body for the Go caller.
+  const returned = response.clone();
+  try {
+    await response.arrayBuffer();
+    request.signal.throwIfAborted();
+    return returned;
+  } catch (error) {
+    void returned.body?.cancel().catch(() => undefined);
+    throw error;
+  }
+}
 export function installWorkerEgress(
   decide: WorkerDecision,
   assets: readonly string[],
@@ -11,7 +33,7 @@ export function installWorkerEgress(
       const request = new Request(input, init);
       const url = new URL(request.url);
       if (assets.includes(url.href))
-        return nativeFetch(request, { redirect: "error", credentials: "omit" });
+        return completedWorkerFetch(nativeFetch, request);
       if (
         !["https:", "http:"].includes(url.protocol) ||
         url.username ||
@@ -19,7 +41,7 @@ export function installWorkerEgress(
         !(await decide(url.href, request.method))
       )
         throw new Error("Tailscale HTTP destination denied.");
-      return nativeFetch(request, { redirect: "error", credentials: "omit" });
+      return completedWorkerFetch(nativeFetch, request);
     },
   });
   Object.defineProperty(globalThis, "WebSocket", {
@@ -42,6 +64,9 @@ class ApprovedSocket extends EventTarget {
   onmessage: ((event: MessageEvent) => void) | null = null;
   private socket: WebSocket | null = null;
   private closed = false;
+  private closeSent = false;
+  private closeCode = 1000;
+  private closeReason = "";
   private binary: BinaryType = "blob";
   constructor(
     url: string | URL,
@@ -79,7 +104,22 @@ class ApprovedSocket extends EventTarget {
   }
   close(code?: number, reason?: string): void {
     this.closed = true;
-    this.socket?.close(code, reason);
+    if (this.socket) {
+      this.socket.close(code, reason);
+      return;
+    }
+    // No socket exists yet: either construction was denied, or the async
+    // grant is still pending. The event is sent once, after that grant
+    // settles, so a caller never observes a close for a socket that was not
+    // yet allowed to exist.
+    this.closeCode = code ?? 1000;
+    this.closeReason = reason ?? "";
+  }
+  private emitClose(event: CloseEvent): void {
+    if (this.closeSent) return;
+    this.closeSent = true;
+    this.dispatchEvent(event);
+    this.onclose?.(event);
   }
   private async open(
     Native: typeof WebSocket,
@@ -95,7 +135,16 @@ class ApprovedSocket extends EventTarget {
         !(await decide(url.href, "CONNECT"))
       )
         throw new Error("Tailscale socket destination denied.");
-      if (this.closed) return;
+      if (this.closed) {
+        this.emitClose(
+          new CloseEvent("close", {
+            code: this.closeCode,
+            reason: this.closeReason,
+            wasClean: true,
+          }),
+        );
+        return;
+      }
       this.socket = new Native(this.url, protocols);
       this.socket.binaryType = this.binary;
       this.socket.addEventListener("open", () => {
@@ -119,25 +168,25 @@ class ApprovedSocket extends EventTarget {
       });
       this.socket.addEventListener("close", (event) => {
         this.closed = true;
-        const forwarded = new CloseEvent("close", {
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean,
-        });
-        this.dispatchEvent(forwarded);
-        this.onclose?.(forwarded);
+        this.emitClose(
+          new CloseEvent("close", {
+            code: event.code,
+            reason: event.reason,
+            wasClean: event.wasClean,
+          }),
+        );
       });
     } catch {
       this.closed = true;
       const error = new Event("error");
       this.dispatchEvent(error);
       this.onerror?.(error);
-      const close = new CloseEvent("close", {
-        code: 1008,
-        reason: "Destination denied",
-      });
-      this.dispatchEvent(close);
-      this.onclose?.(close);
+      this.emitClose(
+        new CloseEvent("close", {
+          code: 1008,
+          reason: "Destination denied",
+        }),
+      );
     }
   }
 }

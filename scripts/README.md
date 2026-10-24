@@ -15,9 +15,9 @@ repository root).
 | [`test/`](test) | Cross-cutting suites, smoke tests and evidence gates | `pnpm test:*`, `pnpm verify:*`, `pnpm verify` |
 | [`mtls/`](mtls) | The optional-mTLS suites and their pinned fixtures | `pnpm test:mtls*` |
 | [`wallet/`](wallet) | Wallet spending-authority harness ([README](wallet/README.md)) | `pnpm wallet:*` |
-| [`release/`](release) | Pages release, commit-signature check, signed-stack replay, connector and marketplace pins | CI, Deploy Pages, a terminal ([README](release/README.md)) |
+| [`release/`](release) | Pages release, the release kit's archives, commit-signature check, signed-stack replay, connector and marketplace pins | CI, Deploy Pages, a terminal ([README](release/README.md)) |
 | [`dev/`](dev) | Local development launchers and git hook setup | `pnpm dev:cli`, `dev:host`, `dev:daemon`, `dev:live-nats`, `pnpm setup:hooks`, `pnpm --filter @opensesame/pages dev` |
-| [`security/`](security) | The dependency-backport ledger and regression tests for patched and upgraded dependencies | `pnpm audit:osv`, `pnpm quality:test` |
+| [`security/`](security) | The fail-closed advisory gate and dependency regression tests | `pnpm audit:osv`, `pnpm quality:test` |
 | [`lib/`](lib) | Pure logic shared by the entry points, with Vitest tests beside it | `pnpm quality:test` |
 
 Keep an entry point thin: parse arguments, call into `lib/`, set the exit
@@ -71,7 +71,7 @@ the others report on the terminal (`deepsec` keeps its state under
 | `live-fixtures.sh` | `test:live-fixtures` | The nats-server pin, an ntfy built from pinned upstream source, and `live-turn` (`scripts/test/live-turn`, pion/turn over UDP, TCP and TLS), for `verify:live-join`'s carriers and TURN walks. |
 | `connect-preflight.mjs` | `test:connect-preflight` | Every connector's real endpoints, read-only: OAuth authorize and discovery, MCP metadata, API-key verify ([ADR 0147](../docs/adr/0147-connector-plans-and-user-token-proof.md)). Logic in `lib/connect-preflight.mjs`. |
 | `live-stack-test.sh` | `test:live-stack` | Live OpenFGA, OpenBao and gateway (start them with `dev/start-native-deps.sh`). |
-| `authority-fabric-gate.mjs` | `test:authority-fabric` | The general-authority verification gate: resolves every scenario in the registry against what is wired, runs the tests that exist and writes its report under `docs/evidence/general-authority/`. |
+| `authority-fabric-gate.mjs` | `test:authority-fabric` | The general-authority verification gate: resolves every scenario in the registry against what is wired, runs the tests that exist and writes its temporary report under `work/evidence/general-authority/authority/cross-platform/`. |
 | `bitwarden-oracle-test.sh` (+ `bitwarden-hub-client.mjs`) | `test:bitwarden-oracle` | The pinned official `bw` CLI and SignalR client against the `bitwarden-compat` surface ([ADR 0141](../docs/adr/0141-bitwarden-compatible-server.md)); fails, never skips. |
 | `2password-parity.mjs` (+ `2password-*.test.ts`) | `test:2password-parity` | Rebuilds and exercises every contract declared in `spec/conformance/2password-parity.json`. |
 | `plugin-boundary-negative-control.sh` | `test:plugin-boundary` | Points `audit/plugin-boundary-gate.sh` at the plugin crate itself; the gate must fail. |
@@ -106,6 +106,8 @@ the others report on the terminal (`deepsec` keeps its state under
 | `pin-connect-services.mjs` | Re-pins [`spec/connectors/connect-services.json`](../spec/connectors/connect-services.json): Vercel Connect's public service registry and each MCP server's live OAuth discovery (`lib/oauth-discovery.mjs`). |
 | `pin-marketplace.mjs` | Re-pins the SHA-256 of every item type in [`.opensesame/marketplace.json`](../.opensesame/marketplace.json). |
 | `land-signed-stack.mjs` | Replays a local branch stack as GitHub-verified commits ([README](release/README.md)). |
+| `kit-archive.sh` | Release kit: packs the binaries and the bundled bridge into reproducible archives and writes `SHA256SUMS` ([docs/operators/release-kit.md](../docs/operators/release-kit.md)). |
+| `tag-check.sh` | Release kit: refuses a tag that is not the workspace version or not on `main`, and peels an annotated tag to its commit, before any build starts. |
 
 ## dev/
 
@@ -124,8 +126,8 @@ the others report on the terminal (`deepsec` keeps its state under
 
 | File | Used by |
 |---|---|
-| `verified-backports.mjs`, `dependency-backports.json` | `audit:osv`: an npm finding for `braces` or `node-forge` counts as remediated only when the lockfile binding, the patch in [`patches/`](../patches) and the installed sources all match the recorded advisory, version and SHA-256s. |
-| `*.test.mjs` | `quality:test` (`node --test scripts/security/*.test.mjs`): attack regressions for the backports and the `js-yaml`, `shell-quote`/`source-map-js` and `simple-git` upgrades ([`patches/simple-git-parser-residual.md`](../patches/simple-git-parser-residual.md)). |
+| `assert-no-advisories.mjs` | `audit:osv`: accepts only an empty findings array; every advisory and malformed report fails the gate. The removed `braces` and `node-forge` dependencies have no advisory exceptions. |
+| `*.test.mjs` | `quality:test` (`node --test scripts/security/*.test.mjs`): advisory gate, removed-dependency and ADB transport regressions, and the `js-yaml`, `shell-quote`/`source-map-js` and `simple-git` upgrades ([`patches/simple-git-parser-residual.md`](../patches/simple-git-parser-residual.md)). |
 
 ## Adding a script
 

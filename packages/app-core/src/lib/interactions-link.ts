@@ -15,7 +15,7 @@ import {
   type InteractionArrival,
   matchCeremonyPath,
   readInteractionArrival,
-} from "@opensesame/ceremony-kit";
+} from "@opensesame/ceremony-kit/links";
 import { maybePage } from "../ports.js";
 
 const NONE: InteractionArrival = { kind: "none" };

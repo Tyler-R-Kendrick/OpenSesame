@@ -19,6 +19,7 @@ introduces its own (mTLS, plugins) names them where they are used.
 | [Vault files](vault-files.md) | Every secret as its own file on disk: the tree, what a file shows and holds, backing up and sharing, two writers, and the privately hosted store (ADR 0182). |
 | [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
 | [Proxied run quickstart](proxied-run-quickstart.md) | Running a command with a surrogate in place of a provider token: install the plugin, seal the token, declare the connection, what the child sees, what is refused, how a run ends and is revoked. |
+| [Release kit](release-kit.md) | The prebuilt Linux binaries a `v*` tag publishes: what is in a kit, verifying it with `sha256sum` and `gh attestation verify`, and running it in a lane with the bridge beside the binary. |
 
 ## Identity
 
@@ -74,6 +75,7 @@ introduces its own (mTLS, plugins) names them where they are used.
 | [Duress troubleshooting](duress-troubleshooting.md) | PRF support, RP-ID changes and other failure modes. |
 | [New-item links](vault-draft-links.md) | Links that open a reviewable draft item with generated defaults. |
 | [Travel mode](travel-mode.md) | Crossing a border carrying only the vaults that are safe to carry, or only some of one vault's items, and bringing the rest back (ADR 0143, ADR 0171). |
+| [Deadman switch relay](deadman-relay.md) | The small heartbeat, signed-arm and webhook contract behind the device-local deadman switch (ADR 0209). |
 
 ## Payments
 

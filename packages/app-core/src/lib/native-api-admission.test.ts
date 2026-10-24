@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest";
+import { aiHttpFixture } from "./ai-connections/protocol.test-support.js";
 import { readDeviceRows } from "./device-connector-records.js";
 import { kvSeams } from "./kv.js";
 import { nativeApiCleanup } from "./native-api-cleanup.js";
@@ -33,7 +34,7 @@ installNativeApiTests();
 type BlockedCase = { providerId: string; parameters: Record<string, string> };
 const blocked: BlockedCase[] = [
   { providerId: "resend", parameters: {} },
-  { providerId: "neon", parameters: {} },
+  { providerId: "neon", parameters: { org_id: "org-spring-garden-12345" } },
   { providerId: "datadog", parameters: {} },
   { providerId: "datadog", parameters: { site: "datadoghq.eu" } },
   { providerId: "typeform", parameters: { api_host: "api.typeform.com" } },
@@ -65,27 +66,90 @@ it("verifies Anthropic with its official browser opt-in before sealing a ready c
   expect(headers.get("x-api-key")).toBe("private-native-key");
 });
 
-it.each(blocked)(
-  "refuses browser-blocked $providerId $parameters before credential HTTP or a sealed save",
-  async ({ providerId, parameters }) => {
-    const provider = nativeAnswers({ body: {} });
-    const target = nativeApiTarget(providerId, parameters);
-    const policy = nativeBrowserApiPolicy(providerId, target.parameters);
-    expect(policy.available).toBe(false);
-    await expect(
-      configureNativeApiConnector(
-        {
-          ...nativeApiDraft(providerId),
-          parameters,
-        },
-        provider.transport,
-      ),
-    ).rejects.toThrow(policy.reason ?? "unavailable");
-    expect(provider.fetch).not.toHaveBeenCalled();
-    expect(kvSeams.kvSetDurable).not.toHaveBeenCalled();
-    expect(readDeviceRows()).toEqual([]);
+async function providerHttp(status: number | "network") {
+  const fixture = await aiHttpFixture((_request, response) => {
+    if (status === "network") response.destroy();
+    else {
+      response.writeHead(status, { "content-type": "application/json" });
+      response.end(JSON.stringify({ username: "Fixture operator" }));
+    }
+  });
+  const provider = nativeAnswers();
+  provider.fetch.mockImplementation((input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    // The real logical provider request reaches an owned HTTP protocol oracle.
+    return fetch(
+      new URL(url.pathname + url.search, new URL(fixture.baseUrl).origin),
+      init,
+    );
+  });
+  return { ...provider, fixture };
+}
+
+it.each(
+  blocked.flatMap((entry) =>
+    ["network", 401].map((failure) => ({ ...entry, failure })),
+  ),
+)(
+  "$providerId $parameters attempts HTTP and refuses $failure without a connected record",
+  async ({ providerId, parameters, failure }) => {
+    const provider = await providerHttp(
+      failure === "network" ? "network" : 401,
+    );
+    try {
+      const target = nativeApiTarget(providerId, parameters);
+      expect(
+        nativeBrowserApiPolicy(providerId, target.parameters).available,
+      ).toBe(true);
+      await expect(
+        configureNativeApiConnector(
+          {
+            ...nativeApiDraft(providerId),
+            parameters,
+            credentials: Object.fromEntries(
+              target.classification.privateCredentials.map((key) => [
+                key,
+                "private-native-key",
+              ]),
+            ),
+          },
+          provider.transport,
+        ),
+      ).rejects.toThrow(
+        failure === "network"
+          ? "Could not reach the provider"
+          : "Provider authorization was refused",
+      );
+      expect(provider.fetch).toHaveBeenCalledOnce();
+      expect(provider.fixture.requests).toHaveLength(1);
+      expect(kvSeams.kvSetDurable).not.toHaveBeenCalled();
+      expect(readDeviceRows()).toEqual([]);
+    } finally {
+      await provider.fixture.close();
+    }
   },
 );
+
+it("actually verifies the Replicate account instead of treating historical CORS evidence as a refusal", async () => {
+  const provider = await providerHttp(200);
+  try {
+    const view = await configureNativeApiConnector(
+      nativeApiDraft("replicate"),
+      provider.transport,
+    );
+    expect(view.status).toBe("connected");
+    expect(provider.fixture.requests[0]).toMatchObject({
+      method: "GET",
+      path: "/v1/account",
+    });
+    expect(provider.fixture.requests[0]?.headers.authorization).toBe(
+      "Bearer private-native-key",
+    );
+    expect(readDeviceRows()).toHaveLength(1);
+  } finally {
+    await provider.fixture.close();
+  }
+});
 
 /** Represents a previously verified record saved before the browser refusal was authored. */
 async function savedBeforePolicy() {
@@ -125,6 +189,7 @@ async function savedBeforePolicy() {
       runtime: {
         ...emptyNativeRuntime(),
         verifiedAt: 100,
+        targets: [{ id: "https://api.resend.com", label: "API", kind: "api" }],
         grants: [
           {
             actor: "app",
@@ -143,52 +208,59 @@ async function savedBeforePolicy() {
 }
 
 it.each(["verify", "read", "operation"] as const)(
-  "blocks an existing browser-refused connection's %s and invalidates proof without losing local cleanup authority",
+  "invalidates an existing connection after actual401 on %s without losing local cleanup authority",
   async (operation) => {
     const view = await savedBeforePolicy();
-    const provider = nativeAnswers({ body: {} });
-    const action =
-      operation === "verify"
-        ? verifyNativeApiConnector(view.connectionId, provider.transport)
-        : operation === "read"
-          ? invokeNativeApiConnector(
-              view.connectionId,
-              "provider.read",
-              {},
-              provider.transport,
-            )
-          : executeNativeApiRequest(
-              view.connectionId,
-              {
-                providerId: "resend",
-                operationId: "provider.read",
-                method: "GET",
-                path: "/domains",
-              },
-              {},
-              () => "unused",
-              provider.transport,
-            );
-    await expect(action).rejects.toThrow(
-      nativeBrowserApiPolicy("resend").reason ?? "unavailable",
-    );
-    expect(provider.fetch).not.toHaveBeenCalled();
-    expect(readNativeConnector(view.connectionId)?.status).toBe("reauthorize");
-    const record = loadNativeConnectorRecord(view.connectionId);
-    expect(record?.privateState.verification).toBeNull();
-    expect(record?.privateState.grants.app?.accessToken).toBe(
-      "private-native-key",
-    );
-    const dispose = registerNativeProviderCleanup("resend", nativeApiCleanup);
+    const provider = await providerHttp(401);
     try {
-      await expect(
-        removeNativeConnectorWithCleanup(view.connectionId),
-      ).resolves.toBe(true);
+      const action =
+        operation === "verify"
+          ? verifyNativeApiConnector(view.connectionId, provider.transport)
+          : operation === "read"
+            ? invokeNativeApiConnector(
+                view.connectionId,
+                "provider.read",
+                {},
+                provider.transport,
+              )
+            : executeNativeApiRequest(
+                view.connectionId,
+                {
+                  providerId: "resend",
+                  operationId: "provider.read",
+                  method: "GET",
+                  path: "/domains",
+                },
+                {},
+                () => "unused",
+                provider.transport,
+              );
+      await expect(action).rejects.toThrow(
+        "Provider authorization was refused",
+      );
+      expect(provider.fetch).toHaveBeenCalledOnce();
+      expect(provider.fixture.requests).toHaveLength(1);
+      expect(readNativeConnector(view.connectionId)?.status).toBe(
+        "reauthorize",
+      );
+      const record = loadNativeConnectorRecord(view.connectionId);
+      expect(record?.privateState.verification).toBeNull();
+      expect(record?.privateState.grants.app?.accessToken).toBe(
+        "private-native-key",
+      );
+      const dispose = registerNativeProviderCleanup("resend", nativeApiCleanup);
+      try {
+        await expect(
+          removeNativeConnectorWithCleanup(view.connectionId),
+        ).resolves.toBe(true);
+      } finally {
+        dispose();
+      }
+      expect(readNativeConnector(view.connectionId)).toBeNull();
+      expect(provider.fetch).toHaveBeenCalledOnce();
     } finally {
-      dispose();
+      await provider.fixture.close();
     }
-    expect(readNativeConnector(view.connectionId)).toBeNull();
-    expect(provider.fetch).not.toHaveBeenCalled();
   },
 );
 

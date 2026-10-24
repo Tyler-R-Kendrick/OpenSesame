@@ -7,9 +7,18 @@ import {
 /** A single approved activation; capturing it never borrows a later lease. */
 export type SecretBackendTransport = Readonly<{
   fetch: SecretBackendFetch;
+  /** Capture one original configured node/route before backend authentication. */
+  capture?: () => SecretBackendTransport;
+  /** A live exact-origin grant from that captured route, never static provider metadata. */
+  supportsNativeOrigin?: (origin: string) => boolean;
   assertCurrent(): void;
   signal: AbortSignal;
 }>;
+type BackendLifetime = Pick<
+  SecretBackendTransport,
+  "assertCurrent" | "signal"
+> &
+  Partial<Pick<SecretBackendTransport, "fetch">>;
 
 function stale(): SecretBackendError {
   return new SecretBackendError(
@@ -40,35 +49,88 @@ export function bindSecretBackendTransport(
 
 /** Only HTTP modes need the optional capability; local ports do not call this. */
 export function secretBackendTransport(): SecretBackendTransport {
-  active.assertCurrent();
-  if (active.signal.aborted) throw stale();
-  return active;
+  const original = active;
+  original.assertCurrent();
+  if (original.signal.aborted) throw stale();
+  const captured = original.capture?.() ?? original;
+  original.assertCurrent();
+  if (active !== original || original.signal.aborted) throw stale();
+  captured.assertCurrent();
+  if (captured.signal.aborted) throw stale();
+  return captured;
+}
+
+/** Preserve the original route even when a cold saved record has not revealed its mode. */
+export function captureSecretBackendTransport(
+  callerSignal?: AbortSignal,
+): SecretBackendTransport {
+  if (callerSignal?.aborted) return inactive;
+  try {
+    return Object.freeze(guardSecretBackendTransport(secretBackendTransport()));
+  } catch (error) {
+    const refuse = (): never => {
+      throw error;
+    };
+    return Object.freeze({
+      fetch: async () => refuse(),
+      assertCurrent: refuse,
+      signal: AbortSignal.abort(),
+    });
+  }
 }
 
 /** Operation owners may add vault and saved-configuration checks to the approved network port. */
 export function guardSecretBackendTransport(
   transport: SecretBackendTransport,
   guard?: () => void,
+  ownerSignal?: AbortSignal,
 ): SecretBackendTransport {
+  const fetcher = transport.fetch.bind(transport);
+  const capturedCheck = transport.assertCurrent.bind(transport);
+  const supportsNativeOrigin = transport.supportsNativeOrigin?.bind(transport);
+  const signal = ownerSignal
+    ? AbortSignal.any([transport.signal, ownerSignal])
+    : transport.signal;
   const assertCurrent = () => {
-    transport.assertCurrent();
-    if (transport.signal.aborted) throw stale();
+    capturedCheck();
+    if (signal.aborted) throw stale();
     guard?.();
+    if (signal.aborted) throw stale();
   };
-  return {
-    signal: transport.signal,
+  const guarded: SecretBackendTransport = {
+    signal,
     assertCurrent,
     fetch: async (input, init) => {
       assertCurrent();
-      const response = await transport.fetch(input, init);
+      const signals = [signal];
+      if (input instanceof Request) signals.push(input.signal);
+      if (init?.signal) signals.push(init.signal);
+      const response = await fetcher(input, {
+        ...init,
+        signal: AbortSignal.any(signals),
+      });
       assertCurrent();
       return response;
+    },
+  };
+  if (!supportsNativeOrigin) return guarded;
+  return {
+    ...guarded,
+    supportsNativeOrigin: (origin) => {
+      try {
+        assertCurrent();
+        const supported = supportsNativeOrigin(origin);
+        assertCurrent();
+        return supported;
+      } catch {
+        return false;
+      }
     },
   };
 }
 
 async function duringLease<T>(
-  transport: SecretBackendTransport,
+  transport: BackendLifetime,
   operation: () => Promise<T>,
   discard?: (result: T) => Promise<void>,
 ): Promise<T> {
@@ -112,11 +174,12 @@ async function duringLease<T>(
 /** HTTP and SDK results have the same activation fence as the requests that made them. */
 export function fenceSecretBackend(
   backend: SecretBackend,
-  transport: SecretBackendTransport,
+  transport: BackendLifetime,
 ): SecretBackend {
   const fenced: SecretBackend = {
     id: backend.id,
     name: backend.name,
+    signal: transport.signal,
     capabilities: backend.capabilities,
     authenticate: (config) =>
       duringLease(
@@ -132,6 +195,14 @@ export function fenceSecretBackend(
       duringLease(transport, () => backend.getNotes(name, session)),
     disconnect: (session) => backend.disconnect(session),
   };
+  const initialize = backend.initialize;
+  if (initialize)
+    fenced.initialize = (config) =>
+      duringLease(
+        transport,
+        () => initialize.call(backend, config),
+        (session) => backend.disconnect(session),
+      );
   const create = backend.createItem;
   const update = backend.updateItem;
   const remove = backend.deleteItem;

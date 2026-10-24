@@ -1,3 +1,5 @@
+import { toTheList } from "./phone-vault.mjs";
+import { openSessionSection } from "./session-section.mjs";
 import { readTray } from "./tray-contract.mjs";
 /**
  * The unlock/MFA ceremony's page-driving for `verify-auth-flow.mjs`: read the
@@ -52,10 +54,12 @@ export async function expectRefusedOnField(page, check) {
 
 /** Trash the vault's self-supplied authenticator: an item in the vault. */
 export async function withdrawSelfAuthenticator(page, check) {
-  // Enrollment happens under Settings, which replaces the vault tree.
+  // The phone's Settings page has no vault rail. Use the section drawer
+  // (or the desktop's current tree), then the vault's actual list pane.
   const back = page.getByRole("treeitem", { name: "Back to vault" });
   if (await back.isVisible().catch(() => false)) await back.click();
-  await page.getByRole("treeitem", { name: "Vault", exact: true }).click();
+  await openSessionSection(page, "Vault");
+  await toTheList(page);
   await page.waitForTimeout(1000);
   // The account is an entry, and so is the authenticator bound to it
   // ("... · Authenticator", ADR 0179); the account is the one to trash.
@@ -89,6 +93,12 @@ export async function finishUnlockWithCode(
   // A full code submits itself; the wrong one is refused without a click.
   await page.getByLabel("Authenticator code", { exact: true }).fill("000000");
   await page.waitForTimeout(800);
+  const corner = await page.locator(".notice-corner").boundingBox();
+  const gate = await page.locator(".unlock.unlock--lock-v5").boundingBox();
+  check(
+    corner !== null && gate !== null && corner.y + corner.height <= gate.y,
+    "the refusal and its bell sit above the unlock form without covering controls",
+  );
   const refused = `${await snap(page, `${name}-wrong-code`)} ${await readTray(page)}`;
   check(/not valid/i.test(refused), "a wrong code is refused in plain words");
   check(

@@ -72,3 +72,54 @@
   opacity: 0.4;
   cursor: progress;
 }
+
+.plugin-tile__honey {
+  border-top: 1px solid var(--line, #e5e5e5);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+.plugin-tile__honey-head h3 {
+  font-size: 1rem;
+  margin: 0 0 4px;
+}
+.plugin-tile__honey-head p,
+.plugin-tile__honey-empty {
+  color: var(--muted, #666);
+  font-size: 0.875rem;
+  margin: 0 0 10px;
+}
+.plugin-tile__honey-new {
+  align-items: end;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.plugin-tile__honey-new .field {
+  flex: 1;
+}
+.plugin-tile__honey-error {
+  color: var(--err, #b42318);
+  font-size: 0.875rem;
+}
+.plugin-tile__honey-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.plugin-tile__honey-row {
+  align-items: center;
+  display: grid;
+  gap: 5px 8px;
+  grid-template-columns: minmax(90px, 1fr) auto;
+}
+.plugin-tile__honey-token {
+  display: block;
+  font-size: 0.7rem;
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+}
+.plugin-tile__honey-row > .icon-btn {
+  grid-row: 1;
+}

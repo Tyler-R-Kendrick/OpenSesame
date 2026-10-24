@@ -196,6 +196,7 @@ it("saves and reloads configuration without authenticating, then connects its sa
   expect(dependencies.connectSecretBackend).toHaveBeenCalledWith(
     "backend-one",
     "backend-one",
+    expect.any(AbortSignal),
   );
 });
 
@@ -213,6 +214,7 @@ it("tests current settings without saving or collecting a configured connection"
   expect(dependencies.probeSecretBackend).toHaveBeenCalledWith(
     expect.objectContaining({ baseUrl: "https://passwords.example.com" }),
     undefined,
+    expect.any(AbortSignal),
   );
   expect(dependencies.saveSecretBackendConnection).not.toHaveBeenCalled();
   expect(dependencies.connectSecretBackend).not.toHaveBeenCalled();
@@ -250,6 +252,10 @@ it("retains failed settings for retry and confirms removing saved configuration"
 it("keeps a file and its password transient and clears the authenticated view on vault lock", async () => {
   const user = userEvent.setup();
   draw("proton-pass");
+  await user.selectOptions(
+    screen.getByLabelText("Connection method"),
+    "file-import",
+  );
   const file = new File(['{"vaults":{}}'], "proton.json", {
     type: "application/json",
   });
@@ -276,6 +282,7 @@ it("keeps a file and its password transient and clears the authenticated view on
       mode: "file-import",
     }),
     "backend-one",
+    expect.any(AbortSignal),
   );
   expect(screen.getByLabelText("Export password")).toHaveProperty("value", "");
   act(() => {

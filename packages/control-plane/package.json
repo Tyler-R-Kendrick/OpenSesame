@@ -47,10 +47,10 @@
     "@opensesame/wallet": "workspace:*",
     "@opensesame/webhooks": "workspace:*",
     "drizzle-orm": "0.45.2",
-    "hono": "4.13.10",
+    "hono": "4.13.11",
     "jose": "6.2.8",
     "ldapts": "9.0.0",
-    "nodemailer": "10.0.9",
+    "nodemailer": "10.0.10",
     "openid-client": "6.8.7",
     "zod": "3.25.67"
   },
@@ -69,5 +69,10 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
   }
 }

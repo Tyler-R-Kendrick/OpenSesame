@@ -63,7 +63,10 @@ export async function enrollAgeRecipientFlow(input: {
   protection: Protection;
   tomb: string;
   entry: AgeRecipientEntry;
-  deliver: (delivery: { identity: string; recipient: string }) => void;
+  deliver: (delivery: {
+    identity: string;
+    recipient: string;
+  }) => void | Promise<void>;
 }): Promise<EnrolledProtector> {
   const recipients = input.entry.recipient.trim();
   const identity = input.entry.identity.trim();
@@ -78,7 +81,7 @@ export async function enrollAgeRecipientFlow(input: {
     candidate.ageIdentitySecret &&
     candidate.record.kind === "age-recipient"
   ) {
-    input.deliver({
+    await input.deliver({
       identity: candidate.ageIdentitySecret,
       recipient: candidate.record.recipients.join("\n"),
     });

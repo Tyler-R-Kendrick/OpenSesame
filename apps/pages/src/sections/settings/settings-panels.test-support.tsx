@@ -20,8 +20,10 @@ import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { FeatureConfigPanel } from "./FeatureConfigPanel.js";
 import { FeaturesPanel, capabilitiesPanelSeams } from "./FeaturesPanel.js";
 import { IntegrationsPanel } from "./IntegrationsPanel.js";
+import { featureConfigPath } from "./feature-config-path.js";
 
 export function renderPanel() {
   return render(
@@ -35,6 +37,14 @@ export function renderIntegrationsPanel() {
   return render(
     <MemoryRouter>
       <IntegrationsPanel />
+    </MemoryRouter>,
+  );
+}
+
+export function renderFeatureConfig(featureId: string, capabilityId?: string) {
+  return render(
+    <MemoryRouter initialEntries={[featureConfigPath(featureId, capabilityId)]}>
+      <FeatureConfigPanel featureId={featureId} capabilityId={capabilityId} />
     </MemoryRouter>,
   );
 }

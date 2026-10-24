@@ -86,7 +86,7 @@ export type AdapterManifest = {
   sourceLicense: string;
   evidenceStatus: EvidenceStatus;
   /**
-   * Must stay false until docs/evidence/wallet/ holds verified command output.
+   * Must stay false until work/evidence/wallet/wallet/cross-platform/ holds verified command output.
    * An activation flag cannot manufacture deployment evidence.
    */
   productionEnabled: boolean;

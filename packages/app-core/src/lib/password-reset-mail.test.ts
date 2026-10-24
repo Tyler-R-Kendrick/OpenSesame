@@ -162,7 +162,7 @@ describe("matchResetMail", () => {
     ).toEqual([]);
   });
 
-  it("falls back to the link origin and keeps one match per login and origin", () => {
+  it("refuses a link whose host is not one of the login's registered URIs", () => {
     const matches = matchResetMail(
       [email],
       [login, { ...login, id: "login-1" }],
@@ -179,9 +179,7 @@ describe("matchResetMail", () => {
         },
       ],
     );
-    expect(matches).toEqual([
-      { itemId: "login-1", origin: "https://other.example" },
-    ]);
+    expect(matches).toEqual([]);
   });
 });
 

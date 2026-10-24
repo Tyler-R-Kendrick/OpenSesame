@@ -166,7 +166,7 @@ function shippedSources(dir) {
   return globSync("src/**/*.{ts,tsx,js,mjs}", { cwd: join(root, dir) })
     .filter(
       (f) =>
-        !/\.(test|spec)\.[cm]?[jt]sx?$/.test(f) &&
+        !/\.(test|spec|test-support)\.[cm]?[jt]sx?$/.test(f) &&
         !/__tests__|\/test\//.test(f) &&
         !/^src\/node\//.test(f),
     )

@@ -8,13 +8,12 @@
  * there is peer to peer: a contact approves with their own security key on
  * their own device, and nothing goes to a service.
  *
- * Contributed: the Settings › Trusted contacts tab — Circles (the owner's),
- * Guarding (a guardian's: invitations, shares held, requests to approve or
- * release) and Recovery (a recipient's) — and the walkthrough that points at
- * it (`tutorial/registry/trusted-contacts-catalog.ts`). The tab has no
+ * Contributed: Settings › Security › Trusted contacts — the owner's Circles —
+ * and the walkthrough that points at it
+ * (`tutorial/registry/trusted-contacts-catalog.ts`). The section has no
  * settings file: what it holds are vault records, not configuration
- * (ADR 0134, ADR 0158). Each panel draws nothing while the vault is locked,
- * a guest or a decoy.
+ * (ADR 0134, ADR 0158). Each panel says why instead of drawing a blank while
+ * the vault is locked, a guest or a decoy.
  *
  * Egress: none. This module makes no request and holds no `ctx.egress` call.
  * An invitation, an enrollment, a request, an approval and a release are
@@ -50,16 +49,14 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
-    activation.register("settings-category", {
+    // A subsection of Security, not a top-level Settings destination: the
+    // three panels are one place in the security story, beside duress and
+    // travel, and the page index still lists it as Trusted contacts.
+    activation.register("settings-panel", {
       id: "trusted-contacts",
       label: "Trusted contacts",
-      guideId: "settings.trusted-contacts",
+      category: "security",
       Panel: TrustedContacts,
-      panels: [
-        { id: "circles", label: "Circles" },
-        { id: "guarding", label: "Guarding" },
-        { id: "recovery", label: "Recovery" },
-      ],
       order: 330,
     });
     registerTutorial(activation, TUTORIAL);

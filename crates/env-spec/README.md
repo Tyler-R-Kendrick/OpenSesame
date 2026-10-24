@@ -20,18 +20,31 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
 - `resolve_for_delivery` never materializes a secret without a policy allow;
   with `agent` set, materialization is denied and the item is omitted with a
   warning.
-- The bridge is started by `node_command` and nothing else: `node` is found
-  among the `PATH` entries that are absolute, exist and cannot be written by
-  group or others (Windows: absolute, existing, not the current directory), so
-  an empty or relative entry cannot run a `node` planted in the working
-  directory, and it is run by its absolute path. Its environment is built, not
-  inherited: `PATH` (those entries), `HOME`, `TMPDIR`, `LANG`, the `LC_*`
-  locale variables and, on Windows, `SystemRoot`, `PATHEXT` and `COMSPEC`. The
-  store passphrase and every other `OPENSESAME_*` variable, `NODE_OPTIONS`,
-  `NODE_PATH`, tokens and proxy settings never reach it, so an inherited
-  `--import` or `--require` cannot load other code into the process that reads
-  configuration either. With no such `node` the error says so; the inherited
-  `PATH` is not a fallback.
+- The bridge is started by `node_command` and nothing else. If the operator
+  set `OPENSESAME_NODE` to an absolute path, that file is the `node`: it is
+  consulted first, it must exist and (after symlinks) be a regular file with an
+  execute bit, and it is exempt from the directory and file ownership and mode
+  checks below, because the operator named the exact file (the same trust as
+  `OPENSESAME_ENV_PARSE`, the script it runs). An empty, relative, missing,
+  non-file or non-executable value is an error that names the variable
+  (`EnvSpecError::NodeOverride`); it never falls back to `PATH`, and the
+  variable is not passed on to the bridge. Without it, `node` is found
+  among the `PATH` entries that are absolute, exist, are owned by root or the
+  caller, cannot be written by others, and are group-writable only by root's
+  group or one of the caller's own (`root:root 0775` and `user:user 0775` pass,
+  `root:othergroup 0775` and `0777` do not; Windows: absolute, existing, not the
+  current directory), and the `node` itself must be owned by root or the caller
+  and not world-writable. So an empty or relative entry cannot run a `node`
+  planted in the working directory, and it is run by its absolute path. Its
+  environment is built, not inherited: `PATH` (those entries), `HOME`,
+  `TMPDIR`, `LANG`, the `LC_*` locale variables and, on Windows, `SystemRoot`,
+  `PATHEXT` and `COMSPEC`. The store passphrase and every other `OPENSESAME_*`
+  variable, `NODE_OPTIONS`, `NODE_PATH`, tokens and proxy settings never reach
+  it, so an inherited `--import` or `--require` cannot load other code into the
+  process that reads configuration either. With no such `node` the error says
+  so and names every entry or file it skipped and why ("writable by others",
+  "group-writable by group 1234 which is not one of yours", "owned by uid
+  1001"); the inherited `PATH` is not a fallback.
 - Placeholder suffixes are random per projection.
 
 ## Surface
@@ -39,12 +52,12 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
 | Item | What it is |
 |---|---|
 | `parse_schema_file(path)` | Runs `node packages/env-spec-bridge/bin/opensesame-env-parse.mjs <path>` under `node_command`; `OPENSESAME_ENV_PARSE` overrides the script path |
-| `node_command()` | The one way to start Node here: the trusted `node` and the minimal environment above, ready for the script's arguments |
+| `node_command()` | The one way to start Node here: `OPENSESAME_NODE`, else the trusted `node` on `PATH`, and the minimal environment above, ready for the script's arguments |
 | `parse_schema_json(json)` | Parses bridge output already in hand |
 | `schema_summary(doc)` | Per item: key, sensitive / required / public flags, resolver name, whether a value is present — never the value |
 | `resolve_for_delivery(doc, policy, agent)` | `Vec<ResolvedEnvEntry>` with delivery mode, connection ref, projection, `omitted` and `warning` |
 | `EnvSpecDocument`, `EnvSpecItem`, `EnvDecorator`, `EnvResolver`, `EnvResolverArg` | The bridge's JSON shapes |
-| `EnvSpecError` | `Io`, `Json`, `Bridge`, `Domain`, `Scope`, `Node` (no usable `node`) |
+| `EnvSpecError` | `Io`, `Json`, `Bridge`, `Domain`, `Scope`, `Node` (no usable `node` on `PATH`), `NodeOverride` (`OPENSESAME_NODE` cannot be used) |
 | `web_login`, `WebLogin`, `LOGIN_RESOLVER` | The `opensesameLogin(...)` resolver: a sealed-store path and one form submission, never the password; the entry resolves omitted and only the optional `surrogate-proxy` plugin delivers anything for it (ADR 0150 §6.3) |
 | `is_bounded_prefix`, `is_http_method`; `ResolvedEnvEntry::path_prefixes` | The `paths=` and `methods=` a connection entry may declare to bound its surrogate (ADR 0150 §8) |
 
@@ -57,13 +70,20 @@ pnpm --filter @opensesame/env-spec-bridge test
 
 `tests/bridge_isolation.rs` starts this test binary again as the process that
 parses, with a planted `node` in its working directory, an empty and a relative
-`PATH` entry, a directory others can write, and a spread of dummy secrets in its
-environment, and reads what the `node` it ran was handed.
+`PATH` entry, a directory others can write, a `0775` directory of its own group
+(trusted), and a spread of dummy secrets in its environment, and reads what the
+`node` it ran was handed. The trust rule and the `OPENSESAME_NODE` rule are
+[`opensesame-trusted-exec`](../trusted-exec)'s, the ones every program
+`opensesame` starts by name follows; its `src/trust/tests.rs` is the table of
+owner, group and mode combinations the rule decides.
 
 `bridge_roundtrip_fixture` parses
 [`tests/fixtures/demo.env.schema`](../../tests/fixtures/demo.env.schema)
-through the real bridge; it prints a skip line when `node` is missing or the
-bridge's dependencies are not installed.
+through the real bridge; locally it prints a skip line when no usable `node`
+resolves or the bridge's dependencies are not installed. With `CI` set either is
+a failure: the Rust job names its `node` with `OPENSESAME_NODE` and installs
+`@env-spec/parser` (`pnpm install --frozen-lockfile --ignore-scripts --filter
+"@opensesame/env-spec-bridge..."`), so the round trip runs there.
 
 ## Related
 

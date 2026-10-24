@@ -55,7 +55,7 @@ export {
 };
 export async function registerAnonymous(
   ctx: AppContext,
-  headers: { userAgent?: string; origin?: string },
+  headers: { userAgent?: string; origin?: string; remoteAddress?: string },
   correlationId: string,
 ) {
   const cfg = ctx.config.agentAuth;
@@ -156,7 +156,7 @@ export async function registerAnonymous(
 export async function registerServiceAuth(
   ctx: AppContext,
   loginHint: string,
-  headers: { userAgent?: string; origin?: string },
+  headers: { userAgent?: string; origin?: string; remoteAddress?: string },
   correlationId: string,
 ) {
   const cfg = ctx.config.agentAuth;
@@ -274,12 +274,20 @@ export async function initClaim(
     throw agentAuthError("invalid_login_hint", 400);
   }
   if (
-    registration.kind === "service_auth" &&
     registration.claimEmailNormalized &&
     emailNormalized &&
     emailNormalized !== registration.claimEmailNormalized
   ) {
     // Same response as a matching email: do not leak whether the hint exists.
+    throw agentAuthError("invalid_claim_token", 400);
+  }
+  // Provider assertion emails are part of the verified ID-JAG identity. A
+  // caller may not replace them with an address of their choosing.
+  if (
+    registration.kind === "provider_assertion" &&
+    emailNormalized !== undefined &&
+    emailNormalized !== registration.claimEmailNormalized
+  ) {
     throw agentAuthError("invalid_claim_token", 400);
   }
   const boundEmail = emailNormalized ?? registration.claimEmailNormalized;
@@ -350,6 +358,16 @@ export async function completeClaim(
   );
   if (!registration || registration.status === "claimed")
     return { ok: false, error: "claimed_or_in_flight", status: 400 };
+  // Spend the attempt before verification. Parallel guesses all pass a stale
+  // read otherwise; the conditional SQL update is the actual five-try fence.
+  if (
+    !(await ctx.repos.agentAuth.consumeClaimAttempt(
+      attempt.id,
+      ctx.config.agentAuth.maxUserCodeAttempts,
+    ))
+  ) {
+    return { ok: false, error: "invalid_user_code", status: 400 };
+  }
   if (
     !verifyAgentUserCode(
       ctx.config.claimPepper,
@@ -358,10 +376,6 @@ export async function completeClaim(
       attempt.userCodeDigest,
     )
   ) {
-    await ctx.repos.agentAuth.updateClaimAttempt({
-      ...attempt,
-      failedAttempts: attempt.failedAttempts + 1,
-    });
     return { ok: false, error: "invalid_user_code", status: 400 };
   }
   const principal = await loadPrincipal(ctx, principalId);

@@ -43,6 +43,12 @@ export const settingsTabs: readonly SettingsTab[] = [
   },
   { id: "vaults", label: "Vaults", guideId: "settings.vaults", order: 200 },
   {
+    id: "item-types",
+    label: "Item types",
+    guideId: "nav.settings.item-types",
+    order: 350,
+  },
+  {
     id: "features",
     label: "Features",
     guideId: "settings.features",
@@ -76,6 +82,38 @@ export function settingsTabsFrom(
       ? left.order - right.order
       : left.id.localeCompare(right.id),
   );
+}
+
+/** The two settings destinations: one belongs to the vault, one to the person. */
+export const SETTINGS_GROUPS = [
+  {
+    id: "vault",
+    label: "Vault Settings",
+    initialCategory: "general",
+  },
+  {
+    id: "user",
+    label: "User Settings",
+    initialCategory: "keybindings",
+  },
+] as const;
+
+export type SettingsGroupId = (typeof SETTINGS_GROUPS)[number]["id"];
+export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
+
+const USER_SETTINGS_CATEGORIES = new Set<string>(["keybindings", "vaults"]);
+
+/** A category belongs to User Settings only when it is the person's own. */
+export function settingsGroupForCategory(category: string): SettingsGroup {
+  return SETTINGS_GROUPS[USER_SETTINGS_CATEGORIES.has(category) ? 1 : 0];
+}
+
+/** The categories one group draws, in tab order. */
+export function settingsTabsForGroup(
+  tabs: readonly SettingsTab[],
+  group: SettingsGroupId,
+): readonly SettingsTab[] {
+  return tabs.filter((tab) => settingsGroupForCategory(tab.id).id === group);
 }
 
 export function settingsTabsSnapshot(): readonly SettingsTab[] {

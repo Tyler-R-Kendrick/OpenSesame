@@ -10,6 +10,7 @@ import { readLinearConnector } from "@opensesame/app-core/lib/linear-store.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
+import { nativeMethodConfigurable } from "./connect/native-connector-ui.js";
 
 function specializedRoute(providerId: string): boolean {
   return (
@@ -42,15 +43,31 @@ export function catalogConnectorAction(
     isSecretBackendProvider(provider.id) || isAiConnectionProvider(provider.id)
       ? null
       : nativeSettingsDescriptor(provider);
-  const routes = descriptor?.methods.map((method) => ({
+  const nativeRoutes = descriptor?.methods.map((method) => ({
     method: method.id,
     available: method.available,
+    configurable: nativeMethodConfigurable(method),
   })) ?? [
     {
       method: "specialized" as const,
       available: specializedRoute(provider.id),
+      configurable: false,
     },
   ];
+  // A Linear page still has its explicit advanced GraphQL/API-key fallback
+  // when the MCP driver is unavailable in this browser runtime.
+  const routes =
+    provider.id === "linear" &&
+    !nativeRoutes.some((route) => route.available || route.configurable)
+      ? [
+          ...nativeRoutes,
+          {
+            method: "specialized" as const,
+            available: specializedRoute(provider.id),
+            configurable: false,
+          },
+        ]
+      : nativeRoutes;
   const now = Date.now();
   const unavailableKind = descriptor
     ? leadingUnavailableKind(

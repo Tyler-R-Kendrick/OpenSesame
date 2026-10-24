@@ -26,7 +26,10 @@ export function isLoopbackDaemonBase(base: string): boolean {
 }
 
 async function healthLooksLikeDaemon(base: string): Promise<boolean> {
-  const response = await fetch(`${base}/health`, { method: "GET" });
+  const response = await fetch(`${base}/health`, {
+    method: "GET",
+    signal: AbortSignal.timeout(5_000),
+  });
   if (!response.ok) return false;
   const body: BoundaryValue = await response.json();
   if (!isJsonObject(body)) return false;
@@ -43,6 +46,7 @@ async function ensureProbeRejectsInstantApproval(
   const path = cliAppIntegrationPolicy.daemonPaths.ensure;
   const response = await fetch(`${base}${path}`, {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       terminalSessionId: await ephemeralTerminalCorrelationId(),
@@ -104,6 +108,7 @@ async function verifyDaemonAttestSignature(
   }
   const response = await fetch(`${base}${attestPath}`, {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ nonce }),
   });

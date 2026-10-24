@@ -1,6 +1,9 @@
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
-import { readDeviceRows } from "../device-connector-records.js";
+import {
+  type StringFields,
+  readDeviceRows,
+} from "../device-connector-records.js";
 import {
   type NativeConnectorRecord,
   loadNativeConnectorRecord,
@@ -11,11 +14,20 @@ import {
 import { verifiedNativeKey } from "../native-key-state.js";
 import { nativeOAuthGuard } from "../native-oauth-session.js";
 import {
+  AzureOpenAiTargetSchema,
+  azureConnectionTarget,
+} from "./azure-protocol.js";
+import { BedrockAiTargetSchema } from "./bedrock-target.js";
+import {
   aiConnectionBinding,
   aiCredentialDigest,
   validateAiConnection,
 } from "./configuration.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
+import {
+  VertexAiTargetSchema,
+  vertexConnectionTarget,
+} from "./vertex-target.js";
 
 export const AI_CONNECTION_CONTRACT = "ai-connection-v1";
 export const AI_CONNECTION_CLASSIFICATION = {
@@ -27,6 +39,9 @@ export const AI_CONNECTION_CLASSIFICATION = {
     "authentication",
     "vault_tomb",
     "token_parameter",
+    "azure_target",
+    "vertex_target",
+    "bedrock_target",
   ],
   privateCredentials: ["ai_credential_reference", "ai_credential_digest"],
 };
@@ -38,6 +53,50 @@ export function aiConnectionRecord(id: string): NativeConnectorRecord | null {
     : null;
 }
 
+function readAzureTarget(value: string | undefined) {
+  if (value === undefined) return {};
+  try {
+    if (!value || value.length > 512) throw new Error("Invalid target size");
+    const target = AzureOpenAiTargetSchema.safeParse(JSON.parse(value));
+    if (!target.success) throw new Error("Invalid target metadata");
+    return { azure: target.data };
+  } catch {
+    throw new AiConnectionError(
+      "configuration",
+      "The saved Azure target is invalid. Configure and verify this connection again.",
+    );
+  }
+}
+
+function readVertexTarget(value: string | undefined) {
+  if (value === undefined) return {};
+  try {
+    if (!value || value.length > 512) throw new Error("Invalid target size");
+    const target = VertexAiTargetSchema.safeParse(JSON.parse(value));
+    if (!target.success) throw new Error("Invalid target metadata");
+    return { vertex: target.data };
+  } catch {
+    throw new AiConnectionError(
+      "configuration",
+      "The saved Vertex target is invalid. Configure and verify this connection again.",
+    );
+  }
+}
+
+function readBedrockTarget(value: string | undefined) {
+  if (value === undefined) return {};
+  try {
+    if (!value || value.length > 512) throw new Error("Invalid target size");
+    const target = BedrockAiTargetSchema.safeParse(JSON.parse(value));
+    if (!target.success) throw new Error("Invalid target metadata");
+    return { bedrock: target.data };
+  } catch {
+    throw new AiConnectionError(
+      "configuration",
+      "The saved Bedrock target is invalid. Configure and verify this connection again.",
+    );
+  }
+}
 export function readAiConnection(id: string): AiConnectionDraft | null {
   const record = aiConnectionRecord(id);
   if (!record) return null;
@@ -52,6 +111,9 @@ export function readAiConnection(id: string): AiConnectionDraft | null {
       authentication: parameters.authentication,
       tokenParameter: parameters.token_parameter,
       apiKey: "",
+      ...readAzureTarget(parameters.azure_target),
+      ...readVertexTarget(parameters.vertex_target),
+      ...readBedrockTarget(parameters.bedrock_target),
     },
     false,
   );
@@ -72,6 +134,18 @@ function connectionRecord(
   id: string,
   revision: number,
 ) {
+  const target = azureConnectionTarget(draft);
+  const azure = target
+    ? JSON.stringify(
+        target.api === "v1"
+          ? { api: target.api, credential: target.credential }
+          : {
+              api: target.api,
+              apiVersion: target.apiVersion,
+              credential: target.credential,
+            },
+      )
+    : undefined;
   const fingerprint = bytesToHex(
     sha256(
       new TextEncoder().encode(
@@ -80,6 +154,28 @@ function connectionRecord(
     ),
   );
   const targetId = `ai-${fingerprint}`;
+  const parameters: StringFields = {
+    ai_contract: AI_CONNECTION_CONTRACT,
+    family: draft.family,
+    base_url: draft.baseUrl,
+    model: draft.model,
+    authentication: draft.authentication,
+    vault_tomb: tomb,
+    token_parameter: draft.tokenParameter,
+  };
+  if (azure !== undefined) parameters.azure_target = azure;
+  const vertex = vertexConnectionTarget(draft);
+  if (vertex)
+    parameters.vertex_target = JSON.stringify({
+      project: vertex.project,
+      location: vertex.location,
+      credential: vertex.credential,
+    });
+  if (draft.bedrock)
+    parameters.bedrock_target = JSON.stringify({
+      region: draft.bedrock.region,
+      credential: draft.bedrock.credential,
+    });
   return verifiedNativeKey(
     AI_CONNECTION_CLASSIFICATION,
     id,
@@ -90,15 +186,7 @@ function connectionRecord(
       method: "api-key",
       displayName: draft.name,
       icon: "",
-      parameters: {
-        ai_contract: AI_CONNECTION_CONTRACT,
-        family: draft.family,
-        base_url: draft.baseUrl,
-        model: draft.model,
-        authentication: draft.authentication,
-        vault_tomb: tomb,
-        token_parameter: draft.tokenParameter,
-      },
+      parameters,
       requestedScopes: {},
       targetIds: { endpoint: targetId },
       fingerprint,

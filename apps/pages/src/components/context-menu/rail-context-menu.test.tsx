@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
-import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
+import { runtimeFixture } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   filterLink,
   registerContributedShell,
@@ -11,6 +12,7 @@ import {
   resetShellRender,
   seedVault,
 } from "../app-shell.test-harness.js";
+import { VaultShareProvider } from "../vault-share-seat.js";
 import { ContextMenuLayer } from "./ContextMenuLayer.js";
 
 /** Where the shell's router is, so a test can see a menu item navigate. */
@@ -73,8 +75,10 @@ describe("the rail's context menu", () => {
     // The settings directory is session-level: the session
     // prompt's menu roots the tree in it, and its own row
     // opens it, before the tab's hidden config.yaml shows.
-    const prompt = container.querySelector<HTMLElement>(".rail .rail__prompt");
-    if (!prompt) throw new Error("the rail has no session prompt");
+    const prompt = container.querySelector<HTMLElement>(
+      ".app-header .rail__prompt",
+    );
+    if (!prompt) throw new Error("the header has no session prompt");
     fireEvent.contextMenu(prompt);
     fireEvent.click(within(menu()).getByRole("menuitem", { name: "Settings" }));
     fireEvent.click(screen.getByRole("treeitem", { name: "Settings" }));
@@ -163,6 +167,21 @@ describe("the rail's context menu", () => {
     expect(screen.getByLabelText("route").textContent).toBe("/vault/health");
   });
 
+  it("opens Vault Settings from the vault row", () => {
+    renderShell(
+      "/vault",
+      <>
+        <ContextMenuLayer />
+        <RouteProbe />
+      </>,
+    );
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
+    fireEvent.click(
+      within(menu()).getByRole("menuitem", { name: "Vault Settings" }),
+    );
+    expect(screen.getByLabelText("route").textContent).toBe("/settings/vault");
+  });
+
   it("offers password health on the vault only, not on its filters", () => {
     renderShell("/vault", <ContextMenuLayer />);
     fireEvent.contextMenu(screen.getByRole("treeitem", { name: "all" }));
@@ -194,8 +213,10 @@ describe("the rail's context menu", () => {
     expect(screen.queryByRole("treeitem", { name: "Activity" })).toBeNull();
     // The session prompt is the home of the two the rail leaves
     // out: a right-click roots the tree in either one.
-    const prompt = container.querySelector<HTMLElement>(".rail .rail__prompt");
-    if (!prompt) throw new Error("the rail has no session prompt");
+    const prompt = container.querySelector<HTMLElement>(
+      ".app-header .rail__prompt",
+    );
+    if (!prompt) throw new Error("the header has no session prompt");
     fireEvent.contextMenu(prompt);
     // Both session directories are offered.
     const settings = within(menu()).getByRole("menuitem", {
@@ -227,48 +248,24 @@ describe("the rail's context menu", () => {
 });
 
 /**
- * Share › Session hands this vault to people who open a link, so it lands on
- * the panel that hosts one. `/live` is the other side of that link — the join
- * screen — and is never where an owner broadcasts from.
+ * Share › Live session hands this vault to people who open a link, so it
+ * opens the share sheet that hosts one. `/live` is the other side of that link —
+ * the join screen — and is never where an owner broadcasts from.
  */
-describe("the vault row's Share › Session entry", () => {
+describe("the vault row's Share › Live session entry", () => {
   let revokeShell: readonly (() => void)[] = [];
-  let revokeLive: readonly (() => void)[] = [];
   beforeEach(() => {
     revokeShell = registerContributedShell();
     seedVault();
   });
   afterEach(() => {
-    for (const revoke of [...revokeLive, ...revokeShell]) revoke();
-    revokeLive = [];
+    for (const revoke of revokeShell) revoke();
     revokeShell = [];
     resetShellRender();
   });
 
-  /** `sharing.live` as its runtime registers it: the join route and the tab. */
-  function activateLive() {
-    revokeLive = [
-      registerContributionForTest("route", {
-        id: "live",
-        path: "/live",
-        element: () => null,
-        framed: true,
-        order: 48,
-        gate: "any",
-      }),
-      registerContributionForTest("settings-category", {
-        id: "live",
-        label: "Live sessions",
-        guideId: "settings.live",
-        Panel: () => null,
-        panels: [
-          { id: "live-session", label: "Live session" },
-          { id: "live-routes", label: "Routes" },
-        ],
-        order: 320,
-      }),
-    ];
-  }
+  /** Live sessions on: the Share key's seat is filled, as the wrapper fills it. */
+  const shareOpen = vi.fn();
 
   function Where() {
     const { pathname, hash } = useLocation();
@@ -276,35 +273,45 @@ describe("the vault row's Share › Session entry", () => {
   }
 
   function openShareSession() {
+    shareOpen.mockClear();
     renderShell(
       "/vault",
-      <>
+      <VaultShareProvider value={{ Button: () => null, open: shareOpen }}>
         <Where />
         <ContextMenuLayer />
-      </>,
+      </VaultShareProvider>,
     );
     fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Session" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Live session" }));
   }
 
-  it("opens the panel that hosts a live session, not the join screen", () => {
-    activateLive();
+  it("opens the share sheet that hosts a live session, not the join screen", () => {
     openShareSession();
-    expect(screen.getByTestId("where").textContent).toBe(
-      "/settings/live#live-session",
-    );
+    expect(shareOpen).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("where").textContent).toBe("/vault");
   });
 
-  it("offers no Session while Live sessions is off", () => {
-    renderShell("/vault", <ContextMenuLayer />);
-    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
-    // Access is still on, so Share is drawn — with only its other way.
-    fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
-    expect(
-      screen.getByRole("menuitem", { name: "Person or agent" }),
-    ).toBeTruthy();
-    expect(screen.queryByRole("menuitem", { name: "Session" })).toBeNull();
+  it("offers no Live session while Live sessions is off", async () => {
+    const disk = await runtimeFixture();
+    try {
+      expect(vaultStore.getSnapshot().status).toBe("unlocked");
+      renderShell("/vault", <ContextMenuLayer />);
+      fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
+      // Access is still on, so Share is drawn — without the session way.
+      fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
+      expect(
+        screen.getByRole("menuitem", { name: "Temporary drop" }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("menuitem", { name: "Specific people or agents" }),
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole("menuitem", { name: "Live session" }),
+      ).toBeNull();
+    } finally {
+      await disk.close();
+    }
   });
 });
 

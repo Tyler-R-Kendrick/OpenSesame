@@ -17,7 +17,9 @@ import { ItemFields } from "./ItemFields.js";
 import { ItemGone } from "./ItemGone.js";
 import { useItemShare } from "./ItemShare.js";
 import { ItemTools } from "./ItemTools.js";
+import { RotationPanel } from "./RotationPanel.js";
 import { updateItemSecret } from "./item-secret-update.js";
+import { useSharedItems } from "./use-shared-items.js";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -30,8 +32,9 @@ export function ItemDetail() {
   const { itemId } = useParams();
   const location = useLocation();
   const { listPath, backLabel } = useVaultList(location.search);
-  const { items, folders } = useVault();
+  const { items, folders, guest } = useVault();
   const store = useVaultStore();
+  const sharedItems = useSharedItems(store.activeTomb?.() ?? "", items);
   const { copied, failed, copy } = useCopyFeedback();
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [confirmPurge, setConfirmPurge] = useState(false);
@@ -47,6 +50,7 @@ export function ItemDetail() {
 
   if (!item) return <ItemGone listPath={listPath} />;
 
+  const incoming = sharedItems.get(item.id)?.incoming ?? [];
   const toggle = (key: string) =>
     setRevealed((current) => {
       const next = new Set(current);
@@ -81,6 +85,11 @@ export function ItemDetail() {
               </Link>
             ) : null}
             <span>Updated {formatDate(item.updatedAt)}</span>
+            {incoming.length > 0 ? (
+              <span className="detail__sharedby">
+                Shared by {incoming.map((person) => person.name).join(", ")}
+              </span>
+            ) : null}
             {inTrash ? <StatusMark tone="warn" label="In trash" /> : null}
           </div>
         </div>
@@ -102,6 +111,7 @@ export function ItemDetail() {
         copy={copy}
         onUpdateSecret={(next) => updateItemSecret(item, next, store.saveItem)}
       />
+      <RotationPanel item={item} scope={guest ? "" : store.activeTomb()} />
       {ceremony}
 
       {item.fields.length > 0 ? (

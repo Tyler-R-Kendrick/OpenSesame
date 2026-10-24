@@ -1,4 +1,3 @@
-import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import {
   type BreachWatch,
   ISSUE_EXPLANATION,
@@ -14,6 +13,7 @@ import { IconChevronLeft, IconEdit, IconPlus } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { featureConfigPath } from "../settings/feature-config-path.js";
 
 import { OrganizationAudit } from "./OrganizationAudit.js";
 
@@ -51,7 +51,7 @@ function BreachWatchBlock({
           ))
         : null}
       <p>
-        <Link to={settingsPath("features", "feature-security-checks")}>
+        <Link to={featureConfigPath("security-checks")}>
           Open breach and two-step checks
         </Link>
       </p>

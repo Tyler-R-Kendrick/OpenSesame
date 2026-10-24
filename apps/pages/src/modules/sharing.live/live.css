@@ -38,3 +38,79 @@
   gap: 8px;
   margin-top: 8px;
 }
+
+/* The Share key in the shell prompt, and its sheet's folded Advanced. */
+
+.live-share {
+  position: relative;
+}
+
+.live-share--on::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius);
+  background: var(--ok, #3fb950);
+}
+
+.live-advanced > summary {
+  cursor: pointer;
+  color: var(--ink-2, inherit);
+  padding: 4px 0;
+}
+
+.live-advanced__body {
+  margin-top: 12px;
+}
+
+.live-routes__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.live-routes__head h3 {
+  margin: 0;
+}
+
+.live-help {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.live-verify {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.live-verify summary {
+  cursor: pointer;
+}
+
+.live-link {
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.live-status__label {
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+
+.live-rules {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.live-help--err {
+  color: var(--err);
+}

@@ -5,6 +5,7 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
@@ -14,12 +15,21 @@ import type { Flash } from "@opensesame/app-core/sections/connections/shared.js"
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
+import {
+  nativeOAuthClientConfigured,
+  supportsNativeOAuthResource,
+} from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
+import { ConnectorPanel } from "./ConnectorPanel.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
+import { NativeVaultBackupControls } from "./NativeS3BackupControls.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
-import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
+import type {
+  NativeActionDescriptor,
+  NativeConnectorDescriptor,
+} from "./native-connector-ui.js";
 import { nativeDeviceProviderDescriptor } from "./native-device-provider-descriptor.js";
 import { nativeGithubDescriptor } from "./native-github-descriptor.js";
 import {
@@ -28,6 +38,7 @@ import {
 } from "./native-key-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 import { nativeS3Descriptor } from "./native-s3-descriptor.js";
+import { useNativeAuthorization } from "./useNativeAuthorization.js";
 
 function nativeKeyActionsFor(providerId: string) {
   const keyed = nativeKeyDriverFor(providerId);
@@ -88,11 +99,15 @@ export function nativeSettingsDescriptor(
     callbackUrl,
     apiKey: { available: hasNativeConnectorDriver("api-key", provider.id) },
     oauth: {
+      registeredAvailable:
+        hasNativeConnectorDriver("oauth", provider.id) &&
+        supportsNativeOAuthResource(provider.id),
       available:
         hasNativeConnectorDriver("oauth", provider.id) &&
         (provider.id !== "google" || nativeGoogleBrowserAvailable()),
-      reason:
-        provider.id === "google" && !nativeGoogleBrowserAvailable()
+      reason: !hasNativeConnectorDriver("oauth", provider.id)
+        ? "Enable External connectors to configure this OAuth application on this device."
+        : provider.id === "google" && !nativeGoogleBrowserAvailable()
           ? "Google consent is unavailable under this deployment's isolation policy."
           : undefined,
       profile: nativeBrowserOAuthProfile(provider.id) ?? undefined,
@@ -104,6 +119,27 @@ export function nativeSettingsDescriptor(
     },
   });
   return descriptor;
+}
+
+function primaryActions(
+  view: NativeConnectorView,
+  name: string,
+): readonly NativeActionDescriptor[] {
+  const configured = nativeOAuthClientConfigured(view.configuration);
+  if (configured && view.configuration.parameters.resource_protocol === "mcp")
+    return [];
+  const resources = configured
+    ? [{ id: "provider.resource.read", label: "Read configured API resource" }]
+    : nativeApiResourceActions(view.providerId, view.configuration.method);
+  const actions = resources.length
+    ? resources
+    : [{ id: "provider.read", label: `Check ${name} access` }];
+  return actions.map((action) => ({
+    ...action,
+    available: true,
+    fields: [],
+    resultOrigins: [],
+  }));
 }
 
 function actions(
@@ -121,13 +157,7 @@ function actions(
     actions:
       view && view.configuration.method !== "mcp"
         ? [
-            {
-              id: "provider.read",
-              label: `Check ${descriptor.name} access`,
-              available: true,
-              fields: [],
-              resultOrigins: [],
-            },
+            ...primaryActions(view, descriptor.name),
             ...(["vault", "openbao"].includes(descriptor.providerId)
               ? [
                   {
@@ -195,6 +225,38 @@ function actions(
   };
 }
 
+function backupControls(
+  view: NativeConnectorView,
+  onFlash: (flash: Flash) => void,
+) {
+  const target = view.configuration.parameters;
+  const supported =
+    ["s3", "azure-sm", "azure-key-vault-secrets"].includes(view.providerId) ||
+    (["github", "codeberg", "bitbucket"].includes(view.providerId) &&
+      !!target.backup_owner &&
+      !!target.backup_repo &&
+      !!target.backup_branch) ||
+    (view.providerId === "gitlab" &&
+      view.configuration.method === "api-key" &&
+      !!target.backup_project &&
+      !!target.backup_branch);
+  return supported && nativeVerified(view) ? (
+    <NativeVaultBackupControls
+      key={`${view.connectionId}/${view.revision}/${view.fingerprint}`}
+      view={view}
+      onFlash={onFlash}
+    />
+  ) : null;
+}
+
+function usesMcp(view: NativeConnectorView) {
+  return (
+    view.configuration.method === "mcp" ||
+    (nativeOAuthClientConfigured(view.configuration) &&
+      view.configuration.parameters.resource_protocol === "mcp")
+  );
+}
+
 export function NativeConnectorPanels({
   provider,
   connection,
@@ -211,6 +273,7 @@ export function NativeConnectorPanels({
   // The connector bridge changes what a refused provider offers (ADR 0199).
   useNativeBridge(provider.id);
   const descriptor = nativeSettingsDescriptor(provider);
+  const pending = useNativeAuthorization(provider.id, connection?.connectionId);
   const controller = useMemo(
     () =>
       nativeConnectorController(
@@ -219,8 +282,9 @@ export function NativeConnectorPanels({
           refused: connectPlan(provider.id)?.refused ?? false,
         },
         connection?.connectionId,
+        pending.onAuthorization,
       ),
-    [provider.id, connection?.connectionId],
+    [provider.id, connection?.connectionId, pending.onAuthorization],
   );
   const [, refresh] = useState(0);
   const view = controller.load();
@@ -242,30 +306,24 @@ export function NativeConnectorPanels({
   };
   const form = (
     <NativeConnectorForm
-      key={`${provider.id}/${connection?.connectionId ?? "new"}/${roads}`}
+      key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}/${pending.generation}`}
       descriptor={current}
       controller={controller}
       view={view}
+      authorization={pending.authorization}
       onFlash={onFlash}
       onChanged={changed}
     />
   );
   return (
     <div className="cx-setup">
-      <section
-        className="panel"
-        id="connector"
-        aria-label="Connector"
-        tabIndex={-1}
+      <ConnectorPanel
+        step={2}
+        title={view && nativeVerified(view) ? "Configure" : "Connect"}
+        focus
       >
-        <div className="panel__head">
-          <h2>
-            <span className="cx-step">2</span>{" "}
-            {view && nativeVerified(view) ? "Configure" : "Connect"}
-          </h2>
-        </div>
         {renderConfiguration ? renderConfiguration(form) : form}
-      </section>
+      </ConnectorPanel>
       {view ? (
         <>
           <NativeConnectorSummary
@@ -275,13 +333,16 @@ export function NativeConnectorPanels({
             onFlash={onFlash}
             onChanged={changed}
             onRemoved={() => changed(null)}
+            authorization={pending.authorization}
           />
-          {view.configuration.method === "mcp" ? (
+          {backupControls(view, onFlash)}
+          {usesMcp(view) ? (
             <NativeMcpTools
               view={view}
               controller={controller}
               onFlash={onFlash}
               onChanged={changed}
+              disabled={!!pending.authorization}
             />
           ) : null}
         </>

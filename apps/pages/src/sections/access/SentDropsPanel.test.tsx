@@ -7,6 +7,11 @@ import {
   double,
   installDoublePorts,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import {
+  flushSharingReceipts,
+  noteDropRefused,
+  resetSharingReceiptsForTest,
+} from "@opensesame/app-core/lib/sharing-receipts.js";
 import { sealDrop } from "@opensesame/app-core/lib/vault/drop.js";
 import {
   createLocalDropClaim,
@@ -53,11 +58,14 @@ function snapshotWithDrops(): CompositionSnapshot {
 }
 
 describe("SentDropsPanel revoke", () => {
-  const tomb = "tomb.sent-panel";
+  // A new tomb each test: re-unlocking one name seals over the last key,
+  // and the next read fails the authentication tag.
+  let tomb = "";
   let claimId = "";
   let dropsSnapshot: CompositionSnapshot;
 
   beforeEach(async () => {
+    tomb = `tomb.sent-panel.${crypto.randomUUID()}`;
     configureHost(createTestHost());
     dropsSnapshot = snapshotWithDrops();
     resetLocalDropClaimsForTests();
@@ -92,6 +100,7 @@ describe("SentDropsPanel revoke", () => {
   afterEach(() => {
     cleanup();
     vaultHooksSeams.useVault = realUseVault;
+    resetSharingReceiptsForTest();
     resetLocalDropClaimsForTests();
     resetOutboundDropsForTests();
   });
@@ -129,5 +138,15 @@ describe("SentDropsPanel revoke", () => {
     });
     expect(listOutboundDrops(tomb)[0]?.state).toBe("pending");
     expect(claimId).toBeTruthy();
+  });
+
+  it("shows one refused line whose wrong-code count rises", async () => {
+    resetSharingReceiptsForTest();
+    noteDropRefused(claimId, 1);
+    noteDropRefused(claimId, 2);
+    await flushSharingReceipts();
+    renderAccess(<SentDropsPanel />, "/access?view=sessions#sent-drops");
+    expect(await screen.findByText("Refused · 2 wrong codes")).toBeTruthy();
+    expect(screen.getAllByText("Refused · 2 wrong codes")).toHaveLength(1);
   });
 });

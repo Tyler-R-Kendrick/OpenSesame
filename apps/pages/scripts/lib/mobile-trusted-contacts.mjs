@@ -6,22 +6,15 @@
  *
  * Guest, decoy and locked vaults draw no panel, so the walk seals a vault with
  * a PIN first (the door's no-account road), chooses the capability the way a
- * person does, and then opens the tab. Nothing here makes a circle: a circle
- * needs other people's packets, and `verify:trusted-contacts` walks that with
- * five browsers. What a phone has to hold is the empty tab, the five sheets,
- * the new-circle sheet's second step (an invitation and its QR code), and a
- * refused paste.
+ * person does, and then opens the tab. Nothing here saves a circle: people
+ * first need enrolled passkeys in Identity. What a phone has to hold is the
+ * local-circle form, including its name, people and disabled save key when
+ * no enrolled people have been selected.
  */
 import { chooseCapabilitiesHere } from "./mobile-capabilities.mjs";
 import { sealWithPin } from "./mobile-protector-unlock.mjs";
 
-const KEYS = [
-  ["Start a circle", "circle"],
-  ["Accept an invitation", "accept"],
-  ["Take what an owner sent", "take"],
-  ["Answer a request", "answer"],
-  ["Start a recovery", "recovery"],
-];
+const KEYS = [["Start a circle", "circle"]];
 
 /**
  * Close whatever sheet is open. Escape leaves a text field for its sheet before
@@ -35,15 +28,27 @@ async function closeSheet(page) {
   }
 }
 
-/** The Settings tab, reached the way a thumb does. */
+/** The Security subsection, reached the way a thumb does. */
 async function openSettingsTab(page, { harness, openTab, stop }) {
   await openTab(page, "Settings");
+  await page.waitForTimeout(700);
+  const security = page
+    .getByRole("link", { name: "Security", exact: true })
+    .first();
+  if ((await security.count()) === 0) {
+    harness.check(false, `${stop("trusted-contacts")}: Security is not drawn`);
+    return false;
+  }
+  await security.tap();
   await page.waitForTimeout(700);
   const link = page
     .getByRole("link", { name: "Trusted contacts", exact: true })
     .first();
   if ((await link.count()) === 0) {
-    harness.check(false, `${stop("trusted-contacts")}: the tab is not drawn`);
+    harness.check(
+      false,
+      `${stop("trusted-contacts")}: the subsection is not drawn`,
+    );
     return false;
   }
   await link.tap();
@@ -64,47 +69,38 @@ async function auditSheet(page, name, label, { harness, audit, stop }) {
   return true;
 }
 
-/** The new-circle sheet's next step: a name, then the invitation to hand on. */
-async function invitationStep(page, run) {
+/** The local unlock circle: a name and enrolled people, never copied packets. */
+async function circleForm(page, run) {
   const { harness, audit, stop } = run;
-  const name = page.getByLabel("Name", { exact: true });
+  const form = page.getByRole("form", { name: "Trusted contacts circle" });
+  await form.waitFor();
+  const name = form.getByLabel("Name", { exact: true });
   await name.fill("Family");
-  await page.getByRole("button", { name: "Make the invitation" }).tap();
-  await page.waitForTimeout(900);
-  const copy = page.getByRole("button", { name: "Copy invitation" });
   harness.check(
-    (await copy.count()) === 1,
-    `${stop("trusted-contacts-invitation")}: the invitation can be copied`,
+    (await name.inputValue()) === "Family",
+    `${stop("trusted-contacts-form")}: the circle name can be entered`,
   );
-  await audit(page, stop("trusted-contacts-invitation"));
-}
-
-/** A paste that is not a packet is refused on the field, in the touch context. */
-async function refusedPaste(page, run) {
-  const field = page.getByLabel("An invitation", { exact: true });
-  await field.fill("this is not an invitation");
-  await page.waitForTimeout(450);
-  await run.audit(page, run.stop("trusted-contacts-refused"));
-  // The mark's target is 2.75rem and grows into its row; it must not sit over
-  // the label it follows (the label once read "An invitatio").
-  const gap = await page.evaluate(() => {
-    const label = document.querySelector(".tc-packet-in .f__label");
-    const mark = document.querySelector(
-      ".tc-packet-in .status-mark[data-touch-twin]",
-    );
-    if (!label || !mark) return null;
-    return (
-      mark.getBoundingClientRect().left - label.getBoundingClientRect().right
-    );
-  });
-  const { harness, stop } = run;
   harness.check(
-    gap !== null && gap >= 0,
-    `${stop("trusted-contacts-refused")}: the refused-paste mark's target clears its label (gap ${gap === null ? "not drawn" : `${Math.round(gap * 10) / 10}px`})`,
+    (await form.getByRole("group", { name: "People", exact: true }).count()) ===
+      1,
+    `${stop("trusted-contacts-form")}: the circle's people are grouped and named`,
   );
-  console.log(
-    `MEASURE ${stop("trusted-contacts-refused")}: label-to-mark target gap ${gap}px`,
+  harness.check(
+    (await form
+      .getByRole("img", {
+        name: "Add a person with a passkey in Identity first.",
+        exact: true,
+      })
+      .count()) === 1,
+    `${stop("trusted-contacts-form")}: an empty directory explains how to enroll people`,
   );
+  harness.check(
+    await form
+      .getByRole("button", { name: "Save the circle", exact: true })
+      .isDisabled(),
+    `${stop("trusted-contacts-form")}: a circle cannot be saved without people`,
+  );
+  await audit(page, stop("trusted-contacts-form"));
 }
 
 export async function trustedContactsStops(
@@ -123,8 +119,7 @@ export async function trustedContactsStops(
   for (const [name, label] of KEYS) {
     if (!(await auditSheet(page, name, `trusted-contacts-${label}`, run)))
       continue;
-    if (label === "circle") await invitationStep(page, run);
-    if (label === "accept") await refusedPaste(page, run);
+    if (label === "circle") await circleForm(page, run);
     await closeSheet(page);
   }
 }

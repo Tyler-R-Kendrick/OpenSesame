@@ -115,6 +115,9 @@ async function confirmActualRevocation(page, service, token) {
     /HTTP 403/,
     "Independent root lookup must reject the actually revoked token",
   );
+  await expect(
+    page.getByRole("button", { name: "Remove connector", exact: true }),
+  ).toHaveCount(0);
 }
 
 export async function proveDeniedProviderCleanup(input) {
@@ -158,11 +161,12 @@ async function signInAgain({ page, provider, service, idp, grants }) {
     .getByLabel("Instance HTTPS origin", { exact: true })
     .fill(service.endpoint);
   const issuedBefore = grants.length;
-  const opened = page.context().waitForEvent("page");
-  await page
-    .getByRole("button", { name: `Sign in to ${provider.name}`, exact: true })
-    .click();
-  const popup = await opened;
+  const [popup] = await Promise.all([
+    page.context().waitForEvent("page"),
+    page
+      .getByRole("button", { name: `Sign in to ${provider.name}`, exact: true })
+      .click(),
+  ]);
   await popup
     .getByRole("heading", { name: "Provider sign in", exact: true })
     .waitFor();

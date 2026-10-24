@@ -19,17 +19,19 @@ export type Crumb = {
 };
 
 /**
- * The categories the core Settings page always has, in tab order —
- * General → Keybindings → Security → Vaults → Features → Integrations →
- * Danger (ADR 0189). `capabilities` and `connections` are retired names that
- * still read as one of them (`SETTINGS_HASH_ALIAS`); a module may still
- * contribute a category of its own.
+ * The categories the core Settings pages always have. Vault Settings draws
+ * General, Security, Item types, Features, Integrations and Danger; User
+ * Settings draws Keybindings first, then Vaults. `capabilities` and
+ * `connections` are retired names that still read as one of them
+ * (`SETTINGS_HASH_ALIAS`); a module may still contribute a category of its own
+ * (to Vault Settings).
  */
 export const SETTINGS_CATEGORIES = [
   "general",
   "keybindings",
   "security",
   "vaults",
+  "item-types",
   "features",
   "integrations",
   "danger",
@@ -44,6 +46,7 @@ export const SETTINGS_CATEGORY_LABEL = {
   connections: "Connections",
   security: "Security",
   vaults: "Vaults",
+  "item-types": "Item types",
   features: "Features",
   integrations: "Integrations",
   danger: "Danger",
@@ -87,6 +90,8 @@ export const WALLET_CATEGORY_LABEL = {
 
 const VAULT_FILTER_LABEL = new Map([
   ["favorites", "Favorites"],
+  ["shared", "Shared with me"],
+  ["owned", "Owned by me"],
   ["trash", "Trash"],
 ]);
 

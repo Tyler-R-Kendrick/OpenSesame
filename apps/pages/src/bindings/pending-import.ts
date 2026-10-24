@@ -1,5 +1,5 @@
 import {
-  discardPendingImport,
+  discardDoorPendingImport,
   peekPendingImport,
   subscribePendingImport,
 } from "@opensesame/app-core/lib/vault/pending-import.js";
@@ -24,7 +24,7 @@ export function usePendingImport(): File | null {
 export function useFileWaitingForVault(status: string): boolean {
   const waiting = usePendingImport() !== null;
   useEffect(() => {
-    if (status === "locked") discardPendingImport();
+    if (status === "locked") discardDoorPendingImport();
   }, [status]);
   return waiting;
 }

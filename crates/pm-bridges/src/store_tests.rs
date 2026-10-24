@@ -116,6 +116,66 @@ fn entry_uuid_is_stable_and_path_scoped() {
 
 // ——— StoreAccess against a real tempdir store ————————————————————
 
+#[test]
+fn a_missing_native_key_never_saves_new_credentials() {
+    for native_marker in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        if native_marker {
+            opensesame_sealed_store::init_store(dir.path(), &[]).unwrap();
+        }
+        let access = StoreAccess::open(dir.path(), None).unwrap();
+        let entry = Entry {
+            secret: "new-credential".into(),
+            trailer: String::new(),
+            otp: None,
+        };
+        assert!(access.put("entry", &entry).is_err());
+        assert!(!dir.path().join("entry.osseal").exists());
+        assert!(!dir.path().join(".opensesame-revisions.json").exists());
+        assert!(!dir.path().join(".opensesame-lock").exists());
+    }
+}
+
+#[test]
+fn missing_native_keys_refuse_reads_search_totp_and_overwrites_without_mutation() {
+    let dir = tempfile::tempdir().unwrap();
+    opensesame_sealed_store::init_store(dir.path(), &[]).unwrap();
+    let name = "Web/example.com";
+    let blob = opensesame_sealed_store::seal_osseal(
+        b"injected\nurl: https://example.com/\notpauth://totp/test?secret=JBSWY3DPEHPK3PXP\n",
+        &ItemDataKey([0; 32]),
+        name,
+        1,
+    )
+    .unwrap();
+    std::fs::create_dir(dir.path().join("Web")).unwrap();
+    let path = dir.path().join("Web/example.com.osseal");
+    std::fs::write(&path, &blob).unwrap();
+    let revisions = dir.path().join(".opensesame-revisions.json");
+    let before = format!("{{\"{name}\":1}}");
+    std::fs::write(&revisions, &before).unwrap();
+    let mut access = StoreAccess::open(dir.path(), None).unwrap();
+    assert!(access.show(name).is_err());
+    assert!(access.totp(name, 60).is_err());
+    assert!(access
+        .find_by_url("https://example.com")
+        .unwrap()
+        .is_empty());
+    let entry = Entry {
+        secret: "replacement".into(),
+        trailer: String::new(),
+        otp: None,
+    };
+    assert!(access.put(name, &entry).is_err());
+    assert_eq!(std::fs::read(path).unwrap(), blob);
+    assert_eq!(std::fs::read_to_string(revisions).unwrap(), before);
+    access.lock();
+    assert!(matches!(
+        access.find_by_url("https://example.com"),
+        Err(BridgeError::Locked)
+    ));
+}
+
 fn fixture() -> (tempfile::TempDir, StoreAccess) {
     let dir = tempfile::tempdir().expect("tempdir");
     crate::testing::init_store_fixture(dir.path());

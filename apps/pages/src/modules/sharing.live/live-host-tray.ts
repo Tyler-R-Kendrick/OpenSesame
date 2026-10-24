@@ -13,6 +13,7 @@ const askingNotice = new Map<string, string>();
 /** Device requests announced, by request id, and the tray row each has. */
 const seenDevice = new Set<string>();
 const deviceNotice = new Map<string, string>();
+const joinedNotice = new Map<string, string>();
 
 /** Forget guests already announced (tests). */
 export function resetLiveHostTrayForTests(): void {
@@ -30,6 +31,8 @@ export function clearLiveHostAskingNotices(): void {
   seenAsking.clear();
   deviceNotice.clear();
   seenDevice.clear();
+  for (const id of joinedNotice.values()) dismissNotice(id);
+  joinedNotice.clear();
 }
 
 /**
@@ -60,6 +63,37 @@ export function noteDeviceAsking(state: HostState): void {
 
 /** Bell/tray when someone new is asking to join. */
 export function noteGuestAsking(state: HostState): void {
+  const stillAsking = new Set(
+    state.guests
+      .filter((guest) => guest.state === "asking")
+      .map((guest) => guest.key),
+  );
+  for (const [key, id] of askingNotice) {
+    if (stillAsking.has(key)) continue;
+    dismissNotice(id);
+    askingNotice.delete(key);
+  }
+  const joined = new Map(
+    state.guests
+      .filter((guest) => guest.state === "joined")
+      .map((guest) => [guest.key, guest.name]),
+  );
+  for (const [key, id] of joinedNotice) {
+    if (joined.has(key)) continue;
+    dismissNotice(id);
+    joinedNotice.delete(key);
+  }
+  for (const [key, name] of joined) {
+    if (joinedNotice.has(key)) continue;
+    const id = `sharing.live.joined.${key}`;
+    setStatusNotice({
+      id,
+      tone: "info",
+      title: "Live session",
+      body: `${name} joined the live session`,
+    });
+    joinedNotice.set(key, id);
+  }
   for (const guest of state.guests) {
     if (guest.state !== "asking" || seenAsking.has(guest.key)) continue;
     seenAsking.add(guest.key);

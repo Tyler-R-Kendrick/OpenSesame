@@ -11,7 +11,7 @@ import { listLocalBackupTargets } from "../backup-target-local.js";
 import { holdsAnyHistoryEntry } from "../history-backup-idb.js";
 import { loadHistorySelections } from "../history-backups.js";
 import { listLocalShares } from "../local-share-grants.js";
-import { listVaultSessions } from "../local-vault-sessions.js";
+import { listVaultSessionGrantResources } from "../local-vault-sessions.js";
 import {
   dropCachedCiphertextSnapshot,
   listOfflineMutations,
@@ -68,18 +68,16 @@ async function copiesInPlay(tomb: string): Promise<readonly ItemsCopy[]> {
 
 async function sharedItems(tomb: string): Promise<ReadonlySet<string>> {
   const shares = await listLocalShares(tomb);
-  const sessions = await listVaultSessions(tomb);
+  const sessionGrants = await listVaultSessionGrantResources(tomb);
   const ids = new Set<string>();
   const folderIds = new Set<string>();
   for (const share of shares) {
     if (share.resourceKind === "item") ids.add(share.resourceId);
     if (share.resourceKind === "folder") folderIds.add(share.resourceId);
   }
-  for (const session of sessions) {
-    for (const grant of session.grants) {
-      if (grant.resourceKind === "item") ids.add(grant.resourceId);
-      if (grant.resourceKind === "folder") folderIds.add(grant.resourceId);
-    }
+  for (const grant of sessionGrants) {
+    if (grant.resourceKind === "item") ids.add(grant.resourceId);
+    if (grant.resourceKind === "folder") folderIds.add(grant.resourceId);
   }
   if (folderIds.size > 0) {
     const snap = vaultStore.getSnapshot();

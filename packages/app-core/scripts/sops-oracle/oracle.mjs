@@ -15,6 +15,7 @@ import { createHash } from "node:crypto";
 import {
   chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -48,9 +49,23 @@ export const CHECKSUMS = {
 };
 
 export function oracleCacheDir() {
-  return (
-    process.env.SOPS_ORACLE_DIR ?? join(tmpdir(), "opensesame-sops-oracle")
-  );
+  const dir =
+    process.env.SOPS_ORACLE_DIR ??
+    join(tmpdir(), `opensesame-sops-oracle-${process.getuid?.() ?? "local"}`);
+  try {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+  }
+  const stat = lstatSync(dir);
+  if (
+    !stat.isDirectory() ||
+    (stat.mode & 0o777) !== 0o700 ||
+    (process.getuid && stat.uid !== process.getuid())
+  ) {
+    throw new Error("SOPS oracle cache must be a private owned directory");
+  }
+  return dir;
 }
 
 function sha256(path) {
@@ -71,7 +86,12 @@ export function provisionOracle({ allowDownload = true } = {}) {
   const [name, expected] = pinned;
   const candidates = [];
   if (process.env.SOPS_BIN) candidates.push(process.env.SOPS_BIN);
-  const dir = oracleCacheDir();
+  let dir;
+  try {
+    dir = oracleCacheDir();
+  } catch (error) {
+    return { error: error.message };
+  }
   const cached = join(dir, name);
   candidates.push(cached);
   for (const candidate of candidates) {
@@ -161,7 +181,12 @@ export function runSops(
 
 /** Build the tree-dump helper from the pinned source when Go is available. */
 export function provisionTreedump() {
-  const dir = oracleCacheDir();
+  let dir;
+  try {
+    dir = oracleCacheDir();
+  } catch (error) {
+    return { error: error.message };
+  }
   const bin = join(dir, `treedump-${SOPS_SOURCE_COMMIT.slice(0, 12)}`);
   if (existsSync(bin)) return { bin };
   const go = spawnSync("go", ["version"], { encoding: "utf8" });

@@ -1,20 +1,15 @@
-import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
+import { accessIdentitySharePath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
-import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
-import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { railRowId } from "../RailRows.js";
 import { setRailCursor } from "../rail-cursor.js";
+import { vaultShareSnapshot } from "../vault-share-seat.js";
 import type { MenuGroup, MenuItem } from "./menu-model.js";
 import { copyText, navigationGroup, shellGroup } from "./page-menu.js";
 
 type Navigate = (to: string) => void;
-
-/** The `sharing.live` settings tab and the panel in it that hosts a session. */
-const LIVE_CATEGORY = "live";
-const LIVE_HOST_PANEL = "live-session";
 
 /** What the row under the pointer is, read from the attributes it renders. */
 function describe(row: HTMLElement) {
@@ -107,6 +102,11 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
         navigate("/vault/health");
       },
     });
+    items.push({
+      id: "vault-settings",
+      label: "Vault Settings",
+      run: () => navigate("/settings/vault"),
+    });
   }
   const share = vaultShare(navigate);
   if (share) items.push(share);
@@ -116,24 +116,29 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
 /** Ways to hand this vault to someone else, only the ones this install has. */
 function vaultShare(navigate: Navigate): MenuItem | null {
   const ways: MenuItem[] = [];
-  // Hosting is Settings › Live sessions › Live session. `/live` is the join
-  // screen — the other end of the link this opens — so it is never the target.
-  if (
-    contributionsSnapshot("settings-category").some(
-      (entry) => entry.id === LIVE_CATEGORY,
-    )
-  ) {
+  // Hosting is the Share key beside the vault's name: the sheet it opens.
+  // `/live` is the join screen — the other end of the link — so it is
+  // never the target here.
+  const share = vaultShareSnapshot();
+  if (share) {
     ways.push({
       id: "share-session",
-      label: "Session",
-      run: () => navigate(settingsPath(LIVE_CATEGORY, LIVE_HOST_PANEL)),
+      label: "Live session",
+      run: () => share.open(),
+    });
+  }
+  if (vaultStore.getSnapshot().status === "unlocked") {
+    ways.push({
+      id: "share-drop",
+      label: "Temporary drop",
+      run: () => navigate("/vault?share=pick-drop"),
     });
   }
   if (isCommandSection("/access")) {
     ways.push({
       id: "share-grant",
-      label: "Person or agent",
-      run: () => navigate(accessNewPath("grants")),
+      label: "Specific people or agents",
+      run: () => navigate(accessIdentitySharePath()),
     });
   }
   if (ways.length === 0) return null;

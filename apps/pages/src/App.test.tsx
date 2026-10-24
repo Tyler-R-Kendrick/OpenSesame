@@ -7,15 +7,24 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { Outlet } from "react-router";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type AppSlots } from "./App.js";
 
-const env = {
+type AppFixtureState = {
+  hasAuthResponse: boolean;
+  vaultStatus: string;
+  routes: RouteContribution[];
+  effects: UnlockEffectContribution[];
+  wrappers: ShellWrapperContribution[];
+  recovered: number;
+};
+
+const env: AppFixtureState = {
   hasAuthResponse: false,
   vaultStatus: "locked",
-  routes: [] as RouteContribution[],
-  effects: [] as UnlockEffectContribution[],
-  wrappers: [] as ShellWrapperContribution[],
+  routes: [],
+  effects: [],
+  wrappers: [],
   recovered: 0,
 };
 
@@ -71,6 +80,12 @@ const brokerRoute: RouteContribution = {
   gate: "any",
 };
 
+// Every describe owns the real AppRoot effects, including the keyboard cases below.
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
 describe("App", () => {
   beforeEach(() => {
     env.hasAuthResponse = false;
@@ -80,8 +95,6 @@ describe("App", () => {
     env.recovered = 0;
     env.wrappers = [];
   });
-
-  afterEach(cleanup);
 
   it("finishes federation sign-in before anything else", () => {
     env.hasAuthResponse = true;
@@ -289,5 +302,22 @@ describe("App — where the keyboard lands", () => {
     renderApp("/settings");
     expect(screen.getByText("settings section")).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByRole("main"));
+  });
+
+  it("disconnects the actual app-root form observer when its owner unmounts", () => {
+    env.vaultStatus = "unlocked";
+    const observe = vi.spyOn(MutationObserver.prototype, "observe");
+    const disconnect = vi.spyOn(MutationObserver.prototype, "disconnect");
+    const ui = renderApp("/settings");
+    const index = observe.mock.calls.findIndex(
+      ([node, options]) =>
+        node === document.documentElement &&
+        options?.childList &&
+        options.subtree,
+    );
+    expect(index).toBeGreaterThanOrEqual(0);
+    const observer = observe.mock.contexts[index];
+    ui.unmount();
+    expect(disconnect.mock.contexts).toContain(observer);
   });
 });

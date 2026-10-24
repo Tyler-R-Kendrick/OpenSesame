@@ -24,7 +24,7 @@
  * until the drop is spent.
  */
 
-import { ceremonyPath } from "@opensesame/ceremony-kit";
+import { ceremonyPath } from "@opensesame/ceremony-kit/links";
 import { env } from "../../host.js";
 import { maybePage } from "../../ports.js";
 import { underBase } from "../device-link.js";

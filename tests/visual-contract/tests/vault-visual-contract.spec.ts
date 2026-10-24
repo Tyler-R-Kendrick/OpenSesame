@@ -1,5 +1,5 @@
 /**
- * Visual contract for the six .impeccable/screenshots baselines, reproduced
+ * Visual contract for the six tests/visual-contract/baselines baselines, reproduced
  * against a live apps/pages build/preview (see ../playwright.config.ts).
  *
  * The flow is the one a first visitor walks today (ADR 0090, ADR 0115,
@@ -193,6 +193,9 @@ test.describe("Pages visual contract", () => {
     await expect(page.getByLabel("Confirm PIN", { exact: true })).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Seal with PIN", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.locator(".unlock__hero-wordmark.cipher-wordmark--settled"),
     ).toBeVisible();
     await capture(
       page,

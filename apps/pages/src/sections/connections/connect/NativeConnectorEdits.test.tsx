@@ -166,5 +166,9 @@ it("renders an identity-only provider action result without inventing an empty r
     ).toBeTruthy(),
   );
   expect(rendered.container.textContent).not.toContain("none found");
-  expect(controller.invoke).toHaveBeenCalledWith("provider.read", {});
+  expect(controller.invoke).toHaveBeenCalledWith(
+    "provider.read",
+    {},
+    expect.any(AbortSignal),
+  );
 });

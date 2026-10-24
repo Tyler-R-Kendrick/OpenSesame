@@ -2,10 +2,11 @@
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { optionalNativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 
+/** A supplied guard belongs to the original click captured before custody yields. */
 export function captureNativeAuthorizationTransport(
   base: NativeProviderTransport,
+  guard = optionalNativeOAuthBrowserPort()?.captureAuthorizationGuard?.(),
 ): NativeProviderTransport {
-  const guard = optionalNativeOAuthBrowserPort()?.captureAuthorizationGuard?.();
   if (!guard) return base;
   const assertCurrent = () => {
     base.assertCurrent();
@@ -14,6 +15,8 @@ export function captureNativeAuthorizationTransport(
   const mutation = base.settleCredentialMutation;
   const captured: NativeProviderTransport = {
     assertCurrent,
+    signal: base.signal,
+    supportsNativeOrigin: base.supportsNativeOrigin,
     fetch: (input, init) => {
       assertCurrent();
       return base.fetch(input, init);
@@ -23,7 +26,7 @@ export function captureNativeAuthorizationTransport(
     captured.settleCredentialMutation = (input, init) => {
       assertCurrent();
       // Once sent, its minted token must reach the durable recovery journal.
-      return mutation(input, init);
+      return mutation.call(base, input, init);
     };
   return captured;
 }

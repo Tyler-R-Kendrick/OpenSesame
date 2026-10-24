@@ -188,8 +188,14 @@ describe("resetBrowser: other tabs and this tab's own writes", () => {
         locks: overlapCast({
           request: async (
             name: string,
-            run: () => Promise<BrowserResetReport>,
+            _optionsOrRun:
+              | { signal?: AbortSignal }
+              | (() => Promise<BrowserResetReport>),
+            maybeRun?: () => Promise<BrowserResetReport>,
           ) => {
+            const run =
+              typeof _optionsOrRun === "function" ? _optionsOrRun : maybeRun;
+            if (!run) throw new Error("no lock action");
             order.push(`lock:${name}`);
             try {
               return await run();
@@ -298,6 +304,7 @@ describe("resetBrowser: other tabs and this tab's own writes", () => {
     const stop = onBrowserReset(heard);
 
     hub.open().postMessage({ kind: "reset", tab: "another-tab" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(heard).toHaveBeenCalledTimes(1);
     hub.open().postMessage("reset");
     hub.open().postMessage(null);

@@ -13,7 +13,10 @@ import { connectCallbackBase } from "./connect-callback.js";
 import type { Connection } from "./connections.js";
 import { releaseGuestConnection, visibleToGuest } from "./guest-connections.js";
 import { isGuestSession } from "./guest-isolation.js";
-import { isVercelConnectable } from "./vercel-connect-catalog.js";
+import {
+  isReadonlyPaymentProvider,
+  isVercelConnectable,
+} from "./vercel-connect-catalog.js";
 import {
   connectorOf,
   iso,
@@ -197,7 +200,10 @@ export async function createVercelConnection(body: {
   scopes?: string[];
   projectId?: string;
 }): Promise<Connection> {
-  if (!isVercelConnectable(body.providerId)) {
+  if (
+    !isVercelConnectable(body.providerId) ||
+    isReadonlyPaymentProvider(body.providerId)
+  ) {
     throw new ConnectError(0, "refused", "This connector is not connectable.");
   }
   const transport = requireTransport();

@@ -14,6 +14,12 @@ what it needs, so you can stop at the first one that covers your task.
 | Docker | optional | The Compose stacks in [`ops/compose`](../../ops/compose) |
 | Chromium | optional | Browser gates (`verify:*`); Playwright finds `PLAYWRIGHT_CHROMIUM` |
 
+On Linux, native CLI/daemon builds link the distribution's `libdbus-1` so
+security updates follow the OS packages. Install `libdbus-1-dev` and
+`pkg-config` to build, plus `dbus-daemon` for the isolated keychain tests
+(Debian/Ubuntu package names). Deployed Linux binaries require `libdbus-1-3`;
+macOS and Windows use their own platform keychain APIs.
+
 ## 2. Install
 
 ```bash
@@ -22,8 +28,10 @@ pnpm install
 pnpm setup:hooks        # point git at .githooks/ (lint, anti-slop, secret scan)
 ```
 
-`pnpm bootstrap` does the same and also generates and applies the Identity
-database schema; it needs `DATABASE_URL` set to a Postgres instance
+`pnpm bootstrap` installs dependencies, sets up hooks, and applies existing
+Identity database migrations. After a schema change, first run
+`pnpm --filter @opensesame/database db:generate` and review the generated
+migration. Bootstrap needs `DATABASE_URL` set to a Postgres instance
 (see [`.env.schema`](../../.env.schema)).
 
 ## 3. Run something

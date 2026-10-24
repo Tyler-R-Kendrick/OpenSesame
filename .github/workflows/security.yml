@@ -1,0 +1,119 @@
+# Scheduled supply-chain scanning that complements the required merge checks.
+#
+# Nothing in this file gates a merge. The deterministic audit gates
+# (`pnpm audit:osv`, `audit:cargo-audit`, `audit:cve-lite`, `audit:gitleaks`,
+# `audit:semgrep`, `audit:ast-grep`, …) remain local scripts and git hooks —
+# see AGENTS.md §8 and docs/security/tooling-evaluation.md. This workflow
+# exists so the same three checks surface on GitHub's Security tab and on a
+# schedule, where a hidden red is visible without a local checkout:
+#
+#   - OSV-Scanner over every lockfile (same engine as `pnpm audit:osv`;
+#     findings expected for RUSTSEC-2023-0071, already ignored in
+#     osv-scanner.toml and .cargo/audit.toml)
+#   - gitleaks over full history (same engine as `pnpm audit:gitleaks` and
+#     the pre-commit hook; .gitleaks.toml carries the allowlists)
+#   - OpenSSF Scorecard (checks the repo against the OpenSSF supply-chain
+#     criteria and publishes the score to the code-scanning dashboard and
+#     the badge on the README)
+
+name: Security scanning
+
+on:
+  schedule:
+    # Mondays 05:23 UTC, off the hour to spread GitHub load.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scanning-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  osv-scanner:
+    name: OSV-Scanner (lockfiles)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Scan every lockfile against the OSV database
+        uses: google/osv-scanner-action/osv-scanner-action@6ad84ce1ef2d4124ba333b221894c133c4a970ea # v2.7.0
+        with:
+          # osv-scanner 2.x auto-discovers osv-scanner.toml at the scan root,
+          # so the RUSTSEC-2023-0071 ignore in it applies here as it does
+          # locally.
+          scan-args: |-
+            --output=osv-results.json
+            --format=json
+            --recursive
+            ./
+        continue-on-error: true
+      - name: Convert results to SARIF
+        uses: google/osv-scanner-action/osv-reporter-action@6ad84ce1ef2d4124ba333b221894c133c4a970ea # v2.7.0
+        with:
+          scan-args: |-
+            --output=osv-results.sarif
+            --fail-on-vuln=false
+            osv-results.json
+      - name: Upload to the code-scanning dashboard
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        with:
+          sarif_file: osv-results.sarif
+
+  gitleaks:
+    name: gitleaks (full history)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          # Full history so the scheduled pass sees what the pre-commit hook
+          # (working tree only) cannot.
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  scorecard:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Run the OpenSSF Scorecard analysis
+        uses: ossf/scorecard-action@46dc3187a971a9febf3aeb7f94ccde489f7bb46a # v2.5.0
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          # Publish to the public Scorecard dashboard so the README badge and
+          # the scorecard.dev viewer work; this repository is public.
+          publish_results: true
+      - name: Keep the raw results as a run artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: scorecard-results.sarif
+          path: scorecard-results.sarif
+          retention-days: 5
+      - name: Upload to the code-scanning dashboard
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        with:
+          sarif_file: scorecard-results.sarif

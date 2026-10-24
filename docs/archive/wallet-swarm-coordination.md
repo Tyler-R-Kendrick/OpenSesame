@@ -21,9 +21,13 @@
 | DOCS | ADR 0123 + threat/compat | Claim truthfulness |
 | BUILD | `scripts/wallet/` + pnpm scripts | Fail-closed verify |
 
-## Evidence rule
+## Historical evidence rule
 
-No claim may be marked `local_execution_verified` or `productionEnabled: true` without command output under `docs/evidence/wallet/`. Placeholders stay `blocked` or `specified`.
+This archived coordination record describes the original run. New work follows
+[the evidence persistence contract](../evidence/README.md), with temporary output
+in ignored `work/evidence/wallet/wallet/cross-platform/`.
+
+No claim may be marked `local_execution_verified` or `productionEnabled: true` without command output under [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet/). Placeholders stay `blocked` or `specified`.
 
 ## Forbidden
 

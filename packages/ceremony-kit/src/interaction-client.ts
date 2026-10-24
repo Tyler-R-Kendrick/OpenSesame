@@ -1,14 +1,12 @@
 import {
+  type InteractionDetail,
+  type InteractionKind,
+  type InteractionStatus,
+  type InteractionSummary,
   type JsonObject,
   type JsonValue,
   isJsonObject,
   readString,
-} from "@opensesame/os-domain";
-import type {
-  InteractionDetail,
-  InteractionKind,
-  InteractionStatus,
-  InteractionSummary,
 } from "@opensesame/os-domain";
 import {
   InteractionError,
@@ -17,6 +15,7 @@ import {
   readJsonBody,
 } from "./interaction-error.js";
 import { isInteractionRef } from "./interaction-url.js";
+import { stripTrailingSlashes } from "./url-normalization.js";
 
 export {
   InteractionError,
@@ -257,7 +256,7 @@ export function createInteractionClient({
   bearer,
   resolveFetch = fetchImpl,
 }: InteractionClientOptions): InteractionClient {
-  const base = baseUrl.replace(/\/+$/, "");
+  const base = stripTrailingSlashes(baseUrl);
 
   // A reference goes into a URL path. Validating its shape before it gets
   // there is what stops `../`, a smuggled query, or an encoded slash from

@@ -5,7 +5,13 @@ import {
 } from "../../../../scripts/lib/json-boundary.mjs";
 import { NATIVE_CONNECT_PLAN_JSON as CONNECT_PLAN_JSON } from "./native-browser-catalog-projection.mjs";
 
+import {
+  paymentProbeReply,
+  paymentReadFixture,
+} from "./native-browser-payment-fixtures.mjs";
+
 const PARAMETER_VALUES = {
+  program_host: "program-api.example.test",
   application_id: "contractapp",
   company_domain: "contractcompany",
   organization: "contractorganization",
@@ -16,6 +22,34 @@ const PARAMETER_VALUES = {
 };
 
 const DOCUMENTED_PROBE_REPLIES = {
+  // https://docs.linqapp.com/api-reference/phone-numbers/list-phone-numbers
+  linq: {
+    phone_numbers: [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        phone_number: "+12025551234",
+        line_type: "iMessage",
+        forwarding_number: "+12025559999",
+        reputation: {
+          status: "HEALTHY",
+          doc_url:
+            "https://docs.linqapp.com/channel/imessage/guides/phone-numbers/phone-reputation#healthy",
+        },
+        private_metadata: "private Linq upstream metadata",
+      },
+    ],
+  },
+  // https://docs.agentmail.to/api-reference/inboxes/list
+  agentmail: {
+    count: 1,
+    inboxes: [
+      {
+        inbox_id: "owned-inbox",
+        email: "owned@example.test",
+        display_name: "Protocol authority AgentMail inbox",
+      },
+    ],
+  },
   algolia: {
     items: [
       {
@@ -83,6 +117,119 @@ const DOCUMENTED_PROBE_REPLIES = {
   },
 };
 
+const DOCUMENTED_READS = {
+  linq: {
+    id: "provider.phone-numbers.read",
+    label: "List messaging lines",
+    method: "GET",
+    url: "https://api.linqapp.com/api/partner/v3/phone_numbers",
+    headers: { Accept: "application/json" },
+    reply: DOCUMENTED_PROBE_REPLIES.linq,
+    result: {
+      label: "Showing 1 of 1 returned messaging lines",
+      items: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          label: "+12025551234 — iMessage — HEALTHY",
+        },
+      ],
+    },
+    excludedText: [
+      "+12025559999",
+      "private Linq upstream metadata",
+      "https://docs.linqapp.com/channel/imessage/guides/phone-numbers/phone-reputation#healthy",
+    ],
+  },
+  datadog: {
+    id: "provider.monitors.read",
+    label: "List monitors",
+    method: "GET",
+    url: "https://api.datadoghq.com/api/v1/monitor?page=0&page_size=20",
+    headers: { "DD-APPLICATION-KEY": "{application_key}" },
+    absentHeaders: ["authorization"],
+    reply: [{ id: 12861, name: "Protocol monitor", query: "private query" }],
+    result: {
+      label: "Showing 1 monitor from first page",
+      items: [{ id: "12861", label: "Protocol monitor" }],
+    },
+    excludedText: ["private query"],
+  },
+  algolia: {
+    id: "provider.indices.read",
+    label: "List indices",
+    method: "GET",
+    url: "https://contractapp-dsn.algolia.net/1/indexes?page=0&hitsPerPage=20",
+    headers: { "X-Algolia-Application-Id": "{application_id}" },
+    absentHeaders: ["authorization"],
+    reply: {
+      items: [
+        {
+          name: "products",
+          entries: 194,
+          privateMetadata: "private index metadata",
+        },
+        { name: "suppliers", entries: 83 },
+      ],
+      nbPages: 7,
+    },
+    result: {
+      label: "Showing 2 indices from first page",
+      items: [
+        { id: "products", label: "products" },
+        { id: "suppliers", label: "suppliers" },
+      ],
+    },
+    excludedText: ["private index metadata"],
+  },
+  postmark: {
+    id: "provider.messages.read",
+    label: "List outbound messages",
+    method: "GET",
+    url: "https://api.postmarkapp.com/messages/outbound?count=20&offset=0&messagestream=outbound",
+    headers: { Accept: "application/json" },
+    absentHeaders: ["authorization", "x-postmark-account-token"],
+    reply: {
+      TotalCount: 194,
+      Messages: [
+        {
+          MessageID: "0ac29aee-e1cd-480d-b08d-4f48548ff48d",
+          MessageStream: "outbound",
+          Subject: "Protocol welcome",
+          Status: "Sent",
+          To: [{ Email: "private-recipient@example.test", Name: null }],
+          Recipients: ["private-recipient@example.test"],
+          From: "private-sender@example.test",
+          Metadata: { private: "private metadata must not render" },
+        },
+        {
+          MessageID: "e30970cd-3901-4cc4-8b52-9e7dd57ce350",
+          MessageStream: "outbound",
+          Subject: "Protocol followup",
+          Status: "Queued",
+        },
+      ],
+    },
+    result: {
+      label: "Showing 2 of 194 messages in outbound stream",
+      items: [
+        {
+          id: "0ac29aee-e1cd-480d-b08d-4f48548ff48d",
+          label: "Protocol welcome — Sent",
+        },
+        {
+          id: "e30970cd-3901-4cc4-8b52-9e7dd57ce350",
+          label: "Protocol followup — Queued",
+        },
+      ],
+    },
+    excludedText: [
+      "private-recipient@example.test",
+      "private-sender@example.test",
+      "private metadata must not render",
+    ],
+  },
+};
+
 export function nativeBrowserPlans() {
   return CONNECT_PLAN_JSON.map((json) => {
     const plan = JSON.parse(json);
@@ -102,14 +249,22 @@ function setField(root, path, value) {
   for (const [index, part] of parts.entries()) {
     if (index === parts.length - 1) parent[part] = value;
     else {
-      parent[part] ??= /^\d+$/.test(parts[index + 1]) ? [] : {};
+      const next = parts[index + 1];
+      // A documented reply may carry a scalar at a parent path while a
+      // nested predicate names a child of it; replace the scalar with the
+      // object/array the deeper field needs.
+      if (parent[part] === null || typeof parent[part] !== "object")
+        parent[part] = /^\d+$/.test(next) ? [] : {};
       parent = parent[part];
     }
   }
 }
 
 function verificationReply(id, verification) {
+  const payment = paymentProbeReply(id);
+  if (payment) return payment;
   const documented = DOCUMENTED_PROBE_REPLIES[id];
+  if (id === "linq") return structuredClone(documented);
   if (
     !documented &&
     !verification.accountField &&
@@ -160,6 +315,11 @@ export function nativeApiFixture(plan, variantId) {
   const { parameters, credentials } = fixtureCredentials(plan, preset, variant);
   const reply = verificationReply(plan.id, preset.verify);
   if (!reply) return null;
+  const read =
+    paymentReadFixture(plan.id, preset.verify.url, parameters) ??
+    (DOCUMENTED_READS[plan.id]
+      ? structuredClone(DOCUMENTED_READS[plan.id])
+      : null);
   return {
     providerId: plan.id,
     name: plan.name,
@@ -168,6 +328,7 @@ export function nativeApiFixture(plan, variantId) {
     parameters,
     credentials,
     reply,
+    read,
   };
 }
 
@@ -180,4 +341,5 @@ export const NATIVE_REPRESENTATIVE_API_IDS = [
   "resend",
   "postmark",
   "gemini",
+  "linq",
 ];

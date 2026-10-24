@@ -14,7 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const evidence = join(root, "docs/evidence/2026-09-22-browser-local-sops");
+const evidence = join(root, "work/evidence/sops/pages/browser");
 mkdirSync(evidence, { recursive: true });
 
 const PROVIDERS = [
@@ -48,7 +48,7 @@ const records = PROVIDERS.map((provider) => {
     test: "verify:sops-cloud-live",
     command: "pnpm verify:sops-cloud-live",
     runtime: "static origin, real browser",
-    artifact: "docs/evidence/2026-09-22-browser-local-sops/cloud-live.json",
+    artifact: "work/evidence/sops/pages/browser/cloud-live.json",
     reason:
       missing.length > 0
         ? `No disposable ${provider.name} resource was supplied (${missing.join(", ")} unset). Local age SOPS is unaffected; the provider's wire contract is covered by unit tests, which are a different evidence class.`
@@ -65,7 +65,7 @@ records.push({
   test: "verify:sops-cloud-live",
   command: "pnpm verify:sops-cloud-live",
   runtime: "static origin, real browser",
-  artifact: "docs/evidence/2026-09-22-browser-local-sops/cloud-live.json",
+  artifact: "work/evidence/sops/pages/browser/cloud-live.json",
   reason:
     "No live cross-origin provider call was executed from the compiled static origin. This is not evidence that a browser can reach these providers.",
 });

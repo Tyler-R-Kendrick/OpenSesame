@@ -8,7 +8,7 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
+import { accessIdentitySharePath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { resolveFilterSlug } from "@opensesame/app-core/lib/vault-filter-slug.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
@@ -28,16 +28,19 @@ import { AscendProvider, usePaneTrail } from "../lib/pane-trail.js";
 import { useNarrow } from "../lib/use-narrow.js";
 import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { LiveSessionBanner } from "./vault/LiveSessionBanner.js";
 import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
+import { VaultDropPicker } from "./vault/VaultDropPicker.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { VaultWelcome } from "./vault/VaultWelcome.js";
 import { accountSecretToCopy } from "./vault/account-copy.js";
 import { credentialChoices } from "./vault/account-credentials.js";
+import { useSharedItems } from "./vault/use-shared-items.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
+import { useVaultPaneRefs } from "./vault/use-vault-pane-refs.js";
 import "./vault.css";
 import {
   chipTypeIds,
@@ -46,12 +49,21 @@ import {
   username,
 } from "@opensesame/app-core/sections/vault-section-model.js";
 
+/** Match the status line to the crumb's type label, including its plural. */
+function vaultListTitle(filter: string, folderId: string | null): string {
+  return folderId
+    ? "Folder"
+    : ((filter === "all" ? undefined : vaultFilterLabel(filter)) ??
+        "All items");
+}
+
 export function VaultSection() {
   const [params] = useSearchParams();
   const location = useLocation();
   const { itemId } = useParams();
   const { items, folders } = useVault();
   const store = useVaultStore();
+  const sharedItems = useSharedItems(store.activeTomb?.() ?? "", items);
   const copySecret = useCopySecret();
   const navigate = useNavigate();
 
@@ -73,9 +85,14 @@ export function VaultSection() {
           return false;
         if (folderId && item.folderId !== folderId) return false;
         if (filter === "favorites" && !item.favorite) return false;
+        const incoming = sharedItems.get(item.id)?.incoming.length ?? 0;
+        if (filter === "shared" && incoming === 0) return false;
+        if (filter === "owned" && incoming > 0) return false;
         if (
           filter !== "all" &&
           filter !== "favorites" &&
+          filter !== "shared" &&
+          filter !== "owned" &&
           filter !== "trash" &&
           itemTypeId(item) !== filter
         ) {
@@ -84,18 +101,11 @@ export function VaultSection() {
         return true;
       }),
     );
-  }, [listed, filter, folderId, inTrash]);
+  }, [listed, filter, folderId, inTrash, sharedItems]);
 
   const narrow = useNarrow();
   // A phone draws one pane at a time, the first being the section tree.
   const showing = vaultPane(location.pathname, params);
-  // The crumb's own label (a type's plural from its definition), so the
-  // status line under a filter says what the crumb above it says — it used
-  // to say "All items" under "Certificates".
-  const title = folderId
-    ? "Folder"
-    : ((filter === "all" ? undefined : vaultFilterLabel(filter)) ??
-      "All items");
   // A filtered "+ new" creates the filter's kind only when that kind may be
   // created on this installation (SURFACE-08); otherwise the default kind.
   const createPath = itemCreatePath(
@@ -188,7 +198,8 @@ export function VaultSection() {
         if (inTrash) return;
         navigate(createPath);
       },
-      shareGrant: () => navigate(accessNewPath("grants")),
+      shareGrant: (item: VaultItem) =>
+        navigate(accessIdentitySharePath(item.id)),
       inTrash,
     }),
     [
@@ -212,23 +223,26 @@ export function VaultSection() {
     filter === "trash" ? item.deletedAt !== null : item.deletedAt === null,
   ).length;
 
-  const detailRef = useRef<HTMLDivElement>(null);
-  const listPaneRef = useRef<HTMLDivElement>(null);
-  const treePaneRef = useRef<HTMLDivElement>(null);
-  const newItemRef = useRef<HTMLAnchorElement>(null);
-  const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
-  const listRef = useGuideTarget<HTMLDivElement>("vault.list");
-  // A phone opens on the section tree, where the list pane is not drawn: the
-  // tree answers to the list's target, and the Add button to the create one,
-  // and the registry points at whichever copy is on screen.
-  const treeListRef = useGuideTarget<HTMLDivElement>("vault.list");
+  const {
+    detailRef,
+    listPaneRef,
+    treePaneRef,
+    newItemRef,
+    listRef,
+    treeListRef,
+    recordNewItem,
+  } = useVaultPaneRefs();
   const listPath = vaultListPath(location.search, narrow);
-  // Where New records itself for focus and the guide, wherever it is drawn.
-  const recordNewItem = (element: HTMLAnchorElement | null) => {
-    newItemRef.current = element;
-    createRef(element);
+  const pickingDrop = params.get("share") === "pick-drop";
+  const closeDropPicker = () => {
+    const next = new URLSearchParams(location.search);
+    next.delete("share");
+    const search = next.toString();
+    navigate(
+      { pathname: "/vault", search: search ? `?${search}` : "" },
+      { replace: true },
+    );
   };
-
   // The list stays mounted behind the tree on a phone, and the prompt's words
   // are the shell's, not the pane's: a search typed on the list came back,
   // filter and all, the next time a tree entry opened it ("all" drew no rows
@@ -261,7 +275,7 @@ export function VaultSection() {
     if (!target?.pane) return;
     const { to, up } = target;
     return swipeBack(target.pane, () => ascend(up, to));
-  }, [showing, listPath, ascend]);
+  }, [showing, listPath, ascend, detailRef, listPaneRef]);
 
   return (
     <AscendProvider value={narrow ? ascend : null}>
@@ -290,12 +304,14 @@ export function VaultSection() {
             listRef(element);
           }}
         >
+          <LiveSessionBanner />
           <VaultTree
             items={visible}
             folders={treeFolders}
             activeItemId={itemId}
+            sharedItems={sharedItems}
             actions={actions}
-            title={title}
+            title={vaultListTitle(filter, folderId)}
             total={total}
             emptyMessage={
               filter === "trash" ? "Trash is empty" : "Nothing here"
@@ -319,6 +335,7 @@ export function VaultSection() {
                   )}
                   filter={filter}
                   folderId={folderId}
+                  sharedItems={sharedItems}
                 />
                 {inTrash ? (
                   <TrashCommands
@@ -353,6 +370,13 @@ export function VaultSection() {
           to={createPath}
           fabRef={recordNewItem}
         />
+        {pickingDrop ? (
+          <VaultDropPicker
+            items={items}
+            onClose={closeDropPicker}
+            onPick={(item) => navigate(`/vault/${item.id}?share=drop`)}
+          />
+        ) : null}
       </div>
     </AscendProvider>
   );

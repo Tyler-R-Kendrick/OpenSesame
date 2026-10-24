@@ -105,8 +105,13 @@ export async function resolveTrustedIssuer(
   const provider = providerByIssuer(ctx.config, normalized);
   if (provider) return { source: "static", provider };
 
+  // A tenant's own configured issuer outranks a visitor's BYO row: otherwise
+  // a BYO registration placed before the tenant config could stand in front
+  // of the organization's SSO and receive its users.
+  const organization = await resolveOrganizationIssuer(ctx, normalized);
+  if (organization) return organization;
+
   const record = await resolveByoUpstream(ctx, normalized);
   if (record) return { source: "byo", record };
-
-  return resolveOrganizationIssuer(ctx, normalized);
+  return undefined;
 }

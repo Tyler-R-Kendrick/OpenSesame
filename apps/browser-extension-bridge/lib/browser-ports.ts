@@ -4,7 +4,6 @@
  * registered per switched-on origin, top frame only; the grants it reads back
  * are the browser's own.
  */
-import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { browser } from "wxt/browser";
 import type { SenderFacts } from "./bridge.js";
 import type { BridgePorts, KeyValueStore } from "./ports.js";
@@ -16,8 +15,8 @@ function keyValue(area: typeof browser.storage.local): KeyValueStore {
   return {
     async get(key) {
       const found = await area.get(key);
-      const value: BoundaryValue = found[key];
-      return isString(value) ? value : undefined;
+      const value = found[key];
+      return typeof value === "string" ? value : undefined;
     },
     async set(key, value) {
       await area.set({ [key]: value });

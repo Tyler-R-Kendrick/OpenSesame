@@ -8,6 +8,7 @@ import { z } from "zod";
 import { NativeApiError, nativeApiHttp } from "./native-api-http.js";
 import { safeProviderText } from "./native-api-verify.js";
 import { verifyApprovedNativeOAuth } from "./native-approved-oauth-verify.js";
+import { nativeBrowserOAuthVerificationEndpoint } from "./native-browser-oauth-resources.js";
 import type { IssuedNativeOAuthToken } from "./native-browser-oauth-token.js";
 import type {
   NativeConfiguration,
@@ -114,7 +115,9 @@ async function microsoftIdentity(
   if (!grant.idToken || !pending.clientId)
     throw new NativeOAuthError("provider");
   const tenant = guid.parse(decodeJwtEnvelope(grant.idToken).claims.tid);
-  const expected = configuration.parameters.tenant ?? "common";
+  const expected = (configuration.parameters.tenant ?? "common")
+    .trim()
+    .toLowerCase();
   const consumerTenant = "9188040d-6c67-4c5b-b112-36a304b66dad";
   if (
     (expected === "organizations" && tenant.toLowerCase() === consumerTenant) ||
@@ -202,14 +205,6 @@ async function providerIdentity(
   previousIdentity?: Identity,
 ): Promise<Identity> {
   const provider = configuration.providerId;
-  const endpoints = new Map([
-    ["gitlab", "https://gitlab.com/api/v4/user"],
-    ["dropbox", "https://api.dropboxapi.com/2/users/get_current_account"],
-    ["spotify", "https://api.spotify.com/v1/me"],
-    ["google", "https://openidconnect.googleapis.com/v1/userinfo"],
-    ["workos", "https://signin.workos.com/oauth2/userinfo"],
-    ["resend", "https://api.resend.com/domains"],
-  ]);
   let result: Identity;
   try {
     const approved = await verifyApprovedNativeOAuth(
@@ -244,7 +239,7 @@ async function providerIdentity(
     } else if (provider === "openrouter")
       result = await openrouterIdentity(grant, transport);
     else {
-      const endpoint = endpoints.get(provider);
+      const endpoint = nativeBrowserOAuthVerificationEndpoint(provider);
       if (!endpoint) throw new NativeOAuthError("provider");
       result = projectedIdentity(
         provider,

@@ -16,9 +16,12 @@
  */
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useNavigate } from "react-router";
 
 import { personGlyphId } from "@opensesame/app-core/lib/account.js";
+import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { guestVaultLabel } from "@opensesame/app-core/lib/local-guest.js";
+import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   GUEST_PROFILE_ID,
   type OrgMembership,
@@ -37,12 +40,21 @@ import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AddOrganization } from "./AddOrganization.js";
 import { GlyphMark } from "./GlyphMark.js";
-import { IconCheck, IconPlus, IconUser } from "./Icons.js";
+import {
+  IconCheck,
+  IconChevronDown,
+  IconPlus,
+  IconSettings,
+  IconUser,
+} from "./Icons.js";
+import { PromptGlyph } from "./PromptGlyph.js";
+import { openContextMenu } from "./context-menu/menu-model.js";
 import { glyphStandsForName } from "./prompt-glyph.js";
 import { useHold } from "./use-hold.js";
 
 import { useAccount } from "../bindings/account.js";
 import { useIdentitySession } from "../bindings/identity.js";
+import { useVault } from "../lib/vault/hooks.js";
 function guestLabel(hasSession: boolean, assurance?: string): string {
   if (!hasSession) return guestVaultLabel();
   if (assurance === "provisional" || !assurance) {
@@ -51,16 +63,65 @@ function guestLabel(hasSession: boolean, assurance?: string): string {
   return "account";
 }
 
-function AccountSwitcherDefault() {
+export type AccountSwitcherProps = { glyphHost?: HTMLElement | null };
+
+function useUserSettingsAction(onClose: () => void) {
+  const navigate = useNavigate();
+  return () => {
+    onClose();
+    navigate("/settings/user");
+  };
+}
+
+function UserSettingsEntry({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button type="button" className="account-switcher__exit" onClick={onOpen}>
+      <IconSettings size={14} />
+      User Settings
+    </button>
+  );
+}
+
+function AccountSwitcherDefault({ glyphHost }: AccountSwitcherProps = {}) {
   const session = useIdentitySession();
   const account = useAccount();
+  const vault = useVault();
+  const [localName, setLocalName] = useState<string | null>(null);
   const segRef = useGuideTarget<HTMLButtonElement>("shell.account");
   const activeId = useSyncExternalStore(
     subscribeOrgProfile,
     activeOrgProfileId,
   );
   const [open, setOpen] = useState(false);
+  const openUserSettings = useUserSettingsAction(() => setOpen(false));
   const [memberships, setMemberships] = useState<OrgMembership[]>([]);
+
+  useEffect(() => {
+    if (account || vault.status !== "unlocked") {
+      setLocalName(null);
+      return;
+    }
+    let live = true;
+    const read = () => {
+      void readLocalDirectory(vault.tomb)
+        .then((directory) => {
+          if (!live) return;
+          const person = directory.entries.find(
+            (entry) => entry.kind === "person",
+          );
+          setLocalName(person?.name ?? null);
+        })
+        .catch(() => {
+          if (live) setLocalName(null);
+        });
+    };
+    read();
+    const stop = subscribeLocalIamChanges(read);
+    return () => {
+      live = false;
+      stop();
+    };
+  }, [account, vault.status, vault.tomb]);
 
   useEffect(() => {
     if (!session || !open) return;
@@ -86,7 +147,10 @@ function AccountSwitcherDefault() {
   // broker's assertion is the whole identity (ADR 0090), so it is never
   // called a guest.
   const label =
-    activeOrg?.displayName ?? account?.name ?? guestLabel(Boolean(session));
+    activeOrg?.displayName ??
+    account?.name ??
+    localName ??
+    guestLabel(Boolean(session));
   const brand = account?.providerId ? brandFor(account.providerId) : null;
   // What the prompt wears in place of the name on a phone: the organization's
   // face while one is active, else the person's.
@@ -146,15 +210,32 @@ function AccountSwitcherDefault() {
         onContextMenu={(event) => {
           // A finger held here is asking for the switcher, not for the
           // session menu the prompt answers a right-click with.
-          if (!isTouchPointer() || !glyphStandsForName(event.currentTarget))
+          if (isTouchPointer() && glyphStandsForName(event.currentTarget)) {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(true);
             return;
+          }
           event.preventDefault();
           event.stopPropagation();
-          setOpen(true);
+          openContextMenu(event, event.currentTarget, "Account", [
+            [
+              {
+                id: "user-settings",
+                label: "User Settings",
+                run: openUserSettings,
+              },
+            ],
+          ]);
         }}
       >
-        <GlyphMark className="prompt__glyph" {...promptGlyph} />
+        <PromptGlyph glyphHost={glyphHost}>
+          <GlyphMark className="prompt__glyph" {...promptGlyph} />
+        </PromptGlyph>
         <span className="prompt__name">{label}</span>
+        {glyphHost !== undefined ? (
+          <IconChevronDown className="prompt__chevron" size={14} />
+        ) : null}
       </button>
 
       {open ? (
@@ -217,6 +298,7 @@ function AccountSwitcherDefault() {
             {/* The roads out. Each one lands on the unlock screen's Sign in
                 tab, which says what just happened. */}
             <div className="account-switcher__exits">
+              <UserSettingsEntry onOpen={openUserSettings} />
               {account && !account.guest ? (
                 <button
                   type="button"
@@ -304,7 +386,7 @@ export const accountSwitcherSeams = {
   AccountSwitcher: AccountSwitcherDefault,
 };
 
-export function AccountSwitcher() {
+export function AccountSwitcher(props: AccountSwitcherProps = {}) {
   const Impl = accountSwitcherSeams.AccountSwitcher;
-  return <Impl />;
+  return <Impl {...props} />;
 }

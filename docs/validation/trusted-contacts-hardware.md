@@ -11,7 +11,8 @@ page closes: *"Not exercised against physical hardware."*
 | The protocol (SLIP-0039, HPKE, policy, ledger, epochs, packets) | 45 official SLIP-0039 vectors, RFC 9180 Appendix A.1/A.2, ~300 unit tests, mutation checks | `pnpm --filter @opensesame/app-core exec vitest run src/lib/quorum` |
 | The ceremonies end to end, many devices, hostile pastes | the desk, one in-memory device per person, a JS virtual authenticator | `src/lib/quorum/desk/desk.*.test.ts` |
 | **A real browser's WebAuthn stack with PRF** | five Chromium contexts, five CDP virtual authenticators with `hasPrf`, the real desk in each page, only packets between them; refusals are the browser's own (`NotAllowedError`) | `pnpm --filter @opensesame/pages verify:quorum-browser` (CI: `sign-in` shard) |
-| The Settings screens | `verify:trusted-contacts` (keyboard, touch, tutorials) | see the screens' own gates |
+| Trusted-contact **vault unlock** | people created in the identity directory, real Chromium WebAuthn enrollment and assertions, 2-of-3 and 3-of-3 policies; one below the threshold stays locked, the threshold opens the vault | `pnpm --filter @opensesame/pages verify:trusted-unlock` |
+| The Settings screens | Pages tests and the local browser walk (keyboard, touch, tutorials) | see the screens' own gates |
 
 A CDP virtual authenticator runs Chromium's WebAuthn code (real `create` and
 `get`, real `clientDataJSON`, authenticator data, signatures, the PRF
@@ -83,8 +84,11 @@ for every cell. **Nothing in this table has been run.** An empty cell means
 
 When a pair fails, keep the browser's own error (name and message), the
 authenticator and firmware, and whether `prf.enabled` came back at `create()`.
-File the result under `docs/evidence/<date>-trusted-contacts-hardware/` and link
-it here. A pair that cannot do PRF is not a defect in the circle: it is a key
+File the result in ignored `work/evidence/trusted-contacts/pages/hardware/`.
+After review, promote only approved current-state artifacts to
+`docs/evidence/trusted-contacts/pages/hardware/`, with source and approval
+provenance under [the persistence contract](../evidence/README.md), and link
+the approved gallery here by commit SHA. A pair that cannot do PRF is not a defect in the circle: it is a key
 that belongs in an approvals-only circle, and the owner's screen says so.
 
 ## Reading the result

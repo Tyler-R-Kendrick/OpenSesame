@@ -15,6 +15,7 @@
  */
 
 import type { VaultItem } from "@opensesame/vault-core";
+import { registerHoneyToken } from "../../honey-tokens.js";
 import { clearIncidentJournalsDurable } from "../incident/intent-journal.js";
 import {
   DURESS_PIN_MAX,
@@ -23,6 +24,7 @@ import {
 } from "../keys/pin-floors.js";
 import { duressSessionFence } from "../session/fence.js";
 import { loadEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
+import { honeyVaultRecords } from "./modes/honey-vault.js";
 import {
   type DuressMode,
   type DuressModeId,
@@ -173,18 +175,26 @@ export async function enableDuressCode(input: {
       capabilities: { durableLocalStorage: true, offlineReady: true },
     };
     // A mode with a plan seals it beside the presentation; one without seals none.
+    const plan = mode.plan
+      ? mode.plan(input.extras ?? {}, { items: input.items ?? [] })
+      : null;
+    // HoneyVault credentials are issued into the owner's store now. The
+    // decoy only carries the token text; the proxy alerts on that text.
+    if (plan && mode.id === "honey_vault") {
+      for (const record of honeyVaultRecords(plan.body)) {
+        await registerHoneyToken(
+          input.vaultRef,
+          `${record.title} (HoneyVault)`,
+          record.token,
+        );
+      }
+    }
     const sealed = await sealUnlockTriggerFromCeremony(
-      mode.plan
-        ? {
-            ...ceremony,
-            payload: encodePlan(
-              mode.plan(input.extras ?? {}, { items: input.items ?? [] }),
-            ),
-          }
-        : ceremony,
+      plan ? { ...ceremony, payload: encodePlan(plan) } : ceremony,
     );
     const armed = await armPersistedUnlockEnrollment(sealed, {
       requireDurable: input.requireDurable ?? true,
+      code: input.code,
     });
     if (!armed.ok) return { ok: false, code: "not_durable" };
     return { ok: true };

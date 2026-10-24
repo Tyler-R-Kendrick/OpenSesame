@@ -22,8 +22,12 @@ import {
 } from "./configuration.js";
 import { aiConnectionHeaders } from "./protocol.js";
 import { AI_CONNECTION_CLASSIFICATION, readAiConnection } from "./store.js";
-import { aiConnectionTransport } from "./transport.js";
-import { AiConnectionError } from "./types.js";
+import { captureAiConnectionTransport } from "./transport.js";
+import {
+  AiConnectionError,
+  isAiImageFamily,
+  isAiSpeechFamily,
+} from "./types.js";
 import { aiVaultSeams } from "./vault-guard.js";
 
 function unavailable(): never {
@@ -32,14 +36,22 @@ function unavailable(): never {
     "Configured AI delegation requires a verified vault key and its exact canonical catalog protocol and endpoint.",
   );
 }
-function delegationState(id: string) {
+function delegatedTextDraft(id: string) {
   const draft = readAiConnection(id);
   if (
     !draft ||
     draft.authentication !== "api-key" ||
-    draft.family === "openai_responses"
+    draft.family === "openai_responses" ||
+    draft.family === "bedrock_converse" ||
+    draft.family === "replicate_predictions" ||
+    isAiSpeechFamily(draft.family) ||
+    isAiImageFamily(draft.family)
   )
     return unavailable();
+  return draft;
+}
+function delegationState(id: string) {
+  const draft = delegatedTextDraft(id);
   const api = modelApiOf(draft.providerId);
   if (
     !api?.baseUrl ||
@@ -165,9 +177,10 @@ export async function executeAiDelegatedRequest(
   project: (body: BoundaryValue) => BoundaryValue,
   fence: HostedModelFence,
 ): Promise<BoundaryValue> {
+  const port = captureAiConnectionTransport();
   const guard = await aiVaultSeams.capture();
   try {
-    const port = aiConnectionTransport();
+    port.assertCurrent();
     const signal = AbortSignal.any([guard.signal, port.signal, fence.signal]);
     const baseCheck = () => {
       guard.check();

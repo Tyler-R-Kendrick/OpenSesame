@@ -10,7 +10,6 @@ use opensesame_connector_host::password_agent::env as core;
 use std::{
     collections::HashMap,
     io::Write,
-    path::PathBuf,
     process::{ExitStatus, Stdio},
 };
 use zeroize::Zeroizing;
@@ -21,7 +20,7 @@ use zeroize::Zeroizing;
 pub(super) fn template_has_os(cmd: &super::consume::Env) -> bool {
     use super::consume::Env;
     let file = match cmd {
-        Env::Run { file, .. } | Env::Resolve { file, .. } => file,
+        Env::Run { file, .. } => file,
         Env::Write { .. } => return false,
     };
     std::fs::read_to_string(file).is_ok_and(|content| {
@@ -94,7 +93,7 @@ impl LocalVault {
     }
 }
 
-/// One provider batch, mirroring the `env resolve` capture: values cross
+/// One provider batch: values cross
 /// only through the private pipe the internal batch encoder writes.
 fn resolve_op_batch(refs: &[String]) -> anyhow::Result<Vec<Zeroizing<String>>> {
     if refs.is_empty() {
@@ -214,10 +213,13 @@ pub(super) fn run_assignments(
     assignments: &[String],
     mounts: &[String],
     command: &[String],
+    grant_approved: bool,
 ) -> anyhow::Result<()> {
     core::validate_run_assignments(assignments)?;
     core::validate_run_assignments(mounts)?;
-    crate::cli_app_integration::ensure_reveal("run", None)?;
+    if !grant_approved {
+        crate::cli_app_integration::ensure_reveal("run", None)?;
+    }
     let parsed = assignments
         .iter()
         .map(|input| core::assignment(input))
@@ -259,7 +261,7 @@ pub(super) fn run_assignments(
     run_with_values(command, &values, &mount_values, &secrets)
 }
 
-pub(super) fn env(cmd: super::consume::Env, desktop: bool, reveal: bool) -> anyhow::Result<()> {
+pub(super) fn env(cmd: super::consume::Env) -> anyhow::Result<()> {
     use super::consume::Env;
     match cmd {
         Env::Run { file, command } => {
@@ -275,80 +277,17 @@ pub(super) fn env(cmd: super::consume::Env, desktop: bool, reveal: bool) -> anyh
             let (values, secrets) = template_values(&lines, &resolved);
             run_with_values(&command, &values, &[], &secrets)
         }
-        Env::Resolve { file, target } => {
-            use opensesame_connector_host::password_agent::reveal_gate::{
-                assert_human_reveal, emit_reveal_receipt, HumanRevealRequest,
-            };
-            assert_human_reveal(HumanRevealRequest {
-                verb: "env-resolve",
-                reveal,
-                desktop,
-                reference: None,
-                stdin_tty: None,
-                stdout_tty: None,
-            })?;
-            if reveal {
-                crate::cli_app_integration::ensure_reveal("env-resolve", None)?;
-            }
-            emit_reveal_receipt("env-resolve", None);
-            eprintln!(
-                "Deprecation: env resolve writes plaintext at rest; prefer `password-agent env run` or `opensesame run --env` (same run wrapper as op run)."
-            );
-            let target = PathBuf::from(target);
-            let content = std::fs::read_to_string(file)?;
-            let lines = core::parse(&content);
-            let refs = core::references(&lines);
-            let mut vault = LocalVault {
-                tombs: HashMap::new(),
-            };
-            let resolved_map = resolve_all(&refs, &mut vault)?;
-            let values = serde_json::Value::Array(
-                refs.iter()
-                    .map(|reference| {
-                        serde_json::Value::String(
-                            resolved_map
-                                .get(reference)
-                                .map(|value| value.as_str().to_string())
-                                .unwrap_or_default(),
-                        )
-                    })
-                    .collect(),
-            );
-            let resolved = Zeroizing::new(core::resolved(&lines, &refs, &values)?);
-            let parent = target
-                .parent()
-                .filter(|path| !path.as_os_str().is_empty())
-                .unwrap_or_else(|| std::path::Path::new("."));
-            let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                temporary
-                    .as_file()
-                    .set_permissions(std::fs::Permissions::from_mode(0o600))?;
-            }
-            temporary.write_all(resolved.as_bytes())?;
-            temporary.persist(&target)?;
-            eprintln!(
-                "Resolved {} secret references; output contains plaintext secrets",
-                lines
-                    .iter()
-                    .filter(|line| matches!(line, core::Line::Reference { .. }))
-                    .count()
-            );
-            Ok(())
-        }
         Env::Write { .. } => anyhow::bail!("env write needs no local resolution"),
     }
 }
 
-pub(super) fn read(reference: &str, desktop: bool, reveal: bool) -> anyhow::Result<()> {
+pub(super) fn reveal(reference: &str, desktop: bool, reveal: bool) -> anyhow::Result<()> {
     use opensesame_connector_host::password_agent::reveal_gate::{
         assert_human_reveal, emit_reveal_receipt, HumanRevealRequest,
     };
     core::parse_os_reference(reference)?;
     assert_human_reveal(HumanRevealRequest {
-        verb: "read",
+        verb: "reveal",
         reveal,
         desktop,
         reference: Some(reference),
@@ -356,9 +295,9 @@ pub(super) fn read(reference: &str, desktop: bool, reveal: bool) -> anyhow::Resu
         stdout_tty: None,
     })?;
     if reveal {
-        crate::cli_app_integration::ensure_reveal("read", Some(reference))?;
+        crate::cli_app_integration::ensure_reveal("reveal", Some(reference))?;
     }
-    emit_reveal_receipt("read", Some(reference));
+    emit_reveal_receipt("reveal", Some(reference));
     let mut vault = LocalVault {
         tombs: HashMap::new(),
     };

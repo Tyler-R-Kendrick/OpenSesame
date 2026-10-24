@@ -37,17 +37,19 @@ function NativeFieldControl({
     );
   if (field.kind === "textarea" && !field.secret)
     return (
-      <label className="cx-select" htmlFor={id}>
-        <span className="f__label">{field.label}</span>
+      <div className="cx-select">
+        <label className="f__label" htmlFor={id}>
+          {field.label}
+        </label>
         <textarea
           id={id}
           className="cx-textarea"
           value={value}
-          maxLength={100_000}
+          maxLength={field.maxLength ?? 100_000}
           readOnly={field.readOnly}
           onChange={(event) => onChange(event.target.value)}
         />
-      </label>
+      </div>
     );
   return (
     <FieldShell

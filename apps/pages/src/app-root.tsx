@@ -1,5 +1,4 @@
 import { activatePlan } from "@opensesame/app-core/lib/capabilities/change.js";
-import { JOIN_COMMAND_PATH } from "@opensesame/app-core/lib/command-bar/types.js";
 import {
   type ComponentType,
   type ReactNode,
@@ -10,9 +9,8 @@ import {
   useEffect,
   useSyncExternalStore,
 } from "react";
-import { Link, Navigate, Route, Routes, useLocation } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
-import { Wrapped } from "./components/ShellWrappers.js";
 import { ContextMenuLayer } from "./components/context-menu/ContextMenuLayer.js";
 
 import type {
@@ -22,23 +20,33 @@ import type {
 } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { planIsSettling } from "@opensesame/app-core/lib/capabilities/settling.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
-import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { Notices } from "./components/Notices.js";
+import { VaultShellSkeleton } from "./components/VaultShellSkeleton.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
+import { useSwUpdateHost } from "./lib/sw-update-guard.js";
 import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
   useVault as defaultUseVault,
 } from "./lib/vault/hooks.js";
+import { DeadmanRelease } from "./screens/DeadmanRelease.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
-import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
 import { GateHost } from "./tutorial/gate-seat.js";
 
+import {
+  type VaultStatus,
+  useAfterUnlock,
+  useRotationQueue,
+  useVaultLanding,
+} from "./app-root-hooks.js";
+import { AppVaultShell } from "./app-vault-shell.js";
 import { useComposition } from "./bindings/capabilities.js";
+
+export { useCapabilityGate } from "./app-root-hooks.js";
 import { useRegistryContributions as defaultUseContributions } from "./bindings/contributions.js";
 import { useShellReady as defaultUseShellReady } from "./bindings/shell-ready.js";
 // The core shell (ownership.md §5): unlock, the vault, Settings, and the
@@ -46,19 +54,27 @@ import { useShellReady as defaultUseShellReady } from "./bindings/shell-ready.js
 // from an approved capability's runtime, so nothing optional is imported
 // here — not even lazily. A lazy import is still a reference the bundle graph
 // follows; a contribution is a value a module hands over once it is approved.
+const loadAppShell = () => import("./components/AppShell.js");
+const loadVaultSection = () => import("./sections/VaultSection.js");
 const DefaultAppShell = lazy(() =>
-  import("./components/AppShell.js").then((m) => ({ default: m.AppShell })),
+  loadAppShell().then((m) => ({ default: m.AppShell })),
 );
 const DefaultVaultSection = lazy(() =>
-  import("./sections/VaultSection.js").then((m) => ({
-    default: m.VaultSection,
-  })),
+  loadVaultSection().then((m) => ({ default: m.VaultSection })),
 );
 const DefaultVaultWelcome = lazy(() =>
-  import("./sections/VaultSection.js").then((m) => ({
-    default: m.VaultWelcome,
-  })),
+  loadVaultSection().then((m) => ({ default: m.VaultWelcome })),
 );
+
+/**
+ * The unlock screen is the only thing between a person and their vault. Warm
+ * the shell and its first screen while that gate is still up, so the doors
+ * reveal the vault instead of an empty canvas and a second network wait.
+ * Failure is allowed to be quiet: the lazy boundaries render the skeleton.
+ */
+export function preloadVaultShell(): void {
+  void Promise.all([loadAppShell(), loadVaultSection()]).catch(() => undefined);
+}
 const DefaultHealthPanel = lazy(() =>
   import("./sections/vault/HealthPanel.js").then((m) => ({
     default: m.HealthPanel,
@@ -86,7 +102,6 @@ const DevLockV5Demo = import.meta.env.DEV
     )
   : null;
 
-type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
 
 export type AppSlots = {
@@ -171,80 +186,6 @@ export function UnavailableRoute() {
   );
 }
 
-/** Whether a capability is approved under the current plan, and its lifecycle. */
-export function useCapabilityGate(id: string) {
-  const snapshot = useComposition();
-  const state = snapshot.plan?.capabilities[id] ?? null;
-  return {
-    approved: state?.approved === true,
-    lifecycle: snapshot.lifecycle[id] ?? null,
-    state,
-  };
-}
-
-/**
- * Unlock effects an approved module registered run once per unlock, under
- * the lease that approved them: a bump aborts the signal they were handed.
- *
- * Locking clears any active duress presentation first (ADR 0131). That is
- * core, not an unlock effect: it must run whether or not a tomb is open and
- * whether or not a capability contributed anything, so it sits ahead of the
- * early return rather than inside the effect list.
- */
-function useAfterUnlock(
-  status: string,
-  tomb: string | undefined,
-  guest: boolean | undefined,
-  effects: readonly UnlockEffectContribution[],
-  recover: () => void,
-): void {
-  useEffect(() => {
-    if (status !== "unlocked") {
-      clearActivePresentation();
-      return;
-    }
-    if (!tomb) return;
-    recover();
-    const controller = new AbortController();
-    let leaseSignal: AbortSignal | null = null;
-    try {
-      leaseSignal = compositionStore.currentLease().signal;
-    } catch {
-      // Not resolved yet: the effects run again on the next generation.
-    }
-    const onLeaseAbort = () => controller.abort("lease");
-    leaseSignal?.addEventListener("abort", onLeaseAbort, { once: true });
-    for (const effect of effects) {
-      void effect
-        .run({ tomb, guest: guest === true, signal: controller.signal })
-        .catch(() => undefined);
-    }
-    return () => {
-      leaseSignal?.removeEventListener("abort", onLeaseAbort);
-      controller.abort("unmount");
-    };
-  }, [status, tomb, guest, effects, recover]);
-}
-
-function contributedRoute(route: RouteContribution) {
-  const Element = route.element;
-  return (
-    <Route
-      key={route.id}
-      path={route.path}
-      element={
-        route.framed ? (
-          <Framed>
-            <Element />
-          </Framed>
-        ) : (
-          <Element />
-        )
-      }
-    />
-  );
-}
-
 function Fallback() {
   const location = useLocation();
   const snapshot = useComposition();
@@ -264,6 +205,7 @@ function VaultApp() {
     unlockCeremonyStore.getSnapshot,
   );
   const location = useLocation();
+  const navigate = useNavigate();
   const routes = slots.useRouteContributions();
   const wrappers = slots.useShellWrappers();
   const effects = slots.useUnlockEffects();
@@ -278,63 +220,37 @@ function VaultApp() {
     slots.recoverPendingFederatedLink,
   );
 
-  if (status !== "unlocked" || ceremonyActive) {
-    return (
-      <GateHost wrappers={wrappers}>
-        <slots.UnlockScreen />
-      </GateHost>
-    );
-  }
+  useVaultLanding(status, location.pathname, navigate);
 
-  // Mounting before the unlock's own generation has activated builds the
-  // shell from registrations that are about to be revoked (bindings/shell-ready).
-  if (!shellReady) return null;
+  const shell = (
+    <AppVaultShell
+      key={JSON.stringify([tomb, guest])}
+      slots={slots}
+      wrappers={wrappers}
+      routes={routes}
+      fallback={Fallback}
+    />
+  );
 
-  // Land on the vault before the shell mounts: the rail's sections open from
-  // the route they first render under, and mounting on "/" would leave every
-  // one of them closed.
-  if (location.pathname === "/") {
-    return <Navigate to="/vault" replace />;
-  }
-
+  // One stable frame across lock, unlock and the door ceremony. Switching
+  // between a bare gate and a gate beside the shell would remount the unlock
+  // screen at the moment the vault opens, losing the ceremony token; keeping
+  // the two slots in the same fragment lets the gate finish where it started.
   return (
-    // The shell is one Suspense boundary and the section inside it another,
-    // so a section still loading never blanks the rail around it.
-    <Suspense fallback={null}>
-      <Wrapped wrappers={wrappers}>
-        <slots.AppShell>
-          <Suspense fallback={<p className="hint">Loading…</p>}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/vault" replace />} />
-              <Route path="/vault" element={<slots.VaultSection />}>
-                <Route index element={<slots.VaultWelcome />} />
-                <Route path="health" element={<slots.HealthPanel />} />
-                <Route
-                  path="new/:kind?"
-                  element={<slots.ItemEditor mode="new" />}
-                />
-                <Route
-                  path=":itemId/edit"
-                  element={<slots.ItemEditor mode="edit" />}
-                />
-                <Route path=":itemId" element={<slots.ItemDetail />} />
-              </Route>
-              {routes.map(contributedRoute)}
-              <Route
-                path="/settings/:category?"
-                element={
-                  <Framed>
-                    <slots.SettingsSection />
-                  </Framed>
-                }
-              />
-              <Route path={JOIN_COMMAND_PATH} element={<JoinRoadRoute />} />
-              <Route path="*" element={<Fallback />} />
-            </Routes>
-          </Suspense>
-        </slots.AppShell>
-      </Wrapped>
-    </Suspense>
+    <>
+      {status === "unlocked" ? (
+        shellReady ? (
+          shell
+        ) : (
+          <VaultShellSkeleton />
+        )
+      ) : null}
+      {status !== "unlocked" || ceremonyActive ? (
+        <GateHost wrappers={wrappers}>
+          <slots.UnlockScreen />
+        </GateHost>
+      ) : null}
+    </>
   );
 }
 
@@ -346,14 +262,21 @@ function VaultApp() {
  */
 export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   usePaneEscape();
+  useSwUpdateHost();
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
   const routes = resolved.useRouteContributions();
   const wrappers = resolved.useShellWrappers();
-  const { status } = resolved.useVault();
+  const { status, tomb, items, guest } = resolved.useVault();
+  useRotationQueue(status, tomb, items, guest);
   const isAuthCallback = resolved.hasAuthResponse(location.search);
+  const isDeadmanRelease = location.pathname === "/deadman";
   useEffect(() => activatePlan(compositionStore), []);
-
+  useEffect(() => {
+    // Unit tests import their own doubles; preloading the real shell there
+    // would register side effects the test did not ask for.
+    if (import.meta.env.MODE !== "test") preloadVaultShell();
+  }, []);
   if (
     import.meta.env.DEV &&
     DevLockV5Demo &&
@@ -376,6 +299,12 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
     <GateHost wrappers={wrappers}>
       <resolved.FederationReturn />
     </GateHost>
+  ) : isDeadmanRelease ? (
+    <GateHost wrappers={wrappers}>
+      <Framed>
+        <DeadmanRelease />
+      </Framed>
+    </GateHost>
   ) : ungated ? (
     <GateHost wrappers={wrappers}>
       <UngatedRoute route={ungated} />
@@ -387,12 +316,15 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   // The unlocked shell carries its own bell. Every other screen — locked,
   // the federated return, a route on its own page — has none, and a failure
   // is a notice in the tray, so it gets the corner one.
-  const shellless = isAuthCallback || ungated !== null || status !== "unlocked";
+  const shellless =
+    isAuthCallback ||
+    isDeadmanRelease ||
+    ungated !== null ||
+    status !== "unlocked";
 
   return (
     <AppSlotsContext.Provider value={resolved}>
-      <Notices shellless={shellless} />
-      {body}
+      <Notices shellless={shellless}>{body}</Notices>
       <ContextMenuLayer />
     </AppSlotsContext.Provider>
   );

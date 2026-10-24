@@ -11,6 +11,7 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 
 export interface SecurityHeaderOverrides {
   "content-type"?: string;
+  "content-security-policy"?: string;
   location?: string;
   "access-control-allow-origin"?: string;
   "access-control-allow-methods"?: string;
@@ -27,13 +28,16 @@ export function securityHeaders(
   extra: SecurityHeaderOverrides = {},
   issuer = "",
 ) {
+  // The hardening headers are pinned after `extra` so a caller-supplied
+  // override can never weaken them (a stray content type is pinned again
+  // by each sender below).
   const headers = {
+    ...extra,
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "referrer-policy": "no-referrer",
     "cache-control": "no-store",
     "x-permitted-cross-domain-policies": "none",
-    ...extra,
   };
   if (issuer.startsWith("https://")) {
     return {
@@ -54,7 +58,7 @@ export function sendJson(
   const payload = JSON.stringify(body);
   res.writeHead(
     status,
-    securityHeaders({ "content-type": "application/json", ...extra }, issuer),
+    securityHeaders({ ...extra, "content-type": "application/json" }, issuer),
   );
   res.end(payload);
 }
@@ -65,9 +69,20 @@ export function sendHtml(
   html: string,
   issuer = "",
 ): void {
+  // The only HTML documents are self-posting forms built by
+  // `autoSubmitFormHtml`/`samlPostBindingHtml`, which escape every
+  // interpolated value. The policy is defense in depth: no resource may
+  // load, and only the pages' own inline auto-submit script may run.
   res.writeHead(
     status,
-    securityHeaders({ "content-type": "text/html; charset=utf-8" }, issuer),
+    securityHeaders(
+      {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy":
+          "default-src 'none'; script-src 'unsafe-inline'; form-action *; base-uri 'none'",
+      },
+      issuer,
+    ),
   );
   res.end(html);
 }
@@ -114,13 +129,16 @@ export function parseForm(body: string): URLSearchParams {
   return new URLSearchParams(body);
 }
 
+const HTML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
 export function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+  return value.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char] ?? char);
 }
 
 /**

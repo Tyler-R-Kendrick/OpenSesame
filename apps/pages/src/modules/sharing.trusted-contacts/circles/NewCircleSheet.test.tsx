@@ -31,7 +31,6 @@ import {
   recordCopies,
   someItems,
   tabTo,
-  take,
 } from "./circles.test-support.js";
 
 let restores: (() => void)[] = [];
@@ -62,50 +61,19 @@ const key = (name: string) =>
   within(screen.getByRole("dialog")).getByRole("button", { name });
 
 describe("Start a circle", () => {
-  it("opens on its close key and asks only for a name and what it protects", async () => {
+  it("opens on its close key with a supplied name and no protection choices", async () => {
     await open();
     expect(document.activeElement).toBe(key("Close"));
     expect(screen.getByRole("dialog", { name: "Start a circle" })).toBeTruthy();
+    expect(screen.getByLabelText("Name")).toHaveProperty("value", "Circle 1");
     expect(
-      screen.getByRole("radiogroup", { name: "What it protects" }),
-    ).toBeTruthy();
-    const chosen = within(
-      screen.getByRole("radiogroup", { name: "What it protects" }),
-    ).getAllByRole("button");
-    expect(chosen.map((b) => b.textContent)).toEqual([
-      "Everything in this vault",
-      "A folder",
-      "Approvals only",
-    ]);
-    expect(chosen.map((b) => b.getAttribute("aria-pressed"))).toEqual([
-      "true",
-      "false",
-      "false",
-    ]);
-    expect(isDisabled(key("Make the invitation"))).toBe(true);
+      screen.queryByRole("radiogroup", { name: "What it protects" }),
+    ).toBeNull();
+    expect(screen.queryByLabelText("Folder")).toBeNull();
+    expect(isDisabled(key("Make the invitation"))).toBe(false);
     // Nothing is drawn but fields and keys: no prose, no failure.
     expect(document.querySelectorAll("p")).toHaveLength(1);
     expect(document.querySelector(".found__top")).toBeNull();
-  });
-
-  it("asks for a folder the vault has, and marks one it does not", async () => {
-    const { user } = await open();
-    await user.type(screen.getByLabelText("Name"), "Money");
-    await user.click(key("A folder"));
-    const folder = screen.getByLabelText("Folder");
-    await user.type(folder, "Bank");
-    expect(
-      screen.getByRole("img", { name: "No folder has that name." }),
-    ).toBeTruthy();
-    expect(isDisabled(key("Make the invitation"))).toBe(true);
-    await user.clear(folder);
-    await user.type(folder, "banking");
-    expect(
-      screen.queryByRole("img", { name: "No folder has that name." }),
-    ).toBeNull();
-    expect(isDisabled(key("Make the invitation"))).toBe(false);
-    // A failed lookup is a draft's mark, never a notice.
-    expect(listNotices()).toEqual([]);
   });
 
   it("lets go of a circle with nobody in it when the sheet is closed, and keeps one with somebody", async () => {
@@ -125,8 +93,9 @@ describe("making a circle by keyboard", () => {
     const { clock, owner, user } = await open();
     const people = contacts(clock, ["Ada", "Ben", "Cy"]);
 
-    // Name.
+    // Name. The sheet supplies one; replace it.
     await tabTo(user, byId("tcc-name"), "the name field");
+    await user.clear(screen.getByLabelText("Name"));
     await user.keyboard("Family");
     await user.keyboard("{Enter}");
 
@@ -179,7 +148,7 @@ describe("making a circle by keyboard", () => {
       "10",
     );
     expect(
-      fieldValue(screen.getByLabelText("Hours before a share is released")),
+      fieldValue(screen.getByLabelText("Hours before it takes effect")),
     ).toBe("24");
     expect(fieldValue(screen.getByLabelText("Days a request lasts"))).toBe("7");
     expect(
@@ -190,15 +159,15 @@ describe("making a circle by keyboard", () => {
     await tabTo(user, byName("Make the circle"), "Make the circle");
     await user.keyboard("{Enter}");
 
-    // Packets: one for each contact, a receipt field, and the recovery file.
+    // Packets: one for each contact, and no recovery file or receipts.
     await screen.findByRole("button", { name: "Copy Ada's packet" });
-    // The desk kept them, so there is nothing to warn about.
     expect(
       screen.queryByRole("img", { name: "Packets are shown once" }),
     ).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Save the recovery file" }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Save the recovery file" }),
+    ).toBeNull();
+    expect(screen.queryByLabelText("A contact's receipt")).toBeNull();
     const before = copies.length;
     for (const name of ["Ada", "Ben", "Cy"]) {
       await user.click(
@@ -206,28 +175,11 @@ describe("making a circle by keyboard", () => {
       );
     }
     await waitFor(() => expect(copies).toHaveLength(before + 3));
-    const welcomes = copies.slice(before);
 
-    const [state] = await owner.records.owned();
-    expect(state?.state).toBe("inviting");
-
-    let index = 0;
-    for (const [name, contact] of people) {
-      const receipt = await take(contact, welcomes[index] ?? "");
-      index += 1;
-      await user.click(screen.getByLabelText("A contact's receipt"));
-      await user.paste(receipt ?? "");
-      expect(await screen.findByText(`${name}'s receipt`)).toBeTruthy();
-      await user.click(
-        screen.getByRole("button", { name: "Add this receipt" }),
-      );
-      await screen.findByRole("img", { name: `${name} holds a share` });
-    }
-    expect(await screen.findByText("Armed")).toBeTruthy();
     const [armed] = await owner.records.owned();
     expect(armed?.state).toBe("armed");
     expect(armed?.signedPolicy.policy.label).toBe("Family");
-    expect(armed?.signedPolicy.policy.collection).toBe("Everything");
+    expect(armed?.signedPolicy.policy.collection).toBe("Approvals only");
 
     // No secret reached the page or the clipboard.
     const secret = toB64url(armed?.ownerSecretKey ?? new Uint8Array());

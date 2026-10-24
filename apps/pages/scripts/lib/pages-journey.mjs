@@ -16,11 +16,20 @@ import { openSessionSection } from "./session-section.mjs";
 export const PIN = "48291037";
 
 export async function waitOpen(page) {
+  const deadline = performance.now() + 20000;
   await page
     .getByRole("button", { name: "Lock vault" })
     .locator("visible=true")
     .first()
     .waitFor({ timeout: 20000 });
+  // Let the ceremony finish on the existing clock. Calling runFor here
+  // would install a clock on ordinary pages and reset their wall time.
+  // Readiness also requires the ceremony to finish; keep its existing 10s
+  // bound within the 20s open budget.
+  await page.locator(".unlock").waitFor({
+    state: "detached",
+    timeout: Math.min(10000, Math.max(1, deadline - performance.now())),
+  });
 }
 
 /** Sign-in is already up: the no-account road seals a vault on this device. */
@@ -40,7 +49,6 @@ export async function sealLocalOnly(page) {
 export async function sealWithPin(page) {
   await passTheDoor(page);
   await sealLocalOnly(page);
-  await page.waitForTimeout(400);
 }
 
 export async function unlockWithPin(page) {
@@ -124,7 +132,7 @@ export async function addCapabilities(page, titles) {
 export async function openGeneral(page) {
   // Settings is the heading the section opens on (it has no "Preferences"
   // heading — that name went with an earlier shape of the panel).
-  const heading = page.getByRole("heading", { name: "Settings" });
+  const heading = page.getByRole("heading", { name: "Vault Settings" });
   if (!(await heading.isVisible().catch(() => false))) {
     await openSection(page, "settings/");
     await heading.waitFor({ timeout: 15000 });
@@ -133,7 +141,22 @@ export async function openGeneral(page) {
 
 /** Open a Settings category without a full document navigation (keeps the vault open). */
 export async function openSettingsCategory(page, label) {
-  await openSection(page, "settings/");
+  if (label === "Keybindings" || label === "Vaults") {
+    await page
+      .getByTitle("Switch account", { exact: true })
+      .filter({ visible: true })
+      .first()
+      .click({ button: "right" });
+    const account = page.getByRole("menu", { name: "Account", exact: true });
+    await account
+      .getByRole("menuitem", { name: "User Settings", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "User Settings", exact: true })
+      .waitFor();
+  } else {
+    await openSection(page, "settings/");
+  }
   // Inside a category the breadcrumb names it too: the sections list is the one.
   const section = page
     .locator(".set__nav")
@@ -180,10 +203,7 @@ export async function openConfigFile(page, category) {
 
 /** The directory's own page, by its tab (drops any open file). */
 export async function openConfigForm(page, label) {
-  await page
-    .locator(".set__nav")
-    .getByRole("link", { name: label, exact: true })
-    .click();
+  await openSettingsCategory(page, label);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
+import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import { isAiModelProvider } from "@opensesame/app-core/lib/ai-model-provider.js";
 import type {
   Connection,
@@ -33,10 +34,7 @@ function NativeSettingsPanels(props: Props) {
   if (provider.id === "github") return <GithubNativeAppPanels {...props} />;
   return (
     <>
-      <NativeConnectorPanels
-        key={`${provider.id}/${connection?.connectionId ?? "new"}`}
-        {...props}
-      />
+      <NativeConnectorPanels key={provider.id} {...props} />
       {connection?.status === "active" && isAiModelProvider(provider) ? (
         <ModelKeysPanel
           providerId={provider.id}
@@ -51,7 +49,18 @@ export function SettingsPageConnectPanels(props: Props) {
   const { provider, connection, nativeExperience, identityExperience } = props;
   if (provider.id === "tailscale" && !isConnectConnection(connection))
     return <TailscalePanels {...props} />;
-  if (isAiConnectionProvider(provider.id) && !isConnectConnection(connection))
+  // Legacy Linear records use the specialized GraphQL/webhook custody route.
+  if (provider.id === "linear" && isSelfHostedConnector(connection))
+    return <ConnectPanels {...props} />;
+  // A native connector row created before the provider gained an AI contract
+  // has no AI record. Keep that row on its native page: the AI form would show
+  // an empty key over sealed custody and could orphan it on save.
+  const nativeAiRecord = readNativeAiRecord(connection);
+  if (
+    isAiConnectionProvider(provider.id) &&
+    !isConnectConnection(connection) &&
+    (!connection || nativeAiRecord)
+  )
     return <AiSettingsPanels {...props} />;
   if (isSecretBackendProvider(provider.id) && !isConnectConnection(connection))
     return (
@@ -69,6 +78,12 @@ export function SettingsPageConnectPanels(props: Props) {
     );
   if (nativeExperience) return <NativeSettingsPanels {...props} />;
   return <HostedSettingsPanels {...props} />;
+}
+
+function readNativeAiRecord(connection: Connection | null) {
+  return connection && !isConnectConnection(connection)
+    ? readAiConnection(connection.connectionId)
+    : null;
 }
 
 function AiSettingsPanels({ provider, connection, onFlash, onChanged }: Props) {

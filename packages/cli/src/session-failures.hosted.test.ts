@@ -20,6 +20,8 @@ import {
   useSessionWorld,
 } from "./session-hosted.test-support.js";
 
+import { observeSessionCrypto } from "./session-crypto.test-support.js";
+
 const world = useSessionWorld();
 
 /** Start the command against `owner`, as a device that has not been answered. */
@@ -206,16 +208,20 @@ describe("the host's answer", () => {
 
   it("lapsed: says the request ran out before the host answered", async () => {
     vi.useFakeTimers(FAKE_CLOCK);
+    const drainCrypto = observeSessionCrypto();
     world.bind();
     const bus = new FakeBus();
     const owner = await host(bus);
     const running = start(["session", linkOf(owner), "list"], bus);
-    await pendingRequest(owner);
+    const pending = await pendingRequest(owner);
+    await drainCrypto();
+    expect(world.output().err).toContain("Waiting for");
     // Ten minutes is a request's life; the command's own limit is fifteen.
     for (let step = 0; step < 130; step += 1) {
       await vi.advanceTimersByTimeAsync(5000);
-      await settle(3);
+      await drainCrypto();
     }
+    expect(Date.now()).toBeGreaterThanOrEqual(pending.expiresAt);
     const ran = await running;
     expect(ran.code).toBe(1);
     expect(ran.err).toContain("The request lapsed before the host answered.");

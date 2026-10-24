@@ -26,16 +26,19 @@ describe("isSettingsDocument", () => {
     for (const path of [SELECTION_FILE, POLICY_FILE, EFFECTIVE_FILE]) {
       expect(isSettingsDocument("features", path)).toBe(true);
       expect(isSettingsDocument("integrations", path)).toBe(false);
-      expect(isSettingsDocument("vaults", path)).toBe(false);
+      expect(isSettingsDocument("item-types", path)).toBe(false);
     }
   });
 
   it("leaves a file a provider keeps for authoring to the viewer", () => {
     expect(
-      isSettingsDocument("vaults", "settings/item-types/installed/wifi.json"),
+      isSettingsDocument(
+        "item-types",
+        "settings/item-types/installed/wifi.json",
+      ),
     ).toBe(false);
     expect(
-      isSettingsDocument("vaults", "settings/item-types/marketplaces.json"),
+      isSettingsDocument("item-types", "settings/item-types/marketplaces.json"),
     ).toBe(false);
     expect(isSettingsDocument("features", "settings/features/other.yaml")).toBe(
       false,

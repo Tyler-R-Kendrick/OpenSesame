@@ -81,6 +81,7 @@ beforeEach(async () => {
     MIGRATION_MARKER_PATH,
   ])
     kvDelete(tombFileKey(PERSONAL_TOMB, path));
+  vaultStore.loadActiveProjectScope();
   vi.spyOn(localNetworkFetchSeams, "eligible").mockReturnValue(true);
   vi.spyOn(pluginDaemonSeams, "pageOrigin").mockReturnValue(PAGES);
   await vaultStore.create(PASSWORD);

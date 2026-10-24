@@ -155,5 +155,9 @@ export function mergeItem(left: VaultItem, right: VaultItem): VaultItem {
   out.updatedAt =
     winner.updatedAt > loser.updatedAt ? winner.updatedAt : loser.updatedAt;
   out.fieldTimes = laterTimes(base, other);
+  if (out.environmentsExcluded === true && out.environments !== undefined) {
+    const { environments: _cells, ...withoutCells } = out;
+    return overlapCast(withoutCells);
+  }
   return overlapCast(out);
 }

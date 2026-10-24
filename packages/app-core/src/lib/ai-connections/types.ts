@@ -1,5 +1,16 @@
-import type { CallProtocol } from "../model-keys/protocols.js";
-export type AiInferenceFamily = CallProtocol | "openai_responses";
+import type { AiInferenceFamily } from "../hosted-model-authority.js";
+import type { BedrockAiTarget } from "./bedrock-target.js";
+import type { VertexAiTarget } from "./vertex-target.js";
+export type { AiInferenceFamily } from "../hosted-model-authority.js";
+
+/** Azure target metadata is public; the supplied key or Entra token is not. */
+export type AzureOpenAiTarget =
+  | { api: "v1"; credential: "api-key" | "entra-token" }
+  | {
+      api: "dated-chat";
+      apiVersion: string;
+      credential: "api-key" | "entra-token";
+    };
 
 /** Public protocol configuration is separate from the write-only credential. */
 export type AiConnectionDraft = {
@@ -11,9 +22,15 @@ export type AiConnectionDraft = {
   authentication: "api-key" | "none";
   apiKey: string;
   tokenParameter: "max_tokens" | "max_completion_tokens";
+  /** Unactivated until strict configuration and persistence support this target. */
+  azure?: AzureOpenAiTarget;
+  vertex?: VertexAiTarget;
+  bedrock?: BedrockAiTarget;
 };
 
 export type AiConnectionTransport = {
+  /** Acquire one route snapshot at an explicit workflow boundary, before credentials. */
+  capture?: () => AiConnectionTransport;
   fetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   assertCurrent(): void;
   signal: AbortSignal;
@@ -34,4 +51,46 @@ export class AiConnectionError extends Error {
     super(message);
     this.name = "AiConnectionError";
   }
+}
+
+/** Image results are local owned rasters, never text/voice responses. */
+export function isAiImageFamily(
+  family: string | undefined,
+): family is "stability_sd3" {
+  return family === "stability_sd3";
+}
+
+/** Transcription families admitted by the current shared AI configuration. */
+export function isAiSpeechFamily(
+  family: string | undefined,
+): family is "elevenlabs_scribe" | "deepgram_listen" | "assemblyai_transcript" {
+  return (
+    family === "elevenlabs_scribe" ||
+    family === "deepgram_listen" ||
+    family === "assemblyai_transcript"
+  );
+}
+
+/** Implemented finite jobs keep explicit user cancellation separate from owner loss. */
+export function isAiRemoteJobFamily(
+  family: string | undefined,
+): family is "replicate_predictions" | "assemblyai_transcript" {
+  return (
+    family === "replicate_predictions" || family === "assemblyai_transcript"
+  );
+}
+
+/** Finite protocols cannot borrow the generic request or text-stream builders. */
+export function textAiFamily(family: AiInferenceFamily) {
+  if (
+    family === "bedrock_converse" ||
+    family === "replicate_predictions" ||
+    isAiSpeechFamily(family) ||
+    isAiImageFamily(family)
+  )
+    throw new AiConnectionError(
+      "configuration",
+      "Use this family's signed or finite protocol adapter.",
+    );
+  return family;
 }

@@ -11,6 +11,8 @@ import type {
   Received,
 } from "@opensesame/app-core/lib/live/host.js";
 import { MAX_MISSES } from "@opensesame/app-core/lib/live/host.js";
+import { createLivePeerJoinApproval } from "@opensesame/app-core/lib/live/peer-trust-peering.js";
+import { rememberTrustedPeer } from "@opensesame/app-core/lib/peer-trust/peers.js";
 import { useRef, useState } from "react";
 import { CopyButton, useCopyFeedback } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
@@ -52,6 +54,8 @@ function outcome(received: Received): Standing | null {
       return standingMark("idle", "The session has ended");
     case "locked":
       return standingMark("warn", "The session is locked");
+    case "duplicate":
+      return standingMark("err", "Already asking with this key");
     default:
       return null;
   }
@@ -84,7 +88,7 @@ export function RequestPaste({ host }: { host: LiveHost }) {
     >
       <FieldShell
         id="live-request"
-        label="A request code"
+        label="Paste a join request"
         mono
         autoComplete="off"
         lead={<IconShare size={17} />}
@@ -109,23 +113,46 @@ export function RequestPaste({ host }: { host: LiveHost }) {
           </button>
         }
       />
+      <p className="live-help">
+        Only needed when the joiner cannot pair automatically.
+      </p>
     </form>
   );
 }
 
-function GuestActions({ host, guest }: { host: LiveHost; guest: Guest }) {
+function GuestActions({
+  host,
+  guest,
+  canCompare,
+  onCompare,
+  onRefuse,
+}: {
+  host: LiveHost;
+  guest: Guest;
+  canCompare: boolean;
+  onCompare: () => void;
+  onRefuse: () => void;
+}) {
   const { copied, failed, copy } = useCopyFeedback();
   const asking = guest.state === "asking";
+  const compare = Boolean(guest.sas);
+  const admitLabel = compare
+    ? `Yes, they match for ${guest.name}`
+    : `Let ${guest.name} in`;
   const away = asking ? `Turn ${guest.name} away` : `Remove ${guest.name}`;
+  const showAdmit = asking && (!compare || canCompare);
   return (
     <>
-      {asking ? (
+      {showAdmit ? (
         <button
           type="button"
           className="icon-btn"
-          aria-label={`Let ${guest.name} in`}
-          title={`Let ${guest.name} in`}
-          onClick={() => void host.admit(guest.key)}
+          aria-label={admitLabel}
+          title={admitLabel}
+          onClick={() => {
+            if (compare) onCompare();
+            else void host.admit(guest.key);
+          }}
         >
           <IconCheck size={16} />
         </button>
@@ -145,7 +172,7 @@ function GuestActions({ host, guest }: { host: LiveHost; guest: Guest }) {
         className="icon-btn"
         aria-label={away}
         title={away}
-        onClick={() => host.refuse(guest.key)}
+        onClick={onRefuse}
       >
         <IconX size={16} />
       </button>
@@ -153,7 +180,19 @@ function GuestActions({ host, guest }: { host: LiveHost; guest: Guest }) {
   );
 }
 
-export function GuestRow({ host, guest }: { host: LiveHost; guest: Guest }) {
+export function GuestRow({
+  host,
+  guest,
+  canCompare = true,
+  onCompare,
+  onRefuse,
+}: {
+  host: LiveHost;
+  guest: Guest;
+  canCompare?: boolean;
+  onCompare?: () => void;
+  onRefuse?: () => void;
+}) {
   const mark = GUEST_MARK[guest.state];
   const row = useRef<HTMLDivElement>(null);
   // Let in leaves the reply code to hand back; turning away or removing
@@ -163,25 +202,168 @@ export function GuestRow({ host, guest }: { host: LiveHost; guest: Guest }) {
       ? row.current?.querySelector('[aria-label^="Copy the reply code"]')
       : document.getElementById("live-request"),
   );
-  const open =
-    guest.state === "asking" ||
-    guest.state === "replied" ||
-    guest.state === "joined";
   return (
     <div className="vault-row" ref={row}>
       <div className="vault-row__body">
-        <span className="vault-row__text">
-          <span className="vault-row__name">{guest.name}</span>
-          {guest.kind === "device" ? (
-            <span className="vault-row__meta">A device</span>
-          ) : null}
-          {guest.note ? (
-            <span className="vault-row__meta">{guest.note}</span>
-          ) : null}
-        </span>
-        <StatusMark tone={mark.tone} label={mark.label} />
+        <GuestMeta guest={guest} />
+        <GuestMarks guest={guest} mark={mark} canCompare={canCompare} />
       </div>
-      {open ? <GuestActions host={host} guest={guest} /> : null}
+      {seatOpen(guest.state) ? (
+        <GuestActions
+          host={host}
+          guest={guest}
+          canCompare={canCompare}
+          onCompare={onCompare ?? (() => void host.admit(guest.key))}
+          onRefuse={onRefuse ?? (() => host.refuse(guest.key))}
+        />
+      ) : null}
     </div>
   );
+}
+
+function seatOpen(state: Guest["state"]): boolean {
+  return state === "asking" || state === "replied" || state === "joined";
+}
+
+function GuestMeta({ guest }: { guest: Guest }) {
+  return (
+    <span className="vault-row__text">
+      <span className="vault-row__name">{guest.name}</span>
+      {guest.kind === "device" ? (
+        <span className="vault-row__meta">A device</span>
+      ) : null}
+      {guest.note ? (
+        <span className="vault-row__meta">{guest.note}</span>
+      ) : null}
+      {guest.connection ? (
+        <span className="vault-row__meta" data-testid="live-owner-connection">
+          {guest.connection.detail}
+        </span>
+      ) : null}
+      {guest.sas && guest.state === "asking" ? (
+        <span className="vault-row__meta live-sas">{guest.sas}</span>
+      ) : null}
+      {showKeyId(guest) ? (
+        <span className="vault-row__meta">{guest.keyId}</span>
+      ) : null}
+    </span>
+  );
+}
+
+function showKeyId(guest: Guest): boolean {
+  return Boolean(guest.keyId && (guest.nameClash || guest.sas));
+}
+
+function GuestMarks({
+  guest,
+  mark,
+  canCompare,
+}: {
+  guest: Guest;
+  mark: Standing;
+  canCompare: boolean;
+}) {
+  return (
+    <>
+      <StatusMark tone={mark.tone} label={mark.label} />
+      {guest.unverified ? <StatusMark tone="warn" label="Unverified" /> : null}
+      {guest.nameClash ? (
+        <StatusMark tone="warn" label="Same display name" />
+      ) : null}
+      {waitingMark(guest, canCompare) ? (
+        <StatusMark tone="idle" label="Waiting to compare" />
+      ) : null}
+    </>
+  );
+}
+
+function waitingMark(guest: Guest, canCompare: boolean): boolean {
+  return Boolean(guest.sas && askingWait(guest, canCompare));
+}
+
+function askingWait(guest: Guest, canCompare: boolean): boolean {
+  return guest.state === "asking" && !canCompare;
+}
+
+export function GuestRows({
+  host,
+  guests,
+}: {
+  host: LiveHost;
+  guests: readonly Guest[];
+}) {
+  const gate = useJoinGate(host);
+  const oldest = oldestAsking(guests);
+  return (
+    <>
+      {guests.some((guest) => guest.sas && guest.state === "asking") ? (
+        <p className="live-help">
+          Compare the security code with the joiner before letting them in.
+        </p>
+      ) : null}
+      {guests.map((guest) => (
+        <GuestRow
+          key={guest.key}
+          host={host}
+          guest={guest}
+          canCompare={!guest.sas || guest.key === oldest}
+          onCompare={() => void compareGuest(gate, host, guest)}
+          onRefuse={() => refuseGuest(gate, host, guest)}
+        />
+      ))}
+    </>
+  );
+}
+
+function useJoinGate(host: LiveHost) {
+  const held = useRef<{
+    host: LiveHost;
+    gate: ReturnType<typeof createLivePeerJoinApproval>;
+  } | null>(null);
+  if (held.current !== null && held.current.host === host) {
+    return held.current.gate;
+  }
+  const gate = createLivePeerJoinApproval();
+  held.current = { host, gate };
+  return gate;
+}
+
+function oldestAsking(guests: readonly Guest[]): string | null {
+  let oldest: Guest | null = null;
+  for (const guest of guests) {
+    if (guest.state !== "asking" || !guest.sas) continue;
+    if (!oldest || guest.askedAt < oldest.askedAt) oldest = guest;
+  }
+  return oldest ? oldest.key : null;
+}
+
+async function compareGuest(
+  gate: ReturnType<typeof createLivePeerJoinApproval>,
+  host: LiveHost,
+  guest: Guest,
+): Promise<void> {
+  const pending = gate.requestJoinApproval(guest.key);
+  if (pending.requestId) gate.queue.approve(pending.requestId, guest.key);
+  await host.admit(guest.key);
+  const seated = host.state.guests.find((row) => row.key === guest.key);
+  if (!seated || (seated.state !== "replied" && seated.state !== "joined")) {
+    return;
+  }
+  if (!guest.peerFingerprint) return;
+  await rememberTrustedPeer({
+    fingerprint: guest.peerFingerprint,
+    epoch: guest.peerEpoch ?? 1,
+  }).catch(() => undefined);
+}
+
+function refuseGuest(
+  gate: ReturnType<typeof createLivePeerJoinApproval>,
+  host: LiveHost,
+  guest: Guest,
+): void {
+  if (guest.sas) {
+    const pending = gate.requestJoinApproval(guest.key);
+    if (pending.requestId) gate.queue.deny(pending.requestId, guest.key);
+  }
+  host.refuse(guest.key);
 }

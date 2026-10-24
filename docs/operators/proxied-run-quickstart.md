@@ -12,11 +12,20 @@ You need:
 - `opensesame`, and `node` on `PATH`: the schema is read by
   `@env-spec/parser` through [`packages/env-spec-bridge`](../../packages/env-spec-bridge).
   `opensesame` finds that `node` itself, only in absolute `PATH` entries that
-  exist and that group and others cannot write (an empty or relative entry
-  never counts), and starts it with `PATH` reduced to those entries, `HOME`,
-  `TMPDIR`, `LANG` and the `LC_*` variables and nothing else: the store
-  passphrase and every other `OPENSESAME_*`, `NODE_*`, token or proxy variable
-  stay out of the bridge. When no such `node` exists the run stops and says so.
+  exist and that nobody else could have put a `node` in: owned by root or you,
+  not writable by others, and group-writable only by root's group or one of
+  yours (an empty or relative entry never counts), and starts it with `PATH`
+  reduced to those entries, `HOME`, `TMPDIR`, `LANG` and the `LC_*` variables
+  and nothing else: the store passphrase and every other `OPENSESAME_*`,
+  `NODE_*`, token or proxy variable stay out of the bridge. When no such `node`
+  exists the run stops and names each directory it skipped and why. If the only
+  `node` sits in a directory anyone can write (some CI images do this), either
+  install one elsewhere and put it first on `PATH`, or set `OPENSESAME_NODE` to
+  its absolute path. `OPENSESAME_NODE` is consulted first and trusted as named:
+  you chose that exact file, so it skips the owner and mode checks (the same
+  trust as `OPENSESAME_ENV_PARSE`), it is not passed on to the bridge, and a
+  value that is empty, relative or not an executable file stops the run naming
+  the variable instead of searching `PATH`.
 - The plugin binary `opensesame-surrogate-proxy` and its sha256.
 - A Vercel token. Use a dummy one while you try this out.
 
@@ -212,6 +221,44 @@ emulator's own request log shows one call per in-scope request and none for
 the refused ones. An emulator that does not check `Authorization` answers `200`
 whatever it is sent, so it shows that the call arrived, not which token was
 on it. The recording server in the test is what proves that.
+
+## Programs it starts by name
+
+`node` is one of several programs `opensesame` starts by name, and all of them
+are found the same way: the file their variable names, or else the first
+trusted `PATH` entry that holds them (the rule above). A variable that is set
+but empty, relative or not an executable file stops with an error naming it;
+it never falls back to `PATH`.
+
+| Variable | Program |
+| --- | --- |
+| `OPENSESAME_NODE` | `node`, for the schema bridge and for `opensesame-id` (which finds it through a private link, so a `node` in a directory anyone can write is never added to its `PATH`) |
+| `OPENSESAME_GIT` | `git`, for the sealed store's commits, history and `pass backup` |
+| `OPENSESAME_GPG` | `gpg`, for `.gpg` entries |
+| `OPENSESAME_GH` | `gh`, for `gh auth token` (the backup push, the surrogate-proxy plugin's token source), the connect doctor and the daemon's discovery |
+| `OPENSESAME_SOPS_BIN` | SOPS (the only way it is found) |
+| `OPENSESAME_AGE_PLUGIN_YUBIKEY` | `age-plugin-yubikey` |
+| `OPENSESAME_PS` | `ps`, on macOS |
+| `OPENSESAME_TAILSCALE` | the Tailscale CLI the daemon uses |
+| `OPENSESAME_TOMB` | `tomb`, for `opensesame tomb open` and `close` |
+| `OPENSESAME_ID_BIN` | `opensesame-id`, for the `opensesame vault` item commands (now an absolute path to the file, like the rest) |
+| `OPENSESAME_OP_BIN` | `op`, for the password agent |
+| `OPENSESAME_<NAME>_BIN` | each provider CLI the Host, the worker and the CLI run: `AWS`, `AZ`, `BAO`, `BW`, `BWS`, `DOPPLER`, `FOKS`, `GCLOUD`, `INFISICAL`, `KEEPASSXC_CLI`, `OP`, `PASS`, `PASS_CLI`, `SECURITY`, `VAULT`, `YKMAN` and `AGE` |
+
+The program is run by its real path, and every directory above it has to be
+one only you and root can change (or root's sticky one, like `/tmp`); a program
+under a directory anyone can write is refused, with the directory named.
+
+Each starts with an empty environment plus what it needs: `git` gets your git
+configuration, ssh agent, proxy and CA settings (including `GIT_SSL_CAINFO`)
+but no other `GIT_*` of yours, not `GIT_SSH_COMMAND` among them (put an ssh
+command in `core.sshCommand`), and none
+of them gets `OPENSESAME_*` secrets or `GITHUB_APP_*`. A provider CLI gets the
+variables it reads to authenticate (`AWS_*` for `aws`, `VAULT_*` for `vault`, and
+so on) and nothing of another's. `opensesame bridge keepassxc serve` runs the
+bridge beside `opensesame` or the one `--bin` names, never a name found on
+`PATH`. The full list is the
+[2026-10-17 audit](../security/audits/2026-10-17-external-program-spawns.md).
 
 ## What this does not do
 

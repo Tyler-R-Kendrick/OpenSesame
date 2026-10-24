@@ -41,16 +41,28 @@ const panel = () => (
   </MemoryRouter>
 );
 
-it("says what to do while a provider that refuses web pages has no bridge, and draws no key field", async () => {
-  connectorIntegration();
+it("offers direct setup without an extension and reports actual denied fetch without storing a connection", async () => {
+  const fixture = connectorIntegration();
+  fixture.route.respond = async () => {
+    throw new TypeError("Direct browser request denied");
+  };
   render(panel());
-  await waitFor(() =>
-    expect(screen.getAllByText(/connector bridge/i).length).toBeGreaterThan(0),
-  );
-  expect(screen.queryByLabelText(/api key/i)).toBeNull();
   expect(
-    screen.getAllByRole("link", { name: /connector bridge/i })[0],
+    screen.getByText(
+      /Test the connection using the configured native Tailscale HTTP transport/,
+    ),
   ).toBeTruthy();
+  expect(screen.queryByRole("link", { name: /connector bridge/i })).toBeNull();
+  await userEvent.type(
+    screen.getByLabelText("SendGrid API key"),
+    "SG.direct-key-0123456789",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: /verify and connect/i }),
+  );
+  await screen.findByRole("img", { name: /Could not reach the provider/ });
+  expect(fixture.requests).toHaveLength(1);
+  expect(readDeviceRows()).toEqual([]);
 });
 
 it("connects a provider that refuses web pages once the bridge is there and holds its host, sending the key through the bridge and nowhere else", async () => {
@@ -104,8 +116,12 @@ it("connects a provider that refuses web pages once the bridge is there and hold
   expect(fixture.requests).toEqual([]);
 });
 
-it("offers the host to the bridge's popup when the bridge is there without it", async () => {
-  connectorIntegration();
+it("keeps direct setup available when an optional bridge lacks the provider host", async () => {
+  const fixture = connectorIntegration();
+  fixture.replies.push({
+    status: 401,
+    body: { errors: [{ message: "refused" }] },
+  });
   const relay = installWindowBridge({ granted: [] });
   relays.push(relay);
   render(panel());
@@ -120,13 +136,21 @@ it("offers the host to the bridge's popup when the bridge is there without it", 
       ),
     ).toBe(true),
   );
-  expect(
-    screen.getAllByText(/allow api\.sendgrid\.com/i).length,
-  ).toBeGreaterThan(0);
-  expect(screen.queryByLabelText(/api key/i)).toBeNull();
+  await userEvent.type(
+    screen.getByLabelText("SendGrid API key"),
+    "SG.refused-key-0123456789",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: /verify and connect/i }),
+  );
+  await screen.findByRole("img", {
+    name: /Provider authorization was refused/,
+  });
+  expect(fixture.requests).toHaveLength(1);
+  expect(readDeviceRows()).toEqual([]);
 });
 
-it("connects a machine identity through the bridge: no key form without it, then a login that is the proof", async () => {
+it("retains optional bridge machine-identity login compatibility without making it a setup prerequisite", async () => {
   const fixture = connectorIntegration();
   const infisical = catalogProvider("infisical");
   if (!infisical) throw new Error("Catalog row required: infisical");

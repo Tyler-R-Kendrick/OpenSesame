@@ -1,5 +1,18 @@
-/** Shared model authority port. Provider implementations are installed by their capability. */
 import type { BoundaryValue } from "@opensesame/os-domain";
+/** Shared model authority port. Provider implementations are installed by their capability. */
+export type CallProtocol =
+  | "openai_chat"
+  | "anthropic_messages"
+  | "gemini_generate_content";
+export type AiInferenceFamily =
+  | CallProtocol
+  | "stability_sd3"
+  | "openai_responses"
+  | "bedrock_converse"
+  | "replicate_predictions"
+  | "elevenlabs_scribe"
+  | "deepgram_listen"
+  | "assemblyai_transcript";
 export type HostedModelTransport = {
   fetch: typeof fetch;
   assertCurrent: () => void;
@@ -10,6 +23,8 @@ export type HostedModelConnection = {
   providerId: string;
   status: string;
   method: string;
+  /** Validated saved protocol; absence preserves legacy text-provider behavior. */
+  family?: AiInferenceFamily;
   model?: string;
   endpoint?: string;
   name?: string;

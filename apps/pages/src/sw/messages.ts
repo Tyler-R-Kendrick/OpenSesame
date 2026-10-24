@@ -16,7 +16,12 @@ import {
   isString,
 } from "@opensesame/os-domain";
 
-export type WorkerHelloMessage = Readonly<{ type: "WORKER_HELLO" }>;
+export type WorkerHelloMessage = Readonly<{
+  type: "WORKER_HELLO";
+  /** Optional same-build module handoff; proof is returned only over its port. */
+  pageModuleUrl?: string;
+  proofNonce?: string;
+}>;
 
 export type PlanAssetsMessage = Readonly<{
   type: "PLAN_ASSETS";
@@ -30,6 +35,9 @@ export type WorkerInfoMessage = Readonly<{
   releaseId: string;
   variant: string;
   scopePath: string;
+  /** Echoed only for an exact immutable-manifest module and matching request. */
+  pageModuleUrl?: string;
+  proofNonce?: string;
 }>;
 
 export type OfflineReadyMessage = Readonly<{
@@ -110,7 +118,7 @@ type ModuleIdsParse =
   | Readonly<{ ok: false; reason: "malformed" | "carries-url" }>;
 
 /** Exactly the four known fields, no more and no fewer. */
-function hasPlanShape(data: BoundaryValue): data is JsonObject {
+function hasPlanEnvelope(data: BoundaryValue): data is JsonObject {
   if (!isJsonObject(data) || data.type !== "PLAN_ASSETS") return false;
   return (
     Object.keys(data).length === PLAN_KEYS.length &&
@@ -136,7 +144,7 @@ function parseModuleIds(value: BoundaryValue): ModuleIdsParse {
 
 /** Strict parse of a `PLAN_ASSETS` request; anything off-grammar is refused. */
 export function parsePlanAssets(data: BoundaryValue): PlanAssetsParse {
-  if (!hasPlanShape(data)) return MALFORMED;
+  if (!hasPlanEnvelope(data)) return MALFORMED;
   const { releaseId, planDigest } = data;
   if (!isString(releaseId) || !RELEASE_ID.test(releaseId)) return MALFORMED;
   if (!isString(planDigest) || !PLAN_DIGEST.test(planDigest)) return MALFORMED;

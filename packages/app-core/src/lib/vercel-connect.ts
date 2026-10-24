@@ -10,7 +10,10 @@ import {
   startAuthorization,
 } from "@vercel/connect";
 import { notifyConnectRoads } from "./connect-roads.js";
-import { isVercelConnectable } from "./vercel-connect-catalog.js";
+import {
+  isReadonlyPaymentProvider,
+  isVercelConnectable,
+} from "./vercel-connect-catalog.js";
 import { connectRelayConfigured } from "./vercel-connect-relay.js";
 
 export { toConnectConnection } from "./vercel-connect-map.js";
@@ -58,6 +61,7 @@ export function vercelConnectAuth(): VercelConnectAuth | null {
 export function usesConnect(providerId?: string): boolean {
   if (!vercelConnectConfigured()) return false;
   if (providerId === undefined) return true;
+  if (isReadonlyPaymentProvider(providerId)) return false;
   return isVercelConnectable(providerId);
 }
 

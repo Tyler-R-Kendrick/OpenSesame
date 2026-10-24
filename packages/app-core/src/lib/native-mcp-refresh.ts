@@ -63,25 +63,16 @@ export async function refreshNativeMcpAuthorization(
     initial.connectionId,
     intent.id,
   );
+  let journaled = false;
   try {
     const protocol = new NativeMcpPublicOAuth(target, {
       ...transport,
       signal: new AbortController().signal,
     });
-    let tokens: Awaited<ReturnType<NativeMcpPublicOAuth["refresh"]>>;
-    try {
-      tokens = await protocol.refresh(
-        nativeMcpClient(initial),
-        old.refreshToken,
-      );
-    } catch (error) {
-      if (
-        error instanceof NativeMcpAuthError &&
-        error.oauthError === "invalid_grant"
-      )
-        await markInvalidRefresh(initial.connectionId, intent.id);
-      throw error;
-    }
+    const tokens = await protocol.refresh(
+      nativeMcpClient(initial),
+      old.refreshToken,
+    );
     const grant = nativeMcpIssuedGrant({ ...old, targetId }, tokens);
     grant.refreshToken = grant.refreshToken ?? old.refreshToken;
     grant.scopes = grant.scopes ?? old.scopes;
@@ -91,18 +82,51 @@ export async function refreshNativeMcpAuthorization(
       grant,
       nativeMcpClassification,
     );
+    journaled = true;
     transport.assertCurrent();
     if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
-    return activateNativeMcpGrant(
+    return await activateNativeMcpGrant(
       initial.connectionId,
       intent.id,
       grant,
       transport,
     );
+  } catch (error) {
+    if (
+      error instanceof NativeMcpAuthError &&
+      error.oauthError === "invalid_grant"
+    ) {
+      await markInvalidRefresh(initial.connectionId, intent.id);
+    } else if (journaled) {
+      // The provider may have rotated the refresh token but the replacement
+      // was not activated; keep the old grant but require consent again.
+      await markInvalidRefresh(initial.connectionId, intent.id);
+    } else {
+      // Network, metadata, 5xx or SDK failure before any replacement was
+      // journaled: unwinding the intent keeps verify/re-authorize/remove open.
+      await clearRefreshIntent(initial.connectionId, intent.id);
+    }
+    throw error;
   } finally {
     release();
   }
 }
+async function clearRefreshIntent(id: string, intentId: string): Promise<void> {
+  const record = requireNativeMcpRecord(id);
+  await updateNativeConnector(
+    id,
+    nativeOAuthGuard(record),
+    MCP_CLASSIFICATION,
+    (current) => {
+      current.privateState.recovery = current.privateState.recovery.filter(
+        (entry) => entry.id !== intentId,
+      );
+      current.privateState.verification = null;
+      return current;
+    },
+  );
+}
+
 async function markInvalidRefresh(id: string, intentId: string): Promise<void> {
   const record = requireNativeMcpRecord(id);
   await updateNativeConnector(

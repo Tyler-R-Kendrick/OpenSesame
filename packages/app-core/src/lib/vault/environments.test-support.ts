@@ -46,5 +46,5 @@ export function edit(
 }
 
 export function keysOf(body: VaultBody): SchemaKey[] {
-  return schemaKeys(body.items);
+  return schemaKeys(body.items, body.folders);
 }

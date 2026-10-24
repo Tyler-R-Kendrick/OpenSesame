@@ -1,0 +1,56 @@
+.deadman-release {
+  display: grid;
+  gap: 1rem;
+  width: min(52rem, 100%);
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+}
+
+.deadman-release__leave {
+  justify-self: start;
+  text-decoration: underline;
+}
+
+.deadman-release__form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.deadman-release__items {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.deadman-release__item {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+}
+
+.deadman-release__item h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.deadman-release__item dl {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.deadman-release__item dl > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 30%) 1fr;
+  gap: 0.75rem;
+}
+
+.deadman-release__item dt {
+  color: var(--muted);
+}
+
+.deadman-release__item dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

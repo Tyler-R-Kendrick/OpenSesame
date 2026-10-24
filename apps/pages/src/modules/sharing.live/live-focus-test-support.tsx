@@ -26,8 +26,8 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
-import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
+import { LiveSharePanel } from "./LiveSharePanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { transportSeams } from "./live-transport-hooks.js";
@@ -130,10 +130,14 @@ export async function host(
   admission: "invite" | "open" = "invite",
   values: "read" | "use" | "edit" = "use",
 ) {
-  const rendered = render(<LiveHostPanel />);
+  const rendered = render(<LiveSharePanel />);
+  // The form lives under Advanced now; a person unfolds it to use it.
+  const advanced = rendered.container.querySelector("details");
+  if (advanced) advanced.open = true;
   const panel = within(rendered.container);
-  await panel.findByRole("img", { name: "Direct only" });
+  await panel.findByRole("img", { name: /^Direct/ });
   type(panel.getByLabelText("Session name"), "Team");
+  type(panel.getByLabelText("Share"), "items");
   fireEvent.click(
     panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
   );
@@ -153,7 +157,7 @@ export function openJoin() {
 
 export async function hosted(values: "read" | "use" | "edit" = "use") {
   const panel = await host("invite", values);
-  press(panel.getByRole("button", { name: "Start the live session" }));
+  press(panel.getByRole("button", { name: "Share this vault" }));
   await panel.findByRole("img", { name: "Live" });
   const session = currentHost();
   holdLiveLink(session?.link ?? null);
@@ -164,7 +168,7 @@ export async function asked(joiner: ReturnType<typeof within>, code: string) {
   type(joiner.getByLabelText("Code"), code);
   type(joiner.getByLabelText("Your name"), "Ada");
   enter(joiner.getByLabelText("Your name"));
-  await joiner.findByRole("button", { name: "Copy your request code" });
+  await joiner.findByRole("button", { name: "Copy your join request" });
   const status = currentGuest()?.status;
   return status?.at === "request" ? status.code : "";
 }
@@ -173,8 +177,8 @@ export async function pairedJoiner(values: "read" | "use" | "edit" = "use") {
   const { panel, session } = await hosted(values);
   const joiner = openJoin();
   const request = await asked(joiner, session?.code ?? "");
-  type(panel.getByLabelText("A request code"), request);
-  enter(panel.getByLabelText("A request code"));
+  type(panel.getByLabelText("Paste a join request"), request);
+  enter(panel.getByLabelText("Paste a join request"));
   press(await panel.findByRole("button", { name: "Let Ada in" }));
   await panel.findByRole("button", { name: "Copy the reply code for Ada" });
   const field = joiner.getByLabelText("The owner's reply code");

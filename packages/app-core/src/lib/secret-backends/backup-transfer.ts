@@ -21,6 +21,7 @@ import {
 
 export type VaultBackupPort = Pick<
   VaultStore,
+  | "isGenuineSession"
   | "getSnapshot"
   | "onLock"
   | "flushPendingWrites"
@@ -31,6 +32,22 @@ export type SecretBackendBackupHandle = {
   backend: SecretBackend;
   session: SecretBackendSession;
 };
+
+function backupOperation(
+  open: SecretBackendBackupHandle,
+  assertCurrent?: () => void,
+) {
+  const backendSignal = open.backend.signal;
+  const sessionSignal = open.session.signal;
+  return () => {
+    assertCurrent?.();
+    if (backendSignal?.aborted || sessionSignal?.aborted)
+      throw new SecretBackendError(
+        "stale",
+        "The secret backend backup session ended.",
+      );
+  };
+}
 
 async function backupPort(
   provided?: VaultBackupPort,
@@ -88,6 +105,7 @@ export async function backUpVaultToSecretBackend(
   open: SecretBackendBackupHandle,
   name: string,
   provided?: VaultBackupPort,
+  assertCurrent?: () => void,
 ): Promise<SecretBackendItemSummary> {
   const descriptor = open.backend.capabilities.vaultBackup;
   if (
@@ -102,12 +120,20 @@ export async function backUpVaultToSecretBackend(
     );
   if (!name.trim())
     throw new SecretBackendError("configuration", "Enter a backup item name.");
+  const operation = backupOperation(open, assertCurrent);
+  operation();
   const port = await backupPort(provided);
+  operation();
   const guard = localVaultSessionGuard(port);
+  const check = () => {
+    operation();
+    return guard.current();
+  };
   try {
     checkDestination(port);
+    check();
     await port.flushPendingWrites();
-    const snapshot = guard.current();
+    const snapshot = check();
     const refusal = exportRefusal(snapshot);
     if (refusal) throw new SecretBackendError("configuration", refusal);
     const exported = port.exportSealed();
@@ -122,7 +148,7 @@ export async function backUpVaultToSecretBackend(
         "unsupported",
         "This vault backup exceeds the destination's item size limit. Choose a backend with a larger note or secret field.",
       );
-    guard.current();
+    check();
     const created = await open.backend.createItem(
       {
         name: name.trim(),
@@ -137,9 +163,9 @@ export async function backUpVaultToSecretBackend(
       },
       open.session,
     );
-    guard.current();
+    check();
     const stored = await open.backend.getItem(created.id, open.session);
-    guard.current();
+    check();
     if (stored.id !== created.id || stored[descriptor.field] !== ciphertext)
       throw new SecretBackendError(
         "response",
@@ -157,6 +183,7 @@ export async function restoreVaultFromSecretBackend(
   reference: string,
   secret: string | Uint8Array,
   provided?: VaultBackupPort,
+  assertCurrent?: () => void,
 ): Promise<number> {
   if (!open.backend.capabilities.get)
     throw new SecretBackendError(
@@ -168,19 +195,28 @@ export async function restoreVaultFromSecretBackend(
       "configuration",
       "Enter the backup item's name or ID.",
     );
+  const operation = backupOperation(open, assertCurrent);
+  operation();
   const port = await backupPort(provided);
+  operation();
   const guard = localVaultSessionGuard(port);
+  const check = () => {
+    operation();
+    return guard.current();
+  };
   const unlock = secret instanceof Uint8Array ? secret.slice() : secret;
   try {
     checkDestination(port);
+    check();
     const item = await open.backend.getItem(reference, open.session);
-    guard.current();
+    check();
     const count = await port.importSealed(backupText(item), unlock, {
       adoptIdentity: false,
+      assertCurrent: check,
     });
-    guard.current();
+    check();
     await port.flushPendingWrites();
-    guard.current();
+    check();
     return count;
   } finally {
     if (unlock instanceof Uint8Array) unlock.fill(0);

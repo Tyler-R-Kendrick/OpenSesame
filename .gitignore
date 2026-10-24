@@ -130,3 +130,24 @@ apps/pages/dist-identity-verify/
 apps/pages/work/
 
 apps/pages/dist-secret-backends-verify/
+
+# Source-built browser networking runtime (verified build cache).
+.cache/pwa-tailscale-native-http/
+
+# Isolated Web App build output
+apps/pages/dist-iwa/
+
+# Evidence review scratch is never implementation evidence.
+**/.impeccable/review/
+**/.impeccable/screenshots/
+
+# Historical execution output belongs on its PR or in private task scratch.
+/kimi-reviews/
+/docs/security/cloudflare-audit/run-*/
+
+# Source-based design canvases regenerate these artboards before seeding.
+/docs/design/canvases/auth-flow/*.dc.html
+/docs/design/canvases/first-run-setup/*.dc.html
+/docs/design/canvases/pwa-install/*.dc.html
+/docs/design/canvases/setup-next-steps/*.dc.html
+/docs/design/canvases/shared-sessions/*.dc.html

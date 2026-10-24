@@ -8,7 +8,7 @@ export const AGENT_AUTH_CLAIM_CSP =
 export const AGENT_AUTH_OAUTH_CLIENT_ID = "opensesame-agent-auth";
 
 export function agentAuthClaimRedirectUri(issuer: string): string {
-  return `${issuer.replace(/\/+$/u, "")}/claim/resume`;
+  return `${stripTrailingSlashes(issuer)}/claim/resume`;
 }
 
 /** The static public client the agent claim ceremony signs in through. */
@@ -193,4 +193,11 @@ export function renderAgentAuthLoginPage(opts: {
 </div>
 <p class="mute">After sign-in you return to <a class="inline" href="${returnTo}">the claim page</a>. ${issuer}</p>`,
   );
+}
+
+/** Remove a slash suffix in linear time, including on malformed input. */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }

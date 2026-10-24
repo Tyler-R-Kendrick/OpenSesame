@@ -15,7 +15,13 @@
  * service worker cannot load a script it did not ship with (P-NOLOAD).
  */
 
-import { isString } from "@opensesame/os-domain";
+import { SamlPostCommandSchema } from "@opensesame/app-core/browser/saml/post-wire.js";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+import { SHARE_TARGET_PATH } from "../lib/share-target.js";
 import { parseCacheName } from "./cache-names.js";
 import { cleanupCaches } from "./cleanup.js";
 import {
@@ -32,6 +38,8 @@ import {
   releaseIdFromManifest,
   shellEntry,
 } from "./release.js";
+import { createSamlPostIngress } from "./saml-post.js";
+import { respondToShareTarget, sweepShareTargetCache } from "./share-target.js";
 
 export type CoreWorkerOptions = Readonly<{
   /** `core-only` or `push`; the last cache-name segment. */
@@ -47,6 +55,21 @@ export type CoreWorker = Readonly<{
   /** Release ids kept alive for windows that were open at activation. */
   retained: ReadonlySet<string>;
 }>;
+
+/** A missing callback means this distribution excludes native SAML. Never guess an asset URL. */
+function samlCallbackScript(
+  manifest: readonly ManifestEntry[],
+  scopeUrl: string,
+): string | null {
+  const matches = manifest
+    .map((entry) => (isString(entry) ? entry : entry.url))
+    .filter((entry) =>
+      /^assets\/native-saml-[A-Za-z0-9_-]{8,64}\.js$/.test(entry),
+    );
+  if (matches.length > 1)
+    throw new Error("Release contains ambiguous SAML callbacks");
+  return matches.length === 1 ? new URL(matches[0], scopeUrl).href : null;
+}
 
 /** Window client ids that existed when this worker activated. */
 type Takeover = { clientIds: Set<string>; retained: Set<string> };
@@ -96,6 +119,7 @@ async function activate(ctx: WorkerContext, takeover: Takeover): Promise<void> {
     releaseId: ctx.releaseId,
     retained: takeover.retained,
   });
+  await sweepShareTargetCache(ctx);
   await ctx.sw.clients.claim();
 }
 
@@ -140,19 +164,70 @@ async function precacheShell(
   }
 }
 
+/** Identify an existing hashed JS module; this grants no fetch or execution authority. */
+function moduleHandoff(
+  ctx: WorkerContext,
+  value: BoundaryValue,
+  manifest: readonly ManifestEntry[],
+): { pageModuleUrl: string; proofNonce: string } | null {
+  if (
+    !isJsonObject(value) ||
+    !isString(value.pageModuleUrl) ||
+    !isString(value.proofNonce) ||
+    !/^[A-Za-z0-9_-]{32,128}$/.test(value.proofNonce)
+  )
+    return null;
+  let url: URL;
+  try {
+    url = new URL(value.pageModuleUrl);
+  } catch {
+    return null;
+  }
+  if (
+    url.href !== value.pageModuleUrl ||
+    !url.href.startsWith(ctx.scopeUrl) ||
+    url.search ||
+    url.hash
+  )
+    return null;
+  const relative = url.href.slice(ctx.scopeUrl.length);
+  if (!/^assets\/[A-Za-z0-9._-]+-[A-Za-z0-9_-]{8,64}\.js$/.test(relative))
+    return null;
+  if (
+    !manifest.some(
+      (entry) => (isString(entry) ? entry : entry.url) === relative,
+    )
+  )
+    return null;
+  return { pageModuleUrl: url.href, proofNonce: value.proofNonce };
+}
+
 async function hello(
   ctx: WorkerContext,
   event: ExtendableMessageEvent,
   takeover: Takeover,
+  manifest: readonly ManifestEntry[],
 ): Promise<void> {
   const client = await controlledSender(ctx, event.source);
-  if (!client) return;
-  client.postMessage({
+  if (!client || (event.ports?.length ?? 0) > 1) {
+    for (const port of event.ports ?? []) port.close();
+    return;
+  }
+  const info = {
     type: "WORKER_INFO",
     releaseId: ctx.releaseId,
     variant: ctx.variant,
     scopePath: ctx.scopePath,
-  });
+  };
+  const port = event.ports?.length === 1 ? event.ports[0] : undefined;
+  const proof = moduleHandoff(ctx, event.data, manifest);
+  if (port) {
+    try {
+      if (proof) port.postMessage({ ...info, ...proof });
+    } finally {
+      port.close();
+    }
+  } else client.postMessage(info);
   await releaseRetained(ctx, takeover);
 }
 
@@ -160,32 +235,66 @@ export function installCoreWorker(
   sw: ServiceWorkerGlobalScope,
   options: CoreWorkerOptions,
 ): CoreWorker {
+  const manifest = Object.freeze(
+    options.manifest.map((entry) =>
+      isString(entry)
+        ? entry
+        : Object.freeze({ url: entry.url, revision: entry.revision }),
+    ),
+  );
   const ctx = workerContext({
     sw,
     variant: options.variant,
-    releaseId: releaseIdFromManifest(options.manifest),
+    releaseId: releaseIdFromManifest(manifest),
     caches: options.caches ?? caches,
     fetch: options.fetch ?? ((input) => fetch(input)),
   });
   const takeover: Takeover = { clientIds: new Set(), retained: new Set() };
   const plans = new PlanCoordinator(ctx);
+  const callbackScriptUrl = samlCallbackScript(manifest, ctx.scopeUrl);
+  const saml = callbackScriptUrl
+    ? createSamlPostIngress({
+        scopeUrl: ctx.scopeUrl,
+        callbackScriptUrl,
+        clients: sw.clients,
+      })
+    : null;
 
   sw.addEventListener("install", (event) => {
-    event.waitUntil(
-      precacheShell(ctx, options.manifest).then(() => sw.skipWaiting()),
-    );
+    event.waitUntil(precacheShell(ctx, manifest).then(() => sw.skipWaiting()));
   });
   sw.addEventListener("activate", (event) => {
     event.waitUntil(activate(ctx, takeover));
   });
   sw.addEventListener("fetch", (event) => {
+    const post = saml?.respond(event);
+    if (post) {
+      event.respondWith(post);
+      return;
+    }
+    const url = new URL(event.request.url);
+    if (
+      event.request.method === "POST" &&
+      url.origin === new URL(ctx.scopeUrl).origin &&
+      url.pathname === `${ctx.scopePath}${SHARE_TARGET_PATH}`
+    ) {
+      event.respondWith(
+        respondToShareTarget(ctx, event.request).then(
+          (response) => response ?? new Response("Not found", { status: 404 }),
+        ),
+      );
+      return;
+    }
     handleFetch(ctx, event);
   });
   sw.addEventListener("message", (event) => {
     const data = event.data;
-    if (isWorkerHello(data)) event.waitUntil(hello(ctx, event, takeover));
+    if (isWorkerHello(data))
+      event.waitUntil(hello(ctx, event, takeover, manifest));
     else if (data && isString(data.type) && data.type === "PLAN_ASSETS")
       event.waitUntil(plans.handle(event));
+    else if (saml && SamlPostCommandSchema.safeParse(data).success)
+      event.waitUntil(saml.message(event));
     // Any other type is ignored (ownership.md §4.7).
   });
   return { ctx, retained: takeover.retained };

@@ -18,10 +18,13 @@ import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { build } from "vite";
 import { chooseCapabilities } from "./lib/choose-capabilities.mjs";
+import { privateTempDir } from "./lib/private-files.mjs";
+import { bundleFixture, bundleVerify } from "./lib/siop-fixture-bundles.mjs";
 import {
   SIOP_CALLBACK,
   SIOP_RP,
   approveSiopConsent,
+  approveSiopConsentWithSocial,
   buildSiopUrl,
   denySiopConsent,
   installWebAuthn,
@@ -44,7 +47,7 @@ const dist =
   process.env.PAGES_VERIFY_DIST ??
   fileURLToPath(new URL("../dist", import.meta.url));
 const root = fileURLToPath(new URL("../../..", import.meta.url));
-const out = process.env.PAGES_VERIFY_OUT ?? "/tmp/opensesame-siop";
+const out = process.env.PAGES_VERIFY_OUT ?? privateTempDir("opensesame-siop-");
 const VAULT_PASSWORD = "Cedar-lantern-47-river!";
 
 if (!fs.existsSync(`${dist}/index.html`)) {
@@ -52,6 +55,7 @@ if (!fs.existsSync(`${dist}/index.html`)) {
   process.exit(2);
 }
 fs.mkdirSync(out, { recursive: true });
+console.log(`Evidence: ${out}`);
 
 // The whole run has a budget a CI job can afford (it shares a 20-minute job
 // with the other journeys): past it, say where the time went and stop, rather
@@ -64,75 +68,6 @@ setTimeout(() => {
   );
   process.exit(1);
 }, RUN_BUDGET_MS).unref();
-
-async function bundleVerify() {
-  const result = await build({
-    configFile: false,
-    logLevel: "error",
-    publicDir: false,
-    define: {
-      "process.env.NODE_DEBUG_NATIVE": "false",
-      "process.env.NODE_ENV": '"production"',
-    },
-    resolve: {
-      alias: {
-        "@opensesame/os-domain": `${root}/packages/os-domain/src/browser.ts`,
-      },
-    },
-    build: {
-      write: false,
-      target: "es2022",
-      lib: {
-        entry: fileURLToPath(
-          new URL("./fixtures/siop-verify.ts", import.meta.url),
-        ),
-        name: "SiopVerify",
-        formats: ["es"],
-      },
-      rollupOptions: { output: { inlineDynamicImports: true } },
-    },
-  });
-  const output = Array.isArray(result) ? result[0].output : result.output;
-  const chunk = output.find((file) => file.type === "chunk");
-  if (!chunk) throw new Error("SIOP verify bundle missing");
-  const modPath = `${out}/siop-verify.mjs`;
-  fs.writeFileSync(modPath, chunk.code);
-  return import(`${modPath}?v=${Date.now()}`);
-}
-
-async function bundleFixture() {
-  const result = await build({
-    configFile: false,
-    logLevel: "error",
-    publicDir: false,
-    define: {
-      "process.env.NODE_DEBUG_NATIVE": "false",
-      "process.env.NODE_ENV": '"production"',
-    },
-    resolve: {
-      alias: {
-        "@opensesame/os-domain": `${root}/packages/os-domain/src/browser.ts`,
-      },
-    },
-    build: {
-      write: false,
-      target: "es2022",
-      lib: {
-        entry: fileURLToPath(
-          new URL("./fixtures/siop-iam.ts", import.meta.url),
-        ),
-        name: "SiopIamFixture",
-        formats: ["iife"],
-      },
-      rollupOptions: { output: { inlineDynamicImports: true } },
-    },
-  });
-  const output = Array.isArray(result) ? result[0].output : result.output;
-  return output
-    .filter((file) => file.type === "chunk")
-    .map((file) => file.code)
-    .join("\n");
-}
 
 async function bundleSpa(clientId, pagesBase) {
   // The single-page RP bakes its two settings in at build time.
@@ -206,8 +141,8 @@ async function installPasskeyCredentials(page, credentials) {
   return device;
 }
 
-const siopVerify = await bundleVerify();
-const siopFixture = await bundleFixture();
+const siopVerify = await bundleVerify(root, out);
+const siopFixture = await bundleFixture(root);
 const harness = createHarness({ dist, origin, base, out });
 // The production origin is served by the harness, in the browser. A request
 // that is not (the hop after the RP's own 302, which the network stack makes
@@ -242,6 +177,22 @@ function routeRp(context) {
       body: "<!doctype html><html><body>SIOP RP callback</body></html>",
     }),
   );
+}
+
+async function runSocialAllow(page, clientId, personName, label) {
+  const nonce = `social-${label}-${crypto.randomUUID().slice(0, 8)}`;
+  const state = `social-${label}`;
+  const siopUrl = buildSiopUrl(origin, base, clientId, { nonce, state });
+  await gotoUnlocked(page, siopUrl);
+  const redirectUrl = await approveSiopConsentWithSocial(page, personName);
+  const verified = await siopVerify.verifySiopRedirect(redirectUrl, {
+    issuer: siopIssuer(origin, base),
+    clientId,
+    nonce,
+  });
+  expect(verified.aud).toBe(clientId);
+  expect(JSON.stringify(verified)).not.toMatch(/"d"\s*:/);
+  return verified.sub;
 }
 
 async function runAllow(page, clientId, personName, label) {
@@ -301,6 +252,15 @@ try {
   );
   console.log(
     "PASS allow: verified Self-Issued ID Token for primary application",
+  );
+
+  const socialSub = await timed("pages social", async () => {
+    await gotoUnlocked(page, `${origin}${base}vault`);
+    return runSocialAllow(page, appOneId, personName, "primary");
+  });
+  expect(socialSub).toBe(subOne);
+  console.log(
+    "PASS social: a configured connection minted a Self-Issued ID Token without a passkey",
   );
 
   const subTwo = await timed("pages pairwise", async () => {

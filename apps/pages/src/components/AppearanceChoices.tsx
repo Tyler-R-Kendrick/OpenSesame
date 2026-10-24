@@ -1,5 +1,6 @@
 import { setTheme, themeLabel, useThemePreference } from "../lib/theme.js";
 import { IconMonitor, IconMoon, IconSun } from "./Icons.js";
+import "./appearance-choices.css";
 
 const choices = [
   { theme: "light", Icon: IconSun },

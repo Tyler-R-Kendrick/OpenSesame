@@ -40,7 +40,7 @@ export async function captureSessionRoots(page, shot, record) {
   mark(record, "U11-activity-menu", activity === 1, menu.includes("Activity"));
   await visibleClick(page, "menuitem", "Settings");
   await page
-    .getByRole("heading", { name: "Settings" })
+    .getByRole("heading", { name: "Vault Settings" })
     .waitFor({ timeout: 15_000 });
   await shot("settings");
   const back = page.getByRole("treeitem", { name: "Back to vault" });

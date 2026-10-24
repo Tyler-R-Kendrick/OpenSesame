@@ -40,6 +40,7 @@ type ByoForm = {
 };
 type LoginPageResult = { jar: Jar; uid: string; html: string };
 
+const TEST_CLAIM_PEPPER = "byo-test-claim-pepper-32-bytes-0001";
 const RP_ORIGIN = "http://127.0.0.1:4317";
 const RP_CLIENT_ID = `origin:${RP_ORIGIN}`;
 const RP_REDIRECT = `${RP_ORIGIN}/opensesame/callback`;
@@ -91,6 +92,7 @@ async function startControlPlane(
       // client id and the base of the federated redirect_uri.
       publicUrl: `http://127.0.0.1:${port}`,
       issuer: `http://127.0.0.1:${port}`,
+      claimPepper: TEST_CLAIM_PEPPER,
     },
     processEnv: {
       ...process.env,
@@ -622,7 +624,10 @@ describe("bring-your-own upstream", () => {
         new RegExp(`^${uid}\\..+`),
       );
 
-      const pending = decodePending(jar.get(`os.fed.${uid}`));
+      const pending = decodePending(
+        jar.get(`os.fed.${uid}`),
+        TEST_CLAIM_PEPPER,
+      );
       expect(pending?.kind).toBe("oidc");
       expect(pending?.issuer).toBe(roundTripIdp.issuer);
       expect(pending?.byoId).toBeTruthy();

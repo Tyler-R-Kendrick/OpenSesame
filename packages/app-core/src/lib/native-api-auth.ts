@@ -16,6 +16,8 @@ export function nativeApiExposedCredentials(
   for (const [name, value] of Object.entries(credentials)) {
     const encoded = encodeURIComponent(value);
     if (encoded !== value) secrets[`url_${name}`] = encoded;
+    const queryEncoded = new URLSearchParams({ value }).toString().slice(6);
+    if (queryEncoded !== value) secrets[`query_${name}`] = queryEncoded;
   }
   if (target.profile.auth?.kind === "basic") {
     const authorization = nativeApiHeaders(target, credentials).get(
@@ -117,4 +119,40 @@ export function nativeApiVerificationRequest(
   const request: NativeApiHttpRequest = { url, method: verify.method, headers };
   if (body !== undefined) request.body = body;
   return request;
+}
+
+/** Only a compiled auth rule may add private material after target selection. */
+export function nativeApiOperationUrl(
+  target: NativeApiTarget,
+  credentials: Record<string, string>,
+  selected: URL,
+): URL {
+  const url = new URL(selected);
+  const auth = target.profile.auth;
+  if (auth?.kind === "query") {
+    if (url.searchParams.has(auth.parameter))
+      throw new Error(
+        "Provider operation cannot override credential placement",
+      );
+    url.searchParams.set(auth.parameter, credentials.api_key ?? "");
+  }
+  if (auth?.kind === "path") {
+    const prefix = providerTemplate(
+      auth.template,
+      target.parameters,
+      credentials,
+      true,
+    );
+    const pathname = `${prefix}${url.pathname}`;
+    if (!prefix.startsWith("/") || prefix.startsWith("//"))
+      throw new Error("Provider operation has an invalid credential contract");
+    url.pathname = pathname;
+    if (url.pathname !== pathname)
+      throw new Error("Provider operation changed its credential path");
+  }
+  if (url.origin !== selected.origin || url.href.length > 65536)
+    throw new Error(
+      "Provider operation changed its target or exceeds its bound",
+    );
+  return url;
 }

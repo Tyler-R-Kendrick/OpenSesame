@@ -13,7 +13,10 @@ import {
 } from "./native-browser-oauth-profile.js";
 import type { NativePending } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
-import { nativeProviderTransport } from "./native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  nativeProviderTransport,
+} from "./native-connector-transport.js";
 import { nativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
@@ -25,7 +28,9 @@ import {
 export async function beginNativeDiscordAuthorization(
   id: string,
   actor = "user",
+  original: NativeProviderTransport = nativeProviderTransport(),
 ): Promise<void> {
+  original.assertCurrent();
   const record = requireNativeOAuthRecord(id);
   const browser = nativeOAuthBrowserPort();
   if (
@@ -37,9 +42,7 @@ export async function beginNativeDiscordAuthorization(
     throw new NativeOAuthError("provider");
   if (record.privateState.recovery.length)
     throw new NativeOAuthError("cleanup");
-  const transport = captureNativeAuthorizationTransport(
-    nativeProviderTransport(),
-  );
+  const transport = captureNativeAuthorizationTransport(original);
   const prepared = await browser.prepareImplicitAuthorization("discord");
   try {
     const now = Date.now();

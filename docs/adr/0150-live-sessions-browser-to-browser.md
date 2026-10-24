@@ -8,7 +8,10 @@
   what a request carries, §5 the catalog answers the joiner's greeting),
   [ADR 0196](0196-device-authorization-in-live-sessions.md) (§2 a session may
   share nothing of the vault, §3 a request names its kind and route, §5 a
-  device vocabulary crosses the channel)
+  device vocabulary crosses the channel),
+  [ADR 0208](0208-hosting-starts-at-the-share-key.md) (hosting moves from
+  the Settings tab to the Share key beside the vault's name; routes live
+  under its sheet's Advanced)
 - Amends: [ADR 0090](0090-static-frontend-complete-without-backend.md) and
   [ADR 0115](0115-front-door-and-connector-directory.md) (the first-run door:
   two roads, sign-in behind a vault), [ADR 0136](0136-join-a-session-restored.md)
@@ -62,7 +65,7 @@ The owner, with the vault unlocked, opens a **live session**: what it shares
 (the whole vault or chosen items), how (`read` shows values, `use` — Copy
 only — keeps a concealed value off the joiner's screen and clipboard, `edit`
 lets the joiner replace a shared field in the open vault), for how long (at
-most eight hours), and who gets in — **invite** (a link plus an out-of-band
+most seven days, while the owner's tab stays open), and who gets in — **invite** (a link plus an out-of-band
 code, the ADR 0044 shape) or
 **open** (anyone holding the link is let in as they ask). The tab hosts the
 session: closing it, locking the vault, or the time running out ends it for
@@ -363,3 +366,20 @@ a WebSocket that it could not reach through a fetch.
   public one — each would make joining depend on someone else's service.
   They are the owner's to name, or absent.
 - Operator guide: [`docs/operators/live-sessions.md`](../operators/live-sessions.md).
+
+## Amendment — automatic pairing and open admission (2026-10-20)
+
+A session that names no carrier now names **ntfy.sh** by default. Its topic is
+derived from the link secret, and only the sealed request and reply codes
+cross it; the vault data still goes browser to browser over WebRTC. The owner
+can replace it in Routes, and a deployment that denies external services leaves
+the manual codes as the fallback. The host form says the pairing relay is in
+use, and the joiner sees the host before keeping the route.
+
+An **open** session admits the link holder as soon as the request arrives. The
+SAS no longer holds an open request for a compare; it remains available as an
+optional verification while the seat is asking, and invite sessions still wait
+for the owner's compare. The request screen shows the manual request/reply
+codes only when no carrier is ready, and the security code is folded under an
+explanation instead of standing alone. A joined guest keeps a key back to the
+live catalog after moving around the vault.

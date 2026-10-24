@@ -13,6 +13,8 @@ import { type OperatorIdp, signInMethods } from "./settings.js";
  * credential, and useless without the redirect URI it is bound to.
  */
 export function operatorUpstream(idp: OperatorIdp): TrustedUpstream {
+  if (idp.protocol === "saml")
+    throw new Error("Use the saved native SAML connection for this identity");
   const upstream: TrustedUpstream = {
     id: idp.connectionId
       ? `identity:${idp.connectionId}`
@@ -41,6 +43,7 @@ export function operatorUpstream(idp: OperatorIdp): TrustedUpstream {
 export function isOperatorIdpIssuer(issuer: string): boolean {
   const wanted = issuer.replace(/\/+$/, "");
   return signInMethods().providers.some(
-    (idp) => idp.issuer.replace(/\/+$/, "") === wanted,
+    (idp) =>
+      idp.protocol !== "saml" && idp.issuer.replace(/\/+$/, "") === wanted,
   );
 }

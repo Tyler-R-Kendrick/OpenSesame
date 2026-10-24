@@ -5,6 +5,24 @@
 
 const toPosix = (path) => path.replace(/\\/g, "/");
 
+const ONEPASSWORD_SOURCE =
+  /\/packages\/app-core\/src\/lib\/secret-backends\/onepassword-(?:sdk(?:-[a-z0-9-]+|\.worker)?|worker-[a-z0-9-]+)\.[jt]s$/;
+
+/** Native SDK implementation only; Connect and common configuration keep their ordinary leaf. */
+export function secretBackendSdkChunk(id, entry) {
+  if (
+    entry.classification !== "optional" ||
+    entry.capability !== "connectors.external" ||
+    id.includes("\0") ||
+    id.startsWith("virtual:")
+  )
+    return undefined;
+  const path = toPosix(id).split(/[?#]/, 1)[0];
+  return ONEPASSWORD_SOURCE.test(path)
+    ? "secret-backend-onepassword-sdk"
+    : undefined;
+}
+
 /**
  * Optional import() leaves, one chunk each. Rollup otherwise fused the
  * agent SDKs, so loading one evaluated the others. A row applies only
@@ -50,6 +68,13 @@ const LAZY_LEAVES = [
   ["/src/tutorial/agents/provider/", "support.remote-ai", "agent-provider"],
   ["/packages/webmcp/src/", "agents.webmcp", "webmcp-sdk"],
   // The SDKs behind the agents, which Rollup fused the same way.
+  // The named SDK facade is pure: keep its owned zero-byte module in a lazy entry
+  // instead of allowing the minimum chunk floor to merge it into another owner.
+  [
+    "/packages/app-core/src/lib/command-bar/interpret-generate-object.ts",
+    "support.local-ai",
+    "local-ai-sdk-entry",
+  ],
   ["/node_modules/ai/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ai-sdk/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ag-ui/client/", "support.remote-ai", "vendor-ag-ui"],
@@ -160,6 +185,8 @@ const LAZY_LEAVES = [
 ];
 
 export function lazyLeafChunk(id, entry) {
+  const sdk = secretBackendSdkChunk(id, entry);
+  if (sdk) return sdk;
   const path = toPosix(id);
   for (const [dir, capability, name] of LAZY_LEAVES) {
     if (!path.includes(dir)) continue;

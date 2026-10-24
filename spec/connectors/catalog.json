@@ -3040,40 +3040,6 @@
       ]
     },
     {
-      "id": "cloudflare-wallet",
-      "display_name": "Cloudflare Wallet",
-      "category": "wallet",
-      "docs_url": "https://developers.cloudflare.com/",
-      "provenance_url": "https://developers.cloudflare.com/",
-      "auth": {
-        "kind": "configuration"
-      },
-      "connection_configuration_fields": [
-        {
-          "name": "account_id",
-          "secret": false,
-          "required": true
-        },
-        {
-          "name": "wallet_id",
-          "secret": false,
-          "required": true
-        },
-        {
-          "name": "api_token",
-          "secret": true,
-          "required": true
-        }
-      ],
-      "scopes": [],
-      "egress": {
-        "scheme": "none",
-        "authorities": [],
-        "path_prefixes": []
-      },
-      "operations": ["wallet.configure"]
-    },
-    {
       "id": "google-wallet",
       "display_name": "Google Wallet",
       "category": "wallet",
@@ -4657,6 +4623,48 @@
       "model_api": {
         "protocol": "openai_chat",
         "base_url": "https://api.berget.ai/v1"
+      }
+    },
+    {
+      "id": "ollama",
+      "display_name": "Ollama",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.ollama.com/api/openai-compatibility",
+      "provenance_url": "https://docs.ollama.com/api/openai-compatibility",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "model",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "authentication",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["ai.configure", "chat.create"],
+      "model_api": {
+        "protocol": "openai_chat"
       }
     },
     {

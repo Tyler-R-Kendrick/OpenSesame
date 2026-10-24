@@ -26,11 +26,17 @@ import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { LinearCancelSignIn } from "./LinearCancelSignIn.js";
 import { LinearConnectorFields } from "./LinearConnectorFields.js";
+import { NativeCancelSignIn } from "./NativeCancelSignIn.js";
+import { linearAuthorization } from "./linear-authorization-ui.js";
+import type {
+  NativeAuthorizationSink,
+  NativeAuthorizationTicket,
+} from "./native-connector-controller.js";
 
 function linearOptions(plan: ConnectPlan): SelfHostedConnectorOptions {
   const config = selfHostedConfig(plan);
   return {
-    mode: "managed",
+    mode: linearClientId() ? "managed" : "byo",
     workspace: "",
     appScopes: defaultSelections(config?.appScopes ?? []),
     userScopes: defaultSelections(config?.userScopes ?? []),
@@ -53,17 +59,18 @@ function linearState(initial: ReturnType<typeof initialDraftState>) {
   };
 }
 
-export function LinearConnectorForm({
-  plan,
-  connectorId,
-  onFlash,
-  onSaved,
-}: {
+type LinearFormProps = {
   plan: ConnectPlan;
   connectorId?: string;
   onFlash: (flash: Flash) => void;
   onSaved: () => void;
-}) {
+  onAuthorization?: NativeAuthorizationSink;
+  authorization?: NativeAuthorizationTicket | null;
+  captureUiCurrent?: () => () => boolean;
+};
+
+function useLinearForm(props: LinearFormProps) {
+  const { plan, connectorId, onFlash, onSaved } = props;
   const held = connectorId ? readSelfHostedConnector(connectorId) : null;
   const [options, setOptions] = useState(
     () => held?.options ?? linearOptions(plan),
@@ -71,24 +78,33 @@ export function LinearConnectorForm({
   const [state, setState] = useState<DraftState>(() =>
     linearState(held?.state ?? initialDraftState(plan, "oauth")),
   );
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState<(() => boolean) | null>(null);
   const [iconBusy, setIconBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [savedId, setSavedId] = useState(connectorId);
   const problems = linearConnectorProblems(state, options, savedId);
+  const busy = !!saving?.() || !!props.authorization?.current();
 
   async function configure(event: FormEvent) {
     event.preventDefault();
     if (busy || iconBusy || problems.length > 0) return;
-    setBusy(true);
+    const current = props.captureUiCurrent?.() ?? (() => true);
+    if (!current()) return;
+    const authorization = linearAuthorization(savedId, props.onAuthorization);
+    setSaving(() => current);
     setFailure(null);
     try {
       const connection = await configureLinearConnector(
         state,
         options,
         savedId,
-        setSavedId,
+        (next) => {
+          authorization.bind(next);
+          if (current()) setSavedId(next);
+        },
+        authorization.reserve,
       );
+      if (!current()) return;
       setState({
         ...state,
         key: "",
@@ -103,13 +119,51 @@ export function LinearConnectorForm({
       });
       onSaved();
     } catch (error) {
-      const text = errorText(error);
-      setFailure(text);
-      onFlash({ tone: "err", text });
+      if (current()) {
+        const text = errorText(error);
+        setFailure(text);
+        onFlash({ tone: "err", text });
+      }
     } finally {
-      setBusy(false);
+      authorization.finish();
+      if (current()) setSaving(null);
     }
   }
+  return {
+    state,
+    options,
+    busy,
+    iconBusy,
+    failure,
+    savedId,
+    problems,
+    setState,
+    setOptions,
+    setIconBusy,
+    configure,
+  };
+}
+
+function LinearFormView({
+  props,
+  model,
+}: {
+  props: LinearFormProps;
+  model: ReturnType<typeof useLinearForm>;
+}) {
+  const {
+    state,
+    options,
+    busy,
+    iconBusy,
+    failure,
+    savedId,
+    problems,
+    setState,
+    setOptions,
+    setIconBusy,
+    configure,
+  } = model;
 
   return (
     <form
@@ -122,18 +176,20 @@ export function LinearConnectorForm({
         </legend>
         <div className="cx-form">
           <LinearConnectorFields
-            plan={plan}
+            plan={props.plan}
             state={state}
             options={options}
             onState={setState}
             onOptions={setOptions}
             onIconBusyChange={setIconBusy}
-            onError={(text) => onFlash({ tone: "err", text })}
+            onError={(text) => props.onFlash({ tone: "err", text })}
           />
         </div>
       </fieldset>
       {failure ? <StatusMark tone="err" label={failure} /> : null}
-      <LinearCancelSignIn authorizing={busy && state.method === "oauth"} />
+      {props.onAuthorization === undefined ? (
+        <LinearCancelSignIn authorizing={busy && state.method === "oauth"} />
+      ) : null}
       <FormCommit
         label={
           state.method === "api-key"
@@ -145,8 +201,19 @@ export function LinearConnectorForm({
         busy={busy}
         disabled={busy || iconBusy || problems.length > 0}
       >
+        <NativeCancelSignIn
+          busy={busy}
+          authorization={
+            props.authorization === undefined ? null : props.authorization
+          }
+          onCancel={() => props.authorization?.cancel()}
+        />
         {problems[0] ? <StatusMark tone="warn" label={problems[0]} /> : null}
       </FormCommit>
     </form>
   );
+}
+
+export function LinearConnectorForm(props: LinearFormProps) {
+  return <LinearFormView props={props} model={useLinearForm(props)} />;
 }

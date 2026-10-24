@@ -33,7 +33,7 @@ pub struct HumanProofContext {
 
 /// Verbs that require a hardware-backed passkey proof (D7-2 decision 6).
 fn verb_requires_hardware_passkey(verb: &str) -> bool {
-    matches!(verb, "run" | "env-resolve" | "pass-reveal")
+    matches!(verb, "run" | "pass-reveal")
 }
 
 /// Verified human proof: PIN unlock or passkey with monotonic sign count.
@@ -122,7 +122,7 @@ mod tests {
             request_id: "clr_1".into(),
             terminal_session_id: "term-a".into(),
             respond_nonce: "nonce".into(),
-            verb: "read".into(),
+            verb: "reveal".into(),
             argv_hash: "00".into(),
             peer_pid: 42,
             peer_start_time: 1,
@@ -210,7 +210,7 @@ mod tests {
                 "signatureB64": "AA",
             })
         );
-        for verb in ["run", "env-resolve", "pass-reveal"] {
+        for verb in ["run", "pass-reveal"] {
             let mut c = ctx();
             c.verb = verb.to_string();
             assert!(
@@ -243,5 +243,37 @@ mod tests {
             })
         );
         assert!(human_proof_verify(&attack, &binding, &ctx()).is_none());
+    }
+
+    #[test]
+    fn counterless_passkey_is_accepted_and_a_replay_is_not() {
+        use crate::daemon_integration_id;
+        use crate::test_support::{mint_test_passkey_human_proof, test_paired_binding};
+
+        let ctx = HumanProofContext {
+            daemon_id: daemon_integration_id(),
+            request_id: "clr_1".into(),
+            terminal_session_id: "term-a".into(),
+            respond_nonce: "nonce".into(),
+            verb: "read".into(),
+            argv_hash: "00".into(),
+            peer_pid: 0,
+            peer_start_time: 0,
+        };
+        let mut binding = test_paired_binding();
+        let zero = mint_test_passkey_human_proof("clr_1", "term-a", "nonce", "read", 0);
+        assert_eq!(
+            human_proof_verify(&zero, &binding, &ctx),
+            Some(HumanProofOutcome::Passkey(0))
+        );
+        binding.webauthn.as_mut().expect("cred").sign_count = 1;
+        assert!(human_proof_verify(&zero, &binding, &ctx).is_none());
+        let replay = mint_test_passkey_human_proof("clr_1", "term-a", "nonce", "read", 1);
+        assert!(human_proof_verify(&replay, &binding, &ctx).is_none());
+        let next = mint_test_passkey_human_proof("clr_1", "term-a", "nonce", "read", 2);
+        assert_eq!(
+            human_proof_verify(&next, &binding, &ctx),
+            Some(HumanProofOutcome::Passkey(2))
+        );
     }
 }

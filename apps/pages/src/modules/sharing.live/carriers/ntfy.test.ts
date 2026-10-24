@@ -65,10 +65,10 @@ describe("ntfy through the egress port", () => {
     await carrier.post("frame");
     stop();
 
-    expect(calls.map((c) => c.url)).toEqual([
-      `https://ntfy.example.test/${TOPIC}/json`,
-      `https://ntfy.example.test/${TOPIC}`,
-    ]);
+    expect(calls[0]?.url).toMatch(
+      new RegExp(`^https://ntfy\\.example\\.test/${TOPIC}/json\\?since=\\d+$`),
+    );
+    expect(calls[1]?.url).toBe(`https://ntfy.example.test/${TOPIC}`);
     for (const { init } of calls) {
       expect(init.redirect).toBe("manual");
       expect(init.credentials).toBe("omit");

@@ -18,12 +18,15 @@ import {
 } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { defaultCapabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-resources.js";
 import { useState } from "react";
+import { Link } from "react-router";
 import { useComposition } from "../../bindings/capabilities.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
+import { IconChevronRight } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { PurposeCards } from "../../screens/capabilities/PurposeCards.js";
 import { SectionHead } from "./CapabilitySwitch.js";
+import { featureConfigPath } from "./feature-config-path.js";
 import { useDeviceOperator } from "./useDeviceOperator.js";
 
 export const instancePanelSeams = {
@@ -31,7 +34,11 @@ export const instancePanelSeams = {
   save: saveLocalInstancePolicy,
 };
 
-export function InstanceCapabilitiesPanel() {
+export function InstanceCapabilitiesPanel({
+  bare = false,
+}: {
+  bare?: boolean;
+} = {}) {
   const snapshot = useComposition();
   const { tomb } = useVault();
   const [notice, setNotice] = useState<string | null>(null);
@@ -55,16 +62,8 @@ export function InstanceCapabilitiesPanel() {
       setNotice(caught instanceof Error ? caught.message : "not saved");
     }
   }
-  return (
-    <section
-      className="conn-group capsection"
-      id="instance-policy"
-      aria-labelledby="instance-policy-title"
-      data-testid="instance-capabilities-panel"
-    >
-      <SectionHead id="instance-policy-title" title="Instance policy">
-        {notice === null ? null : <StatusMark tone="err" label={notice} />}
-      </SectionHead>
+  const body = (
+    <>
       <FailureNotice
         id="settings:instance-policy"
         title="Instance policy"
@@ -75,6 +74,38 @@ export function InstanceCapabilitiesPanel() {
         chosen={snapshot.policy?.presetProvenance?.id ?? null}
         onChoose={(preset) => void choosePreset(preset)}
       />
+    </>
+  );
+  if (bare) return body;
+  return (
+    <section
+      className="capsection"
+      id="instance-policy"
+      aria-labelledby="instance-policy-title"
+      data-testid="instance-capabilities-panel"
+    >
+      <SectionHead id="instance-policy-title" title="Instance policy">
+        {notice === null ? null : <StatusMark tone="err" label={notice} />}
+      </SectionHead>
+      {body}
+    </section>
+  );
+}
+
+/** The Features row that opens the operator's policy page. */
+export function InstancePolicyLink() {
+  if (!useDeviceOperator()) return null;
+  return (
+    <section className="capsection" id="instance-policy">
+      <div className="capsection__head">
+        <Link
+          className="capsection__titlelink"
+          to={featureConfigPath("instance-policy")}
+        >
+          <h3 className="capsection__title">Instance policy</h3>
+          <IconChevronRight className="capsection__go" size={14} />
+        </Link>
+      </div>
     </section>
   );
 }

@@ -6,6 +6,7 @@ import type {
   VaultHeader,
   VaultItem,
 } from "@opensesame/vault-core";
+import type { TrustedUnlockView } from "../trusted-unlock.js";
 import type { VaultPrefs } from "./prefs.js";
 
 export type VaultStatus = "empty" | "locked" | "unlocked";
@@ -36,6 +37,8 @@ export type VaultState = {
   failedAttempts: number;
   /** Primary unlocked; second step enrolled but not yet confirmed. */
   awaitingSecondStep: boolean;
+  /** Primary and second steps passed; a trusted-contact quorum must approve. */
+  trustedUnlock?: TrustedUnlockView | null;
   /** False when storage is tab-only (no durable OPFS). */
   durable: boolean;
 };

@@ -11,6 +11,7 @@ import { decodePortableDropPacket } from "./portable-drop-crypto.js";
 import {
   PORTABLE_DROP_TOKEN_PREFIX,
   buildPortableDropBundle,
+  createPortableDropSession,
   isPortableDropToken,
   openPortableDropBundle,
   portableDropLink,
@@ -65,6 +66,18 @@ afterEach(() => {
 });
 
 describe("portable drop bundles", () => {
+  it("mints session user codes in the XXXX-XXXX unambiguous alphabet", async () => {
+    const { manifest } = await sealDrop(TEXT);
+    const session = await createPortableDropSession(
+      manifest,
+      600_000,
+      "https://example.test/verify",
+    );
+    expect(session.userCode).toMatch(
+      /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/,
+    );
+  });
+
   it("round-trips a manifest only with the bearer and user code", async () => {
     const { manifest, sealed } = await bundle();
     expect(sealed.pkt).not.toContain(manifest.ciphertext);

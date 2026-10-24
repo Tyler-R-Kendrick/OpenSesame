@@ -16,6 +16,7 @@ export {
 export { SecretBackendDraftSchema } from "./schema.js";
 export {
   connectSecretBackend,
+  initializeSecretBackend,
   deleteSecretBackendConnection,
   probeSecretBackend,
   saveSecretBackendConnection,

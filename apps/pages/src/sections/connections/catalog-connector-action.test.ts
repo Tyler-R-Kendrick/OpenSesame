@@ -4,6 +4,7 @@ import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
+import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { expect, it, vi } from "vitest";
 import { catalogConnectorAction } from "./catalog-connector-action.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
@@ -15,7 +16,9 @@ import {
 installConnectorIntegration();
 
 function provider(id: string) {
-  const found = catalogProvider(id);
+  const found =
+    catalogProvider(id) ??
+    mergeVercelCatalog(getBundledProviders()).find((row) => row.id === id);
   if (!found) throw new Error(`Provider not listed: ${id}`);
   return found;
 }
@@ -24,14 +27,15 @@ it("does not offer browser authorization for legacy App or native git configurat
   connectorIntegration();
   // None of them is "a desktop app away": git has its own Backups road, and
   // the forges' OAuth needs a client secret a browser cannot hold.
-  for (const id of ["git", "bitbucket", "origin"])
-    expect(catalogConnectorAction(provider(id), null)).toMatchObject({
-      kind: "unavailable",
-      glyph: "blocked",
-    });
-  expect(catalogConnectorAction(provider("bitbucket"), null)).toMatchObject({
-    reason: "needs-client-secret",
+  expect(catalogConnectorAction(provider("git"), null)).toMatchObject({
+    kind: "unavailable",
+    glyph: "blocked",
   });
+  for (const id of ["bitbucket", "origin"])
+    expect(catalogConnectorAction(provider(id), null), id).toMatchObject({
+      kind: "connect",
+      glyph: "plus",
+    });
   expect(catalogConnectorAction(provider("s3"), null)).toMatchObject({
     kind: "connect",
     glyph: "plus",
@@ -41,6 +45,34 @@ it("does not offer browser authorization for legacy App or native git configurat
     glyph: "plus",
     method: "api-key",
   });
+});
+
+it("offers Asana and Attio browser routes instead of a lock", () => {
+  connectorIntegration();
+  for (const id of ["asana", "attio"]) {
+    const descriptor = nativeSettingsDescriptor(provider(id));
+    expect(
+      descriptor?.methods.some((method) => method.available),
+      id,
+    ).toBe(true);
+    expect(catalogConnectorAction(provider(id), null).kind, id).not.toBe(
+      "unavailable",
+    );
+  }
+  const asana = nativeSettingsDescriptor(provider("asana"));
+  expect(
+    asana?.methods.find((method) => method.id === "api-key")?.available,
+  ).toBe(true);
+  expect(
+    asana?.methods.find((method) => method.id === "oauth")?.available,
+  ).toBe(true);
+  const attio = nativeSettingsDescriptor(provider("attio"));
+  expect(
+    attio?.methods.find((method) => method.id === "api-key")?.available,
+  ).toBe(true);
+  expect(
+    attio?.methods.find((method) => method.id === "oauth")?.available,
+  ).toBe(true);
 });
 
 it("keeps a saved local git URL from claiming browser installation or authorization", () => {
@@ -70,11 +102,10 @@ it("keeps Google cleanup compiled while refusing a new popup on an isolated brow
     const descriptor = nativeSettingsDescriptor(provider("google"));
     expect(
       descriptor?.methods.find((method) => method.id === "oauth")?.available,
-    ).toBe(false);
+    ).toBe(true);
     expect(catalogConnectorAction(provider("google"), null)).toMatchObject({
-      kind: "unavailable",
-      glyph: "blocked",
-      reason: "no-contract",
+      kind: "connect",
+      glyph: "plus",
     });
   } finally {
     vi.unstubAllGlobals();

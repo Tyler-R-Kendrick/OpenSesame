@@ -16,7 +16,7 @@ describe("PACT — client CLI emit / session", () => {
       "JSON.stringify(redacted",
     ]);
     assertSourceOrder(readFileSync(join(here, "identity-session.ts"), "utf8"), [
-      "writeFile(temp, JSON.stringify(envelope), { mode: 0o600 })",
+      "writeFile(temp, JSON.stringify(envelope), {",
       "chmod(temp, 0o600)",
       "rename(temp, path)",
     ]);

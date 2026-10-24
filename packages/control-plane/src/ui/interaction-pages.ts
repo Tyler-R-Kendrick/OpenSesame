@@ -128,11 +128,19 @@ export interface ConsentPageModel {
   /** POST targets (`/interaction/<uid>/confirm` and `/abort`). */
   confirmAction: string;
   abortAction: string;
-  /** Canonical origin string shown to the user. */
-  origin: string;
+  /**
+   * Canonical origin string shown to the user. Absent for a client that is not
+   * an origin-profile client: a raw client id is not an origin, and rendering
+   * one under "runs at" would be a false statement about who is asking.
+   */
+  origin?: string;
   /** True when an origin_profile client is auto-admitted and unclaimed (ADR 0050 F6). */
   showAutoAdmitted: boolean;
   scopes: string[];
+  /** Resource indicators and the scopes requested against each. */
+  resources?: { indicator: string; scopes: string[] }[];
+  /** OIDC claims the client is asking to receive. */
+  claims?: string[];
   clientDisplayName?: string;
 }
 
@@ -730,7 +738,11 @@ export function renderConsentPage(model: ConsentPageModel): string {
   const csrf = escapeHtml(model.csrfToken);
   const confirmAction = escapeHtml(model.confirmAction);
   const abortAction = escapeHtml(model.abortAction);
-  const origin = escapeHtml(model.origin);
+  const origin =
+    model.origin !== undefined
+      ? `<p>This application runs at:</p>
+       <p class="origin" id="app-origin"><code>${escapeHtml(model.origin)}</code></p>`
+      : `<p class="note">This client has no registered web origin. Approve only if you started this request yourself.</p>`;
   const scopes =
     model.scopes.length > 0
       ? `<ul class="scopes" aria-label="Requested scopes">${model.scopes
@@ -744,6 +756,29 @@ export function renderConsentPage(model: ConsentPageModel): string {
           })
           .join("")}</ul>`
       : "<p>No additional scopes requested.</p>";
+  const resources =
+    model.resources !== undefined && model.resources.length > 0
+      ? `<h2>Resources this application may call</h2>
+       <ul class="scopes" aria-label="Requested resources">${model.resources
+         .map(
+           (resource) =>
+             `<li><code>${escapeHtml(resource.indicator)}</code>${
+               resource.scopes.length > 0
+                 ? ` <span class="scope-detail">(${resource.scopes
+                     .map((scope) => escapeHtml(scope))
+                     .join(", ")})</span>`
+                 : ""
+             }</li>`,
+         )
+         .join("")}</ul>`
+      : "";
+  const claims =
+    model.claims !== undefined && model.claims.length > 0
+      ? `<h2>Claims this application may read</h2>
+       <ul class="scopes" aria-label="Requested claims">${model.claims
+         .map((claim) => `<li><code>${escapeHtml(claim)}</code></li>`)
+         .join("")}</ul>`
+      : "";
   const autoBadge = model.showAutoAdmitted
     ? `<p class="badge" role="status">Automatically admitted application</p>`
     : "";
@@ -756,11 +791,12 @@ export function renderConsentPage(model: ConsentPageModel): string {
     `<h1>Authorize ${title}</h1>
      <p class="lede">Review what this application is requesting.</p>
      <div class="panel">
-       <p>This application runs at:</p>
-       <p class="origin" id="app-origin"><code>${origin}</code></p>
+       ${origin}
        ${autoBadge}
        <h2 class="sr-only">Requested permissions</h2>
        ${scopes}
+       ${resources}
+       ${claims}
        <div class="actions">
          <form method="post" action="${confirmAction}">
            <input type="hidden" name="_csrf" value="${csrf}"/>

@@ -4,7 +4,6 @@
 //! can list/create remotes after OAuth without seeing access tokens (ADR 0005/0032).
 
 use opensesame_domain::OrganizationId;
-use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::catalog::AuthMethod;
@@ -13,6 +12,10 @@ use crate::model::ConnectionStatus;
 use crate::store;
 use crate::token::TokenSet;
 use crate::ConnectionBroker;
+
+#[path = "egress_github.rs"]
+mod github;
+use github::{map_github_repo_create_error, parse_github_repo, parse_github_repo_list};
 
 /// Characters of an upstream error body kept for diagnostics. A provider error
 /// page is not worth holding in full, and the cap keeps a hostile upstream from
@@ -31,6 +34,25 @@ const RESERVED_HEADERS: &[&str] = &[
     "host",
     "transfer-encoding",
 ];
+
+/// Credentialed egress travels over https. The single exception is http to
+/// loopback, which the catalog already permits for the bundled `mock`
+/// provider (see `validate_egress`) and which never leaves this machine.
+/// The per-connection allowlist (`allows_url`) only proves the URL matches
+/// the configured scheme, so this transport floor is asserted again at the
+/// point the credential is attached.
+fn require_secure_egress_url(url: &str) -> Result<()> {
+    let parsed =
+        url::Url::parse(url).map_err(|_| BrokerError::Invalid("malformed egress url".into()))?;
+    let loopback = matches!(parsed.host_str(), Some("127.0.0.1" | "localhost" | "::1"));
+    match parsed.scheme() {
+        "https" => Ok(()),
+        "http" if loopback => Ok(()),
+        _ => Err(BrokerError::Invalid(
+            "credentialed egress requires https (http is loopback-only)".into(),
+        )),
+    }
+}
 
 fn credential_header(auth: &AuthMethod, tokens: &TokenSet) -> Result<(String, String)> {
     match auth {
@@ -278,6 +300,7 @@ impl ConnectionBroker {
             return Err(BrokerError::NeedsReauth("access token missing".into()));
         }
 
+        require_secure_egress_url(url)?;
         let mut req = self
             .http_bytes
             .post(url)
@@ -333,6 +356,7 @@ impl ConnectionBroker {
         url: &str,
         body: Option<Value>,
     ) -> std::result::Result<Value, String> {
+        require_secure_egress_url(url).map_err(|error| error.to_string())?;
         let parsed_method = method
             .parse::<reqwest::Method>()
             .map_err(|_| format!("unsupported method {method}"))?;
@@ -383,57 +407,6 @@ impl ConnectionBroker {
     }
 }
 
-#[derive(Deserialize)]
-struct GhRepoWire {
-    name: String,
-    full_name: String,
-    private: bool,
-    clone_url: String,
-    html_url: String,
-    #[serde(default)]
-    default_branch: String,
-}
-
-fn parse_github_repo(value: &Value) -> Result<GithubRepo> {
-    let wire: GhRepoWire = serde_json::from_value(value.clone()).map_err(BrokerError::from)?;
-    Ok(GithubRepo {
-        full_name: wire.full_name,
-        name: wire.name,
-        private: wire.private,
-        clone_url: wire.clone_url,
-        html_url: wire.html_url,
-        default_branch: if wire.default_branch.is_empty() {
-            "main".into()
-        } else {
-            wire.default_branch
-        },
-    })
-}
-
-fn parse_github_repo_list(value: &Value) -> Result<Vec<GithubRepo>> {
-    let arr = value
-        .as_array()
-        .ok_or_else(|| BrokerError::Invalid("expected GitHub repo array".into()))?;
-    arr.iter().map(parse_github_repo).collect()
-}
-
-fn map_github_repo_create_error(error: BrokerError) -> BrokerError {
-    let BrokerError::ExchangeFailed(detail) = &error else {
-        return error;
-    };
-    if detail.contains("Resource not accessible by integration") {
-        return BrokerError::Invalid(
-            "GitHub refused to create the repository for this connection. \
-             Install the tenant GitHub App on your account (All repositories; \
-             Administration + Contents), then Re-authorize in Settings, \
-             or connect with a personal access token that has the repo scope, \
-             or pick an existing private repo from the list."
-                .into(),
-        );
-    }
-    error
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -469,6 +442,25 @@ mod tests {
             ("X-Api-Key".into(), "Key do-not-return".into())
         );
         assert!(credential_header(&AuthMethod::Configuration, &token()).is_err());
+    }
+
+    #[test]
+    fn credentialed_egress_requires_https_except_loopback() {
+        assert!(require_secure_egress_url("https://api.github.com/user/repos").is_ok());
+        assert!(require_secure_egress_url("http://127.0.0.1:8080/upload").is_ok());
+        assert!(require_secure_egress_url("http://localhost:8080/upload").is_ok());
+        for refused in [
+            "http://api.github.com/user/repos",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://127.0.0.1.evil.com/upload",
+            "ftp://127.0.0.1/upload",
+            "not a url",
+        ] {
+            assert!(
+                require_secure_egress_url(refused).is_err(),
+                "{refused} must be refused"
+            );
+        }
     }
 
     #[test]

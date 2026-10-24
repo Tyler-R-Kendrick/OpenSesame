@@ -10,6 +10,7 @@ import {
 } from "@opensesame/policy";
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { resetDeviceApprovalBudgetForTest } from "../routes/device.js";
 
 interface DeviceApprovalHeaders {
   origin?: string;
@@ -86,6 +87,52 @@ describe("control-plane API", () => {
         { displayName: "Personal workspace", role: "owner", state: "active" },
       ],
     });
+  });
+
+  it("throttles device approvals per principal below the Host's global fence", async () => {
+    resetDeviceApprovalBudgetForTest();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ status: "approved" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    try {
+      const { app } = createControlPlane({
+        config: {
+          port: 0,
+          publicUrl: "http://127.0.0.1:8788",
+          issuer: "http://127.0.0.1:8788",
+          bootstrapPersonalOrganization: true,
+          hostApiUrl: "http://127.0.0.1:8787",
+          operatorToken: "opensesame-dev-operator",
+        },
+      });
+      const created = await provisional(app);
+      const approve = () =>
+        app.request("/v1/device/approve", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${created.accessToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ user_code: "ABCD-EFGH" }),
+        });
+      expect((await approve()).status).toBe(200);
+      expect((await approve()).status).toBe(200);
+      expect((await approve()).status).toBe(200);
+      const limited = await approve();
+      expect(limited.status).toBe(429);
+      expect(overlapCast<{ error: string }>(await limited.json()).error).toBe(
+        "rate_limited",
+      );
+      // The fourth guess never reached the Host, so it did not spend a slot
+      // from the deployment-global failure fence.
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      fetchMock.mockRestore();
+      resetDeviceApprovalBudgetForTest();
+    }
   });
 
   it("seeds a personal workspace on device approve when provisional had none", async () => {

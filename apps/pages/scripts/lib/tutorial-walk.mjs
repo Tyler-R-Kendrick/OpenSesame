@@ -13,7 +13,7 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { PIN } from "./pages-journey.mjs";
+import { PIN, waitOpen } from "./pages-journey.mjs";
 import { measureStep, stepChecks } from "./tutorial-measure.mjs";
 
 export { stepChecks };
@@ -238,11 +238,17 @@ export async function unlockIfLocked(page) {
     field.waitFor({ state: "visible", timeout: 10000 }),
     open.waitFor({ state: "visible", timeout: 10000 }),
   ]).catch(() => {});
-  if (!(await field.isVisible().catch(() => false))) return false;
-  await field.fill(PIN);
-  await field.press("Enter");
-  await open.waitFor({ timeout: 20000 });
-  return true;
+  // Both controls can be visible while an earlier unlock's doors finish.
+  // Complete that ceremony instead of typing into the departing PIN field.
+  const locked =
+    !(await open.isVisible().catch(() => false)) &&
+    (await field.isVisible().catch(() => false));
+  if (locked) {
+    await field.fill(PIN);
+    await field.press("Enter");
+  }
+  await waitOpen(page);
+  return locked;
 }
 
 /** Presses Next by mouse or by keyboard, whichever this step is owed. */

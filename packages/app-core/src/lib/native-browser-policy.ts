@@ -1,9 +1,14 @@
-/** Conservative browser admission, independently of hosted connector contracts. */
+/** Historical endpoint evidence is advice for HTTP APIs, not a pre-request denial. */
 import { z } from "zod";
 import { authoredDisposition } from "./browser-disposition.js";
 import { type ConnectPlan, connectPlan } from "./connect-plan.js";
-import { bridgeAdmits } from "./native-bridge.js";
 import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
+import {
+  type NativeBrowserPolicyCarrier,
+  type NativeMethodPolicyCarrier,
+  nativePolicyCarrierCurrent,
+  nativeResourcePolicyCarrierCurrent,
+} from "./native-policy-carrier.js";
 
 const ruleSchema = z.object({
   provider_id: z.string(),
@@ -44,6 +49,7 @@ export function bindNativeBrowserPolicyOrigin(
 export type NativeBrowserPolicyDecision = {
   available: boolean;
   reason: string | null;
+  advice?: string;
   evidenceUrls: readonly string[];
 };
 function publicDefaults(
@@ -74,26 +80,34 @@ const AVAILABLE: NativeBrowserPolicyDecision = {
   evidenceUrls: [],
 };
 
-/**
- * A provider recorded as refusing browsers (ADR 0197) has no policy rule of
- * its own, but its evidence says the same thing: a page cannot read its
- * answers. Its API-key road is the connector bridge's, or it is unavailable.
- */
-function refusedByEvidence(providerId: string): NativeBrowserPolicyDecision {
+/** Documentation about a hosted endpoint cannot deny a configured HTTP request. */
+function apiEvidence(providerId: string): NativeBrowserPolicyDecision {
   const row = authoredDisposition(providerId);
-  if (row?.kind !== "refuses-browser" || bridgeAdmits(providerId))
-    return AVAILABLE;
+  if (row?.kind !== "refuses-browser") return AVAILABLE;
   return {
-    available: false,
-    reason: row.summary,
+    available: true,
+    reason: null,
+    advice:
+      "Published evidence reports browser access restrictions at this provider's hosted endpoint. Test the connection using the configured native Tailscale HTTP transport. For direct browser requests, the endpoint must permit this site's origin and required headers.",
     evidenceUrls: row.sources.map((source) => source.url),
   };
+}
+
+function methodCarrierCurrent(
+  method: string,
+  carrier?: NativeMethodPolicyCarrier,
+): boolean {
+  if (!carrier) return false;
+  return "tokenEndpoint" in carrier
+    ? nativePolicyCarrierCurrent(carrier)
+    : method === "mcp" && nativeResourcePolicyCarrierCurrent(carrier);
 }
 
 export function nativeBrowserMethodPolicy(
   providerId: string,
   method: ConnectPlan["methods"][number]["kind"] | "native-local" | "oidc",
   parameters: Readonly<Record<string, string>> = {},
+  carrier?: NativeMethodPolicyCarrier,
 ): NativeBrowserPolicyDecision {
   const selected =
     method === "api-key" ? publicDefaults(providerId, parameters) : parameters;
@@ -106,15 +120,26 @@ export function nativeBrowserMethodPolicy(
         ([name, value]) => selected[name] === value,
       ),
   );
-  if (rule)
-    return method === "api-key" && bridgeAdmits(providerId)
-      ? AVAILABLE
-      : {
-          available: false,
-          reason: rule.reason,
-          evidenceUrls: [...rule.evidence_urls],
-        };
-  return method === "api-key" ? refusedByEvidence(providerId) : AVAILABLE;
+  if (rule) {
+    if (
+      (method === "oauth" || method === "mcp") &&
+      methodCarrierCurrent(method, carrier)
+    )
+      return AVAILABLE;
+    if (method === "api-key")
+      return {
+        available: true,
+        reason: null,
+        advice: `The ${policy.checked_date} probe from ${policy.audited_origin} did not allow browser access to this provider's hosted endpoint. Test the connection using the configured native Tailscale HTTP transport. For direct browser requests, the endpoint must permit this site's origin and required headers.`,
+        evidenceUrls: [...rule.evidence_urls],
+      };
+    return {
+      available: false,
+      reason: rule.reason,
+      evidenceUrls: [...rule.evidence_urls],
+    };
+  }
+  return method === "api-key" ? apiEvidence(providerId) : AVAILABLE;
 }
 export function nativeBrowserApiPolicy(
   providerId: string,
@@ -124,21 +149,29 @@ export function nativeBrowserApiPolicy(
 }
 export function nativeBrowserOAuthPolicy(
   providerId: string,
+  carrier?: NativeBrowserPolicyCarrier,
 ): NativeBrowserPolicyDecision {
-  return nativeBrowserMethodPolicy(providerId, "oauth");
+  return nativeBrowserMethodPolicy(providerId, "oauth", {}, carrier);
 }
 export function nativeBrowserMcpPolicy(
   providerId: string,
+  carrier?: NativeMethodPolicyCarrier,
 ): NativeBrowserPolicyDecision {
-  return nativeBrowserMethodPolicy(providerId, "mcp");
+  return nativeBrowserMethodPolicy(providerId, "mcp", {}, carrier);
 }
-export function assertNativeBrowserMcpPolicy(providerId: string): void {
-  const decision = nativeBrowserMcpPolicy(providerId);
+export function assertNativeBrowserMcpPolicy(
+  providerId: string,
+  carrier?: NativeMethodPolicyCarrier,
+): void {
+  const decision = nativeBrowserMcpPolicy(providerId, carrier);
   if (!decision.available)
     throw new Error(decision.reason ?? "Browser MCP is unavailable");
 }
-export function assertNativeBrowserOAuthPolicy(providerId: string): void {
-  const decision = nativeBrowserOAuthPolicy(providerId);
+export function assertNativeBrowserOAuthPolicy(
+  providerId: string,
+  carrier?: NativeBrowserPolicyCarrier,
+): void {
+  const decision = nativeBrowserOAuthPolicy(providerId, carrier);
   if (!decision.available)
     throw new Error(decision.reason ?? "Browser OAuth is unavailable");
 }

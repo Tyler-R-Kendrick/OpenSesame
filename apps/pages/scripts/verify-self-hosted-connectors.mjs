@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
 import { apiKeyFlow, oauthFlow } from "./lib/linear-browser-flows.mjs";
+import { readLinearStatusCodes } from "./lib/linear-consent-status.mjs";
 import { linearFallbacks } from "./lib/linear-fallback-contract.mjs";
 import { routeLinearProvider } from "./lib/linear-provider-contract.mjs";
 import { recoveryFlow } from "./lib/linear-recovery-browser-flows.mjs";
@@ -230,6 +231,17 @@ try {
       path: path.join(out, "failure.png"),
       fullPage: true,
     });
+    try {
+      harness.record(
+        "LINEAR-FAILURE-STATUS",
+        JSON.stringify({ codes: await readLinearStatusCodes(activePage) }),
+      );
+    } catch {
+      harness.record(
+        "LINEAR-FAILURE-STATUS",
+        JSON.stringify({ unavailable: true }),
+      );
+    }
   }
 } finally {
   await browser.close();

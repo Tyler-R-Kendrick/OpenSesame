@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { and, asc, eq, isNull } from "drizzle-orm";
+import { isUniqueViolation } from "./client-origin-store.js";
+import { ConflictError } from "./repos/interfaces.js";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
 
@@ -127,7 +129,7 @@ export function createMemoryScimStores(): ScimStores {
           (existing) => existing.userName === row.userName,
         );
         if (clash) {
-          throw new Error(`scim user already exists: ${row.userName}`);
+          throw new ConflictError(`scim user already exists: ${row.userName}`);
         }
         users.set(row.id, row);
         return cloneScimUser(row);
@@ -154,7 +156,7 @@ export function createMemoryScimStores(): ScimStores {
       async update(user) {
         const row = normalizeScimUser(user);
         if (!users.has(row.id)) {
-          throw new Error(`scim user not found: ${row.id}`);
+          throw new ConflictError(`scim user not found: ${row.id}`);
         }
         users.set(row.id, row);
         return cloneScimUser(row);
@@ -215,22 +217,31 @@ export function createPostgresScimStores(db: Database): ScimStores {
     users: {
       async create(user) {
         const row = normalizeScimUser(user);
-        const [inserted] = await db
-          .insert(schema.scimUsers)
-          .values({
-            id: row.id,
-            organizationId: row.organizationId,
-            externalId: row.externalId ?? null,
-            userName: row.userName,
-            active: row.active,
-            displayName: row.displayName ?? null,
-            raw: row.raw,
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
-          })
-          .returning();
-        if (!inserted) throw new Error("insert scim user returned no row");
-        return mapScimUser(inserted);
+        try {
+          const [inserted] = await db
+            .insert(schema.scimUsers)
+            .values({
+              id: row.id,
+              organizationId: row.organizationId,
+              externalId: row.externalId ?? null,
+              userName: row.userName,
+              active: row.active,
+              displayName: row.displayName ?? null,
+              raw: row.raw,
+              createdAt: row.createdAt,
+              updatedAt: row.updatedAt,
+            })
+            .returning();
+          if (!inserted) throw new Error("insert scim user returned no row");
+          return mapScimUser(inserted);
+        } catch (error) {
+          if (isUniqueViolation(overlapCast(error))) {
+            throw new ConflictError(
+              `scim user already exists: ${row.userName}`,
+            );
+          }
+          throw error;
+        }
       },
 
       async getById(orgId, id) {
@@ -289,25 +300,35 @@ export function createPostgresScimStores(db: Database): ScimStores {
 
       async update(user) {
         const row = normalizeScimUser(user);
-        const [updated] = await db
-          .update(schema.scimUsers)
-          .set({
-            externalId: row.externalId ?? null,
-            userName: row.userName,
-            active: row.active,
-            displayName: row.displayName ?? null,
-            raw: row.raw,
-            updatedAt: row.updatedAt,
-          })
-          .where(
-            and(
-              eq(schema.scimUsers.organizationId, row.organizationId),
-              eq(schema.scimUsers.id, row.id),
-            ),
-          )
-          .returning();
-        if (!updated) throw new Error(`scim user not found: ${row.id}`);
-        return mapScimUser(updated);
+        try {
+          const [updated] = await db
+            .update(schema.scimUsers)
+            .set({
+              externalId: row.externalId ?? null,
+              userName: row.userName,
+              active: row.active,
+              displayName: row.displayName ?? null,
+              raw: row.raw,
+              updatedAt: row.updatedAt,
+            })
+            .where(
+              and(
+                eq(schema.scimUsers.organizationId, row.organizationId),
+                eq(schema.scimUsers.id, row.id),
+              ),
+            )
+            .returning();
+          if (!updated)
+            throw new ConflictError(`scim user not found: ${row.id}`);
+          return mapScimUser(updated);
+        } catch (error) {
+          if (isUniqueViolation(overlapCast(error))) {
+            throw new ConflictError(
+              `scim user already exists: ${row.userName}`,
+            );
+          }
+          throw error;
+        }
       },
 
       async listByOrganization(orgId) {

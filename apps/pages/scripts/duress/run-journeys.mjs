@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
  *   PLAYWRIGHT_CHROMIUM=... node apps/pages/scripts/duress/run-journeys.mjs
  *
  * Builds a disposable fixture bundle of real duress modules, launches Chromium
- * when discoverable, and writes evidence under docs/evidence/.../browser/.
+ * when discoverable, and writes evidence under ignored work/evidence/duress/pages/browser/.
  * Never fakes capabilities or production UI entry points.
  */
 import fs from "node:fs";
@@ -34,13 +34,7 @@ import {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..", "..", "..");
-const evidenceDir = path.join(
-  root,
-  "docs",
-  "evidence",
-  "2026-09-21-duress",
-  "browser",
-);
+const evidenceDir = path.join(root, "work/evidence/duress/pages/browser");
 const artifactsDir = path.join(here, ".artifacts");
 
 fs.mkdirSync(evidenceDir, { recursive: true });

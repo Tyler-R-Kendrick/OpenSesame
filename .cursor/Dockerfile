@@ -45,6 +45,9 @@ RUN apt-get update \
     ca-certificates \
     sudo \
     build-essential \
+    libdbus-1-dev \
+    pkg-config \
+    dbus-daemon \
   && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \

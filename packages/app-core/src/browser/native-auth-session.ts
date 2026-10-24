@@ -3,6 +3,10 @@ import type {
   NativeOAuthDeviceConsentRequest,
 } from "../lib/native-oauth-browser-port.js";
 import {
+  nativeAuthFormFields,
+  submitNativeAuthForm,
+} from "./native-auth-form.js";
+import {
   type NativeAuthBroadcast,
   type NativeAuthCode,
   type NativeAuthWireCode,
@@ -28,6 +32,9 @@ export type NativeAuthRedirectConsentRequest = Pick<
   AuthRequest,
   "authorizationUrl" | "state" | "expiresAt"
 >;
+export type NativeAuthFormConsentRequest = AuthRequest & {
+  fields: Readonly<Record<string, string>>;
+};
 export type NativeAuthPopup = {
   wait: (request: NativeAuthReturnRequest) => Promise<NativeAuthCode>;
   waitWebMessage: (
@@ -39,24 +46,49 @@ export type NativeAuthPopup = {
   showRedirectConsent: (
     request: NativeAuthRedirectConsentRequest,
   ) => NativeOAuthDeviceConsent;
+  showFormConsent: (
+    request: NativeAuthFormConsentRequest,
+  ) => NativeOAuthDeviceConsent;
   cancel: () => void;
 };
+
+/**
+ * How far the wall clock may step back between minting a request and opening
+ * its window. `Date.now()` is not monotonic, and a caller that mints the
+ * whole lifetime would otherwise be refused here. Every wait is still capped
+ * at the lifetime via `remainingLifetime`, so this lengthens nothing.
+ */
+const CLOCK_STEP_BACK_MS = 30_000;
+
+/** How long the window may still wait, never past the profile's lifetime. */
+function remainingLifetime(request: AuthRequest, maxLifetime: number): number {
+  return Math.min(request.expiresAt - Date.now(), maxLifetime);
+}
 
 function validateRequest(
   request: AuthRequest,
   maxLifetime = 10 * 60_000,
 ): void {
   nativeAuthState(request.state);
-  const url = new URL(request.authorizationUrl);
+  let url: URL;
+  try {
+    url = new URL(request.authorizationUrl);
+  } catch {
+    throw new Error("Invalid provider authorization URL");
+  }
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (
     (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) ||
     url.username ||
     url.password ||
-    request.expiresAt <= Date.now() ||
-    request.expiresAt > Date.now() + maxLifetime
+    !Number.isFinite(request.expiresAt)
   )
-    throw new Error("Invalid or expired provider authorization request");
+    throw new Error("Invalid provider authorization URL");
+  const now = Date.now();
+  if (request.expiresAt <= now)
+    throw new Error("Provider authorization request expired");
+  if (request.expiresAt > now + maxLifetime + CLOCK_STEP_BACK_MS)
+    throw new Error("Provider authorization request exceeds allowed lifetime");
 }
 
 type PopupSession = {
@@ -120,7 +152,10 @@ function waitForCode(
       else reject(new Error("Provider authorization was cancelled or expired"));
     };
     const abort = () => finish();
-    const deadline = setTimeout(abort, request.expiresAt - Date.now());
+    const deadline = setTimeout(
+      abort,
+      remainingLifetime(request, 10 * 60_000),
+    );
     session.cancelWait = abort;
     request.signal?.addEventListener("abort", abort, { once: true });
     stopListening = listen((response) => {
@@ -228,7 +263,10 @@ function showRedirectConsent(
       lifetime.abort();
       close();
     };
-    const deadline = setTimeout(abort, request.expiresAt - Date.now());
+    const deadline = setTimeout(
+      abort,
+      remainingLifetime(request, 30 * 60_000),
+    );
     session.cancelWait = abort;
     session.popup.opener = null;
     session.isolated = true;
@@ -261,15 +299,54 @@ function showDeviceConsent(
     throw error;
   }
 }
-/** Reserve during the click, before discovery/auth_url network requests await. */
-export function reserveNativeAuthPopup(): NativeAuthPopup {
-  const popup = window.open(
-    "about:blank",
-    "_blank",
-    "popup,width=600,height=720",
-  );
-  if (!popup)
-    throw new Error("Allow the provider sign-in window and try again");
+function showFormConsent(
+  session: PopupSession,
+  request: NativeAuthFormConsentRequest,
+): NativeOAuthDeviceConsent {
+  try {
+    const owned = {
+      authorizationUrl: request.authorizationUrl,
+      state: request.state,
+      expiresAt: request.expiresAt,
+      signal: request.signal,
+    };
+    startSession(session, owned, 5 * 60_000);
+    const assertCurrent = () => {
+      if (session.cancelled || owned.signal?.aborted)
+        throw new Error("Provider authorization was cancelled");
+      if (Date.now() >= owned.expiresAt)
+        throw new Error("Provider authorization request expired");
+    };
+    const fields = nativeAuthFormFields(request.fields, owned.authorizationUrl);
+    assertCurrent();
+    const lifetime = new AbortController();
+    const close = () => {
+      clearTimeout(deadline);
+      owned.signal?.removeEventListener("abort", abort);
+      session.cancelWait = null;
+      closeSessionPopup(session);
+    };
+    const abort = () => {
+      lifetime.abort();
+      close();
+    };
+    const deadline = setTimeout(
+      abort,
+      Math.max(0, owned.expiresAt - Date.now()),
+    );
+    session.cancelWait = abort;
+    owned.signal?.addEventListener("abort", abort, { once: true });
+    session.popup.opener = null;
+    session.isolated = true;
+    assertCurrent();
+    submitNativeAuthForm(session.popup, owned.authorizationUrl, fields);
+    return { signal: lifetime.signal, close };
+  } catch (error) {
+    cancelSession(session);
+    throw error;
+  }
+}
+function popupReservation(popup: Window): NativeAuthPopup {
   const session: PopupSession = {
     popup,
     isolated: false,
@@ -283,5 +360,32 @@ export function reserveNativeAuthPopup(): NativeAuthPopup {
     waitWebMessage: (request) => waitForWebMessage(session, request),
     showDeviceConsent: (request) => showDeviceConsent(session, request),
     showRedirectConsent: (request) => showRedirectConsent(session, request),
+    showFormConsent: (request) => showFormConsent(session, request),
   };
+}
+const handedOff = new WeakSet<Window>();
+/** The host port reserved this exact window in the click before the browser protocol module loaded. */
+export function resumeNativeAuthPopup(popup: Window): NativeAuthPopup {
+  if (
+    handedOff.has(popup) ||
+    popup.closed ||
+    popup.opener !== window ||
+    popup.location.href !== "about:blank"
+  )
+    throw new Error(
+      "Provider sign-in requires its original unused browser window",
+    );
+  handedOff.add(popup);
+  return popupReservation(popup);
+}
+/** Reserve during the click, before discovery/auth_url network requests await. */
+export function reserveNativeAuthPopup(): NativeAuthPopup {
+  const popup = window.open(
+    "about:blank",
+    "_blank",
+    "popup,width=600,height=720",
+  );
+  if (!popup)
+    throw new Error("Allow the provider sign-in window and try again");
+  return popupReservation(popup);
 }

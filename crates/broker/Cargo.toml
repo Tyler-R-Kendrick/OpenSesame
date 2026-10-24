@@ -1,4 +1,5 @@
 [package]
+description = "Connection broker: idempotent invoke-through dispatch of authorized intents"
 name = "opensesame-broker"
 version.workspace = true
 edition.workspace = true

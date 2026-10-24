@@ -20,6 +20,7 @@ export { DRIVER_GATES } from "./ci-gate-drivers.mjs";
 import { liveJoinFixturePath } from "./ci-live-join.mjs";
 export { liveJoinFixturePath };
 import { relayJoinPath, relayProcessGate } from "./ci-relay-join.mjs";
+import { releaseKitPath } from "./ci-release-kit.mjs";
 export { relayJoinPath };
 /** The gates the bundle job's shards run, by shard name (`mobile-*` is one). */
 export const SHARD_GATES = [
@@ -33,7 +34,7 @@ export const SHARD_GATES = [
   "mobile",
   "native-connectors",
   "native-public-protocol",
-  "trusted-contacts",
+  "native-public-backends",
 ];
 /** The gates that are jobs of their own. */
 export const JOB_GATES = [
@@ -50,6 +51,7 @@ const gates = (...names) => new Set(names);
 
 /** A shard's gate: `mobile-390` is the `mobile` gate, `journeys-1` the `journeys` one. */
 export function gateOfShard(shard) {
+  if (shard === "native-secret-backends") return "native-public-protocol";
   if (shard.startsWith("mobile-")) return "mobile";
   return shard.startsWith("journeys-") ? "journeys" : shard;
 }
@@ -316,6 +318,7 @@ export function gatesForPath(path, reach, read = () => "") {
   if (isNativeConnectorPath(path) && out.size > 0) {
     out.add("native-connectors");
     out.add("native-public-protocol");
+    out.add("native-public-backends");
   }
   return out;
 }
@@ -337,6 +340,9 @@ function gatesByPath(path, reach) {
   // The workflow is every job's definition: an edit to one job is proved only
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();
+  // The release kit builds binaries on a tag: no Pages gate can see it, and
+  // ci-release-kit.test.mjs pins it (ADR 0207).
+  if (releaseKitPath(path)) return gates();
   if (path === "tools/quality/bundle-budgets.json") return gates("budgets");
   if (path === "spec/connectors/self-hosted-config.json")
     return gates("budgets");
@@ -378,6 +384,7 @@ export function gatesForPaths(paths, reach, read = () => "") {
  */
 export function bundleMatrix(wanted, shards) {
   const set = new Set(wanted);
+  if (set.has("native-public-backends")) set.add("native-public-protocol");
   return shards.filter((leg) => set.has(gateOfShard(leg.shard)));
 }
 

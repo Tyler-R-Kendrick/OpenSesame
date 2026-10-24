@@ -4,8 +4,10 @@
 //! broker calls through a credential that stays where the CLI keeps it. The
 //! probe does two things, both networkless by construction:
 //!
-//! 1. **Binary presence** — a which-style walk of the injected `PATH`
-//!    snapshot. No shell, no filesystem handle beyond existence checks.
+//! 1. **Binary presence** — the trusted-entry walk of the injected `PATH`
+//!    snapshot the runner uses (`opensesame-trusted-exec`): a binary in a
+//!    directory anyone can write, or behind an empty or relative entry, is not
+//!    present. No shell, no filesystem handle beyond existence checks.
 //! 2. **Liveness** — one carefully chosen subcommand per tool that answers
 //!    "is a credential stored locally" from the tool's own config or the OS
 //!    keychain, via the injected [`CommandRunner`] (scrubbed env, exit status
@@ -28,7 +30,6 @@ use opensesame_connection_detect::{
     mint_capable, CapabilityClass, CapabilityProbe, Confidence, OfferItem, ProbeContext,
     ProbeError, ProbeSource,
 };
-use std::path::Path;
 
 /// Long enough for Python CLIs (`aws`, `gcloud`) to cold-start; short enough
 /// that a hung child — killed by the runner — cannot stall discovery.
@@ -227,28 +228,10 @@ const CLI_TOOLS: &[CliToolSpec] = &[
     },
 ];
 
-/// Whether `binary` resolves on the injected `PATH` snapshot — a which-style
-/// walk with no shell.
+/// Whether `binary` resolves on the injected `PATH` snapshot to a file the
+/// runner would start: the trusted-entry rule, with no shell (`runner::present`).
 fn binary_on_path(ctx: &ProbeContext, binary: &str) -> bool {
-    let Some(path) = ctx.env.get("PATH") else {
-        return false;
-    };
-    std::env::split_paths(path).any(|dir| {
-        is_executable(&dir.join(binary)) || is_executable(&dir.join(format!("{binary}.exe")))
-    })
-}
-
-#[cfg(unix)]
-fn is_executable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::metadata(path)
-        .map(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_executable(path: &Path) -> bool {
-    path.is_file()
+    crate::runner::present(binary, &ctx.env)
 }
 
 /// Emits one offer per (tool, provider) for every tool found on `PATH`:
@@ -322,7 +305,7 @@ mod tests {
     use opensesame_connection_detect::{CommandStatus, MockCommandRunner, MockKeychain};
     use std::collections::BTreeMap;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::{Arc, Mutex};
 
     /// A fake `bin/` directory holding empty executable files, so presence
@@ -405,6 +388,18 @@ mod tests {
                 version: None
             }
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_cli_in_a_directory_anyone_can_write_is_not_present() {
+        use std::os::unix::fs::PermissionsExt;
+        let bin = FakeBin::with(&["gh", "kubectl"]);
+        let open = fs::Permissions::from_mode(0o777);
+        fs::set_permissions(bin.dir.path(), open).expect("chmod");
+        let ctx = ctx_with(&bin, live(&["gh", "auth", "token"]));
+        let items = CliCapabilityProbe.probe(&ctx).expect("probe");
+        assert!(items.is_empty(), "planted CLIs were offered: {items:?}");
     }
 
     #[test]

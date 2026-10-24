@@ -1,6 +1,8 @@
 import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
+import { initialDraftState } from "@opensesame/app-core/lib/connect-draft.js";
 import {
+  connectPlan,
   connectPlans,
   isConnectable,
 } from "@opensesame/app-core/lib/connect-plan.js";
@@ -11,6 +13,7 @@ import type {
 /** @vitest-environment jsdom */
 import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { saveSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 import type { JsonObject, JsonValue } from "@opensesame/os-domain";
@@ -42,7 +45,7 @@ Object.assign(vaultHooksSeams, {
 });
 
 const KEY = "k".repeat(40);
-let runtime: ReturnType<typeof activateNativePanelRuntime>;
+let runtime: Awaited<ReturnType<typeof activateNativePanelRuntime>>;
 
 function provider(id: string): Provider {
   // Match the merged catalog used by Connections.
@@ -103,8 +106,8 @@ function reply(body: JsonValue) {
   });
 }
 
-beforeEach(() => {
-  runtime = activateNativePanelRuntime();
+beforeEach(async () => {
+  runtime = await activateNativePanelRuntime();
   setVercelConnectAuth({ token: "vercel_token" });
 });
 
@@ -164,18 +167,6 @@ describe("no connector page is blank", () => {
         return;
       }
       const panel = screen.getByRole("region", { name: "Connector" });
-      if (id === "linear") {
-        expect(
-          within(panel).getByRole("button", {
-            name: "Create and authorize Linear",
-          }),
-        ).toBeTruthy();
-        expect(within(panel).getByLabelText("Connector Name")).toHaveProperty(
-          "value",
-          "Linear",
-        );
-        return;
-      }
       const descriptor = nativeSettingsDescriptor(provider(id));
       if (!descriptor) throw new Error(`${id} has no native descriptor`);
       expectNativePanel(panel, descriptor, runtime.fetch);
@@ -217,8 +208,8 @@ describe("moving between connectors", () => {
   });
 });
 
-describe("self-hosted provider configuration", () => {
-  it("shows Linear configuration without a Vercel credential or relay", async () => {
+describe("Linear configuration", () => {
+  it("defaults to Linear MCP authorization without a Vercel credential or app registration", async () => {
     setVercelConnectAuth(null);
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
@@ -227,35 +218,61 @@ describe("self-hosted provider configuration", () => {
     expect(screen.queryByLabelText("Team ID")).toBeNull();
     expect(screen.queryByLabelText("Project ID")).toBeNull();
     expect(screen.queryByRole("region", { name: "Vercel Connect" })).toBeNull();
-    expect(screen.getByRole("radio", { name: "Managed" })).toHaveProperty(
+    expect(
+      screen.getByRole("button", { name: "Sign in to Linear" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: "Managed" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Bring Your Own" })).toBeNull();
+    expect(screen.queryByLabelText("Linear OAuth client ID")).toBeNull();
+    expect(screen.getByLabelText("MCP permissions").textContent).toContain(
+      "1 selected",
+    );
+    await userEvent.click(screen.getByLabelText("MCP permissions"));
+    expect(screen.getByRole("checkbox", { name: "read" })).toHaveProperty(
       "checked",
       true,
     );
-    expect(screen.getByRole("radio", { name: "Bring Your Own" })).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "write" })).toHaveProperty(
+      "checked",
+      false,
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps an existing specialized Linear connector on its legacy custody page", async () => {
+    const plan = connectPlan("linear");
+    if (!plan) throw new Error("Linear plan required");
+    const state = initialDraftState(plan, "api-key");
+    const saved = await saveSelfHostedConnector(
+      plan,
+      { ...state, name: "Linear legacy", key: "lin_api_test-only" },
+      {
+        mode: "byo",
+        workspace: "test-workspace",
+        appScopes: [],
+        userScopes: [],
+        webhookResourceTypes: [],
+        icon: "",
+      },
+    );
+    draw("linear", saved);
+    expect(screen.getByLabelText("Linear API key")).toBeTruthy();
     expect(
-      screen.getByLabelText("Expected Linear workspace (optional)"),
-    ).toBeTruthy();
-    expect(screen.getByLabelText("Icon")).toHaveProperty(
-      "accept",
-      "image/png,image/jpeg",
-    );
-    expect(screen.getByLabelText("App Scopes").textContent).toContain(
-      "4 selected",
-    );
-    expect(screen.getByLabelText("User Scopes").textContent).toContain(
-      "2 selected",
-    );
-    expect(screen.queryByLabelText("Webhook Resource Types")).toBeNull();
+      screen.queryByRole("button", { name: "Sign in to Linear" }),
+    ).toBeNull();
+    expect(screen.getByText("Linear saved connection actions")).toBeTruthy();
+  });
+
+  it("keeps the existing OAuth app and API key route in an advanced disclosure", async () => {
+    setVercelConnectAuth(null);
+    draw("linear");
+    expect(screen.queryByLabelText("Linear API key")).toBeNull();
     await userEvent.click(
-      screen.getByRole("checkbox", { name: "Register a Linear webhook" }),
+      screen.getByText("Advanced: existing OAuth app or API key"),
     );
     expect(
-      screen.getByLabelText("Webhook Resource Types").textContent,
-    ).toContain("2 selected");
-    expect(screen.getByLabelText("Webhook delivery URL")).toBeTruthy();
-    await userEvent.click(
       screen.getByRole("radio", { name: "Bring Your Own" }),
-    );
+    ).toHaveProperty("checked", true);
     expect(screen.getByLabelText("Linear OAuth client ID")).toBeTruthy();
     expect(screen.getByLabelText("Redirect URI")).toHaveProperty(
       "readOnly",
@@ -263,15 +280,9 @@ describe("self-hosted provider configuration", () => {
     );
     expect(screen.queryByLabelText("Client secret")).toBeNull();
     expect(screen.queryByLabelText("Authorization endpoint")).toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("requires an actual Linear key for API verification and keeps provider endpoints fixed", async () => {
-    setVercelConnectAuth(null);
-    draw("linear");
-    await userEvent.click(
-      screen.getByRole("radio", { name: "Bring Your Own" }),
-    );
+    expect(
+      screen.getByText("Create a prefilled Linear OAuth app"),
+    ).toBeTruthy();
     await userEvent.click(screen.getByRole("radio", { name: "API key" }));
     expect(screen.getByLabelText("Linear API key")).toHaveProperty(
       "type",
@@ -283,23 +294,6 @@ describe("self-hosted provider configuration", () => {
     expect(screen.queryByLabelText("API")).toBeNull();
     expect(screen.queryByLabelText("App Scopes")).toBeNull();
     expect(screen.queryByText(/Vercel/)).toBeNull();
-  });
-
-  it("starts every supported provider from its own preset without deployment credentials", () => {
-    setVercelConnectAuth(null);
-    draw("resend");
-    expect(screen.getByRole("region", { name: "Connector" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Sign in to Resend" }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText("Connector name")).toBeNull();
-    expect(screen.queryByRole("radio", { name: "API Key" })).toBeNull();
-    expect(
-      screen.getByText("Other sign-in methods", { selector: "summary" }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText("Resend API key")).toBeNull();
-    expect(runtime.fetch).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText("Relay management key")).toBeNull();
   });
 });
 

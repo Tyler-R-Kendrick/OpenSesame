@@ -189,6 +189,10 @@ async function authorizeAndReloadMcp(
   harness.setStep(`${label}-mcp-public`);
   await nativeVisit(page, base, "connections/adobe");
   await page.getByRole("heading", { name: "Adobe", exact: true }).waitFor();
+  await page.getByRole("radio", { name: "MCP", exact: true }).check();
+  await page
+    .getByLabel("MCP authentication", { exact: true })
+    .selectOption("oauth");
   await page
     .locator("summary")
     .filter({ hasText: /^Sign-in options$/ })

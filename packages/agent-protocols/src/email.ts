@@ -5,5 +5,6 @@ export function normalizeLoginHint(hint: string): string {
 }
 
 export function isEmailLoginHint(hint: string): boolean {
-  return EMAIL_RE.test(normalizeLoginHint(hint));
+  const normalized = normalizeLoginHint(hint);
+  return normalized.length <= 320 && EMAIL_RE.test(normalized);
 }

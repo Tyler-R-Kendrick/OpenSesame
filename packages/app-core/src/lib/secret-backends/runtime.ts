@@ -3,9 +3,22 @@ import type { Connection } from "../connections.js";
 import { deviceProviderRevokers } from "../device-connectors.js";
 import { createSecretBackend } from "./factory.js";
 import {
-  guardedSecretBackend,
+  type HeldSecretBackend,
+  type SecretBackendHandle as OpenBackend,
+  assertSecretBackendSessionOpen,
+  disposeSecretBackendProbe,
+  holdSecretBackend,
+} from "./runtime-admission.js";
+import {
+  awaitSecretBackendOwner,
   secretBackendVaultGuard,
 } from "./runtime-guard.js";
+import {
+  advanceSecretBackendGeneration as advance,
+  captureSecretBackendAttempt,
+  registerPendingSecretBackend,
+  secretBackendGeneration,
+} from "./runtime-owners.js";
 import { secretBackendDeviceSeams } from "./seam.js";
 import {
   hydrateSecretBackendConnections,
@@ -16,32 +29,20 @@ import {
   secretBackendRuntimeConfiguration,
   writeSecretBackendConnection,
 } from "./store.js";
+import type { SecretBackendTransport } from "./transport.js";
 import {
-  type SecretBackend,
   type SecretBackendConfiguration,
   type SecretBackendDraft,
   SecretBackendError,
-  type SecretBackendSession,
 } from "./types.js";
 
-type OpenBackend = { backend: SecretBackend; session: SecretBackendSession };
-type HeldBackend = OpenBackend & {
-  close(): Promise<void>;
-  current(): boolean;
-};
 type VaultGuard = Awaited<ReturnType<typeof secretBackendVaultGuard>>;
-const active = new Map<string, HeldBackend>();
-const generations = new Map<string, number>();
+const active = new Map<string, HeldSecretBackend>();
 const SavedConnectionId = z.string();
 function isSavedConnectionId(
   value: SecretBackendConfiguration | string,
 ): value is string {
   return SavedConnectionId.safeParse(value).success;
-}
-function advance(connectionId: string): number {
-  const next = (generations.get(connectionId) ?? 0) + 1;
-  generations.set(connectionId, next);
-  return next;
 }
 /** The factory retains its capability fence; tests can supply an actual protocol fixture. */
 export const secretBackendRuntimeSeams = { createBackend: createSecretBackend };
@@ -70,14 +71,18 @@ function lifecycle(
   generation: number,
 ) {
   let open = true;
+  const lifetime = new AbortController();
+  const signal = AbortSignal.any([guard.signal, lifetime.signal]);
   const current = () =>
     open &&
+    !signal.aborted &&
     guard.current() &&
     (!id ||
-      (generations.get(id) === generation &&
+      (secretBackendGeneration(id) === generation &&
         signature(id, guard.tomb) === before));
   return {
     current,
+    signal,
     check() {
       if (!current())
         throw new SecretBackendError(
@@ -87,14 +92,20 @@ function lifecycle(
     },
     close() {
       open = false;
+      lifetime.abort();
       guard.close();
     },
   };
 }
 async function disconnectSaved(connectionId: string): Promise<void> {
   const held = active.get(connectionId);
-  active.delete(connectionId);
   if (held) await held.close();
+}
+function releaseBackend(id: string | undefined, held: HeldSecretBackend): void {
+  if (id && active.get(id) === held) {
+    active.delete(id);
+    secretBackendDeviceSeams.changed();
+  }
 }
 function transientConfiguration(
   value: SecretBackendConfiguration,
@@ -104,50 +115,59 @@ function transientConfiguration(
   if (value.file) resolved.file = value.file;
   if (value.filePassword !== undefined)
     resolved.filePassword = value.filePassword;
+  if (value.masterPassword !== undefined)
+    resolved.masterPassword = value.masterPassword;
   return resolved;
 }
 async function authenticate(
   config: SecretBackendConfiguration,
-  check: () => void,
+  lease: ReturnType<typeof lifecycle>,
+  originalTransport: SecretBackendTransport,
+  savedConnectionId?: string,
+  initialize = false,
 ): Promise<OpenBackend> {
-  const backend = await secretBackendRuntimeSeams.createBackend(
-    config.mode,
-    check,
+  lease.check();
+  if (initialize && config.mode !== "encrypted-remote")
+    throw new SecretBackendError(
+      "unsupported",
+      "Only encrypted remote objects support explicit initialization.",
+    );
+  const backend = await awaitSecretBackendOwner(
+    secretBackendRuntimeSeams.createBackend(
+      config.mode,
+      lease.check,
+      lease.signal,
+      savedConnectionId,
+      originalTransport,
+    ),
+    lease.signal,
   );
-  check();
-  const session = await backend.authenticate(config);
+  lease.check();
+  if (initialize && (config.mode !== "encrypted-remote" || !backend.initialize))
+    throw new SecretBackendError(
+      "unsupported",
+      "This backend does not support explicit empty-store initialization.",
+    );
+  const operation = initialize ? backend.initialize : backend.authenticate;
+  if (!operation)
+    throw new SecretBackendError(
+      "unsupported",
+      "Initialization is unavailable.",
+    );
+  const session = await awaitSecretBackendOwner(
+    operation.call(backend, config),
+    lease.signal,
+    (late) => backend.disconnect(late),
+  );
   try {
-    check();
+    lease.check();
+    assertSecretBackendSessionOpen(session);
     return { backend, session };
   } catch (error) {
-    await backend.disconnect(session).catch(() => undefined);
+    lease.close();
+    void backend.disconnect(session).catch(() => undefined);
     throw error;
   }
-}
-function holdBackend(
-  raw: OpenBackend,
-  lease: ReturnType<typeof lifecycle>,
-  id: string | undefined,
-): HeldBackend {
-  let closed = false;
-  const close = async (provided: SecretBackendSession) => {
-    if (provided !== raw.session)
-      throw new SecretBackendError(
-        "authentication",
-        "This session belongs to a different backend.",
-      );
-    if (closed) return;
-    closed = true;
-    lease.close();
-    if (id && active.get(id)?.session === raw.session) active.delete(id);
-    await raw.backend.disconnect(raw.session);
-  };
-  return {
-    backend: guardedSecretBackend(raw.backend, raw.session, lease.check, close),
-    session: raw.session,
-    current: lease.current,
-    close: () => close(raw.session),
-  };
 }
 
 /** Configuration changes revoke prior admission before their guarded sealed commit. */
@@ -188,14 +208,53 @@ export async function saveSecretBackendConnection(
   }
 }
 
-export async function connectSecretBackend(
+export function connectSecretBackend(
   value: SecretBackendConfiguration | string,
   existingId?: string,
+  callerSignal?: AbortSignal,
 ): Promise<OpenBackend> {
-  const guard = await secretBackendVaultGuard();
+  return openSecretBackend(value, existingId, callerSignal);
+}
+function assertUnchangedConfiguration(
+  config: SecretBackendDraft,
+  id: string | undefined,
+  tomb: string,
+  before: string | null,
+): void {
+  if (!id) return;
+  if (
+    !before ||
+    JSON.stringify(resolveSecretBackendConfiguration(config, id, tomb)) !==
+      before
+  )
+    throw new SecretBackendError(
+      "stale",
+      "Save configuration changes before connecting.",
+    );
+}
+/** Separate explicit creation: never invoked by connect or probe. */
+export function initializeSecretBackend(
+  connectionId: string,
+  callerSignal?: AbortSignal,
+): Promise<OpenBackend> {
+  return openSecretBackend(connectionId, undefined, callerSignal, true);
+}
+async function openSecretBackend(
+  value: SecretBackendConfiguration | string,
+  existingId?: string,
+  callerSignal?: AbortSignal,
+  initialize = false,
+): Promise<OpenBackend> {
+  const { guard, transport } = await captureSecretBackendAttempt(callerSignal);
   let retained = false;
+  let close = guard.close;
+  let releasePending = () => {};
   try {
-    await hydrateSecretBackendConnections();
+    assertVaultCurrent(guard);
+    await awaitSecretBackendOwner(
+      hydrateSecretBackendConnections(),
+      guard.signal,
+    );
     assertVaultCurrent(guard);
     const id = isSavedConnectionId(value) ? value : existingId;
     if (id) assertSavedScope(id, guard);
@@ -208,45 +267,46 @@ export async function connectSecretBackend(
         "Saved secret backend not found.",
       );
     const before = id ? signature(id, guard.tomb) : null;
-    if (
-      id &&
-      (!before ||
-        JSON.stringify(
-          resolveSecretBackendConfiguration(config, id, guard.tomb),
-        ) !== before)
-    )
-      throw new SecretBackendError(
-        "stale",
-        "Save configuration changes before connecting.",
-      );
+    assertUnchangedConfiguration(config, id, guard.tomb, before);
     const generation = id ? advance(id) : 0;
     const lease = lifecycle(guard, id, before, generation);
-    if (id) await disconnectSaved(id);
+    close = lease.close;
+    releasePending = registerPendingSecretBackend(id, generation, lease);
+    if (id) await awaitSecretBackendOwner(disconnectSaved(id), lease.signal);
     lease.check();
     const input = isSavedConnectionId(value)
       ? config
       : transientConfiguration(value, config);
-    const raw = await authenticate(input, lease.check);
-    const held = holdBackend(raw, lease, id);
+    const raw = await authenticate(input, lease, transport, id, initialize);
+    const held = holdSecretBackend(raw, lease, (entry) =>
+      releaseBackend(id, entry),
+    );
     guard.onInvalidated(() => {
       void held.close().catch(() => undefined);
     });
     try {
-      lease.check();
+      held.check();
       if (id) {
         active.set(id, held);
         deviceProviderRevokers[config.providerId] = async (connectionId) => {
           await deleteSecretBackendConnection(connectionId);
         };
+        secretBackendDeviceSeams.changed();
       }
+      held.check();
       retained = true;
-      return { backend: held.backend, session: held.session };
+      return {
+        backend: held.backend,
+        session: held.session,
+        signal: held.signal,
+      };
     } catch (error) {
-      await held.close().catch(() => undefined);
+      void held.close().catch(() => undefined);
       throw error;
     }
   } finally {
-    if (!retained) guard.close();
+    releasePending();
+    if (!retained) close();
   }
 }
 
@@ -254,17 +314,28 @@ export async function connectSecretBackend(
 export async function probeSecretBackend(
   draft: SecretBackendConfiguration,
   existingId?: string,
+  callerSignal?: AbortSignal,
 ): Promise<void> {
-  const guard = await secretBackendVaultGuard();
+  const { guard, transport } = await captureSecretBackendAttempt(callerSignal);
+  let close = guard.close;
+  let releasePending = () => {};
   try {
-    await hydrateSecretBackendConnections();
+    assertVaultCurrent(guard);
+    await awaitSecretBackendOwner(
+      hydrateSecretBackendConnections(),
+      guard.signal,
+    );
     assertVaultCurrent(guard);
     if (existingId) assertSavedScope(existingId, guard);
     const before = existingId ? signature(existingId, guard.tomb) : null;
-    const generation = existingId ? (generations.get(existingId) ?? 0) : 0;
-    if (existingId && !generations.has(existingId))
-      generations.set(existingId, generation);
+    const generation = existingId ? secretBackendGeneration(existingId) : 0;
     const lease = lifecycle(guard, existingId, before, generation);
+    close = lease.close;
+    releasePending = registerPendingSecretBackend(
+      existingId,
+      generation,
+      lease,
+    );
     lease.check();
     const config = resolveSecretBackendConfiguration(
       draft,
@@ -273,12 +344,14 @@ export async function probeSecretBackend(
     );
     const raw = await authenticate(
       transientConfiguration(draft, config),
-      lease.check,
+      lease,
+      transport,
+      existingId,
     );
-    await raw.backend.disconnect(raw.session);
-    lease.check();
+    await disposeSecretBackendProbe(raw, lease);
   } finally {
-    guard.close();
+    releasePending();
+    close();
   }
 }
 

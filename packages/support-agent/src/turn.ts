@@ -1,3 +1,8 @@
+import { extractSupportSources } from "./sources.js";
+export {
+  extractSupportSources,
+  type SupportSourcesExtraction,
+} from "./sources.js";
 /**
  * Model-output handling: prose out of one channel, a candidate GuideLang
  * program out of another, and a single bounded repair when the program does
@@ -234,47 +239,6 @@ export function parseSupportTurn(raw: string): SupportTurn {
     // mine out of prose. Inventing a prose syntax for them would give a model
     // a second, unvalidated channel into the UI.
     suggestedQuestions: [],
-  };
-}
-
-const SOURCES_LINE = /^\s*sources?\s*:\s*(.*)$/iu;
-const NONE_SOURCES = new Set(["", "none", "n/a", "-", "—"]);
-
-export type SupportSourcesExtraction = {
-  /** The answer with its `sources:` line removed. */
-  readonly answer: string;
-  /** `null` when the answer carried no `sources:` line at all. */
-  readonly cited: readonly string[] | null;
-};
-
-/**
- * Splits the trailing `sources:` line off an answer. Only the last non-blank
- * line counts: a model that mentions "sources" mid-answer has said a word, not
- * made a citation. Identifiers are taken as written, minus the quoting a
- * model tends to add, and are matched against the context by the caller — the
- * text here is still model output and proves nothing by itself.
- */
-export function extractSupportSources(
-  answer: string,
-): SupportSourcesExtraction {
-  const lines = answer.split(/\r?\n/);
-  let last = lines.length - 1;
-  while (last >= 0 && (lines[last] ?? "").trim().length === 0) last -= 1;
-  if (last < 0) return { answer: answer.trim(), cited: null };
-  const match = SOURCES_LINE.exec(lines[last] ?? "");
-  if (match === null) return { answer: answer.trim(), cited: null };
-  const cited = (match[1] ?? "")
-    .split(/[,;\s]+/u)
-    .map((token) =>
-      token
-        .replace(/[`'"\[\]()<>*.]+$/gu, "")
-        .replace(/^[`'"\[\]()<>*]+/gu, ""),
-    )
-    .map((token) => token.trim().toLowerCase())
-    .filter((token) => !NONE_SOURCES.has(token));
-  return {
-    answer: lines.slice(0, last).join("\n").trim(),
-    cited,
   };
 }
 

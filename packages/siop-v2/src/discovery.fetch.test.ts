@@ -32,11 +32,23 @@ type AnswerInit = {
 
 function answer(body: string, init: AnswerInit = {}): MetadataResponse {
   const type = init.type === undefined ? "application/json" : init.type;
+  const bytes = new TextEncoder().encode(body);
+  let read = false;
   return {
     ok: init.ok ?? true,
     status: init.status ?? 200,
     headers: {
       get: (name) => (name.toLowerCase() === "content-type" ? type : null),
+    },
+    body: {
+      getReader: () => ({
+        read: async () => {
+          if (read) return { done: true, value: undefined };
+          read = true;
+          return { done: false, value: bytes };
+        },
+        cancel: async () => undefined,
+      }),
     },
     text: async () => body,
   };

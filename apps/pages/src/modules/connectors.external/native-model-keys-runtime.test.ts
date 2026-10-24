@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import {
   MODEL_TEST_SECRET,
   modelMemoryBackend,
@@ -20,9 +19,15 @@ import {
 } from "@opensesame/app-core/lib/model-keys/mint.js";
 import { emitVaultLock } from "@opensesame/app-core/lib/vault/lock-events.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
+/** @vitest-environment jsdom */
+import { afterEach as afterGenuine, beforeEach as beforeGenuine } from "vitest";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createActivation } from "../activation.js";
 import { createTestContext } from "../test-context.js";
+import {
+  closeGenuineRuntimeFixture,
+  genuineRuntimeFixture,
+} from "./genuine-runtime.test-support.js";
 import {
   bindNativeModelKeys,
   connectionFacts,
@@ -286,3 +291,6 @@ it("forgets the trail with the keys: on a lock, and when the capability goes", a
   activation.dispose();
   expect(modelKeyAuditEvents()).toEqual([]);
 });
+
+beforeGenuine(genuineRuntimeFixture);
+afterGenuine(closeGenuineRuntimeFixture);

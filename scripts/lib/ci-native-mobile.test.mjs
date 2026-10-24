@@ -1,9 +1,11 @@
 import { execFileSync } from "node:child_process";
 import {
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -44,6 +46,58 @@ function classify(path) {
 }
 
 describe("native mobile required checks", () => {
+  it("can create the default bindgen Cargo cache in a fresh checkout", () => {
+    const fixture = mkdtempSync(join(tmpdir(), "opensesame-native-cache-"));
+    try {
+      const target = join(root, "target");
+      if (lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink())
+        symlinkSync(
+          join(fixture, "missing-checkout-target"),
+          join(fixture, "target"),
+        );
+      const build = readFileSync(
+        join(root, "apps/android/scripts/build-core.sh"),
+        "utf8",
+      );
+      const defaults = build
+        .split("\n")
+        .filter((line) => /^ {2}local bindgen_(cargo_home|target)=/.test(line));
+      expect(defaults).toHaveLength(2);
+      const environment = Object.fromEntries(
+        Object.entries(process.env).filter(
+          ([name]) =>
+            ![
+              "OPENSESAME_BINDGEN_CARGO_HOME",
+              "OPENSESAME_BINDGEN_TARGET_DIR",
+            ].includes(name),
+        ),
+      );
+      execFileSync(
+        "bash",
+        [
+          "-euc",
+          `repo_root="$1"; cache() { ${defaults.join("\n")}
+mkdir -p "$bindgen_cargo_home" "$bindgen_target"
+touch "$bindgen_cargo_home/.package-cache"
+}; cache`,
+          "--",
+          fixture,
+        ],
+        { env: environment, stdio: "pipe" },
+      );
+      expect(
+        lstatSync(
+          join(
+            fixture,
+            "target/authenticator-bindgen-cargo-home/.package-cache",
+          ),
+        ).isFile(),
+      ).toBe(true);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     "apps/android/android/app/src/main/Wallet.kt",
     "apps/android/ios/EnvelopeCore/Package.swift",

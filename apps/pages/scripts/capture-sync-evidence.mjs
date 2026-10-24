@@ -39,6 +39,9 @@ const WIDTHS = {
   phone: phoneContext({ width: 390, height: 844 }),
 };
 
+// The Pwned Passwords range API is keyed by SHA-1 prefix (k-anonymity):
+// this hashes a throwaway evidence password only to name its fixture URL,
+// never to store or verify a credential.
 function sha1(text) {
   return createHash("sha1").update(text).digest("hex").toUpperCase();
 }

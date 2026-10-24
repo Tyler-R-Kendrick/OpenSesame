@@ -2117,7 +2117,7 @@
       },
       "probe_status": 400,
       "confidence": "high",
-      "notes": "OAuth 2.1: apps are registered by hand in the dashboard (Developer → Apps); dynamic registration is disabled. S256 PKCE is required for every client, confidential ones included. No discovery document is published (all well-known paths 404).",
+      "notes": "OAuth 2.1: apps are registered by hand in the dashboard (Developer \u2192 Apps); dynamic registration is disabled. S256 PKCE is required for every client, confidential ones included. No discovery document is published (all well-known paths 404).",
       "sources": [
         "https://photon.codes/docs/api-reference/oauth",
         "https://photon.codes/docs/api-reference/dashboard-openapi.json"
@@ -3209,9 +3209,128 @@
         "https://zoom.us/.well-known/oauth-authorization-server"
       ],
       "template_params": []
+    },
+    {
+      "service": "attio",
+      "server_url": "https://app.attio.com",
+      "discovery_url": "https://app.attio.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://app.attio.com/oidc/authorize",
+      "token_endpoint": "https://app.attio.com/oidc/token",
+      "revocation_endpoint": "https://app.attio.com/oidc/revoke",
+      "userinfo_endpoint": null,
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "Identify the signed-in Attio user",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Keep access when the user is not present",
+          "default": true
+        },
+        {
+          "name": "mcp",
+          "description": "Use Attio's MCP endpoint",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://app.attio.com/settings/developers",
+      "docs_url": "https://docs.attio.com/rest-api/guides/authentication",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.attio.com/v2/objects",
+        "account_field": null
+      },
+      "probe_status": 401,
+      "confidence": "high",
+      "sources": ["https://app.attio.com/.well-known/openid-configuration"],
+      "template_params": []
     }
   ],
   "api_key": [
+    {
+      "service": "linq",
+      "key_url": null,
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.linqapp.com/api/partner"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.linqapp.com/api/partner/v3/phone_numbers",
+        "account_field": null,
+        "required_fields": ["phone_numbers"],
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "instructions": "Supply your Linq Partner messaging Bearer token. Test and Save read the sending phone numbers assigned to your partner. Use List messaging lines to read the current phone numbers, line types and reputations. This is the iMessage/RCS/SMS Partner API, not the separate WhatsApp API or a business-card account. No messages are sent.",
+      "docs_url": "https://docs.linqapp.com/channel/imessage/",
+      "probe_status": null,
+      "confidence": "high",
+      "notes": "Official OpenAPI BearerAuth; fixed GET /api/partner/v3/phone_numbers, no request body or invented query. Strict line inventory must validate before a saved verification proof. No message writes, webhook setup, token minting or refresh.",
+      "sources": [
+        "https://docs.linqapp.com/llms.txt",
+        "https://cdn.linqapp.com/openapi/linq-api-v3.yaml"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "agentcard",
+      "key_url": "https://docs.agentcard.sh/api-reference/access-tokens/create",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.agentcard.sh"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.agentcard.sh/api/v2",
+        "account_field": "organization_id"
+      },
+      "instructions": "Supply a **platform access token** minted from your own client credentials using the [official access-token endpoint](https://docs.agentcard.sh/api-reference/access-tokens/create). It expires after one hour; replace it when authorization expires. Do not enter a user connection token or a member-card token. The same HTTPS host serves test and production; the token decides the mode. This connection only reads your platform organization and mode, never cards, card credentials or payment writes. Both token minting and renewal remain explicit in your own Agentcard account.",
+      "docs_url": "https://docs.agentcard.sh/api-reference/access-tokens/introspect",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Platform Bearer only; fixed GET /api/v2 with api_v2, organization_id and test_mode required. No member/card endpoints, token minting, refresh or environment fallback.",
+      "sources": [
+        "https://docs.agentcard.sh/api-reference/overview.md",
+        "https://docs.agentcard.sh/api-reference/access-tokens/introspect.md"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "stripe",
+      "key_url": "https://dashboard.stripe.com/apikeys",
+      "key_prefix": "rk_",
+      "service_urls": ["https://api.stripe.com"],
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "instructions": "Use a restricted API key with Balance Read permission. This connection only reads available and pending account balances; it cannot create charges, refunds, payouts or cards. The key is sealed in this vault and must be re-entered when changed.",
+      "docs_url": "https://docs.stripe.com/api/balance/balance_retrieve",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.stripe.com/v1/balance",
+        "headers": {
+          "Stripe-Version": "2026-09-30.endive"
+        },
+        "required_fields": ["object", "available", "pending", "livemode"],
+        "success": [
+          {
+            "field": "object",
+            "equals": "balance"
+          }
+        ]
+      }
+    },
     {
       "service": "302ai",
       "key_url": "https://doc.302.ai",
@@ -3299,7 +3418,7 @@
         "url": "https://api.ai21.com/studio/v1/library/files",
         "account_field": null
       },
-      "instructions": "Follow [Create an API key](https://docs.ai21.com/docs/create-api-key): sign in to AI21 Studio, open Settings → API Keys, click Create new key and copy it (shown once).",
+      "instructions": "Follow [Create an API key](https://docs.ai21.com/docs/create-api-key): sign in to AI21 Studio, open Settings \u2192 API Keys, click Create new key and copy it (shown once).",
       "docs_url": "https://docs.ai21.com/reference/manage-library-ref/list-library-files",
       "probe_status": 401,
       "confidence": "medium",
@@ -3349,13 +3468,13 @@
       ],
       "verify": {
         "method": "GET",
-        "url": "https://{application_id}-dsn.algolia.net/1/indexes",
+        "url": "https://{application_id}-dsn.algolia.net/1/indexes?page=0&hitsPerPage=20",
         "account_field": null,
         "headers": {
           "X-Algolia-Application-Id": "{application_id}"
         }
       },
-      "instructions": "In the Algolia dashboard open **Settings → API Keys**. Copy the **Application ID**, then under **All API Keys** click **New API Key** and grant only the `listIndexes` ACL (add `search` if needed). Copy the key.",
+      "instructions": "In the Algolia dashboard open **Settings \u2192 API Keys**. Copy the **Application ID**, then under **All API Keys** click **New API Key** and grant only the `listIndexes` ACL (add `search` if needed). Copy the key. If an existing connection asks to be configured again after an update, re-enter its API key and select Verify and connect Algolia. Its saved connection and sealed key stay intact until verification succeeds.",
       "docs_url": "https://www.algolia.com/doc/rest-api/search/",
       "probe_status": 403,
       "confidence": "medium",
@@ -3463,7 +3582,7 @@
           "anthropic-workspace-id": "{workspace_id}"
         }
       },
-      "instructions": "Open [Claude Console → API keys](https://platform.claude.com/settings/keys), click **Create Key**, pick the workspace, name it, and copy the key (shown once).",
+      "instructions": "Open [Claude Console \u2192 API keys](https://platform.claude.com/settings/keys), click **Create Key**, pick the workspace, name it, and copy the key (shown once).",
       "docs_url": "https://platform.claude.com/docs/en/api/overview",
       "probe_status": 401,
       "confidence": "high",
@@ -3521,7 +3640,7 @@
         "url": "https://{api_host}/v2/transcript?limit=1",
         "account_field": null
       },
-      "instructions": "Sign in to the [AssemblyAI dashboard → API Keys](https://www.assemblyai.com/app/api-keys), click **Create new API key** (or copy the default), and store it.",
+      "instructions": "Sign in to the [AssemblyAI dashboard \u2192 API Keys](https://www.assemblyai.com/app/api-keys), click **Create new API key** (or copy the default), and store it.",
       "docs_url": "https://www.assemblyai.com/docs/api-reference/overview/",
       "probe_status": 401,
       "confidence": "high",
@@ -3569,7 +3688,7 @@
           "Accept": "application/json"
         }
       },
-      "instructions": "Sign in to BambooHR, click your name/avatar and choose **API Keys** (or **Settings → Account → API Keys**), click **Add New Key**, name it and copy it (shown once). The key inherits your user's permissions.",
+      "instructions": "Sign in to BambooHR, click your name/avatar and choose **API Keys** (or **Settings \u2192 Account \u2192 API Keys**), click **Add New Key**, name it and copy it (shown once). The key inherits your user's permissions.",
       "docs_url": "https://documentation.bamboohr.com/docs/getting-started",
       "probe_status": null,
       "confidence": "medium",
@@ -3628,7 +3747,7 @@
         "url": "https://api.beehiiv.com/v2/publications",
         "account_field": "data.0.name"
       },
-      "instructions": "In beehiiv go to **Settings → Workspace Settings → API** (Owner or Admin role required), click **Create New API Key**, optionally restrict it to one publication, and copy it (shown once).",
+      "instructions": "In beehiiv go to **Settings \u2192 Workspace Settings \u2192 API** (Owner or Admin role required), click **Create New API Key**, optionally restrict it to one publication, and copy it (shown once).",
       "docs_url": "https://developers.beehiiv.com/welcome/create-an-api-key",
       "probe_status": 401,
       "confidence": "high",
@@ -3678,7 +3797,7 @@
         "url": "https://api.brevo.com/v3/account",
         "account_field": "email"
       },
-      "instructions": "In Brevo open your profile → **SMTP & API → API Keys**, click **Generate a new API key**, name it and copy it (shown once).",
+      "instructions": "In Brevo open your profile \u2192 **SMTP & API \u2192 API Keys**, click **Generate a new API key**, name it and copy it (shown once).",
       "docs_url": "https://developers.brevo.com/docs/getting-started",
       "probe_status": 401,
       "confidence": "high",
@@ -3699,7 +3818,7 @@
         "url": "https://api.buildkite.com/v2/access-token",
         "account_field": "uuid"
       },
-      "instructions": "In Buildkite open **Personal Settings → API Access Tokens**, click **New API Access Token**, pick the organization, tick only **read_user** (plus read scopes you need), and copy it (shown once).",
+      "instructions": "Create a Buildkite personal API access token for your organization with read_pipelines for pipeline inventory. Token verification uses /v2/access-token. Enter the organization slug below to list its pipelines; no write scope is needed.",
       "docs_url": "https://buildkite.com/docs/apis/rest-api#authentication",
       "probe_status": 401,
       "confidence": "high",
@@ -3708,7 +3827,15 @@
         "https://buildkite.com/docs/apis/rest-api#authentication",
         "https://buildkite.com/docs/apis/rest-api/access-token"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "organization_slug",
+          "label": "Buildkite organization slug",
+          "placeholder": "my-organization",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "calendly",
@@ -3723,7 +3850,7 @@
         "url": "https://api.calendly.com/users/me",
         "account_field": "resource.name"
       },
-      "instructions": "In Calendly open **Integrations & apps → API and webhooks**, click **Get a token now** / **Generate new token**, name it, and copy the personal access token (shown once).",
+      "instructions": "In Calendly open **Integrations & apps \u2192 API and webhooks**, click **Get a token now** / **Generate new token**, name it, and copy the personal access token (shown once).",
       "docs_url": "https://developer.calendly.com/how-to-authenticate-with-personal-access-tokens",
       "probe_status": 401,
       "confidence": "high",
@@ -3792,7 +3919,7 @@
         "url": "https://circleci.com/api/v2/me",
         "account_field": "login"
       },
-      "instructions": "In CircleCI open **User Settings → Personal API Tokens**, click **Create New Token**, name it and copy it (shown once).",
+      "instructions": "Create a CircleCI personal API token in User Settings \u2192 Personal API Tokens. Project tokens are not supported by API v2. To list pipelines, enter the project slug as vcs/org/repository; GitLab and GitHub App projects use circleci/organization-ID/project-ID from their settings.",
       "docs_url": "https://circleci.com/docs/guides/toolkit/managing-api-tokens/",
       "probe_status": 401,
       "confidence": "high",
@@ -3801,7 +3928,15 @@
         "https://circleci.com/docs/guides/toolkit/managing-api-tokens/",
         "https://circleci.com/docs/api/v2/index.html"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "project_slug",
+          "label": "CircleCI project slug",
+          "placeholder": "gh/my-organization/my-repository",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "clerk",
@@ -3816,7 +3951,7 @@
         "url": "https://api.clerk.com/v1/instance",
         "account_field": "id"
       },
-      "instructions": "In the [Clerk Dashboard](https://dashboard.clerk.com) pick the application and instance (Development or Production), open **Configure → API Keys**, and copy the **Secret Key** (`sk_test_…` or `sk_live_…`).",
+      "instructions": "In the [Clerk Dashboard](https://dashboard.clerk.com) pick the application and instance (Development or Production), open **Configure \u2192 API Keys**, and copy the **Secret Key** (`sk_test_\u2026` or `sk_live_\u2026`).",
       "docs_url": "https://clerk.com/docs/reference/backend-api",
       "probe_status": 401,
       "confidence": "high",
@@ -3840,7 +3975,7 @@
         "url": "https://api.clickup.com/api/v2/user",
         "account_field": "user.username"
       },
-      "instructions": "In ClickUp click your avatar → **Settings → Apps**, then under **API Token** click **Generate** (or **Regenerate**) and copy the personal token.",
+      "instructions": "In ClickUp click your avatar \u2192 **Settings \u2192 Apps**, then under **API Token** click **Generate** (or **Regenerate**) and copy the personal token.",
       "docs_url": "https://developer.clickup.com/docs/authentication",
       "probe_status": 400,
       "confidence": "high",
@@ -3873,7 +4008,7 @@
         "required_fields": ["result.id"],
         "error_fields": ["errors"]
       },
-      "instructions": "Create a user API token in My Profile → API Tokens. Grant only Zone Read for listing zones; add other scopes only for the actions you intend.",
+      "instructions": "Create a user API token in My Profile \u2192 API Tokens. Grant only Zone Read for listing zones; add other scopes only for the actions you intend.",
       "docs_url": "https://developers.cloudflare.com/fundamentals/api/get-started/create-token/",
       "probe_status": null,
       "confidence": "high",
@@ -3909,11 +4044,11 @@
         "required_fields": ["result.id"],
         "error_fields": ["errors"]
       },
-      "instructions": "Open [Cloudflare → My Profile → API Tokens](https://dash.cloudflare.com/profile/api-tokens), click **Create Token → Custom token**, grant **Zone → SSL and Certificates → Edit** for the needed zones, and copy it. Legacy Origin CA keys are deprecated.",
+      "instructions": "Open [Cloudflare \u2192 My Profile \u2192 API Tokens](https://dash.cloudflare.com/profile/api-tokens), click **Create Token \u2192 Custom token**, grant **Zone \u2192 SSL and Certificates \u2192 Edit** for the needed zones, and copy it. Legacy Origin CA keys are deprecated.",
       "docs_url": "https://developers.cloudflare.com/fundamentals/api/get-started/ca-keys/",
       "probe_status": 400,
       "confidence": "medium",
-      "notes": "Origin CA keys (header X-Auth-User-Service-Key, prefix v1.0-) are deprecated and removed on 2026-09-30; this entry describes the replacement API token. Unauth probe gives 400 (bad header); verify returns result.status 'active' for a good token. Listing origin certs needs GET /certificates?zone_id=….",
+      "notes": "Origin CA keys (header X-Auth-User-Service-Key, prefix v1.0-) are deprecated and removed on 2026-09-30; this entry describes the replacement API token. Unauth probe gives 400 (bad header); verify returns result.status 'active' for a good token. Listing origin certs needs GET /certificates?zone_id=\u2026.",
       "sources": [
         "https://developers.cloudflare.com/fundamentals/api/get-started/ca-keys/",
         "https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/"
@@ -3933,7 +4068,7 @@
         "url": "https://api.cohere.com/v1/models",
         "account_field": null
       },
-      "instructions": "Open the [Cohere dashboard → API Keys](https://dashboard.cohere.com/api-keys), click **New Trial Key** or **New Production Key**, name it and copy it.",
+      "instructions": "Open the [Cohere dashboard \u2192 API Keys](https://dashboard.cohere.com/api-keys), click **New Trial Key** or **New Production Key**, name it and copy it.",
       "docs_url": "https://docs.cohere.com/reference/list-models",
       "probe_status": 401,
       "confidence": "high",
@@ -3954,7 +4089,7 @@
         "url": "https://api.contentful.com/users/me",
         "account_field": "email"
       },
-      "instructions": "In Contentful open your avatar → **Account settings → CMA tokens** (or Space settings → API keys → Content management tokens), click **Create personal access token**, set an expiry, and copy it (shown once).",
+      "instructions": "In Contentful open your avatar \u2192 **Account settings \u2192 CMA tokens** (or Space settings \u2192 API keys \u2192 Content management tokens), click **Create personal access token**, set an expiry, and copy it (shown once).",
       "docs_url": "https://www.contentful.com/developers/docs/references/authentication/",
       "probe_status": 401,
       "confidence": "high",
@@ -3998,7 +4133,7 @@
         "url": "https://api.crowdin.com/api/v2/user",
         "account_field": "data.username"
       },
-      "instructions": "In Crowdin open **Account Settings → API**, click **New Token**, name it, tick only the scopes you need (e.g. read-only **Projects**), and copy the token (shown once).",
+      "instructions": "In Crowdin open **Account Settings \u2192 API**, click **New Token**, name it, tick only the scopes you need (e.g. read-only **Projects**), and copy the token (shown once).",
       "docs_url": "https://developer.crowdin.com/api/v2/",
       "probe_status": 401,
       "confidence": "high",
@@ -4081,7 +4216,7 @@
           }
         ]
       },
-      "instructions": "In Datadog create an API key under Organization Settings → API Keys, and an application key under Personal Settings → Application Keys with only the read scopes needed (such as monitors_read). Select the Datadog site for your organization. Store both keys privately.",
+      "instructions": "In Datadog create an API key under Organization Settings \u2192 API Keys, and an application key under Personal Settings \u2192 Application Keys with only the read scopes needed (such as monitors_read). Select the Datadog site for your organization. Store both keys privately.",
       "docs_url": "https://docs.datadoghq.com/api/latest/authentication/",
       "probe_status": null,
       "confidence": "high",
@@ -4185,7 +4320,7 @@
         "url": "https://api.deepinfra.com/v1/me",
         "account_field": null
       },
-      "instructions": "Open the [DeepInfra dashboard → API keys](https://deepinfra.com/dash/api_keys), create an API key and copy it. [Authentication](https://docs.deepinfra.com/account/authentication) says keys go in the `Authorization: Bearer` header.",
+      "instructions": "Open the [DeepInfra dashboard \u2192 API keys](https://deepinfra.com/dash/api_keys), create an API key and copy it. [Authentication](https://docs.deepinfra.com/account/authentication) says keys go in the `Authorization: Bearer` header.",
       "docs_url": "https://docs.deepinfra.com/api-reference/account/me",
       "probe_status": 401,
       "confidence": "medium",
@@ -4211,7 +4346,7 @@
         "account_field": null,
         "required_fields": ["is_available", "balance_infos"]
       },
-      "instructions": "Open the [DeepSeek Platform → API keys](https://platform.deepseek.com/api_keys), click **Create new API key**, name it and copy it (shown once).",
+      "instructions": "Open the [DeepSeek Platform \u2192 API keys](https://platform.deepseek.com/api_keys), click **Create new API key**, name it and copy it (shown once).",
       "docs_url": "https://api-docs.deepseek.com/api/get-user-balance",
       "probe_status": 401,
       "confidence": "high",
@@ -4235,7 +4370,7 @@
         "url": "https://api.digitalocean.com/v2/account",
         "account_field": "account.email"
       },
-      "instructions": "In DigitalOcean open **API → Tokens**, click **Generate New Token**, name it, set an expiry, choose **Custom Scopes** with **account:read**, and copy it (shown once).",
+      "instructions": "In DigitalOcean open API \u2192 Tokens and generate a personal access token with Custom Scopes: account:read for account verification and droplet:read for droplet inventory. Set an expiry and copy the token once. No write scope is needed.",
       "docs_url": "https://docs.digitalocean.com/reference/api/create-personal-access-token/",
       "probe_status": 401,
       "confidence": "high",
@@ -4281,7 +4416,7 @@
         "url": "https://api.doppler.com/v3/me",
         "account_field": "workplace.name"
       },
-      "instructions": "In Doppler open **Settings → Tokens → Personal** and click **Generate** (or use a project's **Access → Service Tokens** with read access for one config). Copy the token (shown once).",
+      "instructions": "In Doppler open **Settings \u2192 Tokens \u2192 Personal** and click **Generate** (or use a project's **Access \u2192 Service Tokens** with read access for one config). Copy the token (shown once).",
       "docs_url": "https://docs.doppler.com/reference/api",
       "probe_status": 401,
       "confidence": "medium",
@@ -4305,7 +4440,7 @@
         "url": "https://dovetail.com/api/v1/token/info",
         "account_field": null
       },
-      "instructions": "In Dovetail open **Settings → Account** (your personal settings), find **Personal API keys**, click **Create new key**, and copy it (shown once). Keys expire after 30 days.",
+      "instructions": "In Dovetail open **Settings \u2192 Account** (your personal settings), find **Personal API keys**, click **Create new key**, and copy it (shown once). Keys expire after 30 days.",
       "docs_url": "https://developers.dovetail.com/docs/authorization",
       "probe_status": 401,
       "confidence": "high",
@@ -4352,7 +4487,7 @@
         "url": "https://api.elevenlabs.io/v1/user",
         "account_field": "subscription.tier"
       },
-      "instructions": "In ElevenLabs open **Settings → API Keys** (Developers → API Keys), click **Create API Key**, restrict it and enable **User: Read** (plus whatever else you need), and copy it (shown once).",
+      "instructions": "In ElevenLabs open **Settings \u2192 API Keys** (Developers \u2192 API Keys), click **Create API Key**, restrict it and enable **User: Read** (plus whatever else you need), and copy it (shown once).",
       "docs_url": "https://elevenlabs.io/docs/api-reference/authentication",
       "probe_status": 401,
       "confidence": "medium",
@@ -4373,7 +4508,7 @@
         "url": "https://api.exa.ai/websets/v0/websets",
         "account_field": null
       },
-      "instructions": "Open the [Exa dashboard → API Keys](https://dashboard.exa.ai/api-keys), click **Create Key**, name it and copy it.",
+      "instructions": "Open the [Exa dashboard \u2192 API Keys](https://dashboard.exa.ai/api-keys), click **Create Key**, name it and copy it.",
       "docs_url": "https://exa.ai/docs/reference/getting-started",
       "probe_status": 401,
       "confidence": "medium",
@@ -4397,7 +4532,7 @@
         "url": "https://api.fathom.ai/external/v1/meetings",
         "account_field": null
       },
-      "instructions": "In Fathom open **Settings → API Access**, click **Generate API Key**, and copy it. The key can read only meetings you recorded or that were shared with you or your team.",
+      "instructions": "In Fathom open **Settings \u2192 API Access**, click **Generate API Key**, and copy it. The key can read only meetings you recorded or that were shared with you or your team.",
       "docs_url": "https://developers.fathom.ai/quickstart",
       "probe_status": 401,
       "confidence": "high",
@@ -4425,7 +4560,7 @@
         ],
         "required_fields": ["data.remainingCredits"]
       },
-      "instructions": "Sign in to [Firecrawl → API Keys](https://www.firecrawl.dev/app/api-keys), click **Create API key** (or copy the default key).",
+      "instructions": "Sign in to [Firecrawl \u2192 API Keys](https://www.firecrawl.dev/app/api-keys), click **Create API key** (or copy the default key).",
       "docs_url": "https://docs.firecrawl.dev/api-reference/endpoint/credit-usage",
       "probe_status": 401,
       "confidence": "high",
@@ -4451,7 +4586,7 @@
         "url": "https://api.fireworks.ai/inference/v1/models",
         "account_field": null
       },
-      "instructions": "Open [Fireworks → Settings → API Keys](https://app.fireworks.ai/settings/users/api-keys), click **Create API Key**, name it and copy it (shown once).",
+      "instructions": "Open [Fireworks \u2192 Settings \u2192 API Keys](https://app.fireworks.ai/settings/users/api-keys), click **Create API Key**, name it and copy it (shown once).",
       "docs_url": "https://docs.fireworks.ai/api-reference/introduction",
       "probe_status": 401,
       "confidence": "medium",
@@ -4504,7 +4639,7 @@
         "url": "https://generativelanguage.googleapis.com/v1beta/models",
         "account_field": null
       },
-      "instructions": "Open [Google AI Studio → Get API key](https://aistudio.google.com/app/apikey), click **Create API key**, pick or create a Google Cloud project, and copy the key.",
+      "instructions": "Open [Google AI Studio \u2192 Get API key](https://aistudio.google.com/app/apikey), click **Create API key**, pick or create a Google Cloud project, and copy the key.",
       "docs_url": "https://ai.google.dev/gemini-api/docs/api-key",
       "probe_status": 403,
       "confidence": "high",
@@ -4525,16 +4660,33 @@
         "url": "https://gitlab.com/api/v4/user",
         "account_field": "username"
       },
-      "instructions": "In GitLab open **Avatar → Edit profile → Access tokens**, click **Add new token**, set a name and expiry, tick only **read_user** (add **read_api** if needed), and copy the token (shown once).",
+      "instructions": "In GitLab open **Avatar \u2192 Edit profile \u2192 Access tokens**, create a legacy personal access token and copy it (shown once). Use **read_user** for account verification and **read_api** to list project memberships. For encrypted vault backups, select **api**, provide both the project and an existing writable branch, and grant the account repository write access. Backup files contain only the sealed OpenSesame vault; the API key stays in the on-device vault.",
       "docs_url": "https://docs.gitlab.com/user/profile/personal_access_tokens/",
       "probe_status": 401,
       "confidence": "high",
       "notes": "PRIVATE-TOKEN: <token> header is equivalent to Authorization: Bearer. Self-managed instances use their own host.",
       "sources": [
         "https://docs.gitlab.com/user/profile/personal_access_tokens/",
-        "https://docs.gitlab.com/api/users/"
+        "https://docs.gitlab.com/api/users/",
+        "https://docs.gitlab.com/api/repository_files/",
+        "https://docs.gitlab.com/api/branches/"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "backup_project",
+          "label": "Backup project (optional)",
+          "placeholder": "group/project or numeric project ID",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_branch",
+          "label": "Backup branch (optional)",
+          "placeholder": "main",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "gmicloud",
@@ -4572,7 +4724,7 @@
         "url": "https://api.groq.com/openai/v1/models",
         "account_field": null
       },
-      "instructions": "Open [GroqCloud → API Keys](https://console.groq.com/keys), click **Create API Key**, name it and copy it (shown once).",
+      "instructions": "Open [GroqCloud \u2192 API Keys](https://console.groq.com/keys), click **Create API Key**, name it and copy it (shown once).",
       "docs_url": "https://console.groq.com/docs/api-reference",
       "probe_status": 401,
       "confidence": "high",
@@ -4695,7 +4847,7 @@
         "url": "https://huggingface.co/api/whoami-v2",
         "account_field": "name"
       },
-      "instructions": "Open [Hugging Face → Access Tokens](https://huggingface.co/settings/tokens), click **Create new token**, choose **Fine-grained** and tick **Make calls to Inference Providers** (or **Read**), and copy it.",
+      "instructions": "Open [Hugging Face \u2192 Access Tokens](https://huggingface.co/settings/tokens), click **Create new token**, choose **Fine-grained** and tick **Make calls to Inference Providers** (or **Read**), and copy it.",
       "docs_url": "https://huggingface.co/docs/hub/security-tokens",
       "probe_status": 401,
       "confidence": "high",
@@ -4774,7 +4926,7 @@
         "url": "https://api.typesafe.ai/v1/models",
         "account_field": null
       },
-      "instructions": "Sign in to the [TypeSafe console](https://console.typesafe.ai/settings/keys), open **Settings → API Keys**, click **Create key**, and copy it (shown once).",
+      "instructions": "Sign in to the [TypeSafe console](https://console.typesafe.ai/settings/keys), open **Settings \u2192 API Keys**, click **Create key**, and copy it (shown once).",
       "docs_url": "https://docs.typesafe.ai/api",
       "probe_status": 403,
       "confidence": "low",
@@ -4848,7 +5000,7 @@
         "url": "https://app.launchdarkly.com/api/v2/caller-identity",
         "account_field": "tokenName"
       },
-      "instructions": "In LaunchDarkly open **Organization settings → Authorization**, under **Access tokens** click **Create token**, name it, pick the **Reader** role, and copy it (shown once).",
+      "instructions": "In LaunchDarkly open **Organization settings \u2192 Authorization**, under **Access tokens** click **Create token**, name it, pick the **Reader** role, and copy it (shown once).",
       "docs_url": "https://launchdarkly.com/docs/api",
       "probe_status": 401,
       "confidence": "high",
@@ -4876,7 +5028,7 @@
       "docs_url": "https://getlemma.com/docs/api-reference/authentication",
       "probe_status": 401,
       "confidence": "low",
-      "notes": "No dashboard page exists, so key_url points at the auth docs. Prefix inferred from the docs' example (lm_key_…). List-entities path inferred from the reference index; /v0/accounts also answers 401.",
+      "notes": "No dashboard page exists, so key_url points at the auth docs. Prefix inferred from the docs' example (lm_key_\u2026). List-entities path inferred from the reference index; /v0/accounts also answers 401.",
       "sources": [
         "https://getlemma.com/docs/api-reference/authentication",
         "https://getlemma.com/docs/llms.txt"
@@ -4902,7 +5054,7 @@
         "error_fields": ["errors"],
         "required_fields": ["data.viewer.id"]
       },
-      "instructions": "In Linear open **Settings → Account → Security & access**, under **Personal API keys** click **New API key**, name it, choose **Read** access, and copy it (shown once).",
+      "instructions": "In Linear open **Settings \u2192 Account \u2192 Security & access**, under **Personal API keys** click **New API key**, name it, choose **Read** access, and copy it (shown once).",
       "docs_url": "https://linear.app/developers/graphql",
       "probe_status": 401,
       "confidence": "high",
@@ -4918,24 +5070,57 @@
       "basic": null,
       "key_prefix": null,
       "service_urls": [
-        "https://api.lithic.com/v1",
-        "https://sandbox.lithic.com/v1"
+        "https://sandbox.lithic.com/v1",
+        "https://api.lithic.com/v1"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.lithic.com/v1/cards?page_size=1",
+        "url": "https://sandbox.lithic.com/v1/cards?page_size=20",
+        "headers": {
+          "api-version": "2026-07-01"
+        },
         "account_field": null
       },
-      "instructions": "Sign in to [Lithic](https://app.lithic.com/settings) and copy the API key from **Settings** (Sandbox key by default; a Production key appears once production is enabled).",
+      "instructions": "Copy an API key from [Lithic Settings](https://app.lithic.com/settings). Select **Sandbox** for a sandbox key or **Production** for a production key. Only the first 20 card identifiers, states and types are read; card details and payment writes are unavailable.",
       "docs_url": "https://docs.lithic.com/docs/api-basics",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "Raw key in Authorization. Sandbox keys work only against https://sandbox.lithic.com/v1.",
+      "notes": "Raw Authorization key, explicitly selected environment, api-version 2026-07-01. GET first-page non-PCI card inventory only.",
       "sources": [
         "https://docs.lithic.com/docs/get-api-key.md",
-        "https://docs.lithic.com/docs/api-basics.md"
+        "https://docs.lithic.com/docs/api-basics.md",
+        "https://docs.lithic.com/docs/api-versioning.md",
+        "https://docs.lithic.com/reference/getcards.md"
       ],
-      "template_params": []
+      "template_params": [],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Sandbox",
+          "description": "Use only your sandbox API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox.lithic.com/v1/cards?page_size=20",
+            "headers": {
+              "api-version": "2026-07-01"
+            },
+            "account_field": null
+          }
+        },
+        {
+          "id": "production",
+          "label": "Production",
+          "description": "Use only your production API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://api.lithic.com/v1/cards?page_size=20",
+            "headers": {
+              "api-version": "2026-07-01"
+            },
+            "account_field": null
+          }
+        }
+      ]
     },
     {
       "service": "llmgateway",
@@ -4976,10 +5161,10 @@
       "service_urls": ["https://api.mailgun.net", "https://api.eu.mailgun.net"],
       "verify": {
         "method": "GET",
-        "url": "https://{api_host}/v3/domains",
+        "url": "https://{api_host}/v4/domains?limit=20&skip=0",
         "account_field": "items.0.name"
       },
-      "instructions": "In Mailgun open **Settings → API Security**, click **Add new key**, name it, and copy the private API key (shown once). EU accounts use api.eu.mailgun.net.",
+      "instructions": "In Mailgun open **Settings \u2192 API Security**, click **Add new key**, name it, and copy the private API key (shown once). EU accounts use api.eu.mailgun.net. The native domain inventory uses the current v4 Domains API and reads only the first 20 domains in the selected region.",
       "docs_url": "https://documentation.mailgun.com/docs/mailgun/api-reference/authentication",
       "probe_status": 401,
       "confidence": "high",
@@ -5011,7 +5196,7 @@
       "service": "marqeta",
       "key_url": "https://app.marqeta.com/development",
       "header": "Authorization",
-      "scheme": "Basic",
+      "scheme": null,
       "basic": {
         "username": "{key}",
         "password": "{admin_access_token}"
@@ -5019,20 +5204,24 @@
       "key_prefix": null,
       "service_urls": [
         "https://sandbox-api.marqeta.com/v3",
-        "https://api.marqeta.com/v3"
+        "https://{program_host}/v3"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://sandbox-api.marqeta.com/v3/users?count=1",
+        "url": "https://sandbox-api.marqeta.com/v3/users?count=10&start_index=0&fields=token%2Cactive",
         "account_field": null
       },
-      "instructions": "Sign in to the [Marqeta developer dashboard](https://app.marqeta.com/development); your sandbox **Application token** and **Admin access token** are shown there. Production credentials come from Marqeta.",
+      "instructions": "Copy the **Application token**, **Admin access token** and API base URL from your [Marqeta dashboard](https://app.marqeta.com/development). Select **Public sandbox** or **Program API**. For Program API enter only the hostname from that base URL, without https://, a port or /v3. The original approved native route must allow that exact HTTPS origin. Only the first 10 user identifiers and active status, when returned, are read; no personal details, card data or writes are requested.",
       "docs_url": "https://www.marqeta.com/docs/developer-guides/core-api-quick-start",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "HTTP Basic requires the application token as username and the separate admin access token as password; both are secrets. Sandbox credentials work only on sandbox-api.marqeta.com. Production hosts are program-specific. Connect remains refused for wallet issuing (ADR 0086/0123).",
+      "notes": "HTTP Basic Application token/Admin access token; both sealed. Fixed /v3/users first page with fields=token,active. Program HTTPS origin explicitly configured and fingerprinted; no universal production-host fallback.",
       "sources": [
-        "https://www.marqeta.com/docs/developer-guides/core-api-quick-start.md"
+        "https://www.marqeta.com/docs/developer-guides/core-api-quick-start.md",
+        "https://www.marqeta.com/docs/core-api/authentication.md",
+        "https://www.marqeta.com/docs/core-api/users/list-users.md",
+        "https://www.marqeta.com/docs/core-api/field-filtering.md",
+        "https://www.marqeta.com/docs/core-api/sorting-and-pagination.md"
       ],
       "template_params": [],
       "additional_credentials": [
@@ -5042,6 +5231,37 @@
           "placeholder": "",
           "required": true,
           "secret": true
+        }
+      ],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Public sandbox",
+          "description": "Use the application and admin tokens for the public sandbox.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox-api.marqeta.com/v3/users?count=10&start_index=0&fields=token%2Cactive",
+            "account_field": null
+          }
+        },
+        {
+          "id": "program",
+          "label": "Program API",
+          "description": "Use the exact program API host and its application/admin tokens from your dashboard.",
+          "verify": {
+            "method": "GET",
+            "url": "https://{program_host}/v3/users?count=10&start_index=0&fields=token%2Cactive",
+            "account_field": null
+          },
+          "template_params": [
+            {
+              "name": "program_host",
+              "label": "Program API host (from dashboard)",
+              "placeholder": "your-program-api.example.com",
+              "required": true,
+              "secret": false
+            }
+          ]
         }
       ]
     },
@@ -5058,11 +5278,11 @@
         "url": "https://rest.messagebird.com/balance",
         "account_field": null
       },
-      "instructions": "In the MessageBird dashboard open **Developers → API access**, click **Add access key**, choose **Live** (or **Test**), and copy it.",
+      "instructions": "In the MessageBird dashboard open **Developers \u2192 API access**, click **Add access key**, choose **Live** (or **Test**), and copy it.",
       "docs_url": "https://developers.messagebird.com/api/",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "Header is 'Authorization: AccessKey <key>' — scheme 'AccessKey' is outside the Bearer/Basic/Token set. Test keys start with test_, live keys have no prefix. MessageBird is now Bird; this is the legacy REST API.",
+      "notes": "Header is 'Authorization: AccessKey <key>' \u2014 scheme 'AccessKey' is outside the Bearer/Basic/Token set. Test keys start with test_, live keys have no prefix. MessageBird is now Bird; this is the legacy REST API.",
       "sources": ["https://developers.messagebird.com/api/"],
       "template_params": []
     },
@@ -5125,7 +5345,7 @@
         "url": "https://api.mistral.ai/v1/models",
         "account_field": null
       },
-      "instructions": "Open [Mistral console → API Keys](https://console.mistral.ai/api-keys), click **Create new key**, pick the workspace, set an expiry, and copy it (shown once).",
+      "instructions": "Open [Mistral console \u2192 API Keys](https://console.mistral.ai/api-keys), click **Create new key**, pick the workspace, set an expiry, and copy it (shown once).",
       "docs_url": "https://docs.mistral.ai/admin/identity-access/api-keys",
       "probe_status": 401,
       "confidence": "high",
@@ -5178,7 +5398,7 @@
         "error_fields": ["errors"],
         "required_fields": ["data.me.id"]
       },
-      "instructions": "In monday.com click your avatar → **Developers**, then **API token → Show** (admins: **Administration → Connections → Personal API token**) and copy the personal token.",
+      "instructions": "In monday.com click your avatar \u2192 **Developers**, then **API token \u2192 Show** (admins: **Administration \u2192 Connections \u2192 Personal API token**) and copy the personal token.",
       "docs_url": "https://developer.monday.com/api-reference/docs/authentication",
       "probe_status": 401,
       "confidence": "medium",
@@ -5249,7 +5469,7 @@
         "url": "https://{instance}.app.n8n.cloud/api/v1/workflows?limit=1",
         "account_field": null
       },
-      "instructions": "In your n8n instance open **Settings → n8n API**, click **Create an API key**, set a label and expiry (enterprise: pick only `workflow:list`/read scopes), and copy it. Not available on the free trial.",
+      "instructions": "In your n8n instance open **Settings \u2192 n8n API**, click **Create an API key**, set a label and expiry (enterprise: pick only `workflow:list`/read scopes), and copy it. Not available on the free trial.",
       "docs_url": "https://docs.n8n.io/connect/n8n-api/authentication",
       "probe_status": null,
       "confidence": "medium",
@@ -5346,14 +5566,17 @@
       "scheme": "Bearer",
       "basic": null,
       "key_prefix": "napi_",
-      "service_urls": ["https://console.neon.tech/api/v2"],
+      "service_urls": [
+        "https://console.neon.tech/api/v2",
+        "https://console.neon.tech/api/v2/projects?limit=20&org_id={org_id}"
+      ],
       "verify": {
         "method": "GET",
-        "url": "https://console.neon.tech/api/v2/projects?limit=20",
+        "url": "https://console.neon.tech/api/v2/projects?limit=20&org_id={org_id}",
         "account_field": null,
         "required_fields": ["projects"]
       },
-      "instructions": "In the Neon Console open your avatar → **Account settings → API keys**, click **Create new API key**, name it and copy it (shown once).",
+      "instructions": "In the Neon Console open your avatar \u2192 **Account settings \u2192 API keys**, click **Create new API key**, name it and copy it (shown once). Enter the organization ID from the Neon Console. Personal API keys require it; organization API keys must belong to that same organization. Project inventory is limited to the first 20 accessible projects.",
       "docs_url": "https://neon.com/docs/manage/api-keys",
       "probe_status": 401,
       "confidence": "medium",
@@ -5363,7 +5586,15 @@
         "https://neon.com/docs/manage/api-keys",
         "https://api-docs.neon.tech/reference/listprojects"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "org_id",
+          "label": "Neon organization ID",
+          "placeholder": "org-spring-garden-12345",
+          "required": true,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "netlify",
@@ -5378,7 +5609,7 @@
         "url": "https://api.netlify.com/api/v1/sites?per_page=20",
         "account_field": null
       },
-      "instructions": "In Netlify open User settings → Applications → Personal access tokens, create a token and choose an expiration. For SAML teams authorize team access explicitly.",
+      "instructions": "In Netlify open User settings \u2192 Applications \u2192 Personal access tokens, create a token and choose an expiration. For SAML teams authorize team access explicitly.",
       "docs_url": "https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/",
       "probe_status": null,
       "confidence": "high",
@@ -5433,7 +5664,7 @@
           "Ngrok-Version": "2"
         }
       },
-      "instructions": "Open [ngrok dashboard → API Keys](https://dashboard.ngrok.com/api-keys), click **New API Key**, add a description, and copy it (shown once). This is not the agent authtoken.",
+      "instructions": "Open [ngrok dashboard \u2192 API Keys](https://dashboard.ngrok.com/api-keys), click **New API Key**, add a description, and copy it (shown once). This is not the agent authtoken.",
       "docs_url": "https://ngrok.com/docs/api/",
       "probe_status": 403,
       "confidence": "high",
@@ -5457,7 +5688,7 @@
           "Notion-Version": "2022-06-28"
         }
       },
-      "instructions": "Open [Notion → Integrations](https://www.notion.so/profile/integrations), click **New integration**, pick the workspace, choose **Internal**, enable **Read content** only, save, and copy the **Internal Integration Secret**. Share pages with it via ••• → Connections.",
+      "instructions": "Open [Notion \u2192 Integrations](https://www.notion.so/profile/integrations), click **New integration**, pick the workspace, choose **Internal**, enable **Read content** only, save, and copy the **Internal Integration Secret**. Share pages with it via \u2022\u2022\u2022 \u2192 Connections.",
       "docs_url": "https://developers.notion.com/reference/authentication",
       "probe_status": 401,
       "confidence": "high",
@@ -5506,7 +5737,7 @@
         "url": "https://registry.npmjs.org/-/whoami",
         "account_field": "username"
       },
-      "instructions": "On npmjs.com click your avatar → **Access Tokens → Generate New Token → Granular Access Token**, set an expiry, choose **Read-only** for packages, and copy the token (shown once).",
+      "instructions": "On npmjs.com click your avatar \u2192 **Access Tokens \u2192 Generate New Token \u2192 Granular Access Token**, set an expiry, choose **Read-only** for packages, and copy the token (shown once).",
       "docs_url": "https://docs.npmjs.com/creating-and-viewing-access-tokens",
       "probe_status": 401,
       "confidence": "medium",
@@ -5585,7 +5816,7 @@
         "url": "https://api.openai.com/v1/models",
         "account_field": null
       },
-      "instructions": "Open [OpenAI Platform → API keys](https://platform.openai.com/api-keys), click **Create new secret key**, pick the project, choose **Restricted** with **Models: Read** (plus what you need), and copy it (shown once).",
+      "instructions": "Open [OpenAI Platform \u2192 API keys](https://platform.openai.com/api-keys), click **Create new secret key**, pick the project, choose **Restricted** with **Models: Read** (plus what you need), and copy it (shown once).",
       "docs_url": "https://platform.openai.com/docs/api-reference/authentication",
       "probe_status": 401,
       "confidence": "high",
@@ -5632,7 +5863,7 @@
         "url": "https://openrouter.ai/api/v1/key",
         "account_field": "data.label"
       },
-      "instructions": "Open [OpenRouter → Keys](https://openrouter.ai/settings/keys), click **Create Key**, name it, optionally set a credit limit, and copy it (shown once).",
+      "instructions": "Open [OpenRouter \u2192 Keys](https://openrouter.ai/settings/keys), click **Create Key**, name it, optionally set a credit limit, and copy it (shown once).",
       "docs_url": "https://openrouter.ai/docs/api-reference/authentication",
       "probe_status": 401,
       "confidence": "high",
@@ -5680,7 +5911,7 @@
           "Accept": "application/vnd.pagerduty+json;version=2"
         }
       },
-      "instructions": "In PagerDuty open Integrations → API Access Keys and create a read-only API key, or use a user API token with the needed incident read access. This is a REST API token, not an Events API routing key.",
+      "instructions": "In PagerDuty open Integrations \u2192 API Access Keys and create a read-only API key, or use a user API token with the needed incident read access. This is a REST API token, not an Events API routing key.",
       "docs_url": "https://docs.pagerduty.com/developer/authentication",
       "probe_status": null,
       "confidence": "high",
@@ -5709,7 +5940,7 @@
         "url": "https://api.perplexity.ai/v1/models",
         "account_field": null
       },
-      "instructions": "Open the [Perplexity console → API keys](https://console.perplexity.ai/project/keys), click **Create API key**, name it and copy it (shown once). A funded credit balance is needed for paid calls.",
+      "instructions": "Open the [Perplexity console \u2192 API keys](https://console.perplexity.ai/project/keys), click **Create API key**, name it and copy it (shown once). A funded credit balance is needed for paid calls.",
       "docs_url": "https://docs.perplexity.ai/docs/admin/api-key-management",
       "probe_status": 401,
       "confidence": "medium",
@@ -5871,24 +6102,46 @@
       "basic": null,
       "key_prefix": null,
       "service_urls": [
-        "https://api.privacy.com/v1",
-        "https://sandbox.privacy.com/v1"
+        "https://sandbox.privacy.com/v1",
+        "https://api.privacy.com/v1"
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.privacy.com/v1/cards?page_size=1",
+        "url": "https://sandbox.privacy.com/v1/cards?page=1&page_size=20",
         "account_field": null
       },
-      "instructions": "Sign in to [Privacy.com](https://app.privacy.com/account), open **Account**, scroll to **API Key**, and copy (or regenerate) the key. Write access requires an Issuing key from api@privacy.com; reading cards does not.",
+      "instructions": "Copy an API key from [Privacy Account](https://app.privacy.com/account). Select **Sandbox** for a sandbox key or **Production** for a production key. Only the first 20 card identifiers, states and types are read; card details and payment writes are unavailable.",
       "docs_url": "https://developers.privacy.com/reference/get_cards-1",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "Header is 'Authorization: api-key <key>' — scheme 'api-key' is outside the Bearer/Basic/Token set. No header → 403 (nginx); a bad key → 401. Sandbox: sandbox.privacy.com.",
+      "notes": "Authorization: api-key <key>, explicitly selected environment, v1 endpoint. Read-only first-page card inventory; no custom version header.",
       "sources": [
         "https://developers.privacy.com/reference/get_cards-1.md",
         "https://developers.privacy.com/llms.txt"
       ],
-      "template_params": []
+      "template_params": [],
+      "credential_variants": [
+        {
+          "id": "sandbox",
+          "label": "Sandbox",
+          "description": "Use only your sandbox API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://sandbox.privacy.com/v1/cards?page=1&page_size=20",
+            "account_field": null
+          }
+        },
+        {
+          "id": "production",
+          "label": "Production",
+          "description": "Use only your production API key. This selection fixes the request environment.",
+          "verify": {
+            "method": "GET",
+            "url": "https://api.privacy.com/v1/cards?page=1&page_size=20",
+            "account_field": null
+          }
+        }
+      ]
     },
     {
       "service": "railway",
@@ -5909,7 +6162,7 @@
         "error_fields": ["errors"],
         "required_fields": ["data.me.name", "data.me.email"]
       },
-      "instructions": "Choose the Railway credential type that matches your token: account, workspace or project. Account and workspace tokens come from [Railway Account → Tokens](https://railway.com/account/tokens); project tokens come from the tokens page in project settings. Each type verifies its own account, workspace or project environment.",
+      "instructions": "Choose the Railway credential type that matches your token: account, workspace or project. Account and workspace tokens come from [Railway Account \u2192 Tokens](https://railway.com/account/tokens); project tokens come from the tokens page in project settings. Each type verifies its own account, workspace or project environment.",
       "docs_url": "https://docs.railway.com/reference/public-api",
       "probe_status": 400,
       "confidence": "high",
@@ -5920,7 +6173,7 @@
         {
           "id": "account",
           "label": "Account token",
-          "description": "Open [Railway Account → Tokens](https://railway.com/account/tokens) and select **No workspace** to create an account token. Copy the token once. It can access every Railway resource your account is authorized to use.",
+          "description": "Open [Railway Account \u2192 Tokens](https://railway.com/account/tokens) and select **No workspace** to create an account token. Copy the token once. It can access every Railway resource your account is authorized to use.",
           "header": "Authorization",
           "scheme": "Bearer",
           "verify": {
@@ -5939,7 +6192,7 @@
         {
           "id": "workspace",
           "label": "Workspace token",
-          "description": "Open [Railway Account → Tokens](https://railway.com/account/tokens) and select **the workspace** for this connection. Copy its workspace token and enter the **Workspace ID** for that same workspace. This token can access only that workspace’s resources.",
+          "description": "Open [Railway Account \u2192 Tokens](https://railway.com/account/tokens) and select **the workspace** for this connection. Copy its workspace token and enter the **Workspace ID** for that same workspace. This token can access only that workspace\u2019s resources.",
           "header": "Authorization",
           "scheme": "Bearer",
           "verify": {
@@ -5966,7 +6219,7 @@
         {
           "id": "project",
           "label": "Project token",
-          "description": "In Railway **project settings → Tokens**, create a project token for the chosen **environment** and copy it. This token is limited to that project environment; it cannot verify your personal account or a different workspace.",
+          "description": "In Railway **project settings \u2192 Tokens**, create a project token for the chosen **environment** and copy it. This token is limited to that project environment; it cannot verify your personal account or a different workspace.",
           "header": "Project-Access-Token",
           "scheme": null,
           "verify": {
@@ -6026,7 +6279,7 @@
         "url": "https://api.replicate.com/v1/account",
         "account_field": "username"
       },
-      "instructions": "Open [Replicate → API tokens](https://replicate.com/account/api-tokens), enter a name, click **Create token**, and copy it.",
+      "instructions": "Open [Replicate \u2192 API tokens](https://replicate.com/account/api-tokens), enter a name, click **Create token**, and copy it.",
       "docs_url": "https://replicate.com/docs/reference/http#accounts.get",
       "probe_status": 401,
       "confidence": "high",
@@ -6076,7 +6329,7 @@
         "url": "https://api.resend.com/domains",
         "account_field": "data.0.name"
       },
-      "instructions": "Open [Resend → API Keys](https://resend.com/api-keys), click **Create API Key**, name it, choose **Full access** (a **Sending access** key cannot list domains), and copy it (shown once).",
+      "instructions": "Open [Resend \u2192 API Keys](https://resend.com/api-keys), click **Create API Key**, name it, choose **Full access** (a **Sending access** key cannot list domains), and copy it (shown once).",
       "docs_url": "https://resend.com/docs/api-reference/domains/list-domains",
       "probe_status": 401,
       "confidence": "high",
@@ -6104,7 +6357,7 @@
         "account_field": "id",
         "required_fields": ["id"]
       },
-      "instructions": "At [sanity.io/manage](https://www.sanity.io/manage) pick the project, open **API → Tokens**, click **Add API token**, name it, choose **Viewer** permissions and an expiry, and copy it (shown once).",
+      "instructions": "At [sanity.io/manage](https://www.sanity.io/manage) pick the project, open **API \u2192 Tokens**, click **Add API token**, name it, choose **Viewer** permissions and an expiry, and copy it (shown once).",
       "docs_url": "https://www.sanity.io/docs/content-lake/http-auth",
       "probe_status": 401,
       "confidence": "medium",
@@ -6180,7 +6433,7 @@
         "url": "https://api.segmentapis.com/",
         "account_field": "data.workspace.name"
       },
-      "instructions": "In Segment open **Settings → Access Management → Tokens**, click **Create Token**, choose **Public API** (not Config API), grant **Workspace Member** with read-only access, and copy it.",
+      "instructions": "In Segment open **Settings \u2192 Access Management \u2192 Tokens**, click **Create Token**, choose **Public API** (not Config API), grant **Workspace Member** with read-only access, and copy it.",
       "docs_url": "https://docs.segmentapis.com/tag/Getting-Started",
       "probe_status": 401,
       "confidence": "medium",
@@ -6202,7 +6455,7 @@
         "account_field": null,
         "required_fields": ["scopes"]
       },
-      "instructions": "In SendGrid open **Settings → API Keys**, click **Create API Key**, name it, choose **Restricted Access** and only the permissions you need, and copy it (shown once).",
+      "instructions": "In SendGrid open **Settings \u2192 API Keys**, click **Create API Key**, name it, choose **Restricted Access** and only the permissions you need, and copy it (shown once).",
       "docs_url": "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access",
       "probe_status": 401,
       "confidence": "high",
@@ -6249,7 +6502,7 @@
         "url": "https://api.similarweb.com/user-capabilities?api_key={key}",
         "account_field": null
       },
-      "instructions": "In Similarweb, open **Settings & Help → Account → Data Tools**, choose **REST API**, click **Generate a New API Key**, name it, click **Create**, then activate it in the **Generated Keys** table (admins only; up to 3 active keys per user).",
+      "instructions": "In Similarweb, open **Settings & Help \u2192 Account \u2192 Data Tools**, choose **REST API**, click **Generate a New API Key**, name it, click **Create**, then activate it in the **Generated Keys** table (admins only; up to 3 active keys per user).",
       "docs_url": "https://developers.similarweb.com/docs/check-user-usage",
       "probe_status": 401,
       "confidence": "high",
@@ -6277,7 +6530,7 @@
         "url": "https://api.stability.ai/v1/user/account",
         "account_field": "email"
       },
-      "instructions": "Sign in to [Stability AI → Account → API Keys](https://platform.stability.ai/account/keys), click **Create API Key** (or copy the existing one).",
+      "instructions": "Sign in to [Stability AI \u2192 Account \u2192 API Keys](https://platform.stability.ai/account/keys), click **Create API Key** (or copy the existing one).",
       "docs_url": "https://platform.stability.ai/docs/api-reference#tag/User/operation/userAccount",
       "probe_status": 401,
       "confidence": "high",
@@ -6317,17 +6570,26 @@
       "scheme": "Bearer",
       "basic": null,
       "key_prefix": "rk_",
-      "service_urls": ["https://api.stripe.com/v1"],
+      "service_urls": ["https://api.stripe.com"],
       "verify": {
         "method": "GET",
-        "url": "https://api.stripe.com/v1/issuing/cards?limit=1",
-        "account_field": null
+        "url": "https://api.stripe.com/v1/issuing/cards?limit=20",
+        "headers": {
+          "Stripe-Version": "2026-09-30.endive"
+        },
+        "required_fields": ["object", "data", "has_more", "url"],
+        "success": [
+          {
+            "field": "object",
+            "equals": "list"
+          }
+        ]
       },
-      "instructions": "In the Stripe Dashboard open **Developers → API keys**, click **Create restricted key**, set **Issuing Cards** and **Issuing Cardholders** to **Read**, leave the rest **None**, and copy it (`rk_live_…`/`rk_test_…`).",
-      "docs_url": "https://docs.stripe.com/issuing",
+      "instructions": "Create a restricted Stripe key with Issuing Cards Read permission. This connection only lists the first 20 Issuing card summaries; it cannot create or modify cards, spend money or read card numbers/CVC. Issuing must be enabled on the account. The key is sealed in this vault and must be re-entered when changed.",
+      "docs_url": "https://docs.stripe.com/api/issuing/cards/list",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "Secret keys (sk_) also work; restricted keys (rk_) are least privilege. Issuing must be enabled on the account.",
+      "notes": "Fixed read-only Issuing card inventory through the common native transport. No cardholder permission, expansions, card retrieval or write operation is requested.",
       "sources": [
         "https://docs.stripe.com/issuing",
         "https://docs.stripe.com/keys"
@@ -6378,7 +6640,7 @@
         ],
         "required_fields": ["result.id", "result.username"]
       },
-      "instructions": "Open [@BotFather](https://t.me/BotFather) in Telegram, send `/newbot`, choose a name and a username ending in `bot`, and copy the token it replies with (`123456789:AA…`).",
+      "instructions": "Open [@BotFather](https://t.me/BotFather) in Telegram, send `/newbot`, choose a name and a username ending in `bot`, and copy the token it replies with (`123456789:AA\u2026`).",
       "docs_url": "https://core.telegram.org/bots/api#authorizing-your-bot",
       "probe_status": 401,
       "confidence": "high",
@@ -6464,19 +6726,38 @@
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.tinybird.co/v0/sql?q=SELECT+1",
-        "account_field": null
+        "url": "https://{api_host}/v0/datasources?attrs=name",
+        "account_field": null,
+        "required_fields": ["datasources"]
       },
-      "instructions": "In [Tinybird Cloud](https://cloud.tinybird.co) open your workspace → **Tokens**, click **Create Token**, give it read scope on a data source or pipe, and copy it. Use the API host of your workspace's region.",
-      "docs_url": "https://www.tinybird.co/docs/api-reference",
+      "instructions": "In [Tinybird Cloud](https://cloud.tinybird.co) open your workspace \u2192 **Tokens** and create a token with **DATASOURCES:READ** on the data sources you want to list. Choose the matching EU or US East data region. The list shows up to 20 names from the bounded reply; it does not fetch rows or follow pagination. For an existing connection, re-enter its token and verify the same connection again to bind this region-aware contract; saved credentials are not reused across regions.",
+      "docs_url": "https://www.tinybird.co/docs/api-reference/datasource-api",
       "probe_status": 403,
       "confidence": "medium",
-      "notes": "Host depends on region (e.g. api.us-east.aws.tinybird.co). key_url is approximate; tokens live under the workspace.",
+      "notes": "EU uses api.tinybird.co; US East uses api.us-east.tinybird.co. Select the matching workspace region. Data-source names are the only requested attributes.",
       "sources": [
         "https://www.tinybird.co/docs/api-reference",
         "https://www.tinybird.co/docs/api-reference/token-api"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "api_host",
+          "label": "Data region",
+          "placeholder": "api.tinybird.co",
+          "required": true,
+          "secret": false,
+          "choices": [
+            {
+              "value": "api.tinybird.co",
+              "label": "EU"
+            },
+            {
+              "value": "api.us-east.tinybird.co",
+              "label": "US East"
+            }
+          ]
+        }
+      ]
     },
     {
       "service": "together",
@@ -6491,7 +6772,7 @@
         "url": "https://api.together.xyz/v1/models",
         "account_field": null
       },
-      "instructions": "Open [Together AI → Settings → API Keys](https://api.together.ai/settings/api-keys), click **Create API key** (or copy the default), and store it.",
+      "instructions": "Open [Together AI \u2192 Settings \u2192 API Keys](https://api.together.ai/settings/api-keys), click **Create API key** (or copy the default), and store it.",
       "docs_url": "https://docs.together.ai/reference/authentication",
       "probe_status": 401,
       "confidence": "medium",
@@ -6515,7 +6796,7 @@
         "url": "https://{api_host}/me",
         "account_field": "alias"
       },
-      "instructions": "Open [Typeform → Personal tokens](https://admin.typeform.com/user/tokens), click **Generate a new token**, name it, select only **accounts:read**, and copy it (shown once).",
+      "instructions": "Open [Typeform \u2192 Personal tokens](https://admin.typeform.com/user/tokens), click **Generate a new token**, name it, select only **accounts:read**, and copy it (shown once).",
       "docs_url": "https://www.typeform.com/developers/get-started/personal-access-token/",
       "probe_status": 401,
       "confidence": "high",
@@ -6577,7 +6858,7 @@
         "url": "https://api.venice.ai/api/v1/api_keys/rate_limits",
         "account_field": null
       },
-      "instructions": "Open [Venice → API settings](https://venice.ai/settings/api), choose **Generate New API Key**, pick the **Inference Only** key type and copy the key (shown once). The steps are in Venice's [API key guide](https://docs.venice.ai/guides/getting-started/generating-api-key).",
+      "instructions": "Open [Venice \u2192 API settings](https://venice.ai/settings/api), choose **Generate New API Key**, pick the **Inference Only** key type and copy the key (shown once). The steps are in Venice's [API key guide](https://docs.venice.ai/guides/getting-started/generating-api-key).",
       "docs_url": "https://docs.venice.ai/api-reference/endpoint/api_keys/rate_limits",
       "probe_status": 401,
       "confidence": "medium",
@@ -6602,11 +6883,11 @@
         "url": "https://api.vercel.com/v2/user",
         "account_field": "user.username"
       },
-      "instructions": "Open [Vercel → Account Settings → Tokens](https://vercel.com/account/settings/tokens), enter a name, choose the scope (team) and an expiration, click **Create**, and copy the token (shown once).",
+      "instructions": "Open [Vercel \u2192 Account Settings \u2192 Tokens](https://vercel.com/account/settings/tokens), enter a name, choose the scope (team) and an expiration, click **Create**, and copy the token (shown once).",
       "docs_url": "https://vercel.com/docs/rest-api#authentication",
       "probe_status": 403,
       "confidence": "high",
-      "notes": "Team resources need ?teamId=… on requests.",
+      "notes": "Team resources need ?teamId=\u2026 on requests.",
       "sources": ["https://vercel.com/docs/rest-api#authentication"],
       "template_params": []
     },
@@ -6673,7 +6954,7 @@
         "url": "https://api.vultrinference.com/v1/models/all",
         "account_field": null
       },
-      "instructions": "In the Vultr Console open **Products → Serverless → Inference**, open your inference subscription and copy the **API Key** from its overview page, as the [Vultr guide](https://docs.vultr.com/products/compute/serverless-inference/management/connection) describes. A subscription must exist first.",
+      "instructions": "In the Vultr Console open **Products \u2192 Serverless \u2192 Inference**, open your inference subscription and copy the **API Key** from its overview page, as the [Vultr guide](https://docs.vultr.com/products/compute/serverless-inference/management/connection) describes. A subscription must exist first.",
       "docs_url": "https://api.vultrinference.com/",
       "probe_status": 401,
       "confidence": "medium",
@@ -6697,7 +6978,7 @@
         "url": "https://api.webflow.com/v2/sites",
         "account_field": "sites.0.displayName"
       },
-      "instructions": "In Webflow open the site's **Site settings → Apps & integrations → API access**, click **Generate API token**, name it, set **Sites: Read-only** (add others as needed), and copy it (shown once).",
+      "instructions": "In Webflow open the site's **Site settings \u2192 Apps & integrations \u2192 API access**, click **Generate API token**, name it, set **Sites: Read-only** (add others as needed), and copy it (shown once).",
       "docs_url": "https://developers.webflow.com/data/reference/authentication/site-token",
       "probe_status": 401,
       "confidence": "medium",
@@ -6818,6 +7099,135 @@
       "confidence": "medium",
       "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
       "sources": ["https://docs.z.ai/guides/overview/pricing"],
+      "template_params": []
+    },
+    {
+      "service": "razorpay",
+      "key_url": "https://dashboard.razorpay.com/app/keys",
+      "key_prefix": "rzp_",
+      "service_urls": ["https://api.razorpay.com"],
+      "basic": {
+        "username": "{key}",
+        "password": "{key_secret}"
+      },
+      "additional_credentials": [
+        {
+          "name": "key_secret",
+          "label": "Key Secret",
+          "placeholder": "",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.razorpay.com/v1/payments?count=20&skip=0",
+        "required_fields": ["entity", "count", "items"],
+        "success": [
+          {
+            "field": "entity",
+            "equals": "collection"
+          }
+        ]
+      },
+      "instructions": "Enter your Key ID in Razorpay API key and your Key Secret below. Both credentials are sealed in this vault. Test and live keys use the same endpoint. This connection only reads the first 20 payment summaries; it cannot capture payments, create refunds or change payment data.",
+      "docs_url": "https://razorpay.com/docs/api/payments/fetch-all/",
+      "sources": [
+        "https://github.com/razorpay/razorpay-node/blob/b9e8527225a7322ba2671a3bc0b848fd019d2d8c/lib/resources/payments.js"
+      ]
+    },
+    {
+      "service": "bitbucket",
+      "key_url": "https://id.atlassian.com/manage-profile/security/api-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "key_prefix": null,
+      "service_urls": ["https://api.bitbucket.org/2.0"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.bitbucket.org/2.0/user",
+        "account_field": "uuid"
+      },
+      "instructions": "Create a scoped Bitbucket API token with read:user:bitbucket and read:repository:bitbucket. Add write:repository:bitbucket for encrypted vault backups. Paste the API token here; it is sealed in this vault. For backups, optionally supply all three repository fields and an existing branch. Browser requests use your approved native HTTPS route when configured. No OAuth app or app password is used by this method.",
+      "docs_url": "https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/",
+      "confidence": "high",
+      "sources": [
+        "https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/",
+        "https://developer.atlassian.com/cloud/bitbucket/rest/api-group-users/",
+        "https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/"
+      ],
+      "template_params": [
+        {
+          "name": "backup_owner",
+          "label": "Backup repository owner (optional)",
+          "placeholder": "workspace-slug",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_repo",
+          "label": "Backup repository name (optional)",
+          "placeholder": "sealed-vault",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "backup_branch",
+          "label": "Backup branch (optional)",
+          "placeholder": "backup/encrypted",
+          "required": false,
+          "secret": false
+        }
+      ]
+    },
+    {
+      "service": "asana",
+      "key_url": "https://app.asana.com/0/my-apps",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://app.asana.com/api/1.0"],
+      "verify": {
+        "method": "GET",
+        "url": "https://app.asana.com/api/1.0/users/me",
+        "account_field": "data.name",
+        "required_fields": ["data"],
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "instructions": "Open Asana's developer console, create a **Personal access token**, and copy it. The token is sent as a Bearer token to the v1.0 API.",
+      "docs_url": "https://developers.asana.com/docs/personal-access-token",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Bearer PAT; one bounded read-only identity call. No writes, token minting or refresh.",
+      "sources": ["https://developers.asana.com/docs/personal-access-token"],
+      "template_params": []
+    },
+    {
+      "service": "attio",
+      "key_url": "https://app.attio.com/settings/developers",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.attio.com/v2"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.attio.com/v2/objects",
+        "account_field": null,
+        "required_fields": ["data"],
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "instructions": "Open Attio's developer settings, create an **API key**, and copy it. The key is sent as a Bearer token to the v2 API.",
+      "docs_url": "https://docs.attio.com/rest-api/guides/authentication",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Bearer PAT; one bounded read-only identity call. No writes, token minting or refresh.",
+      "sources": ["https://docs.attio.com/rest-api/guides/authentication"],
       "template_params": []
     }
   ]

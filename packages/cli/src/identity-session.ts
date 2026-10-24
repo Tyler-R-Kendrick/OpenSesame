@@ -2,10 +2,12 @@
  * The Identity session file for `opensesame-id`: owner-only on disk, refreshed
  * against the issuer that minted it.
  */
+import { randomBytes } from "node:crypto";
 import {
   access,
   chmod,
   mkdir,
+  open,
   readFile,
   rename,
   rm,
@@ -54,6 +56,57 @@ function trimSlash(url: string): string {
   return url.replace(/\/+$/u, "");
 }
 
+const REFRESH_LOCK_WAIT_MS = 10_000;
+const REFRESH_LOCK_STALE_MS = 30_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Serialize the read-refresh-write window across processes. In-process callers
+ * already share `refreshes`; two CLI invocations do not, and rotating refresh
+ * tokens mean the loser's token is already revoked. The lock file lives beside
+ * the session and is removed by its holder.
+ */
+async function acquireRefreshLock(): Promise<() => Promise<void>> {
+  const path = `${sessionPath()}.lock`;
+  const deadline = Date.now() + REFRESH_LOCK_WAIT_MS;
+  for (;;) {
+    try {
+      const handle = await open(path, "wx", 0o600);
+      try {
+        await handle.writeFile(`${process.pid}\n`);
+      } finally {
+        await handle.close();
+      }
+      return async () => {
+        await rm(path, { force: true });
+      };
+    } catch (error) {
+      if (
+        typeof error !== "object" ||
+        error === null ||
+        !("code" in error) ||
+        error.code !== "EEXIST"
+      )
+        throw error;
+      try {
+        const info = await stat(path);
+        if (Date.now() - info.mtimeMs > REFRESH_LOCK_STALE_MS) {
+          await rm(path, { force: true });
+          continue;
+        }
+      } catch {
+        // The holder released it between our open and stat; retry.
+      }
+      if (Date.now() >= deadline)
+        throw new Error("Session refresh lock is held by another process");
+      await sleep(25);
+    }
+  }
+}
+
 /**
  * Refuse a session file anyone but its owner can read or write. A bearer token in
  * a group-readable file is a bearer token every account on the box holds, and one
@@ -97,6 +150,14 @@ export async function loadSession(): Promise<SessionFile | null> {
   try {
     await assertPrivateFile(path);
   } catch (err) {
+    // A first run has no session; that is not an error on every command.
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      err.code === "ENOENT"
+    )
+      return null;
     // Loud, not silent: a session the CLI will not touch is worth saying out loud.
     process.stderr.write(errorLine(overlapCast(err)));
     return null;
@@ -184,7 +245,15 @@ async function refreshSession(
         ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
         : undefined),
     };
-    await saveSession(next);
+    try {
+      await saveSession(next);
+    } catch {
+      // The issuer already rotated the token, so the file on disk holds a
+      // refresh token that can no longer be used. Remove it rather than keep
+      // presenting a dead session; the next command can sign in cleanly.
+      await clearSession();
+      return null;
+    }
     return next;
   } catch {
     return null;
@@ -195,6 +264,55 @@ async function refreshSession(
  * A session is only the session for the issuer that minted it, and only until it
  * expires. An expired access token is refreshed when a refresh token is present.
  */
+const refreshes = new Map<string, Promise<SessionFile | null>>();
+
+/** One refresh per session, so parallel commands cannot rotate the same token twice. */
+function refreshOnce(
+  session: SessionFile,
+  fetchImpl: typeof fetch,
+): Promise<SessionFile | null> {
+  const key = `${session.issuer}\n${session.clientId}`;
+  const existing = refreshes.get(key);
+  if (existing) return existing;
+  const run = refreshAcrossProcesses(session, fetchImpl).finally(() => {
+    if (refreshes.get(key) === run) refreshes.delete(key);
+  });
+  refreshes.set(key, run);
+  return run;
+}
+
+/**
+ * Acquire the cross-process lock, then reload the session: another command may
+ * have refreshed it while this one waited. Only the holder that still sees an
+ * expired session performs the rotation.
+ */
+async function refreshAcrossProcesses(
+  session: SessionFile,
+  fetchImpl: typeof fetch,
+): Promise<SessionFile | null> {
+  let release: (() => Promise<void>) | null;
+  try {
+    release = await acquireRefreshLock();
+  } catch {
+    const current = sessionMatchesIssuer(await loadSession(), session.issuer);
+    return current &&
+      current.clientId === session.clientId &&
+      (current.expiresAt === undefined || current.expiresAt > Date.now())
+      ? current
+      : null;
+  }
+  try {
+    const current = sessionMatchesIssuer(await loadSession(), session.issuer);
+    const next =
+      current && current.clientId === session.clientId ? current : session;
+    if (next.expiresAt === undefined || next.expiresAt > Date.now())
+      return next;
+    return await refreshSession(next, fetchImpl);
+  } finally {
+    await release().catch(() => undefined);
+  }
+}
+
 export async function sessionFor(
   session: SessionFile | null,
   issuer: string,
@@ -205,7 +323,7 @@ export async function sessionFor(
   if (matched.expiresAt === undefined || matched.expiresAt > Date.now()) {
     return matched;
   }
-  return refreshSession(matched, fetchImpl);
+  return refreshOnce(matched, fetchImpl);
 }
 
 export async function saveSession(session: SessionFile): Promise<void> {
@@ -213,7 +331,7 @@ export async function saveSession(session: SessionFile): Promise<void> {
   // `mode` on writeFile only applies when the file is created, so a file left
   // behind at 0644 by an earlier version would keep those bits forever.
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-  const temp = `${path}.${process.pid}.tmp`;
+  const temp = `${path}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
   const root = await sessionRoot(path);
   let sealed: string;
   try {
@@ -231,9 +349,20 @@ export async function saveSession(session: SessionFile): Promise<void> {
     clientId: session.clientId,
     sealed,
   };
-  await writeFile(temp, JSON.stringify(envelope), { mode: 0o600 });
-  await chmod(temp, 0o600);
-  await rename(temp, path);
+  let committed = false;
+  try {
+    await writeFile(temp, JSON.stringify(envelope), {
+      mode: 0o600,
+      flag: "wx",
+    });
+    await chmod(temp, 0o600);
+    await rename(temp, path);
+    committed = true;
+  } finally {
+    // A failed write or rename must not leave a sealed bearer token behind in
+    // a predictable temp name beside the session file.
+    if (!committed) await rm(temp, { force: true }).catch(() => undefined);
+  }
 }
 
 export async function clearSession(): Promise<void> {

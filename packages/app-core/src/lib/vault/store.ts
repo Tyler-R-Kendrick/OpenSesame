@@ -1,22 +1,22 @@
 import {
-  type Folder,
-  type InstallResult,
   type VaultBody,
   VaultCorruptError,
   type VaultHeader,
-  type VaultItem,
   WrongPasswordError,
-  createVault,
+  createItem,
   emptyBody,
   importVaultKey,
-  mintVaultKey,
+  manualPassword,
   syncInstalledTypes,
 } from "@opensesame/vault-core";
+import { host } from "../../host.js";
 import {
   noteVaultBodyPersisted,
   noteVaultUnlocked,
   recordActivityEvent,
 } from "../activity-log.js";
+import { recordDeadmanAuthentication } from "../deadman/state.js";
+import { HONEY_VAULT_ITEMS } from "../duress/settings/modes/honey-vault.js";
 import {
   endEphemeralTomb,
   forgetDecoyScratch,
@@ -25,9 +25,17 @@ import {
 } from "../duress/store/decoy-scratch.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
 import { sessionRootDigestFromKey } from "../duress/store/vault-session-digest.js";
+import { mintHoneyToken, registerHoneyToken } from "../honey-tokens.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
-import { kvDelete, kvDeleteDurable } from "../kv.js";
+import { kvDelete } from "../kv.js";
 import { lastVaultIsGuest, writeLastVaultId } from "../last-vault.js";
+import { isRetiredTrapLive } from "../retired-credentials/retention-v2.js";
+import {
+  type TrustedUnlockPolicy,
+  readTrustedUnlock,
+  trustedUnlockSeams,
+  trustedUnlockView,
+} from "../trusted-unlock.js";
 import type { TombWriteTurn } from "../vfs-write-order.js";
 import {
   BODY_PATH,
@@ -41,82 +49,41 @@ import {
   unlockTomb,
   writePlaintextFile,
 } from "../vfs.js";
-import {
-  appendItems,
-  bodyBeforeWrite,
-  deleteFolder,
-  renameFolder,
-  replaceItems,
-  restoreItem,
-  stampedEdit,
-  toggleFavorite,
-} from "./body-edits.js";
-import type { EnvironmentsEdit } from "./body-environments.js";
-import { applyEnvironmentsEdit } from "./body-environments.js";
-import { commitDiscard, revokeTrashedShares } from "./drop-revoke.js";
+import { stampedEdit } from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
+import { type ItemWriteHost, originalItemWriteHost } from "./item-writes.js";
 import {
-  type ItemReturn,
-  type ItemWithdrawal,
-  restoreIntoBody,
-  withdrawFromBody,
-} from "./item-departure.js";
-import {
-  type ItemImportPlan,
-  type ItemWriteHost,
-  type ManifestWritePlan,
-  originalItemWriteHost,
-  writeManifestItems,
-  writeSavedItems,
-} from "./item-writes.js";
-import { emitVaultLock } from "./lock-events.js";
+  announceVaultDestroyed,
+  emitVaultLock,
+  onVaultDestroyed,
+} from "./lock-events.js";
 import {
   adoptedMasterWrap,
-  headerWithNewPassword,
-  headerWithPassword,
   headerWithoutPassword,
   noteMasterWrap,
   wrapMoved,
 } from "./master-wrap.js";
+import { bindNewVaultMaterialHeader } from "./new-factor-bound-material-data.js";
+import { withNewVaultScopeGuard } from "./new-vault-scope-guard.js";
 import {
   frozenAuthenticationRefusal,
-  ordinaryPeerFreshBody,
   requireOriginalRawRoot,
 } from "./ordinary-peer-body-refresh.js";
 import {
-  probePasskeyCeremony,
   sealNewVaultWithPasskey,
-  unlockVaultWithHeldPrf,
-  unlockVaultWithPasskey,
   wrapVaultKeyWithCeremony,
 } from "./passkey-unlock-session.js";
-import {
-  readPrefsSourceFile,
-  writePrefsJson,
-  writePrefsSourceFile,
-} from "./prefs-io.js";
-import {
-  VAULT_PREFS_REVISION,
-  type VaultPrefs,
-  normalizeVaultPrefs,
-} from "./prefs.js";
 import type { PasskeyCreateOptions } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { VaultProtectionBrowserService } from "./protection/browser-service.js";
 import { ProtectionError } from "./protection/errors.js";
 import { ProtectionSessionGuard } from "./protection/session-guard.js";
-import {
-  type ProtectorUnlockInput,
-  probeProtectorRoot,
-  unlockVaultWithHeldRoot,
-  unlockVaultWithProtector,
-} from "./protector-unlock-session.js";
-import {
-  maskCodeAddress,
-  mintRecoveryCodes,
-  readRecoveryCodes,
-  spendRecoveryCode,
-} from "./recovery-codes.js";
+import { spendRecoveryCode } from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
+import { RetiredInteractionQueue } from "./retired-interaction-queue.js";
+import {
+  type RetiredLoginData,
+  readRetiredLoginData,
+} from "./retired-login-operation.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
 import { rebindTombSeals, rekeyTomb } from "./seal-rebind.js";
@@ -127,13 +94,16 @@ import {
   finishSecondStepUnlock,
 } from "./second-step-guard.js";
 import {
-  UnguardedTotpEnrollment,
   heldTotpCode,
-  proveTotpEnrollment,
-  startTotpEnrollment,
   withSelfAuthenticatorRegistration,
 } from "./self-authenticator.js";
+import {
+  applyStoreBodyChange,
+  refreshedStoreBody,
+  withFreshStoreBody,
+} from "./store-body-writes.js";
 import { loadVaultBody } from "./store-body.js";
+import { createStoreCredentialApi } from "./store-credential-api.js";
 import {
   type ApplyChange,
   type VaultBodyPort,
@@ -141,7 +111,8 @@ import {
   makeBodyPort,
   registerBodyPort,
 } from "./store-device-key.js";
-import { freshBody, sealMark } from "./store-fresh.js";
+import { sealMark } from "./store-fresh.js";
+import type { FreshBody } from "./store-fresh.js";
 import * as GuestMaterial from "./store-guest-material.js";
 import * as HeaderPublication from "./store-header-publication.js";
 import {
@@ -150,11 +121,7 @@ import {
   sharesWrapRecord,
 } from "./store-header.js";
 import { bindSealedImport } from "./store-import.js";
-import {
-  installDefinition,
-  newVaultFolder,
-  uninstallDefinition,
-} from "./store-item-types.js";
+import { createStoreItemOperations } from "./store-item-operations.js";
 import {
   type DriveSnapshotInput,
   type SealedSnapshot,
@@ -163,19 +130,20 @@ import {
 } from "./store-merge.js";
 import {
   captureStoreOperation,
-  operationHeader,
   requireExistingUnlock,
 } from "./store-operation-check.js";
+import { createStorePreferencesApi } from "./store-preferences-api.js";
 import { StorePreferences } from "./store-preferences.js";
 import { buildVaultState, exportStoredVault } from "./store-presentation.js";
+import { createStorePrimaryApi } from "./store-primary-api.js";
 import { writeBody } from "./store-seal.js";
+import { createStoreSecondStepApi } from "./store-second-step-api.js";
+import { destroyStoredTomb } from "./store-tomb-destruction.js";
 import { StoreListeners, StoreView } from "./store-view.js";
 import { StoreWriteQueue } from "./store-write-queue.js";
 import {
   discardTombCaches,
-  discardVaultBody,
   hydrateAndMigrateTombOnUnlock,
-  wipeTombOnDestroy,
 } from "./tomb-migration.js";
 import {
   type CodeChannel,
@@ -186,17 +154,9 @@ import {
   headerWithoutUnlock,
   openText,
   openTotpSecret,
-  primaryUnlockCount,
-  sealText,
   totpCodeMatches,
-  wrapVaultKeyWithPin,
 } from "./unlock-methods.js";
-import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
-import {
-  withBodyWriteLock,
-  withBodyWriteLockOrBare,
-  withExclusiveOpenLease,
-} from "./vault-shared-locks.js";
+import { acquireOpenLease } from "./vault-shared-locks.js";
 export { deviceHoldsSealedVault, readTombHeader, sharesWrapRecord };
 export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
@@ -227,12 +187,46 @@ import { installVaultStoreBoot } from "./store-boot.js";
 import { type VaultState, bindGuestSessionStore } from "./store-state.js";
 export type { VaultState, VaultStatus } from "./store-state.js";
 
+import type {
+  LocalCanaryCommand,
+  LocalCanaryResult,
+  LocalRetiredCommand,
+  LocalRetiredInspection,
+  LocalVaultPrimary,
+  LocalVaultStarted,
+} from "@opensesame/vault-core/local-vault-security.js";
+import { copyCapturedOwnerPrimaryRequest } from "./captured-owner-primary-request.js";
+import {
+  RetiredOperationEntries,
+  RetiredOperationExchange,
+  copyRetiredCommand,
+} from "./retired-operation-exchange.js";
+import { copyRetiredOwnerCanaryCommand } from "./retired-owner-canary.js";
+import {
+  type RetiredOwnerAuthenticationInput,
+  runRetiredOwnerAuthentication,
+  runRetiredOwnerOperation,
+} from "./retired-owner-operation.js";
+import {
+  presentRetiredOwnerStarted,
+  retireRetiredOwnerTask,
+} from "./retired-owner-presentation.js";
+
+const honeyVaultSeededScopes = new Set<string>();
+
 export class VaultStore {
+  readonly #retiredEntries = new RetiredOperationEntries();
+  readonly #canaryEntries = new RetiredOperationEntries<LocalCanaryResult>();
   #vaultKey: CryptoKey | null = null;
   /** Raw VK for enroll-only wrapKey substitutes; wiped on lock and cancel. */
   #rawVaultKey: Uint8Array | null = null;
   /** Primary unwrap succeeded; waiting on optional TOTP before activating. */
   #pendingVaultKey: CryptoKey | null = null;
+  /** Primary and second steps passed; a trusted-contact quorum is still required. */
+  #pendingTrustedKey: CryptoKey | null = null;
+  #trustedPolicy: TrustedUnlockPolicy | null = null;
+  #trustedView: import("../trusted-unlock.js").TrustedUnlockView | null = null;
+  #trustedApproved = new Set<string>();
   /** A seed offered for enrollment; discarded unless a code confirms it. */
   #pendingTotpSecret: string | null = null;
   /** A code the Identity API sent and has not yet been asked about. */
@@ -242,19 +236,78 @@ export class VaultStore {
   #body: VaultBody = emptyBody();
   #header: VaultHeader | null = null;
   #preferences = new StorePreferences();
+  #preferencesApi = createStorePreferencesApi({
+    preferences: this.#preferences,
+    open: () => this.#vaultKey !== null,
+    tomb: () => this.#scope.tomb,
+    changed: () => {
+      this.#persistPrefs();
+      this.#armIdleTimer();
+      this.#emit();
+    },
+  });
   #view = new StoreView();
+  #primaryApi = createStorePrimaryApi(() => this.#passkeyUnlockHost());
+  #credentialApi = createStoreCredentialApi({
+    context: () => this.#protectionOperation().context,
+    header: () => this.#header,
+    raw: () => this.#requireRaw(),
+    unlockedHeader: () => this.#requireUnlocked().header,
+    allowMutation: () => {
+      if (this.#retiredSynthetic) this.#requireGenuineSession();
+    },
+    allowCreation: () => this.#requireEmptyVault(),
+    tomb: () => this.#scope.tomb,
+    publishHeader: (header, check) => this.#persistHeader(header, check),
+    publishNew: (header, key, raw, check) =>
+      this.#persistNewVault(header, key, raw, check),
+  });
+
+  #secondStepApi = createStoreSecondStepApi({
+    requireUnlocked: () => this.#requireUnlocked(),
+    ephemeral: () => this.#ephemeral,
+    totpSecret: () => this.#pendingTotpSecret,
+    setTotpSecret: (secret) => {
+      this.#pendingTotpSecret = secret;
+    },
+    pendingCode: () => this.#pendingCode,
+    setPendingCode: (code) => {
+      this.#pendingCode = code;
+    },
+    pendingCodeAddress: () => this.#pendingCodeAddress,
+    setPendingCodeAddress: (address) => {
+      this.#pendingCodeAddress = address;
+    },
+    persistHeader: (header) => this.#persistHeader(header),
+    registerSelfAuthenticator: (gate) => this.#registerSelfAuthenticator(gate),
+    header: () => this.#header,
+    trashItem: (id) => this.trashItem(id),
+    cancelCodeEnrollment: () => this.cancelCodeEnrollment(),
+  });
   /** Expiry for a parked second step; cleared when the challenge ends. */
   #pendingChallenge = new PendingChallenge();
   /** Per-challenge throttle for email/text code sends. */
   #sendGuard = new CodeSendGuard();
   /** Serializes body writes so overlapping mutations cannot land out of order. */
   #writeQueue = new StoreWriteQueue();
+  /** Shared Web Lock held for as long as this tab has the vault open. */
+  #openLease: { tomb: string; release: () => Promise<void> } | null = null;
+  #stopDestroyWatch: (() => void) | null = null;
+  #itemOperations = createStoreItemOperations({
+    body: () => this.#body,
+    items: () => this.getSnapshot().items,
+    mutate: (change) => this.#mutate(change),
+    writes: (check) => this.#writes(check),
+  });
   /** The seal of the body this tab last wrote or read; another writer's differs. */
   #sealMark: string | null = null;
   #lockHandlers = new StoreListeners();
   #scope: VaultScope = scopedVaultScope();
   /** Guest/this-tab: key never wrapped; lock must not leave a wrap-less header. */
   #ephemeral = false;
+  #retiredInteractions = new RetiredInteractionQueue();
+  #retiredSynthetic: { data: RetiredLoginData; origin: VaultScope } | null =
+    null;
   #sessionGuard = new ProtectionSessionGuard();
   #protection: VaultProtectionBrowserService;
 
@@ -284,7 +337,8 @@ export class VaultStore {
 
   /** Re-read plaintext state after OPFS hydration fills the KV cache. */
   rehydrate(): void {
-    if (this.#vaultKey || this.#pendingVaultKey) return;
+    if (this.#vaultKey || this.#pendingVaultKey || this.#pendingTrustedKey)
+      return;
     // Reload opens the last authorized account's unlock — guest included. Its
     // header is read like any tomb's; `headerCarriesGate` keeps a wrap-less
     // guest record from posing as a locked vault.
@@ -307,6 +361,7 @@ export class VaultStore {
 
   /** Carry this unlock into the active project (shared device key). */
   async forkUnlockedIntoActiveScope(): Promise<void> {
+    if (this.#retiredSynthetic) this.#requireGenuineSession();
     await carryForkUnlockedIntoActiveScope({
       vaultKey: this.#vaultKey,
       header: this.#header,
@@ -342,6 +397,7 @@ export class VaultStore {
   /** Await in-flight body persists before duress activation or scope carries. */
   async flushPendingWrites(): Promise<void> {
     await this.#writeQueue.pending().catch(() => undefined);
+    await this.#retiredInteractions.drain();
   }
 
   #sessionRootDigest = (): Promise<string | null> =>
@@ -369,6 +425,7 @@ export class VaultStore {
 
   /** Open the active project when wraps match; lock the previous tomb first. */
   async openActiveScopeWithCurrentKey(): Promise<void> {
+    if (this.#retiredSynthetic) this.#requireGenuineSession();
     await carryOpenActiveScopeWithCurrentKey({
       cancelPendingOps: () => this.#protection.cancelPendingOps(),
       vaultKey: this.#vaultKey,
@@ -421,6 +478,7 @@ export class VaultStore {
       body: this.#body,
       prefs: this.#preferences.prefs,
       attempts: readAttempts(this.#scope.attempts),
+      trustedUnlock: this.#trustedView,
     });
   }
 
@@ -441,7 +499,10 @@ export class VaultStore {
     this.#rawVaultKey = null;
   }
 
-  #requireRaw = (): Uint8Array => requireOriginalRawRoot(this.#rawVaultKey);
+  #requireRaw = (): Uint8Array => {
+    if (this.#retiredSynthetic) this.#requireGenuineSession();
+    return requireOriginalRawRoot(this.#rawVaultKey);
+  };
 
   /** Captures cancellation and original state only, never owner authority. */
   #protectionOperation(check?: () => void) {
@@ -502,31 +563,32 @@ export class VaultStore {
     original.active();
   }
 
-  async create(password: string, hint?: string): Promise<void> {
-    await assertNewPassword(password);
-    const { header, vaultKey, rawVaultKey } = await createVault(password, hint);
-    await this.#persistNewVault(header, vaultKey, rawVaultKey);
-  }
+  create = this.#credentialApi.create;
 
   /** First-run seal under a passkey PRF wrap — no master password required. */
   async createWithPasskey(
     signal?: AbortSignal,
     options?: PasskeyCreateOptions,
   ): Promise<void> {
+    this.#requireEmptyVault();
+    const original = this.#protectionOperation();
     await sealNewVaultWithPasskey(
-      (header, key, raw) => this.#persistNewVault(header, key, raw),
+      (header, key, raw) => {
+        original.active();
+        return withNewVaultScopeGuard(
+          original.scope.tomb,
+          original.context,
+          (check) => this.#persistNewVault(header, key, raw, check),
+        );
+      },
       signal,
       options,
     );
   }
 
-  /**
-   * Point the unlock screen at the guest tomb without opening a session.
-   * Guests have no passkey or password — Unlock is the only challenge.
-   * Guest sessions use `GUEST_TOMB` only; `lock()` keeps the last guest.
-   */
+  /** Point unlock at GUEST_TOMB without opening it; lock keeps the last guest. */
   prepareGuestUnlock(): void {
-    if (this.#vaultKey || this.#pendingVaultKey) {
+    if (this.#vaultKey || this.#pendingVaultKey || this.#pendingTrustedKey) {
       this.lock();
     } else {
       this.#protection.cancelPendingOps();
@@ -541,17 +603,26 @@ export class VaultStore {
     this.#emit();
   }
 
-  async createGuest(options?: {
-    resume?: boolean;
-    decoy?: boolean;
-  }): Promise<void> {
+  async createGuest(
+    options?: GuestMaterial.GuestCreationOptions,
+    check: () => void = this.#protectionOperation().context,
+  ): Promise<void> {
     if (this.#vaultKey || this.#pendingVaultKey) {
       throw new Error("Lock the open vault before continuing as a guest.");
     }
-    this.#scope = GuestMaterial.selectGuestScope(options);
+    const scope = GuestMaterial.selectGuestScope(options);
     const { header, vaultKey, rawVaultKey } =
-      await GuestMaterial.prepareGuestMaterial(this.#scope.tomb, options);
+      await GuestMaterial.prepareGuestMaterial(scope.tomb, options);
+    try {
+      check();
+    } catch (error) {
+      rawVaultKey.fill(0);
+      throw error;
+    }
+    const lease = await this.#acquireSessionLease(scope.tomb);
+    this.#scope = scope;
     this.#header = header;
+    this.#commitSessionLease(lease);
     this.#vaultKey = vaultKey;
     this.#stashRaw(rawVaultKey);
     this.#pendingVaultKey = null;
@@ -564,30 +635,27 @@ export class VaultStore {
     this.#emit();
   }
 
-  /** First-run seal under a PIN wrap — no master password required. */
-  async createWithPin(pin: string): Promise<void> {
-    await assertNewPin(pin);
-    const { vaultKey, rawVaultKey } = await mintVaultKey();
-    try {
-      const record = await wrapVaultKeyWithPin(rawVaultKey, pin);
-      const header: VaultHeader = {
-        v: 1,
-        createdAt: new Date().toISOString(),
-        unlocks: { pin: record },
-      };
-      await this.#persistNewVault(header, vaultKey, rawVaultKey);
-    } catch (error) {
-      rawVaultKey.fill(0);
-      throw error;
-    }
-  }
+  createWithPin = this.#credentialApi.createWithPin;
 
   async #persistNewVault(
     header: VaultHeader,
     vaultKey: CryptoKey,
     rawVaultKey: Uint8Array,
+    check: () => void = this.#protectionOperation().context,
   ): Promise<void> {
-    this.#header = header;
+    const scope = this.#scope;
+    let boundHeader: VaultHeader;
+    let lease: { tomb: string; release: () => Promise<void> } | null = null;
+    try {
+      boundHeader = await bindNewVaultMaterialHeader(header, rawVaultKey);
+      check();
+      lease = await this.#acquireSessionLease(scope.tomb);
+    } catch (error) {
+      await this.#abandonSessionLease(lease);
+      rawVaultKey.fill(0);
+      throw error;
+    }
+    this.#header = boundHeader;
     this.#vaultKey = vaultKey;
     this.#stashRaw(rawVaultKey);
     this.#pendingVaultKey = null;
@@ -598,14 +666,22 @@ export class VaultStore {
       await writePlaintextFile(
         this.#scope.tomb,
         HEADER_PATH,
-        JSON.stringify(header),
+        JSON.stringify(boundHeader),
+        check,
       );
-      await this.#persist();
+      await this.#persist(check);
       // Legacy config (prefs, registry, …) still belongs with this tomb —
       // seal it in, then read this session's view of it.
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
       await this.#preferences.load(() => this.#scope.tomb);
+      check();
+      this.#commitSessionLease(lease);
     } catch (error) {
+      await this.#abandonSessionLease(lease);
+      if (this.#scope !== scope || this.#vaultKey !== vaultKey) {
+        rawVaultKey.fill(0);
+        throw error;
+      }
       // A vault whose header never reached disk cannot be unlocked again, so
       // leave nothing behind that would claim otherwise.
       this.#header = null;
@@ -634,10 +710,7 @@ export class VaultStore {
     this.#emit();
   }
 
-  /**
-   * A held device (a freeze duress code, ADR 0168) refuses a right credential
-   * as a wrong one: same error, same count; the key it opened is zeroed.
-   */
+  /** A frozen device refuses even a right credential, counts it, and zeroes the root. */
   #refuseWhileFrozen = frozenAuthenticationRefusal(
     () => this.#scope.tomb,
     () => this.#recordFailedUnlock(),
@@ -649,10 +722,125 @@ export class VaultStore {
     return loadVaultBody(this.#scope.tomb, vaultKey, this.#header);
   }
 
+  /**
+   * Primary and second steps passed. A trusted-contact policy, when one is
+   * stored, parks the key until enough local identities authenticate with a
+   * passkey. No body is exposed while it is parked.
+   */
+  async #requireTrustedUnlock(vaultKey: CryptoKey): Promise<void> {
+    this.#pendingVaultKey = null;
+    unlockTomb(this.#scope.tomb, vaultKey);
+    let policy: TrustedUnlockPolicy | null;
+    try {
+      policy = await readTrustedUnlock(this.#scope.tomb);
+    } catch (error) {
+      lockTomb(this.#scope.tomb);
+      throw error;
+    }
+    if (!policy) {
+      await this.#activateSession(vaultKey);
+      return;
+    }
+    this.#pendingTrustedKey = vaultKey;
+    this.#trustedPolicy = policy;
+    this.#trustedApproved.clear();
+    this.#trustedView = await trustedUnlockView(this.#scope.tomb, policy, []);
+    this.#pendingChallenge.clear();
+    this.#emit();
+  }
+
+  /** One member of the circle authenticated; the last needed one opens the vault. */
+  async confirmTrustedContact(principalId: string): Promise<void> {
+    const pending = this.#pendingTrustedKey;
+    const policy = this.#trustedPolicy;
+    if (!pending || !policy) {
+      throw new Error("No trusted-contact approval is waiting.");
+    }
+    if (!policy.memberIds.includes(principalId)) {
+      throw new Error("That identity is not a member of this circle.");
+    }
+    if (this.#trustedApproved.has(principalId)) return;
+    await trustedUnlockSeams.authenticate(this.#scope.tomb, principalId);
+    if (this.#pendingTrustedKey !== pending || this.#trustedPolicy !== policy) {
+      throw new Error("The trusted-contact challenge changed.");
+    }
+    this.#trustedApproved.add(principalId);
+    const approved = [...this.#trustedApproved];
+    if (approved.length >= policy.threshold) {
+      this.#pendingTrustedKey = null;
+      this.#trustedPolicy = null;
+      this.#trustedView = null;
+      this.#trustedApproved.clear();
+      await this.#activateSession(pending);
+      return;
+    }
+    this.#trustedView = await trustedUnlockView(
+      this.#scope.tomb,
+      policy,
+      approved,
+    );
+    this.#emit();
+  }
+
+  /** Drop a parked trusted-contact challenge and forget the key. */
+  cancelTrustedUnlock(): void {
+    if (!this.#pendingTrustedKey) return;
+    this.#pendingTrustedKey = null;
+    this.#trustedPolicy = null;
+    this.#trustedView = null;
+    this.#trustedApproved.clear();
+    lockTomb(this.#scope.tomb);
+    this.#zeroRaw();
+    this.#emit();
+  }
+
+  /**
+   * Acquire the shared open lock before an unlock/create makes the key usable.
+   * The lease itself is what makes `destroyStoredTomb`'s exclusive request
+   * fail closed while any tab still holds this vault.
+   */
+  async #acquireSessionLease(
+    tomb: string,
+  ): Promise<{ tomb: string; release: () => Promise<void> } | null> {
+    if (this.#openLease?.tomb === tomb) return null;
+    return { tomb, release: await acquireOpenLease(tomb) };
+  }
+
+  #commitSessionLease(
+    lease: { tomb: string; release: () => Promise<void> } | null,
+  ): void {
+    if (!lease) return;
+    const previous = this.#openLease;
+    this.#openLease = lease;
+    this.#stopDestroyWatch ??= onVaultDestroyed((tomb) => {
+      if (tomb === this.#scope.tomb) this.lock({ recordLastVault: false });
+    });
+    if (previous) void previous.release().catch(() => undefined);
+  }
+
+  async #abandonSessionLease(
+    lease: { tomb: string; release: () => Promise<void> } | null,
+  ): Promise<void> {
+    if (lease) await lease.release().catch(() => undefined);
+  }
+
+  #releaseSessionLease(): void {
+    const lease = this.#openLease;
+    this.#openLease = null;
+    this.#stopDestroyWatch?.();
+    this.#stopDestroyWatch = null;
+    if (lease) void lease.release().catch(() => undefined);
+  }
+
   async #activateSession(vaultKey: CryptoKey): Promise<void> {
     this.#refuseWhileFrozen();
+    const lease = await this.#acquireSessionLease(this.#scope.tomb);
     this.#vaultKey = vaultKey;
     this.#pendingVaultKey = null;
+    this.#pendingTrustedKey = null;
+    this.#trustedPolicy = null;
+    this.#trustedView = null;
+    this.#trustedApproved.clear();
     this.#pendingChallenge.clear();
     unlockTomb(this.#scope.tomb, vaultKey);
     try {
@@ -664,6 +852,7 @@ export class VaultStore {
       this.#sealMark = sealMark(this.#scope.tomb);
       syncInstalledTypes(this.#body.itemTypes);
     } catch (error) {
+      await this.#abandonSessionLease(lease);
       this.#vaultKey = null;
       lockTomb(this.#scope.tomb);
       this.#zeroRaw();
@@ -674,10 +863,12 @@ export class VaultStore {
     await this.#protection.ensureProtectionProjected();
     kvDelete(this.#scope.attempts);
     writeLastVaultId(this.#scope.tomb);
+    this.#commitSessionLease(lease);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
     noteVaultUnlocked();
+    await recordDeadmanAuthentication(this.#scope.tomb);
   }
   /** After primary unwrap: either activate or park the key for a second step. */
   async #afterPrimaryUnwrap(vaultKey: CryptoKey, miss?: string) {
@@ -705,11 +896,12 @@ export class VaultStore {
       this.#emit();
       return;
     }
-    await this.#activateSession(vaultKey);
+    await this.#requireTrustedUnlock(vaultKey);
   }
 
   async unlock(password: string): Promise<void> {
     this.#assertNotLockedOut();
+    if (await this.#retiredPasswordLogin(password)) return;
     if (!this.#header) throw new Error("There is no vault on this device yet.");
     const record = () => this.#recordFailedUnlock();
     await this.#openWithRaw(
@@ -725,42 +917,139 @@ export class VaultStore {
     await this.#openWithRaw(raw, PIN_MISS);
   }
 
+  async #retiredPasswordLogin(password: string): Promise<boolean> {
+    if (!host().physicalDeviceRecords || this.#ephemeral) return false;
+    const origin = this.#scope;
+    let generation = this.#sessionGuard.generation;
+    let scope = origin;
+    let key: CryptoKey | null = null;
+    const check = () => {
+      if (
+        this.#sessionGuard.generation !== generation ||
+        this.#scope !== scope ||
+        this.#vaultKey !== key ||
+        this.#pendingVaultKey
+      )
+        throw new Error("Credential submission ended.");
+    };
+    check();
+    let data: RetiredLoginData | null;
+    try {
+      data = await readRetiredLoginData(
+        origin.tomb,
+        password,
+        check,
+        async (observed) => {
+          if (observed.trap.response === "reject") {
+            this.#recordFailedUnlock();
+            throw new WrongPasswordError(
+              "That password does not open this vault.",
+            );
+          }
+          this.lock({ recordLastVault: false });
+          generation = this.#sessionGuard.generation;
+          this.#retiredSynthetic = { data: observed, origin };
+          await this.createGuest({ decoy: true, scratch: true }, check);
+          if (
+            this.#sessionGuard.generation !== generation ||
+            !isRetiredTrapLive(
+              observed.trap.createdAt,
+              observed.trap.expiresAt,
+              Date.now(),
+            )
+          )
+            throw new Error("Credential submission ended.");
+          await this.#seedHoneyVault(origin.tomb);
+          scope = this.#scope;
+          key = this.#vaultKey;
+        },
+      );
+    } catch (error) {
+      if (this.#retiredSynthetic?.origin === origin) this.lock();
+      throw error;
+    }
+    check();
+    if (!data) return false;
+    this.#noteRetiredInteraction("vault_read");
+    return true;
+  }
+
+  /** Retired-password HoneyVault: convincing credentials, never `hny`-branded. */
+  async #seedHoneyVault(ownerScope: string): Promise<void> {
+    if (honeyVaultSeededScopes.has(ownerScope)) return;
+    honeyVaultSeededScopes.add(ownerScope);
+    const already = new Set(this.getSnapshot().items.map((item) => item.name));
+    const items = HONEY_VAULT_ITEMS.filter((title) => !already.has(title)).map(
+      (title) => {
+        const { token } = mintHoneyToken();
+        return { title, token };
+      },
+    );
+    for (const item of items) {
+      try {
+        await registerHoneyToken(
+          ownerScope,
+          `${item.title} (HoneyVault)`,
+          item.token,
+        );
+      } catch {
+        // A full/corrupt honey store must not change the unlock presentation.
+      }
+    }
+    try {
+      const known = new Set<string>();
+      for (const item of this.getSnapshot().items) {
+        if (!(HONEY_VAULT_ITEMS as readonly string[]).includes(item.name))
+          continue;
+        if (known.has(item.name)) await this.purgeItem(item.id);
+        else known.add(item.name);
+      }
+      await this.addItems(
+        items.map(({ title, token }) => {
+          const account = createItem("account", title);
+          account.methods = [
+            manualPassword(`${account.id}:password`, token, account.createdAt),
+          ];
+          return account;
+        }),
+      );
+    } catch {
+      // The synthetic session still opens; the owner record is what alerts.
+    }
+  }
+
+  #noteRetiredInteraction(
+    action: "vault_read" | "vault_export" | "vault_write" | "authority_denied",
+  ): void {
+    const session = this.#retiredSynthetic;
+    if (!session) return;
+    this.#retiredInteractions.enqueue(session.data, action);
+  }
+
+  #requireGenuineSession(): void {
+    if (this.isGenuineSession()) return;
+    this.#noteRetiredInteraction("authority_denied");
+    throw new Error("Unlock the owner vault first.");
+  }
+
+  #requireEmptyVault(): void {
+    if (this.#retiredSynthetic) this.#requireGenuineSession();
+    if (this.#header || this.#vaultKey || this.#pendingVaultKey)
+      throw new Error("A vault already exists here. Unlock it instead.");
+  }
+
   /** A primary secret opened the root: keep it, then park it or activate. */
   async #openWithRaw(raw: Uint8Array, miss?: string): Promise<void> {
     this.#stashRaw(raw);
     await this.#afterPrimaryUnwrap(await importVaultKey(raw), miss);
   }
 
-  async probePasskeyCeremony(
-    options?: Parameters<typeof probePasskeyCeremony>[1],
-  ) {
-    return probePasskeyCeremony(this.#passkeyUnlockHost(), options);
-  }
-
-  async unlockWithHeldPrf(prfOutput: ArrayBuffer): Promise<void> {
-    await unlockVaultWithHeldPrf(this.#passkeyUnlockHost(), prfOutput);
-  }
-
-  async unlockWithPasskey(signal?: AbortSignal): Promise<void> {
-    await unlockVaultWithPasskey(this.#passkeyUnlockHost(), signal);
-  }
-
-  /** Recovery key, age identity or age passkey enrolled in the manifest. */
-  async unlockWithProtector(input: ProtectorUnlockInput): Promise<void> {
-    await unlockVaultWithProtector(this.#passkeyUnlockHost(), input);
-  }
-
-  /** The two phases of `unlockWithProtector`, so a duress gate can sit between. */
-  async probeProtector(input: ProtectorUnlockInput): Promise<ArrayBuffer> {
-    return probeProtectorRoot(this.#passkeyUnlockHost(), input);
-  }
-
-  async unlockWithHeldProtectorRoot(
-    root: ArrayBuffer,
-    { method }: Pick<ProtectorUnlockInput, "method">,
-  ): Promise<void> {
-    await unlockVaultWithHeldRoot(this.#passkeyUnlockHost(), root, method);
-  }
+  probePasskeyCeremony = this.#primaryApi.probePasskeyCeremony;
+  unlockWithHeldPrf = this.#primaryApi.unlockWithHeldPrf;
+  unlockWithPasskey = this.#primaryApi.unlockWithPasskey;
+  unlockWithProtector = this.#primaryApi.unlockWithProtector;
+  probeProtector = this.#primaryApi.probeProtector;
+  unlockWithHeldProtectorRoot = this.#primaryApi.unlockWithHeldProtectorRoot;
 
   #passkeyUnlockHost() {
     return {
@@ -787,10 +1076,13 @@ export class VaultStore {
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
-      this.#activateSession(k),
+      this.#requireTrustedUnlock(k),
     );
-    // A gate with no registration yet gets one now (ADR 0113).
-    if (!gate.selfItemId) await this.#registerSelfAuthenticator(gate);
+    // A gate with no registration yet gets one now (ADR 0113), unless a
+    // trusted-contact challenge is holding the key before the vault opens.
+    if (!gate.selfItemId && !this.#pendingTrustedKey) {
+      await this.#registerSelfAuthenticator(gate);
+    }
   }
 
   cancelTotpChallenge(): void {
@@ -823,10 +1115,7 @@ export class VaultStore {
     return this.#pendingCode;
   }
 
-  /**
-   * Confirm a code the Identity API sent. The service says yes or no; a no
-   * counts toward the lockout exactly as a wrong authenticator code does.
-   */
+  /** Verify the Identity code, counting misses toward the ordinary lockout. */
   async confirmRemoteCode(code: string): Promise<void> {
     this.#assertNotLockedOut();
     const pending = this.#pendingVaultKey;
@@ -842,7 +1131,7 @@ export class VaultStore {
     }
     this.#pendingCode = null;
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
-      this.#activateSession(k),
+      this.#requireTrustedUnlock(k),
     );
   }
 
@@ -864,7 +1153,7 @@ export class VaultStore {
       unlocks: { ...header.unlocks, recovery: { ...record, codesWrap } },
     });
     this.#pendingCode = null;
-    await this.#activateSession(pending);
+    await this.#requireTrustedUnlock(pending);
   }
 
   async #persistHeader(
@@ -874,9 +1163,16 @@ export class VaultStore {
   ): Promise<void> {
     const original = this.#protectionOperation(check);
     const previous = this.#header;
+    const bound = await HeaderPublication.bindOriginalHeaderPolicy(
+      previous,
+      proposed,
+      this.#rawVaultKey,
+      Boolean(turn),
+      original.active,
+    );
     const next = turn
-      ? HeaderPublication.withBodyWitness(previous, proposed)
-      : proposed;
+      ? HeaderPublication.withBodyWitness(previous, bound)
+      : bound;
     const previousPhysical = readPlaintextFile(
       original.scope.tomb,
       HEADER_PATH,
@@ -908,6 +1204,7 @@ export class VaultStore {
   }
 
   #requireUnlocked(reason?: string) {
+    if (this.#retiredSynthetic) this.#requireGenuineSession();
     return requireExistingUnlock(this.#vaultKey, this.#header, reason);
   }
 
@@ -930,79 +1227,30 @@ export class VaultStore {
 
   /** Drop one enrolled unlock method, if the vault keeps another primary. */
   async #removeUnlock(method: "passkey" | "pin"): Promise<void> {
+    this.#requireUnlocked();
     const next = headerWithoutUnlock(this.#header, method);
     if (next) await this.#persistHeader(next);
   }
 
-  async enrollPin(pin: string): Promise<void> {
-    const { header } = this.#requireUnlocked();
-    await assertNewPin(pin);
-    const record = await wrapVaultKeyWithPin(this.#requireRaw(), pin);
-    const unlocks: VaultUnlocks = { ...header.unlocks, pin: record };
-    await this.#persistHeader({ ...header, unlocks });
-  }
+  enrollPin = this.#credentialApi.enrollPin;
 
   async removePin(): Promise<void> {
     await this.#removeUnlock("pin");
   }
 
-  async enrollPassword(password: string): Promise<void> {
-    const { header } = this.#requireUnlocked();
-    const raw = this.#requireRaw();
-    await this.#persistHeader(await headerWithPassword(header, raw, password));
-  }
+  enrollPassword = this.#credentialApi.enrollPassword;
 
   async removePassword(): Promise<void> {
+    this.#requireUnlocked();
     if (this.#header?.wrap)
       await this.#persistHeader(headerWithoutPassword(this.#header));
   }
 
-  /**
-   * Start enrolling an authenticator code as the second step. Returns an
-   * otpauth URI; the gate is written only once a code matches.
-   */
-  async beginTotpEnrollment(): Promise<string> {
-    const { header } = this.#requireUnlocked();
-    const started = startTotpEnrollment(
-      this.#ephemeral,
-      primaryUnlockCount(header),
-    );
-    this.#pendingTotpSecret = started.secret;
-    return started.uri;
-  }
+  beginTotpEnrollment = this.#secondStepApi.beginTotpEnrollment;
 
-  /**
-   * Prove the authenticator was set up, turn the gate on, and register the
-   * vault as its own authenticator (ADR 0113).
-   */
-  async confirmTotpEnrollment(code: string): Promise<void> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    try {
-      const gate = await proveTotpEnrollment({
-        ephemeral: this.#ephemeral,
-        primaryCount: primaryUnlockCount(header),
-        secret: this.#pendingTotpSecret,
-        code,
-        vaultKey,
-      });
-      await this.#persistHeader({
-        ...header,
-        unlocks: { ...header.unlocks, totp: gate },
-      });
-      await this.#registerSelfAuthenticator(gate);
-    } catch (error) {
-      if (error instanceof UnguardedTotpEnrollment) {
-        this.#pendingTotpSecret = null;
-      }
-      throw error;
-    }
-    this.#pendingTotpSecret = null;
-  }
+  confirmTotpEnrollment = this.#secondStepApi.confirmTotpEnrollment;
 
-  /** Abandon an enrollment that never saw a matching code. */
-  cancelTotpEnrollment(): void {
-    this.#pendingTotpSecret = null;
-  }
+  cancelTotpEnrollment = this.#secondStepApi.cancelTotpEnrollment;
 
   /** Point a gate at its self-authenticator registration (ADR 0113). */
   async #registerSelfAuthenticator(gate: TotpGateRecord): Promise<void> {
@@ -1017,143 +1265,52 @@ export class VaultStore {
     await this.#persistHeader(next.header);
   }
 
-  async removeTotp(): Promise<void> {
-    await this.#removeSecondStep("totp");
-  }
+  removeTotp = this.#secondStepApi.removeTotp;
 
-  /** Drop one second step; the last one takes the recovery codes with it. */
-  async #removeSecondStep(step: "totp" | CodeChannel): Promise<void> {
-    const header = this.#header;
-    if (!header?.unlocks?.[step]) return;
-    // The authenticator's registration goes with its gate.
-    if (step === "totp") {
-      const selfId = header.unlocks.totp?.selfItemId;
-      if (selfId) await this.trashItem(selfId);
-    }
-    const { [step]: _removed, ...rest } = header.unlocks;
-    const unlocks: VaultUnlocks = { ...rest };
-    if (
-      !hasSecondStep({ ...header, unlocks }) &&
-      unlocks.recovery !== undefined
-    ) {
-      const { recovery: _codes, ...withoutCodes } = unlocks;
-      await this.#persistHeader({
-        ...header,
-        unlocks: Object.keys(withoutCodes).length ? withoutCodes : undefined,
-      });
-      return;
-    }
-    await this.#persistHeader({
-      ...header,
-      unlocks: Object.keys(unlocks).length ? unlocks : undefined,
-    });
-  }
+  beginCodeEnrollment = this.#secondStepApi.beginCodeEnrollment;
 
-  /** Enroll email/text code; nothing is written until a code matches. */
-  async beginCodeEnrollment(
-    channel: CodeChannel,
-    to: string,
-  ): Promise<SentCode> {
-    const { header } = this.#requireUnlocked();
-    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
-      throw new Error(
-        "Seal this vault with a passkey, PIN or password before adding a code by email or text — a code can only guard a key.",
-      );
-    }
-    const sent = await sendCode(channel, to.trim());
-    this.#pendingCode = sent;
-    this.#pendingCodeAddress = { channel, to: to.trim() };
-    return sent;
-  }
+  confirmCodeEnrollment = this.#secondStepApi.confirmCodeEnrollment;
 
-  /** Prove the first code arrived, then seal the address and turn it on. */
-  async confirmCodeEnrollment(code: string): Promise<void> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    const sent = this.#pendingCode;
-    const address = this.#pendingCodeAddress;
-    if (!sent || !address) {
-      throw new Error("Send a code first.");
-    }
-    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
-      this.cancelCodeEnrollment();
-      throw new Error(
-        "Seal this vault with a passkey, PIN or password before adding a code by email or text — a code can only guard a key.",
-      );
-    }
-    await verifyCode(sent.challengeId, code);
-    const toWrap = await sealText(vaultKey, address.to);
-    const unlocks: VaultUnlocks = {
-      ...header.unlocks,
-      [address.channel]: { toWrap, since: new Date().toISOString() },
-    };
-    await this.#persistHeader({ ...header, unlocks });
+  cancelCodeEnrollment = this.#secondStepApi.cancelCodeEnrollment;
+
+  removeCode = this.#secondStepApi.removeCode;
+
+  describeCodeChannel = this.#secondStepApi.describeCodeChannel;
+
+  generateRecoveryCodes = this.#secondStepApi.generateRecoveryCodes;
+
+  recoveryCodes = this.#secondStepApi.recoveryCodes;
+
+  /** Clear the session and parked secrets at the original lock boundary. */
+  #clearLockedSessionState(): void {
+    this.#vaultKey = null;
+    this.#zeroRaw();
+    this.#pendingVaultKey = null;
+    this.#pendingTrustedKey = null;
+    this.#trustedPolicy = null;
+    this.#trustedView = null;
+    this.#trustedApproved.clear();
+    this.#pendingTotpSecret = null;
     this.#pendingCode = null;
     this.#pendingCodeAddress = null;
-  }
-
-  /** Abandon a code enrollment whose first code never matched. */
-  cancelCodeEnrollment(): void {
-    this.#pendingCode = null;
-    this.#pendingCodeAddress = null;
-  }
-
-  async removeCode(channel: CodeChannel): Promise<void> {
-    await this.#removeSecondStep(channel);
-  }
-
-  /** The masked address a code channel sends to; needs the vault open. */
-  async describeCodeChannel(channel: CodeChannel): Promise<string | null> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    const record = header.unlocks?.[channel];
-    if (!record) return null;
-    return maskCodeAddress(channel, await openText(vaultKey, record.toWrap));
-  }
-
-  /**
-   * Make (or remake) the recovery codes. Sealed under the vault key, so
-   * Settings can show the ones left while the vault is open; a new set
-   * replaces the old one whole.
-   */
-  async generateRecoveryCodes(): Promise<string[]> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    if (!hasSecondStep(header)) {
-      throw new Error(
-        "Recovery codes stand in for a second step. Add an authenticator, email or text code first.",
-      );
-    }
-    const { codes, record } = await mintRecoveryCodes(vaultKey);
-    await this.#persistHeader({
-      ...header,
-      unlocks: { ...header.unlocks, recovery: record },
-    });
-    return codes;
-  }
-
-  /** The recovery codes and which are spent, or null when none were made. */
-  async recoveryCodes() {
-    const { vaultKey, header } = this.#requireUnlocked();
-    const record = header.unlocks?.recovery;
-    return record ? readRecoveryCodes(vaultKey, record) : null;
+    this.#body = emptyBody();
+    syncInstalledTypes(undefined);
   }
 
   /** Run on every lock — used to wipe secrets that left the vault (clipboard). */
   onLock = this.#lockHandlers.subscribe;
 
   lock = (options?: { recordLastVault?: boolean }): void => {
+    this.#releaseSessionLease();
     this.#protection.cancelPendingOps();
+    const retiredOrigin = this.#retiredSynthetic?.origin;
+    this.#retiredSynthetic = null;
     const recordLastVault = options?.recordLastVault !== false;
     const wasUnlocked = this.#vaultKey !== null;
     const lockedTombForLog = this.#scope.tomb;
     const wasGuest = this.#ephemeral;
     const wasDecoy = markDecoySession(false);
-    this.#vaultKey = null;
-    this.#zeroRaw();
-    this.#pendingVaultKey = null;
-    this.#pendingTotpSecret = null;
-    this.#pendingCode = null;
-    this.#pendingCodeAddress = null;
-    this.#body = emptyBody();
-    syncInstalledTypes(undefined);
+    this.#clearLockedSessionState();
     // Guest sessions are ephemeral — wipe ciphertext, but keep the unlock screen on the last guest.
     const ephemeralTomb = this.#ephemeral ? this.#scope.tomb : null;
     const guestBesideVault = isGuestSessionTomb(ephemeralTomb);
@@ -1171,6 +1328,11 @@ export class VaultStore {
       writeLastVaultId(lockedTomb);
     }
     if (ephemeralTomb) void endEphemeralTomb(ephemeralTomb);
+    if (retiredOrigin) {
+      this.#scope = retiredOrigin;
+      this.#header = this.#readHeader();
+      if (recordLastVault) writeLastVaultId(retiredOrigin.tomb);
+    }
     this.#preferences.stop();
     this.#pendingChallenge.clear();
     for (const handler of this.#lockHandlers) handler();
@@ -1202,18 +1364,19 @@ export class VaultStore {
   isUnlocked(): boolean {
     return this.#vaultKey !== null;
   }
-  readSessionRootDigest = () => this.#sessionRootDigest();
-  async changeMasterPassword(
-    current: string,
-    next: string,
-    hint?: string,
-  ): Promise<void> {
-    if (!this.#header) throw new Error("There is no vault to re-key.");
-    const header = this.#header;
-    await this.#persistHeader(
-      await headerWithNewPassword(header, current, next, hint),
+  isGenuineSession(): boolean {
+    return (
+      this.#vaultKey !== null &&
+      !this.#ephemeral &&
+      this.#retiredSynthetic === null &&
+      !isGuestSessionTomb(this.#scope.tomb)
     );
   }
+  isSyntheticSession(): boolean {
+    return this.#retiredSynthetic !== null;
+  }
+  readSessionRootDigest = () => this.#sessionRootDigest();
+  changeMasterPassword = this.#credentialApi.changeMasterPassword;
 
   // —— persistence ——————————————————————————————————————————
 
@@ -1236,11 +1399,9 @@ export class VaultStore {
     noteVaultBodyPersisted();
   }
 
-  /**
-   * Merge another device's sealed snapshot of this vault (ADR 0144). Reports
-   * whether this device changed and whether the snapshot is now behind it.
-   */
+  /** Merge a device snapshot and report local/remote changes (ADR 0144). */
   async mergeSnapshot(input: DriveSnapshotInput): Promise<SnapshotMerge> {
+    this.#requireGenuineSession();
     const { vaultKey, header } = this.#requireUnlocked();
     await this.flushPendingWrites();
     const port = this.#bodyPort();
@@ -1253,6 +1414,7 @@ export class VaultStore {
 
   /** This vault's header and sealed body as stored, once pending writes land. */
   async sealedSnapshot(): Promise<SealedSnapshot> {
+    this.#requireGenuineSession();
     const { header } = this.#requireUnlocked();
     await this.flushPendingWrites();
     const body = readSealedFile(this.#scope.tomb, BODY_PATH);
@@ -1268,70 +1430,45 @@ export class VaultStore {
     return this.#exclusive((apply) => apply(stampedEdit(change)), check);
   }
 
-  /**
-   * Run `act` as the next write: on the write chain, then under the cross-tab
-   * body lock, from the disk's body when another tab wrote since this one did.
-   * Chain, then lock, is the one order (`destroy` too), so neither waits on
-   * the other. `act` writes through `apply`, which never queues again.
-   */
+  #bodyWriteState = () => ({
+    key: this.#vaultKey,
+    raw: this.#rawVaultKey,
+    header: this.#header,
+    body: this.#body,
+    mark: this.#sealMark,
+    readHeader: () => (this.#sharesDisk() ? this.#readHeader() : null),
+  });
+
+  #adoptFreshBody = (fresh: FreshBody): void => {
+    this.#header = fresh.header;
+    if (!fresh.body) return;
+    this.#body = fresh.body;
+    syncInstalledTypes(fresh.body.itemTypes);
+    this.#emit();
+  };
+
+  /** The queue precedes the body lease; captured session checks survive every await. */
   #exclusive<T>(
     act: (apply: ApplyChange) => Promise<T>,
     check?: () => void,
   ): Promise<T> {
     const original = this.#protectionOperation(check);
-    return this.#writeQueue.enqueue(() => {
-      original.active();
-      return withBodyWriteLockOrBare(original.scope.tomb, async () => {
-        const fresh = await ordinaryPeerFreshBody(
-          original.scope.tomb,
-          this.#vaultKey,
-          this.#rawVaultKey,
-          { header: this.#header, body: this.#body, mark: this.#sealMark },
-          () => (this.#sharesDisk() ? this.#readHeader() : null),
-          original.active,
-        );
-        original.active();
-        original.adoptHeader(fresh.header, () => {
-          this.#header = fresh.header;
-        });
-        if (fresh.body) {
-          this.#body = fresh.body;
-          syncInstalledTypes(fresh.body.itemTypes);
-          this.#emit();
-        }
-        const result = await act((change) =>
-          this.#apply(change, original.active),
-        );
-        original.active();
-        return result;
-      });
-    });
+    return this.#writeQueue.enqueue(() =>
+      withFreshStoreBody(
+        original,
+        this.#bodyWriteState,
+        this.#adoptFreshBody,
+        () => act((change) => this.#apply(change, original.active)),
+      ),
+    );
   }
 
   async #refreshBody(
     original: ReturnType<typeof captureStoreOperation>,
   ): Promise<void> {
-    original.active();
-    const vaultKey = this.#vaultKey;
-    if (!vaultKey) throw new Error("The vault is locked.");
-    const fresh = await freshBody(
-      original.scope.tomb,
-      vaultKey,
-      { header: this.#header, body: this.#body, mark: this.#sealMark },
-      () => (this.#sharesDisk() ? this.#readHeader() : null),
+    this.#adoptFreshBody(
+      await refreshedStoreBody(original, this.#bodyWriteState()),
     );
-    original.active();
-    if (operationHeader(fresh.header) !== operationHeader(this.#header))
-      throw new ProtectionError(
-        "stale_operation",
-        "Stored operation header changed.",
-      );
-    this.#header = fresh.header;
-    if (fresh.body) {
-      this.#body = fresh.body;
-      syncInstalledTypes(fresh.body.itemTypes);
-      this.#emit();
-    }
     original.active();
   }
 
@@ -1345,57 +1482,43 @@ export class VaultStore {
     check: () => void,
     turn?: TombWriteTurn,
   ): Promise<void> {
-    check();
-    if (!this.#vaultKey) throw new Error("The vault is locked.");
-    // Keep the pre-change body: a failed write must not leave memory ahead of disk.
-    const previous = bodyBeforeWrite(this.#body);
-    change(this.#body);
-    try {
-      await this.#persist(check, turn);
-    } catch (error) {
-      check();
-      this.#body = previous;
-      this.#emit();
-      throw error;
-    }
-    check();
+    await applyStoreBodyChange({
+      state: this.#bodyWriteState(),
+      change,
+      check,
+      persist: () => this.#persist(check, turn),
+      rollback: (body) => {
+        this.#body = body;
+        this.#emit();
+      },
+    });
     this.touch();
+    this.#noteRetiredInteraction("vault_write");
     this.#emit();
   }
 
-  // —— item types (ADR 0087) ————————————————————————————————
-
-  /** Validate a definition, store it in the sealed body, and register it for this session. */
-  async installItemTypeDefinition(text: string): Promise<InstallResult> {
-    return installDefinition(
-      text,
-      (change) => this.#mutate(change),
-      () => this.#body,
-    );
-  }
-
-  /** Drop a definition. Items of that type keep their values. */
-  async uninstallItemTypeDefinition(id: string): Promise<boolean> {
-    return uninstallDefinition(
-      id,
-      (change) => this.#mutate(change),
-      () => this.#body,
-    );
-  }
-
-  // —— items ————————————————————————————————————————————————
-
-  saveItem(item: VaultItem, folder?: Folder): Promise<void> {
-    return writeSavedItems(this.#writes(), [item], folder);
-  }
-
-  saveItems(
-    items: readonly VaultItem[],
-    folder?: Folder,
-    check?: () => void,
-  ): Promise<void> {
-    return writeSavedItems(this.#writes(check), items, folder);
-  }
+  // Body-only APIs retain the original private Store write admission.
+  installItemTypeDefinition = this.#itemOperations.installItemTypeDefinition;
+  uninstallItemTypeDefinition =
+    this.#itemOperations.uninstallItemTypeDefinition;
+  saveItem = this.#itemOperations.saveItem;
+  saveItems = this.#itemOperations.saveItems;
+  trashItem = this.#itemOperations.trashItem;
+  restoreItem = this.#itemOperations.restoreItem;
+  purgeItem = this.#itemOperations.purgeItem;
+  emptyTrash = this.#itemOperations.emptyTrash;
+  reconcileTrashedShares = this.#itemOperations.reconcileTrashedShares;
+  withdrawItems = this.#itemOperations.withdrawItems;
+  restoreWithdrawn = this.#itemOperations.restoreWithdrawn;
+  toggleFavorite = this.#itemOperations.toggleFavorite;
+  editEnvironments = this.#itemOperations.editEnvironments;
+  replaceAll = this.#itemOperations.replaceAll;
+  addItems = this.#itemOperations.addItems;
+  applyManifestMerge = this.#itemOperations.applyManifestMerge;
+  applyImport = this.#itemOperations.applyImport;
+  addFolder = this.#itemOperations.addFolder;
+  renameFolder = this.#itemOperations.renameFolder;
+  deleteFolder = this.#itemOperations.deleteFolder;
 
   #writes(check?: () => void): ItemWriteHost {
     return originalItemWriteHost(
@@ -1405,105 +1528,23 @@ export class VaultStore {
     );
   }
 
-  async trashItem(id: string): Promise<void> {
-    await this.#discard("trash", id);
-  }
-
-  async restoreItem(id: string): Promise<void> {
-    await this.#mutate((body) => restoreItem(body, id));
-  }
-
-  async purgeItem(id: string): Promise<void> {
-    await this.#discard("purge", id);
-  }
-
-  async emptyTrash(): Promise<void> {
-    await this.#discard("empty", "");
-  }
-
-  /** A trashed drop that synced here still has its claim on this device. */
-  reconcileTrashedShares(): Promise<void> {
-    const items = this.getSnapshot().items;
-    return revokeTrashedShares(items, (change) => this.#mutate(change));
-  }
-
-  #discard(kind: "trash" | "purge" | "empty", id: string): Promise<void> {
-    const items = this.getSnapshot().items;
-    return commitDiscard(kind, items, id, (change) => this.#mutate(change));
-  }
-
-  /** Take items out of the body without a trace: no tombstone, trash or note (ADR 0171). */
-  async withdrawItems(plan: ItemWithdrawal): Promise<void> {
-    await this.#mutate((body) => withdrawFromBody(body, plan));
-  }
-
-  /** Put withdrawn items back as they were, ids and times intact (ADR 0171). */
-  async restoreWithdrawn(back: ItemReturn): Promise<void> {
-    await this.#mutate((body) => restoreIntoBody(body, back));
-  }
-
-  async toggleFavorite(id: string): Promise<void> {
-    await this.#mutate((body) => toggleFavorite(body, id));
-  }
-
-  async editEnvironments(edit: EnvironmentsEdit): Promise<void> {
-    await this.#mutate((body) => applyEnvironmentsEdit(body, edit));
-  }
-
-  async replaceAll(items: VaultItem[], folders: Folder[]): Promise<void> {
-    await this.#mutate((body) => replaceItems(body, items, folders));
-  }
-
-  async addItems(items: VaultItem[]): Promise<void> {
-    await this.#mutate((body) => appendItems(body, items, []));
-  }
-
-  /** Merge items and folders atomically, leaving no partial manifest on failure. */
-  applyManifestMerge(plan: ManifestWritePlan): Promise<void> {
-    return writeManifestItems(this.#writes(), plan);
-  }
-
-  /**
-   * Apply an import plan. Items and their new folders land in one mutation, so
-   * a failed write cannot leave folders behind with nothing in them.
-   */
-  async applyImport(plan: ItemImportPlan): Promise<number> {
-    if (plan.items.length === 0 && plan.newFolders.length === 0) return 0;
-    await this.#mutate((body) =>
-      appendItems(body, plan.items, plan.newFolders),
-    );
-    return plan.items.length;
-  }
-
-  // —— folders ——————————————————————————————————————————————
-
-  async addFolder(name: string): Promise<Folder> {
-    const folder = newVaultFolder(name);
-    await this.#mutate((body) => {
-      body.folders = [...body.folders, folder];
-    });
-    return folder;
-  }
-
-  async renameFolder(id: string, name: string): Promise<void> {
-    await this.#mutate((body) => renameFolder(body, id, name));
-  }
-
-  async deleteFolder(id: string): Promise<void> {
-    await this.#mutate((body) => deleteFolder(body, id));
-  }
-
   // —— export / import ——————————————————————————————————————
 
   /** Encrypted export — the sealed body plus its header, portable to another device. */
   exportSealed(): string {
+    if (!this.#header) throw new Error("There is no vault to export.");
+    this.#noteRetiredInteraction("vault_export");
+    this.#requireGenuineSession();
     return exportStoredVault(this.#scope.tomb, this.#header);
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */
   importSealed = bindSealedImport(
     () => this.#bodyPort(),
-    () => this.#protectionOperation().active,
+    () => {
+      if (this.#retiredSynthetic) this.#requireGenuineSession();
+      return this.#protectionOperation().active;
+    },
   );
 
   #bodyPort(): VaultBodyPort {
@@ -1519,14 +1560,15 @@ export class VaultStore {
 
   /** Irreversibly remove the vault from this device. */
   async destroy(): Promise<void> {
-    // The files to remove are the ones this session was using. Captured
-    // before `lock()`: a guest deleting "this vault" deletes the guest tomb,
-    // never the sealed vault it was running beside. After wipe, hand the
-    // unlock screen back to the personal vault — destroy leaves guest, it
-    // does not lock guest for re-entry.
+    // Capture before lock: destroying a guest removes only its isolated tomb.
     const scope = this.#scope;
     // As final as locking: the same teardown (clipboard, Identity, claims).
     this.lock();
+    // Keep the in-memory header until the tomb is durably gone. A failed
+    // delete must leave a recoverable vault, not an empty store that the next
+    // create can overwrite.
+    await destroyStoredTomb(this.#writeQueue, scope);
+    announceVaultDestroyed(scope.tomb);
     if (isGuestSessionTomb(scope.tomb)) {
       this.#scope = scopedVaultScope();
       this.#header = this.#readHeader();
@@ -1535,59 +1577,95 @@ export class VaultStore {
       this.#header = null;
     }
     this.#emit();
-    // Queued behind any write still in the air. Deleting straight away would let
-    // a persist that had already sealed its body land afterwards and put the
-    // vault — ciphertext, header and all — back on a device it was deleted from.
-    const done = this.#writeQueue
-      .pending()
-      .catch(() => undefined)
-      .then(async () => {
-        // Awaited — resolves once the files are gone; leftover ciphertext would break a fresh vault.
-        await withExclusiveOpenLease(scope.tomb, () =>
-          withBodyWriteLock(scope.tomb, async () => {
-            await Promise.all([
-              deletePlaintextFile(scope.tomb, HEADER_PATH),
-              discardVaultBody(scope.tomb),
-              kvDeleteDurable(scope.attempts),
-              wipeTombOnDestroy(scope.tomb),
-            ]);
-          }),
-        );
-      });
-    this.#writeQueue.assign(done);
-    await done;
-    this.#emit();
   }
+
+  /** Only this Store registers handles after genuine fresh owner authentication. */
+  async #beginOwnerOperation<T extends object>(
+    primary: LocalVaultPrimary,
+    entries: RetiredOperationEntries<T>,
+    produce: (input: RetiredOwnerAuthenticationInput<T>) => Promise<T>,
+    signal?: AbortSignal,
+  ): Promise<LocalVaultStarted<T>> {
+    if (this.#ephemeral || this.#scope.tomb === GUEST_TOMB)
+      throw new Error("Real owner authentication is required.");
+    this.#assertNotLockedOut();
+    const selected = copyCapturedOwnerPrimaryRequest(primary);
+    const operation = this.#protectionOperation();
+    const original = operation.active;
+    const release = entries.reserve();
+    const exchange = new RetiredOperationExchange<T>(
+      this.#sessionGuard.signal,
+      signal,
+    );
+    entries.set(exchange.challenge, exchange);
+    const task = produce({
+      tomb: operation.scope.tomb,
+      primary: selected,
+      exchange,
+      original,
+      failed: () => {
+        original();
+        this.#recordFailedUnlock();
+      },
+      headerChanged: (next) =>
+        operation.adoptHeader(next, () => {
+          this.#header = next;
+          this.#emit();
+        }),
+    }).then((result) => {
+      original();
+      entries.rememberResult(result, original);
+      return result;
+    });
+    retireRetiredOwnerTask(entries, exchange, task, release);
+    return presentRetiredOwnerStarted(entries, exchange);
+  }
+  beginRetired(
+    primary: LocalVaultPrimary,
+    command: LocalRetiredCommand,
+    signal?: AbortSignal,
+  ): Promise<LocalVaultStarted<LocalRetiredInspection>> {
+    const copied = copyRetiredCommand(command);
+    return this.#beginOwnerOperation(
+      primary,
+      this.#retiredEntries,
+      (input) => runRetiredOwnerOperation({ ...input, command: copied }),
+      signal,
+    );
+  }
+  beginCanary(
+    primary: LocalVaultPrimary,
+    command: LocalCanaryCommand,
+    signal?: AbortSignal,
+  ): Promise<LocalVaultStarted<LocalCanaryResult>> {
+    const copied = copyRetiredOwnerCanaryCommand(command);
+    return this.#beginOwnerOperation(
+      primary,
+      this.#canaryEntries,
+      (input) =>
+        runRetiredOwnerAuthentication(input, async (data) =>
+          (
+            await import("../agent-canaries/canary-owner-effects.js")
+          ).runCanaryOwnerEffects(
+            data,
+            copied,
+            input.exchange.controller.signal,
+          ),
+        ),
+      signal,
+    );
+  }
+  isCanaryResultCurrent = (result: LocalCanaryResult): boolean =>
+    this.#canaryEntries.isResultCurrent(result);
+  isRetiredResultCurrent = (result: LocalRetiredInspection): boolean =>
+    this.#retiredEntries.isResultCurrent(result);
 
   // —— preferences and auto-lock ————————————————————————————
 
-  setPrefs(next: Partial<VaultPrefs>): void {
-    this.#preferences.prefs = normalizeVaultPrefs({
-      ...this.#preferences.prefs,
-      ...next,
-      prefsRevision: VAULT_PREFS_REVISION,
-    });
-    this.#persistPrefs();
-    this.#armIdleTimer();
-    this.#emit();
-  }
-
-  async commitPrefs(next: Partial<VaultPrefs>): Promise<void> {
-    if (!this.#vaultKey)
-      throw new Error("Unlock the vault before saving preferences.");
-    this.setPrefs(next);
-    await writePrefsJson(this.#scope.tomb, this.#preferences.prefs);
-  }
-
-  async writePrefsSource(source: string): Promise<void> {
-    if (!this.#vaultKey)
-      throw new Error("Unlock the vault before saving preferences.");
-    await writePrefsSourceFile(this.#scope.tomb, source);
-  }
-
-  async readPrefsSource(): Promise<string | null> {
-    return this.#vaultKey ? readPrefsSourceFile(this.#scope.tomb) : null;
-  }
+  setPrefs = this.#preferencesApi.setPrefs;
+  commitPrefs = this.#preferencesApi.commitPrefs;
+  writePrefsSource = this.#preferencesApi.writePrefsSource;
+  readPrefsSource = this.#preferencesApi.readPrefsSource;
 
   touch = this.#preferences.touch.bind(this.#preferences);
 

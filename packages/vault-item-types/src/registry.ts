@@ -88,10 +88,16 @@ export function directoryName(definition: ItemTypeDefinition): string {
  * the pack's index entry and not yet its definition (ADR 0165).
  */
 export function directoryOf(plural: string, id: string): string {
-  const slug = plural
+  const raw = plural
     .replaceAll(/[A-Z]/g, (letter) => letter.toLowerCase())
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-");
+  // Trim edge hyphens in linear time; a `/-+$/` search rescans a long
+  // hyphen run once per starting position.
+  let start = 0;
+  let end = raw.length;
+  while (start < end && raw[start] === "-") start += 1;
+  while (end > start && raw[end - 1] === "-") end -= 1;
+  const slug = raw.slice(start, end);
   return slug === "" ? id : slug;
 }
 
@@ -101,7 +107,12 @@ export function directoryOf(plural: string, id: string): string {
  * about U+FEFF, and the two planes must refuse the same installs.
  */
 function titleKey(title: string): string {
-  return title.replaceAll(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "").toLowerCase();
+  let start = 0;
+  let end = title.length;
+  const asciiSpace = (char: string) => "\t\n\f\r ".includes(char);
+  while (start < end && asciiSpace(title[start] ?? "")) start += 1;
+  while (end > start && asciiSpace(title[end - 1] ?? "")) end -= 1;
+  return title.slice(start, end).toLowerCase();
 }
 
 /** Compare two `major.minor.patch` versions: negative, zero or positive. */

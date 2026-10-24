@@ -38,17 +38,30 @@ export async function localRequestFixture() {
   const tomb = `local-requests-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
   const device = await authenticator();
-  let queue = Promise.resolve();
+  const queues = new Map<string, Promise<void>>();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
     credentials: device,
     locks: {
-      request: <T>(_name: string, action: () => Promise<T>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
+      // One queue per lock name, as the real Lock Manager holds distinct
+      // names concurrently. A single queue would deadlock any action that
+      // takes a second ledger lock, which the product allows.
+      request: <T>(
+        name: string,
+        optionsOrAction: unknown,
+        maybeAction?: () => Promise<T>,
+      ) => {
+        const action = (
+          typeof optionsOrAction === "function" ? optionsOrAction : maybeAction
+        ) as () => Promise<T>;
+        const next = (queues.get(name) ?? Promise.resolve()).then(action);
+        queues.set(
+          name,
+          next.then(
+            () => undefined,
+            () => undefined,
+          ),
         );
         return next;
       },

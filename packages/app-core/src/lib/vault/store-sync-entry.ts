@@ -52,8 +52,10 @@ export type OsMeta = {
   fields?: StoreCustomField[];
   /** Starred; absent when not (format 2). */
   favorite?: boolean;
-  /** The item's environment cells, present when it is a key (ADR 0194). */
+  /** The item's environment cells, present when it has any (ADR 0194). */
   environments?: ItemEnvironments | JsonObject;
+  /** Set when a person took the item out of every environment schema. */
+  environmentsExcluded?: boolean;
 };
 
 /** The trailer format this build writes. */
@@ -81,7 +83,10 @@ export function mergeOtpauthIntoTrailer(
   trailer: string,
   otpauth: string | null | undefined,
 ): string {
-  const without = stripOtpauthFromTrailer(trailer).replace(/\n+$/u, "");
+  const stripped = stripOtpauthFromTrailer(trailer);
+  let end = stripped.length;
+  while (end > 0 && stripped[end - 1] === "\n") end -= 1;
+  const without = stripped.slice(0, end);
   if (!otpauth?.trim()) {
     return without ? `${without}\n` : "";
   }
@@ -90,9 +95,22 @@ export function mergeOtpauthIntoTrailer(
   return `${without}\n${uri}\n`;
 }
 
+/**
+ * Drop leading and trailing slashes in linear time. A `/\/+$/` search
+ * rescans a long slash run once per starting position, and store paths
+ * arrive from imported vaults whose lengths this code does not control.
+ */
+function stripEdgeSlashes(path: string): string {
+  let start = 0;
+  let end = path.length;
+  while (start < end && path[start] === "/") start += 1;
+  while (end > start && path[end - 1] === "/") end -= 1;
+  return path.slice(start, end);
+}
+
 /** Split `Email/github.com` into folder + name. */
 export function splitStorePath(path: string) {
-  const trimmed = path.replace(/^\/+|\/+$/gu, "");
+  const trimmed = stripEdgeSlashes(path);
   const idx = trimmed.lastIndexOf("/");
   if (idx <= 0) {
     return { folder: null, name: trimmed || "untitled" };
@@ -112,10 +130,7 @@ export function joinStorePath(folder: string | null, name: string): string {
 
 /** A store path as a merge compares it: no stray slashes, no case. */
 export function normalizedStorePath(path: string): string {
-  return path
-    .replace(/^\/+|\/+$/gu, "")
-    .trim()
-    .toLowerCase();
+  return stripEdgeSlashes(path).trim().toLowerCase();
 }
 
 /** Parse an OpenSesame JSON trailer after a blank line, if present. */
@@ -146,10 +161,10 @@ export function filterEntriesForProject(
   projectFolder: string | null,
 ): StorePlainEntry[] {
   if (!projectFolder?.trim()) return entries;
-  const folder = projectFolder.trim().replace(/\/+$/u, "");
+  const folder = stripEdgeSlashes(projectFolder.trim());
   const prefix = `${folder}/`;
   return entries.filter((entry) => {
-    const path = entry.path.replace(/^\/+/u, "");
+    const path = stripEdgeSlashes(entry.path);
     return path === folder || path.startsWith(prefix);
   });
 }

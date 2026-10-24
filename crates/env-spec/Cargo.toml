@@ -7,6 +7,8 @@ description = "OpenSesame consumer of @env-spec JSON (via env-spec-bridge)"
 
 [dependencies]
 opensesame-domain = { path = "../domain" }
+# Which `node` runs: the trust rule and override every fixed-name spawn shares.
+opensesame-trusted-exec = { path = "../trusted-exec" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

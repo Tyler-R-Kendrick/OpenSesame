@@ -221,6 +221,22 @@ describe("authorizing", () => {
     controller.abort();
     await expect(granted).rejects.toMatchObject({ code: "aborted" });
   });
+
+  it("aborts a poll that is already waiting for its answer", async () => {
+    const owner = pipe();
+    const controller = new AbortController();
+    const client = new DeviceClient(owner.made);
+    const granted = client.authorize({ signal: controller.signal });
+    granted.catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(0);
+    owner.reply({ ...CODE, req: owner.last()?.req ?? "" });
+    await vi.advanceTimersByTimeAsync(0);
+    // The interval has passed and a poll is now out with no answer yet.
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(owner.last()?.t).toBe("dev.poll");
+    controller.abort();
+    await expect(granted).rejects.toMatchObject({ code: "aborted" });
+  });
 });
 
 describe("asking for connections and making calls", () => {

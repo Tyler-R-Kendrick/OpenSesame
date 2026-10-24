@@ -1,21 +1,7 @@
 /**
- * Cold-load geometry, not a screenshot: state pips cannot shift icon centers.
- *
- * One strip carries command, support, plane truth and notifications
- * (`Statusline.tsx`), and a phone is not a narrow desktop. With room all of it
- * is drawn: Support with the plane keys and the bell (Host is gone; Pages is
- * complete without it — ADR 0128), and the command cluster beside them. A
- * phone keeps the strip but draws only what a phone wants constantly —
- * Support and the command cluster — while the plane keys and the bell roll
- * into the top bar's one overflow key. DESIGN.md § Touch is the contract: the
- * statusline runs edge to edge with no gutter and one left-aligned row of
- * equal keys, and it may never fold onto a second row.
- *
- * Everything here measures the *visible* controls — counting hidden ones would
- * let either arrangement pass for the other. The keys and the command cluster
- * are checked as separate clusters because they are separate in the DOM and
- * separate in the design: the keys are icon-btns of one box, the command
- * cluster is its own run of affordances.
+ * The footer carries Support and the command field on every viewport. Session,
+ * install and notification controls belong to the full-width header above the
+ * panes. Measure actual controls after resizing, rather than hidden twins.
  */
 export async function checkStatusline(page, check) {
   const original = page.viewportSize();
@@ -75,6 +61,11 @@ export async function checkStatusline(page, check) {
           stripVisible: [
             ...document.querySelectorAll("footer.statusline"),
           ].filter((el) => el.getClientRects().length > 0).length,
+          headerBells: [
+            ...document.querySelectorAll(
+              '.app-header button[aria-label^="Notifications —"]',
+            ),
+          ].filter((button) => button.getClientRects().length > 0).length,
           planesVisible: [
             ...document.querySelectorAll(".statusline__planes"),
           ].filter((el) => el.getClientRects().length > 0).length,
@@ -94,149 +85,72 @@ function onOneAxis(controls) {
   );
 }
 
-/** A run of controls with no hole between them and nothing pushed past them. */
-function contiguous(run) {
-  return run.every((control, index) => {
-    if (index === 0) return true;
-    const gap = control.left - run[index - 1].right;
-    return gap >= 0 && gap <= 8;
-  });
-}
-
-/**
- * The arrangement at one width. On a phone: Support and the command cluster,
- * with the bell behind the top bar's overflow key. With room: Support and the
- * bell, and the command cluster beside them.
- */
+/** Support and Run stay aligned in the one footer row at every width. */
 function checkArrangement(geometry, width, check) {
   const command = geometry.commandButtons;
-  // Run alone: speech is `support.local-ai`'s, which holds the microphone
-  // permission, and the guest this journey walks never chose it — a mic here
-  // would be optional code drawn without consent.
   check(
     command.length === 1,
-    `the command cluster holds Run alone, no mic without the on-device model, at ${width}px`,
+    `the command cluster holds Run alone at ${width}px`,
   );
-  if (width < 900) {
-    // Support and the command cluster, and nothing else: the bell rolls up
-    // into the top bar's one overflow key.
-    check(
-      geometry.keys.length === 1 && geometry.planesVisible === 0,
-      `the bell is not drawn at ${width}px; it is behind one key`,
-    );
-    check(
-      geometry.overflowKey === 1,
-      "the top bar carries the overflow the bell rolled up into",
-    );
-    check(
-      onOneAxis([...geometry.keys, ...command]),
-      "the strip keeps one row at this width and never folds onto a second",
-    );
+  check(
+    geometry.keys.length === 1 && geometry.planesVisible === 0,
+    `Support is the only footer key at ${width}px`,
+  );
+  check(
+    geometry.headerBells === 1,
+    `one notification key is directly available in the header at ${width}px`,
+  );
+  check(
+    geometry.overflowKey === (width <= 900 ? 1 : 0),
+    `the narrow layout keeps one overflow key at ${width}px`,
+  );
+  check(
+    onOneAxis([...geometry.keys, ...command]),
+    `the footer never folds at ${width}px`,
+  );
+  if (geometry.keys[0]) {
     check(
       Math.abs(geometry.keys[0].left - geometry.start) < 0.6,
-      "the statusline runs edge to edge with no gutter",
+      `Support sits at the footer start at ${width}px`,
     );
     check(
-      geometry.supportCount === 1 && geometry.footerCount === 1,
-      "one Support control in one statusline on cold load",
+      geometry.keys[0].iconCenter !== null &&
+        Math.abs(geometry.keys[0].center - geometry.keys[0].iconCenter) < 0.6,
+      `Support glyph remains centered at ${width}px`,
     );
-    check(!geometry.overflow, "footer does not widen the document");
-    return;
   }
-  const size = 28;
-  check(
-    geometry.keys.length === 2,
-    `footer has 2 visible keys at ${width}px; Support and the bell`,
-  );
-  check(
-    geometry.overflowKey === 0 && geometry.planesVisible === 0,
-    "Support and the bell are the strip where there is room for them",
-  );
-  check(
-    geometry.keys.every((key) => key.width === size && key.height === size),
-    "footer key hit areas match",
-  );
-  check(
-    geometry.keys.every(
-      (key) =>
-        key.iconCenter !== null && Math.abs(key.center - key.iconCenter) < 0.6,
-    ),
-    "all footer glyphs are centered despite status pips",
-  );
-  check(
-    geometry.keys.every(
-      (key) => Math.abs(key.center - geometry.keys[0].center) < 0.6,
-    ),
-    "footer keys share one vertical axis",
-  );
-  check(
-    Math.abs(geometry.keys[0].left - geometry.start) < 0.6,
-    "the support mark sits at the strip's start",
-  );
-  check(contiguous(geometry.keys.slice(1)), "the bell closes the row");
-  check(
-    new Set(
-      geometry.keys.map(
-        ({ background, border, radius }) => `${background}/${border}/${radius}`,
-      ),
-    ).size === 1,
-    "footer keys share surface and border styling",
-  );
   check(
     geometry.supportCount === 1 && geometry.footerCount === 1,
-    "one Support control in one statusline on cold load",
+    `one Support control in one footer at ${width}px`,
   );
-  check(!geometry.overflow, "footer does not widen the document");
+  check(!geometry.overflow, `footer does not widen the document at ${width}px`);
 }
 
 async function checkProfileLock(page, check, width) {
-  if (width <= 900) {
-    await checkMobileLock(page, check, width);
-    return;
-  }
-  const prompt = page.locator(".rail .rail__prompt");
-  const lockBox = await prompt
-    .getByRole("button", { name: "Lock vault" })
-    .boundingBox();
-  const vaultBox = await prompt.locator(".project-switcher").boundingBox();
-  check(
-    (await page.getByRole("button", { name: "Lock vault" }).count()) === 1 &&
-      lockBox &&
-      vaultBox &&
-      lockBox.x >= vaultBox.x + vaultBox.width &&
-      lockBox.x - vaultBox.x - vaultBox.width <= 24 &&
-      Math.abs(
-        lockBox.y + lockBox.height / 2 - vaultBox.y - vaultBox.height / 2,
-      ) < 1,
-    `one visible lock beside the vault switcher at ${width}px`,
-  );
-}
-
-async function checkMobileLock(page, check, width) {
-  const toolbar = page.locator(".topbar.mobile-toolbar");
-  const [barBox, sectionBox, lockBox, moreBox] = await Promise.all([
-    toolbar.boundingBox(),
-    toolbar.locator(".mobile-toolbar__section").boundingBox(),
-    toolbar.getByRole("button", { name: "Lock vault" }).boundingBox(),
-    toolbar.getByRole("button", { name: /^More — / }).boundingBox(),
+  const prompt = page.locator(".app-header .rail__prompt");
+  const [promptBox, lockBox, accountBox] = await Promise.all([
+    prompt.boundingBox(),
+    prompt.getByRole("button", { name: "Lock vault" }).boundingBox(),
+    prompt.locator(".account-switcher").boundingBox(),
   ]);
   check(
     (await page.getByRole("button", { name: "Lock vault" }).count()) === 1 &&
-      barBox &&
-      sectionBox &&
+      promptBox &&
       lockBox &&
-      moreBox &&
-      lockBox.width >= 44 &&
-      lockBox.height >= 44 &&
-      lockBox.x >= sectionBox.x + sectionBox.width &&
-      moreBox.x >= lockBox.x + lockBox.width &&
-      moreBox.x - lockBox.x - lockBox.width <= 24 &&
-      lockBox.y >= barBox.y &&
-      lockBox.y + lockBox.height <= barBox.y + barBox.height &&
-      moreBox.x + moreBox.width <= barBox.x + barBox.width &&
+      accountBox &&
+      lockBox.x >= accountBox.x + accountBox.width &&
+      (width <= 900 || lockBox.x - accountBox.x - accountBox.width <= 32) &&
+      lockBox.y >= promptBox.y - 1 &&
+      lockBox.y + lockBox.height <= promptBox.y + promptBox.height + 1 &&
       Math.abs(
-        lockBox.y + lockBox.height / 2 - moreBox.y - moreBox.height / 2,
+        lockBox.y + lockBox.height / 2 - accountBox.y - accountBox.height / 2,
       ) < 1,
-    `one touch-sized lock beside More in the mobile toolbar at ${width}px`,
+    `one visible lock follows the vault@account identity at ${width}px`,
   );
+  if (width <= 900 && lockBox) {
+    check(
+      lockBox.width >= 44 && lockBox.height >= 44,
+      `the header lock retains its touch target at ${width}px`,
+    );
+  }
 }

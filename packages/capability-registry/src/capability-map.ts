@@ -22,8 +22,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "client.command_bar": "shell.navigation",
 
     // --- core: vault items -----------------------------------------------
-    "password_provider.read": "vault.passwords",
-    "password_provider.env_resolve": "vault.passwords",
+    "password_provider.reveal": "vault.passwords",
     "vault.workflow.find_references": "vault.passwords",
     "vault.workflow.inventory": "vault.passwords",
     "vault.workflow.audit_organization": "vault.passwords",
@@ -50,6 +49,8 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "vaults.travel": "vault.local-unlock",
     "vaults.travel_items": "vault.local-unlock",
     "vaults.duress_code": "vault.local-unlock",
+    "vault.retired_credentials.manage": "vault.local-unlock",
+    "vault.agent_canaries.manage": "vault.local-unlock",
     "vault.second_step.code": "vault.local-unlock",
     "vault.recovery_codes": "vault.local-unlock",
     "vault.protectors.manage": "vault.local-unlock",

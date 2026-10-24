@@ -68,7 +68,7 @@ beforeEach(() => {
     sync: observer.syncTailnetNow,
     forget: observer.forgetTailnetDrive,
   });
-  window.history.replaceState(null, "", "/settings/vaults");
+  window.history.replaceState(null, "", "/settings/features/networking");
 });
 
 afterEach(() => {
@@ -101,11 +101,11 @@ describe("TailnetSyncPanel", () => {
     window.history.replaceState(
       null,
       "",
-      "/settings/vaults#pair-drive=opensesame-drive:v1:xyz",
+      "/settings/features/networking#pair-drive=opensesame-drive:v1:xyz",
     );
     captureLinkedPairing();
     expect(window.location.hash).toBe("");
-    expect(window.location.pathname).toBe("/settings/vaults");
+    expect(window.location.pathname).toBe("/settings/features/networking");
     render(<TailnetSyncPanel />);
     expect(
       screen.getByRole("dialog", { name: "Pair with a drive" }),

@@ -2,6 +2,7 @@
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -141,7 +142,7 @@ describe("a key or a configuration seals on this device", () => {
     ).toBeTruthy();
   });
 
-  it("composes browser peering with OAuth management, without the legacy daemon refusal or a duplicate generic form", () => {
+  it("composes only browser peering without OAuth management, the legacy daemon refusal or a duplicate generic form", () => {
     draw("tailscale");
     expect(
       screen.getAllByRole("region", { name: "Tailscale browser node" }),
@@ -160,25 +161,31 @@ describe("a key or a configuration seals on this device", () => {
       "Provisioned node attributes",
       "Redirect URI to register",
       "Returned OAuth app JSON",
+      "Admin API access token",
       "Issued device auth key",
       "Tailnet",
     ])
-      expect(screen.getByLabelText(field, { exact: true })).toBeTruthy();
+      expect(screen.queryByLabelText(field, { exact: true })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Connect browser node" }),
     ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", {
+        name: /Download registration request|Register app with Tailscale|Save returned Tailscale app|Prepare device key handoff/,
+      }),
+    ).toBeNull();
     expect(
       screen.queryByText(/device enrollment requires tailscaled/),
     ).toBeNull();
     expect(screen.queryByLabelText("Auth key (required)")).toBeNull();
     expect(
-      screen.getByRole("region", {
+      screen.queryByRole("region", {
         name: "Tailscale OAuth app configuration",
       }),
-    ).toBeTruthy();
+    ).toBeNull();
     expect(
-      screen.getByRole("region", { name: "Tailscale device provisioning" }),
-    ).toBeTruthy();
+      screen.queryByRole("region", { name: "Tailscale device provisioning" }),
+    ).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Save configuration" }),
     ).toBeNull();
@@ -187,6 +194,7 @@ describe("a key or a configuration seals on this device", () => {
 
 describe("a connector page that seals in the vault", () => {
   it("draws nothing for a guest or a locked vault", () => {
+    vaultStore.lock();
     draw("aws-kms");
     expect(screen.queryByRole("heading", { name: "Connect" })).toBeNull();
     expect(
@@ -221,7 +229,7 @@ describe("a connector page the browser acts on alone", () => {
     expect(
       screen.getByRole("img", { name: "Not available here" }),
     ).toBeTruthy();
-    expect(screen.queryByLabelText(/personal access token/i)).toBeNull();
+    expect(screen.queryByLabelText("GitHub personal access token")).toBeNull();
     expect(
       screen.queryByRole("button", { name: /Authorize with GitHub/i }),
     ).toBeNull();

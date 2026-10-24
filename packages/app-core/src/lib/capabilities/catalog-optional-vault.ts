@@ -38,7 +38,7 @@ export const SECURITY_CHECKS_SUMMARY =
  * catalog's 400-character summary limit.
  */
 export const ENVIRONMENTS_SUMMARY =
-  "Give a vault's keys a value for each environment (development, staging, production) and mark each key required where it must have one. A .env.schema is generated from them and holds no values; a required key with no value in an environment is flagged in the bell. Adds an Environments key to the vault. Values stay sealed in the vault.";
+  "Adds an Environment item type. Each item holds one varlock-compatible .env.schema, its environment name, and alias bindings from schema keys to named vault item paths. The generated <vault-item-name>.<env-name>.env.schema never contains a value; values stay sealed in the vault.";
 
 /**
  * What Settings says `sharing.trusted-contacts` does. Kept under the catalog's
@@ -95,7 +95,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     operationIds: ["vault.environments.manage"],
     keyAccess: "item-plaintext",
     offlineLimits:
-      "Works offline. Values are sealed in the vault body with everything else and sync with it; nothing is fetched.",
+      "Works offline. The schema and alias bindings are sealed in the vault body with everything else and sync with it; nothing is fetched.",
   }),
   optional(
     "storage.encrypted-search",

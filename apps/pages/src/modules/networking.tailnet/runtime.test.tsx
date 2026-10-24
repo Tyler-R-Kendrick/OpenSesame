@@ -23,12 +23,18 @@ describe("networking.tailnet runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("networking.tailnet");
   });
 
-  it("registers the sync job and the Vaults panel", async () => {
+  it("registers the sync job and the Networking feature panel", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "networking.tailnet",
       kinds: ["background-job", "settings-panel"],
       count: 2,
     });
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    expect(t.entries("settings-panel").map((panel) => panel.category)).toEqual([
+      "features.feature-networking",
+    ]);
+    await handle.dispose();
   });
 
   it("reaches no network on activation", async () => {

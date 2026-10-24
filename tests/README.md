@@ -12,7 +12,7 @@ crate).
 | [`fuzz/jazzer/`](fuzz/jazzer) | Jazzer.js (TypeScript) | The same for the Identity plane: contracts, agent-auth tokens, audit redaction, claim engine. | `pnpm test:fuzz` · `pnpm test:fuzz:batch` |
 | [`fuzz/clusterfuzzlite/`](fuzz/clusterfuzzlite) | OSS-Fuzz builder | Builds every cargo-fuzz target for ClusterFuzzLite. Not wired to CI. | — |
 | [`redteam/`](redteam) | promptfoo + Vitest | The real `packages/mcp-host` stdio server under prompt-injection, confused-deputy, exfiltration and malformed-input attacks, behind a stub Host API and daemon. | `pnpm test:redteam` (promptfoo corpus); its Vitest suites, including the structural pact suite, run under `pnpm test` |
-| [`visual-contract/`](visual-contract) | Playwright + pixelmatch | The Pages app still matches its design baselines in `.impeccable/screenshots`. | `pnpm test:visual` |
+| [`visual-contract/`](visual-contract) | Playwright + pixelmatch | The Pages app still matches its design baselines in `tests/visual-contract/baselines/`. | `pnpm test:visual` |
 | [`mtls-interop/`](mtls-interop) | Rust integration crate | Optional mTLS interoperates across runtimes: Rust ↔ Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, a Caddy ingress. Ignored unless `OPENSESAME_MTLS_FIXTURES=1`. | `pnpm test:mtls:integration` |
 
 The cargo-fuzz project is deliberately **outside** the Cargo workspace

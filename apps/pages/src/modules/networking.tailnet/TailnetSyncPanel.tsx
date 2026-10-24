@@ -1,10 +1,10 @@
 /**
- * Settings › Vaults › Tailnet sync (ADR 0144): pair this vault with a drive
+ * Settings › Features › Networking › Tailnet sync (ADR 0144): pair this vault with a drive
  * on the tailnet, see whether it is in step, sync now, or stop.
  *
  * Contributed by `networking.tailnet`, so it exists only while Networking is
  * on. Pairing is a ceremony in a sheet (`TailnetPairSheet`), never a field
- * on the page. A pairing link (`…/settings/vaults#pair-drive=<code>`, printed
+ * on the page. A pairing link (`…/settings/features/networking#pair-drive=<code>`, printed
  * by `opensesame daemon drive create`) opens it with the code filled in; boot
  * has already taken the code out of the address bar (`lib/pairing-link.ts`).
  */

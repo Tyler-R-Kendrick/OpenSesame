@@ -16,8 +16,8 @@
  * the whole app's authority at whoever wrote it.
  */
 
-import { maybePage } from "../../ports.js";
-import { type LiveLink, readLiveValue } from "../live/link.js";
+import { maybePage, sessionStore } from "../../ports.js";
+import { type LiveLink, liveValue, readLiveValue } from "../live/link.js";
 import { dismissNotice, setStatusNotice } from "../notices.js";
 import { normalizeApiBase } from "../urls.js";
 
@@ -107,6 +107,43 @@ export function normalizeSessionId(raw: string): string | null {
 }
 
 let captured: CapturedInvite | null = null;
+const LIVE_LINK_KEY = "opensesame.live.link.v1";
+
+/** Keep the bearer across a capability-setup reload; the tab still dies with it. */
+function rememberLiveLink(link: LiveLink): void {
+  try {
+    sessionStore().setItem(LIVE_LINK_KEY, liveValue(link));
+  } catch {
+    /* private mode: the in-memory copy is what remains */
+  }
+}
+
+function forgetLiveLink(): void {
+  try {
+    sessionStore().removeItem(LIVE_LINK_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * The live link a reload kept. Reading does not spend it: the capability's
+ * consent can reload the page again before the person has even seen the form,
+ * and a one-shot read loses the link on that second load.
+ */
+export function takePersistedLiveLink(): LiveLink | null {
+  try {
+    const raw = sessionStore().getItem(LIVE_LINK_KEY);
+    return raw ? readLiveValue(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Drop the link when the person closes the join screen or starts another. */
+export function forgetPersistedLiveLink(): void {
+  forgetLiveLink();
+}
 
 /** A Host invite or a live-session link in the fragment, or neither. */
 function fromHash(hash: string): CapturedInvite | null {
@@ -149,6 +186,13 @@ export function captureInviteFromPage(): CapturedInvite | null {
   const arrived = hash ? fromHash(hash) : null;
   if (!arrived) return captured;
   captured = arrived;
+  if (arrived.kind === "live") {
+    // A live link may have to survive the optional capability's consent and
+    // the reload that follows it. The join screen removes the fragment when
+    // it actually has the link; a Host invite still leaves at once.
+    rememberLiveLink(arrived.link);
+    return captured;
+  }
   page.replaceUrl(`${pathname}${search}${without(hash, "#")}`);
   return captured;
 }
@@ -209,6 +253,9 @@ export function takeCapturedLiveLink(): LiveLink | null {
   if (captured?.kind !== "live") return null;
   const { link } = captured;
   captured = null;
+  // Keep the session copy: capability consent can reload the page once more
+  // before the person has joined. It is dropped on close, or replaced by the
+  // next link.
   dismissNotice(WAITING_NOTICE);
   return link;
 }

@@ -2,12 +2,13 @@ import type { Ref } from "react";
 import { Link } from "react-router";
 import { useContributions } from "../../bindings/contributions.js";
 import { IconPlus } from "../../components/Icons.js";
-import { ClaimOpenLink } from "./ClaimOpen.js";
 import { ExportKey } from "./ExportKey.js";
+import { PasswordsOnboardingOffer } from "./passwords-onboarding-offer.js";
 
 /**
- * The keys that add to a vault or take it out: New item, whatever a capability
- * adds beside it (Import, from the formats it reads), and Export.
+ * The keys that add to a vault or take it out: New item, the fresh-vault
+ * Passwords offer when this build asks for it, whatever a capability adds
+ * beside them (Import, from the formats it reads), and Export.
  *
  * A desktop's list carries the cluster in its command row. A phone does not
  * draw it: Add is `NewItemFab` — the `+` for a new item, with Import and
@@ -36,8 +37,8 @@ export function VaultActions({
       >
         <IconPlus size={15} />
       </Link>
+      <PasswordsOnboardingOffer placement="path" />
       <VaultCommands />
-      <ClaimOpenLink />
     </>
   );
 }

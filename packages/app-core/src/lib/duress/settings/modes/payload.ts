@@ -16,10 +16,9 @@ import { MAX_SLOT_PAYLOAD_BYTES } from "../../crypto/slot-profile.js";
 import type { DuressEffectName, DuressPlan } from "./mode.js";
 
 const EFFECTS: ReadonlyMap<string, DuressEffectName> = new Map(
-  (["decoy_items", "visible_items", "freeze", "wipe"] as const).map((name) => [
-    name,
-    name,
-  ]),
+  (
+    ["decoy_items", "honey_vault", "visible_items", "freeze", "wipe"] as const
+  ).map((name) => [name, name]),
 );
 
 type Envelope = Readonly<{ e: string; v: 1; b: JsonValue }>;

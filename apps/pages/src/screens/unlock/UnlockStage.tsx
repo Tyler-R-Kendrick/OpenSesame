@@ -5,6 +5,8 @@ import {
   type CipherWordmarkHandle,
 } from "../../components/CipherWordmark/index.js";
 import { GateTools } from "../../components/GateTools.js";
+import { InstallMark } from "../../components/InstallMark.js";
+import { GateNoticeSeat } from "../../components/Notices.js";
 import type { WordmarkHandle } from "../../components/Wordmark.js";
 import { PendingLinkBanner } from "./PendingLinkBanner.js";
 import { ReleaseNotes } from "./ReleaseNotes.js";
@@ -73,12 +75,14 @@ export function UnlockStage({
           {/* Space kept for the in-card wordmark the hero replaced (lock-v5). */}
           <span className="unlock__wordmark unlock__wordmark--reserve" />
           <div className="unlock__brand-tools">
+            <InstallMark />
             <GateTools />
           </div>
         </div>
+        <GateNoticeSeat />
         {children}
       </div>
-      <ReleaseNotes ref={notesRef} />
+      {vaultUnlocked ? null : <ReleaseNotes ref={notesRef} />}
     </div>
   );
 }

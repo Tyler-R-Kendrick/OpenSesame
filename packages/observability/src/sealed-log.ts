@@ -181,7 +181,10 @@ export class SealedLogFile {
    * that still cannot be written is dropped rather than thrown into the logger.
    */
   append(line: string): void {
-    const sealed = `${sealLogLine(this.#key, line.replace(/[\r\n]+$/, ""))}\n`;
+    let end = line.length;
+    while (end > 0 && (line[end - 1] === "\r" || line[end - 1] === "\n"))
+      end -= 1;
+    const sealed = `${sealLogLine(this.#key, line.slice(0, end))}\n`;
     try {
       this.#write(sealed);
     } catch {

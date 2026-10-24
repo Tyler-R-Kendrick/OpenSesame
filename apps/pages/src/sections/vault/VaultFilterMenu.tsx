@@ -25,6 +25,7 @@ import { Link } from "react-router";
 import { IconChevronDown, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import type { SharedItemMarks } from "./use-shared-items.js";
 
 /** A road a guide can name. Same markup as the untracked ones. */
 function GuidedRoad({
@@ -65,12 +66,14 @@ export function VaultFilterMenu({
   typeIds,
   filter,
   folderId,
+  sharedItems,
 }: {
   items: VaultItem[];
   folders: Folder[];
   typeIds: readonly string[];
   filter: string;
   folderId: string | null;
+  sharedItems?: SharedItemMarks;
 }) {
   const [open, setOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -84,8 +87,8 @@ export function VaultFilterMenu({
   useModalFocus(open, sheetRef, closeRef, close);
 
   const roads = useMemo(
-    () => buildRoads(items, folders, typeIds, filter, folderId),
-    [items, folders, typeIds, filter, folderId],
+    () => buildRoads(items, folders, typeIds, filter, folderId, sharedItems),
+    [items, folders, typeIds, filter, folderId, sharedItems],
   );
   const active = roads.find((road) => road.active);
   // A filter can be in force with no road to show for it: `?f=login` survives

@@ -28,10 +28,12 @@ mod credential_minting;
 mod detected_import;
 mod github_app_minting;
 mod legacy_connections;
+mod minting_changelog;
 mod org_integrations;
 mod revocation_cleanup;
 mod rotation_leftover;
 mod web_rotation;
+mod web_rotation_custom;
 
 const KEY: [u8; 32] = [42u8; 32];
 

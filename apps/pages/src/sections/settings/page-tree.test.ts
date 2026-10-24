@@ -39,7 +39,7 @@ describe("settingsPageTree", () => {
     for (const tab of [
       "general",
       "security",
-      "vaults",
+      "item-types",
       "features",
       "integrations",
     ]) {
@@ -67,6 +67,7 @@ describe("settingsPageTree", () => {
       "Keybindings",
       "Security",
       "Vaults",
+      "Item types",
       "Features",
       "Integrations",
       "Danger",
@@ -76,6 +77,7 @@ describe("settingsPageTree", () => {
       "/settings/keybindings",
       "/settings/security",
       "/settings/vaults",
+      "/settings/item-types",
       "/settings/features",
       "/settings/integrations",
       "/settings/danger",
@@ -153,7 +155,6 @@ describe("settingsPageTree", () => {
     expect(vaults?.children.map((node) => node.label)).toEqual([
       "personal",
       "project · 4f2a",
-      "Item types",
       "Sealed store",
     ]);
     const features = tabs.find((node) => node.id === "features");
@@ -168,6 +169,7 @@ describe("settingsPageTree", () => {
       "keybindings",
       "security",
       "vaults",
+      "item-types",
       "features",
       "integrations",
       "danger",
@@ -198,7 +200,9 @@ describe("settingsPageTree", () => {
   });
 
   it("gives every tab its panels, so no tab is a caret-less row among branches", () => {
-    const tabs = settingsPageTree();
+    const tabs = settingsPageTree({
+      vaults: [{ id: "personal", label: "personal" }],
+    });
     // A tab with nothing under it drew without a caret, one indent left of
     // its siblings, and read as a level above them.
     expect(
@@ -238,10 +242,10 @@ describe("settingsPageTree", () => {
       "second-step",
       "recovery",
       "account-factors",
-      "duress-profiles",
-      "travel",
       "ambient-auth",
       "formats-interoperability",
+      "duress-profiles",
+      "travel",
     ]);
   });
 
@@ -267,7 +271,9 @@ describe("settingsPageTree", () => {
       order: 300,
     });
     try {
-      const tabs = settingsPageTree();
+      const tabs = settingsPageTree({
+        vaults: [{ id: "personal", label: "personal" }],
+      });
       expect(tabs.map((tab) => tab.id)).toContain("notifications");
       expect(childIds(tabs, "notifications")).toEqual(["notif-channels"]);
       // Every tab, core or contributed, is the same kind of row.

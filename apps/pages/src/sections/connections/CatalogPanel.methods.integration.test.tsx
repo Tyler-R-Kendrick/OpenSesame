@@ -19,23 +19,21 @@ import { identityConnectionMethodLabel } from "./identity/identity-ui-values.js"
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 declareConnectionsTutorial();
 afterEach(cleanup);
-it("shows Adobe's MCP contract on the actual catalog tile instead of its legacy OAuth type", () => {
+it("keeps removed providers off the page while showing compiled protocols", () => {
   const providers = mergeVercelCatalog(getBundledProviders());
   render(
     <MemoryRouter>
       <CatalogPanel providers={providers} />
     </MemoryRouter>,
   );
-  const adobe = document.getElementById("catalog-adobe");
-  expect(adobe?.querySelector(".conn-tile__kind")?.textContent).toBe("MCP");
+  expect(document.getElementById("catalog-adobe")).toBeNull();
+  expect(document.getElementById("catalog-datadog")).toBeNull();
+  const linearProvider = providers.find((provider) => provider.id === "linear");
+  if (!linearProvider) throw new Error("Missing Linear");
   expect(
-    document
-      .getElementById("catalog-datadog")
-      ?.querySelector(".conn-tile__kind")?.textContent,
-  ).toBe("API key (browser unavailable)");
-  expect(connectPlan("adobe")?.methods.map((method) => method.kind)).toEqual([
-    "mcp",
-  ]);
+    document.getElementById("catalog-linear")?.querySelector(".conn-tile__kind")
+      ?.textContent,
+  ).toBe(catalogMethodLabel(linearProvider));
 });
 it("uses compiled provider protocols across the full public catalog and keeps legacy feature labels", () => {
   for (const provider of mergeVercelCatalog(getBundledProviders())) {
@@ -70,15 +68,17 @@ it("uses compiled provider protocols across the full public catalog and keeps le
   expect(catalogMethodLabel(provider)).toBe("Email/password · OIDC");
 });
 
-it("keeps admitted Notion and MCP alternatives distinct from blocked browser API/OAuth badges", () => {
+it("names compiled protocols before any connection target or native carrier exists", () => {
   const providers = mergeVercelCatalog(getBundledProviders());
   const labels = Object.fromEntries(
     providers.map((provider) => [provider.id, catalogMethodLabel(provider)]),
   );
   expect(labels.notion).toContain("API key");
   expect(labels.notion).not.toContain("API key (browser unavailable)");
-  expect(labels.resend).toContain("API key (browser unavailable)");
-  expect(labels.resend).toContain("OAuth (browser unavailable)");
+  expect(labels.resend).toContain("API key");
+  expect(labels.resend).not.toContain("API key (browser unavailable)");
+  expect(labels.resend).toContain("OAuth");
+  expect(labels.resend).not.toContain("browser unavailable");
   expect(labels.resend).toContain("MCP");
   expect(labels.adobe).toBe("MCP");
 });

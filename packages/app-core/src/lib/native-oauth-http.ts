@@ -2,46 +2,22 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
+import { nativeResponseJson } from "./native-response-json.js";
 
 export type NativeOAuthHttpReply = { status: number; body: BoundaryValue };
 async function boundedOAuthBody(
   response: Response,
   signal: AbortSignal,
 ): Promise<BoundaryValue> {
-  const reader = response.body?.getReader();
-  if (!reader) return null;
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  const cancel = () => {
-    void reader.cancel();
-  };
-  signal.addEventListener("abort", cancel, { once: true });
   try {
-    for (;;) {
-      signal.throwIfAborted();
-      const part = await reader.read();
-      if (part.done) break;
-      size += part.value.byteLength;
-      if (size > 256 * 1024) throw new NativeOAuthError("provider");
-      chunks.push(part.value);
-    }
-    if (size === 0) return null;
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    const result: BoundaryValue = JSON.parse(
-      new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-    );
-    return result;
+    return await nativeResponseJson(response, {
+      maxBytes: 256 * 1024,
+      signal,
+      fatalUtf8: true,
+      empty: "null",
+    });
   } catch {
     throw new NativeOAuthError("provider");
-  } finally {
-    signal.removeEventListener("abort", cancel);
-    await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
   }
 }
 export async function nativeOAuthHttp(

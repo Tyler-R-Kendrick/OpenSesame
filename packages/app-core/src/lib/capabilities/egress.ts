@@ -82,6 +82,11 @@ export type EgressPort = ContractEgressPort &
   Readonly<{
     capability: CapabilityId;
     decide(input: URL | string, meta?: EgressRequestMeta): EgressDecision;
+    /** HTTP-only ports omit this and cannot authorize a socket. */
+    decideWebSocket?(
+      input: URL | string,
+      meta?: EgressRequestMeta,
+    ): EgressDecision;
     fetch(
       input: URL | string,
       init?: RequestInit,
@@ -144,9 +149,11 @@ function decideExternal(
   plan: EffectivePlan,
   options: EgressPortOptions,
   destination: string,
+  webSocket = false,
 ): EgressDecision {
   const addressSpace = targetAddressSpaceFor(url.href);
-  if (url.protocol !== "https:" && addressSpace !== "loopback")
+  const secureScheme = webSocket ? "wss:" : "https:";
+  if (url.protocol !== secureScheme && addressSpace !== "loopback")
     return { ok: false, code: "unsupported-scheme", destination };
   // A loopback or local-network destination is local operator authority
   // whichever class reached it, so the deployment profile decides here too.
@@ -199,6 +206,7 @@ function admit(
   options: EgressPortOptions,
   url: URL | null,
   meta: EgressRequestMeta | undefined,
+  webSocket: boolean,
 ): Admission {
   const id = options.capability.id;
   if (meta?.capability !== undefined && meta.capability !== id)
@@ -206,8 +214,13 @@ function admit(
   if (!approvedIn(options.plan(), id))
     return { code: "capability-not-approved" };
   if (url === null) return { code: "invalid-url" };
-  if (url.protocol !== "https:" && url.protocol !== "http:")
+  if (webSocket) {
+    if (url.protocol !== "wss:") return { code: "unsupported-scheme" };
+    if (url.username || url.password || url.hash)
+      return { code: "invalid-url" };
+  } else if (url.protocol !== "https:" && url.protocol !== "http:") {
     return { code: "unsupported-scheme" };
+  }
   return { url };
 }
 
@@ -215,10 +228,11 @@ function decide(
   options: EgressPortOptions,
   input: string | URL,
   meta: EgressRequestMeta | undefined,
+  webSocket = false,
 ): EgressDecision {
   const parsed = parseDestination(input, options.allowedOrigins[0]);
   const destination = parsed === null ? redactUrl(input) : redactUrl(parsed);
-  const admission = admit(options, parsed, meta);
+  const admission = admit(options, parsed, meta, webSocket);
   if ("code" in admission)
     return { ok: false, code: admission.code, destination };
   const url = admission.url;
@@ -239,8 +253,28 @@ function decide(
   if (plan === null)
     return { ok: false, code: "capability-not-approved", destination };
   return egressClass === "external-service"
-    ? decideExternal(url, plan, options, destination)
+    ? decideExternal(url, plan, options, destination, webSocket)
     : decideLocal(url, options, destination);
+}
+
+/** A socket must name an explicitly declared external-service purpose. */
+function decideWebSocket(
+  options: EgressPortOptions,
+  input: string | URL,
+  meta: EgressRequestMeta | undefined,
+): EgressDecision {
+  const declaration = options.capability.egress.find(
+    (entry) =>
+      entry.purpose === meta?.purpose && entry.class === "external-service",
+  );
+  if (!declaration || (meta?.class && meta.class !== declaration.class)) {
+    return {
+      ok: false,
+      code: "purpose-not-declared",
+      destination: redactUrl(input),
+    };
+  }
+  return decide(options, input, { ...meta, class: declaration.class }, true);
 }
 
 /**
@@ -274,6 +308,7 @@ export function createEgressPort(options: EgressPortOptions): EgressPort {
   return {
     capability,
     decide: (input, meta) => decide(options, input, meta),
+    decideWebSocket: (input, meta) => decideWebSocket(options, input, meta),
     async fetch(input, init, meta) {
       const decision = decide(options, input, meta);
       if (!decision.ok) {

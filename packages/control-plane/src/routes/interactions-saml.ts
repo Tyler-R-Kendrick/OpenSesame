@@ -167,7 +167,8 @@ export function createSamlInteractionRoutes(
       return c.text("Prompt mismatch", 400);
     }
 
-    const completion = takeSamlCompletion(
+    const completion = await takeSamlCompletion(
+      ctx,
       c.req.query("otc"),
       ctx.clock().getTime(),
     );
@@ -185,6 +186,8 @@ export function createSamlInteractionRoutes(
       result: completion.result,
       correlationId: c.get("correlationId"),
       userAgent: c.req.header("user-agent") ?? "",
+      interactionUid: uid,
+      remoteAddress: c.env?.incoming?.socket?.remoteAddress,
     });
     if (!admitted.ok) {
       if (admitted.status === 429) {

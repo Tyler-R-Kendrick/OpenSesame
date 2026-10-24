@@ -16,6 +16,7 @@ export type NativeField = {
   secret: boolean;
   required: boolean;
   placeholder?: string;
+  maxLength?: number;
   help?: string;
   defaultValue?: string;
   readOnly?: boolean;
@@ -36,6 +37,10 @@ export type NativeMethodDescriptor = {
   id: NativeMethod;
   label: string;
   available: boolean;
+  /** Compiled editor remains reachable before transport admission; never authorizes Connect. */
+  configurable?: boolean;
+  /** Original executable method gate before browser-origin policy; editing cannot enable it. */
+  runtimeAvailable?: boolean;
   unavailableReason?: string;
   /** Why it is unavailable, as a closed reason a tile can name (never prose). */
   unavailableKind?: BrowserUnavailableKind;
@@ -44,6 +49,8 @@ export type NativeMethodDescriptor = {
   scopeGroups: readonly NativeScopeGroup[];
   authorizeFirst?: boolean;
   authorizationActor?: string;
+  /** Lower ranks are the simplest secure route; absent keeps the legacy order. */
+  preferredRank?: number;
   links?: readonly { label: string; url: string }[];
 };
 
@@ -107,6 +114,7 @@ export type NativeConnectorController = {
   invoke: (
     operationId: string,
     input: Record<string, string>,
+    signal?: AbortSignal,
   ) => Promise<SafeActionResult>;
   retry: (recoveryId: string) => Promise<NativeConnectorView>;
   revocationInstructions?: (recoveryId: string) => {
@@ -123,3 +131,16 @@ export type NativeConnectorCallbacks = {
   onChanged: (view: NativeConnectorView | null) => void;
   onFlash: (flash: Flash) => void;
 };
+
+/** Editing public configuration is separate from authorizing a provider operation. */
+export function nativeMethodConfigurable(
+  method: Pick<
+    NativeMethodDescriptor,
+    "available" | "configurable" | "unavailableKind"
+  >,
+): boolean {
+  return (
+    method.unavailableKind !== "policy" &&
+    (method.available || method.configurable === true)
+  );
+}

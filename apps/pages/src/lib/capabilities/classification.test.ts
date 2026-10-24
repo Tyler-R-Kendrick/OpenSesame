@@ -45,6 +45,152 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(unmatched, `unclassified:\n${unmatched.join("\n")}`).toEqual([]);
   });
 
+  it("keeps the auth-generation fence shared with core identity", () => {
+    expect(classify("src/lib/ambient-auth/generation.ts")).toMatchObject({
+      classification: "shared",
+      capability: null,
+    });
+    expect(classify("src/lib/ambient-auth/controller.ts")).toMatchObject({
+      classification: "optional",
+      capability: "identity.ambient-sso",
+    });
+  });
+
+  it("names only the custody metadata test family as core infrastructure", () => {
+    const custody = classify("src/lib/vault-credential-custody.ts");
+    expect(custody?.classification).toBe("core");
+    expect(custody?.capability).toBeNull();
+    expect(classify("src/lib/vault-credential-metadata.test.ts")).toMatchObject(
+      {
+        pattern: "src/lib/vault-credential-metadata.test",
+        classification: custody?.classification,
+        capability: null,
+      },
+    );
+    for (const path of [
+      "src/lib/vault-credential-metadata.ts",
+      "src/lib/vault-credential-metadatas.test.ts",
+      "src/lib/vault-credential-metadata-tests.ts",
+      "src/lib/vault-credential-metadata.testament.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+    expect(
+      classify("src/lib/secret-backends/encrypted-remote-continuity.ts"),
+    ).toMatchObject({
+      classification: "optional",
+      capability: "connectors.external",
+    });
+  });
+
+  it("owns only the configurable connector action test family", () => {
+    const owner = classify("src/lib/connector-action-capability.test.ts");
+    const configurable = classify(
+      "src/lib/connector-action-configurable.test.ts",
+    );
+    expect(configurable).toMatchObject({
+      pattern: "src/lib/connector-action-configurable.test",
+      capability: "connectors.external",
+      classification: owner?.classification,
+    });
+    for (const path of [
+      "src/lib/connector-action-configurable.ts",
+      "src/lib/connector-action-configurable.testament.ts",
+      "src/lib/connector-action-configurables.test.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+  });
+
+  it("owns only the SAML public settings regression test family", () => {
+    expect(classify("src/lib/operator-saml-config.test.ts")).toMatchObject({
+      pattern: "src/lib/operator-saml-config.test",
+      classification: "core",
+      capability: "settings.core",
+    });
+    for (const path of [
+      "src/lib/operator-saml-config.ts",
+      "src/lib/operator-saml-config.testament.ts",
+      "src/lib/operator-saml-configuration.test.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+  });
+
+  it("shares only the principal generation leaf while ambient acquisition stays optional", () => {
+    expect(classify("src/lib/auth-generation.ts")).toMatchObject({
+      pattern: "src/lib/auth-generation.ts",
+      classification: "shared",
+      capability: null,
+    });
+    for (const path of [
+      "src/lib/auth-generation-helper.ts",
+      "src/lib/auth-generation.test.ts",
+      "src/lib/auth-generations.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+    for (const path of [
+      "src/lib/ambient-auth/controller.ts",
+      "src/lib/ambient-auth/oidc.ts",
+    ])
+      expect(classify(path), path).toMatchObject({
+        classification: "optional",
+        capability: "identity.ambient-sso",
+      });
+  });
+  it("owns only the exact shell update and draft-retirement files", () => {
+    for (const name of [
+      "dirty-forms.ts",
+      "dirty-forms.test.tsx",
+      "load-shell.ts",
+      "load-shell.test.ts",
+      "shell-update.ts",
+      "shell-update.test.ts",
+      "stale-asset.ts",
+      "sw-update-guard.ts",
+      "dirty-edit.ts",
+      "dirty-edit.test.ts",
+      "stale-asset-reload.ts",
+    ]) {
+      expect(classify(`src/lib/${name}`), name).toMatchObject({
+        pattern: `src/lib/${name}`,
+        classification: "core",
+        capability: "shell.navigation",
+      });
+    }
+    for (const name of [
+      "dirty-formats.ts",
+      "dirty-editing.ts",
+      "load-shell-helper.ts",
+      "shell-updates.ts",
+      "stale-asset-reloads.ts",
+      "sw-update-guards.ts",
+    ])
+      expect(classify(`src/lib/${name}`), name).toBeNull();
+  });
+
+  it("keeps the Passwords offer optional and the native S3 fixture exactly scoped", () => {
+    expect(classify("src/lib/pwa-offer-passwords-onboarding.ts")).toMatchObject(
+      {
+        pattern: "src/lib/pwa-offer-passwords-onboarding.ts",
+        classification: "optional",
+        capability: "vault.derived-records",
+      },
+    );
+    expect(classify("src/lib/test/native-s3-backup-fixtures.ts")).toMatchObject(
+      {
+        pattern: "src/lib/test/native-s3-backup-fixtures.ts",
+        classification: "optional",
+        capability: "connectors.external",
+      },
+    );
+    for (const path of [
+      "src/lib/pwa-offer-passwords-onboarding-helper.ts",
+      "src/lib/pwa-offer-passwords-onboardings.ts",
+      "src/lib/test/native-s3-backup-fixture.ts",
+      "src/lib/test/native-s3-backup-fixtures-other.ts",
+      "src/lib/test/unowned-provider-fixtures.ts",
+    ])
+      expect(classify(path), path).toBeNull();
+  });
+
   it("has unique patterns", () => {
     const patterns = SOURCE_CLASSIFICATION.map((rule) => rule.pattern);
     expect(new Set(patterns).size).toBe(patterns.length);
@@ -84,6 +230,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/self-hosted-connectors.ts": "connectors.external",
       "src/lib/self-hosted-connectors.test.ts": "connectors.external",
       "src/lib/self-hosted-connectors.durable.test.ts": "connectors.external",
+      "src/lib/siop-social.ts": "identity.siop",
       "src/lib/connector-action-capability.ts": "connectors.external",
       "src/lib/connector-action-capability.test.ts": "connectors.external",
       "src/modules/sharing.drops/runtime.ts": "sharing.drops",
@@ -105,6 +252,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/local-directory.ts",
       "src/lib/local-sessions.ts",
       "src/lib/local-share-reach.ts",
+      "src/lib/local-groups.ts",
       "src/lib/connections.ts",
       "src/lib/tailscale/browser-node-port.ts",
       "src/lib/tailscale/browser-node-store.ts",
@@ -137,6 +285,33 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     ).toBe("access.authority");
   });
 
+  it("shares pinned native SDK metadata without promoting provider code", () => {
+    const metadata = classify(
+      "src/lib/secret-backends/onepassword-artifacts.json",
+    );
+    expect(metadata?.classification).toBe("shared");
+    expect(metadata?.capability).toBeNull();
+    expect(classify("src/lib/capabilities/ownership.ts")?.classification).toBe(
+      "core",
+    );
+    for (const name of [
+      "onepassword-sdk.ts",
+      "onepassword-sdk-loader.ts",
+      "onepassword-sdk-codec.ts",
+      "onepassword-sdk-write.ts",
+      "onepassword-sdk.worker.ts",
+      "onepassword-worker-http.ts",
+      "onepassword-worker-protocol.ts",
+      "onepassword.ts",
+      "onepassword-artifacts-other.json",
+      "onepassword-artifacts.js",
+    ]) {
+      const rule = classify(`src/lib/secret-backends/${name}`);
+      expect(rule?.classification, name).toBe("optional");
+      expect(rule?.capability, name).toBe("connectors.external");
+    }
+  });
+
   it("classifies every exclusive package", () => {
     const expectations = {
       "node_modules/@azure/msal-browser/redirect-bridge":
@@ -163,6 +338,17 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(classify("node_modules/age-encryption")?.capability).toBe(
       "backup.cloud-secrets",
     );
+  });
+
+  it("keeps SIOP social optional and limits the new ownership to exact files", () => {
+    expect(classify("src/lib/siop-social.ts")?.classification).toBe("optional");
+    for (const path of [
+      "src/lib/siop-social.test.ts",
+      "src/lib/siop-social-helper.ts",
+      "src/lib/local-groups.test.ts",
+      "src/lib/local-groups-helper.ts",
+    ])
+      expect(classify(path), path).toBeNull();
   });
 
   it("prefix matching continues only on '.', '-' or '/'", () => {

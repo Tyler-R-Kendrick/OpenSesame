@@ -50,7 +50,7 @@ export const APPROVED_BROWSER_OAUTH_PROFILES: readonly NativeBrowserOAuthProfile
       revoke: "settings",
       revocationEndpoint: null,
       settingsUrl: "https://codeberg.org/user/settings/applications",
-      publicParameters: [],
+      publicParameters: ["backup_owner", "backup_repo", "backup_branch"],
       requiredScopes: [],
     },
     {

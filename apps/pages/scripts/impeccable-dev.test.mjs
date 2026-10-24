@@ -23,6 +23,13 @@ test("the picker is admitted only with both a dev server and explicit opt-in", (
   }
 });
 
+test("nested dev-helper scripts are removed outside opted-in development", () => {
+  const nested = `<script src="http://localhost:8400/a.js"><script src="http://localhost:8400/b.js"></script></script><p>keep</p>`;
+  const result = impeccableDevHtml(nested, false, false);
+  assert.doesNotMatch(result, /localhost:8400/);
+  assert.match(result, /<p>keep<\/p>/);
+});
+
 test("opted-in live mode does not arm element picking", () => {
   const result = impeccableDevHtml(html, true, true);
   assert.match(result, /pickActive:false/);

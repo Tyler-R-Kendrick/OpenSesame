@@ -17,6 +17,14 @@ export const SCIM_ROLE_ATTRIBUTE = "urn:opensesame:params:scim:2.0:role";
 export const SCIM_SUBJECTS_ATTRIBUTE =
   "urn:opensesame:params:scim:2.0:subjects";
 
+/**
+ * Principals already identified for deprovisioning. Written before the
+ * multi-row revocation starts so a retry after a partial failure still knows
+ * whose sessions to end, without guessing from a now-removed membership.
+ */
+const SCIM_DEPROVISION_PRINCIPALS_ATTRIBUTE =
+  "urn:opensesame:params:scim:2.0:deprovision-principals";
+
 const ORG_IDENTITY_KINDS = ["oidc", "oauth2", "saml", "ldap", "email"] as const;
 
 export function roleOf(user: ScimUserRecord): OrganizationRole | undefined {
@@ -131,19 +139,24 @@ async function principalsForSubject(
   ctx: AppContext,
   organization: Organization,
   subject: string,
+  requireMembership = true,
 ): Promise<string[]> {
   const issuers = await issuersForOrganization(ctx, organization);
   const principalIds = new Set<string>();
   for (const issuer of issuers) {
     for (const kind of ORG_IDENTITY_KINDS) {
-      const identity = await ctx.repos.externalIdentities.findByTuple({
-        kind,
-        issuer,
-        subject,
-      });
-      if (identity) principalIds.add(identity.principalId);
+      for (const tenant of [organization.id, undefined]) {
+        const identity = await ctx.repos.externalIdentities.findByTuple({
+          kind,
+          issuer,
+          ...(tenant !== undefined ? { tenant } : undefined),
+          subject,
+        });
+        if (identity) principalIds.add(identity.principalId);
+      }
     }
   }
+  if (!requireMembership) return [...principalIds];
   const members: string[] = [];
   for (const principalId of principalIds) {
     const membership = await ctx.stores.organizationMemberships.find(
@@ -159,10 +172,16 @@ async function principalsForUser(
   ctx: AppContext,
   organization: Organization,
   user: ScimUserRecord,
+  requireMembership = true,
 ): Promise<string[]> {
   const principalIds = new Set<string>();
   for (const subject of rememberedSubjects(user)) {
-    for (const id of await principalsForSubject(ctx, organization, subject)) {
+    for (const id of await principalsForSubject(
+      ctx,
+      organization,
+      subject,
+      requireMembership,
+    )) {
       principalIds.add(id);
     }
   }
@@ -178,16 +197,34 @@ export async function deprovision(
   previous?: ScimUserRecord,
 ): Promise<void> {
   const record = previous ? withRememberedSubjects(previous, user) : user;
-  for (const principalId of await principalsForUser(
-    ctx,
-    organization,
-    record,
-  )) {
+  // Resolve members first. Only a principal that held a membership in THIS
+  // organization is in scope; the persisted marker carries that set into a
+  // retry after the membership rows are already gone.
+  const members = await principalsForUser(ctx, organization, record, true);
+  const prior = record.raw[SCIM_DEPROVISION_PRINCIPALS_ATTRIBUTE];
+  const recorded = Array.isArray(prior)
+    ? prior.filter(
+        (value): value is string => isString(value) && value.length > 0,
+      )
+    : [];
+  const targets = new Set<string>([...members, ...recorded]);
+  if (members.length > 0) {
+    await ctx.stores.scim.users.update({
+      ...record,
+      raw: {
+        ...record.raw,
+        [SCIM_DEPROVISION_PRINCIPALS_ATTRIBUTE]: [...targets],
+      },
+      updatedAt: ctx.clock(),
+    });
+  }
+  for (const principalId of targets) {
     await revokeOrganizationMembership(ctx, {
       organizationId: organization.id,
       principalId,
       correlationId,
       reason: "scim_deactivated",
+      revokeSessionsWithoutMembership: true,
     });
   }
 }

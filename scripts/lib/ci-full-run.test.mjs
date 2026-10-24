@@ -33,6 +33,15 @@ describe("the whole-repository run", () => {
     expect(on).toContain("workflow_dispatch:");
   });
 
+  it("gives the TypeScript job the time a whole-suite run takes on a slow runner", () => {
+    // A lockfile or manifest change plans every package (scope=all in
+    // ci-affected-tests.mjs). That step took 18 minutes on a push to main and
+    // over 28 on a pull request's runner, which a 30-minute job cut off.
+    const minutes =
+      /\n {2}typescript-tests:\n[\s\S]*?timeout-minutes: (\d+)/.exec(ci);
+    expect(Number(minutes?.[1])).toBeGreaterThanOrEqual(45);
+  });
+
   it("verifies pull-request signatures only on a pull request", () => {
     const step = ci
       .split("name: Verify merge-required commit signatures")[1]
@@ -40,9 +49,9 @@ describe("the whole-repository run", () => {
     expect(step).toContain("if: github.event_name == 'pull_request'");
   });
 
-  it("does not cancel a push run for the next one", () => {
+  it("cancels a superseded pull request or main push and leaves a merge queue run", () => {
     expect(ci).toContain(
-      "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+      "cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}",
     );
   });
 
@@ -75,5 +84,90 @@ describe("the whole-repository run", () => {
       );
       expect(out).toContain("scope=all");
     }
+  });
+});
+
+const fullWorkflow = readFileSync(
+  join(root, ".github/workflows/full-suite.yml"),
+  "utf8",
+);
+const fullSteps = fullWorkflow
+  .split("    steps:\n")[1]
+  .split(/\n {6}- (?=name:|uses:)/);
+
+function stepFor(command) {
+  const matches = fullSteps.filter((step) => step.includes(command));
+  expect(matches).toHaveLength(1);
+  return matches[0];
+}
+
+describe("full-suite native preparation", () => {
+  it("uses the repository's bounded package-test concurrency", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(root, "package.json"), "utf8"),
+    );
+    expect(manifest.scripts.test).toContain("--concurrency=4");
+    expect(stepFor("pnpm exec turbo run typecheck test")).toContain(
+      "run: pnpm exec turbo run typecheck test --concurrency=4",
+    );
+  });
+  it("checks out the selected workflow commit for scheduled and manual validation", () => {
+    expect(fullWorkflow).toContain("workflow_dispatch:");
+    expect(fullWorkflow).toContain("          ref: ${{ github.sha }}");
+    expect(fullWorkflow).not.toContain("          ref: main\n");
+  });
+  it("finishes canonical native asset verification before concurrent package tests", () => {
+    const preparation = stepFor("await loadTailscaleAssets();");
+    expect(preparation).toContain("node --input-type=module -e");
+    expect(preparation).toContain(
+      'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"',
+    );
+    expect(preparation).not.toMatch(
+      /\n\s+if:|continue-on-error:|timeout-minutes:/,
+    );
+    const tests = stepFor("pnpm exec turbo run typecheck test");
+    expect(fullSteps.indexOf(preparation)).toBeLessThan(
+      fullSteps.indexOf(tests),
+    );
+    expect(preparation).not.toContain("cache-hit");
+  });
+
+  it("reuses only exact-pin static distributions and still verifies cache hits", () => {
+    const cache = stepFor("name: Cache the pinned native PWA distribution");
+    expect(cache).toContain(
+      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+    );
+    expect(cache).toContain(
+      "path: .cache/pwa-tailscale-native-http/distributions\n",
+    );
+    expect(cache).toContain(
+      "hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json')",
+    );
+    expect(cache).not.toContain("restore-keys:");
+    expect(cache).not.toContain("/work");
+    const preparation = stepFor("await loadTailscaleAssets();");
+    expect(fullSteps.indexOf(cache)).toBeLessThan(
+      fullSteps.indexOf(preparation),
+    );
+  });
+
+  it("retains every package and both real Postgres contracts after preparation", () => {
+    const tests = stepFor("pnpm exec turbo run typecheck test");
+    expect(tests).not.toMatch(/--filter|continue-on-error:|\n\s+if:/);
+    for (const command of [
+      "pnpm --filter @opensesame/database test:postgres",
+      "pnpm --filter @opensesame/identity-worker test:postgres",
+    ]) {
+      const postgres = stepFor(command);
+      expect(postgres).toContain(
+        "DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres",
+      );
+      expect(postgres).not.toMatch(/continue-on-error:|\n\s+if:/);
+      expect(fullSteps.indexOf(tests)).toBeLessThan(
+        fullSteps.indexOf(postgres),
+      );
+    }
+    expect(fullWorkflow).toContain("timeout-minutes: 60");
+    expect(fullWorkflow).not.toContain("--passWithNoTests");
   });
 });

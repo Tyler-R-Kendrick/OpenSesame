@@ -48,19 +48,22 @@ import {
   deviceInboxJourney,
 } from "./lib/device-inbox-journey.mjs";
 import { createLocalIamRig } from "./lib/local-iam-rig.mjs";
+import { privateTempDir } from "./lib/private-files.mjs";
 import { reviewCaptureDir } from "./lib/review-captures.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const rp = "https://rp.example.test";
 const issuerUrl = `${origin}/OpenSesame/identity/authorize`;
+const out = process.env.PAGES_VERIFY_OUT ?? privateTempDir("device-inbox-");
+console.log(`Evidence: ${out}`);
 const harness = createHarness({
   dist:
     process.env.PAGES_VERIFY_DIST ??
     fileURLToPath(new URL("../dist", import.meta.url)),
   origin,
   base: "/OpenSesame/",
-  out: "/tmp/device-inbox",
+  out,
 });
 const captures = reviewCaptureDir();
 const rig = await createLocalIamRig({
@@ -85,7 +88,7 @@ try {
     for (const [tab, page] of context.pages().entries()) {
       await page
         .screenshot({
-          path: `/tmp/device-inbox-failure-${index}-${tab}.png`,
+          path: `${out}/failure-${index}-${tab}.png`,
           timeout: 10000,
         })
         .catch(() => console.warn("Failure screenshot unavailable"));

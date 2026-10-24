@@ -11,6 +11,13 @@ describe("crossOriginOpenerPolicy", () => {
     ).toBe("unsafe-none");
   });
 
+  it("keeps the cross-origin save popup able to see its opener", () => {
+    expect(crossOriginOpenerPolicy("/OpenSesame/save", "/OpenSesame/")).toBe(
+      "unsafe-none",
+    );
+    expect(crossOriginOpenerPolicy("/save", "/")).toBe("unsafe-none");
+  });
+
   it("isolates neighboring identity routes and extra path suffixes", () => {
     expect(
       crossOriginOpenerPolicy("/OpenSesame/identity", "/OpenSesame/"),

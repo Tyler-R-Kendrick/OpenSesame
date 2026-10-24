@@ -10,9 +10,9 @@
 //! and `sign`. There is no accessor for private material, [`SealedKeySigner`]
 //! is neither `Clone` nor `Serialize`, and its `Debug` is redacted.
 
+use aws_lc_rs::{rand::SystemRandom, signature as aws_signature};
 use pkcs8::DecodePrivateKey as _;
-use sha2::{Sha256, Sha384, Sha512};
-use signature::{SignatureEncoding as _, Signer as _, Verifier as _};
+use signature::{Signer as _, Verifier as _};
 use spki::DecodePublicKey as _;
 
 use crate::error::PkiError;
@@ -39,9 +39,7 @@ pub trait Signer: Send + Sync {
 
 /// The concrete signing key behind a [`SealedKeySigner`].
 enum SigningKey {
-    Rsa256(Box<rsa::pkcs1v15::SigningKey<Sha256>>),
-    Rsa384(Box<rsa::pkcs1v15::SigningKey<Sha384>>),
-    Rsa512(Box<rsa::pkcs1v15::SigningKey<Sha512>>),
+    Rsa(Box<aws_signature::RsaKeyPair>),
     P256(Box<p256::ecdsa::SigningKey>),
     P384(Box<p384::ecdsa::SigningKey>),
     Ed25519(Box<ed25519_dalek::SigningKey>),
@@ -92,18 +90,17 @@ impl SealedKeySigner {
         }
         let pem = key.private_key_pkcs8_pem();
         let signing = match algorithm {
-            SignatureAlgorithm::Sha256Rsa => SigningKey::Rsa256(Box::new(
-                rsa::pkcs1v15::SigningKey::<Sha256>::from_pkcs8_pem(&pem)
-                    .map_err(|_| PkiError::KeyGeneration)?,
-            )),
-            SignatureAlgorithm::Sha384Rsa => SigningKey::Rsa384(Box::new(
-                rsa::pkcs1v15::SigningKey::<Sha384>::from_pkcs8_pem(&pem)
-                    .map_err(|_| PkiError::KeyGeneration)?,
-            )),
-            SignatureAlgorithm::Sha512Rsa => SigningKey::Rsa512(Box::new(
-                rsa::pkcs1v15::SigningKey::<Sha512>::from_pkcs8_pem(&pem)
-                    .map_err(|_| PkiError::KeyGeneration)?,
-            )),
+            SignatureAlgorithm::Sha256Rsa
+            | SignatureAlgorithm::Sha384Rsa
+            | SignatureAlgorithm::Sha512Rsa => {
+                let der = pkcs8::SecretDocument::from_pem(&pem)
+                    .map_err(|_| PkiError::KeyGeneration)?
+                    .1;
+                SigningKey::Rsa(Box::new(
+                    aws_signature::RsaKeyPair::from_pkcs8(der.as_bytes())
+                        .map_err(|_| PkiError::KeyGeneration)?,
+                ))
+            }
             SignatureAlgorithm::Sha256Ecdsa => SigningKey::P256(Box::new(
                 p256::ecdsa::SigningKey::from_pkcs8_pem(&pem)
                     .map_err(|_| PkiError::KeyGeneration)?,
@@ -136,18 +133,17 @@ impl Signer for SealedKeySigner {
 
     fn sign(&self, message: &[u8]) -> Result<Vec<u8>, PkiError> {
         let signature = match &self.key {
-            SigningKey::Rsa256(key) => key
-                .try_sign(message)
-                .map_err(|_| PkiError::Signing)?
-                .to_vec(),
-            SigningKey::Rsa384(key) => key
-                .try_sign(message)
-                .map_err(|_| PkiError::Signing)?
-                .to_vec(),
-            SigningKey::Rsa512(key) => key
-                .try_sign(message)
-                .map_err(|_| PkiError::Signing)?
-                .to_vec(),
+            SigningKey::Rsa(key) => {
+                let encoding = match self.algorithm {
+                    SignatureAlgorithm::Sha384Rsa => &aws_signature::RSA_PKCS1_SHA384,
+                    SignatureAlgorithm::Sha512Rsa => &aws_signature::RSA_PKCS1_SHA512,
+                    _ => &aws_signature::RSA_PKCS1_SHA256,
+                };
+                let mut signature = vec![0; key.public_modulus_len()];
+                key.sign(encoding, &SystemRandom::new(), message, &mut signature)
+                    .map_err(|_| PkiError::Signing)?;
+                signature
+            }
             SigningKey::P256(key) => {
                 let signature: p256::ecdsa::DerSignature =
                     key.try_sign(message).map_err(|_| PkiError::Signing)?;
@@ -184,22 +180,30 @@ pub fn verify(
     message: &[u8],
     signature: &[u8],
 ) -> Result<(), PkiError> {
-    /// Verifies one RSASSA-PKCS1-v1_5 signature under the named digest.
-    macro_rules! verify_rsa {
-        ($digest:ty) => {{
-            let key = rsa::pkcs1v15::VerifyingKey::<$digest>::from_public_key_der(public_key_der)
-                .map_err(|_| PkiError::InvalidDer)?;
-            let parsed = rsa::pkcs1v15::Signature::try_from(signature)
-                .map_err(|_| PkiError::SignatureInvalid)?;
-            key.verify(message, &parsed)
-                .map_err(|_| PkiError::SignatureInvalid)
-        }};
-    }
-
     match algorithm {
-        SignatureAlgorithm::Sha256Rsa => verify_rsa!(Sha256),
-        SignatureAlgorithm::Sha384Rsa => verify_rsa!(Sha384),
-        SignatureAlgorithm::Sha512Rsa => verify_rsa!(Sha512),
+        SignatureAlgorithm::Sha256Rsa
+        | SignatureAlgorithm::Sha384Rsa
+        | SignatureAlgorithm::Sha512Rsa => {
+            // Keep this API's SPKI-only contract even though AWS-LC also accepts PKCS#1.
+            let spki = <spki::SubjectPublicKeyInfoRef<'_> as der::Decode>::from_der(public_key_der)
+                .map_err(|_| PkiError::InvalidDer)?;
+            if spki.algorithm.oid != der::asn1::ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.1")
+                || spki.algorithm.parameters != Some(der::asn1::AnyRef::NULL)
+                || spki.subject_public_key.as_bytes().is_none()
+            {
+                return Err(PkiError::InvalidDer);
+            }
+            let parameters = match algorithm {
+                SignatureAlgorithm::Sha384Rsa => &aws_signature::RSA_PKCS1_2048_8192_SHA384,
+                SignatureAlgorithm::Sha512Rsa => &aws_signature::RSA_PKCS1_2048_8192_SHA512,
+                _ => &aws_signature::RSA_PKCS1_2048_8192_SHA256,
+            };
+            let key = aws_signature::UnparsedPublicKey::new(parameters, public_key_der)
+                .parse()
+                .map_err(|_| PkiError::InvalidDer)?;
+            key.verify_sig(message, signature)
+                .map_err(|_| PkiError::SignatureInvalid)
+        }
         SignatureAlgorithm::Sha256Ecdsa => {
             let key = p256::ecdsa::VerifyingKey::from_public_key_der(public_key_der)
                 .map_err(|_| PkiError::InvalidDer)?;
@@ -228,130 +232,4 @@ pub fn verify(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::keys;
-    use crate::types::KeyAlgorithm;
-
-    #[test]
-    fn every_algorithm_signs_and_verifies_its_own_message() {
-        for algorithm in [
-            KeyAlgorithm::EcdsaP256,
-            KeyAlgorithm::EcdsaP384,
-            KeyAlgorithm::Ed25519,
-            KeyAlgorithm::Rsa2048,
-        ] {
-            let key = keys::generate(algorithm).unwrap();
-            let signer = SealedKeySigner::new(&key).unwrap();
-            let signature = signer.sign(b"authorize this").unwrap();
-            assert_eq!(signer.algorithm(), algorithm.default_signature_algorithm());
-            verify(
-                signer.algorithm(),
-                &signer.public_key_der(),
-                b"authorize this",
-                &signature,
-            )
-            .unwrap();
-        }
-    }
-
-    #[test]
-    fn a_tampered_message_or_signature_fails_verification() {
-        let key = keys::generate(KeyAlgorithm::EcdsaP256).unwrap();
-        let signer = SealedKeySigner::new(&key).unwrap();
-        let signature = signer.sign(b"original").unwrap();
-        assert_eq!(
-            verify(
-                signer.algorithm(),
-                &signer.public_key_der(),
-                b"tampered",
-                &signature
-            )
-            .unwrap_err(),
-            PkiError::SignatureInvalid
-        );
-        let mut broken = signature.clone();
-        let last = broken.len() - 1;
-        broken[last] ^= 0xff;
-        assert!(verify(
-            signer.algorithm(),
-            &signer.public_key_der(),
-            b"original",
-            &broken
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn rsa_signs_under_each_permitted_digest() {
-        let key = keys::generate(KeyAlgorithm::Rsa2048).unwrap();
-        for algorithm in [
-            SignatureAlgorithm::Sha256Rsa,
-            SignatureAlgorithm::Sha384Rsa,
-            SignatureAlgorithm::Sha512Rsa,
-        ] {
-            let signer = SealedKeySigner::with_algorithm(&key, algorithm).unwrap();
-            let signature = signer.sign(b"payload").unwrap();
-            verify(algorithm, &signer.public_key_der(), b"payload", &signature).unwrap();
-        }
-    }
-
-    #[test]
-    fn a_key_cannot_be_asked_for_an_algorithm_it_cannot_produce() {
-        let key = keys::generate(KeyAlgorithm::Ed25519).unwrap();
-        assert_eq!(
-            SealedKeySigner::with_algorithm(&key, SignatureAlgorithm::Sha256Rsa).unwrap_err(),
-            PkiError::UnsupportedAlgorithm
-        );
-        let ecdsa = keys::generate(KeyAlgorithm::EcdsaP256).unwrap();
-        assert_eq!(
-            SealedKeySigner::with_algorithm(&ecdsa, SignatureAlgorithm::Sha384Ecdsa).unwrap_err(),
-            PkiError::UnsupportedAlgorithm
-        );
-    }
-
-    #[test]
-    fn verification_rejects_a_public_key_of_the_wrong_shape() {
-        let key = keys::generate(KeyAlgorithm::Ed25519).unwrap();
-        let signer = SealedKeySigner::new(&key).unwrap();
-        let signature = signer.sign(b"x").unwrap();
-        assert_eq!(
-            verify(SignatureAlgorithm::Ed25519, b"", b"x", &signature).unwrap_err(),
-            PkiError::InvalidDer
-        );
-        assert_eq!(
-            verify(
-                SignatureAlgorithm::Sha256Ecdsa,
-                &signer.public_key_der(),
-                b"x",
-                &signature
-            )
-            .unwrap_err(),
-            PkiError::InvalidDer
-        );
-    }
-
-    #[test]
-    fn debug_never_renders_private_material() {
-        let key = keys::generate(KeyAlgorithm::Ed25519).unwrap();
-        let signer = SealedKeySigner::new(&key).unwrap();
-        assert_eq!(
-            format!("{signer:?}"),
-            "SealedKeySigner { algorithm: Ed25519, private: \"<redacted>\" }"
-        );
-    }
-
-    #[test]
-    fn the_trait_is_object_safe_so_custody_can_vary_at_runtime() {
-        let key = keys::generate(KeyAlgorithm::EcdsaP256).unwrap();
-        let signer: Box<dyn Signer> = Box::new(SealedKeySigner::new(&key).unwrap());
-        let signature = signer.sign(b"dynamic").unwrap();
-        verify(
-            signer.algorithm(),
-            &signer.public_key_der(),
-            b"dynamic",
-            &signature,
-        )
-        .unwrap();
-    }
-}
+mod tests;

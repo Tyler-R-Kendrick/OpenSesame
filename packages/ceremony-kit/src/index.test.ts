@@ -1,11 +1,22 @@
+import * as links from "@opensesame/ceremony-kit/links";
 import { describe, expect, it, vi } from "vitest";
 import {
   CeremonyRequestError,
+  LEGACY_LINKS,
   type StashStorage,
   approveDevice,
+  ceremonyPath,
   createClaimStash,
+  fragmentCarriesBearer,
+  isClaimToken,
+  matchCeremonyPath,
+  parseLegacyInteractionLink,
   parseUserCode,
+  readApprovalArrival,
+  readClaimLink,
   readFragmentToken,
+  readInteractionArrival,
+  readInvocationArrival,
 } from "./index.js";
 
 function memoryStorage(): StashStorage & { map: Map<string, string> } {
@@ -122,4 +133,22 @@ describe("device approval", () => {
     ).rejects.toThrow(/Enter the user code/);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+});
+
+it("the link-only public entry exposes the existing readers and stash without ceremony actions", () => {
+  const expected = {
+    LEGACY_LINKS,
+    ceremonyPath,
+    createClaimStash,
+    fragmentCarriesBearer,
+    isClaimToken,
+    matchCeremonyPath,
+    parseLegacyInteractionLink,
+    readApprovalArrival,
+    readClaimLink,
+    readInteractionArrival,
+    readInvocationArrival,
+  };
+  expect(Object.keys(links).sort()).toEqual(Object.keys(expected).sort());
+  expect(links).toMatchObject(expected);
 });

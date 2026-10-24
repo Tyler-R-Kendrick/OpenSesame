@@ -81,7 +81,7 @@ const COLUMNS: readonly SecretColumn[] = [
   })),
 ];
 
-/** Bounded, restartable migration. Updates compare the old value to avoid losing a concurrent rotation. */
+/** Bounded, restartable migration. Updates compare every value the envelope is bound to, so a concurrent rotation or ownership change is not lost. */
 export async function sealLegacySecrets(
   db: Database,
   sealer: EventSealer,
@@ -144,10 +144,28 @@ export async function sealLegacySecrets(
           continue;
         }
         const sealed = sealSecretText(sealer, purpose, row.scope, plain);
-        await db.execute(
-          sql`update ${table} set ${value} = ${sealed} where ${id} = ${row.id} and ${value} = ${row.value}`,
+        // Compare every input the envelope is bound to, not just the secret:
+        // a concurrent owner/binding change must leave the row for the next
+        // sweep under its new scope instead of writing a stale envelope.
+        const updated = await db.execute(
+          sql`update ${table} set ${value} = ${sealed}
+              where ${id} = ${row.id}
+                and ${value} = ${row.value}
+                and ${scope} = ${row.scope}
+                ${column.bindingId ? sql`and ${bindingId} = ${row.bindingId}` : sql``}
+                ${column.betterAuthField ? sql`and ${sql.identifier("provider_id")} = ${row.providerId} and ${sql.identifier("account_id")} = ${row.accountId}` : sql``}
+              returning ${id}`,
         );
-        changed += 1;
+        // Drizzle drivers expose execute() results either as an array or as
+        // { rows }. Count a match from either shape; a zero-row CAS is a
+        // concurrent rotation and stays unsealed for the next pass.
+        const result = updated as unknown as {
+          readonly rows?: readonly unknown[];
+        };
+        const matched = Array.isArray(updated)
+          ? updated.length
+          : (result.rows?.length ?? 0);
+        if (matched > 0) changed += 1;
       }
     }
   }

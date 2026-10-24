@@ -143,3 +143,10 @@ describe("totpSetupUri", () => {
     expect(parseTotp(built).digits).toBe(6);
   });
 });
+
+it("scans long base32 padding suffixes once and rejects embedded padding", () => {
+  expect(decodeBase32(`MY${"=".repeat(200_000)}`)).toEqual(decodeBase32("MY"));
+  expect(() => decodeBase32(`MY${"=".repeat(200_000)}!`)).toThrow(
+    TotpParseError,
+  );
+});

@@ -2,24 +2,18 @@
 
 Capability `sharing.trusted-contacts` ([ADR 0187](../adr/0187-trusted-circle-quorum-sharing.md)).
 Optional, default off, no network. Turn it on in Settings › Features, under
-Sharing, and Settings gains a **Trusted contacts** tab with three panels. The
+Sharing, and Settings › Security gains a **Trusted contacts** section with one panel. The
 behaviour is in `packages/app-core/src/lib/quorum/` and the screens are
 `apps/pages/src/modules/sharing.trusted-contacts/`. This page says what it
 does, how to configure a circle, and what it does not promise.
 
-Where the screens are, one panel for each side of a circle:
+Where the screen is:
 
 - **Circles** is yours as the owner: the circles you keep, each with its rule
   ("2 of 3"), its epoch, how many contacts it has and where it stands (waiting
-  for contacts, armed, a recovery open, retired).
-- **Guarding** is yours as a contact: the circles that asked you to take a part,
-  whose each is, whether you hold a share or only a seat, and where it stands.
-- **Recovery** is yours as the one getting something back: the recoveries you
-  started from a circle's recovery file, with how many contacts have approved
-  and how many have released their share.
+  for contacts, armed, retired).
 
-The panels are lists; each ceremony that changes one (inviting, taking a share,
-approving, releasing, recovering) is a sheet opened from its key. A panel is
+The panel is a list; each ceremony that changes one (inviting, changing) is a sheet opened from its key. A panel is
 absent, not disabled, while the vault is locked, a guest or a decoy, because a
 circle holds an owner key and a contact a wrapped share, and neither belongs in
 a session that is thrown away. Everything between people is a packet you copy
@@ -123,30 +117,11 @@ name, a number or a pasted packet.
    rule), **Ask contacts to approve a share**, **Cancel a request** and **Retire
    this circle** (two presses).
 
-**Contact, in Guarding.**
+**Contact, as a guardian.**
 
-1. **Accept an invitation**: paste it, check the facts (the owner's key
-   fingerprint, the origin it must be opened at) and give your name; **Agree**
-   asks for your security key. Copy your answer and send it back. An
-   agreement still waiting for the owner shows as a row you can forget.
-2. **Take what an owner sent**: paste the packet; your key is touched twice
-   (to wrap, then to prove it opens). Copy your receipt.
-3. **Answer a request**: paste it. The sheet states, derived from the request's
-   own fields, what is being asked and for whom, with the recipient's key as a
-   fingerprint to check by another road. **Approve** (security key), copy the
-   approval. After the delay, paste the request and the approvals so far and
-   **Release my share**; your device checks the quorum itself first.
-
-**Recipient, in Recovery.**
-
-1. **Start a recovery**: choose the recovery file, name this device, **Send the
-   request** and copy it to the contacts.
-2. Paste each approval or release into **An approval or a release**. The sheet
-   counts them against what the rule needs and says when releases open; **Copy
-   the approvals** hands the list to the contacts.
-3. When it is complete, **Open the recovery**. **Save the recovered items** or
-   **Put them in this vault**; until one of them is done the recovery stays, and
-   it is still there after a reload.
+The guardian-side screens were removed. The protocol records and packets still
+exist, but this build does not draw a Guarding panel; do not expect a contact
+to accept, take or answer from this app.
 
 ## The sequence (code)
 
@@ -321,7 +296,7 @@ distribution. It makes no request, so it reaches no service: it declares a
 user-mediated hand-off (the packets a person copies and passes on) and two
 browser permissions, `webauthn` for the contacts' security keys and
 `clipboard-write` for the Copy key beside a packet. Settings shows its switch
-in the Sharing section, and the tab exists only while it is on.
+in the Sharing section, and the section exists only while it is on.
 
 ## What it does not do
 

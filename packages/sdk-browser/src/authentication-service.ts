@@ -42,7 +42,7 @@ export function createAuthenticationClient(config: AuthenticationClientConfig) {
   const fetchImpl = config.fetchImpl ?? fetch;
   const credentials = config.credentials ?? navigator.credentials;
   const endpoint = (path: string) =>
-    `${config.apiBase.replace(/\/+$/, "")}/v1/authentication/public/applications/${encodeURIComponent(config.applicationId)}${path}`;
+    `${stripTrailingSlashes(config.apiBase)}/v1/authentication/public/applications/${encodeURIComponent(config.applicationId)}${path}`;
   const post = <Body extends object>(path: string, body: Body) =>
     fetchImpl(endpoint(path), {
       method: "POST",
@@ -107,4 +107,11 @@ export function createAuthenticationClient(config: AuthenticationClientConfig) {
       return { token: result.token, expiresAt: result.expiresAt };
     },
   };
+}
+
+/** Remove a slash suffix in linear time, including on malformed input. */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }

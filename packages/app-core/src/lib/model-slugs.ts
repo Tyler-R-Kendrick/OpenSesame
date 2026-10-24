@@ -6,6 +6,7 @@
  * without a harness (they need no sealed key).
  */
 
+import { isAiImageFamily, isAiSpeechFamily } from "./ai-connections/types.js";
 import { listConnections } from "./connections.js";
 import { hostedModelAuthority } from "./hosted-model-authority.js";
 import {
@@ -176,7 +177,15 @@ export async function connectedHarnessProviderIds(): Promise<string[]> {
 function savedConnectionOptions(): ModelSlugOption[] {
   const options: ModelSlugOption[] = [];
   for (const row of hostedModelAuthority()?.connections() ?? []) {
-    if (row.status !== "connected" || !row.model || !row.endpoint) continue;
+    if (
+      row.status !== "connected" ||
+      !row.model ||
+      !row.endpoint ||
+      isAiSpeechFamily(row.family) ||
+      isAiImageFamily(row.family) ||
+      row.family === "replicate_predictions"
+    )
+      continue;
     options.push({
       value: `connection:${row.connectionId}`,
       label: `${row.name ?? row.providerId} · ${row.model}`,

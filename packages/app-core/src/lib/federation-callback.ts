@@ -87,7 +87,15 @@ export function isAuthCallbackSearch(search: string): boolean {
 
 function sanitizeDescription(value: string | null): string | null {
   if (!value) return null;
-  const trimmed = value.replace(/<[^>]*>/g, "").trim();
+  // Strip tags to a fixed point ("<scr<script>ipt>" must not leave a live
+  // "<script>" behind), then drop any stray brackets so no tag can form.
+  let out = value;
+  let previous: string;
+  do {
+    previous = out;
+    out = out.replace(/<[^>]*>/g, "");
+  } while (out !== previous);
+  const trimmed = out.replace(/[<>]/g, "").trim();
   if (!trimmed) return null;
   return trimmed.slice(0, 120);
 }

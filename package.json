@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "bootstrap": "pnpm install && pnpm --filter @opensesame/database db:generate && pnpm --filter @opensesame/database db:migrate && bash scripts/dev/setup-hooks.sh",
+    "bootstrap": "pnpm deps:install && pnpm --filter @opensesame/database db:migrate && bash scripts/dev/setup-hooks.sh",
     "dev": "turbo run dev --parallel --filter=@opensesame/control-plane --filter=@opensesame/identity-worker --filter=@opensesame/mock-upstream-idp --filter=@opensesame/example-rp-alpha --filter=@opensesame/example-rp-beta --filter=@opensesame/example-static-rp",
     "dev:cli": "bash scripts/dev/dev-cli.sh",
     "dev:host": "bash scripts/dev/dev-host.sh",
@@ -16,8 +16,8 @@
     "dev:live-nats": "pnpm --filter @opensesame/cli exec tsx ../../scripts/dev/live-nats-operator.ts",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "pnpm lint:artifacts && node scripts/quality/lint-changed.mjs",
-    "lint:all": "pnpm lint:artifacts && biome check . && pnpm lint:anti-slop",
+    "lint": "pnpm lint:artifacts && pnpm repo:check && pnpm evidence:check && node scripts/quality/lint-changed.mjs",
+    "lint:all": "pnpm lint:artifacts && pnpm repo:check && pnpm evidence:check && biome check . && pnpm lint:anti-slop",
     "lint:artifacts": "node apps/pages/scripts/build-static-auth.mjs --check && vitest run scripts/lib/static-auth-artifacts.test.mjs && pnpm --filter @opensesame/static-auth test && pnpm --filter @opensesame/pages exec vitest run src/lib/auth-client.test.ts",
     "lint:design": "node scripts/quality/design-lint.mjs",
     "docs:index": "node scripts/quality/docs-index.mjs",
@@ -26,7 +26,7 @@
     "anti-slop:manifest": "node skills/install-anti-slop/scripts/manifest.mjs",
     "quality": "pnpm quality:test && pnpm quality:gate && pnpm quality:log-hygiene && pnpm quality:packages && pnpm quality:app-core",
     "quality:log-hygiene": "node scripts/quality/log-hygiene-gate.mjs",
-    "quality:test": "vitest run scripts/lib && node --test scripts/security/*.test.mjs",
+    "quality:test": "vitest run scripts/lib --testTimeout=30000 && node --test scripts/security/*.test.mjs",
     "quality:gate": "node scripts/quality/quality-gate.mjs",
     "quality:app-core": "node scripts/quality/app-core-boundary.mjs --check",
     "quality:packages": "node scripts/quality/package-metrics-gate.mjs",
@@ -106,14 +106,20 @@
     "verify:sops-conformance": "node scripts/test/verify-sops-conformance.mjs",
     "verify:sops-cloud-live": "node scripts/test/verify-sops-cloud-live.mjs",
     "verify": "pnpm lint && pnpm lint:anti-slop && pnpm test:anti-slop && pnpm quality && pnpm test:rust-lint && pnpm audit:clippy && pnpm test:plugin-boundary && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/test/battle-test.sh",
-    "wallet:evidence:blocked-adapters": "node scripts/wallet/blocked-adapters.mjs"
+    "wallet:evidence:blocked-adapters": "node scripts/wallet/blocked-adapters.mjs",
+    "evidence:check": "node scripts/quality/evidence-gate.mjs",
+    "evidence:promote": "node scripts/dev/promote-evidence.mjs",
+    "repo:check": "node scripts/quality/repository-size-gate.mjs && node scripts/dev/sync-agent-skills.mjs --check",
+    "skills:sync": "node scripts/dev/sync-agent-skills.mjs",
+    "skills:check": "node scripts/dev/sync-agent-skills.mjs --check",
+    "deps:install": "bash scripts/dev/install-dependencies.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@env-spec/parser": "0.4.1",
     "@gdp-ts/core": "0.1.0",
     "@hono/node-server": "2.1.0",
-    "@modelcontextprotocol/sdk": "1.31.0",
+    "@modelcontextprotocol/sdk": "1.32.0",
     "@oxlint/plugins": "1.79.0",
     "@playwright/test": "1.55.1",
     "@simplewebauthn/server": "13.3.2",
@@ -127,7 +133,7 @@
     "better-auth": "1.6.26",
     "drizzle-kit": "0.31.10",
     "drizzle-orm": "0.45.2",
-    "hono": "4.13.10",
+    "hono": "4.13.11",
     "jose": "6.2.8",
     "oidc-provider": "9.11.2",
     "oxlint": "1.79.0",
@@ -138,15 +144,15 @@
     "react-router": "8.3.0",
     "turbo": "2.9.14",
     "typescript": "5.8.3",
-    "vite": "6.4.3",
+    "vite": "6.4.4",
     "vitest": "4.1.11",
-    "wxt": "0.20.6",
+    "wxt": "0.20.19",
     "zod": "3.25.67"
   },
   "pnpm": {
     "overrides": {
       "vitest": "4.1.11",
-      "vite": "6.4.3",
+      "vite": "6.4.4",
       "shell-quote": "1.11.0",
       "adm-zip": "0.6.1",
       "tmp": "0.2.7",
@@ -163,7 +169,8 @@
       "@xmldom/xmldom": "0.8.15",
       "ws": "8.21.3",
       "sharp": "0.35.5",
-      "hono": "4.13.10",
+      "hono": "4.13.11",
+      "follow-redirects": "1.16.1",
       "yaml": "2.8.4",
       "@noble/post-quantum>@noble/curves": "2.4.0",
       "@noble/post-quantum>@noble/hashes": "2.4.0",
@@ -172,17 +179,26 @@
       "js-yaml@^3": "3.15.2",
       "js-yaml@^5": "5.4.1",
       "log4js": "6.4.0",
-      "@modelcontextprotocol/sdk": "1.31.0",
+      "@modelcontextprotocol/sdk": "1.32.0",
       "simple-git": "4.0.1",
       "@simple-git/argv-parser": "2.0.1",
       "source-map-js": "1.2.2",
-      "js-yaml@3.15.2>argparse": "2.0.1"
+      "js-yaml@3.15.2>argparse": "2.0.1",
+      "promptfoo>jks-js": "-",
+      "@devicefarmer/adbkit>node-forge": "-",
+      "@xmldom/xmldom@^0.9.10": "0.9.12",
+      "@noble/hashes@2.0.1": "2.4.0"
     },
     "patchedDependencies": {
-      "braces@3.0.3": "patches/braces@3.0.3.patch",
-      "node-forge@1.4.0": "patches/node-forge@1.4.0.patch",
       "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch",
-      "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch"
+      "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch",
+      "@devicefarmer/adbkit@3.3.8": "patches/@devicefarmer__adbkit@3.3.8.patch",
+      "@levischuck/tiny-cbor@0.2.11": "patches/@levischuck__tiny-cbor@0.2.11.patch"
+    },
+    "supportedArchitectures": {
+      "os": ["current"],
+      "cpu": ["current"],
+      "libc": ["current"]
     }
   }
 }

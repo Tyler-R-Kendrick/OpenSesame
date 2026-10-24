@@ -7,6 +7,10 @@ import { phoneContext } from "./lib/mobile-contract.mjs";
 import { routeNativeApiAuthority } from "./lib/native-browser-api-authority.mjs";
 import { nativeApiJourney } from "./lib/native-browser-api-journey.mjs";
 import { nativeApiForgetJourney } from "./lib/native-browser-api-lifecycle.mjs";
+import {
+  nativeAzureSecretsJourney,
+  routeNativeAzureSecretsAuthority,
+} from "./lib/native-browser-azure-secrets.mjs";
 import { nativeCasJourney } from "./lib/native-browser-cas-journey.mjs";
 import {
   nativeCatalogJourney,
@@ -40,6 +44,7 @@ const browser = await harness.launch();
 const expectedFailures = [];
 const results = [];
 let activePage;
+let activeContext;
 try {
   for (const [label, device] of [
     ["desktop", { viewport: { width: 1366, height: 1000 } }],
@@ -47,8 +52,10 @@ try {
   ]) {
     const { page, context } = await harness.newPage(browser, { device });
     activePage = page;
+    activeContext = context;
     const authority = await routeNativeApiAuthority(context, harness);
     await routeNativeInstanceAuthority(context, authority, harness);
+    await routeNativeAzureSecretsAuthority(context, authority, harness);
     expectedFailures.push(nativeExpectedFailures(harness, page, authority));
     await page.goto(`${origin}${base}`);
     await sealWithPin(page);
@@ -63,13 +70,19 @@ try {
       );
       if (!fixture)
         throw new Error(`No documented protocol fixture for ${providerId}.`);
-      results.push(
-        await nativeApiJourney(page, harness, authority, fixture, {
-          base,
-          out,
-          label,
-        }),
-      );
+      const result = await nativeApiJourney(page, harness, authority, fixture, {
+        base,
+        out,
+        label,
+      });
+      if (providerId === "linq")
+        harness.check(
+          result.providerId === "linq" &&
+            result.connected === true &&
+            result.readAfterReload === true,
+          `${label}: Linq connects and lists messaging lines after encrypted cold reload`,
+        );
+      results.push(result);
     }
     for (const fixture of NATIVE_INSTANCE_FIXTURES)
       results.push(
@@ -79,6 +92,13 @@ try {
           label,
         }),
       );
+    results.push(
+      await nativeAzureSecretsJourney(page, harness, authority, {
+        base,
+        out,
+        label,
+      }),
+    );
     if (label === "desktop") {
       const usable = results.find((result) => result.connected);
       const fixture = authority.fixtures.find(
@@ -128,15 +148,29 @@ try {
     await context.close();
   }
 } catch (error) {
-  harness.failures.push(String(error));
-  if (activePage && !activePage.isClosed()) {
-    fs.writeFileSync(
-      path.join(out, "failure.txt"),
-      await activePage.locator("body").innerText(),
-    );
-    await activePage
+  harness.failures.push(`[${harness.step()}] ${String(error)}`);
+  const pages = activeContext?.pages() ?? (activePage ? [activePage] : []);
+  for (const [index, page] of pages.entries()) {
+    if (page.isClosed()) continue;
+    const name = index === 0 ? "failure" : `failure-tab-${index + 1}`;
+    try {
+      fs.writeFileSync(
+        path.join(out, `${name}.json`),
+        `${JSON.stringify({ step: harness.step(), url: page.url() }, null, 2)}\n`,
+      );
+    } catch (captureError) {
+      harness.record("FAILURE-CAPTURE", String(captureError));
+    }
+    await page
+      .locator("body")
+      .innerText({ timeout: 10_000 })
+      .then((text) => fs.writeFileSync(path.join(out, `${name}.txt`), text))
+      .catch((captureError) =>
+        harness.record("FAILURE-CAPTURE", String(captureError)),
+      );
+    await page
       .screenshot({
-        path: path.join(out, "failure.png"),
+        path: path.join(out, `${name}.png`),
         fullPage: false,
         animations: "disabled",
         timeout: 10_000,
@@ -146,7 +180,11 @@ try {
       );
   }
 } finally {
-  await browser.close();
+  await browser
+    .close()
+    .catch((closeError) =>
+      harness.failures.push(`[browser cleanup] ${String(closeError)}`),
+    );
 }
 const hard = harness.log.filter(
   (entry) =>
@@ -162,10 +200,14 @@ const hard = harness.log.filter(
 const hosted = harness.log.filter((entry) =>
   /api\.vercel\.com\/v1\/connect|\/api\/connect/.test(entry.detail),
 );
-fs.writeFileSync(
-  path.join(out, "receipt.json"),
-  `${JSON.stringify({ authority: "synthetic documented upstream protocol; no live credentials", results, failures: harness.failures, hard, hosted, checks: harness.log.filter((entry) => ["PASS", "FAIL"].includes(entry.kind)) }, null, 2)}\n`,
-);
+try {
+  fs.writeFileSync(
+    path.join(out, "receipt.json"),
+    `${JSON.stringify({ lastStep: harness.step(), casPages: harness.log.filter((entry) => entry.kind === "CAS-PAGE"), authority: "synthetic documented upstream protocol; no live credentials", results, failures: harness.failures, hard, hosted, checks: harness.log.filter((entry) => ["PASS", "FAIL"].includes(entry.kind)) }, null, 2)}\n`,
+  );
+} catch (captureError) {
+  harness.failures.push(`[receipt capture] ${String(captureError)}`);
+}
 if (harness.failures.length || hard.length || hosted.length) {
   for (const failure of harness.failures) console.error(failure);
   for (const entry of [...hard, ...hosted])

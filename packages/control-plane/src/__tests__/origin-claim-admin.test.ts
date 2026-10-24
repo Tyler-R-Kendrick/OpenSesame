@@ -509,7 +509,14 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         { challenge: startedClaim.challenge },
       );
       expect(verify.status).toBe(400);
-      expect(overlapCast(await verify.json()).error).toBe("proof_fetch_failed");
+      const failure = overlapCast<{ error: string; message: string }>(
+        await verify.json(),
+      );
+      expect(failure.error).toBe("proof_fetch_failed");
+      // Server-side fetch status, DNS answers and resolved addresses never
+      // reach the caller.
+      expect(failure.message).toBe("Well-known document could not be verified");
+      expect(failure.message).not.toMatch(/HTTP 5|10\.|192\.168|DNS/i);
     } finally {
       await stop(started);
       await stopDocServer(doc);
@@ -642,6 +649,92 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
     }
   });
 
+  it("refuses to take a system-owned client with an unrelated origin", async () => {
+    const doc = await startDocServer();
+    const started = await startControlPlane();
+    try {
+      await admit(started, doc.clientId, doc.origin);
+      const user = await verifiedUser(started.app, `user-${randomUUID()}`);
+      const hijack = await claimStart(
+        started.app,
+        doc.clientId,
+        user.accessToken,
+        { origin: "https://attacker.example" },
+      );
+      expect(hijack.status).toBe(400);
+      expect(overlapCast(await hijack.json()).error).toBe("proof_mismatch");
+      const record = await started.ctx.oauth.clientStore.findById(doc.clientId);
+      expect(record?.ownerPrincipalId).toBe(started.ctx.systemOwnerPrincipalId);
+      expect(record?.ownershipStatus).toBe("unclaimed");
+    } finally {
+      await stop(started);
+      await stopDocServer(doc);
+    }
+  });
+
+  it("refuses a single-label claim origin", async () => {
+    const doc = await startDocServer();
+    const started = await startControlPlane();
+    try {
+      await admit(started, doc.clientId, doc.origin);
+      const user = await verifiedUser(started.app, `user-${randomUUID()}`);
+      const res = await claimStart(
+        started.app,
+        doc.clientId,
+        user.accessToken,
+        { origin: "https://com" },
+      );
+      expect(res.status).toBe(400);
+      expect(overlapCast(await res.json()).error).toBe("invalid_origin");
+    } finally {
+      await stop(started);
+      await stopDocServer(doc);
+    }
+  });
+
+  it("refuses to attach another application's canonical origin as an alias", async () => {
+    const owned = await startDocServer();
+    const rival = await startDocServer();
+    const started = await startControlPlane();
+    try {
+      await admit(started, owned.clientId, owned.origin);
+      await admit(started, rival.clientId, rival.origin);
+      const user = await verifiedUser(started.app, `user-${randomUUID()}`);
+      const first = await startAndHostClaim(
+        started,
+        owned,
+        user.accessToken,
+        user.principalId,
+      );
+      expect(
+        (
+          await claimVerify(started.app, owned.clientId, user.accessToken, {
+            challenge: first.challenge,
+          })
+        ).status,
+      ).toBe(200);
+
+      // A system-owned client cannot be taken by proving an unrelated origin:
+      // that is the ownership-hijack path, refused before a challenge exists.
+      const stealStart = await claimStart(
+        started.app,
+        rival.clientId,
+        user.accessToken,
+        { origin: owned.origin },
+      );
+      expect(stealStart.status).toBe(400);
+      expect(overlapCast(await stealStart.json()).error).toBe("proof_mismatch");
+      expect(
+        (await started.ctx.oauth.clientStore.findById(rival.clientId))
+          ?.ownerPrincipalId,
+      ).toBe(started.ctx.systemOwnerPrincipalId);
+    } finally {
+      await stop(started);
+      await stopDocServer(owned);
+      await stopDocServer(rival);
+    }
+  });
+
   it("attaches a verified alias origin; re-attach is idempotent, cross-application attach conflicts", async () => {
     const doc = await startDocServer();
     const aliasDoc = await startDocServer();
@@ -742,22 +835,9 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
           user.accessToken,
           { origin: aliasDoc.origin },
         );
-        expect(stealStart.status).toBe(201);
-        const stealClaim = overlapCast(await stealStart.json());
-        aliasDoc.host(overlapCast(stealClaim.document));
-        const stealVerify = await claimVerify(
-          started.app,
-          otherDoc.clientId,
-          user.accessToken,
-          {
-            challenge: stealClaim.challenge,
-            origin: aliasDoc.origin,
-            attachAlias: true,
-          },
-        );
-        expect(stealVerify.status).toBe(409);
-        expect(overlapCast(await stealVerify.json()).error).toBe(
-          "alias_conflict",
+        expect(stealStart.status).toBe(400);
+        expect(overlapCast(await stealStart.json()).error).toBe(
+          "proof_mismatch",
         );
         // Ownership of the second application is untouched.
         expect(

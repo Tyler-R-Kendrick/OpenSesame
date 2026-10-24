@@ -9,6 +9,7 @@ import { createTestContext } from "../../modules/test-context.js";
 import {
   installPanelFixture,
   openConnectorPages,
+  renderFeatureConfig,
   renderIntegrationsPanel,
   renderPanel,
 } from "./settings-panels.test-support.js";
@@ -35,11 +36,11 @@ async function installModelPanel() {
 
 it("composes voice and inference choices into Features AI and saves a model choice there", async () => {
   await installModelPanel();
-  const { container } = renderPanel();
+  const { container } = renderFeatureConfig("ai", "support.local-ai");
   const inference = await screen.findByLabelText("Inference model");
-  expect(inference.closest("#feature-ai")).not.toBeNull();
+  expect(inference.closest(".feature-config")).not.toBeNull();
   expect(
-    screen.getByLabelText("Voice model").closest("#feature-ai"),
+    screen.getByLabelText("Voice model").closest(".feature-config"),
   ).not.toBeNull();
   expect(
     container.querySelectorAll(
@@ -67,6 +68,10 @@ it("composes voice and inference choices into Features AI and saves a model choi
 
 it("does not mount model configuration before the AI capability contributes it", () => {
   renderPanel();
+  expect(screen.queryByLabelText("Voice model")).toBeNull();
+  expect(screen.queryByLabelText("Inference model")).toBeNull();
+  cleanup();
+  renderFeatureConfig("ai", "support.local-ai");
   expect(screen.queryByLabelText("Voice model")).toBeNull();
   expect(screen.queryByLabelText("Inference model")).toBeNull();
 });

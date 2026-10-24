@@ -1,25 +1,4 @@
-/**
- * The owner's side of a live session (ADR 0150 §2–§5): the open tab hosts it.
- *
- * The owner pastes each request code a joiner sends, or a carrier passes it
- * on. In an invite session, a code the link did not open is a miss, and the
- * fifth miss **locks** the session: no new request is taken, and everyone
- * already asking or in stays. An open session has no code to guess, so a
- * request that does not open there is not a miss. A reposted code is the same
- * miss, not a new one. Ending the session is not how it locks: anyone holding
- * the link could then throw out the people already in. Letting someone in is
- * the only answer to their offer (`host-peer.ts`), and that answer leaves only
- * in the reply code, so nobody turned away learns where the owner is.
- *
- * A seat is not kept for ever: one that is asking or let in but never connects
- * expires after the pairing window, and an ended seat is forgotten shortly
- * after, so requests that never finish cannot fill the session or grow it.
- *
- * The session keeps nothing in storage. It ends — for everyone, on every
- * channel — when the owner ends it, when its time runs out, or when the tab
- * that hosts it goes away.
- */
-
+/** The owner's side of a live session (ADR 0150). A peer-trust ask waits for the SAS. */
 import { noteLiveSessionGranted } from "../sharing-receipts.js";
 import { DeviceBroker } from "./device-broker.js";
 import { NO_DEVICES } from "./device-types.js";
@@ -37,21 +16,23 @@ import {
   type Received,
   SEAT_GRACE_MS,
   type HostSeat as Seat,
+  armSeatTimer,
+  askingSeat,
+  deviceLogEntry,
+  disarmSeatTimer,
+  seatState,
 } from "./host-types.js";
 import type { LiveLink } from "./link.js";
 import type { JoinRequest } from "./messages.js";
 import { PAIRING_MS } from "./p2p.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
+import { judgeJoinPeer, replyForSeat } from "./peer-trust-join.js";
 import type { Carrier } from "./rendezvous.js";
 import { NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
 import { seatName } from "./seat-channel.js";
-
 // What a host is made of lives in `host-types.ts`; it is named here as well.
 export * from "./host-types.js";
-
-const seatState = (seat: Seat | undefined) => seat?.guest.state;
-
 /** One live session, hosted by this tab. */
 export class LiveHost {
   readonly link: LiveLink;
@@ -75,7 +56,6 @@ export class LiveHost {
   readonly #closed = new Set<string>();
   #ended: HostState["endedBecause"] = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
-
   private constructor(
     private readonly options: HostOptions,
     owner: Keypair,
@@ -99,25 +79,16 @@ export class LiveHost {
           port: options.devices.port,
           expiresAt: this.expiresAt,
           now: this.#now,
-          onLog: (entry) =>
-            this.#record({
-              at: entry.at,
-              guest: entry.guest,
-              what: entry.what,
-              item: entry.connection,
-              field: entry.operation,
-            }),
+          onLog: (entry) => this.#record(deviceLogEntry(entry)),
         })
       : null;
     this.devices?.subscribe(() => this.#emit());
   }
-
   /** One more line in the owner's log, the last two hundred kept. */
   #record(entry: LogEntry): void {
     this.#log = [...this.#log.slice(-199), entry];
     this.#emit();
   }
-
   /** Start a session: a fresh owner key, link secret and code. */
   static async start(options: HostOptions): Promise<LiveHost> {
     return new LiveHost(options, await newKeypair());
@@ -151,17 +122,6 @@ export class LiveHost {
     if (!seat) return;
     seat.guest = { ...seat.guest, ...patch };
     this.#emit();
-  }
-
-  /** Run `fire` after `ms`, in place of whatever the seat was waiting on. */
-  #arm(seat: Seat, ms: number, fire: () => void): void {
-    if (seat.timer) clearTimeout(seat.timer);
-    seat.timer = setTimeout(fire, ms);
-  }
-
-  #disarm(seat: Seat): void {
-    if (seat.timer) clearTimeout(seat.timer);
-    seat.timer = null;
   }
 
   /** A request code the owner pasted, or a carrier passed on. */
@@ -215,38 +175,47 @@ export class LiveHost {
     if (kind === "device" && !this.devices) return { kind: "no-devices" };
     if (route === "relay" && !(this.options.canRelay?.() ?? false))
       return { kind: "no-relay" };
-    const seated = [...this.#seats.values()].filter((seat) =>
+    const open = [...this.#seats.values()].filter((seat) =>
       OPEN.has(seat.guest.state),
     );
-    if (seated.length >= MAX_GUESTS) return { kind: "full" };
+    if (open.length >= MAX_GUESTS) return { kind: "full" };
+    const judged = await judgeJoinPeer(
+      request,
+      joiner,
+      open.map((seat) => ({
+        key: seat.guest.key,
+        name: seat.guest.name,
+        fingerprint: seat.guest.peerFingerprint ?? "",
+      })),
+    );
+    if (!judged.ok) {
+      return judged.reason === "duplicate"
+        ? { kind: "duplicate" }
+        : { kind: "not-a-request" };
+    }
     const key = request.id;
-    const seat: Seat = {
-      guest: {
-        key,
-        name: request.name,
-        note: request.note,
-        state: "asking",
-        askedAt: this.#now(),
-        reply: null,
-        kind,
-      },
-      offer: request.offer,
-      greets: request.greets,
+    const seat = askingSeat(
+      request,
       joiner,
       kind,
       route,
-      peer: null,
-      admitting: false,
-      timer: null,
-    };
+      this.#now(),
+      judged.guest,
+      judged.peerTrust,
+    );
     this.#seats.set(key, seat);
-    this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
+    for (const id of judged.clashKeys) this.#set(id, { nameClash: true });
+    armSeatTimer(seat, PAIRING_MS, () => this.#drop(key, "gone"));
     this.#emit();
-    if (this.options.admission === "open") await this.admit(key);
+    // An open session's link is the admission: let the holder in at once.
+    // The SAS stays on the owner's row for an optional check, but it does not
+    // hold the reply. Invite sessions still wait for that compare.
+    if (this.options.admission === "open") {
+      await this.admit(key);
+    }
     return { kind: "guest", key };
   }
 
-  /** The seat's peer: what it will be shown, and how its life reports back. */
   #peerFor(key: string, seat: Seat, relay: Carrier | null): HostPeer {
     // A device is built a peer that has no vault to read from: an empty
     // catalog, nothing to reveal and nothing to write. The peer refuses a
@@ -271,23 +240,23 @@ export class LiveHost {
       now: this.#now,
       onJoined: () => {
         if (seat.peer !== peer) return;
-        this.#disarm(seat);
+        disarmSeatTimer(seat);
         this.#set(key, { state: "joined", reply: null });
       },
       onClosed: () => {
         if (seat.peer === peer) this.#drop(key, "gone");
       },
       onLog: (entry) => this.#record(entry),
+      onConnection: (connection) => {
+        if (seat.peer !== peer) return;
+        const guest = this.#seats.get(key)?.guest;
+        if (!guest || guest.state !== "replied") return;
+        this.#set(key, { connection: connection ?? undefined });
+      },
     });
     return peer;
   }
 
-  /**
-   * The asker to admit and the relay that will carry it, or null when it
-   * cannot be admitted now. A second admit must not start beside one that is
-   * waiting on the browser (`peer.open`), and a relay-only asker whose relay
-   * went away since its request was taken has nothing to be carried by.
-   */
   #admission(
     key: string,
   ): Readonly<{ seat: Seat; relay: Carrier | null }> | null {
@@ -308,6 +277,20 @@ export class LiveHost {
     const admission = this.#admission(key);
     if (!admission) return;
     const { seat, relay } = admission;
+    if (this.options.provisionSeat) {
+      try {
+        await this.options.provisionSeat(seat.guest, this.id);
+      } catch {
+        this.#drop(key, "refused");
+        return;
+      }
+      if (
+        this.#ended ||
+        this.#seats.get(key) !== seat ||
+        seat.guest.state !== "asking"
+      )
+        return;
+    }
     const peer = this.#peerFor(key, seat, relay);
     seat.peer = peer;
     try {
@@ -319,12 +302,19 @@ export class LiveHost {
           joiner: seat.joiner,
           id: key,
         });
+      const body = await replyForSeat(
+        key,
+        answer,
+        relay !== null,
+        seat.peerTrust,
+      );
+      if (!body) throw new Error("peer_trust_reply");
       const reply = await makeReplyCode(
         this.link,
         this.code,
         this.#owner,
         seat.joiner,
-        relay ? { id: key, answer, relay: "nats" } : { id: key, answer },
+        body,
       );
       if (seat.peer !== peer) {
         // Refused, ended or replaced while it was answering: nobody owns it.
@@ -332,8 +322,8 @@ export class LiveHost {
         return;
       }
       // The window to connect runs from the reply, not from the request.
-      this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
-      this.#set(key, { state: "replied", reply });
+      armSeatTimer(seat, PAIRING_MS, () => this.#drop(key, "gone"));
+      this.#set(key, { state: "replied", reply, connection: undefined });
       this.options.post?.(reply);
     } catch {
       peer.close();
@@ -351,6 +341,11 @@ export class LiveHost {
     }
   }
 
+  /** Push the current vault catalog to every joined seat. */
+  refreshCatalog(): void {
+    for (const seat of this.#seats.values()) seat.peer?.refreshCatalog();
+  }
+
   /** Turn an asker away, or send a guest out. */
   refuse(key: string): void {
     this.#drop(key, "refused");
@@ -363,7 +358,7 @@ export class LiveHost {
     seat.peer = null;
     // The offer is the seat's one big thing, and nothing reads it again.
     seat.offer = "";
-    this.#arm(seat, SEAT_GRACE_MS, () => this.#forget(key));
+    armSeatTimer(seat, SEAT_GRACE_MS, () => this.#forget(key));
     this.#set(key, { state, reply: null });
   }
 
@@ -387,7 +382,7 @@ export class LiveHost {
     if (this.#timer) clearTimeout(this.#timer);
     this.devices?.end();
     for (const seat of this.#seats.values()) {
-      this.#disarm(seat);
+      disarmSeatTimer(seat);
       seat.peer?.close();
       seat.peer = null;
       if (OPEN.has(seat.guest.state))

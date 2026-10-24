@@ -116,6 +116,8 @@ export function resolveWalletNativeMounts(
       publicUrl: input.config.publicUrl,
       clock: input.clock,
       vct: OPENSESAME_VCT,
+      credentialIssuer: input.config.issuer.replace(/\/$/, ""),
+      subjectPepper: input.config.claimPepper,
       ...(input.openid4vpTrustedIssuers
         ? { trustedIssuers: input.openid4vpTrustedIssuers }
         : undefined),

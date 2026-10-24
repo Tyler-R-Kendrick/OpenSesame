@@ -98,8 +98,14 @@ export function entryToVaultItem(
   if (isWholeItemMeta(meta)) {
     item.fields = customFieldsIn(meta.fields);
     item.favorite = meta.favorite === true;
-    const environments = parseItemEnvironments(overlapCast(meta.environments));
-    if (environments) item.environments = environments;
+    if (meta.environmentsExcluded === true) {
+      item.environmentsExcluded = true;
+    } else {
+      const environments = parseItemEnvironments(
+        overlapCast(meta.environments),
+      );
+      if (environments) item.environments = environments;
+    }
   }
   return item;
 }
@@ -155,7 +161,8 @@ export function itemToStoreEntry(
   meta.values ??= namedValues(item);
   meta.fields = customFieldsOut(item.fields);
   meta.favorite = item.favorite || undefined;
-  meta.environments = item.environments;
+  meta.environments = item.environmentsExcluded ? undefined : item.environments;
+  meta.environmentsExcluded = item.environmentsExcluded || undefined;
 
   const jsonTrailer = `${JSON.stringify(meta)}\n`;
   const trailer = mergeOtpauthIntoTrailer(jsonTrailer, otpauth);

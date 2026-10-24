@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Playwright + pixelmatch visual regression contract that renders apps/pages and diffs it against the .impeccable/screenshots design baselines",
+  "description": "Playwright + pixelmatch visual regression contract that renders apps/pages and diffs it against the tests/visual-contract/baselines design baselines",
   "scripts": {
     "test": "vitest run",
     "test:visual": "playwright test",

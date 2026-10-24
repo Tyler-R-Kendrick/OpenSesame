@@ -19,6 +19,7 @@ import {
   PERSONAL_SELECTION,
   installPanelFixture,
   openConnectorPages,
+  renderFeatureConfig,
   renderIntegrationsPanel,
   renderPanel,
   withReceipt,
@@ -67,18 +68,21 @@ describe("what a switch cannot say is said beside it", () => {
     ).toBe("true");
   });
 
-  it("draws AI's model picks on Features only while AI is on", async () => {
+  it("draws AI's model picks on AI's feature page only while AI is on", async () => {
     // The fixture runs WebMCP tools, so AI is on — and the picker is the
     // on-device model's own panel, so it arrives with that capability.
     const revoke = await activateForTest(localAi, ["settings-panel"]);
-    const on = renderPanel();
+    const on = renderFeatureConfig("ai", "support.local-ai");
     expect(on.container.querySelector("#model-provider")).not.toBeNull();
     expect(
-      on.getByLabelText("Voice model").closest("#feature-ai"),
+      on.getByLabelText("Voice model").closest(".feature-config"),
     ).not.toBeNull();
     expect(
-      on.getByLabelText("Inference model").closest("#feature-ai"),
+      on.getByLabelText("Inference model").closest(".feature-config"),
     ).not.toBeNull();
+    cleanup();
+    const list = renderPanel();
+    expect(list.container.querySelector("#model-provider")).toBeNull();
     cleanup();
     const integrations = renderIntegrationsPanel();
     expect(integrations.queryByLabelText("Voice model")).toBeNull();
@@ -87,7 +91,7 @@ describe("what a switch cannot say is said beside it", () => {
     // Disabling the capability disposes the settings contribution in the real runtime.
     revoke();
     selecting(["vault.passkey-records"]);
-    const off = renderPanel();
+    const off = renderFeatureConfig("ai", "support.local-ai");
     expect(off.container.querySelector("#model-provider")).toBeNull();
     // Connectors stay configurable by reference once Connect's roads are installed.
     connectRoadSeams.usesConnect = usesConnect;

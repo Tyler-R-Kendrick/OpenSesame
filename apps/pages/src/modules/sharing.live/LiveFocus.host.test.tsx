@@ -18,13 +18,12 @@ installLiveFocusTests();
 describe("the keyboard after the host's swaps", () => {
   it("lands on the copy key when Start opens the session, and on the form when End closes it", async () => {
     const panel = await host();
-    press(panel.getByRole("button", { name: "Start the live session" }));
+    press(panel.getByRole("button", { name: "Share this vault" }));
     const copy = await panel.findByRole("button", { name: "Copy the link" });
     await landsOn(copy);
     press(panel.getByRole("button", { name: "End the session for everyone" }));
     press(panel.getByRole("button", { name: "End for everyone" }));
-    const name = await panel.findByLabelText("Session name");
-    await landsOn(name);
+    await landsOn(panel.getByLabelText("Session name"));
   });
 
   it("brings the copy key out from under the phone's sticky strip when Start shortens the page", async () => {
@@ -47,7 +46,7 @@ describe("the keyboard after the host's swaps", () => {
         return rect(98 - pane.scrollTop, 44);
       },
     );
-    press(panel.getByRole("button", { name: "Start the live session" }));
+    press(panel.getByRole("button", { name: "Share this vault" }));
     await landsOn(await panel.findByRole("button", { name: "Copy the link" }));
     expect(pane.scrollTop).toBe(38);
   });
@@ -58,7 +57,7 @@ describe("the keyboard after the host's swaps", () => {
     document.body.append(elsewhere);
     act(() => elsewhere.focus());
     fireEvent.click(
-      panel.getByRole("button", { name: "Start the live session" }),
+      panel.getByRole("button", { name: "Share this vault" }),
     );
     await panel.findByRole("img", { name: "Live" });
     await landsOn(elsewhere);
@@ -69,11 +68,11 @@ describe("the keyboard after the host's swaps", () => {
     const { panel, session } = await hosted();
     const joiner = openJoin();
     const request = await asked(joiner, session?.code ?? "");
-    const field = panel.getByLabelText("A request code");
+    const field = panel.getByLabelText("Paste a join request");
     type(field, request);
     enter(field);
     const letIn = await panel.findByRole("button", { name: "Let Ada in" });
-    await landsOn(panel.getByLabelText("A request code"));
+    await landsOn(panel.getByLabelText("Paste a join request"));
     press(letIn);
     const reply = await panel.findByRole("button", {
       name: "Copy the reply code for Ada",
@@ -85,24 +84,24 @@ describe("the keyboard after the host's swaps", () => {
     const { panel, session } = await hosted();
     const joiner = openJoin();
     const request = await asked(joiner, session?.code ?? "");
-    const field = panel.getByLabelText("A request code");
+    const field = panel.getByLabelText("Paste a join request");
     type(field, "not a code");
     enter(field);
     await panel.findByRole("img", { name: "Not a request code" });
-    await landsOn(panel.getByLabelText("A request code"));
-    type(panel.getByLabelText("A request code"), request);
-    enter(panel.getByLabelText("A request code"));
+    await landsOn(panel.getByLabelText("Paste a join request"));
+    type(panel.getByLabelText("Paste a join request"), request);
+    enter(panel.getByLabelText("Paste a join request"));
     press(await panel.findByRole("button", { name: "Turn Ada away" }));
     await panel.findByRole("img", { name: "Turned away" });
-    await landsOn(panel.getByLabelText("A request code"));
+    await landsOn(panel.getByLabelText("Paste a join request"));
   });
 
   it("does not move a mouse user's focus when a guest is turned away", async () => {
     const { panel, session } = await hosted();
     const joiner = openJoin();
     const request = await asked(joiner, session?.code ?? "");
-    type(panel.getByLabelText("A request code"), request);
-    enter(panel.getByLabelText("A request code"));
+    type(panel.getByLabelText("Paste a join request"), request);
+    enter(panel.getByLabelText("Paste a join request"));
     const away = await panel.findByRole("button", { name: "Turn Ada away" });
     const other = document.createElement("input");
     document.body.append(other);

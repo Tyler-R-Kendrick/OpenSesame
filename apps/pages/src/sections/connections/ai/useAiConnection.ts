@@ -1,13 +1,36 @@
+import { AssemblyTranscriptInterrupted } from "@opensesame/app-core/lib/ai-connections/assemblyai-target.js";
+import { bedrockResourceBase } from "@opensesame/app-core/lib/ai-connections/bedrock-target.js";
+import {
+  aiConnectionBinding,
+  validateAiConnection,
+} from "@opensesame/app-core/lib/ai-connections/configuration.js";
 import { aiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/presets.js";
+import { ReplicatePredictionInterrupted } from "@opensesame/app-core/lib/ai-connections/replicate-types.js";
 import {
   deleteAiConnection,
   saveAiConnection,
   testAiConnection,
 } from "@opensesame/app-core/lib/ai-connections/runtime.js";
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
-import type { AiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/types.js";
+import {
+  type AiConnectionDraft,
+  isAiImageFamily,
+  isAiRemoteJobFamily,
+  isAiSpeechFamily,
+} from "@opensesame/app-core/lib/ai-connections/types.js";
+import { vertexResourceBase } from "@opensesame/app-core/lib/ai-connections/vertex-target.js";
+import { subscribeDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
+import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  type SecretBackendActionOwner,
+  useSecretBackendAction,
+} from "../secret-backends/useSecretBackendAction.js";
+import { useLocalAudioInput } from "./AudioFields.js";
+import { replicateVerificationInput } from "./PredictionFields.js";
+import { runAiWork } from "./ai-work-lifetime.js";
 
 export const aiConnectionUiDependencies = {
   save: saveAiConnection,
@@ -15,6 +38,179 @@ export const aiConnectionUiDependencies = {
   remove: deleteAiConnection,
 };
 
+function initialDraft(providerId: string, id?: string) {
+  return id
+    ? (readAiConnection(id) ?? aiConnectionDraft(providerId))
+    : aiConnectionDraft(providerId);
+}
+function requiresAiKey(family: AiConnectionDraft["family"]) {
+  return (
+    family === "replicate_predictions" ||
+    isAiSpeechFamily(family) ||
+    isAiImageFamily(family)
+  );
+}
+function changeDraft<Key extends keyof AiConnectionDraft>(
+  current: AiConnectionDraft,
+  field: Key,
+  value: AiConnectionDraft[Key],
+) {
+  const next = { ...current, [field]: value };
+  if (!["openai_chat", "openai_responses"].includes(next.family))
+    next.azure = undefined;
+  changeVertexDraft(current, next, field);
+  changeBedrockDraft(current, next, field);
+  const nextMedia = requiresAiKey(next.family);
+  if (nextMedia) next.authentication = "api-key";
+  if (
+    (requiresAiKey(current.family) || nextMedia) &&
+    ["family", "baseUrl", "model", "authentication"].includes(field)
+  )
+    next.apiKey = "";
+  if (next.azure) {
+    next.authentication = "api-key";
+    if (next.azure.api === "dated-chat") {
+      next.family = "openai_chat";
+      if (current.azure?.api !== "dated-chat")
+        next.tokenParameter = "max_tokens";
+    }
+  }
+  if (
+    (current.azure || next.azure) &&
+    ["azure", "family", "baseUrl", "model"].includes(field)
+  )
+    next.apiKey = "";
+  return next;
+}
+function changeVertexDraft(
+  current: AiConnectionDraft,
+  next: AiConnectionDraft,
+  field: keyof AiConnectionDraft,
+) {
+  if (next.family !== "gemini_generate_content") next.vertex = undefined;
+  if (next.vertex) {
+    next.authentication = "api-key";
+    const automatic =
+      field === "vertex" &&
+      (!next.baseUrl ||
+        Boolean(
+          current.vertex &&
+            current.baseUrl === vertexResourceBase(current.vertex),
+        ));
+    if (next.providerId === "google-vertex" || automatic)
+      next.baseUrl = vertexResourceBase(next.vertex);
+  }
+  if (
+    (current.vertex || next.vertex) &&
+    ["vertex", "family", "baseUrl", "model"].includes(field)
+  )
+    next.apiKey = "";
+}
+function changeBedrockDraft(
+  current: AiConnectionDraft,
+  next: AiConnectionDraft,
+  field: keyof AiConnectionDraft,
+) {
+  if (next.family !== "bedrock_converse") next.bedrock = undefined;
+  else {
+    next.bedrock ??= { region: "us-east-1", credential: "sigv4" };
+    next.authentication = "api-key";
+    const automatic =
+      !next.baseUrl ||
+      Boolean(
+        current.bedrock &&
+          current.baseUrl.replace(/\/+$/, "") ===
+            bedrockResourceBase(current.bedrock).replace(/\/$/, ""),
+      );
+    if (
+      next.providerId === "aws-bedrock" ||
+      ((field === "bedrock" || field === "family") && automatic)
+    )
+      next.baseUrl = bedrockResourceBase(next.bedrock);
+  }
+  if (
+    (current.bedrock || next.bedrock) &&
+    ["bedrock", "family", "baseUrl", "model"].includes(field)
+  )
+    next.apiKey = "";
+}
+function canRetainCredential(draft: AiConnectionDraft, id?: string): boolean {
+  if (!id) return false;
+  try {
+    const saved = readAiConnection(id);
+    return Boolean(
+      saved &&
+        aiConnectionBinding(validateAiConnection(draft, false)) ===
+          aiConnectionBinding(validateAiConnection(saved, false)),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function aiVaultScope() {
+  const snapshot = vaultStore.getSnapshot();
+  return JSON.stringify([
+    snapshot.status,
+    snapshot.tomb,
+    snapshot.guest,
+    snapshot.awaitingSecondStep,
+    snapshot.decoy,
+  ]);
+}
+function savedStamp(id?: string) {
+  const row = id ? readNativeConnector(id) : null;
+  return JSON.stringify([row?.revision, row?.fingerprint]);
+}
+/** Shared action ownership ends HTTP. Only the separate user controller requests cancellation. */
+export function useAiOperation(
+  onFlash: (flash: Flash) => void,
+  onWithdraw: () => void,
+  connectionId?: string,
+) {
+  const action = useSecretBackendAction(onFlash);
+  const prediction = useRef<AbortController | null>(null);
+  const { clear } = action;
+  useLayoutEffect(() => {
+    let scope = aiVaultScope();
+    let stamp = savedStamp(connectionId);
+    const end = () => {
+      clear();
+      onWithdraw();
+    };
+    const stopLock = vaultStore.onLock(end);
+    const stopVault = vaultStore.subscribe(() => {
+      const next = aiVaultScope();
+      if (next !== scope) {
+        scope = next;
+        end();
+      }
+    });
+    const stopRows = subscribeDeviceRows(() => {
+      if (!connectionId) return;
+      const next = savedStamp(connectionId);
+      if (next !== stamp) {
+        stamp = next;
+        end();
+      }
+    });
+    return () => {
+      stopLock();
+      stopVault();
+      stopRows();
+      clear();
+    };
+  }, [clear, connectionId, onWithdraw]);
+  async function runAi(
+    work: (
+      owner: SecretBackendActionOwner,
+      signal: AbortSignal,
+    ) => Promise<string | undefined>,
+  ) {
+    return action.run((owner) => runAiWork(owner, prediction, work));
+  }
+  return { ...action, runAi, onCancel: () => prediction.current?.abort() };
+}
 export function useAiConnection(
   providerId: string,
   connectionId: string | undefined,
@@ -22,94 +218,162 @@ export function useAiConnection(
   onSaved?: () => void,
 ) {
   const [draft, setDraft] = useState(() =>
-    connectionId
-      ? (readAiConnection(connectionId) ?? aiConnectionDraft(providerId))
-      : aiConnectionDraft(providerId),
+    initialDraft(providerId, connectionId),
   );
   const [savedId, setSavedId] = useState(connectionId);
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState("");
-  const [result, setResult] = useState("");
-  const generation = useRef(0);
-  useEffect(
-    () => () => {
-      generation.current += 1;
-    },
-    [],
-  );
-  function onChange(field: keyof AiConnectionDraft, value: string) {
-    setDraft((current) => ({ ...current, [field]: value }));
-    setFailure("");
-    setResult("");
+  const [predictionInput, setPredictionInput] = useState("");
+  const audio = useLocalAudioInput();
+  const clearAudio = audio.clear;
+  const withdraw = useCallback(() => {
+    setDraft((current) => ({ ...current, apiKey: "" }));
+    setPredictionInput("");
+    clearAudio();
+  }, [clearAudio]);
+  const pending = useAiOperation(onFlash, withdraw);
+  function onChange<Key extends keyof AiConnectionDraft>(
+    field: Key,
+    value: AiConnectionDraft[Key],
+  ) {
+    pending.clear();
+    clearAudio();
+    setDraft((current) => changeDraft(current, field, value));
+    if (["family", "baseUrl", "model", "authentication"].includes(field))
+      setPredictionInput("");
   }
   async function run(save: boolean) {
-    if (busy) return;
-    const started = ++generation.current;
-    setBusy(true);
-    setFailure("");
-    setResult("");
-    try {
-      if (save) {
-        const view = await aiConnectionUiDependencies.save(draft, savedId);
-        if (started !== generation.current) return;
+    await pending.runAi(async (owner, signal) => {
+      const input =
+        draft.family === "replicate_predictions"
+          ? replicateVerificationInput(draft, predictionInput)
+          : undefined;
+      const options = verificationOptions(
+        draft,
+        predictionInput,
+        owner,
+        signal,
+        audio,
+      );
+      try {
+        if (!save)
+          return await aiConnectionUiDependencies.test(
+            draft,
+            savedId,
+            input,
+            options,
+          );
+        const view = await aiConnectionUiDependencies.save(
+          draft,
+          savedId,
+          input,
+          options,
+        );
+        owner.check();
         setSavedId(view.connectionId);
-        setDraft((current) => ({ ...current, apiKey: "" }));
-        setResult("AI connection verified and saved in this vault");
+        withdraw();
         window.dispatchEvent(new Event("opensesame:ai-connections-changed"));
         onSaved?.();
-      } else {
-        const label = await aiConnectionUiDependencies.test(draft, savedId);
-        if (started !== generation.current) return;
-        setResult(label);
+        return "AI connection verified and saved in this vault";
+      } catch (error) {
+        throw aiOperationFailure(
+          error instanceof Error
+            ? error
+            : new Error("The AI operation failed."),
+          draft.apiKey,
+        );
       }
-    } catch (error) {
-      if (started !== generation.current) return;
-      const text =
-        error instanceof Error ? error.message : "The AI operation failed.";
-      const safe = draft.apiKey
-        ? text.replaceAll(draft.apiKey, "[credential]")
-        : text;
-      setFailure(safe);
-      onFlash({ tone: "err", text: safe });
-    } finally {
-      if (started === generation.current) setBusy(false);
-    }
-  }
-
-  async function onForget() {
-    if (busy || !savedId) return;
-    const started = ++generation.current;
-    setBusy(true);
-    setFailure("");
-    try {
-      await aiConnectionUiDependencies.remove(savedId);
-      if (started !== generation.current) return;
-      setSavedId(undefined);
-      setResult("AI connection forgotten");
-      window.dispatchEvent(new Event("opensesame:ai-connections-changed"));
-      onSaved?.();
-    } catch (error) {
-      if (started !== generation.current) return;
-      const text =
-        error instanceof Error
-          ? error.message
-          : "Could not forget this AI connection.";
-      setFailure(text);
-      onFlash({ tone: "err", text });
-    } finally {
-      if (started === generation.current) setBusy(false);
-    }
+    });
   }
   return {
+    ...pending,
     draft,
+    ...aiAudioControls(audio, pending, draft.family),
     savedId,
+    predictionInput,
+    onPredictionInput: (value: string) => {
+      pending.clear();
+      setPredictionInput(value);
+    },
     hasSavedCredentials: Boolean(savedId && readAiConnection(savedId)),
-    busy,
-    failure,
-    result,
+    canRetainCredential: canRetainCredential(draft, savedId),
     onChange,
     onSave: () => void run(true),
     onTest: () => void run(false),
-    onForget: () => void onForget(),
+    onForget: () =>
+      void forgetAiConnection(
+        savedId,
+        pending,
+        () => {
+          setSavedId(undefined);
+          withdraw();
+        },
+        onSaved,
+      ),
   };
+}
+
+function verificationOptions(
+  draft: AiConnectionDraft,
+  prompt: string,
+  owner: SecretBackendActionOwner,
+  signal: AbortSignal,
+  audio: ReturnType<typeof useLocalAudioInput>,
+) {
+  return {
+    signal: owner.signal,
+    prediction: { signal },
+    imagePrompt: isAiImageFamily(draft.family) ? prompt : undefined,
+    audio: isAiSpeechFamily(draft.family)
+      ? audio.fields.sampleAudio
+      : undefined,
+  };
+}
+
+async function forgetAiConnection(
+  id: string | undefined,
+  pending: Pick<ReturnType<typeof useAiOperation>, "runAi">,
+  onForgot: () => void,
+  onSaved?: () => void,
+) {
+  if (!id) return;
+  await pending.runAi(async (owner) => {
+    await aiConnectionUiDependencies.remove(id);
+    owner.check();
+    onForgot();
+    window.dispatchEvent(new Event("opensesame:ai-connections-changed"));
+    onSaved?.();
+    return "AI connection forgotten";
+  });
+}
+
+function aiAudioControls(
+  audio: ReturnType<typeof useLocalAudioInput>,
+  pending: Pick<ReturnType<typeof useAiOperation>, "clear" | "onCancel">,
+  family: AiConnectionDraft["family"],
+) {
+  return {
+    ...audio.fields,
+    onSampleAudio: (file: File | undefined) => {
+      pending.clear();
+      audio.fields.onSampleAudio(file);
+    },
+    onCancel: () => {
+      if (isAiImageFamily(family)) pending.clear();
+      else if (isAiSpeechFamily(family)) {
+        if (isAiRemoteJobFamily(family)) pending.onCancel();
+        else pending.clear();
+        audio.clear();
+      } else pending.onCancel();
+    },
+  };
+}
+
+function aiOperationFailure(error: Error, apiKey: string): Error {
+  if (
+    error instanceof ReplicatePredictionInterrupted ||
+    error instanceof AssemblyTranscriptInterrupted
+  )
+    return error;
+  return new Error(
+    apiKey ? error.message.replaceAll(apiKey, "[credential]") : error.message,
+  );
 }

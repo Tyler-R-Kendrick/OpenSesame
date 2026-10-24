@@ -42,6 +42,8 @@ pub struct TrapRecord {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DecoyAction {
+    VaultRead,
+    VaultExport,
     VaultWrite,
     AuthorityDenied,
 }

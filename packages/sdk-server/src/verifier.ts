@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -11,6 +12,7 @@ import {
   type JWTVerifyGetKey,
   createLocalJWKSet,
   createRemoteJWKSet,
+  customFetch,
   jwtVerify,
 } from "jose";
 import { AuthorizationError } from "./errors.js";
@@ -55,8 +57,10 @@ export interface OpenSesameVerifierConfig {
    */
   algorithms?: string[];
   /**
-   * Require the RFC 9068 `typ` header (`at+jwt`) when the issuer stamps one.
-   * Off by default: not every issuer emits it.
+   * Require the RFC 9068 `typ` header (`at+jwt`) for access tokens. Defaults
+   * to true: an ID token carries `typ: JWT` (or no type) and would otherwise
+   * be accepted as a bearer token when the audiences overlap. Set false only
+   * for a legacy issuer that cannot stamp the header.
    */
   requireAccessTokenTypeHeader?: boolean;
 }
@@ -84,7 +88,10 @@ export const DEFAULT_ALLOWED_ALGORITHMS = [
 const REQUIRED_CLAIMS = ["iss", "sub", "aud", "exp"];
 
 function isLoopbackHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  const host = hostname
+    .replace(/^\[|\]$/gu, "")
+    .replace(/\.+$/u, "")
+    .toLowerCase();
   if (host === "localhost" || host.endsWith(".localhost")) return true;
   if (host === "::1") return true;
   const embedded = ipv4FromMappedIpv6(host);
@@ -99,7 +106,9 @@ function isLoopbackV4(host: string): boolean {
 function ipv4FromMappedIpv6(host: string): string | null {
   const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host);
   if (dotted) return dotted[1] ?? null;
-  const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
+  const mappedHex =
+    /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host) ??
+    /^(?:0{1,4}:){5}ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
   if (mappedHex?.[1] && mappedHex[2]) {
     return hextetsToIpv4(mappedHex[1], mappedHex[2]);
   }
@@ -122,7 +131,10 @@ function hextetsToIpv4(hiHex: string, loHex: string): string {
  * make a request on its behalf to somewhere it cannot reach itself.
  */
 function isPrivateHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  const host = hostname
+    .replace(/^\[|\]$/gu, "")
+    .replace(/\.+$/u, "")
+    .toLowerCase();
   if (isLoopbackHost(host)) return true;
   if (host === "0.0.0.0" || host === "::" || host === "localhost") return true;
   const embedded = ipv4FromMappedIpv6(host);
@@ -130,6 +142,7 @@ function isPrivateHost(hostname: string): boolean {
   if (isPrivateV4(host)) return true;
   if (/^f[cd][0-9a-f]{2}:/u.test(host)) return true;
   if (/^fe[89ab][0-9a-f]:/u.test(host)) return true;
+  if (/^fe[c-f][0-9a-f]:/u.test(host)) return true;
   return host.endsWith(".internal") || host.endsWith(".local");
 }
 
@@ -138,9 +151,11 @@ function isPrivateV4(host: string): boolean {
   if (!v4) return false;
   const [a, b] = [Number(v4[1]), Number(v4[2])];
   if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
+  if (a === 192 && (b === 168 || b === 0)) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
   return false;
 }
 
@@ -211,20 +226,69 @@ export function createJwksKeySource(
     config.jwksUri === undefined
       ? undefined
       : assertSecureUrl(config.jwksUri, "jwksUri");
+  const issuerIsPrivate = isPrivateHost(new URL(issuer).hostname);
+  const fetchImpl = config.fetchImpl ?? globalThis.fetch;
+  // jose follows redirects by default. A public JWKS URI that redirects to
+  // loopback or metadata would turn the verifier into an SSRF probe, so the
+  // fetch is manual and any redirect is refused.
+  const guardedKeyFetch = async (
+    url: string,
+    init: RequestInit,
+  ): Promise<Response> => {
+    const target = new URL(url);
+    if (!issuerIsPrivate) {
+      if (isPrivateHost(target.hostname)) {
+        throw new Error(
+          "jwks_uri names a private or loopback host, but the issuer is remote",
+        );
+      }
+      // A public name can still resolve into this network. Check every A/AAAA
+      // record before letting the fetch connect (a custom fetch in tests is
+      // not resolved here, and jose itself never follows a redirect).
+      if (config.fetchImpl === undefined) {
+        const addresses = await lookup(
+          target.hostname.replace(/^\[|\]$/gu, "").replace(/\.+$/u, ""),
+          { all: true, verbatim: true },
+        );
+        if (addresses.some((entry) => isPrivateHost(entry.address))) {
+          throw new Error(
+            "jwks_uri resolves to a private or loopback address, but the issuer is remote",
+          );
+        }
+      }
+    }
+    const response = await (fetchImpl ?? fetch)(url, {
+      ...init,
+      redirect: "manual",
+      credentials: "omit",
+    });
+    if (response.status >= 300 && response.status < 400) {
+      throw new Error("jwks_uri redirect refused");
+    }
+    return response;
+  };
+  const remoteOptions = { [customFetch]: guardedKeyFetch };
 
   async function discoverJwksUri(): Promise<URL> {
     const issuerUrl = new URL(issuer);
-    const fetchImpl = config.fetchImpl ?? globalThis.fetch;
     const fallback = (): URL => assertSecureUrl(`${issuer}/jwks`, "jwksUri");
     if (!fetchImpl) return fallback();
     let meta: BoundaryValue;
     try {
       const res = await fetchImpl(
         `${issuer}/.well-known/openid-configuration`,
-        { headers: { accept: "application/json" } },
+        {
+          headers: { accept: "application/json" },
+          redirect: "error",
+          credentials: "omit",
+          signal: AbortSignal.timeout(5_000),
+        },
       );
       if (!res.ok) return fallback();
-      meta = await res.json();
+      const text = await res.text();
+      if (new TextEncoder().encode(text).byteLength > 262_144)
+        throw new Error("Discovery document is too large");
+      meta = JSON.parse(text);
     } catch {
       return fallback();
     }
@@ -240,7 +304,19 @@ export function createJwksKeySource(
     if (!isString(meta.jwks_uri)) {
       return fallback();
     }
-    return assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
+    const discovered = assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
+    if (config.fetchImpl === undefined && !isPrivateHost(issuerUrl.hostname)) {
+      const addresses = await lookup(
+        discovered.hostname.replace(/^\[|\]$/gu, "").replace(/\.+$/u, ""),
+        { all: true, verbatim: true },
+      );
+      if (addresses.some((entry) => isPrivateHost(entry.address))) {
+        throw new Error(
+          "jwks_uri resolves to a private or loopback address, but the issuer is remote",
+        );
+      }
+    }
+    return discovered;
   }
 
   let remoteKeys: JWTVerifyGetKey | undefined;
@@ -250,13 +326,13 @@ export function createJwksKeySource(
       return createLocalJWKSet(config.jwks);
     }
     if (configuredJwksUri) {
-      remoteKeys ??= createRemoteJWKSet(configuredJwksUri);
+      remoteKeys ??= createRemoteJWKSet(configuredJwksUri, remoteOptions);
       return remoteKeys;
     }
     if (remoteKeys) return remoteKeys;
     pending ??= discoverJwksUri()
       .then((uri) => {
-        remoteKeys = createRemoteJWKSet(uri);
+        remoteKeys = createRemoteJWKSet(uri, remoteOptions);
         return remoteKeys;
       })
       .finally(() => {
@@ -305,7 +381,7 @@ export function createOpenSesameVerifier(
       const { protectedHeader } = verified;
 
       if (
-        config.requireAccessTokenTypeHeader === true &&
+        config.requireAccessTokenTypeHeader !== false &&
         protectedHeader.typ?.toLowerCase() !== "at+jwt"
       ) {
         throw new Error("Token is not an RFC 9068 access token");

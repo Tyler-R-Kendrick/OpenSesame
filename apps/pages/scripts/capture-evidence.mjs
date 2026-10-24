@@ -1,33 +1,18 @@
 /**
- * Visual evidence for a UI change: the same screens from the base build and
- * from the branch, laid side by side so a reviewer never has to run the app.
+ * Compare the same journey from base and branch builds. EVIDENCE_DIST uses
+ * a separate base worktree while keeping the source checkout intact:
  *
- * Two steps, because the two builds cannot exist at once:
- *
- *   # 1. the base
- *   git checkout <base-sha> -- apps/pages/src
- *   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
- *   node apps/pages/scripts/capture-evidence.mjs capture before <journey.json>
- *
- *   # 2. the branch
- *   git checkout HEAD -- apps/pages/src
- *   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+ *   EVIDENCE_DIST=<base-worktree>/apps/pages/dist \
+ *     node apps/pages/scripts/capture-evidence.mjs capture before <journey.json>
  *   node apps/pages/scripts/capture-evidence.mjs capture after <journey.json>
- *
- *   # 3. the sheets
  *   node apps/pages/scripts/capture-evidence.mjs compose <journey.json>
  *
- * Only `apps/pages/src` is reverted for the base capture: the harness this
- * script drives lives under `apps/pages/scripts`, and reverting that would
- * take the capture with it.
- *
- * The journey file says which screens to visit and what each pair claims. It
- * is per-change and belongs beside the evidence it produced, because a caption
- * that outlives its change is a caption nobody rechecks.
+ * Journeys and comparisons live under ignored work/evidence, never beside
+ * approved current evidence. `capture current` writes a fresh current/ candidate
+ * of after-state screenshots; add its README and obtain approval before promotion.
  */
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stubJourneyBridge } from "./lib/capture-bridge-steps.mjs";
@@ -48,6 +33,7 @@ import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
 import { vaultSteps } from "./lib/capture-vault-steps.mjs";
+import { captureShotsDirectory } from "./lib/evidence-paths.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPin } from "./lib/pages-journey.mjs";
@@ -58,10 +44,15 @@ import { composeSheet } from "./lib/visual-evidence.mjs";
 const [mode, ...rest] = process.argv.slice(2);
 const journeyPath = rest[rest.length - 1];
 const label = mode === "capture" ? rest[0] : null;
+const current = label === "current";
 
-if (!mode || !journeyPath || (mode === "capture" && !label)) {
+if (
+  !["capture", "compose"].includes(mode) ||
+  !journeyPath ||
+  (mode === "capture" && !["before", "after", "current"].includes(label))
+) {
   console.error(
-    "usage: capture-evidence.mjs capture <before|after> <journey.json>",
+    "usage: capture-evidence.mjs capture <before|after|current> <journey.json>",
   );
   console.error("       capture-evidence.mjs compose <journey.json>");
   process.exit(2);
@@ -69,12 +60,16 @@ if (!mode || !journeyPath || (mode === "capture" && !label)) {
 
 const journey = JSON.parse(fs.readFileSync(journeyPath, "utf8"));
 const root = path.resolve(path.dirname(journeyPath), journey.out ?? ".");
-// Raw captures stay out of the repository; only the composed sheets are evidence.
-const shots = path.join(
-  os.tmpdir(),
-  "opensesame-evidence",
-  path.basename(journeyPath, ".json"),
-);
+// Promote reviewed current-state scratch via scripts/dev/promote-evidence.mjs.
+const repository = fileURLToPath(new URL("../../..", import.meta.url));
+const scratch = path.join(repository, "work", "evidence");
+const relativeOutput = path.relative(scratch, root);
+if (relativeOutput.startsWith("..") || path.isAbsolute(relativeOutput)) {
+  throw new Error(
+    "journey.out must resolve under ignored work/evidence; promote reviewed current files separately",
+  );
+}
+const shots = captureShotsDirectory(journeyPath);
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 // `EVIDENCE_DIST` captures another build — the base, built in its own worktree.
 const dist =
@@ -355,7 +350,7 @@ async function capture(browser, into) {
     for (const { only, ...step } of screen.steps) {
       // A step for one side of the pair: a key the base has and the branch
       // removed, or a verb only the branch understands.
-      if (only !== undefined && only !== label) continue;
+      if (only !== undefined && only !== (current ? "after" : label)) continue;
       if (step.shot) {
         await page.waitForTimeout(400);
         await viewOf(page).screenshot({
@@ -374,7 +369,12 @@ async function capture(browser, into) {
 const browser = await harness.launch();
 try {
   if (mode === "capture") {
-    await capture(browser, path.join(shots, label));
+    const into = current ? path.join(root, "current") : path.join(shots, label);
+    if (fs.existsSync(into)) fs.rmSync(into, { recursive: true });
+    await capture(browser, into);
+    console.log(
+      `Review captures: ${into} (unapproved; never stage raw comparisons)`,
+    );
   } else {
     fs.mkdirSync(root, { recursive: true });
     const dirs = {

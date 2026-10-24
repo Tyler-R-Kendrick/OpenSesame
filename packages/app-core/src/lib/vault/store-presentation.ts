@@ -10,6 +10,7 @@ import {
 } from "../duress/store/decoy-scratch.js";
 import { kvDurability } from "../kv.js";
 import { BODY_PATH, readSealedFile } from "../vfs.js";
+import type { TrustedUnlockView } from "../trusted-unlock.js";
 import type { VaultPrefs } from "./prefs.js";
 import type { VaultState } from "./store-state.js";
 
@@ -22,6 +23,7 @@ type VaultStateData = {
   body: VaultBody;
   prefs: VaultPrefs;
   attempts: { until: number; fails: number };
+  trustedUnlock?: TrustedUnlockView | null;
 };
 
 export function buildVaultState({
@@ -33,6 +35,7 @@ export function buildVaultState({
   body,
   prefs,
   attempts,
+  trustedUnlock,
 }: VaultStateData): VaultState {
   return {
     status: open ? "unlocked" : header ? "locked" : "empty",
@@ -48,6 +51,7 @@ export function buildVaultState({
     lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
     failedAttempts: attempts.fails,
     awaitingSecondStep: pending && !open,
+    trustedUnlock: trustedUnlock ?? null,
     durable: kvDurability() !== "memory",
   };
 }

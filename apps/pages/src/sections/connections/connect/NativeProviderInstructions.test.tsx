@@ -16,6 +16,7 @@ import {
 import { nativeNextValues } from "./native-connector-ui-values.js";
 import type { NativeMethodDescriptor } from "./native-connector-ui.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
+import { nativePolicyMethod } from "./native-provider-policy.js";
 
 afterEach(cleanup);
 
@@ -73,7 +74,15 @@ it("changes contextual Railway sign-in help with the selected credential type", 
   });
   const method = descriptor.methods.find((entry) => entry.id === "api-key");
   if (!method) throw new Error("Railway API contract missing");
-  expect(method.available).toBe(false);
+  expect(method.available).toBe(true);
+  expect(
+    nativePolicyMethod("railway", nativePolicyMethod("railway", method)),
+  ).toEqual(method);
+  expect(
+    method.instructions?.match(
+      /Test the connection using the configured native Tailscale HTTP transport/g,
+    ),
+  ).toHaveLength(1);
   render(<ReadOnlyContractFields method={method} />);
   const help = screen.getByText("Sign-in help", { selector: "summary" });
   expect(help.parentElement).toHaveProperty("open", false);
@@ -103,7 +112,7 @@ it("changes contextual Railway sign-in help with the selected credential type", 
   ).toBeNull();
 });
 
-/** Reviewing a compiled contract does not authorize its blocked browser route. */
+/** Reviewing setup guidance never claims a successful provider request. */
 function ReadOnlyContractFields({
   method,
 }: { method: NativeMethodDescriptor }) {

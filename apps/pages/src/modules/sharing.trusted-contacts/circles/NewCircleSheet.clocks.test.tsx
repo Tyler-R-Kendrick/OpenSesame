@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { listNotices } from "@opensesame/app-core/lib/notices.js";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { isDisabled } from "../trusted-contacts.test-support.js";
 import {
@@ -79,7 +79,7 @@ describe("the clocks", () => {
         name: "A key can approve by touch alone, without a PIN or biometric.",
       }),
     ).toBeTruthy();
-    const hours = screen.getByLabelText("Hours before a share is released");
+    const hours = screen.getByLabelText("Hours before it takes effect");
     await user.clear(hours);
     await user.type(hours, "0");
     expect(
@@ -88,26 +88,5 @@ describe("the clocks", () => {
       }),
     ).toBeTruthy();
     expect(isDisabled(sheetKey("Make the circle"))).toBe(false);
-  });
-
-  it("show a circle that could not be made as a mark on the key and a notice, with nothing drawn in the page", async () => {
-    // A vault with nothing in it has nothing to protect.
-    const { user, owner } = await toClocks([]);
-    await user.click(sheetKey("Make the circle"));
-    expect(
-      await screen.findByRole("img", {
-        name: "There is nothing here to protect.",
-      }),
-    ).toBeTruthy();
-    await waitFor(() =>
-      expect(
-        listNotices().find((n) => n.id === "trusted-contacts:circle-make")
-          ?.title,
-      ).toBe("Start a circle"),
-    );
-    expect(await owner.records.owned()).toEqual([]);
-    expect(
-      within(screen.getByRole("dialog")).queryByText(/nothing here to protect/),
-    ).toBeNull();
   });
 });

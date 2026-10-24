@@ -1,86 +1,163 @@
-/** Official Go/WireGuard runs in this terminable, privately governed realm. */
-import { WorkerMessage } from "./protocol.js";
-import { type BrowserNodeClient, loadBrowserNode } from "./sdk.js";
+import "./worker-csp.js";
+import { type HostEvent, WorkerMessage } from "./protocol.js";
+import {
+  type BrowserNodeAssets,
+  type BrowserNodeClient,
+  loadBrowserNode,
+} from "./sdk.js";
 import { installWorkerEgress } from "./worker-egress.js";
-let client: BrowserNodeClient | null = null;
-let sequence = 0;
-let started = false;
-const decisions = new Map<number, (value: boolean) => void>();
-function decide(url: string, method: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const id = ++sequence;
-    const timer = setTimeout(() => {
-      decisions.delete(id);
-      resolve(false);
-    }, 30_000);
-    decisions.set(id, (allowed) => {
-      clearTimeout(timer);
-      resolve(allowed);
+import { WorkerNativeHTTP } from "./worker-native-http.js";
+type WorkerDependencies = {
+  load: typeof loadBrowserNode;
+  egress: typeof installWorkerEgress;
+};
+/** A peer GET is a plain HTTP(S) URL with no credential in its authority. */
+function peerGetUrl(raw: string): URL | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (!["http:", "https:"].includes(url.protocol)) return null;
+  if (url.username || url.password) return null;
+  return url;
+}
+/** One owned realm/client; injection substitutes only the existing SDK boundary in tests. */
+export class BrowserNodeWorker {
+  private client: BrowserNodeClient | null = null;
+  private sequence = 0;
+  private started = false;
+  private readonly native = new WorkerNativeHTTP(
+    () => this.client?.nativeHTTP,
+    (message) => this.post(message),
+  );
+  private decisions = new Map<number, (value: boolean) => void>();
+  constructor(
+    private readonly post: (message: HostEvent) => void,
+    private readonly dependencies: WorkerDependencies = {
+      load: loadBrowserNode,
+      egress: installWorkerEgress,
+    },
+  ) {}
+  private panic() {
+    this.native.close();
+    this.post({ kind: "error" });
+  }
+
+  private decide(url: string, method: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const id = ++this.sequence;
+      const timer = setTimeout(() => {
+        this.decisions.delete(id);
+        resolve(false);
+      }, 30000);
+      this.decisions.set(id, (allowed) => {
+        clearTimeout(timer);
+        resolve(allowed);
+      });
+      this.post({ kind: "decision", id, url, method });
     });
-    globalThis.postMessage({ kind: "decision", id, url, method });
-  });
-}
-async function start(
-  config: Parameters<typeof loadBrowserNode>[0],
-  assets: { runtime: string; wasm: string },
-): Promise<void> {
-  installWorkerEgress(decide, Object.values(assets));
-  client = await loadBrowserNode(config, assets, () =>
-    globalThis.postMessage({ kind: "error" }),
-  );
-  client.run({
-    notifyState: (state) => {
-      globalThis.postMessage({ kind: "state", state });
-      if (state === "NeedsLogin" && config.authKey)
-        setTimeout(() => client?.login(), 0);
-    },
-    notifyNetMap: (value) => globalThis.postMessage({ kind: "netmap", value }),
-    notifyBrowseToURL: (url) => globalThis.postMessage({ kind: "auth", url }),
-    notifyPanicRecover: () => globalThis.postMessage({ kind: "error" }),
-  });
-}
-globalThis.addEventListener("message", (event: MessageEvent) => {
-  const parsed = WorkerMessage.safeParse(event.data);
-  if (!parsed.success) return;
-  const message = parsed.data;
-  if (message.kind === "decision") {
-    decisions.get(message.id)?.(message.allowed);
-    decisions.delete(message.id);
-    return;
   }
-  if (message.kind === "login") {
-    client?.login();
-    return;
-  }
-  if (message.kind === "get") {
-    void client
-      ?.fetch(message.url)
-      .then(async (response) => {
-        const text = await response.text();
-        globalThis.postMessage({
-          kind: "get",
-          id: message.id,
-          status: response.status,
-          text,
-        });
-      })
-      .catch(() => globalThis.postMessage({ kind: "error" }));
-    return;
-  }
-  if (started) return;
-  started = true;
-  const state = message.config.state;
-  const config = {
-    ...message.config,
-    stateStorage: {
-      getState: (id: string) => state[id] ?? "",
-      setState: (id: string, value: string) => {
-        state[id] = value;
-        globalThis.postMessage({ kind: "storage", state });
+  private async start(
+    config: Parameters<typeof loadBrowserNode>[0],
+    assets: BrowserNodeAssets,
+  ) {
+    const ownedAssets = [assets.runtime, assets.wasm];
+    if (assets.nativeHTTP) ownedAssets.push(assets.nativeHTTP);
+    this.dependencies.egress(this.decide.bind(this), ownedAssets);
+    const client = await this.dependencies.load(config, assets, () =>
+      this.panic(),
+    );
+    this.client = client;
+    if (this.native.closed) client.nativeHTTP?.closeHTTP();
+    client.run({
+      notifyState: (state) => {
+        this.post({ kind: "state", state });
+        if (state === "NeedsLogin" && config.authKey)
+          setTimeout(() => client.login(), 0);
       },
-    },
-  };
-  void start(config, message.config.assets).catch(() =>
-    globalThis.postMessage({ kind: "error" }),
-  );
+      notifyNetMap: (value) => this.post({ kind: "netmap", value }),
+      notifyBrowseToURL: (url) => this.post({ kind: "auth", url }),
+      notifyPanicRecover: () => this.panic(),
+    });
+  }
+  private get(id: number, rawUrl: string) {
+    const url = peerGetUrl(rawUrl);
+    if (!url) {
+      this.post({ kind: "error" });
+      return;
+    }
+    const port = this.client?.nativeHTTP;
+    if (!port || !port.ready()) {
+      // The Go SDK's fetch() follows redirects internally and exposes no
+      // final URL, so it cannot prove the approved peer was the destination.
+      // Use the native bridge, which returns the final URL for comparison.
+      this.post({ kind: "error" });
+      return;
+    }
+    const controller = new AbortController();
+    // The controller allocates `id` from the same monotonically increasing
+    // sequence it uses for native operations, so the bridge's high-water mark
+    // stays valid for both paths.
+    void port
+      .nativeHTTP(
+        id,
+        {
+          method: "GET",
+          url: url.href,
+          headers: [],
+          body: new Uint8Array(),
+        },
+        controller.signal,
+      )
+      .then((response) => {
+        if (response.url !== url.href)
+          throw new Error("Tailscale peer redirected an approved GET.");
+        const text = new TextDecoder().decode(response.body);
+        this.post({ kind: "get", id, status: response.status, text });
+      })
+      .catch(() => this.post({ kind: "error" }));
+  }
+  receive(event: MessageEvent) {
+    const parsed = WorkerMessage.safeParse(event.data);
+    if (!parsed.success) return;
+    const message = parsed.data;
+    if (this.native.receive(message)) return;
+    if (message.kind === "decision") {
+      this.decisions.get(message.id)?.(message.allowed);
+      this.decisions.delete(message.id);
+      return;
+    }
+    if (message.kind === "login") {
+      this.client?.login();
+      return;
+    }
+    if (message.kind === "get") {
+      this.get(message.id, message.url);
+      return;
+    }
+    if (this.started) return;
+    this.started = true;
+    const state = message.config.state;
+    const config = {
+      ...message.config,
+      stateStorage: {
+        getState: (id: string) => state[id] ?? "",
+        setState: (id: string, value: string) => {
+          state[id] = value;
+          this.post({ kind: "storage", state });
+        },
+      },
+    };
+    void this.start(config, message.config.assets).catch(() => this.panic());
+  }
+}
+const worker = new BrowserNodeWorker((message) =>
+  globalThis.postMessage(message),
+);
+globalThis.addEventListener("message", (event: MessageEvent) => {
+  if (event.origin !== "" && event.origin !== globalThis.location.origin)
+    return;
+  worker.receive(event);
 });

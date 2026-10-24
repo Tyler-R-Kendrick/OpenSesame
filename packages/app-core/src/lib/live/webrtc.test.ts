@@ -13,7 +13,11 @@ import { describe, expect, it } from "vitest";
 import { FakeNet, fakeSdp } from "./live-fakes.js";
 import type { ChannelMessage } from "./messages.js";
 import { DIRECT_ROUTING } from "./p2p.js";
-import { rtcServers, webRtcTransport } from "./webrtc.js";
+import {
+  assertRoutableIceServers,
+  rtcServers,
+  webRtcTransport,
+} from "./webrtc.js";
 
 class Channel extends EventTarget {
   readyState: RTCDataChannelState = "connecting";
@@ -119,5 +123,25 @@ describe("the WebRTC transport", () => {
       { urls: ["stun:stun.example.com"] },
       { urls: ["turn:turn.example.com"], username: "u", credential: "c" },
     ]);
+  });
+
+  it("refuses ICE servers aimed at loopback, link-local or metadata", () => {
+    for (const urls of [
+      ["stun:127.0.0.1"],
+      ["turn:localhost:3478"],
+      ["stun:[::1]:3478"],
+      ["stun:169.254.169.254"],
+      ["turn:[::ffff:127.0.0.1]"],
+      ["stun:metadata.google.internal"],
+    ]) {
+      expect(() => assertRoutableIceServers([{ urls }])).toThrow(
+        /ice_server_blocked/,
+      );
+    }
+    expect(() =>
+      assertRoutableIceServers([
+        { urls: ["stun:stun.example.com:3478", "turn:10.0.0.5:3478"] },
+      ]),
+    ).not.toThrow();
   });
 });

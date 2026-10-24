@@ -65,9 +65,9 @@ describe("REDTEAM-E terminology", () => {
 
   it("security-review + operator docs avoid forbidden affirmative claims", () => {
     const paths = [
-      "docs/evidence/2026-09-21-duress/security-review.md",
+      "docs/security/duress/security-review.md",
       "docs/operators/duress-profiles.md",
-      "docs/evidence/2026-09-21-duress/limitations.md",
+      "docs/security/duress/limitations.md",
     ];
     for (const rel of paths) {
       const text = readFileSync(join(ROOT, rel), "utf8");

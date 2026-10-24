@@ -3,6 +3,7 @@ import { appendAuditEvent } from "@opensesame/audit";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
   type ProvisionalSession,
+  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -10,6 +11,10 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../context.js";
 import type { Variables } from "../middleware/context.js";
+import { deleteSecurityMapEntry } from "../repos/durable-map.js";
+import { removeOrphanTokens } from "../repos/session-storage.js";
+import { serializeKeyed } from "../serialize.js";
+import { MAX_PROVISIONAL } from "./principals.js";
 
 /**
  * Brokered session adoption (C13, D8).
@@ -42,6 +47,10 @@ import type { Variables } from "../middleware/context.js";
 /** Nobody's access token is longer than this; anything bigger is not one. */
 const MAX_ACCESS_TOKEN_LENGTH = 8192;
 
+class ProvisionalCapacityError extends Error {
+  override readonly name = "ProvisionalCapacityError";
+}
+
 const FederatedSessionRequestSchema = z.object({
   accessToken: z.string().min(1).max(MAX_ACCESS_TOKEN_LENGTH),
 });
@@ -67,6 +76,7 @@ type AccessTokenModel = {
         clientId?: string;
         isExpired?: boolean;
         exp?: number;
+        scope?: string;
       }
     | undefined
   >;
@@ -119,7 +129,18 @@ async function adoptSession(
   };
   const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
   await ctx.stores.provisionalSessions.set(session.id, session);
-  await ctx.stores.provisionalTokens.set(accessToken, session.id);
+  try {
+    await ctx.stores.provisionalTokens.set(accessToken, session.id);
+  } catch (error) {
+    // A capacity refusal on the token must not leave a session nobody can
+    // redeem, occupying a slot until its TTL.
+    try {
+      await ctx.stores.provisionalSessions.delete(session.id);
+    } catch {
+      // Best effort: the original refusal is what the caller needs to see.
+    }
+    throw error;
+  }
 
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "principal.session_adopted",
@@ -175,6 +196,7 @@ export function createFederatedSessionRoutes(): Hono<{ Variables: Variables }> {
     // guarantee local rather than borrowing it from a library default that a
     // future upgrade could soften.
     if (!token || token.isExpired) return invalid();
+    if (isNumber(token.exp) && token.exp * 1000 <= Date.now()) return invalid();
     const accountId = token.accountId;
     // A client-credentials token has no account. It authenticates software,
     // and no session belongs to it.
@@ -203,17 +225,60 @@ export function createFederatedSessionRoutes(): Hono<{ Variables: Variables }> {
       return invalid();
     }
     const client = await ctx.oauth.clientStore.findById(clientId);
-    if (!client || client.admissionMode !== "origin_profile") return invalid();
+    if (
+      !client ||
+      client.admissionMode !== "origin_profile" ||
+      client.state !== "active"
+    )
+      return invalid();
+
+    // The exchange exists to finish a sign-in, not to broaden an arbitrary
+    // OAuth grant. A token without `openid` never authenticated a person.
+    const scopes = isString(token.scope) ? token.scope.split(/\s+/u) : [];
+    if (!scopes.includes("openid")) return invalid();
 
     const principal = await ctx.repos.principals.getById(accountId);
     if (!principal || principal.state !== "active") return invalid();
 
-    const adopted = await adoptSession(
-      ctx,
-      principal.id,
-      c.get("correlationId"),
-    );
-    return c.json(adopted, 200);
+    // This path must obey the same provisional-session ceiling as the
+    // interaction mint; otherwise a bearer can bypass MAX_PROVISIONAL. The
+    // check and mint share one lock, so two concurrent exchanges at the
+    // boundary cannot both pass the size read.
+    try {
+      const adopted = await serializeKeyed(
+        ctx.stores.principalMutations,
+        "federated-session",
+        async () => {
+          if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL) {
+            // Expired/revoked rows are not live sessions. Drop them (and the
+            // tokens that pointed at them) before refusing a sign-in.
+            const now = ctx.clock();
+            for (const [
+              id,
+              session,
+            ] of await ctx.stores.provisionalSessions.entries()) {
+              if (session.revokedAt || session.expiresAt <= now)
+                await deleteSecurityMapEntry(
+                  ctx.stores.provisionalSessions,
+                  id,
+                );
+            }
+            await removeOrphanTokens(ctx.stores);
+            if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL)
+              throw new ProvisionalCapacityError();
+          }
+          return adoptSession(ctx, principal.id, c.get("correlationId"));
+        },
+      );
+      return c.json(adopted, 200);
+    } catch (error) {
+      if (
+        error instanceof ProvisionalCapacityError ||
+        (error instanceof Error && /capacity/i.test(error.message))
+      )
+        return c.json({ error: "provisional_capacity" }, 429);
+      throw error;
+    }
   });
 
   return routes;

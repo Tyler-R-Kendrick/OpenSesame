@@ -225,7 +225,10 @@ export function parseGoogleWalletConfig(
     env,
     GOOGLE_WALLET_ENV.serviceAccountEmail,
   ).toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(serviceAccountEmail)) {
+  if (
+    serviceAccountEmail.length > 320 ||
+    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(serviceAccountEmail)
+  ) {
     throw new WalletConfigError(
       `${GOOGLE_WALLET_ENV.serviceAccountEmail} must be the service account's client email address.`,
       [GOOGLE_WALLET_ENV.serviceAccountEmail],

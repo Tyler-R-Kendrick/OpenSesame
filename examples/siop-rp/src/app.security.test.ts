@@ -54,6 +54,41 @@ describe("login CSRF and session fixation", () => {
     expect(real.status).toBe(200);
   });
 
+  it("keeps concurrent logins' binding cookies distinct", async () => {
+    const { config, base } = await relyingParty();
+    const first = await start(base);
+    const second = await start(base);
+    expect(first.cookie).not.toBe(second.cookie);
+    for (const login of [first, second]) {
+      const { idToken } = await pagesAnswer({ nonce: login.nonce, config });
+      const done = await complete(
+        base,
+        "/callback",
+        fragment(idToken, login.state),
+        login.cookie,
+      );
+      expect(done.status).toBe(200);
+    }
+  });
+
+  it("does not let a spoofed forwarding header reset the start budget", async () => {
+    const { base } = await relyingParty({ SIOP_RP_STARTS_PER_MINUTE: "2" });
+    const ask = (forwarded: string) =>
+      fetch(`${base}/auth/start`, {
+        redirect: "manual",
+        headers: { "x-forwarded-for": forwarded },
+      });
+    expect((await ask("198.51.100.1")).status).toBe(302);
+    expect((await ask("198.51.100.2")).status).toBe(302);
+    expect((await ask("198.51.100.3")).status).toBe(429);
+  });
+
+  it("refuses a callback path that would shadow an application route", async () => {
+    await expect(
+      relyingParty({ SIOP_RP_CALLBACK_PATHS: "/auth/start" }),
+    ).rejects.toThrow(/Invalid callback path/u);
+  });
+
   it("does not let a forged #error without the cookie close a login", async () => {
     const { config, base } = await relyingParty();
     const login = await start(base);
@@ -133,5 +168,32 @@ describe("a flood of logins", () => {
     expect(await limited.response.json()).toEqual({ error: "rate_limited" });
     clock += 61_000;
     expect((await start(base)).status).toBe(302);
+  });
+
+  it("keys behind an operator-trusted proxy but ignores a direct client's forwarding header", async () => {
+    let clock = 1_000_000;
+    const direct = await relyingParty(
+      { SIOP_RP_STARTS_PER_MINUTE: "1" },
+      { now: () => clock },
+    );
+    const spoofed = (base: string, client: string) =>
+      fetch(`${base}/auth/start`, {
+        redirect: "manual",
+        headers: { "x-forwarded-for": client },
+      });
+    expect((await spoofed(direct.base, "203.0.113.1")).status).toBe(302);
+    // The socket peer is the key, so a new header value does not buy a bucket.
+    expect((await spoofed(direct.base, "203.0.113.2")).status).toBe(429);
+
+    clock += 61_000;
+    const proxied = await relyingParty(
+      {
+        SIOP_RP_STARTS_PER_MINUTE: "1",
+        SIOP_RP_TRUSTED_PROXY: "127.0.0.1",
+      },
+      { now: () => clock },
+    );
+    expect((await spoofed(proxied.base, "203.0.113.1")).status).toBe(302);
+    expect((await spoofed(proxied.base, "203.0.113.2")).status).toBe(302);
   });
 });

@@ -16,13 +16,117 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import {
+  anyDirtyEdit,
+  hasDraftSaver,
+  saveDirtyDrafts,
+  subscribeDirtyEdit,
+} from "../../dirty-edit.js";
+import { staleAssetReload } from "../../stale-asset-reload.js";
 import { workerControllerSeams } from "./seams.js";
 import { diagnose, publish, state } from "./state.js";
 import {
   type CompositionSnapshotForWorker,
   type PageToWorkerMessage,
+  type RegisterWorkerOptions,
+  type ReloadCause,
   TAKEOVER_WAIT_MS,
 } from "./types.js";
+
+/** Lock, idle, and a missing chunk reload even while an edit is unsaved. */
+function reloadDespiteEdit(cause: ReloadCause): boolean {
+  return cause === "lock" || cause === "idle" || cause === "stale-chunk";
+}
+
+let stopDirtyWatch: (() => void) | null = null;
+
+function ensureDirtyWatch(): void {
+  if (stopDirtyWatch) return;
+  stopDirtyWatch = subscribeDirtyEdit(() => {
+    if (anyDirtyEdit() || state.reloadStarted || state.updateOwed === null) {
+      return;
+    }
+    requestReload(state.updateOwed);
+  });
+}
+
+function clearDeferredUpdate(): void {
+  state.updateOwed = null;
+  if (state.status.updateReady) publish({ updateReady: false });
+}
+
+/**
+ * Navigate once. A dirty edit with a saver is written first; the navigation
+ * waits for that attempt and still happens when the saver cannot finish.
+ */
+function finishReload(saveFirst: boolean): void {
+  if (state.reloadStarted) return;
+  state.reloadStarted = true;
+  state.updateOwed = null;
+  if (state.status.updateReady) publish({ updateReady: false });
+  const go = () => workerControllerSeams.reload();
+  if (saveFirst) {
+    void saveDirtyDrafts().finally(go);
+    return;
+  }
+  go();
+}
+
+/**
+ * A release change wants a reload. An unsaved edit holds the automatic ones
+ * and says so (`updateReady`). Lock, idle, and a stale chunk do not hold.
+ */
+export function requestReload(cause: ReloadCause): void {
+  if (state.reloadStarted) return;
+  if (anyDirtyEdit() && !reloadDespiteEdit(cause)) {
+    state.updateOwed = cause;
+    publish({ updateReady: true });
+    ensureDirtyWatch();
+    return;
+  }
+  finishReload(anyDirtyEdit() && hasDraftSaver());
+}
+
+/** The deferred release reload, if the page is still holding one. */
+export function updateIsOwed(): boolean {
+  return state.updateOwed !== null && !state.reloadStarted;
+}
+
+/**
+ * Lock and idle apply a release that was waiting on an edit. A stale chunk
+ * reloads even when no release change is waiting: the page cannot fetch what
+ * it was built against.
+ */
+export function forceSessionReload(
+  cause: "lock" | "idle" | "stale-chunk",
+): void {
+  if (cause !== "stale-chunk" && !updateIsOwed()) return;
+  requestReload(cause);
+}
+
+/**
+ * A lazy chunk 404'd. Persist an edit when one is registered, then reload
+ * once. A second failure in the same session returns false so the page can
+ * say so instead of reloading forever.
+ */
+export async function reloadForStaleAsset(): Promise<boolean> {
+  if (staleAssetReload.already()) return false;
+  staleAssetReload.mark();
+  if (!state.reloadStarted && anyDirtyEdit() && hasDraftSaver()) {
+    try {
+      await saveDirtyDrafts();
+    } catch {
+      // The chunk is gone either way.
+    }
+  }
+  requestReload("stale-chunk");
+  return true;
+}
+
+/** The shell loaded. A later chunk failure may reload again. */
+export function noteShellLoaded(): void {
+  staleAssetReload.clear();
+}
 
 export function postToController(message: PageToWorkerMessage): boolean {
   const controller = state.container?.controller;
@@ -45,11 +149,56 @@ export function askWorker(): boolean {
   return state.helloPending;
 }
 
+/** Bind only the first claiming worker to the already executing browser entry. */
+function proveInitialClaim(
+  prove: NonNullable<RegisterWorkerOptions["initialReleaseProof"]>,
+  controller: ServiceWorker,
+): void {
+  const abort = new AbortController();
+  const fail = (cause: ReloadCause) => {
+    if (state.initialClaim !== attempt) return;
+    attempt.cancel();
+    state.takeover = null;
+    requestReload(cause);
+  };
+  const cancelTimer = workerControllerSeams.later(
+    () => fail("takeover-timeout"),
+    TAKEOVER_WAIT_MS,
+  );
+  const attempt = {
+    cancel: () => {
+      cancelTimer();
+      abort.abort();
+      if (state.initialClaim === attempt) state.initialClaim = null;
+    },
+  };
+  state.initialClaim = state.takeover = attempt;
+  const accept = (release: string | null) => {
+    if (state.initialClaim !== attempt || abort.signal.aborted) return;
+    if (
+      state.container?.controller !== controller ||
+      !isString(release) ||
+      !/^[A-Za-z0-9_-]{1,64}$/.test(release)
+    ) {
+      fail("controller-unknown");
+      return;
+    }
+    state.bootReleaseId = release;
+    state.initialClaim = null;
+    onWorkerInfo(release);
+  };
+  try {
+    void prove(controller, abort.signal).then(accept, () =>
+      fail("controller-unknown"),
+    );
+  } catch {
+    fail("controller-unknown");
+  }
+}
+
 /** Reload the page for a new release: once, as it always did. */
 export function reloadOnce(): void {
-  if (state.reloadStarted) return;
-  state.reloadStarted = true;
-  workerControllerSeams.reload();
+  finishReload(false);
 }
 
 /**
@@ -61,21 +210,30 @@ export function reloadOnce(): void {
  * the middle of — an unlocked vault included. So the new worker is asked which
  * release it is and the page reloads only when that is not the release it
  * booted under. A page that does not know its release (its first load, before
- * any worker controlled it), a worker that does not answer in time, and a
- * controller that cannot be reached all reload.
+ * any worker controlled it and without an executing-entry port proof), a
+ * worker that does not answer in time, and a
+ * controller that cannot be reached all reload. An unsaved edit holds that
+ * reload until the edit is gone, the vault locks, or the tab sits idle;
+ * a chunk that fails to load does not wait.
  */
 export function onControllerChange(): void {
   state.takeover?.cancel();
   state.takeover = null;
   state.helloPending = false;
+  const prove = state.initialReleaseProof;
+  state.initialReleaseProof = null;
+  if (state.bootReleaseId === null && prove && state.container?.controller) {
+    proveInitialClaim(prove, state.container.controller);
+    return;
+  }
   if (state.bootReleaseId === null || !askWorker()) {
-    reloadOnce();
+    requestReload("controller-unknown");
     return;
   }
   state.takeover = {
     cancel: workerControllerSeams.later(() => {
       state.takeover = null;
-      reloadOnce();
+      requestReload("takeover-timeout");
     }, TAKEOVER_WAIT_MS),
   };
 }
@@ -85,9 +243,11 @@ function settleTakeover(releaseId: string): void {
   state.takeover?.cancel();
   state.takeover = null;
   if (releaseId !== state.bootReleaseId) {
-    reloadOnce();
+    requestReload("release-mismatch");
     return;
   }
+  // Same release: a timeout that already deferred has nothing to reload for.
+  clearDeferredUpdate();
   // Same release, another worker: nothing is stale. Forget what the previous
   // worker was told, introduce the plan to this one, and re-read which variant
   // now holds the scope.
@@ -153,6 +313,13 @@ function onPlanRejected(reason: BoundaryValue): void {
 
 function onWorkerInfo(releaseId: BoundaryValue): void {
   if (!isString(releaseId)) return;
+  // A hello may arrive while the first claim is still proving the entry. It
+  // is not the plan answer for that claim, but it does answer `askWorker()`;
+  // keeping it pending would silence every later plan post this session.
+  if (state.initialClaim) {
+    state.helloPending = false;
+    return;
+  }
   state.helloPending = false;
   state.workerReleaseId = releaseId;
   if (state.bootControlled && state.bootReleaseId === null)
@@ -164,6 +331,14 @@ function onWorkerInfo(releaseId: BoundaryValue): void {
     publish({ releaseId, savedModuleIds: [] });
   } else publish({ releaseId });
   if (state.takeover) settleTakeover(releaseId);
+  // A timeout may already have deferred. The late answer is the same release
+  // this page booted under: a variant change, and there is nothing to reload.
+  else if (
+    state.updateOwed === "takeover-timeout" &&
+    releaseId === state.bootReleaseId
+  ) {
+    clearDeferredUpdate();
+  }
   if (state.latest) syncPlan(state.latest);
 }
 

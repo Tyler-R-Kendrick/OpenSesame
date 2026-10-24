@@ -5,6 +5,7 @@ import type {
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import type { ReactNode } from "react";
 import {
+  IconClock,
   IconConnection,
   IconMail,
   IconMessage,
@@ -44,7 +45,7 @@ export type MethodKind =
   | AccountMethodKind;
 export type MethodView = KeyView;
 /** A row of the Security list: a method the sheet handles, or the duress code. */
-export type RowKind = MethodKind | "duress";
+export type RowKind = MethodKind | "duress" | "deadman";
 
 /**
  * What a row's action asked for: which method, and to do what with it —
@@ -80,6 +81,8 @@ export function methodIcon(kind: RowKind, size = 16): ReactNode {
       return <IconConnection size={size} />;
     case "duress":
       return <IconShield size={size} />;
+    case "deadman":
+      return <IconClock size={size} />;
     case "account-totp":
       return <IconPhone size={size} />;
     case "account-passkey":

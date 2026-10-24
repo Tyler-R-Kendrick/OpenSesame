@@ -1,3 +1,6 @@
+import { stripTrailingSlashes } from "../interactions/issuer-normalization.js";
+import { normalizeEmail } from "./email-normalization.js";
+export { normalizeEmail } from "./email-normalization.js";
 import { createHash, hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import {
   type MagicLinkMetadata,
@@ -94,15 +97,6 @@ const PROVISIONAL_ACTIONS = [
 ] as const;
 
 /**
- * Addresses are compared and stored lowercased with surrounding space removed.
- * Nothing more: local-part normalization (dots, `+tags`) differs per provider,
- * and guessing wrong would either merge two people or split one.
- */
-export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-/**
  * The issuer recorded on an email identity: this deployment.
  *
  * The magic-link proof is OpenSesame's own — no upstream vouched for it — so
@@ -139,7 +133,7 @@ function magicLinkUrl(
   token: string,
   metadata: MagicLinkMetadata | undefined,
 ): string {
-  const base = ctx.config.publicUrl.replace(/\/+$/, "");
+  const base = stripTrailingSlashes(ctx.config.publicUrl);
   // SAFETY: metadata is whatever the request handed `signInMagicLink`; the
   // JSON boundary is exactly what `isString` is the guard for.
   const claimed: BoundaryValue = overlapCast(
@@ -188,7 +182,7 @@ export function upstreamAuthFor(ctx: AppContext): UpstreamAuthBundle {
   const existing = bundles.get(ctx);
   if (existing) return existing;
   const bundle = createUpstreamAuth({
-    baseURL: ctx.config.publicUrl.replace(/\/+$/, ""),
+    baseURL: stripTrailingSlashes(ctx.config.publicUrl),
     basePath: "/v1/auth",
     secret: betterAuthSecret(ctx),
     // Absent only when no database is configured, in which case Better Auth
@@ -397,6 +391,13 @@ export async function principalForBetterAuthSubject(
   // address to a principal that already owned it through another leg, and the
   // principal minted a moment ago is then not the account signing in.
   const principalId = attached.identity.principalId;
+  const attachedPrincipal = await ctx.repos.principals.getById(principalId);
+  if (!attachedPrincipal || attachedPrincipal.state !== "active") {
+    throw new BetterAuthBridgeError(
+      "principal_unavailable",
+      "This account is not able to sign in.",
+    );
+  }
 
   await ctx.repos.betterAuthSubjects.link({
     betterAuthUserId: subject.id,

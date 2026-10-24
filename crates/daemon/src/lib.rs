@@ -7,11 +7,10 @@
 //! tailscale` a read-only tailnet listener authorizes callers by whois identity.
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
-    extract::{connect_info::ConnectInfo, DefaultBodyLimit, Request, State},
+    extract::{connect_info::ConnectInfo, State},
     http::{header, HeaderMap, HeaderName, StatusCode},
     response::{IntoResponse, Response},
-    routing::{any, get, post},
-    Extension, Json, Router,
+    Extension, Json,
 };
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
@@ -34,10 +33,6 @@ mod discovery;
 mod duress_receiver;
 mod duress_routes;
 mod fill;
-use duress_routes::{duress_peer_envelope, duress_peer_health};
-mod proxy_loopback;
-mod proxy_path;
-use proxy_loopback::proxy_loopback;
 mod invoke_through;
 mod keychain;
 mod listener;
@@ -46,8 +41,14 @@ mod mint;
 mod peer_auth;
 mod plugin_routes;
 mod promote;
+mod proxy_loopback;
+mod proxy_path;
 mod ratelimit;
 mod requests;
+mod routes;
+#[cfg(test)]
+use axum::Router;
+use routes::router;
 mod runner;
 mod startup;
 #[cfg(all(unix, feature = "tailscale"))]
@@ -174,6 +175,22 @@ fn operator_forward(st: &App, url: &str) -> Result<reqwest::RequestBuilder, Resp
     operator_forward_method(st, reqwest::Method::POST, url)
 }
 
+/// True when `url` names exactly the configured Host API origin: same
+/// scheme, host, and effective port, with no userinfo. Checking only that
+/// the configured base is local is not enough — the forwarded URL itself
+/// decides where the operator token travels, so it is constrained here, at
+/// the single choke point every caller passes through.
+fn url_matches_host_api_origin(host_api: &str, url: &str) -> bool {
+    let (Ok(base), Ok(target)) = (url::Url::parse(host_api), url::Url::parse(url)) else {
+        return false;
+    };
+    target.scheme() == base.scheme()
+        && target.host_str() == base.host_str()
+        && target.port_or_known_default() == base.port_or_known_default()
+        && target.username().is_empty()
+        && target.password().is_none()
+}
+
 /// [`operator_forward`] for non-POST methods (the promotion handshake lists,
 /// creates, and `PATCH`es connections on the Host API).
 #[allow(clippy::result_large_err)]
@@ -182,7 +199,9 @@ fn operator_forward_method(
     method: reqwest::Method,
     url: &str,
 ) -> Result<reqwest::RequestBuilder, Response> {
-    if !opensesame_host_core::daemon::base_url_is_local(&st.host_api) {
+    if !opensesame_host_core::daemon::base_url_is_local(&st.host_api)
+        || !url_matches_host_api_origin(&st.host_api, url)
+    {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({
@@ -274,11 +293,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             opensesame_host_core::daemon::ENV_UDS_ONLY
         );
     }
-
     opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
-
     let tcp = tokio::net::TcpListener::bind(&listen).await?;
-
     #[cfg(unix)]
     if let Some(sock_path) = sock.clone() {
         daemon_listen::spawn_uds(&sock_path, app.clone())?;
@@ -309,65 +325,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     tcp_handle.await?;
     drop(state);
     Ok(())
-}
-
-async fn daemon_health() -> Json<Value> {
-    Json(json!({"status":"ok"}))
-}
-
-async fn proxy_host(State(st): State<App>, req: Request) -> Response {
-    let base = st.host_api.clone();
-    proxy_loopback(&st, &base, "/host", req).await
-}
-
-async fn proxy_identity(State(st): State<App>, req: Request) -> Response {
-    let base = st.identity_api.clone();
-    proxy_loopback(&st, &base, "/identity", req).await
-}
-
-fn router(state: App) -> Router {
-    Router::new()
-        .route("/health", get(daemon_health))
-        .route("/health/live", get(daemon_health))
-        .route("/v1/list_sessions", post(list_sessions))
-        .route(
-            "/v1/agent-capabilities/token",
-            post(agent_capability::exchange).layer(DefaultBodyLimit::max(2048)),
-        )
-        .route("/v1/get_access_token", post(get_access_token))
-        .route("/v1/mint_capability", post(mint_capability))
-        .route("/v1/introspect_capability", post(introspect_capability))
-        .route("/v1/revoke", post(revoke))
-        .route("/v1/discover", post(discover))
-        .route(
-            "/v1/promote",
-            post(promote::promote).layer(DefaultBodyLimit::max(promote::MAX_BODY_BYTES)),
-        )
-        .route(
-            "/v1/invoke_through",
-            post(invoke_through::invoke_through)
-                .layer(DefaultBodyLimit::max(invoke_through::MAX_BODY_BYTES)),
-        )
-        .route(
-            "/v1/mint",
-            post(mint::mint_via_daemon).layer(DefaultBodyLimit::max(mint::MAX_BODY_BYTES)),
-        )
-        .merge(cli_app_integration::routes(&state))
-        .route("/v1/toolbar/status", get(toolbar::toolbar_status))
-        .route("/v1/toolbar/approve_device", post(approve_device))
-        .route("/v1/toolbar/approve_claim", post(approve_claim))
-        .route("/v1/operator/invoke_l1", post(operator_invoke_l1))
-        .route("/host", any(proxy_host))
-        .route("/host/{*path}", any(proxy_host))
-        .route("/identity", any(proxy_identity))
-        .route("/identity/{*path}", any(proxy_identity))
-        .route("/v1/duress/peer/health", get(duress_peer_health))
-        .route("/v1/duress/peer/envelope", post(duress_peer_envelope))
-        .merge(vault_drive_routes::routes())
-        .merge(plugin_routes::routes(&state))
-        .merge(tailnet_admin_routes::routes(&state))
-        .merge(fill::routes(fill::FillState::from_env(), &state))
-        .with_state(state)
 }
 
 fn skip_hop_header(name: &HeaderName) -> bool {
@@ -766,6 +723,36 @@ mod tests {
         assert!(!is_safe_path_id("clm?x=1"));
         assert!(!is_safe_path_id("clm#frag"));
         assert!(!is_safe_path_id("clm/../../admin"));
+    }
+
+    #[test]
+    fn operator_forward_refuses_foreign_host_url() {
+        let st = test_state("http://127.0.0.1:8787");
+        // Same origin as the configured Host API: forwarded.
+        assert!(operator_forward_method(
+            &st,
+            reqwest::Method::POST,
+            "http://127.0.0.1:8787/api/v1/intents"
+        )
+        .is_ok());
+        // A foreign host, a different loopback port, a scheme change, and a
+        // userinfo smuggling attempt must never receive the operator token,
+        // even though the configured base itself is local.
+        for foreign in [
+            "http://evil.example.com/api/v1/intents",
+            "http://127.0.0.1:9999/api/v1/intents",
+            "https://127.0.0.1:8787/api/v1/intents",
+            "http://127.0.0.1@evil.example.com/api/v1/intents",
+            "not a url",
+        ] {
+            let refused = operator_forward_method(&st, reqwest::Method::POST, foreign);
+            assert!(refused.is_err(), "{foreign} must be refused");
+            assert_eq!(
+                refused.err().unwrap().status(),
+                StatusCode::SERVICE_UNAVAILABLE,
+                "{foreign}"
+            );
+        }
     }
 
     #[test]

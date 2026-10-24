@@ -16,6 +16,9 @@ name: CI
 
 on:
   pull_request:
+    # ready_for_review: a draft runs no suite (the `changes` job reports it),
+    # so promoting it is what starts CI.
+    types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
   # A merged diff runs whole: a pull request runs only what its diff can reach
   # (the changed-areas and affected-tests scripts fall back to every area, every
@@ -30,8 +33,10 @@ permissions:
   pull-requests: read
 
 concurrency:
+  # A newer pull request push or main push cancels the run it replaces.
+  # merge_group stays: cancelling it leaves the required checks pending.
   group: ci-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   changes:
@@ -39,26 +44,57 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      typescript: ${{ steps.areas.outputs.typescript }}
+      typescript: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.typescript }}
       # Quoted so the keyboard contract's job-id split does not match here.
-      "bundle": ${{ steps.areas.outputs.bundle }}
-      "rust": ${{ steps.areas.outputs.rust }}
-      native_mobile: ${{ steps.native.outputs.native_mobile }}
-      mtls: ${{ steps.areas.outputs.mtls }}
-      "push": ${{ steps.areas.outputs.push }}
+      "bundle": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.bundle }}
+      "rust": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.rust }}
+      native_mobile: ${{ github.event.pull_request.draft == true && 'false' || steps.native.outputs.native_mobile }}
+      mtls: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.mtls }}
+      "push": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.push }}
       # The browser gates this diff reaches (scripts/lib/ci-gates.mjs): the
       # bundle job's legs as a matrix, and the gates that are jobs of their own.
-      bundle_matrix: ${{ steps.areas.outputs.bundle_matrix }}
-      tutorials: ${{ steps.areas.outputs.tutorials }}
-      device_inbox: ${{ steps.areas.outputs.device_inbox }}
-      device_identity: ${{ steps.areas.outputs.device_identity }}
-      live_join: ${{ steps.areas.outputs.live_join }}
+      bundle_matrix: ${{ github.event.pull_request.draft == true && '[]' || steps.areas.outputs.bundle_matrix }}
+      tutorials: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.tutorials }}
+      device_inbox: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.device_inbox }}
+      device_identity: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.device_identity }}
+      live_join: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.live_join }}
+      # A draft pull request runs no suite; the three required checks fail on it
+      # (below) so a head SHA that only ever ran as a draft can never read green.
+      draft: ${{ github.event.pull_request.draft == true && 'true' || 'false' }}
+      # The runner the two jobs that can leave GitHub-hosted runners ask for.
+      linux_runner: ${{ steps.runner.outputs.linux }}
     steps:
+      - name: Choose the Linux runner
+        id: runner
+        # Off unless the repository variable CI_SELF_HOSTED_ARM64 is "true", so
+        # the default is GitHub-hosted and flipping it back is the whole rollback.
+        # Only the owner's own branches may reach the self-hosted box: this
+        # repository is public, and a runner executes whatever the PR contains.
+        env:
+          ENABLED: ${{ vars.CI_SELF_HOSTED_ARM64 }}
+          EVENT: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          linux='"ubuntu-latest"'
+          if [ "$ENABLED" = "true" ] && [ "$ACTOR" = "$OWNER" ] \
+            && { [ "$EVENT" != "pull_request" ] || [ "$HEAD_REPO" = "$REPO" ]; }; then
+            linux='["self-hosted","linux","ARM64","os-devbox"]'
+          fi
+          echo "linux=$linux" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           # The classifier diffs the pull request against its merge base.
           fetch-depth: 0
+      - name: Validate approved current evidence
+        run: node scripts/quality/evidence-gate.mjs
+      - name: Validate repository footprint and shared skills
+        run: |
+          node scripts/quality/repository-size-gate.mjs
+          node scripts/dev/sync-agent-skills.mjs --check
       - name: Verify merge-required commit signatures
         if: github.event_name == 'pull_request'
         env:
@@ -89,8 +125,8 @@ jobs:
     name: TypeScript tests
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
+    timeout-minutes: 45
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
@@ -187,7 +223,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.bundle_matrix != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: ${{ matrix.shard == 'native-public-protocol' && 30 || 15 }}
     strategy:
       fail-fast: false
       # The legs are listed once, in scripts/lib/ci-bundle-shards.json; `changes`
@@ -253,7 +289,15 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/self-hosted-connectors
         run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
+      - name: Preserve self-hosted provider evidence
+        if: always() && matrix.shard == 'budgets'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: self-hosted-connectors-${{ github.sha }}
+          path: ${{ runner.temp }}/self-hosted-connectors/
+          if-no-files-found: warn
       - name: Keyboard-only first-load and navigation contract
         if: matrix.shard == 'keyboard'
         env:
@@ -272,6 +316,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:push-worker
+      - name: Service worker reload waits for a dirty edit
+        if: matrix.shard == 'budgets'
+        # A guest with an unsaved item must see the waiting release instead of
+        # losing the edit. Lock, idle, and a missing chunk still reload.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:sw-dirty-edit
       - name: Phone and tablet layout and touch contract
         if: startsWith(matrix.shard, 'mobile-')
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
@@ -287,6 +339,12 @@ jobs:
           VITE_BASE: /OpenSesame/
           MOBILE_SIZES: ${{ matrix.sizes }}
         run: pnpm --filter @opensesame/pages verify:mobile
+      - name: Approved header parity across viewport and pointer layouts
+        if: matrix.shard == 'mobile-320'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:header-layout
       - name: Browser-local application sign-in contract
         if: matrix.shard == 'sign-in'
         # Real cross-origin popup and virtual WebAuthn, no Identity/Host backend.
@@ -302,20 +360,6 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:quorum-browser
-      - name: Trusted contacts screens, five browsers, packets by clipboard
-        if: matrix.shard == 'trusted-contacts'
-        # ADR 0187: Settings › Trusted contacts walked through the real screens
-        # by an owner, three guardians and a recipient, each in their own
-        # context with a virtual security key that does PRF. Packets travel by
-        # the clipboard, the refusals are read as marks and tray notices, and
-        # one clock is moved for every page together. Desktop width, then the
-        # phone's.
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: |
-          pnpm --filter @opensesame/pages verify:trusted-contacts
-          WIDTH=390 pnpm --filter @opensesame/pages verify:trusted-contacts
       - name: Self-Issued OpenID Provider v2 contract
         if: matrix.shard == 'keyboard'
         env:
@@ -361,11 +405,20 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:auth
+      - name: Trusted-contact vault unlock quorum
+        if: matrix.shard == 'auth'
+        # Real browser passkeys: below-threshold stays locked for 2-of-3 and 3-of-3.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:trusted-unlock
       - name: Customer vault and file envelopes in real WebCrypto
         if: matrix.shard == 'customer-crypto'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-        run: pnpm verify:customer-vault-browser
+        run: |
+          pnpm verify:customer-vault-browser
+          pnpm --filter @opensesame/pages exec node --test --experimental-test-isolation=none --test-concurrency=1 --test-timeout=20000 scripts/verify-kdbx-native-dom.mjs
       - name: Native provider configuration and encrypted reloads
         if: matrix.shard == 'native-connectors'
         env:
@@ -382,6 +435,12 @@ jobs:
           pnpm --filter @opensesame/pages verify:provider-auth
           pnpm --filter @opensesame/pages build:identity-verify
           pnpm --filter @opensesame/pages verify:identity-connections
+      - name: Secret backends and encrypted vault
+        if: matrix.shard == 'native-secret-backends'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
           pnpm --filter @opensesame/pages build:secret-backends-verify
           pnpm --filter @opensesame/pages verify:secret-backends
       - name: Experience journeys
@@ -426,6 +485,35 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:live-local-pair
+      - name: Peer-trust peering diagnostics
+        # Two contexts on the static dist: distinct SAS, a verified paste,
+        # a crossed signal refused, a changed key blocked, duplicate names marked.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peer-trust-two-context
+      - name: Peering diagnostics
+        # Two contexts on the static dist: ICE line while connecting (P8-3).
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peering-diagnostics
+      - name: Fresh vault Passwords onboarding
+        # P8-4: the walker rebuilds dist with its opt-in, then saves an account.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:fresh-vault-login
+      - name: CLI on the public site
+        # P8-5: Pair CLI on the shared origin, with no loopback pairing field.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:cli-public-site
 
   ai-connections-e2e:
     name: AI connections end to end
@@ -491,25 +579,12 @@ jobs:
         env:
           PAGES_VERIFY_OUT: ${{ runner.temp }}/tailnet-browser-node
         run: pnpm --filter @opensesame/pages verify:tailnet-browser-node
-      - name: Conditional Tailscale management through HTTPS consent and browser CORS
-        env:
-          PAGES_VERIFY_DIST: dist-tailscale-browser-verify
-          PAGES_VERIFY_OUT: ${{ runner.temp }}/tailscale-provisioning-browser
-        run: pnpm --filter @opensesame/pages verify:tailscale-provisioning
       - name: Preserve Tailscale browser evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: tailnet-browser-node-${{ github.sha }}
           path: ${{ runner.temp }}/tailnet-browser-node/
-          if-no-files-found: warn
-
-      - name: Preserve Tailscale management evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: tailscale-provisioning-browser-${{ github.sha }}
-          path: ${{ runner.temp }}/tailscale-provisioning-browser/
           if-no-files-found: warn
 
   device-inbox:
@@ -777,7 +852,7 @@ jobs:
     name: Rust tests
     needs: changes
     if: needs.changes.outputs.rust == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
     timeout-minutes: 45
     env:
       CARGO_BUILD_JOBS: 2
@@ -795,12 +870,42 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs cargo
+      - name: Install Linux keychain build and test dependencies
+        if: runner.os == 'Linux' && steps.affected.outputs.scope != 'none'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
         if: steps.affected.outputs.scope != 'none'
         with:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         if: steps.affected.outputs.scope != 'none'
+      # `bridge_roundtrip_fixture` reads a real schema through @env-spec/parser
+      # and fails on CI without it. The same pinned pnpm and Node as the
+      # TypeScript job, installed only when the env-spec crate is tested. No
+      # `cache: pnpm`: setup-node would save this job's one-package store under
+      # the key the TypeScript job restores its whole store from.
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+        with:
+          node-version: 22
+      - name: Install the env-spec bridge's parser
+        # That package and its dependencies only (@env-spec/parser has none
+        # and no install script), from the lockfile.
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
+      - name: Name the runner's node for the bridge
+        # The env-spec bridge runs only a `node` nobody else could have
+        # replaced, and the hosted image keeps its own in /usr/local/bin with
+        # mode 0777. OPENSESAME_NODE names the file the way an operator does
+        # (docs/operators/proxied-run-quickstart.md); no node fails the job.
+        if: steps.affected.outputs.scope != 'none'
+        run: |
+          node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
+          echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
       - name: Test affected crates
         if: steps.affected.outputs.scope != 'none'
         env:
@@ -937,7 +1042,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
         run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.typescript-tests.result }}"
           if [ "$changes" != "success" ]; then
@@ -957,7 +1068,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
         run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.bundle.result }}"
           tutorials="${{ needs.tutorials-e2e.result }}"
@@ -1012,7 +1129,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
         run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.rust.result }}"
           native="${{ needs.changes.outputs.native_mobile }}"

@@ -1,181 +1,76 @@
-/**
- * Join-route form, in-session view, and focus landing helpers for `/live`.
- */
-
-import { normalizeInviteCode } from "@opensesame/app-core/lib/join/invite.js";
-import { liveJoinAskDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
-import type { GuestStatus } from "@opensesame/app-core/lib/live/guest.js";
-import {
-  type LiveLink,
-  parseLiveLink,
-} from "@opensesame/app-core/lib/live/link.js";
-import {
-  NAME_MAX,
-  NOTE_MAX,
-  cleanText,
-} from "@opensesame/app-core/lib/live/messages.js";
+import type {
+  GuestStatus,
+  LiveGuest,
+} from "@opensesame/app-core/lib/live/guest.js";
+import type { LiveLink } from "@opensesame/app-core/lib/live/link.js";
 import {
   LIVE_SESSION_ENDED_TRAY,
   reportLiveOutcome,
 } from "@opensesame/app-core/lib/live/outcome-notices.js";
-import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import {
   currentGuestCarriers,
-  joinLive,
   leaveLive,
 } from "@opensesame/app-core/lib/live/session.js";
-import { useEffect, useRef, useState } from "react";
-import { FieldShell } from "../../components/FieldShell.js";
+import { rememberTrustedPeer } from "@opensesame/app-core/lib/peer-trust/peers.js";
+import { useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router";
 import { FormCommit } from "../../components/FormCommit.js";
-import {
-  IconArrowRight,
-  IconSecret,
-  IconUser,
-} from "../../components/Icons.js";
+import { IconArrowRight } from "../../components/Icons.js";
+import { IconInfo } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { firstControl } from "../../lib/focus.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { LiveCatalog } from "./LiveCatalog.js";
-import { LiveLinkField, PeerTrustField } from "./LiveJoinFields.js";
+import {
+  JoinPersonFields,
+  JoinVaultSealFields,
+  LiveLinkField,
+  PeerTrustField,
+} from "./LiveJoinFields.js";
 import { RequestStep } from "./LiveJoinPairing.js";
 import { CarrierMarks, RoutesChoice } from "./LiveJoinRoutes.js";
+import { ConnectingProgress, standing } from "./LiveJoinStanding.js";
+import { takeVaultEntry, useVaultEntryPending } from "./live-entry.js";
 import { useLandWhenSettled } from "./live-focus.js";
 import {
   type Standing,
   formatRemaining,
-  joinDraft,
-  liveUiSeams,
-  useDraftField,
   useLiveGuest,
   useRemaining,
+  useRendezvousReady,
 } from "./live-hooks.js";
+import { useAsk } from "./live-join-ask-state.js";
+import { joinAskDisabledReason } from "./live-join-trust.js";
 
 /** A fresh request after a timed-out attempt (ADR 0186). */
 const ASK_AGAIN = "Ask to join again";
 
-/** The glyph and sentence for where an ask stands. */
-function standing(status: GuestStatus): Standing {
-  switch (status.at) {
-    case "preparing":
-      return {
-        tone: "idle",
-        label: "Making your request code",
-        tray: "Making your request code",
-      };
-    case "request":
-      return {
-        tone: "idle",
-        label: "Waiting for the owner's reply code",
-        tray: "Waiting for the owner's reply code",
-      };
-    case "connecting":
-      return {
-        tone: "idle",
-        label: "Connecting to the owner's browser",
-        tray: "Connecting to the owner's browser",
-      };
-    case "connect_timeout":
-      return {
-        tone: "err",
-        label: "Connection timed out",
-        tray: "Connection timed out — ask again, or check your network",
-      };
-    case "joined":
-      return {
-        tone: "ok",
-        label: `Joined ${status.catalog.title}`,
-        tray: `Joined ${status.catalog.title}`,
-      };
-    case "unreachable":
-      return {
-        tone: "err",
-        label: "No route to the owner's browser",
-        tray: "No route to the owner's browser",
-      };
-    default:
-      return {
-        tone: "idle",
-        label: "The session ended",
-        tray: "The session ended",
-      };
-  }
-}
-
-/** What the joiner has typed, and the ask it adds up to. */
-function useAsk(held: LiveLink | null) {
-  const [pasted, setPasted] = useDraftField("pasted");
-  const [code, setCode] = useDraftField("code");
-  const [name, setName] = useDraftField("name");
-  const [note, setNote] = useDraftField("note");
-  const [peerTrust, setPeerTrust] = useDraftField("peerTrust");
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useDraftField("failed");
-  const [useRoutes, setRoutesState] = useState(joinDraft.useRoutes);
-  const setUseRoutes = (next: boolean) => {
-    joinDraft.useRoutes = next;
-    setRoutesState(next);
-  };
-  const candidate = held ?? parseLiveLink(pasted);
-  const routes = candidate ? linkRoutes(candidate) : null;
-  const link = routes ? candidate : null;
-  const needsCode = link?.admission === "invite";
-  const normalized = needsCode ? normalizeInviteCode(code) : null;
-  const cleanedName = cleanText(name);
-  const ready =
-    link !== null &&
-    cleanedName.length > 0 &&
-    (!needsCode || normalized !== null);
-
-  async function ask(): Promise<void> {
-    if (!link || !ready) return;
-    setBusy(true);
-    setFailed("");
-    try {
-      const trustSignal = cleanText(peerTrust);
-      await joinLive({
-        link,
-        code: normalized,
-        name: cleanedName,
-        note: cleanText(note),
-        transport: liveUiSeams.transport,
-        useRoutes,
-        carriers: liveUiSeams.carriers,
-        peerTrustSignal: trustSignal.length > 0 ? trustSignal : null,
-      });
-    } catch (error) {
-      leaveLive();
-      const refused =
-        error instanceof Error &&
-        error.message.startsWith("peer_trust_refused:");
-      const words = refused
-        ? "Peer trust could not be verified"
-        : "This browser could not make a request code";
-      reportLiveOutcome("Live session", words);
-      setFailed(words);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return {
-    fields: { pasted, code, name, note, peerTrust, useRoutes },
-    set: { setPasted, setCode, setName, setNote, setPeerTrust, setUseRoutes },
+export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
+  const vault = useVault();
+  const askState = useAsk(held, vault.status);
+  const {
+    fields,
     link,
-    routes,
     needsCode,
     ready,
     busy,
     failed,
+    alarm,
+    sealProblem,
     ask,
-  };
-}
-
-export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
-  const { fields, set, link, routes, needsCode, ready, busy, failed, ask } =
-    useAsk(held);
-  const { pasted, code, name, note, peerTrust, useRoutes } = fields;
-  const { setPasted, setCode, setName, setNote, setPeerTrust, setUseRoutes } =
-    set;
+  } = askState;
   const form = useRef<HTMLFormElement>(null);
+  const disabledReason = joinAskDisabledReason({
+    alarm,
+    ready,
+    busy,
+    link,
+    pasted: fields.pasted,
+    needsCode: needsCode ?? false,
+    code: fields.code,
+    name: fields.name,
+    sealProblem: sealProblem ?? undefined,
+  });
   useLandWhenSettled(busy, () => form.current?.querySelector(".go"));
 
   return (
@@ -187,6 +82,61 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
         void ask();
       }}
     >
+      <JoinAskFields held={held} vaultStatus={vault.status} state={askState} />
+      {failed && failed !== alarm ? (
+        <StatusMark tone="err" label={failed} />
+      ) : null}
+      {alarm ? <StatusMark tone="err" label={alarm} /> : null}
+      {!ready && !busy && disabledReason ? (
+        <p className="live-help" role="status">
+          {disabledReason}
+        </p>
+      ) : null}
+      <FormCommit
+        label="Ask to join"
+        disabled={!ready || busy || alarm.length > 0}
+        disabledReason={disabledReason}
+        busy={busy}
+        icon={<IconArrowRight size={18} />}
+      />
+    </form>
+  );
+}
+
+function JoinAskFields({
+  held,
+  vaultStatus,
+  state,
+}: {
+  held: LiveLink | null;
+  vaultStatus: "empty" | "locked" | "unlocked";
+  state: ReturnType<typeof useAsk>;
+}) {
+  const { fields, set, link, routes, needsCode, busy, pinProblems } = state;
+  const {
+    pasted,
+    code,
+    name,
+    note,
+    peerTrust,
+    useRoutes,
+    pin,
+    confirm,
+    accepted,
+  } = fields;
+  const {
+    setPasted,
+    setCode,
+    setName,
+    setNote,
+    setPeerTrust,
+    setUseRoutes,
+    setPin,
+    setConfirm,
+    setAccepted,
+  } = set;
+  return (
+    <>
       {held && link ? <StatusMark tone="ok" label="Link in hand" /> : null}
       {held && !link ? (
         <StatusMark tone="err" label="Not a live-session link" />
@@ -199,103 +149,115 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
           setPasted={setPasted}
         />
       )}
-      {needsCode ? (
-        <FieldShell
-          id="live-code"
-          label="Code"
-          mono
-          autoComplete="off"
-          placeholder="XXXX-XXXX"
-          lead={<IconSecret size={17} />}
-          value={code}
-          disabled={busy}
-          onValueChange={setCode}
+      <JoinPersonFields
+        needsCode={needsCode ?? false}
+        code={code}
+        name={name}
+        note={note}
+        busy={busy}
+        setCode={setCode}
+        setName={setName}
+        setNote={setNote}
+      />
+      {vaultStatus === "empty" || vaultStatus === "locked" ? (
+        <JoinVaultSealFields
+          pin={pin}
+          confirm={confirm}
+          accepted={accepted}
+          problems={pinProblems}
+          busy={busy}
+          setPin={setPin}
+          setConfirm={setConfirm}
+          setAccepted={setAccepted}
         />
       ) : null}
-      <FieldShell
-        id="live-name"
-        label="Your name"
-        autoComplete="nickname"
-        lead={<IconUser size={17} />}
-        value={name}
-        disabled={busy}
-        onValueChange={(next) => setName(next.slice(0, NAME_MAX))}
-      />
-      <FieldShell
-        id="live-note"
-        label="Note"
-        placeholder="Optional"
-        value={note}
-        disabled={busy}
-        onValueChange={(next) => setNote(next.slice(0, NOTE_MAX))}
-      />
-      <PeerTrustField
-        peerTrust={peerTrust}
-        busy={busy}
-        setPeerTrust={setPeerTrust}
-      />
-      {routes ? (
-        <RoutesChoice
-          routes={routes}
-          checked={useRoutes}
-          disabled={busy}
-          onChange={setUseRoutes}
-        />
+      {vaultStatus === "locked" ? (
+        <p className="live-help">
+          <IconInfo size={14} aria-hidden="true" /> A vault is locked on this
+          device. Joining creates a new vault for this person; the old locked
+          vault and its items stay on the device.
+        </p>
       ) : null}
-      {failed ? <StatusMark tone="err" label={failed} /> : null}
-      <FormCommit
-        label="Ask to join"
-        disabled={!ready || busy}
-        disabledReason={
-          !ready && !busy
-            ? liveJoinAskDisabledReason({
-                link,
-                pasted,
-                needsCode: needsCode ?? false,
-                code,
-                name,
-                busy,
-              })
-            : undefined
-        }
-        busy={busy}
-        icon={<IconArrowRight size={18} />}
-      />
-    </form>
+      <p className="live-help">
+        <IconInfo size={14} aria-hidden="true" /> The owner sees the name you
+        enter. Your own vault is separate; shared items stay live in this tab
+        while the session is open.
+      </p>
+      <details className="live-advanced">
+        <summary>Advanced</summary>
+        {routes ? (
+          <RoutesChoice
+            routes={routes}
+            checked={useRoutes}
+            disabled={busy}
+            onChange={setUseRoutes}
+          />
+        ) : null}
+        <p className="live-help">
+          <IconInfo size={14} aria-hidden="true" /> Peer trust is only for a
+          code the owner gave you outside this link. Most people can leave it
+          empty.
+        </p>
+        <PeerTrustField
+          peerTrust={peerTrust}
+          busy={busy}
+          setPeerTrust={setPeerTrust}
+        />
+      </details>
+    </>
   );
 }
 
 export function LiveJoinSession() {
   const { guest, status } = useLiveGuest();
+  const vault = useVault();
+  const navigate = useNavigate();
+  const enterPending = useVaultEntryPending();
   const catalog = status?.at === "joined" ? status.catalog : null;
   const left = useRemaining(catalog?.expiresAt ?? null);
   const mark = status ? standing(status) : null;
   useEffect(() => {
     if (status?.at === "unreachable") {
-      reportLiveOutcome("Live session", "No route to the owner's browser");
+      reportLiveOutcome("Live session", status.reason);
     }
     if (status?.at === "ended") {
       reportLiveOutcome("Live session", mark?.tray || LIVE_SESSION_ENDED_TRAY);
     }
   }, [status, mark?.tray]);
-  if (!guest || !status || !mark) return null;
+  useEffect(() => {
+    if (status?.at !== "joined" || vault.status !== "unlocked") return;
+    if (!enterPending || !takeVaultEntry()) return;
+    navigate("/vault", { replace: true });
+  }, [status?.at, vault.status, enterPending, navigate]);
+  useEffect(() => {
+    if (status?.at !== "joined" || !guest) return;
+    const owner = guest.trustedOwner();
+    if (!owner) return;
+    void rememberTrustedPeer(owner).catch(() => undefined);
+  }, [guest, status]);
+  const opened = openedSession(guest, status, mark);
+  if (!opened) return null;
   return (
     <div className="setup__stack" id="live-view">
       <div className="live-status" id="live-status" tabIndex={-1}>
-        <StatusMark tone={mark.tone} label={mark.label} />
-        {catalog ? (
-          <span className="vault-row__meta">{formatRemaining(left)}</span>
-        ) : (
-          <span className="vault-row__meta">{mark.tray}</span>
-        )}
+        <StatusMark tone={opened.mark.tone} label={opened.mark.label} />
+        <span className="live-status__label">{opened.mark.label}</span>
+        <span className="vault-row__meta">
+          {catalog ? formatRemaining(left) : opened.mark.tray}
+        </span>
+        {opened.status.at === "joined" && vault.status === "unlocked" ? (
+          <Link className="btn btn--sm" to="/vault">
+            Open my vault
+          </Link>
+        ) : null}
       </div>
-      {status.at === "request" ? (
-        <>
-          <CarrierMarks rendezvous={currentGuestCarriers()} />
-          <RequestStep guest={guest} code={status.code} />
-        </>
+      {opened.status.at === "request" ? (
+        <RequestWaiting guest={opened.guest} status={opened.status} />
       ) : null}
-      {status.at === "connect_timeout" ? (
+      {opened.status.at === "connecting" ? (
+        <ConnectingProgress guest={opened.guest} status={opened.status} />
+      ) : null}
+      {opened.status.at === "connect_timeout" ? (
         <div className="go-row">
           <button
             type="button"
@@ -303,7 +265,7 @@ export function LiveJoinSession() {
             aria-label={ASK_AGAIN}
             title={ASK_AGAIN}
             onClick={() =>
-              void guest.askAgain().catch(() => {
+              void opened.guest.askAgain().catch(() => {
                 leaveLive();
                 reportLiveOutcome(
                   "Live session",
@@ -322,11 +284,57 @@ export function LiveJoinSession() {
       {catalog ? (
         <LiveCatalog
           catalog={catalog}
-          request={(what, item, field) => guest.request(what, item, field)}
-          save={(item, field, value) => guest.edit(item, field, value)}
+          request={(what, item, field) =>
+            opened.guest.request(what, item, field)
+          }
+          save={(item, field, value) => opened.guest.edit(item, field, value)}
         />
       ) : null}
     </div>
+  );
+}
+
+function openedSession(
+  guest: LiveGuest | null,
+  status: GuestStatus | null,
+  mark: Standing | null,
+): { guest: LiveGuest; status: GuestStatus; mark: Standing } | null {
+  if (!guest || !status || !mark) return null;
+  return { guest, status, mark };
+}
+
+function RequestWaiting({
+  guest,
+  status,
+}: {
+  guest: LiveGuest;
+  status: Extract<GuestStatus, { at: "request" }>;
+}) {
+  const automatic = useRendezvousReady(currentGuestCarriers());
+  return (
+    <>
+      <CarrierMarks rendezvous={currentGuestCarriers()} />
+      {automatic ? (
+        <StatusMark
+          tone="idle"
+          label="The owner can see your request. Waiting for them to let you in."
+        />
+      ) : null}
+      {status.sas ? (
+        <details className="live-verify">
+          <summary>Security code</summary>
+          <p className="live-help">
+            Compare this with the owner if you are on a call with them. It is
+            not needed when the owner already recognises your request.
+          </p>
+          <span className="frow__value frow__value--mono live-sas">
+            {status.sas}
+          </span>
+        </details>
+      ) : null}
+      {status.unverified ? <StatusMark tone="warn" label="Unverified" /> : null}
+      {automatic ? null : <RequestStep guest={guest} code={status.code} />}
+    </>
   );
 }
 

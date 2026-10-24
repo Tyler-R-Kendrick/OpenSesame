@@ -8,6 +8,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./links": {
+      "types": "./src/links.ts",
+      "default": "./src/links.ts"
     }
   },
   "scripts": {
@@ -22,5 +26,10 @@
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
   }
 }

@@ -22,6 +22,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { maybePage } from "../ports.js";
 import { isOnline, subscribeConnectivity } from "./connectivity.js";
+import { jittered } from "./connectivity-backoff.js";
 import { identityBase, probeIdentityDetailed } from "./identity.js";
 import { type FailureClass, classifyThrown } from "./probe-failure.js";
 import { subscribeSettings } from "./settings.js";
@@ -81,8 +82,6 @@ export const DEGRADED_MS = 5_000;
  */
 export const MAX_MS = HEALTHY_MS;
 const BACKOFF = 1.6;
-/** Spread repeated sweeps so N tabs never form a thundering herd. */
-const JITTER = 0.15;
 
 /**
  * How many consecutive failures before a green light goes amber.
@@ -169,12 +168,6 @@ export function connectivitySnapshot(): MonitorSnapshot {
  */
 function degraded(): boolean {
   return state.identity.health === "unreachable" || state.identity.strikes > 0;
-}
-
-function jittered(ms: number): number {
-  const spread = ms * JITTER;
-  const random = (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) / 2 ** 32;
-  return Math.round(ms - spread + random * spread * 2);
 }
 
 function nextDelay(): number {

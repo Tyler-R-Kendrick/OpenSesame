@@ -34,6 +34,7 @@ import {
   saveProfileFile,
 } from "./live-join-profile.mjs";
 import {
+  admitControl,
   endSession,
   joinerAsks,
   selectedPairs,
@@ -150,7 +151,7 @@ async function through(browser, owner, label, hooks) {
       dist: owner.dist,
     });
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = panel.getByRole("button", { name: `Let ${JOINER} in` });
+    const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     if (connects) {
@@ -254,6 +255,9 @@ async function checkMinted(pages, link, { secret, url, turn, label }) {
     /^\d+:osl$/.test(minted?.username ?? ""),
     `${label}: the link carries a minted credential (${minted?.username})`,
   );
+  // TURN REST (coturn use-auth-secret) defines the credential as
+  // base64(HMAC-SHA1(username, secret)); HMAC-SHA1 is the wire protocol the
+  // server verifies, not a choice this check can upgrade unilaterally.
   const expected = createHmac("sha1", secret)
     .update(minted?.username ?? "")
     .digest("base64");

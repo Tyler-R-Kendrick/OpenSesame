@@ -1,6 +1,7 @@
+import { isJsonObject, readString } from "@opensesame/os-domain";
 /** Authenticate GitHub's supported browser token route before saving readiness. */
 import type { NativeApiConfigureInput } from "./native-api-connectors.js";
-import { NativeApiError } from "./native-api-http.js";
+import { NativeApiError, nativeApiHttp } from "./native-api-http.js";
 import {
   type NativeApiReadResult,
   safeNativeConnectorIcon,
@@ -16,6 +17,7 @@ import {
   type NativeProviderTransport,
   nativeProviderTransport,
 } from "./native-connector-transport.js";
+import { nativeGithubBackupTarget } from "./native-github-backup.js";
 import {
   assertNativeGithubBrowser,
   nativeGithubOrigin,
@@ -35,7 +37,10 @@ import { nativeOAuthGuard } from "./native-oauth-session.js";
 function validateContractInput(input: NativeApiConfigureInput) {
   if (
     input.providerId !== "github" ||
-    Object.keys(input.parameters).length ||
+    Object.keys(input.parameters).some(
+      (key) =>
+        !nativeGithubPersonalClassification.publicParameters.includes(key),
+    ) ||
     Object.keys(input.credentials).some((key) => key !== "api_key") ||
     Object.keys(input.requestedScopes ?? {}).length ||
     Object.keys(input.targetIds ?? {}).length
@@ -56,7 +61,45 @@ function validateInput(input: NativeApiConfigureInput) {
   );
   safeProviderText(input.displayName, { api_key: token });
   safeNativeConnectorIcon(input.icon ?? "", { api_key: token });
-  return { saved, token };
+  const target = nativeGithubBackupTarget(input.parameters);
+  const parameters: Record<string, string> = {};
+  if (target) {
+    parameters.backup_owner = target.owner;
+    parameters.backup_repo = target.repo;
+    parameters.backup_branch = target.branch;
+  }
+  for (const value of Object.values(parameters))
+    safeProviderText(value, { api_key: token });
+  return { saved, token, target, parameters };
+}
+async function verifyBackupTarget(
+  target: ReturnType<typeof nativeGithubBackupTarget>,
+  token: string,
+  transport: NativeProviderTransport,
+) {
+  if (!target) return;
+  const path = `/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}/git/ref/heads/${target.branch.split("/").map(encodeURIComponent).join("/")}`;
+  const body = await nativeApiHttp(
+    {
+      url: `${nativeGithubOrigin}${path}`,
+      method: "GET",
+      headers: new Headers({
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      }),
+      signal: transport.signal,
+    },
+    transport,
+  );
+  if (
+    !isJsonObject(body) ||
+    body.ref !== `refs/heads/${target.branch}` ||
+    !isJsonObject(body.object) ||
+    body.object.type !== "commit" ||
+    !/^[a-f0-9]{40}$/.test(readString(body.object.sha) ?? "")
+  )
+    throw new NativeApiError("response");
 }
 async function savedAccount(
   record: NativeConnectorRecord,
@@ -95,9 +138,12 @@ async function configureAccount(
   saved: NativeConnectorRecord | null,
   token: string,
   transport: NativeProviderTransport,
+  target: ReturnType<typeof nativeGithubBackupTarget>,
 ) {
   try {
-    return await readNativeGithubAccount(token, transport);
+    const identity = await readNativeGithubAccount(token, transport);
+    await verifyBackupTarget(target, token, transport);
+    return identity;
   } catch (error) {
     if (
       saved &&
@@ -115,13 +161,13 @@ export async function configureNativeGithubPersonal(
 ) {
   transport.assertCurrent();
   assertNativeGithubBrowser();
-  const { saved, token } = validateInput(input);
+  const { saved, token, target, parameters } = validateInput(input);
   if (saved)
     await assertNativeConnectorRevision(
       saved.connectionId,
       nativeOAuthGuard(saved),
     );
-  const identity = await configureAccount(saved, token, transport);
+  const identity = await configureAccount(saved, token, transport, target);
   const fingerprint = await nativeGithubPersonalFingerprint();
   transport.assertCurrent();
   const id = saved?.connectionId ?? `conn_github_${crypto.randomUUID()}`;
@@ -134,7 +180,7 @@ export async function configureNativeGithubPersonal(
       method: "api-key",
       displayName: input.displayName.trim(),
       icon: input.icon ?? "",
-      parameters: {},
+      parameters,
       requestedScopes: {},
       targetIds: { api: nativeGithubOrigin },
       fingerprint,
@@ -164,6 +210,11 @@ export async function verifyNativeGithubPersonal(
 ) {
   const record = requireNativeGithubPersonal(id);
   const identity = await savedAccount(record, transport);
+  await verifyBackupTarget(
+    nativeGithubBackupTarget(record.configuration.parameters),
+    record.privateState.credentials.api_key ?? "",
+    transport,
+  );
   return updateNativeConnector(
     id,
     nativeOAuthGuard(record),

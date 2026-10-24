@@ -1,26 +1,24 @@
 import type { GuideGoalDescriptor } from "./goal-types.js";
 
 /**
- * Environments in the vault (ADR 0194): the key in the vault's own strip and
- * the sheet it opens. Offered only once the capability is approved, because
- * the key is not drawn before.
+ * Environments in the vault (ADR 0194 as revised): an Environment item type,
+ * not a key in the vault's strip. Offered only once the capability is approved,
+ * because the item kind is not created before.
  */
 export const ENVIRONMENTS_GOAL = {
   id: "vault.environments",
-  title: "Give a key a value in each environment",
+  title: "Create an Environment item",
   routes: [],
   capabilities: ["vault.environments"],
-  requires: ["shell.wide"],
   guide: [
     "guide/1",
     'goal "vault.environments"',
-    'say "An environment is a place a key is used: development, staging, production. A vault item becomes a key, and each environment holds its own sealed value for it."',
+    'say "An Environment item holds one varlock-compatible .env.schema and the vault item paths its keys bind to. It writes <vault-item-name>.<env-name>.env.schema and never holds a value."',
     'wait state "vault.unlocked" is=true timeout=60000',
     'navigate "/vault"',
     'wait route "/vault" timeout=15000',
-    'focus "vault.environments" "The Environments key opens a sheet: pick or add an environment, add a key from the vault, mark it required where it must have a value, and type the value. The .env.schema it generates is shown below and never holds a value." side=bottom',
-    'wait target "vault.environments" event=activate timeout=60000',
-    'success "A required key with no value in an environment is flagged in the bell until it has one."',
+    'say "Press New item, choose Environment, name it, type the environment name, paste the schema, and add one KEY=vault/item/path alias for each key whose item name differs from the variable."',
+    'success "Save writes the item; its generated schema is ready to copy or download."',
     "end",
   ].join("\n"),
 } satisfies GuideGoalDescriptor;

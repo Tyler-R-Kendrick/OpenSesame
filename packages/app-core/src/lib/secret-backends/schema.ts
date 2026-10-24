@@ -1,6 +1,9 @@
+import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
 import { z } from "zod";
+import { bitwardenAccountIdentity } from "./bitwarden-native-protocol.js";
 import { secretBackendUrl } from "./http.js";
 import { secretBackendPreset } from "./presets.js";
+import { protonConfiguration, splitProtonPat } from "./proton-pass-protocol.js";
 import { SecretBackendError } from "./types.js";
 
 const text = z.string().max(4096).default("");
@@ -8,9 +11,12 @@ export const SecretBackendDraftSchema = z.object({
   providerId: z.string().min(1).max(100),
   name: z.string().trim().min(1).max(200),
   mode: z.enum([
+    "encrypted-remote",
     "local",
     "file-import",
     "credential-management",
+    "proton-pass",
+    "onepassword-sdk",
     "onepassword-connect",
     "bitwarden-api",
     "bitwarden-secrets",
@@ -19,7 +25,10 @@ export const SecretBackendDraftSchema = z.object({
   ]),
   baseUrl: text,
   identityUrl: text,
+  appVersion: text,
   token: z.string().max(32768).default(""),
+  encryptionKey: z.string().max(44).default(""),
+  remoteStoreId: z.union([z.literal(""), z.string().uuid()]).default(""),
   vaultId: text,
   projectId: text,
   organizationId: text,
@@ -29,14 +38,18 @@ export const SecretBackendDraftSchema = z.object({
   clientSecret: z.string().max(32768).default(""),
   passwordListId: text,
   fileFormat: text,
+  accountEmail: text,
+  deviceIdentifier: text,
 });
 
 export const SECRET_BACKEND_CREDENTIAL_FIELDS = [
   "token",
   "clientSecret",
+  "encryptionKey",
 ] as const;
 
 type Draft = z.infer<typeof SecretBackendDraftSchema>;
+type DraftInput = z.input<typeof SecretBackendDraftSchema>;
 
 function validateProtocol(draft: Draft): void {
   const preset = secretBackendPreset(draft.providerId);
@@ -56,6 +69,56 @@ function validateProtocol(draft: Draft): void {
   if (!["local", "file-import", "credential-management"].includes(draft.mode))
     secretBackendUrl(draft.baseUrl);
   if (draft.identityUrl) secretBackendUrl(draft.identityUrl);
+}
+
+function validateNativeOnePassword(draft: Draft): void {
+  if (draft.mode !== "onepassword-sdk") return;
+  if (
+    secretBackendUrl(draft.baseUrl).pathname !== "/" ||
+    !draft.vaultId.trim() ||
+    draft.vaultId.length > 1024 ||
+    draft.token.length > 16_384
+  )
+    throw new SecretBackendError(
+      "configuration",
+      "Enter a 1Password account origin, vault ID and service account token within the supported limits.",
+    );
+}
+
+function validateNativeProton(draft: Draft, requireCredentials: boolean): void {
+  if (draft.mode !== "proton-pass") return;
+  protonConfiguration(draft);
+  if (requireCredentials || draft.token) {
+    const parsed = splitProtonPat(draft.token);
+    parsed.raw.fill(0);
+  }
+}
+
+function validateNativeBitwarden(
+  draft: Draft,
+  requireCredentials: boolean,
+): void {
+  if (draft.mode !== "bitwarden-api") return;
+  secretBackendUrl(draft.identityUrl);
+  bitwardenAccountIdentity({
+    baseUrl: draft.baseUrl,
+    identityUrl: draft.identityUrl,
+    email: draft.accountEmail,
+    deviceIdentifier: draft.deviceIdentifier,
+    clientId: draft.clientId,
+    clientSecret:
+      !requireCredentials && !draft.clientSecret
+        ? "unresolved"
+        : draft.clientSecret,
+  });
+  if (
+    draft.organizationId ||
+    (draft.vaultId && !z.string().uuid().safeParse(draft.vaultId).success)
+  )
+    throw new SecretBackendError(
+      "configuration",
+      "Choose a personal account and an optional personal folder ID.",
+    );
 }
 
 function validateTargets(draft: Draft): void {
@@ -81,9 +144,12 @@ function validateTargets(draft: Draft): void {
 
 function requirePrivateCredentials(draft: Draft): void {
   if (
-    ["onepassword-connect", "bitwarden-secrets", "passwordstate"].includes(
-      draft.mode,
-    ) &&
+    [
+      "onepassword-sdk",
+      "onepassword-connect",
+      "bitwarden-secrets",
+      "passwordstate",
+    ].includes(draft.mode) &&
     !draft.token.trim()
   )
     throw new SecretBackendError(
@@ -99,6 +165,50 @@ function requirePrivateCredentials(draft: Draft): void {
       "configuration",
       "Enter a machine identity client ID and secret, or an access token.",
     );
+}
+
+function validateEncryptedRemote(
+  draft: Draft,
+  requireCredentials: boolean,
+): void {
+  if (draft.mode !== "encrypted-remote") return;
+  const url = secretBackendUrl(draft.baseUrl);
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    !draft.remoteStoreId ||
+    (requireCredentials && !draft.encryptionKey)
+  )
+    throw new SecretBackendError(
+      "configuration",
+      "Enter one HTTPS object URL, stable store UUID and inventory encryption key.",
+    );
+}
+
+function validateEncryptionKey(draft: Draft): void {
+  if (!draft.encryptionKey) return;
+  const key = draft.encryptionKey;
+  if (
+    !/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(key) ||
+    key === draft.token
+  )
+    throw new SecretBackendError(
+      "configuration",
+      "Enter a canonical 32-byte inventory encryption key, separate from the access token.",
+    );
+  const bytes = b64ToBytes(key);
+  try {
+    if (bytes.length !== 32 || bytesToB64(bytes) !== key)
+      throw new SecretBackendError(
+        "configuration",
+        "Enter a canonical 32-byte inventory encryption key.",
+      );
+  } finally {
+    bytes.fill(0);
+  }
 }
 
 function protectCredentialFields(draft: Draft): void {
@@ -118,7 +228,7 @@ function protectCredentialFields(draft: Draft): void {
 }
 
 export function validateSecretBackendDraft(
-  value: Draft,
+  value: DraftInput,
   requireCredentials = true,
 ) {
   const result = SecretBackendDraftSchema.safeParse(value);
@@ -129,13 +239,18 @@ export function validateSecretBackendDraft(
     );
   const draft = result.data;
   validateProtocol(draft);
+  validateNativeOnePassword(draft);
+  validateNativeProton(draft, requireCredentials);
+  validateNativeBitwarden(draft, requireCredentials);
   validateTargets(draft);
   if (requireCredentials) requirePrivateCredentials(draft);
+  validateEncryptedRemote(draft, requireCredentials);
+  validateEncryptionKey(draft);
   protectCredentialFields(draft);
   return draft;
 }
 
-export function publicSecretBackendDraft(value: Draft) {
+export function publicSecretBackendDraft(value: DraftInput) {
   const draft = SecretBackendDraftSchema.parse(value);
   for (const field of SECRET_BACKEND_CREDENTIAL_FIELDS) draft[field] = "";
   return draft;

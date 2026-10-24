@@ -43,6 +43,7 @@ import {
   IconBell,
   IconInfo,
   IconLogin,
+  IconPower,
   IconRefresh,
   IconShield,
   IconX,
@@ -283,6 +284,15 @@ export function StatusNoticeCard({
             }}
           >
             <IconArrowRight size={16} />
+          </IconKey>
+        ) : null}
+        {notice.act ? (
+          <IconKey
+            label={notice.act.label}
+            small
+            onClick={() => notice.act?.run()}
+          >
+            <IconPower size={16} />
           </IconKey>
         ) : null}
         {notice.retry ? (

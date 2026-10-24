@@ -7,8 +7,19 @@
  * GitHub redelivers instead of acknowledging a lost nudge.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import {
+  constants,
+  closeSync,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { writePrivateSnapshot } from "../scripts/lib/private-files.mjs";
 
 const MAX_PENDING = 32;
 const REDIS_KEY = "opensesame:github-app:webhook-pending";
@@ -17,6 +28,8 @@ const REDIS_KEY = "opensesame:github-app:webhook-pending";
 
 /** @type {WebhookNudge[]} */
 let memoryQueue = [];
+/** @type {string | null} */
+let cachedQueueDir = null;
 
 function queuePath() {
   const raw =
@@ -25,7 +38,18 @@ function queuePath() {
       : "";
   if (raw) return raw;
   if (typeof process !== "undefined" && process.env.VERCEL) return null;
-  return "/tmp/opensesame-github-webhook-queue.json";
+  const dir =
+    cachedQueueDir ?? mkdtempSync(join(tmpdir(), "opensesame-webhooks-"));
+  cachedQueueDir = dir;
+  const stat = lstatSync(dir);
+  if (
+    !stat.isDirectory() ||
+    (stat.mode & 0o777) !== 0o700 ||
+    (process.getuid && stat.uid !== process.getuid())
+  ) {
+    throw new Error("unsafe_webhook_queue_directory");
+  }
+  return join(dir, "pending.json");
 }
 
 function redisConfig() {
@@ -60,7 +84,25 @@ function readFileQueue() {
   const path = queuePath();
   if (!path) return memoryQueue;
   try {
-    const raw = readFileSync(path, "utf8");
+    const fd = openSync(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+    let raw;
+    try {
+      const stat = fstatSync(fd);
+      if (
+        !stat.isFile() ||
+        stat.nlink !== 1 ||
+        (stat.mode & 0o777) !== 0o600 ||
+        (process.getuid && stat.uid !== process.getuid())
+      ) {
+        throw new Error("unsafe_webhook_queue_file");
+      }
+      raw = readFileSync(fd, "utf8");
+    } finally {
+      closeSync(fd);
+    }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
@@ -85,7 +127,7 @@ function writeFileQueue(events) {
     return;
   }
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(events), "utf8");
+  writePrivateSnapshot(path, JSON.stringify(events));
 }
 
 /**
@@ -186,7 +228,7 @@ export function clearWebhookQueue() {
   const path = queuePath();
   if (path) {
     try {
-      writeFileSync(path, "[]", "utf8");
+      writePrivateSnapshot(path, "[]");
     } catch {
       /* ignore */
     }

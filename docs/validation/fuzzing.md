@@ -83,18 +83,30 @@ A crash is a panic, sanitizer hit, or failed `assert!`.
 TypeScript follows the same steps; its crashes are written to
 `<audit-dir>/artifacts/<target>-*`.
 
-## ClusterFuzzLite and OSS-Fuzz
+## ClusterFuzzLite, OSS-Fuzz, and OSS Verify
 
 This repo does **not** add `.github/workflows/cflite_*.yml`. The project
 files under `tests/fuzz/clusterfuzzlite/` are the CFL/OSS-Fuzz contract:
 
-- `project.yaml` — language rust, libFuzzer, address sanitizer
+- `project.yaml` — language rust, libFuzzer, address sanitizer,
+  `primary_contact` (set at filing time, never committed)
 - `Dockerfile` — `gcr.io/oss-fuzz-base/base-builder-rust`
-- `build.sh` — `cargo +nightly fuzz build --release` and seed corpus zips
+- `build.sh` — `cargo +nightly fuzz build --release --sanitizer address` and
+  seed corpus zips
 
-To submit to hosted OSS-Fuzz later, copy those three files into
-`projects/opensesame/` on `google/oss-fuzz`. Do not open that PR until
-there is a real adoption or critical-infrastructure case.
+To submit to hosted OSS-Fuzz, copy those three files into
+`projects/opensesame/` on `google/oss-fuzz` and open the PR — the decision to
+enroll is [ADR 0211](../adr/0211-oss-fuzz-and-oss-verify-enrollment.md) and
+the filing checklist is
+[docs/contributing/oss-programs.md](../contributing/oss-programs.md). Crash
+reports from a hosted fuzzer land in the `primary_contact` mailbox and are
+triaged by the procedure above, like any local crash.
+
+`tests/fuzz/oss-verify/` is the enrollment pack for Theorem Labs' OSS Verify,
+which proves things about the *compiled* fuzz binaries (static riscv64 musl,
+their own driver, byte-reproducible double builds). Its build contract
+differs from OSS-Fuzz's, so it is a separate port with its own README;
+enrolling a target there does not change the local gates or this guide.
 
 ## Kani bounds
 

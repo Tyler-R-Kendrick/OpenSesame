@@ -11,16 +11,12 @@
  * concealed in the item list and the search index too.
  */
 
-import {
-  asList,
-  asParts,
-  asText,
-} from "@opensesame/app-core/sections/vault/typed-field-inputs-model.js";
+import { ENVIRONMENT_ITEM_TYPE } from "@opensesame/app-core/lib/vault/environment-item.js";
+import { asList } from "@opensesame/app-core/sections/vault/typed-field-inputs-model.js";
 import { isString } from "@opensesame/os-domain";
 import {
   FIELD_TYPES,
   type FieldDefinition,
-  type FieldValue,
   type FieldValues,
   type ItemTypeDefinition,
   displayText,
@@ -32,71 +28,44 @@ import {
   FieldRow,
   RevealButton,
 } from "../../components/FieldRow.js";
-import { BlobInput, BlobRow } from "./BlobField.js";
+import { BlobRow } from "./BlobField.js";
 import { OptionalField } from "./EditorExtras.js";
 import {
-  RecordInput,
-  RepeatingInput,
-  ScalarInput,
-} from "./TypedFieldInputs.js";
-type ChangeField = (fieldId: string, value: FieldValue) => void;
-
-function FieldControl({
-  field,
-  value,
-  revealed,
-  toggle,
+  EnvironmentFields,
+  EnvironmentFieldsRead,
+} from "./EnvironmentFields.js";
+import { FormatHint } from "./FormatHint.js";
+import { type ChangeField, FieldControl } from "./TypedFieldInputs.js";
+/** The editor for every plugin-defined type, drawn from its definition. */
+export function TypedFieldInputs({
+  definition,
+  itemName,
+  values,
   onChange,
 }: {
-  field: FieldDefinition;
-  value: FieldValue | undefined;
-  revealed: ReadonlySet<string>;
-  toggle: (key: string) => void;
+  definition: ItemTypeDefinition;
+  itemName: string;
+  values: FieldValues;
   onChange: ChangeField;
 }) {
-  const spec = FIELD_TYPES[field.type];
-  if (spec.valueKind === "record") {
+  if (definition.metadata.id === ENVIRONMENT_ITEM_TYPE)
     return (
-      <RecordInput
-        field={field}
-        parts={asParts(value)}
-        revealedParts={revealed}
-        onToggle={toggle}
-        onChange={(next) => onChange(field.id, next)}
+      <EnvironmentFields
+        itemName={itemName}
+        values={values}
+        onChange={onChange}
       />
     );
-  }
-  if (field.type === "blob") {
-    return (
-      <BlobInput
-        id={field.id}
-        value={asText(value)}
-        onChange={(next) => onChange(field.id, next)}
-      />
-    );
-  }
-  if (field.multiple === true) {
-    return (
-      <RepeatingInput
-        field={field}
-        values={asList(value)}
-        onChange={(next) => onChange(field.id, next)}
-      />
-    );
-  }
   return (
-    <ScalarInput
-      field={field}
-      value={asText(value)}
-      revealed={revealed.has(field.id)}
-      onToggle={() => toggle(field.id)}
-      onChange={(next) => onChange(field.id, next)}
+    <GenericTypedFieldInputs
+      definition={definition}
+      values={values}
+      onChange={onChange}
     />
   );
 }
 
-/** The editor for every plugin-defined type, drawn from its definition. */
-export function TypedFieldInputs({
+function GenericTypedFieldInputs({
   definition,
   values,
   onChange,
@@ -146,6 +115,9 @@ export function TypedFieldInputs({
                     toggle={toggle}
                     onChange={onChange}
                   />
+                  {isString(value) && value.trim() !== "" ? (
+                    <FormatHint typeId={definition.metadata.id} value={value} />
+                  ) : null}
                 </div>
               </OptionalField>
             );
@@ -232,6 +204,40 @@ function ValueRow({
 
 /** The detail view for every plugin-defined type, drawn from its definition. */
 export function TypedFieldRows({
+  definition,
+  itemName,
+  values,
+  revealed,
+  toggle,
+  copied,
+  failed,
+  copy,
+}: {
+  definition: ItemTypeDefinition;
+  itemName: string;
+  values: FieldValues;
+  revealed: ReadonlySet<string>;
+  toggle: (key: string) => void;
+  copied: string | null;
+  failed: string | null;
+  copy: (key: string, value: string) => Promise<void>;
+}) {
+  if (definition.metadata.id === ENVIRONMENT_ITEM_TYPE)
+    return <EnvironmentFieldsRead itemName={itemName} values={values} />;
+  return (
+    <GenericTypedFieldRows
+      definition={definition}
+      values={values}
+      revealed={revealed}
+      toggle={toggle}
+      copied={copied}
+      failed={failed}
+      copy={copy}
+    />
+  );
+}
+
+function GenericTypedFieldRows({
   definition,
   values,
   revealed,

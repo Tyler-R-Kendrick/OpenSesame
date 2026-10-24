@@ -3,15 +3,19 @@
  * admit a remote peer before catalog exchange, and gate approvals in-memory.
  */
 import { PeerApprovalQueue } from "../peer-trust/approval-queue.js";
+import { ensurePeerArkSigningKey } from "../peer-trust/ark-key.js";
+import { ABSENT_DTLS, isDtlsFingerprint } from "../peer-trust/handshake.js";
 import {
   humanProofKindAllowsVerb,
   verbRequiresHardwarePasskey,
 } from "../peer-trust/human-proof-tier.js";
+import { saveOwnerCommitment } from "../peer-trust/peers.js";
 import {
-  buildPeerTrustSignal,
   encodePeerTrustSignal,
+  signedPeerTrustSignal,
 } from "../peer-trust/signaling.js";
 import {
+  type PeerTrustLoadResult,
   commitPeerTrustEnrollment,
   loadPeerTrustStore,
 } from "../peer-trust/store.js";
@@ -34,28 +38,38 @@ export type LivePeerTrustGateResult =
   | PeerTrustAdmitResult
   | { ok: false; reason: "local-trust-missing" | "epoch-behind" };
 
-/** Load or create local trust and return a signal for the joiner/owner to pass OOB. */
+export type LivePeerTrustExportInput = Readonly<{
+  rememberedFingerprint?: string;
+  /** DTLS fingerprint the owner's certificate will present, or `absent`. */
+  ownerDtls?: string;
+}>;
+
+/** Load or create local trust and return a signal for the joiner to pass OOB. */
 export async function exportLivePeerTrustSignal(
-  rememberedFingerprint?: string,
+  input: LivePeerTrustExportInput = {},
 ): Promise<LivePeerTrustExport> {
-  let loaded = await loadPeerTrustStore();
-  if (!loaded.ok) {
-    if (loaded.reason !== "missing") {
-      return { ok: false, reason: "ark-unavailable" };
-    }
-    const committed = await commitPeerTrustEnrollment(rememberedFingerprint);
-    if (!committed.ok) {
-      return { ok: false, reason: "ark-unavailable" };
-    }
-    loaded = {
-      ok: true,
-      record: committed.record,
-      sas: committed.sas,
-      envelope: committed.envelope,
-    };
-  }
-  const signal = buildPeerTrustSignal(loaded.envelope);
+  const loaded = await loadOrEnroll(input.rememberedFingerprint);
+  if (!loaded) return { ok: false, reason: "ark-unavailable" };
+  const ark = await ensurePeerArkSigningKey();
+  if (!ark) return { ok: false, reason: "ark-unavailable" };
+  const ownerDtls =
+    input.ownerDtls && isDtlsFingerprint(input.ownerDtls)
+      ? input.ownerDtls
+      : ABSENT_DTLS;
+  const signal = await signedPeerTrustSignal(
+    ark.privateKey,
+    loaded.envelope,
+    ownerDtls,
+  );
   if (!signal) return { ok: false, reason: "missing-enrollment" };
+  const saved = await saveOwnerCommitment({
+    ownerKey: loaded.record.spkiFingerprint,
+    ownerNonce: signal.ownerNonce,
+    ownerDtls: signal.ownerDtls,
+    ownerSpkiB64: loaded.envelope.spkiB64,
+    enrollmentEpoch: loaded.record.enrollmentEpoch,
+  }).catch(() => false);
+  if (!saved) return { ok: false, reason: "ark-unavailable" };
   return {
     ok: true,
     signal: encodePeerTrustSignal(signal),
@@ -88,7 +102,7 @@ export async function gateLivePeerTrustSignal(
 
 export type PeerJoinApproval = Readonly<{
   queue: PeerApprovalQueue;
-  /** Raise at most one pending peer join approval; clears all when ambiguous. */
+  /** Queue peer-join approvals. One is approved at a time; none are dropped. */
   requestJoinApproval: (
     peerSessionId: string,
     reference?: string,
@@ -101,7 +115,7 @@ export type PeerJoinApproval = Readonly<{
 }>;
 
 export function createLivePeerJoinApproval(): PeerJoinApproval {
-  const queue = new PeerApprovalQueue();
+  const queue = new PeerApprovalQueue(Date.now, "queue");
   return {
     queue,
     requestJoinApproval: (peerSessionId, reference) =>
@@ -115,5 +129,21 @@ export function createLivePeerJoinApproval(): PeerJoinApproval {
       }
       return humanProofKindAllowsVerb(proofKind, verb);
     },
+  };
+}
+
+async function loadOrEnroll(
+  rememberedFingerprint: string | undefined,
+): Promise<Extract<PeerTrustLoadResult, { ok: true }> | null> {
+  const loaded = await loadPeerTrustStore();
+  if (loaded.ok) return loaded;
+  if (loaded.reason !== "missing") return null;
+  const committed = await commitPeerTrustEnrollment(rememberedFingerprint);
+  if (!committed.ok) return null;
+  return {
+    ok: true,
+    record: committed.record,
+    sas: committed.sas,
+    envelope: committed.envelope,
   };
 }

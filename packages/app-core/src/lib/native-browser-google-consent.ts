@@ -16,7 +16,10 @@ import {
   type NativeConnectorRecord,
   updateNativeConnector,
 } from "./native-connector-store.js";
-import { nativeProviderTransport } from "./native-connector-transport.js";
+import {
+  type NativeProviderTransport,
+  nativeProviderTransport,
+} from "./native-connector-transport.js";
 import {
   nativeOAuthBrowserPort,
   nativeOAuthRedirectUri,
@@ -62,7 +65,9 @@ function googlePending(
 export async function beginNativeGoogleAuthorization(
   id: string,
   actor = "user",
+  original: NativeProviderTransport = nativeProviderTransport(),
 ): Promise<void> {
+  original.assertCurrent();
   const record = requireNativeOAuthRecord(id);
   const clientId = record.configuration.clientId;
   const request = nativeOAuthBrowserPort().googleToken;
@@ -75,9 +80,7 @@ export async function beginNativeGoogleAuthorization(
     throw new NativeOAuthError("provider");
   if (record.privateState.recovery.length)
     throw new NativeOAuthError("cleanup");
-  const transport = captureNativeAuthorizationTransport(
-    nativeProviderTransport(),
-  );
+  const transport = captureNativeAuthorizationTransport(original);
   const pending = googlePending(record, actor, clientId);
   const intent = nativeOAuthObligation(pending, record.runtime.identity?.id);
   await updateNativeConnector(

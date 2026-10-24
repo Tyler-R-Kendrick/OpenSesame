@@ -99,7 +99,7 @@ describe("the owner's view of a session", () => {
     const code = await late.start();
     late.leave();
     const paste = within(render(<RequestPaste host={host} />).container);
-    const field = paste.getByLabelText("A request code");
+    const field = paste.getByLabelText("Paste a join request");
     fireEvent.change(field, { target: { value: code } });
     fireEvent.click(paste.getByRole("button", { name: "Read the request" }));
     await paste.findByRole("img", { name: "The session is locked" });

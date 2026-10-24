@@ -1,13 +1,12 @@
 /**
  * The steps verify:live-join walks (ADR 0150), as a person takes them: the
- * owner enters, keeps a login, switches Live sessions on, names routes in
- * Settings › Live sessions › Routes and starts a session; a joiner opens the
+ * owner seals a vault with a PIN, keeps a login, switches Live sessions on,
+ * names routes in Share › Advanced and starts a session; a joiner opens the
  * link, keeps or declines the routes it names, and asks.
  */
 
-import { doorGuest } from "./front-door.mjs";
 import { SHARED_ITEM } from "./live-item-labels.mjs";
-import { addCapabilities, openSettingsCategory } from "./pages-journey.mjs";
+import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
@@ -84,8 +83,10 @@ export async function copyFrom(page, key) {
 }
 
 export async function ownerEnters(page, { origin, base, secret }) {
+  // Seed real wall time before the PIN ceremony advances Playwright timers.
+  await page.clock.install({ time: new Date() });
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await doorGuest(page).click();
+  await sealWithPin(page);
   const create = page.getByRole("link", { name: "New item", exact: true });
   await create.first().waitFor({ timeout: 20_000 });
   await create.first().click();
@@ -104,16 +105,31 @@ export async function ownerEnters(page, { origin, base, secret }) {
 }
 
 export async function openLive(page) {
-  // The tab is the capability's: it exists once its module has activated.
-  // Until then the only "Live sessions" on the page is its Features tile.
-  const tab = page.getByRole("link", { name: "Live sessions", exact: true });
-  await tab.first().waitFor({ timeout: 20_000 });
-  await openSettingsCategory(page, "Live sessions");
-  await page.locator("#live-routes").waitFor({ timeout: 20_000 });
-  return {
-    session: page.locator("#live-session"),
-    routes: page.locator("#live-routes"),
-  };
+  const session = page.getByRole("dialog", {
+    name: "Share personal",
+    exact: true,
+  });
+  if (!(await session.isVisible())) {
+    const key = page
+      .getByRole("button", {
+        name: /^(Share this vault|Sharing — live session)$/,
+      })
+      .locator("visible=true");
+    await key.waitFor({ timeout: 20_000 });
+    await key.click();
+  }
+  await session.waitFor({ timeout: 20_000 });
+  const advanced = session.locator("details.live-advanced");
+  if ((await advanced.getAttribute("open")) === null)
+    await advanced.getByText("Advanced", { exact: true }).click();
+  const back = session.getByRole("button", {
+    name: "Back to routes",
+    exact: true,
+  });
+  if (await back.isVisible()) await back.click();
+  const routes = session.locator("#live-routes");
+  await routes.waitFor({ timeout: 20_000 });
+  return { session, routes };
 }
 
 /** Clear Routes, then add what `wanted` names, through the Form. */
@@ -178,11 +194,19 @@ export async function startSession(
 ) {
   const { session } = await openLive(page);
   await session.getByLabel("Session name").fill("Team");
-  await session.getByRole("checkbox", { name: "GitHub" }).check();
+  await session.getByLabel("Share", { exact: true }).selectOption("items");
+  await session
+    .getByRole("checkbox", {
+      name: `${SHARED_ITEM.name} · personal`,
+      exact: true,
+    })
+    .check();
   await session.getByLabel("Values").selectOption(policy);
   await session.getByLabel("Who gets in").selectOption(admission);
-  await session.getByRole("button", { name: "Start the live session" }).click();
-  await session.getByRole("img", { name: "Live" }).waitFor();
+  await session
+    .getByRole("button", { name: "Share this vault", exact: true })
+    .click({ timeout: 20_000 });
+  await session.getByRole("img", { name: "Live", exact: true }).waitFor();
   const code =
     admission === "invite"
       ? (await session.locator(".live-code").innerText()).trim()
@@ -203,9 +227,13 @@ export async function endSession(panel) {
 
 /**
  * The joiner opens the link and asks. `routes` keeps (true) or declines
- * (false) the servers the link names; null when it names none.
+ * (false) the servers the link names; null when it names none. `peerTrust`,
+ * when set, is pasted into Peer trust signal before the ask.
  */
-export async function joinerAsks(page, { link, code, name, routes = null }) {
+export async function joinerAsks(
+  page,
+  { link, code, name, routes = null, peerTrust = "" },
+) {
   await page.goto(link, { waitUntil: "networkidle" });
   await page
     .getByRole("heading", { level: 1, name: "Join a session" })
@@ -215,6 +243,26 @@ export async function joinerAsks(page, { link, code, name, routes = null }) {
   await page.getByLabel("Your name").waitFor({ timeout: 20_000 });
   if (code) await page.getByLabel("Code").fill(code.toLowerCase());
   await page.getByLabel("Your name").fill(name);
+  const pin = page.getByLabel("Your vault PIN", { exact: true });
+  if (await pin.isVisible()) {
+    await pin.fill(PIN);
+    await page.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
+    await page
+      .getByLabel("I understand this vault cannot be recovered.", {
+        exact: true,
+      })
+      .check();
+  }
+  if (peerTrust || routes !== null) {
+    const advanced = page.locator("details.live-advanced").filter({
+      has: page.getByLabel("Peer trust signal", { exact: true }),
+    });
+    if ((await advanced.getAttribute("open")) === null)
+      await advanced.locator("summary").click();
+  }
+  if (peerTrust) {
+    await page.getByLabel("Peer trust signal", { exact: true }).fill(peerTrust);
+  }
   const choice = page.getByRole("checkbox", { name: /^Through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
@@ -223,9 +271,39 @@ export async function joinerAsks(page, { link, code, name, routes = null }) {
   return copyFrom(page, copy);
 }
 
+const SAS_TEXT = /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/;
+
+function escapeName(name) {
+  return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * The owner pastes a request by hand and lets the person in (an open
- * session lets them in by itself: `admit: false`); the reply code.
+ * The admit control for `name`: the SAS compare when the request carries a
+ * peer block, otherwise the legacy let-in key.
+ */
+export function admitControl(root, name) {
+  const escaped = escapeName(name);
+  return root.getByRole("button", {
+    name: new RegExp(`^(Yes, they match for ${escaped}|Let ${escaped} in)$`),
+  });
+}
+
+async function confirmSessionSas(panel) {
+  // The owner's fingerprint is also `.live-sas`. The session string is the
+  // one on the guest row, which is what the joiner is showing.
+  const text = (
+    await panel.locator(".vault-row .live-sas").first().innerText()
+  ).trim();
+  if (!SAS_TEXT.test(text)) {
+    throw new Error(`session SAS is not readable: ${text}`);
+  }
+}
+
+/**
+ * The owner pastes a request by hand and lets the person in. An open session
+ * still auto-admits a request with no peer block (`admit: false`). A request
+ * that shows a session SAS waits for "Yes, they match" either way. The reply
+ * code.
  */
 export async function ownerAdmitsByHand(
   page,
@@ -236,11 +314,28 @@ export async function ownerAdmitsByHand(
 ) {
   await panel.getByLabel("A request code", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
-  if (admit)
-    await panel.getByRole("button", { name: `Let ${name} in` }).click();
+  const match = panel.getByRole("button", {
+    name: `Yes, they match for ${name}`,
+  });
+  const letIn = panel.getByRole("button", { name: `Let ${name} in` });
   const copy = panel.getByRole("button", {
     name: `Copy the reply code for ${name}`,
   });
+  if (admit) {
+    await match.or(letIn).first().waitFor({ timeout: 20_000 });
+    if (await match.isVisible()) {
+      await confirmSessionSas(panel);
+      await match.click();
+    } else {
+      await letIn.click();
+    }
+  } else {
+    await match.or(copy).first().waitFor({ timeout: 20_000 });
+    if (await match.isVisible()) {
+      await confirmSessionSas(panel);
+      await match.click();
+    }
+  }
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }

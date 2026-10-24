@@ -39,6 +39,13 @@ async function completionTransport(
     throw error;
   }
 }
+async function cleanupCurrentVault(
+  connectionId: string,
+  transport: NativeProviderTransport,
+) {
+  transport.assertCurrent();
+  return retryNativeConnectorCleanup(connectionId);
+}
 export async function completeNativeVaultOidc(
   connectionId: string,
   callback: { state: string; code: string },
@@ -116,7 +123,7 @@ export async function completeNativeVaultOidc(
       authTransport,
     );
     return saved.recovery.length
-      ? retryNativeConnectorCleanup(connectionId)
+      ? cleanupCurrentVault(connectionId, authTransport)
       : saved;
   } catch (error) {
     if (!minted) {
@@ -127,7 +134,9 @@ export async function completeNativeVaultOidc(
       );
     }
     finish();
-    await retryNativeConnectorCleanup(connectionId).catch(() => undefined);
+    await cleanupCurrentVault(connectionId, authTransport).catch(
+      () => undefined,
+    );
     throw error;
   } finally {
     finish();

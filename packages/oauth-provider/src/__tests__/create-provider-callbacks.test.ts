@@ -2,6 +2,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { ReservedClaimError } from "../claims/project-account-claims.js";
+import { MemoryClientRecordStore } from "../clients/store.js";
 import {
   type OpenSesameProviderBundle,
   createOpenSesameProvider,
@@ -62,6 +63,65 @@ describe("provider resource indicator callbacks", () => {
     expect(infoFallback.audience).toBe(ISSUER);
     await expect(
       resourceIndicators(fallback).getResourceServerInfo({}, API, {}),
+    ).rejects.toMatchObject({ error: "invalid_target" });
+  });
+
+  it("enforces a client's own allowedResources inside the deployment allowlist", async () => {
+    const clientStore = new MemoryClientRecordStore();
+    await clientStore.insertAtomic({
+      id: "resource-client",
+      admissionMode: "pre_registered",
+      displayName: "Resource client",
+      redirectUris: ["https://client.example/callback"],
+      sectorIdentifier: "https://client.example",
+      grantTypes: ["authorization_code"],
+      responseTypes: ["code"],
+      tokenEndpointAuthMethod: "none",
+      allowedScopes: ["openid"],
+      allowedResources: [API],
+      state: "active",
+    });
+    const bundle = createOpenSesameProvider({
+      issuer: ISSUER,
+      processEnv: {},
+      clientStore,
+      env: { allowedResources: [API, "https://other.example.test"] },
+    });
+    const ri = resourceIndicators(bundle);
+    await expect(
+      ri.getResourceServerInfo({}, "https://other.example.test", {
+        clientId: "resource-client",
+      }),
+    ).rejects.toMatchObject({ error: "invalid_target" });
+    await expect(
+      ri.getResourceServerInfo({}, API, { clientId: "resource-client" }),
+    ).resolves.toMatchObject({ audience: API });
+  });
+
+  it("refuses a client with no resource grant even when the deployment allows it", async () => {
+    const clientStore = new MemoryClientRecordStore();
+    await clientStore.insertAtomic({
+      id: "issuer-only-client",
+      admissionMode: "pre_registered",
+      displayName: "Issuer only",
+      redirectUris: ["https://client.example/callback"],
+      sectorIdentifier: "https://client.example",
+      grantTypes: ["authorization_code"],
+      responseTypes: ["code"],
+      tokenEndpointAuthMethod: "none",
+      allowedScopes: ["openid"],
+      allowedResources: [],
+      state: "active",
+    });
+    const bundle = createOpenSesameProvider({
+      issuer: ISSUER,
+      processEnv: {},
+      clientStore,
+      env: { allowedResources: [API] },
+    });
+    const ri = resourceIndicators(bundle);
+    await expect(
+      ri.getResourceServerInfo({}, API, { clientId: "issuer-only-client" }),
     ).rejects.toMatchObject({ error: "invalid_target" });
   });
 

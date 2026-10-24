@@ -1,3 +1,5 @@
+import { accessIdentitySharePath } from "@opensesame/app-core/lib/access-routes.js";
+import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
 import { shareText } from "@opensesame/app-core/sections/vault-share-text.js";
 import type { VaultItem } from "@opensesame/vault-core";
 import {
@@ -7,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useLocation, useNavigate } from "react-router";
 import type { ItemTools } from "./ItemTools.js";
 import { SecretShares, useCanShare } from "./item-contributions.js";
 
@@ -31,13 +34,19 @@ export function useItemShare(
   const opensShare = () => new URLSearchParams(search).get("share") === "drop";
   const [open, setOpen] = useState(opensShare);
   const key = useRef<HTMLButtonElement | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const canGrant = isCommandSection("/access");
   const sharing = useCanShare();
   const itemId = item?.id;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the item is the trigger — a ceremony left open must not follow a move to another item
+  // The item and its search are the trigger: the row menu navigates the open
+  // item to `?share=drop`, which does not remount it. A ceremony left open
+  // must not follow a move to another item.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: search carries the one-shot request
   useEffect(() => {
-    setOpen(opensShare());
-  }, [itemId]);
+    if (opensShare()) setOpen(true);
+  }, [itemId, search]);
 
   const canShare =
     item !== undefined &&
@@ -47,7 +56,22 @@ export function useItemShare(
     shareText(item) !== null;
   if (!canShare) return { tool: undefined, ceremony: null };
   return {
-    tool: { open, onToggle: () => setOpen((on) => !on), keyRef: key },
+    tool: {
+      open,
+      onOpen: () => setOpen(true),
+      onGrant: canGrant
+        ? () => navigate(accessIdentitySharePath(item.id))
+        : undefined,
+      onShare:
+        typeof navigator.share === "function"
+          ? () => {
+              void navigator
+                .share({ title: item.name, text: item.name })
+                .catch(() => undefined);
+            }
+          : undefined,
+      keyRef: key,
+    },
     ceremony: (
       <SecretShares
         item={item}
@@ -55,6 +79,18 @@ export function useItemShare(
         onClose={() => {
           setOpen(false);
           key.current?.focus();
+          const params = new URLSearchParams(location.search);
+          if (params.get("share") === "drop") {
+            params.delete("share");
+            const search = params.toString();
+            navigate(
+              {
+                pathname: location.pathname,
+                search: search ? `?${search}` : "",
+              },
+              { replace: true },
+            );
+          }
         }}
       />
     ),

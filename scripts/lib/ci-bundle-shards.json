@@ -48,6 +48,6 @@
     "shard": "native-public-protocol"
   },
   {
-    "shard": "trusted-contacts"
+    "shard": "native-secret-backends"
   }
 ]

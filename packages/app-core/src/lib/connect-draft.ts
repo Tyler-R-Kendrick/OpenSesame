@@ -308,12 +308,18 @@ export function connectSubjectId(
   principalId: string | null | undefined,
   tomb: string | null | undefined,
   store: WebStorage | undefined = maybeLocalStore(),
+  vaultInstance?: string | null,
 ): string | null {
   const id = principalId?.trim();
   if (id && /^[A-Za-z0-9_.:@-]{1,128}$/.test(id)) return id;
   const vault = tomb?.trim();
   if (!vault || !store) return null;
-  const key = `${SUBJECT_PREFIX}${vault}`;
+  const instance = vaultInstance?.trim();
+  // A vault name is mutable and shared across devices. Without the durable
+  // instance id (header vaultId/createdAt) a recreated same-named vault could
+  // inherit the previous vault's token subject, so refuse rather than guess.
+  if (!instance) return null;
+  const key = `${SUBJECT_PREFIX}${vault}.${instance}`;
   try {
     const kept = store.getItem(key);
     if (kept && LOCAL_SUBJECT.test(kept)) return kept;

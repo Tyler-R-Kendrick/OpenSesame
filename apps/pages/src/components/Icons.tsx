@@ -186,6 +186,18 @@ export function IconUser(props: IconProps) {
   );
 }
 
+/** More than one person: a record shared with people or agents. */
+export function IconPeople(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="9" cy="7.5" r="3.2" />
+      <path d="M2.8 19.2c.9-3.2 3-4.9 6.2-4.9s5.3 1.7 6.2 4.9" />
+      <path d="M15.8 4.8a3.2 3.2 0 0 1 0 5.4" />
+      <path d="M17.1 14.5c2.1.4 3.5 1.9 4.1 4.3" />
+    </Svg>
+  );
+}
+
 export function IconPasskey(props: IconProps) {
   return (
     <Svg {...props}>
@@ -306,6 +318,16 @@ export function IconAddSquare(props: IconProps) {
 }
 
 export type { IconName };
+
+/** Power glyph for an explicit "turn off", never painted as a word. */
+export function IconPower(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3v8" />
+      <path d="M7.2 6.4a7 7 0 1 0 9.6 0" />
+    </Svg>
+  );
+}
 
 /**
  * Icons by the string key a capability module names in its contributions

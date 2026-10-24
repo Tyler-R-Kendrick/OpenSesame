@@ -3,7 +3,7 @@
  *
  * Split out of `classification-lib.ts` for the 400-line module budget.
  */
-import { core, each, optional } from "./classification-rule.js";
+import { core, each, optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
 const CONNECTORS = "connectors.external";
@@ -24,6 +24,20 @@ const CONNECTOR_FILES = [
 ];
 
 export const CONNECTOR_LIB_RULES = [
+  optional(
+    `${L}test/native-s3-backup-fixtures.ts`,
+    CONNECTORS,
+    "test-only TLS fixture for native S3 encrypted vault backup",
+  ),
+  optional(
+    `${L}test/native-azure-secrets-backup-fixture.ts`,
+    CONNECTORS,
+    "test-only Azure Key Vault fixture for native encrypted vault backup",
+  ),
+  shared(
+    `${L}secret-backends/onepassword-artifacts.json`,
+    "pinned public SDK asset metadata shared by ownership and the native worker",
+  ),
   core(
     `${L}secret-backends/seam.ts`,
     null,

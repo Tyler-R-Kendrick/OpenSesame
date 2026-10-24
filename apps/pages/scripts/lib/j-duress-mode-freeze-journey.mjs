@@ -68,7 +68,10 @@ async function reloadToUnlock(page) {
 async function arm({ page, check, snap }) {
   await openSettingsCategory(page, "Security");
   await page.locator("#duress-profiles").waitFor({ timeout: 15000 });
-  await page.getByRole("button", { name: "Add" }).last().click();
+  await page
+    .locator("#duress-profiles")
+    .getByRole("button", { name: "Add", exact: true })
+    .click();
   const fields = page.locator("[role=dialog] input[type=password]");
   await fields.nth(0).fill(CODE);
   await fields.nth(1).fill(CODE);

@@ -9,7 +9,7 @@
  * the definitions are then queued behind them (one at a time, the main thread
  * handed back between each, told in the bell tray) from their own chunks of
  * this same origin — no other egress. A person who wants some of them, not
- * all, switches those in Settings › Vaults › Item types, which needs no
+ * all, switches those in Settings › Item types, which needs no
  * capability.
  */
 

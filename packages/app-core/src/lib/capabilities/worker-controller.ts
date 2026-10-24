@@ -44,9 +44,13 @@ import { retirePushSubscriptionId } from "../web-push-ledger.js";
 import { activeScript, becomesActive } from "./worker/activation.js";
 import {
   askWorker,
+  forceSessionReload,
+  noteShellLoaded,
   onControllerChange,
   onWorkerMessage,
+  reloadForStaleAsset,
   syncPlan,
+  updateIsOwed,
 } from "./worker/plan-sync.js";
 import {
   freshScriptUrl,
@@ -84,6 +88,12 @@ import {
 
 export { CORE_ONLY_VARIANT, WORKER_GRAPH_UNAVAILABLE };
 export { workerControllerSeams } from "./worker/seams.js";
+export {
+  forceSessionReload,
+  noteShellLoaded,
+  reloadForStaleAsset,
+  updateIsOwed,
+};
 export {
   resetWorkerController,
   subscribeWorkerStatus,
@@ -193,7 +203,7 @@ async function recoverStuck(
   await transitionWorker();
 }
 
-/** The first registration of this page, and the worker it becomes. */
+/** First registration also applies when response headers already isolate the page. */
 async function ensureRegistered(
   container: ServiceWorkerContainer,
   current: string | null,
@@ -202,7 +212,6 @@ async function ensureRegistered(
 ): Promise<void> {
   if (current) return;
   if (state.registeredThisPage) return;
-  if (workerControllerSeams.crossOriginIsolated()) return;
   const registration = await register(container, requiredUrl);
   if (!registration) return;
   publish({ pendingVariant: requiredId });
@@ -263,9 +272,9 @@ async function reconcile(
 /**
  * Follow the composition store and keep the registered worker in step with
  * the plan. Returns the unsubscribe. With no `serviceWorker` the status says
- * `supported: false` and nothing else happens; on a cross-origin-isolated
- * page nothing new is registered (the worker that isolated it already is),
- * though an existing controller still receives the plan.
+ * `supported: false` and nothing else happens. Response headers can isolate a
+ * fresh page before any worker exists; an existing registration, rather than
+ * isolation alone, determines whether a first registration is needed.
  */
 export function registerWorkerForPlan(
   store: CompositionStoreForWorker,
@@ -282,6 +291,10 @@ export function registerWorkerForPlan(
   // A page that starts under a worker learns which release that is; it is what
   // a later change of controller is compared with (`onControllerChange`).
   state.bootControlled = container.controller != null;
+  state.initialReleaseProof =
+    !state.bootControlled && workerControllerSeams.crossOriginIsolated()
+      ? (options.initialReleaseProof ?? null)
+      : null;
   if (state.bootControlled) askWorker();
   const apply = () => {
     state.latest = store.getSnapshot();

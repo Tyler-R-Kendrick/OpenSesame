@@ -1,8 +1,10 @@
 /** @vitest-environment jsdom */
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
+import { NativeConnectorActions } from "./NativeConnectorActions.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
+import type { SafeActionResult } from "./native-connector-ui.js";
 import {
   nativeUiController,
   nativeUiDescriptor,
@@ -76,11 +78,15 @@ it("retains a selected resource for repeat reads, clears only secret inputs, and
   await userEvent.type(screen.getByLabelText("One-use proof"), "private-once");
   await userEvent.click(screen.getByRole("button", { name: "Read secret" }));
   await screen.findByRole("button", { name: "Reveal Password" });
-  expect(controller.invoke).toHaveBeenCalledWith("provider.secret.read", {
-    mount: "secret",
-    path: "application/database",
-    proof: "private-once",
-  });
+  expect(controller.invoke).toHaveBeenCalledWith(
+    "provider.secret.read",
+    {
+      mount: "secret",
+      path: "application/database",
+      proof: "private-once",
+    },
+    expect.any(AbortSignal),
+  );
   expect(screen.getByLabelText("Secret path")).toHaveProperty(
     "value",
     "application/database",
@@ -96,13 +102,127 @@ it("retains a selected resource for repeat reads, clears only secret inputs, and
   expect(rendered.container.textContent).toContain("ephemeral-secret-value");
   await userEvent.click(screen.getByRole("button", { name: "Read secret" }));
   await screen.findByRole("button", { name: "Reveal Password" });
-  expect(controller.invoke).toHaveBeenLastCalledWith("provider.secret.read", {
-    mount: "secret",
-    path: "application/database",
-    proof: "",
-  });
+  expect(controller.invoke).toHaveBeenLastCalledWith(
+    "provider.secret.read",
+    {
+      mount: "secret",
+      path: "application/database",
+      proof: "",
+    },
+    expect.any(AbortSignal),
+  );
   expect(rendered.container.textContent).not.toContain(
     "ephemeral-secret-value",
   );
   expect(screen.getByRole("button", { name: "Reveal Password" })).toBeTruthy();
+});
+
+it.each([
+  "controller",
+  "disabled",
+  "connection",
+  "revision",
+  "provider",
+  "unmount",
+])(
+  "ends the actual caller on %s and ignores an uncancellable late result",
+  async (replacement) => {
+    const view = nativeUiView();
+    const descriptor = nativeUiDescriptor();
+    const controller = nativeUiController(view);
+    let finish: (value: SafeActionResult) => void = () => {};
+    controller.invoke.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const props = {
+      descriptor,
+      view,
+      controller,
+      disabled: false,
+      onFlash: vi.fn(),
+      onChanged: vi.fn(),
+    };
+    const ui = render(<NativeConnectorActions {...props} />);
+    await userEvent.click(
+      screen.getByText("Read Algolia indexes", { selector: "summary" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Read Algolia indexes" }),
+    );
+    const signal = controller.invoke.mock.calls[0]?.[2];
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal?.aborted).toBe(false);
+    if (replacement === "unmount") ui.unmount();
+    else
+      ui.rerender(
+        <NativeConnectorActions
+          {...props}
+          controller={
+            replacement === "controller" ? nativeUiController(view) : controller
+          }
+          disabled={replacement === "disabled"}
+          descriptor={
+            replacement === "provider"
+              ? { ...descriptor, providerId: "other-provider" }
+              : descriptor
+          }
+          view={{
+            ...view,
+            connectionId:
+              replacement === "connection"
+                ? "another-connection"
+                : view.connectionId,
+            revision:
+              replacement === "revision" ? view.revision + 1 : view.revision,
+            providerId:
+              replacement === "provider" ? "other-provider" : view.providerId,
+          }}
+        />,
+      );
+    expect(signal?.aborted).toBe(true);
+    await act(async () => {
+      finish({
+        label: "Late private result",
+        items: [{ id: "late", label: "Private", secretValue: "late-secret" }],
+      });
+    });
+    expect(props.onFlash).not.toHaveBeenCalled();
+    expect(props.onChanged).not.toHaveBeenCalled();
+    expect(controller.load).not.toHaveBeenCalled();
+    expect(ui.container.textContent).not.toContain("Late private result");
+    expect(ui.container.textContent).not.toContain("late-secret");
+  },
+);
+
+it("reports an active provider error named AbortError rather than hiding it as owner withdrawal", async () => {
+  const view = nativeUiView();
+  const controller = nativeUiController(view);
+  const error = new Error("The provider request failed while still active.");
+  error.name = "AbortError";
+  controller.invoke.mockRejectedValue(error);
+  const onFlash = vi.fn();
+  const onChanged = vi.fn();
+  render(
+    <NativeConnectorActions
+      descriptor={nativeUiDescriptor()}
+      view={view}
+      controller={controller}
+      onFlash={onFlash}
+      onChanged={onChanged}
+    />,
+  );
+  await userEvent.click(
+    screen.getByText("Read Algolia indexes", { selector: "summary" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Read Algolia indexes" }),
+  );
+  expect(onFlash).toHaveBeenCalledExactlyOnceWith({
+    tone: "err",
+    text: error.message,
+  });
+  expect(onChanged).toHaveBeenCalledExactlyOnceWith(view);
 });

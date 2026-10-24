@@ -2,6 +2,7 @@ import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   captureLinkedPairing,
+  hasLinkedPairing,
   subscribeLinkedPairing,
   takeLinkedPairing,
   watchLinkedPairing,
@@ -10,7 +11,11 @@ import {
 function address(hash: string) {
   const replaced: string[] = [];
   return {
-    location: { hash, pathname: "/OpenSesame/settings/vaults", search: "?a=1" },
+    location: {
+      hash,
+      pathname: "/OpenSesame/settings/features/networking",
+      search: "?a=1",
+    },
     history: {
       state: null,
       replaceState: (_state: null, _unused: string, url: string) => {
@@ -27,8 +32,10 @@ describe("pairing link", () => {
       "#pair-drive=opensesame-drive%3Av1%3Aabc",
     );
     captureLinkedPairing(location, history);
-    expect(replaced).toEqual(["/OpenSesame/settings/vaults?a=1"]);
+    expect(replaced).toEqual(["/OpenSesame/settings/features/networking?a=1"]);
+    expect(hasLinkedPairing()).toBe(true);
     expect(takeLinkedPairing()).toBe("opensesame-drive:v1:abc");
+    expect(hasLinkedPairing()).toBe(false);
     expect(takeLinkedPairing()).toBe("");
   });
 
@@ -77,7 +84,7 @@ describe("tailnet pairing link", () => {
       "#pair-tailnet=opensesame-tailnet%3Av1%3Axyz",
     );
     captureLinkedPairing(location, history);
-    expect(replaced).toEqual(["/OpenSesame/settings/vaults?a=1"]);
+    expect(replaced).toEqual(["/OpenSesame/settings/features/networking?a=1"]);
     expect(takeLinkedPairing()).toBe("");
     expect(takeLinkedTailnetPairing()).toBe("opensesame-tailnet:v1:xyz");
     expect(takeLinkedTailnetPairing()).toBe("");

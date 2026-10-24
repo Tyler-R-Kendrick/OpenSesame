@@ -257,7 +257,7 @@ looks arbitrary, the ADR it cites explains it.
 | [0191](0191-forgot-password-ceremony-remote-browser.md) | Forgot-password ceremony: a value-blind reset through a remote browser | Proposed |
 | [0192](0192-model-keys-and-token-exchange.md) | Model providers are a category, and a key for one is issued by exchange, never shared | Accepted |
 | [0193](0193-live-join-walked-in-ci-across-browsers.md) | The live join walk gates merges, across three browsers | Accepted |
-| [0194](0194-vault-environments-values-on-items-schema-generated.md) | Vault environments: values live on the items, the `.env.schema` is generated from them | Accepted |
+| [0194](0194-vault-environments-values-on-items-schema-generated.md) | Vault environments: values live on the items, one `.env.<name>.schema` per environment | Accepted |
 | [0195](0195-vault-ownership-is-transferred-from-the-danger-zone.md) | A vault's owner can hand it to another registered user from the Danger zone | Accepted |
 | [0196](0196-device-authorization-in-live-sessions.md) | Device authorization in live sessions: a terminal uses the connections an open tab holds | Accepted |
 | [0197](0197-browser-dispositions-and-honest-links.md) | A provider with no browser road says why, with evidence, and links what it names | Accepted |
@@ -270,4 +270,9 @@ looks arbitrary, the ADR it cites explains it.
 | [0204](0204-pwa-tailscale-browser-node.md) | Run the official Tailscale browser node in an isolated Worker | Accepted |
 | [0205](0205-secret-delivery-lanes-on-run.md) | Secret delivery lanes on `run` | Accepted |
 | [0206](0206-device-key-trust-d7-2.md) | Device key trust for CLI app integration (D7-2) | Accepted |
-| [0207](0207-aws-sts-mint.md) | The AWS mint: STS AssumeRole for a bound role | Accepted |
+| [0207](0207-release-kit-binaries.md) | A release kit of native binaries, verified by digest | Accepted |
+| [0207](0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md) | Retired credentials and controlled canaries are owner ceremonies | Accepted |
+| [0208](0208-hosting-starts-at-the-share-key.md) | Hosting starts at the Share key, not a Settings page | Accepted |
+| [0209](0209-deadman-switch.md) | A deadman switch is a release envelope with a relay witness | Accepted |
+| [0210](0210-session-share-generator.md) | The share key opens a session generator, not a one-press session | Accepted |
+| [0211](0211-oss-fuzz-and-oss-verify-enrollment.md) | OpenSesame enrolls in OSS-Fuzz and OSS Verify | Accepted |

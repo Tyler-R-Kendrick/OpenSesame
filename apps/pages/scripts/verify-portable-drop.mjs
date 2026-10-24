@@ -91,7 +91,10 @@ await waitOpen(sender.page);
 
 setStep("sender-seal");
 await createSecret(sender.page, NAME, PAYLOAD);
-await sender.page.getByRole("button", { name: "Share once" }).click();
+await sender.page.getByRole("button", { name: "Share", exact: true }).click();
+await sender.page
+  .getByRole("menuitem", { name: "Temporary drop", exact: true })
+  .click();
 await sender.page
   .getByText("Any browser with the link", { exact: true })
   .waitFor({ timeout: 15_000 });

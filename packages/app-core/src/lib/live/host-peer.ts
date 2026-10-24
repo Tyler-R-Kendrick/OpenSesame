@@ -22,6 +22,8 @@ import type { DeviceBroker } from "./device-broker.js";
 import { isDeviceMessage, isDeviceRequest } from "./device-messages.js";
 import type { SeatDevices } from "./device-types.js";
 import { GREETINGS_MAX } from "./greeting.js";
+import type { GuestConnection } from "./host-types.js";
+import { iceStatusLabel } from "./ice-diagnostics.js";
 import {
   type Catalog,
   type ChannelMessage,
@@ -81,6 +83,8 @@ export type HostPeerOptions = Readonly<{
    * that fails does not end it, since the joiner may still arrive there.
    */
   relayed?: boolean;
+  /** ICE progress while the joiner connects after a reply (P8-3). */
+  onConnection?: (connection: GuestConnection | null) => void;
 }>;
 
 /**
@@ -89,6 +93,12 @@ export type HostPeerOptions = Readonly<{
  * who cannot reach the relay either never sends a frame there.
  */
 export const RELAY_GRACE_MS = 60_000;
+
+/** Per-seat request budget: a slow vault read cannot be multiplied without bound. */
+export const MAX_SEAT_REQUESTS = 240;
+export const SEAT_REQUEST_WINDOW_MS = 60_000;
+/** Concurrent reveal/copy/edit/device asks one seat may hold open. */
+export const MAX_SEAT_IN_FLIGHT = 4;
 
 type Request = Extract<ChannelMessage, { t: "reveal" | "copy" }>;
 type EditRequest = Extract<ChannelMessage, { t: "edit" }>;
@@ -102,8 +112,11 @@ export class HostPeer {
   #greetings = 0;
   #joined = false;
   #closed = false;
+  #lastCatalog: string | null = null;
   /** This seat's end of the device broker; only a device seat has one. */
   readonly #devices: SeatDevices | null;
+  #inFlight = 0;
+  #requestTimes: number[] = [];
 
   constructor(private readonly options: HostPeerOptions) {
     this.#devices =
@@ -132,6 +145,12 @@ export class HostPeer {
     }
     this.#peer = peer;
     peer.onFailed(() => this.#peerFailed());
+    peer.onIce?.((view) => {
+      this.options.onConnection?.({
+        phase: view.phase,
+        detail: iceStatusLabel(view),
+      });
+    });
     peer.channel.then(
       (channel) => {
         // The joiner already moved the seat to the relay: the late peer
@@ -146,6 +165,10 @@ export class HostPeer {
 
   /** The peer route failed: the seat ends, unless a relay may still carry it. */
   #peerFailed(): void {
+    this.options.onConnection?.({
+      phase: "failed",
+      detail: "No route to the joiner's browser",
+    });
     if (this.options.relayed !== true) this.#closedByPeer();
   }
 
@@ -199,12 +222,18 @@ export class HostPeer {
   }
 
   #connected(channel: LiveChannel): void {
+    // A new route starts with no catalog sent on it.
+    this.#lastCatalog = null;
     if (this.#closed) {
       channel.close();
       return;
     }
     if (this.#grace) clearTimeout(this.#grace);
     this.#grace = null;
+    this.options.onConnection?.({
+      phase: "connected",
+      detail: "Connected over a direct path",
+    });
     this.#channel = channel;
     channel.onClose(() => {
       if (this.#channel === channel) this.#closedByPeer();
@@ -221,20 +250,38 @@ export class HostPeer {
     if (this.#sendCatalog()) this.#in();
   }
 
+  /** The catalog this seat may see. Devices see no item (ADR 0196). */
+  #catalog(): Catalog {
+    return this.options.kind === "device"
+      ? { ...this.options.catalog(), policy: "use" as const, items: [] }
+      : this.options.catalog();
+  }
+
   /**
    * Send the catalog. A guest it cannot be sent to is not in the session:
    * say so by ending it, not by counting them joined.
    */
   #sendCatalog(): boolean {
-    // A device is shown no item of the owner's vault: it is here for the
-    // connections, and the catalog it greets for is empty (ADR 0196).
-    const catalog =
-      this.options.kind === "device"
-        ? { ...this.options.catalog(), policy: "use" as const, items: [] }
-        : this.options.catalog();
-    if (this.#channel?.send({ t: "catalog", catalog })) return true;
+    const catalog = this.#catalog();
+    if (this.#channel?.send({ t: "catalog", catalog })) {
+      this.#lastCatalog = JSON.stringify(catalog);
+      return true;
+    }
     this.#closedByPeer();
     return false;
+  }
+
+  /** Push a changed catalog to an already-joined guest. */
+  refreshCatalog(): void {
+    if (!this.#channel) return;
+    const catalog = this.#catalog();
+    const fingerprint = JSON.stringify(catalog);
+    if (fingerprint === this.#lastCatalog) return;
+    if (this.#channel.send({ t: "catalog", catalog })) {
+      this.#lastCatalog = fingerprint;
+      return;
+    }
+    this.#closedByPeer();
   }
 
   #in(): void {
@@ -254,28 +301,64 @@ export class HostPeer {
       this.#greeted();
       return;
     }
-    if (isDeviceMessage(message)) {
-      await this.#device(message);
+    if (!this.#admitRequest()) {
+      if (isDeviceMessage(message)) {
+        this.#channel?.send({
+          t: "dev.error",
+          req: message.req,
+          error: "temporarily_unavailable",
+        });
+      } else if (
+        message.t === "reveal" ||
+        message.t === "copy" ||
+        message.t === "edit"
+      ) {
+        this.#channel?.send({ t: "denied", req: message.req });
+      }
       return;
     }
-    if (message.t === "edit") {
-      await this.#save(message);
-      return;
+    this.#inFlight += 1;
+    try {
+      if (isDeviceMessage(message)) {
+        await this.#device(message);
+        return;
+      }
+      if (message.t === "edit") {
+        await this.#save(message);
+        return;
+      }
+      if (message.t !== "reveal" && message.t !== "copy") return;
+      const value = await this.#answerFor(message);
+      this.options.onLog({
+        at: this.options.now(),
+        guest: this.options.guest,
+        what: value === null ? "denied" : message.t,
+        item: message.item,
+        field: message.field,
+      });
+      this.#channel?.send(
+        value === null
+          ? { t: "denied", req: message.req }
+          : { t: "value", req: message.req, value },
+      );
+    } finally {
+      this.#inFlight -= 1;
     }
-    if (message.t !== "reveal" && message.t !== "copy") return;
-    const value = await this.#answerFor(message);
-    this.options.onLog({
-      at: this.options.now(),
-      guest: this.options.guest,
-      what: value === null ? "denied" : message.t,
-      item: message.item,
-      field: message.field,
-    });
-    this.#channel?.send(
-      value === null
-        ? { t: "denied", req: message.req }
-        : { t: "value", req: message.req, value },
+  }
+
+  /** A bounded, per-seat window checked before any vault work starts. */
+  #admitRequest(): boolean {
+    const now = this.options.now();
+    this.#requestTimes = this.#requestTimes.filter(
+      (at) => now - at < SEAT_REQUEST_WINDOW_MS,
     );
+    if (
+      this.#requestTimes.length >= MAX_SEAT_REQUESTS ||
+      this.#inFlight >= MAX_SEAT_IN_FLIGHT
+    )
+      return false;
+    this.#requestTimes.push(now);
+    return true;
   }
 
   /** A device's ask goes to the broker; from anyone else it is refused. */

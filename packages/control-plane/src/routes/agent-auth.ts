@@ -47,8 +47,13 @@ agentAuthRoutes.post("/agent/identity", async (c) => {
   const headers: Parameters<typeof registerAnonymous>[1] = {};
   const userAgent = c.req.header("user-agent");
   const origin = c.req.header("origin");
+  const env = c.env as
+    | { incoming?: { socket?: { remoteAddress?: string } } }
+    | undefined;
   if (userAgent) headers.userAgent = userAgent;
   if (origin) headers.origin = origin;
+  const remoteAddress = env?.incoming?.socket?.remoteAddress;
+  if (remoteAddress) headers.remoteAddress = remoteAddress;
   try {
     if (parsed.data.type === "anonymous") {
       const result = await registerAnonymous(ctx, headers, correlationId);

@@ -87,28 +87,17 @@ if [[ ${#present_crates[@]} -gt 0 ]]; then
 fi
 
 # ---- 3. TypeScript ----------------------------------------------------------
-# Every workspace package exports its TypeScript source, so a TypeScript step
-# resolves it in a checkout that has only been installed. Two packages once
-# exported `dist/` instead, and every suite reaching them failed on a clean
-# runner with "Failed to resolve entry for package"; this step keeps that from
-# coming back rather than building around it.
+# Source-suite dependencies must resolve immediately after install. The standalone
+# Client CLI deliberately ships emitted JS, has no source-suite consumers, and
+# receives its own mandatory installed-entry proof instead of a source exemption.
 step --id ts-src-entries --claim OPS-RUNNERS --runner marker --required true --timeout 120 \
   --profile unit --target "package.json exports" \
-  --expected "no workspace package under packages/ exports an entry through dist/" -- \
-  node -e '
-    const fs = require("node:fs");
-    const dirs = fs.readdirSync("packages", { withFileTypes: true }).filter((d) => d.isDirectory());
-    const bad = [];
-    let checked = 0;
-    for (const d of dirs) {
-      const file = `packages/${d.name}/package.json`;
-      if (!fs.existsSync(file)) continue;
-      checked += 1;
-      if (/"\.\/dist\//.test(JSON.stringify(JSON.parse(fs.readFileSync(file, "utf8")).exports ?? {}))) bad.push(d.name);
-    }
-    if (bad.length > 0) { console.error(`exports through dist/: ${bad.join(", ")}`); console.log(`MTLS_TESTS passed=${checked - bad.length} failed=${bad.length}`); process.exit(1); }
-    console.log(`MTLS_TESTS passed=${checked} failed=0`);
-  '
+  --expected "source-suite dependencies export source; standalone CLI delivery contract is explicit" -- \
+  bash -c 'node --test scripts/mtls/mtls-source-entries.test.mjs && node scripts/mtls/mtls-source-entries.mjs'
+step --id ts-cli-installed-entry --claim OPS-RUNNERS --runner marker --required true --timeout 900 \
+  --profile unit --target "installed Client CLI" --paths packages/cli/scripts/test-installed.mjs \
+  --expected "emitted Client CLI runs outside the workspace without a development loader" -- \
+  bash -c 'pnpm --filter @opensesame/cli test:installed && echo "MTLS_TESTS passed=1 failed=0"'
 
 ts_step() { # id required-default path-that-must-exist command...
   local id="$1" req="$2" need="$3"; shift 3

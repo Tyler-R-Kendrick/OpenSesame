@@ -1,4 +1,9 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 import type {
   AuthenticationApplication,
   AuthenticationConfiguration,
@@ -112,15 +117,45 @@ function normalizeAlias(alias: string): string {
   return alias.trim().normalize("NFKC").toLocaleLowerCase("en-US");
 }
 
-function storedAlias(alias: string, hash: boolean): string {
+/** The pre-pepper representation, retained only so old rows still resolve. */
+function legacyStoredAlias(alias: string): string {
+  return `sha256:${createHash("sha256").update(normalizeAlias(alias)).digest("hex")}`;
+}
+
+/**
+ * Aliases are low-entropy identifiers. Store a keyed digest under the
+ * deployment pepper, bound to the application so the same address in two
+ * applications does not correlate. Without a pepper (tests, development) the
+ * legacy digest is used; a configured service always gets the keyed form.
+ */
+function keyedStoredAlias(
+  applicationId: string,
+  alias: string,
+  pepper: string | undefined,
+): string {
   const normalized = normalizeAlias(alias);
+  if (pepper === undefined || pepper === "") return legacyStoredAlias(alias);
+  return `hmac-sha256:v1:${createHmac("sha256", pepper)
+    .update(
+      `opensesame:authentication-alias:v1\0${applicationId}\0${normalized}`,
+    )
+    .digest("hex")}`;
+}
+
+function storedAlias(
+  applicationId: string,
+  alias: string,
+  hash: boolean,
+  pepper: string | undefined,
+): string {
   return hash
-    ? `sha256:${createHash("sha256").update(normalized).digest("hex")}`
-    : `plain:${normalized}`;
+    ? keyedStoredAlias(applicationId, alias, pepper)
+    : `plain:${normalizeAlias(alias)}`;
 }
 
 export function visibleAuthenticationAlias(alias: string): string | undefined {
-  if (alias.startsWith("sha256:")) return undefined;
+  if (alias.startsWith("sha256:") || alias.startsWith("hmac-sha256:"))
+    return undefined;
   return alias.startsWith("plain:") ? alias.slice(6) : alias;
 }
 
@@ -146,10 +181,17 @@ function userHandle(userId: string): string {
   return createHash("sha256").update(userId).digest("base64url");
 }
 
+export type AuthenticationServiceOptions = {
+  /** Deployment secret keying alias digests. Required for durable stores. */
+  aliasPepper?: string;
+};
+
 export function createAuthenticationService(
   stores: AuthenticationServiceStores,
   clock: () => Date = () => new Date(),
+  options: AuthenticationServiceOptions = {},
 ) {
+  const aliasPepper = options.aliasPepper;
   async function activeApplication(
     id: string,
   ): Promise<AuthenticationApplication> {
@@ -206,7 +248,14 @@ export function createAuthenticationService(
           aliases: [
             ...new Set(
               (input.aliases ?? [])
-                .map((alias) => storedAlias(alias, input.aliasHashing ?? true))
+                .map((alias) =>
+                  storedAlias(
+                    input.applicationId,
+                    alias,
+                    input.aliasHashing ?? true,
+                    aliasPepper,
+                  ),
+                )
                 .filter(Boolean),
             ),
           ],
@@ -373,43 +422,46 @@ export function createAuthenticationService(
       );
       let user: AuthenticationUser | undefined;
       if (input.mode === "alias") {
-        user = input.alias
-          ? ((await stores.users.findByAlias(
-              application.id,
-              storedAlias(input.alias, true),
-            )) ??
-            (await stores.users.findByAlias(
-              application.id,
-              storedAlias(input.alias, false),
-            )) ??
-            (await stores.users.findByAlias(
-              application.id,
-              normalizeAlias(input.alias),
-            )))
-          : undefined;
+        if (input.alias) {
+          // Perform every representation's lookup, even after a hit, so a
+          // keyed alias and an unknown one cost the same number of reads.
+          const keyed =
+            aliasPepper === undefined || aliasPepper === ""
+              ? undefined
+              : await stores.users.findByAlias(
+                  application.id,
+                  keyedStoredAlias(application.id, input.alias, aliasPepper),
+                );
+          const legacy = await stores.users.findByAlias(
+            application.id,
+            legacyStoredAlias(input.alias),
+          );
+          const plain = await stores.users.findByAlias(
+            application.id,
+            storedAlias(application.id, input.alias, false, aliasPepper),
+          );
+          const raw = await stores.users.findByAlias(
+            application.id,
+            normalizeAlias(input.alias),
+          );
+          user = keyed ?? legacy ?? plain ?? raw;
+        }
       } else if (input.mode === "user_id") {
         user = input.userId
           ? await stores.users.get(application.id, input.userId)
           : undefined;
       }
-      if ((input.mode === "alias" || input.mode === "user_id") && !user) {
-        throw new AuthenticationServiceError("unknown_credential");
-      }
+      // Do not reveal whether an alias or user id exists. An unknown
+      // credential gets the same option shape as a known one: a challenge
+      // with no allowCredentials list, which would otherwise disclose the
+      // target's credential ids to any unauthenticated caller. Verification
+      // still binds whatever authenticates to that credential's own user.
       const credentials = user
         ? await stores.credentials.listByUser(application.id, user.userId)
         : [];
-      if (user && credentials.length === 0) {
-        throw new AuthenticationServiceError("unknown_credential");
-      }
+      const knownUser = user && credentials.length > 0 ? user : undefined;
       const options = await generatePasskeyAuthenticationOptions({
         rp: { rpID: application.rpId, origin: input.origin },
-        ...(user
-          ? {
-              allowCredentialIds: credentials.map(
-                (credential) => credential.credentialId,
-              ),
-            }
-          : undefined),
         userVerification: authConfiguration.userVerification,
         hints: authConfiguration.hints,
       });
@@ -423,7 +475,7 @@ export function createAuthenticationService(
           requireUserVerification:
             authConfiguration.userVerification === "required",
           origin: input.origin,
-          ...(user ? { userId: user.userId } : undefined),
+          ...(knownUser ? { userId: knownUser.userId } : undefined),
           expiresAt: new Date(now.getTime() + CHALLENGE_TTL_MS),
         },
         now,
@@ -563,7 +615,12 @@ export function createAuthenticationService(
       const aliases = [
         ...new Set(
           input.aliases.map((alias) =>
-            storedAlias(alias, input.hashing ?? true),
+            storedAlias(
+              application.id,
+              alias,
+              input.hashing ?? true,
+              aliasPepper,
+            ),
           ),
         ),
       ];

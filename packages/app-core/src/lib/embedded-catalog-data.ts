@@ -61,7 +61,6 @@ export const SECRET_BACKEND_PROVIDER_IDS = [
 export const NETWORKING_PROVIDER_IDS = ["tailscale"] as const;
 
 export const WALLET_PROVIDER_IDS = [
-  "cloudflare-wallet",
   "google-wallet",
   "apple-wallet",
   "samsung-wallet",
@@ -137,11 +136,6 @@ export const FIELDS = new Map<string, ConfigurationField[]>(
       field("hostname", "Hostname", false, false),
       field("auth_key", "Auth key", true),
       field("socket", "Socket", false, false),
-    ],
-    "cloudflare-wallet": [
-      field("account_id", "Account ID"),
-      field("wallet_id", "Wallet ID"),
-      field("api_token", "API token", true),
     ],
     "google-wallet": [
       field("issuer_id", "Issuer ID"),
