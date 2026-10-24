@@ -1,0 +1,301 @@
+/** Actual compiled UI only; never assign browser vault/App/proof/session state. */
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { expect } from "@playwright/test";
+import { passTheDoor } from "./front-door.mjs";
+import {
+  nativeEnableConnections,
+  nativeVisit,
+} from "./native-browser-catalog-journey.mjs";
+import { PIN, waitOpen } from "./pages-journey.mjs";
+import { toTheList } from "./phone-vault.mjs";
+import { openBrowserBackup } from "./secret-backend-backup-oracle.mjs";
+
+export const SOURCE_PIN = PIN;
+export const TARGET_PIN = "13579246";
+export const FIRST_WRITE = "Back up this vault and enable automatic backups";
+export async function unlockAt(page, pin) {
+  await page.getByLabel("PIN", { exact: true }).fill(pin);
+  await page.getByRole("button", { name: "Unlock", exact: true }).click();
+  await waitOpen(page);
+}
+export async function newVault(page, { origin, base, pin }) {
+  await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+  await passTheDoor(page);
+  await page
+    .getByRole("button", { name: "Use without an account", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "PIN", exact: true }).click();
+  await page.getByLabel("Device PIN", { exact: true }).fill(pin);
+  await page.getByLabel("Confirm PIN", { exact: true }).fill(pin);
+  await page
+    .getByLabel("I understand this vault cannot be recovered.", { exact: true })
+    .check();
+  await page
+    .getByRole("button", { name: "Seal with PIN", exact: true })
+    .click();
+  await waitOpen(page);
+  await nativeEnableConnections(page, base);
+}
+export async function githubPage(page, base) {
+  await nativeVisit(page, base, "connections/github");
+  await page.getByRole("radio", { name: "GitHub App", exact: true }).waitFor();
+  await expect(
+    page.getByRole("radio", { name: "GitHub App", exact: true }),
+  ).toBeChecked();
+}
+export async function captureGithub(page, name, { out, fixture, record }) {
+  const text = await page.locator("body").innerText();
+  fixture.assertNoSecret(text);
+  const dom = await page.evaluate(() => ({
+    text: document.body.innerText,
+    width: innerWidth,
+    overflow: document.documentElement.scrollWidth > innerWidth,
+    controls: [
+      ...document.querySelectorAll(
+        "main input, main select, main textarea, main button",
+      ),
+    ].map((node) => ({
+      tag: node.tagName,
+      label:
+        node.getAttribute("aria-label") ??
+        node.labels?.[0]?.textContent?.trim() ??
+        node.textContent?.trim(),
+      type: node.type,
+      readOnly: Boolean(node.readOnly),
+      disabled: Boolean(node.disabled),
+    })),
+  }));
+  assert.equal(
+    dom.overflow,
+    false,
+    "Actual GitHub surface has no horizontal overflow",
+  );
+  await page.screenshot({
+    path: path.join(out, `${name}.png`),
+    fullPage: false,
+  });
+  fs.writeFileSync(
+    path.join(out, `${name}.json`),
+    JSON.stringify(dom, null, 2),
+    { mode: 0o600 },
+  );
+  record("capture", name);
+}
+export async function registerGithubApp(
+  original,
+  { base, pin, fixture, record },
+) {
+  await githubPage(original, base);
+  await original
+    .getByRole("button", { name: "Create GitHub App", exact: true })
+    .click();
+  await original
+    .getByRole("button", { name: "Register fixture GitHub App", exact: true })
+    .click();
+  await original.waitForURL(
+    (url) =>
+      url.pathname ===
+      new URL(`${base}connections/github`, url.origin).pathname,
+  );
+  await unlockAt(original, pin);
+  await original.getByTestId("github-app-name").waitFor();
+  const install = original.getByRole("link", {
+    name: "Install GitHub App",
+    exact: true,
+  });
+  const [page] = await Promise.all([
+    original.context().waitForEvent("page"),
+    install.click(),
+  ]);
+  await page
+    .getByRole("button", { name: "Install fixture GitHub App", exact: true })
+    .click();
+  await page.waitForURL((url) => url.pathname.endsWith("/connections/github"));
+  await original.close();
+  await unlockAt(page, pin);
+  await page.getByTestId("github-app-install").waitFor();
+  await expect(page.getByTestId("github-app-owner")).toContainText(
+    "fixture-owner",
+  );
+  assert.ok(
+    fixture.summary().validAppJwtChecks > 0,
+    "Actual provider verified a locally signed RSA App JWT",
+  );
+  record(
+    "registration",
+    "Actual manifest form, one-use conversion, sealed key and verified installation completed",
+  );
+  return page;
+}
+export async function bindRepository(
+  page,
+  name,
+  { create, base, fixture, phase },
+) {
+  await githubPage(page, base);
+  const repository = page.getByRole("combobox", {
+    name: "Repository",
+    exact: true,
+  });
+  await expect(repository).toBeEnabled();
+  if (create) {
+    await repository.focus();
+    await page
+      .getByRole("option", {
+        name: "fixture-owner/existing-private",
+        exact: true,
+      })
+      .waitFor();
+  }
+  await repository.fill(`fixture-owner/${name}`);
+  await page
+    .getByRole("option", {
+      name: `${create ? "New · " : ""}fixture-owner/${name}`,
+      exact: true,
+    })
+    .click();
+  await expect(page.getByTestId("github-backup-repo")).toHaveText(
+    `fixture-owner/${name}`,
+  );
+  await page.getByTestId("backup-sync-controls").waitFor();
+  await providerIdle(fixture);
+  // Baseline may write on binding; record it, then measure exactly one explicit manual write.
+  if (phase !== "after") {
+    await expect.poll(() => fixture.snapshot(name).exists).toBe(true);
+    await page
+      .getByTestId("backup-sync-controls")
+      .getByRole("img", { name: /^Last sync / })
+      .waitFor();
+  }
+}
+export async function explicitWrite(page, name, { fixture, first }) {
+  const before = fixture.snapshot(name);
+  const requestCount = fixture.rows.filter(
+    (row) => row.method === "PUT",
+  ).length;
+  const button = page.getByRole("button", {
+    name: first ? FIRST_WRITE : "Sync vault backup now",
+    exact: true,
+  });
+  await expect(button).toBeEnabled();
+  await button.click();
+  await page.getByRole("img", { name: "Synced", exact: true }).waitFor();
+  const after = fixture.snapshot(name);
+  assert.equal(
+    after.putCount - before.putCount,
+    1,
+    "One explicit click commits exactly one provider PUT",
+  );
+  assert.equal(
+    fixture.rows.filter((row) => row.method === "PUT").length - requestCount,
+    1,
+    "No duplicate submitted PUT hidden by conditional SHA refusal",
+  );
+  assert.ok(
+    after.exists && after.head && after.bytes > 0,
+    "Actual provider commit and immutable ciphertext exist",
+  );
+  return after;
+}
+export async function addCanary(page, { base, name, value }) {
+  await nativeVisit(page, base, "vault/new/secret");
+  await page.getByLabel("Name", { exact: true }).fill(name);
+  await page.getByLabel("Secret value", { exact: true }).fill(value);
+  await page.getByRole("button", { name: "Save item", exact: true }).click();
+  await page.getByRole("heading", { name, exact: true }).waitFor();
+  return page.url();
+}
+export function contains(body, expected) {
+  return body.items.some(
+    (item) =>
+      item.deletedAt === null &&
+      item.name === expected.name &&
+      item.value === expected.value,
+  );
+}
+export async function editCanary(page, { base, route, name, value }) {
+  await nativeVisit(page, base, route);
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Secret value", { exact: true }).fill(value);
+  await page.getByRole("button", { name: "Save item", exact: true }).click();
+  await page.getByRole("heading", { name, exact: true }).waitFor();
+}
+async function openPhoneExport(page) {
+  const fab = page.locator(".fab__add").filter({ visible: true });
+  await expect(fab).toHaveCount(1);
+  const box = await fab.boundingBox();
+  assert.ok(box, "Actual phone Add key is visible");
+  const session = await page.context().newCDPSession(page);
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  try {
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [at],
+    });
+    await page.waitForTimeout(700);
+    for (let step = 1; step <= 6; step++) {
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x: at.x, y: at.y + (70 * step) / 6 }],
+      });
+      await page.waitForTimeout(30);
+    }
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  } finally {
+    await session.detach();
+  }
+}
+export async function exportedBody(page, name, { base, pin, out }) {
+  await nativeVisit(page, base, "vault");
+  await toTheList(page);
+  const key = page
+    .getByRole("button", { name: "Export items", exact: true })
+    .filter({ visible: true });
+  if (await key.count()) await key.click();
+  else await openPhoneExport(page);
+  const sheet = page.getByRole("dialog", {
+    name: "Export encrypted vault",
+    exact: true,
+  });
+  await sheet.waitFor();
+  await sheet
+    .getByRole("button", { name: "Backup actions", exact: true })
+    .click();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page
+      .getByRole("menuitem", { name: "Download backup", exact: true })
+      .click(),
+  ]);
+  const file = path.join(out, `${name}.encrypted.json`);
+  await download.saveAs(file);
+  fs.chmodSync(file, 0o600);
+  await sheet.getByRole("button", { name: "Close", exact: true }).click();
+  await sheet.waitFor({ state: "detached" });
+  return openBrowserBackup(fs.readFileSync(file, "utf8"), pin);
+}
+
+/** Actual socket outcomes settle; keep the same normal locator deadline. */
+export async function providerIdle(fixture) {
+  let key = "";
+  let since = Date.now();
+  await expect
+    .poll(() => {
+      const current = fixture.rows
+        .map((row) => `${row.status}:${row.closed}`)
+        .join("|");
+      if (current !== key) {
+        key = current;
+        since = Date.now();
+      }
+      return (
+        fixture.rows.every((row) => row.closed) && Date.now() - since >= 500
+      );
+    })
+    .toBe(true);
+}
