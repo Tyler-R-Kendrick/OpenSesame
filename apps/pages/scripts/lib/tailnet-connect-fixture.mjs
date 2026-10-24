@@ -22,6 +22,17 @@ const NativeStatus = z.object({
   BackendState: z.string(),
   TailscaleIPs: z.array(z.string()),
 });
+const NativePeers = z.object({
+  Peer: z
+    .record(
+      z.string(),
+      z.object({
+        TailscaleIPs: z.array(z.string()).nullish(),
+        Online: z.boolean().nullish(),
+      }),
+    )
+    .nullish(),
+});
 
 async function writeConfiguration(directory, ports) {
   const path = (name) => join(directory, name);
@@ -326,6 +337,18 @@ export async function createTailnetConnectFixture({
       control,
       derp,
       peer: proof.requests,
+      // Whether the native peer's own netmap holds a node at `address` that
+      // control reports online: until it does, the peer drops that node's
+      // WireGuard handshakes and nothing it sends can reach a service here.
+      peerSeesOnline: async (address) => {
+        const status = NativePeers.parse(
+          JSON.parse(await native.cli(["status", "--json"])),
+        );
+        return Object.values(status.Peer ?? {}).some(
+          (peer) =>
+            peer.Online === true && (peer.TailscaleIPs ?? []).includes(address),
+        );
+      },
       chromiumArgs: [
         "--no-proxy-server",
         `--host-resolver-rules=MAP derp.fixture.test 127.0.0.1:${ports.derp}`,
