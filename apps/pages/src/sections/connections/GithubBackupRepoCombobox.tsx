@@ -192,7 +192,10 @@ function RepoComboboxInput({
         setOpen(true);
         setActive(0);
       }}
-      onFocus={() => setOpen(true)}
+      onFocus={() => {
+        state.beginDraft();
+        setOpen(true);
+      }}
       onBlur={() => {
         if (skipBlur.current) {
           skipBlur.current = false;
