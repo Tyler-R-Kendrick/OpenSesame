@@ -76,6 +76,7 @@ const GIT_FILES = [
   "history-backups",
   "history-backup-idb",
   "history-claim-notice",
+  "vault-backup-github",
   "vault-backup-observer",
   "backup-egress-gate",
   "vault-backup-sync",
