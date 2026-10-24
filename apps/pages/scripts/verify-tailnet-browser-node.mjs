@@ -22,6 +22,7 @@ import {
   emittedTailnetWorker,
   verifyInstalledTailscalePwa,
 } from "./lib/tailscale-installed-pwa-browser.mjs";
+import { exerciseTailscalePeerHTTPS } from "./lib/tailscale-peer-https-browser.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(
@@ -213,6 +214,15 @@ async function runViewport(width) {
       },
     });
     await reconnect(page, hostname, width);
+    await exerciseTailscalePeerHTTPS({
+      page,
+      base,
+      fixture,
+      hostname: `${hostname}-https`,
+      width,
+      check: h.check,
+      record: h.record,
+    });
     h.check(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -229,7 +239,7 @@ async function runViewport(width) {
   }
 }
 try {
-  fixture = await createTailnetConnectFixture();
+  fixture = await createTailnetConnectFixture({ peerTLS: true });
   app = await startSecretBackendAppServer(dist, origin, base);
   browser = await h.launch({ args: ["--no-sandbox", ...fixture.chromiumArgs] });
   for (const width of [1280, 390]) await runViewport(width);
@@ -309,7 +319,17 @@ fs.writeFileSync(
       failures: h.failures,
       log: h.log,
       fixture: fixture
-        ? { control: fixture.control, derp: fixture.derp, peer: fixture.peer }
+        ? {
+            control: fixture.control,
+            derp: fixture.derp,
+            peer: fixture.peer,
+            peerTLS: fixture.peerTLS
+              ? {
+                  trusted: fixture.peerTLS.trusted,
+                  wrongHostname: fixture.peerTLS.wrongHostname,
+                }
+              : null,
+          }
         : null,
       limits: [
         "Real pinned Headscale/DERP/native peer test infrastructure; no hosted Tailscale tenant is claimed.",
