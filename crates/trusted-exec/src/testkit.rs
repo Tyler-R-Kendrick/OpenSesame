@@ -53,9 +53,10 @@ fn write_script(path: &Path, body: &str, mode: u32) {
     // start a program hands that descriptor to its child until the child
     // execs, and exec'ing the stub fails with `ETXTBSY` meanwhile; syncing
     // before close does not shorten that window. The pipe to the child is
-    // close-on-exec, so no other child keeps it.
+    // close-on-exec, so no other child keeps it. `cat` is named by its path:
+    // a test may have pointed this process's `PATH` at fixture directories.
     let mut writer = Command::new("/bin/sh")
-        .args(["-c", "cat > \"$1\"", "sh"])
+        .args(["-c", "/bin/cat > \"$1\"", "sh"])
         .arg(path)
         .stdin(Stdio::piped())
         .spawn()
