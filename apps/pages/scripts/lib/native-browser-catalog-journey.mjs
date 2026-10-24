@@ -28,6 +28,20 @@ export async function nativeEnableConnections(page, base) {
     .waitFor();
 }
 
+const PROVIDER_NAMES = new Map(
+  NATIVE_CANONICAL_PROVIDERS.map((provider) => [provider.id, provider.name]),
+);
+
+/**
+ * The page a catalog row opens is named for its provider. A family tile
+ * (`catalog-families.ts`) is named for the family instead ("AWS") and opens
+ * its canonical member's page ("AWS Secrets Manager"), whose "API family"
+ * select reaches the family's other APIs.
+ */
+function providerPage(row) {
+  return { ...row, name: PROVIDER_NAMES.get(row.id) ?? row.name };
+}
+
 async function catalogRows(page) {
   return page.locator("#catalog .conn-tile").evaluateAll((tiles) =>
     tiles.map((tile) => ({
@@ -245,11 +259,12 @@ export async function nativeCatalogJourney(
       base,
       `${url.pathname.slice(base.length)}${url.search}${url.hash}`,
     );
-    const sheet = await nativeArrival(page, row);
-    await nativePageContract(page, row, { check: harness.check, phone });
+    const target = providerPage(row);
+    const sheet = await nativeArrival(page, target);
+    await nativePageContract(page, target, { check: harness.check, phone });
     const preset = NATIVE_SHARED_AI_PRESETS.get(row.id);
     if (preset)
-      await nativeAiFormContract(page, row, preset, {
+      await nativeAiFormContract(page, target, preset, {
         check: harness.check,
         record: harness.record,
         phone,
@@ -258,7 +273,7 @@ export async function nativeCatalogJourney(
         routePath: url.pathname,
       });
     if (sheet && !preset)
-      await nativeSheetContract(page, row, sheet, {
+      await nativeSheetContract(page, target, sheet, {
         check: harness.check,
         phone,
       });
