@@ -70,6 +70,12 @@ pub async fn run(base: &str, token: Option<&str>, cmd: HelpersCmd) -> anyhow::Re
             let url = format!("{base}/v1/helper-mints");
             let listed = send(operator(client.get(url), token), "list").await?;
             println!("{}", serde_json::to_string_pretty(&listed)?);
+            if let Some(stored @ ("unauthenticated" | "unreadable")) = listed["stored"].as_str() {
+                eprintln!(
+                    "the stored grants are {stored} (edited by hand, or written under another \
+                     operator token): none is in force; allow each again"
+                );
+            }
         }
     }
     Ok(())
