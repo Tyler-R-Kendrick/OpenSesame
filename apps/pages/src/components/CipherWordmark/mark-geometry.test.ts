@@ -75,6 +75,16 @@ describe("the mark's geometry", () => {
       'link[rel~="apple-touch-icon"]',
     );
     expect(installIcons).toHaveLength(1);
-    expect(installIcons[0].getAttribute("href")).toBe("%BASE_URL%icon.svg");
+    expect(installIcons[0].getAttribute("href")).toBe("%BASE_URL%icon-192.png");
+    const installIcon = readFileSync(
+      new FileURL("../../../public/icon-192.png", import.meta.url),
+    );
+    expect([...installIcon.subarray(0, 8)]).toEqual([
+      137, 80, 78, 71, 13, 10, 26, 10,
+    ]);
+    expect(installIcon.readUInt32BE(8)).toBe(13);
+    expect(installIcon.toString("ascii", 12, 16)).toBe("IHDR");
+    expect(installIcon.readUInt32BE(16)).toBe(192);
+    expect(installIcon.readUInt32BE(20)).toBe(192);
   });
 });
