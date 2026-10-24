@@ -63,6 +63,9 @@ jobs:
       draft: ${{ github.event.pull_request.draft == true && 'true' || 'false' }}
       # The runner the two jobs that can leave GitHub-hosted runners ask for.
       linux_runner: ${{ steps.runner.outputs.linux }}
+      # Pages' canonical cold compiler requires Linux AMD64. Other packages
+      # retain the configured Linux runner, including the owner's ARM64 box.
+      typescript_runner: ${{ (steps.packages.outputs.scope == 'all' || contains(steps.packages.outputs.packages, '@opensesame/pages')) && '"ubuntu-latest"' || steps.runner.outputs.linux }}
     steps:
       - name: Choose the Linux runner
         id: runner
@@ -89,6 +92,12 @@ jobs:
           persist-credentials: false
           # The classifier diffs the pull request against its merge base.
           fetch-depth: 0
+      - name: Select affected TypeScript packages
+        id: packages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+        run: node scripts/lib/ci-affected-tests.mjs plan
       - name: Validate approved current evidence
         run: node scripts/quality/evidence-gate.mjs
       - name: Validate repository footprint and shared skills
@@ -125,7 +134,7 @@ jobs:
     name: TypeScript tests
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
-    runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
+    runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}
     timeout-minutes: 45
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
@@ -168,6 +177,19 @@ jobs:
         # Not `pnpm bootstrap`: that also runs db:migrate (needs a live
         # DATABASE_URL) and installs git hooks, neither of which belongs in CI.
         run: pnpm install --frozen-lockfile
+      - name: Cache the pinned native PWA distribution
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Prepare and verify native PWA assets before package tests
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
+        # The canonical loader verifies cache hits and owns cold four-phase builds.
+        # Finish setup before pnpm quality and individual 20-second Vitest tests.
+        run: >-
+          node --input-type=module -e
+          'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
       - name: Lint (changed files)
         run: node scripts/quality/lint-changed.mjs
       - name: Lint generated auth artifacts
