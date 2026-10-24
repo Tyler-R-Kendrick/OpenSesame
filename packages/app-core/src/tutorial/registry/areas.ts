@@ -74,6 +74,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.features.review",
       "settings.integrations.review",
       "settings.vaults.review",
+      "settings.item-types.review",
       "settings.danger.review",
       "vault.recovery.view",
       "settings.trusted-contacts.circle",

@@ -102,6 +102,22 @@ export const SETTINGS_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
+    id: "settings.item-types.review",
+    title: "Tour Settings: Item types",
+    routes: ["/settings"],
+    libraryOnly: true,
+    guide: [
+      "guide/1",
+      'goal "settings.item-types.review"',
+      'say "Beyond secrets, files, passkeys, certificates and drops, the kinds of item a vault can hold are switched on here, one type at a time."',
+      'navigate "/settings/item-types"',
+      'wait route "/settings/item-types" timeout=15000',
+      'focus "nav.settings.item-types" "Item types is the category of those switches. A type is a JSON manifest, never code, and one that is off is not in the app until you switch it on." side=bottom',
+      'success "That is Item types."',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "settings.danger.review",
     title: "Tour Settings: Danger",
     routes: ["/settings"],
