@@ -79,7 +79,13 @@ export function subscribeBackupSyncEvents(
 
 async function pollWebhooks(): Promise<void> {
   if (!backupEgressGate.allowed()) return;
-  const count = await drainBackupWebhooks();
+  let count: number;
+  try {
+    count = await drainBackupWebhooks();
+  } catch {
+    // Background polling owns its refusal; an explicit manual drain still rejects.
+    return;
+  }
   if (count > 0) publishBackupSyncEvent("webhook");
 }
 
