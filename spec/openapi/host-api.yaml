@@ -1682,7 +1682,7 @@ paths:
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
-          description: Undecided and approved requests awaiting this holder
+          description: Undecided requests with current delegation authority; approved work is never redelivered
           content:
             application/json:
               schema:
@@ -1707,7 +1707,16 @@ paths:
         "404": { $ref: "#/components/responses/ContractError" }
   /relay/requests/{id}/approve:
     post:
-      summary: The holder consents, echoing the digest it reviewed
+      summary: The holder acquires final execution authorization, echoing the reviewed digest
+      description: >-
+        Atomically rechecks current delegation, scope and grant ancestry and exchanges
+        pending approval for one execution lease. Execute once, immediately before
+        execute_before (at most five seconds, bounded by every authority expiry).
+        A cached inbox row is review data, never execution authority. Duplicate
+        approval and lost-response retries cannot acquire another lease.
+        Revocation committed before acquisition prevents it; a later revocation
+        cannot undo an already authorized in-flight effect.
+        No holder executor is shipped yet.
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -1722,10 +1731,19 @@ paths:
                 request_digest: { type: string }
       responses:
         "200":
-          description: Approved
+          description: Single-use execution handoff; lease returned only here
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [id, state, request_digest, execution_lease, execute_before, authority_digest]
+                properties:
+                  id: { type: string }
+                  state: { type: string, enum: [approved] }
+                  request_digest: { type: string }
+                  execution_lease: { type: string }
+                  execute_before: { type: string, format: date-time }
+                  authority_digest: { type: string }
         "401": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
   /relay/requests/{id}/deny:
@@ -1754,7 +1772,12 @@ paths:
   /relay/requests/{id}/result:
     post:
       summary: The holder reports the executed outcome, digest-bound
-      description: The full admission runs here — approval required and executed digest must equal the approved one. Summaries are leak-checked before they land.
+      description: >-
+        Reports an acquired execution, never authorizes another. Requires the exact
+        approval lease and reviewed digest. The runtime must have started before
+        execute_before; reporting may finish until the original request TTL,
+        including after revocation of an already in-flight call. Summaries are
+        leak-checked. Legacy approvals without a lease fail closed.
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -1764,8 +1787,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [executed_digest, outcome]
+              required: [execution_lease, executed_digest, outcome]
               properties:
+                execution_lease: { type: string }
                 executed_digest: { type: string }
                 outcome: { type: string, enum: [succeeded, failed] }
                 safe_summary: { type: object }

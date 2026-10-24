@@ -1,21 +1,16 @@
 //! Relayed execution (ADR 0046): the credential stays with its holder, the
 //! delegate's *request* travels, and the holder's runtime executes it.
 //!
-//! This is the dual-RPC tier: the holder's runtime polls its inbox over HTTP
-//! and posts results back. The admission rules live in `opensesame-relay` and
-//! run at both fences — submission and result — so the answer to "may this
-//! execute?" cannot diverge between the gateway and the holder:
-//!
-//! - **Submission** refuses unless the delegation is relay-mode, the holder
-//!   has a fresh heartbeat (an absent holder is the end of the request, never
-//!   a queue), and nothing asks to materialize.
-//! - **Result** refuses unless the holder approved this exact request and the
-//!   digest it reports executing equals the digest that was approved — PSD2
-//!   dynamic linking applied to API calls. Approval of one request can never
-//!   authorize a different one.
-//!
-//! Requests expire quickly; a holder that stops polling strands nothing, it
-//! just lets short-lived rows lapse.
+//! The holder polls work for review, then atomically exchanges a pending request
+//! for an execution lease at approval. That response is the final pre-execution
+//! handoff: execute once before its deadline, never from a cached inbox row.
+//! Current delegation, scope and ancestry are checked under the same SQLite
+//! write reservation as the state transition. Revocation committed before the
+//! handoff wins; a later revocation cannot undo an already in-flight effect.
+//! Results prove the acquired lease and reviewed digest and may arrive until
+//! the original request TTL, even when the provider took longer than the
+//! execution-start window. The gateway cannot enforce an external runtime's
+//! clock or stop a malicious credential holder from invoking its own provider.
 
 use axum::{
     extract::{Path, State},
@@ -91,7 +86,7 @@ fn holder_online(st: &AppState, holder: &str) -> HolderLiveness {
 }
 
 /// The digest an approval binds to: what would run, canonically, nothing else.
-fn request_digest(
+pub(super) fn request_digest(
     delegation_id: &str,
     operation: &str,
     resource: &str,
@@ -326,7 +321,7 @@ pub async fn submit(
         .into_response()
 }
 
-fn expired(row_expires: &str, now: DateTime<Utc>) -> bool {
+pub(super) fn expired(row_expires: &str, now: DateTime<Utc>) -> bool {
     DateTime::parse_from_rfc3339(row_expires).map_or(true, |time| now >= time.with_timezone(&Utc))
 }
 
@@ -341,37 +336,68 @@ pub async fn pending(State(st): State<AppState>, headers: axum::http::HeaderMap)
         .lock()
         .unwrap()
         .insert(subject.clone(), std::time::Instant::now());
+    // Approved work is never redelivered: only the approval response can
+    // hand off its single-use execution lease.
+    let Ok(mut tx) = st
+        .connection_broker
+        .pool()
+        .begin_with("BEGIN IMMEDIATE")
+        .await
+    else {
+        return error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable");
+    };
     let rows = sqlx::query(
-        "SELECT id, delegation_id, connection_id, operation, resource, parameters_json,
-                request_digest, state, expires_at
-         FROM relay_requests
-         WHERE holder_subject = ? AND state IN ('pending_approval', 'approved')
+        "SELECT * FROM relay_requests
+         WHERE holder_subject = ? AND state = 'pending_approval'
          ORDER BY created_at ASC LIMIT 20",
     )
     .bind(&subject)
-    .fetch_all(st.connection_broker.pool())
+    .fetch_all(&mut *tx)
     .await;
     let Ok(rows) = rows else {
         return error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable");
     };
-    let now = Utc::now();
-    let requests: Vec<Value> = rows
-        .iter()
-        .filter(|row| !expired(&row.get::<String, _>("expires_at"), now))
-        .map(|row| {
-            json!({
-                "id": row.get::<String, _>("id"),
-                "delegation_id": row.get::<String, _>("delegation_id"),
-                "connection_id": row.get::<String, _>("connection_id"),
-                "operation": row.get::<String, _>("operation"),
-                "resource": row.get::<String, _>("resource"),
-                "parameters": serde_json::from_str::<Value>(&row.get::<String, _>("parameters_json"))
-                    .unwrap_or(json!({})),
-                "request_digest": row.get::<String, _>("request_digest"),
-                "state": row.get::<String, _>("state"),
-            })
-        })
-        .collect();
+    let mut requests = Vec::new();
+    for row in &rows {
+        if super::relay_authority::resolve(&mut tx, row, Utc::now())
+            .await
+            .is_none()
+        {
+            // Retire invisible work so it cannot starve later authorized rows.
+            let next = if expired(&row.get::<String, _>("expires_at"), Utc::now()) {
+                "expired"
+            } else {
+                "failed"
+            };
+            if sqlx::query(
+                "UPDATE relay_requests SET state = ? WHERE id = ? AND state = 'pending_approval'",
+            )
+            .bind(next)
+            .bind(row.get::<String, _>("id"))
+            .execute(&mut *tx)
+            .await
+            .is_err()
+            {
+                return error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable");
+            }
+            continue;
+        }
+        requests.push(json!({
+            "id": row.get::<String, _>("id"),
+            "delegation_id": row.get::<String, _>("delegation_id"),
+            "connection_id": row.get::<String, _>("connection_id"),
+            "operation": row.get::<String, _>("operation"),
+            "resource": row.get::<String, _>("resource"),
+            "parameters": serde_json::from_str::<Value>(&row.get::<String, _>("parameters_json"))
+                .expect("authority resolution checked parameters"),
+            "request_digest": row.get::<String, _>("request_digest"),
+            "state": row.get::<String, _>("state"),
+        }));
+    }
+    if tx.commit().await.is_err() {
+        return error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable");
+    }
+
     Json(json!({"requests": requests})).into_response()
 }
 
@@ -392,34 +418,88 @@ async fn decide(
         Ok(s) => s,
         Err(resp) => return resp,
     };
+    // Reserve the writer before reading authority: a revoke/narrow committed
+    // first is visible; a later one is ordered after this execution handoff.
+    let Ok(mut tx) = st
+        .connection_broker
+        .pool()
+        .begin_with("BEGIN IMMEDIATE")
+        .await
+    else {
+        return error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable");
+    };
+    let row = sqlx::query("SELECT * FROM relay_requests WHERE id = ? AND holder_subject = ?")
+        .bind(id)
+        .bind(&subject)
+        .fetch_optional(&mut *tx)
+        .await;
+    let Ok(Some(row)) = row else {
+        return not_found();
+    };
     let now = Utc::now();
+    if row.get::<String, _>("state") != "pending_approval"
+        || row.get::<String, _>("request_digest") != body.request_digest
+        || expired(&row.get::<String, _>("expires_at"), now)
+    {
+        return not_found();
+    }
+    let mut lease = None;
+    let mut deadline = None;
+    let mut authority_digest = None;
+    if approve {
+        let Some(authority) = super::relay_authority::resolve(&mut tx, &row, now).await else {
+            return not_found();
+        };
+        // This is the execution-start deadline. Slow providers may still
+        // report until the original request TTL.
+        let request_expiry = DateTime::parse_from_rfc3339(&row.get::<String, _>("expires_at"))
+            .expect("authority resolution checked expiry")
+            .with_timezone(&Utc);
+        deadline = Some(
+            (Utc::now() + Duration::seconds(5))
+                .min(authority.expires_at)
+                .min(request_expiry),
+        );
+        if deadline.is_some_and(|time| Utc::now() >= time) {
+            return not_found();
+        }
+        lease = Some(format!("rlease_{}", uuid::Uuid::new_v4().simple()));
+        authority_digest = Some(authority.digest);
+    }
     let next = if approve { "approved" } else { "denied" };
     let updated = sqlx::query(
         "UPDATE relay_requests
-         SET state = ?, approved_at = ?, decided_by = ?
-         WHERE id = ? AND holder_subject = ? AND state = 'pending_approval'
-           AND request_digest = ? AND expires_at > ?",
+         SET state = ?, approved_at = ?, decided_by = ?, execution_lease = ?,
+             execution_expires_at = ?, execution_authority_digest = ?
+         WHERE id = ? AND state = 'pending_approval'",
     )
     .bind(next)
     .bind(now.to_rfc3339())
     .bind(&subject)
+    .bind(&lease)
+    .bind(deadline.map(|time| time.to_rfc3339()))
+    .bind(&authority_digest)
     .bind(id)
-    .bind(&subject)
-    .bind(&body.request_digest)
-    .bind(now.to_rfc3339())
-    .execute(st.connection_broker.pool())
+    .execute(&mut *tx)
     .await;
-    match updated {
-        Ok(result) if result.rows_affected() == 1 => {
-            Json(json!({"id": id, "state": next})).into_response()
-        }
-        // Wrong digest, wrong holder, lapsed, or already decided: one answer,
-        // so none of those is distinguishable from outside.
-        _ => (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response(),
+    if !matches!(updated, Ok(result) if result.rows_affected() == 1) || tx.commit().await.is_err() {
+        return error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable");
+    }
+    if approve {
+        Json(json!({
+            "id": id, "state": next, "execution_lease": lease,
+            "execute_before": deadline.map(|time| time.to_rfc3339()),
+            "authority_digest": authority_digest, "request_digest": body.request_digest,
+        }))
+        .into_response()
+    } else {
+        Json(json!({"id": id, "state": next})).into_response()
     }
 }
 
-/// `POST /api/v1/relay/requests/{id}/approve` — the holder consents.
+/// `POST /api/v1/relay/requests/{id}/approve` — final execution authorization.
+/// Execute once, immediately before `execute_before`, using the returned lease.
+/// Consent or a cached inbox row cannot execute; lost leases cannot be recovered.
 pub async fn approve(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -441,6 +521,9 @@ pub async fn deny(
 
 #[derive(Deserialize)]
 pub struct ResultRequest {
+    /// Required for execution; legacy approvals fail closed.
+    #[serde(default)]
+    execution_lease: Option<String>,
     /// The digest of what the holder's runtime actually executed.
     executed_digest: String,
     outcome: String,
@@ -449,10 +532,9 @@ pub struct ResultRequest {
 }
 
 struct ResultContext {
-    delegation_id: String,
-    delegate_subject: String,
     approved_digest: String,
     approved: bool,
+    execution_lease: Option<String>,
 }
 
 async fn load_result_context(
@@ -460,13 +542,10 @@ async fn load_result_context(
     id: &str,
     holder_subject: &str,
 ) -> Result<ResultContext, Response> {
-    let row = sqlx::query(
-        "SELECT delegation_id, holder_subject, delegate_subject, request_digest, state, expires_at
-         FROM relay_requests WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(st.connection_broker.pool())
-    .await;
+    let row = sqlx::query("SELECT * FROM relay_requests WHERE id = ?")
+        .bind(id)
+        .fetch_optional(st.connection_broker.pool())
+        .await;
     let Ok(Some(row)) = row else {
         return Err(not_found());
     };
@@ -477,53 +556,21 @@ async fn load_result_context(
         return Err(error_response(StatusCode::GONE, "expired"));
     }
     Ok(ResultContext {
-        delegation_id: row.get("delegation_id"),
-        delegate_subject: row.get("delegate_subject"),
         approved_digest: row.get("request_digest"),
         approved: row.get::<String, _>("state") == "approved",
+        execution_lease: row.get("execution_lease"),
     })
 }
 
-fn result_organization(
-    st: &AppState,
-    headers: &axum::http::HeaderMap,
-) -> Result<opensesame_domain::OrganizationId, Response> {
-    match crate::middleware::auth::resolve_caller(st, headers) {
-        Ok(Caller::Session {
-            organization_id, ..
-        }) => Ok(organization_id),
-        _ => bootstrap_organization(st),
+fn validate_result(context: &ResultContext, body: &ResultRequest) -> Result<Value, Response> {
+    if context.execution_lease.is_none() || context.execution_lease != body.execution_lease {
+        return Err(error_response(
+            StatusCode::FORBIDDEN,
+            "execution_lease_required",
+        ));
     }
-}
-
-async fn live_execution_mode(
-    st: &AppState,
-    headers: &axum::http::HeaderMap,
-    context: &ResultContext,
-) -> Result<ExecutionMode, Response> {
-    let organization = result_organization(st, headers)?;
-    let live = st
-        .connection_broker
-        .list_delegations_for(&organization, &context.delegate_subject)
-        .await
-        .ok()
-        .and_then(|list| {
-            list.into_iter().find(|delegation| {
-                delegation.id == context.delegation_id && delegation.revoked_at.is_none()
-            })
-        });
-    Ok(live.as_ref().map_or(ExecutionMode::Broker, |delegation| {
-        delegation.execution_mode
-    }))
-}
-
-fn validate_result(
-    mode: ExecutionMode,
-    context: &ResultContext,
-    body: &ResultRequest,
-) -> Result<Value, Response> {
     let admission = RelayAdmission {
-        mode,
+        mode: ExecutionMode::Relay,
         // The holder is reporting a result; it is by definition reachable.
         liveness: HolderLiveness::Online,
         class: AvailabilityClass::A3ExternalSideEffect,
@@ -556,7 +603,7 @@ async fn complete_result(
     let updated = sqlx::query(
         "UPDATE relay_requests
          SET state = 'completed', result_json = ?, result_outcome = ?, completed_at = ?
-         WHERE id = ? AND state = 'approved'",
+         WHERE id = ? AND state = 'approved' AND execution_lease IS NOT NULL",
     )
     .bind(summary.to_string())
     .bind(outcome)
@@ -574,8 +621,9 @@ async fn complete_result(
 
 /// `POST /api/v1/relay/requests/{id}/result` — the holder reports back.
 ///
-/// The full admission runs here, at the execution boundary: the request must
-/// have been approved, and the executed digest must equal the approved one.
+/// Reporting is not authorization to execute. The holder must have acquired
+/// the one approval lease and started before its deadline. Reporting remains
+/// available until the original request expiry, including for in-flight calls.
 pub async fn result(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -591,16 +639,9 @@ pub async fn result(
         Err(response) => return response,
     };
 
-    // The delegation may have been revoked or narrowed since approval; the
-    // stored digest pins the request, but authority is re-read live.
-    let mode = match live_execution_mode(&st, &headers, &context).await {
-        Ok(mode) => mode,
-        Err(response) => return response,
-    };
-
     // The summary is holder-authored and lands where the delegate reads it:
     // hostile-input rules apply in both directions.
-    let summary = match validate_result(mode, &context, &body) {
+    let summary = match validate_result(&context, &body) {
         Ok(summary) => summary,
         Err(response) => return response,
     };
@@ -656,300 +697,5 @@ pub async fn get(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::extract::State;
-    use opensesame_connection_broker::delegation::{
-        ClaimOfferRequest, MintOfferRequest, OfferItemSpec,
-    };
-    use opensesame_connection_broker::model::ConnectionStatus;
-    use opensesame_connection_broker::store as broker_store;
-    use opensesame_domain::{ConnectionId, EgressBinding, OrganizationId, OrganizationRole};
-
-    const OWNER: &str = "principal:00000000-0000-4000-8000-000000000015";
-    const GUEST: &str = "principal:00000000-0000-4000-8000-000000000016";
-
-    async fn relay_delegation(
-        state: &crate::app_state::AppState,
-        org: OrganizationId,
-        mode: ExecutionMode,
-    ) -> String {
-        let now = Utc::now();
-        let row = broker_store::ConnectionRow {
-            id: ConnectionId::new().to_string(),
-            organization_id: org.to_string(),
-            project_id: None,
-            provider_id: "github".into(),
-            integration_id: "deployment:github".into(),
-            logical_name: format!("github-{}", uuid::Uuid::now_v7().simple()),
-            display_name: "Holder's GitHub".into(),
-            status: ConnectionStatus::Active,
-            status_detail: None,
-            requested_scopes: vec![],
-            granted_scopes: vec![],
-            account_label: None,
-            owner_kind: "user".into(),
-            owner_subject: Some(OWNER.into()),
-            shareability: "delegable".into(),
-            max_invoke_level: 2,
-            materialization: "deny".into(),
-            egress: EgressBinding {
-                scheme: "https".into(),
-                authorities: vec!["api.github.com".into()],
-                path_prefixes: vec![],
-                allow_redirects_cross_authority: false,
-            },
-            created_at: now,
-            updated_at: now,
-        };
-        broker_store::insert_connection(state.connection_broker.pool(), &row)
-            .await
-            .expect("insert connection");
-        let minted = state
-            .connection_broker
-            .mint_delegation_offer(
-                &org,
-                OWNER,
-                MintOfferRequest {
-                    items: vec![OfferItemSpec {
-                        connection_id: row.id.clone(),
-                        actions: Some(vec!["repository.read".into()]),
-                        resources: None,
-                        expires_in_seconds: None,
-                        budgets: None,
-                        execution_mode: mode,
-                        required: true,
-                        dependencies: vec![],
-                    }],
-                    ttl_seconds: None,
-                },
-                &state.claim_pepper,
-            )
-            .await
-            .expect("mint");
-        let manifest = state
-            .connection_broker
-            .present_delegation_offer(&minted.claim_token)
-            .await
-            .expect("present");
-        let delegations = state
-            .connection_broker
-            .claim_delegation_offer(
-                ClaimOfferRequest {
-                    claim_token: minted.claim_token.clone(),
-                    user_code: minted.user_code.clone(),
-                    accepted_item_ids: vec![manifest.items[0].id.clone()],
-                },
-                GUEST,
-                &state.claim_pepper,
-            )
-            .await
-            .expect("claim");
-        delegations[0].id.clone()
-    }
-
-    async fn body_json(response: Response) -> Value {
-        let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
-            .await
-            .expect("body");
-        serde_json::from_slice(&bytes).expect("json")
-    }
-
-    fn submit_body(delegation_id: &str) -> SubmitRequest {
-        SubmitRequest {
-            delegation_id: delegation_id.into(),
-            operation: "repository.read".into(),
-            resource: "repo:acme/catalog".into(),
-            parameters: Some(json!({})),
-        }
-    }
-
-    async fn open_relay_request(
-        state: &AppState,
-        holder: &axum::http::HeaderMap,
-        delegate: &axum::http::HeaderMap,
-        delegation_id: &str,
-    ) -> (String, String) {
-        // An offline holder is the end of the request, not a queue.
-        let refused = submit(
-            State(state.clone()),
-            delegate.clone(),
-            Json(submit_body(delegation_id)),
-        )
-        .await;
-        assert_eq!(refused.status(), StatusCode::CONFLICT);
-        assert_eq!(body_json(refused).await["error"], json!("holder_offline"));
-
-        // The holder announces itself; now the request parks in its inbox.
-        heartbeat(State(state.clone()), holder.clone()).await;
-        let accepted = submit(
-            State(state.clone()),
-            delegate.clone(),
-            Json(submit_body(delegation_id)),
-        )
-        .await;
-        assert_eq!(accepted.status(), StatusCode::ACCEPTED);
-        let accepted = body_json(accepted).await;
-        let id = accepted["id"].as_str().expect("id").to_string();
-        let digest = accepted["request_digest"]
-            .as_str()
-            .expect("digest")
-            .to_string();
-
-        let inbox = body_json(pending(State(state.clone()), holder.clone()).await).await;
-        assert_eq!(inbox["requests"][0]["id"], json!(id.clone()));
-
-        // Reporting a result before approval is refused: approval is the gate.
-        let early = result(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.clone()),
-            Json(ResultRequest {
-                executed_digest: digest.clone(),
-                outcome: "succeeded".into(),
-                safe_summary: None,
-            }),
-        )
-        .await;
-        assert_eq!(early.status(), StatusCode::FORBIDDEN);
-        (id, digest)
-    }
-
-    async fn approve_and_complete_relay(
-        state: &AppState,
-        holder: &axum::http::HeaderMap,
-        id: &str,
-        digest: &str,
-    ) {
-        // Approval binds to bytes: a wrong digest echo approves nothing.
-        let wrong = approve(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(DecideRequest {
-                request_digest: "sha256:0000".into(),
-            }),
-        )
-        .await;
-        assert_eq!(wrong.status(), StatusCode::NOT_FOUND);
-        let approved = approve(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(DecideRequest {
-                request_digest: digest.to_string(),
-            }),
-        )
-        .await;
-        assert_eq!(approved.status(), StatusCode::OK);
-
-        // Executing something other than what was approved is refused.
-        let drifted = result(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(ResultRequest {
-                executed_digest: "sha256:1111".into(),
-                outcome: "succeeded".into(),
-                safe_summary: None,
-            }),
-        )
-        .await;
-        assert_eq!(drifted.status(), StatusCode::CONFLICT);
-        assert_eq!(body_json(drifted).await["error"], json!("digest_mismatch"));
-
-        // A summary that smells like credential material never lands.
-        let leaking = result(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(ResultRequest {
-                executed_digest: digest.to_string(),
-                outcome: "succeeded".into(),
-                safe_summary: Some(json!({"note": "token ghp_PLANTED"})),
-            }),
-        )
-        .await;
-        assert_eq!(leaking.status(), StatusCode::UNPROCESSABLE_ENTITY);
-
-        let done = result(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(ResultRequest {
-                executed_digest: digest.to_string(),
-                outcome: "succeeded".into(),
-                safe_summary: Some(json!({"resource": "repo:acme/catalog"})),
-            }),
-        )
-        .await;
-        assert_eq!(done.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn contract_the_full_relay_round_trip_is_digest_bound() {
-        let state = crate::app_state::test_demo_state().await;
-        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let delegation_id = relay_delegation(&state, org, ExecutionMode::Relay).await;
-        let holder =
-            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
-        let delegate =
-            crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
-
-        let (id, digest) = open_relay_request(&state, &holder, &delegate, &delegation_id).await;
-        approve_and_complete_relay(&state, &holder, &id, &digest).await;
-
-        // The delegate reads the outcome; a stranger reads nothing.
-        let seen = get(State(state.clone()), delegate.clone(), Path(id.clone())).await;
-        assert_eq!(seen.status(), StatusCode::OK);
-        assert_eq!(body_json(seen).await["outcome"], json!("succeeded"));
-        let stranger = crate::app_state::test_session_headers(
-            &state,
-            "principal:00000000-0000-4000-8000-000000000014",
-            org,
-            OrganizationRole::Member,
-        );
-        let hidden = get(State(state.clone()), stranger, Path(id)).await;
-        assert_eq!(hidden.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test]
-    async fn adversarial_a_broker_delegation_does_not_open_the_relay() {
-        let state = crate::app_state::test_demo_state().await;
-        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let delegation_id = relay_delegation(&state, org, ExecutionMode::Broker).await;
-        let holder =
-            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
-        let delegate =
-            crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
-        heartbeat(State(state.clone()), holder).await;
-        let refused = submit(
-            State(state.clone()),
-            delegate,
-            Json(submit_body(&delegation_id)),
-        )
-        .await;
-        assert_eq!(refused.status(), StatusCode::CONFLICT);
-        assert_eq!(body_json(refused).await["error"], json!("not_relay_mode"));
-    }
-
-    #[tokio::test]
-    async fn adversarial_a_relayed_ask_outside_the_grant_never_reaches_the_inbox() {
-        let state = crate::app_state::test_demo_state().await;
-        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let delegation_id = relay_delegation(&state, org, ExecutionMode::Relay).await;
-        let holder =
-            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
-        let delegate =
-            crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
-        heartbeat(State(state.clone()), holder.clone()).await;
-        // An inbox is not a place to launder wider asks: the fence runs at
-        // submit, before a human ever sees a prompt to mis-approve.
-        let mut wider = submit_body(&delegation_id);
-        wider.operation = "contents.write".into();
-        let refused = submit(State(state.clone()), delegate, Json(wider)).await;
-        assert_eq!(refused.status(), StatusCode::FORBIDDEN);
-        let inbox = body_json(pending(State(state.clone()), holder).await).await;
-        assert_eq!(inbox["requests"], json!([]));
-    }
-}
+#[path = "relay_tests.rs"]
+mod tests;

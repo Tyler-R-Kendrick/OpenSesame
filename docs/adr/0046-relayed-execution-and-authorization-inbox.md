@@ -192,6 +192,35 @@ producer), `approval_id` on `InvocationReceipt` (`receipt.rs:37`, always
     `userCode` or `bindingToken` would be dropped silently even after
     being allowlisted, leaving the one event a reviewer needs blank.
 
+## HTTP execution handoff
+
+HTTP approval is final execution authorization, not a durable promise that a
+holder may execute later. `pending` delivers only undecided requests with
+current delegation and grant authority, retiring invalid rows so they cannot
+starve later work. `approve` reserves the SQLite writer before rechecking the
+exact delegation, tenant, holder, delegate, connection, action, resource and
+active grant ancestry. It atomically consumes pending approval and returns an
+opaque `execution_lease`, an `authority_digest` binding that tuple and live grant
+revisions/lineage, and `execute_before`, bounded by five seconds and every
+applicable expiry.
+
+A runtime must use this lease once and start immediately before its deadline.
+A cached inbox row or poll response is never execution authority. Approved work
+is not redelivered, retries cannot recover a lease, and legacy approvals without
+one fail closed. A lost approval response requires a new request and consent.
+Denial remains available after authority disappears. Narrowing that still
+covers the exact request remains valid before acquisition.
+
+Revocation/narrowing committed before handoff prevents acquisition; one committed
+afterward concerns an already authorized in-flight operation. Reporting requires
+the matching lease and digest and consumes the result once, until the original
+request TTL, so a slow provider is not confused with a late execution start.
+Reporting issues no new authority. There is no shipped holder executor yet:
+its future implementation must enforce the start deadline and single use locally
+and independently reauthorize at the credential boundary. A gateway cannot undo
+an external effect or stop a malicious credential holder from calling its own
+provider.
+
 ## Consequences
 
 - Relay is the first execution path where the gateway is not the executor.

@@ -39,6 +39,7 @@ mod nats_callout;
 mod protected_resource;
 mod receipts;
 mod relay;
+mod relay_authority;
 mod rotation;
 mod secret_config_policy;
 #[cfg(test)]
