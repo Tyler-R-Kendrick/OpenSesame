@@ -36,9 +36,20 @@ async function exportBackup(h, browser, ORIGIN, BASE, out) {
   await sealWithPin(page);
   await addSecret(page, CANARY);
   await page.getByRole("button", { name: "Export" }).first().click();
+  const sheet = page.getByRole("dialog", {
+    name: "Export encrypted vault",
+    exact: true,
+  });
+  await sheet.waitFor();
+  await sheet
+    .getByRole("button", { name: "Backup actions", exact: true })
+    .click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: /Save backup|Save again/ }).click(),
+    page
+      .getByRole("menu", { name: "Backup actions", exact: true })
+      .getByRole("menuitem", { name: "Download backup", exact: true })
+      .click(),
   ]);
   const file = path.join(out, "first-run-backup.json");
   await download.saveAs(file);
