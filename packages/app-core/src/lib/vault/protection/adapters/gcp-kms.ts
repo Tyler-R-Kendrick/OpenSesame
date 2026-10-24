@@ -249,6 +249,17 @@ async function gcpKmsUnwrap(
   }
   if (input.record.keyVersionName !== undefined) {
     assertGcpKeyVersionName(input.record.keyVersionName);
+    // Decrypt names the CryptoKey and the ciphertext picks its version, so the
+    // captured version is metadata; one from another key is still refused.
+    if (
+      !input.record.keyVersionName.startsWith(
+        `${input.record.keyName}/cryptoKeyVersions/`,
+      )
+    )
+      throw new ProtectionError(
+        "malformed_encoding",
+        "GCP KMS key version does not belong to the configured key.",
+      );
   }
 
   const decrypted = await transport.decrypt({

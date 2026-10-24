@@ -1,5 +1,5 @@
 import type { ProtectionContext } from "@opensesame/vault-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ProtectionError } from "../errors.js";
 import {
   assertAllowedCloudEndpoint,
@@ -149,6 +149,33 @@ describe("gcp-kms protector (fake transport)", () => {
     await expect(
       protector.unwrap({ context: other, record }),
     ).rejects.toMatchObject({ code: "context_mismatch" });
+  });
+
+  it("refuses a record whose key version belongs to another key, before any call", async () => {
+    const transport = roundTripTransport();
+    const protector = createGcpKmsProtector({
+      transport,
+      authorization: "authorized",
+    });
+    const { record } = await protector.wrap({
+      context: CONTEXT,
+      rootKey: mintWrappingSecret(),
+      keyName: KEY_NAME,
+      connectionId: "conn-1",
+      connectionConfigVersion: "1",
+    });
+    const decrypt = vi.spyOn(transport, "decrypt");
+    await expect(
+      protector.unwrap({
+        context: CONTEXT,
+        record: {
+          ...record,
+          keyVersionName:
+            "projects/other/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1",
+        },
+      }),
+    ).rejects.toMatchObject({ code: "malformed_encoding" });
+    expect(decrypt).not.toHaveBeenCalled();
   });
 
   it("blocks SSRF endpoints (KP-36)", () => {
