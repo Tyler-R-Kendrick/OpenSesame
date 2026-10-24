@@ -1,37 +1,53 @@
 import type { GithubAppPermission } from "@opensesame/app-core/lib/backup.js";
 import { forgetLocalGithubApp } from "@opensesame/app-core/lib/github-app-manifest.js";
 import type { GithubAppInstallView } from "@opensesame/app-core/lib/github-app-presence.js";
-import { IconTrash } from "../../components/Icons.js";
+import { useRef, useState } from "react";
+import { IconKey } from "../../components/IconKey.js";
+import { IconTrash, IconX } from "../../components/Icons.js";
 
-/** Unregister the local GitHub App — lives next to the connector title. */
+/**
+ * Unregister the local GitHub App — lives next to the connector title.
+ * Removing destroys the sealed private key and client secret, so it asks
+ * first the way every destructive key does (DESIGN.md): one press arms the
+ * key, a second removes, and the keep beside it disarms and hands focus back.
+ */
 export function GithubAppForgetButton({
   forget = forgetLocalGithubApp,
 }: {
   /** Sealed-key destruction, injectable for tests (no module mocking). */
   forget?: () => void;
 } = {}) {
+  const [armed, setArmed] = useState(false);
+  const primary = useRef<HTMLButtonElement>(null);
   return (
-    <button
-      type="button"
-      className="icon-btn icon-btn--sm"
-      data-testid="github-app-forget"
-      aria-label="Remove GitHub App from this device"
-      title="Remove GitHub App from this device"
-      onClick={() => {
-        // Remove destroys the sealed private key and client secret. Ask first;
-        // an accidental click cannot be undone.
-        if (
-          "confirm" in globalThis &&
-          !globalThis.confirm(
-            "Remove the GitHub App from this device? Its private key and client secret will be deleted.",
-          )
-        )
-          return;
-        forget();
-      }}
-    >
-      <IconTrash size={16} />
-    </button>
+    <>
+      <IconKey
+        keyRef={primary}
+        small
+        armed={armed}
+        data-testid="github-app-forget"
+        label={
+          armed
+            ? "Confirm removing the GitHub App from this device"
+            : "Remove GitHub App from this device"
+        }
+        onClick={() => (armed ? forget() : setArmed(true))}
+      >
+        <IconTrash size={16} />
+      </IconKey>
+      {armed ? (
+        <IconKey
+          small
+          label="Keep the GitHub App"
+          onClick={() => {
+            setArmed(false);
+            primary.current?.focus();
+          }}
+        >
+          <IconX size={16} />
+        </IconKey>
+      ) : null}
+    </>
   );
 }
 

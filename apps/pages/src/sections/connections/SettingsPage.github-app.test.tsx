@@ -267,10 +267,17 @@ it("shows saved metadata without inventing access and recovers creation through 
   ).toBeNull();
   const confirm = vi.fn(() => true);
   vi.stubGlobal("confirm", confirm);
+  // The first press arms the key and removes nothing; the second removes.
   await userEvent.click(
     screen.getByRole("button", { name: "Remove GitHub App from this device" }),
   );
-  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(readLocalGithubApp()).not.toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Confirm removing the GitHub App from this device",
+    }),
+  );
+  expect(confirm).not.toHaveBeenCalled();
   expect(readLocalGithubApp()).toBeNull();
   expect(
     screen.getByRole("button", { name: "Create GitHub App" }),
