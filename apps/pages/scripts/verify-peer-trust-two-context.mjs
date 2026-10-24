@@ -17,11 +17,13 @@ import {
   copyFrom,
   joinerAsks,
   joinerConnects,
+  joinerSessionSas,
   openLive,
   ownerAdmitsByHand,
   ownerEnters,
   peerStates,
   startSession,
+  unfoldPeerTrust,
 } from "./lib/live-join-walk.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -120,6 +122,7 @@ async function beginOwner(browser) {
   });
   await openLive(owner.page);
   const started = await startSession(owner.page);
+  await unfoldPeerTrust(started.panel);
   const copyKey = started.panel.getByRole("button", {
     name: "Copy peer trust signal",
   });
@@ -132,7 +135,7 @@ async function beginOwner(browser) {
 }
 
 async function readRequest(panel, request) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
 }
 
@@ -146,7 +149,7 @@ async function verifiedJoin(browser, session) {
     name: VERIFIED_NAME,
     peerTrust: session.signal,
   });
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  const joinerSas = await joinerSessionSas(joiner.page);
   check(
     (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
     "verified join is not marked unverified",
@@ -268,7 +271,7 @@ async function changedKey(browser, session) {
   await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
   check(
     (await page
-      .getByRole("button", { name: "Copy your request code" })
+      .getByRole("button", { name: "Copy your join request" })
       .count()) === 0,
     "changed key does not ask",
   );

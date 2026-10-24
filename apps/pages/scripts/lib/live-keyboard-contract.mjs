@@ -149,6 +149,15 @@ async function ownerStarts(page, tabTo) {
   await expect(panel.getByLabel("Share", { exact: true })).toHaveValue("items");
   await tabTo(page, panel.getByRole("checkbox", { name: "GitHub" }));
   await page.keyboard.press("Space");
+  // A session is open to anyone with the link unless the owner asks for the
+  // code too; this walk lets a person in by hand, so it asks for both.
+  await tabTo(page, panel.getByLabel("Who gets in", { exact: true }));
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(panel.getByLabel("Who gets in", { exact: true })).toHaveValue(
+    "invite",
+  );
   const start = panel.getByRole("button", { name: "Share this vault" });
   await expect(start).toBeEnabled();
   await tabTo(page, start);
