@@ -3840,6 +3840,8 @@ dependencies = [
  "dbus",
  "ecdsa",
  "hex",
+ "hkdf",
+ "hmac 0.12.1",
  "insta",
  "opensesame-cli-app-integration",
  "opensesame-connection-detect",

@@ -14,9 +14,13 @@
 //!
 //! The list is written only through the operator-token routes below
 //! (`opensesame daemon helpers allow|revoke|list`), and kept in the daemon's
-//! state directory, owner-only, so it survives a restart. A file that cannot
-//! be read, or one in any other shape (the connection-only list an earlier
-//! build wrote included), is an empty list: the failure denies, it never admits.
+//! state directory, owner-only, so it survives a restart. Owner-only does not
+//! keep out a process running as that owner, so the file carries an HMAC
+//! under a key derived from the operator token (`helper_mints_key.rs`): only
+//! the holder of the token can write grants that are read back. A file that
+//! cannot be read, one in any other shape, and one whose tag is missing or
+//! does not verify (edited by hand, or written under an earlier operator
+//! token) is an empty list: the failure denies, it never admits.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -33,10 +37,16 @@ use serde_json::json;
 
 use crate::{require_operator, App, UdsPeer};
 
+#[path = "helper_mints_key.rs"]
+mod key;
+use key::GrantKey;
+
 /// The file, inside the daemon's state directory.
 const FILE_NAME: &str = "helper-mints.json";
-/// The file's shape; any other is refused.
-const VERSION: u32 = 2;
+/// The file's shape; any other is refused. Version 3 added the tag.
+const VERSION: u32 = 3;
+
+type Grants = BTreeMap<String, Option<String>>;
 
 /// One grant: a connection, and the installation it is bound to.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -51,47 +61,93 @@ pub(crate) struct Grant {
 struct File {
     version: u32,
     grants: Vec<Grant>,
+    /// HMAC-SHA256 of the grants, hex; absent in files from earlier builds.
+    #[serde(default)]
+    mac: Option<String>,
 }
 
-/// The grants by connection, and where they are kept (`None`: memory only).
+/// What the daemon found in the grant file when it started, or `Authenticated`
+/// once it has written one.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Stored {
+    /// No file, or a daemon that keeps the list in memory only.
+    Absent,
+    Authenticated,
+    /// A tag that is missing or does not verify under this operator token.
+    Unauthenticated,
+    /// A file that cannot be read or parsed.
+    Unreadable,
+}
+
+impl Stored {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Absent => "none",
+            Self::Authenticated => "authenticated",
+            Self::Unauthenticated => "unauthenticated",
+            Self::Unreadable => "unreadable",
+        }
+    }
+}
+
+struct Loaded {
+    grants: Grants,
+    stored: Stored,
+}
+
+/// The grants by connection, where they are kept (`None`: memory only), and
+/// the key their file is authenticated under (`None`: no operator token).
 pub(crate) struct HelperMints {
     path: Option<PathBuf>,
-    grants: Mutex<BTreeMap<String, Option<String>>>,
+    key: Option<GrantKey>,
+    loaded: Mutex<Loaded>,
 }
 
 impl HelperMints {
-    /// The list kept under `state_dir`, read once now.
-    pub(crate) fn open(state_dir: Option<&Path>) -> Self {
+    /// The list kept under `state_dir`, read once now and believed only when
+    /// its tag verifies under a key derived from `operator_token`.
+    pub(crate) fn open(state_dir: Option<&Path>, operator_token: &str) -> Self {
         let path = state_dir.map(|dir| dir.join(FILE_NAME));
-        let grants = path.as_deref().map(read).unwrap_or_default();
+        let key = GrantKey::derive(operator_token);
+        let (grants, stored) = match path.as_deref() {
+            Some(path) => read(path, key.as_ref()),
+            None => (Grants::new(), Stored::Absent),
+        };
         Self {
             path,
-            grants: Mutex::new(grants),
+            key,
+            loaded: Mutex::new(Loaded { grants, stored }),
         }
     }
 
     /// An empty list that is never written down.
     #[cfg(test)]
     pub(crate) fn in_memory() -> Self {
-        Self::open(None)
+        Self::open(None, "")
     }
 
     /// Whether a token-less mint of `connection_id` for `installation_id` is
     /// granted: the connection, with exactly the installation granted.
     pub(crate) fn admits(&self, connection_id: &str, installation_id: Option<&str>) -> bool {
         self.lock()
+            .grants
             .get(connection_id)
             .is_some_and(|granted| granted.as_deref() == installation_id)
     }
 
     pub(crate) fn list(&self) -> Vec<Grant> {
         self.lock()
+            .grants
             .iter()
             .map(|(connection_id, installation_id)| Grant {
                 connection_id: connection_id.clone(),
                 installation_id: installation_id.clone(),
             })
             .collect()
+    }
+
+    pub(crate) fn stored(&self) -> Stored {
+        self.lock().stored
     }
 
     /// Grant a connection, bound to one installation or none; a second grant
@@ -113,51 +169,83 @@ impl HelperMints {
     }
 
     /// The file is written before the list in memory changes, so a failed
-    /// write leaves both as they were.
-    fn change(
-        &self,
-        edit: impl FnOnce(&mut BTreeMap<String, Option<String>>),
-    ) -> std::io::Result<()> {
+    /// write leaves both as they were. With no operator token there is no key,
+    /// and nothing is written: such a daemon holds no grants.
+    fn change(&self, edit: impl FnOnce(&mut Grants)) -> std::io::Result<()> {
         let mut current = self.lock();
-        let mut next = current.clone();
+        let mut next = current.grants.clone();
         edit(&mut next);
         if let Some(path) = &self.path {
-            write(path, &next)?;
+            let key = self.key.as_ref().ok_or_else(|| {
+                std::io::Error::other("no operator token to authenticate grants with")
+            })?;
+            write(path, key, &next)?;
+            current.stored = Stored::Authenticated;
         }
-        *current = next;
+        current.grants = next;
         Ok(())
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, BTreeMap<String, Option<String>>> {
-        self.grants
+    fn lock(&self) -> std::sync::MutexGuard<'_, Loaded> {
+        self.loaded
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 }
 
-fn read(path: &Path) -> BTreeMap<String, Option<String>> {
-    let Ok(text) = std::fs::read_to_string(path) else {
-        return BTreeMap::new();
-    };
-    match serde_json::from_str::<File>(&text) {
-        Ok(file) if file.version == VERSION => file
-            .grants
-            .into_iter()
-            .map(|grant| (grant.connection_id, grant.installation_id))
-            .collect(),
-        _ => {
-            tracing::warn!(path = %path.display(), "helper mint grants unreadable or of another shape; treated as empty");
-            BTreeMap::new()
+/// The grants in `path` and what was found there. Anything but a readable
+/// version-3 file whose tag verifies under `key` is no grants at all, said in
+/// one log line that names no grant and no tag.
+fn read(path: &Path, key: Option<&GrantKey>) -> (Grants, Stored) {
+    let text = match std::fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return (Grants::new(), Stored::Absent);
         }
+        Err(_) => return refused(path, Stored::Unreadable),
+    };
+    let Ok(file) = serde_json::from_str::<File>(&text) else {
+        return refused(path, Stored::Unreadable);
+    };
+    let count = file.grants.len();
+    let grants: Grants = file
+        .grants
+        .into_iter()
+        .map(|grant| (grant.connection_id, grant.installation_id))
+        .collect();
+    if grants.len() != count {
+        return refused(path, Stored::Unreadable);
+    }
+    let verified = file.version == VERSION
+        && key
+            .zip(file.mac.as_deref())
+            .is_some_and(|(key, tag)| key.verifies(VERSION, &grants, tag));
+    if verified {
+        (grants, Stored::Authenticated)
+    } else {
+        refused(path, Stored::Unauthenticated)
     }
 }
 
-/// Write the list beside its final name, owner-only, then rename over it.
-fn write(path: &Path, grants: &BTreeMap<String, Option<String>>) -> std::io::Result<()> {
+fn refused(path: &Path, stored: Stored) -> (Grants, Stored) {
+    tracing::warn!(
+        path = %path.display(),
+        stored = stored.as_str(),
+        "helper mint grants not authenticated by the operator token, or unreadable; none are in force"
+    );
+    (Grants::new(), stored)
+}
+
+/// Write the list and its tag beside the final name, owner-only, then rename
+/// over it.
+fn write(path: &Path, key: &GrantKey, grants: &Grants) -> std::io::Result<()> {
     use std::io::Write;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
+    let mac = key
+        .sign(VERSION, grants)
+        .ok_or_else(|| std::io::Error::other("helper mint grants could not be tagged"))?;
     let file = File {
         version: VERSION,
         grants: grants
@@ -167,6 +255,7 @@ fn write(path: &Path, grants: &BTreeMap<String, Option<String>>) -> std::io::Res
                 installation_id: installation_id.clone(),
             })
             .collect(),
+        mac: Some(mac),
     };
     let staging = path.with_extension("json.tmp");
     let mut options = std::fs::OpenOptions::new();
@@ -179,12 +268,18 @@ fn write(path: &Path, grants: &BTreeMap<String, Option<String>>) -> std::io::Res
     std::fs::rename(&staging, path)
 }
 
-/// `GET /v1/helper-mints`: the grants.
+/// `GET /v1/helper-mints`: the grants, and what was found in the file
+/// (`stored`): `unauthenticated` or `unreadable` says the grants written there
+/// are not in force, and the operator allows each again.
 pub(crate) async fn list(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
     if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
-    Json(json!({ "grants": st.helper_mints.list() })).into_response()
+    Json(json!({
+        "grants": st.helper_mints.list(),
+        "stored": st.helper_mints.stored().as_str(),
+    }))
+    .into_response()
 }
 
 /// What `PUT /v1/helper-mints/{connection_id}` may say: the installation the

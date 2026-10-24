@@ -46,6 +46,36 @@ async fn allowed_gateway() -> (App, Arc<Mutex<Vec<Value>>>) {
     (state, calls)
 }
 
+/// A grant the operator made through the route outlives a restart: the file
+/// is authenticated under the same token, and a helper mints with it.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_grant_made_through_the_route_survives_a_restart_and_mints() {
+    use crate::helper_mints::HelperMints;
+    let dir = tempfile::tempdir().unwrap();
+    let token = crate::test_operator_token();
+    let (mut state, calls) = minting_gateway().await;
+    state.helper_mints = Arc::new(HelperMints::open(Some(dir.path()), token));
+    let allow = Request::builder()
+        .method("PUT")
+        .uri("/v1/helper-mints/conn_stub")
+        .header("x-opensesame-operator", token)
+        .body(Body::empty())
+        .unwrap();
+    let allowed = router(state.clone()).oneshot(allow).await.unwrap();
+    assert_eq!(allowed.status(), StatusCode::OK);
+
+    // The restart: the same token, the grants read back from disk.
+    state.helper_mints = Arc::new(HelperMints::open(Some(dir.path()), token));
+    let own = state.allowed_uids[0];
+    let res = router(state)
+        .oneshot(uds_request(Some(own), None, None))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_eq!(calls.lock().unwrap().len(), 1);
+}
+
 #[cfg(unix)]
 async fn error_of(res: Response) -> Value {
     let bytes = to_bytes(res.into_body(), 4096).await.unwrap();

@@ -35,7 +35,9 @@ the one installation named, matched exactly (`GET /v1/helper-mints`, `PUT
 /v1/helper-mints/{connection_id}` with an optional `{"installation_id"}` body,
 `DELETE /v1/helper-mints/{connection_id}`, operator token on every transport;
 `opensesame daemon helpers allow|revoke|list`), which is how the credential
-helpers mint (ADR 0138 §2). Not operator-gated: the health probes, `/v1/get_access_token`, the
+helpers mint (ADR 0138 §2). The grant file is authenticated by an HMAC under a
+key derived from the operator token; a file whose tag fails admits nothing, and
+`GET /v1/helper-mints` answers `"stored": "unauthenticated"`. Not operator-gated: the health probes, `/v1/get_access_token`, the
 agent-capability launch exchange (an attested Unix-socket peer plus a launch
 handle), the `/host/*` and `/identity/*` proxies (they drop the operator header
 and leave authentication to the upstream), the vault-drive snapshot and part
