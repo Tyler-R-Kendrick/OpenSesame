@@ -118,6 +118,12 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   [tailscaleArtifacts.assets.nativeHTTP]: "networking.tailnet",
   [tailscaleArtifacts.assets.notices]: "networking.tailnet",
   "icon.svg": null,
+  // The public site's static pages (agent-readable site, 7462e3ff9): plain
+  // documents copied from public/, no capability surface.
+  "404.html": null,
+  "about.html": null,
+  "contact.html": null,
+  "privacy.html": null,
   // Standalone save widget for the core vault /save review route.
   "save-button.js": null,
   "os-runtime-config.json": null,
