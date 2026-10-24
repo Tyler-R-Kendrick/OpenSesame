@@ -53,6 +53,7 @@ async function azureControls(page, entry) {
   const mode = page.getByLabel("Azure API mode", { exact: true });
   if (await mode.count()) await mode.selectOption("v1");
   await page
+    .getByRole("region", { name: "AI configuration", exact: true })
     .getByLabel("API family", { exact: true })
     .selectOption(entry.family);
   if (entry.providerId === "byo-ai")
