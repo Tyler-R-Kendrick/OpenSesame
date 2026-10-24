@@ -56,12 +56,14 @@ export function canonicalAddresses(addresses: readonly string[]): string[] {
 
 /**
  * What a received description may name although it is not public: the
- * addresses this side's session names, and the same-machine hints.
+ * addresses this side's session names, and the same-machine hints. The named
+ * ones are bounded on their own, so a full Routes list never pushes the hints
+ * out.
  */
 export function sessionNamedAddresses(
   named: readonly string[],
 ): ReadonlySet<string> {
-  return new Set(canonicalAddresses([...named, ...SAME_MACHINE_HINTS]));
+  return new Set([...canonicalAddresses(named), ...SAME_MACHINE_HINTS]);
 }
 
 /**

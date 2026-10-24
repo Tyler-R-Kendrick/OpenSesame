@@ -70,6 +70,18 @@ describe("a received description keeps only what the session named", () => {
     ]);
   });
 
+  it("keeps the same-machine defaults beside a full list of Routes addresses", () => {
+    const routes = Array.from(
+      { length: NAMED_ADDRESSES_MAX },
+      (_, at) => `100.64.0.${at + 1}`,
+    );
+    expect(kept(described("127.0.0.1", "::1", ...routes), routes)).toEqual([
+      "127.0.0.1",
+      "::1",
+      ...routes,
+    ]);
+  });
+
   it("drops an unnamed private, link-local, other loopback or mapped-private address", () => {
     expect(
       kept(
