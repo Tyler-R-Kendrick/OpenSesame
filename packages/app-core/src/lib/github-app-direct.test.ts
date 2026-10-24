@@ -82,7 +82,13 @@ it("attenuates an installation token to one repository and the Contents access i
     },
   ]);
   await expect(
-    createGithubInstallationToken(fixture.transport, credentials, 77, "", "read"),
+    createGithubInstallationToken(
+      fixture.transport,
+      credentials,
+      77,
+      "",
+      "read",
+    ),
   ).rejects.toThrow("repository");
   expect(fixture.requests).toHaveLength(2);
 });
@@ -227,6 +233,12 @@ it("rechecks token custody after the HTTP helper resolves", async () => {
     },
   };
   await expect(
-    createGithubInstallationToken(transport, credentials, 77, "backups", "write"),
+    createGithubInstallationToken(
+      transport,
+      credentials,
+      77,
+      "backups",
+      "write",
+    ),
   ).rejects.toThrow("custody ended");
 });

@@ -171,9 +171,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.onDispose(releaseManagers);
     activation.onDispose(releaseLocal);
 
-    // Targets first: a control drawn before its target is declared binds
-    // nothing, and a tutorial would find no control.
-    registerTutorial(activation, TUTORIAL);
+    registerTutorial(activation, TUTORIAL); // targets before what they name
     activation.register("section", {
       id: "connections",
       to: "/connections",

@@ -77,6 +77,17 @@ const TOKENS = {
   read: "ghs_owned_backup_read_token",
   write: "ghs_owned_backup_token",
 } as const;
+/** One repository's contents, read for a read and write only for a write. */
+function backupGrant(input: { permissions?: { contents?: unknown } }) {
+  const access = input.permissions?.contents;
+  if (access !== "read" && access !== "write")
+    throw new Error(`Unexpected Contents access: ${String(access)}`);
+  expect(input).toEqual({
+    repositories: ["backups"],
+    permissions: { contents: access, metadata: "read" },
+  });
+  return TOKENS[access];
+}
 function reply(
   path: string,
   method: string,
@@ -108,17 +119,10 @@ function reply(
           expires_at: new Date(Date.now() + 600000).toISOString(),
         },
       };
-    // One repository's contents, read for a read and write only for a write.
-    const access = input.permissions?.contents;
-    expect(["read", "write"]).toContain(access);
-    expect(input).toEqual({
-      repositories: ["backups"],
-      permissions: { contents: access, metadata: "read" },
-    });
     return {
       status: 201,
       value: {
-        token: TOKENS[access as keyof typeof TOKENS],
+        token: backupGrant(input),
         expires_at: new Date(Date.now() + 600000).toISOString(),
       },
     };

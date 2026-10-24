@@ -12,10 +12,7 @@ import { createTestContext } from "./test-context.js";
  * goals only, and notifications.routing declares its tutorial with the page
  * it adds, target before page.)
  */
-const MODULES: Record<
-  string,
-  () => Promise<{ capabilityRuntime: CapabilityRuntime }>
-> = {
+const MODULES = {
   "access.authority": () => import("./access.authority/runtime.js"),
   "activity.log": () => import("./activity.log/runtime.js"),
   "connectors.external": () => import("./connectors.external/runtime.js"),
@@ -31,7 +28,10 @@ const MODULES: Record<
   "sharing.trusted-contacts": () =>
     import("./sharing.trusted-contacts/runtime.js"),
   "wallet.spending": () => import("./wallet.spending/runtime.js"),
-};
+} satisfies Record<
+  string,
+  () => Promise<{ capabilityRuntime: CapabilityRuntime }>
+>;
 
 const disposals: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
@@ -40,11 +40,9 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it.each(Object.keys(MODULES))(
+it.each(Object.entries(MODULES))(
   "%s declares its tutorial targets before anything it draws",
-  async (capability) => {
-    const loader = MODULES[capability];
-    if (!loader) throw new Error(`No module for ${capability}`);
+  async (capability, loader) => {
     const { capabilityRuntime } = await loader();
     const t = createTestContext({ tomb: "personal" });
     const handle = await capabilityRuntime.activate(t.ctx);
