@@ -61,7 +61,7 @@ pub const SURROGATE_HEX_LEN: usize = 32;
 /// secret. The id is safe to report; the secret only makes the value
 /// unguessable when planted.
 pub const HONEY_TOKEN_MARKER: &str = "osr_hny_";
-/// The HoneyVault spelling is a normal-looking surrogate id whose first four
+/// The `HoneyVault` spelling is a normal-looking surrogate id whose first four
 /// hex characters reserve it for a decoy. The rest is random.
 pub const HONEY_ID_PREFIX: &str = "c0de";
 pub const HONEY_TOKEN_ID_LEN: usize = 32;
@@ -276,11 +276,12 @@ impl SurrogateLedger {
     #[must_use]
     pub fn honey_refusals(&self, req: &RequestView<'_>) -> Vec<Refusal> {
         let mut ids = Vec::new();
-        for sighting in sightings(req) {
-            if let Some(id) = honey_token_id(&sighting.value) {
-                if !ids.contains(&id) {
-                    ids.push(id);
-                }
+        for id in sightings(req)
+            .iter()
+            .filter_map(|sighting| honey_token_id(&sighting.value))
+        {
+            if !ids.contains(&id) {
+                ids.push(id);
             }
         }
         ids.into_iter().map(Refusal::honey).collect()
