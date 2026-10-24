@@ -1,4 +1,5 @@
 /** @vitest-environment node */
+import { X509Certificate } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { get as httpsGet } from "node:https";
 import { tmpdir } from "node:os";
@@ -9,6 +10,8 @@ import {
   fixtureTls,
   proofServer,
 } from "./tailnet-connect-fixture-network.mjs";
+
+import { command } from "./tailnet-connect-fixture-process.mjs";
 
 let directory;
 let certificates;
@@ -100,4 +103,17 @@ it("counts real TLS rejection before HTTP for wrong CA and same-CA wrong hostnam
     await wrongHostname?.close();
     await trusted.close();
   }
+});
+
+it("issues an explicit signing CA accepted by the native peer trust policy", async () => {
+  expect(new X509Certificate(certificates.caPEM).ca).toBe(true);
+  const usage = await command("openssl", [
+    "x509",
+    "-in",
+    certificates.trusted.caPath,
+    "-noout",
+    "-ext",
+    "keyUsage",
+  ]);
+  expect(usage).toContain("Certificate Sign");
 });
