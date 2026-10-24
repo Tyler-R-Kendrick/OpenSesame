@@ -2,6 +2,7 @@
 import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { signInLocalIdentity } from "@opensesame/app-core/lib/local-sessions.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 import {
   cleanup,
@@ -37,6 +38,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+/**
+ * A directory change (the panel's seed, each save) ends every session, and a
+ * tab that signed someone in administers only as that person (97d68ee57): the
+ * owner signs in again before each administrative act.
+ */
+async function signOwnerInAgain() {
+  fixture.session = await signInLocalIdentity(fixture.tomb, fixture.personId);
+}
+
 function Location() {
   const location = useLocation();
   return (
@@ -69,6 +79,7 @@ it("creates, selects, edits and deletes one agent through the vault list and buf
   expect(screen.queryByRole("tablist")).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "New agent" }));
   await userEvent.type(await screen.findByLabelText("Name"), "Build bot");
+  await signOwnerInAgain();
   await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
   expect(
     await screen.findByRole(
@@ -87,6 +98,7 @@ it("creates, selects, edits and deletes one agent through the vault list and buf
   const name = await screen.findByLabelText("Name");
   await userEvent.clear(name);
   await userEvent.type(name, "Release bot");
+  await signOwnerInAgain();
   await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
   expect(
     await screen.findByRole(
@@ -101,6 +113,7 @@ it("creates, selects, edits and deletes one agent through the vault list and buf
       (entry) => entry.id === agent.id,
     ),
   ).toBe(true);
+  await signOwnerInAgain();
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm deletion" }),
   );
@@ -178,6 +191,7 @@ it("keeps the text entered as soon as the editor receives focus", async () => {
     await waitFor(() =>
       expect(name).toHaveProperty("value", "Immediate rename"),
     );
+    await signOwnerInAgain();
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(
       await screen.findByRole("heading", { name: "Immediate rename" }),

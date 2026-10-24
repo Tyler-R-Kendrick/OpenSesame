@@ -3,6 +3,7 @@ import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-a
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { notifyLocalIamChange } from "@opensesame/app-core/lib/local-iam-events.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { signInLocalIdentity } from "@opensesame/app-core/lib/local-sessions.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
@@ -60,6 +61,15 @@ function openPeople() {
   );
 }
 
+/**
+ * A directory change (the panel's seed, a new row) ends every session, and a
+ * tab that signed someone in administers only as that person (97d68ee57): the
+ * owner signs in again before an administrative act.
+ */
+async function signOwnerInAgain() {
+  fixture.session = await signInLocalIdentity(fixture.tomb, fixture.personId);
+}
+
 async function rowOf(name: string) {
   const row = (await screen.findByRole("heading", { level: 3, name })).closest(
     "li",
@@ -78,6 +88,7 @@ it("arms delete, keeps focus on keep, and lands focus on the add key once the ro
     () => expect(remove).toHaveProperty("disabled", false),
     SEALED_WRITE,
   );
+  await signOwnerInAgain();
   await userEvent.click(remove);
   expect(remove.className).toContain("is-armed");
   expect(remove.getAttribute("aria-label")).toBe("Confirm deletion");
@@ -120,6 +131,7 @@ it("reports a refused delete and keeps the row", async () => {
     () => expect(remove).toHaveProperty("disabled", false),
     SEALED_WRITE,
   );
+  await signOwnerInAgain();
   await userEvent.click(remove);
   await userEvent.click(
     within(row).getByRole("button", { name: "Confirm deletion" }),

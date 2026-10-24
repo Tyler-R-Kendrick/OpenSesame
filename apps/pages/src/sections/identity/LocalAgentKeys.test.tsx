@@ -1,15 +1,16 @@
-import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
 import * as agentAuthentication from "@opensesame/app-core/lib/local-agent-auth.js";
 import { readLocalAgentKeys } from "@opensesame/app-core/lib/local-agent-keys.js";
-import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
-import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
-import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
+import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import {
+  currentLocalIdentitySession,
+  signInLocalIdentity,
+} from "@opensesame/app-core/lib/local-sessions.js";
+import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
   type LocalAgentChallenge,
   createLocalAgentKey,
 } from "@opensesame/static-auth";
-import { mintVaultKey } from "@opensesame/vault-core";
 import {
   act,
   cleanup,
@@ -22,24 +23,32 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalAgentKeys } from "./LocalAgentKeys.js";
 
+let fixture: Awaited<ReturnType<typeof localRequestFixture>>;
 let tomb: string;
 let principalId: string;
+/**
+ * The vault's owner, signed in with a passkey. A directory change ends every
+ * session, and a tab that has signed an agent in administers only as that
+ * agent (97d68ee57), so the owner signs in again before administering.
+ */
+async function signOwnerIn() {
+  fixture.session = await signInLocalIdentity(tomb, fixture.personId);
+}
 beforeEach(async () => {
   // jsdom's realm differs from Node's TextEncoder/WebCrypto realm.
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
-  tomb = `agent-ui-${crypto.randomUUID()}`;
-  unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  vi.stubGlobal("navigator", {
-    locks: webLocksDouble(),
-  });
-  const directory = await changeLocalDirectory(tomb, 0, {
+  vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
+  fixture = await localRequestFixture();
+  tomb = fixture.tomb;
+  const directory = await fixture.change({
     action: "create",
     kind: "agent",
     name: "Test agent",
   });
-  const agent = directory.entries[0];
+  const agent = directory.entries.find((row) => row.kind === "agent");
   if (!agent) throw new Error("Missing agent fixture");
   principalId = agent.id;
+  await signOwnerIn();
 });
 afterEach(() => {
   cleanup();
@@ -114,6 +123,8 @@ it("enrolls, authenticates with a real signature, and revokes the agent session"
   expect(
     (await currentLocalIdentitySession(tomb, principalId))?.authentication,
   ).toBe("agent_key");
+  // Revoking is the owner's act, not the agent's that just signed in here.
+  await signOwnerIn();
   await userEvent.click(
     screen.getByRole("button", { name: "Revoke agent key" }),
   );
