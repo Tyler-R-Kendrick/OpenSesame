@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, request } from "node:http";
 import { createServer as createTlsServer } from "node:https";
-import { connect } from "node:net";
+import { connect, isIP } from "node:net";
 import { join } from "node:path";
 import { command } from "./tailnet-connect-fixture-process.mjs";
 
@@ -13,23 +13,32 @@ const CORS = {
   "access-control-allow-private-network": "true",
 };
 
-export async function fixtureTls(directory) {
+export async function fixtureTls(
+  directory,
+  {
+    subjectAltName = "DNS:derp.fixture.test,DNS:localhost,IP:127.0.0.1",
+    issuerDirectory = directory,
+  } = {},
+) {
   const at = (name) => join(directory, name);
-  await command("openssl", [
-    "req",
-    "-x509",
-    "-newkey",
-    "rsa:2048",
-    "-nodes",
-    "-days",
-    "2",
-    "-keyout",
-    at("ca.key"),
-    "-out",
-    at("ca.pem"),
-    "-subj",
-    "/CN=Tailnet browser fixture CA",
-  ]);
+  const issuerAt = (name) => join(issuerDirectory, name);
+  if (issuerDirectory === directory) {
+    await command("openssl", [
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-nodes",
+      "-days",
+      "2",
+      "-keyout",
+      at("ca.key"),
+      "-out",
+      at("ca.pem"),
+      "-subj",
+      "/CN=Tailnet browser fixture CA",
+    ]);
+  }
   await command("openssl", [
     "req",
     "-newkey",
@@ -45,7 +54,7 @@ export async function fixtureTls(directory) {
   await writeFile(
     at("tls.ext"),
     [
-      "subjectAltName=DNS:derp.fixture.test,DNS:localhost,IP:127.0.0.1",
+      `subjectAltName=${subjectAltName}`,
       "basicConstraints=critical,CA:FALSE",
       "keyUsage=critical,digitalSignature,keyEncipherment",
       "extendedKeyUsage=serverAuth",
@@ -57,9 +66,9 @@ export async function fixtureTls(directory) {
     "-in",
     at("derp.csr"),
     "-CA",
-    at("ca.pem"),
+    issuerAt("ca.pem"),
     "-CAkey",
-    at("ca.key"),
+    issuerAt("ca.key"),
     "-CAcreateserial",
     "-out",
     at("derp.pem"),
@@ -81,10 +90,32 @@ export async function fixtureTls(directory) {
   return {
     key: await readFile(at("derp.key")),
     cert: await readFile(at("derp.pem")),
-    caPath: at("ca.pem"),
+    caPath: issuerAt("ca.pem"),
     spki: createHash("sha256")
       .update(await readFile(at("spki.der")))
       .digest("base64"),
+  };
+}
+
+/** Test-only peer keys remain in Node; callers expose only the public CA PEM. */
+export async function fixturePeerTLS(directory, address) {
+  if (!isIP(address))
+    throw new Error("Peer TLS fixture needs a real IP address");
+  const issuerDirectory = join(directory, "peer-tls");
+  const mismatchDirectory = join(directory, "peer-tls-wrong-host");
+  await mkdir(issuerDirectory);
+  await mkdir(mismatchDirectory);
+  const trusted = await fixtureTls(issuerDirectory, {
+    subjectAltName: `IP:${address}`,
+  });
+  const wrongHostname = await fixtureTls(mismatchDirectory, {
+    subjectAltName: "DNS:wrong-peer.fixture.test",
+    issuerDirectory,
+  });
+  return {
+    trusted,
+    wrongHostname,
+    caPEM: await readFile(trusted.caPath, "utf8"),
   };
 }
 
@@ -182,10 +213,10 @@ export async function forwardingEdge({ port, upstreamPort, records, tls }) {
   return listening(server, port);
 }
 
-export async function proofServer(port) {
+export async function proofServer(port, tls) {
   const nonce = randomUUID();
   const requests = [];
-  const server = createServer((incoming, response) => {
+  const handler = (incoming, response) => {
     const path = new URL(incoming.url, "http://peer").pathname;
     requests.push({ method: incoming.method, path });
     response.writeHead(path === "/proof" ? 200 : 404, {
@@ -194,6 +225,20 @@ export async function proofServer(port) {
     response.end(
       JSON.stringify({ source: "real-native-tailscale-peer", nonce, path }),
     );
-  });
-  return { nonce, requests, close: await listening(server, port) };
+  };
+  const server = tls ? createTlsServer(tls, handler) : createServer(handler);
+  const stats = tls ? { connections: 0, secure: 0, errors: 0 } : null;
+  if (stats) {
+    server.on("connection", () => stats.connections++);
+    server.on("secureConnection", () => stats.secure++);
+    server.on("tlsClientError", () => stats.errors++);
+  }
+  const close = await listening(server, port);
+  return {
+    nonce,
+    requests,
+    stats,
+    origin: `${tls ? "https" : "http"}://127.0.0.1:${server.address().port}`,
+    close,
+  };
 }
