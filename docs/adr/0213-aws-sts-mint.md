@@ -1,4 +1,4 @@
-# ADR 0207 — The AWS mint: STS AssumeRole for a bound role
+# ADR 0213 — The AWS mint: STS AssumeRole for a bound role
 
 - **Status:** Accepted
 - **Date:** 2026-10-17
@@ -107,13 +107,11 @@ credential STS was built to derive from.
   loopback stand-in that verifies SigV4 with the same crate and answers the
   documented XML; a deployment should mint once against a role it controls
   before handing the profile to an agent.
-- The daemon's mint route has demanded the operator token since the Unix-socket
-  audit, and the helpers sent none, so no helper could reach a real daemon. The
-  helpers now forward the `OPENSESAME_OPERATOR_TOKEN` of their own environment
-  (and nothing else) so the mint can be driven by the operator's deploy job. An
-  agent environment that does not hold the token still gets `401`. This widens
-  no authority — the daemon's check is unchanged — but it is a change to every
-  helper's contract and is called out for review.
+- The aws helper reaches a real daemon only because the helpers forward the
+  `OPENSESAME_OPERATOR_TOKEN` of their own environment to the daemon's mint
+  route, which demands it. That change to every helper's contract is its own
+  pull request, and this one builds on it; an agent environment that does not
+  hold the token still gets `401`.
 - The Host reads `OPENSESAME_TEST_AWS_STS_ENDPOINT` only in a build with the
   broker's `sts-stand-in` feature, which the CLI's tests enable and a shipped
   build never does; the endpoint then admits loopback hosts alone.

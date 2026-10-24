@@ -1,4 +1,4 @@
-//! `POST /api/v1/connections/{id}/mint` (ADR 0049; the AWS arm is ADR 0207).
+//! `POST /api/v1/connections/{id}/mint` (ADR 0049; the AWS arm is ADR 0213).
 
 use axum::{
     extract::{Path, State},

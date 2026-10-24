@@ -1,4 +1,4 @@
-//! The stable failure codes are the HTTP contract (ADR 0207).
+//! The stable failure codes are the HTTP contract (ADR 0213).
 
 use super::*;
 

@@ -112,7 +112,7 @@ pub(super) fn routes() -> Router<AppState> {
         .merge(aws_sts_routes())
 }
 
-/// The STS binding an aws-family connection mints for (ADR 0207).
+/// The STS binding an aws-family connection mints for (ADR 0213).
 fn aws_sts_routes() -> Router<AppState> {
     Router::new().route(
         "/api/v1/connections/{id}/aws-sts-binding",

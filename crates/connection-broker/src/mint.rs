@@ -1,7 +1,7 @@
 //! `POST /connections/{id}/mint` in the broker (ADR 0049): one entry point,
 //! one arm per provider with a native mint path. GitHub mints an App
 //! installation token; the aws family assumes a role with STS
-//! (`aws_mint.rs`, ADR 0207). Every other provider is `unmintable`.
+//! (`aws_mint.rs`, ADR 0213). Every other provider is `unmintable`.
 
 use chrono::Utc;
 use opensesame_domain::OrganizationId;
@@ -34,7 +34,7 @@ impl ConnectionBroker {
     }
 
     /// [`ConnectionBroker::mint_derived_token`] with a requested lifetime, which
-    /// an AWS mint honours under its binding's cap (ADR 0207) and a GitHub
+    /// an AWS mint honours under its binding's cap (ADR 0213) and a GitHub
     /// mint ignores (GitHub fixes the installation token's hour).
     ///
     /// # Errors
@@ -129,7 +129,7 @@ impl ConnectionBroker {
                     receipt: None,
                 })
             }
-            // ADR 0207: STS AssumeRole over the sealed key pair, for the role
+            // ADR 0213: STS AssumeRole over the sealed key pair, for the role
             // the connection's binding names. No binding, no mint path.
             provider if crate::aws_sts::is_mintable_provider(provider) => {
                 self.mint_aws_sts(&row, subject, actor, duration_seconds)

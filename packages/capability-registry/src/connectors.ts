@@ -124,7 +124,7 @@ export const connectPlanCapabilities: readonly Capability[] = [
   },
 ];
 
-/** Every connector capability: directory, plans, the model keys a connection backs (ADR 0192), and the AWS mint binding (ADR 0207). */
+/** Every connector capability: directory, plans, the model keys a connection backs (ADR 0192), and the AWS mint binding (ADR 0213). */
 export const connectorCapabilities: readonly Capability[] = [
   ...connectorDirectoryCapabilities,
   ...connectPlanCapabilities,

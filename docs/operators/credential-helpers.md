@@ -22,7 +22,7 @@ helper (git/docker/aws/kubectl)
   → POST /v1/mint  over the daemon's Unix socket
     → daemon forwards to POST /api/v1/connections/{id}/mint (operator_forward)
       → gateway mints a derived token (a GitHub App installation token, or
-        STS credentials for an aws connection's bound role, ADR 0207)
+        STS credentials for an aws connection's bound role, ADR 0213)
 ```
 
 The socket fences who may ask: the daemon reads the kernel-attested peer UID
@@ -109,7 +109,7 @@ export OPENSESAME_AWS_CONNECTION_ID="conn_…"            # required
 The Host assumes an IAM role with STS and the helper prints STS's temporary
 credential in the `credential_process` shape (`Version`, `AccessKeyId`,
 `SecretAccessKey`, `SessionToken`, `Expiration`). The IAM key pair it signs
-with stays sealed in the Host (ADR 0207).
+with stays sealed in the Host (ADR 0213).
 
 **Configure a binding** (an operator or the connection's owner, administrator
 role). The connection is an `aws`, `aws-kms`, `aws-ps` or `aws-bedrock`
