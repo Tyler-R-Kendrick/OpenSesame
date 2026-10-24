@@ -236,8 +236,19 @@ it("shows saved metadata without inventing access and recovers creation through 
   rememberLocalGithubApp(app);
   stashPendingGithubAppSecret(app, "memory-only-pem", null);
   const { container } = draw();
-  expect(screen.getByText("Saved app")).toBeTruthy();
-  expect(screen.getByText("operator")).toBeTruthy();
+  expect(screen.getAllByTestId("github-app-name")).toHaveLength(1);
+  expect(screen.getByTestId("github-app-name").textContent).toContain(
+    "Browser app",
+  );
+  expect(screen.getAllByTestId("github-app-owner")).toHaveLength(1);
+  expect(screen.getByTestId("github-app-owner").textContent).toContain(
+    "operator",
+  );
+  expect(
+    screen.getAllByRole("button", {
+      name: "Remove GitHub App from this device",
+    }),
+  ).toHaveLength(1);
   expect(
     screen.getByLabelText("GitHub App key pending vault storage."),
   ).toBeTruthy();
@@ -254,9 +265,12 @@ it("shows saved metadata without inventing access and recovers creation through 
   expect(
     screen.queryByRole("button", { name: "Create GitHub App" }),
   ).toBeNull();
+  const confirm = vi.fn(() => true);
+  vi.stubGlobal("confirm", confirm);
   await userEvent.click(
     screen.getByRole("button", { name: "Remove GitHub App from this device" }),
   );
+  expect(confirm).toHaveBeenCalledTimes(1);
   expect(readLocalGithubApp()).toBeNull();
   expect(
     screen.getByRole("button", { name: "Create GitHub App" }),
