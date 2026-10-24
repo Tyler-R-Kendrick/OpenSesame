@@ -13,6 +13,7 @@ export {
   SAME_MACHINE,
   admitAndAnswer,
   answerAddresses,
+  thisMachine,
 } from "./live-join-addresses.mjs";
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
@@ -196,15 +197,15 @@ async function natsChoices(routes, carrier) {
 
 /**
  * Start a session. `sameMachine` names this machine in Routes first (the
- * walks' browsers share it); a walk about what an unnamed address does
- * passes false.
+ * walks' browsers share it): loopback, or the addresses given (`thisMachine`);
+ * a walk about what an unnamed address does passes false.
  */
 export async function startSession(
   page,
   { admission = "invite", policy = "read", sameMachine = true } = {},
 ) {
   const { session, routes } = await openLive(page);
-  if (sameMachine) await namesSameMachine(routes);
+  if (sameMachine) await namesSameMachine(routes, sameMachine);
   await session.getByLabel("Session name").fill("Team");
   await session.getByLabel("Share", { exact: true }).selectOption("items");
   await session
@@ -325,10 +326,10 @@ export function ownerComparedSas(panel) {
 }
 
 /**
- * The owner pastes a request by hand and lets the person in. An open session
- * still auto-admits a request with no peer block (`admit: false`). A request
- * that shows a session SAS waits for "Yes, they match" either way. The reply
- * code.
+ * The owner pastes a request by hand and lets the person in, comparing the
+ * session SAS where the row shows one. An open session lets the link holder
+ * in at once (`admit: false`): its row's SAS holds nothing back and is gone
+ * once the reply is made, so there the walk takes the reply. The reply code.
  */
 export async function ownerAdmitsByHand(
   page,
@@ -353,12 +354,6 @@ export async function ownerAdmitsByHand(
       await match.click();
     } else {
       await letIn.click();
-    }
-  } else {
-    await match.or(copy).first().waitFor({ timeout: 20_000 });
-    if (await match.isVisible()) {
-      await confirmSessionSas(panel);
-      await match.click();
     }
   }
   await copy.waitFor({ timeout: 20_000 });

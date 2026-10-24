@@ -156,15 +156,13 @@ async function through(browser, owner, label, hooks) {
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     if (connects) {
-      await joined(joiner.page).waitFor({ timeout: 45_000 });
+      await joined(joiner.page, 45_000);
       await shot(joiner.page, `${label}-2-joined`);
     } else {
-      const reached = await joined(joiner.page)
-        .waitFor({ timeout: NO_ROUTE_MS })
-        .then(
-          () => true,
-          () => false,
-        );
+      const reached = await joined(joiner.page, NO_ROUTE_MS).then(
+        () => true,
+        () => false,
+      );
       check(!reached, `${label}: the browsers never met`);
       await shot(joiner.page, `${label}-2-not-joined`);
     }

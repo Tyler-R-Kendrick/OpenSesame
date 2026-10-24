@@ -20,6 +20,7 @@ import {
   asksForTheCode,
   joinerAsks,
   namesThisMachine,
+  returnsToSession,
   sealLiveKeyboardOwner,
 } from "./live-keyboard-entry.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
@@ -219,15 +220,7 @@ async function joinerConnects(page, { reply, tabTo }) {
   await page.keyboard.insertText(reply);
   await page.keyboard.press("Enter");
   await allowsByKeyboard(page);
-  await expect(
-    page.getByRole("img", { name: "Joined Team" }),
-    "the two browsers connected",
-  ).toBeVisible({ timeout: 45_000 });
-  await expect(
-    page.locator("#live-status"),
-    "Connect lands on the session's status",
-  ).toBeFocused();
-  await focusIn(page, ".live-join", "after Connect");
+  await returnsToSession(page, { tabTo, focusIn });
 }
 
 /** The owner removes the guest, the joiner starts over and closes; the owner ends. */
