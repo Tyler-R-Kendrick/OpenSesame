@@ -2,6 +2,7 @@ import { normalizeDisplayPath } from "./aliases.js";
 
 const FORBIDDEN_SUFFIXES = [
   "identity-grants",
+  "identity-subjects",
   "key-wrap",
   "keywrap",
   "replay",

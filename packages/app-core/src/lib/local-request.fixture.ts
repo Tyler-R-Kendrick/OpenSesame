@@ -1,6 +1,7 @@
 import type { LocalAuthorizationRequest } from "@opensesame/static-auth";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import {
   consumeLocalAccessRequest,
   decideLocalAccessRequest,
@@ -36,36 +37,14 @@ export async function consumedApplicationRequest(
 export async function localRequestFixture() {
   vi.spyOn(Date, "now").mockReturnValue(1788998400000);
   const tomb = `local-requests-${crypto.randomUUID()}`;
-  unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+  const { vaultKey } = await mintVaultKey();
+  unlockTomb(tomb, vaultKey);
   const device = await authenticator();
-  const queues = new Map<string, Promise<void>>();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
     credentials: device,
-    locks: {
-      // One queue per lock name, as the real Lock Manager holds distinct
-      // names concurrently. A single queue would deadlock any action that
-      // takes a second ledger lock, which the product allows.
-      request: <T>(
-        name: string,
-        optionsOrAction: unknown,
-        maybeAction?: () => Promise<T>,
-      ) => {
-        const action = (
-          typeof optionsOrAction === "function" ? optionsOrAction : maybeAction
-        ) as () => Promise<T>;
-        const next = (queues.get(name) ?? Promise.resolve()).then(action);
-        queues.set(
-          name,
-          next.then(
-            () => undefined,
-            () => undefined,
-          ),
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   async function change(input: LocalDirectoryChange) {
     return changeLocalDirectory(
@@ -103,6 +82,7 @@ export async function localRequestFixture() {
     organizationId: org.id,
     session,
     device,
+    vaultKey,
   };
 }
 

@@ -107,7 +107,7 @@ export async function verifyAgentApplicationChannel(input: ChannelCase) {
       id: "2",
     });
     expect(await take("identity")).toMatchObject({
-      sub: agent,
+      sub: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
       audience: app,
       scope: "openid",
     });

@@ -117,8 +117,33 @@ it("signs only the configured agent challenge before accepting an agent code", a
     state: request.state,
     id: reply.id,
   });
-  port.postMessage({ type: "closed", state: request.state });
-  expect(await result).toHaveProperty("error");
+  const redemption = new Promise<MessageEvent>((resolve) => {
+    port.onmessage = resolve;
+  });
+  port.postMessage({
+    type: "code",
+    state: request.state,
+    code: "c".repeat(43),
+  });
+  const redeemed = (await redemption).data;
+  expect(redeemed.type).toBe("redeem");
+  port.postMessage({
+    type: "identity",
+    state: request.state,
+    id: redeemed.id,
+    issuer: origin,
+    audience: clientId,
+    sub: "p".repeat(43),
+    nonce: request.nonce,
+    scope: "openid",
+    authTime: String(Date.now()),
+    expiresAt: String(Date.now() + 60_000),
+  });
+  const outcome = await result;
+  if (!("value" in outcome)) throw outcome.error;
+  session = outcome.value;
+  expect(session.identity.subject).toBe("p".repeat(43));
+  expect(session.identity.subject).not.toBe(principalId);
   expect(sign).toHaveBeenCalledOnce();
   port.close();
 });
@@ -169,7 +194,7 @@ async function connect() {
     id: message.data.id,
     issuer: origin,
     audience: clientId,
-    sub: "local_00000000-0000-4000-8000-000000000002",
+    sub: "p".repeat(43),
     nonce: request.nonce,
     scope: "openid",
     authTime: String(now),
@@ -214,6 +239,9 @@ it("rejects an authorization code before proving the requested agent", async () 
   port.close();
 });
 it.each([
+  { sub: "local_00000000-0000-4000-8000-000000000002" },
+  { sub: "short" },
+  { sub: " ".repeat(43) },
   { issuer: "https://attacker.example.test" },
   { audience: "other" },
   { nonce: "wrong" },

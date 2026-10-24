@@ -29,6 +29,7 @@ import {
   redeemLocalApplicationRequest,
 } from "./local-request-authorization.js";
 import { type LocalSession, signInLocalAgent } from "./local-sessions.js";
+import { localSubjectUnderLock } from "./local-subject-store.js";
 import { vaultStore } from "./vault/store.js";
 
 export type LocalIssuerStatus =
@@ -294,7 +295,11 @@ export class LocalIssuerChannel {
       async (record) => ({
         type: "identity",
         issuer: pageOrigin(),
-        sub: record.principalId,
+        sub: await localSubjectUnderLock(
+          this.tomb,
+          record.principalId,
+          record.applicationId,
+        ),
         audience: record.applicationId,
         nonce: record.nonce,
         scope,

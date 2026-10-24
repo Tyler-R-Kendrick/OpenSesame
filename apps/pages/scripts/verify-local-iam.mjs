@@ -49,7 +49,7 @@ async function journey(width, agentMode = false) {
   await approveConsent(page, popup, width, agentMode);
   try {
     await expect(page.locator("output")).toHaveText(
-      `Signed in locally: ${agentMode ? identities.agent : identities.person}`,
+      /^Signed in locally: [A-Za-z0-9_-]{43}$/,
       { timeout: 30_000 },
     );
   } catch (error) {
@@ -59,6 +59,9 @@ async function journey(width, agentMode = false) {
     );
     throw error;
   }
+  expect(await page.locator("output").textContent()).not.toContain(
+    agentMode ? identities.agent : identities.person,
+  );
   await tabTo(page, page.getByRole("button", { name: "Check session" }));
   await page.keyboard.press("Enter");
   await expect(page.locator("output")).toHaveText("Session active", {
@@ -118,7 +121,9 @@ async function assertClockRollbackRefusal(
     agentMode,
   );
   await approveConsent(page, popup, width, agentMode);
-  await expect(page.locator("output")).toHaveText(/^Signed in locally: local_/);
+  await expect(page.locator("output")).toHaveText(
+    /^Signed in locally: [A-Za-z0-9_-]{43}$/,
+  );
   await context.clock.setFixedTime(new Date("2026-09-09T00:00:00Z"));
   await tabTo(page, page.getByRole("button", { name: "Check session" }));
   await page.keyboard.press("Enter");

@@ -15,7 +15,7 @@ export async function localPolicyJourney({
   const { popup } = await openConsent(page, context, credentials, width);
   await approveConsent(page, popup, width);
   await expect(page.locator("output")).toHaveText(
-    /^Signed in locally: local_/,
+    /^Signed in locally: [A-Za-z0-9_-]{43}$/,
     {
       timeout: 30_000,
     },

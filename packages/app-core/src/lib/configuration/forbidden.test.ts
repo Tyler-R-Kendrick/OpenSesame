@@ -15,6 +15,8 @@ describe("forbidden configuration paths", () => {
     "config%2Fdevice-identity-key",
     "settings/device-identity-key.yaml",
     "config/identity-grants",
+    "config/identity-subjects",
+    "CONFIG%2Fidentity-subjects",
     "config/../config/device-identity-key",
   ])("refuses %s, however it is written", (path) => {
     expect(isForbiddenConfigPath(path)).toBe(true);

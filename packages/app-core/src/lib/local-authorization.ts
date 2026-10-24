@@ -303,7 +303,17 @@ export async function withLocalApplicationGrant<T>(
         refused();
       if (admission.revision !== record.applicationRevision) refused();
       assertActive();
-      return action(Object.freeze({ ...record, scopes: [...record.scopes] }));
+      const result = await action(
+        Object.freeze({ ...record, scopes: [...record.scopes] }),
+      );
+      // Recheck after asynchronous subject persistence before releasing claims.
+      assertActive();
+      if (
+        presentations.get(grant) !== presentation ||
+        record.expiresAt <= Date.now()
+      )
+        refused();
+      return result;
     },
   );
 }

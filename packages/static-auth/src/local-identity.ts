@@ -23,15 +23,11 @@ export function validChallengeExpiry(expiresAt: number) {
   );
 }
 
-function matchesSubject(
-  sub: BoundaryValue,
-  agent: LocalAuthorizationRequest["agent"],
-): sub is string {
-  return (
-    isString(sub) &&
-    /^local_[0-9a-f-]{36}$/.test(sub) &&
-    (!agent || sub === agent.principalId)
-  );
+/** Subjects are random, application-specific values, including for agents.
+ * Agent binding is proved by the configured challenge before code redemption.
+ */
+function matchesSubject(sub: BoundaryValue): sub is string {
+  return isString(sub) && /^[A-Za-z0-9_-]{43}$/.test(sub);
 }
 
 /** Accept an issuer's identity answer only for this exact request and origin. */
@@ -50,7 +46,7 @@ export function verifiedIdentity(
     message.audience !== request.applicationId ||
     message.nonce !== request.nonce ||
     message.scope !== scope ||
-    !matchesSubject(message.sub, request.agent) ||
+    !matchesSubject(message.sub) ||
     !Number.isSafeInteger(expiresAt) ||
     !Number.isSafeInteger(authTime) ||
     authTime > now ||
