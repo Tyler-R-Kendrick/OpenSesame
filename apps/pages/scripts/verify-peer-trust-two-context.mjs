@@ -29,6 +29,7 @@ import {
 import { joinedMarks, joinedSession } from "./lib/live-joined.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { expectInTray, waitForTray } from "./lib/tray-contract.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, "../../..");
@@ -263,10 +264,10 @@ async function changedKey(browser, session) {
     .fill(session.signal);
   const ask = page.getByRole("button", { name: "Ask to join" });
   if (await ask.isEnabled()) await ask.click();
-  const alarm = page.getByRole("img", { name: CHANGED });
-  const blocked = page.getByRole("button", { name: CHANGED });
-  const tray = page.locator(".notice-card").filter({ hasText: CHANGED });
-  await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
+  // The refusal lives in the tray (ADR 0163): the bell announces it, and the
+  // card behind the bell names the changed key.
+  await waitForTray(page, 20_000);
+  await expectInTray(page, CHANGED);
   check(
     (await page
       .getByRole("button", { name: "Copy your join request" })
