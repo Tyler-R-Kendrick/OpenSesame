@@ -259,8 +259,6 @@ describe("FederationReturn", () => {
     });
     renderReturn();
     expect(await screen.findByText("settings landed")).toBeTruthy();
-    // The exchange is bound to the session generation the return began in
-    // (97d68ee57), so a sign-out meanwhile cannot adopt the token.
     expect(fed.adoptBrokeredSession).toHaveBeenCalledWith(
       "at_brokered",
       federationSessionGeneration(),
