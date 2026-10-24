@@ -35,7 +35,9 @@ CHROME_PATH=/path/to/chrome node scripts/quality/web-score.mjs https://example.c
 Defaults to the canonical public score page,
 `https://is-agentic.com/scan/is-agentic.com`; set `WEB_SCORE_URL` to change the
 default. Lighthouse checks the full URL, including path; Is Agentic scores the
-origin. Reports are written to `reports/web-score/`, which is git-ignored.
+origin. Reports are written to `work/web-score/`, which is git-ignored. A failed
+run preserves the last Lighthouse or Is Agentic report as
+`lighthouse-desktop.failed.json` or `is-agentic.failed.json` for investigation.
 Query strings are rejected by default because signed parameters must not be
 copied into local reports; set `WEB_SCORE_ALLOW_QUERY=1` for a deliberate public
 URL. Loopback, RFC1918, `.local` and `.internal` hosts are rejected because the

@@ -19,7 +19,7 @@
  * recent-scans strip embeds third-party favicons, so cookies and 404s from
  * unrelated scanned sites make its best-practices score non-deterministic.
  *
- * Reports are written to reports/web-score/ (git-ignored).
+ * Reports are written to work/web-score/ (git-ignored).
  */
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -37,9 +37,14 @@ import { discoverChrome, parseTarget } from "../lib/web-score-common.mjs";
 import { runLighthouse } from "../lib/web-score-lighthouse.mjs";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const reportDir = join(repo, "reports", "web-score");
+const reportDir = join(repo, "work", "web-score");
 const lighthouseReport = join(reportDir, "lighthouse-desktop.json");
 const agenticReport = join(reportDir, "is-agentic.json");
+const failedLighthouseReport = join(
+  reportDir,
+  "lighthouse-desktop.failed.json",
+);
+const failedAgenticReport = join(reportDir, "is-agentic.failed.json");
 const defaultTarget = "https://is-agentic.com/scan/is-agentic.com";
 const agenticOrigin = "https://is-agentic.com";
 const lighthouseTimeoutMs = 240_000;
@@ -82,6 +87,8 @@ try {
 mkdirSync(reportDir, { recursive: true });
 rmSync(lighthouseReport, { force: true });
 rmSync(agenticReport, { force: true });
+rmSync(failedLighthouseReport, { force: true });
+rmSync(failedAgenticReport, { force: true });
 sweepProfiles();
 const profileDir = mkdtempSync(join(tmpdir(), "web-score-"));
 const runId = `${process.pid}-${Date.now()}`;
@@ -157,6 +164,18 @@ async function main() {
     if (!cleanedUp) {
       cleanedUp = true;
       await cleanup(children, profileDir);
+    }
+    if (failed) {
+      for (const [from, to] of [
+        [lighthouseRunReport, failedLighthouseReport],
+        [agenticRunReport, failedAgenticReport],
+      ]) {
+        try {
+          copyFileSync(from, to);
+        } catch {
+          // The failing half may not have produced a report.
+        }
+      }
     }
     rmSync(lighthouseRunReport, { force: true });
     rmSync(agenticRunReport, { force: true });

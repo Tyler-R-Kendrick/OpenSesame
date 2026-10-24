@@ -10,8 +10,24 @@ const requiredCategories = [
   "seo",
 ];
 
-function runChild(command, args, { timeout, children }) {
-  const child = spawn(command, args, {
+function windowsArg(value) {
+  return /^[A-Za-z0-9_./:@=+\\-]+$/u.test(value)
+    ? value
+    : `"${value.replaceAll('"', '""')}"`;
+}
+
+function lighthouseCommand(args) {
+  if (process.platform !== "win32") return { command: "pnpm", args };
+  const line = ["pnpm", ...args].map(windowsArg).join(" ");
+  return {
+    command: process.env.ComSpec ?? "cmd.exe",
+    args: ["/d", "/s", "/c", line],
+  };
+}
+
+function runChild(args, { timeout, children }) {
+  const { command, args: commandArgs } = lighthouseCommand(args);
+  const child = spawn(command, commandArgs, {
     cwd: process.cwd(),
     stdio: "inherit",
     detached: true,
@@ -106,7 +122,6 @@ async function auditLighthouse({
   let exitCode;
   try {
     exitCode = await runChild(
-      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
       [
         "dlx",
         "lighthouse@12.8.2",
