@@ -88,7 +88,7 @@ pub(super) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/connections/{id}/mint",
-            post(connections::mint).layer(DefaultBodyLimit::max(32 * 1024)),
+            post(connections::mint_route::mint).layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/connections/{id}/bindings",
@@ -116,9 +116,9 @@ pub(super) fn routes() -> Router<AppState> {
 fn aws_sts_routes() -> Router<AppState> {
     Router::new().route(
         "/api/v1/connections/{id}/aws-sts-binding",
-        put(connections::put_aws_sts_binding)
-            .get(connections::get_aws_sts_binding)
-            .delete(connections::delete_aws_sts_binding)
+        put(connections::aws_sts_binding::put_aws_sts_binding)
+            .get(connections::aws_sts_binding::get_aws_sts_binding)
+            .delete(connections::aws_sts_binding::delete_aws_sts_binding)
             .layer(DefaultBodyLimit::max(32 * 1024)),
     )
 }

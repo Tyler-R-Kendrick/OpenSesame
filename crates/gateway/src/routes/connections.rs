@@ -1075,10 +1075,8 @@ pub async fn create_github_repo(
     }
 }
 
-mod aws_sts_binding;
-mod mint_route;
-pub use aws_sts_binding::{delete_aws_sts_binding, get_aws_sts_binding, put_aws_sts_binding};
-pub use mint_route::mint;
+pub(crate) mod aws_sts_binding;
+pub(crate) mod mint_route;
 
 #[cfg(test)]
 mod tests;
