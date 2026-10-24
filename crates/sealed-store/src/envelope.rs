@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn osseal_round_trip() {
-        let key = ItemDataKey([7u8; 32]);
+        let key = ItemDataKey::generate();
         let pt = b"hello\nmeta: 1\n";
         let ct = seal_osseal(pt, &key, "Dev/token", 1).unwrap();
         assert!(ct.starts_with(OSSEAL_MAGIC));
@@ -199,15 +199,16 @@ mod tests {
 
     #[test]
     fn wrong_key_fails_closed() {
-        let key = ItemDataKey([7u8; 32]);
-        let other = ItemDataKey([8u8; 32]);
+        let key = ItemDataKey::generate();
+        let other = ItemDataKey::generate();
+        assert_ne!(key.0, other.0);
         let ct = seal_osseal(b"secret", &key, "Dev/token", 1).unwrap();
         assert!(open_osseal(&ct, &other, "Dev/token", Some(1)).is_err());
     }
 
     #[test]
     fn path_and_revision_are_mandatory_context() {
-        let key = ItemDataKey([7u8; 32]);
+        let key = ItemDataKey::generate();
         let ct = seal_osseal(b"secret", &key, "Dev/a", 2).unwrap();
         assert!(open_osseal(&ct, &key, "Dev/b", Some(2)).is_err());
         assert!(open_osseal(&ct, &key, "Dev/a", Some(3)).is_err());
@@ -215,7 +216,7 @@ mod tests {
 
     #[test]
     fn entries_and_attachments_do_not_cross_open() {
-        let key = ItemDataKey([7u8; 32]);
+        let key = ItemDataKey::generate();
         // An entry blob must not open as an attachment manifest...
         let entry = seal_osseal(b"secret", &key, "Dev/a", 1).unwrap();
         assert!(open_osseal_in(COLLECTION_ATTACHMENTS, &entry, &key, "Dev/a", Some(1)).is_err());
@@ -226,7 +227,7 @@ mod tests {
 
     #[test]
     fn envelope_revision_reads_without_a_key() {
-        let key = ItemDataKey([7u8; 32]);
+        let key = ItemDataKey::generate();
         let ct = seal_osseal(b"secret", &key, "Dev/a", 4).unwrap();
         assert_eq!(envelope_revision(&ct).unwrap(), 4);
         assert!(envelope_revision(b"not an envelope").is_err());

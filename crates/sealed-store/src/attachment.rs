@@ -867,7 +867,7 @@ mod pact {
         let (dir, root, _key) = store();
         let key = init_store_key(dir.path(), b"first").unwrap();
         add(&root, &key, "Taxes/w2", b"sensitive");
-        let other = ItemDataKey([9u8; 32]);
+        let other = ItemDataKey::generate();
         assert!(root.attach_ls(None, &other).is_err());
     }
 
