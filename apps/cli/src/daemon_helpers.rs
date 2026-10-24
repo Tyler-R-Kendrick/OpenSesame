@@ -1,7 +1,8 @@
-//! `opensesame daemon helpers allow | revoke | list`: which connections the
-//! credential helpers may mint on the daemon's Unix socket with no operator
-//! token (ADR 0138 §2, as amended). The list starts empty; every verb here
-//! needs the operator token, against a loopback daemon only.
+//! `opensesame daemon helpers allow | revoke | list`: which connections, and
+//! for a GitHub App connection which one installation, the credential helpers
+//! may mint on the daemon's Unix socket with no operator token (ADR 0138 §2,
+//! as amended). The list starts empty; every verb here needs the operator
+//! token, against a loopback daemon only.
 use clap::Subcommand;
 use serde_json::Value;
 
@@ -9,10 +10,16 @@ use serde_json::Value;
 pub enum HelpersCmd {
     /// Let the credential helpers mint this connection on the daemon's socket.
     /// Any process running as an allowed user can then mint it there.
-    Allow { connection: String },
+    Allow {
+        connection: String,
+        /// For a GitHub App connection, the one installation helpers may mint
+        /// for; a mint for any other installation is refused.
+        #[arg(long)]
+        installation: Option<String>,
+    },
     /// Stop the credential helpers minting this connection.
     Revoke { connection: String },
-    /// List the connections the credential helpers may mint.
+    /// List the connections (and installations) the credential helpers may mint.
     List,
 }
 
@@ -42,10 +49,17 @@ pub async fn run(base: &str, token: Option<&str>, cmd: HelpersCmd) -> anyhow::Re
     );
     let client = reqwest::Client::new();
     match cmd {
-        HelpersCmd::Allow { connection } => {
+        HelpersCmd::Allow {
+            connection,
+            installation,
+        } => {
             let url = format!("{base}/v1/helper-mints/{connection}");
-            send(operator(client.put(url), token), "allow").await?;
-            println!("helpers may mint {connection}");
+            let body = serde_json::json!({ "installation_id": installation });
+            send(operator(client.put(url).json(&body), token), "allow").await?;
+            match installation {
+                Some(id) => println!("helpers may mint {connection} for installation {id}"),
+                None => println!("helpers may mint {connection}"),
+            }
         }
         HelpersCmd::Revoke { connection } => {
             let url = format!("{base}/v1/helper-mints/{connection}");
@@ -70,6 +84,7 @@ mod tests {
         for cmd in [
             HelpersCmd::Allow {
                 connection: "conn_stub".into(),
+                installation: Some("777".into()),
             },
             HelpersCmd::List,
         ] {

@@ -16,9 +16,10 @@
 //! outside `allowed_uids` is `401` even with a valid operator token. Peer
 //! credentials say who asks, not what it should get, so a socket caller then
 //! needs either the operator token, which admits any connection as before, or
-//! a connection the operator allowed for helper minting (`helper_mints`, empty
-//! until `opensesame helpers allow`); anything else is `403
-//! helper_mint_not_allowed`. A helper therefore holds no bearer, and a process
+//! a grant the operator made for helper minting (`helper_mints`, empty until
+//! `opensesame daemon helpers allow`): the connection and, for a GitHub App
+//! connection, the one installation named, matched exactly. Anything else is
+//! `403 helper_mint_not_allowed`. A helper therefore holds no bearer, and a process
 //! that answered at the socket path in the daemon's place would capture
 //! nothing that authorizes anything. Every other operator route still demands
 //! the token on the socket too.
@@ -114,7 +115,7 @@ fn admit(
     st: &App,
     headers: &HeaderMap,
     uds: &UdsPeer,
-    connection_id: &str,
+    req: &MintRequest,
 ) -> Result<Caller, Response> {
     if uds.is_none() {
         require_operator(st, headers, uds)?;
@@ -135,12 +136,17 @@ fn admit(
             operator: true,
         });
     }
-    if !st.helper_mints.allows(connection_id) {
+    // The grant is the pair: a caller cannot pick another installation of
+    // the same GitHub App, which may be another account's repositories.
+    if !st
+        .helper_mints
+        .admits(&req.connection_id, req.installation_id.as_deref())
+    {
         return Err((
             StatusCode::FORBIDDEN,
             Json(json!({
                 "error": "helper_mint_not_allowed",
-                "hint": "the operator allows a connection with `opensesame helpers allow`"
+                "hint": "the operator grants a connection, and its installation, with `opensesame daemon helpers allow`"
             })),
         )
             .into_response());
@@ -159,7 +165,7 @@ pub async fn mint_via_daemon(
     headers: HeaderMap,
     Json(req): Json<MintRequest>,
 ) -> Response {
-    let caller = match admit(&st, &headers, &uds, &req.connection_id) {
+    let caller = match admit(&st, &headers, &uds, &req) {
         Ok(caller) => caller,
         Err(resp) => return resp,
     };

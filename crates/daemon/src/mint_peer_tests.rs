@@ -42,7 +42,7 @@ async fn minting_gateway() -> (App, Arc<Mutex<Vec<Value>>>) {
 #[cfg(unix)]
 async fn allowed_gateway() -> (App, Arc<Mutex<Vec<Value>>>) {
     let (state, calls) = minting_gateway().await;
-    state.helper_mints.set("conn_stub", true).expect("allow");
+    state.helper_mints.grant("conn_stub", None).expect("allow");
     (state, calls)
 }
 
@@ -168,7 +168,7 @@ async fn a_browser_origin_on_the_socket_is_refused() {
 #[tokio::test]
 async fn the_socket_budget_is_per_peer_uid() {
     let state = test_state("http://127.0.0.1:1");
-    state.helper_mints.set("conn_stub", true).expect("allow");
+    state.helper_mints.grant("conn_stub", None).expect("allow");
     let own = state.allowed_uids[0];
     let app = router(state);
     let first = app
@@ -205,4 +205,102 @@ async fn over_tcp_the_operator_token_is_still_required() {
     assert_eq!(calls.len(), 1);
     // Over TCP the daemon knows no process to name.
     assert!(calls[0].get("on_behalf_of").is_none(), "{}", calls[0]);
+}
+
+/// A token-less socket mint of `conn_stub`, for `installation`.
+#[cfg(unix)]
+fn uds_mint_for(uid: u32, installation: Option<&str>) -> Request<Body> {
+    let body = match installation {
+        Some(id) => json!({"connection_id": "conn_stub", "installation_id": id}),
+        None => json!({"connection_id": "conn_stub"}),
+    };
+    let mut req = request(&body.to_string(), false);
+    req.extensions_mut()
+        .insert(ConnectInfo(crate::UdsConnectInfo(Some(
+            opensesame_uds_authn::PeerCred {
+                pid: 4242,
+                uid,
+                gid: uid,
+            },
+        ))));
+    req
+}
+
+/// The operator allows `conn_stub` through the daemon's own route.
+async fn allow_route(app: &axum::Router, body: Value) -> StatusCode {
+    let req = Request::builder()
+        .method("PUT")
+        .uri("/v1/helper-mints/conn_stub")
+        .header("x-opensesame-operator", crate::test_operator_token())
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap();
+    app.clone().oneshot(req).await.unwrap().status()
+}
+
+/// A GitHub App connection reaches every installation of the App, so a helper
+/// grant names the one installation the operator meant; the caller cannot
+/// choose another (each may be a different account's repositories).
+#[cfg(unix)]
+#[tokio::test]
+async fn a_helper_grant_is_bound_to_the_installation_the_operator_named() {
+    let (state, calls) = minting_gateway().await;
+    let own = state.allowed_uids[0];
+    let app = router(state);
+    assert_eq!(
+        allow_route(&app, json!({"installation_id": "777"})).await,
+        StatusCode::OK
+    );
+    for other in [Some("778"), None] {
+        let res = app.clone().oneshot(uds_mint_for(own, other)).await.unwrap();
+        assert_eq!(res.status(), StatusCode::FORBIDDEN, "{other:?}");
+        assert_eq!(error_of(res).await["error"], "helper_mint_not_allowed");
+    }
+    assert!(
+        calls.lock().unwrap().is_empty(),
+        "a mismatch reached the Host"
+    );
+    let res = app.oneshot(uds_mint_for(own, Some("777"))).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_eq!(calls.lock().unwrap()[0]["installation_id"], "777");
+}
+
+/// A grant that names no installation admits no installation either.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_grant_without_an_installation_refuses_a_caller_who_names_one() {
+    let (state, calls) = minting_gateway().await;
+    let own = state.allowed_uids[0];
+    let app = router(state);
+    assert_eq!(allow_route(&app, json!({})).await, StatusCode::OK);
+    let res = app
+        .clone()
+        .oneshot(uds_mint_for(own, Some("777")))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    assert!(calls.lock().unwrap().is_empty());
+    let res = app.oneshot(uds_mint_for(own, None)).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+}
+
+/// The operator token still admits any installation, as it always has.
+#[cfg(unix)]
+#[tokio::test]
+async fn the_operator_token_on_the_socket_admits_any_installation() {
+    let (state, calls) = minting_gateway().await;
+    let own = state.allowed_uids[0];
+    let app = router(state);
+    assert_eq!(
+        allow_route(&app, json!({"installation_id": "777"})).await,
+        StatusCode::OK
+    );
+    let mut mint = uds_mint_for(own, Some("778"));
+    mint.headers_mut().insert(
+        "x-opensesame-operator",
+        crate::test_operator_token().parse().unwrap(),
+    );
+    let answer = app.oneshot(mint).await.unwrap();
+    assert_eq!(answer.status(), StatusCode::OK);
+    assert_eq!(calls.lock().unwrap()[0]["installation_id"], "778");
 }

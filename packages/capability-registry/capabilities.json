@@ -737,7 +737,7 @@
     }
   },
   {
-    "id": "helpers.mint-allowlist",
+    "id": "helpers.mint_allowlist",
     "title": "Allow, revoke or list the connections the credential helpers may mint on the daemon's socket",
     "plane": "host",
     "kind": "admin",

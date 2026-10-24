@@ -65,10 +65,24 @@ function discordActions(view: NativeConnectorView) {
   ];
 }
 
+function nativeApiKeyAvailable(provider: Provider): boolean {
+  return (
+    hasNativeConnectorDriver("api-key", provider.id) ||
+    connectPlan(provider.id)?.methods.some(
+      (method) =>
+        method.kind === "api-key" &&
+        !!method.preset &&
+        ((!!method.preset.auth && !!method.preset.verify) ||
+          method.preset.credentialVariants.some(
+            (variant) => !!variant.auth && !!variant.verify,
+          )),
+    ) === true
+  );
+}
+
 export function nativeSettingsDescriptor(
   provider: Provider,
 ): NativeConnectorDescriptor | null {
-  if (provider.id === "linear") return null;
   if (provider.id === "github")
     return nativeGithubDescriptor(
       provider,
@@ -98,17 +112,7 @@ export function nativeSettingsDescriptor(
   const descriptor = nativeProviderDescriptor(plan, {
     callbackUrl,
     apiKey: {
-      available:
-        hasNativeConnectorDriver("api-key", provider.id) ||
-        connectPlan(provider.id)?.methods.some(
-          (method) =>
-            method.kind === "api-key" &&
-            !!method.preset &&
-            ((!!method.preset.auth && !!method.preset.verify) ||
-              method.preset.credentialVariants.some(
-                (variant) => !!variant.auth && !!variant.verify,
-              )),
-        ) === true,
+      available: nativeApiKeyAvailable(provider),
     },
     oauth: {
       registeredAvailable:

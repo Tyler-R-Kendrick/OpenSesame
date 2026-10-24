@@ -126,7 +126,7 @@ export const nativeHostCapabilities: readonly Capability[] = [
     excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
   },
   {
-    id: "helpers.mint-allowlist",
+    id: "helpers.mint_allowlist",
     title:
       "Allow, revoke or list the connections the credential helpers may mint on the daemon's socket",
     plane: "host",

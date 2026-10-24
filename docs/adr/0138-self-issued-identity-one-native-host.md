@@ -11,7 +11,8 @@
   `apps/pages/server`; and §2's credential mint for helpers as amended
   below: the daemon's `POST /v1/mint` authenticates a Unix-socket caller by
   its kernel-attested peer credentials and admits it, with no token, only for
-  a connection the operator allowed (`opensesame daemon helpers allow`), and
+  a connection, and installation, the operator granted (`opensesame daemon
+  helpers allow`), and
   the helpers send no operator token (`crates/daemon/src/mint.rs`,
   `crates/daemon/src/helper_mints.rs`, `crates/credential-helpers`). Not built: the `desktop` shell, `@opensesame/mcp`
   (`packages/mcp-host` and `packages/mcp-client` remain two packages), the
@@ -127,12 +128,16 @@ host.
 authorizes.** Peer credentials say which process asks; they cannot say what
 it should get, and every process running as an allowed user reaches the
 socket, an agent run with the socket mounted included. So a helper's mint
-with no operator token is admitted only for a connection the operator has
-allowed for helper minting (`opensesame daemon helpers allow|revoke|list`,
-written only with the operator token, kept owner-only in the daemon's state
-directory, empty by default); any other is `403 helper_mint_not_allowed`. A
-socket caller that presents the operator token may still mint any
-connection. The daemon forwards the peer (UID and pid) as `on_behalf_of`,
+with no operator token is admitted only for a grant the operator made for
+helper minting (`opensesame daemon helpers allow|revoke|list`, written only
+with the operator token, kept owner-only in the daemon's state directory,
+empty by default). A grant is the connection and, for a GitHub App
+connection, the one installation the operator names (`--installation`):
+the App key reaches every installation of the App, each perhaps another
+account's repositories, so the caller's `installation_id` must match the
+grant exactly, and a grant that names none admits none. Any other mint is
+`403 helper_mint_not_allowed`. A socket caller that presents the operator
+token may still mint any connection and installation. The daemon forwards the peer (UID and pid) as `on_behalf_of`,
 and the Host records it in the actor of the mint receipt and event. Residual
 risk: a same-user process can mint every allowed connection, so a sandbox
 must not mount the raw socket. Not done: narrowing a mint by an ADR 0099

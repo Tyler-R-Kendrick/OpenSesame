@@ -8,7 +8,10 @@
  * - `spec/connectors/connect-presets.json` — what we know about each service's
  *   OAuth server and API keys: endpoints, client authentication, PKCE, scopes,
  *   extra authorization parameters, where to register a client or issue a
- *   key, and one read-only call that proves a token works;
+ *   key, and one read-only call that proves a token works; and, under `mcp`,
+ *   how a connector page offers a published MCP server (the permissions it
+ *   selects, whether it is the page's only primary road, whether its
+ *   authentication is configurable);
  * - `spec/connectors/catalog.json` — the one integration catalog, for names
  *   and categories of the rows the registry does not list (ADR 0139).
  *
@@ -187,29 +190,39 @@ function apiKeyPreset(row) {
   };
 }
 
-function mcpInfo(url, found) {
+/** A page rule from the spec's `mcp` rows, written only where a row sets it. */
+function withMcpRule(info, rule) {
+  if (rule?.default_scopes) info.defaultScopes = rule.default_scopes;
+  if (rule?.configurable_authentication === false) info.configurable = false;
+  return info;
+}
+
+function mcpInfo(url, found, rule) {
   if (!found || found.status !== "ok") {
     return { url, status: "no_metadata" };
   }
-  return {
-    url,
-    status: "ok",
-    issuer: found.issuer ?? null,
-    authorizationEndpoint: found.authorization_endpoint,
-    tokenEndpoint: found.token_endpoint,
-    registration: found.client_registration,
-    pkce: found.code_challenge_methods,
-    scopes: found.scopes_supported.slice(0, 12),
-    resource: found.resource ?? null,
-    resourceMetadata: found.resource_metadata ?? null,
-    discoveryUrl: found.discovery_url ?? null,
-    registrationEndpoint: found.registration_endpoint ?? null,
-    revocationEndpoint: found.revocation_endpoint ?? null,
-    tokenAuthMethods: found.token_endpoint_auth_methods ?? [],
-  };
+  return withMcpRule(
+    {
+      url,
+      status: "ok",
+      issuer: found.issuer ?? null,
+      authorizationEndpoint: found.authorization_endpoint,
+      tokenEndpoint: found.token_endpoint,
+      registration: found.client_registration,
+      pkce: found.code_challenge_methods,
+      scopes: found.scopes_supported.slice(0, 12),
+      resource: found.resource ?? null,
+      resourceMetadata: found.resource_metadata ?? null,
+      discoveryUrl: found.discovery_url ?? null,
+      registrationEndpoint: found.registration_endpoint ?? null,
+      revocationEndpoint: found.revocation_endpoint ?? null,
+      tokenAuthMethods: found.token_endpoint_auth_methods ?? [],
+    },
+    rule,
+  );
 }
 
-function registryMethod(method, service, apiKey) {
+function registryMethod(method, service, apiKey, rule) {
   if (method.method === "oauth") return null;
   if (method.method === "api-key") {
     return {
@@ -221,7 +234,7 @@ function registryMethod(method, service, apiKey) {
   if (method.method !== "mcp") return null;
   const url = method.service_urls[0];
   if (!url) return null;
-  const info = mcpInfo(url, service.mcp_discovery);
+  const info = mcpInfo(url, service.mcp_discovery, rule);
   // An MCP server with no OAuth metadata takes a key (Similarweb's `api-key`
   // header): offered as what it is.
   return info.status === "ok"
@@ -229,10 +242,10 @@ function registryMethod(method, service, apiKey) {
     : { kind: "api-key", urls: [url], preset: apiKey ?? null };
 }
 
-function methodsFor(service, oauth, apiKey) {
+function methodsFor(service, oauth, apiKey, rule) {
   const listed = service?.connection_methods ?? [];
   const out = listed
-    .map((method) => registryMethod(method, service, apiKey))
+    .map((method) => registryMethod(method, service, apiKey, rule))
     .filter(Boolean);
   const hasOauth = listed.some((method) => method.method === "oauth");
   if (hasOauth || oauth) out.unshift({ kind: "oauth", preset: oauth ?? null });
@@ -288,9 +301,9 @@ function categoryFor(id, service, row) {
   );
 }
 
-function planFor(id, service, row, oauth, apiKey) {
+function planFor(id, service, row, oauth, apiKey, rule) {
   const safeRead = readonlyPaymentContract(id, apiKey);
-  return {
+  const plan = {
     id,
     name: service?.name ?? row?.display_name ?? id,
     docsUrl: docsFor(service, row, oauth, apiKey),
@@ -301,8 +314,10 @@ function planFor(id, service, row, oauth, apiKey) {
       ? safeRead
         ? [{ kind: "api-key", urls: apiKey.serviceUrls, preset: apiKey }]
         : []
-      : methodsFor(service, oauth, apiKey),
+      : methodsFor(service, oauth, apiKey, rule),
   };
+  if (rule?.primary_only) plan.primaryMethod = "mcp";
+  return plan;
 }
 
 export function renderPlanJson(
@@ -316,6 +331,7 @@ export function renderPlanJson(
   const apiKey = new Map(
     presets.api_key.map((row) => [row.service, apiKeyPreset(row)]),
   );
+  const mcp = new Map((presets.mcp ?? []).map((row) => [row.service, row]));
   const bundled = new Map(catalog.providers.map((row) => [row.id, row]));
   for (const row of catalog.providers) {
     if (
@@ -333,7 +349,14 @@ export function renderPlanJson(
     ...[...oauth.keys(), ...apiKey.keys()].filter((id) => !listed.has(id)),
   ];
   const plans = [...new Set(ids)].map((id) =>
-    planFor(id, listed.get(id), bundled.get(id), oauth.get(id), apiKey.get(id)),
+    planFor(
+      id,
+      listed.get(id),
+      bundled.get(id),
+      oauth.get(id),
+      apiKey.get(id),
+      mcp.get(id),
+    ),
   );
   return plans.map((plan) => JSON.stringify(plan));
 }

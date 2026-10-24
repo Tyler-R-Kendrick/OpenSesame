@@ -75,17 +75,18 @@ const HELPERS: [Helper; 4] = [
 /// Run `helper` against `sock` with `OPENSESAME_OPERATOR_TOKEN` set in its
 /// environment, as a helper started from the operator's own shell would be.
 fn run(helper: &Helper, sock: &Path) -> Output {
+    run_with(helper, sock, &[])
+}
+
+fn run_with(helper: &Helper, sock: &Path, extra: &[(&str, &str)]) -> Output {
     let sock = sock.to_string_lossy().to_string();
-    run_helper(
-        &named::binary(helper.bin),
-        helper.args,
-        helper.stdin,
-        &[
-            ("OPENSESAME_AGENT_SOCK", sock.as_str()),
-            (helper.connection_env, "conn_test"),
-            ("OPENSESAME_OPERATOR_TOKEN", INHERITED),
-        ],
-    )
+    let mut env = vec![
+        ("OPENSESAME_AGENT_SOCK", sock.as_str()),
+        (helper.connection_env, "conn_test"),
+        ("OPENSESAME_OPERATOR_TOKEN", INHERITED),
+    ];
+    env.extend_from_slice(extra);
+    run_helper(&named::binary(helper.bin), helper.args, helper.stdin, &env)
 }
 
 fn shown(out: &Output) -> String {
@@ -219,27 +220,13 @@ fn spawn_daemon(dir: &Path, host_api: &str, port: u16) -> Process {
     )
 }
 
-/// `opensesame daemon helpers <verb>` against the daemon at `port`, with the
-/// operator token or without it.
-fn allowlist(port: u16, verb: &str, token: Option<&str>) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
-    command
-        .env_remove("OPENSESAME_OPERATOR_TOKEN")
-        .args(["daemon", "--url"])
-        .arg(format!("http://127.0.0.1:{port}"))
-        .args(["helpers", verb, "conn_test"]);
-    if let Some(token) = token {
-        command.env("OPENSESAME_OPERATOR_TOKEN", token);
-    }
-    command.output().expect("opensesame daemon helpers")
-}
-
-#[test]
-fn a_helper_mints_only_what_the_operator_allowed_through_the_real_daemon() {
+/// The real daemon over a Host stand-in, its socket ready: the state dir,
+/// the process, its TCP port and what the Host has seen.
+fn boot() -> (tempfile::TempDir, Process, u16, Arc<Mutex<Vec<String>>>) {
     let dir = tempfile::tempdir().expect("state dir");
     let (host_api, host_seen) = spawn_host();
     let port = free_port();
-    let _daemon = spawn_daemon(dir.path(), &host_api, port);
+    let daemon = spawn_daemon(dir.path(), &host_api, port);
     let sock = dir.path().join("agent.sock");
     let deadline = Instant::now() + Duration::from_secs(60);
     while !sock.exists() {
@@ -249,6 +236,29 @@ fn a_helper_mints_only_what_the_operator_allowed_through_the_real_daemon() {
         );
         std::thread::sleep(Duration::from_millis(100));
     }
+    (dir, daemon, port, host_seen)
+}
+
+/// `opensesame daemon helpers <args>` against the daemon at `port`, with the
+/// operator token or without it.
+fn allowlist(port: u16, args: &[&str], token: Option<&str>) -> Output {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
+    command
+        .env_remove("OPENSESAME_OPERATOR_TOKEN")
+        .args(["daemon", "--url"])
+        .arg(format!("http://127.0.0.1:{port}"))
+        .arg("helpers")
+        .args(args);
+    if let Some(token) = token {
+        command.env("OPENSESAME_OPERATOR_TOKEN", token);
+    }
+    command.output().expect("opensesame daemon helpers")
+}
+
+#[test]
+fn a_helper_mints_only_what_the_operator_allowed_through_the_real_daemon() {
+    let (dir, _daemon, port, host_seen) = boot();
+    let sock = dir.path().join("agent.sock");
 
     // Over TCP the operator token is still required, and nothing is forwarded
     // without it.
@@ -276,9 +286,9 @@ fn a_helper_mints_only_what_the_operator_allowed_through_the_real_daemon() {
     assert!(host_seen.lock().unwrap().is_empty());
 
     // Allowing needs the operator token, which the helper never holds.
-    let unauthorized = allowlist(port, "allow", None);
+    let unauthorized = allowlist(port, &["allow", "conn_test"], None);
     assert!(!unauthorized.status.success(), "{unauthorized:?}");
-    let allowed = allowlist(port, "allow", Some(OPERATOR));
+    let allowed = allowlist(port, &["allow", "conn_test"], Some(OPERATOR));
     assert!(allowed.status.success(), "{allowed:?}");
 
     let minted = run(&HELPERS[0], &sock);
@@ -307,7 +317,7 @@ fn a_helper_mints_only_what_the_operator_allowed_through_the_real_daemon() {
         assert!(body["on_behalf_of"]["pid"].is_u64(), "{body}");
     }
 
-    let revoked = allowlist(port, "revoke", Some(OPERATOR));
+    let revoked = allowlist(port, &["revoke", "conn_test"], Some(OPERATOR));
     assert!(revoked.status.success(), "{revoked:?}");
     let refused = run(&HELPERS[0], &sock);
     assert!(!refused.status.success());
@@ -316,4 +326,45 @@ fn a_helper_mints_only_what_the_operator_allowed_through_the_real_daemon() {
         1,
         "a revoked connection minted"
     );
+}
+
+/// A GitHub App connection reaches every installation of the App; a helper
+/// grant names one, and a helper asking for another is refused (ADR 0138 §2).
+#[test]
+fn a_grant_mints_only_the_installation_the_operator_named() {
+    let (dir, _daemon, port, host_seen) = boot();
+    let sock = dir.path().join("agent.sock");
+    let allowed = allowlist(
+        port,
+        &["allow", "conn_test", "--installation", "777"],
+        Some(OPERATOR),
+    );
+    assert!(allowed.status.success(), "{allowed:?}");
+
+    let other = run_with(
+        &HELPERS[0],
+        &sock,
+        &[("OPENSESAME_GITHUB_INSTALLATION_ID", "778")],
+    );
+    assert!(!other.status.success());
+    assert!(other.stdout.is_empty());
+    assert!(
+        String::from_utf8_lossy(&other.stderr).contains("403"),
+        "{}",
+        shown(&other)
+    );
+    assert!(host_seen.lock().unwrap().is_empty());
+
+    let granted = run_with(
+        &HELPERS[0],
+        &sock,
+        &[("OPENSESAME_GITHUB_INSTALLATION_ID", "777")],
+    );
+    assert!(granted.status.success(), "{}", shown(&granted));
+    let seen = host_seen.lock().unwrap();
+    assert_eq!(seen.len(), 1);
+    let body: serde_json::Value =
+        serde_json::from_str(seen[0].split("\r\n\r\n").nth(1).unwrap_or_default())
+            .expect("forwarded body");
+    assert_eq!(body["installation_id"], "777");
 }
