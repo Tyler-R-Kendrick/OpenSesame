@@ -1,10 +1,8 @@
 /** Default GitHub App backup operations: direct REST, original owner and no relay. */
-import { canonicalize } from "@opensesame/os-domain";
 import { z } from "zod";
 import { backupOriginAllowed } from "./backup-egress-gate.js";
 import {
   listLocalBackupTargets,
-  readLocalBackupTarget,
   subscribeLocalBackupTarget,
 } from "./backup-target-local.js";
 import {
@@ -15,9 +13,6 @@ import {
   createGithubInstallationToken,
   githubApiJson,
 } from "./github-app-direct.js";
-import type { GithubDirectTransport } from "./github-app-direct.js";
-import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
-import { captureGithubAuthority } from "./github-app-vault-transport.js";
 import { base64ToBytes, bytesToBase64 } from "./native-base64.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import type {
@@ -33,117 +28,14 @@ import {
 import { sealedVaultText } from "./vault/offline-backup-file.js";
 import { vaultStore } from "./vault/store.js";
 
-export type SavedGithubBackupRequest = {
-  appId: string;
-  pem: string;
-  installationId: string;
-  owner: string;
-  repo: string;
-  branch: string;
-  providerId?: string;
-};
-function stale(): never {
-  throw new Error("The GitHub backup owner or target changed.");
-}
-function boundTarget(saved: SavedGithubBackupRequest) {
-  const providerId = saved.providerId ?? "github";
-  const target = readLocalBackupTarget(providerId);
-  if (
-    !target?.enabled ||
-    target.kind !== "github_app" ||
-    target.installationId !== saved.installationId ||
-    target.owner !== saved.owner ||
-    target.repo !== saved.repo ||
-    target.branch !== saved.branch ||
-    !/^[1-9]\d*$/.test(saved.installationId) ||
-    !Number.isSafeInteger(Number(saved.installationId))
-  )
-    stale();
-  return { providerId, receipt: canonicalize(target) };
-}
-function capture(
-  input: SavedGithubBackupRequest,
-  native?: NativeProviderTransport,
-  caller?: GithubRestoreOwner,
-) {
-  const saved = { ...input };
-  const { providerId, receipt } = boundTarget(saved);
-  const operation = captureGithubAuthority({
-    binding: () => {
-      const app = readLocalGithubApp();
-      return (
-        canonicalize(readLocalBackupTarget(providerId)) === receipt &&
-        app?.id === saved.appId &&
-        pemFromVault(app) === saved.pem
-      );
-    },
-  });
-  try {
-    const fetch = native?.fetch ?? globalThis.fetch;
-    const assertNative = native?.assertCurrent;
-    const nativeSignal = native?.signal;
-    const signal = AbortSignal.any([
-      operation.transport.signal,
-      ...(caller ? [caller.signal] : []),
-      ...(nativeSignal ? [nativeSignal] : []),
-    ]);
-    const check = () => {
-      signal.throwIfAborted();
-      caller?.assertCurrent();
-      operation.transport.assertCurrent();
-      if (native) {
-        if (
-          !nativeSignal ||
-          native.fetch !== fetch ||
-          native.assertCurrent !== assertNative ||
-          native.signal !== nativeSignal
-        )
-          stale();
-        assertNative?.call(native);
-        operation.transport.assertCurrent();
-      }
-      caller?.assertCurrent();
-    };
-    const transport: GithubDirectTransport = {
-      signal,
-      assertCurrent: check,
-      fetch: (input, init) => {
-        check();
-        return fetch.call(native ?? globalThis, input, init);
-      },
-    };
-    check();
-    return {
-      transport,
-      target: {
-        owner: saved.owner,
-        repo: saved.repo,
-        branch: saved.branch,
-        installationId: Number(saved.installationId),
-      },
-      credentials: { appId: saved.appId, privateKey: saved.pem },
-      close: operation.close,
-    };
-  } catch (error) {
-    operation.close();
-    throw error;
-  }
-}
-function request(providerId: string): SavedGithubBackupRequest {
-  const target = readLocalBackupTarget(providerId);
-  const app = readLocalGithubApp();
-  const pem = app ? pemFromVault(app) : null;
-  if (!target || !app?.id || !pem) stale();
-  return {
-    providerId,
-    appId: app.id,
-    pem,
-    installationId: target.installationId,
-    owner: target.owner,
-    repo: target.repo,
-    branch: target.branch,
-  };
-}
+import {
+  type GithubRestoreOwner,
+  type SavedGithubBackupRequest,
+  captureSavedGithubBackup as capture,
+  savedGithubBackupRequest as request,
+  reserveGithubBackupWrite,
+} from "./vault-backup-github-owner.js";
+export type { SavedGithubBackupRequest } from "./vault-backup-github-owner.js";
 
 /** Keep the original authority alive until the caller publishes confirmed sync metadata. */
 export async function putSavedGithubBackup(
@@ -151,6 +43,7 @@ export async function putSavedGithubBackup(
   native?: NativeProviderTransport,
 ) {
   const operation = capture(input, native);
+  let release = () => {};
   try {
     const encoded = input.contentBase64;
     if (encoded.length > 750000)
@@ -159,6 +52,9 @@ export async function putSavedGithubBackup(
     if (bytesToBase64(bytes) !== encoded)
       throw new Error("Invalid encrypted backup encoding.");
     const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    const slot = reserveGithubBackupWrite(operation);
+    release = slot.release;
+    await slot.wait;
     const result = await putGithubAppBackup(
       operation.transport,
       operation.credentials,
@@ -169,10 +65,16 @@ export async function putSavedGithubBackup(
     return {
       ...result,
       assertCurrent: operation.transport.assertCurrent,
-      close: operation.close,
+      pendingAfter: slot.pendingAfter,
+      publish: slot.publish,
+      close: () => {
+        operation.close();
+        release();
+      },
     };
   } catch (error) {
     operation.close();
+    release();
     throw error;
   }
 }
@@ -277,8 +179,10 @@ export async function pollSavedGithubBackups(): Promise<number> {
   return changed;
 }
 
+function stale(): never {
+  throw new Error("The GitHub backup owner or target changed.");
+}
 const BACKUP_REFERENCE = "opensesame-vault.backup.json";
-type GithubRestoreOwner = { signal: AbortSignal; assertCurrent: () => void };
 function readonlyGithubBackup(
   operation: ReturnType<typeof capture>,
   owner: GithubRestoreOwner,
