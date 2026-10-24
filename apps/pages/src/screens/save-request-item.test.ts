@@ -1,4 +1,7 @@
-import type { SaveRequest } from "@opensesame/app-core/lib/save-request.js";
+import type {
+  SaveRequest,
+  SaveRequestField,
+} from "@opensesame/app-core/lib/save-request.js";
 import { describe, expect, it } from "vitest";
 import { buildSaveItem } from "./save-request-item.js";
 
@@ -6,9 +9,7 @@ const host = {
   installItemTypeDefinition: async () => ({ ok: true }),
 };
 
-function request(
-  fields: { autocomplete: string; value: string }[],
-): SaveRequest {
+function request(fields: SaveRequestField[]): SaveRequest {
   return { title: "Example", fields, notes: "from a site" };
 }
 

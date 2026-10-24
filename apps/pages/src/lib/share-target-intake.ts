@@ -24,14 +24,18 @@ function scopeUrl(): URL {
   return new URL(import.meta.env.BASE_URL, window.location.origin);
 }
 
-function withoutHash(url: URL, history: History): void {
+/** The parts of the page's location and history the intake reads. */
+type IntakeLocation = Pick<Location, "href" | "hash">;
+type IntakeHistory = Pick<History, "state" | "replaceState">;
+
+function withoutHash(url: URL, history: IntakeHistory): void {
   const next = new URL(url);
   next.hash = "";
   history.replaceState(history.state, "", `${next.pathname}${next.search}`);
 }
 
 function address(
-  location: Location,
+  location: IntakeLocation,
 ): { token: string; key: string; createdAt: number } | null {
   const raw = new URLSearchParams(location.hash.replace(/^#/u, "")).get(
     SHARE_TARGET_PARAM,
@@ -88,8 +92,8 @@ async function readFile(
 
 /** Capture the share now; the Import key takes the held File on mount. */
 export async function captureShareTarget(
-  location: Location = window.location,
-  history: History = window.history,
+  location: IntakeLocation = window.location,
+  history: IntakeHistory = window.history,
 ): Promise<File | null> {
   const found = address(location);
   if (found === null) return null;

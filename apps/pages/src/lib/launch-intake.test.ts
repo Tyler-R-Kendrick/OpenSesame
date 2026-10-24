@@ -1,4 +1,5 @@
 import { takePendingImport } from "@opensesame/app-core/lib/vault/pending-import.js";
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   installLaunchQueue,
@@ -17,9 +18,9 @@ describe("launch queue intake", () => {
     const file = new File(["API_KEY=sk-test\n"], "app.env", {
       type: "text/plain",
     });
-    const handle = {
+    const handle: FileSystemFileHandle = overlapCast({
       getFile: vi.fn(async () => file),
-    } as unknown as FileSystemFileHandle;
+    });
     installLaunchQueue({
       launchQueue: {
         setConsumer: (next) => {

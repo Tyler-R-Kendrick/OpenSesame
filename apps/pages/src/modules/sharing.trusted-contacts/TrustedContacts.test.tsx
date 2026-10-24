@@ -75,23 +75,26 @@ describe("the panels' frames", () => {
   it("is one Security panel with the circles group and a polite line", async () => {
     serve(await deskOf(device(new Clock())));
     render(<TrustedContacts />);
-    const section = document.querySelector("section#trusted-contacts");
-    expect(section?.className).toContain("set__security");
+    const section = document.querySelector<HTMLElement>(
+      "section#trusted-contacts",
+    );
+    if (section === null) throw new Error("no Trusted contacts section");
+    expect(section.className).toContain("set__security");
     expect(
-      within(section as HTMLElement).getByRole("heading", {
+      within(section).getByRole("heading", {
         level: 2,
         name: "Trusted contacts",
       }),
     ).toBeTruthy();
-    const groups = [...document.querySelectorAll(".trusted-contacts__group")];
+    const groups = [
+      ...document.querySelectorAll<HTMLElement>(".trusted-contacts__group"),
+    ];
     expect(groups.map((group) => group.id)).toEqual(["circles"]);
     expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
       "Circles",
     ]);
     for (const group of groups) {
-      expect(
-        within(group as HTMLElement).getByRole("heading", { level: 3 }),
-      ).toBeTruthy();
+      expect(within(group).getByRole("heading", { level: 3 })).toBeTruthy();
       const live = group.querySelector("output[aria-live=polite]");
       expect(live?.className).toBe("visually-hidden");
       expect(group.querySelectorAll("fieldset").length).toBe(1);

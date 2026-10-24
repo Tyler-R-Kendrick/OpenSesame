@@ -15,6 +15,7 @@ describe("wake lock", () => {
     const { host: platform, sentinel } = host();
     let hide: (() => void) | undefined;
     const visibility = {
+      // SAFETY: "visible" matches DocumentVisibilityState; the assertion only widens it so the test can set "hidden" below.
       visibilityState: "visible" as DocumentVisibilityState,
       addEventListener: (_type: string, listener: () => void) => {
         hide = listener;

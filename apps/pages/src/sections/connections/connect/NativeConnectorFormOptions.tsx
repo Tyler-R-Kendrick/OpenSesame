@@ -59,7 +59,10 @@ export function NativeMethodPicker({
       {choices.length > 1 ? (
         <ConnectorModes
           label="Sign-in method"
-          value={method as NativeMethodDescriptor["id"]}
+          value={
+            // SAFETY: ConnectorModes only compares the value with each option's id, so a method that matches none checks none.
+            method as NativeMethodDescriptor["id"]
+          }
           options={choices.map((choice) => ({
             id: choice.id,
             label: choice.label,
