@@ -55,7 +55,7 @@ export function useAllowDevice(
     try {
       const result = await allowDevice(
         host.devices,
-        vaultStore.activeTomb(),
+        vaultStore.activeTomb?.() ?? "",
         pending.id,
         approval,
       );

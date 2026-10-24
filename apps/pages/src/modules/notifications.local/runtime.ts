@@ -67,7 +67,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       category: sectionCategory(SECTION),
       Panel: LocalNotificationsPanel,
       order: 10,
-      files: localNotificationFiles(() => vaultStore.activeTomb()),
+      files: localNotificationFiles(() => vaultStore.activeTomb?.() ?? ""),
     });
 
     // One watcher per unlocked vault, for as long as it stays unlocked. The

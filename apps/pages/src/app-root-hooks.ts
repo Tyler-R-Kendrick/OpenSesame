@@ -128,7 +128,7 @@ export function useRotationQueue(
     // provider rotation to perform.
     if (status !== "unlocked" || !tomb || guest) return;
     if (!Array.isArray(items)) return;
-    const scope = vaultStore.activeTomb();
+    const scope = vaultStore.activeTomb?.();
     if (!scope) return;
     syncRotationSchedules(items, scope);
     void processRotationQueue(scope);

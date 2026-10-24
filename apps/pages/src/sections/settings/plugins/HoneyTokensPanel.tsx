@@ -141,7 +141,7 @@ export function HoneyTokensPanel({
   notices,
 }: { notices: readonly PluginNotice[] }) {
   const store = useVaultStore();
-  const scope = store.activeTomb();
+  const scope = store.activeTomb?.() ?? "";
   const [rows, setRows] = useState<HoneyTokenRecord[]>([]);
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);

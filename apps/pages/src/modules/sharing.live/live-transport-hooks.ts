@@ -34,7 +34,7 @@ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const transportSeams = {
-  tomb: (): string => vaultStore.activeTomb(),
+  tomb: (): string => vaultStore.activeTomb?.() ?? "",
   read: (tomb: string): Promise<LiveTransport> => readLiveTransport(tomb),
   /** Read, edit and seal as one turn of the tomb's writes (`editLiveTransport`). */
   edit: (
