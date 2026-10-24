@@ -12,25 +12,10 @@ fn ipv4_is_blocked(ip: Ipv4Addr) -> bool {
         || ip.is_unspecified()
 }
 
-/// Host-name suffixes that name this machine, a local network or a cloud
-/// metadata service. `host_is_private` compares them with the host already
-/// lowercased, so they are domain labels, not file extensions.
-const PRIVATE_SUFFIXES: &[&str] = &[
-    ".localhost",
-    ".internal",
-    ".local",
-    ".lan",
-    ".home.arpa",
-    // Public wildcard DNS services resolve attacker-chosen names to
-    // loopback/private addresses without a literal host.
-    ".nip.io",
-    ".sslip.io",
-    ".xip.io",
-    ".localtest.me",
-    ".lvh.me",
-    ".vcap.me",
-];
-
+// These are hostname suffixes, not file extensions: `.local` and `.lan` are
+// case-folded mDNS/home-network zones and `lower` is already
+// ASCII-lowercased, so the case-sensitive suffix comparison is intended.
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 pub(crate) fn host_is_private(url: &Url) -> bool {
     match url.host() {
         None => true,
@@ -38,10 +23,20 @@ pub(crate) fn host_is_private(url: &Url) -> bool {
             let host = host.trim_end_matches('.');
             let lower = host.to_ascii_lowercase();
             host.eq_ignore_ascii_case("localhost")
+                || lower.ends_with(".localhost")
                 || lower == "metadata.google.internal"
-                || PRIVATE_SUFFIXES
-                    .iter()
-                    .any(|suffix| lower.ends_with(suffix))
+                || lower.ends_with(".internal")
+                || lower.ends_with(".local")
+                || lower.ends_with(".lan")
+                || lower.ends_with(".home.arpa")
+                // Public wildcard DNS services resolve attacker-chosen names
+                // to loopback/private addresses without a literal host.
+                || lower.ends_with(".nip.io")
+                || lower.ends_with(".sslip.io")
+                || lower.ends_with(".xip.io")
+                || lower.ends_with(".localtest.me")
+                || lower.ends_with(".lvh.me")
+                || lower.ends_with(".vcap.me")
         }
         Some(url::Host::Ipv4(ip)) => ipv4_is_blocked(ip),
         // Bracketed IPv4-mapped literals stay IPv6 (`::ffff:7f00:1` is 127.0.0.1).
