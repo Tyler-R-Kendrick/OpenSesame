@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FEATURE_BINDING_CATEGORIES } from "../../sections/connections/shared.js";
+import { catalogProviders } from "../connector-catalog.js";
+import { getBundledProviders } from "../embedded-catalog.js";
 import { coreCapabilityIds } from "./catalog.js";
 import { FEATURES, featureById } from "./features.js";
 import { BUILT_IN_INTEGRATIONS, INTEGRATIONS } from "./integrations.js";
@@ -8,7 +10,10 @@ describe("INTEGRATIONS", () => {
   it("gives every offered connector family one section while removing legacy local storage", () => {
     const homes = INTEGRATIONS.flatMap((entry) => entry.providerCategories);
     expect(new Set(homes).size).toBe(homes.length);
-    expect([...homes].sort()).toEqual(
+    const featureHomes = INTEGRATIONS.filter(
+      (entry) => entry.id !== "services",
+    ).flatMap((entry) => entry.providerCategories);
+    expect([...featureHomes].sort()).toEqual(
       FEATURE_BINDING_CATEGORIES.filter(
         (category) => category !== "local_storage",
       ).sort(),
@@ -48,6 +53,7 @@ describe("INTEGRATIONS", () => {
       "cloud-secret-storage",
       "encryption",
       "password-managers",
+      "services",
     ]);
     for (const id of BUILT_IN_INTEGRATIONS) {
       expect(
@@ -55,6 +61,42 @@ describe("INTEGRATIONS", () => {
         id,
       ).toBe(false);
     }
+  });
+
+  it("gives the finite native business/API categories a Services home without exposing internal categories", () => {
+    const services = INTEGRATIONS.find((entry) => entry.id === "services");
+    expect(services?.providerCategories).toEqual([
+      "developer",
+      "productivity",
+      "communication",
+      "storage",
+      "crm",
+    ]);
+    expect(services).not.toHaveProperty("extendsFeature");
+    for (const category of services?.providerCategories ?? [])
+      expect(FEATURE_BINDING_CATEGORIES).not.toContain(category);
+    const providers = catalogProviders().filter((provider) =>
+      services?.providerCategories.includes(provider.category),
+    );
+    const bundled = getBundledProviders().filter((provider) =>
+      services?.providerCategories.includes(provider.category),
+    );
+    expect(bundled.map((provider) => provider.id)).toEqual(
+      expect.arrayContaining(["linear", "vercel"]),
+    );
+    expect(providers.map((provider) => provider.id)).toEqual(
+      expect.arrayContaining([
+        "linear",
+        "microsoft",
+        "slack",
+        "sentry",
+        "box",
+        "hubspot",
+      ]),
+    );
+    const offered = INTEGRATIONS.flatMap((entry) => entry.providerCategories);
+    for (const category of ["custom", "testing", "local_storage"])
+      expect(offered).not.toContain(category);
   });
 
   it("puts git providers under Backups and AI provider connections under AI", () => {

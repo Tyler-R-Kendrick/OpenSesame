@@ -18,6 +18,14 @@ import type { GuideTargetDescriptor } from "./targets.js";
 
 export const INTEGRATION_TARGETS: readonly GuideTargetDescriptor[] = [
   {
+    id: "integration.services",
+    description:
+      "The Services section of Settings › Integrations: developer APIs, productivity, communication, storage and CRM providers, each opening its own supported configuration page.",
+    role: "surface",
+    routes: ["/settings/integrations"],
+    capabilityId: null,
+  },
+  {
     id: "integration.identity",
     description:
       "The Identity section of Settings › Integrations: the identity providers that can sign people in beside browser-local identity, each opening its own page.",
