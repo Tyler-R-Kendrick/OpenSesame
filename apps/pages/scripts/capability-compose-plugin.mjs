@@ -123,12 +123,22 @@ function installManualChunks(build, state) {
       // A lazy leaf first: a carrier inside a module directory would
       // otherwise join the module's chunk and load with it.
       if (!id.startsWith("\0")) {
-        const leaf = lazyLeafChunk(id, state.classify(id));
-        if (leaf) return leaf;
-      }
-      if (partitionable(id)) {
         const entry = state.classify(id);
-        if (entry.classification === "optional" && entry.capability)
+        // Naming an excluded pure module forces even its unused shell to emit.
+        // Leave it to Rollup (or the caller); emitted-code gates still apply.
+        if (
+          state.mode === "hardened" &&
+          entry.classification === "optional" &&
+          !state.sets.distributed.has(entry.capability)
+        )
+          return previous ? previous(id, api) : undefined;
+        const leaf = lazyLeafChunk(id, entry);
+        if (leaf) return leaf;
+        if (
+          partitionable(id) &&
+          entry.classification === "optional" &&
+          entry.capability
+        )
           return `cap-${entry.capability}`;
       }
       return previous ? previous(id, api) : undefined;
