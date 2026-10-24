@@ -44,6 +44,8 @@ const projection = buildSync({
       export const auditedAdobeAdmission=nativeBrowserMcpPolicy('adobe');
       releaseOrigin();
       import {catalogPageItems} from './apps/pages/src/sections/connections/page-tree.ts';
+      export {canonicalProviderId} from './packages/app-core/src/lib/connector-catalog.ts';
+      export {API_FAMILIES as apiFamilies} from './apps/pages/src/sections/connections/catalog-families.ts';
       export const all = mergeVercelCatalog(getBundledProviders()).filter(isConnectionCatalogProvider);
       export const listed = catalogPageItems(all);
       export const aiModelProviderIds = all.filter(isAiModelProvider).map(provider => provider.id);
@@ -77,6 +79,10 @@ export const NATIVE_CANONICAL_PROVIDERS = source.all.map((provider) => ({
   name: provider.displayName,
 }));
 export const NATIVE_CANONICAL_CATALOG_IDS = source.listed.map((row) => row.id);
+/** The catalog id an id or alias names (`canonicalProviderId`), else the id itself. */
+export const nativeCatalogId = (id) => source.canonicalProviderId(id) ?? id;
+/** The provider families Add a connection draws as one tile each. */
+export const NATIVE_API_FAMILIES = source.apiFamilies;
 export const NATIVE_CONNECT_PLAN_JSON = source.connectPlanJson;
 
 /**

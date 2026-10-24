@@ -75,6 +75,51 @@ export async function withdrawSelfAuthenticator(page, check) {
   await page.waitForTimeout(1000);
 }
 
+/**
+ * Where the unlock screen puts a refusal. The gate seats its notices and bell
+ * in the unlock card, after the card's tools and before the heading the form
+ * sits under (`GateNoticeSeat`, components/Notices.tsx), so the seat is held
+ * to that heading, and every control its box reaches must still be what a
+ * press there lands on.
+ */
+async function refusalSeat(page) {
+  return page.evaluate(() => {
+    const corner = document.querySelector(".unlock__card .notice-corner");
+    const heading = document.querySelector(".unlock__card .unlock__heading");
+    if (!corner || !heading)
+      return { seated: false, above: false, covered: [] };
+    const seat = corner.getBoundingClientRect();
+    const covered = [
+      ...document.querySelectorAll(
+        ".unlock a, .unlock button, .unlock input, .unlock select, .unlock textarea",
+      ),
+    ]
+      .filter(
+        (control) => !corner.contains(control) && control.checkVisibility(),
+      )
+      .flatMap((control) => {
+        const box = control.getBoundingClientRect();
+        const left = Math.max(box.left, seat.left);
+        const right = Math.min(box.right, seat.right);
+        const top = Math.max(box.top, seat.top);
+        const bottom = Math.min(box.bottom, seat.bottom);
+        if (left >= right || top >= bottom) return [];
+        const hit = document.elementFromPoint(
+          (left + right) / 2,
+          (top + bottom) / 2,
+        );
+        return hit && control.contains(hit)
+          ? []
+          : [control.getAttribute("aria-label") ?? control.textContent.trim()];
+      });
+    return {
+      seated: true,
+      above: seat.bottom <= heading.getBoundingClientRect().top,
+      covered,
+    };
+  });
+}
+
 /** The code step after a key: wrong code refused, right code opens the vault. */
 export async function finishUnlockWithCode(
   page,
@@ -93,11 +138,10 @@ export async function finishUnlockWithCode(
   // A full code submits itself; the wrong one is refused without a click.
   await page.getByLabel("Authenticator code", { exact: true }).fill("000000");
   await page.waitForTimeout(800);
-  const corner = await page.locator(".notice-corner").boundingBox();
-  const gate = await page.locator(".unlock.unlock--lock-v5").boundingBox();
+  const seat = await refusalSeat(page);
   check(
-    corner !== null && gate !== null && corner.y + corner.height <= gate.y,
-    "the refusal and its bell sit above the unlock form without covering controls",
+    seat.seated && seat.above && seat.covered.length === 0,
+    `the refusal and its bell sit above the unlock form without covering controls${seat.covered.length ? ` (covered: ${seat.covered.join(", ")})` : ""}`,
   );
   const refused = `${await snap(page, `${name}-wrong-code`)} ${await readTray(page)}`;
   check(/not valid/i.test(refused), "a wrong code is refused in plain words");

@@ -52,7 +52,7 @@ import {
   githubConnectorStatus,
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
-import { apiFamilyFor } from "./catalog-families.js";
+import { apiFamilyFor, familyOptionsFor } from "./catalog-families.js";
 import { isConnectConnection } from "./connect/ConnectPanels.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
 import { isIdentityConnectionProvider } from "./identity/IdentityConnectionPanels.js";
@@ -110,14 +110,7 @@ export function ConnectorSettingsPage({
   const navigate = useNavigate();
   const family = provider === null ? undefined : apiFamilyFor(provider.id);
   const familyOptions =
-    family === undefined
-      ? []
-      : family.members.map((id) => {
-          const row = (providers ?? []).find(
-            (candidate) => candidate.id === id,
-          );
-          return { id, label: row?.displayName ?? id };
-        });
+    family === undefined ? [] : familyOptionsFor(family, providers ?? []);
   const ceremonyRoot = connectorCeremonyRoot(pathname);
   const backRef = useGuideTarget<HTMLAnchorElement>("connections.back");
   const authorizeRef = useGuideTarget<HTMLElement>("connections.authorize");
