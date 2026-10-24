@@ -14,7 +14,7 @@ use super::{
 };
 use crate::Db;
 
-async fn seed_realm(db: &Db, organization_id: &str) -> (String, String) {
+pub(super) async fn seed_realm(db: &Db, organization_id: &str) -> (String, String) {
     sqlx::query("INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)")
         .bind(organization_id)
         .bind(organization_id)
@@ -34,7 +34,7 @@ async fn seed_realm(db: &Db, organization_id: &str) -> (String, String) {
     (organization_id.to_owned(), domain_id)
 }
 
-async fn seed_grant(db: &Db, organization_id: &str, grant_id: &str) {
+pub(super) async fn seed_grant(db: &Db, organization_id: &str, grant_id: &str) {
     sqlx::query(
         "INSERT INTO grants (id, organization_id, body_json, revoked_at, created_at) \
          VALUES (?, ?, ?, NULL, ?)",
@@ -60,7 +60,7 @@ async fn seed_grant(db: &Db, organization_id: &str, grant_id: &str) {
     .expect("legacy grant row");
 }
 
-fn issue<'a>(
+pub(super) fn issue<'a>(
     grant_id: &'a str,
     organization_id: &'a str,
     domain_id: &'a str,
@@ -82,7 +82,7 @@ fn issue<'a>(
     }
 }
 
-fn entry(resource_selector: &str, action: &str) -> PermissionEntry {
+pub(super) fn entry(resource_selector: &str, action: &str) -> PermissionEntry {
     PermissionEntry {
         resource_selector: resource_selector.to_owned(),
         provider_operation_id: "connection.invoke:connection:alpha".to_owned(),

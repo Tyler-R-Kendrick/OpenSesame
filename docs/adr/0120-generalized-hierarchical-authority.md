@@ -143,6 +143,13 @@ An authority's deadline is detected by the lifecycle scanner and published on
 This is what makes ADR 0079's "every grant carries a TTL" mean something at the
 membership grain.
 
+A sidecar stays after its deadline, and only a revoked envelope grant leaves the
+scan, so each pass reads unrevoked sidecars twice, each read bounded at 512 per
+organization: live ones soonest first, and lapsed ones most recently lapsed
+first (ADR 0074 §1). Sidecars whose expiry was already published never crowd a
+live grant out of a pass; one is missed only when more than 512 in its
+organization lapse after it before the next pass.
+
 ### 6. Nothing here becomes a second authority model, or a value
 
 - A cross-device question stays an `Interaction`; an approval counts only when

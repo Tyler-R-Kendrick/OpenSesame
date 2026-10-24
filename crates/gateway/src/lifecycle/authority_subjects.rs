@@ -3,11 +3,14 @@
 //! Mirrors [`super::subjects`]' session-grant collector: alerts, never
 //! auto-responds, and carries no label that could name a secret or resource.
 
+use chrono::{DateTime, Utc};
 use opensesame_lifecycle::{ExpirySubject, SubjectKind};
 use opensesame_storage::authority::AuthorityGrantDeadline;
 use opensesame_storage::Db;
 
-/// Cap per organization per pass — soonest-first, so near deadlines win.
+/// Cap on each of a pass's two reads per organization: live grants soonest
+/// first, and lapsed ones most recently lapsed first, so a grant whose expiry
+/// was already published never crowds a live one out (ADR 0074 §1).
 pub const AUTHORITY_GRANT_SCAN_LIMIT: i64 = 512;
 
 /// Renewal lead kept minimal: the kind is non-renewable, so the rung exists
@@ -15,9 +18,13 @@ pub const AUTHORITY_GRANT_SCAN_LIMIT: i64 = 512;
 pub const AUTHORITY_GRANT_RENEW_BEFORE_SECONDS: i64 = 1;
 
 /// Unrevoked `grant_authority` rows as expiry subjects.
-pub async fn authority_grants(db: &Db, organization: &str) -> anyhow::Result<Vec<ExpirySubject>> {
+pub async fn authority_grants(
+    db: &Db,
+    organization: &str,
+    now: DateTime<Utc>,
+) -> anyhow::Result<Vec<ExpirySubject>> {
     let grants = db
-        .authority_grants_expiring(organization, AUTHORITY_GRANT_SCAN_LIMIT)
+        .authority_grants_expiring(organization, now, AUTHORITY_GRANT_SCAN_LIMIT)
         .await?;
     Ok(grants
         .into_iter()
