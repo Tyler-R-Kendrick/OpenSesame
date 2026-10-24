@@ -129,16 +129,16 @@ export function parseForm(body: string): URLSearchParams {
   return new URLSearchParams(body);
 }
 
-const HTML_ESCAPES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
+const HTML_ESCAPES = new Map([
+  ["&", "&amp;"],
+  ["<", "&lt;"],
+  [">", "&gt;"],
+  ['"', "&quot;"],
+  ["'", "&#39;"],
+]);
 
 export function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char] ?? char);
+  return value.replace(/[&<>"']/g, (char) => HTML_ESCAPES.get(char) ?? char);
 }
 
 /**

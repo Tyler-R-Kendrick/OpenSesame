@@ -22,14 +22,14 @@ const OID = {
   dsa: "1.2.840.10040.4.1",
 } as const;
 
-const CURVE_BITS: Readonly<Record<string, number>> = {
-  "1.2.840.10045.3.1.7": 256,
-  "1.3.132.0.34": 384,
-  "1.3.132.0.35": 521,
-  "1.2.840.10045.3.1.2": 192,
-  "1.3.132.0.10": 256,
-  "1.3.132.0.33": 224,
-};
+const CURVE_BITS: ReadonlyMap<string, number> = new Map([
+  ["1.2.840.10045.3.1.7", 256],
+  ["1.3.132.0.34", 384],
+  ["1.3.132.0.35", 521],
+  ["1.2.840.10045.3.1.2", 192],
+  ["1.3.132.0.10", 256],
+  ["1.3.132.0.33", 224],
+]);
 
 export type PrivateKeyInfo = {
   readonly label: string;
@@ -87,10 +87,10 @@ function rsaBits(key: DerNode): number | null {
   }
 }
 
-function pkcs8(parts: readonly DerNode[]): {
-  algorithm: string;
-  bits: number | null;
-} {
+/** A private key's algorithm OID, and its size where it can be read. */
+type KeyAlgorithm = { algorithm: string; bits: number | null };
+
+function pkcs8(parts: readonly DerNode[]): KeyAlgorithm {
   const alg = parts[1];
   const secret = parts[2];
   if (alg === undefined || secret === undefined || secret.tag !== 0x04)
@@ -109,7 +109,7 @@ function sec1(parts: readonly DerNode[]): number | null {
   if (params === undefined) return null;
   const wrapped = readDer(params.content);
   if (wrapped.node.tag !== 0x06) return null;
-  return CURVE_BITS[objectIdentifier(wrapped.node)] ?? null;
+  return CURVE_BITS.get(objectIdentifier(wrapped.node)) ?? null;
 }
 
 function pkcs1Bits(parts: readonly DerNode[]): number | null {

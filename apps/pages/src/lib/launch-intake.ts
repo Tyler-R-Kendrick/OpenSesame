@@ -25,10 +25,13 @@ type LaunchHost = {
 
 let installed = false;
 
+function launchHost(): LaunchHost {
+  // SAFETY: launchQueue is optional on LaunchHost, so the global matches it in a browser without File Handling; the caller checks it before use.
+  return globalThis as LaunchHost;
+}
+
 /** Install once, early enough to catch a cold-start file launch. */
-export function installLaunchQueue(
-  host: LaunchHost = globalThis as LaunchHost,
-): void {
+export function installLaunchQueue(host: LaunchHost = launchHost()): void {
   if (installed) return;
   const queue = host.launchQueue;
   if (queue === undefined) return;

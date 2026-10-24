@@ -63,7 +63,7 @@ export function useItemShare(
         ? () => navigate(accessIdentitySharePath(item.id))
         : undefined,
       onShare:
-        typeof navigator.share === "function"
+        navigator.share instanceof Function
           ? () => {
               void navigator
                 .share({ title: item.name, text: item.name })

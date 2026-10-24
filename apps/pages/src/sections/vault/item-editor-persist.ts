@@ -12,6 +12,7 @@ import {
   renderEnvironmentSchemaItem,
 } from "@opensesame/app-core/lib/vault/environment-item.js";
 import { validateWebsitePatterns } from "@opensesame/app-core/lib/vault/website-pattern.js";
+import { isString } from "@opensesame/os-domain";
 import {
   type Folder,
   type VaultItem,
@@ -69,7 +70,7 @@ export function editorDraftError(draft: VaultItem): string | null {
       if (definition.metadata.id === ENVIRONMENT_ITEM_TYPE) {
         const text = (id: string) => {
           const value = draft.values[id];
-          return typeof value === "string" ? value : "";
+          return isString(value) ? value : "";
         };
         const rendered = renderEnvironmentSchemaItem(draft.name, {
           environment: text("environment"),

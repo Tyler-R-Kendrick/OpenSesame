@@ -37,7 +37,7 @@ function idpFetch(overrides: JsonObject = {}): typeof fetch {
 
 describe("loopbackLogin", () => {
   it("refuses a discovery redirect instead of following it", async () => {
-    const redirecting = vi.fn(
+    const redirecting = vi.fn<typeof fetch>(
       async () =>
         new Response(null, {
           status: 302,
@@ -48,7 +48,7 @@ describe("loopbackLogin", () => {
       loopbackLogin({
         issuer: ISSUER,
         clientId: "cli",
-        fetchImpl: redirecting as unknown as typeof fetch,
+        fetchImpl: redirecting,
       }),
     ).rejects.toThrow(/redirected; refusing to follow/);
   });

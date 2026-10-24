@@ -84,13 +84,13 @@ async function fill(contract: PrimaryContract) {
   if (method) await userEvent.click(method);
   await userEvent.type(screen.getByLabelText(/API key$/), primaryKey);
   const connect = screen.getByRole("button", { name: /^Verify and connect / });
-  const labels: Record<string, string> = {
-    org_id: "Neon organization ID",
-    instance: "Instance",
-    api_host: "Mailgun region",
-  };
+  const labels = new Map([
+    ["org_id", "Neon organization ID"],
+    ["instance", "Instance"],
+    ["api_host", "Mailgun region"],
+  ]);
   for (const [key, value] of Object.entries(contract.parameters)) {
-    const field = screen.getByLabelText(labels[key] ?? key);
+    const field = screen.getByLabelText(labels.get(key) ?? key);
     if (field.tagName === "SELECT") await userEvent.selectOptions(field, value);
     else await userEvent.type(field, value);
   }

@@ -78,6 +78,7 @@ type DirectSocketsHost = {
 };
 
 function host(): DirectSocketsHost {
+  // SAFETY: each Direct Sockets constructor is optional here and checked before use.
   return globalThis as DirectSocketsHost;
 }
 
@@ -101,9 +102,8 @@ export function directSocketsAvailable(): boolean {
 export function multicastDirectSocketsAvailable(): boolean {
   return (
     directSocketsAvailable() &&
-    typeof host().UDPSocket === "function" &&
-    typeof (host().UDPSocket as unknown as { prototype?: unknown })
-      .prototype === "object"
+    host().UDPSocket instanceof Function &&
+    host().UDPSocket?.prototype instanceof Object
   );
 }
 
@@ -113,12 +113,24 @@ function port(value: number): number {
   return value;
 }
 
+/** An open TCP client connection and what opening it gave. */
+export type TcpConnection = { socket: TcpSocket; opened: TcpOpen };
+
+/** A bound UDP socket and what binding it gave. */
+export type UdpBinding = { socket: UdpSocket; opened: UdpOpen };
+
+/** A TCP listener and the stream of sockets it accepts. */
+export type TcpListener = {
+  server: { close(): void | Promise<void> };
+  readable: ReadableStream<TcpSocket>;
+};
+
 /** Open a TCP client connection; the caller owns the streams and close(). */
 export async function openTcpSocket(
   remoteAddress: string,
   remotePort: number,
   options?: ConstructorParameters<TcpCtor>[2],
-): Promise<{ socket: TcpSocket; opened: TcpOpen }> {
+): Promise<TcpConnection> {
   const Ctor = host().TCPSocket;
   if (Ctor === undefined) throw new Error("Direct Sockets are unavailable");
   const socket = new Ctor(remoteAddress, port(remotePort), options);
@@ -128,10 +140,7 @@ export async function openTcpSocket(
 /** Bind a UDP socket. Bound sockets accept datagrams from any peer. */
 export async function openUdpSocket(
   options: ConstructorParameters<UdpCtor>[0],
-): Promise<{
-  socket: UdpSocket;
-  opened: UdpOpen;
-}> {
+): Promise<UdpBinding> {
   const Ctor = host().UDPSocket;
   if (Ctor === undefined) throw new Error("Direct Sockets are unavailable");
   if (options.localPort !== undefined) port(options.localPort);
@@ -144,10 +153,7 @@ export async function openUdpSocket(
 export async function openTcpServer(
   localAddress: string,
   options?: ConstructorParameters<TcpServerCtor>[1],
-): Promise<{
-  server: { close(): void | Promise<void> };
-  readable: ReadableStream<TcpSocket>;
-}> {
+): Promise<TcpListener> {
   const Ctor = host().TCPServerSocket;
   if (Ctor === undefined) throw new Error("Direct Sockets are unavailable");
   const server = new Ctor(localAddress, options);

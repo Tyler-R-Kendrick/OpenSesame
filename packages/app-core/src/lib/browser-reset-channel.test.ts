@@ -182,10 +182,11 @@ function heldLock() {
     ) => {
       asked.push(name);
       const granted =
-        typeof optionsOrGranted === "function"
-          ? optionsOrGranted
-          : maybeGranted;
-      if (typeof optionsOrGranted === "object" && optionsOrGranted.ifAvailable)
+        optionsOrGranted instanceof Function ? optionsOrGranted : maybeGranted;
+      if (
+        !(optionsOrGranted instanceof Function) &&
+        optionsOrGranted.ifAvailable
+      )
         return null;
       await held;
       return granted?.();
@@ -203,9 +204,7 @@ function availableLock() {
       maybeGranted?: () => void,
     ) => {
       const granted =
-        typeof optionsOrGranted === "function"
-          ? optionsOrGranted
-          : maybeGranted;
+        optionsOrGranted instanceof Function ? optionsOrGranted : maybeGranted;
       return granted?.();
     },
   });

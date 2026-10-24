@@ -40,8 +40,37 @@ function bindingFromRow(row: CliAuthorizeRow) {
   };
 }
 
+/**
+ * The vault and pairing reads the proofs make. Each loads its module lazily,
+ * as this leaf does; a test stands in for them here.
+ */
+export const cliAuthorizeMintSeams = {
+  pairingSecret: (): string | null => readCliAppIntegrationBearer(),
+  duressCheck: async (pin: string) => {
+    const { onCompleteUnlockCodeSubmission } = await import(
+      "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js"
+    );
+    return onCompleteUnlockCodeSubmission(pin, { requireDurable: false });
+  },
+  unwrapPin: async (header: VaultHeader, pin: string): Promise<Uint8Array> => {
+    const [
+      { scopedKey },
+      { ATTEMPTS_KEY },
+      { recordFailedUnlock },
+      { unwrapPin },
+    ] = await Promise.all([
+      import("@opensesame/app-core/lib/projects.js"),
+      import("@opensesame/app-core/lib/vault/store-scope.js"),
+      import("@opensesame/app-core/lib/vault/unlock-attempts.js"),
+      import("@opensesame/app-core/lib/vault/primary-unwrap.js"),
+    ]);
+    const attemptsKey = scopedKey(ATTEMPTS_KEY);
+    return unwrapPin(header, pin, () => recordFailedUnlock(attemptsKey));
+  },
+};
+
 function requirePairingSecret(): string {
-  const secret = readCliAppIntegrationBearer();
+  const secret = cliAuthorizeMintSeams.pairingSecret();
   if (!secret) {
     throw new Error("cli_app_pairing_required");
   }
@@ -82,30 +111,11 @@ export async function mintCliAuthorizePinProof(
   pin: string,
   header: VaultHeader,
 ): Promise<string> {
-  const { onCompleteUnlockCodeSubmission } = await import(
-    "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js"
-  );
-  const duressOutcome = await onCompleteUnlockCodeSubmission(pin, {
-    requireDurable: false,
-  });
+  const duressOutcome = await cliAuthorizeMintSeams.duressCheck(pin);
   if (duressOutcome.kind === "duress") {
     throw new WrongPasswordError("That PIN did not work.");
   }
-  const [
-    { scopedKey },
-    { ATTEMPTS_KEY },
-    { recordFailedUnlock },
-    { unwrapPin },
-  ] = await Promise.all([
-    import("@opensesame/app-core/lib/projects.js"),
-    import("@opensesame/app-core/lib/vault/store-scope.js"),
-    import("@opensesame/app-core/lib/vault/unlock-attempts.js"),
-    import("@opensesame/app-core/lib/vault/primary-unwrap.js"),
-  ]);
-  const attemptsKey = scopedKey(ATTEMPTS_KEY);
-  const raw = await unwrapPin(header, pin, () =>
-    recordFailedUnlock(attemptsKey),
-  );
+  const raw = await cliAuthorizeMintSeams.unwrapPin(header, pin);
   raw.fill(0);
   requirePairingSecret();
   // The daemon rejects `oschip3:pin:` proofs (`human_proof.rs`). A PIN unlock

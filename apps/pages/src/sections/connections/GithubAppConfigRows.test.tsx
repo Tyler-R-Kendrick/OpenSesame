@@ -1,18 +1,22 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  GithubAppForgetButton,
+  githubAppForgetSeams,
+} from "./GithubAppConfigRows.js";
 
-const forget = vi.hoisted(() => vi.fn());
+const forget = vi.fn();
+const original = { ...githubAppForgetSeams };
 
-vi.mock("@opensesame/app-core/lib/github-app-manifest.js", () => ({
-  forgetLocalGithubApp: forget,
-}));
-
-const { GithubAppForgetButton } = await import("./GithubAppConfigRows.js");
+beforeEach(() => {
+  githubAppForgetSeams.forget = forget;
+});
 
 afterEach(() => {
   cleanup();
+  Object.assign(githubAppForgetSeams, original);
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });

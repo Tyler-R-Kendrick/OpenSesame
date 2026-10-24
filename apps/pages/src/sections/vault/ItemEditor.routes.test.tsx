@@ -210,10 +210,11 @@ describe("vault editor route types", () => {
   it("places the default wildcard website before username and offers pattern modes", async () => {
     open("/vault/new/login");
     const address = screen.getByLabelText("Address 1");
-    expect((address as HTMLInputElement).value).toBe("*");
-    expect(
-      (screen.getByLabelText("Match rule 1") as HTMLSelectElement).value,
-    ).toBe("wildcard");
+    expect(address).toHaveProperty("value", "*");
+    expect(screen.getByLabelText("Match rule 1")).toHaveProperty(
+      "value",
+      "wildcard",
+    );
     expect(
       address.compareDocumentPosition(screen.getByLabelText("Username / ID")) &
         Node.DOCUMENT_POSITION_FOLLOWING,

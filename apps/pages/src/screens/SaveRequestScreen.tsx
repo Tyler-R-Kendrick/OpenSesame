@@ -4,6 +4,7 @@ import {
   type SaveRequestType,
   decodeSaveRequest,
 } from "@opensesame/app-core/lib/save-request.js";
+import { type JsonValue, isString } from "@opensesame/os-domain";
 import { useEffect, useState } from "react";
 import { useVaultStore } from "../lib/vault/hooks.js";
 import { buildSaveItem } from "./save-request-item.js";
@@ -17,11 +18,10 @@ const CONCEALED = new Set([
   "one-time-code",
 ]);
 
-function isType(value: unknown): value is SaveRequestType {
-  return (
-    typeof value === "string" &&
-    (SAVE_REQUEST_TYPES as readonly string[]).includes(value)
-  );
+const TYPES = new Set<string>(SAVE_REQUEST_TYPES);
+
+function isType(value: JsonValue | undefined): value is SaveRequestType {
+  return isString(value) && TYPES.has(value);
 }
 
 function sourceOrigin(origin: string): string | null {
@@ -53,7 +53,7 @@ export function SaveRequestScreen() {
   const [savedId, setSavedId] = useState<string | null>(null);
 
   useEffect(() => {
-    const opener = window.opener as Window | null;
+    const opener: Window | null = window.opener;
     if (!opener) {
       setError("Open this page from a site's Save in OpenSesame button.");
       return;

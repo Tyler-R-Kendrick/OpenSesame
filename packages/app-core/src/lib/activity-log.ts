@@ -6,6 +6,7 @@ import {
   type BoundaryValue,
   type JsonObject,
   isJsonObject,
+  isNumber,
   isString,
 } from "@opensesame/os-domain";
 import { lockManager } from "../ports.js";
@@ -386,7 +387,7 @@ export async function patchActivityCount(
     const event = current[index];
     if (!event) return;
     const prior = event.metadata.count;
-    if (typeof prior === "number" && prior >= count) return;
+    if (isNumber(prior) && prior >= count) return;
     const next = current.slice();
     next[index] = {
       ...event,

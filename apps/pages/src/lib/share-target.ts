@@ -9,6 +9,13 @@
  * vault item.
  */
 
+import {
+  type JsonValue,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
+
 export const SHARE_TARGET_CACHE_PREFIX = "opensesame-share-target";
 export const SHARE_TARGET_PARAM = "share-target";
 export const SHARE_TARGET_PATH = "share-target";
@@ -154,39 +161,41 @@ export async function openShareTarget(
   );
 }
 
-function boundedText(value: unknown, max: number): string {
-  return typeof value === "string" && value.length <= max ? value : "";
+function boundedText(value: JsonValue | undefined, max: number): string {
+  return isString(value) && value.length <= max ? value : "";
 }
 
-function positiveInteger(value: unknown): number | null {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+function positiveInteger(value: JsonValue | undefined): number | null {
+  return isNumber(value) && Number.isSafeInteger(value) && value > 0
     ? value
     : null;
 }
 
-function fileMeta(value: unknown): ShareTargetFile | null | undefined {
+function fileMeta(
+  value: JsonValue | undefined,
+): ShareTargetFile | null | undefined {
   if (value === null || value === undefined) return null;
-  if (typeof value !== "object") return undefined;
-  const candidate = value as Record<string, unknown>;
-  const size = positiveInteger(candidate.size);
+  if (!isJsonObject(value)) return undefined;
+  const { name, type } = value;
+  const size = positiveInteger(value.size);
   if (
-    typeof candidate.name !== "string" ||
-    candidate.name.length === 0 ||
-    candidate.name.length > 255 ||
-    typeof candidate.type !== "string" ||
-    candidate.type.length > 200 ||
+    !isString(name) ||
+    name.length === 0 ||
+    name.length > 255 ||
+    !isString(type) ||
+    type.length > 200 ||
     size === null ||
     size > SHARE_TARGET_MAX_BYTES
   )
     return undefined;
-  return { name: candidate.name, type: candidate.type, size };
+  return { name, type, size };
 }
 
-export function parseShareTargetMeta(value: unknown): ShareTargetMeta | null {
-  if (typeof value !== "object" || value === null) return null;
-  const record = value as Record<string, unknown>;
-  const token = record.token;
-  if (typeof token !== "string" || !isShareTargetToken(token)) return null;
+export function parseShareTargetMeta(value: JsonValue): ShareTargetMeta | null {
+  if (!isJsonObject(value)) return null;
+  const record = value;
+  const { token } = record;
+  if (!isString(token) || !isShareTargetToken(token)) return null;
   const createdAt = positiveInteger(record.createdAt);
   if (createdAt === null) return null;
   const file = fileMeta(record.file);

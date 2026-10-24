@@ -99,6 +99,12 @@ async function assertSocialProof(
     refused();
 }
 
+/** Where the browser goes next with the ID token, and who signed it. */
+export type SiopAuthorization = {
+  redirectUrl: string;
+  identity: SiopPublicIdentity;
+};
+
 export type SiopAuthoritySeams = {
   ensureKey?: typeof ensureSiopKeyInDirectoryFence;
   importSigner?: typeof importSiopSigningKey;
@@ -181,7 +187,7 @@ async function mintSiopAuthorization(
   request: NormalizedAuthorizationRequest,
   assertActive: () => void | Promise<void>,
   seams: SiopAuthoritySeams,
-): Promise<{ redirectUrl: string; identity: SiopPublicIdentity }> {
+): Promise<SiopAuthorization> {
   const ensureKey = seams.ensureKey ?? ensureSiopKeyInDirectoryFence;
   const importSigner = seams.importSigner ?? importSiopSigningKey;
   const requireAdmission =
@@ -241,7 +247,7 @@ export async function approveSiopAuthorization(
   session: LocalSession,
   request: NormalizedAuthorizationRequest,
   seams: SiopAuthoritySeams = {},
-): Promise<{ redirectUrl: string; identity: SiopPublicIdentity }> {
+): Promise<SiopAuthorization> {
   assertPasskey(session);
   const approved = await withLocalIdentitySession(
     tomb,
@@ -272,7 +278,7 @@ export async function approveSiopAuthorizationWithSocial(
   proof: SiopSocialProof,
   request: NormalizedAuthorizationRequest,
   seams: SiopAuthoritySeams = {},
-): Promise<{ redirectUrl: string; identity: SiopPublicIdentity }> {
+): Promise<SiopAuthorization> {
   const assertActive = () =>
     assertSocialProof(tomb, proof, proof.personId, seams);
   await assertActive();

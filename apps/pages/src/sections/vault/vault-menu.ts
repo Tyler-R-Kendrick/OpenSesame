@@ -38,11 +38,13 @@ export const PURGE_CONFIRM = "Really delete permanently? This cannot be undone";
 export const TRASH_CONFIRM = "Really move to trash?";
 
 /** The ways a secret can leave, shared by the row menu and the item toolbar. */
-export function shareWays(ways: {
+export type ShareWays = {
   drop: () => void;
   grant?: (() => void) | undefined;
   nativeShare?: (() => void) | undefined;
-}): MenuGroup[] {
+};
+
+export function shareWays(ways: ShareWays): MenuGroup[] {
   const groups: MenuGroup[] = [
     [
       {
@@ -76,7 +78,10 @@ export function shareWays(ways: {
 
 /** A label, never a secret value, is what the OS share sheet receives. */
 function nativeShareLabel(item: VaultItem): (() => void) | undefined {
-  if (typeof navigator === "undefined" || typeof navigator.share !== "function")
+  if (
+    !("navigator" in globalThis) ||
+    !(globalThis.navigator.share instanceof Function)
+  )
     return undefined;
   return () => {
     void navigator.share({ title: item.name, text: item.name }).catch(() => {

@@ -15,6 +15,7 @@ const store = {
 
 beforeEach(() => {
   confirm.mockClear();
+  // SAFETY: the gate calls only confirmTrustedContact and getSnapshot, the two members this fixture store has.
   vaultHooksSeams.useVaultStore = () => store as never;
   unlockCeremonyStore.begin();
 });

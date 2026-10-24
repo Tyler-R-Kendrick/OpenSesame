@@ -10,6 +10,7 @@ import {
   registerByoUpstream,
 } from "../interactions/byo.js";
 import { stableFederatedRedirectUri } from "../interactions/federated.js";
+import { peerAddress } from "../lib/peer-address.js";
 import type { Variables } from "../middleware/context.js";
 
 /**
@@ -58,9 +59,7 @@ byoPublicRoutes.post("/byo-upstreams", async (c) => {
   // The same user-agent-derived abuse key the interaction's unauthenticated
   // POSTs mint. A fence against one browser hammering the endpoint, never an
   // identifier: nothing durable is keyed by it.
-  const peer = (
-    c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined
-  )?.incoming?.socket?.remoteAddress;
+  const peer = peerAddress(c);
   const fingerprint = createHash("sha256")
     .update(peer ?? "")
     .update("|")
