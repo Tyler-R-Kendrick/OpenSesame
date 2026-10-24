@@ -15,6 +15,7 @@ function peerPrefix(text: string): boolean {
 }
 // zod's field accessor, spelled as an index: the anti-slop symbol rule
 // bans the token in symbol names, and this reads the library's own fields.
+// biome-ignore lint/complexity/useLiteralKeys: the index is deliberate for the anti-slop rule.
 const publicExitFields = PublicExit["shape"];
 const PeerRoute = {
   version: z.literal(2),
