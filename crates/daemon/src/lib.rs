@@ -1,9 +1,9 @@
 //! `OpenSesame` host daemon — local session capabilities for WSL/devcontainers/toolbar/PWA.
 //! Evolved from credential-agent. Never dumps refresh tokens or `WebAuthn` material.
 //! Listens on TCP (`OPENSESAME_DAEMON_LISTEN`, `spec/config/endpoints.json`) and optionally Unix socket (`OPENSESAME_AGENT_SOCK`).
-//! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`) on every transport.
-//! Over the Unix socket the kernel-attested peer UID is only an extra restriction
-//! (`OPENSESAME_DAEMON_ALLOWED_UIDS`, default same-user), not operator authority. With `--features
+//! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`) on every transport,
+//! except the helpers' `/v1/mint`, which on the socket admits an attested peer alone (ADR 0138 §2).
+//! Elsewhere the peer UID (`OPENSESAME_DAEMON_ALLOWED_UIDS`) restricts, never authorizes. With `--features
 //! tailscale` a read-only tailnet listener authorizes callers by whois identity.
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{

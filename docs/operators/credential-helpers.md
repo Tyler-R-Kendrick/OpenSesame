@@ -24,20 +24,20 @@ helper (git/docker/aws/kubectl)
       → gateway mints a derived token (github App installation token in v1)
 ```
 
-The socket fences who may ask: the daemon reads the kernel-attested peer UID
-and allows only the UIDs in `OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the
-daemon's own UID). Its `/v1/mint` route also runs the same `require_operator`
-check as its other operator routes, which demands the operator token
-(`X-OpenSesame-Operator`, from `OPENSESAME_OPERATOR_TOKEN`) on every transport
-(`crates/daemon/src/mint.rs`, `crates/daemon/src/lib.rs`). A helper therefore
-forwards the `OPENSESAME_OPERATOR_TOKEN` it inherits from its environment and
-holds no secret of its own: it never stores, prints or logs the value, and a
-value that is not a plain header token (a line break, a space) is refused before
-the socket is opened. Run a helper from the operator's own shell or deploy job;
-one started in an environment without the token — an agent's — is answered `401
-operator_unauthorized` (or `503 operator_token_unconfigured` when the daemon
-holds none) and is not forwarded. Any non-200 from the daemon is a hard failure:
-non-zero exit, nothing on stdout, only a failure class on stderr.
+The helpers send **no token**, and never read `OPENSESAME_OPERATOR_TOKEN`: on
+the Unix socket the daemon's `/v1/mint` admits a caller by its kernel-attested
+peer credentials alone (ADR 0138 §2) — the peer UID must be one of
+`OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the daemon's own UID). A process that
+replaced the socket would learn nothing from a helper that authorizes anything.
+A request with an `Origin` header is `401`, a peer outside the allowed UIDs is
+`401 uds_peer_unauthorized` even if it presents a valid operator token, and a
+peer the kernel did not attest is `503 uds_peer_unattested`. The daemon then
+forwards to the Host with its own operator token (`operator_forward`, loopback
+Host only), logs the peer's UID and pid as the actor of the mint, and passes
+the Host's answer back. Over TCP the same route still demands the operator
+token (`X-OpenSesame-Operator`), as every other operator route does on both
+transports. Any non-200 from the daemon is a hard failure: non-zero exit,
+nothing on stdout, only a failure class on stderr.
 
 ## Socket location
 

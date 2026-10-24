@@ -4,7 +4,9 @@
 //! [`opensesame_uds_authn`] peer credentials gate operator routes as an
 //! additional transport restriction on top of the operator bearer token,
 //! which is required on every transport — identity from the platform, never
-//! a substitute for the presented secret.
+//! a substitute for the presented secret. The two routes a socket peer
+//! reaches with no bearer at all are the agent-capability exchange and the
+//! helpers' `/v1/mint` (ADR 0138 §2): there the attested UID is the authority.
 //!
 //! The attestation is captured per connection by [`UdsConnectInfo`], wired in
 //! via `Router::into_make_service_with_connect_info` on the UDS listener
