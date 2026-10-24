@@ -141,7 +141,13 @@ describe("reconciling the tomb's key with the body's", () => {
     const tomb = await openTomb();
     const { host } = bodyHost(tomb, await genuineField(Date.now() - 1000));
     await reconcileDeviceIdentityKey(host, { held: true });
-    expect(locks.requested).toEqual([]);
+    // The vault write still takes the VFS's own cross-tab lock; the identity
+    // lock is the caller's, and is not asked for again.
+    expect(
+      locks.requested.filter((name) =>
+        name.startsWith("opensesame-device-identity-"),
+      ),
+    ).toEqual([]);
   });
 });
 
