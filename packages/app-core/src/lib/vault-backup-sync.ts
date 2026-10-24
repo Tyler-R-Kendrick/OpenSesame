@@ -33,6 +33,10 @@ import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
 import { savedForgeCredentials } from "./saved-git-backup.js";
 import {
+  confirmedBackupCommit,
+  readBackupWriteConfirmation,
+} from "./vault-backup-sync-confirmation.js";
+import {
   buildOfflineBackup,
   serializeOfflineBackup,
 } from "./vault/offline-backup.js";
@@ -103,19 +107,7 @@ async function putGithubContentsDefault(input: {
     },
     body: JSON.stringify(input),
   });
-  const payload: JsonObject = overlapCast(
-    await readBoundedObject(response, 65536, 30_000).catch(() => ({})),
-  );
-  if (!response.ok) {
-    throw new Error(
-      readString(payload.message) ||
-        readString(payload.error) ||
-        `Backup write failed (${response.status})`,
-    );
-  }
-  return {
-    commitSha: isString(payload.commitSha) ? payload.commitSha : null,
-  } satisfies PutContentsResult;
+  return readBackupWriteConfirmation(response);
 }
 
 async function putForgeContentsDefault(input: {
@@ -149,19 +141,7 @@ async function putForgeContentsDefault(input: {
     },
     body: JSON.stringify(body),
   });
-  const payload: JsonObject = overlapCast(
-    await readBoundedObject(response, 65536, 30_000).catch(() => ({})),
-  );
-  if (!response.ok) {
-    throw new Error(
-      readString(payload.message) ||
-        readString(payload.error) ||
-        `Backup write failed (${response.status})`,
-    );
-  }
-  return {
-    commitSha: isString(payload.commitSha) ? payload.commitSha : null,
-  } satisfies PutContentsResult;
+  return readBackupWriteConfirmation(response);
 }
 
 async function drainWebhookPendingDefault(): Promise<number> {
@@ -342,6 +322,7 @@ async function syncOneTarget(
       });
       commitSha = result.commitSha;
     }
+    commitSha = confirmedBackupCommit(commitSha);
     const next: LocalBackupTarget = {
       ...target,
       status: "ok",
