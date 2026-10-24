@@ -1,4 +1,5 @@
 import { TailscalePeerHTTPWorkerConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-peer-http.js";
+import { TailscaleServerTrustConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { z } from "zod";
 const OperationID = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
 const Header = z.tuple([z.string().max(32768), z.string().max(32768)]);
@@ -94,6 +95,12 @@ export type NativeResponse = z.infer<typeof NativeHTTPResponse>;
 export type NativeStreamHead = z.infer<typeof NativeHTTPStreamHead>;
 export type NativeStreamChunk = z.infer<typeof NativeHTTPStreamChunk>;
 export type NativeConfiguration = z.infer<typeof NativeHTTPConfiguration>;
+const PeerTLSConfiguration = z.unknown().transform((value, context) => {
+  const parsed = TailscaleServerTrustConfiguration.safeParse(value);
+  if (parsed.success) return parsed.data;
+  context.addIssue({ code: "custom", message: "Invalid peer TLS trust." });
+  return z.NEVER;
+});
 export const Configuration = z.object({
   hostname: z
     .string()
@@ -109,6 +116,7 @@ export const Configuration = z.object({
     nativeHTTP: z.string().url().optional(),
   }),
   nativeHTTP: NativeHTTPConfiguration.optional(),
+  peerTLS: PeerTLSConfiguration.optional(),
 });
 export const WorkerMessage = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("nativeHTTPReady") }),
