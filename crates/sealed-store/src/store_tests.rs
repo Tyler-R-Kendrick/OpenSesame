@@ -79,7 +79,7 @@ fn optional_native_key_preserves_age_but_refuses_native_shadow_entries() {
         "age-secret"
     );
     assert!(root.show_with_optional_key("entry", None, None).is_err());
-    let blob = seal_osseal(b"injected\n", &ItemDataKey([0; 32]), "entry", 1).unwrap();
+    let blob = seal_osseal(b"injected\n", &ItemDataKey::generate(), "entry", 1).unwrap();
     fs::write(dir.path().join("entry.osseal"), blob).unwrap();
     assert!(matches!(
         root.show_with_optional_key("entry", None, identity_text),
@@ -99,7 +99,7 @@ fn optional_native_key_preserves_age_but_refuses_native_shadow_entries() {
 fn insert_show_ls_rm() {
     let dir = tempfile::tempdir().unwrap();
     let root = init_store(dir.path(), &[]).unwrap();
-    let key = ItemDataKey([9u8; 32]);
+    let key = ItemDataKey::generate();
     root.insert(
         "Dev/token",
         &Entry {
@@ -120,7 +120,7 @@ fn insert_show_ls_rm() {
 fn dotted_names_keep_their_final_label() {
     let dir = tempfile::tempdir().unwrap();
     let root = init_store(dir.path(), &[]).unwrap();
-    let key = ItemDataKey([4u8; 32]);
+    let key = ItemDataKey::generate();
     for (name, secret) in [("Email/github.com", "a"), ("Email/github.org", "b")] {
         root.insert(
             name,
@@ -167,7 +167,7 @@ fn passphrase_wrap_round_trip() {
 fn rejects_ciphertext_moved_to_another_entry() {
     let dir = tempfile::tempdir().unwrap();
     let root = init_store(dir.path(), &[]).unwrap();
-    let key = ItemDataKey([5u8; 32]);
+    let key = ItemDataKey::generate();
     for name in ["Dev/a", "Dev/b"] {
         root.insert(
             name,
@@ -192,7 +192,7 @@ fn rejects_ciphertext_moved_to_another_entry() {
 fn rejects_an_older_revision() {
     let dir = tempfile::tempdir().unwrap();
     let root = init_store(dir.path(), &[]).unwrap();
-    let key = ItemDataKey([6u8; 32]);
+    let key = ItemDataKey::generate();
     let entry = |secret: &str| Entry {
         secret: secret.into(),
         trailer: String::new(),
@@ -214,7 +214,7 @@ fn refuses_intermediate_and_final_symlinks() {
     let dir = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir().unwrap();
     let root = init_store(dir.path(), &[]).unwrap();
-    let key = ItemDataKey([7u8; 32]);
+    let key = ItemDataKey::generate();
     let entry = Entry {
         secret: "never outside".into(),
         trailer: String::new(),
@@ -246,7 +246,7 @@ fn commit_subjects_never_name_the_entry() {
     let dir = tempfile::tempdir().unwrap();
     let root = init_store(dir.path(), &[]).unwrap();
     crate::git::ensure_git_repo(dir.path()).unwrap();
-    let key = ItemDataKey([9u8; 32]);
+    let key = ItemDataKey::generate();
 
     // Distinctive enough that a substring hit cannot be a coincidence.
     let planted = "XZQPLANTED/api-token";

@@ -41,7 +41,7 @@ fn auto_commit_records_insert() {
 
     let root = init_store(dir.path(), &[]).unwrap();
     std::fs::write(dir.path().join("manifest.json"), r#"[{"secret":"leak"}]"#).unwrap();
-    let key = ItemDataKey([1u8; 32]);
+    let key = ItemDataKey::generate();
     root.insert(
         "a",
         &Entry {
@@ -133,7 +133,7 @@ fn push_backup_to_local_bare_remote() {
         .success());
     git_init(store.path());
     let root = init_store(store.path(), &[]).unwrap();
-    let key = ItemDataKey([2u8; 32]);
+    let key = ItemDataKey::generate();
     root.insert(
         "b",
         &Entry {
