@@ -172,6 +172,15 @@ const LAZY_LEAVES = [
     "identity.local-iam",
     "cli-app-integration-crypto",
   ],
+  // The organization settings model is a pure directory leaf. At the 32 KB
+  // merge floor Rollup can fold it into main although every value importer
+  // is lazy. Keep the model in its own owner chunk without loading the full
+  // directory UI when a configured identity connection requests it.
+  [
+    "/packages/app-core/src/lib/org-signin.ts",
+    "enterprise.directory-provisioning",
+    "directory-signin-model",
+  ],
   // The model-key broker binding is a small pure leaf reached only by the
   // connectors runtime and its panels. At the merge floor Rollup folds it
   // into `main` when the surrounding chunks reshuffle (peer-trust landing),
