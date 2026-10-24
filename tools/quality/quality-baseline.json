@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 447,
-    "violations": 713,
-    "oversizedLines": 220764
+    "files": 446,
+    "violations": 712,
+    "oversizedLines": 220051
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -378,9 +378,6 @@
     },
     "crates/gateway/src/lifecycle/scanner.rs": {
       "max-lines": 638
-    },
-    "crates/gateway/src/lifecycle/subjects.rs": {
-      "max-lines": 713
     },
     "crates/gateway/src/managed_certs.rs": {
       "max-lines": 637
