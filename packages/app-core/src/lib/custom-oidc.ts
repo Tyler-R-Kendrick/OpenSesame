@@ -21,6 +21,8 @@ export type OidcConnectorConfig = {
   clientId: string;
   clientSecret: string;
   callbackUrl: string;
+  /** Optional endpoint that performs the token exchange with the client secret. */
+  tokenRelayUrl: string;
   scopes: string[];
   tokenAuth: OidcTokenAuth;
 };
@@ -64,6 +66,7 @@ export async function discoverOidc(
     | "clientId"
     | "clientSecret"
     | "callbackUrl"
+    | "tokenRelayUrl"
     | "scopes"
     | "tokenAuth"
   >
@@ -166,23 +169,24 @@ export async function completeOidcLogin(
   const headers: Record<string, string> = {
     "content-type": "application/x-www-form-urlencoded",
   };
-  if (config.tokenAuth === "client_secret_post")
+  const relay = config.tokenRelayUrl.trim() !== "";
+  if (!relay && config.tokenAuth === "client_secret_post")
     body.set("client_secret", config.clientSecret);
-  if (config.tokenAuth === "client_secret_basic") {
+  if (!relay && config.tokenAuth === "client_secret_basic") {
     const basic = btoa(`${config.clientId}:${config.clientSecret}`);
     headers.authorization = `Basic ${basic}`;
     body.delete("client_id");
   }
-  const response = await (options.fetchImpl ?? fetch)(
-    secure(config.tokenEndpoint, "Token endpoint"),
-    {
-      method: "POST",
-      redirect: "error",
-      credentials: "omit",
-      headers,
-      body,
-    },
-  );
+  const exchangeUrl = relay
+    ? secure(config.tokenRelayUrl, "Token relay URL")
+    : secure(config.tokenEndpoint, "Token endpoint");
+  const response = await (options.fetchImpl ?? fetch)(exchangeUrl, {
+    method: "POST",
+    redirect: "error",
+    credentials: "omit",
+    headers,
+    body,
+  });
   if (!response.ok)
     throw new Error(`OIDC token exchange failed (${response.status})`);
   const json = (await response.json()) as Record<string, unknown>;
