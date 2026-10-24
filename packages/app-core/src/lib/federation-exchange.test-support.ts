@@ -10,7 +10,7 @@ import type { PagePort, WebStorage } from "../ports.js";
 import { createTestHost } from "../test-host.js";
 import { resetAmbientAuthSeams } from "./ambient-auth-seam.js";
 import { storePending } from "./federation-pending.js";
-import { federationExchangeSeams } from "./federation.js";
+import { federationExchangeSeams, federationStartSeams } from "./federation.js";
 import { loadSettings, settingsSeams } from "./settings.js";
 
 export type TokenFault =
@@ -133,12 +133,59 @@ export function holdExchangeLoader() {
     });
   return { release, arrived, load };
 }
+export function holdStartLoader() {
+  let release = () => {};
+  let entered = () => {};
+  const arrived = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const load = vi
+    .spyOn(federationStartSeams, "load")
+    .mockImplementation(async () => {
+      entered();
+      await gate;
+      return import("./federation-start.js");
+    });
+  return { release, arrived, load };
+}
+function discoveryControl() {
+  let release = () => {};
+  let arrived = () => {};
+  let current: Promise<void> | null = null;
+  return {
+    hold() {
+      if (current) throw new Error("A discovery response is already held");
+      const reached = new Promise<void>((resolve) => {
+        arrived = resolve;
+      });
+      current = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { arrived: reached, release };
+    },
+    async wait() {
+      if (current) {
+        arrived();
+        await current;
+        current = null;
+      }
+    },
+    close() {
+      release();
+    },
+  };
+}
 type IssuerWire = Readonly<{
   token: () => string;
   jwks: string;
   requests: string[];
   forms: ExchangeForm[];
   errors: string[];
+  discovery: () => string;
+  discoveryWait: () => Promise<void>;
 }>;
 function issuerServer(wire: IssuerWire) {
   const { requests, forms, errors } = wire;
@@ -146,6 +193,15 @@ function issuerServer(wire: IssuerWire) {
     const answer = async () => {
       requests.push(`${request.method} ${request.url}`);
       response.setHeader("content-type", "application/json");
+      if (
+        request.method === "GET" &&
+        request.url === "/.well-known/openid-configuration"
+      ) {
+        assert.equal(request.headers.cookie, undefined);
+        await wire.discoveryWait();
+        response.end(wire.discovery());
+        return;
+      }
       if (request.method === "GET" && request.url === "/jwks") {
         response.end(wire.jwks);
         return;
@@ -179,43 +235,7 @@ function issuerServer(wire: IssuerWire) {
   });
 }
 
-export async function exchangeIssuer(fault: TokenFault = "none") {
-  const keys = await generateKeyPair("ES256");
-  const foreign = await generateKeyPair("ES256");
-  const jwk = {
-    ...(await exportJWK(keys.publicKey)),
-    kid: "exchange-key",
-    alg: "ES256",
-    use: "sig",
-  };
-  const requests: string[] = [];
-  const forms: ExchangeForm[] = [];
-  const errors: string[] = [];
-  let token = "";
-  const server = issuerServer({
-    token: () => token,
-    jwks: JSON.stringify({ keys: [jwk] }),
-    requests,
-    forms,
-    errors,
-  });
-  await once(server.listen(0, "127.0.0.1"), "listening");
-  const { port } = z
-    .object({ port: z.number().int().positive() })
-    .parse(server.address());
-  const issuer = `http://127.0.0.1:${port}`;
-  const now = Math.floor(Date.now() / 1000);
-  token = await new SignJWT({
-    nonce: fault === "nonce" ? "foreign-nonce" : NONCE,
-    name: "Signed operator",
-  })
-    .setProtectedHeader({ alg: "ES256", kid: jwk.kid, typ: "JWT" })
-    .setIssuer(fault === "issuer" ? "https://foreign.example" : issuer)
-    .setSubject("signed-operator")
-    .setAudience(fault === "audience" ? "foreign-spa" : CLIENT)
-    .setIssuedAt(now)
-    .setExpirationTime(fault === "expired" ? now - 3600 : now + 600)
-    .sign(fault === "signature" ? foreign.privateKey : keys.privateKey);
+function configuredIssuerSettings(issuer: string) {
   const settings = {
     ...loadSettings(),
     identityApi: "",
@@ -235,6 +255,62 @@ export async function exchangeIssuer(fault: TokenFault = "none") {
     },
   };
   vi.spyOn(settingsSeams, "loadSettings").mockImplementation(() => settings);
+  return settings;
+}
+
+export async function exchangeIssuer(fault: TokenFault = "none") {
+  const keys = await generateKeyPair("ES256");
+  const foreign = await generateKeyPair("ES256");
+  const jwk = {
+    ...(await exportJWK(keys.publicKey)),
+    kid: "exchange-key",
+    alg: "ES256",
+    use: "sig",
+  };
+  const requests: string[] = [];
+  const forms: ExchangeForm[] = [];
+  const errors: string[] = [];
+  let token = "";
+  const discovery = {
+    issuer: "",
+    authorization_endpoint: "",
+    token_endpoint: "",
+    jwks_uri: "",
+  };
+  const control = discoveryControl();
+  const server = issuerServer({
+    token: () => token,
+    jwks: JSON.stringify({ keys: [jwk] }),
+    requests,
+    forms,
+    errors,
+    discovery: () => JSON.stringify(discovery),
+    discoveryWait: () => control.wait(),
+  });
+  await once(server.listen(0, "127.0.0.1"), "listening");
+  const { port } = z
+    .object({ port: z.number().int().positive() })
+    .parse(server.address());
+  const issuer = `http://127.0.0.1:${port}`;
+  Object.assign(discovery, {
+    issuer,
+    authorization_endpoint: `${issuer}/authorize`,
+    token_endpoint: `${issuer}/token`,
+    jwks_uri: `${issuer}/jwks`,
+  });
+  const now = Math.floor(Date.now() / 1000);
+  token = await new SignJWT({
+    nonce: fault === "nonce" ? "foreign-nonce" : NONCE,
+    name: "Signed operator",
+  })
+    .setProtectedHeader({ alg: "ES256", kid: jwk.kid, typ: "JWT" })
+    .setIssuer(fault === "issuer" ? "https://foreign.example" : issuer)
+    .setSubject("signed-operator")
+    .setAudience(fault === "audience" ? "foreign-spa" : CLIENT)
+    .setIssuedAt(now)
+    .setExpirationTime(fault === "expired" ? now - 3600 : now + 600)
+    .sign(fault === "signature" ? foreign.privateKey : keys.privateKey);
+  const settings = configuredIssuerSettings(issuer);
   storePending({
     upstreamId: "identity:callback",
     issuer,
@@ -250,12 +326,15 @@ export async function exchangeIssuer(fault: TokenFault = "none") {
   });
   return {
     issuer,
+    discovery,
+    holdDiscovery: () => control.hold(),
     requests,
     forms,
     errors,
     settings,
     token,
     close: async () => {
+      control.close();
       server.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
