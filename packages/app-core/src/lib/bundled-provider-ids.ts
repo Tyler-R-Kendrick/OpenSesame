@@ -8,6 +8,7 @@ import parity from "../../../../spec/connectors/fnox-parity.json" with {
 };
 import {
   BROWSER_UNENROLLABLE_PROTECTORS,
+  BROWSE_PROVIDER_IDS,
   CERTIFICATE_PROVIDER_IDS,
   CLOUD_CREDENTIAL_PROVIDER_IDS,
   DEVICE_KEY_PROTECTORS,
@@ -47,6 +48,7 @@ export const BUNDLED_CATALOG_IDS: readonly string[] = [
   ...CLOUD_CREDENTIAL_PROVIDER_IDS,
   ...WALLET_PROVIDER_IDS,
   ...WALLET_ISSUER_PROVIDER_IDS,
+  ...BROWSE_PROVIDER_IDS,
 ];
 
 let bundledIds: ReadonlySet<string> | null = null;

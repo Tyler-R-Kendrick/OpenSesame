@@ -159,7 +159,7 @@ describe("connector card actions", () => {
     const providers = mergeVercelCatalog(getBundledProviders()).filter(
       isConnectionCatalogProvider,
     );
-    expect(providers).toHaveLength(300);
+    expect(providers).toHaveLength(304);
     expect(providers.map((entry) => entry.id)).toContain("byo-ai");
     expect(new Set(providers.map((entry) => entry.id)).size).toBe(
       providers.length,

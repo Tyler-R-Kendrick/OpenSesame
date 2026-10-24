@@ -79,6 +79,12 @@ export const WALLET_ISSUER_PROVIDER_IDS = [
 ] as const;
 
 /**
+ * Catalog rows Add a connection offers that no list above carries: a person's
+ * own notes through Obsidian's Local REST API, and Polar's merchant API.
+ */
+export const BROWSE_PROVIDER_IDS = ["obsidian", "polar"] as const;
+
+/**
  * Object stores the vault can live in (catalog category `local_storage`).
  * The bucket is saved on this device like any configuration connector;
  * `secret-fs/bucket-boot.ts` reads it at boot (ADR 0182).
