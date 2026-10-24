@@ -75,12 +75,10 @@ async function tunnelWithout(browser, owner, init) {
     { admit: false },
   );
   await joinerConnects(lost.page, reply);
-  const reached = await joined(lost.page)
-    .waitFor({ timeout: 20_000 })
-    .then(
-      () => true,
-      () => false,
-    );
+  const reached = await joined(lost.page, 20_000).then(
+    () => true,
+    () => false,
+  );
   check(!reached, "tunnel: with no address named, the browsers never meet");
   await shot(lost.page, "tunnel-1-no-address");
   await endSession(session.panel);
@@ -117,7 +115,7 @@ async function tunnelWith(browser, owner, init, address) {
     { admit: false },
   );
   await joinerConnects(joiner.page, reply);
-  await joined(joiner.page).waitFor({ timeout: 45_000 });
+  await joined(joiner.page, 45_000);
   const pairs = await selectedPairs(joiner.page);
   check(
     pairs.some((pair) => pair.address === address),

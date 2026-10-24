@@ -98,6 +98,7 @@ import {
 } from "./lib/live-join-scenarios.mjs";
 import { bindTunnel, tunnel } from "./lib/live-join-tunnel.mjs";
 import { openLive, ownerEnters, thisMachine } from "./lib/live-join-walk.mjs";
+import { joinedSession } from "./lib/live-joined.mjs";
 import { mintTurnCert } from "./lib/live-turn.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -175,7 +176,8 @@ const { device, shot, configs, wreckage } = livePages({
   named,
 });
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
+/** Resolves once the joiner is in the session (`live-joined.mjs`). */
+const joined = joinedSession;
 
 /** The walk's throwaway certificate, once minted: a carrier's TLS front uses it. */
 const TLS = { cert: undefined };
@@ -231,7 +233,6 @@ bindNats({
   failures,
   device,
   shot,
-  joined,
   SECRET,
   PHONE,
   TLS,

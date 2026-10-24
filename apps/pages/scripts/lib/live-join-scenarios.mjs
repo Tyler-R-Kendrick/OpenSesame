@@ -29,6 +29,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
@@ -129,7 +130,8 @@ export async function direct(browser, owner) {
   if (whileJoinerConnects) await whileJoinerConnects(joiner, connect);
   else await connect();
   if (afterJoinerConnects) await afterJoinerConnects(joiner);
-  await joined(joiner.page).waitFor({ timeout: 45_000 });
+  // Joining opens the joiner's vault; the shared items are one key away.
+  await opensSharedItems(joiner.page);
   // What a browser put in a description itself is its own doing; what the
   // app sealed beside it must be loopback, or an address the walk's browsers
   // show themselves (live-sdp-privacy.mjs).
@@ -221,7 +223,7 @@ export async function carried(browser, owner, kind) {
     // The request crossed on the carrier: the owner is asked with nothing pasted.
     // The reply crossed on the carrier too, naming this machine: allowed.
     await admitAndAnswer(admitControl(panel, JOINER), joiner.page);
-    await joined(joiner.page).waitFor({ timeout: 45_000 });
+    await joined(joiner.page, 45_000);
     await shot(joiner.page, `carrier-${kind}-joined`);
     check(true, `${kind}: joined with no code pasted either way`);
     if (server.collect) await server.collect([await topicOf(link)]);
