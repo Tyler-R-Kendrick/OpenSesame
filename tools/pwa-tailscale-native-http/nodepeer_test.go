@@ -3,17 +3,23 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"tailscale.com/cmd/tsconnect/nativehttp"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
 	"tailscale.com/types/netmap"
@@ -246,5 +252,47 @@ func TestOriginalExitGuardsRemainByteIdentical(t *testing.T) {
 	}
 	if len(want) != 0 {
 		t.Fatal("Original exit guards missing")
+	}
+}
+
+func TestNativePeerTLSRefusesChangedPeerBeforeAnyDial(t *testing.T) {
+	for _, mode := range []string{"replacement-peer", "subnet-route"} {
+		t.Run(mode, func(t *testing.T) {
+			var requests, dials atomic.Int32
+			server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				requests.Add(1)
+			}))
+			t.Cleanup(server.Close)
+			roots := x509.NewCertPool()
+			roots.AddCert(server.Certificate())
+			fixture := newPeerFixture()
+			peer, ctx := authority(t)
+			if !fixture.current(peer) {
+				t.Fatal("Original peer must be authorized before TLS reservation")
+			}
+			dial := func(ctx context.Context, network, address string) (net.Conn, error) {
+				dials.Add(1)
+				return (&net.Dialer{}).DialContext(ctx, network, address)
+			}
+			var registry nativehttp.Registry
+			op, err := registry.ReservePeerGETWithRoots(ctx, 1, server.URL+"/proof", dial, roots, func() bool { return fixture.current(peer) })
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "replacement-peer" {
+				fixture.peer = fixture.peer.Clone()
+				fixture.peer.StableID = "replacement-peer"
+			} else {
+				fixture.route = func(netip.Addr) (nativePeerRoute, bool) {
+					return nativePeerRoute{fixture.peer.View(), netip.MustParsePrefix("100.64.0.0/10"), false}, true
+				}
+			}
+			if op.Run() == nil || ctx.Err() != context.Canceled || dials.Load() != 0 || requests.Load() != 0 {
+				t.Fatal("Changed peer/host route reached TLS or retained its original authority")
+			}
+			if _, err := op.Borrow(); err == nil {
+				t.Fatal("Changed peer produced a publishable TLS response")
+			}
+		})
 	}
 }
