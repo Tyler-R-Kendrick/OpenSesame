@@ -77,6 +77,7 @@ import { keepBrowserOutput } from "./lib/browser-output.mjs";
 import { dedicatedSite } from "./lib/live-dedicated.mjs";
 import {
   NO_ROUTE_STEPS,
+  defaultRouteAddress,
   engineOf,
   enginesFrom,
   lacks,
@@ -238,10 +239,11 @@ bindNats({
   TLS,
 });
 
-// A throwaway certificate for 127.0.0.1: the TLS TURN server's, and a
-// carrier's TLS front where a pair needs one. Chromium trusts its public key
-// alone, by flag: no blanket certificate override.
-const cert = mintTurnCert(TURN);
+// A throwaway certificate for 127.0.0.1 and this machine's default-route
+// address: the TLS TURN server's (which listens there, not on loopback), and
+// a carrier's TLS front on loopback where a pair needs one. Chromium trusts
+// its public key alone, by flag: no blanket certificate override.
+const cert = mintTurnCert(TURN, await defaultRouteAddress());
 const turnFixture = { binary: TURN, cert: cert.missing ? undefined : cert };
 TLS.cert = turnFixture.cert;
 

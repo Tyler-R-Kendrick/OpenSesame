@@ -1,11 +1,15 @@
 // live-turn is the TURN server verify:live-join runs (ADR 0150 §6) when a walk
 // has to prove a transport node-turn does not speak: TURN over UDP, over TCP
-// and over TLS at once, on one loopback address, with long-term credentials
+// and over TLS at once, on one IPv4 address, with long-term credentials
 // (RFC 8656 / RFC 5766, RFC 6062 not used) — built on pion/turn.
 //
-//	live-turn serve -user U -credential C [-cert cert.pem -key key.pem]
-//	live-turn serve -rest-secret S        [-cert cert.pem -key key.pem]
-//	live-turn mint <dir>          # writes cert.pem and key.pem, self-signed
+//	live-turn serve -user U -credential C [-cert cert.pem -key key.pem] [-host IP]
+//	live-turn serve -rest-secret S        [-cert cert.pem -key key.pem] [-host IP]
+//	live-turn mint <dir> [IP]     # writes cert.pem and key.pem, self-signed
+//
+// -host is the address it listens and relays on, 127.0.0.1 by default. The
+// walks name the machine's own address: the app refuses a loopback ICE server,
+// which no public one is (webrtc.ts assertRoutableIceServers).
 //
 // With -rest-secret the credentials are TURN REST ones (draft-uberti-behave-
 // turn-rest, coturn's use-auth-secret): a username "<unix expiry>:<anything>"
@@ -14,7 +18,8 @@
 //
 // serve prints one JSON line when it listens —
 // {"ready":true,"udp":N,"tcp":N,"tls":N,"stats":N} — on ports the kernel chose,
-// then answers GET /stats on 127.0.0.1:<stats> with what each transport saw:
+// then answers GET /stats on 127.0.0.1:<stats>, always loopback, with what each
+// transport saw:
 // datagrams or connections and bytes that reached it, and the authentications
 // and allocations that came in on it. A walk reads that to say which transport
 // a browser really used; the browser's own report cannot say it.
@@ -55,10 +60,10 @@ func main() {
 	case "serve":
 		serve(os.Args[2:])
 	case "mint":
-		if len(os.Args) != 3 {
-			fail("usage: live-turn mint <dir>")
+		if len(os.Args) != 3 && len(os.Args) != 4 {
+			fail("usage: live-turn mint <dir> [IP]")
 		}
-		mint(os.Args[2])
+		mint(os.Args[2], os.Args[3:])
 	default:
 		fail("usage: live-turn serve|mint")
 	}
@@ -75,8 +80,13 @@ func check(err error) {
 	}
 }
 
-// mint writes a throwaway self-signed certificate for 127.0.0.1 and its key.
-func mint(dir string) {
+// mint writes a throwaway self-signed certificate for 127.0.0.1, and for the
+// address given, and its key.
+func mint(dir string, hosts []string) {
+	addresses := []net.IP{net.ParseIP("127.0.0.1")}
+	for _, host := range hosts {
+		addresses = append(addresses, ipv4(host))
+	}
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	check(err)
 	template := x509.Certificate{
@@ -86,7 +96,7 @@ func mint(dir string) {
 		NotAfter:     time.Now().Add(24 * time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+		IPAddresses:  addresses,
 		DNSNames:     []string{"localhost"},
 	}
 	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
@@ -109,16 +119,18 @@ func serve(args []string) {
 	restSecret := flags.String("rest-secret", "", "TURN REST shared secret, instead of -user and -credential")
 	certFile := flags.String("cert", "", "TLS certificate (PEM); with -key, adds the TLS listener")
 	keyFile := flags.String("key", "", "TLS private key (PEM)")
+	hostFlag := flags.String("host", "127.0.0.1", "IPv4 address to listen and relay on")
 	check(flags.Parse(args))
+	host := ipv4(*hostFlag)
+	at := net.JoinHostPort(host.String(), "0")
 	static := *user != "" && *credential != ""
 	if static == (*restSecret != "") {
 		fail("serve needs -rest-secret, or -user and -credential")
 	}
 
 	stats := newStats()
-	loopback := net.ParseIP("127.0.0.1")
 	relay := func() turn.RelayAddressGenerator {
-		return &turn.RelayAddressGeneratorStatic{RelayAddress: loopback, Address: "127.0.0.1"}
+		return &turn.RelayAddressGeneratorStatic{RelayAddress: host, Address: host.String()}
 	}
 	ready := map[string]any{"ready": true}
 	config := turn.ServerConfig{
@@ -127,7 +139,7 @@ func serve(args []string) {
 		EventHandler: stats.events(),
 	}
 
-	udp, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	udp, err := net.ListenPacket("udp4", at)
 	check(err)
 	ready["udp"] = port(udp.LocalAddr())
 	stats.name(port(udp.LocalAddr()), "udp")
@@ -135,7 +147,7 @@ func serve(args []string) {
 		PacketConn: stats.countPackets("udp", udp), RelayAddressGenerator: relay(),
 	}}
 
-	tcp, err := net.Listen("tcp4", "127.0.0.1:0")
+	tcp, err := net.Listen("tcp4", at)
 	check(err)
 	ready["tcp"] = port(tcp.Addr())
 	stats.name(port(tcp.Addr()), "tcp")
@@ -146,7 +158,7 @@ func serve(args []string) {
 	if *certFile != "" || *keyFile != "" {
 		pair, err := tls.LoadX509KeyPair(*certFile, *keyFile)
 		check(err)
-		inner, err := net.Listen("tcp4", "127.0.0.1:0")
+		inner, err := net.Listen("tcp4", at)
 		check(err)
 		ready["tls"] = port(inner.Addr())
 		stats.name(port(inner.Addr()), "tls")
@@ -178,6 +190,15 @@ func serve(args []string) {
 
 	check(json.NewEncoder(os.Stdout).Encode(ready))
 	select {}
+}
+
+// ipv4 is `value` as an IPv4 address, or the run fails.
+func ipv4(value string) net.IP {
+	ip := net.ParseIP(value).To4()
+	if ip == nil {
+		fail("not an IPv4 address: " + value)
+	}
+	return ip
 }
 
 func port(addr net.Addr) int {

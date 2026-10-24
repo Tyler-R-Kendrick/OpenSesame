@@ -241,7 +241,9 @@ export async function endSession(panel) {
 /**
  * The joiner opens the link and asks. `routes` keeps (true) or declines
  * (false) the servers the link names; null when it names none. `peerTrust`,
- * when set, is pasted into Peer trust signal before the ask.
+ * when set, is pasted into Peer trust signal before the ask. The request
+ * code to pass by hand, or null where a kept carrier passes it: the screen
+ * then says the owner can see the request, and draws no code to copy.
  */
 export async function joinerAsks(
   page,
@@ -276,9 +278,16 @@ export async function joinerAsks(
   if (peerTrust) {
     await page.getByLabel("Peer trust signal", { exact: true }).fill(peerTrust);
   }
+  // The link's routes, offered in the Advanced fold as the app labels them.
   const choice = page.getByRole("checkbox", { name: /^Pair through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
+  if (routes === true) {
+    await page
+      .getByRole("img", { name: /^The owner can see your request/ })
+      .waitFor({ timeout: 20_000 });
+    return null;
+  }
   const copy = page.getByRole("button", { name: "Copy your join request" });
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
