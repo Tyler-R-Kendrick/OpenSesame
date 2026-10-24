@@ -88,7 +88,7 @@ const ORIGIN_ADMISSION_GLOBAL_KEY = "__global__";
 let originAdmissionsByContext = new WeakMap<object, Map<string, number[]>>();
 
 function consumeOriginAdmission(
-  contextKey: object,
+  contextKey: ReturnType<typeof createControlPlane>["ctx"],
   clientId: string,
   now: number,
 ): boolean {

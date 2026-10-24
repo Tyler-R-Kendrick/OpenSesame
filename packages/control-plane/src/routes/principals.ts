@@ -20,6 +20,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { decodeJwt } from "jose";
 import { normalizeIssuer } from "../interactions/issuer-normalization.js";
 import { resolveTrustedIssuer } from "../interactions/trust.js";
+import { peerAddress } from "../lib/peer-address.js";
 import { cookieAuthAllowed, requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -101,10 +102,7 @@ export function consumeProvisionalMintBudget(
 function provisionalMintFingerprint(
   c: Context<{ Variables: Variables }>,
 ): string {
-  const env = c.env as
-    | { incoming?: { socket?: { remoteAddress?: string } } }
-    | undefined;
-  const address = env?.incoming?.socket?.remoteAddress;
+  const address = peerAddress(c);
   return createHash("sha256")
     .update(address ?? "")
     .update("|")
@@ -121,10 +119,7 @@ function provisionalMintFingerprint(
 function provisionalMintPerClient(
   c: Context<{ Variables: Variables }>,
 ): number {
-  const env = c.env as
-    | { incoming?: { socket?: { remoteAddress?: string } } }
-    | undefined;
-  return env?.incoming?.socket?.remoteAddress ? 60 : 10;
+  return peerAddress(c) ? 60 : 10;
 }
 
 principalRoutes.post(

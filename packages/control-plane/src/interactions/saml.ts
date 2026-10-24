@@ -18,8 +18,11 @@ import type { Profile } from "@node-saml/node-saml";
 import { parseDomFromString, xpath } from "@node-saml/node-saml/lib/xml.js";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
+  type JsonObject,
+  type JsonValue,
   type Organization,
   isJsonObject,
+  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -278,9 +281,7 @@ function issueCompletionCode(
   ].join(".");
 }
 
-function completionFromPayload(payload: unknown): SamlCompletion | undefined {
-  const record = overlapCast(payload);
-  if (!isJsonObject(record)) return undefined;
+function completionFromPayload(record: JsonObject): SamlCompletion | undefined {
   const interactionUid = record.interactionUid;
   const result = record.result;
   if (!isString(interactionUid) || !isJsonObject(result)) return undefined;
@@ -325,7 +326,7 @@ export async function takeSamlCompletion(
   ) {
     return undefined;
   }
-  let payload: unknown;
+  let payload: JsonValue;
   try {
     const decipher = createDecipheriv(
       "aes-256-gcm",
@@ -341,17 +342,15 @@ export async function takeSamlCompletion(
   } catch {
     return undefined;
   }
-  const record = overlapCast(payload);
-  if (!isJsonObject(record) || typeof record.exp !== "number") {
+  if (!isJsonObject(payload)) return undefined;
+  const exp = payload.exp;
+  if (!isNumber(exp) || exp <= now || exp > now + COMPLETION_CODE_TTL_MS) {
     return undefined;
   }
-  if (record.exp <= now || record.exp > now + COMPLETION_CODE_TTL_MS) {
-    return undefined;
-  }
-  const completion = completionFromPayload(record);
+  const completion = completionFromPayload(payload);
   if (!completion) return undefined;
   const replayKey = `otc:${createHash("sha256").update(code).digest("hex")}`;
-  if (await ctx.stores.saml.replay.seen(replayKey, new Date(record.exp))) {
+  if (await ctx.stores.saml.replay.seen(replayKey, new Date(exp))) {
     return undefined;
   }
   return completion;
@@ -428,7 +427,7 @@ async function fetchMetadataDocument(
 
 async function parseIdpMetadata(
   xml: string,
-  options: { allowHttp: boolean },
+  allowHttp: boolean,
 ): Promise<ResolvedIdpMetadata> {
   let doc: Document;
   try {
@@ -471,7 +470,7 @@ async function parseIdpMetadata(
     safeSso = new URL(ssoUrl);
     const allowedProtocol =
       safeSso.protocol === "https:" ||
-      (options.allowHttp && safeSso.protocol === "http:");
+      (allowHttp && safeSso.protocol === "http:");
     if (!allowedProtocol || safeSso.username || safeSso.password)
       throw new Error("unsafe SSO URL");
   } catch {
@@ -505,9 +504,7 @@ export async function resolveIdpMetadata(
   const xml =
     cfg.metadataXml ??
     (await fetchMetadataDocument(ctx, cfg.metadataUrl ?? ""));
-  const resolved = await parseIdpMetadata(xml, {
-    allowHttp: ctx.config.allowDevDefaults,
-  });
+  const resolved = await parseIdpMetadata(xml, ctx.config.allowDevDefaults);
   metadataCache.set(key, {
     value: resolved,
     expiresAt: now + METADATA_CACHE_TTL_MS,

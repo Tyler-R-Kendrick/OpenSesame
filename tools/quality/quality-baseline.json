@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 450,
-    "violations": 721,
-    "oversizedLines": 221960
+    "files": 449,
+    "violations": 720,
+    "oversizedLines": 221936
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -929,7 +929,7 @@
     },
     "packages/control-plane/src/config.ts": {
       "complexity": 2,
-      "max-lines": 522,
+      "max-lines": 520,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -945,7 +945,7 @@
     },
     "packages/control-plane/src/interactions/handlers.ts": {
       "complexity": 3,
-      "max-lines": 681,
+      "max-lines": 671,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -964,16 +964,13 @@
     },
     "packages/control-plane/src/interactions/saml.ts": {
       "complexity": 3,
-      "max-lines": 1366,
+      "max-lines": 1363,
       "max-lines-per-function": 2,
       "max-statements": 2
     },
     "packages/control-plane/src/openapi.ts": {
       "max-lines": 1595,
       "max-lines-per-function": 1
-    },
-    "packages/control-plane/src/routes/agent-auth.ts": {
-      "complexity": 1
     },
     "packages/control-plane/src/routes/agents.ts": {
       "max-lines-per-function": 1
@@ -1048,7 +1045,7 @@
       "max-statements": 1
     },
     "packages/control-plane/src/routes/mfa.ts": {
-      "max-lines": 705,
+      "max-lines": 703,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/notification-callbacks.ts": {
@@ -1067,7 +1064,7 @@
       "max-lines": 424
     },
     "packages/control-plane/src/routes/openid4vci.ts": {
-      "max-lines": 484,
+      "max-lines": 482,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/openid4vp.ts": {
@@ -1092,7 +1089,7 @@
     },
     "packages/control-plane/src/routes/principals.ts": {
       "complexity": 2,
-      "max-lines": 800,
+      "max-lines": 795,
       "max-lines-per-function": 4
     },
     "packages/control-plane/src/routes/projects.ts": {

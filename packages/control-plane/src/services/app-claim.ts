@@ -94,7 +94,7 @@ export interface AppClaimServiceOptions {
    */
   allowDirectFetch: boolean;
   /** Server-side logging seam for fetch failures. */
-  onFetchFailure?: ((detail: unknown) => void) | undefined;
+  onFetchFailure?: ((cause: unknown) => void) | undefined;
   /** Test seam for the proof document fetch. */
   fetchImpl?: typeof fetch;
 }

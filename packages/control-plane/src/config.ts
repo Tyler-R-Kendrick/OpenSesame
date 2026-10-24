@@ -206,6 +206,9 @@ function truthyDefaultOn(v: string | undefined): boolean {
   return !(v === "false" || v === "0");
 }
 
+/** The variable a duration is read from and the range it must fall in. */
+type DurationBounds = { name: string; min: number; max: number };
+
 /**
  * Parse an environment duration (milliseconds) through a checked integer
  * parser. `Number("24h")` is NaN, and a NaN added to the clock yields an
@@ -215,16 +218,11 @@ function truthyDefaultOn(v: string | undefined): boolean {
 function parseBoundedDurationMs(
   raw: string | undefined,
   fallback: number,
-  bounds: { name: string; min: number; max: number },
+  bounds: DurationBounds,
 ): number {
   const text = raw?.trim();
   if (!text) return fallback;
-  if (!/^\d+$/u.test(text)) {
-    throw new Error(
-      `${bounds.name} must be an integer number of milliseconds between ${bounds.min} and ${bounds.max}; got \`${text}\``,
-    );
-  }
-  const value = Number(text);
+  const value = /^\d+$/u.test(text) ? Number(text) : Number.NaN;
   if (
     !Number.isSafeInteger(value) ||
     value < bounds.min ||

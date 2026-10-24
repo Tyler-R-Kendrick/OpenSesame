@@ -36,6 +36,7 @@ import type {
   GrantHandle,
   InteractionDetails,
   ProviderInteractions,
+  ProvisionalMintOptions,
 } from "./types.js";
 
 export interface ProvisionalInteractionCredentials {
@@ -384,18 +385,7 @@ export async function mintProvisionalForInteraction(
   ctx: AppContext,
   fingerprint: string,
   correlationId: string,
-  options: {
-    /**
-     * Session profile written on the row. SAML passes a tenant-scoped value so
-     * one tenant's minted sessions can be counted against that tenant.
-     */
-    quotaProfile?: string;
-    /** Live sessions this profile may hold at once. */
-    maxLiveForProfile?: number;
-    /** Live sessions whose profile starts with this prefix may exist. */
-    profilePrefix?: string;
-    maxLiveForProfilePrefix?: number;
-  } = {},
+  options: ProvisionalMintOptions = {},
 ): Promise<ProvisionalInteractionCredentials> {
   // The same serialized section the public mint route uses: capacity is a
   // read-then-write, and two interaction logins racing it could both observe

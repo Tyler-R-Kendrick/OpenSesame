@@ -57,6 +57,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { type Context, Hono } from "hono";
+import { peerAddress } from "../lib/peer-address.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import type {
@@ -151,10 +152,7 @@ const NONCE_GLOBAL_KEY = "__global__";
 const nonceBudget = new Map<string, number[]>();
 
 function noncePeerKey(c: Context<{ Variables: Variables }>): string {
-  const env = c.env as
-    | { incoming?: { socket?: { remoteAddress?: string } } }
-    | undefined;
-  return `peer:${env?.incoming?.socket?.remoteAddress ?? "unknown"}`;
+  return `peer:${peerAddress(c) ?? "unknown"}`;
 }
 
 function consumeNonceBudget(
