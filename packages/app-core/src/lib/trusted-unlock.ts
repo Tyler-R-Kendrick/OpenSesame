@@ -5,7 +5,12 @@
  * read from the directory each time, never copied into the policy.
  */
 
-import type { BoundaryValue } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
 import { readLocalPasskeys, requireLocalPerson } from "./local-credentials.js";
 import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
@@ -15,10 +20,10 @@ import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 const PATH = "config/trusted-unlock";
 
 /** Replaceable in tests: the passkey proof is a browser ceremony. */
-export const trustedUnlockSeams: {
-  authenticate: (tomb: string, principalId: string) => Promise<unknown>;
-} = {
-  authenticate: authenticateLocalPasskey,
+export const trustedUnlockSeams = {
+  async authenticate(tomb: string, principalId: string): Promise<void> {
+    await authenticateLocalPasskey(tomb, principalId);
+  },
 };
 const MAX_BYTES = 64_000;
 
@@ -37,9 +42,9 @@ export type TrustedUnlockView = Readonly<{
   approved: readonly string[];
 }>;
 
-function validName(value: unknown): value is string {
+function validName(value: BoundaryValue): value is string {
   return (
-    typeof value === "string" &&
+    isString(value) &&
     value.trim() === value &&
     value.length > 0 &&
     value.length <= 120 &&
@@ -47,37 +52,43 @@ function validName(value: unknown): value is string {
   );
 }
 
+function isMemberId(value: BoundaryValue): value is string {
+  return isString(value) && /^local_[0-9a-f-]{36}$/u.test(value);
+}
+
 function parsePolicy(input: BoundaryValue): TrustedUnlockPolicy {
-  const raw = input as unknown;
   if (
-    typeof raw !== "object" ||
-    raw === null ||
-    (raw as { version?: unknown }).version !== 1 ||
-    !validName((raw as { name?: unknown }).name) ||
-    typeof (raw as { threshold?: unknown }).threshold !== "number" ||
-    !Number.isSafeInteger((raw as { threshold?: number }).threshold) ||
-    !Array.isArray((raw as { memberIds?: unknown }).memberIds) ||
-    (raw as { memberIds: unknown[] }).memberIds.length > 64 ||
-    !(raw as { memberIds: unknown[] }).memberIds.every(
-      (id) => typeof id === "string" && /^local_[0-9a-f-]{36}$/.test(id),
-    ) ||
-    typeof (raw as { createdAt?: unknown }).createdAt !== "string"
+    !isJsonObject(input) ||
+    input.version !== 1 ||
+    !validName(input.name) ||
+    !isNumber(input.threshold) ||
+    !Number.isSafeInteger(input.threshold) ||
+    !Array.isArray(input.memberIds) ||
+    input.memberIds.length > 64 ||
+    !input.memberIds.every(isMemberId) ||
+    !isString(input.createdAt)
   ) {
     throw new LocalDirectoryError(
       "The trusted-contact policy is invalid. Restore a valid vault backup.",
     );
   }
-  const value = raw as TrustedUnlockPolicy;
+  const { threshold, memberIds } = input;
   if (
-    value.threshold < 1 ||
-    value.threshold > value.memberIds.length ||
-    new Set(value.memberIds).size !== value.memberIds.length
+    threshold < 1 ||
+    threshold > memberIds.length ||
+    new Set(memberIds).size !== memberIds.length
   ) {
     throw new LocalDirectoryError(
       "The trusted-contact policy has an impossible threshold.",
     );
   }
-  return value;
+  return {
+    version: 1,
+    name: input.name,
+    threshold,
+    memberIds,
+    createdAt: input.createdAt,
+  };
 }
 
 export async function readTrustedUnlock(

@@ -3,7 +3,7 @@
  *
  * Turns the captured per-cell measurements into the composed before/after
  * sheets, each gallery's README.md and its journey.json under
- * `docs/evidence/`. The captions carry the measurement that makes the
+ * ignored `work/evidence/<feature>/pages/browser/`. The captions carry the measurement that makes the
  * difference a fact: the Opens on row for a drop, the fingerprint, SAS and
  * admit control for peer trust.
  */
@@ -261,7 +261,7 @@ export async function emitGallery({
   sheetsOf,
   views,
 }) {
-  const dir = path.join(REPO, "docs/evidence", folder);
+  const dir = path.join(REPO, "work/evidence", folder, "pages", "browser");
   const { sheets, screens } = sheetsOf(walks, captured, views);
   await composeGallery(
     browser,

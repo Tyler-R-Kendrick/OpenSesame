@@ -9,15 +9,15 @@
 //     node apps/pages/scripts/capture-tailnet-devices-evidence.mjs before
 //   node apps/pages/scripts/capture-tailnet-devices-evidence.mjs after
 //   node apps/pages/scripts/capture-evidence.mjs compose \
-//     docs/evidence/2026-10-05-tailnet-devices/journey.json
+//     work/evidence/tailnet-devices/pages/browser/journey.json
 //
 // Shots land where `capture-evidence.mjs compose` reads them, with a
 // `measurements.json` of what the browser counted on each screen.
 import fs from "node:fs";
 import path from "node:path";
+import { captureShotsDirectory } from "./lib/evidence-paths.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPin } from "./lib/pages-journey.mjs";
-import { privateSharedTempDir } from "./lib/private-files.mjs";
 import {
   deviceManagementOn,
   pairByLink,
@@ -31,8 +31,13 @@ if (side !== "before" && side !== "after") {
   process.exit(2);
 }
 const out = path.join(
-  privateSharedTempDir("opensesame-evidence"),
-  "journey",
+  captureShotsDirectory(
+    process.env.EVIDENCE_JOURNEY ??
+      new URL(
+        "../../../work/evidence/tailnet-devices/pages/browser/journey.json",
+        import.meta.url,
+      ),
+  ),
   side,
 );
 fs.mkdirSync(out, { recursive: true });

@@ -11,6 +11,7 @@ import {
   type NativeMcpAuthorizationMetadata,
   nativeMcpPublicMetadata,
 } from "./native-mcp-oauth-metadata.js";
+import type { NativeMcpRegistrationMode } from "./native-mcp-oauth-metadata.js";
 import {
   NativeMcpAuthError,
   type NativeMcpOAuthTarget,
@@ -72,6 +73,8 @@ function boundRegistrationReceipt(
 export class NativeMcpPublicOAuth {
   private readonly target: NativeMcpOAuthTarget;
   private readonly fetcher: typeof fetch;
+  /** CIMD is preferred; a live DCR fallback is fixed for this authorization. */
+  private registrationMode: NativeMcpRegistrationMode | null = null;
 
   constructor(
     target: NativeMcpOAuthTarget,
@@ -90,9 +93,11 @@ export class NativeMcpPublicOAuth {
 
   private async metadata(): Promise<NativeMcpAuthorizationMetadata> {
     this.ports.assertCurrent();
-    return mcpOAuthAction(() =>
+    const resolved = await mcpOAuthAction(() =>
       nativeMcpPublicMetadata(this.target, this.fetcher),
     );
+    this.registrationMode ??= resolved.registration;
+    return resolved.metadata;
   }
 
   /** Retain every DCR result before deciding whether to use or compensate it. */
@@ -100,8 +105,9 @@ export class NativeMcpPublicOAuth {
     retain: (client: NativeMcpRegisteredClient) => Promise<void>,
   ): Promise<NativeMcpRegisteredClient> {
     const metadata = await this.metadata();
+    const registration = this.registrationMode ?? this.target.registration;
     let client: NativeMcpRegisteredClient;
-    if (this.target.registration === "dcr") {
+    if (registration === "dcr") {
       const receipt: RegistrationCapture = {
         value: null,
       };

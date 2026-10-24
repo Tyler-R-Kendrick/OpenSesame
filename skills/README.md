@@ -4,7 +4,16 @@ Agent skills — self-contained instructions a coding agent loads for one kind
 of task. Each directory holds a `SKILL.md` with a `description` the agent
 matches against. [`.agents/skills/`](../.agents/skills) links to each of these
 for tools that look there; third-party skills installed by their own updaters
-live directly in `.agents/skills/` and `.claude/skills/`.
+live once in `.agents/skills/`. `.claude/skills/` and `.grok/skills/` link to
+that canonical install. Agent-specific instruction variants remain separate;
+identical files within those variants link to the canonical copy.
+
+After a reviewed upstream update, run `node scripts/dev/sync-agent-skills.mjs`
+then `node scripts/dev/sync-agent-skills.mjs --check`. Install or update the
+canonical skill once; do not use multi-agent `--copy` installations. The sync
+command compares bytes and executable modes before replacing a duplicate and
+never discards differing instructions. If an installer materializes mirrors,
+sync them again before staging.
 
 ## Using OpenSesame
 

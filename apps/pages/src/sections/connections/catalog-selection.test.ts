@@ -2,6 +2,7 @@ import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.j
 import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { describe, expect, it } from "vitest";
+import { API_FAMILIES, apiFamilyFor } from "./catalog-families.js";
 import {
   catalogAuthMethods,
   catalogTags,
@@ -104,7 +105,7 @@ describe("the curated Connections list", () => {
       "vercel",
       "cloudflare",
       "google",
-      "azure",
+      "azure-kms",
       "aws",
       "gcp",
     ])
@@ -124,7 +125,7 @@ describe("the curated Connections list", () => {
       "AWS",
     );
     expect(
-      grouped.find((provider) => provider.id === "azure")?.displayName,
+      grouped.find((provider) => provider.id === "azure-kms")?.displayName,
     ).toBe("Azure");
   });
 
@@ -157,6 +158,39 @@ describe("the curated Connections list", () => {
     );
   });
 
+  it("keeps retired BYO AI out of browse while partners stay alphabetical and the input is preserved", () => {
+    // BYO-first ordering (#1902) applies to admitted BYO providers;
+    // byo-ai itself was retired from browse on main (0ca0474ca) and is
+    // offered through the custom-connection button instead.
+    const allById = new Map(
+      mergeVercelCatalog(getBundledProviders()).map((provider) => [
+        provider.id,
+        provider,
+      ]),
+    );
+    const input = ["vercel", "openai", "byo-ai", "asana", "anthropic"].map(
+      (id) => {
+        const provider = allById.get(id);
+        if (!provider) throw new Error(`Missing bundled provider: ${id}`);
+        return provider;
+      },
+    );
+    const original = [...input];
+    const ordered = curatedCatalogProviders(input);
+    expect(ordered.map((provider) => provider.id)).toEqual([
+      "anthropic",
+      "asana",
+      "openai",
+      "vercel",
+    ]);
+    expect(input).toEqual(original);
+    expect(
+      ordered
+        .filter((provider) => matchesCatalog(provider, "model provider"))
+        .map((provider) => provider.id),
+    ).toEqual(["anthropic", "openai"]);
+  });
+
   it("never admits an AI provider outside the Settings list", () => {
     const fake = {
       ...providers[0],
@@ -166,6 +200,14 @@ describe("the curated Connections list", () => {
       autoConfigurable: false,
     };
     expect(curatedCatalogProviders([fake])).toEqual([]);
+  });
+
+  it("keeps every provider family complete, including Azure", () => {
+    for (const family of API_FAMILIES) {
+      expect(apiFamilyFor(family.id)?.id, family.id).toBe(family.id);
+      expect(family.members.length, family.id).toBeGreaterThan(1);
+    }
+    expect(apiFamilyFor("azure-kms")?.members).toContain("azure-kms");
   });
 
   it("labels each card with supported auth methods, not internal tags", () => {

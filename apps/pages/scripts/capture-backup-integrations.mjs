@@ -17,7 +17,7 @@ const origin = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ??
-    path.join(here, "../../../docs/evidence/2026-10-14-backup-integrations"),
+    path.join(here, "../../../work/evidence/backup-integrations/pages/browser"),
 );
 const raw = path.join(
   process.env.PAGES_CAPTURE_RAW ??

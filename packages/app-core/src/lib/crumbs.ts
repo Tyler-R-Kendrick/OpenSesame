@@ -90,6 +90,8 @@ export const WALLET_CATEGORY_LABEL = {
 
 const VAULT_FILTER_LABEL = new Map([
   ["favorites", "Favorites"],
+  ["shared", "Shared with me"],
+  ["owned", "Owned by me"],
   ["trash", "Trash"],
 ]);
 

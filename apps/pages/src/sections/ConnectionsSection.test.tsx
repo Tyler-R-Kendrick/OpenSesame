@@ -106,15 +106,8 @@ vercelCatalogSeams.providers = () =>
   bundledRef.current.length > 0 ? bundledRef.current : catalog;
 
 import { embeddedCatalogSeams } from "@opensesame/app-core/lib/embedded-catalog.js";
-const originalEmbeddedCatalogSeams = {
-  ...embeddedCatalogSeams,
-  bundledProviders: embeddedCatalogSeams.bundledProviders,
-};
-embeddedCatalogSeams.readEmbeddedProviders = () =>
-  Promise.resolve(embeddedCatalogSeams.bundledProviders);
-embeddedCatalogSeams.writeEmbeddedProviders = vi
-  .fn()
-  .mockResolvedValue(undefined);
+import { installEmbeddedCatalogFixture } from "./connections/embedded-catalog.test-support.js";
+const originalEmbeddedCatalogSeams = installEmbeddedCatalogFixture();
 
 import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
 import { expectInTray } from "../components/tray.test-support.js";

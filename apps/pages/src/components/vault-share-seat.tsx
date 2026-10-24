@@ -26,6 +26,8 @@ import {
 export type VaultShare = Readonly<{
   /** The key itself, drawn in the seat. It opens through `open`. */
   Button: ComponentType;
+  /** The joined session, drawn in the vault while this share is provided. */
+  Banner?: ComponentType;
   /** Open the share sheet: start a session, or see the one running. */
   open: () => void;
 }>;

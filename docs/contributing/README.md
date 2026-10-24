@@ -6,7 +6,7 @@ the rules themselves are [`AGENTS.md`](../../AGENTS.md).
 
 ## The path of a change
 
-1. **Branch and build.** `pnpm install`, `pnpm setup:hooks`, then work
+1. **Branch and build.** `pnpm deps:install`, `pnpm setup:hooks`, then work
    against the package you are changing
    (`pnpm --filter @opensesame/<name> test`).
 2. **Commit.** The pre-commit hook lints staged files, runs Clippy when Rust
@@ -105,3 +105,5 @@ change through.
 | [Linear workflow](linear-workflow.md) | Setting up and using the Linear workspace. |
 | [PostHog setup](posthog-setup.md) | Setting up product analytics. |
 | [AI automation roadmap](ai-automation-roadmap.md) | A dated (2026-08-09) assessment of where AI tooling was used in the development process and where it was meant to go; its status note says what has since changed. |
+
+- [Repository footprint](repository-footprint.md) — source size limits, temporary artifacts, shared skills and lightweight bootstrap.

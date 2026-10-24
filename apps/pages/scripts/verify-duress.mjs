@@ -25,7 +25,7 @@ const pages = join(here, "..");
 // The duress feature lives in the shared core (ADR 0133).
 const core = join(pages, "..", "..", "packages", "app-core");
 const root = join(pages, "..", "..");
-const evidenceDir = join(root, "docs", "evidence", "2026-09-21-duress");
+const evidenceDir = join(root, "work/evidence/duress/pages/browser");
 mkdirSync(evidenceDir, { recursive: true });
 
 /** @typedef {{ id: string, command: string, result: "passed"|"failed"|"blocked", detail: string, exitCode?: number, required?: boolean }} Case */

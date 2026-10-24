@@ -98,6 +98,11 @@ export const SHELL_RULES = [
     SHELL,
     "route table (S05); MIXED — optional imports move to contributions",
   ),
+  core(
+    "src/app-vault-shell.tsx",
+    SHELL,
+    "core unlocked route shell composes approved slots and wrappers without owning optional features",
+  ),
   core("src/bootstrap/", null, "core-only boot (S05)"),
   core("src/host/", null, "installs the app-core host before boot (ADR 0133)"),
   core("src/host", null, "the app-core host and its ports (ADR 0133)"),

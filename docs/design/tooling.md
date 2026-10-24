@@ -128,14 +128,15 @@ library: a rule that cannot be expressed in tokens shows up as a gap.
 
 ## Per-agent configuration
 
-Skills are installed by the skills CLI (`npx skills add
-google-labs-code/stitch-skills -y --copy -a <agent>`), pinned in
-`skills-lock.json`; `npx skills update` refreshes them. The MCP files name the
+Skills have one canonical installation under `.agents/skills/`, pinned in
+`skills-lock.json`. Update that installation once, then run
+`node scripts/dev/sync-agent-skills.mjs` and its `--check` mode. Other harnesses
+share relative links; do not install copied trees for each agent. The MCP files name the
 same two servers everywhere.
 
 | Agent | Skills | MCP servers (Storybook + Stitch + shadcn) |
 |-------|--------|----------------------------------|
-| Claude Code | `.claude/skills/` (copies), and the `stitch-design`, `stitch-build`, `stitch-utilities` plugins enabled in `.claude/settings.json` from the `google-labs-code/stitch-skills` marketplace | `.mcp.json` (`${STITCH_API_KEY}`) |
+| Claude Code | `.claude/skills/` (shared links with harness-specific variants), and the `stitch-design`, `stitch-build`, `stitch-utilities` plugins enabled in `.claude/settings.json` from the `google-labs-code/stitch-skills` marketplace | `.mcp.json` (`${STITCH_API_KEY}`) |
 | Cursor | `.agents/skills/` | `.cursor/mcp.json` (`${env:STITCH_API_KEY}`) |
 | Codex | `.agents/skills/` | `.codex/config.toml` (`env_http_headers`) |
 | Grok Build | `.grok/skills/` | add the two URLs with `grok mcp add`; the key as the `X-Goog-Api-Key` header |
@@ -149,3 +150,17 @@ Claude Code's plugin form (`npx plugins add google-labs-code/stitch-skills
 `~/.claude/plugins/`; the project settings turn the plugins on for every
 collaborator, and the copied skills under `.claude/skills/` work in a cloud
 session, where a project's marketplaces do not load.
+
+## Keep design artifacts small
+
+In `docs/design/canvases/*/` with a `build.mjs`, version only source fragments,
+shared styles, generator and layout metadata. Run the generator on demand before
+seeding; generated `.dc.html` artboards and seeded editor payloads stay ignored.
+Editor extraction happens in temporary storage and accepted changes must be
+reconciled into the generator inputs before rebuilding. Do not accumulate dated
+exports or review rounds in the source tree.
+
+The five `settings-connectivity/*.dc.html` files have no generator or source
+fragments and remain source artboards; this exception does not permit checking
+in generated pages from the other canvases. Review screenshots follow
+`docs/evidence/README.md` and approved current-state persistence.

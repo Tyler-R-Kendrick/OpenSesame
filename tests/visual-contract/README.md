@@ -1,7 +1,8 @@
 # @opensesame/visual-contract
 
 Pixel-level visual regression contract for `apps/pages` against the
-`.impeccable/screenshots/*.png` baselines at the repo root.
+`tests/visual-contract/baselines/*.png` test fixtures. These are the six approved comparison inputs, kept separate from
+implementation evidence and temporary review captures.
 
 ## Why this exists
 
@@ -77,7 +78,7 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    `controllerchange`, at a moment of its own choosing.
 3. Screenshots each screen with `page.screenshot()` (not Playwright's own
    `toHaveScreenshot` snapshot mechanism — we need exact, stable output
-   filenames to diff against the pre-existing `.impeccable/screenshots/*.png`
+   filenames to diff against the pre-existing `tests/visual-contract/baselines/*.png`
    baselines ourselves) and pixel-compares it via `src/compare.ts`
    (`pixelmatch` + `pngjs`, `threshold: 0.1`). A screen fails past a **1.5%**
    mismatch budget measured against all pixels, or past a **5%** budget
@@ -102,7 +103,7 @@ VISUAL_UPDATE=1 pnpm --filter @opensesame/visual-contract test:visual
 ```
 
 In this mode, `src/compare.ts` skips the pixel comparison entirely and
-overwrites `.impeccable/screenshots/<name>.png` in place with the freshly
+overwrites `tests/visual-contract/baselines/<name>.png` in place with the freshly
 captured screenshot for every screen in the suite.
 
 **Rebaselining must be an intentional, reviewed action — never something a
@@ -113,7 +114,7 @@ they're correct. In practice that means:
 - Run `VISUAL_UPDATE=1 pnpm test:visual` locally, deliberately, because a
   design change under `apps/pages` is expected to move one or more of the
   six screens.
-- The result is a set of changed PNGs under `.impeccable/screenshots/`.
+- The result is a set of changed PNGs under `tests/visual-contract/baselines/`.
   `git diff --stat` makes that change visible in size/line terms even though
   the content itself is binary — review the actual images (e.g. in the PR's
   file diff viewer, or by opening them) before committing.
@@ -142,7 +143,7 @@ they're correct. In practice that means:
   antialiasing in the wordmark (0.06%, far inside the budget).
 - **Resolved: desktop viewport now matches the checked-in baselines.** This
   package was originally speced with a 1280×800 desktop viewport, but the
-  six PNGs in `.impeccable/screenshots/` were measured (via their PNG
+  six PNGs in `tests/visual-contract/baselines/` were measured (via their PNG
   `IHDR` chunk) at **1440×900** for all three desktop shots
   (`pages-desktop.png`, `vault-unlock-desktop.png`,
   `vault-list-desktop.png`) — the baselines are the design contract, so
@@ -196,7 +197,7 @@ count (`b13e1f6a`). One difference was a regression, not a design change:
 forms sat 20px further in on each side than the front door (at 320px the
 theme key covered the wordmark's last letter). That was fixed in
 `apps/pages/src/screens/unlock.css` before re-seeding; evidence in
-`docs/evidence/2026-09-27-unlock-phone-gutter/`. The spec had also drifted:
+[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-27-unlock-phone-gutter/). The spec had also drifted:
 `pages-*` could capture the blank frame of a service-worker reload, and it
 mocked Host and Identity APIs Pages no longer calls.
 
@@ -247,7 +248,7 @@ comparison code remain unchanged.
 If `apps/pages` changes in a way that's expected to alter its rendering,
 run `pnpm --filter @opensesame/visual-contract test:visual`, inspect any
 failure's `output/*-actual.png` / `*-diff.png` against the current
-`.impeccable/screenshots/*.png`, and only rebaseline
+`tests/visual-contract/baselines/*.png`, and only rebaseline
 (`VISUAL_UPDATE=1 pnpm test:visual`) the specific screens that legitimately
 moved — reviewing the six PNGs in the resulting diff before committing,
 exactly as this package's own integration pass did.

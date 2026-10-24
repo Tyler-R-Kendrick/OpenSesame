@@ -239,12 +239,25 @@ function publicOAuthDescriptor(
       }),
       preferredRank: 35,
     };
-  if (profile)
+  if (profile && !preset)
     return oauthDescriptor(
       method,
       availability.oauth,
       availability.callbackUrl,
     );
+  if (profile && preset) {
+    // A public profile is not an alternative to a confidential OAuth app.
+    // Keep the token-auth selector and its client-secret field so a user can
+    // register their own application even when the public popup is refused.
+    return nativePublicApplicationDescriptor(
+      preset,
+      availability.callbackUrl,
+      availability.oauth.available ||
+        availability.oauth.registeredAvailable === true,
+      nativeBrowserOAuthDescriptor(plan, profile, availability.callbackUrl),
+      profile,
+    );
+  }
   if (preset)
     return {
       ...nativeOAuthResourceDescriptor(

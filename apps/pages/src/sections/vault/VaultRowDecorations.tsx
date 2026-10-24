@@ -12,32 +12,46 @@ import { useSyncExternalStore } from "react";
 import { IconClock, IconPeople, IconStar } from "../../components/Icons.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { formatExpiry } from "./expiry.js";
+import type { SharedItemMark } from "./use-shared-items.js";
+
+function plural(count: number): string {
+  return count === 1 ? "identity" : "identities";
+}
 
 export function Decorations({
   item,
-  sharedGrants = 0,
+  shared,
 }: {
   item: VaultItem;
-  /** Standing item grants from the local share ledger. */
-  sharedGrants?: number;
+  /** How this item is shared, from the current actor's point of view. */
+  shared?: SharedItemMark;
 }) {
-  // A record somebody else can open says so on the row with the people it is
-  // shared with. The people mark sits last, immediately before the row's
-  // `⋯`, so "who can open this" reads as part of the action area.
+  // A record somebody else can open says so on the row with the person who
+  // shared it. A grant this actor issued stays a count: it is their own act,
+  // not a thing received from another user.
   const grantees = item.kind === "secret" ? item.grantees : [];
-  const shared = sharedGrants > 0 || grantees.length > 0;
-  const sharedTitle =
-    sharedGrants > 0
-      ? `Shared with ${sharedGrants} ${
-          sharedGrants === 1 ? "identity" : "identities"
-        }`
-      : `Shared with ${grantees.join(", ")}`;
   const scope = useVaultStore().activeTomb();
   const rotationState = useSyncExternalStore(
     subscribeRotationQueue,
     () => rotationEventFor(scope, item.id)?.state ?? "",
     () => "",
   );
+  const incoming = shared?.incoming ?? [];
+  const outgoing = shared?.outgoing ?? 0;
+  const sharedNotes = [
+    incoming.length > 0
+      ? `Shared by ${incoming.map((person) => person.name).join(", ")}`
+      : null,
+    outgoing > 0 ? `Shared with ${outgoing} ${plural(outgoing)}` : null,
+    grantees.length > 0 ? `Shared with ${grantees.join(", ")}` : null,
+  ].filter((note): note is string => note !== null);
+  const sharedTitle = sharedNotes.join(" · ");
+  const sharerLabel =
+    incoming.length === 0
+      ? null
+      : incoming.length === 1
+        ? `Shared by ${incoming[0]?.name}`
+        : `Shared by ${incoming[0]?.name} +${incoming.length - 1}`;
   return (
     <span className="vtree__side">
       {rotationState === "out-of-sync" ? (
@@ -55,8 +69,17 @@ export function Decorations({
       {item.favorite ? (
         <IconStar size={13} filled title="Favorite" className="vtree__fav" />
       ) : null}
-      {shared ? (
-        <IconPeople size={13} className="vtree__shared" title={sharedTitle} />
+      {sharerLabel ? (
+        <span className="vtree__sharer" title={sharedTitle}>
+          {sharerLabel}
+        </span>
+      ) : null}
+      {sharedNotes.length > 0 ? (
+        <IconPeople
+          size={13}
+          className="vtree__shared"
+          title={sharerLabel ? undefined : sharedTitle}
+        />
       ) : null}
     </span>
   );

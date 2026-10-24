@@ -73,7 +73,10 @@ async function keepItem(page, { name, secret }) {
 async function turnOn({ page, check, snap }) {
   await openSettingsCategory(page, "Security");
   await page.locator("#duress-profiles").waitFor({ timeout: 15000 });
-  await page.getByRole("button", { name: "Add" }).last().click();
+  await page
+    .locator("#duress-profiles")
+    .getByRole("button", { name: "Add", exact: true })
+    .click();
   const radios = await page
     .getByRole("radio")
     .evaluateAll((nodes) => nodes.map((n) => n.closest("label")?.innerText));

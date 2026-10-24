@@ -23,6 +23,16 @@ become an OIDC or approval server by itself.
 the device's own once Browser-local IAM is on, or the service's once you are
 signed in to it ([browser-local IAM](browser-local-iam.md)).
 
+## Received item shares
+
+The Vault list shows a received item as **Shared by &lt;name&gt;** on its row and
+in the item details. When an item has been received from someone else, the
+filter sheet and the desktop rail gain **Shared with me** and **Owned by me**
+roads with live counts. An outgoing grant remains **Shared with N identities**;
+it is not presented as something received. Shares written before attribution
+was recorded still count as outgoing where possible, but an unknown sender is
+shown as **Another user** rather than inventing a name.
+
 ## Operate
 
 | Tab | Panels and operations | Authority |

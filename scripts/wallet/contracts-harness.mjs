@@ -2,7 +2,6 @@
 /**
  * wallet:test:contracts — Foundry/Anvil local-chain evidence (WAL-E*).
  *
- * Ensures:
  *   - forge/anvil on PATH (defaults to ~/.local/foundry)
  *   - MetaMask delegation-framework vendor at pin bff4b08
  *   - OpenSesame SiblingSharedPeriodCap tests + upstream period suite
@@ -10,21 +9,19 @@
  * Fail-closed if forge missing or tests fail. Never marks mainnet.
  */
 import { spawnSync } from "node:child_process";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isNumber } from "./lib/primitive-guards.mjs";
-
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
-import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
-
+import {
+  EVIDENCE_REL,
+  readWalletClaims,
+  writeWalletEvidence,
+} from "./lib/evidence.mjs";
+import { isNumber } from "./lib/primitive-guards.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 const PIN = "bff4b08f8006ad94322a6e3da8d90f274e20325d";
 const vendorDir = join(root, "packages/wallet-evm/vendor/delegation-framework");
 const forgeTestSrc = join(
@@ -352,9 +349,12 @@ writeWalletEvidence(root, {
 
 // Machine-readable claim bump when green
 if (ok) {
-  const claimsPath = join(root, "docs/evidence/wallet/claims.json");
+  const claimsPath = join(
+    root,
+    "work/evidence/wallet/wallet/cross-platform/claims.json",
+  );
   try {
-    const claims = JSON.parse(readFileSync(claimsPath, "utf8"));
+    const claims = readWalletClaims(root);
     claims.claims = claims.claims ?? {};
     for (const id of ["WAL-E01", "WAL-E02", "WAL-E03"]) {
       claims.claims[id] = {

@@ -52,6 +52,22 @@ describe("actual RFC7592 registration cleanup", () => {
       expect(fetch).not.toHaveBeenCalled();
     },
   );
+  it("deletes a DCR fallback registration on a compiled CIMD route", async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(
+      await deleteNativeMcpRegistration(
+        {
+          ...target,
+          registration: "cimd",
+          clientMetadataUrl:
+            "https://self-host.example.org/auth/native-client.json",
+        },
+        client,
+        { fetch, assertCurrent: () => undefined },
+      ),
+    ).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it("does not invent deletion when the provider returned no management receipt", async () => {
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     expect(

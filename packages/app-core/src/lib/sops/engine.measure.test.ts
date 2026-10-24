@@ -12,7 +12,13 @@
  * size — rather than one device's speed. The bundle figure is read from
  * the built worker chunk, which is the number that actually ships.
  */
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
@@ -25,7 +31,7 @@ import { NEVER, newIdentity } from "./test-support.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..", "..", "..", "..");
 const dist = join(here, "..", "..", "..", "dist", "assets");
-const evidence = join(root, "docs/evidence/2026-09-22-browser-local-sops");
+const evidence = join(root, "work/evidence/sops/pages/browser");
 
 const SIZES = [10, 100, 1000, 5000] as const;
 const RUNS = 5;
@@ -104,6 +110,7 @@ describe.skipIf(!process.env.SOPS_MEASURE)("engine measurements", () => {
       ? gzipSync(readFileSync(join(dist, worker))).length
       : 0;
 
+    mkdirSync(evidence, { recursive: true });
     writeFileSync(
       join(evidence, "engine-measurements.md"),
       `# Engine measurements — browser-local SOPS

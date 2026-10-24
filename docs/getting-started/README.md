@@ -28,8 +28,10 @@ pnpm install
 pnpm setup:hooks        # point git at .githooks/ (lint, anti-slop, secret scan)
 ```
 
-`pnpm bootstrap` does the same and also generates and applies the Identity
-database schema; it needs `DATABASE_URL` set to a Postgres instance
+`pnpm bootstrap` installs dependencies, sets up hooks, and applies existing
+Identity database migrations. After a schema change, first run
+`pnpm --filter @opensesame/database db:generate` and review the generated
+migration. Bootstrap needs `DATABASE_URL` set to a Postgres instance
 (see [`.env.schema`](../../.env.schema)).
 
 ## 3. Run something

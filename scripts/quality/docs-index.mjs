@@ -55,9 +55,20 @@ function entries(index) {
       .sort()
       .map((name) => [name, join(index.dir, name)]);
   }
-  return readdirSync(index.dir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
+  // Only leaf slots are galleries; feature/project folders are ownership groups.
+  const slots = [];
+  function visit(dir, parts) {
+    if (parts.length === 3) {
+      if (existsSync(join(dir, "manifest.json"))) slots.push(parts.join("/"));
+      return;
+    }
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory())
+        visit(join(dir, entry.name), [...parts, entry.name]);
+    }
+  }
+  visit(index.dir, []);
+  return slots
     .sort(index.order)
     .map((name) => [name, join(index.dir, name, "README.md")]);
 }

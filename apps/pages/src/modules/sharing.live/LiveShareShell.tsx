@@ -14,6 +14,7 @@ import {
   type VaultShare,
   VaultShareProvider,
 } from "../../components/vault-share-seat.js";
+import { LiveSessionBanner } from "./LiveSessionBanner.js";
 import { LiveShareButton } from "./LiveShareButton.js";
 import { LiveSharePanel, useVaultName } from "./LiveSharePanel.js";
 
@@ -23,7 +24,7 @@ export function LiveShareShell({ children }: { children?: ReactNode }) {
   const show = useCallback(() => setOpen(true), []);
   const hide = useCallback(() => setOpen(false), []);
   const share = useMemo<VaultShare>(
-    () => ({ Button: LiveShareButton, open: show }),
+    () => ({ Button: LiveShareButton, Banner: LiveSessionBanner, open: show }),
     [show],
   );
   return (

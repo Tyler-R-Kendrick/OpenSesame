@@ -1,7 +1,7 @@
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, expect, it } from "vitest";
 import { CatalogPanel } from "./CatalogPanel.js";
@@ -49,23 +49,39 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });
 
-it("opens the auth-method builder from the + button", () => {
+it("offers BYO AI through the custom entry in the add builder, not a browse tile", () => {
+  // #1902 put BYO first among tiles; main then retired byo-ai from
+  // browse (0ca0474ca) in favor of a custom entry — now the Custom /
+  // self-hosted link in the auth-method builder — so partners render
+  // alphabetically without a BYO tile.
+  const ids = new Set(["openai", "anthropic", "byo-ai"]);
+  const { container } = render(
+    <MemoryRouter>
+      <CatalogPanel
+        providers={getBundledProviders().filter((provider) =>
+          ids.has(provider.id),
+        )}
+      />
+    </MemoryRouter>,
+  );
+  const tiles = [...container.querySelectorAll(".conn-grid > .conn-tile")];
+  const tileIds = tiles.map((tile) => tile.id);
+  // The panel also synthesizes featured/family tiles; what retired
+  // BYO AI guarantees is its absence and partners' alphabetical order.
+  expect(tileIds).not.toContain("catalog-byo-ai");
+  expect(tileIds.indexOf("catalog-anthropic")).toBeGreaterThanOrEqual(0);
+  expect(tileIds.indexOf("catalog-anthropic")).toBeLessThan(
+    tileIds.indexOf("catalog-openai"),
+  );
+  expect(container.querySelector("#catalog-byo-ai")).toBeNull();
+});
+
+it("links the + button to the custom connector form", () => {
   render(
     <MemoryRouter>
       <CatalogPanel providers={mergeVercelCatalog(getBundledProviders())} />
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Add a connection" }));
-  expect(
-    screen.getByRole("group", { name: "Authentication method" }),
-  ).toBeTruthy();
-  for (const name of ["OAuth", "OIDC", "API key", "MCP"])
-    expect(
-      screen.getByRole("button", { name: new RegExp(`^${name}`) }),
-    ).toBeTruthy();
-  expect(
-    screen.getByRole("link", { name: /Custom \/ self-hosted/ }),
-  ).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: /^API key/ }));
-  expect(screen.getByText("Showing API key connectors")).toBeTruthy();
+  const add = screen.getByRole("link", { name: "Add a custom connection" });
+  expect(add.getAttribute("href")).toBe("/connections/custom-oidc");
 });

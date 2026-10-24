@@ -310,16 +310,21 @@ it.each(["record-close", "trust-callback"] as const)(
       held.resume();
       expect(await outcome).toBe(false);
       expect(getIdentityConnectionRuntime(saved.connectionId)).toEqual(prior);
+      // A published attempt is compensated by republishing the previous
+      // bytes under a fresh revision; an attempt stopped at record-close
+      // never published, so the prior row and revision stand untouched.
+      const restoredRevision = identityConnectionRevision(saved.connectionId);
+      expect(restoredRevision).toEqual(expect.any(String));
       if (phase === "trust-callback")
-        expect(identityConnectionRevision(saved.connectionId)).not.toBe(
-          revision,
-        );
-      else
-        expect(identityConnectionRevision(saved.connectionId)).toBe(revision);
+        expect(restoredRevision).not.toBe(revision);
+      else expect(restoredRevision).toBe(revision);
       expect(signInMethods().providers).toEqual(providers);
       kvForgetAll();
       await kvHydrate([...DEVICE_CONNECTOR_KEYS, "settings.v1"]);
       expect(getIdentityConnectionRuntime(saved.connectionId)).toEqual(prior);
+      expect(identityConnectionRevision(saved.connectionId)).toBe(
+        restoredRevision,
+      );
       expect(signInMethods().providers).toEqual(providers);
     } finally {
       await held.close();

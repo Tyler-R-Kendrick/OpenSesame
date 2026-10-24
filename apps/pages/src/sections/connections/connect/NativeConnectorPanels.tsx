@@ -105,8 +105,9 @@ export function nativeSettingsDescriptor(
       available:
         hasNativeConnectorDriver("oauth", provider.id) &&
         (provider.id !== "google" || nativeGoogleBrowserAvailable()),
-      reason:
-        provider.id === "google" && !nativeGoogleBrowserAvailable()
+      reason: !hasNativeConnectorDriver("oauth", provider.id)
+        ? "Enable External connectors to configure this OAuth application on this device."
+        : provider.id === "google" && !nativeGoogleBrowserAvailable()
           ? "Google consent is unavailable under this deployment's isolation policy."
           : undefined,
       profile: nativeBrowserOAuthProfile(provider.id) ?? undefined,

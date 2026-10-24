@@ -44,6 +44,7 @@ import { AiProviderSheet } from "./connections/ai/AiProviderSheet.js";
 import { useAiSheet } from "./connections/ai/use-ai-sheet.js";
 import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
 import { useProviderCallbacks } from "./connections/connect/useProviderCallbacks.js";
+import { CustomOidcConnector } from "./connections/custom-oidc/CustomOidcConnector.js";
 import {
   currentTailscaleConnections,
   useTailscaleConnections,
@@ -212,6 +213,7 @@ export function ConnectionsSection() {
     onFlash: setFlash,
   });
   const { provider, providerConnections } = ai;
+  if (providerId === "custom-oidc") return <CustomOidcConnector />;
   if (providerId && !ai.target) {
     const connection = connectionId
       ? (providerConnections.find(
@@ -223,6 +225,7 @@ export function ConnectionsSection() {
     return (
       <ConnectorSettingsPage
         provider={provider}
+        providers={providers ?? []}
         providerId={providerId}
         connection={connection}
         connections={providerConnections}

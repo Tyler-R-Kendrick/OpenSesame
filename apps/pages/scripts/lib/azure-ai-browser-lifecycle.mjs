@@ -306,20 +306,19 @@ async function forget(context, api, selected) {
     ).toHaveCount(1);
   await api.visit(page, base, "settings/features");
   await addCapabilities(page, ["On-device model"]);
-  await expect(
-    page
-      .getByRole("combobox", { name: "Inference model", exact: true })
-      .locator(`option[value="${selected}"]`),
-  ).toHaveCount(0);
+  await api.visit(page, base, "settings/features/ai/support.local-ai");
+  const inference = page.getByRole("combobox", {
+    name: "Inference model",
+    exact: true,
+  });
+  await expect(inference).toBeVisible();
+  await expect(inference.locator(`option[value="${selected}"]`)).toHaveCount(0);
   await api.beforeReload();
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPin(page);
-  await api.visit(page, base, "settings/features");
-  await expect(
-    page
-      .getByRole("combobox", { name: "Inference model", exact: true })
-      .locator(`option[value="${selected}"]`),
-  ).toHaveCount(0);
+  await api.visit(page, base, "settings/features/ai/support.local-ai");
+  await expect(inference).toBeVisible();
+  await expect(inference.locator(`option[value="${selected}"]`)).toHaveCount(0);
   await api.open(page, base, entry.providerId);
   await expect(
     page.getByLabel(

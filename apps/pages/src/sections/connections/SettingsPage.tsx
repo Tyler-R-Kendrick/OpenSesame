@@ -26,8 +26,9 @@ import {
   connectorCeremonyRoot,
   statusSentence,
 } from "@opensesame/app-core/sections/connections/shared.js";
+import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import {
   IconChevronLeft,
@@ -51,6 +52,7 @@ import {
   githubConnectorStatus,
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
+import { apiFamilyFor } from "./catalog-families.js";
 import { isConnectConnection } from "./connect/ConnectPanels.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
 import { isIdentityConnectionProvider } from "./identity/IdentityConnectionPanels.js";
@@ -72,6 +74,7 @@ function connectOwned(providerId: string): "only" | "beside" | null {
 /** One connector's page: authorize it, then decide who can use it and how. */
 export function ConnectorSettingsPage({
   provider,
+  providers,
   providerId,
   connection,
   connections,
@@ -86,6 +89,7 @@ export function ConnectorSettingsPage({
   onChanged,
 }: {
   provider: Provider | null;
+  providers?: readonly Provider[];
   providerId: string;
   connection: Connection | null;
   connections: Connection[];
@@ -103,6 +107,17 @@ export function ConnectorSettingsPage({
 }) {
   const liveHeader = useTailscaleHeaderStatus(connection, provider);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const family = provider === null ? undefined : apiFamilyFor(provider.id);
+  const familyOptions =
+    family === undefined
+      ? []
+      : family.members.map((id) => {
+          const row = (providers ?? []).find(
+            (candidate) => candidate.id === id,
+          );
+          return { id, label: row?.displayName ?? id };
+        });
   const ceremonyRoot = connectorCeremonyRoot(pathname);
   const backRef = useGuideTarget<HTMLAnchorElement>("connections.back");
   const authorizeRef = useGuideTarget<HTMLElement>("connections.authorize");
@@ -197,6 +212,22 @@ export function ConnectorSettingsPage({
       <Link ref={backRef} className="conn-back" to={ceremonyRoot}>
         <IconChevronLeft size={16} /> Connections
       </Link>
+      {family && familyOptions.length > 1 ? (
+        <div className="field conn-settings__family">
+          <label htmlFor="connector-api-family">API family</label>
+          <select
+            id="connector-api-family"
+            value={provider.id}
+            onChange={(event) => navigate(connectorPath(event.target.value))}
+          >
+            {familyOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       <header className="conn-settings__head">
         <ConnectorMark
           providerId={provider.id}

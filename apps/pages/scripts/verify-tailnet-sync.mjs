@@ -47,7 +47,6 @@
 //              allow it
 //
 // Screenshots land in $TAILNET_SYNC_OUT (default: the system temp dir).
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -58,6 +57,7 @@ import { phoneContext } from "./lib/mobile-contract.mjs";
 import { openVaultList, toTheList } from "./lib/phone-vault.mjs";
 import { seedPasswordVault, unlockSeeded } from "./lib/seeded-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { startSyncDrive } from "./lib/tailnet-sync-drive.mjs";
 import {
   attachmentCrosses,
   readSlot as readSlotWith,
@@ -90,25 +90,6 @@ const harness = createHarness({
   base,
   out: path.join(out, ".log"),
 });
-
-function startDrive() {
-  const daemon = spawn(
-    binary,
-    ["daemon", "run", "--listen", `127.0.0.1:${port}`],
-    {
-      env: {
-        ...process.env,
-        OPENSESAME_OPERATOR_TOKEN: operator,
-        OPENSESAME_CORS_ORIGINS: origin,
-        OPENSESAME_VAULT_DRIVE_DIR: slots,
-        OPENSESAME_DAEMON_NETWORK_BRIDGE: "0",
-        OPENSESAME_ENV: "development",
-      },
-      stdio: ["ignore", "ignore", "inherit"],
-    },
-  );
-  return daemon;
-}
 
 async function until(check, what, ms = 20_000) {
   const end = Date.now() + ms;
@@ -199,7 +180,7 @@ function tailnetFromEnv() {
   return { host, tlsPort, address };
 }
 
-const daemon = startDrive();
+const daemon = startSyncDrive({ binary, port, operator, origin, slots });
 const tailnet = tailnetFromEnv();
 const serve = await tailscaleServeDrive(drive, tailnet);
 console.log(

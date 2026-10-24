@@ -14,10 +14,25 @@ import { liveUiSeams } from "./live-hooks.js";
 import type * as Runtime from "./runtime.js";
 
 let runtime: typeof Runtime;
+const owned: Awaited<
+  ReturnType<(typeof Runtime)["capabilityRuntime"]["activate"]>
+>[] = [];
+async function activate(
+  ctx: Parameters<(typeof Runtime)["capabilityRuntime"]["activate"]>[0],
+) {
+  const handle = await runtime.capabilityRuntime.activate(ctx);
+  owned.push(handle);
+  return handle;
+}
 
 describe("sharing.live runtime", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
+  afterEach(async () => {
+    try {
+      for (const handle of owned.splice(0).reverse()) await handle.dispose();
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("imports with no fetch, timer, DOM or storage side effect", async () => {
@@ -34,7 +49,7 @@ describe("sharing.live runtime", () => {
       count: 4,
     });
     const t = createTestContext();
-    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const handle = await activate(t.ctx);
     expect(t.entries("settings-category")).toEqual([]);
     const [wrapper] = t.entries("shell-wrapper");
     expect(wrapper?.id).toBe("live-share");
@@ -47,7 +62,7 @@ describe("sharing.live runtime", () => {
     const socket = vi.fn();
     vi.stubGlobal("WebSocket", socket);
     const t = createTestContext();
-    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const handle = await activate(t.ctx);
     const [route] = t.entries("route");
     expect(route?.path).toBe("/live");
     expect(route?.gate).toBe("any");
@@ -65,7 +80,7 @@ describe("sharing.live runtime", () => {
     ).rejects.toBeInstanceOf(CarrierBlocked);
 
     const t = createTestContext();
-    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    const handle = await activate(t.ctx);
     const active = liveUiSeams.carriers;
     expect(active).not.toBe(carriersUnavailable);
     // No plan has resolved in this realm: a socket carrier is not allowed.
@@ -73,6 +88,8 @@ describe("sharing.live runtime", () => {
       active({ kind: "nostr", url: "wss://relay.example.test" }, "t"),
     ).rejects.toThrow("capability-not-approved");
     // ntfy goes through the context's port, under the declared purpose.
+    const openedAt = Date.UTC(2026, 9, 23, 17, 0, 0);
+    vi.spyOn(Date, "now").mockReturnValue(openedAt);
     const ntfy = await active(
       { kind: "ntfy", url: "https://ntfy.example.test" },
       "t",
@@ -80,7 +97,7 @@ describe("sharing.live runtime", () => {
     ntfy.close();
     expect(t.egressCalls).toEqual([
       {
-        input: "https://ntfy.example.test/t/json",
+        input: `https://ntfy.example.test/t/json?since=${openedAt / 1000}`,
         capability: "sharing.live",
         purpose: CARRIER_PURPOSE,
       },
@@ -88,15 +105,18 @@ describe("sharing.live runtime", () => {
 
     await handle.dispose();
     expect(liveUiSeams.carriers).toBe(carriersUnavailable);
+    await expect(
+      liveUiSeams.carriers(
+        { kind: "ntfy", url: "https://ntfy.example.test" },
+        "t",
+      ),
+    ).rejects.toBeInstanceOf(CarrierBlocked);
+    expect(t.egressCalls).toHaveLength(1);
   });
 
   it("does not let a stale activation's disposal take a newer one's carriers", async () => {
-    const first = await runtime.capabilityRuntime.activate(
-      createTestContext().ctx,
-    );
-    const second = await runtime.capabilityRuntime.activate(
-      createTestContext().ctx,
-    );
+    const first = await activate(createTestContext().ctx);
+    const second = await activate(createTestContext().ctx);
     const current = liveUiSeams.carriers;
     await first.dispose();
     expect(liveUiSeams.carriers).toBe(current);

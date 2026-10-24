@@ -1,4 +1,9 @@
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 
 type CliRespondBody = Readonly<{
@@ -41,12 +46,11 @@ export async function postCliRespond(
   );
   let status = "approval_unreadable";
   try {
-    const parsed: unknown = await res.json();
-    if (parsed && typeof parsed === "object") {
-      const record = parsed as { status?: unknown; error?: unknown };
-      if (typeof record.status === "string" && record.status.length > 0) {
+    const record: BoundaryValue = await res.json();
+    if (isJsonObject(record)) {
+      if (isString(record.status) && record.status.length > 0) {
         status = record.status;
-      } else if (typeof record.error === "string" && record.error.length > 0) {
+      } else if (isString(record.error) && record.error.length > 0) {
         status = record.error;
       }
     }

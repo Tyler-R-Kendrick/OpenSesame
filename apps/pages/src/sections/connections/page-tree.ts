@@ -42,7 +42,7 @@ export function catalogPageItems(
   query = "",
 ): PageTreeLeaf[] {
   const normalized = query.trim().toLocaleLowerCase();
-  return curatedCatalogProviders(providers)
+  return curatedCatalogProviders(providers, { includeFamilies: true })
     .filter((provider) => matchesCatalog(provider, normalized))
     .map((provider) =>
       leaf(

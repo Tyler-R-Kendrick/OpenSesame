@@ -28,9 +28,9 @@ export type GuidePredicateId = string;
  */
 const SEMANTIC_ID = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/;
 
-/** Absolute, single-origin-relative app paths only. */
+/** Absolute, single-origin-relative app paths, including dotted namespaces. */
 const ROUTE_ID =
-  /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
+  /^\/(?:[a-z0-9]+(?:[.-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[.-][a-z0-9]+)*)*)?$/;
 
 export const MAX_SEMANTIC_ID_CHARS = 64;
 export const MAX_ROUTE_ID_CHARS = 64;

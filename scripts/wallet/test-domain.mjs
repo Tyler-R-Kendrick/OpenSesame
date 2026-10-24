@@ -14,6 +14,7 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { initializeWalletVerification } from "./lib/claims.mjs";
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { discoverDomainTargets } from "./lib/discover.mjs";
 import {
@@ -23,6 +24,7 @@ import {
 } from "./lib/evidence.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+initializeWalletVerification(root);
 const dryRun = process.argv.includes("--dry-run");
 
 const mainnet = assertNoMainnet(
