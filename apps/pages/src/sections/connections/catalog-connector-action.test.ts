@@ -75,6 +75,21 @@ it("offers Asana and Attio browser routes instead of a lock", () => {
   ).toBe(true);
 });
 
+it("keeps Attio configurable before the runtime driver finishes activating", () => {
+  const attio = provider("attio");
+  const descriptor = nativeSettingsDescriptor(attio);
+  expect(
+    descriptor?.methods.find((method) => method.id === "oauth")?.available,
+  ).toBe(true);
+  expect(
+    descriptor?.methods.find((method) => method.id === "api-key")?.available,
+  ).toBe(true);
+  expect(catalogConnectorAction(attio, null)).toMatchObject({
+    kind: "connect",
+    glyph: "plus",
+  });
+});
+
 it("keeps a saved local git URL from claiming browser installation or authorization", () => {
   const connection = localGitToConnection({
     id: "git_local_test",

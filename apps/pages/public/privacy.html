@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="OpenSesame privacy: local-first encryption, no server-side vault key, and no password recovery." />
+    <link rel="canonical" href="https://tyler-r-kendrick.github.io/OpenSesame/privacy.html" />
+    <title>Privacy — OpenSesame</title>
+    <style>
+      body { margin: 0; padding: 3rem 1.5rem; background: #0f172a; color: #f8fafc; font-family: ui-sans-serif, system-ui, sans-serif; line-height: 1.65; }
+      main { max-width: 46rem; margin: 0 auto; }
+      h1 { margin-top: 0; font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.05; }
+      h2 { margin-top: 2.25rem; font-size: 1.25rem; }
+      a { color: #5eead4; }
+      nav { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid #334155; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="./">OpenSesame</a></p>
+      <h1>Privacy</h1>
+      <p>OpenSesame is built so the operator of the public site cannot read a vault. Item encryption and decryption happen in the browser with a key derived from the person's master password. The static site does not receive that key.</p>
+      <h2>What the public site stores</h2>
+      <p>The Pages build serves static files. It does not run a hosted vault database, does not accept a master password on a server, and does not keep a copy of vault items. Browser storage on the device holds the encrypted vault and its local configuration.</p>
+      <h2>What leaves the device</h2>
+      <p>A network request leaves the device only when a feature needs one: for example, a native connector, an identity provider, or a backup target that the person configured. Those requests are visible to the provider they name. OpenSesame does not add analytics or advertising identifiers to the Pages build.</p>
+      <h2>Recovery</h2>
+      <p>There is no server-side password recovery. Losing every enrolled unlock method loses the vault. Keep an encrypted backup and the recovery methods you enrolled.</p>
+      <h2>More</h2>
+      <p>The repository's <a href="https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/architecture/privacy.md">privacy architecture</a> and <a href="https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/SECURITY.md">security policy</a> describe the design in detail.</p>
+      <nav aria-label="Related pages">
+        <a href="./about.html">About</a> ·
+        <a href="./contact.html">Contact</a> ·
+        <a href="./llms.txt">Agent guide</a> ·
+        <a href="./">Open the vault</a>
+      </nav>
+    </main>
+  </body>
+</html>
