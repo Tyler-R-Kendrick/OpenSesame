@@ -10,6 +10,7 @@ import { configurationPayload } from "@opensesame/app-core/lib/connector-guidanc
 import { saveForgeConnector } from "@opensesame/app-core/lib/device-connectors.js";
 import type { GitRemoteConfiguration } from "@opensesame/app-core/lib/git-auth-modes.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
+import { isFeatureBindingCategory } from "@opensesame/app-core/sections/connections/shared.js";
 import { providerTileItems } from "./provider-tile-items.js";
 
 /**
@@ -25,6 +26,8 @@ export function listedProviders(): Provider[] {
   const providers: Provider[] = [];
   for (const integration of INTEGRATIONS) {
     for (const category of integration.providerCategories) {
+      // This harness owns legacy companion operations, not native service APIs.
+      if (!isFeatureBindingCategory(category)) continue;
       for (const item of providerTileItems(category, tile)) {
         if (seen.has(item.provider.id)) continue;
         if (item.provider.authKind === "oauth2_authorization_code") continue;

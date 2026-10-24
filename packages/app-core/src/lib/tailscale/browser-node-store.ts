@@ -18,8 +18,10 @@ import { vaultStore } from "../vault/store.js";
 import { TailscaleHTTPRouteConfiguration } from "./browser-node-peer-http.js";
 import {
   type TailscaleNodeConfiguration,
+  TailscaleServerTrustConfiguration,
   normalizeTailscaleNodeIdentity,
 } from "./browser-node-port.js";
+import { browserNodeTransportOptions } from "./browser-node-transport-options.js";
 const FIELD = "tailscale_browser_node";
 const Metadata = z
   .object({
@@ -28,6 +30,7 @@ const Metadata = z
     reference: z.string(),
     tomb: z.string(),
     nativeHTTP: TailscaleHTTPRouteConfiguration.optional(),
+    peerTLS: TailscaleServerTrustConfiguration.optional(),
   })
   .strict();
 const State = z.record(z.string(), z.string().max(1_000_000));
@@ -55,10 +58,7 @@ export async function openBrowserNodeState(
   tomb: string,
   check: () => void,
 ) {
-  const nativeHTTP =
-    config.nativeHTTP === undefined
-      ? undefined
-      : TailscaleHTTPRouteConfiguration.parse(config.nativeHTTP);
+  const { nativeHTTP, peerTLS } = browserNodeTransportOptions(config);
   const identity = { hostname: config.hostname, controlURL: config.controlURL };
   await initializeVaultCredentialCustody();
   check();
@@ -76,6 +76,11 @@ export async function openBrowserNodeState(
       throw new Error(
         "Update the saved native HTTPS configuration before reconnecting.",
       );
+    if (
+      peerTLS !== undefined &&
+      canonicalize(record.peerTLS ?? null) !== canonicalize(peerTLS)
+    )
+      throw new Error("Update the saved peer TLS trust before reconnecting.");
     const capture = captureState(record);
     const state = decodeState(capture.fields.get("nodeState"));
     assertVaultCredentials(capture, tomb, check);
@@ -108,6 +113,7 @@ export async function openBrowserNodeState(
     tomb,
   };
   if (nativeHTTP !== undefined) record.nativeHTTP = nativeHTTP;
+  if (peerTLS !== undefined) record.peerTLS = peerTLS;
   let published = false;
   try {
     const connection = await saveDeviceConnectorConfigurationDurable(
@@ -152,14 +158,15 @@ export async function configureBrowserNodeState(
   check: () => void,
 ): Promise<TailscaleNodeRecord> {
   const identity = normalizeTailscaleNodeIdentity(config);
-  const nativeHTTP =
-    config.nativeHTTP === undefined
-      ? undefined
-      : TailscaleHTTPRouteConfiguration.parse(config.nativeHTTP);
+  const { nativeHTTP, peerTLS } = browserNodeTransportOptions(config);
   check();
   const stored = await openBrowserNodeState(identity, tomb, check);
   check();
-  return updateBrowserNodeNativeHTTP(stored.record, nativeHTTP, check);
+  return updateBrowserNodeOptions(
+    stored.record,
+    { nativeHTTP, peerTLS },
+    check,
+  );
 }
 export function savedBrowserNodeConfiguration(): Omit<
   TailscaleNodeConfiguration,
@@ -173,9 +180,10 @@ export function savedBrowserNodeConfiguration(): Omit<
       hostname: record.hostname,
       controlURL: record.controlURL,
     };
-    return record.nativeHTTP === undefined
-      ? identity
-      : { ...identity, nativeHTTP: record.nativeHTTP };
+    return {
+      ...identity,
+      ...browserNodeTransportOptions(record),
+    };
   } catch {
     return null;
   }
@@ -186,11 +194,19 @@ export async function updateBrowserNodeNativeHTTP(
   next: TailscaleHTTPRouteConfiguration | undefined,
   check: () => void,
 ): Promise<TailscaleNodeRecord> {
+  return updateBrowserNodeOptions(
+    original,
+    { nativeHTTP: next, peerTLS: original.peerTLS },
+    check,
+  );
+}
+async function updateBrowserNodeOptions(
+  original: TailscaleNodeRecord,
+  next: Pick<TailscaleNodeConfiguration, "nativeHTTP" | "peerTLS">,
+  check: () => void,
+): Promise<TailscaleNodeRecord> {
   const record = Metadata.parse(original);
-  const nativeHTTP =
-    next === undefined
-      ? undefined
-      : TailscaleHTTPRouteConfiguration.parse(next);
+  const options = browserNodeTransportOptions(next);
   const row = savedNodeRow(record.tomb);
   if (!row) throw new Error("The saved Tailscale browser node changed.");
   const receipt = browserNodePublicFingerprint(record, row.connectionId);
@@ -207,9 +223,10 @@ export async function updateBrowserNodeNativeHTTP(
     reference: record.reference,
     tomb: record.tomb,
   };
-  const replacement = Metadata.parse(
-    nativeHTTP === undefined ? identity : { ...identity, nativeHTTP },
-  );
+  const replacement = Metadata.parse({
+    ...identity,
+    ...options,
+  });
   await updateDeviceConfigurationDurable(
     row.connectionId,
     async (current) => {

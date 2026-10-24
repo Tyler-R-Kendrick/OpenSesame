@@ -5,7 +5,10 @@
  * (ADR 0158: a row acts, or it is not drawn).
  */
 
-import type { Integration } from "@opensesame/app-core/lib/capabilities/integrations.js";
+import {
+  INTEGRATIONS,
+  type Integration,
+} from "@opensesame/app-core/lib/capabilities/integrations.js";
 import {
   byoProvidersFirst,
   isConnectionCatalogProvider,
@@ -17,11 +20,11 @@ import type {
 } from "@opensesame/app-core/lib/connections.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { HISTORY_BACKUP_GROUPS } from "@opensesame/app-core/lib/history-backups.js";
-import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
-import {
-  connectorPath,
-  isFeatureBindingCategory,
-} from "@opensesame/app-core/sections/connections/shared.js";
+import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
+
+const INTEGRATION_CATEGORIES: ReadonlySet<ProviderCategory> = new Set(
+  INTEGRATIONS.flatMap((integration) => integration.providerCategories),
+);
 
 const HISTORY_ROADS = new Set(
   HISTORY_BACKUP_GROUPS.flatMap((group) => group.providerIds),
@@ -44,15 +47,14 @@ function placed(provider: Provider): Provider {
  */
 export type ProviderTileItem = { provider: Provider; href: string | null };
 
-/** One category's catalog brokers, skipping managed Connect ids. */
+/** One category's bundled brokers; the caller's road gates each tile. */
 function bindingItems(
   providers: readonly Provider[],
 ): Map<ProviderCategory, Provider[]> {
   const grouped = new Map<ProviderCategory, Provider[]>();
   for (const provider of providers) {
     if (!isConnectionCatalogProvider(provider)) continue;
-    if (isManagedConnector(provider.id)) continue;
-    if (!isFeatureBindingCategory(provider.category)) continue;
+    if (!INTEGRATION_CATEGORIES.has(provider.category)) continue;
     const items = grouped.get(provider.category) ?? [];
     items.push(provider);
     grouped.set(provider.category, items);

@@ -1,12 +1,20 @@
 import type { TailscaleHTTPRouteConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-peer-http.js";
-import type { TailscaleNativeHTTPPort } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
+import type {
+  TailscaleNativeHTTPPort,
+  TailscaleNodeConfiguration,
+} from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { anySignal } from "../../signals.js";
 import {
   NativeStreamRequest,
   wantsNativeStream,
 } from "./controller-native-stream.js";
-import { type HostEvent, NativeHTTPRequest } from "./protocol.js";
+import {
+  Configuration,
+  type HostEvent,
+  NativeHTTPRequest,
+} from "./protocol.js";
+import type { BrowserNodeAssets } from "./sdk.js";
 
 type Pending = {
   complete(message: HostEvent): void;
@@ -18,6 +26,12 @@ export class BrowserNodeRequests {
   private next = 0;
   private pending = new Map<number, Pending>();
   private readiness = new Set<(ready: boolean) => void>();
+  private peerUsed = false;
+  get usedPeer() {
+    return this.peerUsed;
+  }
+  private retirement: Promise<boolean> | null = null;
+  private retired: ((closed: boolean) => void) | null = null;
   constructor(
     private readonly worker: Pick<Worker, "postMessage">,
     private readonly check: () => void,
@@ -33,6 +47,11 @@ export class BrowserNodeRequests {
       throw new Error("Connect the original browser node first.");
   };
   receive(message: HostEvent): boolean {
+    if (message.kind === "closeHTTP") {
+      this.retired?.(message.closed);
+      this.retired = null;
+      return true;
+    }
     if (message.kind === "nativeHTTPReady") {
       for (const resolve of [...this.readiness]) resolve(message.ready);
       return true;
@@ -48,23 +67,34 @@ export class BrowserNodeRequests {
     this.pending.get(message.id)?.complete(message);
     return true;
   }
-  close(): void {
-    this.worker.postMessage({ kind: "closeHTTP" });
+  close(): Promise<boolean> {
+    if (this.retirement) return this.retirement;
+    this.retirement = new Promise<boolean>((resolve) => {
+      this.retired = resolve;
+    });
     this.lifetime.abort();
     for (const pending of [...this.pending.values()]) pending.fail();
     this.pending.clear();
     for (const resolve of [...this.readiness]) resolve(false);
     this.readiness.clear();
+    try {
+      this.worker.postMessage({ kind: "closeHTTP" });
+    } catch {
+      this.retired?.(false);
+      this.retired = null;
+    }
+    return this.retirement;
   }
   get(url: string): Promise<{ status: number; text: string }> {
     this.lifetime.signal.throwIfAborted();
     this.check();
-    if (!this.connected() || !this.approvePeer(url))
+    if (this.pending.size >= 4 || !this.connected() || !this.approvePeer(url))
       return Promise.reject(
         new Error(
           "Connect a browser node and allow this tailnet service first.",
         ),
       );
+    this.peerUsed = true;
     const id = ++this.next;
     return new Promise((resolve, reject) => {
       const finish = () => {
@@ -90,6 +120,8 @@ export class BrowserNodeRequests {
           finish();
           try {
             this.assertCurrent();
+            if (!this.approvePeer(url))
+              throw new Error("The original peer grant ended.");
             resolve({ status: message.status, text: message.text });
           } catch {
             reject(new Error("The original Tailscale node changed."));
@@ -324,4 +356,23 @@ export function nativeWorkerOptions(
         : route,
     asset: isString(asset) ? { nativeHTTP: new URL(asset, base).href } : {},
   };
+}
+
+export function browserNodeStartConfiguration(
+  input: TailscaleNodeConfiguration,
+  control: URL,
+  assets: Pick<BrowserNodeAssets, "runtime" | "wasm">,
+  base: URL,
+) {
+  return Configuration.parse({
+    ...input,
+    nativeHTTP: undefined,
+    controlURL: control.origin,
+    authKey: input.authKey ?? "",
+    state: {},
+    assets: {
+      runtime: new URL(assets.runtime, base).href,
+      wasm: new URL(assets.wasm, base).href,
+    },
+  });
 }

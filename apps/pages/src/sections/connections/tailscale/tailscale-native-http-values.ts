@@ -4,6 +4,7 @@ import type {
   NativeField,
   NativeFieldValues,
 } from "../connect/native-connector-ui.js";
+import { serverTrustFields } from "./tailscale-server-trust-values.js";
 
 export const nativeHTTPModeFields: readonly NativeField[] = [
   {
@@ -58,26 +59,11 @@ export const nativeHTTPRouteFields: readonly NativeField[] = [
     required: true,
     help: "One HTTPS origin per line, followed by allowed destination CIDRs. Peer example: https://byo.example.com 100.64.0.1/32. Exit example: https://api.example.com 203.0.113.0/24.",
   },
-  {
-    id: "trustMode",
-    label: "Integration TLS trust",
-    kind: "choice",
-    secret: false,
-    required: true,
-    choices: [
-      { id: "public", label: "Public certificate authorities" },
-      { id: "operator", label: "Operator certificate authority" },
-    ],
-  },
-  {
-    id: "operatorCAPEM",
-    label: "Operator CA certificates (PEM)",
-    kind: "textarea",
-    secret: false,
-    required: true,
-    when: { fieldId: "trustMode", value: "operator" },
-    help: "Trust only the supplied CA certificates for these integration origins.",
-  },
+  ...serverTrustFields(
+    "Integration TLS trust",
+    "Operator CA certificates (PEM)",
+    "Trust only the supplied CA certificates for these integration origins.",
+  ),
 ];
 export function nativeHTTPDraft(
   config?: TailscaleHTTPRouteConfiguration,

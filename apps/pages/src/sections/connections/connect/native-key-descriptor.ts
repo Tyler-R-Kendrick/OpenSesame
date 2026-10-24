@@ -50,6 +50,6 @@ export function nativeKeyActions(
     label: action.label,
     available: true,
     fields: action.fields,
-    resultOrigins: [],
+    resultOrigins: action.resultOrigins ?? [],
   }));
 }

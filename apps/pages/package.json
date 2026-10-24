@@ -75,6 +75,7 @@
     "build:identity-verify": "PAGES_DEPLOYMENT_PROFILE=loopback_development PAGES_CANONICAL_ORIGIN=http://localhost:41899 node scripts/stamped-build.mjs 'vite build --outDir dist-identity-verify --emptyOutDir && PAGES_OUT_DIR=dist-identity-verify node scripts/build-workers.mjs'",
     "build:secret-backends-verify": "PAGES_DEPLOYMENT_PROFILE=loopback_development PAGES_CANONICAL_ORIGIN=http://localhost:41901 node scripts/stamped-build.mjs 'vite build --outDir dist-secret-backends-verify --emptyOutDir && PAGES_OUT_DIR=dist-secret-backends-verify node scripts/build-workers.mjs'",
     "verify:secret-backends": "pnpm --filter @opensesame/control-plane exec tsx ../../apps/pages/scripts/verify-secret-backends.mjs",
+    "verify:github-app-browser": "pnpm --filter @opensesame/control-plane exec tsx ../../apps/pages/scripts/verify-github-app-browser.mjs",
     "capture:backup-integrations": "node scripts/capture-backup-integrations.mjs",
     "compose:backup-integrations": "node scripts/compose-backup-integrations.mjs",
     "build:ai-connections-verify": "OPENSESAME_AI_COMPLETION_VERIFY=1 PAGES_DEPLOYMENT_PROFILE=loopback_development PAGES_CANONICAL_ORIGIN=http://localhost:41911 node scripts/stamped-build.mjs 'vite build --outDir dist-ai-connections-verify --emptyOutDir && PAGES_OUT_DIR=dist-ai-connections-verify node scripts/build-workers.mjs'",

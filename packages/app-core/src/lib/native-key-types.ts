@@ -34,6 +34,8 @@ export type NativeKeyAction = {
   id: string;
   label: string;
   fields: readonly NativeKeyField[];
+  /** Only these compiled HTTPS origins can be opened from this action result. */
+  resultOrigins?: readonly string[];
 };
 
 /** What the connection form draws for one provider id of the family. */
@@ -53,6 +55,8 @@ export type NativeKeyUi = {
 export type NativeKeyItem = {
   id: string;
   label: string;
+  /** Public, signed handoff; opening it remains an explicit user gesture. */
+  url?: string;
   /** Present only for a read the person asked for; shown once and never stored. */
   secretValue?: string;
 };

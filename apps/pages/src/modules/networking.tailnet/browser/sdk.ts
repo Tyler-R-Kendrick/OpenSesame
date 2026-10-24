@@ -1,3 +1,4 @@
+import type { TailscaleServerTrustConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import type {
   NativeConfiguration,
   NativeRequest,
@@ -5,6 +6,12 @@ import type {
   NativeStreamChunk,
   NativeStreamHead,
 } from "./protocol.js";
+
+import {
+  type NativePeerGETClient,
+  type NativePeerGETNode,
+  bindNativePeerGET,
+} from "./sdk-peer-get.js";
 
 export type NativeHTTPClient = {
   ready(): boolean;
@@ -85,12 +92,14 @@ export type BrowserNodeConfiguration = {
   controlURL: string;
   authKey: string;
   nativeHTTP?: NativeConfiguration;
+  peerTLS?: TailscaleServerTrustConfiguration;
   stateStorage: {
     getState(id: string): string;
     setState(id: string, value: string): void;
   };
 };
-export type BrowserNodeClient = {
+export type BrowserNodeClient = NativePeerGETNode & {
+  nativePeerGET?: NativePeerGETClient;
   readonly nativeHTTPPort?: NativeRawPort;
   readonly nativeHTTPReady?: () => boolean;
   nativeHTTP?: NativeHTTPClient;
@@ -148,6 +157,8 @@ export async function loadBrowserNode(
   const wasm = await WebAssembly.instantiate(bytes, go.importObject);
   void go.run(wasm.instance).then(panic, panic);
   const node = newIPN(config);
+  if (assets.nativeHTTP)
+    node.nativePeerGET = await bindNativePeerGET(node, assets.nativeHTTP);
   if (config.nativeHTTP) {
     if (!assets.nativeHTTP)
       throw new Error("Native HTTPS asset is unavailable.");

@@ -12,10 +12,11 @@ import type { Flash } from "@opensesame/app-core/sections/connections/shared.js"
 import { useState, useSyncExternalStore } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
+import { GithubAppConfigSummary } from "./GithubAppConfigSummary.js";
 import { GithubAppRegistrationPanel } from "./GithubAppRegistrationPanel.js";
 import { ConnectorModes } from "./connect/ConnectorModes.js";
 import { NativeConnectorPanels } from "./connect/NativeConnectorPanels.js";
-import { Facts, OutLink } from "./connect/fields.js";
+import { OutLink } from "./connect/fields.js";
 
 type Method = "app" | "token";
 const METHODS: readonly { id: Method; label: string }[] = [
@@ -78,18 +79,11 @@ export function GithubNativeAppPanels(props: {
               <GithubAppRegistrationPanel {...props} />
               {app ? (
                 <>
-                  <Facts
-                    rows={[
-                      [
-                        "Saved app",
-                        <span key="app">
-                          {app.displayName} <GithubAppForgetButton />
-                        </span>,
-                      ],
-                      ...(app.ownerLogin
-                        ? [["Owner", app.ownerLogin] satisfies [string, string]]
-                        : []),
-                    ]}
+                  <GithubAppConfigSummary
+                    online={props.online}
+                    onFlash={(flash) => {
+                      if (flash) props.onFlash(flash);
+                    }}
                   />
                   {hasPendingGithubAppSecret(app.id) ? (
                     <StatusMark
@@ -97,9 +91,12 @@ export function GithubNativeAppPanels(props: {
                       label="GitHub App key pending vault storage."
                     />
                   ) : null}
-                  {install ? (
-                    <OutLink href={install}>Install GitHub App</OutLink>
-                  ) : null}
+                  <div className="actions">
+                    {install ? (
+                      <OutLink href={install}>Install GitHub App</OutLink>
+                    ) : null}
+                    <GithubAppForgetButton />
+                  </div>
                 </>
               ) : null}
             </div>

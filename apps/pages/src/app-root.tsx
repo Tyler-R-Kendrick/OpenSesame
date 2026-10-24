@@ -20,7 +20,7 @@ import type {
 } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { planIsSettling } from "@opensesame/app-core/lib/capabilities/settling.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
-import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
+import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation-response.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { Notices } from "./components/Notices.js";
 import { VaultShellSkeleton } from "./components/VaultShellSkeleton.js";
@@ -199,7 +199,7 @@ function Fallback() {
 
 function VaultApp() {
   const slots = useContext(AppSlotsContext);
-  const { status, tomb, guest } = slots.useVault();
+  const { status, tomb, guest, decoy } = slots.useVault();
   const ceremonyActive = useSyncExternalStore(
     unlockCeremonyStore.subscribe,
     unlockCeremonyStore.getSnapshot,
@@ -222,9 +222,11 @@ function VaultApp() {
 
   useVaultLanding(status, location.pathname, navigate);
 
+  // Enrolling a guest's first key makes it durable in place. Keep its open
+  // ceremony while still resetting the tree for another tomb or decoy actor.
   const shell = (
     <AppVaultShell
-      key={JSON.stringify([tomb, guest])}
+      key={JSON.stringify([tomb, decoy === true])}
       slots={slots}
       wrappers={wrappers}
       routes={routes}

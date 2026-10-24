@@ -171,3 +171,83 @@ describe("full-suite native preparation", () => {
     expect(fullWorkflow).not.toContain("--passWithNoTests");
   });
 });
+
+const scopedJob = ci
+  .split("\n  typescript-tests:\n")[1]
+  .split("\n  bundle:\n")[0];
+const scopedSteps = scopedJob
+  .split("    steps:\n")[1]
+  .split(/\n {6}- (?=name:|uses:)/);
+const pagesAffected =
+  "steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')";
+
+function scopedStepFor(command) {
+  const matches = scopedSteps.filter((step) => step.includes(command));
+  expect(matches).toHaveLength(1);
+  return matches[0];
+}
+
+describe("affected Pages native preparation", () => {
+  it("selects a cold-build-capable runner before the package job starts", () => {
+    const changes = ci.split("\n  typescript-tests:\n")[0];
+    const packages = changes
+      .split("name: Select affected TypeScript packages")[1]
+      .split("- name:")[0];
+    expect(packages).toContain("id: packages");
+    expect(packages).toContain(
+      "run: node scripts/lib/ci-affected-tests.mjs plan",
+    );
+    expect(packages).toContain("BASE_SHA:");
+    expect(packages).toContain("HEAD_SHA:");
+    expect(changes).toContain(
+      `typescript_runner: \${{ (steps.packages.outputs.scope == 'all' || contains(steps.packages.outputs.packages, '@opensesame/pages')) && '"ubuntu-latest"' || steps.runner.outputs.linux }}`,
+    );
+    expect(scopedJob).toContain(
+      "runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}",
+    );
+  });
+
+  it("finishes verified preparation before quality and both scoped test lanes", () => {
+    const install = scopedStepFor("run: pnpm install --frozen-lockfile");
+    const preparation = scopedStepFor("await loadTailscaleAssets();");
+    expect(preparation).toContain(`if: ${pagesAffected}`);
+    expect(preparation).toContain("node --input-type=module -e");
+    expect(preparation).toContain(
+      'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"',
+    );
+    expect(preparation).not.toMatch(
+      /cache-hit|continue-on-error:|timeout-minutes:|skipIf/,
+    );
+    expect(scopedSteps.indexOf(install)).toBeLessThan(
+      scopedSteps.indexOf(preparation),
+    );
+    for (const command of [
+      "run: pnpm quality",
+      "ci-affected-tests.mjs run-ts",
+    ]) {
+      expect(scopedSteps.indexOf(preparation)).toBeLessThan(
+        scopedSteps.indexOf(scopedStepFor(command)),
+      );
+    }
+  });
+
+  it("restores only the exact static distribution and verifies cache hits", () => {
+    const cache = scopedStepFor(
+      "name: Cache the pinned native PWA distribution",
+    );
+    expect(cache).toContain(`if: ${pagesAffected}`);
+    expect(cache).toContain(
+      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+    );
+    expect(cache).toContain(
+      "path: .cache/pwa-tailscale-native-http/distributions\n",
+    );
+    expect(cache).toContain(
+      "key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}",
+    );
+    expect(cache).not.toMatch(/restore-keys:|\/work|continue-on-error:/);
+    expect(scopedSteps.indexOf(cache)).toBeLessThan(
+      scopedSteps.indexOf(scopedStepFor("await loadTailscaleAssets();")),
+    );
+  });
+});

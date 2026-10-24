@@ -135,9 +135,10 @@ async function hide({ page, check, snap }) {
     .getByRole("button", { name: "Pack the items for travel" })
     .click();
   const code = (await page.locator(".travel__code").innerText()).trim();
+  await sheet.getByRole("button", { name: "Travel bundle actions" }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    sheet.getByRole("button", { name: "Save the travel bundle" }).click(),
+    page.getByRole("menuitem", { name: "Download the travel bundle" }).click(),
   ]);
   const bundle = path.join(os.tmpdir(), `travel-items-${Date.now()}.json`);
   await download.saveAs(bundle);

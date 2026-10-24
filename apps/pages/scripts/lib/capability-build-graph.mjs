@@ -5,8 +5,10 @@
  * the 400-line budget (ADR 0093). The shape is documented in
  * `capability-graph.mjs`.
  */
-import { existsSync } from "node:fs";
+import { Buffer } from "node:buffer";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { z } from "zod";
 import { publicPathTarget } from "./capability-distribution.mjs";
 import {
   VIRTUAL_MODULES,
@@ -16,6 +18,13 @@ import {
 } from "./capability-graph.mjs";
 import { secretBackendSdkChunk } from "./capability-lazy-leaves.mjs";
 import { itemTypePackChunk } from "./item-type-pack-chunks.mjs";
+
+// Rollup OutputAsset.source is an I/O boundary, not an unchecked coercion.
+const rollupAssetSource = z.union([z.string(), z.instanceof(Uint8Array)]);
+const htmlUtf8 = new TextDecoder("utf-8", { fatal: true });
+function assetBytes(source) {
+  return Buffer.from(rollupAssetSource.parse(source));
+}
 
 /**
  * Whether an owned public file will be in the output: emitted into the bundle
@@ -95,24 +104,53 @@ function collectOutputs(bundle, state, base, classify) {
         });
       }
     }
-    if (file.endsWith(".html") && typeof output.source === "string") {
-      const owner = state.htmlEntries.find((e) => e.path === file);
+    const source = assetBytes(output.source);
+    if (file.endsWith(".html")) {
+      const owner =
+        state.htmlEntries.find((e) => e.path === file) ??
+        state.publicFiles.find((entry) => entry.path === file);
       entries.push({
         html: file,
         capability: owner?.capability ?? null,
-        ...parseHtmlEntry(output.source, { base, htmlFile: file }),
+        ...parseHtmlEntry(htmlUtf8.decode(source), { base, htmlFile: file }),
       });
       continue;
     }
     assets.push({
       file,
-      size:
-        typeof output.source === "string"
-          ? Buffer.byteLength(output.source)
-          : output.source.byteLength,
+      size: source.byteLength,
     });
   }
   return { chunks, assets, entries, moduleWorkers };
+}
+
+/** Public copying bypasses Rollup's bundle; only precisely owned HTML is an entry. */
+function copiedPublicEntries(state, bundle, entries, base) {
+  for (const file of state.publicFiles) {
+    if (
+      !file.path.endsWith(".html") ||
+      entries.some((entry) => entry.html === file.path)
+    )
+      continue;
+    if (state.mode === "hardened" && state.isExcluded(file.capability))
+      continue;
+    const source =
+      state.appRoot === undefined
+        ? null
+        : join(state.appRoot, "public", file.path);
+    const emitted = bundle[file.path];
+    let html;
+    if (emitted?.type === "asset") {
+      html = htmlUtf8.decode(assetBytes(emitted.source));
+    } else if (source && existsSync(source))
+      html = htmlUtf8.decode(readFileSync(source));
+    else continue;
+    entries.push({
+      html: file.path,
+      capability: file.capability,
+      ...parseHtmlEntry(html, { base, htmlFile: file.path }),
+    });
+  }
 }
 
 /** Every core→optional import edge, and whether it went through MODULE_TABLE. */
@@ -165,6 +203,7 @@ export function buildGraph(ctx, bundle, state, base) {
     base,
     classify,
   );
+  copiedPublicEntries(state, bundle, entries, base);
   const moduleEdges = collectModuleEdges(ctx, classify);
   return {
     distributionId: state.contract.distributionId,

@@ -1,29 +1,27 @@
 import {
   type BoundaryValue,
   type JsonObject,
-  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import {
-  decodeJwtEnvelope,
-  randomString,
-  sha256Base64Url,
-} from "@opensesame/sdk-browser";
-import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
+import { decodeJwtEnvelope, sha256Base64Url } from "@opensesame/sdk-browser";
+import { host } from "../host.js";
 import { page, pageOrigin } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
-import type { AuthenticationIntent } from "./ambient-auth/types.js";
-import {
-  assertSafeReturnTo,
-  parseAuthCallback,
-} from "./federation-callback.js";
-import {
-  applyConfiguredIdentityNonce,
-  configuredIdentityNonce,
-  configuredIdentitySessionTrusted,
-  verifyConfiguredIdentityToken,
-} from "./federation-configured-token.js";
+import { parseAuthCallback } from "./federation-callback.js";
+import { configuredIdentitySessionTrusted } from "./federation-configured-token.js";
+import type {
+  BeginSignInOptions,
+  CompletedSignIn,
+  OidcDiscovery,
+  TrustedUpstream,
+} from "./federation-contract.js";
+export type {
+  BeginSignInOptions,
+  CompletedSignIn,
+  OidcDiscovery,
+  TrustedUpstream,
+} from "./federation-contract.js";
 import { FederationError } from "./federation-error.js";
 import {
   type FederationSessionGeneration,
@@ -39,17 +37,13 @@ import {
   originClientId,
   redirectUri,
 } from "./federation-origin.js";
-import {
-  type PendingAuth,
-  storePending,
-  takeMatchingPending,
-} from "./federation-pending.js";
-import { readStoredSessionSync } from "./federation-restoration.js";
+import { takeMatchingPending } from "./federation-pending.js";
 import {
   clearFederationSessionJson,
   readFederationSessionJson,
   writeFederationSessionJson,
 } from "./federation-session-store.js";
+import { readStoredSessionSync } from "./federation-stored-session.js";
 import {
   type IdentitySession,
   identitySessionEpoch,
@@ -58,6 +52,7 @@ import {
 } from "./identity.js";
 import { rememberLastSignIn } from "./last-sign-in.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
+import { signInMethods } from "./settings.js";
 export {
   operatorUpstream,
   isOperatorIdpIssuer,
@@ -79,52 +74,6 @@ export {
  * the upstream, not here. The wire contract is
  * docs/architecture/federated-signin.md §1.
  */
-export type TrustedUpstream = {
-  id: string;
-  displayName: string;
-  issuer: string;
-  /** What the human is actually signing in with, said plainly on the button. */
-  accountKind: string;
-  /**
-   * The OAuth client id to present, when it is not this origin's own profile.
-   *
-   * Compiled-in brokers and the Identity API both understand `origin:<origin>`
-   * and mint a client for it on sight. A provider the operator brought — an
-   * Okta org, an Auth0 tenant, an Entra directory — knows only the client it
-   * was configured with, so that id travels with the upstream and is what the
-   * `aud` claim is checked against (ADR 0078).
-   */
-  clientId?: string;
-  scope?: string;
-  providerHint?: string;
-  /**
-   * Compiled OIDC endpoints. A static page cannot discover these when the
-   * broker omits CORS on `/.well-known/openid-configuration` (shoo.dev serves
-   * CORS on `POST /token` and `POST /session/check` only). Authorization is a
-   * top-level navigation, so it needs no CORS; the token POST already allows
-   * this origin.
-   */
-  authorizationEndpoint?: string;
-  tokenEndpoint?: string;
-  jwksUri?: string;
-  /**
-   * Shoo speaks its own, deliberately small authorize dialect — exactly what
-   * its official clients (`shoo.js`, `@shoojs/auth`) send: `client_id`,
-   * `redirect_uri`, `state`, `code_challenge`, `code_challenge_method=S256`,
-   * and `pii=true` when profile data is wanted. There is no `response_type`
-   * and no `scope`; profile consent is the `pii` flag, never a scope string.
-   * Everything else here speaks standard OIDC.
-   */
-  protocol?: "shoo" | "oidc";
-  /**
-   * Where a live "is this user still authorized?" answer comes from. Shoo's
-   * JWKS endpoint serves no CORS, so this static page cannot verify the ES256
-   * signature itself; `POST /session/check` with the id_token as bearer is the
-   * check the broker built for browsers — its server verifies the signature
-   * and the revocation list and answers active/login_required.
-   */
-  sessionCheckEndpoint?: string | undefined;
-};
 /**
  * Trust is configuration, not discovery: an issuer absent from this list is
  * refused even if it completes a flow correctly (ADR 0033 §2).
@@ -195,13 +144,6 @@ export function isBrokeredIssuer(issuer: string): boolean {
   return base.length > 0 && trimSlashes(issuer) === base;
 }
 
-export type OidcDiscovery = {
-  issuer: string;
-  authorization_endpoint: string;
-  token_endpoint: string;
-  jwks_uri: string;
-};
-
 export type { UpstreamIdentity } from "./federation-native-session.js";
 
 export function decodeJwtClaims(token: string): JsonObject {
@@ -226,297 +168,129 @@ export async function derivedSubjectFor(
   return sha256Base64Url(`${pairwiseSub}:${origin}`);
 }
 
-type Pkce = { verifier: string; challenge: string };
-
-async function createPkce(): Promise<Pkce> {
-  const verifier = randomString(32);
-  return { verifier, challenge: await sha256Base64Url(verifier) };
-}
+export const federationStartSeams = {
+  load: (): Promise<typeof import("./federation-start.js")> =>
+    import("./federation-start.js"),
+};
 
 export async function discover(issuer: string): Promise<OidcDiscovery> {
-  const url = `${issuer.replace(/\/+$/, "")}/.well-known/openid-configuration`;
-  let response: Response;
-  try {
-    response = await fetch(url, { credentials: "omit" });
-  } catch {
-    throw new FederationError(
-      "upstream_unavailable",
-      `Could not reach ${issuer}.`,
-    );
-  }
-  if (!response.ok) {
-    throw new FederationError(
-      "upstream_unavailable",
-      `${issuer} returned ${response.status} for its discovery document.`,
-    );
-  }
-  const doc: Partial<OidcDiscovery> = overlapCast(await response.json());
-  if (
-    !isString(doc.authorization_endpoint) ||
-    !isString(doc.token_endpoint) ||
-    !isString(doc.jwks_uri)
-  ) {
-    throw new FederationError(
-      "upstream_unavailable",
-      `${issuer} published an incomplete discovery document.`,
-    );
-  }
-  // An issuer that names someone else is either misconfigured or hostile, and
-  // either way its endpoints cannot be trusted to belong to it.
-  if (
-    doc.issuer &&
-    doc.issuer.replace(/\/+$/, "") !== issuer.replace(/\/+$/, "")
-  ) {
-    throw new FederationError(
-      "issuer_mismatch",
-      `${issuer} claims to be ${doc.issuer}.`,
-    );
-  }
-  return {
-    issuer: isString(doc.issuer) ? doc.issuer : issuer,
-    authorization_endpoint: doc.authorization_endpoint,
-    token_endpoint: doc.token_endpoint,
-    jwks_uri: doc.jwks_uri,
-  };
+  const captured = captureFederationAction();
+  const { discoverCaptured } = await federationStartSeams.load();
+  captured.assertCurrent();
+  return discoverCaptured(issuer, captured);
 }
-
-/** Compiled brokers skip CORS discovery; operator-brought issuers still fetch. */
-function discoveryFor(upstream: TrustedUpstream): Promise<OidcDiscovery> {
-  if (
-    upstream.authorizationEndpoint &&
-    upstream.tokenEndpoint &&
-    upstream.jwksUri
-  ) {
-    return Promise.resolve({
-      issuer: upstream.issuer,
-      authorization_endpoint: upstream.authorizationEndpoint,
-      token_endpoint: upstream.tokenEndpoint,
-      jwks_uri: upstream.jwksUri,
-    });
-  }
-  return discover(upstream.issuer);
-}
-
-/**
- * Send the browser to the upstream. Returns nothing because it navigates: the
- * flow resumes in `completeSignIn` after the redirect back.
- */
-export type BeginSignInOptions = {
-  scope?: string;
-  returnTo?: string | undefined;
-  orgSlug?: string | undefined;
-  orgMethod?: "sso" | "saml" | undefined;
-  /**
-   * Which provider the brokered login page should pre-select. Sent under both
-   * spellings the hosted page accepts, exactly as `packages/sdk-browser` does.
-   */
-  providerHint?: string;
-  /**
-   * Standard OIDC `login_hint`, carrying ONLY an email domain for home-realm
-   * discovery (D12). The local part never reaches this function — see
-   * `workEmailDomain` in `providers.ts` — so nothing personal ends up in the
-   * address bar, in history, or in the hosted page's request log (T28).
-   */
-  loginHint?: string;
-  /**
-   * Standard OIDC `prompt=login` (Core §3.1.2.1). The issuer asks the
-   * person to authenticate again, which is what switching accounts needs.
-   * Shoo does not read `prompt` (docs.shoo.dev); a different Google account
-   * means signing out at shoo.dev/me first.
-   */
-  prompt?: "login";
-};
 
 async function beginSignInDefault(
   upstream: TrustedUpstream,
   options: BeginSignInOptions = {},
 ): Promise<void> {
-  const { performSavedCategory } = await import("./feature-request-send.js");
-  performSavedCategory(["identity"]);
-  // A brokered upstream built from an unconfigured Identity API carries an
-  // empty issuer. Refusing here, before any navigation, is what keeps the
-  // failure on-screen instead of a blank-issuer discovery 404 after the fact.
-  if (!upstream.issuer.trim()) {
-    throw new FederationError(
-      "no_identity_api",
-      "This deployment isn't connected to an identity service yet, so this sign-in can't start.",
-    );
-  }
-  ambientAuthSeams.clearAutoAuthSuppression();
-  const discovery = await discoveryFor(upstream);
-  const { verifier, challenge } = await createPkce();
-  const state = randomString(16);
-  const nonce = configuredIdentityNonce(upstream.id);
-  // An operator's own provider needs a subject and a name to be worth signing
-  // in with; the origin-profile brokers have always answered `openid` alone.
-  const scope =
-    options.scope ??
-    upstream.scope ??
-    (upstream.clientId ? "openid profile email" : "openid");
-  // Brokered legs return to the Identity API's registered canonical callback;
-  // direct legs to the app base the loopback/mock brokers accept — which is
-  // also the URI an operator registers at their own provider.
-  const returnUri = isBrokeredIssuer(upstream.issuer)
-    ? originCallbackUri()
-    : redirectUri();
-  const safeReturnTo = options.returnTo
-    ? assertSafeReturnTo(options.returnTo, pageOrigin(), "/")
-    : undefined;
-  if (options.returnTo && !safeReturnTo)
-    throw new FederationError(
-      "invalid_request",
-      "That return address is not part of this app.",
-    );
-  const clientId = upstream.clientId ?? originClientId();
-
-  storePending({
-    upstreamId: upstream.id,
-    issuer: discovery.issuer,
-    verifier,
-    state,
-    nonce,
-    tokenEndpoint: discovery.token_endpoint,
-    jwksUri: discovery.jwks_uri,
-    scope,
-    sessionCheckEndpoint: upstream.sessionCheckEndpoint,
-    redirectUri: returnUri,
-    clientId,
-    returnTo: options.returnTo,
-    orgSlug: options.orgSlug,
-    orgMethod: options.orgMethod,
+  const captured = captureFederationAction();
+  const originalUpstream = Object.freeze({ ...upstream });
+  const context = Object.freeze({
+    upstream: originalUpstream,
+    options: Object.freeze({ ...options }),
+    owner: captured,
+    redirectUri: isBrokeredIssuer(originalUpstream.issuer)
+      ? originCallbackUri()
+      : captured.redirectUri,
+    clientId: originalUpstream.clientId ?? captured.clientId,
+    navigate(url: string) {
+      captured.assertCurrent();
+      page().location.assign(url);
+    },
   });
-
-  const url = new URL(discovery.authorization_endpoint);
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("redirect_uri", returnUri);
-  url.searchParams.set("state", state);
-  applyConfiguredIdentityNonce(url, nonce);
-  url.searchParams.set("code_challenge", challenge);
-  url.searchParams.set("code_challenge_method", "S256");
-  if (upstream.protocol === "shoo") {
-    // Shoo's authorize dialect (docs.shoo.dev): the five parameters above plus
-    // an opt-in `pii` flag. No `response_type`, no `scope` — profile data is
-    // consent on shoo's side, not a scope string, and asking with a scope
-    // grants nothing.
-    if (/\b(profile|email)\b/.test(scope)) {
-      url.searchParams.set("pii", "true");
-    }
-  } else {
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", scope);
-    const providerHint = options.providerHint ?? upstream.providerHint;
-    if (providerHint) {
-      // Both names, because the hosted login page reads either one and the
-      // SDK has always sent both.
-      url.searchParams.set("kc_idp_hint", providerHint);
-      url.searchParams.set("login_hint_provider", providerHint);
-    }
-    if (options.loginHint)
-      url.searchParams.set("login_hint", options.loginHint);
-    if (options.prompt) url.searchParams.set("prompt", options.prompt);
-  }
-  page().location.assign(url.toString());
+  const { beginCapturedSignIn } = await federationStartSeams.load();
+  captured.assertCurrent();
+  return beginCapturedSignIn(context);
 }
 
-/** True when the current URL looks like an upstream sending the browser back. */
-export function hasAuthResponse(search = page().location.search): boolean {
-  const params = new URLSearchParams(search);
-  if (params.has("github_app") || params.has("github_app_code")) return false;
-  return params.has("code") || params.has("error");
-}
+export { hasAuthResponse } from "./federation-response.js";
 
-export type CompletedSignIn = {
-  identity: UpstreamIdentity;
-  /** In-app path to resume (e.g. broker/authorize query) after upstream return. */
-  returnTo?: string | undefined;
-  orgSlug?: string | undefined;
-  orgMethod?: "sso" | "saml" | undefined;
-  /**
-   * The OAuth access token from the exchange, present only when the issuer was
-   * the Identity API itself — the brokered flow (D8). It is the credential
-   * `adoptBrokeredSession` trades for a first-party session bound to the SAME
-   * principal the hosted leg admitted. The id_token from that flow carries a
-   * pairwise subject for this origin and must never be linked to whatever
-   * session this tab happens to hold (T23).
-   */
-  accessToken?: string;
-  /** Saved before navigation; ambient completion must not infer this. */
-  intent?: AuthenticationIntent;
-  transactionId?: string;
-  generation?: number;
-  policyRevision?: string;
-  claims?: VerifiedIdTokenClaims;
+export const federationExchangeSeams = {
+  load: (): Promise<typeof import("./federation-exchange.js")> =>
+    import("./federation-exchange.js"),
 };
 
-/**
- * Ask the upstream whether this token is actually authorized, when it offers
- * a way to ask (shoo's CORS-enabled `POST /session/check`).
- *
- * Only the upstream's explicit "no" — a 401 with a reason — refuses the
- * sign-in: that answer is signature-verified and revocation-aware on the
- * broker's side, which is exactly the verification this static page cannot do
- * itself (the JWKS endpoint serves no CORS). A missing endpoint (404/501 from
- * an older broker) or a transport failure does not invalidate a token that
- * just arrived from the same broker's token endpoint over TLS; claims were
- * already checked in `readIdentity`.
- *
- * The URL is the compiled session check only. The pending record is shared
- * storage and must not choose where the id token is presented.
- */
-async function requireActiveUpstreamSession(
-  idToken: string,
-  endpoint: string | undefined,
-  issuer: string,
-): Promise<void> {
-  if (!endpoint) return;
-  let response: Response;
-  try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: { authorization: `Bearer ${idToken}` },
-      credentials: "omit",
-    });
-  } catch {
-    return;
-  }
-  if (response.status !== 401) return;
-  let reason = "revoked";
-  try {
-    const body: { reason?: BoundaryValue } = overlapCast(await response.json());
-    // The reason lands in on-screen copy: admit only a short token-shaped
-    // word, never an arbitrary string a broker response happens to carry.
-    if (isString(body.reason) && /^[a-z][a-z0-9_-]{0,63}$/i.test(body.reason)) {
-      reason = body.reason;
-    }
-  } catch {
-    /* the status alone is the answer */
-  }
-  throw new FederationError(
-    "login_required",
-    reason === "expired"
-      ? "That sign-in expired before it could finish. Try again."
-      : `${issuer} says this sign-in is not authorized (${reason}). Sign in again.`,
-  );
+function callbackTrust(): string {
+  return JSON.stringify({
+    upstreams: TRUSTED_UPSTREAMS,
+    broker: remoteIdentityApi(),
+    signIn: signInMethods(),
+  });
 }
+
+/** Capture before action code loads; callback consumption/scrubbing still precede its own loader await. */
+function captureFederationAction() {
+  const originalHost = host();
+  const { search, origin, href } = page().location;
+  const generation = federationSessionGeneration();
+  const trust = callbackTrust();
+  const originalFetch = fetch;
+  let expectedHref = href;
+  const assertCurrent = () => {
+    if (federationSessionGeneration() !== generation)
+      throw new FederationError(
+        "sign_in_cancelled",
+        "That sign-in was ended by a sign-out. Start again.",
+      );
+    if (
+      host() !== originalHost ||
+      pageOrigin() !== origin ||
+      page().location.href !== expectedHref ||
+      fetch !== originalFetch ||
+      callbackTrust() !== trust
+    )
+      throw new FederationError(
+        "invalid_request",
+        "Identity configuration changed or callback was replaced during sign-in; start again",
+      );
+  };
+  return Object.freeze({
+    search,
+    origin,
+    generation,
+    clientId: originClientId(origin),
+    redirectUri: redirectUri(),
+    assertCurrent,
+    scrub() {
+      assertCurrent();
+      const url = new URL(expectedHref);
+      for (const key of [
+        "code",
+        "state",
+        "error",
+        "error_description",
+        "scope",
+      ])
+        url.searchParams.delete(key);
+      expectedHref = url.toString();
+      page().replaceUrl(expectedHref);
+      assertCurrent();
+    },
+  });
+}
+type CallbackCapture = ReturnType<typeof captureFederationAction>;
 
 /**
  * Finish a redirect that `beginSignIn` started. Returns null when this load is
  * not an upstream response, so it is safe to call on every startup.
  */
-async function completeSignInDefault(): Promise<CompletedSignIn | null> {
-  const parsed = parseAuthCallback(page().location.search);
+async function completeSignInDefault(
+  captured: CallbackCapture,
+): Promise<CompletedSignIn | null> {
+  const parsed = parseAuthCallback(captured.search);
   if (parsed.kind === "none") return null;
+  captured.assertCurrent();
   if (parsed.kind === "malformed") {
-    clearAuthResponseFromUrl();
+    captured.scrub();
     throw new FederationError(
       parsed.reason,
       "This sign-in response was not usable.",
     );
   }
-  const generation = federationSessionGeneration();
   const state = parsed.state;
   const { pending, stale, unmatched } = takeMatchingPending(state);
-  clearAuthResponseFromUrl();
+  captured.scrub();
 
   if (unmatched) {
     throw new FederationError(
@@ -566,80 +340,31 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     code,
     // Byte-identical to what the authorize request carried, whichever shape
     // that was — token endpoints compare, not resolve.
-    redirect_uri: pending.redirectUri ?? redirectUri(),
-    client_id: pending.clientId ?? originClientId(),
+    redirect_uri: pending.redirectUri ?? captured.redirectUri,
+    client_id: pending.clientId ?? captured.clientId,
     code_verifier: pending.verifier,
   });
 
-  const { resolvePinnedEndpoints } = await import(
-    "./federation-endpoint-pin.js"
-  );
-  const pinned = resolvePinnedEndpoints(pending, TRUSTED_UPSTREAMS);
-  const tokenEndpoint = pinned.tokenEndpoint;
-  let response: Response;
-  try {
-    response = await fetch(tokenEndpoint, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body,
-      credentials: "omit",
-    });
-  } catch {
-    // Browser-side exchange only works if the upstream serves CORS on its
-    // token endpoint. Compiled-in brokers are required to; an operator's own
-    // provider has to be configured for a single-page app, which is the same
-    // requirement said in the provider's own words.
-    throw new FederationError(
-      "upstream_unavailable",
-      `Could not reach the token endpoint at ${pending.issuer}. It has to allow browser requests — in most providers that means registering this app as a single-page or public client.`,
-    );
-  }
-  if (!response.ok) {
-    throw new FederationError(
-      "exchange_failed",
-      `${pending.issuer} refused the code exchange (${response.status}).`,
-    );
-  }
-
-  const tokens: { id_token?: BoundaryValue; access_token?: BoundaryValue } =
-    overlapCast(await response.json());
-  if (!isString(tokens.id_token)) {
-    throw new FederationError(
-      "exchange_failed",
-      `${pending.issuer} returned no id_token.`,
-    );
-  }
-
-  await verifyConfiguredIdentityToken(tokens.id_token, pending, pinned.jwksUri);
-  const identity = readIdentity(tokens.id_token, pending, pinned.jwksUri);
-  // "We actually have an authorized user": where the broker offers a session
-  // check (shoo does; its JWKS serves no CORS, so this is the one signature-
-  // and revocation-backed answer a static page can get), ask it before the
-  // identity is saved or handed to anyone. A refusal here is a refusal of the
-  // whole sign-in.
-  await requireActiveUpstreamSession(
-    identity.idToken,
-    pinned.sessionCheckEndpoint,
-    pending.issuer,
-  );
-  // Org SSO/SAML is a one-shot assertion for Identity join, not a durable
-  // Pages federation session. Saving it would collide with Shoo/mock sign-in.
-  if (!pending.orgSlug) saveSession(identity, generation);
-  // Only the brokered issuer's access token is ever carried out of here: it is
-  // the one this app is entitled to spend, at the one endpoint that accepts it.
-  const brokered =
-    !pending.orgSlug &&
-    isBrokeredIssuer(pending.issuer) &&
-    isString(tokens.access_token);
-  return {
-    identity,
-    returnTo: assertSafeReturnTo(pending.returnTo, pageOrigin(), "/"),
-    orgSlug: pending.orgSlug,
-    orgMethod: pending.orgMethod,
-    ...(brokered && isString(tokens.access_token)
-      ? { accessToken: tokens.access_token }
-      : undefined),
-  };
+  const context = Object.freeze({
+    pending: Object.freeze({ ...pending }),
+    body: body.toString(),
+    origin: captured.origin,
+    clientId: pending.clientId ?? captured.clientId,
+    upstreams: Object.freeze(
+      TRUSTED_UPSTREAMS.map((upstream) => Object.freeze({ ...upstream })),
+    ),
+    assertCurrent: captured.assertCurrent,
+    decodeClaims: decodeJwtClaims,
+    issuerTrusted: issuerIsTrusted,
+    issuerBrokered: isBrokeredIssuer,
+    subjectIsPairwise: (issuer: string) =>
+      isBrokeredIssuer(issuer) || isOperatorIdpIssuer(issuer),
+    save: (identity: UpstreamIdentity) =>
+      saveSession(identity, captured.generation),
+  });
+  const { exchangeCapturedSignIn } = await federationExchangeSeams.load();
+  captured.assertCurrent();
+  return exchangeCapturedSignIn(context);
 }
 
 /**
@@ -723,95 +448,6 @@ async function adoptBrokeredSessionDefault(
   return session;
 }
 
-/** Read claims after configured signature validation or a compiled broker's pinned TLS exchange. */
-function readIdentity(
-  idToken: string,
-  pending: PendingAuth,
-  jwksUri: string,
-): UpstreamIdentity {
-  const claims = decodeJwtClaims(idToken);
-  const issuer = isString(claims.iss) ? claims.iss : "";
-  if (issuer.replace(/\/+$/, "") !== pending.issuer.replace(/\/+$/, "")) {
-    throw new FederationError(
-      "issuer_mismatch",
-      `Token was issued by ${issuer || "nobody"}, not ${pending.issuer}.`,
-    );
-  }
-  if (
-    !pending.orgSlug &&
-    !upstreamByIssuer(issuer) &&
-    !isBrokeredIssuer(issuer) &&
-    !isOperatorIdpIssuer(issuer)
-  ) {
-    throw new FederationError(
-      "untrusted_issuer",
-      `${issuer} is not a trusted broker.`,
-    );
-  }
-
-  const expected = pending.clientId ?? originClientId();
-  const audience = Array.isArray(claims.aud)
-    ? claims.aud.filter((value): value is string => isString(value))
-    : [String(claims.aud ?? "")];
-  if (!audience.includes(expected)) {
-    throw new FederationError(
-      "audience_mismatch",
-      `Token was minted for ${audience.join(", ") || "nobody"}, not ${expected}.`,
-    );
-  }
-
-  const exp = isNumber(claims.exp) ? claims.exp : 0;
-  if (exp * 1000 <= Date.now()) {
-    throw new FederationError("expired", "Token was already expired.");
-  }
-
-  // `sub` stands in for `pairwise_sub` on the legs whose subject is not a
-  // shared broker's:
-  //
-  //  - an org round-trip, and the brokered issuer — the Identity API mints
-  //    origin-profile subjects pairwise by construction (ADR 0050);
-  //  - the operator's own provider (ADR 0078). `pairwise_sub` exists because a
-  //    broker serving many unrelated relying parties would otherwise hand them
-  //    all the same subject to correlate on. An Okta org or an Entra directory
-  //    the operator configured is not that: they are the relying party. They
-  //    also do not mint a claim of that name — it is our brokers' contract, not
-  //    OIDC's — so demanding it would refuse every real provider. Correlation
-  //    downstream is unaffected: an origin this app brokers *to* still gets the
-  //    per-origin subject `derivedSubjectFor` computes, whatever the source.
-  //
-  // Every other broker must say `pairwise_sub` and mean it.
-  const subjectIsPairwise =
-    Boolean(pending.orgSlug) ||
-    isBrokeredIssuer(issuer) ||
-    isOperatorIdpIssuer(issuer);
-  const pairwiseSub = isString(claims.pairwise_sub)
-    ? claims.pairwise_sub
-    : subjectIsPairwise && isString(claims.sub)
-      ? claims.sub
-      : "";
-  if (!pairwiseSub) {
-    throw new FederationError(
-      "invalid_token",
-      subjectIsPairwise
-        ? "Token carries no subject, so it identifies nobody."
-        : "Token carries no pairwise_sub, so it identifies nobody.",
-    );
-  }
-
-  return {
-    issuer,
-    upstreamId: pending.upstreamId,
-    idToken,
-    pairwiseSub,
-    audience: expected,
-    jwksUri,
-    expiresAt: exp * 1000,
-    email: isString(claims.email) ? claims.email : undefined,
-    name: isString(claims.name) ? claims.name : undefined,
-    picture: isString(claims.picture) ? claims.picture : undefined,
-  };
-}
-
 /** Strip the code out of the address bar so a reload cannot replay it. */
 export function clearAuthResponseFromUrl(): void {
   const url = new URL(page().location.href);
@@ -881,14 +517,13 @@ function clearSessionDefault(): void {
 }
 
 async function completeSignInWired(): Promise<CompletedSignIn | null> {
-  const ambient = await ambientAuthSeams.completeIfPresent(
-    page().location.search,
-  );
+  const captured = captureFederationAction();
+  const ambient = await ambientAuthSeams.completeIfPresent(captured.search);
   if (ambient) {
     clearAuthResponseFromUrl();
     return ambient;
   }
-  return completeSignInDefault();
+  return completeSignInDefault(captured);
 }
 
 export const federationSeams = {

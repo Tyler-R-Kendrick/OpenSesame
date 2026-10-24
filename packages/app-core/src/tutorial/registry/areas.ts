@@ -148,6 +148,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "browser.pair",
       "browser.authenticate",
       "feature.connections",
+      "integration.services",
     ],
   },
   {

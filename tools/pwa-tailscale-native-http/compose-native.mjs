@@ -3,6 +3,7 @@ import { constants, copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { selectNativeToolchain } from "./select-toolchain.mjs";
 import { stageNativeNode, stagedNativeNodePath } from "./stage-native-node.mjs";
+import { stagePeerGET } from "./stage-peer-get.mjs";
 import { stagePrivateLogging } from "./stage-private-logging.mjs";
 
 const rootNames = ["public-roots.go", "public-roots_test.go"];
@@ -56,7 +57,7 @@ async function verifyComposition({ here, source, output, pins, requireHash }) {
     );
   await requireHash(
     join(source, "cmd/tsconnect/wasm/wasm_js.go"),
-    pins.privateLogging.afterSha256,
+    pins.peerGET.patch.afterSha256,
   );
   for (const file of pins.nativeNode.patchTargets.slice(1))
     await requireHash(join(source, file.path), file.afterSha256);
@@ -80,7 +81,11 @@ export async function composeNative(options) {
   await stagePublicRoots(options);
   await stageNativeNode(options);
   await stagePrivateLogging(options);
-  const verify = () => verifyComposition(options);
+  const verifyPeerGET = await stagePeerGET(options);
+  const verify = async () => {
+    await verifyPeerGET();
+    await verifyComposition(options);
+  };
   await verify();
   return { flags, verify };
 }

@@ -67,9 +67,12 @@ async function exportBackup(page, file) {
     .click();
   const sheet = page.getByRole("dialog", { name: "Export encrypted vault" });
   await sheet.waitFor({ timeout: 15000 });
+  await sheet.getByRole("button", { name: "Backup actions" }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    sheet.getByRole("button", { name: "Save backup" }).click(),
+    page
+      .getByRole("menuitem", { name: "Download backup", exact: true })
+      .click(),
   ]);
   await download.saveAs(file);
   await sheet.getByRole("button", { name: "Close" }).first().click();

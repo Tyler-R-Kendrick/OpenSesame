@@ -3,7 +3,6 @@ import {
   captureSamlConfiguration,
   saveConfiguredNativeSaml,
 } from "../browser/identity-saml-dispatch.js";
-/** One configurable identity road, composed by partner presets and the BYO surface. */
 import { env } from "../host.js";
 import { pageOrigin } from "../ports.js";
 import type { Connection } from "./connections.js";
@@ -16,7 +15,10 @@ import {
   loadSession,
   operatorUpstream,
 } from "./federation.js";
-import { admitConfiguredIdentitySession } from "./identity-connections-admission.js";
+import {
+  admitConfiguredIdentitySession,
+  captureConfiguredIdentitySessionOwner,
+} from "./identity-connections-admission.js";
 import { testIdentityOidc } from "./identity-connections-oidc.js";
 import {
   type IdentityConnectionCredentials,
@@ -278,10 +280,16 @@ export async function beginIdentityConnectionSignIn(
   if (draft.protocol === "better-auth" || draft.protocol === "supabase") {
     if (!options.credentials)
       throw new Error("Enter your account email and password to sign in");
-    const identity = await signInIdentitySession(draft, options.credentials);
-    await assertIdentityConnectionUnchanged(connectionId, draft);
-    identity.upstreamId = `identity:${connectionId}`;
-    await admitConfiguredIdentitySession(identity);
+    const owner = captureConfiguredIdentitySessionOwner(connectionId);
+    try {
+      const identity = await signInIdentitySession(draft, options.credentials);
+      owner.assertCurrent();
+      await assertIdentityConnectionUnchanged(connectionId, draft);
+      identity.upstreamId = `identity:${connectionId}`;
+      await admitConfiguredIdentitySession(identity, owner);
+    } finally {
+      owner.release();
+    }
     return;
   }
   const provider = signInMethods().providers.find(

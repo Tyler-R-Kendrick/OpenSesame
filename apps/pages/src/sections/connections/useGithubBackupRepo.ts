@@ -18,6 +18,8 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -42,7 +44,9 @@ type RepoView = {
   setEditing: Dispatch<SetStateAction<boolean>>;
   setIssue: Dispatch<SetStateAction<string | null>>;
   setRepos: Dispatch<SetStateAction<RepoChoice[]>>;
-  setTarget: Dispatch<SetStateAction<BackupTargetView | null>>;
+  bindTarget: (saved: BackupTargetView) => void;
+  beginDraft: () => void;
+  current: () => boolean;
   target: BackupTargetView | null;
 };
 
@@ -53,15 +57,24 @@ function backupRepoView(state: RepoView) {
   const handlers = {
     connection: state.connection,
     online: state.online,
-    onFlash: state.onFlash,
+    onFlash: (flash: Flash) => {
+      if (state.current()) state.onFlash(flash);
+    },
     onBound: (saved: BackupTargetView) => {
-      state.setTarget(saved);
+      if (!state.current()) return;
+      state.bindTarget(saved);
       state.setEditing(false);
       state.setDraft(`${saved.owner}/${saved.repo}`);
     },
-    onIssue: state.setIssue,
-    onBusy: state.setBusy,
-    onReady: (ready: boolean) => state.onReady.current?.(ready),
+    onIssue: (issue: string | null) => {
+      if (state.current()) state.setIssue(issue);
+    },
+    onBusy: (busy: boolean) => {
+      if (state.current()) state.setBusy(busy);
+    },
+    onReady: (ready: boolean) => {
+      if (state.current()) state.onReady.current?.(ready);
+    },
   };
   return {
     accounts: state.accounts,
@@ -69,18 +82,24 @@ function backupRepoView(state: RepoView) {
     busy: state.busy,
     connectionId: state.connection.connectionId,
     commit: (raw: string) =>
-      commitRepoSlug(
-        {
-          handlers,
-          selected,
-          repos: state.repos,
-          accounts: state.accounts,
-          setRepos: state.setRepos,
-          setEditing: state.setEditing,
-        },
-        raw,
-        state.flight,
-      ),
+      state.current()
+        ? commitRepoSlug(
+            {
+              handlers,
+              selected,
+              repos: state.repos,
+              accounts: state.accounts,
+              setRepos: (next) => {
+                if (state.current()) state.setRepos(next);
+              },
+              setEditing: (next) => {
+                if (state.current()) state.setEditing(next);
+              },
+            },
+            raw,
+            state.flight,
+          )
+        : Promise.resolve(),
     draft: state.draft,
     editing: state.editing,
     issue: state.issue,
@@ -90,12 +109,132 @@ function backupRepoView(state: RepoView) {
     reload: state.reload,
     repos: state.repos,
     selected,
+    beginDraft: state.beginDraft,
     setDraft: state.setDraft,
     setEditing: state.setEditing,
     setIssue: state.setIssue,
   };
 }
 
+type RepoOwner = {
+  scope: string;
+  draftOwned: boolean;
+  sequence: number;
+  live: boolean;
+  current(): boolean;
+  flight: { current: boolean };
+};
+function useRepoOwner(connection: Connection) {
+  const scope = JSON.stringify([
+    connection.connectionId,
+    connection.connectionRef,
+    connection.providerId,
+    connection.integrationId,
+    connection.accountLabel,
+  ]);
+  const latest = useRef<RepoOwner | null>(null);
+  const owner = useMemo(() => {
+    const next: RepoOwner = {
+      scope,
+      draftOwned: false,
+      sequence: 0,
+      live: false,
+      flight: { current: false },
+      current: () => latest.current === next && next.live,
+    };
+    return next;
+  }, [scope]);
+  latest.current = owner;
+  useLayoutEffect(() => {
+    owner.live = true;
+    return () => {
+      owner.live = false;
+      owner.sequence++;
+    };
+  }, [owner]);
+  return owner;
+}
+function useRepoState(seedAccounts: AppInstallAccount[], owner: RepoOwner) {
+  const [target, setTarget] = useState<BackupTargetView | null>(null);
+  const [repos, setRepos] = useState<RepoChoice[]>([]);
+  const [accounts, setAccounts] = useState(seedAccounts);
+  const [draft, setDraft] = useState(DEFAULT_PASSWORD_REPO_NAME);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [issue, setIssue] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const targetRef = useRef<BackupTargetView | null>(null);
+  const seed = useRef(seedAccounts);
+  seed.current = seedAccounts;
+  useLayoutEffect(() => {
+    if (!owner.current()) return;
+    targetRef.current = null;
+    setTarget(null);
+    setRepos([]);
+    setAccounts(seed.current);
+    setDraft(DEFAULT_PASSWORD_REPO_NAME);
+    setEditing(false);
+    setBusy(false);
+    setLoading(true);
+    setIssue(null);
+    setListError(null);
+  }, [owner]);
+  return {
+    target,
+    setTarget,
+    repos,
+    setRepos,
+    accounts,
+    setAccounts,
+    draft,
+    setDraft,
+    editing,
+    setEditing,
+    busy,
+    setBusy,
+    loading,
+    setLoading,
+    issue,
+    setIssue,
+    listError,
+    setListError,
+    targetRef,
+  };
+}
+type ReloadOptions = {
+  owner: RepoOwner;
+  key: string;
+  load: () => ReturnType<typeof loadRepoChoices>;
+  publish: (loaded: Awaited<ReturnType<typeof loadRepoChoices>>) => void;
+  loading: (value: boolean) => void;
+};
+function useRepoReload(options: ReloadOptions) {
+  const latest = useRef(options);
+  latest.current = options;
+  const { owner, key } = options;
+  const reload = useCallback(async () => {
+    const original = latest.current;
+    const turn = ++owner.sequence;
+    const current = () =>
+      owner.current() &&
+      owner.sequence === turn &&
+      latest.current.owner === owner &&
+      latest.current.key === key;
+    if (!current()) return;
+    original.loading(true);
+    try {
+      const loaded = await original.load();
+      if (current()) original.publish(loaded);
+    } finally {
+      if (current()) original.loading(false);
+    }
+  }, [owner, key]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+  return reload;
+}
 export function useGithubBackupRepo(
   connection: Connection,
   online: boolean,
@@ -104,87 +243,59 @@ export function useGithubBackupRepo(
   seedAccounts: AppInstallAccount[] = [],
   seedRepos: string[] = [],
 ) {
-  const [target, setTarget] = useState<BackupTargetView | null>(null);
-  const [repos, setRepos] = useState<RepoChoice[]>([]);
-  const [accounts, setAccounts] = useState<AppInstallAccount[]>(seedAccounts);
-  const [draft, setDraft] = useState(DEFAULT_PASSWORD_REPO_NAME);
-  const [editing, setEditing] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [issue, setIssue] = useState<string | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
+  const owner = useRepoOwner(connection);
+  const state = useRepoState(seedAccounts, owner);
   const onReadyRef = useRef(onReady);
-  const alive = useRef(true);
-  const flight = useRef(false);
-  const targetRef = useRef<BackupTargetView | null>(null);
-  const connectionRef = useRef(connection);
-  const seedAccountsRef = useRef(seedAccounts);
-  const seedReposRef = useRef(seedRepos);
   onReadyRef.current = onReady;
-  connectionRef.current = connection;
-  seedAccountsRef.current = seedAccounts;
-  seedReposRef.current = seedRepos;
-  const connectionId = connection.connectionId;
-  const accountsKey = seedKey(seedAccounts);
-  const reposKey = seedReposKey(seedRepos);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      void connectionId;
-      void accountsKey;
-      void reposKey;
-      const loaded = await loadRepoChoices(
-        connectionRef.current,
-        seedAccountsRef.current,
-        seedReposRef.current,
-        targetRef.current,
-      );
-      if (!alive.current) return;
-      targetRef.current = loaded.target;
-      setTarget(loaded.target);
-      setAccounts(loaded.accounts);
-      setRepos(loaded.repos);
-      setListError(loaded.listError);
+  const key = JSON.stringify([
+    connection.connectionId,
+    seedKey(seedAccounts),
+    seedReposKey(seedRepos),
+  ]);
+  const reload = useRepoReload({
+    owner,
+    key,
+    load: () =>
+      loadRepoChoices(
+        connection,
+        [...seedAccounts],
+        [...seedRepos],
+        state.targetRef.current,
+      ),
+    publish: (loaded) => {
+      state.targetRef.current = loaded.target;
+      state.setTarget(loaded.target);
+      state.setAccounts(loaded.accounts);
+      state.setRepos(loaded.repos);
+      state.setListError(loaded.listError);
       onReadyRef.current?.(isBound(loaded.target));
-      setDraft(loaded.draft);
-    } finally {
-      if (alive.current) setLoading(false);
-    }
-  }, [connectionId, accountsKey, reposKey]);
-
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
+      if (!owner.draftOwned) state.setDraft(loaded.draft);
+    },
+    loading: state.setLoading,
+  });
+  const setDraft: Dispatch<SetStateAction<string>> = (next) => {
+    owner.draftOwned = true;
+    state.setDraft(next);
+  };
   return backupRepoView({
-    accounts,
-    busy,
+    ...state,
     connection,
-    draft,
-    editing,
-    flight,
-    issue,
-    listError,
-    loading,
+    online,
     onFlash,
     onReady: onReadyRef,
-    online,
     reload,
-    repos,
-    setBusy,
+    flight: owner.flight,
+    current: owner.current,
     setDraft,
-    setEditing,
-    setIssue,
-    setRepos,
-    setTarget,
-    target,
+    beginDraft: () => {
+      owner.draftOwned = true;
+      state.setEditing(true);
+    },
+    bindTarget: (saved) => {
+      owner.sequence++;
+      state.targetRef.current = saved;
+      state.setTarget(saved);
+      state.setLoading(false);
+    },
   });
 }

@@ -3,9 +3,9 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { openOwnedDatabase } from "../ports.js";
+import { maybeIndexedDatabases, openOwnedDatabase } from "../ports.js";
 import { atRestBinding, openAtRest, sealAtRest } from "./at-rest/cipher.js";
-import { type AtRestKey, atRestReady } from "./at-rest/key.js";
+import { type AtRestKey, atRestReady, atRestSettled } from "./at-rest/key.js";
 import type {
   HistoryEntryRecord,
   HistoryRowStore,
@@ -159,17 +159,27 @@ export function present<T>(value: T | null): value is T {
 }
 
 /** Seal, once per document, any row written before rows were sealed. */
-async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
+async function sealLegacyRows(
+  db: IDBDatabase,
+  atRest: AtRestKey,
+  check?: () => void,
+) {
+  check?.();
   if (legacySwept) return;
   if (legacySweep) return legacySweep;
   const sweep = (async () => {
     const tx = db.transaction([ACCOUNTS, ENTRIES], "readwrite");
+    const done = txDone(tx);
+    // An earlier request may reject before the loop awaits transaction completion.
+    void done.catch(() => undefined);
     try {
       for (const store of [ACCOUNTS, ENTRIES]) {
         const rows: BoundaryValue[] = await idbReq(
           tx.objectStore(store).getAll(),
         );
+        check?.();
         for (const row of rows) {
+          check?.();
           if (!isJsonObject(row) || isString(row.sealed)) continue;
           const account = store === ACCOUNTS ? asAccount(row) : null;
           const entry = store === ENTRIES ? asEntry(row) : null;
@@ -192,7 +202,8 @@ async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
           }
         }
       }
-      await txDone(tx);
+      await done;
+      check?.();
       // Latch only after every row and the transaction committed. A transient
       // IndexedDB failure leaves the next call free to retry.
       legacySwept = true;
@@ -204,101 +215,143 @@ async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
   return sweep;
 }
 
-async function withDb<T>(
+type BoundLegacyOwner = Readonly<{ key: AtRestKey; active: () => void }>;
+
+/** Capture current storage custody only; this callback supplies cancellation, never new authority. */
+export function bindLegacyHistoryStore(check: () => void): HistoryRowStore {
+  check();
+  const key = atRestSettled();
+  const database = maybeIndexedDatabases();
+  if (!key?.durable)
+    throw new Error("Original history storage key is unavailable.");
+  const active = () => {
+    check();
+    if (
+      atRestSettled() !== key ||
+      maybeIndexedDatabases() !== database ||
+      storageWritesHalted()
+    )
+      throw new Error("This history storage operation ended.");
+  };
+  active();
+  return makeHistoryStore({ key, active });
+}
+
+function checkLegacyOwner(bound: BoundLegacyOwner | undefined): void {
+  bound?.active();
+}
+
+async function withLegacyDatabase<T>(
+  bound: BoundLegacyOwner | undefined,
   run: (db: IDBDatabase, atRest: AtRestKey) => Promise<T>,
 ): Promise<T | undefined> {
   // Opening alone recreates a deleted database, so a tab whose browser is
   // being reset does not open it at all; memory answers until it reloads.
+  checkLegacyOwner(bound);
   if (storageWritesHalted()) return undefined;
   let atRest: AtRestKey;
   try {
-    atRest = await atRestReady();
+    atRest = bound?.key ?? (await atRestReady());
   } catch {
     return undefined;
   }
+  checkLegacyOwner(bound);
   // A key that dies with this document: rows could never be read back.
   if (!atRest.durable) return undefined;
   let db: IDBDatabase;
   try {
     db = await openDb();
   } catch {
+    checkLegacyOwner(bound);
     return undefined;
   }
   try {
+    checkLegacyOwner(bound);
     try {
-      await sealLegacyRows(db, atRest);
+      await sealLegacyRows(db, atRest, bound?.active);
     } catch {
+      checkLegacyOwner(bound);
       // A failed sweep is a memory-fallback write, not a rejected history
       // operation; the next call retries the sweep.
       return undefined;
     }
-    return await run(db, atRest);
+    checkLegacyOwner(bound);
+    const result = await run(db, atRest);
+    checkLegacyOwner(bound);
+    return result;
   } finally {
     db.close();
   }
 }
 
+function makeHistoryStore(bound?: BoundLegacyOwner): HistoryRowStore {
+  const withDb = <T>(run: (db: IDBDatabase, atRest: AtRestKey) => Promise<T>) =>
+    withLegacyDatabase(bound, run);
+
+  return {
+    putAccount: (account) =>
+      withDb(async (db, atRest) => {
+        const tx = db.transaction(ACCOUNTS, "readwrite");
+        const done = txDone(tx);
+        await idbReq(
+          tx.objectStore(ACCOUNTS).put(sealRow(atRest, ACCOUNTS, account)),
+        );
+        await done;
+        return true as const;
+      }),
+
+    getAccount: async (id) => {
+      const row = await withDb(async (db, atRest) => {
+        const tx = db.transaction(ACCOUNTS, "readonly");
+        const stored: BoundaryValue = await idbReq(
+          tx.objectStore(ACCOUNTS).get(id),
+        );
+        return asAccount(openRow(atRest, ACCOUNTS, stored ?? null));
+      });
+      return row ?? undefined;
+    },
+
+    listAccounts: () =>
+      withDb(async (db, atRest) => {
+        const tx = db.transaction(ACCOUNTS, "readonly");
+        const stored: BoundaryValue[] = await idbReq(
+          tx.objectStore(ACCOUNTS).getAll(),
+        );
+        return stored
+          .map((row) => asAccount(openRow(atRest, ACCOUNTS, row)))
+          .filter(present);
+      }),
+
+    listEntries: (accountId) =>
+      withDb(async (db, atRest) => {
+        const tx = db.transaction(ENTRIES, "readonly");
+        const index = tx.objectStore(ENTRIES).index("by_account");
+        const stored: BoundaryValue[] = await idbReq(index.getAll(accountId));
+        return stored
+          .map((row) => asEntry(openRow(atRest, ENTRIES, row)))
+          .filter(present);
+      }),
+
+    holdsAnyEntry: () =>
+      withDb(async (db) => {
+        const tx = db.transaction(ENTRIES, "readonly");
+        return (await idbReq(tx.objectStore(ENTRIES).count())) > 0;
+      }),
+
+    putEntry: (entry) =>
+      withDb(async (db, atRest) => {
+        const tx = db.transaction(ENTRIES, "readwrite");
+        const done = txDone(tx);
+        await idbReq(
+          tx
+            .objectStore(ENTRIES)
+            .put(sealRow(atRest, ENTRIES, entry, entry.accountId)),
+        );
+        await done;
+        return true as const;
+      }),
+  };
+}
+
 /** The legacy rows, answered through the same seam the encrypted store uses. */
-export const legacyHistoryStore: HistoryRowStore = {
-  putAccount: (account) =>
-    withDb(async (db, atRest) => {
-      const tx = db.transaction(ACCOUNTS, "readwrite");
-      const done = txDone(tx);
-      await idbReq(
-        tx.objectStore(ACCOUNTS).put(sealRow(atRest, ACCOUNTS, account)),
-      );
-      await done;
-      return true as const;
-    }),
-
-  getAccount: async (id) => {
-    const row = await withDb(async (db, atRest) => {
-      const tx = db.transaction(ACCOUNTS, "readonly");
-      const stored: BoundaryValue = await idbReq(
-        tx.objectStore(ACCOUNTS).get(id),
-      );
-      return asAccount(openRow(atRest, ACCOUNTS, stored ?? null));
-    });
-    return row ?? undefined;
-  },
-
-  listAccounts: () =>
-    withDb(async (db, atRest) => {
-      const tx = db.transaction(ACCOUNTS, "readonly");
-      const stored: BoundaryValue[] = await idbReq(
-        tx.objectStore(ACCOUNTS).getAll(),
-      );
-      return stored
-        .map((row) => asAccount(openRow(atRest, ACCOUNTS, row)))
-        .filter(present);
-    }),
-
-  listEntries: (accountId) =>
-    withDb(async (db, atRest) => {
-      const tx = db.transaction(ENTRIES, "readonly");
-      const index = tx.objectStore(ENTRIES).index("by_account");
-      const stored: BoundaryValue[] = await idbReq(index.getAll(accountId));
-      return stored
-        .map((row) => asEntry(openRow(atRest, ENTRIES, row)))
-        .filter(present);
-    }),
-
-  holdsAnyEntry: () =>
-    withDb(async (db) => {
-      const tx = db.transaction(ENTRIES, "readonly");
-      return (await idbReq(tx.objectStore(ENTRIES).count())) > 0;
-    }),
-
-  putEntry: (entry) =>
-    withDb(async (db, atRest) => {
-      const tx = db.transaction(ENTRIES, "readwrite");
-      const done = txDone(tx);
-      await idbReq(
-        tx
-          .objectStore(ENTRIES)
-          .put(sealRow(atRest, ENTRIES, entry, entry.accountId)),
-      );
-      await done;
-      return true as const;
-    }),
-};
+export const legacyHistoryStore: HistoryRowStore = makeHistoryStore();

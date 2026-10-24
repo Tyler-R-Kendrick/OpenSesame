@@ -10,10 +10,10 @@
 import { useDeviceVaults } from "../../../bindings/vaults.js";
 import { CeremonySheet } from "../../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
-import { IconKey } from "../../../components/IconKey.js";
 import { IconDownload, IconUpload } from "../../../components/Icons.js";
+import { TravelBundleActions } from "./TravelBundleActions.js";
 import { TravelNoticeMark } from "./TravelNoticeMark.js";
-import { TravelRow, plural, saveBundle } from "./TravelViews.js";
+import { TravelRow, plural } from "./TravelViews.js";
 import type { useTravelFlow } from "./useTravelFlow.js";
 
 type Flow = ReturnType<typeof useTravelFlow>;
@@ -112,15 +112,7 @@ function PackedCard({
         <TravelRow
           name={pkg.bundleFileName}
           meta="travel bundle"
-          side={
-            <IconKey
-              small
-              label="Save the travel bundle"
-              onClick={() => saveBundle(pkg)}
-            >
-              <IconDownload size={16} />
-            </IconKey>
-          }
+          side={<TravelBundleActions pkg={pkg} />}
         />
       </ul>
       <div>
