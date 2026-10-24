@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
-import { beforeEach, describe, expect, it } from "vitest";
+import { overlapCast } from "@opensesame/os-domain";
+import {
+  IDBFactory as MemoryIDBFactory,
+  IDBObjectStore as MemoryIDBObjectStore,
+} from "fake-indexeddb";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import { createTestHost } from "../test-host.js";
 import {
@@ -14,6 +18,7 @@ import {
   toggleHistoryProvider,
 } from "./history-backups.js";
 import { loadSettings, saveSettings } from "./settings.js";
+import { HISTORY_BACKUP_DATABASE } from "./storage-ownership.js";
 
 describe("history backups", () => {
   beforeEach(() => {
@@ -62,17 +67,6 @@ describe("history backups", () => {
   });
 });
 
-type OpenRequest = {
-  onsuccess?: () => void;
-  onerror?: () => void;
-  onupgradeneeded?: () => void;
-  result?: BoundaryValue;
-};
-type ListRequest = {
-  onsuccess?: () => void;
-  onerror?: () => void;
-  result: BoundaryValue[];
-};
 type PutRequest = {
   onsuccess?: () => void;
   onerror?: () => void;
@@ -81,32 +75,25 @@ type PutRequest = {
 
 describe("history backup IndexedDB failures", () => {
   it("propagates a failed IndexedDB write instead of falling back to memory", async () => {
-    const failing = {
-      open: () => {
-        const req: OpenRequest = {};
-        req.result = {
-          transaction: () => ({
-            objectStore: () => ({
-              getAll: () => {
-                const listed: ListRequest = { result: [] };
-                queueMicrotask(() => listed.onsuccess?.());
-                return listed;
-              },
-              put: () => {
-                const put: PutRequest = { error: new Error("quota exceeded") };
-                queueMicrotask(() => put.onerror?.());
-                return put;
-              },
-            }),
-          }),
-          close: () => {},
-        };
-        queueMicrotask(() => req.onsuccess?.());
-        return req;
-      },
-    };
-    const failingIdb: IDBFactory = overlapCast(failing);
-    configureHost(createTestHost({ indexedDB: failingIdb }));
+    // The maintained fixture dispatches real transaction-complete tasks for
+    // the preceding migration reads; only this explicit write is made to fail.
+    const originalPut = MemoryIDBObjectStore.prototype.put;
+    const quota = vi
+      .spyOn(MemoryIDBObjectStore.prototype, "put")
+      .mockImplementation(function (
+        this: IDBObjectStore,
+        ...args: Parameters<typeof originalPut>
+      ) {
+        if (
+          this.transaction.db.name !== HISTORY_BACKUP_DATABASE ||
+          this.name !== "accounts"
+        )
+          return originalPut.apply(this, args);
+        const put: PutRequest = { error: new Error("quota exceeded") };
+        queueMicrotask(() => put.onerror?.());
+        return overlapCast<PutRequest, IDBRequest<IDBValidKey>>(put);
+      });
+    configureHost(createTestHost({ indexedDB: new MemoryIDBFactory() }));
     try {
       await expect(
         putHistoryAccount({
@@ -118,6 +105,7 @@ describe("history backup IndexedDB failures", () => {
         }),
       ).rejects.toThrow("quota exceeded");
     } finally {
+      quota.mockRestore();
       configureHost(createTestHost());
     }
   });
