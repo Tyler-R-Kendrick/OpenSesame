@@ -24,6 +24,7 @@ import {
 } from "./host-types.js";
 import type { LiveLink } from "./link.js";
 import type { JoinRequest } from "./messages.js";
+import { withNamedAddresses } from "./named-addresses.js";
 import { PAIRING_MS } from "./p2p.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
 import { judgeJoinPeer, replyForSeat } from "./peer-trust-join.js";
@@ -314,7 +315,7 @@ export class LiveHost {
         this.code,
         this.#owner,
         seat.joiner,
-        body,
+        withNamedAddresses(body, this.options.transport.named),
       );
       if (seat.peer !== peer) {
         // Refused, ended or replaced while it was answering: nobody owns it.

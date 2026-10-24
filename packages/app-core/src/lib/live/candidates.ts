@@ -15,6 +15,12 @@
  * lead nowhere cost a few failed checks and nothing else.
  */
 
+/**
+ * The hints a session offers when the owner names no address: two browsers
+ * on one machine meet over loopback, which mDNS names cannot give them.
+ */
+export const SAME_MACHINE_HINTS = ["127.0.0.1", "::1"] as const;
+
 const CANDIDATE =
   /^a=candidate:(\S+) (\d+) (udp|tcp) (\d+) (\S+) (\d+) typ host(.*)$/i;
 /** RFC 8839: a foundation is 1 to 32 ice-chars. */

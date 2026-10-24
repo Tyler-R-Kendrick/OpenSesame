@@ -26,6 +26,7 @@
  */
 
 import { targetAddressSpaceFor } from "../local-network-fetch.js";
+import { canonicalAddress } from "./named-addresses.js";
 import { isAddress } from "./transport.js";
 
 export const SDP_MAX = 48 * 1024;
@@ -203,16 +204,21 @@ function lineValid(line: string, tally: Tally): boolean {
  * nothing this protocol did not ask a browser for.
  */
 export function isDataChannelSdp(sdp: string): boolean {
-  return filterDataChannelSdp(sdp) !== null;
+  return filterDataChannelSdp(sdp, new Set<string>()) !== null;
 }
 
 /**
  * A readable data-channel description with any candidate naming a loopback,
- * link-local, private or otherwise non-public literal address removed. The
- * offer/answer is still usable through its public/mDNS/relay candidates, but
- * a peer cannot make this browser send ICE checks into an internal host.
+ * link-local, private or otherwise non-public literal address removed,
+ * except one at an address in `named`: the canonical addresses this session
+ * names itself (`sessionNamedAddresses`). The offer/answer is still usable
+ * through its public/mDNS/relay candidates and those, but a peer cannot make
+ * this browser send ICE checks into any other internal host.
  */
-export function filterDataChannelSdp(sdp: string): string | null {
+export function filterDataChannelSdp(
+  sdp: string,
+  named: ReadonlySet<string>,
+): string | null {
   if (sdp.length > SDP_MAX || !sdp.startsWith("v=0")) return null;
   const lines = sdp.split(/\r?\n/);
   if (lines.at(-1) === "") lines.pop();
@@ -225,15 +231,20 @@ export function filterDataChannelSdp(sdp: string): string | null {
   if (tally.o !== 1 || tally.s !== 1 || tally.t !== 1 || tally.m !== 1)
     return null;
   const safe = lines.filter(
-    (line) => !line.startsWith("a=candidate:") || routableCandidateLine(line),
+    (line) =>
+      !line.startsWith("a=candidate:") || routableCandidateLine(line, named),
   );
   return `${safe.join("\r\n")}\r\n`;
 }
 
-function routableCandidateLine(line: string): boolean {
+function routableCandidateLine(
+  line: string,
+  named: ReadonlySet<string>,
+): boolean {
   const parts = CANDIDATE.exec(line.slice("a=candidate:".length));
   const address = parts?.[2] ?? "";
   if (MDNS.test(address)) return true;
+  if (named.has(canonicalAddress(address) ?? "")) return true;
   const host = address.includes(":") ? `[${address}]` : address;
   return targetAddressSpaceFor(`https://${host}/`) === undefined;
 }
