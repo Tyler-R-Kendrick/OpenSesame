@@ -95,11 +95,12 @@ test(
     assert.notEqual(await run(f), 0); // Forward-only: never treat an already applied patch as success.
   },
 );
-test("all four original patch invocations select the same Node helper; compiler commands stay original", () => {
+test("all five reviewed patch invocations select the same Node helper; compiler commands stay original", () => {
   for (const name of [
     "native-toolchain.patch",
     "native-node.patch",
     "disable-logtail.patch",
+    "native-peer-get.patch",
     "exit-route.patch",
   ]) {
     const original = ["--batch", "--forward", "-p1", "-i", join(here, name)];
@@ -269,3 +270,47 @@ test(
     );
   },
 );
+
+test("peer patch requires its exact target, digest, preimage, postimage and flags", async (t) => {
+  const f = await fixture(t);
+  const path = "cmd/tsconnect/wasm/wasm_js.go";
+  const original = "owned peer predecessor\n";
+  const result = "owned peer successor\n";
+  const patch = `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-${original}+${result}`;
+  const pin = {
+    ...f.pins.peerGET.patch,
+    sha256: hash(patch),
+    beforeSha256: hash(original),
+    afterSha256: hash(result),
+  };
+  await mkdir(dirname(join(f.source, path)), { recursive: true });
+  for (const mode of ["digest", "preimage", "postimage", "target", "flags"]) {
+    const bytes = mode === "preimage" ? "stale peer predecessor\n" : original;
+    const input =
+      mode === "target"
+        ? patch.replaceAll(path, "cmd/tsconnect/wasm/other_js.go")
+        : patch;
+    f.pins.peerGET.patch = {
+      ...pin,
+      sha256: mode === "digest" ? "0".repeat(64) : hash(input),
+      afterSha256: mode === "postimage" ? "0".repeat(64) : pin.afterSha256,
+    };
+    await savePins(f);
+    await writeFile(join(f.tools, "native-peer-get.patch"), input);
+    await writeFile(join(f.source, path), bytes);
+    const override =
+      mode === "flags"
+        ? [...args(f, "native-peer-get.patch"), "--unsafe"]
+        : undefined;
+    assert.notEqual(await run(f, "native-peer-get.patch", override), 0);
+    assert.equal(await readFile(join(f.source, path), "utf8"), bytes);
+  }
+  f.pins.peerGET.patch = pin;
+  await savePins(f);
+  await writeFile(join(f.tools, "native-peer-get.patch"), patch);
+  await writeFile(join(f.source, path), original);
+  assert.equal(await run(f, "native-peer-get.patch"), 0);
+  assert.equal(await readFile(join(f.source, path), "utf8"), result);
+  assert.notEqual(await run(f, "native-peer-get.patch"), 0);
+  assert.equal(await readFile(join(f.source, path), "utf8"), result);
+});

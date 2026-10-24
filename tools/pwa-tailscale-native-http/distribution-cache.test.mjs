@@ -169,3 +169,39 @@ test("checks exact source overlays, rejects tampering and rejects overlay traver
     /source path/,
   );
 });
+
+test("cache validation checks peer overlay, patch and staging helper before reuse", async (t) => {
+  const root = await directory(t);
+  const bytes = Buffer.from("pinned peer source\n");
+  const names = ["peer-get.go", "native-peer-get.patch", "stage-peer-get.mjs"];
+  for (const name of [...names, "exit-route.patch"])
+    await writeFile(join(root, name), bytes);
+  const entry = (path) => ({ path, sha256: hash(bytes) });
+  const source = {
+    nativeHttp: { files: [] },
+    nativeBridge: { files: [] },
+    nativeNode: { files: [], stagingHelper: entry("exit-route.patch") },
+    toolchainSelection: { files: [] },
+    privateLogging: { files: [] },
+    publicTrust: { files: [] },
+    composition: { files: [] },
+    peerGET: {
+      files: [entry(names[0])],
+      patch: entry(names[1]),
+      stagingHelper: entry(names[2]),
+    },
+    patch: { sha256: hash(bytes) },
+  };
+  const input = Buffer.from(`${JSON.stringify(source)}\n`);
+  await writeFile(join(root, "source.json"), input);
+  await assertNativeSourceInputs(root, hash(input));
+  for (const name of names) {
+    await writeFile(join(root, name), "changed peer source\n");
+    await assert.rejects(
+      assertNativeSourceInputs(root, hash(input)),
+      /digest differs/,
+    );
+    await writeFile(join(root, name), bytes);
+  }
+  await assertNativeSourceInputs(root, hash(input));
+});
