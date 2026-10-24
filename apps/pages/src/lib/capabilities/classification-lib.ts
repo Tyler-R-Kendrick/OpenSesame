@@ -80,7 +80,6 @@ const GIT_FILES = [
   "vault-backup-observer",
   "backup-egress-gate",
   "vault-backup-sync",
-  "vault-backup-github",
   "saved-git-backup",
   "embedded-git",
 ];
