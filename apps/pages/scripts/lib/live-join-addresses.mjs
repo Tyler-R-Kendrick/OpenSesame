@@ -37,3 +37,20 @@ export async function answerAddresses(page, allow = true, timeout = 45_000) {
   await step.getByRole("button", { name: key, exact: true }).click();
   return true;
 }
+
+/**
+ * The owner lets the joiner in (`admit`, its admit control) and the joiner
+ * answers the reply's addresses: one step, so a walk that admits over a
+ * carrier cannot forget the second. A relay seat's reply names none, and
+ * the answer is then nothing to do.
+ */
+export async function admitAndAnswer(
+  admit,
+  page,
+  allow = true,
+  timeout = 45_000,
+) {
+  await admit.waitFor({ timeout: 30_000 });
+  await admit.click();
+  return answerAddresses(page, allow, timeout);
+}

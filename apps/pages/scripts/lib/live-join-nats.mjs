@@ -26,8 +26,8 @@ import { freePort, spawnServer } from "./live-carriers.mjs";
 import { engineOf } from "./live-engines.mjs";
 import { linkRoutes } from "./live-join-profile.mjs";
 import {
+  admitAndAnswer,
   admitControl,
-  answerAddresses,
   endSession,
   joinerAsks,
   peerStates,
@@ -211,11 +211,13 @@ export async function natsSession(browser, owner, binary, mode) {
       init: mode === "fallback" ? [[NO_ROUTE]] : [],
     });
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = admitControl(panel, JOINER);
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
     // A reply that offered a peer route names this machine: allowed.
-    await answerAddresses(joiner.page, true, 60_000);
+    await admitAndAnswer(
+      admitControl(panel, JOINER),
+      joiner.page,
+      true,
+      60_000,
+    );
     await joined(joiner.page).waitFor({ timeout: 60_000 });
     await joiner.page
       .getByRole("button", { name: "Reveal GitHub Value" })

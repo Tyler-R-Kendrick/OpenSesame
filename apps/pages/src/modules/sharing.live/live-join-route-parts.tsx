@@ -254,7 +254,10 @@ export function LiveJoinSession() {
         <RequestWaiting guest={opened.guest} status={opened.status} />
       ) : null}
       {opened.status.at === "addresses" ? (
-        <ReplyAddresses guest={opened.guest} status={opened.status} />
+        <ReplyAddresses
+          addresses={opened.status.addresses}
+          onAnswer={(allow) => void opened.guest.allowAddresses(allow)}
+        />
       ) : null}
       {opened.status.at === "connecting" ? (
         <ConnectingProgress guest={opened.guest} status={opened.status} />

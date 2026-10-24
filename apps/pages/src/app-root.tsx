@@ -40,6 +40,7 @@ import { GateHost } from "./tutorial/gate-seat.js";
 import {
   type VaultStatus,
   useAfterUnlock,
+  useOpenVaultKey,
   useRotationQueue,
   useVaultLanding,
 } from "./app-root-hooks.js";
@@ -221,10 +222,11 @@ function VaultApp() {
   );
 
   useVaultLanding(status, location.pathname, navigate);
+  const shellKey = useOpenVaultKey(tomb, guest === true);
 
   const shell = (
     <AppVaultShell
-      key={JSON.stringify([tomb, guest])}
+      key={shellKey}
       slots={slots}
       wrappers={wrappers}
       routes={routes}
