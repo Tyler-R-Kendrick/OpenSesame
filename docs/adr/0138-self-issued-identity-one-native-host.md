@@ -8,7 +8,10 @@
   (`opensesame helpers link`; `apps/cli/src/entry.rs`); `apps/` holds only
   `android`, `browser-extension`, `browser-extension-autofill`, `cli` and
   `pages`, and the app's own serverless relay is `apps/pages/api` with
-  `apps/pages/server`. Not built: the `desktop` shell, `@opensesame/mcp`
+  `apps/pages/server`; and §2's credential mint for helpers: the daemon's
+  `POST /v1/mint` admits a Unix-socket caller by its kernel-attested peer
+  credentials alone, and the helpers send no operator token
+  (`crates/daemon/src/mint.rs`, `crates/credential-helpers`). Not built: the `desktop` shell, `@opensesame/mcp`
   (`packages/mcp-host` and `packages/mcp-client` remain two packages), the
   Rust MCP module (`opensesame mcp serve`) and the Host's own local OpenID
   provider of §3 (no `rmcp` dependency; no OpenID discovery document, JWKS or

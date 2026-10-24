@@ -1,5 +1,5 @@
-//! `POST /v1/mint` passthrough tests, beside `mint.rs` so the route stays
-//! inside its size budget (ADR 0093).
+//! `POST /v1/mint` tests, beside `mint.rs` so the route stays inside its size
+//! budget (ADR 0093).
 
 use super::*;
 use crate::{router, tests::test_state};
@@ -192,6 +192,9 @@ async fn a_partitioned_gateway_is_502() {
     let json: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(json["error"], "host_api_unreachable");
 }
+
+#[path = "mint_peer_tests.rs"]
+mod peer;
 
 /// Hard per-case deadline: a regression that hangs fails fast instead of
 /// wedging the suite.

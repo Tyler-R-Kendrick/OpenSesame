@@ -242,21 +242,19 @@ fn bound_connection(host: &Host) -> String {
     id
 }
 
-fn helper(stack: &Stack, id: &str, operator: Option<&str>) -> std::process::Output {
+/// The aws helper as an AWS SDK starts it: no operator token, which it would
+/// not read anyway — the daemon admits it by its peer credentials (ADR 0138 §2).
+fn helper(stack: &Stack, id: &str) -> std::process::Output {
     let sock = stack.sock.to_string_lossy().to_string();
-    let mut env = vec![
-        ("OPENSESAME_AGENT_SOCK", sock.as_str()),
-        ("OPENSESAME_AWS_CONNECTION_ID", id),
-        ("OPENSESAME_AWS_DURATION_SECONDS", "1800"),
-    ];
-    if let Some(token) = operator {
-        env.push(("OPENSESAME_OPERATOR_TOKEN", token));
-    }
     run_helper(
         &named::binary("opensesame-credential-process"),
         &[],
         "",
-        &env,
+        &[
+            ("OPENSESAME_AGENT_SOCK", sock.as_str()),
+            ("OPENSESAME_AWS_CONNECTION_ID", id),
+            ("OPENSESAME_AWS_DURATION_SECONDS", "1800"),
+        ],
     )
 }
 
@@ -265,7 +263,7 @@ fn the_helper_prints_the_minted_credential_and_nothing_leaks() {
     let stack = boot(Reply::Assume { expires_in: 1800 });
     let id = bound_connection(&stack.host);
 
-    let out = helper(&stack, &id, Some(OPERATOR));
+    let out = helper(&stack, &id);
     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
     assert!(out.status.success(), "helper failed: {stderr}");
     let printed: Value = serde_json::from_slice(&out.stdout).expect("credential_process JSON");
@@ -332,28 +330,13 @@ fn the_helper_prints_the_minted_credential_and_nothing_leaks() {
 }
 
 #[test]
-fn a_helper_without_the_operator_token_is_refused_by_the_daemon_and_prints_nothing() {
-    let stack = boot(Reply::Assume { expires_in: 900 });
-    let id = bound_connection(&stack.host);
-    let out = helper(&stack, &id, None);
-    assert!(!out.status.success());
-    assert!(out.stdout.is_empty());
-    assert!(
-        String::from_utf8_lossy(&out.stderr).contains("401"),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(stack.stand_in.hits().is_empty(), "nothing may reach STS");
-}
-
-#[test]
 fn an_sts_refusal_reaches_the_helper_as_a_class_and_no_credential() {
     let stack = boot(Reply::Error {
         status: 403,
         code: "AccessDenied",
     });
     let id = bound_connection(&stack.host);
-    let out = helper(&stack, &id, Some(OPERATOR));
+    let out = helper(&stack, &id);
     assert!(!out.status.success());
     assert!(out.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
