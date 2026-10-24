@@ -18,7 +18,8 @@ use super::{
     vault_drive_routes, App,
 };
 
-async fn daemon_health() -> Json<Value> {
+/// Liveness, served by this router and by the tailnet router (`tailnet.rs`).
+pub(super) async fn daemon_health() -> Json<Value> {
     Json(json!({"status":"ok"}))
 }
 
