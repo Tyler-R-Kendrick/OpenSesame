@@ -8,6 +8,7 @@
 
 import { startNostrRelay, startTurnServer } from "./live-carriers.mjs";
 import {
+  admitAndAnswer,
   admitControl,
   endSession,
   joinerAsks,
@@ -84,7 +85,10 @@ const meets = (page, ms) =>
 /** Owner asks nobody to be let in: an open session, codes passed by hand. */
 async function pairByHand(ctx, joiner, { name = JOINER } = {}) {
   const { owner } = ctx;
-  const session = await startSession(owner.page, { admission: "open" });
+  const session = await startSession(owner.page, {
+    admission: "open",
+    sameMachine: false,
+  });
   const request = await joinerAsks(joiner.page, { link: session.link, name });
   const reply = await ownerAdmitsByHand(
     owner.page,
@@ -202,15 +206,16 @@ export async function carried(ctx) {
       addresses: [ADDRESS.a],
       carriers: [{ kind: "nostr", url: relay.url }],
     });
-    const { panel, code, link } = await startSession(owner.page);
+    const { panel, code, link } = await startSession(owner.page, {
+      sameMachine: false,
+    });
     await panel
       .getByRole("img", { name: /^Carrying codes: / })
       .waitFor({ timeout: 20_000 });
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = admitControl(panel, JOINER);
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
+    // The reply names the owner's address: the joiner allows it.
+    await admitAndAnswer(admitControl(panel, JOINER), joiner.page);
     await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
     check(true, "carrier: joined with no code pasted either way");
     const made = await pairs(joiner.page);
@@ -256,12 +261,13 @@ export async function relayed(ctx) {
       relay: true,
       carriers: [{ kind: "nostr", url: relay.url }],
     });
-    const { panel, code, link } = await startSession(owner.page);
+    const { panel, code, link } = await startSession(owner.page, {
+      sameMachine: false,
+    });
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
-    const admit = admitControl(panel, JOINER);
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
+    // A relay seat's reply names no address: nothing to answer.
+    await admitAndAnswer(admitControl(panel, JOINER), joiner.page);
     await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
     for (const [who, page] of [
       ["owner", owner.page],

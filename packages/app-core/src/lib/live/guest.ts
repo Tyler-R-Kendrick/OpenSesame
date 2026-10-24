@@ -36,7 +36,7 @@ import {
   requestView,
   sealRequestPeer,
 } from "./peer-trust-join.js";
-import { Reposter } from "./repost.js";
+import { RequestPosts } from "./repost.js";
 import { type Keypair, newKeypair, newRequestId } from "./seal.js";
 import { SeatChannel, seatName } from "./seat-channel.js";
 import { TimerSlot } from "./timer-slot.js";
@@ -60,12 +60,15 @@ export class LiveGuest {
   #keys: Keypair | null = null;
   #bound: SessionBinding | null = null;
   #trustedOwner: { fingerprint: string; epoch: number } | null = null;
-  readonly #reposts = new Reposter();
+  readonly #posts: RequestPosts;
   #device: ((message: DeviceMessage) => void) | null = null;
   #farewell: Promise<void> = Promise.resolve();
   readonly #ice: GuestIce;
+  /** A reply whose addresses wait for the person to allow (ADR 0150 §6). */
+  #held: { peer: DialLink; reply: JoinReply } | null = null;
 
   constructor(private readonly options: GuestOptions) {
+    this.#posts = new RequestPosts(options.carriers);
     this.#ice = new GuestIce(
       options.routing ?? DIRECT_ROUTING,
       options.now ?? Date.now,
@@ -151,31 +154,9 @@ export class LiveGuest {
       this.#bound = sealed.binding;
       this.#trustedOwner = sealed.owner;
       this.#to(requestView(request, sealed.sas, sealed.unverified));
-      this.#carry(request);
+      this.#posts.carry(request, () => this.#status.at === "request");
     }
     return request;
-  }
-
-  /** Post the request on the carriers, again until it is answered. */
-  #carry(request: string): void {
-    const { carriers } = this.options;
-    if (!carriers) return;
-    void carriers.post(request);
-    this.#reposts.start(
-      () => void carriers.post(request),
-      () => this.#status.at === "request",
-    );
-  }
-
-  #release(after: Promise<void> | null = null): void {
-    this.#reposts.stop();
-    if (this.#relayed) return;
-    const { carriers } = this.options;
-    if (!carriers) return;
-    // A goodbye still on its way out is sent over these carriers: let them go
-    // once it has left, not before.
-    if (after) void after.then(() => carriers.close());
-    else carriers.close();
   }
 
   async accept(text: string): Promise<boolean> {
@@ -200,12 +181,32 @@ export class LiveGuest {
     if (relayOnly !== (reply.answer === "")) return false;
     if (this.#bound && !(await replyHonorsPeer(this.#bound, reply)))
       return false;
-    return this.#connectWithReply(peer, reply);
+    return this.#hold(peer, reply);
+  }
+
+  async #hold(peer: DialLink | null, reply: JoinReply): Promise<boolean> {
+    if (!peer || !reply.addresses?.length)
+      return this.#connectWithReply(peer, reply, []);
+    // The owner's seal says who named these, not that this browser may check
+    // them: nothing is checked until the person decides (ADR 0150 §6).
+    this.#held = { peer, reply };
+    this.#to({ at: "addresses", addresses: reply.addresses });
+    return true;
+  }
+
+  /** The person's answer to the reply's addresses: allow them, or not. */
+  async allowAddresses(allow: boolean): Promise<boolean> {
+    const held = this.#held;
+    this.#held = null;
+    if (!held || this.#status.at !== "addresses") return false;
+    const allowed = allow ? (held.reply.addresses ?? []) : [];
+    return this.#connectWithReply(held.peer, held.reply, allowed);
   }
 
   async #connectWithReply(
     peer: DialLink | null,
     reply: JoinReply,
+    allowed: readonly string[],
   ): Promise<boolean> {
     const session = this.options.carriers?.session ?? "off";
     this.#relayed = reply.relay === "nats" && session !== "off";
@@ -215,7 +216,7 @@ export class LiveGuest {
       return false;
     }
     // The carriers stay open until the catalog comes: asking again uses them.
-    this.#reposts.stop();
+    this.#posts.stop();
     this.#ice.begin(
       peer,
       (status) => this.#to(status),
@@ -236,7 +237,7 @@ export class LiveGuest {
     if (this.#relayed)
       this.#fallback.set(() => void this.#toRelay(), FALLBACK_MS);
     try {
-      await peer.accept(reply.answer);
+      await peer.accept(reply.answer, allowed);
       return true;
     } catch {
       this.#finish();
@@ -315,7 +316,7 @@ export class LiveGuest {
     if (first) {
       this.#greeter.stop();
       this.#connectTimer.clear();
-      this.#release();
+      this.#posts.release(this.#relayed);
     }
     this.#to({ at: "joined", catalog });
   }
@@ -348,6 +349,7 @@ export class LiveGuest {
 
   /** Close this attempt's link and channel; the carriers are another matter. */
   #drop(): Promise<void> | null {
+    this.#held = null;
     this.#greeter.stop();
     this.#connectTimer.clear();
     this.#fallback.clear();
@@ -379,7 +381,7 @@ export class LiveGuest {
     this.#relayed = false;
     this.#ice.stop();
     // The goodbye is posted first and the carriers let go after it.
-    this.#release(this.#drop());
+    this.#posts.release(this.#relayed, this.#drop());
     // The catalog goes with the status it rode on.
     this.#to(end);
   }

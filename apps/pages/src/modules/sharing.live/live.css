@@ -78,6 +78,7 @@
 }
 
 .live-help {
+  display: block;
   margin: 0;
   color: var(--ink-3);
   font-size: 0.8125rem;

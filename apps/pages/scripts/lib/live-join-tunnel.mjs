@@ -54,7 +54,10 @@ export function bindTunnel(walk) {
 async function tunnelWithout(browser, owner, init) {
   setStep("tunnel-no-address");
   await setRoutes(owner.page, {});
-  const session = await startSession(owner.page, { admission: "open" });
+  const session = await startSession(owner.page, {
+    admission: "open",
+    sameMachine: false,
+  });
   const lost = await device(browser, {
     init,
     origin: owner.origin,
@@ -88,7 +91,10 @@ async function tunnelWith(browser, owner, init, address) {
   setStep("tunnel-address");
   await setRoutes(owner.page, { addresses: [address] });
   await shot(owner.page, "tunnel-2-routes");
-  const session = await startSession(owner.page, { admission: "open" });
+  const session = await startSession(owner.page, {
+    admission: "open",
+    sameMachine: false,
+  });
   check(
     !session.link.includes(address),
     "the owner's address is not in the link",

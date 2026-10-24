@@ -25,6 +25,12 @@ export function standing(status: GuestStatus): Standing {
         label: "Waiting for the owner's reply code",
         tray: "Waiting for the owner's reply code",
       };
+    case "addresses":
+      return {
+        tone: "idle",
+        label: "The owner's browser names its addresses",
+        tray: "Allow the owner's addresses, or join without them",
+      };
     case "connecting": {
       const detail = status.ice ? iceStatusLabel(status.ice) : "Connecting";
       return {

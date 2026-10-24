@@ -15,7 +15,13 @@
 
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
-import { joinerAsks, sealLiveKeyboardOwner } from "./live-keyboard-entry.mjs";
+import {
+  allowsByKeyboard,
+  asksForTheCode,
+  joinerAsks,
+  namesThisMachine,
+  sealLiveKeyboardOwner,
+} from "./live-keyboard-entry.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
@@ -133,6 +139,7 @@ async function ownerStarts(page, tabTo) {
     name: "Share personal",
     exact: true,
   });
+  await namesThisMachine(page, panel, tabTo);
   await tabTo(page, panel.getByLabel("Session name"));
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Team");
@@ -143,15 +150,7 @@ async function ownerStarts(page, tabTo) {
   await expect(panel.getByLabel("Share", { exact: true })).toHaveValue("items");
   await tabTo(page, panel.getByRole("checkbox", { name: "GitHub" }));
   await page.keyboard.press("Space");
-  // A session is open to anyone with the link unless the owner asks for the
-  // code too; this walk lets a person in by hand, so it asks for both.
-  await tabTo(page, panel.getByLabel("Who gets in", { exact: true }));
-  await page.keyboard.press("Home");
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Tab");
-  await expect(panel.getByLabel("Who gets in", { exact: true })).toHaveValue(
-    "invite",
-  );
+  await asksForTheCode(page, panel, tabTo);
   const start = panel.getByRole("button", { name: "Share this vault" });
   await expect(start).toBeEnabled();
   await tabTo(page, start);
@@ -219,6 +218,7 @@ async function joinerConnects(page, { reply, tabTo }) {
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(reply);
   await page.keyboard.press("Enter");
+  await allowsByKeyboard(page);
   await expect(
     page.getByRole("img", { name: "Joined Team" }),
     "the two browsers connected",

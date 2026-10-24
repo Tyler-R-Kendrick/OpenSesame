@@ -6,8 +6,14 @@
  */
 
 import { SHARED_ITEM } from "./live-item-labels.mjs";
+import { answerAddresses, namesSameMachine } from "./live-join-addresses.mjs";
 import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
+export {
+  SAME_MACHINE,
+  admitAndAnswer,
+  answerAddresses,
+} from "./live-join-addresses.mjs";
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
   TUNNEL_ONLY,
@@ -188,11 +194,17 @@ async function natsChoices(routes, carrier) {
       .selectOption(carrier.session);
 }
 
+/**
+ * Start a session. `sameMachine` names this machine in Routes first (the
+ * walks' browsers share it); a walk about what an unnamed address does
+ * passes false.
+ */
 export async function startSession(
   page,
-  { admission = "invite", policy = "read" } = {},
+  { admission = "invite", policy = "read", sameMachine = true } = {},
 ) {
-  const { session } = await openLive(page);
+  const { session, routes } = await openLive(page);
+  if (sameMachine) await namesSameMachine(routes);
   await session.getByLabel("Session name").fill("Team");
   await session.getByLabel("Share", { exact: true }).selectOption("items");
   await session
@@ -353,10 +365,11 @@ export async function ownerAdmitsByHand(
   return copyFrom(page, copy);
 }
 
-export async function joinerConnects(page, reply) {
+export async function joinerConnects(page, reply, { allow = true } = {}) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
   // Exact: the top bar's "More — all connected" also contains the word.
   await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await answerAddresses(page, allow);
 }
 
 /** Open a folded `<details>` the way a person does: by its summary. */
