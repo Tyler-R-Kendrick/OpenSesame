@@ -45,7 +45,12 @@ function inventory(directory, base = directory) {
           ? [
               {
                 path: relative(base, path).replaceAll("\\", "/"),
-                sha256: sha(readFileSync(path)),
+                // Pins are content hashes; a checkout may materialize the
+                // sources with platform line endings (core.autocrlf), so
+                // hash the LF-normalized bytes.
+                sha256: sha(
+                  readFileSync(path, "utf8").replaceAll("\r\n", "\n"),
+                ),
               },
             ]
           : [];
@@ -62,7 +67,7 @@ export function readSamlBrowserCryptoInputs(root) {
   const parsed = JSON.parse(packageSource);
   match(parsed.name, "xmldsigjs", "package name");
   match(parsed.version, "2.8.8", "version");
-  const esm = resolve(dirname(metadata), "build/esm");
+  const esm = resolve(dirname(metadata), "build/esm").replaceAll("\\", "/");
   match(
     sha(JSON.stringify(inventory(esm))),
     pins.esmSHA256,
@@ -70,8 +75,11 @@ export function readSamlBrowserCryptoInputs(root) {
   );
   const callers = Object.entries(pins.callers).map(([name, hash]) => {
     const path = resolve(root, saml, name);
-    match(sha(readFileSync(path)), hash, name);
-    return path;
+    // Repo-checkout sources may carry platform line endings; hash LF bytes
+    // as the pins do.
+    match(sha(readFileSync(path, "utf8").replaceAll("\r\n", "\n")), hash, name);
+    // Rollup module ids use `/` on every platform.
+    return path.replaceAll("\\", "/");
   });
   const x509Path = realpathSync(owner.resolve("@peculiar/x509"));
   const x509Root = resolve(dirname(x509Path), "..");
@@ -116,22 +124,31 @@ export function readSamlBrowserCryptoInputs(root) {
     "./ReflectLite.js",
     "official lite export",
   );
-  const application = resolve(esm, "application.js");
-  const certificate = resolve(esm, "pki/x509.js");
+  const application = resolve(esm, "application.js").replaceAll("\\", "/");
+  const certificate = resolve(esm, "pki/x509.js").replaceAll("\\", "/");
   const replacements = new Map([
     [
       application,
-      resolve(implementationRoot, saml, "xml-crypto-application.ts"),
+      resolve(implementationRoot, saml, "xml-crypto-application.ts").replaceAll(
+        "\\",
+        "/",
+      ),
     ],
     [
       certificate,
-      resolve(implementationRoot, saml, "xml-crypto-certificate.ts"),
+      resolve(implementationRoot, saml, "xml-crypto-certificate.ts").replaceAll(
+        "\\",
+        "/",
+      ),
     ],
   ]);
   return {
     esm,
-    sharedCertificate,
-    reflection,
+    sharedCertificate: sharedCertificate.replaceAll("\\", "/"),
+    reflection: {
+      full: reflection.full.replaceAll("\\", "/"),
+      lite: reflection.lite.replaceAll("\\", "/"),
+    },
     callers: callers.slice(0, 3),
     replacements,
     application,
@@ -212,7 +229,7 @@ export function samlBrowserCrypto(root) {
     },
     generateBundle() {
       if (!input) throw new Error("SAML browser crypto was not initialized");
-      const entry = resolve(input.esm, "index.js");
+      const entry = resolve(input.esm, "index.js").replaceAll("\\", "/");
       const info = this.getModuleInfo(entry);
       if (!info) {
         match(transformed.size, 0, "unowned transformation");
@@ -241,7 +258,7 @@ export function samlBrowserCrypto(root) {
       )
         throw new Error("SAML browser retained a second certificate engine");
       for (const name of ["signed_xml.js", "canonicalizer.js"])
-        if (!ids.includes(resolve(input.esm, name)))
+        if (!ids.includes(resolve(input.esm, name).replaceAll("\\", "/")))
           throw new Error("SAML browser lost the official XML verifier");
     },
   };

@@ -18,7 +18,11 @@ function graph(importers = [input.appPath], extra = []) {
       id === input.clientPath ? { importers, dynamicImporters: [] } : null,
     getModuleIds: () => [
       input.clientPath,
-      resolve(dirname(input.appPath), "native-mcp-schema-validator.ts"),
+      // The plugin compares ids in the `/`-normalized space rollup uses.
+      resolve(
+        dirname(input.appPath),
+        "native-mcp-schema-validator.ts",
+      ).replaceAll("\\", "/"),
       "/fixture/node_modules/@cfworker/json-schema/dist/esm/validate.js",
       ...extra,
     ],

@@ -125,6 +125,13 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   "icon.svg": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,
+  // Static content pages served verbatim from `public/` with no module
+  // graph: the web-score journeys crawl them (docs/validation/web-score.md).
+  "404.html": null,
+  "about.html": null,
+  "contact.html": null,
+  "privacy.html": null,
+  "save-button.js": null,
   "auth/native-client.json": "connectors.external",
   "auth.js": "identity.site-broker",
   "auth.js.sha384": "identity.site-broker",
