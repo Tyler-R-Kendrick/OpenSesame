@@ -54,12 +54,12 @@ import {
   storePending,
   takeMatchingPending,
 } from "./federation-pending.js";
-import { readStoredSessionSync } from "./federation-restoration.js";
 import {
   clearFederationSessionJson,
   readFederationSessionJson,
   writeFederationSessionJson,
 } from "./federation-session-store.js";
+import { readStoredSessionSync } from "./federation-stored-session.js";
 import {
   type IdentitySession,
   identitySessionEpoch,
