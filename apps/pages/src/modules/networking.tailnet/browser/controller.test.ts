@@ -237,9 +237,8 @@ it("withdraws a timed-out peer GET before terminating its original drained worke
     await refused;
     expect(worker.terminated).toBe(false);
     worker.emit({ kind: "closeHTTP", closed: true });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(worker.terminated).toBe(true);
+    // The acknowledged drain, not the 60 s bound: waitFor advances ~1 s.
+    await vi.waitFor(() => expect(worker.terminated).toBe(true));
     expect(node.snapshot().status).toBe("stopped");
   } finally {
     vi.useRealTimers();
