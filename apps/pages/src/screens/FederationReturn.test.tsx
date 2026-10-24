@@ -27,6 +27,7 @@ const fed = vi.hoisted(() => ({
   openVaultAfterSignIn: vi.fn(),
 }));
 
+import { federationSessionGeneration } from "@opensesame/app-core/lib/federation-native-session.js";
 import { federationSeams } from "@opensesame/app-core/lib/federation.js";
 const originalFederationSeams = { ...federationSeams };
 Object.assign(federationSeams, {
@@ -258,7 +259,12 @@ describe("FederationReturn", () => {
     });
     renderReturn();
     expect(await screen.findByText("settings landed")).toBeTruthy();
-    expect(fed.adoptBrokeredSession).toHaveBeenCalledWith("at_brokered");
+    // The exchange is bound to the session generation the return began in
+    // (97d68ee57), so a sign-out meanwhile cannot adopt the token.
+    expect(fed.adoptBrokeredSession).toHaveBeenCalledWith(
+      "at_brokered",
+      federationSessionGeneration(),
+    );
     // T23: the pairwise id_token beside it is never linked to this tab's
     // session, and the org join is not this branch either.
     expect(fed.adoptFederatedIdentity).not.toHaveBeenCalled();
