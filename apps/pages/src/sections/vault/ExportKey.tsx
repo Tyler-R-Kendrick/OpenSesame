@@ -18,6 +18,7 @@ import { IconUpload, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import {
   directoryPickerAvailable,
+  downloadBlob,
   pickDirectory,
   saveTextToDirectory,
 } from "../../lib/file-system.js";
@@ -26,6 +27,7 @@ import { useVault } from "../../lib/vault/hooks.js";
 import { withWakeLock } from "../../lib/wake-lock.js";
 import { downloadSeams } from "../../screens/capabilities/download.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { ExportBackupMenu } from "./ExportKey.menu.js";
 import { useAddEntry } from "./add-menu.js";
 
 const NOTICE = "vault-export";
@@ -78,6 +80,28 @@ function useExportActions(vault: ReturnType<typeof useVault>) {
     }
   }, [vault]);
 
+  const download = useCallback(() => {
+    try {
+      const file = offlineBackupFile(vault);
+      downloadBlob(
+        new Blob([file.text], { type: "application/json" }),
+        file.fileName,
+      );
+      setSaved(file.fileName);
+      setError(null);
+      dismissNotice(NOTICE);
+    } catch (caught) {
+      const message = messageOf(caught);
+      setError(message);
+      setStatusNotice({
+        id: NOTICE,
+        tone: "err",
+        title: "Export",
+        body: message,
+      });
+    }
+  }, [vault]);
+
   const saveToFolder = useCallback(async () => {
     try {
       const directory = await pickDirectory();
@@ -98,7 +122,7 @@ function useExportActions(vault: ReturnType<typeof useVault>) {
     }
   }, [vault]);
 
-  return { saved, folderSaved, error, save, saveToFolder };
+  return { saved, folderSaved, error, save, saveToFolder, download };
 }
 
 /**
@@ -114,7 +138,7 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
   const vault = useVault();
   const refusal = exportRefusal(vault);
   const canSaveFolder = directoryPickerAvailable();
-  const { saved, folderSaved, error, save, saveToFolder } =
+  const { saved, folderSaved, error, save, saveToFolder, download } =
     useExportActions(vault);
   const problem = error ?? refusal;
 
@@ -145,6 +169,7 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
           <div className="sheet__grow">
             <h2>Export</h2>
           </div>
+          <ExportBackupMenu disabled={refusal !== null} onDownload={download} />
           <button
             ref={closeRef}
             type="button"
