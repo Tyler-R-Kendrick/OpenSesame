@@ -54,26 +54,33 @@ function storage(): Storage {
   };
 }
 function page(search = ""): PagePort {
+  // The address bar a callback is read from and scrubbed in: replaceUrl moves
+  // it, as history.replaceState does, so the scrub can check it landed.
+  let url = new URL(`https://app.example.com/${search}`);
   return {
-    location: {
-      origin: "https://app.example.com",
-      hostname: "app.example.com",
-      host: "app.example.com",
-      protocol: "https:",
-      pathname: "/",
-      href: `https://app.example.com/${search}`,
-      search,
-      hash: "",
-      assign: (url) => {
-        navigations.push(String(url));
-      },
-      replace: () => {},
-      reload: () => {},
+    get location() {
+      return {
+        origin: url.origin,
+        hostname: url.hostname,
+        host: url.host,
+        protocol: url.protocol,
+        pathname: url.pathname,
+        href: url.href,
+        search: url.search,
+        hash: url.hash,
+        assign: (next: string | URL) => {
+          navigations.push(String(next));
+        },
+        replace: () => {},
+        reload: () => {},
+      };
     },
     opener: null,
     isSecureContext: true,
     visibilityState: "visible",
-    replaceUrl: () => {},
+    replaceUrl: (next) => {
+      url = new URL(next, url);
+    },
     addEventListener: () => {},
     removeEventListener: () => {},
     open: () => null,
@@ -192,12 +199,11 @@ it("edits legacy Auth0 into the shared ledger, preserves the other provider, and
   const auth = new URL(navigations.at(-1) ?? "");
   expect(auth.searchParams.get("code_challenge_method")).toBe("S256");
   expect(auth.searchParams.get("nonce")).toBeTruthy();
-  configureHost(
-    createTestHost({
-      page: page(`?code=code&state=${auth.searchParams.get("state")}`),
-    }),
-  );
+  const callback = page(`?code=code&state=${auth.searchParams.get("state")}`);
+  configureHost(createTestHost({ page: callback }));
   expect((await completeSignIn())?.identity.pairwiseSub).toBe("account-42");
+  // The code and state are scrubbed from the address bar.
+  expect(callback.location.href).toBe("https://app.example.com/");
   expect(loadSession()?.upstreamId).toBe(`identity:${saved.connectionId}`);
   expect(listIdentityConnections()[0]?.status).toBe("active");
 });
