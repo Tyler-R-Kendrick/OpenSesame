@@ -73,6 +73,10 @@ type ListRequest = {
   onerror?: () => void;
   result: BoundaryValue[];
 };
+type TransactionStub = {
+  objectStore: () => object;
+  oncomplete?: () => void;
+};
 type PutRequest = {
   onsuccess?: () => void;
   onerror?: () => void;
@@ -85,21 +89,29 @@ describe("history backup IndexedDB failures", () => {
       open: () => {
         const req: OpenRequest = {};
         req.result = {
-          transaction: () => ({
-            objectStore: () => ({
-              getAll: () => {
-                const listed: ListRequest = { result: [] };
-                queueMicrotask(() => listed.onsuccess?.());
-                return listed;
-              },
-              put: () => {
-                const put: PutRequest = { error: new Error("quota exceeded") };
-                queueMicrotask(() => put.onerror?.());
-                return put;
-              },
-            }),
-          }),
+          // A transaction completes once its requests have run: the
+          // device-sealed store sweeps unsealed rows in one first, and waits
+          // for that transaction to commit before it writes.
+          transaction: () => {
+            const tx: TransactionStub = {
+              objectStore: () => store,
+            };
+            setTimeout(() => tx.oncomplete?.(), 0);
+            return tx;
+          },
           close: () => {},
+        };
+        const store = {
+          getAll: () => {
+            const listed: ListRequest = { result: [] };
+            queueMicrotask(() => listed.onsuccess?.());
+            return listed;
+          },
+          put: () => {
+            const put: PutRequest = { error: new Error("quota exceeded") };
+            queueMicrotask(() => put.onerror?.());
+            return put;
+          },
         };
         queueMicrotask(() => req.onsuccess?.());
         return req;
