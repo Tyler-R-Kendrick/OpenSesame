@@ -10,7 +10,13 @@ import {
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
 import { connectionRouteProvider } from "@opensesame/app-core/sections/connections/provider-route.js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ComponentProps,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
 import { FailureNotice } from "../components/FailureNotice.js";
@@ -57,6 +63,25 @@ import { useIdentitySession } from "../bindings/identity.js";
 import { useVercelConnectConfigured } from "../bindings/vercel-connect.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { useVault } from "../lib/vault/hooks.js";
+type ProviderSettingsProps = Omit<
+  ComponentProps<typeof ConnectorSettingsPage>,
+  "connection"
+> & { connectionId?: string };
+
+function ProviderSettingsPage({
+  connectionId,
+  ...props
+}: ProviderSettingsProps) {
+  if (props.providerId === "custom-oidc") return <CustomOidcConnector />;
+  const connection = connectionId
+    ? (props.connections.find((item) => item.connectionId === connectionId) ??
+      null)
+    : props.connections.length === 1
+      ? (props.connections[0] ?? null)
+      : null;
+  return <ConnectorSettingsPage {...props} connection={connection} />;
+}
+
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
   const { hash, search, pathname } = useLocation();
@@ -213,21 +238,13 @@ export function ConnectionsSection() {
     onFlash: setFlash,
   });
   const { provider, providerConnections } = ai;
-  if (providerId === "custom-oidc") return <CustomOidcConnector />;
-  if (providerId && !ai.target) {
-    const connection = connectionId
-      ? (providerConnections.find(
-          (item) => item.connectionId === connectionId,
-        ) ?? null)
-      : providerConnections.length === 1
-        ? (providerConnections[0] ?? null)
-        : null;
+  if (providerId && (providerId === "custom-oidc" || !ai.target)) {
     return (
-      <ConnectorSettingsPage
+      <ProviderSettingsPage
         provider={provider}
         providers={providers ?? []}
         providerId={providerId}
-        connection={connection}
+        connectionId={connectionId}
         connections={providerConnections}
         loading={
           providers === null || (session !== null && connections === null)
