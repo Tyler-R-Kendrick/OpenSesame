@@ -15,7 +15,14 @@
 
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
-import { joinerAsks, sealLiveKeyboardOwner } from "./live-keyboard-entry.mjs";
+import {
+  allowsByKeyboard,
+  asksForTheCode,
+  joinerAsks,
+  namesThisMachine,
+  returnsToSession,
+  sealLiveKeyboardOwner,
+} from "./live-keyboard-entry.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
@@ -133,6 +140,7 @@ async function ownerStarts(page, tabTo) {
     name: "Share personal",
     exact: true,
   });
+  await namesThisMachine(page, panel, tabTo);
   await tabTo(page, panel.getByLabel("Session name"));
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Team");
@@ -143,14 +151,7 @@ async function ownerStarts(page, tabTo) {
   await expect(panel.getByLabel("Share", { exact: true })).toHaveValue("items");
   await tabTo(page, panel.getByRole("checkbox", { name: "GitHub" }));
   await page.keyboard.press("Space");
-  // This walk hands the joiner a code as well as a link. The default is
-  // link-only admission, so choose the existing invite road explicitly.
-  const admission = panel.getByLabel("Who gets in", { exact: true });
-  await tabTo(page, admission);
-  await page.keyboard.press("Home");
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Tab");
-  await expect(admission).toHaveValue("invite");
+  await asksForTheCode(page, panel, tabTo);
   const start = panel.getByRole("button", { name: "Share this vault" });
   await expect(start).toBeEnabled();
   await tabTo(page, start);
@@ -218,15 +219,8 @@ async function joinerConnects(page, { reply, tabTo }) {
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(reply);
   await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("img", { name: "Joined Team" }),
-    "the two browsers connected",
-  ).toBeVisible({ timeout: 45_000 });
-  await expect(
-    page.locator("#live-status"),
-    "Connect lands on the session's status",
-  ).toBeFocused();
-  await focusIn(page, ".live-join", "after Connect");
+  await allowsByKeyboard(page);
+  await returnsToSession(page, { tabTo, focusIn });
 }
 
 /** The owner removes the guest, the joiner starts over and closes; the owner ends. */
@@ -377,10 +371,13 @@ export async function liveKeyboardContract({
     };
     try {
       await walk();
-    } catch {
+    } catch (error) {
       // One more walk. A loopback check that never completes is the flake
-      // this shard hits; a second pair of browsers gets a new socket.
-      console.error("live keyboard: connection did not form; trying once more");
+      // this shard hits; a second pair of browsers gets a new socket. Say
+      // what stopped the first, so a failure that is not that flake shows.
+      console.error(
+        `live keyboard: the first walk stopped (${error instanceof Error ? error.message.split("\n")[0] : String(error)}); trying once more`,
+      );
       await walk();
     }
   } finally {
