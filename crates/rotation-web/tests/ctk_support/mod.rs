@@ -180,6 +180,8 @@ impl Harness for RotationWebHarness {
                 .iter()
                 .map(|r| serde_json::to_value(r).expect("records serialize"))
                 .collect(),
+            postures: Default::default(),
+            load: None,
         }
     }
 

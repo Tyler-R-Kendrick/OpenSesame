@@ -23,7 +23,7 @@ describe("container build on a pull request", () => {
     expect(yaml).toContain("opensesame:ci");
     expect(yaml).toContain("persist-credentials: false");
     expect(yaml).toContain(
-      "uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0",
+      "uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0",
     );
   });
 
