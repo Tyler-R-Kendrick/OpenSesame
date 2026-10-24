@@ -276,7 +276,7 @@ export async function joinerAsks(
   if (peerTrust) {
     await page.getByLabel("Peer trust signal", { exact: true }).fill(peerTrust);
   }
-  const choice = page.getByRole("checkbox", { name: /^Through / });
+  const choice = page.getByRole("checkbox", { name: /^Pair through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
   const copy = page.getByRole("button", { name: "Copy your join request" });
@@ -382,9 +382,11 @@ export async function joinerSessionSas(page) {
 
 /** The owner's peer trust signal, folded on the live session's panel. */
 export async function unfoldPeerTrust(panel) {
+  // `has` is matched inside each details element, so its locator starts at
+  // the page: one rooted at the panel would look for the panel in there.
   await unfold(
     panel.locator("details.live-advanced").filter({
-      has: panel.locator("summary", { hasText: "Peer trust signal" }),
+      has: panel.page().locator("summary", { hasText: "Peer trust signal" }),
     }),
   );
 }
