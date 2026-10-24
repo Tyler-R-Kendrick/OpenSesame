@@ -1,8 +1,5 @@
-/**
- * The connections a person sees in Add a connection, and the tags that
- * replace the old category subheaders. The allowlist is deliberately small:
- * a provider's catalog row still exists for a saved connection and for
- * Settings › Integrations, but the browse page only offers the curated set.
+/** Curated Add a connection rows and searchable tags.
+ * Other catalog rows remain available to saved connections and Settings.
  */
 import { byoProvidersFirst } from "@opensesame/app-core/lib/catalog-provider.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
@@ -20,20 +17,24 @@ import {
   isFamilyCanonical,
 } from "./catalog-families.js";
 
-// Every managed connector stays except Linq, which the operator retired from
-// this browse list. The source set is the managed-connector registry itself.
+type CatalogFamilyCategories = {
+  readonly microsoft: Provider["category"];
+  readonly vercel: Provider["category"];
+  readonly cloudflare: Provider["category"];
+  readonly google: Provider["category"];
+  readonly azure: Provider["category"];
+  readonly aws: Provider["category"];
+  readonly gcp: Provider["category"];
+};
+
+// The registry owns managed rows; Linq is retired from browse.
 const MANAGED = new Set(
   [...MANAGED_CONNECTOR_IDS].filter((id) => id !== "linq"),
 );
 
-/**
- * Providers deliberately retired from the browse page. Their catalog rows
- * remain for existing saved connections and Settings › Integrations, but a
- * new connection no longer offers them.
- */
+/** Retired from browse; saved connections and Settings retain these rows. */
 const RETIRED_FROM_BROWSE = new Set([
   "assemblyai",
-  "byo-ai",
   "cohere",
   "deepgram",
   "minimax",
@@ -87,7 +88,6 @@ const COMMUNICATION = new Set([
   "x",
   "zoom",
 ]);
-
 const STORAGE = new Set([
   "box",
   "clickhouse",
@@ -98,7 +98,6 @@ const STORAGE = new Set([
   "planetscale",
   "snowflake",
 ]);
-
 const CRM = new Set([
   "attio",
   "clay",
@@ -129,11 +128,7 @@ const ALLOWED = new Set([
   ...AI,
 ]);
 
-/**
- * Tiles that have no bundled Host catalog row yet. They are browse entries
- * backed by the provider's own auth details; a Host that later supplies the
- * same id wins and this copy is not added twice.
- */
+/** Featured browse rows; an actual provider with the same ID takes precedence. */
 function featuredProviders(
   providers: readonly Provider[],
 ): readonly Provider[] {
@@ -209,7 +204,7 @@ function featuredProviders(
       scopes: [],
     },
   ];
-  const categories: Record<string, Provider["category"]> = {
+  const categories: CatalogFamilyCategories = {
     microsoft: "productivity",
     vercel: "developer",
     cloudflare: "developer",
@@ -221,16 +216,27 @@ function featuredProviders(
   for (const family of API_FAMILIES) {
     if (!present.has(family.id))
       rows.push(
-        clone(base, family.id, family.name, categories[family.id] ?? "custom"),
+        clone(
+          base,
+          family.id,
+          family.name,
+          Object.entries(categories).find(([id]) => id === family.id)?.[1] ??
+            "custom",
+        ),
       );
   }
   return rows.filter((provider) => !present.has(provider.id));
 }
 
+export type CatalogSelectionOptions = {
+  includeFeatured?: boolean;
+  includeFamilies?: boolean;
+};
+
 /** BYO leads the curated browse list; partner providers stay alphabetical. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
-  options: { includeFeatured?: boolean; includeFamilies?: boolean } = {},
+  options: CatalogSelectionOptions = {},
 ): Provider[] {
   const source = options.includeFeatured
     ? [...providers, ...featuredProviders(providers)]
