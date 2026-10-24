@@ -2,7 +2,8 @@
 /**
  * Direct live join with two contexts on one runner and default Chromium mDNS
  * hiding (no `WebRtcHideLocalIpsWithMdns` disable). Proves same-machine
- * sessions connect without STUN/TURN after loopback hints are sealed in SDP.
+ * sessions connect without STUN/TURN once the owner names this machine in
+ * Routes and the joiner allows the address the reply names (ADR 0150 §6).
  */
 
 import fs from "node:fs";

@@ -15,7 +15,12 @@
 
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
-import { joinerAsks, sealLiveKeyboardOwner } from "./live-keyboard-entry.mjs";
+import {
+  allowsByKeyboard,
+  joinerAsks,
+  namesThisMachine,
+  sealLiveKeyboardOwner,
+} from "./live-keyboard-entry.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
@@ -133,6 +138,7 @@ async function ownerStarts(page, tabTo) {
     name: "Share personal",
     exact: true,
   });
+  await namesThisMachine(page, panel, tabTo);
   await tabTo(page, panel.getByLabel("Session name"));
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Team");
@@ -219,6 +225,7 @@ async function joinerConnects(page, { reply, tabTo }) {
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(reply);
   await page.keyboard.press("Enter");
+  await allowsByKeyboard(page);
   await expect(
     page.getByRole("img", { name: "Joined Team" }),
     "the two browsers connected",

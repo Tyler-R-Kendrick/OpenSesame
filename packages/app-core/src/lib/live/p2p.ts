@@ -89,10 +89,10 @@ export interface PeerLink {
 /** The joiner's side: made first, finished by the owner's answer. */
 export interface DialLink extends PeerLink {
   /**
-   * Take the answer the owner's reply code carried, with the addresses that
-   * reply names (ADR 0150 §6). Rejects if refused.
+   * Take the answer the owner's reply code carried, with those of the
+   * reply's addresses the person allowed (ADR 0150 §6). Rejects if refused.
    */
-  accept(answer: string, named?: readonly string[]): Promise<void>;
+  accept(answer: string, allowed?: readonly string[]): Promise<void>;
 }
 
 /** What carries live sessions between two browsers. */

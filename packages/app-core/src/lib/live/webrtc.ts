@@ -229,6 +229,8 @@ function opened(channel: RTCDataChannel): Promise<PeerChannel> {
 class RtcLink implements DialLink {
   readonly channel: Promise<LiveChannel>;
   readonly #pc: RTCPeerConnection;
+  /** This side's routes: what it authorized a description to name. */
+  readonly #routing: PeerRouting;
   readonly #failed: (() => void)[] = [];
   readonly #ice = new Set<(view: IceDiagnosticView) => void>();
   #stopIce: (() => void) | null = null;
@@ -239,8 +241,10 @@ class RtcLink implements DialLink {
     pc: RTCPeerConnection,
     readonly handshake: string,
     ready: Promise<PeerChannel>,
+    routing: PeerRouting,
   ) {
     this.#pc = pc;
+    this.#routing = routing;
     this.channel = new Promise((resolve, reject) => {
       this.#abandon = reject;
       ready.then(resolve, reject);
@@ -267,11 +271,16 @@ class RtcLink implements DialLink {
     };
   }
 
-  async accept(answer: string, named: readonly string[] = []): Promise<void> {
+  async accept(answer: string, allowed: readonly string[] = []): Promise<void> {
     // Read and sanitize here too: whatever reaches the browser has been read
-    // strictly and has no candidate aimed at an internal address the owner's
-    // reply did not name.
-    const safe = filterDataChannelSdp(answer, sessionNamedAddresses(named));
+    // strictly and has no candidate aimed at an internal address this side
+    // did not authorize: its own Routes, the reply's addresses the person
+    // allowed, a TURN server of its link.
+    const { addresses, servers } = this.#routing;
+    const safe = filterDataChannelSdp(
+      answer,
+      sessionNamedAddresses([...addresses, ...allowed], servers),
+    );
     if (!safe) throw new Error("bad_answer");
     await this.#pc.setRemoteDescription({ type: "answer", sdp: safe });
   }
@@ -298,7 +307,7 @@ async function dial(
   const ready = opened(pc.createDataChannel(CHANNEL_LABEL, { ordered: true }));
   try {
     await pc.setLocalDescription(await pc.createOffer());
-    return new RtcLink(pc, await gathered(pc, routing), ready);
+    return new RtcLink(pc, await gathered(pc, routing), ready, routing);
   } catch (error) {
     // Nobody holds a connection that never made an offer.
     ready.catch(() => undefined);
@@ -313,10 +322,11 @@ async function answer(
   routing: PeerRouting,
   offer: string,
 ): Promise<PeerLink> {
-  // A joiner's offer may reach only what this owner named, and loopback.
+  // A joiner's offer may reach only what this owner named in Routes, and a
+  // TURN server of its own: loopback only when Routes name this machine.
   const safe = filterDataChannelSdp(
     offer,
-    sessionNamedAddresses(routing.addresses),
+    sessionNamedAddresses(routing.addresses, routing.servers),
   );
   if (!safe) throw new Error("bad_offer");
   const pc = peers(rtcConfig(routing));
@@ -329,7 +339,7 @@ async function answer(
   try {
     await pc.setRemoteDescription({ type: "offer", sdp: safe });
     await pc.setLocalDescription(await pc.createAnswer());
-    return new RtcLink(pc, await gathered(pc, routing), ready);
+    return new RtcLink(pc, await gathered(pc, routing), ready, routing);
   } catch (error) {
     // An offer the browser refuses leaves no connection behind.
     pc.close();

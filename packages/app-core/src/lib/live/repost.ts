@@ -5,7 +5,7 @@
  * answer long after, and a reply on a closed carrier is heard by nobody.
  */
 
-import { REPOSTS, REPOST_MS } from "./guest-types.js";
+import { type GuestCarriers, REPOSTS, REPOST_MS } from "./guest-types.js";
 
 export class Reposter {
   #timer: ReturnType<typeof setInterval> | null = null;
@@ -24,5 +24,41 @@ export class Reposter {
   stop(): void {
     if (this.#timer) clearInterval(this.#timer);
     this.#timer = null;
+  }
+}
+
+/**
+ * A joiner's request on the link's carriers: posted, and again until it is
+ * answered; the carriers let go once the session no longer rides on them.
+ */
+export class RequestPosts {
+  readonly #reposts = new Reposter();
+
+  constructor(private readonly carriers: GuestCarriers | null | undefined) {}
+
+  /** Post `request` now, and again while `waiting()` holds. */
+  carry(request: string, waiting: () => boolean): void {
+    const carriers = this.carriers;
+    if (!carriers) return;
+    void carriers.post(request);
+    this.#reposts.start(() => void carriers.post(request), waiting);
+  }
+
+  /** Stop posting: the request was answered. */
+  stop(): void {
+    this.#reposts.stop();
+  }
+
+  /**
+   * Stop, and close the carriers unless the session is relayed on them. A
+   * goodbye still on its way out is sent over these carriers: let them go
+   * once it has left, not before.
+   */
+  release(relayed: boolean, after: Promise<void> | null = null): void {
+    this.#reposts.stop();
+    const carriers = this.carriers;
+    if (relayed || !carriers) return;
+    if (after) void after.then(() => carriers.close());
+    else carriers.close();
   }
 }

@@ -21,6 +21,7 @@ import { StatusMark } from "../../components/StatusMark.js";
 import { firstControl } from "../../lib/focus.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { LiveCatalog } from "./LiveCatalog.js";
+import { ReplyAddresses } from "./LiveJoinAddresses.js";
 import {
   JoinPersonFields,
   JoinVaultSealFields,
@@ -88,9 +89,7 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
       ) : null}
       {alarm ? <StatusMark tone="err" label={alarm} /> : null}
       {!ready && !busy && disabledReason ? (
-        <p className="live-help" role="status">
-          {disabledReason}
-        </p>
+        <output className="live-help">{disabledReason}</output>
       ) : null}
       <FormCommit
         label="Ask to join"
@@ -254,6 +253,9 @@ export function LiveJoinSession() {
       {opened.status.at === "request" ? (
         <RequestWaiting guest={opened.guest} status={opened.status} />
       ) : null}
+      {opened.status.at === "addresses" ? (
+        <ReplyAddresses guest={opened.guest} status={opened.status} />
+      ) : null}
       {opened.status.at === "connecting" ? (
         <ConnectingProgress guest={opened.guest} status={opened.status} />
       ) : null}
@@ -348,6 +350,8 @@ export function liveJoinLandingFor(
     case "preparing":
     case "request":
       return firstControl(document.getElementById("live-view"));
+    case "addresses":
+      return document.getElementById("live-addresses-allow");
     case "connecting":
     case "connect_timeout":
     case "joined":
