@@ -4,8 +4,10 @@ import { backupEgressGate } from "./backup-egress-gate.js";
  * nudges all route through one sync path when the bound target is enabled.
  */
 import {
+  type LocalBackupTarget,
   bumpLocalBackupPending,
   listLocalBackupTargets,
+  readLocalBackupTarget,
   subscribeLocalBackupTarget,
 } from "./backup-target-local.js";
 import { drainBackupWebhooks, syncVaultBackup } from "./vault-backup-sync.js";
@@ -36,11 +38,27 @@ function statusKey(): string {
 /** A push the device makes on its own, as opposed to one a person asked for. */
 const AUTOMATIC: ReadonlySet<BackupSyncReason> = new Set(["vault", "webhook"]);
 
+function admitted(
+  target: LocalBackupTarget,
+  reason: BackupSyncReason,
+): boolean {
+  return (
+    target.enabled &&
+    (reason === "manual" ||
+      target.kind !== "github_app" ||
+      target.lastSyncedAt !== null)
+  );
+}
+
 async function runSync(reason: BackupSyncReason): Promise<void> {
   // Withdrawn by the operator: nothing, not even a sync asked for by hand.
   if (!backupEgressGate.running()) return;
   if (AUTOMATIC.has(reason) && !backupEgressGate.allowed()) return;
-  const enabled = listLocalBackupTargets().filter((row) => row.enabled);
+  // Selecting a recovery repository authorizes reads, not replacing its backup.
+  // Only a confirmed explicit first write admits subsequent automatic writes.
+  const enabled = listLocalBackupTargets().filter((row) =>
+    admitted(row, reason),
+  );
   if (enabled.length === 0) return;
   if (reason === "webhook" || reason === "vault" || reason === "configured") {
     for (const row of enabled) {
@@ -51,12 +69,18 @@ async function runSync(reason: BackupSyncReason): Promise<void> {
     await inflight;
     return;
   }
-  inflight = syncVaultBackup()
-    .then(() => undefined)
-    .catch(() => undefined)
-    .finally(() => {
-      inflight = null;
-    });
+  // Dispatch only admitted targets: sync-all could also push an uninitialized
+  // App target when another provider is already ready.
+  inflight = (async () => {
+    for (const row of enabled) {
+      const providerId = row.providerId ?? "github";
+      const current = readLocalBackupTarget(providerId);
+      if (!current || !admitted(current, reason)) continue;
+      await syncVaultBackup(providerId).catch(() => undefined);
+    }
+  })().finally(() => {
+    inflight = null;
+  });
   await inflight;
 }
 

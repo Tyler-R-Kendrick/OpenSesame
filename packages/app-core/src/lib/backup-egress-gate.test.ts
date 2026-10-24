@@ -14,6 +14,7 @@ import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { backupEgressGate, backupOriginAllowed } from "./backup-egress-gate.js";
 import {
   clearLocalBackupTarget,
+  readLocalBackupTarget,
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
 import {
@@ -81,7 +82,7 @@ function enabledGithubTarget(): void {
 }
 
 function stubPush() {
-  const putContents = vi.fn(async () => ({ commitSha: "x" }));
+  const putContents = vi.fn(async () => ({ commitSha: "a".repeat(40) }));
   Object.assign(vaultBackupSyncSeams, {
     sealedEnvelopeJson: () => "{}",
     resolveCredentials: () => ({ appId: "1", pem: "pem" }),
@@ -260,6 +261,11 @@ describe("git backup's calls hold inside the operator's policy (ADR 0142)", () =
     // A person asking for it by hand is not an automatic call.
     await vaultBackupObserverSeams.runSync("manual");
     expect(putContents).toHaveBeenCalledTimes(1);
+    expect(readLocalBackupTarget("github")).toMatchObject({
+      status: "ok",
+      lastCommitSha: "a".repeat(40),
+    });
+    expect(readLocalBackupTarget("github")?.lastSyncedAt).not.toBeNull();
     vi.restoreAllMocks();
     plan(true, "allow");
     await vaultBackupObserverSeams.runSync("vault");
