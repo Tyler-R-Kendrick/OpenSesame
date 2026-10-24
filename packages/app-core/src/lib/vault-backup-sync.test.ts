@@ -6,7 +6,7 @@ import {
   readLocalBackupTarget,
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
-import { githubAppRelayBase } from "./github-app-relay.js";
+import { readBackupWriteConfirmation } from "./vault-backup-sync-confirmation.js";
 import { syncVaultBackup, vaultBackupSyncSeams } from "./vault-backup-sync.js";
 
 const original = { ...vaultBackupSyncSeams };
@@ -250,17 +250,31 @@ const INVALID_CONFIRMATIONS = [
   ],
 ];
 
+/** Response/status unit boundary; actual direct App authority and HTTP are exercised separately. */
+function installConfirmationBoundary(
+  providerId: "github" | "gitlab",
+  response: () => Promise<Response>,
+) {
+  const put = vi.fn(async () => readBackupWriteConfirmation(await response()));
+  Object.assign(
+    vaultBackupSyncSeams,
+    providerId === "github" ? { putContents: put } : { putForgeContents: put },
+  );
+  return put;
+}
+
 describe.each(["github", "gitlab"] as const)(
-  "%s backup write confirmation",
+  "%s shared adapter response confirmation",
   (providerId) => {
     it.each(INVALID_CONFIRMATIONS)(
       "rejects %s without advancing the previous successful backup",
       async (_label, body) => {
         enabledConfirmedTarget(providerId);
-        const fetch = vi.fn(async () => new Response(body));
-        vi.stubGlobal("fetch", fetch);
+        const response = vi.fn(async () => new Response(body));
+        const put = installConfirmationBoundary(providerId, response);
         await expect(syncVaultBackup(providerId)).rejects.toThrow(/Backup/);
-        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(response).toHaveBeenCalledTimes(1);
+        expect(put).toHaveBeenCalledTimes(1);
         expectPreviousSuccessPreserved(providerId);
       },
     );
@@ -269,14 +283,14 @@ describe.each(["github", "gitlab"] as const)(
       "preserves a confirmed Git object %s",
       async (commitSha) => {
         enabledConfirmedTarget(providerId);
-        const fetch = vi.fn(async () =>
+        const response = vi.fn(async () =>
           Response.json(
             commitSha === COMMIT_SHA1
               ? { commitSha }
               : { commitSha, ok: true, error: null },
           ),
         );
-        vi.stubGlobal("fetch", fetch);
+        const put = installConfirmationBoundary(providerId, response);
         const result = await syncVaultBackup(providerId);
         expect(result?.status).toBe("ok");
         expect(result?.lastCommitSha).toBe(commitSha);
@@ -284,14 +298,8 @@ describe.each(["github", "gitlab"] as const)(
         expect(result?.lastSyncedAt).not.toBeNull();
         expect(result?.lastError).toBeNull();
         expect(readLocalBackupTarget(providerId)?.pendingEvents).toBe(0);
-        const path =
-          providerId === "github"
-            ? "/api/github-app/put-contents"
-            : "/api/git-backup/put";
-        expect(fetch).toHaveBeenCalledExactlyOnceWith(
-          `${githubAppRelayBase()}${path}`,
-          expect.objectContaining({ method: "POST" }),
-        );
+        expect(response).toHaveBeenCalledTimes(1);
+        expect(put).toHaveBeenCalledTimes(1);
       },
     );
 
@@ -299,11 +307,8 @@ describe.each(["github", "gitlab"] as const)(
       "reports HTTP %s without reflecting provider credentials",
       async (status) => {
         enabledConfirmedTarget(providerId);
-        vi.stubGlobal(
-          "fetch",
-          vi.fn(async () =>
-            Response.json({ error: PRIVATE_VALUE }, { status }),
-          ),
+        installConfirmationBoundary(providerId, async () =>
+          Response.json({ error: PRIVATE_VALUE }, { status }),
         );
         await expect(syncVaultBackup(providerId)).rejects.toThrow(
           `Backup write failed (${status})`,
@@ -315,7 +320,7 @@ describe.each(["github", "gitlab"] as const)(
     it("preserves an actual transport failure without reporting a write", async () => {
       enabledConfirmedTarget(providerId);
       const failure = new TypeError("Network request failed");
-      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(failure));
+      installConfirmationBoundary(providerId, () => Promise.reject(failure));
       await expect(syncVaultBackup(providerId)).rejects.toBe(failure);
       expectPreviousSuccessPreserved(providerId);
     });
@@ -330,10 +335,7 @@ describe.each(["github", "gitlab"] as const)(
         lastCommitSha: null,
         lastSyncedAt: null,
       });
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => Response.json({})),
-      );
+      installConfirmationBoundary(providerId, async () => Response.json({}));
       await expect(syncVaultBackup(providerId)).rejects.toThrow(/Backup/);
       const stored = readLocalBackupTarget(providerId);
       expect(stored?.status).toBe("error");
