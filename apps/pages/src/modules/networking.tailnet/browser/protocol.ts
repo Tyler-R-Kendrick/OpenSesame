@@ -144,16 +144,21 @@ export const WorkerMessage = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("start"), config: Configuration }),
   z.object({ kind: z.literal("login") }),
   z.object({
-    kind: z.literal("get"),
-    id: z.number().int(),
-    url: z.string().url(),
-  }),
-  z.object({
     kind: z.literal("decision"),
     id: z.number().int(),
     allowed: z.boolean(),
   }),
 ]);
+/**
+ * A peer GET the page's egress policy approved for this exact URL. It is never
+ * a `WorkerMessage`: anything holding the Worker can post those, so the worker
+ * accepts this only on the port its original `start` transferred.
+ */
+export const PeerGrant = z.object({
+  kind: z.literal("get"),
+  id: z.number().int(),
+  url: z.string().url(),
+});
 export const HostMessage = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("nativeHTTPReady"), ready: z.boolean() }),
   z.object({ kind: z.literal("closeHTTP"), closed: z.boolean() }),

@@ -4,6 +4,7 @@ import type {
   TailscaleNodeConfiguration,
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
+import type { z } from "zod";
 import { anySignal } from "../../signals.js";
 import {
   NativeStreamRequest,
@@ -32,14 +33,23 @@ export class BrowserNodeRequests {
   }
   private retirement: Promise<boolean> | null = null;
   private retired: ((closed: boolean) => void) | null = null;
+  // Truly private: the page reaches this object and its Worker, never these.
+  readonly #grants = new MessageChannel();
+  readonly #approvePeer: (url: string) => boolean;
   constructor(
     private readonly worker: Pick<Worker, "postMessage">,
     private readonly check: () => void,
     private readonly connected: () => boolean,
-    private readonly approvePeer: (url: string) => boolean,
+    approvePeer: (url: string) => boolean,
     private readonly stop: () => void,
     private readonly nativeEnabled: boolean,
-  ) {}
+  ) {
+    this.#approvePeer = approvePeer;
+  }
+  /** Starts the original worker; the only port it takes peer GETs on goes with it. */
+  start(config: z.input<typeof Configuration>): void {
+    this.worker.postMessage({ kind: "start", config }, [this.#grants.port2]);
+  }
   private assertCurrent = () => {
     this.lifetime.signal.throwIfAborted();
     this.check();
@@ -77,6 +87,7 @@ export class BrowserNodeRequests {
     this.pending.clear();
     for (const resolve of [...this.readiness]) resolve(false);
     this.readiness.clear();
+    this.#grants.port1.close();
     try {
       this.worker.postMessage({ kind: "closeHTTP" });
     } catch {
@@ -88,7 +99,7 @@ export class BrowserNodeRequests {
   get(url: string): Promise<{ status: number; text: string }> {
     this.lifetime.signal.throwIfAborted();
     this.check();
-    if (this.pending.size >= 4 || !this.connected() || !this.approvePeer(url))
+    if (this.pending.size >= 4 || !this.connected() || !this.#approvePeer(url))
       return Promise.reject(
         new Error(
           "Connect a browser node and allow this tailnet service first.",
@@ -120,7 +131,7 @@ export class BrowserNodeRequests {
           finish();
           try {
             this.assertCurrent();
-            if (!this.approvePeer(url))
+            if (!this.#approvePeer(url))
               throw new Error("The original peer grant ended.");
             resolve({ status: message.status, text: message.text });
           } catch {
@@ -128,7 +139,7 @@ export class BrowserNodeRequests {
           }
         },
       });
-      this.worker.postMessage({ kind: "get", id, url });
+      this.#grants.port1.postMessage({ kind: "get", id, url });
     });
   }
   capture(owner: AbortSignal): TailscaleNativeHTTPPort {

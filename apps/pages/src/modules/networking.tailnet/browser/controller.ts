@@ -64,7 +64,11 @@ class BrowserNodeController implements TailscaleBrowserNode {
   private authorized = false;
   private requests: BrowserNodeRequests | null = null;
   private readonly retirement = new BrowserNodeRetirement();
-  constructor(private readonly policy: BrowserNodePolicy) {}
+  // Bound before the node is published; reassigning `policy` widens nothing.
+  readonly #approvePeer: BrowserNodePolicy["approvePeer"];
+  constructor(private readonly policy: BrowserNodePolicy) {
+    this.#approvePeer = policy.approvePeer;
+  }
   snapshot = () => this.view;
   authorization = () => {
     const turn = this.turn;
@@ -173,7 +177,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
         this.worker,
         () => this.check(turn),
         () => this.view.status === "connected" && this.writing === 0,
-        (url) => this.policy.approvePeer(url),
+        this.#approvePeer,
         () => this.stop(),
         stored.record.nativeHTTP !== undefined,
       );
@@ -192,18 +196,12 @@ class BrowserNodeController implements TailscaleBrowserNode {
         this.receive(event.data, turn);
       };
       this.worker.onerror = () => this.fail(turn);
-      this.worker.postMessage({
-        kind: "start",
-        config: {
-          ...config,
-          state: stored.state,
-          nativeHTTP: options.nativeHTTP,
-          peerTLS: stored.record.peerTLS,
-          assets: {
-            ...config.assets,
-            ...options.asset,
-          },
-        },
+      originalRequests.start({
+        ...config,
+        state: stored.state,
+        nativeHTTP: options.nativeHTTP,
+        peerTLS: stored.record.peerTLS,
+        assets: { ...config.assets, ...options.asset },
       });
     } catch (error) {
       if (turn === this.turn) {
