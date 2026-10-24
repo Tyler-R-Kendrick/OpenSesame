@@ -209,6 +209,9 @@ it("rejects pending peer results when a browser node is disconnected", async () 
   node.stop();
   await expect(response).rejects.toThrow("stopped");
   worker.emit({ kind: "get", id: 1, status: 200, text: "late" });
+  expect(worker.terminated).toBe(false);
+  worker.emit({ kind: "closeHTTP", closed: true });
+  await vi.waitFor(() => expect(worker.terminated).toBe(true));
   expect(node.snapshot().status).toBe("stopped");
 });
 it("never admits a connected node or peer request for an authorized netmap without addresses", async () => {
@@ -234,7 +237,7 @@ it("never admits a connected node or peer request for an authorized netmap witho
   );
   node.stop();
 });
-it("terminates the actual worker when a peer GET times out because the SDK has no per-request abort", async () => {
+it("withdraws a timed-out peer GET before terminating its original drained worker", async () => {
   const node = controller();
   await node.start(config);
   const worker = WorkerFixture.current;
@@ -246,6 +249,9 @@ it("terminates the actual worker when a peer GET times out because the SDK has n
     const refused = expect(pending).rejects.toThrow("timed out");
     await vi.advanceTimersByTimeAsync(30_000);
     await refused;
+    expect(worker.terminated).toBe(false);
+    worker.emit({ kind: "closeHTTP", closed: true });
+    await Promise.resolve();
     expect(worker.terminated).toBe(true);
     expect(node.snapshot().status).toBe("stopped");
   } finally {
