@@ -117,14 +117,6 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   [tailscaleArtifacts.assets.license]: "networking.tailnet",
   [tailscaleArtifacts.assets.nativeHTTP]: "networking.tailnet",
   [tailscaleArtifacts.assets.notices]: "networking.tailnet",
-  // Unconditional copied public-site documents, independently parsed as graph entries.
-  "404.html": null,
-  "about.html": null,
-  "contact.html": null,
-  "privacy.html": null,
-  "icon.svg": null,
-  "os-runtime-config.json": null,
-  "security-profile.json": null,
   // Static content pages served verbatim from `public/` with no module
   // graph: the web-score journeys crawl them (docs/validation/web-score.md).
   "404.html": null,
@@ -132,6 +124,9 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   "contact.html": null,
   "privacy.html": null,
   "save-button.js": null,
+  "icon.svg": null,
+  "os-runtime-config.json": null,
+  "security-profile.json": null,
   "auth/native-client.json": "connectors.external",
   "auth.js": "identity.site-broker",
   "auth.js.sha384": "identity.site-broker",
