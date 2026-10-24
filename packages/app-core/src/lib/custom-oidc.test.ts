@@ -2,10 +2,12 @@ import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import {
   type OidcConnectorConfig,
+  beginOidcDevice,
   beginOidcLogin,
   completeOidcLogin,
   discoverOidc,
   oidcConnectorItem,
+  pollOidcDevice,
 } from "./custom-oidc.js";
 
 const config: OidcConnectorConfig = {
@@ -18,6 +20,7 @@ const config: OidcConnectorConfig = {
   clientSecret: "secret-1",
   callbackUrl: "https://app.example/oidc/callback",
   tokenRelayUrl: "",
+  deviceAuthorizationEndpoint: "https://idp.example/device",
   scopes: ["openid", "email"],
   tokenAuth: "client_secret_post",
 };
@@ -137,6 +140,41 @@ describe("custom OIDC", () => {
         { fetchImpl },
       ),
     ).resolves.toMatchObject({ accessToken: "access-1" });
+  });
+
+  it("starts a device authorization and handles pending then tokens", async () => {
+    const authorization = await beginOidcDevice(config, (async () =>
+      Response.json({
+        device_code: "device-1",
+        user_code: "ABCD-EFGH",
+        verification_uri: "https://idp.example/device",
+        expires_in: 60,
+        interval: 1,
+      })) as unknown as typeof fetch);
+    expect(authorization).toMatchObject({
+      deviceCode: "device-1",
+      userCode: "ABCD-EFGH",
+    });
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return calls === 1
+        ? Response.json({ error: "authorization_pending" })
+        : Response.json({
+            access_token: "access-1",
+            token_type: "Bearer",
+            expires_in: 300,
+          });
+    }) as unknown as typeof fetch;
+    await expect(
+      pollOidcDevice(config, authorization, { fetchImpl }),
+    ).resolves.toMatchObject({ status: "pending" });
+    await expect(
+      pollOidcDevice(config, authorization, { fetchImpl }),
+    ).resolves.toMatchObject({
+      status: "tokens",
+      tokens: { accessToken: "access-1" },
+    });
   });
 
   it("refuses a state mismatch", async () => {

@@ -54,6 +54,9 @@ it("derives standard configurable native OAuth from the actual confidential prov
   expect(method?.fields.find((row) => row.id === "redirect_uri")).toMatchObject(
     { displayOnly: true, readOnly: true, defaultValue: callbackUrl },
   );
+  expect(
+    method?.fields.find((row) => row.id === "token_relay_url"),
+  ).toMatchObject({ required: false });
   expect(method?.scopeGroups[0]?.choices).toEqual(f.preset.scopes);
 });
 it.each([
