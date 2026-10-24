@@ -14,9 +14,9 @@ import type { SealedBlob, VaultHeader } from "@opensesame/vault-core";
 import { backupOriginAllowed } from "./backup-egress-gate.js";
 import {
   type LocalBackupTarget,
-  clearLocalBackupPending,
   listLocalBackupTargets,
   readLocalBackupTarget,
+  subscribeLocalBackupTarget,
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
 import {
@@ -40,6 +40,7 @@ export {
   readSavedGithubBackup,
   restoreSavedGithubBackup,
 } from "./vault-backup-github.js";
+import { backupTargetReceipt } from "./vault-backup-github-owner.js";
 import {
   confirmedBackupCommit,
   readBackupWriteConfirmation,
@@ -90,6 +91,8 @@ type PutContentsResult = {
   commitSha: string | null;
   assertCurrent?: () => void;
   close?: () => void;
+  pendingAfter?: (pending: number) => number;
+  publish?: (commit: () => void) => void;
 };
 
 /** Git backup withdrawn, or the relay off the operator's allowlist: no call. */
@@ -262,16 +265,39 @@ export async function pushSavedForgeBackup(
   return result.commitSha;
 }
 
+function backupWriteCompletion(result: PutContentsResult) {
+  return {
+    close: result.close ?? (() => {}),
+    pendingAfter: result.pendingAfter ?? ((_pending: number) => 0),
+    publish: result.publish ?? ((commit: () => void) => commit()),
+  };
+}
+
+function syncTargetOwner(target: LocalBackupTarget, providerKey: string) {
+  const receipt = (row: LocalBackupTarget | null) =>
+    target.kind === "github_app" ? backupTargetReceipt(row) : canonicalize(row);
+  const targetReceipt = receipt(target);
+  let targetValid = true;
+  const stopTarget = subscribeLocalBackupTarget(() => {
+    if (receipt(readLocalBackupTarget(providerKey)) !== targetReceipt)
+      targetValid = false;
+  });
+  const targetCurrent = () =>
+    targetValid &&
+    receipt(readLocalBackupTarget(providerKey)) === targetReceipt;
+  return { current: targetCurrent, close: stopTarget };
+}
+
 async function syncOneTarget(
   target: LocalBackupTarget,
 ): Promise<LocalBackupTarget | null> {
   if (!target.enabled) return target;
   if (target.providerId) performSavedConnector(target.providerId);
   const providerKey = target.providerId ?? "github";
-  const targetReceipt = canonicalize(target);
-  const targetCurrent = () =>
-    canonicalize(readLocalBackupTarget(providerKey)) === targetReceipt;
+  const targetOwner = syncTargetOwner(target, providerKey);
   let close = () => {};
+  let pendingAfter = (_pending: number) => 0;
+  let publish = (commit: () => void) => commit();
   try {
     let commitSha: string | null = null;
     if (target.kind === "git_remote") {
@@ -295,35 +321,37 @@ async function syncOneTarget(
         contentBase64,
         providerId: providerKey,
       });
-      close = result.close ?? close;
+      ({ close, pendingAfter, publish } = backupWriteCompletion(result));
       result.assertCurrent?.();
       commitSha = result.commitSha;
     }
     commitSha = confirmedBackupCommit(commitSha);
-    if (!targetCurrent())
+    if (!targetOwner.current())
       throw new Error("The backup target changed during sync.");
+    const current = readLocalBackupTarget(providerKey);
+    if (!current) throw new Error("The backup target was removed during sync.");
     const next: LocalBackupTarget = {
-      ...target,
+      ...current,
       status: "ok",
       lastCommitSha: commitSha,
       lastSyncedAt: new Date().toISOString(),
       lastError: null,
-      pendingEvents: 0,
+      pendingEvents: pendingAfter(current.pendingEvents),
     };
-    writeLocalBackupTarget(next);
-    clearLocalBackupPending(providerKey);
+    publish(() => writeLocalBackupTarget(next));
     return next;
   } catch (caught) {
     const message =
       caught instanceof Error ? caught.message : "Backup sync failed";
-    if (targetCurrent())
+    if (targetOwner.current())
       writeLocalBackupTarget({
-        ...target,
+        ...(readLocalBackupTarget(providerKey) ?? target),
         status: "error",
         lastError: message,
       });
     throw caught instanceof Error ? caught : new Error(message);
   } finally {
+    targetOwner.close();
     close();
   }
 }
