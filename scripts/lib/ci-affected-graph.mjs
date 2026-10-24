@@ -39,6 +39,7 @@ const PACKAGE_ALL = new Set([
 ]);
 const RUST_META = new Set(["clippy.toml", "deny.toml", "rustfmt.toml"]);
 const EXTRA_SEEDS = [
+  ["tools/pwa-tailscale-native-http", "@opensesame/pages"],
   ["marketplace/item-types", "@opensesame/vault-item-types"],
   ["spec/conformance", "@opensesame/vault-core"],
   ["spec/connectors", "@opensesame/app-core"],

@@ -34,6 +34,28 @@ describe("affected packages", () => {
     expect(plan.verifyPackages).toContain("@opensesame/pages");
   });
 
+  it.each([
+    "tools/pwa-tailscale-native-http/source.json",
+    "tools/pwa-tailscale-native-http/nativehttp.go",
+    "tools/pwa-tailscale-native-http/prepare-distribution.mjs",
+    "tools/pwa-tailscale-native-http/native-toolchain.patch",
+  ])("tests the emitted Pages asset owner for native input %s", (path) => {
+    const plan = planPackages([path], packages);
+    expect(plan.scope).toBe("packages");
+    expect(plan.packages).toEqual(["@opensesame/pages"]);
+    expect(plan.verifyPackages).toContain("@opensesame/pages");
+    expect(plan.lintArtifacts).toBe(true);
+  });
+
+  it("keeps native docs and adjacent unrelated tools outside the package suite", () => {
+    for (const path of [
+      "tools/pwa-tailscale-native-http/README.md",
+      "tools/pwa-tailscale-native-http-extra/build.mjs",
+    ]) {
+      expect(planPackages([path], packages).scope).toBe("none");
+    }
+  });
+
   it("tests Pages when app-core changes", () => {
     const plan = planPackages(
       ["packages/app-core/src/lib/vaults.ts"],
