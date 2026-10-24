@@ -32,7 +32,11 @@ const z4 = createRequire(join(repo, "packages/app-core/package.json"))
 const dir = await mkdtemp(join(tmpdir(), "opensesame-real-worker-protocol-"));
 afterAll(() => rm(dir, { recursive: true, force: true }));
 let sequence = 0;
-async function fixture({ extraImport = "", realm = "tailscale-node" } = {}) {
+async function fixture({
+  extraImport = "",
+  realm = "tailscale-node",
+  neighbor = "",
+} = {}) {
   const work = join(dir, String(sequence++));
   const owner = join(work, "owner.ts");
   const worker =
@@ -43,6 +47,13 @@ async function fixture({ extraImport = "", realm = "tailscale-node" } = {}) {
           "packages/app-core/src/lib/secret-backends/onepassword-sdk.worker.ts",
         );
   await mkdir(dirname(worker), { recursive: true });
+  if (neighbor) {
+    await writeFile(
+      join(dirname(worker), neighbor),
+      "globalThis.unownedPeerHelper = true;",
+    );
+    extraImport += `\nimport ${JSON.stringify(`./${neighbor}`)};`;
+  }
   await writeFile(
     owner,
     `import {z as z3} from ${JSON.stringify(z3)};
@@ -278,3 +289,58 @@ test("the native stream registry stays excluded from password Worker realms", as
     /Worker import crosses its private runtime boundary/,
   );
 });
+
+test.each([
+  ["worker-peer-get.ts", "WorkerPeerGET"],
+  ["sdk-peer-get.ts", "bindNativePeerGET"],
+])(
+  "shipped peer adapter stays in the private native Worker graph: %s",
+  async (file, exported) => {
+    const adapter = join(dirname(streamRegistry), file);
+    const { bundle, work } = await fixture({
+      extraImport: `import {${exported}} from ${JSON.stringify(adapter)};globalThis.originalPeerAdapter=${exported};`,
+    });
+    const root = Object.values(bundle).find(
+      (value) =>
+        value.type === "asset" &&
+        value.fileName.startsWith("assets/tailscale-node-"),
+    );
+    assert.ok(root?.opensesameWorkerChunk);
+    const files = Object.keys(root.opensesameWorkerChunk.modules).map(
+      workerRealmSource,
+    );
+    assert.ok(files.includes(adapter));
+    assert.ok(files.includes(protocol));
+    assert.ok(
+      !files.some(
+        (entry) =>
+          entry?.endsWith("/controller-retirement.ts") ||
+          entry?.endsWith("/controller-requests.ts"),
+      ),
+    );
+    await evaluateProtocol(bundle, root, work);
+  },
+);
+
+test.each(["worker-peer-get-extra.ts", "sdk-peer-get-helper.ts"])(
+  "peer adapter admission rejects an actual adjacent near-name source: %s",
+  async (neighbor) => {
+    await assert.rejects(
+      fixture({ neighbor }),
+      /Worker import crosses its private runtime boundary/,
+    );
+  },
+);
+
+test.each(["worker-peer-get.ts", "sdk-peer-get.ts"])(
+  "peer adapters remain outside password Worker realms: %s",
+  async (file) => {
+    await assert.rejects(
+      fixture({
+        realm: "onepassword-sdk.worker",
+        extraImport: `import ${JSON.stringify(join(dirname(streamRegistry), file))};`,
+      }),
+      /Worker import crosses its private runtime boundary/,
+    );
+  },
+);
