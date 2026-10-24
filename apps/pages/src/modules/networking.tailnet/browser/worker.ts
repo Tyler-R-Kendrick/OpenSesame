@@ -12,8 +12,6 @@ type WorkerDependencies = {
   load: typeof loadBrowserNode;
   egress: typeof installWorkerEgress;
 };
-type Command = ReturnType<typeof WorkerMessage.parse>;
-type Decision = { url: string; method: string; settle(allowed: boolean): void };
 /** One owned realm/client; injection substitutes only the existing SDK boundary in tests. */
 export class BrowserNodeWorker {
   private client: BrowserNodeClient | null = null;
@@ -29,12 +27,7 @@ export class BrowserNodeWorker {
     () => this.client?.nativeHTTP,
     (message) => this.post(message),
   );
-  private decisions = new Map<number, Decision>();
-  private port: MessagePort | null = null;
-  /** The one port the original `start` transferred; every reply leaves on it. */
-  get channel() {
-    return this.port;
-  }
+  private decisions = new Map<number, (value: boolean) => void>();
   constructor(
     private readonly post: (message: HostEvent) => void,
     private readonly dependencies: WorkerDependencies = {
@@ -55,13 +48,9 @@ export class BrowserNodeWorker {
         this.decisions.delete(id);
         resolve(false);
       }, 30000);
-      this.decisions.set(id, {
-        url,
-        method,
-        settle: (allowed) => {
-          clearTimeout(timer);
-          resolve(allowed);
-        },
+      this.decisions.set(id, (allowed) => {
+        clearTimeout(timer);
+        resolve(allowed);
       });
       this.post({ kind: "decision", id, url, method });
     });
@@ -91,21 +80,43 @@ export class BrowserNodeWorker {
       notifyPanicRecover: () => this.panic(),
     });
   }
-  /**
-   * The Worker's own channel: anything holding the Worker object reaches it,
-   * so it only starts the node, once, with exactly one transferred port.
-   */
   receive(event: MessageEvent) {
     const parsed = WorkerMessage.safeParse(event.data);
-    const [port] = event.ports;
-    if (!parsed.success || parsed.data.kind !== "start") return;
-    if (this.started || !port || event.ports.length !== 1) return;
+    if (!parsed.success) return;
+    const message = parsed.data;
+    if (message.kind === "closeHTTP") {
+      this.peer.withdraw();
+      const nativeClosed = this.native.close();
+      void (this.loading ?? Promise.resolve())
+        .catch(() => undefined)
+        .then(async () => {
+          const peerClosed = await this.peer.close();
+          this.post({
+            kind: "closeHTTP",
+            closed: nativeClosed && this.lateNativeClose && peerClosed,
+          });
+        });
+      return;
+    }
+    if (this.native.receive(message)) return;
+    if (message.kind === "decision") {
+      this.decisions.get(message.id)?.(message.allowed);
+      this.decisions.delete(message.id);
+      return;
+    }
+    if (message.kind === "login") {
+      this.client?.login();
+      return;
+    }
+    if (message.kind === "get") {
+      this.peer.get(message.id, message.url);
+      return;
+    }
+    if (this.started) return;
     this.started = true;
-    this.port = port;
-    port.onmessage = (command) => this.command(command);
-    const state = parsed.data.config.state;
+    const state = message.config.state;
     const config = {
-      ...parsed.data.config,
+      ...message.config,
       stateStorage: {
         getState: (id: string) => state[id] ?? "",
         setState: (id: string, value: string) => {
@@ -114,42 +125,12 @@ export class BrowserNodeWorker {
         },
       },
     };
-    this.loading = this.start(config, parsed.data.config.assets);
+    this.loading = this.start(config, message.config.assets);
     void this.loading.catch(() => this.panic());
   }
-  /** The start port: only the page's controller holds its other end. */
-  command(event: MessageEvent) {
-    const parsed = WorkerMessage.safeParse(event.data);
-    if (!parsed.success) return;
-    const message = parsed.data;
-    if (message.kind === "closeHTTP") this.retire();
-    else if (message.kind === "decision") this.settle(message);
-    else if (message.kind === "login") this.client?.login();
-    else if (message.kind === "get") this.peer.get(message.id, message.url);
-    else this.native.receive(message);
-  }
-  private retire() {
-    this.peer.withdraw();
-    const nativeClosed = this.native.close();
-    void (this.loading ?? Promise.resolve())
-      .catch(() => undefined)
-      .then(async () => {
-        const peerClosed = await this.peer.close();
-        this.post({
-          kind: "closeHTTP",
-          closed: nativeClosed && this.lateNativeClose && peerClosed,
-        });
-      });
-  }
-  private settle(answer: Extract<Command, { kind: "decision" }>) {
-    const pending = this.decisions.get(answer.id);
-    if (pending?.url !== answer.url || pending.method !== answer.method) return;
-    this.decisions.delete(answer.id);
-    pending.settle(answer.allowed);
-  }
 }
-const worker: BrowserNodeWorker = new BrowserNodeWorker((message) =>
-  worker.channel?.postMessage(message),
+const worker = new BrowserNodeWorker((message) =>
+  globalThis.postMessage(message),
 );
 globalThis.addEventListener("message", (event: MessageEvent) => {
   if (event.origin !== "" && event.origin !== globalThis.location.origin)

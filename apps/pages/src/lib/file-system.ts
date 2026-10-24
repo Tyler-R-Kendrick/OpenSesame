@@ -8,6 +8,8 @@
  * save dialog; everywhere else it falls back to an anchor download.
  */
 
+import { isFunction } from "@opensesame/os-domain";
+
 export type SaveOutcome = "saved" | "downloaded" | "cancelled";
 
 type SavePickerOptions = {
@@ -28,23 +30,25 @@ type PickerHost = {
   }) => Promise<FileSystemDirectoryHandle>;
 };
 
-function pickerHost(): PickerHost {
-  // SAFETY: every PickerHost member is optional, so the global matches it whether or not this browser has the File System Access API; each caller checks its picker before using it.
-  return globalThis as PickerHost;
+// The File System Access pickers are optional experimental platform methods.
+declare global {
+  var showSaveFilePicker: PickerHost["showSaveFilePicker"];
+  var showOpenFilePicker: PickerHost["showOpenFilePicker"];
+  var showDirectoryPicker: PickerHost["showDirectoryPicker"];
 }
 
 function picker(): PickerHost["showSaveFilePicker"] {
-  const host = pickerHost();
+  const host = globalThis;
   return host.showSaveFilePicker?.bind(host);
 }
 
 function openPicker(): PickerHost["showOpenFilePicker"] {
-  const host = pickerHost();
+  const host = globalThis;
   return host.showOpenFilePicker?.bind(host);
 }
 
 function directoryPicker(): PickerHost["showDirectoryPicker"] {
-  const host = pickerHost();
+  const host = globalThis;
   return host.showDirectoryPicker?.bind(host);
 }
 
@@ -85,10 +89,6 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function cancelled(cause: unknown): boolean {
-  return cause instanceof DOMException && cause.name === "AbortError";
-}
-
 /**
  * Save a Blob. Returns `"saved"` only when the picker wrote and closed the
  * file; `"downloaded"` when the anchor fallback was used; `"cancelled"` when
@@ -114,7 +114,8 @@ export async function saveBlob(
       }
       return "saved";
     } catch (error) {
-      if (cancelled(error)) return "cancelled";
+      if (error instanceof DOMException && error.name === "AbortError")
+        return "cancelled";
     }
   }
   downloadBlob(blob, fileName);
@@ -133,7 +134,7 @@ export async function pickFiles(): Promise<File[] | null> {
     const handles = await choose();
     return Promise.all(handles.map((handle) => handle.getFile()));
   } catch (error) {
-    if (cancelled(error)) return [];
+    if (error instanceof DOMException && error.name === "AbortError") return [];
     throw error;
   }
 }
@@ -158,7 +159,8 @@ export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null>
   try {
     return await choose({ mode: "readwrite" });
   } catch (error) {
-    if (cancelled(error)) return null;
+    if (error instanceof DOMException && error.name === "AbortError")
+      return null;
     throw error;
   }
 }
@@ -221,8 +223,5 @@ export async function saveTextToDirectory(
 
 /** Whether this context exposes the browser's origin private file system. */
 export function originPrivateFilesAvailable(): boolean {
-  return (
-    "navigator" in globalThis &&
-    globalThis.navigator.storage?.getDirectory instanceof Function
-  );
+  return isFunction(globalThis.navigator?.storage?.getDirectory);
 }

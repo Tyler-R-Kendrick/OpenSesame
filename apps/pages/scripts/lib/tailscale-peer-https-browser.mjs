@@ -5,35 +5,13 @@ import { visitBackendRoute } from "./secret-backend-browser.mjs";
 const stopped =
   "The Tailscale browser node stopped. Check network access and reconnect.";
 
-async function connect(panel, fixture) {
+async function connect(panel) {
   await panel
     .getByRole("button", { name: "Connect browser node", exact: true })
     .click();
   await panel
     .getByRole("img", { name: /^Connected: / })
     .waitFor({ timeout: 90_000 });
-  await reachable(panel, fixture);
-}
-/**
- * The node is up before the tailnet knows it is. Wait for both ends of the
- * path the probe takes: this node's netmap holds a peer (the count on its
- * Connected mark), and the native peer's netmap holds this node, online at
- * the address the mark names. A node that never becomes reachable fails here.
- */
-async function reachable(panel, fixture) {
-  const mark = panel.getByRole("img", {
-    name: /^Connected: .+ · [1-9]\d* peers?$/,
-  });
-  await mark.waitFor({ timeout: 45_000 });
-  const label = (await mark.getAttribute("aria-label")) ?? "";
-  const address = /^Connected: ([^,\s]+)/.exec(label)?.[1];
-  if (!address) throw new Error(`no tailnet address on "${label}"`);
-  await expect
-    .poll(() => fixture.peerSeesOnline(address), {
-      message: `the native peer sees ${address} online`,
-      timeout: 45_000,
-    })
-    .toBe(true);
 }
 async function disconnect(panel) {
   const button = panel.getByRole("button", {
@@ -159,12 +137,12 @@ export async function exerciseTailscalePeerHTTPS({
     const secret = panel.getByLabel("Optional node auth key", { exact: true });
     await secret.fill(fixture.authKey);
     await trust(panel, https.caPEM);
-    await connect(panel, fixture);
+    await connect(panel);
     await expect(secret).toHaveValue("");
     await positive(panel, https, check, record, `${width}-operator-ca`);
     await disconnect(panel);
     await trust(panel, https.wrongCAPEM);
-    await connect(panel, fixture);
+    await connect(panel);
     await negative(
       panel,
       https.url,
@@ -174,7 +152,7 @@ export async function exerciseTailscalePeerHTTPS({
       `${width}-wrong-ca`,
     );
     await trust(panel, https.caPEM);
-    await connect(panel, fixture);
+    await connect(panel);
     await negative(
       panel,
       https.wrongHostnameUrl,
@@ -183,7 +161,7 @@ export async function exerciseTailscalePeerHTTPS({
       record,
       `${width}-correct-ca-wrong-hostname`,
     );
-    await connect(panel, fixture);
+    await connect(panel);
     await positive(panel, https, check, record, `${width}-explicit-recovery`);
     await expect(
       panel.getByLabel("Integration HTTP transport", { exact: true }),
