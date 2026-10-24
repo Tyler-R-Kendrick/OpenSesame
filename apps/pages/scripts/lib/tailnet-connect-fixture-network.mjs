@@ -35,6 +35,10 @@ export async function fixtureTls(
       at("ca.key"),
       "-out",
       at("ca.pem"),
+      "-addext",
+      "basicConstraints=critical,CA:TRUE",
+      "-addext",
+      "keyUsage=critical,keyCertSign,cRLSign",
       "-subj",
       "/CN=Tailnet browser fixture CA",
     ]);
