@@ -16,7 +16,7 @@ use bytes::Bytes;
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::{Method, Uri};
 
-use crate::egress::{rule_for, EgressRule};
+use crate::egress::{rule_for, AuthStyle, EgressRule};
 use crate::error::InvokeError;
 use crate::invoke::InvokeRequest;
 
@@ -62,6 +62,9 @@ pub fn forwardable_request_header(provider_id: &str, name: &str) -> bool {
 #[derive(Debug)]
 pub struct PreparedRequest {
     pub(crate) provider_id: String,
+    /// How the cleared rule presents a credential; the executor refuses any
+    /// other way.
+    pub(crate) auth: AuthStyle,
     pub(crate) method: Method,
     pub(crate) uri: Uri,
     pub(crate) scheme: String,
@@ -179,6 +182,7 @@ impl EgressFence {
         }
         Ok(PreparedRequest {
             provider_id: req.provider_id,
+            auth: rule.auth,
             method,
             path: uri.path().to_string(),
             uri,
