@@ -41,14 +41,26 @@ function fixture(t) {
   });
   writeFileSync(
     join(dir, "bin/pnpm"),
-    '#!/bin/sh\nprintf "%s\\n" "$*" >> "$BOOTSTRAP_TEST_LOG"\n[ "${BOOTSTRAP_TEST_FAIL:-}" != 1 ] || exit 3\nmkdir -p node_modules\ntouch node_modules/.modules.yaml\n',
+    [
+      "#!/bin/sh",
+      'printf "%s\\n" "$*" >> "$BOOTSTRAP_TEST_LOG"',
+      'printf "%s\\n" "${CI:-}" >> "$BOOTSTRAP_TEST_CI_LOG"',
+      '[ "${BOOTSTRAP_TEST_FAIL:-}" != 1 ] || exit 3',
+      '[ "${BOOTSTRAP_TEST_CANCEL:-}" != 1 ] || exit 0',
+      "mkdir -p node_modules/.pnpm",
+      '[ "${BOOTSTRAP_TEST_NO_MODULES:-}" = 1 ] || touch node_modules/.modules.yaml',
+      '[ "${BOOTSTRAP_TEST_NO_LOCK:-}" = 1 ] || cp pnpm-lock.yaml node_modules/.pnpm/lock.yaml',
+      "",
+    ].join("\n"),
     { mode: 0o755 },
   );
   const log = join(dir, "calls.txt");
+  const ciLog = join(dir, "ci.txt");
   const env = {
     ...process.env,
     PATH: `${join(dir, "bin")}:${process.env.PATH}`,
     BOOTSTRAP_TEST_LOG: log,
+    BOOTSTRAP_TEST_CI_LOG: ciLog,
   };
   for (const name of [
     "OPENSESAME_AGENT_BOOTSTRAP",
@@ -57,16 +69,20 @@ function fixture(t) {
     "OPENSESAME_AUTH_SECRET",
   ])
     delete env[name];
-  const run = (extra = {}) =>
-    spawnSync("bash", [".claude/hooks/session-start.sh"], {
+  const invoke = (script, extra) =>
+    spawnSync("bash", [script], {
       cwd: dir,
       encoding: "utf8",
       env: { ...env, ...extra },
       stdio: ["ignore", "pipe", "pipe"],
+      timeout: 10000,
     });
+  const run = (extra = {}) => invoke(".claude/hooks/session-start.sh", extra);
+  const install = (extra = {}) =>
+    invoke("scripts/dev/install-dependencies.sh", extra);
   const calls = () =>
     existsSync(log) ? readFileSync(log, "utf8").trim().split("\n") : [];
-  return { dir, run, calls };
+  return { dir, run, install, calls, ciLog };
 }
 
 test("session and remote harness flags do not implicitly install or generate", (t) => {
@@ -131,4 +147,93 @@ test("an untracked new workspace manifest invalidates the install fingerprint", 
     "install --frozen-lockfile",
     "install --frozen-lockfile",
   ]);
+});
+
+test("direct installs force noninteractive pnpm and reuse a matching installation", (t) => {
+  const f = fixture(t);
+  const first = f.install({ CI: "false" });
+  assert.equal(first.status, 0, first.stderr);
+  assert.deepEqual(f.calls(), ["install --frozen-lockfile"]);
+  assert.equal(readFileSync(f.ciLog, "utf8"), "true\n");
+  const marker = join(f.dir, "node_modules/.cache/opensesame-install.sha256");
+  const fingerprint = readFileSync(marker, "utf8");
+  const second = f.install();
+  assert.equal(second.status, 0, second.stderr);
+  assert.match(second.stdout, /current lockfile already installed/);
+  assert.deepEqual(f.calls(), ["install --frozen-lockfile"]);
+  assert.equal(readFileSync(marker, "utf8"), fingerprint);
+});
+
+test("an exit-zero cancelled reinstall cannot bless a stale virtual-store lock", (t) => {
+  const f = fixture(t);
+  assert.equal(f.install().status, 0);
+  const installedLock = join(f.dir, "node_modules/.pnpm/lock.yaml");
+  writeFileSync(installedLock, "lockfileVersion: '9.0'\n# stale install\n");
+  const cancelled = f.install({ BOOTSTRAP_TEST_CANCEL: "1" });
+  assert.equal(cancelled.status, 1, cancelled.stderr);
+  assert.match(
+    cancelled.stderr,
+    /installed virtual-store lockfile does not match/,
+  );
+  assert.equal(
+    existsSync(join(f.dir, "node_modules/.cache/opensesame-install.sha256")),
+    false,
+  );
+  assert.equal(f.calls().length, 2);
+  const recovered = f.install();
+  assert.equal(recovered.status, 0, recovered.stderr);
+  assert.equal(
+    readFileSync(installedLock, "utf8"),
+    readFileSync(join(f.dir, "pnpm-lock.yaml"), "utf8"),
+  );
+  assert.equal(f.calls().length, 3);
+});
+
+test("exit-zero installs missing either pnpm manifest do not get a marker", (t) => {
+  for (const failure of [
+    { BOOTSTRAP_TEST_NO_MODULES: "1" },
+    { BOOTSTRAP_TEST_NO_LOCK: "1" },
+  ]) {
+    const f = fixture(t);
+    const incomplete = f.install(failure);
+    assert.equal(incomplete.status, 1, incomplete.stderr);
+    assert.equal(
+      existsSync(join(f.dir, "node_modules/.cache/opensesame-install.sha256")),
+      false,
+    );
+    assert.equal(f.install().status, 0);
+    assert.equal(f.calls().length, 2);
+  }
+});
+
+test("cache hits require both pnpm manifests even with a matching marker", (t) => {
+  for (const missing of [".modules.yaml", ".pnpm/lock.yaml"]) {
+    const f = fixture(t);
+    assert.equal(f.install().status, 0);
+    rmSync(join(f.dir, "node_modules", missing));
+    const repaired = f.install();
+    assert.equal(repaired.status, 0, repaired.stderr);
+    assert.equal(f.calls().length, 2);
+    assert.equal(f.install().status, 0);
+    assert.equal(f.calls().length, 2);
+  }
+});
+
+test("a changed lock and failed install invalidate the earlier success marker", (t) => {
+  const f = fixture(t);
+  assert.equal(f.install().status, 0);
+  writeFileSync(
+    join(f.dir, "pnpm-lock.yaml"),
+    "lockfileVersion: '9.0'\n# new resolution\n",
+  );
+  const failed = f.install({ BOOTSTRAP_TEST_FAIL: "1" });
+  assert.equal(failed.status, 3, failed.stderr);
+  assert.equal(
+    existsSync(join(f.dir, "node_modules/.cache/opensesame-install.sha256")),
+    false,
+  );
+  assert.equal(f.install().status, 0);
+  assert.equal(f.calls().length, 3);
+  assert.equal(f.install().status, 0);
+  assert.equal(f.calls().length, 3);
 });
