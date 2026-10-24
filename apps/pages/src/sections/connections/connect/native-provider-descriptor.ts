@@ -190,12 +190,24 @@ function mcpDescriptor(
               name: scope,
               description:
                 "Permission advertised by the provider's MCP authorization server.",
-              default: false,
+              default: metadata.defaultScopes?.includes(scope) === true,
             })),
           },
         ]
       : [],
   };
+}
+
+/** The published MCP road, and its configurable modes unless the plan withholds them. */
+function publishedMcpDescriptor(
+  plan: ConnectPlan,
+  method: Extract<ConnectMethod, { kind: "mcp" }>,
+  availability: BrowserProviderAvailability["mcp"],
+): NativeMethodDescriptor {
+  const published = mcpDescriptor(method, availability);
+  return method.mcp.status === "ok" && method.mcp.configurable === false
+    ? published
+    : configuredMcpDescriptor(plan.id, method.mcp, published);
 }
 
 function publicOAuthDescriptor(
@@ -312,13 +324,7 @@ function providerMethods(
     if (method.kind === "oauth")
       methods.push(publicOAuthDescriptor(plan, availability, method));
     if (method.kind === "mcp")
-      methods.push(
-        configuredMcpDescriptor(
-          plan.id,
-          method.mcp,
-          mcpDescriptor(method, availability.mcp),
-        ),
-      );
+      methods.push(publishedMcpDescriptor(plan, method, availability.mcp));
   }
   if (!methods.some((method) => method.id === "oauth")) {
     const additional = additionalOAuthMethod(plan, availability);
@@ -331,9 +337,14 @@ export function nativeProviderDescriptor(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
 ): NativeConnectorDescriptor {
-  const methods = providerMethods(plan, availability).map((method) =>
-    nativePolicyMethod(plan.id, method),
-  );
+  const methods = providerMethods(plan, availability)
+    .map((method) => nativePolicyMethod(plan.id, method))
+    // A plan with a primary method offers only that road here; its other
+    // methods are an explicit fallback its own page draws.
+    .filter(
+      (method) =>
+        plan.primaryMethod === undefined || method.id === plan.primaryMethod,
+    );
   if (methods.length === 0)
     methods.push({
       id: "oauth",
