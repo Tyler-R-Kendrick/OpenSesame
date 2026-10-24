@@ -245,6 +245,8 @@ async function runOwnedApi<Result>(
   caller: AbortSignal,
   call: (transport: NativeProviderTransport) => Promise<Result>,
 ) {
+  // A caller that has already gone captures no route.
+  if (caller.aborted) throw new LeaseAbortedError();
   const transport = ownedApiTransport(capture(), caller);
   try {
     const result = await call(transport);
