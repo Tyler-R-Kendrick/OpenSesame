@@ -37,6 +37,77 @@ export function releaseNativeMcpRegistrationReservation(
   if (entry?.intentId === intentId && entry.client === null)
     retained.delete(id);
 }
+/** A registration that can never be sealed: clear its obligation so the connector stays removable. */
+export async function discardNativeMcpRegistration(
+  id: string,
+  intentId: string,
+): Promise<void> {
+  const current = requireNativeMcpRecord(id);
+  await updateNativeConnector(
+    id,
+    nativeOAuthGuard(current),
+    MCP_CLASSIFICATION,
+    (record) => {
+      record.privateState.recovery = record.privateState.recovery.filter(
+        (entry) => entry.id !== intentId,
+      );
+      return record;
+    },
+  );
+  forgetRetainedNativeMcpRegistration(id, intentId);
+}
+/**
+ * Seal a retained registration into its obligation. A durable write that failed
+ * after the record encoded is "storage": the copy stays for a retry. A record
+ * the encoder or schema refused, or an obligation that is gone, is "metadata":
+ * the copy can never be sealed. Anything before the update ran is rethrown.
+ */
+async function sealRetained(
+  id: string,
+  intentId: string,
+  fingerprint: string,
+  client: string,
+): Promise<void> {
+  const current = requireNativeMcpRecord(id);
+  let accepted = false;
+  let encoded = false;
+  try {
+    await updateNativeConnector(
+      id,
+      nativeOAuthGuard(current),
+      MCP_CLASSIFICATION,
+      (record) => {
+        const intent = record.privateState.recovery.find(
+          (candidate) => candidate.id === intentId,
+        );
+        if (
+          !intent ||
+          intent.fingerprint !== fingerprint ||
+          intent.kind !== "registration"
+        )
+          throw new NativeMcpAuthError("metadata");
+        record.privateState.credentials.mcp_client = client;
+        intent.credentials = {
+          ...intent.credentials,
+          client,
+          phase: "registered",
+        };
+        accepted = true;
+        return record;
+      },
+      undefined,
+      () => {
+        encoded = true;
+      },
+    );
+  } catch (error) {
+    if (encoded) throw new NativeMcpAuthError("storage");
+    if (accepted) throw new NativeMcpAuthError("metadata");
+    throw error;
+  }
+  retained.delete(id);
+}
+/** First seal; admission settles a refusal, so this never discards. */
 export async function retainNativeMcpRegistration(
   id: string,
   intentId: string,
@@ -44,38 +115,21 @@ export async function retainNativeMcpRegistration(
   client: NativeMcpRegisteredClient,
 ): Promise<void> {
   assertNativeMcpRegistrationCapacity(id);
-  retained.set(id, { intentId, fingerprint, client: JSON.stringify(client) });
-  await retryRetainedNativeMcpRegistration(id);
+  const sealed = JSON.stringify(client);
+  retained.set(id, { intentId, fingerprint, client: sealed });
+  await sealRetained(id, intentId, fingerprint, sealed);
 }
+/** A later seal: a copy whose content is still refused ends as the removable metadata refusal. */
 export async function retryRetainedNativeMcpRegistration(
   id: string,
 ): Promise<void> {
   const entry = retained.get(id);
   if (!entry?.client) return;
-  const client = entry.client;
-  const current = requireNativeMcpRecord(id);
-  await updateNativeConnector(
-    id,
-    nativeOAuthGuard(current),
-    MCP_CLASSIFICATION,
-    (record) => {
-      const intent = record.privateState.recovery.find(
-        (candidate) => candidate.id === entry.intentId,
-      );
-      if (
-        !intent ||
-        intent.fingerprint !== entry.fingerprint ||
-        intent.kind !== "registration"
-      )
-        throw new NativeMcpAuthError("storage");
-      record.privateState.credentials.mcp_client = client;
-      intent.credentials = {
-        ...intent.credentials,
-        client,
-        phase: "registered",
-      };
-      return record;
-    },
-  );
-  retained.delete(id);
+  try {
+    await sealRetained(id, entry.intentId, entry.fingerprint, entry.client);
+  } catch (error) {
+    if (error instanceof NativeMcpAuthError && error.code === "metadata")
+      await discardNativeMcpRegistration(id, entry.intentId);
+    throw error;
+  }
 }

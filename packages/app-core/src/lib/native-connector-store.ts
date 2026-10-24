@@ -284,13 +284,19 @@ function invalidateChangedAuthority(
   }
 }
 
-/** Full record guard preserves concurrent grant rotations and cleanup journals. */
+/**
+ * Full record guard preserves concurrent grant rotations and cleanup journals.
+ * `afterEncode` runs once the next record passed every schema and binding
+ * check, before the durable write: a failure after it is the write's, not the
+ * record's.
+ */
 export async function updateNativeConnector(
   connectionId: string,
   guard: NativeRevisionGuard,
   classification: NativeFieldClassification,
   update: (record: NativeConnectorRecord) => NativeConnectorRecord,
   beforeCommit?: () => void,
+  afterEncode?: () => void,
 ): Promise<NativeConnectorView> {
   let result: NativeConnectorRecord | null = null;
   await updateDeviceConfigurationDurable(
@@ -313,6 +319,7 @@ export async function updateNativeConnector(
         stored.row.createdAt,
       );
       result = parseRecord(encoded);
+      afterEncode?.();
       return encoded;
     },
     beforeCommit,
