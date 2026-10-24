@@ -1,5 +1,5 @@
 import "./worker-csp.js";
-import { type HostEvent, WorkerMessage } from "./protocol.js";
+import { type HostEvent, PeerGrant, WorkerMessage } from "./protocol.js";
 import {
   type BrowserNodeAssets,
   type BrowserNodeClient,
@@ -80,6 +80,11 @@ export class BrowserNodeWorker {
       notifyPanicRecover: () => this.panic(),
     });
   }
+  /** Only the page's egress decision holds the other end of this port. */
+  private grant(event: MessageEvent) {
+    const parsed = PeerGrant.safeParse(event.data);
+    if (parsed.success) this.peer.get(parsed.data.id, parsed.data.url);
+  }
   receive(event: MessageEvent) {
     const parsed = WorkerMessage.safeParse(event.data);
     if (!parsed.success) return;
@@ -108,12 +113,11 @@ export class BrowserNodeWorker {
       this.client?.login();
       return;
     }
-    if (message.kind === "get") {
-      this.peer.get(message.id, message.url);
-      return;
-    }
     if (this.started) return;
     this.started = true;
+    const [grants] = event.ports;
+    if (grants && event.ports.length === 1)
+      grants.onmessage = (grant) => this.grant(grant);
     const state = message.config.state;
     const config = {
       ...message.config,
