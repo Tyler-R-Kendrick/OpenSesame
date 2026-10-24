@@ -43,8 +43,8 @@ export const LOCAL_NOTIFICATIONS_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "settings.local-notifications"',
+      // Settings is only drawn unlocked, so the tour needs no wait for it.
       'say "A request that is waiting is shown on the bell. Here you can also have it in the tab title and, if you allow it, as a system notification when the app is in the background. Nothing leaves this device, and a notification never approves anything."',
-      'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/features"',
       'wait route "/settings/features" timeout=15000',
       'scroll "feature.local-notifications"',
@@ -52,7 +52,8 @@ export const LOCAL_NOTIFICATIONS_GOALS: readonly GuideGoalDescriptor[] = [
       'navigate "/settings/features/local-notifications"',
       'wait route "/settings/features/local-notifications" timeout=15000',
       'focus "settings.local-notifications" "The browser asks for permission only when you press the key for system notifications. The bell and the Requests list always show what is waiting." side=bottom',
-      "end",
+      // No closing `end`: a model may emit this guide, within its eight
+      // instructions, and a tour closes after its last step without one.
     ].join("\n"),
   },
 ];
