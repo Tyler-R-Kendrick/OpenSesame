@@ -138,7 +138,8 @@ No check in the page can see that. The deployment bounds it:
 - on the shared `github.io` origin, every other Pages site of the same
   account is same-origin, and a dedicated origin removes that.
 
-Audit: `docs/security/audits/2026-10-24-tailnet-worker-peer-get.md`.
+Audits: `docs/security/audits/2026-10-24-tailnet-worker-peer-get.md`, and the
+follow-up `docs/security/audits/2026-10-24-tailnet-worker-port-reland.md`.
 
 References:
 
