@@ -268,6 +268,16 @@ async function changedKey(browser, session) {
   // card behind the bell names the changed key.
   await waitForTray(page, 20_000);
   await expectInTray(page, CHANGED);
+  // Asking made this joiner's vault and the form mounted again: the row the
+  // person asked from still carries the refusal and holds its Ask key.
+  const form = page
+    .locator("form")
+    .filter({ has: page.getByLabel("Your name") });
+  await form.getByRole("img", { name: CHANGED }).waitFor({ timeout: 20_000 });
+  check(
+    await form.getByRole("button", { name: /^Ask to join/ }).isDisabled(),
+    "changed key holds the Ask key",
+  );
   check(
     (await page
       .getByRole("button", { name: "Copy your join request" })
