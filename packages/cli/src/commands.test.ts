@@ -290,7 +290,7 @@ describe("runCli — logout", () => {
       issuer: ISSUER,
       clientId: "opensesame-cli",
     });
-    const captured: { revoked: URLSearchParams | null } = { revoked: null };
+    const revoked: URLSearchParams[] = [];
     const fetchImpl = routerFetch(
       (url) =>
         url.includes("/.well-known/openid-configuration")
@@ -301,7 +301,7 @@ describe("runCli — logout", () => {
           : undefined,
       (url, init) => {
         if (url.endsWith("/oauth2/revoke")) {
-          captured.revoked = new URLSearchParams(String(init?.body));
+          revoked.push(new URLSearchParams(String(init?.body)));
           return new Response(null, { status: 200 });
         }
         if (url.endsWith("/v1/principals/provisional/revoke"))
@@ -311,8 +311,8 @@ describe("runCli — logout", () => {
     );
     const code = await runCli(["logout", "--issuer", ISSUER], { fetchImpl });
     expect(code).toBe(0);
-    expect(captured.revoked?.get("token")).toBe("rt-oidc");
-    expect(captured.revoked?.get("token_type_hint")).toBe("refresh_token");
+    expect(revoked[0]?.get("token")).toBe("rt-oidc");
+    expect(revoked[0]?.get("token_type_hint")).toBe("refresh_token");
     await expect(readFile(sessionFile(), "utf8")).rejects.toThrow();
   });
 

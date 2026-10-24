@@ -1,4 +1,4 @@
-import type { ServerResponse } from "node:http";
+import type { OutgoingHttpHeaders, ServerResponse } from "node:http";
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
@@ -13,14 +13,21 @@ import {
 // reinterpreted as HTML, and the self-posting HTML forms escape every
 // reflected value and ship a no-load policy.
 
+/** What a handler wrote to the stand-in response. */
+type CapturedResponse = {
+  status: number;
+  headers: OutgoingHttpHeaders;
+  body: string;
+};
+
 function fakeResponse() {
-  const captured: { status: number; headers: unknown; body: string } = {
+  const captured: CapturedResponse = {
     status: 0,
     headers: {},
     body: "",
   };
   const res = {
-    writeHead(status: number, headers: unknown) {
+    writeHead(status: number, headers: OutgoingHttpHeaders) {
       captured.status = status;
       captured.headers = headers;
       return res;
@@ -30,13 +37,12 @@ function fakeResponse() {
       return res;
     },
   };
-  return { res: overlapCast<ServerResponse>(res), captured };
+  const response: ServerResponse = overlapCast(res);
+  return { res: response, captured };
 }
 
-function header(captured: { headers: unknown }, name: string): string {
-  return String(
-    overlapCast<Record<string, string>>(captured.headers)[name] ?? "",
-  );
+function header(captured: CapturedResponse, name: string): string {
+  return String(captured.headers[name] ?? "");
 }
 
 describe("http response hygiene", () => {

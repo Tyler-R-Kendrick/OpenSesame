@@ -3,10 +3,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
+  type JsonValue,
   configuredEndpoint,
   isJsonObject,
   isString,
   overlapCast,
+  readJsonObject,
+  readString,
 } from "@opensesame/os-domain";
 import {
   DeviceFlowClient,
@@ -111,6 +114,25 @@ interface DispatchContext {
   deps: RunDependencies | undefined;
 }
 
+/** The public half of a stored agent identity, refused unless both halves are an EC P-256 pair. */
+function storedAgentPublicKey(text: string): JsonWebKey {
+  const raw: JsonValue = JSON.parse(text);
+  const file = readJsonObject(raw);
+  const privateJwk = readJsonObject(file?.privateJwk);
+  const publicJwk = readJsonObject(file?.publicJwk);
+  const x = readString(publicJwk?.x);
+  const y = readString(publicJwk?.y);
+  if (
+    privateJwk?.d === undefined ||
+    publicJwk?.kty !== "EC" ||
+    publicJwk.crv !== "P-256" ||
+    !x ||
+    !y
+  )
+    throw new Error("Agent identity file is invalid.");
+  return { crv: "P-256", kty: "EC", x, y };
+}
+
 /**
  * The agent's public-key thumbprint is an identity, not a random label. Keep
  * the private half in the CLI state directory so the same agent can prove
@@ -135,31 +157,10 @@ async function agentPublicKeyThumbprint(): Promise<string> {
       .digest("base64url");
 
   try {
-    const raw = JSON.parse(await readFile(path, "utf8")) as {
-      privateJwk?: JsonWebKey;
-      publicJwk?: JsonWebKey;
-    };
-    const privateJwk = raw.privateJwk;
-    const publicJwk = raw.publicJwk;
-    if (
-      !privateJwk ||
-      !publicJwk ||
-      privateJwk.d === undefined ||
-      publicJwk.kty !== "EC" ||
-      publicJwk.crv !== "P-256" ||
-      !publicJwk.x ||
-      !publicJwk.y
-    )
-      throw new Error("Agent identity file is invalid.");
-    return thumbprint(publicJwk);
+    return thumbprint(storedAgentPublicKey(await readFile(path, "utf8")));
   } catch (error) {
     if (
-      !(
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        error.code === "ENOENT"
-      )
+      !(error instanceof Error && "code" in error && error.code === "ENOENT")
     ) {
       throw error;
     }
@@ -181,12 +182,7 @@ async function agentPublicKeyThumbprint(): Promise<string> {
       flag: "wx",
     });
   } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "EEXIST"
-    ) {
+    if (error instanceof Error && "code" in error && error.code === "EEXIST") {
       return agentPublicKeyThumbprint();
     }
     throw error;

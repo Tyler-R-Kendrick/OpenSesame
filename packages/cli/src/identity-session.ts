@@ -85,10 +85,7 @@ async function acquireRefreshLock(): Promise<() => Promise<void>> {
       };
     } catch (error) {
       if (
-        typeof error !== "object" ||
-        error === null ||
-        !("code" in error) ||
-        error.code !== "EEXIST"
+        !(error instanceof Error && "code" in error && error.code === "EEXIST")
       )
         throw error;
       try {
@@ -151,12 +148,7 @@ export async function loadSession(): Promise<SessionFile | null> {
     await assertPrivateFile(path);
   } catch (err) {
     // A first run has no session; that is not an error on every command.
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      err.code === "ENOENT"
-    )
+    if (err instanceof Error && "code" in err && err.code === "ENOENT")
       return null;
     // Loud, not silent: a session the CLI will not touch is worth saying out loud.
     process.stderr.write(errorLine(overlapCast(err)));
