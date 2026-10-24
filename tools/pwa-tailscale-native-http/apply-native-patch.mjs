@@ -1,4 +1,4 @@
-/** Apply only the four reviewed native patches at exact pinned lines; no host patch tool. */
+/** Apply only the five reviewed native patches at exact pinned lines; no host patch tool. */
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, readFile } from "node:fs/promises";
@@ -14,6 +14,7 @@ const targets = {
     "ipn/ipnlocal/node_backend.go",
   ],
   "disable-logtail.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
+  "native-peer-get.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
   "exit-route.patch": ["cmd/tsconnect/wasmbuild/wasmbuild.go"],
 };
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -46,6 +47,17 @@ function specification(pins, name) {
             path: targets[name][0],
             beforeSha256: pins.privateLogging.beforeSha256,
             afterSha256: pins.privateLogging.afterSha256,
+          },
+        ],
+      };
+    case "native-peer-get.patch":
+      return {
+        digest: pins.peerGET.patch.sha256,
+        files: [
+          {
+            path: targets[name][0],
+            beforeSha256: pins.peerGET.patch.beforeSha256,
+            afterSha256: pins.peerGET.patch.afterSha256,
           },
         ],
       };
