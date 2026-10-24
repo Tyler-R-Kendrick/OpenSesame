@@ -26,6 +26,7 @@ import {
   tailscaleWorkerFileName,
 } from "./scripts/tailscale-wasm-assets.mjs";
 import { vercelOidcNamespace } from "./scripts/vercel-oidc-namespace.mjs";
+import { zodJitlessIntro } from "./scripts/zod-jitless-intro.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /**
@@ -229,6 +230,9 @@ export default defineConfig({
         // walks can still import the host by file name.
         experimentalMinChunkSize: 32_000,
         manualChunks: bundleChunk,
+        // zod 4's own chunk turns off its eval probe before any of its code
+        // runs (scripts/zod-jitless-intro.mjs; ZOD_BEFORE_JITLESS checks it).
+        intro: zodJitlessIntro,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
       // removes the ones owned by a capability a hardened build excludes
