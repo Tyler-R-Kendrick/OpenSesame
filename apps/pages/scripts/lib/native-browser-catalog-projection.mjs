@@ -16,6 +16,9 @@ const projection = buildSync({
       import {connectPlan} from './packages/app-core/src/lib/connect-plan.ts';
       import {nativeBrowserOAuthProfile} from './packages/app-core/src/lib/native-browser-oauth-profile.ts';
       import {nativeProviderDescriptor} from './apps/pages/src/sections/connections/connect/native-provider-descriptor.ts';
+      import {nativeKeyDriverFor} from './packages/app-core/src/lib/native-key-drivers.ts';
+      import {nativeKeyDescriptor} from './apps/pages/src/sections/connections/connect/native-key-descriptor.ts';
+      import {nativeS3Descriptor} from './apps/pages/src/sections/connections/connect/native-s3-descriptor.ts';
       import {getBundledProviders} from './packages/app-core/src/lib/embedded-catalog.ts';
       export {CONNECT_PLAN_JSON as connectPlanJson} from './packages/app-core/src/lib/connect-presets.generated.ts';
       import {mergeVercelCatalog} from './packages/app-core/src/lib/vercel-connect-catalog.ts';
@@ -26,7 +29,11 @@ const projection = buildSync({
       // Schema projection only: availability does not authorize a browser road.
       // The real browser still owns runtime/transport admission and all requests.
       export function authFieldMethods(providerId) {
-        const plan = connectPlan(providerId);
+        const provider = connectionRouteProvider(all, providerId);
+        const keyed = nativeKeyDriverFor(provider?.id ?? providerId);
+        if (provider && keyed) return nativeKeyDescriptor(provider, true, keyed.ui(provider.id)).methods;
+        if (provider?.id === 's3') return nativeS3Descriptor(provider, true).methods;
+        const plan = connectPlan(provider?.id ?? providerId);
         if (!plan || plan.refused) return [];
         const availability = {
           callbackUrl: 'https://tyler-r-kendrick.github.io/OpenSesame/auth/native-connector.html',
@@ -44,7 +51,9 @@ const projection = buildSync({
       export const auditedAdobeAdmission=nativeBrowserMcpPolicy('adobe');
       releaseOrigin();
       import {catalogPageItems} from './apps/pages/src/sections/connections/page-tree.ts';
+      import {connectionRouteProvider} from './packages/app-core/src/sections/connections/provider-route.ts';
       export const all = mergeVercelCatalog(getBundledProviders()).filter(isConnectionCatalogProvider);
+      export function routeProvider(providerId) { return connectionRouteProvider(all, providerId); }
       export const listed = catalogPageItems(all);
       export const aiModelProviderIds = all.filter(isAiModelProvider).map(provider => provider.id);
       export const sharedAiPresets = all.flatMap(provider => {
@@ -76,6 +85,11 @@ export const NATIVE_CANONICAL_PROVIDERS = source.all.map((provider) => ({
   id: provider.id,
   name: provider.displayName,
 }));
+/** Match the production route's exact-id then canonical-alias lookup. */
+export function nativeCanonicalRouteProvider(providerId) {
+  const provider = source.routeProvider(providerId);
+  return provider ? { id: provider.id, name: provider.displayName } : null;
+}
 export const NATIVE_CANONICAL_CATALOG_IDS = source.listed.map((row) => row.id);
 export const NATIVE_CONNECT_PLAN_JSON = source.connectPlanJson;
 

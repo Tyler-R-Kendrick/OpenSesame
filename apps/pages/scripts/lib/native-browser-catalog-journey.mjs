@@ -10,6 +10,7 @@ import {
   NATIVE_CANONICAL_PROVIDERS,
   NATIVE_SHARED_AI_PRESETS,
   nativeAuthFieldMethods,
+  nativeCanonicalRouteProvider,
 } from "./native-browser-catalog-projection.mjs";
 import { addCapabilities } from "./pages-journey.mjs";
 
@@ -38,6 +39,14 @@ async function catalogRows(page) {
         tile.querySelector(".conn-tile__link")?.getAttribute("title") ?? null,
     })),
   );
+}
+
+/** A family tile's browse name is not the selected provider's route name. */
+export function nativeCatalogRouteRow(row) {
+  const provider = nativeCanonicalRouteProvider(row.id);
+  return provider
+    ? { ...row, id: provider.id, name: provider.name, catalogId: row.id }
+    : row;
 }
 
 /**
@@ -239,17 +248,18 @@ export async function nativeCatalogJourney(
       );
       continue;
     }
+    const routeRow = nativeCatalogRouteRow(row);
     const url = new URL(row.href, `https://tyler-r-kendrick.github.io${base}`);
     await nativeVisit(
       page,
       base,
       `${url.pathname.slice(base.length)}${url.search}${url.hash}`,
     );
-    const sheet = await nativeArrival(page, row);
-    await nativePageContract(page, row, { check: harness.check, phone });
-    const preset = NATIVE_SHARED_AI_PRESETS.get(row.id);
+    const sheet = await nativeArrival(page, routeRow);
+    await nativePageContract(page, routeRow, { check: harness.check, phone });
+    const preset = NATIVE_SHARED_AI_PRESETS.get(routeRow.id);
     if (preset)
-      await nativeAiFormContract(page, row, preset, {
+      await nativeAiFormContract(page, routeRow, preset, {
         check: harness.check,
         record: harness.record,
         phone,
@@ -258,7 +268,7 @@ export async function nativeCatalogJourney(
         routePath: url.pathname,
       });
     if (sheet && !preset)
-      await nativeSheetContract(page, row, sheet, {
+      await nativeSheetContract(page, routeRow, sheet, {
         check: harness.check,
         phone,
       });
