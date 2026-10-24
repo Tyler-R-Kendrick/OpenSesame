@@ -1,11 +1,14 @@
 import {
   type OidcConnectorConfig,
+  type OidcDeviceAuthorization,
   type OidcPending,
   type OidcTokens,
+  beginOidcDevice,
   beginOidcLogin,
   completeOidcLogin,
   discoverOidc,
   oidcConnectorItem,
+  pollOidcDevice,
 } from "@opensesame/app-core/lib/custom-oidc.js";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -19,6 +22,7 @@ const EMPTY: OidcConnectorConfig = {
   authorizationEndpoint: "",
   tokenEndpoint: "",
   jwksUri: "",
+  deviceAuthorizationEndpoint: "",
   clientId: "",
   clientSecret: "",
   callbackUrl: "",
@@ -31,6 +35,7 @@ export function CustomOidcConnector() {
   const store = useVaultStore();
   const [config, setConfig] = useState(EMPTY);
   const [pending, setPending] = useState<OidcPending | null>(null);
+  const [device, setDevice] = useState<OidcDeviceAuthorization | null>(null);
   const [callback, setCallback] = useState("");
   const [tokens, setTokens] = useState<OidcTokens | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -66,6 +71,40 @@ export function CustomOidcConnector() {
     } catch (error) {
       setFailure(
         error instanceof Error ? error.message : "Could not start OIDC",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startDevice() {
+    setBusy(true);
+    setFailure(null);
+    try {
+      const authorization = await beginOidcDevice(config);
+      setDevice(authorization);
+      window.open(
+        authorization.verificationUriComplete ?? authorization.verificationUri,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      let interval = authorization.intervalSeconds;
+      for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+        const result = await pollOidcDevice(config, authorization);
+        if (result.status === "pending") {
+          interval = result.intervalSeconds;
+          continue;
+        }
+        setTokens(result.tokens);
+        await store.addItems([oidcConnectorItem(config, result.tokens)]);
+        setSaved(true);
+        setDevice(null);
+        break;
+      }
+    } catch (error) {
+      setFailure(
+        error instanceof Error ? error.message : "Device authorization failed",
       );
     } finally {
       setBusy(false);
@@ -172,6 +211,16 @@ export function CustomOidcConnector() {
             />
           </div>
           <div className="field">
+            <label htmlFor="oidc-device">Device authorization endpoint</label>
+            <input
+              id="oidc-device"
+              value={config.deviceAuthorizationEndpoint ?? ""}
+              onChange={(event) =>
+                set("deviceAuthorizationEndpoint", event.target.value)
+              }
+            />
+          </div>
+          <div className="field">
             <label htmlFor="oidc-client">Client ID</label>
             <input
               id="oidc-client"
@@ -260,6 +309,22 @@ export function CustomOidcConnector() {
               Save encrypted
             </button>
           </div>
+          {config.deviceAuthorizationEndpoint ? (
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={busy}
+              onClick={() => void startDevice()}
+            >
+              Use device code
+            </button>
+          ) : null}
+          {device ? (
+            <output className="note note--ok">
+              Open {device.verificationUri} and enter{" "}
+              <strong>{device.userCode}</strong>. Waiting for approval…
+            </output>
+          ) : null}
           {pending ? (
             <div className="field">
               <label htmlFor="oidc-callback-result">
