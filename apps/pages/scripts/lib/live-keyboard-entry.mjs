@@ -123,3 +123,16 @@ export async function allowsByKeyboard(page) {
   });
   await page.keyboard.press("Enter");
 }
+
+/**
+ * A session is open to anyone with the link unless the owner asks for the
+ * code too; the walk lets a person in by hand, so it asks for both.
+ */
+export async function asksForTheCode(page, panel, tabTo) {
+  const who = panel.getByLabel("Who gets in", { exact: true });
+  await tabTo(page, who);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(who).toHaveValue("invite");
+}
