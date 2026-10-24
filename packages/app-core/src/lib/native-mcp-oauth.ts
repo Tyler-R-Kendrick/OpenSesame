@@ -69,6 +69,25 @@ function boundRegistrationReceipt(
   return bounded.data;
 }
 
+/**
+ * Retain a minted registration. A "storage" refusal (the record encoded, the
+ * durable write failed) keeps the copy and its obligation, so a retry seals
+ * this registration rather than minting another. Any other refusal is final:
+ * admission clears the obligation, so no retained copy wedges a later retry.
+ */
+async function retainOrRefuse(
+  retain: (client: NativeMcpRegisteredClient) => Promise<void>,
+  client: NativeMcpRegisteredClient,
+): Promise<void> {
+  try {
+    await retain(client);
+  } catch (error) {
+    if (error instanceof NativeMcpAuthError && error.code === "storage")
+      throw error;
+    throw new NativeMcpAuthError("metadata");
+  }
+}
+
 /** Registration/tokens are private return values for the sealed coordinator, never UI results. */
 export class NativeMcpPublicOAuth {
   private readonly target: NativeMcpOAuthTarget;
@@ -153,11 +172,7 @@ export class NativeMcpPublicOAuth {
         if (receipt.value) {
           const boundedReceipt = boundRegistrationReceipt(receipt.value);
           if (!boundedReceipt) throw new NativeMcpAuthError("metadata");
-          try {
-            await retain(boundedReceipt);
-          } catch {
-            throw new NativeMcpAuthError("metadata");
-          }
+          await retainOrRefuse(retain, boundedReceipt);
         }
         throw error;
       }
@@ -169,13 +184,7 @@ export class NativeMcpPublicOAuth {
     }
     const bounded = boundRegistrationReceipt(client);
     if (!bounded) throw new NativeMcpAuthError("metadata");
-    try {
-      await retain(bounded);
-    } catch {
-      // Admission clears the recovery obligation on a metadata refusal. Never
-      // leave a retained copy that wedges every later retry.
-      throw new NativeMcpAuthError("metadata");
-    }
+    await retainOrRefuse(retain, bounded);
     this.ports.assertCurrent();
     assertPublicClient(this.target, bounded);
     return bounded;
