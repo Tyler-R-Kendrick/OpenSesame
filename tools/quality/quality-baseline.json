@@ -183,7 +183,7 @@
     },
     "apps/pages/src/sections/connections/SettingsPage.tsx": {
       "complexity": 1,
-      "max-lines": 431,
+      "max-lines": 430,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/SettingsPageConnectPanels.tsx": {

@@ -82,8 +82,8 @@ function nativeApiKeyAvailable(provider: Provider): boolean {
 
 export function nativeSettingsDescriptor(
   provider: Provider,
+  savedMethod?: NativeConnectorView["configuration"]["method"],
 ): NativeConnectorDescriptor | null {
-  if (provider.id === "linear") return null;
   if (provider.id === "github")
     return nativeGithubDescriptor(
       provider,
@@ -133,9 +133,19 @@ export function nativeSettingsDescriptor(
       available: hasNativeConnectorDriver("mcp", provider.id),
       reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
       actor: "user",
+      defaultScopes: provider.id === "linear" ? ["read"] : undefined,
     },
   });
-  return descriptor;
+  // Linear's GraphQL app/key ceremony lives in its existing advanced form.
+  // Existing native records keep their own method and credential custody.
+  return provider.id === "linear"
+    ? {
+        ...descriptor,
+        methods: descriptor.methods.filter(
+          (method) => method.id === (savedMethod ?? "mcp"),
+        ),
+      }
+    : descriptor;
 }
 
 function primaryActions(
@@ -289,7 +299,6 @@ export function NativeConnectorPanels({
 }) {
   // The connector bridge changes what a refused provider offers (ADR 0199).
   useNativeBridge(provider.id);
-  const descriptor = nativeSettingsDescriptor(provider);
   const pending = useNativeAuthorization(provider.id, connection?.connectionId);
   const controller = useMemo(
     () =>
@@ -305,6 +314,10 @@ export function NativeConnectorPanels({
   );
   const [, refresh] = useState(0);
   const view = controller.load();
+  const descriptor = nativeSettingsDescriptor(
+    provider,
+    view?.configuration.method,
+  );
   const { hash } = useLocation();
   useEffect(() => {
     if (hash === "#connector" || hash === "#complete") {

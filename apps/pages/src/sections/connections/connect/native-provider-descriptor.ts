@@ -36,7 +36,12 @@ export type BrowserProviderAvailability = {
     profile?: NativeBrowserOAuthProfile;
     scopeGroups?: NativeScopeGroup[];
   };
-  mcp: { available: boolean; reason?: string; actor: string };
+  mcp: {
+    available: boolean;
+    reason?: string;
+    actor: string;
+    defaultScopes?: readonly string[];
+  };
 };
 
 function scopes(preset: OauthPreset): NativeScopeGroup[] {
@@ -190,7 +195,7 @@ function mcpDescriptor(
               name: scope,
               description:
                 "Permission advertised by the provider's MCP authorization server.",
-              default: false,
+              default: availability.defaultScopes?.includes(scope) ?? false,
             })),
           },
         ]
