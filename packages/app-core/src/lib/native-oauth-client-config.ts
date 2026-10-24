@@ -51,6 +51,23 @@ export const NativeOAuthClientTarget = z
     ]),
   })
   .strict();
+/** Empty optional form controls mean absence only at the incoming configuration boundary. */
+export function normalizeNativeOAuthClientParameters(
+  parameters: Readonly<Record<string, string>>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(parameters).filter(
+      ([key, value]) =>
+        ![
+          "token_relay_url",
+          "resource_protocol",
+          "mcp_endpoint",
+          "mcp_transport",
+          "mcp_post_endpoint",
+        ].includes(key) || value !== "",
+    ),
+  );
+}
 const PARAMETERS: string[] = [
   ...NativeOAuthClientTarget.keyof().options,
   "redirect_uri",
@@ -149,17 +166,7 @@ async function configuration(
   owner: NativeOAuthClientOwner,
 ): Promise<NativeConfiguration> {
   const { client_id, ...supplied } = input.parameters;
-  const parameters = Object.fromEntries(
-    Object.entries(supplied).filter(
-      ([key, value]) =>
-        ![
-          "resource_protocol",
-          "mcp_transport",
-          "mcp_post_endpoint",
-          "mcp_endpoint",
-        ].includes(key) || value !== "",
-    ),
-  );
+  const parameters = normalizeNativeOAuthClientParameters(supplied);
   NativeOAuthClientTarget.parse(parameters);
   if (
     input.method !== "oauth" ||
