@@ -16,8 +16,10 @@
 //!   digest the pairing ceremony recorded for exactly that origin.
 //!
 //! A local process can forge the first two; it cannot forge the third
-//! without the extension's storage, which is the same-user boundary
-//! ADR 0150 §7 and ADR 0048 already draw.
+//! without access to the live browser session. The extension keeps its bearer
+//! in volatile session storage, never in the browser profile on disk. Legacy
+//! disk-backed pairings are invalidated by the pairing-file version. This is
+//! not protection against live process-memory access or extension compromise.
 
 use axum::{
     http::{header, HeaderMap, StatusCode},

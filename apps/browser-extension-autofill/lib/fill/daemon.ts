@@ -17,7 +17,7 @@ import {
   pairState,
 } from "./wire";
 
-/** The pairing token's key in `storage.local`. It admits fill, not values. */
+/** The bearer key in volatile `storage.session`; never write it to disk. */
 export const TOKEN_KEY = "fillPairingToken";
 
 /** A refusal from the daemon, by its stable code. Never carries a value. */
@@ -65,7 +65,7 @@ export function newToken(random: (bytes: Uint8Array) => Uint8Array): string {
 
 const TOKEN_FORM = /^[A-Za-z0-9_-]{43,128}$/;
 
-/** This install's pairing token, minted on first use. */
+/** This browser session's token. The caller supplies only a volatile store. */
 export async function pairingToken(
   store: KeyValueStore,
   random: (bytes: Uint8Array) => Uint8Array,

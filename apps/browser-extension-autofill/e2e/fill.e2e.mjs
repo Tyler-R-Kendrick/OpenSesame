@@ -63,6 +63,17 @@ describe("switching on and pairing", () => {
     const origins = new Set(session.daemon.log.map((row) => row.origin));
     assert.deepEqual([...origins].filter(Boolean), [own]);
     assert.ok(session.daemon.isPaired(own));
+    const worker = await session.worker();
+    const custody = await worker.evaluate(async () => ({
+      onDisk: Object.hasOwn(
+        await chrome.storage.local.get(null),
+        "fillPairingToken",
+      ),
+      inSession:
+        typeof (await chrome.storage.session.get("fillPairingToken"))
+          .fillPairingToken === "string",
+    }));
+    assert.deepEqual(custody, { onDisk: false, inSession: true });
     await popup.close();
     await page.close();
   });

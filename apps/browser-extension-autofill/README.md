@@ -58,7 +58,7 @@ sha256sum apps/browser-extension-autofill/.output/browser-autofill-0.1.0-chrome.
    Capabilities) turns it on. `OPENSESAME_PLUGIN_BROWSER_AUTOFILL=off` on the
    daemon forces it off whatever the file says; nothing in the environment
    turns it on.
-3. Pair once: open the popup on any page, press the pairing key, and approve
+3. Pair for this browser session: open the popup on any page, press the pairing key, and approve
    the code it shows from a terminal on the same computer:
 
    ```bash
@@ -66,6 +66,16 @@ sha256sum apps/browser-extension-autofill/.output/browser-autofill-0.1.0-chrome.
    opensesame daemon fill pairings            # paired origins, never tokens
    opensesame daemon fill revoke chrome-extension://<id>
    ```
+
+   The pairing bearer stays in `storage.session` (browser memory), never in
+   `storage.local`, sync storage, or IndexedDB. It survives background-worker
+   suspension; restarting the browser, reloading or updating the extension
+   requires pairing again. Browsers without session storage retain it only
+   for the background process lifetime. The upgrade deletes the old local
+   token and the upgraded daemon rejects v1 pairing records; upgrade and
+   restart **both** components, then approve a new code. A daemon restart
+   alone preserves current session pairings as digests. Live browser-memory
+   access and extension compromise remain outside this profile-copy defense.
 
 4. On a login page, press the site switch in the popup and accept the
    browser's prompt for that one site. Focus the username or password field

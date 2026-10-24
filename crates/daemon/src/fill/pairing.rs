@@ -35,6 +35,10 @@ pub(crate) const PAIRINGS_FILE: &str = "fill-pairings.json";
 const CODE_ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTVWXYZ23456789";
 const CODE_LEN: usize = 8;
 
+// v1 admitted bearers persisted in browser storage.local. Never migrate those
+// digests: previously copied profiles could still replay the old credential.
+const PAIRINGS_VERSION: u32 = 2;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct PairedCaller {
     origin: String,
@@ -138,7 +142,7 @@ impl Pairings {
             .and_then(|path| std::fs::read(path).ok())
             .and_then(
                 |bytes| match serde_json::from_slice::<PairingFile>(&bytes) {
-                    Ok(parsed) if parsed.v == 1 => Some(parsed.pairings),
+                    Ok(parsed) if parsed.v == PAIRINGS_VERSION => Some(parsed.pairings),
                     _ => {
                         tracing::warn!("fill pairing file unreadable; starting with none paired");
                         None
@@ -286,7 +290,7 @@ impl Pairings {
             std::fs::create_dir_all(parent)?;
         }
         let body = serde_json::to_vec_pretty(&PairingFile {
-            v: 1,
+            v: PAIRINGS_VERSION,
             pairings: paired.to_vec(),
         })
         .map_err(std::io::Error::other)?;

@@ -140,3 +140,30 @@ fn the_operator_snapshot_carries_no_digest() {
     assert!(!text.contains(&digest_hex(TOKEN)));
     assert!(text.contains(EXT) && text.contains(OTHER));
 }
+
+#[test]
+fn legacy_and_unknown_pairing_versions_cannot_authenticate() {
+    let dir = tempfile::tempdir().unwrap();
+    let now = Utc::now();
+    for version in [0, 1, 3] {
+        let old = serde_json::json!({
+            "v": version,
+            "pairings": [{
+                "origin": EXT,
+                "token_sha256": digest_hex(TOKEN),
+                "paired_at": now,
+            }],
+        });
+        std::fs::write(
+            dir.path().join(PAIRINGS_FILE),
+            serde_json::to_vec(&old).unwrap(),
+        )
+        .unwrap();
+        let pairings = Pairings::load(Some(dir.path()));
+        assert!(!pairings.verify(EXT, TOKEN), "version {version}");
+        assert!(matches!(
+            pairings.request(EXT, TOKEN, now),
+            PairOutcome::Pending { .. }
+        ));
+    }
+}

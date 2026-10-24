@@ -8,12 +8,18 @@
  *   `executeScript` only as a fallback into a tab that loaded before its site
  *   was switched on — which the site's own host grant permits.
  * - Messages to the guard go to frame 0 only.
- * - The pairing token lives in `storage.local`; a person's per-origin choice
- *   of entry lives in `storage.session` and is a reference, never a value.
+ * - The pairing token and per-origin entry choices live only in the browser
+ *   session (memory-only fallback). The legacy disk token is deleted before
+ *   any daemon call. A browser restart needs a new human pairing approval.
  */
 import { browser } from "wxt/browser";
 import { type SitePorts, createSiteRegistry } from "../sites/sites";
-import { type KeyValueStore, createDaemonClient, pairingToken } from "./daemon";
+import {
+  type KeyValueStore,
+  TOKEN_KEY,
+  createDaemonClient,
+  pairingToken,
+} from "./daemon";
 import type { FillPorts, RuntimeSender } from "./ports";
 import { GUARD_SCRIPT, type Outcome } from "./protocol";
 import { guardReply, storedString } from "./wire";
@@ -64,11 +70,20 @@ export function browserSitePorts(): SitePorts {
 }
 
 export function browserFillPorts(): FillPorts {
-  const local = keyValue(browser.storage.local);
   const session = browser.storage.session
     ? keyValue(browser.storage.session)
     : memoryStore();
+  // Start cleanup even if no fill is requested. Never reuse or migrate the
+  // old bearer: a profile copy may already contain it. The daemon also drops
+  // v1 pairings on upgrade, so those copies cannot authenticate there either.
+  const cleaned = browser.storage.local.remove(TOKEN_KEY).then(
+    () => true,
+    () => false,
+  );
   const random = (bytes: Uint8Array) => crypto.getRandomValues(bytes);
+  // One initialization per worker: concurrent popup/fill requests must not
+  // mint different credentials before the session store has answered.
+  let token: Promise<string> | undefined;
   return {
     ownId: browser.runtime.id,
     ownBase: browser.runtime.getURL("/"),
@@ -92,7 +107,13 @@ export function browserFillPorts(): FillPorts {
       return reply.success ? reply.data : { outcome: "guard_unavailable" };
     },
     sites: createSiteRegistry(browserSitePorts()),
-    daemon: createDaemonClient({ token: () => pairingToken(local, random) }),
+    daemon: createDaemonClient({
+      token: async () => {
+        if (!(await cleaned)) throw new Error("pairing_storage_unavailable");
+        token ??= pairingToken(session, random);
+        return token;
+      },
+    }),
     choices: session,
     now: () => Date.now(),
     nonce: () => crypto.randomUUID(),

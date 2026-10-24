@@ -372,6 +372,8 @@ mod auth_tests;
 #[cfg(test)]
 mod gate_tests;
 #[cfg(test)]
+mod migration_tests;
+#[cfg(test)]
 mod sealed_tests;
 #[cfg(test)]
 mod tests;
