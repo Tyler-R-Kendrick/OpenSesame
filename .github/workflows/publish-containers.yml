@@ -1,8 +1,8 @@
 # Build and push the native `opensesame` image to GitHub Container Registry.
 #
-# Tyler action: grant the workflow `packages: write` (default GITHUB_TOKEN on
-# private repos may need `permissions` below) and optionally pin
-# `OPENSESAME_FEATURES` via repository variable.
+# Manual publication is limited to main; releases must already be on main.
+# Workflow guards do not constrain a collaborator who can edit a workflow.
+# See docs/operators/publishing.md for the external GHCR trust boundary.
 name: Publish containers
 
 on:
@@ -16,12 +16,47 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: read
-  packages: write
+permissions: {}
 
 jobs:
+  source:
+    name: Verify publication source
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify the immutable commit before granting publication permissions
+        id: check
+        env:
+          EVENT: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = push ]; then
+            sha="$(scripts/release/tag-check.sh verify "$TAG" "$EVENT_SHA")"
+          else
+            sha="$(scripts/release/tag-check.sh commit "$EVENT_SHA")"
+            git merge-base --is-ancestor "$sha" refs/remotes/origin/main
+            [ "$(git rev-parse HEAD)" = "$sha" ]
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
   ghcr:
+    needs: source
+    permissions:
+      contents: read
+      packages: write
     name: GHCR opensesame
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -32,6 +67,11 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
+          ref: ${{ needs.source.outputs.sha }}
+      - name: Check the publication checkout
+        env:
+          VERIFIED_SHA: ${{ needs.source.outputs.sha }}
+        run: '[ "$(git rev-parse HEAD)" = "$VERIFIED_SHA" ]'
       - name: Log in to GHCR
         uses: docker/login-action@5e57cdca8bd33bd31c8f2a4eabd65eb91159b82d # v3.6.0
         with:
