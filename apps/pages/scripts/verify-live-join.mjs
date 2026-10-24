@@ -4,9 +4,12 @@
  * real WebRTC. Each scenario is a person's walk, fails on any page or
  * console error, and says what else was reached.
  *
- * 1. **direct** — no route named. The two codes go by hand (the context's
- *    clipboard). Proves nothing else was reached: no WebSocket, no request
- *    off the origin, and no ICE server on any peer connection.
+ * 1. **direct** — no server named. The two codes go by hand (the context's
+ *    clipboard). The owner names this machine in Routes (its loopback and its
+ *    default-route address, `thisMachine`) and the joiner allows them, as a
+ *    person must before two browsers meet over a private address. Proves
+ *    nothing else was reached: no WebSocket, no request off the origin, and
+ *    no ICE server on any peer connection.
  * 2. **tunnel** — a tailnet between two machines, played on one: mDNS
  *    hiding on, and each page keeps only remote candidates at the tunnel
  *    address (`TUNNEL_ONLY`), this machine's default-route address. With no
@@ -74,6 +77,7 @@ import { keepBrowserOutput } from "./lib/browser-output.mjs";
 import { dedicatedSite } from "./lib/live-dedicated.mjs";
 import {
   NO_ROUTE_STEPS,
+  defaultRouteAddress,
   engineOf,
   enginesFrom,
   lacks,
@@ -94,7 +98,8 @@ import {
   direct,
 } from "./lib/live-join-scenarios.mjs";
 import { bindTunnel, tunnel } from "./lib/live-join-tunnel.mjs";
-import { openLive, ownerEnters } from "./lib/live-join-walk.mjs";
+import { openLive, ownerEnters, thisMachine } from "./lib/live-join-walk.mjs";
+import { joinedSession } from "./lib/live-joined.mjs";
 import { mintTurnCert } from "./lib/live-turn.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -172,7 +177,8 @@ const { device, shot, configs, wreckage } = livePages({
   named,
 });
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
+/** Resolves once the joiner is in the session (`live-joined.mjs`). */
+const joined = joinedSession;
 
 /** The walk's throwaway certificate, once minted: a carrier's TLS front uses it. */
 const TLS = { cert: undefined };
@@ -182,6 +188,8 @@ const note = (what) => harness.record("NOT-TAKEN", named(what));
 
 bindWalk({
   TLS,
+  // The browsers here show their host addresses in the clear (live-engines).
+  sameMachine: await thisMachine(),
   check,
   setStep,
   failures,
@@ -226,16 +234,16 @@ bindNats({
   failures,
   device,
   shot,
-  joined,
   SECRET,
   PHONE,
   TLS,
 });
 
-// A throwaway certificate for 127.0.0.1: the TLS TURN server's, and a
-// carrier's TLS front where a pair needs one. Chromium trusts its public key
-// alone, by flag: no blanket certificate override.
-const cert = mintTurnCert(TURN);
+// A throwaway certificate for 127.0.0.1 and this machine's default-route
+// address: the TLS TURN server's (which listens there, not on loopback), and
+// a carrier's TLS front on loopback where a pair needs one. Chromium trusts
+// its public key alone, by flag: no blanket certificate override.
+const cert = mintTurnCert(TURN, await defaultRouteAddress());
 const turnFixture = { binary: TURN, cert: cert.missing ? undefined : cert };
 TLS.cert = turnFixture.cert;
 

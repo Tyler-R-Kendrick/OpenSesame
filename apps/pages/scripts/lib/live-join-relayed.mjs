@@ -4,7 +4,7 @@
  * carrier passes the codes, and both browsers meet through the relay alone.
  * One walk per way to reach the server, because each is a different road:
  *
- * - **relayed** — `turn:host:port?transport=udp`, node-turn on loopback.
+ * - **relayed** — `turn:host:port?transport=udp`, node-turn.
  * - **relayed-tcp** — `turn:host:port?transport=tcp`, the road through a
  *   firewall that lets only TCP out.
  * - **relayed-tls** — `turns:host:port?transport=tcp`, the road through a
@@ -17,6 +17,12 @@
  *   secret. **relayed-rest-wrong** is its negative control: the server holds
  *   a different secret, authentication fails, and the browsers never meet.
  *
+ * Every TURN server runs on this machine's default-route address
+ * (`defaultRouteAddress`), as the tunnel and netns walks' servers do: the app
+ * refuses a loopback ICE server (`assertRoutableIceServers`), which no public
+ * one is, and a relay candidate counts only at the TURN server's own literal
+ * host, so the server relays from that address too.
+ *
  * TCP, TLS and REST are served by `live-turn` (pion/turn), which counts what
  * each transport saw. A relay-to-relay pair says nothing of how the client reached
  * the server, so every walk also asks the server: the transport it was named
@@ -26,7 +32,7 @@
 
 import { createHmac, randomBytes } from "node:crypto";
 import { startNostrRelay, startTurnServer } from "./live-carriers.mjs";
-import { engineOf, lacks } from "./live-engines.mjs";
+import { defaultRouteAddress, engineOf, lacks } from "./live-engines.mjs";
 import {
   backToForm,
   linkRoutes,
@@ -151,19 +157,18 @@ async function through(browser, owner, label, hooks) {
       dist: owner.dist,
     });
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    // Relay only: the reply names no address, so there is nothing to allow.
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     if (connects) {
-      await joined(joiner.page).waitFor({ timeout: 45_000 });
+      await joined(joiner.page, 45_000);
       await shot(joiner.page, `${label}-2-joined`);
     } else {
-      const reached = await joined(joiner.page)
-        .waitFor({ timeout: NO_ROUTE_MS })
-        .then(
-          () => true,
-          () => false,
-        );
+      const reached = await joined(joiner.page, NO_ROUTE_MS).then(
+        () => true,
+        () => false,
+      );
       check(!reached, `${label}: the browsers never met`);
       await shot(joiner.page, `${label}-2-not-joined`);
     }
@@ -185,7 +190,7 @@ async function through(browser, owner, label, hooks) {
 
 /** UDP, through node-turn: the road with no firewall in it. */
 export async function relayed(browser, owner) {
-  const turn = await startTurnServer();
+  const turn = await startTurnServer({ host: await defaultRouteAddress() });
   try {
     const route = {
       url: turn.url,
@@ -205,7 +210,8 @@ export async function relayed(browser, owner) {
 /** TCP or TLS, through live-turn, which says which transport it was reached on. */
 export async function relayedOver(browser, owner, transport, { binary, cert }) {
   const label = `relayed-${transport}`;
-  const turn = await startLiveTurn(binary, { cert });
+  const host = await defaultRouteAddress();
+  const turn = await startLiveTurn(binary, { cert, host });
   if (turn.missing) {
     failures.push(`[${label}] no live-turn binary at ${turn.missing}`);
     return;
@@ -294,6 +300,7 @@ export async function relayedRest(browser, owner, { binary, wrong = false }) {
   const secret = randomBytes(16).toString("hex");
   const turn = await startLiveTurn(binary, {
     restSecret: wrong ? randomBytes(16).toString("hex") : secret,
+    host: await defaultRouteAddress(),
   });
   if (turn.missing) {
     failures.push(`[${label}] no live-turn binary at ${turn.missing}`);

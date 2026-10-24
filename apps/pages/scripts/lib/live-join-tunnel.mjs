@@ -54,7 +54,10 @@ export function bindTunnel(walk) {
 async function tunnelWithout(browser, owner, init) {
   setStep("tunnel-no-address");
   await setRoutes(owner.page, {});
-  const session = await startSession(owner.page, { admission: "open" });
+  const session = await startSession(owner.page, {
+    admission: "open",
+    sameMachine: false,
+  });
   const lost = await device(browser, {
     init,
     origin: owner.origin,
@@ -72,12 +75,10 @@ async function tunnelWithout(browser, owner, init) {
     { admit: false },
   );
   await joinerConnects(lost.page, reply);
-  const reached = await joined(lost.page)
-    .waitFor({ timeout: 20_000 })
-    .then(
-      () => true,
-      () => false,
-    );
+  const reached = await joined(lost.page, 20_000).then(
+    () => true,
+    () => false,
+  );
   check(!reached, "tunnel: with no address named, the browsers never meet");
   await shot(lost.page, "tunnel-1-no-address");
   await endSession(session.panel);
@@ -88,7 +89,10 @@ async function tunnelWith(browser, owner, init, address) {
   setStep("tunnel-address");
   await setRoutes(owner.page, { addresses: [address] });
   await shot(owner.page, "tunnel-2-routes");
-  const session = await startSession(owner.page, { admission: "open" });
+  const session = await startSession(owner.page, {
+    admission: "open",
+    sameMachine: false,
+  });
   check(
     !session.link.includes(address),
     "the owner's address is not in the link",
@@ -111,7 +115,7 @@ async function tunnelWith(browser, owner, init, address) {
     { admit: false },
   );
   await joinerConnects(joiner.page, reply);
-  await joined(joiner.page).waitFor({ timeout: 45_000 });
+  await joined(joiner.page, 45_000);
   const pairs = await selectedPairs(joiner.page);
   check(
     pairs.some((pair) => pair.address === address),

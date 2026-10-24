@@ -17,14 +17,19 @@ import {
   copyFrom,
   joinerAsks,
   joinerConnects,
+  joinerSessionSas,
   openLive,
   ownerAdmitsByHand,
+  ownerComparedSas,
   ownerEnters,
   peerStates,
   startSession,
+  unfoldPeerTrust,
 } from "./lib/live-join-walk.mjs";
+import { joinedMarks, joinedSession } from "./lib/live-joined.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { expectInTray, waitForTray } from "./lib/tray-contract.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, "../../..");
@@ -120,6 +125,7 @@ async function beginOwner(browser) {
   });
   await openLive(owner.page);
   const started = await startSession(owner.page);
+  await unfoldPeerTrust(started.panel);
   const copyKey = started.panel.getByRole("button", {
     name: "Copy peer trust signal",
   });
@@ -132,7 +138,7 @@ async function beginOwner(browser) {
 }
 
 async function readRequest(panel, request) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
 }
 
@@ -146,30 +152,26 @@ async function verifiedJoin(browser, session) {
     name: VERIFIED_NAME,
     peerTrust: session.signal,
   });
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  const joinerSas = await joinerSessionSas(joiner.page);
   check(
     (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
     "verified join is not marked unverified",
   );
-  // ownerAdmitsByHand pastes the request and reads the guest-row SAS.
-  // Reading it earlier waits on a row that does not exist yet.
+  // ownerAdmitsByHand pastes the request and compares the guest-row SAS
+  // while the guest is asking; the row drops it once they are let in.
   const reply = await ownerAdmitsByHand(
     session.page,
     session.panel,
     request,
     VERIFIED_NAME,
   );
-  const ownerSas = (
-    await session.panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
+  const ownerSas = ownerComparedSas(session.panel);
   check(
     SAS.test(joinerSas) && joinerSas === ownerSas,
     "verified join shows the same session SAS on both sides",
   );
   await joinerConnects(joiner.page, reply);
-  await joiner.page
-    .getByRole("img", { name: "Joined Team" })
-    .waitFor({ timeout: 45_000 });
+  await joinedSession(joiner.page);
   check(true, "copied peer trust signal joins");
   await shot(joiner.page, "verified-join");
   await joiner.context.close();
@@ -202,7 +204,7 @@ async function crossedSignal(browser, source, target) {
       `crossed signal refused before a request (${words})`,
     );
     check(
-      (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+      (await joinedMarks(joiner.page).count()) === 0,
       "crossed signal does not join",
     );
     await shot(joiner.page, "mitm-joiner");
@@ -214,7 +216,7 @@ async function crossedSignal(browser, source, target) {
     .getByRole("img", { name: "Not a request code" })
     .waitFor({ timeout: 20_000 });
   check(
-    (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+    (await joinedMarks(joiner.page).count()) === 0,
     "a signal from the first session does not join the second",
   );
   await shot(target.page, "mitm-owner");
@@ -262,13 +264,23 @@ async function changedKey(browser, session) {
     .fill(session.signal);
   const ask = page.getByRole("button", { name: "Ask to join" });
   if (await ask.isEnabled()) await ask.click();
-  const alarm = page.getByRole("img", { name: CHANGED });
-  const blocked = page.getByRole("button", { name: CHANGED });
-  const tray = page.locator(".notice-card").filter({ hasText: CHANGED });
-  await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
+  // The refusal lives in the tray (ADR 0163): the bell announces it, and the
+  // card behind the bell names the changed key.
+  await waitForTray(page, 20_000);
+  await expectInTray(page, CHANGED);
+  // Asking made this joiner's vault and the form mounted again: the row the
+  // person asked from still carries the refusal and holds its Ask key.
+  const form = page
+    .locator("form")
+    .filter({ has: page.getByLabel("Your name") });
+  await form.getByRole("img", { name: CHANGED }).waitFor({ timeout: 20_000 });
+  check(
+    await form.getByRole("button", { name: /^Ask to join/ }).isDisabled(),
+    "changed key holds the Ask key",
+  );
   check(
     (await page
-      .getByRole("button", { name: "Copy your request code" })
+      .getByRole("button", { name: "Copy your join request" })
       .count()) === 0,
     "changed key does not ask",
   );
