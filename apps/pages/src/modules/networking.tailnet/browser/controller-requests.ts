@@ -4,7 +4,6 @@ import type {
   TailscaleNodeConfiguration,
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
-import type { z } from "zod";
 import { anySignal } from "../../signals.js";
 import {
   NativeStreamRequest,
@@ -34,21 +33,18 @@ export class BrowserNodeRequests {
   private retirement: Promise<boolean> | null = null;
   private retired: ((closed: boolean) => void) | null = null;
   // Truly private: the page reaches this object and its Worker, never these.
-  readonly #grants = new MessageChannel();
+  readonly #port: Pick<MessagePort, "postMessage">;
   readonly #approvePeer: (url: string) => boolean;
   constructor(
-    private readonly worker: Pick<Worker, "postMessage">,
+    port: Pick<MessagePort, "postMessage">,
     private readonly check: () => void,
     private readonly connected: () => boolean,
     approvePeer: (url: string) => boolean,
     private readonly stop: () => void,
     private readonly nativeEnabled: boolean,
   ) {
+    this.#port = port;
     this.#approvePeer = approvePeer;
-  }
-  /** Starts the original worker; the only port it takes peer GETs on goes with it. */
-  start(config: z.input<typeof Configuration>): void {
-    this.worker.postMessage({ kind: "start", config }, [this.#grants.port2]);
   }
   private assertCurrent = () => {
     this.lifetime.signal.throwIfAborted();
@@ -87,9 +83,8 @@ export class BrowserNodeRequests {
     this.pending.clear();
     for (const resolve of [...this.readiness]) resolve(false);
     this.readiness.clear();
-    this.#grants.port1.close();
     try {
-      this.worker.postMessage({ kind: "closeHTTP" });
+      this.#port.postMessage({ kind: "closeHTTP" });
     } catch {
       this.retired?.(false);
       this.retired = null;
@@ -139,7 +134,7 @@ export class BrowserNodeRequests {
           }
         },
       });
-      this.#grants.port1.postMessage({ kind: "get", id, url });
+      this.#port.postMessage({ kind: "get", id, url });
     });
   }
   capture(owner: AbortSignal): TailscaleNativeHTTPPort {
@@ -209,7 +204,7 @@ export class BrowserNodeRequests {
       this.readiness.add(finish);
       signal.addEventListener("abort", abort, { once: true });
       if (signal.aborted) finish(false);
-      else this.worker.postMessage({ kind: "nativeHTTPReady" });
+      else this.#port.postMessage({ kind: "nativeHTTPReady" });
     });
   }
   private stream(
@@ -229,7 +224,7 @@ export class BrowserNodeRequests {
       request,
       signal,
       check,
-      post: (message) => this.worker.postMessage(message),
+      post: (message) => this.#port.postMessage(message),
       retire: () => this.pending.delete(id),
     });
     this.pending.set(id, stream);
@@ -255,7 +250,7 @@ export class BrowserNodeRequests {
       };
       const abort = () => {
         finish();
-        this.worker.postMessage({ kind: "cancelHTTP", id });
+        this.#port.postMessage({ kind: "cancelHTTP", id });
         reject(new Error("The original native HTTPS request ended."));
       };
       this.pending.set(id, {
@@ -300,7 +295,7 @@ export class BrowserNodeRequests {
       });
       signal.addEventListener("abort", abort, { once: true });
       if (signal.aborted) abort();
-      else this.worker.postMessage({ kind: "nativeHTTP", id, request });
+      else this.#port.postMessage({ kind: "nativeHTTP", id, request });
     });
   }
 }

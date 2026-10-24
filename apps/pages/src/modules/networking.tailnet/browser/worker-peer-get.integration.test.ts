@@ -62,7 +62,7 @@ let grants: MessageChannel;
 const loader = vi.fn<typeof loadBrowserNode>();
 const approved = "http://100.64.0.1:8080/proof";
 function send(message: ReturnType<typeof WorkerMessage.parse>) {
-  driver.receive(new MessageEvent("message", { data: message }));
+  driver.command(new MessageEvent("message", { data: message }));
 }
 /** The controller's end of the port the original `start` transferred. */
 function grant(id: number, url: string) {

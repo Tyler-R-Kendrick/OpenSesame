@@ -2,7 +2,10 @@
 import { runtimeFixture } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
 import * as nodeState from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
 import { expect, it, vi } from "vitest";
-import { StatusWorker } from "./authorization.test-support.js";
+import {
+  StatusWorker,
+  stubBrowserNodeWorker,
+} from "./authorization.test-support.js";
 import { BrowserNodeRequests } from "./controller-requests.js";
 import { BrowserNodeRetirement } from "./controller-retirement.js";
 import { createBrowserNodeController } from "./controller.js";
@@ -109,7 +112,7 @@ it("does not reopen custody or create a replacement Worker before the original d
   const open = vi.spyOn(nodeState, "openBrowserNodeState");
   let original: StatusWorker | undefined;
   let replacement: Promise<void> | undefined;
-  vi.stubGlobal("Worker", StatusWorker);
+  stubBrowserNodeWorker();
   const node = createBrowserNodeController({
     assertCurrent() {},
     approve: () => true,
