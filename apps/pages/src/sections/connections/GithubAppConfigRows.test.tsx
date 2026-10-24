@@ -1,22 +1,14 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  GithubAppForgetButton,
-  githubAppForgetSeams,
-} from "./GithubAppConfigRows.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 
 const forget = vi.fn();
-const original = { ...githubAppForgetSeams };
-
-beforeEach(() => {
-  githubAppForgetSeams.forget = forget;
-});
 
 afterEach(() => {
   cleanup();
-  Object.assign(githubAppForgetSeams, original);
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
@@ -25,7 +17,7 @@ describe("GitHub App remove control", () => {
   it("does not delete the sealed key when confirmation is declined", async () => {
     const confirm = vi.fn(() => false);
     vi.stubGlobal("confirm", confirm);
-    render(<GithubAppForgetButton />);
+    render(<GithubAppForgetButton forget={forget} />);
     await userEvent.click(
       screen.getByRole("button", {
         name: "Remove GitHub App from this device",
@@ -40,7 +32,7 @@ describe("GitHub App remove control", () => {
       "confirm",
       vi.fn(() => true),
     );
-    render(<GithubAppForgetButton />);
+    render(<GithubAppForgetButton forget={forget} />);
     await userEvent.click(
       screen.getByRole("button", {
         name: "Remove GitHub App from this device",

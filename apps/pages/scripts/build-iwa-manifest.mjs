@@ -70,7 +70,9 @@ const manifest = {
     "local-peer-to-peer": ["self"],
   },
 };
-if (update !== undefined) manifest.update_manifest_url = update;
+if (update !== undefined) {
+  manifest.update_manifest_url = update;
+}
 const target = join(out, ".well-known", "manifest.webmanifest");
 await mkdir(dirname(target), { recursive: true });
 await writeFile(target, `${JSON.stringify(manifest, null, 2)}\n`);

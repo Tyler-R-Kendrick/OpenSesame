@@ -3,13 +3,13 @@ import { forgetLocalGithubApp } from "@opensesame/app-core/lib/github-app-manife
 import type { GithubAppInstallView } from "@opensesame/app-core/lib/github-app-presence.js";
 import { IconTrash } from "../../components/Icons.js";
 
-/** What Remove does; a test stands in for it. */
-export const githubAppForgetSeams = {
-  forget: (): void => forgetLocalGithubApp(),
-};
-
 /** Unregister the local GitHub App — lives next to the connector title. */
-export function GithubAppForgetButton() {
+export function GithubAppForgetButton({
+  forget = forgetLocalGithubApp,
+}: {
+  /** Sealed-key destruction, injectable for tests (no module mocking). */
+  forget?: () => void;
+} = {}) {
   return (
     <button
       type="button"
@@ -21,13 +21,13 @@ export function GithubAppForgetButton() {
         // Remove destroys the sealed private key and client secret. Ask first;
         // an accidental click cannot be undone.
         if (
-          globalThis.confirm instanceof Function &&
+          "confirm" in globalThis &&
           !globalThis.confirm(
             "Remove the GitHub App from this device? Its private key and client secret will be deleted.",
           )
         )
           return;
-        githubAppForgetSeams.forget();
+        forget();
       }}
     >
       <IconTrash size={16} />
