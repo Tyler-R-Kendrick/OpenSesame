@@ -41,11 +41,16 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   // its only links.
   expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();
   const stripe = container.querySelector("#catalog-stripe");
-  // A catalog entry Vercel Connect cannot broker is no link at all, and says
-  // so with a StatusMark glyph — the sentence is its name, not a pill.
-  expect(stripe?.querySelector("a")).toBeNull();
+  // Stripe has a complete API-key contract and opens its configuration page.
+  const stripeLink = screen.getByRole("link", { name: "Connect Stripe" });
+  expect(stripe?.querySelector("a")).toBe(stripeLink);
+  expect(stripeLink.getAttribute("href")).toBe("/connections/stripe");
+  expect(stripeLink.getAttribute("aria-describedby")).toBe(
+    "catalog-stripe-tags",
+  );
+  expect(stripeLink.tabIndex).toBe(-1);
   const blocked = stripe?.querySelector(".conn-tile__go title");
-  expect(blocked?.textContent).toBe("No way to check a key");
+  expect(blocked).toBeNull();
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });
 
