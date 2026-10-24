@@ -10,6 +10,7 @@ import {
   NATIVE_CANONICAL_PROVIDERS,
   NATIVE_SHARED_AI_PRESETS,
   nativeAuthFieldMethods,
+  nativeCanonicalRouteProvider,
 } from "./native-browser-catalog-projection.mjs";
 import { addCapabilities } from "./pages-journey.mjs";
 
@@ -28,20 +29,6 @@ export async function nativeEnableConnections(page, base) {
     .waitFor();
 }
 
-const PROVIDER_NAMES = new Map(
-  NATIVE_CANONICAL_PROVIDERS.map((provider) => [provider.id, provider.name]),
-);
-
-/**
- * The page a catalog row opens is named for its provider. A family tile
- * (`catalog-families.ts`) is named for the family instead ("AWS") and opens
- * its canonical member's page ("AWS Secrets Manager"), whose "API family"
- * select reaches the family's other APIs.
- */
-function providerPage(row) {
-  return { ...row, name: PROVIDER_NAMES.get(row.id) ?? row.name };
-}
-
 async function catalogRows(page) {
   return page.locator("#catalog .conn-tile").evaluateAll((tiles) =>
     tiles.map((tile) => ({
@@ -52,6 +39,14 @@ async function catalogRows(page) {
         tile.querySelector(".conn-tile__link")?.getAttribute("title") ?? null,
     })),
   );
+}
+
+/** A family tile's browse name is not the selected provider's route name. */
+export function nativeCatalogRouteRow(row) {
+  const provider = nativeCanonicalRouteProvider(row.id);
+  return provider
+    ? { ...row, id: provider.id, name: provider.name, catalogId: row.id }
+    : row;
 }
 
 /**
@@ -253,18 +248,18 @@ export async function nativeCatalogJourney(
       );
       continue;
     }
+    const routeRow = nativeCatalogRouteRow(row);
     const url = new URL(row.href, `https://tyler-r-kendrick.github.io${base}`);
     await nativeVisit(
       page,
       base,
       `${url.pathname.slice(base.length)}${url.search}${url.hash}`,
     );
-    const target = providerPage(row);
-    const sheet = await nativeArrival(page, target);
-    await nativePageContract(page, target, { check: harness.check, phone });
-    const preset = NATIVE_SHARED_AI_PRESETS.get(row.id);
+    const sheet = await nativeArrival(page, routeRow);
+    await nativePageContract(page, routeRow, { check: harness.check, phone });
+    const preset = NATIVE_SHARED_AI_PRESETS.get(routeRow.id);
     if (preset)
-      await nativeAiFormContract(page, target, preset, {
+      await nativeAiFormContract(page, routeRow, preset, {
         check: harness.check,
         record: harness.record,
         phone,
@@ -273,7 +268,7 @@ export async function nativeCatalogJourney(
         routePath: url.pathname,
       });
     if (sheet && !preset)
-      await nativeSheetContract(page, target, sheet, {
+      await nativeSheetContract(page, routeRow, sheet, {
         check: harness.check,
         phone,
       });
