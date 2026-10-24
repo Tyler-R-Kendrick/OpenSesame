@@ -239,22 +239,19 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-  it("saves a generated password with no site as the all-domains rule", async () => {
+  // A draft binds its generated password to no site: an all-domains rule
+  // would autofill it everywhere (97d68ee57, new-draft.ts).
+  it("saves a generated password with no site bound to any domain", async () => {
     renderEditor();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    expect(savedItem()).toMatchObject({
-      kind: "account",
-      uris: [{ uri: "*", match: "wildcard" }],
-    });
+    expect(savedItem()).toMatchObject({ kind: "account", uris: [] });
   });
-  it("starts with an all-domains wildcard and saves its removal", async () => {
+  it("starts with no address, adds one when asked and saves its removal", async () => {
     renderEditor();
-    expect(inputByLabel("Address 1").value).toBe("*");
-    expect(screen.getByLabelText("Match rule 1")).toHaveProperty(
-      "value",
-      "wildcard",
-    );
+    expect(screen.queryByLabelText("Address 1")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
+    expect(inputByLabel("Address 1").value).toBe("");
     await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
