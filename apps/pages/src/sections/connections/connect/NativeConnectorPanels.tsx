@@ -97,13 +97,25 @@ export function nativeSettingsDescriptor(
   ).href;
   const descriptor = nativeProviderDescriptor(plan, {
     callbackUrl,
-    apiKey: { available: hasNativeConnectorDriver("api-key", provider.id) },
+    apiKey: {
+      available:
+        hasNativeConnectorDriver("api-key", provider.id) ||
+        connectPlan(provider.id)?.methods.some(
+          (method) =>
+            method.kind === "api-key" &&
+            !!method.preset &&
+            ((!!method.preset.auth && !!method.preset.verify) ||
+              method.preset.credentialVariants.some(
+                (variant) => !!variant.auth && !!variant.verify,
+              )),
+        ) === true,
+    },
     oauth: {
       registeredAvailable:
         hasNativeConnectorDriver("oauth", provider.id) &&
         supportsNativeOAuthResource(provider.id),
       available:
-        hasNativeConnectorDriver("oauth", provider.id) &&
+        supportsNativeOAuthResource(provider.id) &&
         (provider.id !== "google" || nativeGoogleBrowserAvailable()),
       reason: !hasNativeConnectorDriver("oauth", provider.id)
         ? "Enable External connectors to configure this OAuth application on this device."
