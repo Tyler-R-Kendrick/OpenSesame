@@ -1,10 +1,11 @@
 /**
- * Push an encrypted vault snapshot to bound backup remotes via the Connect
- * relay. Supports GitHub App installs and forge HTTPS remotes
+ * Push an encrypted vault snapshot to bound backup remotes.
+ * GitHub App installs use direct provider REST; forge HTTPS remotes
  * (GitLab / Bitbucket / Codeberg / Cursor Origin).
  */
 import {
   type JsonObject,
+  canonicalize,
   isString,
   overlapCast,
   readString,
@@ -18,7 +19,6 @@ import {
   readLocalBackupTarget,
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
-import { readBoundedObject } from "./bounded-response.js";
 import {
   performSavedCategory,
   performSavedConnector,
@@ -32,6 +32,14 @@ import { getLocalGitRemote } from "./git-remote-local.js";
 import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
 import { savedForgeCredentials } from "./saved-git-backup.js";
+import {
+  pollSavedGithubBackups,
+  putSavedGithubBackup,
+} from "./vault-backup-github.js";
+export {
+  readSavedGithubBackup,
+  restoreSavedGithubBackup,
+} from "./vault-backup-github.js";
 import {
   confirmedBackupCommit,
   readBackupWriteConfirmation,
@@ -78,7 +86,11 @@ function sealedEnvelopeJson(): string {
   return serializeOfflineBackup(envelope);
 }
 
-type PutContentsResult = { commitSha: string | null };
+type PutContentsResult = {
+  commitSha: string | null;
+  assertCurrent?: () => void;
+  close?: () => void;
+};
 
 /** Git backup withdrawn, or the relay off the operator's allowlist: no call. */
 function refuseUnlessAllowed(base: string): void {
@@ -95,19 +107,9 @@ async function putGithubContentsDefault(input: {
   repo: string;
   branch: string;
   contentBase64: string;
+  providerId?: string;
 }): Promise<PutContentsResult> {
-  const base = githubAppRelayBase();
-  if (base === "") throw new Error("Connect relay is not configured.");
-  refuseUnlessAllowed(base);
-  const response = await fetch(`${base}/api/github-app/put-contents`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-  return readBackupWriteConfirmation(response);
+  return putSavedGithubBackup(input);
 }
 
 async function putForgeContentsDefault(input: {
@@ -144,41 +146,9 @@ async function putForgeContentsDefault(input: {
   return readBackupWriteConfirmation(response);
 }
 
+/** Poll actual provider branch heads; App signing keys never go to a webhook relay. */
 async function drainWebhookPendingDefault(): Promise<number> {
-  const base = githubAppRelayBase();
-  if (base === "" || !backupOriginAllowed(base)) return 0;
-  const creds = vaultBackupSyncSeams.resolveCredentials();
-  if (!creds) return 0;
-  const targets = listLocalBackupTargets().filter(
-    (row) => row.enabled && row.kind === "github_app" && row.installationId,
-  );
-  if (targets.length === 0) return 0;
-  let total = 0;
-  for (const target of targets) {
-    try {
-      const response = await fetch(`${base}/api/github-app/webhook-pending`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          appId: creds.appId,
-          pem: creds.pem,
-          installationId: target.installationId,
-        }),
-      });
-      if (!response.ok) continue;
-      const payload: JsonObject = overlapCast(
-        await readBoundedObject(response, 65536, 8_000).catch(() => ({})),
-      );
-      const events = Array.isArray(payload.events) ? payload.events : [];
-      total += events.length;
-    } catch {
-      /* relay unreachable */
-    }
-  }
-  return total;
+  return pollSavedGithubBackups();
 }
 
 function resolveGithubCredentialsDefault(): {
@@ -298,6 +268,10 @@ async function syncOneTarget(
   if (!target.enabled) return target;
   if (target.providerId) performSavedConnector(target.providerId);
   const providerKey = target.providerId ?? "github";
+  const targetReceipt = canonicalize(target);
+  const targetCurrent = () =>
+    canonicalize(readLocalBackupTarget(providerKey)) === targetReceipt;
+  let close = () => {};
   try {
     let commitSha: string | null = null;
     if (target.kind === "git_remote") {
@@ -319,10 +293,15 @@ async function syncOneTarget(
         repo: target.repo,
         branch: target.branch,
         contentBase64,
+        providerId: providerKey,
       });
+      close = result.close ?? close;
+      result.assertCurrent?.();
       commitSha = result.commitSha;
     }
     commitSha = confirmedBackupCommit(commitSha);
+    if (!targetCurrent())
+      throw new Error("The backup target changed during sync.");
     const next: LocalBackupTarget = {
       ...target,
       status: "ok",
@@ -337,12 +316,15 @@ async function syncOneTarget(
   } catch (caught) {
     const message =
       caught instanceof Error ? caught.message : "Backup sync failed";
-    writeLocalBackupTarget({
-      ...target,
-      status: "error",
-      lastError: message,
-    });
+    if (targetCurrent())
+      writeLocalBackupTarget({
+        ...target,
+        status: "error",
+        lastError: message,
+      });
     throw caught instanceof Error ? caught : new Error(message);
+  } finally {
+    close();
   }
 }
 

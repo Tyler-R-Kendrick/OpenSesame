@@ -1,6 +1,16 @@
 /** @vitest-environment jsdom */
+import { createHash, verify, webcrypto } from "node:crypto";
+import {
+  type IncomingMessage,
+  type ServerResponse,
+  createServer,
+} from "node:http";
 import type { NetworkPolicy } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+import { configureHost } from "../host.js";
+import { createTestHost } from "../test-host.js";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { backupEgressGate, backupOriginAllowed } from "./backup-egress-gate.js";
 import {
   clearLocalBackupTarget,
@@ -12,10 +22,28 @@ import {
   setBackupTargetEnabled,
 } from "./backup.js";
 import {
+  allowGithub,
+  openGithubTestOwner,
+} from "./github-app-authority.test-support.js";
+import {
+  credentials,
+  keyPair,
+  tokenReply,
+} from "./github-app-direct.test-support.js";
+import {
+  forgetLocalGithubApp,
+  rememberLocalGithubApp,
+} from "./github-app-local.js";
+import {
+  sealPendingGithubAppSecret,
+  stashPendingGithubAppSecret,
+} from "./github-app-secret.js";
+import {
   stopVaultBackupObserver,
   vaultBackupObserverSeams,
 } from "./vault-backup-observer.js";
 import { vaultBackupSyncSeams } from "./vault-backup-sync.js";
+import { vaultStore } from "./vault/store.js";
 
 const originalSync = { ...vaultBackupSyncSeams };
 
@@ -60,6 +88,145 @@ function stubPush() {
     putContents,
   });
   return putContents;
+}
+
+type PolicyProviderState = {
+  requests: { url: string; method: string; body: string }[];
+  errors: unknown[];
+  stored: Buffer | null;
+  head: string;
+};
+function policyBlob(bytes: Buffer) {
+  return createHash("sha1")
+    .update(`blob ${bytes.length}\0`)
+    .update(bytes)
+    .digest("hex");
+}
+function policyRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  state: PolicyProviderState,
+) {
+  let body = "";
+  request.on("data", (chunk) => {
+    body += chunk.toString();
+    if (body.length > 1048576) request.destroy();
+  });
+  request.on("end", () => {
+    try {
+      const url = request.url ?? "";
+      const method = request.method ?? "";
+      state.requests.push({ url, method, body });
+      response.setHeader("Content-Type", "application/json");
+      if (url === "/app/installations/777/access_tokens") {
+        const jwt = (request.headers.authorization ?? "")
+          .replace(/^Bearer /, "")
+          .split(".");
+        expect(
+          verify(
+            "RSA-SHA256",
+            Buffer.from(`${jwt[0]}.${jwt[1]}`),
+            keyPair.publicKey,
+            Buffer.from(jwt[2] ?? "", "base64url"),
+          ),
+        ).toBe(true);
+        expect(JSON.parse(body)).toEqual({
+          repositories: ["vault"],
+          permissions: { contents: "write", metadata: "read" },
+        });
+        tokenReply(response);
+        return;
+      }
+      expect(request.headers.authorization).toBe(
+        "Bearer ghs_fixture_ephemeral",
+      );
+      if (method === "PUT") {
+        expect(url).toBe(
+          "/repos/octo/vault/contents/opensesame-vault.backup.json",
+        );
+        const value = z
+          .object({
+            branch: z.literal("main"),
+            content: z.string(),
+            sha: z.string().optional(),
+          })
+          .parse(JSON.parse(body));
+        if (
+          value.sha !== (state.stored ? policyBlob(state.stored) : undefined)
+        ) {
+          response.writeHead(409);
+          response.end("{}");
+          return;
+        }
+        state.stored = Buffer.from(value.content, "base64");
+        expect(state.stored.toString("base64")).toBe(value.content);
+        expect(JSON.parse(state.stored.toString()).format).toBe(
+          "opensesame-offline-backup",
+        );
+        state.head = createHash("sha1").update(state.stored).digest("hex");
+        response.writeHead(201);
+        response.end(JSON.stringify({ commit: { sha: state.head } }));
+        return;
+      }
+      expect(method).toBe("GET");
+      if (!state.stored || !url.endsWith(`ref=${state.head}`)) {
+        response.writeHead(404);
+        response.end("{}");
+        return;
+      }
+      response.end(
+        JSON.stringify({
+          type: "file",
+          path: "opensesame-vault.backup.json",
+          sha: policyBlob(state.stored),
+          encoding: "base64",
+          size: state.stored.length,
+          content: state.stored.toString("base64"),
+        }),
+      );
+    } catch (error) {
+      state.errors.push(error);
+      response.writeHead(500);
+      response.end("{}");
+    }
+  });
+}
+
+/** Actual provider socket for the direct default; no App authority is mocked. */
+async function directPolicyProvider() {
+  const state: PolicyProviderState = {
+    requests: [],
+    errors: [],
+    stored: null,
+    head: "",
+  };
+  const server = createServer((request, response) =>
+    policyRequest(request, response, state),
+  );
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = z.object({ port: z.number() }).parse(server.address());
+  const actualFetch = globalThis.fetch;
+  const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(
+      input instanceof Request ? input.url : input.toString(),
+    );
+    expect(url.origin).toBe("https://api.github.com");
+    return actualFetch(
+      `http://127.0.0.1:${port}${url.pathname}${url.search}`,
+      init,
+    );
+  });
+  return {
+    fetch,
+    requests: state.requests,
+    async close() {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+      expect(state.errors).toEqual([]);
+    },
+  };
 }
 
 describe("git backup's calls hold inside the operator's policy (ADR 0142)", () => {
@@ -121,36 +288,60 @@ describe("git backup's calls hold inside the operator's policy (ADR 0142)", () =
     expect(interval).toHaveBeenCalledTimes(1);
   });
 
-  it("a manual resync goes through the push's own check, not only runSync's", async () => {
+  it("a genuine direct manual resync holds the provider allowlist and sends exactly one PUT", async () => {
+    configureHost(createTestHost({ locks: webLocksDouble() }));
+    vi.stubGlobal("crypto", webcrypto);
+    allowGithub();
+    await openGithubTestOwner();
+    const app = {
+      id: credentials.appId,
+      key: "github-oauth",
+      displayName: "Policy fixture App",
+      htmlUrl: null,
+      ownerLogin: "octo",
+      ownerType: "User",
+      installedByLogin: null,
+      installations: [{ id: "777", accountLogin: "octo", accountType: "User" }],
+    };
+    rememberLocalGithubApp(app);
+    stashPendingGithubAppSecret(app, credentials.privateKey);
+    await sealPendingGithubAppSecret();
+    await vaultStore.flushPendingWrites();
     enabledGithubTarget();
-    // The real push: only the envelope and the credentials are stood in for.
-    Object.assign(vaultBackupSyncSeams, {
-      sealedEnvelopeJson: () => "{}",
-      resolveCredentials: () => ({ appId: "1", pem: "pem" }),
-    });
-    const fetch = vi.fn(async (_url: RequestInfo | URL) =>
-      Response.json({ commitSha: "x" }, { status: 200 }),
-    );
-    vi.stubGlobal("fetch", fetch);
-    const relay = new URL(location.origin).origin;
-
-    plan(false, "allow");
-    await resyncBackup("github").catch(() => undefined);
-    expect(fetch).not.toHaveBeenCalled();
-
-    vi.restoreAllMocks();
-    vi.stubGlobal("fetch", fetch);
-    plan(true, "allow", ["https://relay.example"]);
-    await resyncBackup("github").catch(() => undefined);
-    expect(fetch).not.toHaveBeenCalled();
-
-    vi.restoreAllMocks();
-    vi.stubGlobal("fetch", fetch);
-    plan(true, "allow", [relay]);
-    await resyncBackup("github").catch(() => undefined);
-    expect(fetch.mock.calls.map(([url]) => String(url))).toContain(
-      `${relay}/api/github-app/put-contents`,
-    );
+    const provider = await directPolicyProvider();
+    vi.stubGlobal("fetch", provider.fetch);
+    try {
+      plan(false, "allow");
+      await expect(resyncBackup("github")).rejects.toThrow();
+      expect(provider.fetch).not.toHaveBeenCalled();
+      expect(provider.requests).toEqual([]);
+      plan(true, "allow", ["https://relay.example"]);
+      await expect(resyncBackup("github")).rejects.toThrow();
+      expect(provider.fetch).not.toHaveBeenCalled();
+      expect(provider.requests).toEqual([]);
+      plan(true, "allow", ["https://api.github.com"]);
+      await expect(resyncBackup("github")).resolves.toBeUndefined();
+      expect(
+        provider.requests.filter((row) => row.method === "PUT"),
+      ).toHaveLength(1);
+      expect(provider.requests.map((row) => row.method)).toEqual([
+        "POST",
+        "GET",
+        "PUT",
+        "GET",
+      ]);
+      expect(
+        provider.fetch.mock.calls.every(
+          ([url]) => new URL(String(url)).origin === "https://api.github.com",
+        ),
+      ).toBe(true);
+      expect(JSON.stringify(provider.requests)).not.toContain("PRIVATE KEY");
+    } finally {
+      forgetLocalGithubApp();
+      await vaultStore.flushPendingWrites();
+      vaultStore.lock();
+      await provider.close();
+    }
   });
 
   it("a non-empty allowedServiceOrigins is an allowlist for every backup call", () => {
