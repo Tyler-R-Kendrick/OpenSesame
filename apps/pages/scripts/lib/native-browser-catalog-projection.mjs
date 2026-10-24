@@ -51,11 +51,11 @@ const projection = buildSync({
       const releaseOrigin=bindNativeBrowserPolicyOrigin(()=> 'https://tyler-r-kendrick.github.io');
       export const auditedAdobeAdmission=nativeBrowserMcpPolicy('adobe');
       releaseOrigin();
-      import {catalogPageItems} from './apps/pages/src/sections/connections/page-tree.ts';
+      import {curatedCatalogProviders} from './apps/pages/src/sections/connections/catalog-selection.ts';
       import {connectionRouteProvider} from './packages/app-core/src/sections/connections/provider-route.ts';
       export const all = mergeVercelCatalog(getBundledProviders()).filter(isConnectionCatalogProvider);
       export function routeProvider(providerId) { return connectionRouteProvider(all, providerId); }
-      export const listed = catalogPageItems(all);
+      export const listed = curatedCatalogProviders(all, {includeFeatured: true, includeFamilies: true});
       export const aiModelProviderIds = all.filter(isAiModelProvider).map(provider => provider.id);
       export const sharedAiPresets = all.flatMap(provider => {
         const preset = aiConnectionPreset(provider.id);
