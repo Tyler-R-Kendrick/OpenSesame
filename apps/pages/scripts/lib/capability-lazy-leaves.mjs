@@ -88,6 +88,10 @@ const LAZY_LEAVES = [
   ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],
   ["/src/modules/sharing.live/carriers/nats", "sharing.live", "live-nats"],
   ["/node_modules/@nats-io/", "sharing.live", "live-nats"],
+  // nkeys' signing primitives. Unclaimed, tweetnacl sat in a shared chunk
+  // that live-nats imported and that imported live-nats back, and starting a
+  // NATS carrier threw in that cycle before either chunk had initialized.
+  ["/node_modules/tweetnacl/", "sharing.live", "live-nats"],
   // A session's minted NATS credential (ADR 0167), reached only through
   // transport.ts's import() when a profile mints: it loads with the client.
   [
@@ -192,6 +196,41 @@ const LAZY_LEAVES = [
     "cap-connectors.external",
   ],
 ];
+
+/**
+ * CommonJS stand-ins more than one optional vendor reaches: the `require` a
+ * module calls with a name known only at run time, and Vite's empty module
+ * for a Node built-in (the `crypto` kdbxweb and tweetnacl look for). Rollup
+ * folded them into whichever shared chunk was nearest, which also held the
+ * Connections chunks' imports, so a NATS carrier loaded Connections with them.
+ * One chunk of their own imports nothing but the helpers in `main`.
+ */
+const COMMONJS_SHIMS = new Set([
+  "\0commonjs-dynamic-modules",
+  "__vite-browser-external",
+  "\0__vite-browser-external?commonjs-proxy",
+]);
+
+export function commonjsShimChunk(id) {
+  return COMMONJS_SHIMS.has(id) ? "commonjs-shims" : undefined;
+}
+
+/** A CommonJS module's wrappers: `\0<file>?commonjs-exports` and the rest. */
+const COMMONJS_WRAPPER =
+  /^\0(.+)\?commonjs-(?:exports|module|es-import|proxy|wrapped)$/;
+
+/**
+ * The file a lazy-leaf rule reads for a module id: the module itself, or, for
+ * a CommonJS wrapper, the file it wraps, so the wrapper lands in that file's
+ * chunk. A wrapper left behind is placed by Rollup alone: it imported the
+ * leaf it wraps, the leaf imported its exports object back, and the two
+ * chunks formed a cycle. Any other `\0` id is no file and has no leaf.
+ */
+export function leafSource(id) {
+  const wrapped = COMMONJS_WRAPPER.exec(id);
+  if (wrapped) return wrapped[1];
+  return id.startsWith("\0") ? undefined : id;
+}
 
 export function lazyLeafChunk(id, entry) {
   const sdk = secretBackendSdkChunk(id, entry);
