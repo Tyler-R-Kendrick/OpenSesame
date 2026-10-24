@@ -1,4 +1,6 @@
+import type { NativeConfigurationOwner } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconExternal, IconRefresh, IconX } from "../../../components/Icons.js";
@@ -15,6 +17,85 @@ type NativeUiScope = {
   controller: NativeConnectorController;
   view?: NativeConnectorView | null;
 };
+
+type NativeUiOwner = Readonly<{
+  controllerIdentity: NativeConnectorController;
+  providerId: string;
+  connectionId: string | undefined;
+  revision: number | undefined;
+  fingerprint: string | undefined;
+  roads: string;
+}>;
+
+function useNativeUiInvocation(
+  owner: NativeUiOwner,
+  latest: { readonly current: NativeUiOwner },
+) {
+  const mount = useRef<object | null>(null);
+  const invocation = useRef<{
+    controller: AbortController;
+    owner: NativeUiOwner;
+  } | null>(null);
+  useEffect(() => {
+    const lease = {};
+    mount.current = lease;
+    const stopLock = vaultStore.onLock(() => {
+      invocation.current?.controller.abort();
+      invocation.current = null;
+    });
+    return () => {
+      stopLock();
+      if (mount.current === lease) {
+        mount.current = null;
+        invocation.current?.controller.abort();
+        invocation.current = null;
+      }
+    };
+  }, []);
+  useEffect(
+    () => () => {
+      const pending = invocation.current;
+      if (pending?.owner === owner) {
+        pending.controller.abort();
+        invocation.current = null;
+      }
+    },
+    [owner],
+  );
+  const begin = () => {
+    const lease = mount.current;
+    invocation.current?.controller.abort();
+    const token = { controller: new AbortController(), owner };
+    invocation.current = token;
+    return {
+      signal: token.controller.signal,
+      current: () =>
+        !token.controller.signal.aborted &&
+        lease !== null &&
+        mount.current === lease &&
+        latest.current === owner &&
+        invocation.current === token,
+      finish: () => {
+        if (invocation.current === token) invocation.current = null;
+      },
+    };
+  };
+  return begin;
+}
+
+/** A captured pending form attempt is the transient configure caller, never saved authority. */
+export function nativeConfigurationOwner(attempt: {
+  readonly signal: AbortSignal;
+  current(): boolean;
+}): NativeConfigurationOwner {
+  return Object.freeze({
+    signal: attempt.signal,
+    assertCurrent: () => {
+      if (!attempt.current())
+        throw new DOMException("This configuration ended.", "AbortError");
+    },
+  });
+}
 
 /** A UI invocation belongs to one mount lease and semantic owner, never a popup ticket. */
 export function useNativeSignInUiLifetime({
@@ -42,33 +123,7 @@ export function useNativeSignInUiLifetime({
   );
   const latest = useRef(owner);
   latest.current = owner;
-  const mount = useRef<object | null>(null);
-  const invocation = useRef<object | null>(null);
-  useEffect(() => {
-    const lease = {};
-    mount.current = lease;
-    return () => {
-      if (mount.current === lease) {
-        mount.current = null;
-        invocation.current = null;
-      }
-    };
-  }, []);
-  const begin = () => {
-    const lease = mount.current;
-    const token = {};
-    invocation.current = token;
-    return {
-      current: () =>
-        lease !== null &&
-        mount.current === lease &&
-        latest.current === owner &&
-        invocation.current === token,
-      finish: () => {
-        if (invocation.current === token) invocation.current = null;
-      },
-    };
-  };
+  const begin = useNativeUiInvocation(owner, latest);
   return { owner, begin };
 }
 
