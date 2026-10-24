@@ -14,14 +14,17 @@ primary_contact: set-before-filing@example.com
 homepage: https://github.com/Tyler-R-Kendrick/OpenSesame
 language: rust
 # First wave (ADR 0211 §3): the security-boundary families the in-repo
-# oracles already assert — authority algebra, seals, and parsers.
+# oracles already assert — authority algebra and parsers. Every target must
+# be hermetic under the OSS Verify contract (no entropy, no clock): the
+# seal/envelope targets draw OS randomness for nonces and keys, so they
+# wait until a deterministic seam exists in the harnesses.
 fuzz_targets:
   - capability_algebra
   - grant_attenuation
-  - vault_envelope
-  - broker_seal
   - canonical_json
   - jwt_jwk
   - pki_csr_parse
   - kdbx_parse
+  - vault_item_type
+  - connector_manifest
 patch_style: patch_style.md

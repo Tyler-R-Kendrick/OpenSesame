@@ -49,10 +49,13 @@ binary rather than the source.
    builds), so the pack is a port, not a copy: a per-target
    `ov_target_begin`/`ov_target_build` flow through their Rust recipe, with
    the target's crates vendored by the `crates` directive of
-   `lay-out-sources`. The first wave is eight targets across the three
-   security-boundary families the oracles already assert:
-   `capability_algebra`, `grant_attenuation`, `vault_envelope`, `broker_seal`,
-   `canonical_json`, `jwt_jwk`, `pki_csr_parse`, `kdbx_parse`.
+   `lay-out-sources`. The first wave is eight targets across the
+   security-boundary families the oracles already assert and that are
+   hermetic under the contract: `capability_algebra`, `grant_attenuation`,
+   `canonical_json`, `jwt_jwk`, `pki_csr_parse`, `kdbx_parse`,
+   `vault_item_type`, `connector_manifest`. The seal/envelope targets wait
+   for a deterministic entropy seam (their sealing draws OS randomness,
+   which the contract forbids).
 4. **The submission packs stay in-tree and stay the source of truth.** Both
    upstream PRs are generated from this repository; a change to the fuzz
    estate updates the packs here in the same commit. The packs' local
