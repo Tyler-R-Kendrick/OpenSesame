@@ -80,6 +80,12 @@ const GIT_FILES = [
   "vault-backup-observer",
   "backup-egress-gate",
   "vault-backup-sync",
+  "vault-backup-write-owner",
+  "vault-backup-readonly",
+  "vault-backup-forge",
+  "git-backup-credentials",
+  "gitlab-backup-protocol",
+  "gitlab-backup-target",
   "saved-git-backup",
   "embedded-git",
 ];
@@ -183,6 +189,18 @@ export const LIB_RULES = [
   shared(
     `${L}auth-generation.ts`,
     "principal generation shared by native and ambient sign-in",
+  ),
+  shared(
+    `${L}native-base64.ts`,
+    "pure byte codecs shared by saved backups and native provider protocols",
+  ),
+  shared(
+    `${L}native-response-json.ts`,
+    "bounded native Response decoding shared by saved backups and providers",
+  ),
+  shared(
+    `${L}secret-backends/types.ts`,
+    "common secret-store port and error vocabulary; no provider runtime",
   ),
   shared(`${L}origin-file-publication-read`, "device-sealed record reads"),
   shared(`${L}original-origin-storage`, "sealed origin data"),
