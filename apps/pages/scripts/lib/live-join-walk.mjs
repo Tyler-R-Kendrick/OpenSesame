@@ -6,8 +6,10 @@
  */
 
 import { SHARED_ITEM } from "./live-item-labels.mjs";
+import { answerAddresses, namesSameMachine } from "./live-join-addresses.mjs";
 import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
+export { SAME_MACHINE, answerAddresses } from "./live-join-addresses.mjs";
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
   TUNNEL_ONLY,
@@ -189,21 +191,6 @@ async function natsChoices(routes, carrier) {
 }
 
 /**
- * This machine as a route (ADR 0150 §6, amended 2026-10-24). A walk's two
- * browsers share one machine, and a received description keeps a loopback
- * candidate only when Routes name it: off by default, so a walk names it.
- */
-export const SAME_MACHINE = "127.0.0.1";
-
-async function namesSameMachine(routes) {
-  if ((await routes.getByText(SAME_MACHINE, { exact: true }).count()) > 0)
-    return;
-  await routes.getByLabel("Tailnet, VPN or LAN address").fill(SAME_MACHINE);
-  await routes.getByRole("button", { name: "Add the address" }).click();
-  await routes.getByText(SAME_MACHINE, { exact: true }).waitFor();
-}
-
-/**
  * Start a session. `sameMachine` names this machine in Routes first (the
  * walks' browsers share it); a walk about what an unnamed address does
  * passes false.
@@ -359,25 +346,6 @@ export async function ownerAdmitsByHand(
   }
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
-}
-
-/** Where the join stands once the reply was taken, past its addresses. */
-const PAST_ADDRESSES =
-  /^(Connecting to the owner's browser|Joined |No route to the owner's browser|Connection timed out|The session ended)/;
-
-/**
- * The owner's reply names addresses (ADR 0150 §6): the joiner allows them
- * (`allow`), or joins without them. True when the step was there to answer;
- * false when the reply named none and the join went straight on.
- */
-export async function answerAddresses(page, allow = true, timeout = 45_000) {
-  const step = page.locator("#live-addresses");
-  const past = page.getByRole("img", { name: PAST_ADDRESSES });
-  await step.or(past).first().waitFor({ timeout });
-  if (!(await step.isVisible())) return false;
-  const key = allow ? "Allow the owner's addresses" : "Join without them";
-  await step.getByRole("button", { name: key, exact: true }).click();
-  return true;
 }
 
 export async function joinerConnects(page, reply, { allow = true } = {}) {
