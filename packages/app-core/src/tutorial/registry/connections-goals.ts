@@ -128,7 +128,9 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "settings.model-provider"',
-      'wait state "vault.unlocked" is=true timeout=60000',
+      // A model may emit this guide (capability-tutorials.ts), so it stays
+      // within its eight instructions: Settings is only drawn unlocked, so the
+      // tour needs no wait for the unlock, as no feature tour does.
       'navigate "/settings/features"',
       'wait route "/settings/features" timeout=15000',
       'scroll "feature.ai"',
