@@ -259,6 +259,23 @@ async function peerServices({
   };
 }
 
+/**
+ * Whether the native peer's own netmap holds a node at `address` that control
+ * reports online: until it does, the peer drops that node's WireGuard
+ * handshakes and nothing it sends can reach a service here.
+ */
+function peerSeesOnline(native) {
+  return async (address) => {
+    const status = NativePeers.parse(
+      JSON.parse(await native.cli(["status", "--json"])),
+    );
+    return Object.values(status.Peer ?? {}).some(
+      (peer) =>
+        peer.Online === true && (peer.TailscaleIPs ?? []).includes(address),
+    );
+  };
+}
+
 /** Ports can move together for parallel test runs; all services remain loopback-only. */
 export async function createTailnetConnectFixture({
   peerTLS = false,
@@ -337,18 +354,7 @@ export async function createTailnetConnectFixture({
       control,
       derp,
       peer: proof.requests,
-      // Whether the native peer's own netmap holds a node at `address` that
-      // control reports online: until it does, the peer drops that node's
-      // WireGuard handshakes and nothing it sends can reach a service here.
-      peerSeesOnline: async (address) => {
-        const status = NativePeers.parse(
-          JSON.parse(await native.cli(["status", "--json"])),
-        );
-        return Object.values(status.Peer ?? {}).some(
-          (peer) =>
-            peer.Online === true && (peer.TailscaleIPs ?? []).includes(address),
-        );
-      },
+      peerSeesOnline: peerSeesOnline(native),
       chromiumArgs: [
         "--no-proxy-server",
         `--host-resolver-rules=MAP derp.fixture.test 127.0.0.1:${ports.derp}`,
