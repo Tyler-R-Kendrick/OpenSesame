@@ -72,6 +72,29 @@ it("keeps replacement admission pending until the original peer drain completes"
   expect(worker.terminate).toHaveBeenCalledTimes(1);
 });
 
+it("bounds a drain that never acknowledges", async () => {
+  vi.useFakeTimers();
+  try {
+    const worker = { terminate: vi.fn() };
+    const retirement = new BrowserNodeRetirement();
+    retirement.retire(
+      { usedPeer: true, close: () => new Promise<boolean>(() => {}) },
+      worker,
+    );
+    const admission = retirement.ready().then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    await expect(admission).resolves.toMatchObject({
+      message: "The original peer transport did not confirm closure.",
+    });
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("does not reset a failed drain by stopping an already withdrawn node", async () => {
   const retirement = new BrowserNodeRetirement();
   const worker = { terminate: vi.fn() };

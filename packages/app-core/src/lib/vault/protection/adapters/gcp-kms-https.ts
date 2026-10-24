@@ -17,7 +17,6 @@ import {
   type GcpKmsEncryptResponse,
   type GcpKmsTransport,
   assertGcpCryptoKeyName,
-  assertGcpKeyVersionName,
   crc32cDecimalString,
 } from "./gcp-kms.js";
 
@@ -102,17 +101,8 @@ async function gcpKmsHttpsDecrypt(
   request: GcpKmsDecryptRequest,
 ): Promise<GcpKmsDecryptResponse> {
   assertGcpCryptoKeyName(request.keyName);
-  const pinned = request.expectedKeyVersionName;
-  if (pinned !== undefined) {
-    assertGcpKeyVersionName(pinned);
-    if (!pinned.startsWith(`${request.keyName}/cryptoKeyVersions/`))
-      throw new ProtectionError(
-        "malformed_encoding",
-        "GCP KMS key version does not belong to the configured key.",
-      );
-  }
-  // Symmetric ciphertext identifies its encrypting version. REST decrypt takes
-  // the CryptoKey; the captured version is still validated above for ownership.
+  // Cloud KMS decrypt takes the CryptoKey and selects the version from the
+  // ciphertext. The captured keyVersionName is metadata, not a version pin.
   const endpoint = `https://cloudkms.googleapis.com/v1/${request.keyName}:decrypt`;
   assertAllowedCloudEndpoint(endpoint, "gcp-kms");
   let response: Response;

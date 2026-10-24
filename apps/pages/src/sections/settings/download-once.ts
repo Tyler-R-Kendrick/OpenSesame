@@ -5,7 +5,11 @@
  * only copy of a generated key.
  */
 
-import { type SaveOutcome, downloadBlob } from "../../lib/file-system.js";
+import {
+  type SaveOutcome,
+  downloadBlob,
+  saveBlob,
+} from "../../lib/file-system.js";
 
 export async function downloadOnce(
   filename: string,
@@ -13,4 +17,16 @@ export async function downloadOnce(
 ): Promise<SaveOutcome> {
   downloadBlob(new Blob([body], { type: "text/plain" }), filename);
   return "downloaded";
+}
+
+/** Secret material where a dismissed save must be observable before commit. */
+export async function saveSecret(
+  filename: string,
+  body: string,
+): Promise<SaveOutcome> {
+  return saveBlob(
+    new Blob([body], { type: "text/plain" }),
+    filename,
+    "OpenSesame secret",
+  );
 }

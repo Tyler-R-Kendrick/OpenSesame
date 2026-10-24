@@ -253,28 +253,4 @@ describe("GCP KMS symmetric decrypt resource", () => {
     expect(decryptRequests[1]).toBe(decryptRequests[0]);
   });
 
-  it.each([
-    "not-a-key-version",
-    "projects/other/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1",
-  ])("refuses an invalid captured version before HTTP: %s", async (version) => {
-    const requests: string[] = [];
-    const transport = createGcpKmsHttpsTransport({
-      bearerToken: "fixture-token",
-      fetchImpl: async (input) => {
-        requests.push(String(input));
-        return Response.json({});
-      },
-    });
-
-    await expect(
-      transport.decrypt({
-        keyName: KEY_NAME,
-        expectedKeyVersionName: version,
-        ciphertext: CIPHERTEXT,
-        aad: new Uint8Array(),
-      }),
-    ).rejects.toMatchObject({ code: "malformed_encoding" });
-
-    expect(requests).toEqual([]);
-  });
 });

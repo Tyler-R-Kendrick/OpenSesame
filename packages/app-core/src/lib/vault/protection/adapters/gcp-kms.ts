@@ -48,7 +48,6 @@ export type GcpKmsDecryptRequest = {
   keyName: string;
   ciphertext: Uint8Array;
   aad: Uint8Array;
-  expectedKeyVersionName?: string;
 };
 
 export type GcpKmsDecryptResponse = {
@@ -252,16 +251,11 @@ async function gcpKmsUnwrap(
     assertGcpKeyVersionName(input.record.keyVersionName);
   }
 
-  const decryptRequest: GcpKmsDecryptRequest = {
+  const decrypted = await transport.decrypt({
     keyName: input.record.keyName,
     ciphertext: b64ToBytes(input.record.wrappedSecretB64),
     aad: expectedAad,
-  };
-  if (input.record.keyVersionName !== undefined) {
-    decryptRequest.expectedKeyVersionName = input.record.keyVersionName;
-  }
-
-  const decrypted = await transport.decrypt(decryptRequest);
+  });
 
   assertVerifiedFlag("ciphertext", decrypted.verifiedCiphertextCrc32c);
   assertVerifiedFlag(

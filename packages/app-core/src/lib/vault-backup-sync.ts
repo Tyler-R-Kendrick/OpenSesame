@@ -301,6 +301,8 @@ async function syncOneTarget(
   try {
     let commitSha: string | null = null;
     if (target.kind === "git_remote") {
+      // Forge relays may report a successful write without a commit object
+      // (Bitbucket does); the provider receipt is the confirmation there.
       commitSha = await pushSavedForgeBackup(target);
     } else {
       const json = vaultBackupSyncSeams.sealedEnvelopeJson();
@@ -325,7 +327,11 @@ async function syncOneTarget(
       result.assertCurrent?.();
       commitSha = result.commitSha;
     }
-    commitSha = confirmedBackupCommit(commitSha);
+    // Bitbucket's relay confirms the write without a commit object. Every
+    // other provider must still return a real Git object ID.
+    if (!(providerKey === "bitbucket" && commitSha === null)) {
+      commitSha = confirmedBackupCommit(commitSha);
+    }
     if (!targetOwner.current())
       throw new Error("The backup target changed during sync.");
     const current = readLocalBackupTarget(providerKey);

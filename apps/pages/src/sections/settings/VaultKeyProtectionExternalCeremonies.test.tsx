@@ -29,7 +29,7 @@ const flows = {
   testAgeRecipientFlow:
     vi.fn<typeof originalDependencies.testAgeRecipientFlow>(),
 };
-const download = vi.fn<typeof originalDependencies.downloadOnce>();
+const download = vi.fn<typeof originalDependencies.saveSecret>();
 
 const noAws: AwsKmsDeviceConfig = {
   keyArn: "",
@@ -68,7 +68,7 @@ beforeEach(() => {
   savedGcp = noGcp;
   Object.assign(externalCeremonyDependencies, {
     ...flows,
-    downloadOnce: download,
+    saveSecret: download,
     readAwsKmsConfig: async () => savedAws,
     readGcpKmsConfig: async () => savedGcp,
   });

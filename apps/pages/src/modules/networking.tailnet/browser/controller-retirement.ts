@@ -2,6 +2,8 @@ import type { BrowserNodeRequests } from "./controller-requests.js";
 
 type RetiringRequests = Pick<BrowserNodeRequests, "usedPeer" | "close">;
 
+const DRAIN_TIMEOUT_MS = 5_000;
+
 /** A replacement realm waits for every original peer transport to drain. */
 export class BrowserNodeRetirement {
   private closing: Promise<boolean> = Promise.resolve(true);
@@ -16,14 +18,24 @@ export class BrowserNodeRetirement {
       worker?.terminate();
       return;
     }
-    this.closing = Promise.all([this.closing, drain]).then(
+    const bounded = new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), DRAIN_TIMEOUT_MS);
+      drain.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        () => {
+          clearTimeout(timer);
+          resolve(false);
+        },
+      );
+    });
+    this.closing = Promise.all([this.closing, bounded]).then(
       ([previous, current]) => previous && current,
       () => false,
     );
-    void drain.then(
-      () => worker?.terminate(),
-      () => worker?.terminate(),
-    );
+    void bounded.then(() => worker?.terminate());
   }
 
   async ready(): Promise<void> {

@@ -36,7 +36,7 @@ import {
   type GcpKmsFormState,
   emptyGcpKmsForm,
 } from "../connections/GcpKmsConnectFields.js";
-import { downloadOnce } from "./download-once.js";
+import { saveSecret } from "./download-once.js";
 
 /**
  * What the ceremonies call. A seam, so a test drives the sheets without the
@@ -49,7 +49,7 @@ export const externalCeremonyDependencies = {
   enrollAwsKmsFlow,
   enrollGcpKmsFlow,
   testAgeRecipientFlow,
-  downloadOnce,
+  saveSecret,
 };
 
 function useTomb(): string {
@@ -79,7 +79,7 @@ export function AgeRecipientBody({
           tomb,
           entry,
           deliver: async (delivery) => {
-            const delivered = await externalCeremonyDependencies.downloadOnce(
+            const delivered = await externalCeremonyDependencies.saveSecret(
               "opensesame-vault-age-identity.txt",
               identityFile(delivery.identity, delivery.recipient),
             );

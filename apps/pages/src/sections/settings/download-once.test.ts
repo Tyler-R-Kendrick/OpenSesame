@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { AddKeyProtection } from "./VaultKeyProtectionCeremonies.js";
 import { externalCeremonyDependencies } from "./VaultKeyProtectionExternalCeremonies.js";
-import { downloadOnce } from "./download-once.js";
+import { downloadOnce, saveSecret } from "./download-once.js";
 
 const originalHooks = { ...vaultHooksSeams };
 const originalDependencies = { ...externalCeremonyDependencies };
@@ -83,6 +83,18 @@ describe("downloadOnce", () => {
     expect(text).toBe("AGE-SECRET-KEY");
   });
 
+  it("reports a dismissed secret save as cancelled", async () => {
+    vi.stubGlobal(
+      "showSaveFilePicker",
+      vi.fn(async () => {
+        throw new DOMException("dismissed", "AbortError");
+      }),
+    );
+    await expect(saveSecret("age.txt", "AGE-SECRET-KEY")).resolves.toBe(
+      "cancelled",
+    );
+  });
+
   it.each(["Blob", "object URL", "anchor"])(
     "rejects %s failures through the returned Promise",
     async (stage) => {
@@ -130,7 +142,7 @@ describe("downloadOnce", () => {
     Object.assign(vaultHooksSeams, {
       useVaultStore: () => ({ protection }),
     });
-    Object.assign(externalCeremonyDependencies, { downloadOnce });
+    Object.assign(externalCeremonyDependencies, { saveSecret: downloadOnce });
     const onDone = vi.fn();
     render(createElement(AddKeyProtection, { onDone }));
     const recovery = screen.getByRole("button", { name: "Recovery key" });
