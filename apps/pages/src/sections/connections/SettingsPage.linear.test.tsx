@@ -69,6 +69,10 @@ it("adds Linear from Settings through the advanced API-key road", async () => {
       />
     </MemoryRouter>,
   );
+  // connect-presets.json gives Linear's MCP road no configurable
+  // authentication: the page draws the sign-in, not a choice of bearer,
+  // header or anonymous access.
+  expect(screen.queryByLabelText("MCP authentication")).toBeNull();
   await userEvent.click(
     screen.getByText("Advanced: existing OAuth app or API key"),
   );

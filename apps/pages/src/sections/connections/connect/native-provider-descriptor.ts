@@ -3,11 +3,9 @@ import type { BrowserUnavailableKind } from "@opensesame/app-core/lib/browser-di
 import type {
   ConnectMethod,
   ConnectPlan,
-  McpInfo,
   OauthPreset,
 } from "@opensesame/app-core/lib/connect-plan.js";
 import type { NativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
-import { nativeMcpMetadataUnavailableReason } from "@opensesame/app-core/lib/native-mcp-availability.js";
 import { configuredNativeOAuthPreset } from "@opensesame/app-core/lib/native-oauth-resource-preset.js";
 import { nativeBrowserOAuthDescriptor } from "./native-browser-oauth-descriptor.js";
 import type {
@@ -15,7 +13,10 @@ import type {
   NativeMethodDescriptor,
   NativeScopeGroup,
 } from "./native-connector-ui.js";
-import { configuredMcpDescriptor } from "./native-mcp-configured-descriptor.js";
+import {
+  type NativeMcpAvailability,
+  publishedMcpDescriptor,
+} from "./native-mcp-descriptor.js";
 import {
   type NativeOAuthResourceOptions,
   nativeOAuthResourceDescriptor,
@@ -38,13 +39,7 @@ export type BrowserProviderAvailability = {
     profile?: NativeBrowserOAuthProfile;
     scopeGroups?: NativeScopeGroup[];
   };
-  mcp: {
-    available: boolean;
-    reason?: string;
-    inactiveReason?: string;
-    actor: string;
-    defaultScopes?: readonly string[];
-  };
+  mcp: NativeMcpAvailability;
 };
 
 function scopes(preset: OauthPreset): NativeScopeGroup[] {
@@ -154,76 +149,6 @@ function apiDescriptor(
     scopeGroups: [],
     links: preset?.keyUrl
       ? [{ label: `Create ${plan.name} credentials`, url: preset.keyUrl }]
-      : [],
-  };
-}
-
-function mcpUnavailableAdvice(
-  providerId: string,
-  metadata: McpInfo,
-  availability: BrowserProviderAvailability["mcp"],
-): Pick<NativeMethodDescriptor, "unavailableReason" | "unavailableKind"> {
-  const reason =
-    availability.reason ??
-    nativeMcpMetadataUnavailableReason(providerId, metadata) ??
-    undefined;
-  if (!availability.available && reason === undefined)
-    return {
-      unavailableKind: "runtime-inactive",
-      unavailableReason:
-        availability.inactiveReason ??
-        "Enable External connectors in Settings › Features to activate this connection on this device.",
-    };
-  return {
-    unavailableKind: "no-public-contract",
-    unavailableReason:
-      reason ??
-      "The provider has not advertised a public browser authorization contract for its MCP server.",
-  };
-}
-
-function mcpDescriptor(
-  providerId: string,
-  method: Extract<ConnectMethod, { kind: "mcp" }>,
-  availability: BrowserProviderAvailability["mcp"],
-): NativeMethodDescriptor {
-  const metadata = method.mcp.status === "ok" ? method.mcp : null;
-  return {
-    id: "mcp",
-    authorizeFirst: true,
-    preferredRank:
-      metadata?.status === "ok" && metadata.registration !== "manual" ? 10 : 40,
-    label:
-      metadata && metadata.registration !== "manual" ? "Managed MCP" : "MCP",
-    available: availability.available,
-    ...mcpUnavailableAdvice(providerId, method.mcp, availability),
-    instructions:
-      "Connect to this provider's published MCP server. OpenSesame verifies its advertised tools before reporting a connection.",
-    fields:
-      metadata?.registration === "manual"
-        ? [
-            {
-              id: "client_id",
-              label: "Public MCP client ID",
-              kind: "text",
-              secret: false,
-              required: true,
-            },
-          ]
-        : [],
-    scopeGroups: metadata
-      ? [
-          {
-            actor: availability.actor,
-            label: "MCP permissions",
-            choices: metadata.scopes.map((scope) => ({
-              name: scope,
-              description:
-                "Permission advertised by the provider's MCP authorization server.",
-              default: availability.defaultScopes?.includes(scope) ?? false,
-            })),
-          },
-        ]
       : [],
   };
 }
@@ -342,13 +267,7 @@ function providerMethods(
     if (method.kind === "oauth")
       methods.push(publicOAuthDescriptor(plan, availability, method));
     if (method.kind === "mcp")
-      methods.push(
-        configuredMcpDescriptor(
-          plan.id,
-          method.mcp,
-          mcpDescriptor(plan.id, method, availability.mcp),
-        ),
-      );
+      methods.push(publishedMcpDescriptor(plan.id, method, availability.mcp));
   }
   if (!methods.some((method) => method.id === "oauth")) {
     const additional = additionalOAuthMethod(plan, availability);

@@ -37,6 +37,10 @@ import {
   nativeKeyActions,
   nativeKeyDescriptor,
 } from "./native-key-descriptor.js";
+import {
+  planDefaultMcpScopes,
+  planPageMethods,
+} from "./native-mcp-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 import { nativeS3Descriptor } from "./native-s3-descriptor.js";
 import { useNativeAuthorization } from "./useNativeAuthorization.js";
@@ -140,19 +144,13 @@ export function nativeSettingsDescriptor(
       reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
       inactiveReason: mcpInactiveReason(),
       actor: "user",
-      defaultScopes: provider.id === "linear" ? ["read"] : undefined,
+      defaultScopes: planDefaultMcpScopes(plan),
     },
   });
-  // Linear's GraphQL app/key ceremony lives in its existing advanced form.
-  // Existing native records keep their own method and credential custody.
-  return provider.id === "linear"
-    ? {
-        ...descriptor,
-        methods: descriptor.methods.filter(
-          (method) => method.id === (savedMethod ?? "mcp"),
-        ),
-      }
-    : descriptor;
+  // The plan's rules come from the connector spec (ADR 0139): Linear's
+  // GraphQL app/key ceremony lives in its existing advanced form, and an
+  // existing native record keeps its own method and credential custody.
+  return planPageMethods(descriptor, plan, savedMethod);
 }
 
 function primaryActions(
