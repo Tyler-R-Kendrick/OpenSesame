@@ -22,6 +22,7 @@ mod profile;
 mod rotation;
 mod second_factors;
 mod sends;
+mod storage_quota;
 
 pub use accounts::{BitwardenCredentials, BitwardenKdf, BitwardenUser};
 pub use attachments::BitwardenAttachment;
@@ -32,7 +33,7 @@ pub use devices::{BitwardenDevice, BitwardenSignIn};
 pub use emergency::{emergency_status, BitwardenEmergencyAccess};
 pub use folders::BitwardenFolder;
 pub use moves::{ArrivalOutcome, ArrivingSignIn, BitwardenArrival};
-pub use org_ciphers::BitwardenMark;
+pub use org_ciphers::{BitwardenCipherShare, BitwardenMark};
 pub use org_moves::{BitwardenOrgArrival, BitwardenOrgArrived};
 pub use orgs::{member_status, member_type, BitwardenOrgMember, BitwardenOrganization};
 pub use policies::BitwardenPolicy;
@@ -41,3 +42,8 @@ pub use profile::BitwardenDeviceSummary;
 pub use rotation::{BitwardenAccountSettings, BitwardenKeyRotation, RotatedCipher};
 pub use second_factors::{BitwardenRemember, BitwardenTwoFactor};
 pub use sends::BitwardenSend;
+
+pub use storage_quota::BitwardenStorageQuotaExceeded;
+
+#[cfg(test)]
+mod storage_quota_tests;

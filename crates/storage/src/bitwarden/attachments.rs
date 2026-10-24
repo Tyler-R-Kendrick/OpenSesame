@@ -9,6 +9,7 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::Row as _;
 
 use super::accounts::{bitwarden_timestamp, parse_bitwarden_timestamp};
+use super::storage_quota;
 use crate::Db;
 
 /// A file on a cipher. `file_name` and `key` are `EncString`s.
@@ -52,21 +53,36 @@ impl Db {
     pub async fn bitwarden_add_attachment(
         &self,
         attachment: &BitwardenAttachment,
+        quota_bytes: i64,
     ) -> anyhow::Result<()> {
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        storage_quota::admit_cipher_growth(
+            &mut tx,
+            &attachment.cipher_id,
+            attachment.size,
+            quota_bytes,
+        )
+        .await?;
+        let live_user: Option<String> =
+            sqlx::query_scalar("SELECT user_id FROM bitwarden_ciphers WHERE id = ?")
+                .bind(&attachment.cipher_id)
+                .fetch_one(&mut *tx)
+                .await?;
         sqlx::query(
             "INSERT INTO bitwarden_attachments (id, cipher_id, user_id, file_name, key, size, \
              uploaded, created_at) VALUES (?,?,?,?,?,?,?,?)",
         )
         .bind(&attachment.id)
         .bind(&attachment.cipher_id)
-        .bind(&attachment.user_id)
+        .bind(&live_user)
         .bind(&attachment.file_name)
         .bind(&attachment.key)
         .bind(attachment.size)
         .bind(i64::from(attachment.uploaded))
         .bind(bitwarden_timestamp(attachment.created_at))
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(())
     }
     /// Every attachment on the account's ciphers.
@@ -143,8 +159,24 @@ impl Db {
         cipher_id: &str,
         id: &str,
         bytes: &[u8],
+        quota_bytes: i64,
     ) -> anyhow::Result<bool> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let claimed: Option<i64> = sqlx::query_scalar(
+            "SELECT MAX(a.size, COALESCE(length(b.data), 0), 0) FROM bitwarden_attachments a \
+             LEFT JOIN bitwarden_blobs b ON b.id = a.id WHERE a.id = ? AND a.cipher_id = ? AND a.uploaded = 0",
+        ).bind(id).bind(cipher_id).fetch_optional(&mut *tx).await?;
+        let Some(claimed) = claimed else {
+            return Ok(false);
+        };
+        let length = i64::try_from(bytes.len())?;
+        storage_quota::admit_cipher_growth(
+            &mut tx,
+            cipher_id,
+            length.saturating_sub(claimed),
+            quota_bytes,
+        )
+        .await?;
         let done = sqlx::query(
             "UPDATE bitwarden_attachments SET uploaded = 1 \
              WHERE id = ? AND cipher_id = ? AND uploaded = 0",
@@ -209,10 +241,35 @@ impl Db {
     /// Returns an error when the transaction fails.
     pub async fn bitwarden_rekey_attachment(
         &self,
+        user_id: &str,
         replacement: &BitwardenAttachment,
         bytes: &[u8],
+        quota_bytes: i64,
     ) -> anyhow::Result<bool> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let claimed: Option<i64> = sqlx::query_scalar(
+            "SELECT MAX(a.size, COALESCE(length(b.data), 0), 0) FROM bitwarden_attachments a \
+             JOIN bitwarden_ciphers c ON c.id = a.cipher_id \
+             LEFT JOIN bitwarden_blobs b ON b.id = a.id \
+             WHERE a.id = ? AND a.cipher_id = ? AND c.user_id = ? AND c.organization_id IS NULL",
+        )
+        .bind(&replacement.id)
+        .bind(&replacement.cipher_id)
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some(claimed) = claimed else {
+            return Ok(false);
+        };
+        let length = i64::try_from(bytes.len())?;
+        let charge = replacement.size.max(length).max(0);
+        storage_quota::admit_cipher_growth(
+            &mut tx,
+            &replacement.cipher_id,
+            charge.saturating_sub(claimed),
+            quota_bytes,
+        )
+        .await?;
         let done = sqlx::query(
             "UPDATE bitwarden_attachments SET file_name = ?, key = ?, size = ?, uploaded = 1 \
              WHERE id = ? AND cipher_id = ?",
@@ -242,13 +299,8 @@ impl Db {
     ///
     /// Returns an error when the query fails.
     pub async fn bitwarden_org_storage_used(&self, org_id: &str) -> anyhow::Result<i64> {
-        Ok(sqlx::query_scalar(
-            "SELECT COALESCE(SUM(size), 0) FROM bitwarden_attachments WHERE cipher_id IN \
-             (SELECT id FROM bitwarden_ciphers WHERE organization_id = ?)",
-        )
-        .bind(org_id)
-        .fetch_one(&self.pool)
-        .await?)
+        let mut connection = self.pool.acquire().await?;
+        storage_quota::owner_used(&mut connection, None, Some(org_id)).await
     }
 
     /// Record an attachment with its bytes at once, as the importer does.

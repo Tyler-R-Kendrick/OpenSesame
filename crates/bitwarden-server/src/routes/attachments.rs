@@ -148,7 +148,10 @@ pub async fn announce(
     let size = body.get("fileSize").and_then(Value::as_i64).unwrap_or(0);
     admit_for(&server, cipher, size).await?;
     let attachment = new_attachment(cipher, file_name, key, size);
-    server.db.bitwarden_add_attachment(&attachment).await?;
+    server
+        .db
+        .bitwarden_add_attachment(&attachment, server.config.storage_quota_bytes)
+        .await?;
     upload_data(&server, &view, cipher, &attachment)
 }
 
@@ -208,7 +211,12 @@ async fn store(
     }
     if !server
         .db
-        .bitwarden_upload_attachment_of(&cipher.id, &attachment.id, data)
+        .bitwarden_upload_attachment_of(
+            &cipher.id,
+            &attachment.id,
+            data,
+            server.config.storage_quota_bytes,
+        )
         .await?
     {
         return Err(ApiError::bad_request(
@@ -264,7 +272,10 @@ pub async fn upload_legacy(
     let size = i64::try_from(data.len()).unwrap_or(i64::MAX);
     admit_for(&server, cipher, size).await?;
     let attachment = new_attachment(cipher, file_name, key, size);
-    server.db.bitwarden_add_attachment(&attachment).await?;
+    server
+        .db
+        .bitwarden_add_attachment(&attachment, server.config.storage_quota_bytes)
+        .await?;
     store(&server, cipher, &attachment, &data).await?;
     Ok(Json(render_one(&server, &user.id, &cipher_id).await?))
 }

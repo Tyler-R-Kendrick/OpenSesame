@@ -4,13 +4,15 @@
 //! decided by the server from memberships and collection access; these
 //! queries do what they are told for ids already checked.
 
+use std::collections::HashSet;
+
 use chrono::{DateTime, Utc};
 use sqlx::Row as _;
 
 use super::accounts::bitwarden_timestamp;
 use super::ciphers::{cipher_from_row, insert_cipher, placeholders, CIPHER_COLUMNS};
 use super::collections::insert_collection;
-use super::{BitwardenCipher, BitwardenCollection};
+use super::{storage_quota, BitwardenCipher, BitwardenCollection};
 use crate::Db;
 
 /// One member's own folder and favourite for an organization cipher.
@@ -18,6 +20,14 @@ use crate::Db;
 pub struct BitwardenMark {
     pub folder_id: Option<String>,
     pub favorite: bool,
+}
+
+/// A personal cipher and the revision and collections for its ownership transfer.
+#[derive(Clone, Debug)]
+pub struct BitwardenCipherShare {
+    pub cipher: BitwardenCipher,
+    pub expected_revision: DateTime<Utc>,
+    pub collection_ids: Vec<String>,
 }
 
 async fn link_collections(
@@ -137,42 +147,80 @@ impl Db {
         shared: &BitwardenCipher,
         expected_revision: DateTime<Utc>,
         collection_ids: &[String],
+        quota_bytes: i64,
     ) -> anyhow::Result<bool> {
-        let mut tx = self.pool.begin().await?;
-        let before = sqlx::query(
-            "SELECT folder_id, favorite FROM bitwarden_ciphers \
-             WHERE id = ? AND user_id = ? AND revision_at = ?",
+        self.bitwarden_share_ciphers(
+            user_id,
+            &[BitwardenCipherShare {
+                cipher: shared.clone(),
+                expected_revision,
+                collection_ids: collection_ids.to_vec(),
+            }],
+            quota_bytes,
         )
-        .bind(&shared.id)
-        .bind(user_id)
-        .bind(bitwarden_timestamp(expected_revision))
-        .fetch_optional(&mut *tx)
-        .await?;
-        let Some(before) = before else {
-            return Ok(false);
-        };
-        let mark = BitwardenMark {
-            folder_id: before.get("folder_id"),
-            favorite: before.get::<i64, _>("favorite") != 0,
-        };
-        sqlx::query(
-            "UPDATE bitwarden_ciphers SET user_id = NULL, organization_id = ?, folder_id = NULL, \
-             favorite = 0, cipher_type = ?, data = ?, revision_at = ? WHERE id = ?",
-        )
-        .bind(&shared.organization_id)
-        .bind(shared.cipher_type)
-        .bind(&shared.data)
-        .bind(bitwarden_timestamp(shared.revision_at))
-        .bind(&shared.id)
-        .execute(&mut *tx)
-        .await?;
-        link_collections(&mut tx, &shared.id, collection_ids).await?;
-        put_mark(&mut tx, &shared.id, user_id, &mark).await?;
-        // Its files now count against the organization, not the sharer.
-        sqlx::query("UPDATE bitwarden_attachments SET user_id = NULL WHERE cipher_id = ?")
+        .await
+    }
+
+    /// Transfer a batch atomically, reserving the writer before any quota reads.
+    /// Returns false without changing anything for a stale or repeated source.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BitwardenStorageQuotaExceeded` when a destination cannot fit the
+    /// files, or an error when the transaction fails.
+    pub async fn bitwarden_share_ciphers(
+        &self,
+        user_id: &str,
+        shares: &[BitwardenCipherShare],
+        quota_bytes: i64,
+    ) -> anyhow::Result<bool> {
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let mut seen = HashSet::new();
+        for share in shares {
+            let shared = &share.cipher;
+            if !seen.insert(&shared.id) {
+                return Ok(false);
+            }
+            let before = sqlx::query(
+                "SELECT folder_id, favorite FROM bitwarden_ciphers \
+                 WHERE id = ? AND user_id = ? AND organization_id IS NULL AND revision_at = ?",
+            )
+            .bind(&shared.id)
+            .bind(user_id)
+            .bind(bitwarden_timestamp(share.expected_revision))
+            .fetch_optional(&mut *tx)
+            .await?;
+            let Some(before) = before else {
+                return Ok(false);
+            };
+            let Some(org_id) = shared.organization_id.as_deref() else {
+                return Ok(false);
+            };
+            let used = storage_quota::owner_used(&mut tx, None, Some(org_id)).await?;
+            let incoming = storage_quota::cipher_used(&mut tx, &shared.id).await?;
+            storage_quota::admit(used, incoming, quota_bytes)?;
+            let mark = BitwardenMark {
+                folder_id: before.get("folder_id"),
+                favorite: before.get::<i64, _>("favorite") != 0,
+            };
+            sqlx::query(
+                "UPDATE bitwarden_ciphers SET user_id = NULL, organization_id = ?, folder_id = NULL, \
+                 favorite = 0, cipher_type = ?, data = ?, revision_at = ? WHERE id = ?",
+            )
+            .bind(org_id)
+            .bind(shared.cipher_type)
+            .bind(&shared.data)
+            .bind(bitwarden_timestamp(shared.revision_at))
             .bind(&shared.id)
             .execute(&mut *tx)
             .await?;
+            link_collections(&mut tx, &shared.id, &share.collection_ids).await?;
+            put_mark(&mut tx, &shared.id, user_id, &mark).await?;
+            sqlx::query("UPDATE bitwarden_attachments SET user_id = NULL WHERE cipher_id = ?")
+                .bind(&shared.id)
+                .execute(&mut *tx)
+                .await?;
+        }
         tx.commit().await?;
         Ok(true)
     }

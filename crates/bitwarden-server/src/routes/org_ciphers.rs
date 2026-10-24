@@ -14,7 +14,9 @@ use axum::http::StatusCode;
 use axum::routing::{delete, get, post, put};
 use axum::{Json, Router};
 use chrono::Utc;
-use opensesame_storage::bitwarden::{BitwardenAttachment, BitwardenMark, BitwardenUser};
+use opensesame_storage::bitwarden::{
+    BitwardenAttachment, BitwardenCipherShare, BitwardenMark, BitwardenUser,
+};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
@@ -133,14 +135,13 @@ pub(crate) async fn create(
 }
 
 /// Share one of the account's own ciphers into an organization.
-async fn share_one(
-    server: &BitwardenServer,
+fn prepare_share(
     user: &BitwardenUser,
     view: &VaultView,
     id: &str,
     body: Value,
     collections: &[String],
-) -> ApiResult<String> {
+) -> ApiResult<BitwardenCipherShare> {
     let cipher = view
         .find(id)
         .filter(|c| c.user_id.as_deref() == Some(user.id.as_str()))
@@ -173,14 +174,11 @@ async fn share_one(
     shared.cipher_type = input.cipher_type;
     shared.data = input.data.to_string();
     shared.revision_at = Utc::now();
-    if !server
-        .db
-        .bitwarden_share_cipher(&user.id, &shared, cipher.revision_at, collections)
-        .await?
-    {
-        return Err(ApiError::bad_request(OUT_OF_DATE));
-    }
-    Ok(org)
+    Ok(BitwardenCipherShare {
+        cipher: shared,
+        expected_revision: cipher.revision_at,
+        collection_ids: collections.to_vec(),
+    })
 }
 
 /// `PUT /ciphers/{id}/share`: `{cipher, collectionIds}`, the cipher
@@ -195,7 +193,19 @@ async fn share(
     let collections = collection_ids(&body);
     let cipher = body.remove("cipher").unwrap_or(Value::Null);
     let view = VaultView::load(&server, &user.id).await?;
-    let org = share_one(&server, &user, &view, &id, cipher, &collections).await?;
+    let prepared = prepare_share(&user, &view, &id, cipher, &collections)?;
+    let org = prepared
+        .cipher
+        .organization_id
+        .clone()
+        .ok_or_else(ApiError::not_found)?;
+    if !server
+        .db
+        .bitwarden_share_ciphers(&user.id, &[prepared], server.config.storage_quota_bytes)
+        .await?
+    {
+        return Err(ApiError::bad_request(OUT_OF_DATE));
+    }
     touch(&server, &user.id).await?;
     touch_org(&server, &org).await?;
     Ok(Json(render_one(&server, &user.id, &id).await?))
@@ -219,14 +229,29 @@ async fn share_many(
     };
     let view = VaultView::load(&server, &user.id).await?;
     let (mut ids, mut orgs) = (Vec::new(), HashSet::new());
+    let mut prepared = Vec::with_capacity(ciphers.len());
     for cipher in ciphers {
         let id = normalize(cipher.clone())
             .get("id")
             .and_then(Value::as_str)
             .map(str::to_owned)
             .ok_or_else(ApiError::not_found)?;
-        orgs.insert(share_one(&server, &user, &view, &id, cipher, &collections).await?);
+        let item = prepare_share(&user, &view, &id, cipher, &collections)?;
+        orgs.insert(
+            item.cipher
+                .organization_id
+                .clone()
+                .ok_or_else(ApiError::not_found)?,
+        );
+        prepared.push(item);
         ids.push(id);
+    }
+    if !server
+        .db
+        .bitwarden_share_ciphers(&user.id, &prepared, server.config.storage_quota_bytes)
+        .await?
+    {
+        return Err(ApiError::bad_request(OUT_OF_DATE));
     }
     touch(&server, &user.id).await?;
     for org in &orgs {
@@ -390,7 +415,12 @@ pub async fn share_attachment(
     };
     if !server
         .db
-        .bitwarden_rekey_attachment(&replacement, &data)
+        .bitwarden_rekey_attachment(
+            &user.id,
+            &replacement,
+            &data,
+            server.config.storage_quota_bytes,
+        )
         .await?
     {
         return Err(ApiError::not_found());

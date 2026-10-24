@@ -131,15 +131,10 @@ impl Db {
     ///
     /// Returns an error when the query fails.
     pub async fn bitwarden_storage_used(&self, user_id: &str) -> anyhow::Result<i64> {
-        Ok(sqlx::query_scalar(
-            "SELECT COALESCE((SELECT SUM(size) FROM bitwarden_attachments WHERE user_id = ?), 0) \
-             + COALESCE((SELECT SUM(file_size) FROM bitwarden_sends WHERE user_id = ?), 0)",
-        )
-        .bind(user_id)
-        .bind(user_id)
-        .fetch_one(&self.pool)
-        .await?)
+        let mut connection = self.pool.acquire().await?;
+        super::storage_quota::owner_used(&mut connection, Some(user_id), None).await
     }
+
     /// Create or replace a Send the account owns.
     ///
     /// # Errors
