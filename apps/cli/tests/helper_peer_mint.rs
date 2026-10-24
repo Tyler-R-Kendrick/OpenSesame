@@ -1,12 +1,15 @@
 //! The credential helpers mint over the daemon's Unix socket by peer
-//! credentials, and carry no bearer (ADR 0138 §2).
+//! credentials, carry no bearer, and get only what the operator allowed
+//! (ADR 0138 §2, as amended).
 //!
 //! The daemon's `/v1/mint` used to demand the operator token on the socket,
 //! which no helper sent, so every real daemon answered `401`. The route now
-//! admits a socket peer by its kernel-attested UID alone. A helper never reads
-//! `OPENSESAME_OPERATOR_TOKEN` and never sends an operator header, so a
-//! process that answers at the socket path in the daemon's place captures
-//! nothing that authorizes anything, whatever the helper's environment holds.
+//! authenticates a socket peer by its kernel-attested UID and mints, with no
+//! token, only a connection the operator allowed (`opensesame daemon helpers
+//! allow`). A helper never reads `OPENSESAME_OPERATOR_TOKEN` and never sends an
+//! operator header, so a process that answers at the socket path in the
+//! daemon's place captures nothing that authorizes anything, whatever the
+//! helper's environment holds.
 #![cfg(unix)]
 
 mod helper_stub;
@@ -136,7 +139,7 @@ impl Drop for Process {
 }
 
 /// A Host API stand-in: answers every request with the mint body and records
-/// the head (request line and headers) of each.
+/// each request whole.
 fn spawn_host() -> (String, Arc<Mutex<Vec<String>>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind host stand-in");
     let base = format!("http://{}", listener.local_addr().expect("address"));
@@ -155,8 +158,7 @@ fn spawn_host() -> (String, Arc<Mutex<Vec<String>>>) {
                 }
             }
             let text = String::from_utf8_lossy(&raw).to_string();
-            let head = text.split("\r\n\r\n").next().unwrap_or_default();
-            recorded.lock().unwrap().push(head.to_string());
+            recorded.lock().unwrap().push(text);
             let body = mint_body();
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -217,8 +219,23 @@ fn spawn_daemon(dir: &Path, host_api: &str, port: u16) -> Process {
     )
 }
 
+/// `opensesame daemon helpers <verb>` against the daemon at `port`, with the
+/// operator token or without it.
+fn allowlist(port: u16, verb: &str, token: Option<&str>) -> Output {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
+    command
+        .env_remove("OPENSESAME_OPERATOR_TOKEN")
+        .args(["daemon", "--url"])
+        .arg(format!("http://127.0.0.1:{port}"))
+        .args(["helpers", verb, "conn_test"]);
+    if let Some(token) = token {
+        command.env("OPENSESAME_OPERATOR_TOKEN", token);
+    }
+    command.output().expect("opensesame daemon helpers")
+}
+
 #[test]
-fn a_helper_mints_through_the_real_daemon_by_its_peer_credentials_alone() {
+fn a_helper_mints_only_what_the_operator_allowed_through_the_real_daemon() {
     let dir = tempfile::tempdir().expect("state dir");
     let (host_api, host_seen) = spawn_host();
     let port = free_port();
@@ -245,7 +262,24 @@ fn a_helper_mints_through_the_real_daemon_by_its_peer_credentials_alone() {
         .send()
         .expect("daemon over TCP");
     assert_eq!(tcp.status().as_u16(), 401);
+
+    // On the socket, peer credentials alone mint nothing the operator has not
+    // allowed.
+    let refused = run(&HELPERS[0], &sock);
+    assert!(!refused.status.success());
+    assert!(refused.stdout.is_empty());
+    assert!(
+        String::from_utf8_lossy(&refused.stderr).contains("403"),
+        "{}",
+        shown(&refused)
+    );
     assert!(host_seen.lock().unwrap().is_empty());
+
+    // Allowing needs the operator token, which the helper never holds.
+    let unauthorized = allowlist(port, "allow", None);
+    assert!(!unauthorized.status.success(), "{unauthorized:?}");
+    let allowed = allowlist(port, "allow", Some(OPERATOR));
+    assert!(allowed.status.success(), "{allowed:?}");
 
     let minted = run(&HELPERS[0], &sock);
     assert!(minted.status.success(), "{}", shown(&minted));
@@ -254,15 +288,32 @@ fn a_helper_mints_through_the_real_daemon_by_its_peer_credentials_alone() {
         format!("username=x-access-token\npassword={MINTED}\n\n")
     );
     assert!(!shown(&minted).contains(INHERITED));
-    let seen = host_seen.lock().unwrap();
-    assert_eq!(seen.len(), 1, "{seen:?}");
-    let head = &seen[0];
-    assert!(
-        head.starts_with("POST /api/v1/connections/conn_test/mint HTTP/1.1"),
-        "{head}"
+    {
+        let seen = host_seen.lock().unwrap();
+        assert_eq!(seen.len(), 1, "{seen:?}");
+        let request = &seen[0];
+        assert!(
+            request.starts_with("POST /api/v1/connections/conn_test/mint HTTP/1.1"),
+            "{request}"
+        );
+        // The forward carries the daemon's own token, never the helper's
+        // environment, and names the process it minted for.
+        assert!(request.contains(OPERATOR), "{request}");
+        assert!(!request.contains(INHERITED), "{request}");
+        let body: serde_json::Value =
+            serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap_or_default())
+                .expect("forwarded body");
+        assert!(body["on_behalf_of"]["uid"].is_u64(), "{body}");
+        assert!(body["on_behalf_of"]["pid"].is_u64(), "{body}");
+    }
+
+    let revoked = allowlist(port, "revoke", Some(OPERATOR));
+    assert!(revoked.status.success(), "{revoked:?}");
+    let refused = run(&HELPERS[0], &sock);
+    assert!(!refused.status.success());
+    assert_eq!(
+        host_seen.lock().unwrap().len(),
+        1,
+        "a revoked connection minted"
     );
-    // The forward to the Host carries the daemon's own token; the helper's
-    // environment travels nowhere.
-    assert!(head.contains(OPERATOR), "{head}");
-    assert!(!head.contains(INHERITED), "{head}");
 }

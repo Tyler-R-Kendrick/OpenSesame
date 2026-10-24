@@ -13,6 +13,7 @@ const CLI_SOURCES: &[&str] = &[
     include_str!("../src/daemon_cmd.rs"),
     include_str!("../src/daemon_toolbar.rs"),
     include_str!("../src/daemon_fill.rs"),
+    include_str!("../src/daemon_helpers.rs"),
     include_str!("../src/serve.rs"),
     include_str!("../src/entry.rs"),
     include_str!("../src/connect.rs"),

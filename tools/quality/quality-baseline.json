@@ -18,7 +18,7 @@
   "totals": {
     "files": 451,
     "violations": 723,
-    "oversizedLines": 221968
+    "oversizedLines": 221924
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -414,7 +414,7 @@
       "max-lines": 1739
     },
     "crates/gateway/src/routes/connections.rs": {
-      "max-lines": 1126
+      "max-lines": 1082
     },
     "crates/gateway/src/routes/connections/tests.rs": {
       "max-lines": 1688

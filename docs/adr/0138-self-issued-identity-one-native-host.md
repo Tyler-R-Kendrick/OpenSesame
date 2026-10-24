@@ -8,10 +8,12 @@
   (`opensesame helpers link`; `apps/cli/src/entry.rs`); `apps/` holds only
   `android`, `browser-extension`, `browser-extension-autofill`, `cli` and
   `pages`, and the app's own serverless relay is `apps/pages/api` with
-  `apps/pages/server`; and §2's credential mint for helpers: the daemon's
-  `POST /v1/mint` admits a Unix-socket caller by its kernel-attested peer
-  credentials alone, and the helpers send no operator token
-  (`crates/daemon/src/mint.rs`, `crates/credential-helpers`). Not built: the `desktop` shell, `@opensesame/mcp`
+  `apps/pages/server`; and §2's credential mint for helpers as amended
+  below: the daemon's `POST /v1/mint` authenticates a Unix-socket caller by
+  its kernel-attested peer credentials and admits it, with no token, only for
+  a connection the operator allowed (`opensesame daemon helpers allow`), and
+  the helpers send no operator token (`crates/daemon/src/mint.rs`,
+  `crates/daemon/src/helper_mints.rs`, `crates/credential-helpers`). Not built: the `desktop` shell, `@opensesame/mcp`
   (`packages/mcp-host` and `packages/mcp-client` remain two packages), the
   Rust MCP module (`opensesame mcp serve`) and the Host's own local OpenID
   provider of §3 (no `rmcp` dependency; no OpenID discovery document, JWKS or
@@ -120,6 +122,24 @@ Each machine runs one OpenSesame process, `opensesame daemon run`. It serves:
 `crates/gateway` and `crates/daemon` become library crates this process links;
 the gateway binary remains as `opensesame daemon run --shared` for a team
 host.
+
+**Amended 2026-10-24: peer credentials authenticate, the operator
+authorizes.** Peer credentials say which process asks; they cannot say what
+it should get, and every process running as an allowed user reaches the
+socket, an agent run with the socket mounted included. So a helper's mint
+with no operator token is admitted only for a connection the operator has
+allowed for helper minting (`opensesame daemon helpers allow|revoke|list`,
+written only with the operator token, kept owner-only in the daemon's state
+directory, empty by default); any other is `403 helper_mint_not_allowed`. A
+socket caller that presents the operator token may still mint any
+connection. The daemon forwards the peer (UID and pid) as `on_behalf_of`,
+and the Host records it in the actor of the mint receipt and event. Residual
+risk: a same-user process can mint every allowed connection, so a sandbox
+must not mount the raw socket. Not done: narrowing a mint by an ADR 0099
+agent capability. That capability is a Host-checked bearer whose operation
+ceiling has no mint, and the daemon cannot verify it locally, so a mint does
+not carry or check one yet; until it does, the allowlist is the only bound
+on what a token-less socket caller can mint.
 
 ADR 0048's threat model — the agent-facing surface must not become a
 credential oracle — is kept by **crate isolation instead of process
