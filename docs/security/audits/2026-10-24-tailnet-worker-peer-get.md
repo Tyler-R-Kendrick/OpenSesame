@@ -42,6 +42,7 @@ the node's Worker or dispatches on it:
 | Medium | The controller asked `this.policy.approvePeer(url)` at call time, and `policy` is just as reachable and writable, so replacing it widened the legitimate road. | `0ae49bfe9`: `approvePeer` is bound in a `#private` field at construction, before the node is published. |
 | Medium | The worker settled a pending egress decision from any `{ kind: "decision", id, allowed }` posted to the Worker. A forged `allowed: true` let the client reach a control, relay or log destination the policy refused. The id was sequential, so it could be guessed, and a forged reply raced ahead of the controller's, which waits on state writes. | Decision replies ride the start port only. Each reply names the URL and method it decided, and the worker settles a pending request only with a reply that names that same request. `approve` is bound at construction, as `approvePeer` is. |
 | Medium (integrity) | The controller set `worker.onmessage` and acted on every `HostMessage`, so `worker.dispatchEvent(new MessageEvent("message", …))` reached it. A synthetic `storage` was written into the vault's node credential. A synthetic `netmap` and `Running` showed a node as connected, and a synthetic `get` answered a pending peer GET. | The controller listens only on its end of the start port and sets no message handler on the Worker. |
+| Medium | The port was `#private`, but closures over it were not (Codex P2 on #2072, `controller-requests.ts`). `node.requests.pending` held each native stream, whose TypeScript-private `options.post` sent any command on the port, and `requests.stream()` created such an entry with a caller-supplied check even with native HTTP off. A `{ kind: "get" }` sent that way skipped `approvePeer`. The same sweep found three more: `node.listen()` bound a port of the caller's as a source of host messages, `node.receive()` and `node.persist()` wrote a `storage` state into the vault, and `node.apply()` echoed a decision with `{ ...message, allowed }`, so a `url` getter could be approved as one URL and sent as another. Every TypeScript-private field, `policy` included, was writable. | Every member of the controller is `#private`, `assertCurrent` is bound at construction beside `approve` and `approvePeer`, and its run-time surface is the `TailscaleBrowserNode` methods alone. `BrowserNodeRequests` keeps its pending map, readiness and request paths in `#private` members. A native stream holds a frozen channel that sends only its own `nativeHTTPStream`, `pullHTTP` and `cancelHTTP`, and a decision reply is built from fields read once. |
 
 ## The rule
 
@@ -57,11 +58,17 @@ the node's Worker or dispatches on it:
 - **The Worker's `error` event is the one exception.** It only stops the node,
   and `stop()` already lets any caller do that.
 - **The page's end lives only in `#private` fields.** It is held by the
-  controller and by `BrowserNodeRequests`, beside the bound `approve` and
-  `approvePeer`. A grant goes on it only after `approvePeer` allowed that exact
-  URL. A decision goes on it bound to the request it answers. So code that
-  reaches the controller can obtain only the decisions the policy itself would
-  make.
+  controller and by `BrowserNodeRequests`, beside the bound `assertCurrent`,
+  `approve` and `approvePeer`. A grant goes on it only after `approvePeer`
+  allowed that exact URL. A decision goes on it bound to the request it
+  answers. So code that reaches the controller can obtain only the decisions
+  the policy itself would make.
+- **No reachable object holds a sender over the port.** The controller's
+  run-time surface is the `TailscaleBrowserNode` methods. The request registry,
+  the host-message handlers and the state writer are `#private`. A native
+  stream's channel sends only that stream's own three commands, and the worker
+  refuses a reused id, a pull out of sequence and a command for a stream it
+  does not hold (`worker-native-http.ts`).
 - **What other reachable entry points can still do.** `node.get`,
   `captureNativeHTTP` and `stop` remain callable. They carry the same checks
   as before: the egress policy, the configured native-HTTP route, and
@@ -77,11 +84,10 @@ the node's Worker or dispatches on it:
     script, and the origin should serve nothing else.
   - On the shared `github.io` origin, every other Pages site of the same
     account is same-origin. A dedicated origin removes that.
-- **Reply contents.** A reply's contents are not authority. Code that reaches
-  the controller can still call its reachable methods, for example to feed a
-  pending GET a fabricated answer. That code already holds the unlocked vault
-  and the rest of the page. This change keeps its network authority to what
-  the policy allows, and does not claim to protect the page from itself.
+- **The page itself.** Code that reaches the controller already holds the
+  unlocked vault and the rest of the page. This change keeps its network
+  authority to what the policy allows through the `TailscaleBrowserNode`
+  methods, and does not claim to protect the page from itself.
 
 ## Tests
 
@@ -103,8 +109,16 @@ the node's Worker or dispatches on it:
   - the same messages on the start port connect the node;
   - the decision reply and the GET grant go out on that port, and the Worker
     receives only `start`;
-  - a policy reassigned after construction cannot approve a GET.
+  - a policy reassigned after construction cannot approve a GET;
+  - the controller's own and prototype properties are exactly the
+    `TailscaleBrowserNode` methods;
+  - Codex's path (`requests.stream()` with a caller's check, then a pending
+    entry's `options.post`) sends no `get` past a deny-all policy;
+  - `listen` with a forged port, `receive` and `persist` write nothing;
+  - `apply` with a `url` getter cannot send `allowed: true` for a refused URL.
+- `controller-native-stream.test.ts`: a stream's channel is frozen and sends
+  only its own three commands under its own id.
 - Negative controls: each of these tests fails against the code before its
   fix. The peer GET and reassigned-policy tests fail at `67d2aac9e`. The
   `worker-channel.test.ts` tests and the dispatched-event test fail at
-  `0ae49bfe9`.
+  `0ae49bfe9`. The four reachability tests fail at `c3f0c26e9`.

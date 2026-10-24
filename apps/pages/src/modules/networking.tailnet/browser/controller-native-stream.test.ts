@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { wantsNativeStream } from "./controller-native-stream.js";
+import {
+  nativeStreamChannel,
+  wantsNativeStream,
+} from "./controller-native-stream.js";
 import {
   url,
   type Fixture,
@@ -9,6 +12,7 @@ import {
   frame,
   head,
 } from "./controller-native-stream.test-support.js";
+import type { NativeRequest } from "./protocol.js";
 let f: Fixture;
 beforeEach(() => {
   f = fixture();
@@ -17,6 +21,30 @@ afterEach(() => {
   f.close();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+it("gives each stream a frozen channel that sends only its own commands", () => {
+  const sent: unknown[] = [];
+  const request: NativeRequest = {
+    method: "GET",
+    url,
+    headers: [],
+    body: new Uint8Array(),
+  };
+  const channel = nativeStreamChannel(
+    { postMessage: (message) => sent.push(message) },
+    7,
+    request,
+  );
+  channel.open();
+  channel.pull(1);
+  channel.cancel();
+  expect(Object.isFrozen(channel)).toBe(true);
+  expect(Object.keys(channel).sort()).toEqual(["cancel", "open", "pull"]);
+  expect(sent).toEqual([
+    { kind: "nativeHTTPStream", id: 7, request },
+    { kind: "pullHTTP", id: 7, sequence: 1 },
+    { kind: "cancelHTTP", id: 7 },
+  ]);
 });
 it("returns exact headers before an indefinite body and grants no eager credit", async () => {
   const { pending } = await begin(f);
