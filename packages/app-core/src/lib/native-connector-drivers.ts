@@ -3,7 +3,14 @@ import type { NativeProviderCleanup } from "./native-connector-lifecycle.js";
 import type { NativeMethod } from "./native-connector-schema.js";
 import type { NativeConnectorView } from "./native-connector-view.js";
 
+export type NativeConfigurationOwner = Readonly<{
+  signal: AbortSignal;
+  assertCurrent(): void;
+}>;
+
 export type NativeDriverInput = {
+  /** Transient mounted caller authority; never copied into saved configuration. */
+  owner?: NativeConfigurationOwner;
   providerId: string;
   connectionId?: string;
   revision?: number;

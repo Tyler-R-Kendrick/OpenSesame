@@ -46,7 +46,11 @@ export const secretBackendBackupDependencies = {
   },
 };
 
-type Props = { handle: SecretBackendHandle; onFlash: (flash: Flash) => void };
+type Props = {
+  handle: SecretBackendHandle;
+  onFlash: (flash: Flash) => void;
+  fixedReference?: string;
+};
 function useBackupAction({ handle, onFlash }: Props) {
   const signal = useSecretBackendOwnerSignal(
     handle.backend.signal,
@@ -54,9 +58,9 @@ function useBackupAction({ handle, onFlash }: Props) {
   );
   return useSecretBackendAction(onFlash, signal);
 }
-function RestoreForm({ handle, onFlash }: Props) {
+function RestoreForm({ handle, onFlash, fixedReference }: Props) {
   const status = useBackupAction({ handle, onFlash });
-  const [reference, setReference] = useState("");
+  const [reference, setReference] = useState(fixedReference ?? "");
   const [secret, setSecret] = useState("");
   function restore(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -83,6 +87,7 @@ function RestoreForm({ handle, onFlash }: Props) {
         label="Backup name or ID"
         value={reference}
         disabled={status.busy}
+        readOnly={fixedReference !== undefined}
         onValueChange={setReference}
       />
       <FieldShell

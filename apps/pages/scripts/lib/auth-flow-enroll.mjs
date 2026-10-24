@@ -75,6 +75,36 @@ export async function withdrawSelfAuthenticator(page, check) {
   await page.waitForTimeout(1000);
 }
 
+function hasPositiveHeight(box) {
+  return box !== null && box.height > 0;
+}
+
+function containsVertically(region, box) {
+  return box.y >= region.y && box.y + box.height <= region.y + region.height;
+}
+
+/** The gate owns the notice seat; its actual heading and form own the controls. */
+async function refusalClearsUnlockControls(page) {
+  const card = page.locator(".unlock.unlock--lock-v5 > .unlock__card");
+  const notice = card.locator(".gate-notice-seat > .notice-corner");
+  const corner = await notice.boundingBox();
+  const bell = await notice
+    .getByRole("button", { name: /^Notifications — / })
+    .boundingBox();
+  const refusal = await notice
+    .getByText("That authenticator code is not valid.", { exact: true })
+    .boundingBox();
+  const heading = await card.locator(":scope > .unlock__heading").boundingBox();
+  const form = await card.locator(":scope > form.unlock__form").boundingBox();
+  if (![corner, bell, refusal, heading, form].every(hasPositiveHeight))
+    return false;
+  if (![bell, refusal].every((box) => box.width > 0)) return false;
+  return (
+    corner.y + corner.height <= Math.min(heading.y, form.y) &&
+    [bell, refusal].every((box) => containsVertically(corner, box))
+  );
+}
+
 /** The code step after a key: wrong code refused, right code opens the vault. */
 export async function finishUnlockWithCode(
   page,
@@ -93,10 +123,8 @@ export async function finishUnlockWithCode(
   // A full code submits itself; the wrong one is refused without a click.
   await page.getByLabel("Authenticator code", { exact: true }).fill("000000");
   await page.waitForTimeout(800);
-  const corner = await page.locator(".notice-corner").boundingBox();
-  const gate = await page.locator(".unlock.unlock--lock-v5").boundingBox();
   check(
-    corner !== null && gate !== null && corner.y + corner.height <= gate.y,
+    await refusalClearsUnlockControls(page),
     "the refusal and its bell sit above the unlock form without covering controls",
   );
   const refused = `${await snap(page, `${name}-wrong-code`)} ${await readTray(page)}`;

@@ -11,6 +11,7 @@ import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connec
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
@@ -65,10 +66,30 @@ function discordActions(view: NativeConnectorView) {
   ];
 }
 
+function nativeApiKeyAvailable(provider: Provider): boolean {
+  return (
+    hasNativeConnectorDriver("api-key", provider.id) ||
+    connectPlan(provider.id)?.methods.some(
+      (method) =>
+        method.kind === "api-key" &&
+        !!method.preset &&
+        ((!!method.preset.auth && !!method.preset.verify) ||
+          method.preset.credentialVariants.some(
+            (variant) => !!variant.auth && !!variant.verify,
+          )),
+    ) === true
+  );
+}
+
+function mcpInactiveReason(): string | undefined {
+  if (vaultStore.isGenuineSession()) return undefined;
+  return "Open your own vault to connect this provider. Guest sessions do not store provider credentials.";
+}
+
 export function nativeSettingsDescriptor(
   provider: Provider,
+  savedMethod?: NativeConnectorView["configuration"]["method"],
 ): NativeConnectorDescriptor | null {
-  if (provider.id === "linear") return null;
   if (provider.id === "github")
     return nativeGithubDescriptor(
       provider,
@@ -98,17 +119,7 @@ export function nativeSettingsDescriptor(
   const descriptor = nativeProviderDescriptor(plan, {
     callbackUrl,
     apiKey: {
-      available:
-        hasNativeConnectorDriver("api-key", provider.id) ||
-        connectPlan(provider.id)?.methods.some(
-          (method) =>
-            method.kind === "api-key" &&
-            !!method.preset &&
-            ((!!method.preset.auth && !!method.preset.verify) ||
-              method.preset.credentialVariants.some(
-                (variant) => !!variant.auth && !!variant.verify,
-              )),
-        ) === true,
+      available: nativeApiKeyAvailable(provider),
     },
     oauth: {
       registeredAvailable:
@@ -127,10 +138,21 @@ export function nativeSettingsDescriptor(
     mcp: {
       available: hasNativeConnectorDriver("mcp", provider.id),
       reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
+      inactiveReason: mcpInactiveReason(),
       actor: "user",
+      defaultScopes: provider.id === "linear" ? ["read"] : undefined,
     },
   });
-  return descriptor;
+  // Linear's GraphQL app/key ceremony lives in its existing advanced form.
+  // Existing native records keep their own method and credential custody.
+  return provider.id === "linear"
+    ? {
+        ...descriptor,
+        methods: descriptor.methods.filter(
+          (method) => method.id === (savedMethod ?? "mcp"),
+        ),
+      }
+    : descriptor;
 }
 
 function primaryActions(
@@ -284,7 +306,6 @@ export function NativeConnectorPanels({
 }) {
   // The connector bridge changes what a refused provider offers (ADR 0199).
   useNativeBridge(provider.id);
-  const descriptor = nativeSettingsDescriptor(provider);
   const pending = useNativeAuthorization(provider.id, connection?.connectionId);
   const controller = useMemo(
     () =>
@@ -300,6 +321,10 @@ export function NativeConnectorPanels({
   );
   const [, refresh] = useState(0);
   const view = controller.load();
+  const descriptor = nativeSettingsDescriptor(
+    provider,
+    view?.configuration.method,
+  );
   const { hash } = useLocation();
   useEffect(() => {
     if (hash === "#connector" || hash === "#complete") {

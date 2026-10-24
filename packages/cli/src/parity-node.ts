@@ -252,7 +252,7 @@ function trustedDirectory(directory: string): boolean {
     // whether or not the sticky bit protects deletion. Accept only the
     // current account's directories and the system's own root-owned ones.
     if ((info.mode & 0o022) !== 0) return false;
-    if (process.platform !== "win32" && typeof process.geteuid === "function") {
+    if (process.platform !== "win32" && process.geteuid instanceof Function) {
       const uid = process.geteuid();
       if (info.uid !== uid && info.uid !== 0) return false;
     }

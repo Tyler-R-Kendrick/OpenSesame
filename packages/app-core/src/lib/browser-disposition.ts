@@ -32,6 +32,8 @@ export type BrowserUnavailableKind =
   | "refuses-browser"
   /** The provider answers this origin; OpenSesame has not built the connection. */
   | "driver-pending"
+  /** The compiled connection exists, but its owning feature is not active. */
+  | "runtime-inactive"
   /** The provider answers this origin, but nothing the catalog names can prove a key. */
   | "no-key-check"
   /** OpenSesame has no browser contract for it, and nothing more is established. */
@@ -49,6 +51,7 @@ export const UNAVAILABLE_LABEL = {
   companion: "Desktop app required",
   "refuses-browser": "Provider blocks browsers",
   "driver-pending": "Not built yet",
+  "runtime-inactive": "Connection not active",
   "no-key-check": "No way to check a key",
   "no-contract": "No browser connection",
   policy: "Not offered",
@@ -64,6 +67,7 @@ export const UNAVAILABLE_PRIORITY: readonly BrowserUnavailableKind[] = [
   "needs-client-secret",
   "no-public-contract",
   "no-key-check",
+  "runtime-inactive",
   "driver-pending",
   "no-contract",
   "policy",

@@ -104,16 +104,23 @@ type FakeTransaction = {
   objectStore(name: string): ReturnType<typeof objectStore>;
 };
 
-/** Completes after this turn's requests, on the same object the caller holds. */
+/**
+ * Commits as IndexedDB does: once no request is pending and the event loop
+ * has taken a turn, on the same object the caller holds. IndexedDB keeps a
+ * transaction active through the microtasks of a request's success event, so
+ * a request placed from an awaited `onsuccess` joins the transaction, and an
+ * `oncomplete` set there still hears the commit. A commit decided in a
+ * microtask would fire before that continuation runs, and nobody would hear it.
+ */
 function countingTransaction(stores: Map<string, FakeStore>) {
   let pending = 0;
   let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    queueMicrotask(() => {
+  const commitWhenIdle = () => {
+    setTimeout(() => {
+      if (finished || pending !== 0) return;
+      finished = true;
       tx.oncomplete?.();
-    });
+    }, 0);
   };
   const tracked = (run: () => BoundaryValue): IDBRequest => {
     pending += 1;
@@ -123,7 +130,7 @@ function countingTransaction(stores: Map<string, FakeStore>) {
         finished = true;
         return;
       }
-      if (pending === 0) finish();
+      if (pending === 0) commitWhenIdle();
     });
   };
   const tx: FakeTransaction = {
@@ -137,9 +144,8 @@ function countingTransaction(stores: Map<string, FakeStore>) {
       return objectStore(store, tracked);
     },
   };
-  queueMicrotask(() => {
-    if (pending === 0) finish();
-  });
+  // A transaction given no request before the event loop's next turn commits.
+  commitWhenIdle();
   return tx;
 }
 

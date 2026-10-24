@@ -9,6 +9,7 @@ import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { AppContext } from "../context.js";
+import { peerAddress } from "../lib/peer-address.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { deleteSecurityMapEntry } from "../repos/durable-map.js";
@@ -75,11 +76,8 @@ const CODE_SEND_GLOBAL_WINDOW_MS = 60 * 60_000;
 const CODE_SEND_GLOBAL_MAX = 200;
 
 function clientFingerprint(c: Context<{ Variables: Variables }>): string {
-  const env = c.env as
-    | { incoming?: { socket?: { remoteAddress?: string } } }
-    | undefined;
   return createHash("sha256")
-    .update(env?.incoming?.socket?.remoteAddress ?? "unknown")
+    .update(peerAddress(c) ?? "unknown")
     .digest("hex")
     .slice(0, 16);
 }

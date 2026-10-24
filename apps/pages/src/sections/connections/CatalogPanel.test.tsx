@@ -41,19 +41,20 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   // its only links.
   expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();
   const stripe = container.querySelector("#catalog-stripe");
-  // A catalog entry Vercel Connect cannot broker is no link at all, and says
-  // so with a StatusMark glyph — the sentence is its name, not a pill.
-  expect(stripe?.querySelector("a")).toBeNull();
+  // Stripe has a complete API-key contract and opens its configuration page.
+  const stripeLink = screen.getByRole("link", { name: "Connect Stripe" });
+  expect(stripe?.querySelector("a")).toBe(stripeLink);
+  expect(stripeLink.getAttribute("href")).toBe("/connections/stripe");
+  expect(stripeLink.getAttribute("aria-describedby")).toBe(
+    "catalog-stripe-tags",
+  );
+  expect(stripeLink.tabIndex).toBe(-1);
   const blocked = stripe?.querySelector(".conn-tile__go title");
-  expect(blocked?.textContent).toBe("No way to check a key");
+  expect(blocked).toBeNull();
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });
 
-it("offers BYO AI through the custom entry in the add builder, not a browse tile", () => {
-  // #1902 put BYO first among tiles; main then retired byo-ai from
-  // browse (0ca0474ca) in favor of a custom entry — now the Custom /
-  // self-hosted link in the auth-method builder — so partners render
-  // alphabetically without a BYO tile.
+it("puts BYO AI first and keeps partner tiles alphabetical", () => {
   const ids = new Set(["openai", "anthropic", "byo-ai"]);
   const { container } = render(
     <MemoryRouter>
@@ -65,15 +66,21 @@ it("offers BYO AI through the custom entry in the add builder, not a browse tile
     </MemoryRouter>,
   );
   const tiles = [...container.querySelectorAll(".conn-grid > .conn-tile")];
-  const tileIds = tiles.map((tile) => tile.id);
-  // The panel also synthesizes featured/family tiles; what retired
-  // BYO AI guarantees is its absence and partners' alphabetical order.
-  expect(tileIds).not.toContain("catalog-byo-ai");
-  expect(tileIds.indexOf("catalog-anthropic")).toBeGreaterThanOrEqual(0);
-  expect(tileIds.indexOf("catalog-anthropic")).toBeLessThan(
-    tileIds.indexOf("catalog-openai"),
+  expect(tiles[0]?.id).toBe("catalog-byo-ai");
+  expect(
+    tiles
+      .map((tile) => tile.id)
+      .filter((id) =>
+        ["catalog-byo-ai", "catalog-anthropic", "catalog-openai"].includes(id),
+      ),
+  ).toEqual(["catalog-byo-ai", "catalog-anthropic", "catalog-openai"]);
+  const byo = container.querySelector("#catalog-byo-ai");
+  expect(byo?.querySelector("a")?.getAttribute("href")).toBe(
+    "/connections/byo-ai",
   );
-  expect(container.querySelector("#catalog-byo-ai")).toBeNull();
+  expect(byo?.querySelector(".conn-tag--method")?.textContent).toBe(
+    "Configuration",
+  );
 });
 
 it("links the + button to the custom connector form", () => {

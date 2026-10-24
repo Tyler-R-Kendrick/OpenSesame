@@ -23,7 +23,7 @@
 //! a signal that comes while the plugin is waited for ends this process as it
 //! always did.
 
-use std::io::Write as _;
+use std::io::Write;
 use std::process::{Child, Command, ExitStatus};
 use std::sync::mpsc::TryRecvError;
 use std::time::{Duration, Instant};
@@ -65,24 +65,36 @@ pub(crate) enum RunEnd {
 impl RunEnd {
     /// Tell the person what stopped the run; nothing for a child that exited.
     pub(crate) fn report(&self) {
+        // A hung-up terminal cannot be written to, and a failed write here
+        // must not turn the status into a panic's.
+        let _ = self.report_to(&mut std::io::stderr().lock());
+    }
+
+    /// [`report`](Self::report) to `out`: the line in one [`write_line`].
+    ///
+    /// # Errors
+    ///
+    /// When `out` cannot be written to.
+    pub(crate) fn report_to(&self, out: &mut impl Write) -> std::io::Result<()> {
         match self {
-            Self::Exited(_) => {}
-            Self::Tripped { fence, revoked } => eprintln!(
-                "opensesame: {fence}: a surrogate from this run was sent to a host that is not \
-                 its provider's; the run's surrogates are revoked ({revoked}) and the child is \
-                 stopped"
+            Self::Exited(_) => Ok(()),
+            Self::Tripped { fence, revoked } => write_line(
+                out,
+                &format!(
+                    "opensesame: {fence}: a surrogate from this run was sent to a host that is \
+                     not its provider's; the run's surrogates are revoked ({revoked}) and the \
+                     child is stopped"
+                ),
             ),
             Self::Signalled {
                 signal,
                 revoked,
                 killed,
                 child_started,
-            } => {
-                // A hung-up terminal cannot be written to, and a failed write
-                // here must not turn the status into a panic's.
-                let line = signalled_line(*signal, *revoked, *killed, *child_started);
-                let _ = writeln!(std::io::stderr(), "{line}");
-            }
+            } => write_line(
+                out,
+                &signalled_line(*signal, *revoked, *killed, *child_started),
+            ),
         }
     }
 
@@ -95,6 +107,29 @@ impl RunEnd {
             Self::Signalled { signal, .. } => Some(128 + signal),
         }
     }
+}
+
+/// Write `line` and its newline to `out` with one `write_all`.
+///
+/// `writeln!` and `eprintln!` hand an unbuffered stderr each piece of the
+/// format on its own, the text and then the newline, so the line can reach
+/// the terminal as more than one write(2), and the child or another process
+/// writing at the same moment can land between them. The whole line is
+/// formatted first instead, and goes out in one write.
+///
+/// # Errors
+///
+/// When `out` cannot be written to.
+pub(crate) fn write_line(out: &mut impl Write, line: &str) -> std::io::Result<()> {
+    let mut whole = String::with_capacity(line.len() + 1);
+    whole.push_str(line);
+    whole.push('\n');
+    out.write_all(whole.as_bytes())
+}
+
+/// [`write_line`] to stderr. A failed write is not this process's failure.
+fn say(line: &str) {
+    let _ = write_line(&mut std::io::stderr().lock(), line);
 }
 
 /// What `opensesame` says when a signal ended the run. No value is in it: the
@@ -300,15 +335,22 @@ fn tripped(
 }
 
 fn report_login(event: &Value) {
+    if let Some(line) = login_line(event) {
+        say(&line);
+    }
+}
+
+/// What is said of a login's outcome; nothing for an outcome not known.
+pub(crate) fn login_line(event: &Value) -> Option<String> {
     let var = event["env_var"].as_str().unwrap_or("a login");
     match event["outcome"].as_str() {
-        Some("substituted") => eprintln!("opensesame: {var}: signed in with a surrogate"),
-        Some("refused") => eprintln!(
+        Some("substituted") => Some(format!("opensesame: {var}: signed in with a surrogate")),
+        Some("refused") => Some(format!(
             "opensesame: {var}: login substitution refused ({}); it is not retried — sign in \
              by hand if the site still needs it",
             event["fence"].as_str().unwrap_or("surrogate.refused")
-        ),
-        _ => {}
+        )),
+        _ => None,
     }
 }
 

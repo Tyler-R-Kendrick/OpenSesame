@@ -1,7 +1,7 @@
 # Release kit: a pushed v* tag builds the native binaries a downstream lane
 # runs instead of building OpenSesame from source, and publishes them as a
 # GitHub release with a SHA256SUMS over every file and a build-provenance
-# attestation for each (ADR 0207, docs/operators/release-kit.md).
+# attestation for each (ADR 0212, docs/operators/release-kit.md).
 #
 # Per target, two archives (scripts/release/kit-archive.sh):
 #   opensesame-kit_<tag>_<target>.tar.gz
@@ -155,7 +155,7 @@ jobs:
         # The checkout and cargo home are remapped, so panic messages and debug
         # info do not name this runner's paths, except the compiled-in
         # CARGO_MANIFEST_DIR of crates/env-spec: the compiler expands that
-        # before the remap sees it (ADR 0207).
+        # before the remap sees it (ADR 0212).
         run: |
           set -euo pipefail
           rustc +1.88.0 -vV

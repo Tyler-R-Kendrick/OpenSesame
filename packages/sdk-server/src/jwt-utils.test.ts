@@ -1,8 +1,9 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { AuthError } from "./errors.js";
 import { assertAllowedJwtAlgorithm, parseJwtPayload } from "./jwt-utils.js";
 
-function tokenWithHeader(header: unknown): string {
+function tokenWithHeader(header: JsonObject): string {
   return `${Buffer.from(JSON.stringify(header)).toString("base64url")}.e30.`;
 }
 

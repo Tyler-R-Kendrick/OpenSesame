@@ -52,6 +52,7 @@ function LinearModes({ state, options, onState, onOptions }: Props) {
 
 function LinearMethods({ state, options, onState }: Props) {
   if (options.mode !== "byo") return null;
+  // SAFETY: ConnectorModes only compares the value with each option's id, so a method that matches neither option simply checks neither.
   return (
     <ConnectorModes
       label="Connection method"

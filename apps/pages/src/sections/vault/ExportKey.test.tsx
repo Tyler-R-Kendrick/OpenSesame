@@ -1,4 +1,5 @@
 import { offlineBackupFileSeams } from "@opensesame/app-core/lib/vault/offline-backup-file.js";
+import { isString } from "@opensesame/os-domain";
 import {
   type VaultHeader,
   createVault,
@@ -7,10 +8,13 @@ import {
   sealJson,
   vaultSealBinding,
 } from "@opensesame/vault-core";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ContextMenuLayer } from "../../components/context-menu/ContextMenuLayer.js";
+import { closeContextMenu } from "../../components/context-menu/menu-model.js";
 
 type VaultView = {
   status: string;
@@ -69,6 +73,8 @@ describe("Export key", () => {
 
   afterEach(() => {
     cleanup();
+    closeContextMenu();
+    vi.unstubAllGlobals();
     downloadSeams.save = originalSave;
     Object.assign(offlineBackupFileSeams, originalSeams);
     vi.clearAllMocks();
@@ -217,4 +223,136 @@ describe("Export key", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(key);
   });
+  it("delivers an explicit encrypted download through the ordinary menu without opening the save picker", async () => {
+    await passwordVault();
+    const choose = vi.fn(() => {
+      throw new Error("Native save picker must not open");
+    });
+    vi.stubGlobal("showSaveFilePicker", choose);
+    const originalCreate = Object.getOwnPropertyDescriptor(
+      URL,
+      "createObjectURL",
+    );
+    const originalRevoke = Object.getOwnPropertyDescriptor(
+      URL,
+      "revokeObjectURL",
+    );
+    let captured: Blob | null = null;
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: (blob: Blob) => {
+        captured = blob;
+        return "blob:encrypted-backup";
+      },
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    let deliver: (file: { name: string; blob: Blob }) => void = () => {};
+    const delivered = new Promise<{ name: string; blob: Blob }>((resolve) => {
+      deliver = resolve;
+    });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        if (!captured) throw new Error("The real backup Blob was not created");
+        expect(this.href).toBe("blob:encrypted-backup");
+        deliver({ name: this.download, blob: captured });
+      });
+    try {
+      render(
+        <MemoryRouter>
+          <ExportKey />
+          <ContextMenuLayer />
+        </MemoryRouter>,
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Export items" }),
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Backup actions" }),
+      );
+      expect(click).not.toHaveBeenCalled();
+      expect(screen.queryByText("Saved")).toBeNull();
+      await userEvent.click(
+        screen.getByRole("menuitem", { name: "Download backup" }),
+      );
+      const file = await delivered;
+      expect(file.name).toMatch(/^opensesame-offline-backup-.*\.json$/);
+      expect(file.blob.type).toBe("application/json");
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () =>
+          isString(reader.result)
+            ? resolve(reader.result)
+            : reject(new Error("Expected backup text"));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file.blob);
+      });
+      expect((await openVaultFile(text, PASSWORD)).tomb).toBe("personal");
+      expect(text).not.toContain(PASSWORD);
+      await expect(
+        openVaultFile(text, "a different password"),
+      ).rejects.toThrow();
+      expect(choose).not.toHaveBeenCalled();
+      expect(saved).toHaveLength(0);
+      expect(click).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Saved")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Save again" })).toBeTruthy();
+    } finally {
+      click.mockRestore();
+      if (originalCreate)
+        Object.defineProperty(URL, "createObjectURL", originalCreate);
+      else Reflect.deleteProperty(URL, "createObjectURL");
+      if (originalRevoke)
+        Object.defineProperty(URL, "revokeObjectURL", originalRevoke);
+      else Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
+  });
+
+  it.each(["saved", "cancelled"] as const)(
+    "keeps Save pending until its genuine write promise settles as %s without an anchor fallback",
+    async (outcome) => {
+      await passwordVault();
+      let finish: (outcome: "saved" | "cancelled") => void = () => {};
+      const write = new Promise<"saved" | "cancelled">((resolve) => {
+        finish = resolve;
+      });
+      downloadSeams.save = (name, text, type = "") => {
+        saved.push({ name, text, type });
+        return write;
+      };
+      const click = vi
+        .spyOn(HTMLAnchorElement.prototype, "click")
+        .mockImplementation(() => undefined);
+      render(<ExportKey />);
+      await userEvent.click(
+        screen.getByRole("button", { name: "Export items" }),
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Save backup" }),
+      );
+      await waitFor(() => expect(saved).toHaveLength(1));
+      expect((await openVaultFile(saved[0]?.text ?? "", PASSWORD)).tomb).toBe(
+        "personal",
+      );
+      expect(screen.queryByText("Saved")).toBeNull();
+      await act(async () => {
+        finish(outcome);
+        await write;
+      });
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", {
+            name: outcome === "saved" ? "Save again" : "Save backup",
+          }),
+        ).toBeTruthy(),
+      );
+      if (outcome === "saved") expect(screen.getByText("Saved")).toBeTruthy();
+      else expect(screen.queryByText("Saved")).toBeNull();
+      expect(click).not.toHaveBeenCalled();
+      click.mockRestore();
+    },
+  );
 });

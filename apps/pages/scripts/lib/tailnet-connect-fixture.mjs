@@ -1,9 +1,10 @@
 /** Real Headscale + embedded DERP + native userspace peer; no SDK/network mocks. */
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import {
+  fixturePeerTLS,
   fixtureTls,
   forwardingEdge,
   proofServer,
@@ -187,8 +188,69 @@ async function closeAll(cleanups) {
   if (failures.length) throw new Error(failures.join("; "));
 }
 
+async function peerServices({
+  native,
+  directory,
+  ports,
+  tls,
+  cleanups,
+  peerTLS,
+}) {
+  const proof = await proofServer(ports.peer);
+  cleanups.push(proof.close);
+  await native.cli([
+    "serve",
+    "--bg",
+    "--tcp=8080",
+    `tcp://127.0.0.1:${ports.peer}`,
+  ]);
+  if (!peerTLS) return { proof };
+  const certificates = await fixturePeerTLS(directory, native.address);
+  const trusted = await proofServer(ports.peer + 1, certificates.trusted);
+  cleanups.push(trusted.close);
+  await native.cli([
+    "serve",
+    "--bg",
+    "--tcp=8443",
+    `tcp://127.0.0.1:${ports.peer + 1}`,
+  ]);
+  const wrongHostname = await proofServer(
+    ports.peer + 2,
+    certificates.wrongHostname,
+  );
+  cleanups.push(wrongHostname.close);
+  await native.cli([
+    "serve",
+    "--bg",
+    "--tcp=8444",
+    `tcp://127.0.0.1:${ports.peer + 2}`,
+  ]);
+  const host = native.address.includes(":")
+    ? `[${native.address}]`
+    : native.address;
+  return {
+    proof,
+    https: {
+      url: `https://${host}:8443/proof`,
+      wrongHostnameUrl: `https://${host}:8444/proof`,
+      caPEM: certificates.caPEM,
+      wrongCAPEM: await readFile(tls.caPath, "utf8"),
+      trusted: {
+        nonce: trusted.nonce,
+        requests: trusted.requests,
+        stats: trusted.stats,
+      },
+      wrongHostname: {
+        requests: wrongHostname.requests,
+        stats: wrongHostname.stats,
+      },
+    },
+  };
+}
+
 /** Ports can move together for parallel test runs; all services remain loopback-only. */
 export async function createTailnetConnectFixture({
+  peerTLS = false,
   cache = process.env.TAILNET_FIXTURE_CACHE ??
     join(tmpdir(), "opensesame-tailnet-binaries"),
   ports = {
@@ -248,15 +310,15 @@ export async function createTailnetConnectFixture({
       tls,
       cleanups,
     });
-    const proof = await proofServer(ports.peer);
-    cleanups.push(proof.close);
-    await native.cli([
-      "serve",
-      "--bg",
-      "--tcp=8080",
-      `tcp://127.0.0.1:${ports.peer}`,
-    ]);
-    return {
+    const { proof, https } = await peerServices({
+      native,
+      directory,
+      ports,
+      tls,
+      cleanups,
+      peerTLS,
+    });
+    const result = {
       controlUrl,
       authKey: native.authKey,
       peerUrl: `http://${native.address}:8080/proof`,
@@ -271,6 +333,8 @@ export async function createTailnetConnectFixture({
       ],
       close: () => closeAll(cleanups),
     };
+    if (https) result.peerTLS = https;
+    return result;
   } catch (error) {
     await closeAll(cleanups);
     throw error;

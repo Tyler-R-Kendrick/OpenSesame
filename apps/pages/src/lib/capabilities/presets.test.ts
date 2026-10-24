@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -103,7 +103,19 @@ describe("MODULE_OWNERSHIP", () => {
     for (const owner of Object.values(HTML_ENTRY_OWNERSHIP)) {
       expect(isKnownCapability(owner)).toBe(true);
     }
+    const publicHtml = readdirSync(join(pagesRoot, "public"))
+      .filter((file) => file.endsWith(".html"))
+      .sort();
+    expect(publicHtml).toEqual([
+      "404.html",
+      "about.html",
+      "contact.html",
+      "privacy.html",
+    ]);
+    for (const file of publicHtml)
+      expect(PUBLIC_FILE_OWNERSHIP[file], file).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["icon.svg"]).toBeNull();
+    expect(PUBLIC_FILE_OWNERSHIP["save-button.js"]).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["os-runtime-config.json"]).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["security-profile.json"]).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["auth.js"]).toBe("identity.site-broker");

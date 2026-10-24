@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { type JsonValue, overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,7 +16,7 @@ Object.assign(vaultHooksSeams, {
   }),
 });
 
-function encode(value: unknown): string {
+function encode(value: JsonValue): string {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -27,7 +28,7 @@ let opener: Window;
 beforeEach(() => {
   saveItem.mockClear();
   installItemTypeDefinition.mockClear();
-  opener = { postMessage: vi.fn() } as unknown as Window;
+  opener = overlapCast({ postMessage: vi.fn() });
   Object.defineProperty(window, "opener", {
     configurable: true,
     value: opener,

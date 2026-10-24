@@ -3,6 +3,7 @@
  * native/Node live harnesses use this path.
  */
 
+import { isString } from "@opensesame/os-domain";
 import { ProtectionError } from "../errors.js";
 import {
   assertAllowedCloudEndpoint,
@@ -16,7 +17,6 @@ import {
   type GcpKmsEncryptResponse,
   type GcpKmsTransport,
   assertGcpCryptoKeyName,
-  assertGcpKeyVersionName,
   crc32cDecimalString,
 } from "./gcp-kms.js";
 
@@ -48,7 +48,7 @@ async function gcpKmsHttpsEncrypt(
       },
       body: JSON.stringify({
         plaintext: plaintextB64,
-        plaintextCrc32c: { value: crc32cDecimalString(request.plaintext) },
+        plaintextCrc32c: crc32cDecimalString(request.plaintext),
         additionalAuthenticatedData: request.aad
           ? bytesToB64(request.aad)
           : undefined,
@@ -70,7 +70,7 @@ async function gcpKmsHttpsEncrypt(
     ciphertext?: string;
     name?: string;
     verifiedPlaintextCrc32c?: boolean;
-    ciphertextCrc32c?: { value?: string };
+    ciphertextCrc32c?: string;
   } = await response.json();
   if (!json.ciphertext || !json.name) {
     throw new ProtectionError(
@@ -79,7 +79,7 @@ async function gcpKmsHttpsEncrypt(
     );
   }
   const ct = b64ToBytes(json.ciphertext);
-  if (!json.ciphertextCrc32c?.value) {
+  if (!isString(json.ciphertextCrc32c) || !json.ciphertextCrc32c) {
     throw new ProtectionError(
       "provider_denied",
       "GCP KMS encrypt response missing ciphertext integrity value.",
@@ -88,7 +88,7 @@ async function gcpKmsHttpsEncrypt(
   return {
     ciphertext: ct,
     keyVersionName: json.name,
-    ciphertextCrc32c: json.ciphertextCrc32c.value,
+    ciphertextCrc32c: json.ciphertextCrc32c,
     ...(json.verifiedPlaintextCrc32c !== undefined
       ? { verifiedPlaintextCrc32c: json.verifiedPlaintextCrc32c }
       : undefined),
@@ -101,17 +101,9 @@ async function gcpKmsHttpsDecrypt(
   request: GcpKmsDecryptRequest,
 ): Promise<GcpKmsDecryptResponse> {
   assertGcpCryptoKeyName(request.keyName);
-  const pinned = request.expectedKeyVersionName;
-  if (pinned !== undefined) {
-    assertGcpKeyVersionName(pinned);
-    if (!pinned.startsWith(`${request.keyName}/cryptoKeyVersions/`))
-      throw new ProtectionError(
-        "malformed_encoding",
-        "GCP KMS key version does not belong to the configured key.",
-      );
-  }
-  const resource = pinned ?? request.keyName;
-  const endpoint = `https://cloudkms.googleapis.com/v1/${resource}:decrypt`;
+  // Cloud KMS decrypt takes the CryptoKey and selects the version from the
+  // ciphertext. The captured keyVersionName is metadata, not a version pin.
+  const endpoint = `https://cloudkms.googleapis.com/v1/${request.keyName}:decrypt`;
   assertAllowedCloudEndpoint(endpoint, "gcp-kms");
   let response: Response;
   try {
@@ -142,7 +134,7 @@ async function gcpKmsHttpsDecrypt(
   }
   const json: {
     plaintext?: string;
-    plaintextCrc32c?: { value?: string };
+    plaintextCrc32c?: string;
     verifiedCiphertextCrc32c?: boolean;
     verifiedAdditionalAuthenticatedDataCrc32c?: boolean;
   } = await response.json();
@@ -153,7 +145,7 @@ async function gcpKmsHttpsDecrypt(
     );
   }
   const plaintext = b64ToBytes(json.plaintext);
-  if (!json.plaintextCrc32c?.value) {
+  if (!isString(json.plaintextCrc32c) || !json.plaintextCrc32c) {
     throw new ProtectionError(
       "provider_denied",
       "GCP KMS decrypt response missing plaintext integrity value.",
@@ -161,7 +153,7 @@ async function gcpKmsHttpsDecrypt(
   }
   return {
     plaintext,
-    plaintextCrc32c: json.plaintextCrc32c.value,
+    plaintextCrc32c: json.plaintextCrc32c,
     ...(json.verifiedCiphertextCrc32c !== undefined
       ? { verifiedCiphertextCrc32c: json.verifiedCiphertextCrc32c }
       : undefined),

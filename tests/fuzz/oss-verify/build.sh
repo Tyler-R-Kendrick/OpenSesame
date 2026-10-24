@@ -30,14 +30,17 @@ opensesame_target() {
   )
 }
 
-# The first wave enrolled in project.yaml (ADR 0211 §3): authority algebra,
-# seals, and security-boundary parsers. Add a target here, a `tree` + `crates`
-# pair in `sources`, and a fuzz_targets row in project.yaml, together.
+# The first wave enrolled in project.yaml (ADR 0211 §3): authority algebra
+# and security-boundary parsers, all hermetic (no entropy or clock). The
+# seal/envelope targets (vault_envelope, broker_seal) draw OS randomness
+# for nonces and keys and join a later wave once the harnesses take a
+# deterministic seam. Add a target here, a `tree` + `crates` pair in
+# `sources`, and a fuzz_targets row in project.yaml, together.
 opensesame_target capability_algebra
 opensesame_target grant_attenuation
-opensesame_target vault_envelope
-opensesame_target broker_seal
 opensesame_target canonical_json
 opensesame_target jwt_jwk
 opensesame_target pki_csr_parse
 opensesame_target kdbx_parse
+opensesame_target vault_item_type
+opensesame_target connector_manifest

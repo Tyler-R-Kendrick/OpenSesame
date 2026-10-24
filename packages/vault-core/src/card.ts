@@ -151,7 +151,11 @@ export function formatCardNumber(
 ): string {
   const digits = cardDigits(value);
   const known =
-    typeof brand === "string" ? cardBrandByName(brand) : (brand ?? null);
+    brand === undefined || brand === null
+      ? null
+      : brand instanceof Object
+        ? brand
+        : cardBrandByName(brand);
   const gaps = known?.gaps ?? [4, 8, 12, 16];
   let formatted = "";
   for (let index = 0; index < digits.length; index += 1) {

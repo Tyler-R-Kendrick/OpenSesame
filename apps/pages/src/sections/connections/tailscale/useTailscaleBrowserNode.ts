@@ -17,6 +17,10 @@ import {
   nativeHTTPDraft,
   nextNativeHTTPDraft,
 } from "./tailscale-native-http-values.js";
+import {
+  nextPeerTLSDraft,
+  peerTLSDraft,
+} from "./tailscale-server-trust-values.js";
 import { useBrowserNodeEditorActions } from "./useBrowserNodeEditorActions.js";
 const idle: TailscaleNodeSnapshot = {
   status: "stopped",
@@ -112,12 +116,14 @@ export function useTailscaleBrowserNode(ready: boolean) {
   const peer = useTailscalePeerProbe(node);
   const [hasSaved, setHasSaved] = useState(false);
   const [nativeHTTPValues, setNativeHTTPValues] = useState(nativeHTTPDraft);
+  const [peerTLSValues, setPeerTLSValues] = useState(peerTLSDraft);
   // Public metadata restores when ready; later runtime binding must preserve edits.
   useLayoutEffect(() => {
     if (!ready) return;
     const saved = savedBrowserNodeConfiguration();
     setHasSaved(!!saved);
     setNativeHTTPValues(nativeHTTPDraft(saved?.nativeHTTP));
+    setPeerTLSValues(peerTLSDraft(saved?.peerTLS));
     if (saved) {
       setHostname(saved.hostname);
       setControlURL(saved.controlURL);
@@ -135,6 +141,8 @@ export function useTailscaleBrowserNode(ready: boolean) {
     controlURL,
     authKey,
     nativeHTTPValues,
+    peerTLSValues,
+    setPeerTLSValues,
     setFailure,
     setHasSaved,
     setHostname,
@@ -160,6 +168,11 @@ export function useTailscaleBrowserNode(ready: boolean) {
     hasSaved,
     active: state.status !== "stopped" && state.status !== "error",
     ...actions,
+    peerTLSValues,
+    setPeerTLSValue: (id: string, value: string) => {
+      peer.clear();
+      setPeerTLSValues((values) => nextPeerTLSDraft(values, id, value));
+    },
     nativeHTTPValues,
     setNativeHTTPValue: (id: string, value: string) =>
       setNativeHTTPValues((values) => nextNativeHTTPDraft(values, id, value)),

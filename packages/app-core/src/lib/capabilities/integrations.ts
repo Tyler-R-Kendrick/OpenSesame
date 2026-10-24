@@ -11,8 +11,8 @@
  * receipt, and nothing about it depends on whether a feature is on. (A tile
  * may carry its own enable switch, as a Backups history road does.)
  *
- * These are the Connections catalogue's feature-binding families except
- * legacy local storage, whose group is no longer offered in Integrations.
+ * These are the Connections catalogue's feature-binding and service families,
+ * except legacy local storage, whose group is no longer offered in Integrations.
  * The category remains internal so its old rows do not move to the general
  * catalog when this group is removed.
  *
@@ -35,7 +35,8 @@ export type IntegrationId =
   | "cloud-secret-storage"
   | "payments"
   | "ai"
-  | "networking";
+  | "networking"
+  | "services";
 
 export type Integration = Readonly<{
   id: IntegrationId;
@@ -88,6 +89,13 @@ export const INTEGRATIONS: readonly Integration[] = [
   integration("networking", "Networking", ["networking"], {
     extendsFeature: "networking",
   }),
+  integration("services", "Services", [
+    "developer",
+    "productivity",
+    "communication",
+    "storage",
+    "crm",
+  ]),
 ];
 
 /**

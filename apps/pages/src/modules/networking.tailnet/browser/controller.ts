@@ -15,6 +15,7 @@ import {
   openBrowserNodeState,
   writeBrowserNodeState,
 } from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
+import { browserNodeTransportOptions } from "@opensesame/app-core/lib/tailscale/browser-node-transport-options.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import artifacts from "../../../lib/capabilities/tailscale-artifacts.json";
@@ -24,9 +25,11 @@ import {
 } from "./browser-node-policy.js";
 import {
   BrowserNodeRequests,
+  browserNodeStartConfiguration,
   nativeWorkerOptions,
 } from "./controller-requests.js";
-import { Configuration, HostMessage, NetMap } from "./protocol.js";
+import { BrowserNodeRetirement } from "./controller-retirement.js";
+import { HostMessage, NetMap } from "./protocol.js";
 export type { BrowserNodePolicy } from "./browser-node-policy.js";
 const stopped = (): TailscaleNodeSnapshot => ({
   status: "stopped",
@@ -60,6 +63,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
   private running = false;
   private authorized = false;
   private requests: BrowserNodeRequests | null = null;
+  private readonly retirement = new BrowserNodeRetirement();
   constructor(private readonly policy: BrowserNodePolicy) {}
   snapshot = () => this.view;
   authorization = () => {
@@ -104,8 +108,9 @@ class BrowserNodeController implements TailscaleBrowserNode {
     input: TailscaleNodeConfiguration,
     url: URL,
     turn: number,
-  ): void {
-    this.session = localVaultSessionGuard(vaultStore);
+  ): ReturnType<typeof localVaultSessionGuard> {
+    const session = localVaultSessionGuard(vaultStore);
+    this.session = session;
     this.check(turn);
     this.publish({
       ...stopped(),
@@ -113,6 +118,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
       controlURL: url.origin,
       status: "starting",
     });
+    return session;
   }
   async start(input: TailscaleNodeConfiguration): Promise<void> {
     this.stop();
@@ -120,28 +126,18 @@ class BrowserNodeController implements TailscaleBrowserNode {
     try {
       this.policy.assertCurrent();
       const url = browserNodeControlURL(input.controlURL);
-      this.beginSession(input, url, turn);
-      const session = this.session;
-      if (!session) throw new Error("Tailscale node session ended.");
-      const config = Configuration.parse({
-        ...input,
-        nativeHTTP: undefined,
-        controlURL: url.origin,
-        authKey: input.authKey ?? "",
-        state: {},
-        assets: {
-          runtime: new URL(
-            `${import.meta.env.BASE_URL}${artifacts.assets.runtime}`,
-            location.origin,
-          ).href,
-          wasm: new URL(
-            `${import.meta.env.BASE_URL}${artifacts.assets.wasm}`,
-            location.origin,
-          ).href,
-        },
-      });
+      const session = this.beginSession(input, url, turn);
+      const config = browserNodeStartConfiguration(
+        input,
+        url,
+        artifacts.assets,
+        new URL(import.meta.env.BASE_URL, location.origin),
+      );
+      const transport = browserNodeTransportOptions(input);
+      await this.retirement.ready();
+      this.check(turn);
       const stored = await openBrowserNodeState(
-        { ...config, nativeHTTP: input.nativeHTTP },
+        { ...config, ...transport, nativeHTTP: transport.nativeHTTP },
         session.current().tomb,
         () => this.check(turn),
       );
@@ -186,7 +182,15 @@ class BrowserNodeController implements TailscaleBrowserNode {
         artifacts.assets,
         new URL(import.meta.env.BASE_URL, location.origin),
       );
-      this.worker.onmessage = (event) => this.receive(event.data, turn);
+      const originalRequests = this.requests;
+      this.worker.onmessage = (event) => {
+        const cleanup = HostMessage.safeParse(event.data);
+        if (cleanup.success && cleanup.data.kind === "closeHTTP") {
+          originalRequests.receive(cleanup.data);
+          return;
+        }
+        this.receive(event.data, turn);
+      };
       this.worker.onerror = () => this.fail(turn);
       this.worker.postMessage({
         kind: "start",
@@ -194,6 +198,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
           ...config,
           state: stored.state,
           nativeHTTP: options.nativeHTTP,
+          peerTLS: stored.record.peerTLS,
           assets: {
             ...config.assets,
             ...options.asset,
@@ -359,9 +364,8 @@ class BrowserNodeController implements TailscaleBrowserNode {
   }
   stop(): void {
     this.turn++;
-    this.requests?.close();
+    this.retirement.retire(this.requests, this.worker);
     this.requests = null;
-    this.worker?.terminate();
     this.worker = null;
     this.releaseVault?.();
     this.releaseVault = null;

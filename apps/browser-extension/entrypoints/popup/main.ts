@@ -1,6 +1,11 @@
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
 import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
-import { ENDPOINTS, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  ENDPOINTS,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 type HealthResponse = {
   health?: { ok?: boolean };
@@ -21,11 +26,12 @@ async function loadHostInput() {
   if (!input) return;
   try {
     const stored = await browser.storage.local.get("hostApiBase");
+    // SAFETY: extension storage values are JSON boundary values.
+    const raw = stored.hostApiBase as BoundaryValue;
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
-    const value =
-      typeof stored.hostApiBase === "string"
-        ? await openFromRest(STORE, "hostApiBase", stored.hostApiBase)
-        : null;
+    const value = isString(raw)
+      ? await openFromRest(STORE, "hostApiBase", raw)
+      : null;
     input.value = value?.trim() ? value : DEFAULT_HOST;
   } catch {
     input.value = DEFAULT_HOST;

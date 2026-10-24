@@ -104,7 +104,7 @@ export function ItemChoice({
   const live = listedItems(activeItems(items));
   const vaults = useDeviceVaults();
   const vaultLabel = vaults.find(
-    (vault) => vault.id === vaultStore.activeTomb(),
+    (vault) => vault.id === (vaultStore.activeTomb?.() ?? ""),
   )?.label;
   const labels = useMemo(
     () => liveItemPickLabels(live, { vaultLabel }),

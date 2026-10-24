@@ -3,7 +3,7 @@ import {
   clearNotices,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { MemoryRouter } from "react-router";
@@ -17,7 +17,7 @@ function raiseNotice() {
   act(() => {
     setStatusNotice({
       id: "unlock:code",
-      tone: "warn",
+      tone: "err",
       title: "Unlock code",
       body: "Use the code delivered to this device.",
     });
@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 describe("the lock-v5 screens own their notification region", () => {
-  it("keeps the unlock bell in the form column while release notes stay available", async () => {
+  it("keeps the refusal and bell before the unlock form while release notes stay available", async () => {
     render(
       <MemoryRouter>
         <Notices shellless>
@@ -42,7 +42,10 @@ describe("the lock-v5 screens own their notification region", () => {
             ceremonyToken={0}
             vaultUnlocked={false}
           >
-            <input aria-label="PIN" />
+            <form className="unlock__form" aria-label="Unlock">
+              <input aria-label="PIN" />
+              <button type="submit">Unlock</button>
+            </form>
           </UnlockStage>
         </Notices>
       </MemoryRouter>,
@@ -55,7 +58,24 @@ describe("the lock-v5 screens own their notification region", () => {
     expect(bell.closest(".gate-notice-seat")?.parentElement?.className).toBe(
       "unlock__card",
     );
-    expect(bell.closest(".unlock--lock-v5")).toBeTruthy();
+    const stage = bell.closest(".unlock--lock-v5");
+    const corner = bell.closest(".notice-corner");
+    const form = screen.getByRole("form", { name: "Unlock" });
+    expect(stage).toBeTruthy();
+    if (!(corner instanceof HTMLElement))
+      throw new Error("The refusal and bell must own a notice region.");
+    expect(within(corner).getByRole("alert").textContent).toContain(
+      "Use the code delivered to this device.",
+    );
+    expect(corner.closest(".unlock__card")).toBe(form.parentElement);
+    expect(form.contains(corner)).toBe(false);
+    expect(
+      corner.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // The stage contains both regions; its outer box cannot be the boundary
+    // used to prove that the notice is above the form it precedes.
+    expect(stage?.contains(corner)).toBe(true);
+    expect(stage?.contains(form)).toBe(true);
     const notes = screen.getByRole("complementary", { name: "Release notes" });
     expect(notes.contains(bell)).toBe(false);
     expect(screen.getByDisplayValue("2468")).toBeTruthy();

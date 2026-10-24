@@ -1,15 +1,32 @@
 /**
- * Hand the person a file the page will not keep a copy of. The File System
- * Access save picker is used where it exists; otherwise the object URL
- * outlives the click because some engines cancel a download if it is revoked
- * in the same task, and this file may be the only copy of a generated key.
+ * Hand the person a file the page will not keep a copy of, without opening a
+ * save picker. The object URL outlives the click because some engines cancel
+ * a download if it is revoked in the same task, and this file may be the
+ * only copy of a generated key.
  */
 
-import { type SaveOutcome, saveTextFile } from "../../lib/file-system.js";
+import {
+  type SaveOutcome,
+  downloadBlob,
+  saveBlob,
+} from "../../lib/file-system.js";
 
-export function downloadOnce(
+export async function downloadOnce(
   filename: string,
   body: string,
 ): Promise<SaveOutcome> {
-  return saveTextFile(filename, body, "text/plain", "OpenSesame file");
+  downloadBlob(new Blob([body], { type: "text/plain" }), filename);
+  return "downloaded";
+}
+
+/** Secret material where a dismissed save must be observable before commit. */
+export async function saveSecret(
+  filename: string,
+  body: string,
+): Promise<SaveOutcome> {
+  return saveBlob(
+    new Blob([body], { type: "text/plain" }),
+    filename,
+    "OpenSesame secret",
+  );
 }

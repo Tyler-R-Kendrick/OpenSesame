@@ -156,9 +156,16 @@ impl Harness {
     /// A server over a database file: its pool holds several connections, so
     /// the store's own write lock is what serializes concurrent requests.
     pub async fn start_in_file(path: &std::path::Path) -> Self {
+        Self::start_in_file_with(path, |config| config).await
+    }
+
+    pub async fn start_in_file_with(
+        path: &std::path::Path,
+        configure: impl FnOnce(ServerConfig) -> ServerConfig,
+    ) -> Self {
         let url = format!("sqlite://{}?mode=rwc", path.display());
         let db = Db::connect_sqlite(&url).await.unwrap();
-        Self::start_on(db, MOUNT, true, |config| config).await
+        Self::start_on(db, MOUNT, true, configure).await
     }
 
     async fn start_mounted_as(

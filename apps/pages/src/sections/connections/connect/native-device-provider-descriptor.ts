@@ -137,6 +137,7 @@ const METHOD_LABEL = {
   companion: "Companion configuration",
   "refuses-browser": "Direct browser access",
   "driver-pending": "Direct browser access",
+  "runtime-inactive": "Connection activation",
   "no-key-check": "API key",
   "no-contract": "Browser connection",
   policy: "Not offered",

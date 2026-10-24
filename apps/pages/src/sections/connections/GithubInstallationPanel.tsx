@@ -15,6 +15,13 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 
+/** The installation reads and the grant write; a test stands in for them. */
+export const githubInstallationSeams = {
+  load: loadGithubInstallationSnapshot,
+  should: shouldEnsureGithubAccessGrant,
+  ensure: ensureGithubAccessGrant,
+};
+
 type AccountRow = { id: string; login: string; type: string };
 type PermissionRow = { name: string; access: string };
 
@@ -36,13 +43,13 @@ export function GithubCardDetails({
     let cancel = false;
     void (async () => {
       try {
-        const initial = await loadGithubInstallationSnapshot(tomb, connection);
+        const initial = await githubInstallationSeams.load(tomb, connection);
         if (cancel) return;
-        if (shouldEnsureGithubAccessGrant(initial, connection)) {
+        if (githubInstallationSeams.should(initial, connection)) {
           // The card can unmount while the snapshot is in flight. The guard
           // is checked again immediately before the write so a route change
           // never mints a standing grant for a page the person left.
-          await ensureGithubAccessGrant(tomb, connection, () => !cancel);
+          await githubInstallationSeams.ensure(tomb, connection, () => !cancel);
         }
         if (cancel) return;
         const nextAccounts = initial.installations.map((row) => ({

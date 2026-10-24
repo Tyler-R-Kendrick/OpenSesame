@@ -1,4 +1,7 @@
-import { aiCompletionSeams } from "@opensesame/app-core/lib/ai-connections/http.js";
+import {
+  aiCompletionSeams,
+  bindAiResponseLifetime,
+} from "@opensesame/app-core/lib/ai-connections/http.js";
 import { bindAiConnectionTransport } from "@opensesame/app-core/lib/ai-connections/transport.js";
 import {
   AiConnectionError,
@@ -14,6 +17,30 @@ import type { Activation } from "../activation.js";
 import { anySignal, runUnlessAborted } from "../signals.js";
 import { captureBrowserNodeTransport } from "./browser-node-transport.js";
 
+/** Physical request forwarding ends at EOF; logical port checks remain live. */
+function physicalAiRequest(signals: readonly AbortSignal[]) {
+  const controller = new AbortController();
+  let retired = false;
+  const retire = () => {
+    if (retired) return;
+    retired = true;
+    for (const signal of signals) signal.removeEventListener("abort", withdraw);
+  };
+  const withdraw = () => {
+    if (retired) return;
+    retire();
+    controller.abort();
+  };
+  for (const signal of signals) {
+    if (signal.aborted) {
+      withdraw();
+      break;
+    }
+    signal.addEventListener("abort", withdraw, { once: true });
+  }
+  return { signal: controller.signal, retire, withdraw };
+}
+
 function aiFetch(
   port: NativeProviderTransport,
   signal: AbortSignal,
@@ -21,18 +48,33 @@ function aiFetch(
   return async (input, init) => {
     port.assertCurrent();
     signal.throwIfAborted();
-    const requestSignal = init?.signal
-      ? anySignal([signal, init.signal])
-      : signal;
-    return runUnlessAborted(requestSignal, () => {
-      if (init?.signal)
-        aiCompletionSeams.observe?.({
-          phase: "signal",
-          httpSignal: init.signal,
-          fetchSignal: requestSignal,
+    const caller = init?.signal;
+    const request = physicalAiRequest(caller ? [signal, caller] : [signal]);
+    try {
+      return await runUnlessAborted(request.signal, async () => {
+        if (caller)
+          aiCompletionSeams.observe?.({
+            phase: "signal",
+            httpSignal: caller,
+            fetchSignal: request.signal,
+          });
+        const response = await port.fetch(input, {
+          ...init,
+          signal: request.signal,
         });
-      return port.fetch(input, { ...init, signal: requestSignal });
-    });
+        if (request.signal.aborted) {
+          await response.body?.cancel().catch(() => undefined);
+          request.signal.throwIfAborted();
+        }
+        if (response.body)
+          bindAiResponseLifetime(response, request.retire, request.signal);
+        else request.retire();
+        return response;
+      });
+    } catch (error) {
+      request.withdraw();
+      throw error;
+    }
   };
 }
 

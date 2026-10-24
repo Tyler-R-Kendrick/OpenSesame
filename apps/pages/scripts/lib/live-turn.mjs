@@ -10,6 +10,12 @@
  * which Chromium is told to trust and nothing else
  * (`--ignore-certificate-errors-spki-list`). A missing binary is reported,
  * never faked.
+ *
+ * The server listens on the address it is given, which the walks set to this
+ * machine's default-route address: the app refuses a loopback ICE server
+ * (`assertRoutableIceServers`, ADR 0150 §6), as no public one is. Only its
+ * own stats endpoint, which the walk reads and no browser does, stays on
+ * loopback.
  */
 
 import { execFileSync, spawn } from "node:child_process";
@@ -18,11 +24,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-/** A throwaway certificate for 127.0.0.1, and the flag that trusts only it. */
-export function mintTurnCert(binary) {
+/**
+ * A throwaway certificate for 127.0.0.1 and `host` (the TLS TURN server's
+ * address; a carrier's TLS front stays on loopback), and the flag that
+ * trusts only it.
+ */
+export function mintTurnCert(binary, host) {
   if (!binary || !fs.existsSync(binary)) return { missing: binary };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "live-turn-cert-"));
-  execFileSync(binary, ["mint", dir]);
+  execFileSync(binary, ["mint", dir, ...(host ? [host] : [])]);
   const cert = path.join(dir, "cert.pem");
   const key = new X509Certificate(fs.readFileSync(cert)).publicKey.export({
     type: "spki",
@@ -63,12 +73,15 @@ function firstLine(child, ms) {
 }
 
 /**
- * Serve TURN on loopback UDP, TCP and (with `cert`) TLS, on ports the kernel
+ * Serve TURN on `host`'s UDP, TCP and (with `cert`) TLS, on ports the kernel
  * chose. `urls` are the ICE server URLs a person types into Routes. With
  * `restSecret` the server takes TURN REST credentials minted from that secret
  * (coturn's `use-auth-secret`) instead of a static name and credential.
  */
-export async function startLiveTurn(binary, { cert, restSecret } = {}) {
+export async function startLiveTurn(
+  binary,
+  { cert, restSecret, host = "127.0.0.1" } = {},
+) {
   if (!binary || !fs.existsSync(binary)) return { missing: binary };
   const username = "live";
   const credential = randomBytes(12).toString("hex");
@@ -76,6 +89,7 @@ export async function startLiveTurn(binary, { cert, restSecret } = {}) {
     ? ["serve", "-rest-secret", restSecret]
     : ["serve", "-user", username, "-credential", credential];
   if (cert) args.push("-cert", cert.cert, "-key", cert.key);
+  args.push("-host", host);
   const child = spawn(binary, args, { stdio: ["ignore", "pipe", "pipe"] });
   let ready;
   try {
@@ -89,9 +103,9 @@ export async function startLiveTurn(binary, { cert, restSecret } = {}) {
     username: restSecret ? undefined : username,
     credential: restSecret ? undefined : credential,
     urls: {
-      udp: `turn:127.0.0.1:${ready.udp}?transport=udp`,
-      tcp: `turn:127.0.0.1:${ready.tcp}?transport=tcp`,
-      tls: ready.tls ? `turns:127.0.0.1:${ready.tls}?transport=tcp` : null,
+      udp: `turn:${host}:${ready.udp}?transport=udp`,
+      tcp: `turn:${host}:${ready.tcp}?transport=tcp`,
+      tls: ready.tls ? `turns:${host}:${ready.tls}?transport=tcp` : null,
     },
     /** What each transport saw so far: { udp, tcp, tls } of counters. */
     stats: async () => (await fetch(url)).json(),

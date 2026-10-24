@@ -1,10 +1,11 @@
 /**
- * Push an encrypted vault snapshot to bound backup remotes via the Connect
- * relay. Supports GitHub App installs and forge HTTPS remotes
+ * Push an encrypted vault snapshot to bound backup remotes.
+ * GitHub App installs use direct provider REST; forge HTTPS remotes
  * (GitLab / Bitbucket / Codeberg / Cursor Origin).
  */
 import {
   type JsonObject,
+  canonicalize,
   isString,
   overlapCast,
   readString,
@@ -13,12 +14,11 @@ import type { SealedBlob, VaultHeader } from "@opensesame/vault-core";
 import { backupOriginAllowed } from "./backup-egress-gate.js";
 import {
   type LocalBackupTarget,
-  clearLocalBackupPending,
   listLocalBackupTargets,
   readLocalBackupTarget,
+  subscribeLocalBackupTarget,
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
-import { readBoundedObject } from "./bounded-response.js";
 import {
   performSavedCategory,
   performSavedConnector,
@@ -32,6 +32,19 @@ import { getLocalGitRemote } from "./git-remote-local.js";
 import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
 import { savedForgeCredentials } from "./saved-git-backup.js";
+import {
+  pollSavedGithubBackups,
+  putSavedGithubBackup,
+} from "./vault-backup-github.js";
+export {
+  readSavedGithubBackup,
+  restoreSavedGithubBackup,
+} from "./vault-backup-github.js";
+import { backupTargetReceipt } from "./vault-backup-github-owner.js";
+import {
+  confirmedBackupCommit,
+  readBackupWriteConfirmation,
+} from "./vault-backup-sync-confirmation.js";
 import {
   buildOfflineBackup,
   serializeOfflineBackup,
@@ -74,7 +87,13 @@ function sealedEnvelopeJson(): string {
   return serializeOfflineBackup(envelope);
 }
 
-type PutContentsResult = { commitSha: string | null };
+type PutContentsResult = {
+  commitSha: string | null;
+  assertCurrent?: () => void;
+  close?: () => void;
+  pendingAfter?: (pending: number) => number;
+  publish?: (commit: () => void) => void;
+};
 
 /** Git backup withdrawn, or the relay off the operator's allowlist: no call. */
 function refuseUnlessAllowed(base: string): void {
@@ -91,31 +110,9 @@ async function putGithubContentsDefault(input: {
   repo: string;
   branch: string;
   contentBase64: string;
+  providerId?: string;
 }): Promise<PutContentsResult> {
-  const base = githubAppRelayBase();
-  if (base === "") throw new Error("Connect relay is not configured.");
-  refuseUnlessAllowed(base);
-  const response = await fetch(`${base}/api/github-app/put-contents`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-  const payload: JsonObject = overlapCast(
-    await readBoundedObject(response, 65536, 30_000).catch(() => ({})),
-  );
-  if (!response.ok) {
-    throw new Error(
-      readString(payload.message) ||
-        readString(payload.error) ||
-        `Backup write failed (${response.status})`,
-    );
-  }
-  return {
-    commitSha: isString(payload.commitSha) ? payload.commitSha : null,
-  } satisfies PutContentsResult;
+  return putSavedGithubBackup(input);
 }
 
 async function putForgeContentsDefault(input: {
@@ -149,56 +146,12 @@ async function putForgeContentsDefault(input: {
     },
     body: JSON.stringify(body),
   });
-  const payload: JsonObject = overlapCast(
-    await readBoundedObject(response, 65536, 30_000).catch(() => ({})),
-  );
-  if (!response.ok) {
-    throw new Error(
-      readString(payload.message) ||
-        readString(payload.error) ||
-        `Backup write failed (${response.status})`,
-    );
-  }
-  return {
-    commitSha: isString(payload.commitSha) ? payload.commitSha : null,
-  } satisfies PutContentsResult;
+  return readBackupWriteConfirmation(response);
 }
 
+/** Poll actual provider branch heads; App signing keys never go to a webhook relay. */
 async function drainWebhookPendingDefault(): Promise<number> {
-  const base = githubAppRelayBase();
-  if (base === "" || !backupOriginAllowed(base)) return 0;
-  const creds = vaultBackupSyncSeams.resolveCredentials();
-  if (!creds) return 0;
-  const targets = listLocalBackupTargets().filter(
-    (row) => row.enabled && row.kind === "github_app" && row.installationId,
-  );
-  if (targets.length === 0) return 0;
-  let total = 0;
-  for (const target of targets) {
-    try {
-      const response = await fetch(`${base}/api/github-app/webhook-pending`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          appId: creds.appId,
-          pem: creds.pem,
-          installationId: target.installationId,
-        }),
-      });
-      if (!response.ok) continue;
-      const payload: JsonObject = overlapCast(
-        await readBoundedObject(response, 65536, 8_000).catch(() => ({})),
-      );
-      const events = Array.isArray(payload.events) ? payload.events : [];
-      total += events.length;
-    } catch {
-      /* relay unreachable */
-    }
-  }
-  return total;
+  return pollSavedGithubBackups();
 }
 
 function resolveGithubCredentialsDefault(): {
@@ -312,15 +265,54 @@ export async function pushSavedForgeBackup(
   return result.commitSha;
 }
 
+function commitAfterWrite(
+  providerKey: string,
+  commitSha: string | null,
+): string | null {
+  // Bitbucket's relay confirms the write without a commit object. Every
+  // other provider must still return a real Git object ID.
+  if (providerKey === "bitbucket" && commitSha === null) return null;
+  return confirmedBackupCommit(commitSha);
+}
+
+function backupWriteCompletion(result: PutContentsResult) {
+  return {
+    close: result.close ?? (() => {}),
+    pendingAfter: result.pendingAfter ?? ((_pending: number) => 0),
+    publish: result.publish ?? ((commit: () => void) => commit()),
+  };
+}
+
+function syncTargetOwner(target: LocalBackupTarget, providerKey: string) {
+  const receipt = (row: LocalBackupTarget | null) =>
+    target.kind === "github_app" ? backupTargetReceipt(row) : canonicalize(row);
+  const targetReceipt = receipt(target);
+  let targetValid = true;
+  const stopTarget = subscribeLocalBackupTarget(() => {
+    if (receipt(readLocalBackupTarget(providerKey)) !== targetReceipt)
+      targetValid = false;
+  });
+  const targetCurrent = () =>
+    targetValid &&
+    receipt(readLocalBackupTarget(providerKey)) === targetReceipt;
+  return { current: targetCurrent, close: stopTarget };
+}
+
 async function syncOneTarget(
   target: LocalBackupTarget,
 ): Promise<LocalBackupTarget | null> {
   if (!target.enabled) return target;
   if (target.providerId) performSavedConnector(target.providerId);
   const providerKey = target.providerId ?? "github";
+  const targetOwner = syncTargetOwner(target, providerKey);
+  let close = () => {};
+  let pendingAfter = (_pending: number) => 0;
+  let publish = (commit: () => void) => commit();
   try {
     let commitSha: string | null = null;
     if (target.kind === "git_remote") {
+      // Forge relays may report a successful write without a commit object
+      // (Bitbucket does); the provider receipt is the confirmation there.
       commitSha = await pushSavedForgeBackup(target);
     } else {
       const json = vaultBackupSyncSeams.sealedEnvelopeJson();
@@ -339,29 +331,40 @@ async function syncOneTarget(
         repo: target.repo,
         branch: target.branch,
         contentBase64,
+        providerId: providerKey,
       });
+      ({ close, pendingAfter, publish } = backupWriteCompletion(result));
+      result.assertCurrent?.();
       commitSha = result.commitSha;
     }
+    commitSha = commitAfterWrite(providerKey, commitSha);
+    if (!targetOwner.current())
+      throw new Error("The backup target changed during sync.");
+    const current = readLocalBackupTarget(providerKey);
+    if (!current) throw new Error("The backup target was removed during sync.");
     const next: LocalBackupTarget = {
-      ...target,
+      ...current,
       status: "ok",
       lastCommitSha: commitSha,
       lastSyncedAt: new Date().toISOString(),
       lastError: null,
-      pendingEvents: 0,
+      pendingEvents: pendingAfter(current.pendingEvents),
     };
-    writeLocalBackupTarget(next);
-    clearLocalBackupPending(providerKey);
+    publish(() => writeLocalBackupTarget(next));
     return next;
   } catch (caught) {
     const message =
       caught instanceof Error ? caught.message : "Backup sync failed";
-    writeLocalBackupTarget({
-      ...target,
-      status: "error",
-      lastError: message,
-    });
+    if (targetOwner.current())
+      writeLocalBackupTarget({
+        ...(readLocalBackupTarget(providerKey) ?? target),
+        status: "error",
+        lastError: message,
+      });
     throw caught instanceof Error ? caught : new Error(message);
+  } finally {
+    targetOwner.close();
+    close();
   }
 }
 

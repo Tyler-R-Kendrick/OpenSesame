@@ -30,7 +30,7 @@ export function Decorations({
   // shared it. A grant this actor issued stays a count: it is their own act,
   // not a thing received from another user.
   const grantees = item.kind === "secret" ? item.grantees : [];
-  const scope = useVaultStore().activeTomb();
+  const scope = useVaultStore().activeTomb?.() ?? "";
   const rotationState = useSyncExternalStore(
     subscribeRotationQueue,
     () => rotationEventFor(scope, item.id)?.state ?? "",

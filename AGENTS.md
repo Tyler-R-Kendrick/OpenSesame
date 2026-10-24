@@ -1528,7 +1528,7 @@ CI lives in `.github/workflows/`:
   env-spec bridge for x86_64 and aarch64 Linux, packs reproducible archives
   (`scripts/release/kit-archive.sh`), writes `SHA256SUMS`, attests build
   provenance and publishes a release that starts as a draft at the verified
-  commit ([ADR 0207](docs/adr/0207-release-kit-binaries.md),
+  commit ([ADR 0212](docs/adr/0212-release-kit-binaries.md),
   `docs/operators/release-kit.md`). Its first job (`scripts/release/tag-check.sh`)
   refuses a tag that is not the workspace version or not on `main`, and every
   other job needs it; who may push a `v*` tag is `ops/github/release-tags.json`,

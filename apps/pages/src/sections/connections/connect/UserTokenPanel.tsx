@@ -14,6 +14,13 @@ import { IconCheck, IconLogin } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { Facts } from "./fields.js";
 
+/** The consent popup and the Connect calls; a test stands in for them. */
+export const userTokenSeams = {
+  open: openConsentPopup,
+  authorize: authorizeConnectorAs,
+  check: checkConnectorToken,
+};
+
 const WAIT_MS = 10 * 60_000;
 
 /** Resolves true only when this popup reports the connection it was opened for. */
@@ -185,7 +192,7 @@ export function UserTokenPanel({
     if (!subject) return;
     setBusy("check");
     try {
-      setCheck(await checkConnectorToken(connectorId, subject, scopes));
+      setCheck(await userTokenSeams.check(connectorId, subject, scopes));
     } catch (error) {
       setCheck(null);
       onFlash({ tone: "err", text: errorText(error) });
@@ -196,10 +203,10 @@ export function UserTokenPanel({
 
   async function authorize() {
     if (!subject) return;
-    const popup = openConsentPopup("about:blank");
+    const popup = userTokenSeams.open("about:blank");
     setBusy("authorize");
     try {
-      const { authorizationUrl } = await authorizeConnectorAs(
+      const { authorizationUrl } = await userTokenSeams.authorize(
         connectorId,
         subject,
         scopes,

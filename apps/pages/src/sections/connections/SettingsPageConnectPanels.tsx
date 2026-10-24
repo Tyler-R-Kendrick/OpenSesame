@@ -12,7 +12,10 @@ import { GithubNativeAppPanels } from "./GithubNativeAppPanels.js";
 import { AiConnectionPanels } from "./ai/AiConnectionPanels.js";
 import { ModelKeysPanel } from "./ai/keys/ModelKeysPanel.js";
 import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
-import { NativeConnectorPanels } from "./connect/NativeConnectorPanels.js";
+import {
+  NativeConnectorPanels,
+  nativeSettingsDescriptor,
+} from "./connect/NativeConnectorPanels.js";
 import { IdentityConnectionPanels } from "./identity/IdentityConnectionPanels.js";
 import { SecretBackendPanels } from "./secret-backends/SecretBackendPanels.js";
 import { TailscalePanels } from "./tailscale/TailscalePanels.js";
@@ -29,6 +32,16 @@ type Props = {
   deviceSeal: boolean;
   secretBackendExperience?: boolean;
 };
+/** Specialized saved Linear rows retain their original header and custody ceremony. */
+export function nativeSettingsPageDescriptor(
+  provider: Provider,
+  connection: Connection | null,
+) {
+  return provider.id === "linear" && isSelfHostedConnector(connection)
+    ? null
+    : nativeSettingsDescriptor(provider);
+}
+
 function NativeSettingsPanels(props: Props) {
   const { provider, connection } = props;
   if (provider.id === "github") return <GithubNativeAppPanels {...props} />;
@@ -49,9 +62,8 @@ export function SettingsPageConnectPanels(props: Props) {
   const { provider, connection, nativeExperience, identityExperience } = props;
   if (provider.id === "tailscale" && !isConnectConnection(connection))
     return <TailscalePanels {...props} />;
-  // Legacy Linear records use the specialized GraphQL/webhook custody route.
-  if (provider.id === "linear" && isSelfHostedConnector(connection))
-    return <ConnectPanels {...props} />;
+  // Linear composes default MCP and advanced GraphQL, and owns its saved routes.
+  if (provider.id === "linear") return <ConnectPanels {...props} />;
   // A native connector row created before the provider gained an AI contract
   // has no AI record. Keep that row on its native page: the AI form would show
   // an empty key over sealed custody and could orphan it on save.

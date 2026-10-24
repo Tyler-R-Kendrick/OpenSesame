@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
@@ -21,7 +21,7 @@ async function provisional(app: App) {
   return overlapCast(await res.json());
 }
 
-function json(token: string, body: unknown): RequestInit {
+function json(token: string, body: JsonObject): RequestInit {
   return {
     method: "POST",
     headers: {

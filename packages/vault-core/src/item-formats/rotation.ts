@@ -1,5 +1,5 @@
 /** Rotation capabilities for item types, kept apart from synthetic generation. */
-import { itemFormatCoverage } from "./registry.js";
+import { itemTypeHasFormatGenerator } from "./format-capabilities.js";
 
 /** Every supported rotation starts on the same schedule (product default). */
 export const DEFAULT_ROTATION_INTERVAL_DAYS = 30;
@@ -21,9 +21,7 @@ export type ItemRotationMode = "automatic" | "manual" | "none";
  */
 export function itemRotationMode(typeId: string): ItemRotationMode {
   if (AUTOMATIC_ROTATION_TYPE_IDS.has(typeId)) return "automatic";
-  return itemFormatCoverage(typeId).status === "parser+generator"
-    ? "manual"
-    : "none";
+  return itemTypeHasFormatGenerator(typeId) ? "manual" : "none";
 }
 
 /** Whether the type has any rotation action, automatic or generator-backed. */

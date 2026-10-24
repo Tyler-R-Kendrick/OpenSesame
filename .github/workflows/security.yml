@@ -44,7 +44,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Scan every lockfile against the OSV database
-        uses: google/osv-scanner-action/osv-scanner-action@6ad84ce1ef2d4124ba333b221894c133c4a970ea # v2.7.0
+        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
         with:
           # osv-scanner 2.x auto-discovers osv-scanner.toml at the scan root,
           # so the RUSTSEC-2023-0071 ignore in it applies here as it does
@@ -56,12 +56,12 @@ jobs:
             ./
         continue-on-error: true
       - name: Convert results to SARIF
-        uses: google/osv-scanner-action/osv-reporter-action@6ad84ce1ef2d4124ba333b221894c133c4a970ea # v2.7.0
+        uses: google/osv-scanner-action/osv-reporter-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
         with:
           scan-args: |-
             --output=osv-results.sarif
             --fail-on-vuln=false
-            osv-results.json
+            --new=osv-results.json
       - name: Upload to the code-scanning dashboard
         uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
@@ -84,6 +84,9 @@ jobs:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
+          # 8.24.x (the action's default) predates plural [[allowlists]], which
+          # .gitleaks.toml uses for every global exclusion; 8.30.1 parses it.
+          GITLEAKS_VERSION: "8.30.1"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   scorecard:
@@ -100,7 +103,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run the OpenSSF Scorecard analysis
-        uses: ossf/scorecard-action@46dc3187a971a9febf3aeb7f94ccde489f7bb46a # v2.5.0
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
         with:
           results_file: scorecard-results.sarif
           results_format: sarif

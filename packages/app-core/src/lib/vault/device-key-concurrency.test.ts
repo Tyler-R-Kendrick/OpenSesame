@@ -44,12 +44,20 @@ function wipe(): void {
   forgetDeviceIdentityKeyInFlightForTests();
 }
 
+/**
+ * The tabs a case opened. Each holds the vault's open lease for as long as it
+ * is open, and a delete refuses while any tab holds it, so a case closes its
+ * tabs when it ends, as the browser would.
+ */
+const openTabs: VaultStore[] = [];
+
 beforeEach(async () => {
   await vfsFlush();
   wipe();
 });
 
 afterEach(async () => {
+  for (const tab of openTabs.splice(0)) tab.lock();
   await vfsFlush();
   vi.unstubAllGlobals();
 });
@@ -62,9 +70,11 @@ async function settled(store: VaultStore): Promise<void> {
 /** Tab A made the vault; tab B opened it as well, so A is the one that falls behind. */
 async function twoTabs() {
   const a = new VaultStore();
+  openTabs.push(a);
   await a.create(PASSWORD);
   await settled(a);
   const b = new VaultStore();
+  openTabs.push(b);
   b.rehydrate();
   await b.unlock(PASSWORD);
   return { a, b };
@@ -72,6 +82,7 @@ async function twoTabs() {
 
 async function nextVisit(): Promise<VaultStore> {
   const c = new VaultStore();
+  openTabs.push(c);
   c.rehydrate();
   await c.unlock(PASSWORD);
   return c;

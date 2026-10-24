@@ -5,6 +5,7 @@ import {
   selectOptions,
   sharedDisabledActions,
 } from "./native-browser-ai-cloud-contract.mjs";
+import { nativeIsAiImageFamily } from "./native-browser-catalog-projection.mjs";
 
 async function sharedAiLayout(page, form) {
   const read = () =>
@@ -33,6 +34,7 @@ async function sharedAiLayout(page, form) {
 }
 
 function sharedAiDefaultFields(preset) {
+  const image = nativeIsAiImageFamily(preset.family);
   const azure = preset.azure;
   const prediction = preset.family === "replicate_predictions";
   const speech = [
@@ -52,7 +54,7 @@ function sharedAiDefaultFields(preset) {
     [azure ? "Deployment ID" : "Model ID", preset.model ?? ""],
     ...(preset.providerId === "ollama" ? [] : [[key, ""]]),
   ];
-  if (!prediction && !speech)
+  if (!prediction && !speech && !image)
     fields.push([
       azure ? "Azure authentication" : "Authentication",
       azure?.credential ??
@@ -72,6 +74,43 @@ function sharedAiAzureFields(azure) {
   if (azure.api === "dated-chat")
     fields.push(["Azure API version", azure.apiVersion]);
   return fields;
+}
+
+async function sharedAiProtocolDefaults(form, row, preset, defaults, check) {
+  const prediction = preset.family === "replicate_predictions";
+  const speech = [
+    "elevenlabs_scribe",
+    "deepgram_listen",
+    "assemblyai_transcript",
+  ].includes(preset.family);
+  const image = nativeIsAiImageFamily(preset.family);
+  const finite = prediction || speech || image;
+  const authentication = finite ? [] : await selectOptions(form, defaults.auth);
+  if (prediction)
+    check(
+      (await form
+        .getByLabel("Prediction verification input JSON", { exact: true })
+        .inputValue()) === "",
+      `${row.id}: finite model-specific verification JSON starts empty`,
+    );
+  check(
+    finite
+      ? (await form.getByLabel("Authentication", { exact: true }).count()) === 0
+      : JSON.stringify(authentication) ===
+          JSON.stringify(
+            preset.azure ? ["api-key", "entra-token"] : ["api-key", "none"],
+          ),
+    `${row.id}: ${prediction ? "prediction requires its API token without an unauthenticated mode" : speech ? "transcription requires its API key without an unauthenticated mode" : image ? "image generation requires its API key without an unauthenticated mode" : "published authentication choices are explicit"}`,
+  );
+  if (image)
+    check(
+      (await form
+        .getByLabel("Verification image prompt", { exact: true })
+        .inputValue()) === "",
+      `${row.id}: image verification requires an explicit transient prompt`,
+    );
+  if (speech) await speechInputDefaults(form, row, check);
+  return authentication;
 }
 
 async function sharedAiDefaults(form, row, preset, check) {
@@ -104,31 +143,13 @@ async function sharedAiDefaults(form, row, preset, check) {
     JSON.stringify(families) === JSON.stringify(preset.families),
     `${row.id}: supported inference API families are explicit`,
   );
-  const prediction = preset.family === "replicate_predictions";
-  const speech = [
-    "elevenlabs_scribe",
-    "deepgram_listen",
-    "assemblyai_transcript",
-  ].includes(preset.family);
-  const finite = prediction || speech;
-  const authentication = finite ? [] : await selectOptions(form, defaults.auth);
-  if (prediction)
-    check(
-      (await form
-        .getByLabel("Prediction verification input JSON", { exact: true })
-        .inputValue()) === "",
-      `${row.id}: finite model-specific verification JSON starts empty`,
-    );
-  check(
-    finite
-      ? (await form.getByLabel("Authentication", { exact: true }).count()) === 0
-      : JSON.stringify(authentication) ===
-          JSON.stringify(
-            preset.azure ? ["api-key", "entra-token"] : ["api-key", "none"],
-          ),
-    `${row.id}: ${prediction ? "prediction requires its API token without an unauthenticated mode" : speech ? "transcription requires its API key without an unauthenticated mode" : "published authentication choices are explicit"}`,
+  const authentication = await sharedAiProtocolDefaults(
+    form,
+    row,
+    preset,
+    defaults,
+    check,
   );
-  if (speech) await speechInputDefaults(form, row, check);
   const { apiKeyType, actionsDisabled } = await sharedAiCredentialDefaults(
     form,
     row,
@@ -211,6 +232,17 @@ async function sharedAiModeDefaults(form, row, preset, check) {
 }
 
 function custodyPatterns(preset) {
+  if (nativeIsAiImageFamily(preset.family))
+    return [
+      /generate an actual PNG/,
+      /may incur service charges/,
+      /prompt and verification image are not saved/,
+      /Cancel stops waiting and closes the request/,
+      /does not confirm that provider processing or charges stopped/,
+      /API key is sealed in the owning vault/,
+      /configured native Tailscale HTTP transport/,
+      /permit this browser origin and request headers for a direct browser connection/,
+    ];
   if (preset.vertex)
     return [
       /private key stays in this browser/,
@@ -272,10 +304,16 @@ export async function nativeAiFormContract(
     );
   const observed = await sharedAiDefaults(form, row, preset, check);
   const prediction = preset.family === "replicate_predictions";
-  const setup = prediction
-    ? form.locator("p").filter({ hasText: "Enter the model owner/name" })
+  const image = nativeIsAiImageFamily(preset.family);
+  const plainSetup = prediction || image;
+  const setup = plainSetup
+    ? form.locator("p").filter({
+        hasText: prediction
+          ? "Enter the model owner/name"
+          : "Testing and saving generate an actual PNG",
+      })
     : form.locator("details").filter({ hasText: "Connection setup" });
-  const wasOpen = prediction || (await setup.getAttribute("open")) !== null;
+  const wasOpen = plainSetup || (await setup.getAttribute("open")) !== null;
   if (!wasOpen) await setup.locator("summary").click();
   const custody = await setup.innerText();
   check(

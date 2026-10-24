@@ -8,6 +8,7 @@
  * the session layer needs; the session still encrypts its own payload and
  * still treats a peer as untrusted.
  */
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { type ChannelMessage, readChannelMessage } from "./live/messages.js";
 import { FRAME_BYTES, Inbox, type LiveChannel } from "./live/p2p.js";
 
@@ -24,7 +25,7 @@ type Lp2pDataChannel = {
   ): void;
   addEventListener(
     type: "message",
-    listener: (event: MessageEvent<unknown>) => void,
+    listener: (event: MessageEvent<BoundaryValue>) => void,
   ): void;
 };
 type Lp2pConnection = {
@@ -58,6 +59,7 @@ type LocalP2PHost = {
 import { maybePage } from "../ports.js";
 
 function host(): LocalP2PHost {
+  // SAFETY: the draft LP2P constructors are optional here and checked before use.
   return globalThis as LocalP2PHost;
 }
 
@@ -65,16 +67,19 @@ function host(): LocalP2PHost {
 export function localP2PAvailable(): boolean {
   if (maybePage()?.isSecureContext !== true) return false;
   return (
-    typeof host().LP2PReceiver === "function" &&
-    typeof host().LP2PRequest === "function"
+    host().LP2PReceiver instanceof Function &&
+    host().LP2PRequest instanceof Function
   );
 }
+
+/** An advertising receiver, and how to stop it and its accepted peers. */
+export type LocalPeerReceiver = { receiver: Lp2pReceiver; stop(): void };
 
 /** Start advertising; the user agent owns discovery and the grant prompt. */
 export async function startLocalPeerReceiver(options?: {
   nickname?: string;
   onConnection?: (connection: Lp2pConnection) => void;
-}): Promise<{ receiver: Lp2pReceiver; stop(): void }> {
+}): Promise<LocalPeerReceiver> {
   const Ctor = host().LP2PReceiver;
   if (Ctor === undefined) throw new Error("Local Peer-to-Peer is unavailable");
   const receiver = new Ctor(
@@ -128,7 +133,7 @@ export class LocalPeerChannel implements LiveChannel {
       this.#open = false;
     });
     channel.addEventListener("message", (event) => {
-      if (typeof event.data !== "string") return;
+      if (!isString(event.data)) return;
       const message = readChannelMessage(event.data);
       if (message) this.#inbox.deliver(message);
     });

@@ -53,7 +53,7 @@ export function AddKeyProtection({
     void runCaught(async () => {
       const candidate = await store.protection.enrollCandidate(kind);
       if (candidate.recoverySecretB64) {
-        const delivered = await externalCeremonyDependencies.downloadOnce(
+        const delivered = await externalCeremonyDependencies.saveSecret(
           "opensesame-recovery-key.txt",
           `${candidate.recoverySecretB64}\n`,
         );

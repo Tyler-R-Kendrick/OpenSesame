@@ -27,13 +27,13 @@ const OID = {
   basicConstraints: "2.5.29.19",
 } as const;
 
-const KEY_ALGORITHMS: Readonly<Record<string, string>> = {
-  "1.2.840.113549.1.1.1": "rsa",
-  "1.2.840.10045.2.1": "ec",
-  "1.3.101.112": "ed25519",
-  "1.3.101.113": "ed448",
-  "1.2.840.10040.4.1": "dsa",
-};
+const KEY_ALGORITHMS: ReadonlyMap<string, string> = new Map([
+  ["1.2.840.113549.1.1.1", "rsa"],
+  ["1.2.840.10045.2.1", "ec"],
+  ["1.3.101.112", "ed25519"],
+  ["1.3.101.113", "ed448"],
+  ["1.2.840.10040.4.1", "dsa"],
+]);
 
 export type CertificateInfo = {
   readonly subjectCommonName: string;
@@ -137,10 +137,10 @@ function ipv6(bytes: Uint8Array): string {
   return `${left}::${right}`;
 }
 
-function subjectAltName(extension: Extension): {
-  dns: string[];
-  ips: string[];
-} {
+/** The DNS names and IP addresses a certificate's SAN lists. */
+type AltNames = { dns: string[]; ips: string[] };
+
+function subjectAltName(extension: Extension): AltNames {
   const wrapped = readDer(extension.value.content);
   if (
     wrapped.next !== extension.value.content.length ||
@@ -225,7 +225,7 @@ export function inspectCertificateDer(der: Uint8Array): CertificateInfo | null {
       notAfter: timeAt(validityParts, 1),
       dnsNames,
       ipAddrs,
-      keyAlgorithm: KEY_ALGORITHMS[keyOid] ?? keyOid,
+      keyAlgorithm: KEY_ALGORITHMS.get(keyOid) ?? keyOid,
       signatureAlgorithm: algorithmOid(needed(top, 1)),
       isCa,
       der,

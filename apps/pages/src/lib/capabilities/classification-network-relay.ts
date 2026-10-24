@@ -13,10 +13,6 @@ export const NETWORK_RELAY_RULES = [
     `${L}secret-backends/local-vault-port`,
     "vault session lifetime checks shared by secret backends and the browser node",
   ),
-  shared(
-    `${L}secret-backends/types`,
-    "pure secret backend contracts and errors used by shared vault session checks",
-  ),
   optional(
     `${L}tailnet-sync/`,
     "networking.tailnet",

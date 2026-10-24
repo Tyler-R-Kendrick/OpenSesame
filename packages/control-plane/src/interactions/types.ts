@@ -56,3 +56,17 @@ export type ProviderInteractions = {
     opts?: { mergeWithLastSubmission?: boolean },
   ): Promise<string>;
 };
+
+/** Session quota an interaction mint is counted against. */
+export interface ProvisionalMintOptions {
+  /**
+   * Session profile written on the row. SAML passes a tenant-scoped value so
+   * one tenant's minted sessions can be counted against that tenant.
+   */
+  quotaProfile?: string;
+  /** Live sessions this profile may hold at once. */
+  maxLiveForProfile?: number;
+  /** Live sessions whose profile starts with this prefix may exist. */
+  profilePrefix?: string;
+  maxLiveForProfilePrefix?: number;
+}

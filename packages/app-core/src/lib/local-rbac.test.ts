@@ -2,6 +2,7 @@
 
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { configureLocalApplication } from "./local-applications.js";
 import { changeLocalDirectory } from "./local-directory-admin.js";
 import { ensureOwnerPerson } from "./local-directory-bootstrap.js";
@@ -23,19 +24,9 @@ let tomb: string;
 beforeEach(async () => {
   tomb = `rbac-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("navigator", {
     userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/140.0.0.0",
-    locks: {
-      request: <T>(_name: string, run: () => Promise<T>) => {
-        const result = queue.then(run);
-        queue = result.then(
-          () => undefined,
-          () => undefined,
-        );
-        return result;
-      },
-    },
+    locks: webLocksDouble(),
   });
   const session = new Map<string, string>();
   vi.stubGlobal("sessionStorage", {

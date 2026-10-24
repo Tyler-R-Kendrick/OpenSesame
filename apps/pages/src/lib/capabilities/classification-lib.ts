@@ -76,9 +76,16 @@ const GIT_FILES = [
   "history-backups",
   "history-backup-idb",
   "history-claim-notice",
+  "vault-backup-github",
   "vault-backup-observer",
   "backup-egress-gate",
   "vault-backup-sync",
+  "vault-backup-write-owner",
+  "vault-backup-readonly",
+  "vault-backup-forge",
+  "git-backup-credentials",
+  "gitlab-backup-protocol",
+  "gitlab-backup-target",
   "saved-git-backup",
   "embedded-git",
 ];
@@ -144,8 +151,11 @@ export const LIB_RULES = [
   ...each(L, SIGNIN_FILES, (p) =>
     core(p, SIGNIN, "front door, guest, session; MIXED where noted"),
   ),
-  ...each(L, ["install", "pwa-update"], (p) =>
-    core(p, "install.pwa", "install and update"),
+  ...each(
+    L,
+    ["install", "pwa-update", "pwa-refresh", "launch-intake", "share-target"],
+    (p) =>
+      core(p, "install.pwa", "install, update and user-selected file intake"),
   ),
   ...each(
     L,
@@ -179,6 +189,18 @@ export const LIB_RULES = [
   shared(
     `${L}auth-generation.ts`,
     "principal generation shared by native and ambient sign-in",
+  ),
+  shared(
+    `${L}native-base64.ts`,
+    "pure byte codecs shared by saved backups and native provider protocols",
+  ),
+  shared(
+    `${L}native-response-json.ts`,
+    "bounded native Response decoding shared by saved backups and providers",
+  ),
+  shared(
+    `${L}secret-backends/types.ts`,
+    "common secret-store port and error vocabulary; no provider runtime",
   ),
   shared(`${L}origin-file-publication-read`, "device-sealed record reads"),
   shared(`${L}original-origin-storage`, "sealed origin data"),

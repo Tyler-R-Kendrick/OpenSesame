@@ -3,7 +3,7 @@
 A `v*` tag the owner pushes, on a commit `main` holds and named for the
 workspace version, publishes a GitHub release of prebuilt Linux binaries, so a
 lane that runs `opensesame` does not have to build the workspace
-([ADR 0207](../adr/0207-release-kit-binaries.md)). The workflow is
+([ADR 0212](../adr/0212-release-kit-binaries.md)). The workflow is
 [`.github/workflows/release-kit.yml`](../../.github/workflows/release-kit.yml);
 the archives are made by
 [`scripts/release/kit-archive.sh`](../../scripts/release/kit-archive.sh).
@@ -64,7 +64,7 @@ checkout and cargo home in debug info and panic messages, except the
 compiled-in checkout fallback of the bridge lookup (`CARGO_MANIFEST_DIR`, which
 the compiler expands before the remap): a release binary still carries the path
 it was built from, `/home/runner/work/…`, and uses it only when nothing sits
-beside it and `OPENSESAME_ENV_PARSE` is unset (ADR 0207).
+beside it and `OPENSESAME_ENV_PARSE` is unset (ADR 0212).
 
 ## Use it in a lane
 

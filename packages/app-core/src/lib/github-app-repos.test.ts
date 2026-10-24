@@ -29,7 +29,7 @@ afterEach(() => {
   Object.assign(githubAppRepoSeams, original);
 });
 
-it("returns every private install repository from the relay", async () => {
+it("returns every private install repository from the configured operation port", async () => {
   const repositories = Array.from({ length: 120 }, (_, index) => ({
     fullName: `octocat/repo-${index + 1}`,
     name: `repo-${index + 1}`,
@@ -76,7 +76,7 @@ it("drops public repositories from the install list", async () => {
   ]);
 });
 
-it("surfaces a relay failure instead of an empty success", async () => {
+it("surfaces an operation failure instead of an empty success", async () => {
   postRelay.mockResolvedValue({
     ok: false,
     status: 403,
@@ -115,31 +115,22 @@ it("keeps an error when one install fails beside a successful list", async () =>
       ],
     }),
   });
-  postRelay.mockImplementation(
-    async (_path: string, body: { installationId?: string }) => {
-      if (body.installationId === "88") {
-        return {
-          ok: false,
-          status: 403,
-          payload: { message: "Resource not accessible by integration" },
-        };
-      }
-      return {
-        ok: true,
-        status: 200,
-        payload: {
-          repositories: [
-            {
-              fullName: "octocat/vault",
-              name: "vault",
-              private: true,
-              defaultBranch: "main",
-            },
-          ],
+  postRelay.mockResolvedValue({
+    ok: true,
+    status: 200,
+    payload: {
+      repositories: [
+        {
+          fullName: "octocat/vault",
+          name: "vault",
+          private: true,
+          defaultBranch: "main",
+          installationId: "99",
         },
-      };
+      ],
+      error: "Resource not accessible by integration",
     },
-  );
+  });
   const listed = await listGithubAppInstallationRepos();
   expect(listed.repositories.map((row) => row.fullName)).toEqual([
     "octocat/vault",

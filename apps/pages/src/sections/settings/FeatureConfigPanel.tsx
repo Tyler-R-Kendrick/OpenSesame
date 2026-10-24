@@ -28,6 +28,7 @@ import { Link } from "react-router";
 import { useComposition } from "../../bindings/capabilities.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { useGuestsAllowed } from "../../bindings/guest-access.js";
+import { FieldRow } from "../../components/FieldRow.js";
 import { IconChevronLeft } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
@@ -195,13 +196,11 @@ function FeatureSwitch({
 
 function Panel({
   title,
-  subtitle,
   back = true,
   children,
   action,
 }: {
   title: string;
-  subtitle?: string;
   back?: boolean;
   children: ReactNode;
   action?: ReactNode;
@@ -212,7 +211,6 @@ function Panel({
         <div>
           {back ? <BackToFeatures /> : null}
           <h2>{title}</h2>
-          {subtitle ? <p>{subtitle}</p> : null}
         </div>
         {action}
       </div>
@@ -227,14 +225,16 @@ function GuestsConfig() {
   if (!shown) {
     return (
       <Panel title="Guests">
-        <p className="hint">Guests are not available in this vault.</p>
+        <StatusMark
+          tone="warn"
+          label="Guests are not available in this vault."
+        />
       </Panel>
     );
   }
   return (
     <Panel
       title="Guests"
-      subtitle="Let someone use this vault without giving them its key."
       action={
         <CapabilitySwitch
           label="Allow guests"
@@ -243,10 +243,12 @@ function GuestsConfig() {
         />
       }
     >
-      <p className="hint">
-        Guests open a separate, ephemeral vault. They never see this
-        vault&apos;s items.
-      </p>
+      <FieldRow label="Guest vault">
+        <span className="frow__value">Separate · ephemeral</span>
+      </FieldRow>
+      <FieldRow label="This vault">
+        <span className="frow__value">Key and items stay private</span>
+      </FieldRow>
     </Panel>
   );
 }
@@ -284,7 +286,6 @@ function FeaturePage({
   return (
     <Panel
       title={title}
-      subtitle={selectedCapability === undefined ? undefined : feature.title}
       action={
         <FeatureSwitch
           feature={feature}
@@ -298,9 +299,6 @@ function FeaturePage({
       {own.map(({ id, Panel: OwnPanel }) => (
         <OwnPanel key={id} />
       ))}
-      {own.length === 0 ? (
-        <p className="hint">No additional settings for this feature.</p>
-      ) : null}
     </Panel>
   );
 }
@@ -323,7 +321,10 @@ export function FeatureConfigPanel({
   if (!feature || feature.capabilities.length === 0) {
     return (
       <Panel title="Feature not found">
-        <p className="hint">This feature is not installed on this device.</p>
+        <StatusMark
+          tone="warn"
+          label="This feature is not installed on this device."
+        />
       </Panel>
     );
   }
@@ -333,13 +334,11 @@ export function FeatureConfigPanel({
       : undefined;
   if (capabilityId !== undefined && selectedCapability === undefined) {
     return (
-      <Panel
-        title="Feature not found"
-        subtitle={`${feature.title} has no ${capabilityId} capability.`}
-      >
-        <p className="hint">
-          <Link to="/settings/features">Return to Features</Link>
-        </p>
+      <Panel title="Feature not found">
+        <StatusMark
+          tone="warn"
+          label={`${feature.title} has no ${capabilityId} capability.`}
+        />
       </Panel>
     );
   }

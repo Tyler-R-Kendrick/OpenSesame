@@ -24,17 +24,20 @@ helper (git/docker/aws/kubectl)
       → gateway mints a derived token (github App installation token in v1)
 ```
 
-The helpers send **no token**: they rely on the socket, where the daemon reads
-the kernel-attested peer UID and allows only the UIDs in
-`OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the daemon's own UID). The daemon's
-`/v1/mint` route, however, runs the same `require_operator` check as its other
-operator routes, which also demands the operator token
+The socket fences who may ask: the daemon reads the kernel-attested peer UID
+and allows only the UIDs in `OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the
+daemon's own UID). Its `/v1/mint` route also runs the same `require_operator`
+check as its other operator routes, which demands the operator token
 (`X-OpenSesame-Operator`, from `OPENSESAME_OPERATOR_TOKEN`) on every transport
-(`crates/daemon/src/mint.rs`, `crates/daemon/src/lib.rs`). A token-less helper
-call is therefore answered `401 operator_unauthorized` (or `503
-operator_token_unconfigured` when the daemon holds none), not forwarded. Any
-non-200 from the daemon is a hard failure: non-zero exit, nothing on stdout,
-only a failure class on stderr.
+(`crates/daemon/src/mint.rs`, `crates/daemon/src/lib.rs`). A helper therefore
+forwards the `OPENSESAME_OPERATOR_TOKEN` it inherits from its environment and
+holds no secret of its own: it never stores, prints or logs the value, and a
+value that is not a plain header token (a line break, a space) is refused before
+the socket is opened. Run a helper from the operator's own shell or deploy job;
+one started in an environment without the token — an agent's — is answered `401
+operator_unauthorized` (or `503 operator_token_unconfigured` when the daemon
+holds none) and is not forwarded. Any non-200 from the daemon is a hard failure:
+non-zero exit, nothing on stdout, only a failure class on stderr.
 
 ## Socket location
 

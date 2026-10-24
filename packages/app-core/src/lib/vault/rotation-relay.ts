@@ -19,10 +19,12 @@ export type RotationRelay = (
   event: RotationEvent,
 ) => Promise<RotationRelayResult>;
 
-export const rotationSeams = {
+type RotationSeams = {
   /** Installed by a future queue/relay integration. Absent is an honest state. */
-  relay: null as RotationRelay | null,
+  relay: RotationRelay | null;
 };
+
+export const rotationSeams: RotationSeams = { relay: null };
 
 async function complete(event: RotationEvent, at: Date): Promise<void> {
   const schedules = loadRotationSchedules().map((schedule) =>

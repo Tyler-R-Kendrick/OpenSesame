@@ -120,7 +120,7 @@ import {
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
-import { bindSealedImport } from "./store-import.js";
+import { bindSealedImport } from "./store-import-entry.js";
 import { createStoreItemOperations } from "./store-item-operations.js";
 import {
   type DriveSnapshotInput,
@@ -999,7 +999,7 @@ export class VaultStore {
     try {
       const known = new Set<string>();
       for (const item of this.getSnapshot().items) {
-        if (!(HONEY_VAULT_ITEMS as readonly string[]).includes(item.name))
+        if (!HONEY_VAULT_ITEMS.some((honeyName) => honeyName === item.name))
           continue;
         if (known.has(item.name)) await this.purgeItem(item.id);
         else known.add(item.name);
@@ -1668,7 +1668,6 @@ export class VaultStore {
   readPrefsSource = this.#preferencesApi.readPrefsSource;
 
   touch = this.#preferences.touch.bind(this.#preferences);
-
   #armIdleTimer(): void {
     this.#preferences.arm(this.#vaultKey !== null, () => this.lock());
   }

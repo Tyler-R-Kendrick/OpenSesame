@@ -22,7 +22,7 @@ function useHostPeople(
 ): void {
   useEffect(() => {
     let live = true;
-    void readLocalDirectory(vaultStore.activeTomb())
+    void readLocalDirectory(vaultStore.activeTomb?.() ?? "")
       .then((directory) => {
         if (!live) return;
         setPeople(

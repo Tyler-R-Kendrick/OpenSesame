@@ -222,7 +222,10 @@ the vault, ADR 0134). None is ever a default, and none is ours:
   the same port (the socket is bound to every interface). One side's hint is
   enough: the other side's address is learned from its checks (a
   peer-reflexive candidate). Addresses stay with the owner; the link does not
-  carry them.
+  carry them. (Amended 2026-10-24: a received description keeps a candidate
+  at a non-public address only when this side's person authorized it — its
+  own Routes, or the reply's addresses the joiner allowed — and loopback is a
+  route only when Routes name this machine; see the amendment below.)
 - **ICE servers** — STUN, and TURN over UDP, TCP or TLS on 443 (which passes a
   Pangolin raw TCP resource, a Tailscale Funnel TCP forward, or any TCP
   proxy). A TURN REST secret (coturn's `use-auth-secret`) mints credentials
@@ -383,3 +386,50 @@ for the owner's compare. The request screen shows the manual request/reply
 codes only when no carrier is ready, and the security code is folded under an
 explanation instead of standing alone. A joined guest keeps a key back to the
 live catalog after moving around the vault.
+
+## Amendment — a received description admits only what this side authorized (2026-10-24)
+
+The security remediation of 2026-10-23 reads every received offer and answer
+through a filter that drops each candidate at a loopback, private, link-local
+or otherwise non-public literal, so a peer cannot steer this browser's ICE
+checks at an internal host. Unqualified, it also dropped the routes this ADR
+offers on purpose: the address an owner names in Routes (§6), and the
+same-machine hints. Two browsers then met only where mDNS names resolve.
+
+The filter now keeps a non-public candidate only at an address this side's
+person authorized, compared as a canonical IP literal (no prefix or range,
+no name resolution); every other non-public literal is dropped as before,
+and mDNS names are handled as before. Authorized means:
+
+- **This side's own Routes.** The owner, answering a joiner's offer, admits
+  the addresses it named in Routes, and no other. A joiner who holds the link
+  can make the owner's browser check only those.
+- **On the joiner's side, the reply's addresses the joiner allowed.** The
+  owner's reply names its Routes addresses in an `addresses` field, at most
+  eight canonical IP literals, sealed to the one joiner let in (§4); a reply
+  whose `addresses` is anything else is refused whole. The joiner is shown
+  them and asked before the owner's description is applied, so before any
+  check is made: **Allow** admits them; the other key joins without them,
+  and the join goes on through whatever else routes. A reply without the
+  field, from an owner on an earlier build, asks nothing and admits nothing.
+- **Loopback never by default, on either side.** 127.0.0.1 and ::1 are a
+  route like any other: the owner's Routes name this machine (off by
+  default), and the joiner admits them only by allowing a reply that names
+  them.
+- **A relay candidate at a TURN server already reviewed.** On the owner's
+  side, the literal host of a TURN server in its own Routes; on the joiner's,
+  one in the link's servers it was shown before anything was contacted. A
+  TURN server named by a host name admits no address. Only a relay
+  candidate is admitted there, never a host candidate at the same address.
+
+**Approving a peer is not authorizing its targets.** The joiner chose to join
+this owner, and the reply's seal proves the owner named the addresses. Neither
+says this browser may probe them: a malicious owner could name any eight
+internal hosts, at ports and with ICE credentials of its choosing, and the
+joiner's browser would send STUN checks to each. The person sees the
+addresses, as §6 already shows every host before any is contacted, and
+decides. The same holds the other way: letting a joiner in does not let its
+offer aim the owner's browser anywhere the owner did not name.
+
+The residual risk is recorded in
+[`docs/security/audits/2026-10-24-live-candidate-allowlist.md`](../security/audits/2026-10-24-live-candidate-allowlist.md).

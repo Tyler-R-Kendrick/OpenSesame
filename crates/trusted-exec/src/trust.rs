@@ -65,6 +65,9 @@ pub enum Skip {
     /// Owned by a user who is neither root nor the caller.
     OwnedBy(u32),
     CurrentDirectory,
+    /// The working directory cannot be read, so the entry cannot be told
+    /// apart from it.
+    UnknownCurrentDirectory,
     /// A directory above it could be renamed or replaced by someone else.
     Under {
         ancestor: PathBuf,
@@ -84,6 +87,9 @@ impl Skip {
             Self::GroupWritable(gid) => Cause::GroupWritable(*gid).reason(),
             Self::OwnedBy(uid) => Cause::OwnedBy(*uid).reason(),
             Self::CurrentDirectory => "the current directory".into(),
+            Self::UnknownCurrentDirectory => {
+                "the current directory cannot be read to tell them apart".into()
+            }
             Self::Under { ancestor, cause } => {
                 format!("is under \"{}\", {}", ancestor.display(), cause.reason())
             }
@@ -216,6 +222,50 @@ pub fn ancestor(owner: Owner, caller: &Caller) -> Option<Cause> {
     } else {
         writers(owner, caller)
     }
+}
+
+/// Why the Unix `PATH` entry `dir` (whose metadata is `meta`) is not searched
+/// as the working directory, if it is not. Owning a directory does not make
+/// what is in it trustworthy, and the working directory is the clearest case:
+/// a repository just cloned is the caller's, but its author chose its files.
+///
+/// The two are compared by identity (device and inode), so a symlink to the
+/// working directory, a trailing slash or a `/./` is the same directory. `cwd`
+/// is the working directory the lookup was made in; `None` is this process's
+/// own. One that cannot be read leaves the entry untrusted, not unchecked.
+pub(crate) fn working_directory(
+    dir: &Path,
+    meta: &std::fs::Metadata,
+    cwd: Option<&Path>,
+) -> Option<Skip> {
+    let cwd = cwd
+        .map(Path::to_path_buf)
+        .or_else(|| std::env::current_dir().ok());
+    let Some(here) = cwd.as_deref().and_then(|cwd| std::fs::metadata(cwd).ok()) else {
+        return Some(Skip::UnknownCurrentDirectory);
+    };
+    same_directory(dir, meta, cwd.as_deref(), &here).then_some(Skip::CurrentDirectory)
+}
+
+#[cfg(unix)]
+fn same_directory(
+    _: &Path,
+    meta: &std::fs::Metadata,
+    _: Option<&Path>,
+    here: &std::fs::Metadata,
+) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    meta.dev() == here.dev() && meta.ino() == here.ino()
+}
+
+#[cfg(not(unix))]
+fn same_directory(
+    dir: &Path,
+    _: &std::fs::Metadata,
+    cwd: Option<&Path>,
+    _: &std::fs::Metadata,
+) -> bool {
+    is_cwd(dir, cwd)
 }
 
 /// `dir` is the current directory (both resolved when they can be).

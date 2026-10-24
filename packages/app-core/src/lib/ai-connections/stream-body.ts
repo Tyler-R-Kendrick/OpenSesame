@@ -2,7 +2,7 @@
 export function aiStreamBody(
   response: Response,
   check: () => void,
-  signal: AbortSignal,
+  signal: AbortSignal | undefined,
   invalid: () => Error,
 ) {
   // Parking the mirror isolates the original reader's native EOF close. It is
@@ -22,7 +22,7 @@ export function aiStreamBody(
   });
   const current = () => {
     check();
-    signal.throwIfAborted();
+    signal?.throwIfAborted();
   };
   function cancelBoth(): Promise<void> {
     cancellation ??= Promise.allSettled([
@@ -37,8 +37,8 @@ export function aiStreamBody(
     signalAbort();
     void cancelBoth();
   };
-  signal.addEventListener("abort", abort, { once: true });
-  if (signal.aborted) abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
   function release() {
     if (!released) {
       reader.releaseLock();
@@ -77,7 +77,7 @@ export function aiStreamBody(
       completed = true;
     },
     async close() {
-      signal.removeEventListener("abort", abort);
+      signal?.removeEventListener("abort", abort);
       try {
         if (!completed) await cancelBoth();
       } finally {

@@ -51,7 +51,8 @@ pub fn search(path: &OsStr, lookup: &Lookup) -> Search {
         } else {
             match std::fs::metadata(&dir) {
                 Ok(meta) if meta.is_dir() => match lookup.platform {
-                    Platform::Unix => trust::directory(Owner::from(&meta), &lookup.caller)
+                    Platform::Unix => trust::working_directory(&dir, &meta, lookup.cwd.as_deref())
+                        .or_else(|| trust::directory(Owner::from(&meta), &lookup.caller))
                         .or_else(|| chain::above(&dir, &lookup.caller)),
                     Platform::Windows if trust::is_cwd(&dir, lookup.cwd.as_deref()) => {
                         Some(Skip::CurrentDirectory)
@@ -119,9 +120,9 @@ pub(crate) fn not_found(
     rejected: &[(PathBuf, Skip)],
 ) -> ResolveError {
     let mut why = format!(
-        "no usable `{program}`: PATH entries are searched only when absolute, existing, owned \
-         by root or you, not writable by others, and group-writable only by root's group or \
-         one of yours; "
+        "no usable `{program}`: PATH entries are searched only when absolute, existing, not \
+         the current directory, owned by root or you, not writable by others, and \
+         group-writable only by root's group or one of yours; "
     );
     match path {
         None => why.push_str("PATH is not set"),

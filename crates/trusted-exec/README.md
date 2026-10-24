@@ -14,10 +14,15 @@ spawn goes through this crate:
   `OPENSESAME_NODE`, ...) names the exact file: absolute, existing, and after
   symlinks a regular file with an execute bit. It is consulted first, skips the
   ownership checks, and a value that cannot be used is an error naming the
-  variable. Otherwise only `PATH` entries that are absolute, exist, are owned by
-  root or the caller, are not writable by others, and are group-writable only by
-  root's group or one of the caller's are searched; the file must be owned by
-  root or the caller and not world-writable. Empty and relative entries are never
+  variable. Otherwise only `PATH` entries that are absolute, exist, are not the
+  current directory, are owned by root or the caller, are not writable by others,
+  and are group-writable only by root's group or one of the caller's are
+  searched; the file must be owned by root or the caller and not world-writable.
+  Owning the current directory does not vouch for what is in it (a repository
+  just cloned is yours, but its author chose its files), so it is skipped however
+  `PATH` names it: compared by device and inode on Unix, so a link, a trailing
+  slash or `/./` is the same directory, and a current directory that cannot be
+  read leaves every entry untrusted. Empty and relative entries are never
   searched, and the inherited `PATH` is never a fallback: the error names every
   skipped entry and why.
 - **What it sees.** `command_in` clears the environment and sets `PATH` to the

@@ -66,6 +66,8 @@ class MemoryLink implements DialLink {
   readonly channel: Promise<LiveChannel>;
   readonly mine: MemoryChannel;
   closed = false;
+  /** The reply's addresses this side allowed, once it took the answer. */
+  allowed: readonly string[] | null = null;
   #open: (channel: LiveChannel) => void = () => undefined;
   #abandon: (error: Error) => void = () => undefined;
   readonly #failed: (() => void)[] = [];
@@ -96,8 +98,9 @@ class MemoryLink implements DialLink {
     if (!this.closed) this.#open(this.mine);
   }
 
-  async accept(answer: string): Promise<void> {
+  async accept(answer: string, allowed: readonly string[] = []): Promise<void> {
     if (!ANSWER.test(answer)) throw new Error("bad_answer");
+    this.allowed = allowed;
     this.net.meet(this, answer);
   }
 
@@ -118,6 +121,8 @@ export class MemoryNet {
   readonly sent: { side: "owner" | "joiner"; message: ChannelMessage }[] = [];
   /** No route between the two: the answer lands, nothing connects. */
   unreachable = false;
+  /** The owner's Routes addresses, which its reply names. */
+  named: readonly string[] = [];
   readonly links: MemoryLink[] = [];
   readonly #dialed = new Map<string, MemoryLink>();
   readonly #answered = new Map<string, MemoryLink>();
@@ -164,6 +169,7 @@ export class MemoryNet {
         this.links.push(link);
         return link;
       },
+      named: this.named,
     };
   }
 

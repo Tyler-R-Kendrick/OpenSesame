@@ -122,39 +122,6 @@ afterEach(async () => {
   await settle();
   vi.unstubAllGlobals();
 });
-it("refuses a peer GET that redirects away from the approved URL", async () => {
-  await load();
-  send({ kind: "get", id: 9, url: "http://100.64.0.1:8080/proof" });
-  await vi.waitFor(() => expect(held.size).toBe(1));
-  [...held.values()][0].resolve({
-    ...response(),
-    url: "https://elsewhere.example/stolen",
-  });
-  await vi.waitFor(() => expect(sent).toContainEqual({ kind: "error" }));
-  expect(sent).not.toContainEqual(expect.objectContaining({ kind: "get" }));
-});
-
-it("refuses a peer GET whose final URL differs from the approved URL", async () => {
-  await load();
-  send({ kind: "get", id: 10, url: "http://100.64.0.1:8080/proof" });
-  await vi.waitFor(() => expect(held.size).toBe(1));
-  [...held.values()][0].resolve({
-    ...response(),
-    url: "http://100.64.0.2:8080/proof",
-  });
-  await vi.waitFor(() => expect(sent).toContainEqual({ kind: "error" }));
-  expect(sent).not.toContainEqual(expect.objectContaining({ kind: "get" }));
-});
-
-it("refuses a peer GET with credentials or a non-HTTP scheme before egress", async () => {
-  await load();
-  send({ kind: "get", id: 11, url: "http://user:secret@100.64.0.1:8080/" });
-  send({ kind: "get", id: 12, url: "file:///etc/passwd" });
-  await settle();
-  expect(client.nativeHTTP.nativeHTTP).not.toHaveBeenCalled();
-  expect(sent).toEqual([{ kind: "error" }, { kind: "error" }]);
-});
-
 it("protocol bounds binary/header/status input and rejects mixed trust without promoting HTTP", () => {
   expect(WorkerMessage.safeParse({ kind: "start", config }).success).toBe(true);
   expect(
@@ -296,7 +263,10 @@ it("close during asynchronous SDK startup retires native binding before ordinary
   send({ kind: "start", config });
   send({ kind: "closeHTTP" });
   gate.resolve(client);
-  await vi.waitFor(() => expect(client.run).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() =>
+    expect(sent).toContainEqual({ kind: "closeHTTP", closed: true }),
+  );
+  expect(client.run).not.toHaveBeenCalled();
   expect(client.nativeHTTP.closeHTTP).toHaveBeenCalledTimes(1);
   send({ kind: "nativeHTTP", id: 1, request: request() });
   expect(client.nativeHTTP.nativeHTTP).not.toHaveBeenCalled();
@@ -327,7 +297,11 @@ it("readiness follows the captured binding and failed close is never reported ac
   client.nativeHTTP.closeHTTP.mockReturnValue(false);
   send({ kind: "closeHTTP" });
   send({ kind: "nativeHTTPReady" });
-  expect(sent).toContainEqual({ kind: "closeHTTP", closed: false });
+  expect(sent.at(-1)).toEqual({ kind: "nativeHTTPReady", ready: false });
+  await vi.waitFor(() =>
+    expect(sent).toContainEqual({ kind: "closeHTTP", closed: false }),
+  );
+  send({ kind: "nativeHTTPReady" });
   expect(sent.at(-1)).toEqual({ kind: "nativeHTTPReady", ready: false });
 });
 

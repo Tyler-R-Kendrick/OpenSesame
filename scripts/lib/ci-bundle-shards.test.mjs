@@ -40,6 +40,7 @@ const GATES = [
   "verify:identity-connections",
   "build:secret-backends-verify",
   "verify:secret-backends",
+  "verify:github-app-browser",
   "verify:keyboard",
   "verify:push-worker",
   "verify:sw-dirty-edit",
@@ -279,4 +280,57 @@ it("runs trusted-contact unlock in the auth shard and selects it for driver edit
       (leg) => leg.shard,
     ),
   ).toEqual(["auth"]);
+});
+
+it("gives only the GitHub App walk a fresh command-local evidence directory", () => {
+  const matching = steps().filter((step) =>
+    step.text.includes("verify:github-app-browser"),
+  );
+  expect(matching).toHaveLength(1);
+  expect(matching[0].when).toBe("matrix.shard == 'native-secret-backends'");
+  const [environment, commands] = matching[0].text.split("        run: |\n");
+  expect(environment).not.toContain("PAGES_VERIFY_OUT:");
+  expect(
+    commands
+      .trim()
+      .split("\n")
+      .map((line) => line.trim()),
+  ).toEqual([
+    "pnpm --filter @opensesame/pages build:secret-backends-verify",
+    "pnpm --filter @opensesame/pages verify:secret-backends",
+    "PAGES_VERIFY_OUT=${{ runner.temp }}/github-app-browser GITHUB_APP_VERIFY_PHASE=after pnpm --filter @opensesame/pages verify:github-app-browser",
+  ]);
+});
+
+it("preserves only reviewed GitHub evidence after success or failure, excluding encrypted downloads", () => {
+  const matching = steps().filter((step) =>
+    step.text.includes("Preserve GitHub App browser evidence"),
+  );
+  expect(matching).toHaveLength(1);
+  const upload = matching[0];
+  expect(upload.when).toBe(
+    "always() && matrix.shard == 'native-secret-backends'",
+  );
+  expect(upload.text).toContain(
+    "uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0",
+  );
+  expect(upload.text).toContain("name: github-app-browser-${{ github.sha }}");
+  const paths = /path: \|\n([\s\S]*?) {10}if-no-files-found:/.exec(
+    upload.text,
+  )?.[1];
+  expect(
+    paths
+      ?.trim()
+      .split("\n")
+      .map((line) => line.trim()),
+  ).toEqual([
+    "${{ runner.temp }}/github-app-browser/receipt.json",
+    "${{ runner.temp }}/github-app-browser/progress.json",
+    "${{ runner.temp }}/github-app-browser/after-*.png",
+    "${{ runner.temp }}/github-app-browser/after-*.json",
+    "${{ runner.temp }}/github-app-browser/failure-*.png",
+    "!${{ runner.temp }}/github-app-browser/*.encrypted.json",
+  ]);
+  expect(upload.text).toContain("if-no-files-found: warn");
+  expect(upload.text).toContain("retention-days: 14");
 });

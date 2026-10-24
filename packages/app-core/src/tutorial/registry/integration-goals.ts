@@ -20,6 +20,24 @@ import type { GuideGoalDescriptor } from "./goals.js";
 
 export const INTEGRATION_GOALS: readonly GuideGoalDescriptor[] = [
   {
+    id: "integration.services",
+    title: "Connect a service",
+    routes: ["/settings"],
+    libraryOnly: true,
+    guide: [
+      "guide/1",
+      'goal "integration.services"',
+      'say "Services groups developer APIs, productivity, communication, storage and CRM connections."',
+      'navigate "/settings/integrations"',
+      'wait route "/settings/integrations" timeout=15000',
+      'scroll "integration.services"',
+      'focus "integration.services" "Each tile opens the service configuration page. Choose its documented authentication method and permissions there." side=bottom',
+      'say "Opening this list does not authorize provider access. The connection uses its approved route when you authorize or request a provider operation."',
+      'success "That is Services."',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "integration.identity",
     title: "Connect an identity provider",
     routes: ["/settings"],
@@ -178,4 +196,5 @@ export const INTEGRATION_TUTORIALS = {
   payments: "integration.payments",
   ai: "integration.ai",
   networking: "integration.networking",
+  services: "integration.services",
 } as const satisfies Readonly<Record<IntegrationId, string>>;

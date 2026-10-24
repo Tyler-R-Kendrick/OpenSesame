@@ -7230,5 +7230,14 @@
       "sources": ["https://docs.attio.com/rest-api/guides/authentication"],
       "template_params": []
     }
+  ],
+  "mcp": [
+    {
+      "service": "linear",
+      "default_scopes": ["read"],
+      "primary_only": true,
+      "configurable_authentication": false,
+      "notes": "Linear's connector page is its published MCP authorization with read selected; the GraphQL OAuth app and API key stay an explicit advanced fallback, and the MCP road offers no bring-your-own token, header or anonymous mode."
+    }
   ]
 }

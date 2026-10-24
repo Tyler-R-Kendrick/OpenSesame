@@ -296,12 +296,12 @@ describe("OID4VP HTTP (T-18, T-20, T-21)", () => {
       opened.id,
       created.requestDigest,
     );
-    const transactionDataHashes =
-      (
-        session.parameters as { transaction_data?: string[] }
-      ).transaction_data?.map((entry) =>
-        createHash("sha256").update(entry, "utf8").digest("base64url"),
-      ) ?? [];
+    const transactionData = overlapCast(session.parameters).transaction_data;
+    const transactionDataHashes = (
+      Array.isArray(transactionData) ? transactionData : []
+    ).map((entry) =>
+      createHash("sha256").update(String(entry), "utf8").digest("base64url"),
+    );
     const credential = await issueCredential({
       issuerKey,
       issuer: ISSUER,

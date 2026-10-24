@@ -11,7 +11,7 @@ import {
   openFromRest,
   sealForRest,
 } from "@opensesame/browser-at-rest";
-import { ENDPOINTS } from "@opensesame/os-domain";
+import { type BoundaryValue, ENDPOINTS, isString } from "@opensesame/os-domain";
 
 export const DEFAULT_HOST = ENDPOINTS.host.default;
 /** Where `hostApiBase` rests, sealed (ADR 0149). */
@@ -20,13 +20,13 @@ const STORE = "chrome.storage.local";
 export async function resolveHostBase(): Promise<string> {
   try {
     const stored = await browser.storage.local.get("hostApiBase");
-    const raw = stored.hostApiBase;
+    // SAFETY: extension storage values are JSON boundary values.
+    const raw = stored.hostApiBase as BoundaryValue;
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
-    const value =
-      typeof raw === "string"
-        ? await openFromRest(STORE, "hostApiBase", raw)
-        : null;
-    if (typeof raw === "string" && value && !isSealedForRest(raw)) {
+    const value = isString(raw)
+      ? await openFromRest(STORE, "hostApiBase", raw)
+      : null;
+    if (isString(raw) && value && !isSealedForRest(raw)) {
       // Written in the clear by an older build: seal it where it lies.
       const sealed = await sealForRest(STORE, "hostApiBase", value);
       if (sealed !== null) {

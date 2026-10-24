@@ -216,34 +216,42 @@ async function invokeInstance(
   };
 }
 /** One caller adds cancellation to the same original route; no request recaptures. */
-async function invokeOwnedApi(
-  id: string,
-  operation: string,
-  input: Record<string, string>,
-  capture: () => NativeProviderTransport,
+function ownedApiTransport(
+  original: NativeProviderTransport,
   caller: AbortSignal,
-) {
-  if (caller.aborted) throw new LeaseAbortedError();
-  const original = capture();
+  assertCaller?: () => void,
+): NativeProviderTransport {
+  assertCaller?.();
+  caller.throwIfAborted();
   const signals = [caller];
   if (original.signal) signals.push(original.signal);
   const signal = anySignal(signals);
   const assertCurrent = () => {
     try {
+      assertCaller?.();
       original.assertCurrent();
       signal.throwIfAborted();
+      assertCaller?.();
     } catch {
       throw new LeaseAbortedError("This provider operation ended.");
     }
   };
   const transport = { ...original, signal, assertCurrent };
   assertCurrent();
+  return transport;
+}
+async function runOwnedApi<Result>(
+  capture: () => NativeProviderTransport,
+  caller: AbortSignal,
+  call: (transport: NativeProviderTransport) => Promise<Result>,
+) {
+  const transport = ownedApiTransport(capture(), caller);
   try {
-    const result = await invokeApi(id, operation, input, transport);
-    assertCurrent();
+    const result = await call(transport);
+    transport.assertCurrent();
     return result;
   } catch (error) {
-    assertCurrent();
+    transport.assertCurrent();
     throw error;
   }
 }
@@ -263,16 +271,31 @@ export function bindNativeApiRuntime(activation: Activation): void {
     registerNativeConnectorDriver("api-key", {
       supports: supportedApiProvider,
       configure: async (input) => {
-        const transport = authority.capture();
-        const configured = await configureApi(input, transport);
-        transport.assertCurrent();
-        authority.assertCurrent();
-        const key = JSON.stringify([
-          configured.connectionId,
-          configured.fingerprint,
-        ]);
-        if (!cleanupRoutes.has(key)) cleanupRoutes.set(key, transport);
-        return configured;
+        const { owner, ...draft } = input;
+        const caller = owner?.signal;
+        const assertCaller = owner?.assertCurrent;
+        const checkCaller = () => {
+          if (owner?.signal !== caller || owner?.assertCurrent !== assertCaller)
+            throw new LeaseAbortedError();
+          assertCaller?.call(owner);
+        };
+        checkCaller();
+        const original = authority.capture();
+        const configure = async (transport: NativeProviderTransport) => {
+          const configured = await configureApi(draft, transport);
+          // The provider proof and publisher guard own the pre-commit checks.
+          // Its own row notification can retire the old form after publication.
+          authority.assertCurrent();
+          const key = JSON.stringify([
+            configured.connectionId,
+            configured.fingerprint,
+          ]);
+          if (!cleanupRoutes.has(key)) cleanupRoutes.set(key, original);
+          return configured;
+        };
+        return configure(
+          caller ? ownedApiTransport(original, caller, checkCaller) : original,
+        );
       },
       test: async (input) => testApi(input, authority.capture()),
       verify: async (id) => {
@@ -290,7 +313,9 @@ export function bindNativeApiRuntime(activation: Activation): void {
       invoke: async (id, operation, input, signal) =>
         signal === undefined
           ? invokeApi(id, operation, input, authority.capture())
-          : invokeOwnedApi(id, operation, input, authority.capture, signal),
+          : runOwnedApi(authority.capture, signal, (transport) =>
+              invokeApi(id, operation, input, transport),
+            ),
       cleanup: {
         classification: (configuration) =>
           apiCleanup(authority.capture()).classification(configuration),

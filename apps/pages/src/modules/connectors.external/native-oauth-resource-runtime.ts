@@ -14,6 +14,7 @@ import type {
 import {
   NativeOAuthClientTarget,
   nativeOAuthClientTarget,
+  normalizeNativeOAuthClientParameters,
 } from "@opensesame/app-core/lib/native-oauth-client-config.js";
 import { NativeOAuthError } from "@opensesame/app-core/lib/native-oauth-errors.js";
 import { createNativeOAuthResourceDriver } from "@opensesame/app-core/lib/native-oauth-resource-driver.js";
@@ -42,17 +43,7 @@ export function nativeOAuthClientConfigured(
 }
 function registeredInput(input: NativeDriverInput): boolean {
   const { client_id, redirect_uri, ...supplied } = input.parameters;
-  const target = Object.fromEntries(
-    Object.entries(supplied).filter(
-      ([key, value]) =>
-        ![
-          "resource_protocol",
-          "mcp_endpoint",
-          "mcp_transport",
-          "mcp_post_endpoint",
-        ].includes(key) || value !== "",
-    ),
-  );
+  const target = normalizeNativeOAuthClientParameters(supplied);
   if (!NativeOAuthClientTarget.keyof().options.some((key) => key in target))
     return false;
   const parsed = NativeOAuthClientTarget.parse(target);

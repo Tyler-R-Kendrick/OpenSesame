@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# What a release tag has to be before anything is built for it (ADR 0207).
+# What a release tag has to be before anything is built for it (ADR 0212).
 #
 #   scripts/release/tag-check.sh commit SHA
 #   scripts/release/tag-check.sh verify TAG SHA [MAIN_REF]
