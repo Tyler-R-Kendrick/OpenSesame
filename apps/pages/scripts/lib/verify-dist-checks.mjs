@@ -131,7 +131,12 @@ function compareEntries(graph, disk, onDisk, note) {
     }
   }
   for (const found of disk.entries) {
-    if (!graph.entries.some((e) => e.html === found.html))
+    // A public HTML page (a static content page copied verbatim) is
+    // accounted by the public-file ownership, not as a module entry.
+    if (
+      !graph.entries.some((e) => e.html === found.html) &&
+      !(graph.publicFiles ?? []).some((p) => p.file === found.html)
+    )
       note("UNACCOUNTED_HTML", `${found.html} on disk but not in graph`);
   }
 }

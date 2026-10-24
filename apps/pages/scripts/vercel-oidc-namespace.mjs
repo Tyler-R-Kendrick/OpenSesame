@@ -23,9 +23,11 @@ function equal(actual, expected, name) {
     throw new Error(`OIDC namespace pin mismatch: ${name}`);
 }
 function packageRoot(entry, suffix) {
-  if (!entry.endsWith(suffix))
+  // realpathSync yields platform separators; the suffix is spelled with `/`.
+  const normalized = entry.replaceAll("\\", "/");
+  if (!normalized.endsWith(suffix))
     throw new Error("Unexpected OIDC dependency layout");
-  return entry.slice(0, -suffix.length);
+  return normalized.slice(0, -suffix.length);
 }
 export function checkOidcNamespaceSource(name, source) {
   if (!Object.hasOwn(pins, name))

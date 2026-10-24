@@ -59,17 +59,25 @@ export function readMcpBrowserInputs(repositoryRoot) {
     owner.resolve("@modelcontextprotocol/sdk/client/index.js"),
   );
   const suffix = "/dist/cjs/client/index.js";
-  if (!required.endsWith(suffix))
+  // realpathSync yields platform separators; the suffix is spelled with `/`.
+  const normalized = required.replaceAll("\\", "/");
+  if (!normalized.endsWith(suffix))
     throw new Error("Unexpected MCP client layout");
-  const packageRoot = required.slice(0, -suffix.length);
+  const packageRoot = normalized.slice(0, -suffix.length);
+  // Rollup module ids use `/` on every platform; keep the validator's own
+  // paths in that space so graph comparisons compare like with like.
   const clientPath = realpathSync(
     resolve(packageRoot, "dist/esm/client/index.js"),
-  );
-  const appPath = realpathSync(resolve(repositoryRoot, pins.appRelativePath));
+  ).replaceAll("\\", "/");
+  const appPath = realpathSync(
+    resolve(repositoryRoot, pins.appRelativePath),
+  ).replaceAll("\\", "/");
+  // Pins are content hashes; a checkout may materialize the app source with
+  // platform line endings (core.autocrlf), so hash its LF-normalized bytes.
   const input = {
     packageSource: readFileSync(resolve(packageRoot, "package.json"), "utf8"),
     clientSource: readFileSync(clientPath, "utf8"),
-    appSource: readFileSync(appPath, "utf8"),
+    appSource: readFileSync(appPath, "utf8").replaceAll("\r\n", "\n"),
   };
   validateMcpBrowserInputs(input);
   return { ...input, clientPath, appPath, packageRoot };
@@ -111,7 +119,10 @@ function assertClientGraph(context, clientPath, appPath) {
       throw new Error("MCP browser build retained an AJV default dependency");
   if (
     !ids.includes(
-      resolve(dirname(appPath), "native-mcp-schema-validator.ts"),
+      resolve(dirname(appPath), "native-mcp-schema-validator.ts").replaceAll(
+        "\\",
+        "/",
+      ),
     ) ||
     !ids.some((id) =>
       id.replaceAll("\\", "/").includes("/node_modules/@cfworker/json-schema/"),
