@@ -27,7 +27,7 @@ fake-workload-api = [
 opensesame-domain = { path = "../domain" }
 opensesame-transport-security = { path = "../transport-security" }
 # SPIFFE Workload API SDK (rust-spiffe). Brings tonic 0.14 / prost 0.14.
-spiffe = { version = "0.16.1", default-features = false, features = ["workload-api-x509"] }
+spiffe = { version = "0.18.0", default-features = false, features = ["workload-api-x509"] }
 x509-parser = "0.18.1"
 rustls-webpki = { version = "0.103.13", default-features = false, features = ["aws-lc-rs", "std"] }
 rustls-pki-types = { version = "1.15.1", features = ["std"] }
