@@ -44,7 +44,7 @@ pub(crate) fn attachment_json(
 
 /// A file of `size` bytes fits the per-file limit and, with the `used`
 /// bytes already claimed, the quota.
-fn admit(server: &BitwardenServer, used: i64, size: i64) -> ApiResult<()> {
+pub(crate) fn admit(server: &BitwardenServer, used: i64, size: i64) -> ApiResult<()> {
     let limit = i64::try_from(server.config.max_file_bytes).unwrap_or(i64::MAX);
     if size <= 0 || size > limit {
         return Err(ApiError::bad_request(format!(
@@ -148,7 +148,10 @@ pub async fn announce(
     let size = body.get("fileSize").and_then(Value::as_i64).unwrap_or(0);
     admit_for(&server, cipher, size).await?;
     let attachment = new_attachment(cipher, file_name, key, size);
-    server.db.bitwarden_add_attachment(&attachment).await?;
+    server
+        .db
+        .bitwarden_add_attachment(&attachment, server.config.storage_quota_bytes)
+        .await?;
     upload_data(&server, &view, cipher, &attachment)
 }
 
@@ -203,12 +206,18 @@ async fn store(
     data: &[u8],
 ) -> ApiResult<()> {
     let length = i64::try_from(data.len()).unwrap_or(i64::MAX);
-    if length == 0 || (length - attachment.size).abs() > SIZE_LEEWAY {
+    if length == 0 || length.abs_diff(attachment.size) > SIZE_LEEWAY.unsigned_abs() {
         return Err(ApiError::bad_request("File size does not match."));
     }
+    admit(server, 0, length)?;
     if !server
         .db
-        .bitwarden_upload_attachment_of(&cipher.id, &attachment.id, data)
+        .bitwarden_upload_attachment_of(
+            &cipher.id,
+            &attachment.id,
+            data,
+            server.config.storage_quota_bytes,
+        )
         .await?
     {
         return Err(ApiError::bad_request(
@@ -264,7 +273,10 @@ pub async fn upload_legacy(
     let size = i64::try_from(data.len()).unwrap_or(i64::MAX);
     admit_for(&server, cipher, size).await?;
     let attachment = new_attachment(cipher, file_name, key, size);
-    server.db.bitwarden_add_attachment(&attachment).await?;
+    server
+        .db
+        .bitwarden_add_attachment(&attachment, server.config.storage_quota_bytes)
+        .await?;
     store(&server, cipher, &attachment, &data).await?;
     Ok(Json(render_one(&server, &user.id, &cipher_id).await?))
 }
