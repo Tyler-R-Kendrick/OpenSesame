@@ -1,3 +1,4 @@
+import { type JsonValue, readJsonObject } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
@@ -109,12 +110,11 @@ describe("local drop claims — no Identity API", () => {
       });
       const session = await createLocalDropClaim(manifest, 600_000);
       // This tab still holds the pending copy in its in-memory kv cache.
-      const stored = JSON.parse(
+      const stored: JsonValue = JSON.parse(
         String(kvGet(LOCAL_DROP_CLAIM_STORAGE_KEY)),
-      ) as {
-        claims: Record<string, { state: string; targetManifest: unknown }>;
-      };
-      const record = stored.claims[session.claimId];
+      );
+      const claims = readJsonObject(readJsonObject(stored)?.claims);
+      const record = readJsonObject(claims?.[session.claimId]);
       if (!record) throw new Error("expected the pending claim");
       record.state = "presented";
       record.targetManifest = {};

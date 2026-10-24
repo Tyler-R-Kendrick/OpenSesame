@@ -371,7 +371,7 @@ pub async fn share_attachment(
         .ok_or_else(ApiError::not_found)?;
     let (data, key, name) = attachments::read_upload(form).await?;
     let size = i64::try_from(data.len()).unwrap_or(i64::MAX);
-    if (size - existing.size).abs() > attachments::SIZE_LEEWAY {
+    if size.abs_diff(existing.size) > attachments::SIZE_LEEWAY.unsigned_abs() {
         return Err(ApiError::bad_request("File size does not match."));
     }
     let (Some(key), file_name) = (
@@ -381,6 +381,7 @@ pub async fn share_attachment(
     ) else {
         return Err(ApiError::bad_request("The file key must be encrypted."));
     };
+    attachments::admit(&server, 0, size)?;
     let replacement = BitwardenAttachment {
         file_name,
         key: Some(key),
@@ -390,7 +391,7 @@ pub async fn share_attachment(
     };
     if !server
         .db
-        .bitwarden_rekey_attachment(&replacement, &data)
+        .bitwarden_rekey_attachment(&replacement, &data, server.config.storage_quota_bytes)
         .await?
     {
         return Err(ApiError::not_found());

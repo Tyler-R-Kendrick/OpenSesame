@@ -7,6 +7,7 @@
  * is recognised and returned as armour, with its encryption state left for
  * the caller to report.
  */
+import { isString } from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64 } from "../bytes.js";
 
 export type PemBlock = {
@@ -31,7 +32,7 @@ const HEADER = /^([A-Za-z0-9-]+):[ \t]*(.*)$/u;
 
 /** Decode one or more PEM blocks in order. Surrounding prose is ignored. */
 export function parsePemBlocks(text: string): PemBlock[] {
-  if (typeof text !== "string") throw new PemError("PEM input is not text");
+  if (!isString(text)) throw new PemError("PEM input is not text");
   if (text.length > PEM_MAX_TEXT_BYTES)
     throw new PemError("PEM input is too large");
   const lines = text
@@ -62,7 +63,7 @@ function blockAt(lines: readonly string[], start: number): BlockRead | null {
   const label = begin[1] ?? "";
   const endMarker = `-----END ${label}-----`;
   const body: string[] = [];
-  const headers: Record<string, string> = {};
+  const headers = new Map<string, string>();
   let inBody = false;
   let at = start + 1;
   for (; at < lines.length; at += 1) {
@@ -76,7 +77,7 @@ function blockAt(lines: readonly string[], start: number): BlockRead | null {
     if (!inBody) {
       const header = HEADER.exec(line);
       if (header) {
-        headers[header[1] ?? ""] = (header[2] ?? "").trim();
+        headers.set(header[1] ?? "", (header[2] ?? "").trim());
         continue;
       }
     }
@@ -88,7 +89,7 @@ function blockAt(lines: readonly string[], start: number): BlockRead | null {
 
 function finishBlock(
   label: string,
-  headers: Record<string, string>,
+  headers: ReadonlyMap<string, string>,
   body: readonly string[],
   next: number,
 ): BlockRead {
@@ -103,7 +104,7 @@ function finishBlock(
   if (der.length === 0 || der.length > PEM_MAX_DER_BYTES)
     throw new PemError("PEM body is outside its size limit");
   return {
-    block: { label, headers: Object.freeze(headers), der },
+    block: { label, headers: Object.freeze(Object.fromEntries(headers)), der },
     next,
   };
 }

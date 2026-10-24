@@ -106,12 +106,11 @@ export function cliAppWebAuthnSupported(
   credentials: CredentialCeremony | null = defaultCredentials(),
 ): boolean {
   return (
-    typeof publicKeyCredentialApi() === "function" &&
-    typeof credentials?.create === "function" &&
-    typeof credentials?.get === "function"
+    publicKeyCredentialApi() instanceof Function &&
+    credentials?.create instanceof Function &&
+    credentials?.get instanceof Function
   );
 }
-
 function defaultCredentials(): CredentialCeremony | null {
   const container = hostCredentials();
   if (!container?.create || !container.get) return null;
@@ -164,22 +163,22 @@ export async function loadCliAppPasskeyReady(): Promise<CliAppPasskeyReady> {
 
 function isCredential(value: Credential | null): value is PublicKeyCredential {
   if (!value || value.type !== "public-key") return false;
-  const cred = value as PublicKeyCredential;
-  return cred.rawId instanceof ArrayBuffer && typeof cred.response === "object";
+  const cred = value as PublicKeyCredential; // type checked above
+  return cred.rawId instanceof ArrayBuffer && cred.response instanceof Object;
 }
 
-function webauthnDomFailure(error: unknown): CliAppPasskeyFailure {
-  if (error instanceof DOMException) {
-    if (error.name === "NotAllowedError" || error.name === "AbortError") {
+function webauthnDomFailure(cause: unknown): CliAppPasskeyFailure {
+  if (cause instanceof DOMException) {
+    if (cause.name === "NotAllowedError" || cause.name === "AbortError") {
       return failure(
         "webauthn_cancelled",
         "Passkey confirmation was cancelled.",
       );
     }
     if (
-      error.name === "NotSupportedError" ||
-      error.name === "SecurityError" ||
-      error.name === "InvalidStateError"
+      cause.name === "NotSupportedError" ||
+      cause.name === "SecurityError" ||
+      cause.name === "InvalidStateError"
     ) {
       return UNSUPPORTED;
     }
@@ -207,7 +206,7 @@ function publicKeyMaterial(response: AuthenticatorAttestationResponse): {
   const fromBrowser = response.getPublicKey?.() ?? null;
   const spkiFromBrowser = fromBrowser ? bytesOf(fromBrowser) : null;
   const authData =
-    typeof response.getAuthenticatorData === "function"
+    response.getAuthenticatorData instanceof Function
       ? bytesOf(response.getAuthenticatorData())
       : authDataFromAttestation(bytesOf(response.attestationObject));
   const coseFromAuth = authData ? coseFromAuthData(authData) : null;
@@ -238,7 +237,7 @@ function assertionFromCredential(
       "The passkey did not match the one stored at pairing.",
     );
   }
-  const response = value.response as AuthenticatorAssertionResponse;
+  const response = value.response as AuthenticatorAssertionResponse; // isCredential checked
   if (
     !response.authenticatorData ||
     !response.clientDataJSON ||
@@ -307,9 +306,8 @@ export async function createCliAppPasskeyCredential(
     return failure("webauthn_cancelled", "Passkey creation was cancelled.");
   }
   const rawId = bytesOf(created.rawId);
-  const material = publicKeyMaterial(
-    created.response as AuthenticatorAttestationResponse,
-  );
+  const attestation = created.response as AuthenticatorAttestationResponse; // isCredential checked
+  const material = publicKeyMaterial(attestation);
   if (!material) {
     return failure(
       "webauthn_key_unusable",
@@ -379,16 +377,19 @@ export async function assertStoredCliAppPasskey(
   };
 }
 
+/** The body the CLI's pairing endpoint takes to register this passkey. */
+export interface CliAppWebAuthnRegisterPayload {
+  readonly vaultSessionRootDigest: string;
+  readonly humanProof: string;
+  readonly credentialIdB64: string;
+  readonly publicKeySpkiB64: string;
+  readonly signCount: number;
+}
+
 export function cliAppWebAuthnRegisterPayload(
   vaultSessionRootDigest: string,
   registration: CliAppPasskeyRegistration,
-): Readonly<{
-  vaultSessionRootDigest: string;
-  humanProof: string;
-  credentialIdB64: string;
-  publicKeySpkiB64: string;
-  signCount: number;
-}> {
+): CliAppWebAuthnRegisterPayload {
   return {
     vaultSessionRootDigest,
     humanProof: registration.humanProof,

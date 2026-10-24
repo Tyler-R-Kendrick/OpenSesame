@@ -66,7 +66,18 @@ export function normalizeWebhookUrl(raw: string): string {
   return normalizeUrl(raw, true);
 }
 
-async function post(target: RelayTarget, payload: unknown): Promise<void> {
+/** The relay's v1 arm request. */
+type DeadmanArm = Readonly<{
+  v: 1;
+  type: "opensesame.deadman.arm";
+  state: DeadmanState;
+  webhookUrl: string;
+}>;
+
+/** Everything this module posts to a relay. */
+type RelayPayload = DeadmanArm | DeadmanHeartbeat | DeadmanDisarm;
+
+async function post(target: RelayTarget, payload: RelayPayload): Promise<void> {
   const relayUrl = normalizeRelayUrl(target.relayUrl);
   const body = JSON.stringify(payload);
   if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES)
@@ -112,12 +123,13 @@ export async function sendArm(
   state: DeadmanState,
   webhookUrl: string,
 ): Promise<void> {
-  await post(target, {
+  const arm: DeadmanArm = {
     v: 1,
     type: "opensesame.deadman.arm",
     state,
     webhookUrl: normalizeWebhookUrl(webhookUrl),
-  });
+  };
+  await post(target, arm);
 }
 
 export async function sendHeartbeat(

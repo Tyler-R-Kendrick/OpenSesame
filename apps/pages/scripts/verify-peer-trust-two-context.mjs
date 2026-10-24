@@ -17,11 +17,14 @@ import {
   copyFrom,
   joinerAsks,
   joinerConnects,
+  joinerSessionSas,
   openLive,
   ownerAdmitsByHand,
+  ownerComparedSas,
   ownerEnters,
   peerStates,
   startSession,
+  unfoldPeerTrust,
 } from "./lib/live-join-walk.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -120,6 +123,7 @@ async function beginOwner(browser) {
   });
   await openLive(owner.page);
   const started = await startSession(owner.page);
+  await unfoldPeerTrust(started.panel);
   const copyKey = started.panel.getByRole("button", {
     name: "Copy peer trust signal",
   });
@@ -132,7 +136,7 @@ async function beginOwner(browser) {
 }
 
 async function readRequest(panel, request) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
 }
 
@@ -146,22 +150,20 @@ async function verifiedJoin(browser, session) {
     name: VERIFIED_NAME,
     peerTrust: session.signal,
   });
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  const joinerSas = await joinerSessionSas(joiner.page);
   check(
     (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
     "verified join is not marked unverified",
   );
-  // ownerAdmitsByHand pastes the request and reads the guest-row SAS.
-  // Reading it earlier waits on a row that does not exist yet.
+  // ownerAdmitsByHand pastes the request and compares the guest-row SAS
+  // while the guest is asking; the row drops it once they are let in.
   const reply = await ownerAdmitsByHand(
     session.page,
     session.panel,
     request,
     VERIFIED_NAME,
   );
-  const ownerSas = (
-    await session.panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
+  const ownerSas = ownerComparedSas(session.panel);
   check(
     SAS.test(joinerSas) && joinerSas === ownerSas,
     "verified join shows the same session SAS on both sides",
@@ -268,7 +270,7 @@ async function changedKey(browser, session) {
   await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
   check(
     (await page
-      .getByRole("button", { name: "Copy your request code" })
+      .getByRole("button", { name: "Copy your join request" })
       .count()) === 0,
     "changed key does not ask",
   );

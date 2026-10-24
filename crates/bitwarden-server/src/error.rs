@@ -148,6 +148,9 @@ impl ApiError {
 
 impl From<anyhow::Error> for ApiError {
     fn from(error: anyhow::Error) -> Self {
+        if error.is::<opensesame_storage::bitwarden::FileQuotaExceeded>() {
+            return Self::bad_request("Not enough storage available.");
+        }
         Self::internal(&error)
     }
 }

@@ -1,4 +1,11 @@
 /** Generic browser authorization-code + PKCE for an operator-supplied OIDC client. */
+import {
+  type JsonObject,
+  type JsonValue,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import { createItem } from "@opensesame/vault-core";
 import { type JSONWebKeySet, createLocalJWKSet, jwtVerify } from "jose";
 
@@ -47,6 +54,48 @@ export type OidcTokens = {
   tokenType: string;
 };
 
+/** What an issuer's discovery document says about its endpoints. */
+export type OidcDiscovery = Omit<
+  OidcConnectorConfig,
+  | "name"
+  | "clientId"
+  | "clientSecret"
+  | "callbackUrl"
+  | "tokenRelayUrl"
+  | "scopes"
+  | "tokenAuth"
+>;
+
+/** The login's authorization URL, and what its callback is checked against. */
+export type OidcLoginStart = { url: string; pending: OidcPending };
+
+/** How a token request is sent, and the keys an ID token is checked with. */
+export type OidcTokenOptions = {
+  fetchImpl?: typeof fetch;
+  jwks?: JSONWebKeySet;
+};
+
+/** A JSON object body, or an empty object when the body is anything else. */
+async function jsonBody(response: Response): Promise<JsonObject> {
+  const parsed: JsonValue = await response.json();
+  return isJsonObject(parsed) ? parsed : {};
+}
+
+/** A token endpoint's answer, read; null when it carries no access token. */
+function readTokens(json: JsonObject): OidcTokens | null {
+  const accessToken = json.access_token;
+  const tokenType = json.token_type;
+  if (!isString(accessToken) || !isString(tokenType)) return null;
+  const tokens: OidcTokens = { accessToken, tokenType };
+  if (isString(json.id_token)) tokens.idToken = json.id_token;
+  if (isString(json.refresh_token)) tokens.refreshToken = json.refresh_token;
+  if (isNumber(json.expires_in))
+    tokens.expiresAt = new Date(
+      Date.now() + json.expires_in * 1000,
+    ).toISOString();
+  return tokens;
+}
+
 function secure(value: string, what: string): string {
   let url: URL;
   try {
@@ -64,18 +113,7 @@ function secure(value: string, what: string): string {
 export async function discoverOidc(
   issuer: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<
-  Omit<
-    OidcConnectorConfig,
-    | "name"
-    | "clientId"
-    | "clientSecret"
-    | "callbackUrl"
-    | "tokenRelayUrl"
-    | "scopes"
-    | "tokenAuth"
-  >
-> {
+): Promise<OidcDiscovery> {
   const base = secure(issuer, "Issuer").replace(/\/+$/u, "");
   const response = await fetchImpl(`${base}/.well-known/openid-configuration`, {
     redirect: "error",
@@ -83,34 +121,29 @@ export async function discoverOidc(
   });
   if (!response.ok)
     throw new Error(`OIDC discovery failed (${response.status})`);
-  const doc = (await response.json()) as Record<string, unknown>;
+  const doc = await jsonBody(response);
   if (doc.issuer !== base)
     throw new Error(
       "OIDC discovery issuer does not match the configured issuer",
     );
-  if (
-    typeof doc.authorization_endpoint !== "string" ||
-    typeof doc.token_endpoint !== "string" ||
-    typeof doc.jwks_uri !== "string"
-  )
+  const authorization = doc.authorization_endpoint;
+  const token = doc.token_endpoint;
+  const jwks = doc.jwks_uri;
+  if (!isString(authorization) || !isString(token) || !isString(jwks))
     throw new Error("OIDC discovery is missing an endpoint");
-  return {
+  const discovered: OidcDiscovery = {
     issuer: base,
-    authorizationEndpoint: secure(
-      doc.authorization_endpoint,
-      "Authorization endpoint",
-    ),
-    tokenEndpoint: secure(doc.token_endpoint, "Token endpoint"),
-    jwksUri: secure(doc.jwks_uri, "JWKS URI"),
-    ...(typeof doc.device_authorization_endpoint === "string"
-      ? {
-          deviceAuthorizationEndpoint: secure(
-            doc.device_authorization_endpoint,
-            "Device authorization endpoint",
-          ),
-        }
-      : {}),
+    authorizationEndpoint: secure(authorization, "Authorization endpoint"),
+    tokenEndpoint: secure(token, "Token endpoint"),
+    jwksUri: secure(jwks, "JWKS URI"),
   };
+  const device = doc.device_authorization_endpoint;
+  if (isString(device))
+    discovered.deviceAuthorizationEndpoint = secure(
+      device,
+      "Device authorization endpoint",
+    );
+  return discovered;
 }
 
 function b64(bytes: Uint8Array): string {
@@ -122,7 +155,9 @@ function b64(bytes: Uint8Array): string {
     .replace(/=+$/u, "");
 }
 
-async function pkce(): Promise<{ verifier: string; challenge: string }> {
+type Pkce = { verifier: string; challenge: string };
+
+async function pkce(): Promise<Pkce> {
   const verifier = b64(crypto.getRandomValues(new Uint8Array(32)));
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -133,7 +168,7 @@ async function pkce(): Promise<{ verifier: string; challenge: string }> {
 
 export async function beginOidcLogin(
   config: OidcConnectorConfig,
-): Promise<{ url: string; pending: OidcPending }> {
+): Promise<OidcLoginStart> {
   const { verifier, challenge } = await pkce();
   const state = b64(crypto.getRandomValues(new Uint8Array(16)));
   const nonce = b64(crypto.getRandomValues(new Uint8Array(16)));
@@ -169,7 +204,7 @@ async function verifyOidcIdToken(
   config: OidcConnectorConfig,
   idToken: string,
   nonce: string | undefined,
-  options: { fetchImpl?: typeof fetch; jwks?: JSONWebKeySet },
+  options: OidcTokenOptions,
 ): Promise<void> {
   const jwks = options.jwks
     ? createLocalJWKSet(options.jwks)
@@ -190,16 +225,21 @@ function tokenExchangeUrl(config: OidcConnectorConfig): string {
     : secure(config.tokenEndpoint, "Token endpoint");
 }
 
+const FORM = "application/x-www-form-urlencoded";
+
 function tokenRequestBody(
   config: OidcConnectorConfig,
   body: URLSearchParams,
-  headers: Record<string, string>,
+  headers: Headers,
 ): void {
   if (config.tokenRelayUrl.trim() !== "") return;
   if (config.tokenAuth === "client_secret_post")
     body.set("client_secret", config.clientSecret);
   if (config.tokenAuth === "client_secret_basic") {
-    headers.authorization = `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`;
+    headers.set(
+      "authorization",
+      `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`,
+    );
     body.delete("client_id");
   }
 }
@@ -207,7 +247,7 @@ function tokenRequestBody(
 export async function completeOidcLogin(
   pending: OidcPending,
   callbackUrl: string,
-  options: { fetchImpl?: typeof fetch; jwks?: JSONWebKeySet } = {},
+  options: OidcTokenOptions = {},
 ): Promise<OidcTokens> {
   const config = pending.config;
   const code = callbackCode(callbackUrl, pending.state);
@@ -218,9 +258,7 @@ export async function completeOidcLogin(
     client_id: config.clientId,
     code_verifier: pending.codeVerifier,
   });
-  const headers: Record<string, string> = {
-    "content-type": "application/x-www-form-urlencoded",
-  };
+  const headers = new Headers({ "content-type": FORM });
   tokenRequestBody(config, body, headers);
   const response = await (options.fetchImpl ?? fetch)(
     tokenExchangeUrl(config),
@@ -234,27 +272,11 @@ export async function completeOidcLogin(
   );
   if (!response.ok)
     throw new Error(`OIDC token exchange failed (${response.status})`);
-  const json = (await response.json()) as Record<string, unknown>;
-  if (
-    typeof json.access_token !== "string" ||
-    typeof json.token_type !== "string"
-  )
-    throw new Error("OIDC token response is invalid");
-  if (typeof json.id_token === "string")
-    await verifyOidcIdToken(config, json.id_token, pending.nonce, options);
-  const expiresAt =
-    typeof json.expires_in === "number"
-      ? new Date(Date.now() + json.expires_in * 1000).toISOString()
-      : undefined;
-  return {
-    accessToken: json.access_token,
-    ...(typeof json.id_token === "string" ? { idToken: json.id_token } : {}),
-    ...(typeof json.refresh_token === "string"
-      ? { refreshToken: json.refresh_token }
-      : {}),
-    ...(expiresAt ? { expiresAt } : {}),
-    tokenType: json.token_type,
-  };
+  const tokens = readTokens(await jsonBody(response));
+  if (!tokens) throw new Error("OIDC token response is invalid");
+  if (tokens.idToken !== undefined)
+    await verifyOidcIdToken(config, tokens.idToken, pending.nonce, options);
+  return tokens;
 }
 
 export async function beginOidcDevice(
@@ -267,41 +289,38 @@ export async function beginOidcDevice(
     client_id: config.clientId,
     scope: config.scopes.join(" "),
   });
-  const headers: Record<string, string> = {
-    "content-type": "application/x-www-form-urlencoded",
-  };
+  const headers = new Headers({ "content-type": FORM });
   const response = await fetchImpl(
     secure(config.deviceAuthorizationEndpoint, "Device authorization endpoint"),
     { method: "POST", redirect: "error", credentials: "omit", headers, body },
   );
   if (!response.ok)
     throw new Error(`OIDC device authorization failed (${response.status})`);
-  const json = (await response.json()) as Record<string, unknown>;
+  const json = await jsonBody(response);
+  const { device_code: deviceCode, user_code: userCode } = json;
+  const { verification_uri: uri, expires_in: expiresIn, interval } = json;
   if (
-    typeof json.device_code !== "string" ||
-    typeof json.user_code !== "string" ||
-    typeof json.verification_uri !== "string" ||
-    typeof json.expires_in !== "number"
+    !isString(deviceCode) ||
+    !isString(userCode) ||
+    !isString(uri) ||
+    !isNumber(expiresIn)
   )
     throw new Error("OIDC device authorization response is invalid");
-  return {
-    deviceCode: json.device_code,
-    userCode: json.user_code,
-    verificationUri: secure(json.verification_uri, "Verification URI"),
-    ...(typeof json.verification_uri_complete === "string"
-      ? {
-          verificationUriComplete: secure(
-            json.verification_uri_complete,
-            "Verification URI complete",
-          ),
-        }
-      : {}),
-    expiresAt: Date.now() + json.expires_in * 1000,
+  const authorization: OidcDeviceAuthorization = {
+    deviceCode,
+    userCode,
+    verificationUri: secure(uri, "Verification URI"),
+    expiresAt: Date.now() + expiresIn * 1000,
     intervalSeconds:
-      typeof json.interval === "number" && json.interval > 0
-        ? Math.min(json.interval, 60)
-        : 5,
+      isNumber(interval) && interval > 0 ? Math.min(interval, 60) : 5,
   };
+  const complete = json.verification_uri_complete;
+  if (isString(complete))
+    authorization.verificationUriComplete = secure(
+      complete,
+      "Verification URI complete",
+    );
+  return authorization;
 }
 
 export type OidcDevicePoll =
@@ -311,7 +330,7 @@ export type OidcDevicePoll =
 export async function pollOidcDevice(
   config: OidcConnectorConfig,
   authorization: OidcDeviceAuthorization,
-  options: { fetchImpl?: typeof fetch; jwks?: JSONWebKeySet } = {},
+  options: OidcTokenOptions = {},
 ): Promise<OidcDevicePoll> {
   if (Date.now() >= authorization.expiresAt)
     throw new Error("OIDC device code expired");
@@ -320,9 +339,7 @@ export async function pollOidcDevice(
     device_code: authorization.deviceCode,
     client_id: config.clientId,
   });
-  const headers: Record<string, string> = {
-    "content-type": "application/x-www-form-urlencoded",
-  };
+  const headers = new Headers({ "content-type": FORM });
   tokenRequestBody(config, body, headers);
   const response = await (options.fetchImpl ?? fetch)(
     tokenExchangeUrl(config),
@@ -334,7 +351,7 @@ export async function pollOidcDevice(
       body,
     },
   );
-  const json = (await response.json()) as Record<string, unknown>;
+  const json = await jsonBody(response);
   if (json.error === "authorization_pending")
     return {
       status: "pending",
@@ -345,36 +362,16 @@ export async function pollOidcDevice(
       status: "pending",
       intervalSeconds: Math.min(authorization.intervalSeconds + 5, 60),
     };
-  if (
-    !response.ok ||
-    typeof json.access_token !== "string" ||
-    typeof json.token_type !== "string"
-  )
+  const tokens = response.ok ? readTokens(json) : null;
+  if (!tokens)
     throw new Error(
-      typeof json.error === "string"
+      isString(json.error)
         ? `OIDC device authorization failed: ${json.error}`
         : "OIDC device token response is invalid",
     );
-  if (typeof json.id_token === "string")
-    await verifyOidcIdToken(config, json.id_token, undefined, options);
-  return {
-    status: "tokens",
-    tokens: {
-      accessToken: json.access_token,
-      ...(typeof json.id_token === "string" ? { idToken: json.id_token } : {}),
-      ...(typeof json.refresh_token === "string"
-        ? { refreshToken: json.refresh_token }
-        : {}),
-      ...(typeof json.expires_in === "number"
-        ? {
-            expiresAt: new Date(
-              Date.now() + json.expires_in * 1000,
-            ).toISOString(),
-          }
-        : {}),
-      tokenType: json.token_type,
-    },
-  };
+  if (tokens.idToken !== undefined)
+    await verifyOidcIdToken(config, tokens.idToken, undefined, options);
+  return { status: "tokens", tokens };
 }
 
 /** The configuration and tokens are one sealed vault item, never local storage. */

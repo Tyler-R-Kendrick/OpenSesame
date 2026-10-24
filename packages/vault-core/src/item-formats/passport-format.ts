@@ -7,13 +7,13 @@ const WEIGHTS = [7, 3, 1] as const;
 const COUNTRY = /^[A-Z]{3}$/u;
 const LINE = /^[A-Z0-9<]+$/u;
 
-const DOCUMENT_TYPES: Readonly<Record<string, string>> = {
-  "P<": "ordinary",
-  PO: "official",
-  PD: "diplomatic",
-  PS: "service",
-  PE: "emergency",
-};
+const DOCUMENT_TYPES: ReadonlyMap<string, string> = new Map([
+  ["P<", "ordinary"],
+  ["PO", "official"],
+  ["PD", "diplomatic"],
+  ["PS", "service"],
+  ["PE", "emergency"],
+]);
 
 function text(values: FieldValues, id: string): string {
   const value = values[id];
@@ -108,7 +108,7 @@ function line1(values: FieldValues): string | null {
   const country = text(values, "issuingCountry").toUpperCase();
   if (!COUNTRY.test(country)) return null;
   const type =
-    Object.entries(DOCUMENT_TYPES).find(
+    [...DOCUMENT_TYPES].find(
       ([, label]) => label === text(values, "documentType"),
     )?.[0] ?? "P<";
   return `${type}${country}${mrzName(text(values, "fullName")).padEnd(39, "<").slice(0, 39)}`;
@@ -151,7 +151,7 @@ function parse(value: string): FieldValues | null {
   const lines = mrzLines(value);
   if (!lines) return null;
   const [first, second] = lines;
-  const documentType = DOCUMENT_TYPES[first.slice(0, 2)];
+  const documentType = DOCUMENT_TYPES.get(first.slice(0, 2));
   if (!documentType) return null;
   const country = first.slice(2, 5);
   if (!COUNTRY.test(country) || !checksPass(second)) return null;

@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   pickDirectory,
@@ -107,10 +108,10 @@ describe("File System Access directory", () => {
         createWritable: async () => ({ write, close, abort: vi.fn() }),
       };
     });
-    const directory = {
+    const directory: FileSystemDirectoryHandle = overlapCast({
       name: "backups",
       getFileHandle,
-    } as unknown as FileSystemDirectoryHandle;
+    });
     vi.stubGlobal(
       "showDirectoryPicker",
       vi.fn(async () => directory),

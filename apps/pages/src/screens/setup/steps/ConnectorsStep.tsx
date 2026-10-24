@@ -53,7 +53,7 @@ function ConnectionCards({
 
 export function ConnectorsStep() {
   const store = useVaultStore();
-  const tomb = store.isUnlocked() ? store.activeTomb() : null;
+  const tomb = store.isUnlocked() ? (store.activeTomb?.() ?? null) : null;
   const [record, setRecord] = useState<ConnectorDirectory | null>(
     pendingConnectorDirectory,
   );

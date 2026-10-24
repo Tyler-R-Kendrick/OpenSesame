@@ -11,20 +11,20 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 161,
-    "violations": 559,
+    "files": 155,
+    "violations": 544,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
-      "anti-slop/no-conditional-empty-object-spread": 18,
-      "anti-slop/no-known-value-widening": 202,
-      "anti-slop/no-object-parameters": 11,
+      "anti-slop/no-conditional-empty-object-spread": 15,
+      "anti-slop/no-known-value-widening": 198,
+      "anti-slop/no-object-parameters": 10,
       "anti-slop/no-reflect-get": 6,
       "anti-slop/no-runtime-typeof": 154,
-      "anti-slop/no-shape-in-symbol-names": 13,
+      "anti-slop/no-shape-in-symbol-names": 11,
       "anti-slop/no-unknown-parameters": 34,
       "anti-slop/no-unknown-returns": 2,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 103
+      "anti-slop/require-safety-comment-for-type-assertion": 98
     }
   },
   "files": {
@@ -90,9 +90,6 @@
     },
     "apps/pages/server/webhook-queue.mjs": {
       "anti-slop/no-runtime-typeof": 10
-    },
-    "apps/pages/src/App.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 3
     },
     "apps/pages/src/components/AppShell.route-fallback.test.tsx": {
       "anti-slop/no-known-value-widening": 1
@@ -184,9 +181,6 @@
     "apps/pages/src/sections/vault/creation-kinds.test.tsx": {
       "anti-slop/require-safety-comment-for-type-assertion": 2
     },
-    "apps/pages/src/sw/messages.ts": {
-      "anti-slop/no-shape-in-symbol-names": 2
-    },
     "packages/app-core/scripts/sops-oracle/oracle.d.mts": {
       "anti-slop/no-unknown-returns": 1
     },
@@ -245,9 +239,6 @@
     "packages/app-core/src/lib/claims/ceremony.ts": {
       "anti-slop/no-known-value-widening": 2
     },
-    "packages/app-core/src/lib/claims/link.ts": {
-      "anti-slop/no-known-value-widening": 2
-    },
     "packages/app-core/src/lib/connector-settings.ts": {
       "anti-slop/no-known-value-widening": 1,
       "anti-slop/no-runtime-typeof": 2
@@ -270,9 +261,6 @@
     "packages/app-core/src/lib/interactions-route.ts": {
       "anti-slop/no-known-value-widening": 2
     },
-    "packages/app-core/src/lib/invoke-link.ts": {
-      "anti-slop/no-known-value-widening": 1
-    },
     "packages/app-core/src/lib/item-type-marketplace/load.test.ts": {
       "anti-slop/no-known-value-widening": 12,
       "anti-slop/no-unknown-parameters": 1
@@ -291,10 +279,6 @@
     },
     "packages/app-core/src/lib/local-passkeys.test.ts": {
       "anti-slop/require-safety-comment-for-type-assertion": 2
-    },
-    "packages/app-core/src/lib/local-passkeys.ts": {
-      "anti-slop/no-conditional-empty-object-spread": 2,
-      "anti-slop/no-known-value-widening": 1
     },
     "packages/app-core/src/lib/notification-routing/channels.ts": {
       "anti-slop/no-conditional-empty-object-spread": 1,
@@ -557,11 +541,6 @@
     },
     "packages/oauth-provider/src/__tests__/mtls-pki.ts": {
       "anti-slop/no-object-parameters": 1
-    },
-    "packages/oauth-provider/src/__tests__/mtls.test.ts": {
-      "anti-slop/no-conditional-empty-object-spread": 1,
-      "anti-slop/no-object-parameters": 1,
-      "anti-slop/require-safety-comment-for-type-assertion": 2
     },
     "packages/oauth-provider/src/mtls/feature.ts": {
       "anti-slop/no-known-value-widening": 4,

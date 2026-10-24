@@ -78,7 +78,7 @@ export function assertAllowedJwtAlgorithm(
   token: string,
   allowed: readonly string[] = ID_TOKEN_ALGORITHMS,
 ): void {
-  let alg: unknown;
+  let alg: JsonValue | undefined;
   try {
     alg = decodeProtectedHeader(token).alg;
   } catch {
@@ -87,7 +87,7 @@ export function assertAllowedJwtAlgorithm(
 
   // decodeProtectedHeader only guarantees an object. A crafted header such
   // as {"alg":123} must become a typed auth refusal, never a TypeError.
-  if (alg === null || typeof alg !== "string" || alg.length === 0) {
+  if (!isString(alg) || alg.length === 0) {
     throw new AuthError(
       "invalid_algorithm",
       "Token uses a disallowed signing algorithm",

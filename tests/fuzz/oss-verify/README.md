@@ -24,11 +24,17 @@ materially from OSS-Fuzz's.
 | byte-reproducible double builds | `$SOURCE_DATE_EPOCH` is theirs; the source tree paths are fixed by the release layout; no timestamps or git-derived versions enter the binaries |
 | hermetic targets (`abort()` on a failed property, no signal handlers, no env) | the harnesses already `assert!` (panic = abort), install no handlers, and read no environment |
 
-The first wave (project.yaml `fuzz_targets`, eight targets) covers the three
-security-boundary families the in-repo oracles already assert: authority
-algebra (`capability_algebra`, `grant_attenuation`), seals and envelopes
-(`vault_envelope`, `broker_seal`), and parsers (`canonical_json`, `jwt_jwk`,
-`pki_csr_parse`, `kdbx_parse`). Enlarging the wave is four files in lockstep:
+The first wave (project.yaml `fuzz_targets`, eight targets) covers the
+security-boundary families the in-repo oracles already assert and that are
+hermetic under the OSS Verify contract: authority algebra
+(`capability_algebra`, `grant_attenuation`) and parsers (`canonical_json`,
+`jwt_jwk`, `pki_csr_parse`, `kdbx_parse`, `vault_item_type`,
+`connector_manifest`). The seal/envelope targets (`vault_envelope`,
+`broker_seal`) are not yet enrollable: sealing draws OS entropy for nonces
+and keys (`crates/human-vault/src/lib.rs`,
+`crates/connection-broker/src/crypto/envelope.rs`), which the contract
+forbids — they join a later wave once the harnesses take a deterministic,
+input-derived seam. Enlarging the wave is four files in lockstep:
 `build.sh` (`opensesame_target <name>`), `sources` (`tree` + `crates` pair),
 `project.yaml` (`fuzz_targets`), and nothing else.
 

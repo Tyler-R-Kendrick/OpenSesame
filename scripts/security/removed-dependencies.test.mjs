@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { test } from "node:test";
+import { isJsonObject, isString } from "../lib/json-boundary.mjs";
 
 const require = createRequire(
   new URL("../../node_modules/.pnpm/node_modules/", import.meta.url),
@@ -13,7 +14,7 @@ const lock = parse(
 );
 
 function assertAllowedReference(reference) {
-  if (typeof reference !== "string") return;
+  if (!isString(reference)) return;
   for (const name of removed) {
     assert.ok(
       !reference.startsWith(`${name}@`),
@@ -29,7 +30,7 @@ test("removed vulnerable devtools dependencies have no packages, snapshots or co
     lock.snapshots,
     lock.patchedDependencies ?? {},
   ]) {
-    assert.ok(section && typeof section === "object");
+    assert.ok(isJsonObject(section));
     for (const name of Object.keys(section)) assertAllowedReference(name);
   }
   for (const consumer of [
@@ -43,9 +44,7 @@ test("removed vulnerable devtools dependencies have no packages, snapshots or co
     ]) {
       for (const [name, entry] of Object.entries(consumer[field] ?? {})) {
         assert.ok(!removed.has(name), `Removed dependency edge: ${name}`);
-        assertAllowedReference(
-          typeof entry === "string" ? entry : entry.version,
-        );
+        assertAllowedReference(isString(entry) ? entry : entry.version);
       }
     }
   }

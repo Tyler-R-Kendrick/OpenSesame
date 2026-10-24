@@ -49,12 +49,12 @@ export async function localRequestFixture() {
       // takes a second ledger lock, which the product allows.
       request: <T>(
         name: string,
-        optionsOrAction: unknown,
+        optionsOrAction: LockOptions | (() => Promise<T>),
         maybeAction?: () => Promise<T>,
       ) => {
-        const action = (
-          typeof optionsOrAction === "function" ? optionsOrAction : maybeAction
-        ) as () => Promise<T>;
+        const action =
+          optionsOrAction instanceof Function ? optionsOrAction : maybeAction;
+        if (!action) throw new TypeError("A lock request needs a callback.");
         const next = (queues.get(name) ?? Promise.resolve()).then(action);
         queues.set(
           name,

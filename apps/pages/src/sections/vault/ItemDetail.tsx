@@ -34,7 +34,8 @@ export function ItemDetail() {
   const { listPath, backLabel } = useVaultList(location.search);
   const { items, folders, guest } = useVault();
   const store = useVaultStore();
-  const sharedItems = useSharedItems(store.activeTomb?.() ?? "", items);
+  const tomb = store.activeTomb?.() ?? "";
+  const sharedItems = useSharedItems(tomb, items);
   const { copied, failed, copy } = useCopyFeedback();
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [confirmPurge, setConfirmPurge] = useState(false);
@@ -111,7 +112,7 @@ export function ItemDetail() {
         copy={copy}
         onUpdateSecret={(next) => updateItemSecret(item, next, store.saveItem)}
       />
-      <RotationPanel item={item} scope={guest ? "" : store.activeTomb()} />
+      <RotationPanel item={item} scope={guest ? "" : tomb} />
       {ceremony}
 
       {item.fields.length > 0 ? (

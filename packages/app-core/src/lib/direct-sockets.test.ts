@@ -1,3 +1,4 @@
+import type { JsonValue } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import {
   directSocketsAvailability,
@@ -14,10 +15,10 @@ describe("Direct Sockets adapter", () => {
 
   it("opens a TCP socket in an IWA and validates its port", async () => {
     const opened = { readable: {}, writable: {} };
-    const calls: unknown[][] = [];
+    const calls: JsonValue[][] = [];
     class FakeTcp {
       readonly opened = Promise.resolve(opened);
-      constructor(...args: unknown[]) {
+      constructor(...args: JsonValue[]) {
         calls.push(args);
       }
       close(): void {}

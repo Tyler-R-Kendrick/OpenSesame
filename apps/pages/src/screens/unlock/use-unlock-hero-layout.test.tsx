@@ -5,6 +5,7 @@ import { useUnlockHeroLayout } from "./use-unlock-hero-layout.js";
 
 function element(left: number, top: number, width: number, height: number) {
   const node = document.createElement("div");
+  // SAFETY: the hook reads only the box edges and size, which this fixture rect sets; it never calls toJSON or reads x and y.
   node.getBoundingClientRect = () =>
     ({
       left,

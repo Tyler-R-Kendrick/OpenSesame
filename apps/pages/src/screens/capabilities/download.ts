@@ -9,13 +9,15 @@ import {
   saveTextFile as saveThroughPicker,
 } from "../../lib/file-system.js";
 
-export const downloadSeams: {
+type DownloadSeams = {
   save(
     fileName: string,
     text: string,
     type?: string,
   ): Promise<SaveOutcome> | undefined;
-} = {
+};
+
+export const downloadSeams: DownloadSeams = {
   save(fileName, text, type = "application/yaml") {
     return saveThroughPicker(fileName, text, type);
   },

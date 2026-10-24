@@ -11,6 +11,7 @@ import {
 import { isNumber, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { z } from "zod";
+import { peerAddress } from "../lib/peer-address.js";
 import type { Variables } from "../middleware/context.js";
 import {
   completeClaim,
@@ -47,12 +48,9 @@ agentAuthRoutes.post("/agent/identity", async (c) => {
   const headers: Parameters<typeof registerAnonymous>[1] = {};
   const userAgent = c.req.header("user-agent");
   const origin = c.req.header("origin");
-  const env = c.env as
-    | { incoming?: { socket?: { remoteAddress?: string } } }
-    | undefined;
   if (userAgent) headers.userAgent = userAgent;
   if (origin) headers.origin = origin;
-  const remoteAddress = env?.incoming?.socket?.remoteAddress;
+  const remoteAddress = peerAddress(c);
   if (remoteAddress) headers.remoteAddress = remoteAddress;
   try {
     if (parsed.data.type === "anonymous") {

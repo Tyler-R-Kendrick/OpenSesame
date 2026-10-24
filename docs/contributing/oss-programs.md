@@ -22,7 +22,7 @@ Settings › Code security › Secret scanning.
 | OSV-Scanner on a schedule | every lockfile against the OSV database, weekly | `.github/workflows/security.yml` |
 | gitleaks on a schedule | full-history secret scan, weekly (plus the pre-commit hook per commit) | `.github/workflows/security.yml` |
 | Dependabot | proposed version bumps for cargo (both workspaces), npm, and GitHub Actions | `.github/dependabot.yml` |
-| Release attestations | build provenance + SHA256SUMS over every release-kit binary (ADR 0207) | `.github/workflows/release-kit.yml` |
+| Release attestations | build provenance + SHA256SUMS over every release-kit binary (ADR 0212) | `.github/workflows/release-kit.yml` |
 | OpenSSF Security Insights | machine-processable security posture (threat model, gates, reporting) | `security-insights.yml` |
 
 ## Prepared — waiting on a maintainer step

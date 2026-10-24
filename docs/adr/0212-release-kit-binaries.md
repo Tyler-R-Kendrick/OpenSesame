@@ -1,4 +1,4 @@
-# ADR 0207 — A release kit of native binaries, verified by digest
+# ADR 0212 — A release kit of native binaries, verified by digest
 
 - **Status:** Accepted
 - **Date:** 2026-10-17

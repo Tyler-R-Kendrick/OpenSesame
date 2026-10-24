@@ -270,9 +270,9 @@ looks arbitrary, the ADR it cites explains it.
 | [0204](0204-pwa-tailscale-browser-node.md) | Run the official Tailscale browser node in an isolated Worker | Accepted |
 | [0205](0205-secret-delivery-lanes-on-run.md) | Secret delivery lanes on `run` | Accepted |
 | [0206](0206-device-key-trust-d7-2.md) | Device key trust for CLI app integration (D7-2) | Accepted |
-| [0207](0207-release-kit-binaries.md) | A release kit of native binaries, verified by digest | Accepted |
 | [0207](0207-retired-credentials-and-controlled-canaries-are-owner-ceremonies.md) | Retired credentials and controlled canaries are owner ceremonies | Accepted |
 | [0208](0208-hosting-starts-at-the-share-key.md) | Hosting starts at the Share key, not a Settings page | Accepted |
 | [0209](0209-deadman-switch.md) | A deadman switch is a release envelope with a relay witness | Accepted |
 | [0210](0210-session-share-generator.md) | The share key opens a session generator, not a one-press session | Accepted |
 | [0211](0211-oss-fuzz-and-oss-verify-enrollment.md) | OpenSesame enrolls in OSS-Fuzz and OSS Verify | Accepted |
+| [0212](0212-release-kit-binaries.md) | A release kit of native binaries, verified by digest | Accepted |

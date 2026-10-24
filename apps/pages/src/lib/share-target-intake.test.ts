@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { takePendingImport } from "@opensesame/app-core/lib/vault/pending-import.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureShareTarget } from "./share-target-intake.js";
@@ -58,12 +59,7 @@ function location(key: string, createdAt = CREATED) {
   const hash = `#${new URLSearchParams({
     "share-target": `${TOKEN}.${key}.${createdAt}`,
   }).toString()}`;
-  return {
-    href: `${window.location.origin}/${hash}`,
-    search: "",
-    pathname: "/",
-    hash,
-  } as Location;
+  return { href: `${window.location.origin}/${hash}`, hash };
 }
 
 describe("share target intake", () => {
@@ -77,7 +73,7 @@ describe("share target intake", () => {
     const file = await captureShareTarget(location(key), {
       state: null,
       replaceState,
-    } as unknown as History);
+    });
     expect(file?.name).toBe("app.env");
     expect(file?.size).toBe(10);
     expect(takePendingImport()).toBe(file);
@@ -93,7 +89,7 @@ describe("share target intake", () => {
     const file = await captureShareTarget(location(key), {
       state: null,
       replaceState: vi.fn(),
-    } as unknown as History);
+    });
     expect(file?.name).toBe(".opensesame-share.txt");
     expect(file?.size).toBe("Deploy\n\nhello\n\nhttps://x.test".length);
   });
@@ -108,7 +104,7 @@ describe("share target intake", () => {
       captureShareTarget(location(tampered), {
         state: null,
         replaceState: vi.fn(),
-      } as unknown as History),
+      }),
     ).resolves.toBeNull();
   });
 
@@ -118,7 +114,7 @@ describe("share target intake", () => {
     const file = await captureShareTarget(location("not-a-token"), {
       state: null,
       replaceState: vi.fn(),
-    } as unknown as History);
+    });
     expect(file).toBeNull();
     expect(open).not.toHaveBeenCalled();
   });

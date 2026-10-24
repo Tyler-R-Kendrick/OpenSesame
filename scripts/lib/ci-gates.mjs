@@ -341,7 +341,7 @@ function gatesByPath(path, reach) {
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();
   // The release kit builds binaries on a tag: no Pages gate can see it, and
-  // ci-release-kit.test.mjs pins it (ADR 0207).
+  // ci-release-kit.test.mjs pins it (ADR 0212).
   if (releaseKitPath(path)) return gates();
   if (path === "tools/quality/bundle-budgets.json") return gates("budgets");
   if (path === "spec/connectors/self-hosted-config.json")

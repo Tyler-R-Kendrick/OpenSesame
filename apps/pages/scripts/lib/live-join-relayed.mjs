@@ -151,6 +151,7 @@ async function through(browser, owner, label, hooks) {
       dist: owner.dist,
     });
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    // Relay only: the reply names no address, so there is nothing to allow.
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();

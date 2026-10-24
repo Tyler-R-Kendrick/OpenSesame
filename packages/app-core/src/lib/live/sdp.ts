@@ -26,6 +26,11 @@
  */
 
 import { targetAddressSpaceFor } from "../local-network-fetch.js";
+import {
+  type CandidateAllowlist,
+  NOTHING_NAMED,
+  canonicalAddress,
+} from "./named-addresses.js";
 import { isAddress } from "./transport.js";
 
 export const SDP_MAX = 48 * 1024;
@@ -68,11 +73,11 @@ const BANDWIDTH = /^b=[A-Za-z-]{1,8}:\d{1,12}$/;
 
 /**
  * `<foundation> <component> <transport> <priority> <address> <port> typ
- * <type>`, then extension pairs. The three captured are the ones checked
- * further: priority, address, port, and the extensions.
+ * <type>`, then extension pairs. The ones captured are checked further:
+ * priority, address, port, type and the extensions.
  */
 const CANDIDATE =
-  /^[A-Za-z0-9+/]{1,32} [12] (?:udp|UDP|tcp|TCP) (\d{1,10}) (\S{1,64}) (\d{1,5}) typ (?:host|srflx|prflx|relay)((?: \S+)*)$/;
+  /^[A-Za-z0-9+/]{1,32} [12] (?:udp|UDP|tcp|TCP) (\d{1,10}) (\S{1,64}) (\d{1,5}) typ (host|srflx|prflx|relay)((?: \S+)*)$/;
 const EXTENSION_NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const EXTENSION_VALUE = /^[\x21-\x7e]{1,64}$/;
 const EXTENSIONS_MAX = 8;
@@ -95,7 +100,7 @@ function extensionsValid(tokens: readonly string[]): boolean {
 function candidateValid(value: string): boolean {
   const parts = CANDIDATE.exec(value);
   if (!parts) return false;
-  const [, priority = "", address = "", port = "", rest = ""] = parts;
+  const [, priority = "", address = "", port = "", , rest = ""] = parts;
   return (
     Number(priority) <= 2 ** 31 - 1 &&
     (isAddress(address) || MDNS.test(address)) &&
@@ -203,16 +208,22 @@ function lineValid(line: string, tally: Tally): boolean {
  * nothing this protocol did not ask a browser for.
  */
 export function isDataChannelSdp(sdp: string): boolean {
-  return filterDataChannelSdp(sdp) !== null;
+  return filterDataChannelSdp(sdp, NOTHING_NAMED) !== null;
 }
 
 /**
  * A readable data-channel description with any candidate naming a loopback,
- * link-local, private or otherwise non-public literal address removed. The
- * offer/answer is still usable through its public/mDNS/relay candidates, but
- * a peer cannot make this browser send ICE checks into an internal host.
+ * link-local, private or otherwise non-public literal address removed,
+ * except one this side's person authorized (`sessionNamedAddresses`): any
+ * candidate at one of its addresses, and a relay candidate at the literal
+ * host of one of its TURN servers. The offer/answer is still usable through
+ * its public/mDNS candidates and those, but a peer cannot make this browser
+ * send ICE checks into any other internal host.
  */
-export function filterDataChannelSdp(sdp: string): string | null {
+export function filterDataChannelSdp(
+  sdp: string,
+  named: CandidateAllowlist,
+): string | null {
   if (sdp.length > SDP_MAX || !sdp.startsWith("v=0")) return null;
   const lines = sdp.split(/\r?\n/);
   if (lines.at(-1) === "") lines.pop();
@@ -225,15 +236,22 @@ export function filterDataChannelSdp(sdp: string): string | null {
   if (tally.o !== 1 || tally.s !== 1 || tally.t !== 1 || tally.m !== 1)
     return null;
   const safe = lines.filter(
-    (line) => !line.startsWith("a=candidate:") || routableCandidateLine(line),
+    (line) =>
+      !line.startsWith("a=candidate:") || routableCandidateLine(line, named),
   );
   return `${safe.join("\r\n")}\r\n`;
 }
 
-function routableCandidateLine(line: string): boolean {
+function routableCandidateLine(
+  line: string,
+  named: CandidateAllowlist,
+): boolean {
   const parts = CANDIDATE.exec(line.slice("a=candidate:".length));
   const address = parts?.[2] ?? "";
   if (MDNS.test(address)) return true;
+  const canonical = canonicalAddress(address) ?? "";
+  if (named.addresses.has(canonical)) return true;
+  if (parts?.[4] === "relay" && named.relays.has(canonical)) return true;
   const host = address.includes(":") ? `[${address}]` : address;
   return targetAddressSpaceFor(`https://${host}/`) === undefined;
 }

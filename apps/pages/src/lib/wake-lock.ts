@@ -27,10 +27,20 @@ type VisibilityHost = {
 
 export type WakeLockRelease = () => Promise<void>;
 
+function platformWakeLock(): WakeLockHost {
+  // SAFETY: wakeLock is optional on WakeLockHost, so the navigator matches it in a browser without the Screen Wake Lock API; holdWakeLock checks it.
+  return globalThis.navigator as WakeLockHost;
+}
+
+function pageVisibility(): VisibilityHost {
+  // SAFETY: every VisibilityHost member is optional and matches the document's own; holdWakeLock checks each one before calling it.
+  return globalThis.document as VisibilityHost;
+}
+
 /** Acquire a lock, or a no-op release when the platform cannot provide one. */
 export async function holdWakeLock(
-  host: WakeLockHost = globalThis.navigator as WakeLockHost,
-  visibility: VisibilityHost = globalThis.document as VisibilityHost,
+  host: WakeLockHost = platformWakeLock(),
+  visibility: VisibilityHost = pageVisibility(),
 ): Promise<WakeLockRelease> {
   let sentinel: WakeLockSentinel | null = null;
   try {

@@ -1,22 +1,20 @@
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { UserTokenPanel } from "./UserTokenPanel.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { UserTokenPanel, userTokenSeams } from "./UserTokenPanel.js";
 
-const seams = vi.hoisted(() => ({
+const seams = {
   open: vi.fn(),
   authorize: vi.fn(),
   check: vi.fn(),
-}));
+};
+const original = { ...userTokenSeams };
 
-vi.mock("@opensesame/app-core/lib/connections.js", () => ({
-  openConsentPopup: seams.open,
-}));
-vi.mock("@opensesame/app-core/lib/vercel-connect-manage.js", () => ({
-  authorizeConnectorAs: seams.authorize,
-  checkConnectorToken: seams.check,
-}));
+beforeEach(() => {
+  Object.assign(userTokenSeams, seams);
+});
 
 function popup() {
   return {
@@ -27,7 +25,7 @@ function popup() {
 }
 
 function popupSource(value: ReturnType<typeof popup>): MessageEventSource {
-  return value as unknown as MessageEventSource;
+  return overlapCast(value);
 }
 
 function renderPanel() {
@@ -46,6 +44,7 @@ function renderPanel() {
 
 afterEach(() => {
   cleanup();
+  Object.assign(userTokenSeams, original);
   vi.clearAllMocks();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -79,6 +78,7 @@ describe("user token authorization popup", () => {
     window.dispatchEvent(
       new MessageEvent("message", {
         origin: window.location.origin,
+        // SAFETY: the panel compares a message's source to its own popup by identity, so any other object matches the other-window case here.
         source: {} as MessageEventSource,
         data: { type: "opensesame:connection", connectionId: "con_1" },
       }),

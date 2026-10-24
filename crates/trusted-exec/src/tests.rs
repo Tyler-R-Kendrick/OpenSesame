@@ -6,6 +6,8 @@ use std::path::Path;
 
 use crate::testkit::{Fixture, SECRET};
 
+mod cwd;
+
 fn run(mut command: Command) {
     let status = command.status().expect("spawn");
     assert!(status.success(), "{status}");

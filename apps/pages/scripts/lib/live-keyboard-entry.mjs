@@ -65,9 +65,12 @@ export async function joinerAsks(page, { link, code, tabTo, focusIn }) {
     await tabTo(page, apply);
     await page.keyboard.press("Enter");
   }
-  const codeField = page.getByLabel("Code", { exact: true });
-  if (await codeField.count()) {
-    await tabTo(page, codeField);
+  // The form draws once the link is read (and the configuration applied):
+  // wait for it before asking whether it has a code field, as the pointer
+  // walk does, or an invite's Code is skipped and Ask to join stays disabled.
+  await page.getByLabel("Your name").waitFor({ timeout: 20_000 });
+  if (code) {
+    await tabTo(page, page.getByLabel("Code", { exact: true }));
     await page.keyboard.insertText(code.toLowerCase());
   }
   await tabTo(page, page.getByLabel("Your name"));
@@ -86,4 +89,50 @@ export async function joinerAsks(page, { link, code, tabTo, focusIn }) {
   await focusIn(page, ".live-join", "after asking");
   await page.keyboard.press("Enter");
   return page.evaluate(() => navigator.clipboard.readText());
+}
+
+/**
+ * The owner names this machine in Routes, by keyboard (ADR 0150 §6): the
+ * walk's two browsers share it, and loopback is a route only when named.
+ */
+export async function namesThisMachine(page, panel, tabTo) {
+  const advanced = panel.locator("details.live-advanced");
+  if ((await advanced.getAttribute("open")) === null) {
+    await tabTo(page, advanced.locator("summary"));
+    await page.keyboard.press("Enter");
+  }
+  await tabTo(page, panel.getByLabel("Tailnet, VPN or LAN address"));
+  await page.keyboard.insertText("127.0.0.1");
+  await page.keyboard.press("Enter");
+  await expect(
+    panel.locator("#live-routes").getByText("127.0.0.1", { exact: true }),
+  ).toBeVisible();
+}
+
+/**
+ * The owner's reply named that address: the keyboard lands on Allow, and
+ * Enter allows it (ADR 0150 §6, amended 2026-10-24).
+ */
+export async function allowsByKeyboard(page) {
+  const allow = page.getByRole("button", {
+    name: "Allow the owner's addresses",
+    exact: true,
+  });
+  await expect(allow, "the owner's addresses land on Allow").toBeFocused({
+    timeout: 20_000,
+  });
+  await page.keyboard.press("Enter");
+}
+
+/**
+ * A session is open to anyone with the link unless the owner asks for the
+ * code too; the walk lets a person in by hand, so it asks for both.
+ */
+export async function asksForTheCode(page, panel, tabTo) {
+  const who = panel.getByLabel("Who gets in", { exact: true });
+  await tabTo(page, who);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(who).toHaveValue("invite");
 }
