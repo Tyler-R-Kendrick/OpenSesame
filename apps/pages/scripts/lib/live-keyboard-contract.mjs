@@ -378,10 +378,13 @@ export async function liveKeyboardContract({
     };
     try {
       await walk();
-    } catch {
+    } catch (error) {
       // One more walk. A loopback check that never completes is the flake
-      // this shard hits; a second pair of browsers gets a new socket.
-      console.error("live keyboard: connection did not form; trying once more");
+      // this shard hits; a second pair of browsers gets a new socket. Say
+      // what stopped the first, so a failure that is not that flake shows.
+      console.error(
+        `live keyboard: the first walk stopped (${error instanceof Error ? error.message.split("\n")[0] : String(error)}); trying once more`,
+      );
       await walk();
     }
   } finally {
