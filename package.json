@@ -137,7 +137,7 @@
     "jose": "6.2.13",
     "oidc-provider": "9.12.2",
     "oxlint": "1.89.0",
-    "pino": "9.7.0",
+    "pino": "10.4.0",
     "postgres": "3.4.9",
     "react": "19.3.1",
     "react-dom": "19.3.1",
