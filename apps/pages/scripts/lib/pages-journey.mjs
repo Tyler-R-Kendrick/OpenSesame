@@ -129,14 +129,38 @@ export async function addCapabilities(page, titles) {
   }
 }
 
-export async function openGeneral(page) {
+/**
+ * Vault Settings, from wherever the walk stands. From the vault the rail's
+ * settings/ row opens it. On User Settings that row is already the open
+ * directory and only folds, so the walk takes the vault row's own "Vault
+ * Settings" entry (components/context-menu/rail-menu.ts), as a person does.
+ */
+async function openVaultSettings(page) {
   // Settings is the heading the section opens on (it has no "Preferences"
   // heading — that name went with an earlier shape of the panel).
   const heading = page.getByRole("heading", { name: "Vault Settings" });
-  if (!(await heading.isVisible().catch(() => false))) {
+  if (await heading.isVisible().catch(() => false)) return;
+  const user = page.getByRole("heading", {
+    name: "User Settings",
+    exact: true,
+  });
+  if (!(await user.isVisible().catch(() => false))) {
     await openSection(page, "settings/");
-    await heading.waitFor({ timeout: 15000 });
+    await heading.or(user).first().waitFor({ timeout: 15000 });
+    if (await heading.isVisible()) return;
   }
+  await page
+    .locator(".railtree__row", { hasText: "vault/" })
+    .first()
+    .click({ button: "right" });
+  await page
+    .getByRole("menuitem", { name: "Vault Settings", exact: true })
+    .click();
+  await heading.waitFor({ timeout: 15000 });
+}
+
+export async function openGeneral(page) {
+  await openVaultSettings(page);
 }
 
 /** Open a Settings category without a full document navigation (keeps the vault open). */
@@ -155,7 +179,7 @@ export async function openSettingsCategory(page, label) {
       .getByRole("heading", { name: "User Settings", exact: true })
       .waitFor();
   } else {
-    await openSection(page, "settings/");
+    await openVaultSettings(page);
   }
   // Inside a category the breadcrumb names it too: the sections list is the one.
   const section = page
