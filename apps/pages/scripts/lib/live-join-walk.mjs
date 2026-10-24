@@ -13,6 +13,7 @@ export {
   SAME_MACHINE,
   admitAndAnswer,
   answerAddresses,
+  thisMachine,
 } from "./live-join-addresses.mjs";
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
@@ -196,15 +197,15 @@ async function natsChoices(routes, carrier) {
 
 /**
  * Start a session. `sameMachine` names this machine in Routes first (the
- * walks' browsers share it); a walk about what an unnamed address does
- * passes false.
+ * walks' browsers share it): loopback, or the addresses given (`thisMachine`);
+ * a walk about what an unnamed address does passes false.
  */
 export async function startSession(
   page,
   { admission = "invite", policy = "read", sameMachine = true } = {},
 ) {
   const { session, routes } = await openLive(page);
-  if (sameMachine) await namesSameMachine(routes);
+  if (sameMachine) await namesSameMachine(routes, sameMachine);
   await session.getByLabel("Session name").fill("Team");
   await session.getByLabel("Share", { exact: true }).selectOption("items");
   await session

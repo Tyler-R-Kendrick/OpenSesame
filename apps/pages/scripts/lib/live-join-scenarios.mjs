@@ -48,6 +48,8 @@ let TLS;
 let afterJoinerConnects;
 /** Runs around `joinerConnects` so ICE UI can be read while connecting (P8-3). */
 let whileJoinerConnects;
+/** What the owner names as this machine in Routes (`startSession`). */
+let sameMachine;
 
 /**
  * The joiner's name. It has a space in it, which base64url never does, so
@@ -74,6 +76,7 @@ export function bindWalk(walk) {
     TLS,
     afterJoinerConnects = null,
     whileJoinerConnects = null,
+    sameMachine = true,
   } = walk);
 }
 
@@ -99,7 +102,7 @@ async function topicOf(link) {
 
 export async function direct(browser, owner) {
   setStep("direct");
-  const { panel, code, link } = await startSession(owner.page);
+  const { panel, code, link } = await startSession(owner.page, { sameMachine });
   check(
     !/\.[\w-]{87}\.[\w-]{43}\./.test(link),
     "with no route named, the link names no server",
@@ -128,7 +131,8 @@ export async function direct(browser, owner) {
   if (afterJoinerConnects) await afterJoinerConnects(joiner);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   // What a browser put in a description itself is its own doing; what the
-  // app sealed beside it must be loopback (live-sdp-privacy.mjs).
+  // app sealed beside it must be loopback, or an address the walk's browsers
+  // show themselves (live-sdp-privacy.mjs).
   const own = new Set([
     ...(await gatheredHosts(owner.page)),
     ...(await gatheredHosts(joiner.page)),
@@ -198,7 +202,9 @@ export async function carried(browser, owner, kind) {
   if (kind === "ntfy") PASSTHROUGH.push(new URL(server.url).origin);
   try {
     await setRoutes(owner.page, { carriers: [{ kind, url: server.url }] });
-    const { panel, code, link } = await startSession(owner.page);
+    const { panel, code, link } = await startSession(owner.page, {
+      sameMachine,
+    });
     await panel
       .getByRole("img", { name: /^Carrying codes: / })
       .waitFor({ timeout: 20_000 });
