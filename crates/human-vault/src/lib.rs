@@ -743,7 +743,7 @@ mod pact {
     /// must be reviewed and accepted rather than regenerated unread.
     #[test]
     fn envelope_wire_shape_is_pinned() {
-        let idk = ItemDataKey([3u8; 32]);
+        let idk = ItemDataKey::generate();
         let env = encrypt_item(&idk, b"secret-item", sentinel_ad()).unwrap();
         insta::assert_json_snapshot!(env, {
             ".nonce" => "[nonce]",

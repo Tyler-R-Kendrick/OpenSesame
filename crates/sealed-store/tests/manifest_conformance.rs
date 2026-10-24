@@ -36,7 +36,7 @@ fn pages_manifest_seals_entry_for_entry() {
 
     let dir = tempfile::tempdir().expect("tempdir");
     let root = init_store(dir.path(), &[]).expect("init store");
-    let key = ItemDataKey([7u8; 32]);
+    let key = ItemDataKey::generate();
     let outcome = seal_manifest(&root, &key, &entries, false).expect("seal manifest");
     assert_eq!(outcome.sealed, entries.len());
     assert!(outcome.skipped.is_empty(), "{:?}", outcome.skipped);
@@ -85,7 +85,7 @@ fn sealing_the_same_manifest_twice_changes_nothing() {
     let entries = parse_manifest(&manifest).expect("parse");
     let dir = tempfile::tempdir().expect("tempdir");
     let root = init_store(dir.path(), &[]).expect("init store");
-    let key = ItemDataKey([7u8; 32]);
+    let key = ItemDataKey::generate();
     seal_manifest(&root, &key, &entries, false).expect("first seal");
     let again = seal_manifest(&root, &key, &entries, false).expect("second seal");
     assert_eq!(again.sealed, 0);

@@ -127,7 +127,7 @@ mod tests {
     fn seals_entries_skips_existing_and_rejects_traversal() {
         let dir = tempfile::tempdir().unwrap();
         let root = init_store(dir.path(), &[]).unwrap();
-        let key = ItemDataKey([3u8; 32]);
+        let key = ItemDataKey::generate();
         root.insert(
             "Dev/existing",
             &Entry {
