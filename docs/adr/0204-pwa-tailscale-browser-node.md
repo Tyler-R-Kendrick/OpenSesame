@@ -115,8 +115,15 @@ wrapped. Its own message channel therefore grants nothing.
   the Worker, so a message posted or dispatched there reaches nothing. The
   Worker's `error` event only stops the node, which `stop()` already permits.
 - **The page's end of the port stays private.** It is kept only in `#private`
-  fields, beside `approve` and `approvePeer`, which are bound when the
-  controller is created, before the node is published.
+  fields, beside `assertCurrent`, `approve` and `approvePeer`, which are bound
+  when the controller is created, before the node is published.
+- **No reachable object holds a sender over the port.** Every member of the
+  controller and of `BrowserNodeRequests` that touches the port, the pending
+  requests or the host messages is `#private`, so at run time the controller
+  shows only the `TailscaleBrowserNode` methods. A native stream holds a frozen
+  channel that sends only its own `nativeHTTPStream`, `pullHTTP` and
+  `cancelHTTP`; the worker refuses a reused id, a pull out of sequence and a
+  command for a stream it does not hold.
 
 Residual risk: script that runs on this origin before the node starts can
 wrap `Worker`, `MessageChannel` or `MessagePort` and stand between the two.

@@ -152,3 +152,127 @@ it("keeps the peer egress decision it was created with", async () => {
     node.stop();
   }
 });
+
+/**
+ * What page code holding the controller reads at run time. TypeScript's
+ * `private` is not a boundary: only `#private` members are out of reach.
+ */
+function reach(node: ReturnType<typeof controller>["node"], name: string) {
+  return (
+    Object.getOwnPropertyDescriptor(node, name)?.value ??
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(node), name)?.value
+  );
+}
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+it("shows page code no member beyond the browser node port", async () => {
+  const { node } = controller();
+  try {
+    await start(node);
+    const surface = [
+      ...Object.getOwnPropertyNames(node),
+      ...Object.getOwnPropertyNames(Object.getPrototypeOf(node)),
+    ];
+    expect(surface.sort()).toEqual(
+      [
+        "authorization",
+        "captureNativeHTTP",
+        "constructor",
+        "forget",
+        "get",
+        "login",
+        "snapshot",
+        "start",
+        "stop",
+        "subscribe",
+      ].sort(),
+    );
+  } finally {
+    node.stop();
+  }
+});
+
+it("leaves no callback on the controller that posts a peer GET past a deny-all policy", async () => {
+  const { node } = controller(() => false);
+  try {
+    const worker = await start(node);
+    for (const data of [netmap, running]) worker.say(data);
+    await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));
+    await expect(node.get(approved)).rejects.toThrow(
+      "allow this tailnet service",
+    );
+    // Codex's path: open a stream with a check of our own, then reuse its post.
+    const requests = reach(node, "requests");
+    const request = { method: "GET", url: approved, headers: [], body: [] };
+    requests?.stream
+      ?.call(requests, request, new AbortController().signal, () => {})
+      .catch(() => {});
+    for (const entry of requests?.pending?.values() ?? [])
+      entry.options?.post?.({ kind: "get", id: 99, url: approved });
+    await settle();
+    expect(worker.received).not.toContainEqual(
+      expect.objectContaining({ kind: "get" }),
+    );
+  } finally {
+    node.stop();
+  }
+});
+
+it("takes host messages from no port and no caller but its own start's", async () => {
+  const write = vi.spyOn(nodeState, "writeBrowserNodeState");
+  const { node } = controller();
+  const forged = new MessageChannel();
+  try {
+    await start(node);
+    const turn = reach(node, "turn");
+    reach(node, "listen")?.call(
+      node,
+      forged.port1,
+      reach(node, "requests"),
+      turn,
+    );
+    forged.port2.postMessage(storage);
+    reach(node, "receive")?.call(node, storage, turn);
+    reach(node, "persist")?.call(node, storage.state, turn);
+    await settle();
+    expect(write).not.toHaveBeenCalled();
+  } finally {
+    forged.port1.close();
+    node.stop();
+  }
+});
+
+it("answers an egress decision only for the URL it decided", async () => {
+  const refused = "https://refused.example/";
+  const node = createBrowserNodeController({
+    assertCurrent() {},
+    approve: (url: string) => url.startsWith("https://allowed.example/"),
+    approvePeer: () => true,
+  });
+  try {
+    const worker = await start(node);
+    worker.say({ kind: "decision", id: 3, url: refused, method: "GET" });
+    await vi.waitFor(() =>
+      expect(worker.received).toContainEqual(
+        expect.objectContaining({ id: 3, allowed: false }),
+      ),
+    );
+    let reads = 0;
+    const forged = {
+      kind: "decision",
+      id: 3,
+      method: "GET",
+      get url() {
+        reads++;
+        return reads === 1 ? "https://allowed.example/" : refused;
+      },
+    };
+    reach(node, "apply")?.call(node, forged, reach(node, "turn"));
+    await settle();
+    expect(worker.received).not.toContainEqual(
+      expect.objectContaining({ url: refused, allowed: true }),
+    );
+  } finally {
+    node.stop();
+  }
+});
