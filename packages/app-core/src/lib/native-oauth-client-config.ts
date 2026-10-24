@@ -184,11 +184,7 @@ async function configuration(
   owner: NativeOAuthClientOwner,
 ): Promise<NativeConfiguration> {
   const { client_id, ...supplied } = input.parameters;
-<<<<<<< HEAD
   const parameters = normalizeNativeOAuthClientParameters(supplied);
-=======
-  const parameters = nativeOAuthClientParameters(supplied);
->>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
   NativeOAuthClientTarget.parse(parameters);
   if (
     input.method !== "oauth" ||

@@ -62,15 +62,8 @@ export function SettingsPageConnectPanels(props: Props) {
   const { provider, connection, nativeExperience, identityExperience } = props;
   if (provider.id === "tailscale" && !isConnectConnection(connection))
     return <TailscalePanels {...props} />;
-<<<<<<< HEAD
   // Linear composes default MCP and advanced GraphQL, and owns its saved routes.
   if (provider.id === "linear") return <ConnectPanels {...props} />;
-=======
-  // Linear keeps its own panels: the MCP authorization with the GraphQL OAuth
-  // app and API key as an advanced fallback, and a legacy record's custody.
-  if (provider.id === "linear" && !isConnectConnection(connection))
-    return <ConnectPanels {...props} />;
->>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
   // A native connector row created before the provider gained an AI contract
   // has no AI record. Keep that row on its native page: the AI form would show
   // an empty key over sealed custody and could orphan it on save.

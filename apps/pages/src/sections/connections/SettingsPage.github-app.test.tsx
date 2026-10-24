@@ -270,16 +270,7 @@ it("shows saved metadata without inventing access and recovers creation through 
   await userEvent.click(
     screen.getByRole("button", { name: "Remove GitHub App from this device" }),
   );
-<<<<<<< HEAD
   expect(confirm).toHaveBeenCalledTimes(1);
-=======
-  expect(readLocalGithubApp()).not.toBeNull();
-  await userEvent.click(
-    screen.getByRole("button", {
-      name: "Confirm removing the GitHub App from this device",
-    }),
-  );
->>>>>>> origin/claude/ecstatic-mayer-wbm2c3-live-named-candidates
   expect(readLocalGithubApp()).toBeNull();
   expect(
     screen.getByRole("button", { name: "Create GitHub App" }),
