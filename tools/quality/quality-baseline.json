@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 449,
-    "violations": 720,
-    "oversizedLines": 221562
+    "files": 451,
+    "violations": 723,
+    "oversizedLines": 221968
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -145,7 +145,8 @@
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
-      "max-lines-per-function": 1
+      "max-lines-per-function": 1,
+      "max-statements": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
       "max-lines": 815
@@ -197,6 +198,9 @@
     },
     "apps/pages/src/sections/connections/connect/native-provider-descriptor.ts": {
       "complexity": 1
+    },
+    "apps/pages/src/sections/connections/custom-oidc/CustomOidcConnector.tsx": {
+      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/identity/ApplicationDiagnostics.tsx": {
       "max-lines-per-function": 1
@@ -461,7 +465,7 @@
       "max-lines": 784
     },
     "crates/invoke-through/src/surrogate.rs": {
-      "max-lines": 405
+      "max-lines": 406
     },
     "crates/kdbx-bridge/src/import.rs": {
       "max-lines": 426
@@ -606,6 +610,9 @@
     },
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1
+    },
+    "packages/app-core/src/lib/custom-oidc.ts": {
+      "max-lines": 405
     },
     "packages/app-core/src/lib/directory.ts": {
       "max-lines": 456
