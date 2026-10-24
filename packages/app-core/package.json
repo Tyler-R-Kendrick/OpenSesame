@@ -74,7 +74,7 @@
     "@opensesame/wallet-budget": "workspace:*",
     "@opensesame/wallet-consent": "workspace:*",
     "@opensesame/webmcp": "workspace:*",
-    "@vercel/connect": "2.5.3",
+    "@vercel/connect": "2.2.0",
     "age-encryption": "0.3.1",
     "ai": "6.0.237",
     "effect": "4.0.5",

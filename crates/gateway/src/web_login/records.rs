@@ -114,6 +114,7 @@ mod tests {
             trace: None,
             decided_by: Some(0),
             composition: CompositionConfig::default(),
+            declaration: None,
             verdicts: Vec::new(),
             fold_truncated: None,
             resolved_by: None,

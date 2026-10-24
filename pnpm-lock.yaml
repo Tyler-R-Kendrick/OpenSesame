@@ -812,8 +812,8 @@ importers:
         specifier: workspace:*
         version: link:../webmcp
       '@vercel/connect':
-        specifier: 2.5.3
-        version: 2.5.3(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.6))(ai@6.0.237(zod@4.6.6))(better-auth@1.7.12(@opentelemetry/api@1.10.0)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.10)(@libsql/client@0.18.0)(@opentelemetry/api@1.10.0)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(mongodb@7.7.0(@aws-sdk/credential-providers@3.1156.0)(socks@2.8.10))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@4.1.11))
+        specifier: 2.2.0
+        version: 2.2.0(ai@6.0.237(zod@4.6.6))(better-auth@1.7.12(@opentelemetry/api@1.10.0)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.10)(@libsql/client@0.18.0)(@opentelemetry/api@1.10.0)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(mongodb@7.7.0(@aws-sdk/credential-providers@3.1156.0)(socks@2.8.10))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@4.1.11))
       age-encryption:
         specifier: 0.3.1
         version: 0.3.1
@@ -5991,31 +5991,28 @@ packages:
     peerDependencies:
       valibot: ^1.5.0
 
-  '@vercel/cli-config@0.3.2':
-    resolution: {integrity: sha512-m/CtROcNRVouwZNEcx7/W0T6zYMjZNzLqVB68xIVPEYI4PSPvdpBlxPqvsk+LpJlXcjN0DXG+jXd2T/ZbigifQ==}
+  '@vercel/cli-config@0.2.7':
+    resolution: {integrity: sha512-KeSN2HBp8puZrj7kVjSEneDi9yBqW4nAD9AnhGhdYjGNpHl7IkXZVb3HnNe0WWc5+20RlUtmAGWNPQ8qP5QBhQ==}
 
   '@vercel/cli-exec@1.0.1':
     resolution: {integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==}
     engines: {node: '>= 18'}
 
-  '@vercel/connect@2.5.3':
-    resolution: {integrity: sha512-d4Gb0o0WZ8crorBOxwAR1MzXLfOYfSCdRitBLeSTKPriimdJ4hrcwjXxgEcnYwXyemP0wDpKVV5pb4kdAGNjsQ==}
+  '@vercel/connect@2.2.0':
+    resolution: {integrity: sha512-5tcJoU/X3ejZY9luCuBMFpEvNkMnmYfrtbrqfG8N3/l4JKiNnGuI2Kzj6LBnazcbflNKneY6qaEpR9i6NqYkLw==}
     peerDependencies:
       '@ai-sdk/mcp': ^1 || ^2
-      '@auth/core': '>=0.41.3'
+      '@auth/core': '>=0.37.0'
       '@chat-adapter/slack': ^4.0.0
-      '@modelcontextprotocol/sdk': 1.32.1
       ai: ^6 || ^7.0.0-beta.0
       better-auth: '>=1.5.0'
-      eve: '>=0.39.1'
+      eve: '>=0.13.7'
     peerDependenciesMeta:
       '@ai-sdk/mcp':
         optional: true
       '@auth/core':
         optional: true
       '@chat-adapter/slack':
-        optional: true
-      '@modelcontextprotocol/sdk':
         optional: true
       ai:
         optional: true
@@ -6028,8 +6025,8 @@ packages:
     resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
     engines: {node: '>= 20'}
 
-  '@vercel/oidc@4.0.2':
-    resolution: {integrity: sha512-S/5IX4cY+UD9X3A9TTBejkd1JOXv/rDKjaAB8GaPglKav/D5BHsOlVGfiriNZ/UCMZznPe3THNL1HNgpA3ZFbA==}
+  '@vercel/oidc@3.8.8':
+    resolution: {integrity: sha512-aeq4/sgVh80zO6j2H+7FRfsG6NOXBrvzV1EEO8IdXPEJgwHIPakP+BFq3QmprsEQ18bIimds07kvaYhm2lehtg==}
     engines: {node: '>= 20'}
 
   '@vitejs/plugin-react@4.5.0':
@@ -14973,7 +14970,7 @@ snapshots:
     dependencies:
       valibot: 1.5.0(typescript@5.8.3)
 
-  '@vercel/cli-config@0.3.2':
+  '@vercel/cli-config@0.2.7':
     dependencies:
       xdg-app-paths: 5.5.1
       zod: 4.1.11
@@ -14982,19 +14979,18 @@ snapshots:
     dependencies:
       execa: 5.1.1
 
-  '@vercel/connect@2.5.3(@modelcontextprotocol/sdk@1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.6))(ai@6.0.237(zod@4.6.6))(better-auth@1.7.12(@opentelemetry/api@1.10.0)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.10)(@libsql/client@0.18.0)(@opentelemetry/api@1.10.0)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(mongodb@7.7.0(@aws-sdk/credential-providers@3.1156.0)(socks@2.8.10))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@4.1.11))':
+  '@vercel/connect@2.2.0(ai@6.0.237(zod@4.6.6))(better-auth@1.7.12(@opentelemetry/api@1.10.0)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.10)(@libsql/client@0.18.0)(@opentelemetry/api@1.10.0)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(mongodb@7.7.0(@aws-sdk/credential-providers@3.1156.0)(socks@2.8.10))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@4.1.11))':
     dependencies:
-      '@vercel/oidc': 4.0.2
+      '@vercel/oidc': 3.8.8
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.32.1(@cfworker/json-schema@4.1.1)(zod@4.6.6)
       ai: 6.0.237(zod@4.6.6)
       better-auth: 1.7.12(@opentelemetry/api@1.10.0)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.10)(@libsql/client@0.18.0)(@opentelemetry/api@1.10.0)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9))(mongodb@7.7.0(@aws-sdk/credential-providers@3.1156.0)(socks@2.8.10))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@4.1.11)
 
   '@vercel/oidc@3.2.0': {}
 
-  '@vercel/oidc@4.0.2':
+  '@vercel/oidc@3.8.8':
     dependencies:
-      '@vercel/cli-config': 0.3.2
+      '@vercel/cli-config': 0.2.7
       '@vercel/cli-exec': 1.0.1
       jose: 5.10.0
 
