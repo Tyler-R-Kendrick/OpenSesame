@@ -1,6 +1,6 @@
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
 import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
-import { ENDPOINTS, isString, overlapCast } from "@opensesame/os-domain";
+import { ENDPOINTS, overlapCast } from "@opensesame/os-domain";
 
 type HealthResponse = {
   health?: { ok?: boolean };
@@ -22,7 +22,7 @@ async function loadHostInput() {
   try {
     const stored = await browser.storage.local.get("hostApiBase");
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
-    const value = isString(stored.hostApiBase)
+    const value = typeof stored.hostApiBase === "string"
       ? await openFromRest(STORE, "hostApiBase", stored.hostApiBase)
       : null;
     input.value = value?.trim() ? value : DEFAULT_HOST;

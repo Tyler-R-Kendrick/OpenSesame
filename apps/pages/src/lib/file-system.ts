@@ -71,7 +71,8 @@ function pickerOptions(
   };
 }
 
-function download(blob: Blob, fileName: string): void {
+/** Download a Blob explicitly, without opening a save picker. */
+export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -116,7 +117,7 @@ export async function saveBlob(
       if (cancelled(error)) return "cancelled";
     }
   }
-  download(blob, fileName);
+  downloadBlob(blob, fileName);
   return "downloaded";
 }
 

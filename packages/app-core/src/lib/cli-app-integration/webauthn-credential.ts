@@ -111,7 +111,6 @@ export function cliAppWebAuthnSupported(
     credentials?.get instanceof Function
   );
 }
-
 function defaultCredentials(): CredentialCeremony | null {
   const container = hostCredentials();
   if (!container?.create || !container.get) return null;
@@ -164,8 +163,7 @@ export async function loadCliAppPasskeyReady(): Promise<CliAppPasskeyReady> {
 
 function isCredential(value: Credential | null): value is PublicKeyCredential {
   if (!value || value.type !== "public-key") return false;
-  // SAFETY: type "public-key" was checked above; WebAuthn's contract makes it a PublicKeyCredential.
-  const cred = value as PublicKeyCredential;
+  const cred = value as PublicKeyCredential; // type checked above
   return cred.rawId instanceof ArrayBuffer && cred.response instanceof Object;
 }
 
@@ -239,8 +237,7 @@ function assertionFromCredential(
       "The passkey did not match the one stored at pairing.",
     );
   }
-  // SAFETY: isCredential checked it; WebAuthn's get contract gives an AuthenticatorAssertionResponse.
-  const response = value.response as AuthenticatorAssertionResponse;
+  const response = value.response as AuthenticatorAssertionResponse; // isCredential checked
   if (
     !response.authenticatorData ||
     !response.clientDataJSON ||
@@ -309,8 +306,7 @@ export async function createCliAppPasskeyCredential(
     return failure("webauthn_cancelled", "Passkey creation was cancelled.");
   }
   const rawId = bytesOf(created.rawId);
-  // SAFETY: isCredential checked it; WebAuthn's create contract gives an AuthenticatorAttestationResponse.
-  const attestation = created.response as AuthenticatorAttestationResponse;
+  const attestation = created.response as AuthenticatorAttestationResponse; // isCredential checked
   const material = publicKeyMaterial(attestation);
   if (!material) {
     return failure(
@@ -382,13 +378,13 @@ export async function assertStoredCliAppPasskey(
 }
 
 /** The body the CLI's pairing endpoint takes to register this passkey. */
-export type CliAppWebAuthnRegisterPayload = Readonly<{
-  vaultSessionRootDigest: string;
-  humanProof: string;
-  credentialIdB64: string;
-  publicKeySpkiB64: string;
-  signCount: number;
-}>;
+export interface CliAppWebAuthnRegisterPayload {
+  readonly vaultSessionRootDigest: string;
+  readonly humanProof: string;
+  readonly credentialIdB64: string;
+  readonly publicKeySpkiB64: string;
+  readonly signCount: number;
+}
 
 export function cliAppWebAuthnRegisterPayload(
   vaultSessionRootDigest: string,
