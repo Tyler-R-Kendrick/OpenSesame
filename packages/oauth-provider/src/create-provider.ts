@@ -39,6 +39,7 @@ import {
   introspectionAllowed,
   revocationAllowed,
 } from "./lifetimes.js";
+import { FETCH_RESPONSE_BODY_LIMITS } from "./metadata/response-limits.js";
 import { SafeMetadataFetcher } from "./metadata/safe-fetcher.js";
 import {
   buildMtlsFeature,
@@ -247,10 +248,7 @@ function recordFromClientMetadata(
 }
 
 /**
- * Configure panva `oidc-provider` for the OpenSesame downstream issuer.
- *
- * Features: authorization_code (+ PKCE S256 required), refresh, client_credentials,
- * device_authorization, revocation, introspection, userinfo, PAR, resourceIndicators, dPoP.
+ * Configure the downstream issuer with PKCE and bounded remote metadata.
  * DCR/CIMD off by default; origin clients gated by OPENSESAME_ORIGIN_CLIENTS_ENABLED.
  */
 export function createOpenSesameProvider(
@@ -329,6 +327,7 @@ export function createOpenSesameProvider(
     renderError: pages.renderError,
     clients: staticClients,
     jwks,
+    fetchResponseBodyLimits: FETCH_RESPONSE_BODY_LIMITS,
     subjectTypes: ["pairwise"],
     pairwiseIdentifier: pairwiseCallback(pairwiseStore, clientStore),
     // `loadExistingGrant` is a documented runtime option this oidc-provider
