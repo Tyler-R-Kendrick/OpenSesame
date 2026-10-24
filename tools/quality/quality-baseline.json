@@ -97,9 +97,6 @@
     "apps/pages/src/modules/ai.password-reset/scan.ts": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/modules/networking.tailnet/browser/native-http-worker.test.ts": {
-      "max-lines": 409
-    },
     "apps/pages/src/modules/sharing.live/live-join-route-parts.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1

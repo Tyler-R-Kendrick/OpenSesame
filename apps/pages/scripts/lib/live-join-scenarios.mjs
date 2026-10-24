@@ -22,7 +22,9 @@ import {
   gatheredHosts,
   joinerAsks,
   joinerConnects,
+  joinerSessionSas,
   ownerAdmitsByHand,
+  ownerComparedSas,
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
@@ -113,10 +115,8 @@ export async function direct(browser, owner) {
     "a sealed request code",
   );
   const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
-  const ownerSas = (
-    await panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
+  const joinerSas = await joinerSessionSas(joiner.page);
+  const ownerSas = ownerComparedSas(panel);
   check(
     /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) && joinerSas === ownerSas,
     "both sides show the same session SAS",

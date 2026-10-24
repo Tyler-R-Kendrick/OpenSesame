@@ -65,9 +65,12 @@ export async function joinerAsks(page, { link, code, tabTo, focusIn }) {
     await tabTo(page, apply);
     await page.keyboard.press("Enter");
   }
-  const codeField = page.getByLabel("Code", { exact: true });
-  if (await codeField.count()) {
-    await tabTo(page, codeField);
+  // The form draws once the link is read (and the configuration applied):
+  // wait for it before asking whether it has a code field, as the pointer
+  // walk does, or an invite's Code is skipped and Ask to join stays disabled.
+  await page.getByLabel("Your name").waitFor({ timeout: 20_000 });
+  if (code) {
+    await tabTo(page, page.getByLabel("Code", { exact: true }));
     await page.keyboard.insertText(code.toLowerCase());
   }
   await tabTo(page, page.getByLabel("Your name"));

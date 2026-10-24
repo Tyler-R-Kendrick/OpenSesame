@@ -1,0 +1,41 @@
+--- a/cmd/tsconnect/wasm/wasm_js.go
++++ b/cmd/tsconnect/wasm/wasm_js.go
+@@ -175,9 +175,14 @@
+ 	}
+ 
+ 	nativePort := jsIPN.bindNativeHTTP(jsConfig.Get("nativeHTTP"))
++	peerPort := jsIPN.bindNativePeerGET(jsConfig.Get("peerTLS"))
+ 
+ 	return map[string]any{
+ 		"nativeHTTPPort": nativePort,
++		"nativePeerGETPort": peerPort,
++		"nativePeerGETReady": js.FuncOf(func(js.Value, []js.Value) any {
++			return jsIPN.peerGET != nil && jsIPN.peerGET.current()
++		}),
+ 		"nativeHTTPReady": js.FuncOf(func(js.Value, []js.Value) any {
+ 			return jsIPN.native != nil && jsIPN.native.current()
+ 		}),
+@@ -234,6 +239,7 @@
+ 
+ type jsIPN struct {
+ 	native     *nodeHTTP
++	peerGET    *nodePeerGET
+ 	dialer     *tsdial.Dialer
+ 	srv        *ipnserver.Server
+ 	lb         *ipnlocal.LocalBackend
+@@ -277,6 +283,7 @@
+ 			}
+ 		}()
+ 		i.observeNativeHTTP()
++		i.observeNativePeerGET()
+ 		log.Printf("NOTIFY: %+v", n)
+ 		if n.State != nil {
+ 			notifyState(*n.State)
+@@ -364,6 +371,7 @@
+ }
+ 
+ func (i *jsIPN) logout() {
++	i.closeNativePeerGET()
+ 	if i.native != nil {
+ 		i.native.cancel()
+ 	}

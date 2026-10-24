@@ -266,7 +266,7 @@ export async function joinerAsks(
   const choice = page.getByRole("checkbox", { name: /^Through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
-  const copy = page.getByRole("button", { name: "Copy your request code" });
+  const copy = page.getByRole("button", { name: "Copy your join request" });
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }
@@ -288,6 +288,9 @@ export function admitControl(root, name) {
   });
 }
 
+/** The session SAS each owner's panel compared before letting someone in. */
+const compared = new WeakMap();
+
 async function confirmSessionSas(panel) {
   // The owner's fingerprint is also `.live-sas`. The session string is the
   // one on the guest row, which is what the joiner is showing.
@@ -297,6 +300,16 @@ async function confirmSessionSas(panel) {
   if (!SAS_TEXT.test(text)) {
     throw new Error(`session SAS is not readable: ${text}`);
   }
+  compared.set(panel, text);
+}
+
+/**
+ * The session SAS the owner compared on the guest's row before "Yes, they
+ * match". The row shows it only while the guest is asking, so it is read
+ * there, the way a person compares it, and not after the guest is let in.
+ */
+export function ownerComparedSas(panel) {
+  return compared.get(panel) ?? "";
 }
 
 /**
@@ -312,7 +325,7 @@ export async function ownerAdmitsByHand(
   name,
   { admit = true } = {},
 ) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
   const match = panel.getByRole("button", {
     name: `Yes, they match for ${name}`,
@@ -342,5 +355,28 @@ export async function ownerAdmitsByHand(
 
 export async function joinerConnects(page, reply) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
-  await page.getByRole("button", { name: "Connect" }).click();
+  // Exact: the top bar's "More — all connected" also contains the word.
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+}
+
+/** Open a folded `<details>` the way a person does: by its summary. */
+export async function unfold(details) {
+  if ((await details.getAttribute("open")) === null)
+    await details.locator("summary").click();
+}
+
+/** The session SAS a joiner shows, folded under "Security code". */
+export async function joinerSessionSas(page) {
+  const verify = page.locator("details.live-verify");
+  await unfold(verify);
+  return (await verify.locator(".live-sas").innerText()).trim();
+}
+
+/** The owner's peer trust signal, folded on the live session's panel. */
+export async function unfoldPeerTrust(panel) {
+  await unfold(
+    panel.locator("details.live-advanced").filter({
+      has: panel.locator("summary", { hasText: "Peer trust signal" }),
+    }),
+  );
 }

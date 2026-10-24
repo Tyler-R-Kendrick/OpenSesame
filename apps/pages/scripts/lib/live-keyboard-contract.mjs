@@ -143,6 +143,15 @@ async function ownerStarts(page, tabTo) {
   await expect(panel.getByLabel("Share", { exact: true })).toHaveValue("items");
   await tabTo(page, panel.getByRole("checkbox", { name: "GitHub" }));
   await page.keyboard.press("Space");
+  // A session is open to anyone with the link unless the owner asks for the
+  // code too; this walk lets a person in by hand, so it asks for both.
+  await tabTo(page, panel.getByLabel("Who gets in", { exact: true }));
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(panel.getByLabel("Who gets in", { exact: true })).toHaveValue(
+    "invite",
+  );
   const start = panel.getByRole("button", { name: "Share this vault" });
   await expect(start).toBeEnabled();
   await tabTo(page, start);
@@ -369,10 +378,13 @@ export async function liveKeyboardContract({
     };
     try {
       await walk();
-    } catch {
+    } catch (error) {
       // One more walk. A loopback check that never completes is the flake
-      // this shard hits; a second pair of browsers gets a new socket.
-      console.error("live keyboard: connection did not form; trying once more");
+      // this shard hits; a second pair of browsers gets a new socket. Say
+      // what stopped the first, so a failure that is not that flake shows.
+      console.error(
+        `live keyboard: the first walk stopped (${error instanceof Error ? error.message.split("\n")[0] : String(error)}); trying once more`,
+      );
       await walk();
     }
   } finally {
