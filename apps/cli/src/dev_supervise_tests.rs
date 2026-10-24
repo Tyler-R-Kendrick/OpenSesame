@@ -310,3 +310,73 @@ fn what_is_said_when_a_signal_ends_the_run() {
         );
     }
 }
+
+/// Records each `write` it is handed, as an unbuffered stderr hands each one
+/// to the terminal as a write(2).
+#[derive(Default)]
+struct Writes {
+    calls: usize,
+    bytes: Vec<u8>,
+}
+
+impl Write for Writes {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.calls += 1;
+        self.bytes.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn each_line_goes_out_in_one_write() {
+    use std::os::unix::process::ExitStatusExt as _;
+
+    let ends = [
+        RunEnd::Tripped {
+            fence: "surrogate.misdirected".to_owned(),
+            revoked: 1,
+        },
+        RunEnd::Signalled {
+            signal: libc::SIGTERM,
+            revoked: 2,
+            killed: false,
+            child_started: true,
+        },
+        RunEnd::Signalled {
+            signal: libc::SIGHUP,
+            revoked: 0,
+            killed: true,
+            child_started: false,
+        },
+    ];
+    for end in &ends {
+        let mut out = Writes::default();
+        end.report_to(&mut out).unwrap();
+        let text = String::from_utf8(out.bytes).unwrap();
+        assert_eq!(out.calls, 1, "{text:?}");
+        assert!(text.starts_with("opensesame: "), "{text:?}");
+        assert!(
+            text.ends_with('\n') && text.matches('\n').count() == 1,
+            "{text:?}"
+        );
+    }
+    let mut out = Writes::default();
+    RunEnd::Exited(std::process::ExitStatus::from_raw(0))
+        .report_to(&mut out)
+        .unwrap();
+    assert_eq!(out.calls, 0);
+
+    for outcome in ["substituted", "refused"] {
+        let event = serde_json::json!({"env_var": "APP_PASSWORD", "outcome": outcome});
+        let line = login_line(&event).unwrap();
+        let mut out = Writes::default();
+        write_line(&mut out, &line).unwrap();
+        assert_eq!(out.calls, 1, "{line}");
+        assert_eq!(out.bytes, format!("{line}\n").into_bytes());
+    }
+    assert!(login_line(&serde_json::json!({"outcome": "pending"})).is_none());
+}
