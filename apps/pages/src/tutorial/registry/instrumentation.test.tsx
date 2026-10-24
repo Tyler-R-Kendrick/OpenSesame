@@ -50,6 +50,8 @@ const emptyVault: VaultSnapshot = {
 const vault: VaultFixture = { current: emptyVault };
 const connectors: ConnectorFixture = { current: [] };
 const noopStore = {
+  // A row's marks read the open tomb to find its queued rotation.
+  activeTomb: () => "personal",
   purgeItem: () => undefined,
   trashItem: () => undefined,
   toggleFavorite: () => undefined,

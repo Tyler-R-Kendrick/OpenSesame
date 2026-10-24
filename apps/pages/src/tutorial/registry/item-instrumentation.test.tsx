@@ -50,6 +50,7 @@ function login(overrides: Partial<AccountItem> = {}): AccountItem {
 type StubVault = { items: VaultItem[] };
 const state: StubVault = { items: [] };
 const store = {
+  activeTomb: () => "personal",
   toggleFavorite: () => undefined,
   trashItem: () => undefined,
   restoreItem: () => undefined,

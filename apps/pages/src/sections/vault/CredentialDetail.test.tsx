@@ -25,6 +25,7 @@ const vault = vi.hoisted(
   (): VaultFixture => ({ current: { items: [], folders: [] } }),
 );
 const store = vi.hoisted(() => ({
+  activeTomb: () => "personal",
   saveItem: vi.fn<(item: VaultItem) => Promise<void>>(),
 }));
 const copySecret = vi.hoisted(() => vi.fn());

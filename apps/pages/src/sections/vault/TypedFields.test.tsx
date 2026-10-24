@@ -47,6 +47,7 @@ const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
   useVaultStore: () => ({
+    activeTomb: () => "personal",
     saveItem,
     trashItem: vi.fn(),
     toggleFavorite: vi.fn(),
