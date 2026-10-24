@@ -32,6 +32,9 @@ export class BrowserNodeRequests {
   }
   private retirement: Promise<boolean> | null = null;
   private retired: ((closed: boolean) => void) | null = null;
+  // Truly private: the page reaches this object and its Worker, never these.
+  readonly #port: Pick<MessagePort, "postMessage">;
+  readonly #approvePeer: (url: string) => boolean;
   constructor(
     private readonly worker: Pick<Worker, "postMessage">,
     private readonly check: () => void,
@@ -78,7 +81,7 @@ export class BrowserNodeRequests {
     for (const resolve of [...this.readiness]) resolve(false);
     this.readiness.clear();
     try {
-      this.worker.postMessage({ kind: "closeHTTP" });
+      this.#port.postMessage({ kind: "closeHTTP" });
     } catch {
       this.retired?.(false);
       this.retired = null;
@@ -88,7 +91,7 @@ export class BrowserNodeRequests {
   get(url: string): Promise<{ status: number; text: string }> {
     this.lifetime.signal.throwIfAborted();
     this.check();
-    if (this.pending.size >= 4 || !this.connected() || !this.approvePeer(url))
+    if (this.pending.size >= 4 || !this.connected() || !this.#approvePeer(url))
       return Promise.reject(
         new Error(
           "Connect a browser node and allow this tailnet service first.",
@@ -120,7 +123,7 @@ export class BrowserNodeRequests {
           finish();
           try {
             this.assertCurrent();
-            if (!this.approvePeer(url))
+            if (!this.#approvePeer(url))
               throw new Error("The original peer grant ended.");
             resolve({ status: message.status, text: message.text });
           } catch {

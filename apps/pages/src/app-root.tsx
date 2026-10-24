@@ -222,11 +222,9 @@ function VaultApp() {
 
   useVaultLanding(status, location.pathname, navigate);
 
-  // Enrolling a guest's first key makes it durable in place. Keep its open
-  // ceremony while still resetting the tree for another tomb or decoy actor.
   const shell = (
     <AppVaultShell
-      key={JSON.stringify([tomb, decoy === true])}
+      key={JSON.stringify([openVaultKey, decoy === true])}
       slots={slots}
       wrappers={wrappers}
       routes={routes}

@@ -178,10 +178,6 @@ async function openVaultSettings(page) {
   await heading.waitFor({ timeout: 15000 });
 }
 
-export async function openGeneral(page) {
-  await openVaultSettings(page);
-}
-
 /** Open a Settings category without a full document navigation (keeps the vault open). */
 export async function openSettingsCategory(page, label) {
   if (label === "Keybindings" || label === "Vaults") {

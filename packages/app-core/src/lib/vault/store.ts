@@ -1668,7 +1668,6 @@ export class VaultStore {
   readPrefsSource = this.#preferencesApi.readPrefsSource;
 
   touch = this.#preferences.touch.bind(this.#preferences);
-
   #armIdleTimer(): void {
     this.#preferences.arm(this.#vaultKey !== null, () => this.lock());
   }

@@ -252,5 +252,4 @@ describe("GCP KMS symmetric decrypt resource", () => {
     expect(decryptRequests).toHaveLength(2);
     expect(decryptRequests[1]).toBe(decryptRequests[0]);
   });
-
 });

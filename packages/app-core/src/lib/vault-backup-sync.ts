@@ -265,6 +265,16 @@ export async function pushSavedForgeBackup(
   return result.commitSha;
 }
 
+function commitAfterWrite(
+  providerKey: string,
+  commitSha: string | null,
+): string | null {
+  // Bitbucket's relay confirms the write without a commit object. Every
+  // other provider must still return a real Git object ID.
+  if (providerKey === "bitbucket" && commitSha === null) return null;
+  return confirmedBackupCommit(commitSha);
+}
+
 function backupWriteCompletion(result: PutContentsResult) {
   return {
     close: result.close ?? (() => {}),
@@ -327,11 +337,7 @@ async function syncOneTarget(
       result.assertCurrent?.();
       commitSha = result.commitSha;
     }
-    // Bitbucket's relay confirms the write without a commit object. Every
-    // other provider must still return a real Git object ID.
-    if (!(providerKey === "bitbucket" && commitSha === null)) {
-      commitSha = confirmedBackupCommit(commitSha);
-    }
+    commitSha = commitAfterWrite(providerKey, commitSha);
     if (!targetOwner.current())
       throw new Error("The backup target changed during sync.");
     const current = readLocalBackupTarget(providerKey);

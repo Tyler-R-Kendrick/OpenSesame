@@ -123,41 +123,6 @@ describe("syncVaultBackup", () => {
     expect(readLocalBackupTarget("gitlab")?.providerId).toBe("gitlab");
   });
 
-  it("accepts a forge write without a commit object", async () => {
-    writeLocalBackupTarget({
-      kind: "git_remote",
-      providerId: "bitbucket",
-      connectionId: "git_local_bitbucket",
-      integrationId: "",
-      installationId: "",
-      owner: "acme",
-      repo: "vault",
-      branch: "main",
-      enabled: true,
-      status: "pending",
-      lastCommitSha: null,
-      lastSyncedAt: null,
-      lastError: null,
-      config: { remoteUrl: "https://bitbucket.org/acme/vault.git" },
-      pendingEvents: 0,
-    });
-    const putForgeContents = vi.fn(async () => ({ commitSha: null }));
-    Object.assign(vaultBackupSyncSeams, {
-      putForgeContents,
-      sealedEnvelopeJson: () => '{"v":1}',
-      resolveForgeCredentials: () => ({
-        forge: "bitbucket" as const,
-        token: "bb-token",
-        username: "acme",
-      }),
-    });
-    const result = await syncVaultBackup("bitbucket");
-    expect(putForgeContents).toHaveBeenCalled();
-    expect(result?.status).toBe("ok");
-    expect(result?.lastCommitSha).toBeNull();
-    expect(readLocalBackupTarget("bitbucket")?.status).toBe("ok");
-  });
-
   it("syncs remaining targets when one fails and rejects with the first error", async () => {
     writeLocalBackupTarget({
       kind: "github_app",

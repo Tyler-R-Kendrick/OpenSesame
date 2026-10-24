@@ -64,7 +64,15 @@ class BrowserNodeController implements TailscaleBrowserNode {
   private authorized = false;
   private requests: BrowserNodeRequests | null = null;
   private readonly retirement = new BrowserNodeRetirement();
-  constructor(private readonly policy: BrowserNodePolicy) {}
+  // Bound before the node is published; reassigning `policy` widens nothing.
+  readonly #approve: BrowserNodePolicy["approve"];
+  readonly #approvePeer: BrowserNodePolicy["approvePeer"];
+  /** This start's end of the only channel its worker trusts. */
+  #port: MessagePort | null = null;
+  constructor(private readonly policy: BrowserNodePolicy) {
+    this.#approve = policy.approve;
+    this.#approvePeer = policy.approvePeer;
+  }
   snapshot = () => this.view;
   authorization = () => {
     const turn = this.turn;
@@ -182,26 +190,17 @@ class BrowserNodeController implements TailscaleBrowserNode {
         artifacts.assets,
         new URL(import.meta.env.BASE_URL, location.origin),
       );
-      const originalRequests = this.requests;
-      this.worker.onmessage = (event) => {
-        const cleanup = HostMessage.safeParse(event.data);
-        if (cleanup.success && cleanup.data.kind === "closeHTTP") {
-          originalRequests.receive(cleanup.data);
-          return;
-        }
-        this.receive(event.data, turn);
-      };
+      this.listen(channel.port1, this.requests, turn);
       this.worker.onerror = () => this.fail(turn);
-      this.worker.postMessage({
-        kind: "start",
-        config: {
-          ...config,
-          state: stored.state,
-          nativeHTTP: options.nativeHTTP,
-          peerTLS: stored.record.peerTLS,
-          assets: {
-            ...config.assets,
-            ...options.asset,
+      this.worker.postMessage(
+        {
+          kind: "start",
+          config: {
+            ...config,
+            state: stored.state,
+            nativeHTTP: options.nativeHTTP,
+            peerTLS: stored.record.peerTLS,
+            assets: { ...config.assets, ...options.asset },
           },
         },
       });
