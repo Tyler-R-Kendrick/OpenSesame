@@ -5,6 +5,7 @@
 //! request id, is the connection event, sealed by the event path.
 
 use chrono::{DateTime, Utc};
+use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, SqlitePool};
 
 use super::store::stamp;
@@ -70,40 +71,66 @@ pub async fn record_mint(
     Ok(())
 }
 
-/// Deadlines in one organization that end after `since`, soonest first.
+/// The deadlines one lifecycle pass collects in one organization: up to
+/// `limit` still live at `now`, soonest first, then up to `limit` that lapsed
+/// after `since`, most recently lapsed first.
+///
+/// Two bounded reads, not one. A lapsed mint stays in the register through
+/// the grace window after its `expired` rung is published, and read together
+/// soonest first, a full pass of those rows would keep every newer credential
+/// out of collection: no notice while it lives, and no `expired` until the old
+/// rows leave the window a day later. Read apart, a live mint competes only
+/// with mints that end before it, and a lapsed one only with mints that lapsed
+/// after it.
 ///
 /// # Errors
 ///
 /// Returns an error when storage fails.
-pub async fn mints_ending_after(
+pub async fn mints_to_scan(
     pool: &SqlitePool,
     organization_id: &str,
+    now: DateTime<Utc>,
     since: DateTime<Utc>,
     limit: i64,
 ) -> Result<Vec<MintDeadline>> {
     ensure_schema(pool).await?;
-    let rows = sqlx::query(
+    let now = stamp(now);
+    let live = sqlx::query(
         "SELECT grant_id, connection_id, organization_id, expires_at FROM aws_sts_mints \
-         WHERE organization_id = ? AND expires_at > ? ORDER BY expires_at ASC LIMIT ?",
+         WHERE organization_id = ? AND expires_at > ? \
+         ORDER BY expires_at ASC, grant_id ASC LIMIT ?",
     )
     .bind(organization_id)
-    .bind(stamp(since))
+    .bind(&now)
     .bind(limit)
     .fetch_all(pool)
     .await?;
-    rows.iter()
-        .map(|row| {
-            let expires_at: String = row.try_get("expires_at")?;
-            Ok(MintDeadline {
-                grant_id: row.try_get("grant_id")?,
-                connection_id: row.try_get("connection_id")?,
-                organization_id: row.try_get("organization_id")?,
-                expires_at: DateTime::parse_from_rfc3339(&expires_at)
-                    .map_err(|_| {
-                        crate::BrokerError::Invalid("stored deadline is unreadable".into())
-                    })?
-                    .with_timezone(&Utc),
-            })
-        })
-        .collect()
+    let lapsed = sqlx::query(
+        "SELECT grant_id, connection_id, organization_id, expires_at FROM aws_sts_mints \
+         WHERE organization_id = ? AND expires_at > ? AND expires_at <= ? \
+         ORDER BY expires_at DESC, grant_id DESC LIMIT ?",
+    )
+    .bind(organization_id)
+    .bind(stamp(since))
+    .bind(&now)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+    live.iter().chain(&lapsed).map(deadline).collect()
 }
+
+fn deadline(row: &SqliteRow) -> Result<MintDeadline> {
+    let expires_at: String = row.try_get("expires_at")?;
+    Ok(MintDeadline {
+        grant_id: row.try_get("grant_id")?,
+        connection_id: row.try_get("connection_id")?,
+        organization_id: row.try_get("organization_id")?,
+        expires_at: DateTime::parse_from_rfc3339(&expires_at)
+            .map_err(|_| crate::BrokerError::Invalid("stored deadline is unreadable".into()))?
+            .with_timezone(&Utc),
+    })
+}
+
+#[cfg(test)]
+#[path = "register_tests.rs"]
+mod tests;

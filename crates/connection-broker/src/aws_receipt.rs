@@ -55,8 +55,9 @@ impl ConnectionBroker {
         Ok(())
     }
 
-    /// Minted AWS credentials in one organization still to expire after
-    /// `since`, for the lifecycle scanner.
+    /// Minted AWS credentials in one organization for one lifecycle pass: up
+    /// to `limit` live at `now`, soonest first, and up to `limit` lapsed after
+    /// `since`, most recently lapsed first ([`register::mints_to_scan`]).
     ///
     /// # Errors
     ///
@@ -64,9 +65,10 @@ impl ConnectionBroker {
     pub async fn aws_sts_mint_deadlines(
         &self,
         organization_id: &OrganizationId,
+        now: DateTime<Utc>,
         since: DateTime<Utc>,
         limit: i64,
     ) -> Result<Vec<MintDeadline>> {
-        register::mints_ending_after(&self.pool, &organization_id.to_string(), since, limit).await
+        register::mints_to_scan(&self.pool, &organization_id.to_string(), now, since, limit).await
     }
 }

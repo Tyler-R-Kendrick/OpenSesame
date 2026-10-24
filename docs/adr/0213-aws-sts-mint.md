@@ -99,7 +99,12 @@ credential STS was built to derive from.
    is on the alert ladder, so subscribers hear `lifecycle.expiry.expired` when
    it lapses; a credential that lives under a day reaches `urgent` on its first
    pass. It never auto-responds: nothing renews a minted credential; the agent
-   that needs another mints again.
+   that needs another mints again. A lapsed mint stays in the register for a
+   day after its deadline, so each pass reads the register twice, each read
+   bounded at 512 per organization: live mints soonest first, and lapsed ones
+   most recently lapsed first. Mints whose expiry was already published never
+   crowd a live or newly lapsed one out of a pass; one is missed only when
+   more than 512 in its organization lapse after it before the next pass.
 
 ## Consequences
 

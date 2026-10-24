@@ -62,8 +62,9 @@ async fn a_mint_records_its_receipt_and_deadline_and_no_source_material() {
     ] {
         assert!(!detail.contains(leaked), "{leaked} in an event");
     }
+    let now = Utc::now();
     let deadlines = broker
-        .aws_sts_mint_deadlines(&organization, Utc::now(), 10)
+        .aws_sts_mint_deadlines(&organization, now, now, 10)
         .await
         .unwrap();
     assert_eq!(deadlines.len(), 1);
