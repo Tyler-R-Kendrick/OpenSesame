@@ -1,3 +1,4 @@
+import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
 /** @vitest-environment jsdom */
 import {
   configureLocalApplication,
@@ -23,18 +24,8 @@ let directory: LocalDirectory;
 beforeEach(async () => {
   tomb = `registration-ui-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("navigator", {
-    locks: {
-      request: <T,>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   directory = { version: 2, revision: 0, entries: [], memberships: [] };
   for (const kind of ["person", "organization", "application"] as const)
