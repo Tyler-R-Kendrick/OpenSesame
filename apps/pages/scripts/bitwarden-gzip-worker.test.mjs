@@ -149,6 +149,7 @@ const {createContext,SourceTextModule}=require("node:vm");
 const context=createContext({
  AbortController,AbortSignal,Blob,crypto,console,DecompressionStream,fetch,
  Headers,Request,Response,ReadableStream,TransformStream,TextDecoder,TextEncoder,
+ location:new URL(workerData.url),
  Uint8Array,ArrayBuffer,DataView,URL,setTimeout,clearTimeout,
  WebAssembly:new Proxy(WebAssembly,{get(target,key){
   if(key!=="instantiate")return target[key];
@@ -156,8 +157,6 @@ const context=createContext({
  }})
 },{codeGeneration:{strings:false,wasm:true}});
 context.self=context;
-// A dedicated Worker's own location: the script URL it was started from.
-context.location=new URL(workerData.url);
 context.postMessage=message=>parentPort.postMessage(message);
 context.close=()=>parentPort.close();
 const modules=new Map();
@@ -175,9 +174,7 @@ async function load(url){
  const module=await load(workerData.url);
  await module.link((specifier,parent)=>load(new URL(specifier,parent.identifier).href));
  await module.evaluate();
- // A message from another origin is dropped; the parent's arrive with origin "".
- context.onmessage({origin:"https://foreign.example.test",data:{type:"free",id:0}});
- parentPort.on("message",data=>context.onmessage({origin:"",data}));
+ parentPort.on("message",data=>context.onmessage({data,origin:new URL(workerData.url).origin}));
  parentPort.postMessage({type:"ready"});
 })().catch(error=>{throw error;});
 `;
@@ -336,8 +333,9 @@ it.each(["corrupt", "truncated", "raw-pin"])(
   "rejects %s actual HTTP delivery before WASM instantiation",
   async (mode) => {
     const http = await serve(mode);
+    let worker;
     try {
-      const worker = await compiledWorker(http, {
+      worker = await compiledWorker(http, {
         apiUrl: "https://api.example.com",
         identityUrl: "https://identity.example.com",
       });
@@ -354,6 +352,7 @@ it.each(["corrupt", "truncated", "raw-pin"])(
         ),
       );
     } finally {
+      await worker?.dispose();
       await http.close();
     }
   },
