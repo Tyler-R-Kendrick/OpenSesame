@@ -1,11 +1,19 @@
-/** @vitest-environment jsdom */
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+/** @vitest-environment jsdom */
+import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
+import { kvForgetAll } from "@opensesame/app-core/lib/kv.js";
 import { bindNativeBrowserPolicyOrigin } from "@opensesame/app-core/lib/native-browser-policy.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  closeGenuineRuntimeFixture,
+  genuineRuntimeFixture,
+} from "../../../modules/connectors.external/genuine-runtime.test-support.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
+import { nativeSettingsDescriptor } from "./NativeConnectorPanels.js";
 import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
 import { nativeUiController } from "./native-connector-ui.test-support.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
@@ -15,6 +23,7 @@ afterEach(cleanup);
 function linearMcpDescriptor(
   available: boolean,
   reason?: string,
+  inactiveReason?: string,
 ): NativeConnectorDescriptor {
   const plan = connectPlan("linear");
   if (!plan) throw new Error("Missing compiled Linear contract");
@@ -22,7 +31,7 @@ function linearMcpDescriptor(
     callbackUrl: "https://app.example/auth/native-connector.html",
     apiKey: { available: false },
     oauth: { available: false },
-    mcp: { available, reason, actor: "user" },
+    mcp: { available, reason, inactiveReason, actor: "user" },
   });
   // The existing new-Linear settings route selects MCP; advanced OAuth/key
   // configuration retains its own owner and is not promoted by this test.
@@ -60,7 +69,7 @@ describe("compiled MCP activation guidance", () => {
       );
       expect(
         screen.getByRole("img", {
-          name: "Linear: External connectors inactive",
+          name: "Linear: Connection not active",
         }),
       ).toBeTruthy();
       expect(
@@ -124,6 +133,7 @@ describe("compiled MCP activation guidance", () => {
       const descriptor = linearMcpDescriptor(
         false,
         "Operator policy requires a different MCP endpoint.",
+        "Open your own vault to connect this provider.",
       );
       expect(descriptor.methods[0]?.unavailableReason).toBe(
         "Operator policy requires a different MCP endpoint.",
@@ -145,7 +155,11 @@ describe("compiled MCP activation guidance", () => {
         callbackUrl: "https://app.example/auth/native-connector.html",
         apiKey: { available: false },
         oauth: { available: false },
-        mcp: { available: false, actor: "user" },
+        mcp: {
+          available: false,
+          inactiveReason: "Open your own vault to connect this provider.",
+          actor: "user",
+        },
       });
       const mcp = descriptor.methods.find((entry) => entry.id === "mcp");
       expect(mcp?.available).toBe(false);
@@ -162,4 +176,92 @@ describe("compiled MCP activation guidance", () => {
       release();
     }
   });
+});
+
+it("uses the actual guest, protected and locked vault guard for the displayed prerequisite", async () => {
+  const release = bindNativeBrowserPolicyOrigin(() => "https://app.example");
+  const provider = catalogProvider("linear");
+  if (!provider) throw new Error("Missing compiled Linear provider");
+  try {
+    await closeGenuineRuntimeFixture();
+    kvForgetAll();
+    await vaultStore.createGuest();
+    expect(vaultStore.isGenuineSession()).toBe(false);
+    const guest = nativeSettingsDescriptor(provider);
+    if (!guest) throw new Error("Missing native Linear descriptor");
+    expect(guest.methods[0]).toMatchObject({
+      available: false,
+      runtimeAvailable: false,
+      unavailableKind: "runtime-inactive",
+    });
+    const controller = nativeUiController();
+    const rendered = render(
+      createElement(
+        MemoryRouter,
+        null,
+        createElement(NativeConnectorForm, {
+          descriptor: guest,
+          controller,
+          onChanged: vi.fn(),
+          onFlash: vi.fn(),
+        }),
+      ),
+    );
+    expect(
+      screen.getByText(/Open your own vault to connect this provider/),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/Enable External connectors in Settings › Features/),
+    ).toBeNull();
+    expect(
+      screen.getByRole("img", { name: "Linear: Connection not active" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Sign in to Linear" }),
+    ).toBeNull();
+    expect(controller.connect).not.toHaveBeenCalled();
+    rendered.unmount();
+
+    await genuineRuntimeFixture();
+    expect(vaultStore.isGenuineSession()).toBe(true);
+    const protectedVault = nativeSettingsDescriptor(provider);
+    if (!protectedVault) throw new Error("Missing native Linear descriptor");
+    expect(protectedVault.methods[0]?.available).toBe(false);
+    expect(protectedVault.methods[0]?.unavailableReason).toContain(
+      "Settings › Features",
+    );
+    render(
+      createElement(
+        MemoryRouter,
+        null,
+        createElement(NativeConnectorForm, {
+          descriptor: protectedVault,
+          controller,
+          onChanged: vi.fn(),
+          onFlash: vi.fn(),
+        }),
+      ),
+    );
+    expect(
+      screen.getByText(/Enable External connectors in Settings › Features/),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/Open your own vault to connect this provider/),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Sign in to Linear" }),
+    ).toBeNull();
+    expect(controller.connect).not.toHaveBeenCalled();
+
+    vaultStore.lock();
+    expect(vaultStore.isGenuineSession()).toBe(false);
+    expect(
+      nativeSettingsDescriptor(provider)?.methods[0]?.unavailableReason,
+    ).toContain("Open your own vault");
+  } finally {
+    cleanup();
+    await closeGenuineRuntimeFixture();
+    kvForgetAll();
+    release();
+  }
 });

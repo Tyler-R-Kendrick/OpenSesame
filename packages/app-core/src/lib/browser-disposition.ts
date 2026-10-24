@@ -51,7 +51,7 @@ export const UNAVAILABLE_LABEL = {
   companion: "Desktop app required",
   "refuses-browser": "Provider blocks browsers",
   "driver-pending": "Not built yet",
-  "runtime-inactive": "External connectors inactive",
+  "runtime-inactive": "Connection not active",
   "no-key-check": "No way to check a key",
   "no-contract": "No browser connection",
   policy: "Not offered",
