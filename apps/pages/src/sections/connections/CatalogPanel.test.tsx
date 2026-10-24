@@ -40,13 +40,15 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   // Nothing leads to a page that does not exist: the catalog's own tiles are
   // its only links.
   expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();
-  const stripe = container.querySelector("#catalog-stripe");
-  // A catalog entry Vercel Connect cannot broker is no link at all, and says
-  // so with a StatusMark glyph — the sentence is its name, not a pill.
-  expect(stripe?.querySelector("a")).toBeNull();
-  const blocked = stripe?.querySelector(".conn-tile__go title");
-  expect(blocked?.textContent).toBe("No way to check a key");
-  expect(stripe?.textContent).not.toMatch(/Not connectable/);
+  // Stripe's key is now checked, so its tile connects; PayPal publishes no
+  // browser contract. A catalog entry no browser road reaches is no link at
+  // all, and says so with a StatusMark glyph — the sentence is its name, not
+  // a pill.
+  const paypal = container.querySelector("#catalog-paypal");
+  expect(paypal?.querySelector("a")).toBeNull();
+  const blocked = paypal?.querySelector(".conn-tile__go title");
+  expect(blocked?.textContent).toBe("No public browser contract");
+  expect(paypal?.textContent).not.toMatch(/Not connectable/);
 });
 
 it("offers BYO AI through the custom entry in the add builder, not a browse tile", () => {
