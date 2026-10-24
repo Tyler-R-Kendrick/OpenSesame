@@ -257,6 +257,12 @@ it("shows saved metadata without inventing access and recovers creation through 
   await userEvent.click(
     screen.getByRole("button", { name: "Remove GitHub App from this device" }),
   );
+  expect(readLocalGithubApp()).not.toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Confirm removing the GitHub App from this device",
+    }),
+  );
   expect(readLocalGithubApp()).toBeNull();
   expect(
     screen.getByRole("button", { name: "Create GitHub App" }),
