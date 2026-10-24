@@ -40,7 +40,6 @@ import { GateHost } from "./tutorial/gate-seat.js";
 import {
   type VaultStatus,
   useAfterUnlock,
-  useOpenVaultKey,
   useRotationQueue,
   useVaultLanding,
 } from "./app-root-hooks.js";
@@ -200,7 +199,7 @@ function Fallback() {
 
 function VaultApp() {
   const slots = useContext(AppSlotsContext);
-  const { status, tomb, guest } = slots.useVault();
+  const { status, tomb, guest, decoy } = slots.useVault();
   const ceremonyActive = useSyncExternalStore(
     unlockCeremonyStore.subscribe,
     unlockCeremonyStore.getSnapshot,
@@ -222,11 +221,12 @@ function VaultApp() {
   );
 
   useVaultLanding(status, location.pathname, navigate);
-  const shellKey = useOpenVaultKey(tomb, guest === true);
 
+  // Enrolling a guest's first key makes it durable in place. Keep its open
+  // ceremony while still resetting the tree for another tomb or decoy actor.
   const shell = (
     <AppVaultShell
-      key={shellKey}
+      key={JSON.stringify([tomb, decoy === true])}
       slots={slots}
       wrappers={wrappers}
       routes={routes}

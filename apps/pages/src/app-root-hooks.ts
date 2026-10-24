@@ -139,5 +139,6 @@ export type VaultStatus = {
   status: string;
   tomb?: string;
   guest?: boolean;
+  decoy?: boolean;
   items?: readonly VaultItem[];
 };
