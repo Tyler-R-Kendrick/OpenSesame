@@ -11,8 +11,10 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
+use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{Caller, Lookup, Platform};
@@ -46,13 +48,26 @@ pub struct Fixture {
 }
 
 fn write_script(path: &Path, body: &str, mode: u32) {
-    // Sync before close: a stub exec'd the moment after it is written can
-    // otherwise meet `ETXTBSY` on a busy CI filesystem.
-    let mut file = std::fs::File::create(path).expect("write stub");
-    std::io::Write::write_all(&mut file, format!("#!/bin/sh\n{body}\n").as_bytes())
-        .and_then(|()| file.sync_all())
+    // A child writes the stub, never a descriptor of this process. While this
+    // process holds a file open for writing, any test thread that forks to
+    // start a program hands that descriptor to its child until the child
+    // execs, and exec'ing the stub fails with `ETXTBSY` meanwhile; syncing
+    // before close does not shorten that window. The pipe to the child is
+    // close-on-exec, so no other child keeps it. `cat` is named by its path:
+    // a test may have pointed this process's `PATH` at fixture directories.
+    let mut writer = Command::new("/bin/sh")
+        .args(["-c", "/bin/cat > \"$1\"", "sh"])
+        .arg(path)
+        .stdin(Stdio::piped())
+        .spawn()
         .expect("write stub");
-    drop(file);
+    writer
+        .stdin
+        .take()
+        .expect("stub writer stdin")
+        .write_all(format!("#!/bin/sh\n{body}\n").as_bytes())
+        .expect("write stub");
+    assert!(writer.wait().expect("write stub").success(), "write stub");
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).expect("chmod stub");
 }
 
@@ -226,3 +241,6 @@ impl Drop for Fixture {
         let _ = std::fs::remove_dir_all(&self.root);
     }
 }
+
+#[cfg(test)]
+mod tests;
