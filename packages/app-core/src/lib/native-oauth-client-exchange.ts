@@ -121,10 +121,11 @@ function exchangeForm(
     redirect_uri: pending.redirectUri,
   });
   let basic: string | undefined;
-  if (target.token_auth_method === "client_secret_basic")
+  const relay = target.token_relay_url !== undefined;
+  if (!relay && target.token_auth_method === "client_secret_basic")
     basic = btoa(`${encoded(target.clientId)}:${encoded(secret ?? "")}`);
   else form.set("client_id", target.clientId);
-  if (target.token_auth_method === "client_secret_post")
+  if (!relay && target.token_auth_method === "client_secret_post")
     form.set("client_secret", secret ?? "");
   if (target.resource && target.resource_parameter !== "omit")
     form.set("resource", target.resource);
@@ -221,17 +222,13 @@ export async function exchangeNativeOAuthClient(
       throw new NativeOAuthError("expired");
   };
   const { form, basic } = exchangeForm(target, pending, claim.code, secret);
+  const endpoint = target.token_relay_url ?? target.token_endpoint;
   const release = markNativeOAuthMutationInFlight(id, claim.obligation.id);
   try {
     const response = await nativeOAuthHttp(
-      target.token_endpoint,
+      endpoint,
       form,
-      authenticatedTransport(
-        owner.transport,
-        target.token_endpoint,
-        basic,
-        guard,
-      ),
+      authenticatedTransport(owner.transport, endpoint, basic, guard),
     );
     await recordDefinitiveRejection(claim, response);
     const receipt = issued(response.body, response.status, pending);

@@ -12,6 +12,10 @@ fn ipv4_is_blocked(ip: Ipv4Addr) -> bool {
         || ip.is_unspecified()
 }
 
+// These are hostname suffixes, not file extensions: `.local` and `.lan` are
+// case-folded mDNS/home-network zones and `lower` is already
+// ASCII-lowercased, so the case-sensitive suffix comparison is intended.
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 pub(crate) fn host_is_private(url: &Url) -> bool {
     match url.host() {
         None => true,

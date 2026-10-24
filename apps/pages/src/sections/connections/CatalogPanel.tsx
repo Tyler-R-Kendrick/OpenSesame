@@ -120,7 +120,7 @@ export function CatalogPanel({
           className="icon-btn icon-btn--sm"
           aria-label="Add a custom connection"
           title="Add a custom connection"
-          to={connectorPath("byo-ai")}
+          to="/connections/custom-oidc"
         >
           <IconPlus size={16} />
         </Link>
