@@ -1,5 +1,5 @@
 /**
- * List / create GitHub repos via the local App + Connect relay (ADR 0090).
+ * List / create GitHub repositories directly with the locally sealed App key.
  * Host OAuth listing remains a supplement when a connection exists.
  */
 import {
@@ -9,9 +9,11 @@ import {
   overlapCast,
   readString,
 } from "@opensesame/os-domain";
-import { readBoundedObject } from "./bounded-response.js";
 import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
-import { githubAppRelayBase } from "./github-app-relay.js";
+import {
+  type GithubRepositoryOutcome as RepositoryOutcome,
+  directGithubAppRepositoryRequest,
+} from "./github-app-repos-direct.js";
 
 export type AppRepoSummary = {
   fullName: string;
@@ -29,12 +31,6 @@ export type AppInstallAccount = {
   accountType: string;
 };
 
-type RelayOutcome = {
-  ok: boolean;
-  status: number;
-  payload: JsonObject;
-};
-
 function toRepo(
   raw: JsonObject,
   install: AppInstallAccount,
@@ -49,45 +45,8 @@ function toRepo(
     defaultBranch: readString(raw.defaultBranch) || "main",
     installationId: install.installationId,
     accountLogin: install.accountLogin,
-    accountType: install.accountType,
+    accountType: readString(raw.accountType) || install.accountType,
   };
-}
-
-async function postRelayDefault(
-  path: string,
-  body: JsonObject,
-): Promise<RelayOutcome> {
-  const base = githubAppRelayBase();
-  if (base === "") {
-    return {
-      ok: false,
-      status: 0,
-      payload: { message: "Relay not configured" },
-    } satisfies RelayOutcome;
-  }
-  const response = await fetch(`${base}${path}`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  let payload: JsonObject;
-  try {
-    payload = overlapCast(await readBoundedObject(response, 262_144, 30_000));
-  } catch {
-    return {
-      ok: false,
-      status: response.status,
-      payload: { message: "Could not read the GitHub App relay response." },
-    } satisfies RelayOutcome;
-  }
-  return {
-    ok: response.ok,
-    status: response.status,
-    payload,
-  } satisfies RelayOutcome;
 }
 
 type AppCredentials = {
@@ -113,7 +72,8 @@ function credentialsDefault(): AppCredentials | null {
 
 export const githubAppRepoSeams = {
   credentials: credentialsDefault,
-  postRelay: postRelayDefault,
+  /** Compatibility operation-port name; the default sends only direct GitHub REST. */
+  postRelay: directGithubAppRepositoryRequest,
 };
 
 export type InstallationRepoList = {
@@ -130,36 +90,39 @@ export async function listGithubAppInstallationRepos(): Promise<InstallationRepo
       error: "Unlock the vault to list repositories for this App.",
     };
   }
+  const { ok, payload }: RepositoryOutcome = await githubAppRepoSeams.postRelay(
+    "/api/github-app/installation-repos",
+    { appId: creds.appId, pem: creds.pem },
+  );
+  if (!ok)
+    return {
+      repositories: [],
+      error:
+        readString(payload.message) ||
+        "Could not list repositories for the GitHub App install.",
+    };
   const out: AppRepoSummary[] = [];
   const seen = new Set<string>();
-  let error: string | null = null;
-  for (const install of creds.installs) {
-    const { ok, payload } = await githubAppRepoSeams.postRelay(
-      "/api/github-app/installation-repos",
-      {
-        appId: creds.appId,
-        pem: creds.pem,
-        installationId: install.installationId,
-      },
+  const error = readString(payload.error) ?? null;
+  const rows = Array.isArray(payload.repositories) ? payload.repositories : [];
+  for (const item of rows) {
+    if (!isTypeofObject(item) || item === null) continue;
+    const raw: JsonObject = overlapCast(item);
+    const fullName =
+      readString(raw.fullName) ?? readString(raw.full_name) ?? "";
+    const install = creds.installs.find((row) =>
+      isString(raw.installationId)
+        ? row.installationId === raw.installationId
+        : row.accountLogin.toLowerCase() ===
+          fullName.split("/")[0]?.toLowerCase(),
     );
-    if (!ok) {
-      error =
-        (isString(payload.message) ? payload.message : null) ||
-        "Could not list repositories for the GitHub App install.";
-      continue;
-    }
-    const rows = Array.isArray(payload.repositories)
-      ? payload.repositories
-      : [];
-    for (const item of rows) {
-      if (!isTypeofObject(item) || item === null) continue;
-      const mapped = toRepo(overlapCast(item), install);
-      if (!mapped || !mapped.private) continue;
-      const key = mapped.fullName.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(mapped);
-    }
+    if (!install) continue;
+    const mapped = toRepo(raw, install);
+    if (!mapped || !mapped.private) continue;
+    const key = mapped.fullName.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(mapped);
   }
   return { repositories: out, error };
 }
