@@ -104,6 +104,7 @@ describe("MODULE_OWNERSHIP", () => {
       expect(isKnownCapability(owner)).toBe(true);
     }
     expect(PUBLIC_FILE_OWNERSHIP["icon.svg"]).toBeNull();
+    expect(PUBLIC_FILE_OWNERSHIP["save-button.js"]).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["os-runtime-config.json"]).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["security-profile.json"]).toBeNull();
     expect(PUBLIC_FILE_OWNERSHIP["auth.js"]).toBe("identity.site-broker");
