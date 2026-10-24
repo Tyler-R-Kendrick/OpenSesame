@@ -1,0 +1,150 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": [
+            ".sw--method:has-text(\"Authenticator app\")",
+            "Add"
+          ]
+        },
+        {
+          "report": "[role=dialog] .steps__seg.is-now .steps__label"
+        },
+        {
+          "press": "Use a PIN instead"
+        },
+        {
+          "fill": {
+            "label": "PIN",
+            "text": "48291037"
+          }
+        },
+        {
+          "fill": {
+            "label": "Confirm PIN",
+            "text": "48291037"
+          }
+        },
+        {
+          "shot": "desktop-key"
+        },
+        {
+          "press": "Set PIN"
+        },
+        {
+          "settle": 15000
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            "[role=dialog] [aria-label=\"Scan to add vault MFA\"]"
+          ]
+        },
+        {
+          "report": "[role=dialog] .steps__seg.is-now .steps__label"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "report": ".sw--method"
+        },
+        {
+          "shot": "desktop-after-set-pin"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": [
+            ".sw--method:has-text(\"Authenticator app\")",
+            "Add"
+          ]
+        },
+        {
+          "report": "[role=dialog] .steps__seg.is-now .steps__label"
+        },
+        {
+          "press": "Use a PIN instead"
+        },
+        {
+          "fill": {
+            "label": "PIN",
+            "text": "48291037"
+          }
+        },
+        {
+          "fill": {
+            "label": "Confirm PIN",
+            "text": "48291037"
+          }
+        },
+        {
+          "shot": "phone-key"
+        },
+        {
+          "press": "Set PIN"
+        },
+        {
+          "settle": 15000
+        },
+        {
+          "count": [
+            "[role=dialog]",
+            "[role=dialog] [aria-label=\"Scan to add vault MFA\"]"
+          ]
+        },
+        {
+          "report": "[role=dialog] .steps__seg.is-now .steps__label"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "report": ".sw--method"
+        },
+        {
+          "shot": "phone-after-set-pin"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-after-set-pin",
+      "width": 1280,
+      "title": "Settings \u203a Security, guest presses Add on Authenticator app, then Set PIN \u2014 1280 \u00d7 800",
+      "caption": "Same journey on both builds: guest, Settings \u203a Security, Authenticator app \u203a Add, Use a PIN instead, PIN 48291037 twice, Set PIN, 15 s settle. Measured in the browser.",
+      "before": "[role=dialog] count 0 \u2014 sheet closed; rail step: none; PIN row \u2713, Authenticator app still +",
+      "after": "[role=dialog] count 1, 424\u00d7800 @856,0; rail .steps__seg.is-now: \"2 \u00b7 Scan\""
+    },
+    {
+      "shot": "phone-after-set-pin",
+      "width": 390,
+      "title": "Settings \u203a Security, guest presses Add on Authenticator app, then Set PIN \u2014 390 \u00d7 844 (touch)",
+      "caption": "Same journey on both builds, phone context (coarse pointer). Measured in the browser.",
+      "before": "[role=dialog] count 0 \u2014 sheet closed; rail step: none; PIN row \u2713, Authenticator app still +",
+      "after": "[role=dialog] count 1, 390\u00d7616 @0,229; rail .steps__seg.is-now: \"2 \u00b7 Scan\""
+    }
+  ]
+}

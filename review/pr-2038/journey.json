@@ -1,0 +1,34 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "name": "desktop",
+      "desktop": true,
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-after-connect",
+      "width": 1280,
+      "title": "Joiner presses Connect with a reply that names 127.0.0.1 \u2014 1280 \u00d7 800",
+      "caption": "Two Chromium contexts over real WebRTC: owner names 127.0.0.1 in Routes and starts an invite session; joiner asks, owner compares the SAS and lets them in, joiner pastes the reply and presses Connect. Read from the joiner's page 800 ms later.",
+      "before": "#live-addresses absent; joiner already at /OpenSesame/vault with \"1 shared item from the owner's session\"",
+      "after": "#live-addresses 960\u00d7113 @280,220: Owner's address 127.0.0.1; .go \"Allow the owner's addresses\" 40\u00d740, .icon-btn \"Join without them\" 32\u00d732; focus on Allow; mark \"The owner's browser names its addresses\""
+    },
+    {
+      "shot": "phone-after-connect",
+      "width": 390,
+      "title": "Joiner presses Connect with a reply that names 127.0.0.1 \u2014 390 \u00d7 844 (touch)",
+      "caption": "Same walk, joiner in a phone context (coarse pointer). Read from the joiner's page 800 ms later.",
+      "before": "#live-addresses absent; joiner already at /OpenSesame/vault",
+      "after": "#live-addresses 358\u00d7117 @16,283; .go Allow 44\u00d744 @16,356, .icon-btn \"Join without them\" 44\u00d744 @290,356; focus on Allow"
+    }
+  ]
+}
