@@ -13,6 +13,7 @@ import { vaultStore } from "../vault/store.js";
 import { TailscalePeerHTTPConfiguration } from "./browser-node-peer-http.js";
 import {
   TailscaleNativeHTTPConfiguration,
+  TailscaleServerTrustConfiguration,
   normalizeTailscaleNodeIdentity,
 } from "./browser-node-port.js";
 import {
@@ -21,6 +22,7 @@ import {
   openBrowserNodeState,
   readBrowserNodeState,
   savedBrowserNodeConfiguration,
+  updateBrowserNodeNativeHTTP,
   writeBrowserNodeState,
 } from "./browser-node-store.js";
 
@@ -242,4 +244,78 @@ it("cold-reloads explicit peer authority and rejects the old peer record after r
   const disabled = await configureBrowserNodeState(identity, tomb, check);
   expect(disabled.nativeHTTP).toBeUndefined();
   expect(browserNodeCredentialFingerprint(disabled)).toBe(credential);
+});
+it("captures independent peer trust, restores it cold and retains keys across trust changes", async () => {
+  const tomb = vaultStore.getSnapshot().tomb;
+  const certificate = rootCertificates[0];
+  if (!certificate) throw new Error("Missing real CA fixture");
+  const peerTLS = {
+    trustMode: "operator" as const,
+    operatorCAPEM: certificate,
+  };
+  const opening = openBrowserNodeState({ ...identity, peerTLS }, tomb, check);
+  peerTLS.operatorCAPEM = "caller changed the trust after capture";
+  const initial = await opening;
+  const expected = { trustMode: "operator", operatorCAPEM: certificate };
+  expect(initial.record.peerTLS).toEqual(expected);
+  expect(initial.record.nativeHTTP).toBeUndefined();
+  await writeBrowserNodeState(
+    initial.record,
+    {},
+    { machine: "original-peer-tls-key" },
+    check,
+  );
+  const credential = browserNodeCredentialFingerprint(initial.record);
+  await vaultStore.flushPendingWrites();
+  await kvFlush();
+  vaultStore.lock();
+  await kvFlush();
+  kvForgetAll();
+  await kvHydrate([...DEVICE_CONNECTOR_KEYS]);
+  expect(savedBrowserNodeConfiguration()?.peerTLS).toEqual(expected);
+  await vaultStore.unlock(runtimePassword);
+  const reopened = await openBrowserNodeState(identity, tomb, check);
+  expect(reopened.record.reference).toBe(initial.record.reference);
+  expect(browserNodeCredentialFingerprint(reopened.record)).toBe(credential);
+  const routed = await updateBrowserNodeNativeHTTP(
+    reopened.record,
+    native(),
+    check,
+  );
+  expect(routed.peerTLS).toEqual(expected);
+  const cleared = await configureBrowserNodeState(identity, tomb, check);
+  expect(cleared.peerTLS).toBeUndefined();
+  expect(cleared.nativeHTTP).toBeUndefined();
+  expect(cleared.reference).toBe(initial.record.reference);
+  expect(browserNodeCredentialFingerprint(cleared)).toBe(credential);
+  expect(readBrowserNodeState(cleared)).toEqual({
+    machine: "original-peer-tls-key",
+  });
+  expect(() => readBrowserNodeState(routed)).toThrow();
+});
+it("uses the same strict public/operator CA schema for peer TLS", async () => {
+  expect(
+    TailscaleServerTrustConfiguration.parse({ trustMode: "public" }),
+  ).toEqual({ trustMode: "public" });
+  const before = readDeviceRows();
+  for (const invalid of [
+    { trustMode: "public", operatorCAPEM: rootCertificates[0] },
+    { trustMode: "operator", operatorCAPEM: "not-a-certificate" },
+    {
+      trustMode: "operator",
+      operatorCAPEM: rootCertificates[0],
+      skipTLS: true,
+    },
+  ])
+    expect(TailscaleServerTrustConfiguration.safeParse(invalid).success).toBe(
+      false,
+    );
+  await expect(
+    configureBrowserNodeState(
+      { ...identity, peerTLS: { trustMode: "operator", operatorCAPEM: "bad" } },
+      vaultStore.getSnapshot().tomb,
+      check,
+    ),
+  ).rejects.toThrow();
+  expect(readDeviceRows()).toEqual(before);
 });
