@@ -156,6 +156,8 @@ const context=createContext({
  }})
 },{codeGeneration:{strings:false,wasm:true}});
 context.self=context;
+// A dedicated Worker's own location: the script URL it was started from.
+context.location=new URL(workerData.url);
 context.postMessage=message=>parentPort.postMessage(message);
 context.close=()=>parentPort.close();
 const modules=new Map();
@@ -173,7 +175,9 @@ async function load(url){
  const module=await load(workerData.url);
  await module.link((specifier,parent)=>load(new URL(specifier,parent.identifier).href));
  await module.evaluate();
- parentPort.on("message",data=>context.onmessage({data}));
+ // A message from another origin is dropped; the parent's arrive with origin "".
+ context.onmessage({origin:"https://foreign.example.test",data:{type:"free",id:0}});
+ parentPort.on("message",data=>context.onmessage({origin:"",data}));
  parentPort.postMessage({type:"ready"});
 })().catch(error=>{throw error;});
 `;
