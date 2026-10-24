@@ -164,6 +164,9 @@ async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
   if (legacySweep) return legacySweep;
   const sweep = (async () => {
     const tx = db.transaction([ACCOUNTS, ENTRIES], "readwrite");
+    const done = txDone(tx);
+    // An earlier request may reject before the loop awaits transaction completion.
+    void done.catch(() => undefined);
     try {
       for (const store of [ACCOUNTS, ENTRIES]) {
         const rows: BoundaryValue[] = await idbReq(
@@ -192,7 +195,7 @@ async function sealLegacyRows(db: IDBDatabase, atRest: AtRestKey) {
           }
         }
       }
-      await txDone(tx);
+      await done;
       // Latch only after every row and the transaction committed. A transient
       // IndexedDB failure leaves the next call free to retry.
       legacySwept = true;
