@@ -98,6 +98,19 @@ export class GithubBrowserRepositories {
     ) {
       purpose = "create";
       requireValue(keys === "permissions", 400, "Unexpected create grant");
+    } else if (
+      permissions === canonical({ metadata: "read", contents: "read" })
+    ) {
+      // Reading the backup or its branch head asks for no more than read.
+      purpose = "read";
+      requireValue(
+        keys === "permissions,repositories" &&
+          Array.isArray(body.repositories) &&
+          body.repositories.length === 1 &&
+          this.repos.has(body.repositories[0]),
+        403,
+        "Wrong read grant",
+      );
     } else {
       purpose = "backup";
       requireValue(
@@ -279,12 +292,17 @@ export class GithubBrowserRepositories {
       "Unknown fixture repository",
     );
     const repo = this.repos.get(match[1]);
-    this.grant(
+    const grant = this.grant(
       headers.authorization,
       match[2].startsWith("/contents/") || match[2].startsWith("/git/")
         ? "contents"
         : "metadata",
       repo.record.name,
+    );
+    requireValue(
+      method !== "PUT" || grant.permissions.contents === "write",
+      403,
+      "Installation grant refused",
     );
     if (!match[2] && method === "GET")
       return { status: 200, value: repo.record };
@@ -346,7 +364,7 @@ export class GithubBrowserRepositories {
       installs: [...this.apps.values()].filter((app) => app.installed).length,
       validAppJwtChecks: this.jwtChecks,
       mintedTokens: Object.fromEntries(
-        ["list", "create", "backup"].map((purpose) => [
+        ["list", "create", "read", "backup"].map((purpose) => [
           purpose,
           [...this.tokens.values()].filter((token) => token.purpose === purpose)
             .length,
