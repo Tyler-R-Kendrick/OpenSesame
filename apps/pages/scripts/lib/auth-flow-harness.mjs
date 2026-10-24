@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { emulateFilePickers } from "./file-pickers.mjs";
 import { observeHttpFailures } from "./http-failures.mjs";
 
 export const MIME = {
@@ -20,7 +19,6 @@ export function createAuthFlowHarness({ DIST, ORIGIN, BASE, OUT, record }) {
       viewport: { width: 1280, height: 900 },
       serviceWorkers: "block",
     });
-    await emulateFilePickers(context);
     await context.route("**/*", async (route) => {
       const request = route.request();
       const url = new URL(request.url());

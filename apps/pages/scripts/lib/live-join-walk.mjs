@@ -6,15 +6,8 @@
  */
 
 import { SHARED_ITEM } from "./live-item-labels.mjs";
-import { answerAddresses, namesSameMachine } from "./live-join-addresses.mjs";
 import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
-export {
-  SAME_MACHINE,
-  admitAndAnswer,
-  answerAddresses,
-  thisMachine,
-} from "./live-join-addresses.mjs";
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
 export {
   TUNNEL_ONLY,
@@ -195,17 +188,11 @@ async function natsChoices(routes, carrier) {
       .selectOption(carrier.session);
 }
 
-/**
- * Start a session. `sameMachine` names this machine in Routes first (the
- * walks' browsers share it): loopback, or the addresses given (`thisMachine`);
- * a walk about what an unnamed address does passes false.
- */
 export async function startSession(
   page,
-  { admission = "invite", policy = "read", sameMachine = true } = {},
+  { admission = "invite", policy = "read" } = {},
 ) {
-  const { session, routes } = await openLive(page);
-  if (sameMachine) await namesSameMachine(routes, sameMachine);
+  const { session } = await openLive(page);
   await session.getByLabel("Session name").fill("Team");
   await session.getByLabel("Share", { exact: true }).selectOption("items");
   await session
@@ -241,9 +228,7 @@ export async function endSession(panel) {
 /**
  * The joiner opens the link and asks. `routes` keeps (true) or declines
  * (false) the servers the link names; null when it names none. `peerTrust`,
- * when set, is pasted into Peer trust signal before the ask. The request
- * code to pass by hand, or null where a kept carrier passes it: the screen
- * then says the owner can see the request, and draws no code to copy.
+ * when set, is pasted into Peer trust signal before the ask.
  */
 export async function joinerAsks(
   page,
@@ -278,17 +263,10 @@ export async function joinerAsks(
   if (peerTrust) {
     await page.getByLabel("Peer trust signal", { exact: true }).fill(peerTrust);
   }
-  // The link's routes, offered in the Advanced fold as the app labels them.
-  const choice = page.getByRole("checkbox", { name: /^Pair through / });
+  const choice = page.getByRole("checkbox", { name: /^Through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
-  if (routes === true) {
-    await page
-      .getByRole("img", { name: /^The owner can see your request/ })
-      .waitFor({ timeout: 20_000 });
-    return null;
-  }
-  const copy = page.getByRole("button", { name: "Copy your join request" });
+  const copy = page.getByRole("button", { name: "Copy your request code" });
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }
@@ -310,9 +288,6 @@ export function admitControl(root, name) {
   });
 }
 
-/** The session SAS each owner's panel compared before letting someone in. */
-const compared = new WeakMap();
-
 async function confirmSessionSas(panel) {
   // The owner's fingerprint is also `.live-sas`. The session string is the
   // one on the guest row, which is what the joiner is showing.
@@ -322,23 +297,13 @@ async function confirmSessionSas(panel) {
   if (!SAS_TEXT.test(text)) {
     throw new Error(`session SAS is not readable: ${text}`);
   }
-  compared.set(panel, text);
 }
 
 /**
- * The session SAS the owner compared on the guest's row before "Yes, they
- * match". The row shows it only while the guest is asking, so it is read
- * there, the way a person compares it, and not after the guest is let in.
- */
-export function ownerComparedSas(panel) {
-  return compared.get(panel) ?? "";
-}
-
-/**
- * The owner pastes a request by hand and lets the person in, comparing the
- * session SAS where the row shows one. An open session lets the link holder
- * in at once (`admit: false`): its row's SAS holds nothing back and is gone
- * once the reply is made, so there the walk takes the reply. The reply code.
+ * The owner pastes a request by hand and lets the person in. An open session
+ * still auto-admits a request with no peer block (`admit: false`). A request
+ * that shows a session SAS waits for "Yes, they match" either way. The reply
+ * code.
  */
 export async function ownerAdmitsByHand(
   page,
@@ -347,7 +312,7 @@ export async function ownerAdmitsByHand(
   name,
   { admit = true } = {},
 ) {
-  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
+  await panel.getByLabel("A request code", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
   const match = panel.getByRole("button", {
     name: `Yes, they match for ${name}`,
@@ -364,36 +329,18 @@ export async function ownerAdmitsByHand(
     } else {
       await letIn.click();
     }
+  } else {
+    await match.or(copy).first().waitFor({ timeout: 20_000 });
+    if (await match.isVisible()) {
+      await confirmSessionSas(panel);
+      await match.click();
+    }
   }
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }
 
-export async function joinerConnects(page, reply, { allow = true } = {}) {
+export async function joinerConnects(page, reply) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
-  // Exact: the top bar's "More — all connected" also contains the word.
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
-  await answerAddresses(page, allow);
-}
-
-/** Open a folded `<details>` the way a person does: by its summary. */
-export async function unfold(details) {
-  if ((await details.getAttribute("open")) === null)
-    await details.locator("summary").click();
-}
-
-/** The session SAS a joiner shows, folded under "Security code". */
-export async function joinerSessionSas(page) {
-  const verify = page.locator("details.live-verify");
-  await unfold(verify);
-  return (await verify.locator(".live-sas").innerText()).trim();
-}
-
-/** The owner's peer trust signal, folded on the live session's panel. */
-export async function unfoldPeerTrust(panel) {
-  await unfold(
-    panel.locator("details.live-advanced").filter({
-      has: panel.page().locator("summary", { hasText: "Peer trust signal" }),
-    }),
-  );
+  await page.getByRole("button", { name: "Connect" }).click();
 }

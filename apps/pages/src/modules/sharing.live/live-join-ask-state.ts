@@ -14,7 +14,7 @@ import { useState } from "react";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { requestVaultEntry } from "./live-entry.js";
 import { joinDraft, liveUiSeams, useDraftField } from "./live-hooks.js";
-import { joinTrustFields, liveTrustRefusal } from "./live-join-trust.js";
+import { liveTrustRefusal } from "./live-join-trust.js";
 
 /** The in-memory join draft, with device-sealing fields kept only in this mount. */
 function useAskDraft() {
@@ -28,7 +28,7 @@ function useAskDraft() {
   const [peerTrust, setPeerTrust] = useDraftField("peerTrust");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useDraftField("failed");
-  const [alarm, setAlarm] = useState("");
+  const [alarm, setAlarm] = useDraftField("alarm");
   const [useRoutes, setRoutesState] = useState(joinDraft.useRoutes);
   const setUseRoutes = (next: boolean) => {
     joinDraft.useRoutes = next;
@@ -140,15 +140,15 @@ export function useAsk(held: LiveLink | null, vaultStatus: VaultStatus) {
     try {
       if (vaultStatus === "empty") {
         await store.createWithPin(fields.pin);
-        await ensureOwnerPerson(store.activeTomb?.() ?? "", cleanedName);
+        await ensureOwnerPerson(store.activeTomb(), cleanedName);
       } else if (vaultStatus === "locked") {
         // The old vault is locked and cannot be opened from here. Make a new
         // sealed vault for this person; the locked vault stays on the device.
         await sealNewVault(cleanedName, { shareKey: false });
         await store.createWithPin(fields.pin);
-        await ensureOwnerPerson(store.activeTomb?.() ?? "", cleanedName);
+        await ensureOwnerPerson(store.activeTomb(), cleanedName);
       }
-      const trust = await joinTrustFields(cleanText(fields.peerTrust));
+      const trust = await liveUiSeams.joinTrust(cleanText(fields.peerTrust));
       if (trust.blocked) {
         reportLiveOutcome("Live session", trust.blocked);
         setAlarm(trust.blocked);

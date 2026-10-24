@@ -7,7 +7,7 @@ import {
   capabilityOnSwitch,
 } from "./always-on.mjs";
 import { passTheDoor } from "./front-door.mjs";
-import { openSessionSection } from "./session-section.mjs";
+import { openSessionMenu, openSessionSection } from "./session-section.mjs";
 /**
  * The key every walk seals its vault with. A passkey cannot be made headless
  * and a master password is no longer offered to seal a vault (ADR 0180), so
@@ -102,24 +102,6 @@ export async function openSection(page, label) {
 }
 
 /**
- * Close the toasts on screen, as a person does before reaching a control
- * under one. A toast floats over the page and holds while the pointer rests
- * on it (components/ToastStack.tsx), so a click aimed at a control beneath it
- * keeps it there for as long as the click is retried.
- */
-async function dismissToasts(page) {
-  const dismiss = page
-    .locator(".toasts")
-    .getByRole("button", { name: "Dismiss", exact: true });
-  for (let left = await dismiss.count(); left > 0; left -= 1) {
-    await dismiss
-      .first()
-      .click({ timeout: 5000 })
-      .catch(() => undefined);
-  }
-}
-
-/**
  * Choose capabilities the way a person does — Settings › Features and the
  * capability's switch, which commits in place. A device that has approved
  * nothing has no rail row for the sections those capabilities contribute
@@ -138,7 +120,6 @@ export async function addCapabilities(page, titles) {
       continue;
     }
     await add.waitFor({ timeout: 15000 });
-    await dismissToasts(page);
     await add.click();
     await page.getByTestId("capability-review").waitFor({
       state: "detached",
@@ -148,34 +129,14 @@ export async function addCapabilities(page, titles) {
   }
 }
 
-/**
- * Vault Settings, from wherever the walk stands. From the vault the rail's
- * settings/ row opens it. On User Settings that row is already the open
- * directory and only folds, so the walk takes the vault row's own "Vault
- * Settings" entry (components/context-menu/rail-menu.ts), as a person does.
- */
-async function openVaultSettings(page) {
-  // Settings is the heading the section opens on (it has no "Preferences"
-  // heading — that name went with an earlier shape of the panel).
+export async function openGeneral(page) {
+  // A user-category visit can leave the Settings tree rooted in User
+  // Settings. General belongs to the vault group, whose heading still exists.
   const heading = page.getByRole("heading", { name: "Vault Settings" });
-  if (await heading.isVisible().catch(() => false)) return;
-  const user = page.getByRole("heading", {
-    name: "User Settings",
-    exact: true,
-  });
-  if (!(await user.isVisible().catch(() => false))) {
-    await openSection(page, "settings/");
-    await heading.or(user).first().waitFor({ timeout: 15000 });
-    if (await heading.isVisible()) return;
+  if (!(await heading.isVisible().catch(() => false))) {
+    await openSettingsCategory(page, "General");
+    await heading.waitFor({ timeout: 15000 });
   }
-  await page
-    .locator(".railtree__row", { hasText: "vault/" })
-    .first()
-    .click({ button: "right" });
-  await page
-    .getByRole("menuitem", { name: "Vault Settings", exact: true })
-    .click();
-  await heading.waitFor({ timeout: 15000 });
 }
 
 /** Open a Settings category without a full document navigation (keeps the vault open). */
@@ -194,7 +155,23 @@ export async function openSettingsCategory(page, label) {
       .getByRole("heading", { name: "User Settings", exact: true })
       .waitFor();
   } else {
-    await openVaultSettings(page);
+    // Select the real Settings destination, not a remembered User Settings
+    // child of the desktop rail. Phone drawer links navigate there directly.
+    const sections = page.getByRole("button", {
+      name: "Sections",
+      exact: true,
+    });
+    if (await sections.isVisible()) {
+      await openSessionSection(page, "Settings");
+    } else {
+      await openSessionMenu(page);
+      await page
+        .getByRole("menuitem", { name: "Settings", exact: true })
+        .click();
+    }
+    await page
+      .getByRole("heading", { name: "Vault Settings", exact: true })
+      .waitFor({ timeout: 15000 });
   }
   // Inside a category the breadcrumb names it too: the sections list is the one.
   const section = page

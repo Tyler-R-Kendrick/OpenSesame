@@ -32,11 +32,7 @@ import { composeState } from "./lib/capability-compose-state.mjs";
 import { publicPathTarget } from "./lib/capability-distribution.mjs";
 import { VIRTUAL_MODULES, canonicalJson } from "./lib/capability-graph.mjs";
 import { formatViolations, violations } from "./lib/capability-invariants.mjs";
-import {
-  commonjsShimChunk,
-  lazyLeafChunk,
-  leafSource,
-} from "./lib/capability-lazy-leaves.mjs";
+import { lazyLeafChunk } from "./lib/capability-lazy-leaves.mjs";
 import { itemTypePackChunk } from "./lib/item-type-pack-chunks.mjs";
 import { walk } from "./lib/verify-dist-checks.mjs";
 
@@ -124,18 +120,25 @@ function installManualChunks(build, state) {
       // A built-in item type is a pack, a download of its own (ADR 0165).
       const pack = itemTypePackChunk(id);
       if (pack) return pack;
-      const shim = commonjsShimChunk(id);
-      if (shim) return shim;
       // A lazy leaf first: a carrier inside a module directory would
       // otherwise join the module's chunk and load with it.
-      const source = leafSource(id);
-      if (source) {
-        const leaf = lazyLeafChunk(source, state.classify(source));
-        if (leaf) return leaf;
-      }
-      if (partitionable(id)) {
+      if (!id.startsWith("\0")) {
         const entry = state.classify(id);
-        if (entry.classification === "optional" && entry.capability)
+        // Naming an excluded pure module forces even its unused shell to emit.
+        // Leave it to Rollup (or the caller); emitted-code gates still apply.
+        if (
+          state.mode === "hardened" &&
+          entry.classification === "optional" &&
+          !state.sets.distributed.has(entry.capability)
+        )
+          return previous ? previous(id, api) : undefined;
+        const leaf = lazyLeafChunk(id, entry);
+        if (leaf) return leaf;
+        if (
+          partitionable(id) &&
+          entry.classification === "optional" &&
+          entry.capability
+        )
           return `cap-${entry.capability}`;
       }
       return previous ? previous(id, api) : undefined;

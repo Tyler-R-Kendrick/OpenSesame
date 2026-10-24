@@ -130,16 +130,8 @@ function compareEntries(graph, disk, onDisk, note) {
       );
     }
   }
-  const publicOwned = (graph.publicFiles ?? []).map((p) =>
-    p.file.replace(/\/\*\*$/, ""),
-  );
   for (const found of disk.entries) {
-    if (
-      !graph.entries.some((e) => e.html === found.html) &&
-      !publicOwned.some(
-        (k) => found.html === k || found.html.startsWith(`${k}/`),
-      )
-    )
+    if (!graph.entries.some((e) => e.html === found.html))
       note("UNACCOUNTED_HTML", `${found.html} on disk but not in graph`);
   }
 }

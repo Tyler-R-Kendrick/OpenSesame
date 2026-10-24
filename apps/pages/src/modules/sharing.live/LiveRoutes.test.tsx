@@ -35,6 +35,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
+import { ALLOW_ADDRESSES } from "./LiveJoinAddresses.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
@@ -213,6 +214,10 @@ describe("joining through the owner's routes", () => {
 
     type(joiner, "Your name", "Ada");
     fireEvent.click(joiner.getByRole("button", { name: "Ask to join" }));
+    // The owner's reply names its tunnel address; the person allows it.
+    fireEvent.click(
+      await joiner.findByRole("button", { name: ALLOW_ADDRESSES }),
+    );
     await joiner.findByRole("img", { name: "Joined Team" });
     expect(bus.seen.length).toBeGreaterThan(0);
     expect(currentHost()?.state.guests[0]).toMatchObject({

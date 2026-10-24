@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isString } from "../../../../scripts/lib/json-boundary.mjs";
 import { composeSheet } from "./visual-evidence.mjs";
 
 const SHOTS = [
@@ -146,7 +145,7 @@ function persistGalleryData(raw, output, specifications) {
       fs.readFileSync(path.join(raw, stage, "measurements.json"), "utf8"),
     );
     for (const row of rows) {
-      if (!row.geometry || !isString(row.geometry.mask)) continue;
+      if (!row.geometry || typeof row.geometry.mask !== "string") continue;
       const mask = row.geometry.mask;
       row.geometry.mask = {
         applied: mask !== "none",

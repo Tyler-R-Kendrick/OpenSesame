@@ -9,48 +9,7 @@ async function visit(page, base, route) {
   }, `${base}${route}`);
 }
 
-/**
- * The file a press hands the person. Where the browser has the File System
- * Access save picker the app opens it (`src/lib/file-system.ts`), and headless
- * Chromium, with no dialog to draw, answers AbortError and nothing is written.
- * So the walk stands in for the dialog alone: the person chose a file, and the
- * bytes the app wrote and closed are read back. The stand-in refuses a call
- * with no user activation, as the browser does. A browser without the picker
- * takes the anchor download, which is awaited instead.
- */
 async function download(page, press) {
-  const picker = await page.evaluate(() => {
-    if (!window.showSaveFilePicker) return false;
-    window.__walkSavedFile = null;
-    window.showSaveFilePicker = async (options = {}) => {
-      if (!navigator.userActivation.isActive)
-        throw new DOMException(
-          "Must be handling a user gesture to show a file picker.",
-          "SecurityError",
-        );
-      const parts = [];
-      return {
-        createWritable: async () => ({
-          write: async (data) => {
-            parts.push(data);
-          },
-          close: async () => {
-            window.__walkSavedFile = {
-              name: options.suggestedName ?? "",
-              text: await new Blob(parts).text(),
-            };
-          },
-          abort: async () => undefined,
-        }),
-      };
-    };
-    return true;
-  });
-  if (picker) {
-    await press();
-    const saved = await page.waitForFunction(() => window.__walkSavedFile);
-    return saved.jsonValue();
-  }
   const event = page.waitForEvent("download");
   await press();
   const file = await event;

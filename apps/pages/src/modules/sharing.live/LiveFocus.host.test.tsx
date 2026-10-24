@@ -56,9 +56,7 @@ describe("the keyboard after the host's swaps", () => {
     const elsewhere = document.createElement("button");
     document.body.append(elsewhere);
     act(() => elsewhere.focus());
-    fireEvent.click(
-      panel.getByRole("button", { name: "Share this vault" }),
-    );
+    fireEvent.click(panel.getByRole("button", { name: "Share this vault" }));
     await panel.findByRole("img", { name: "Live" });
     await landsOn(elsewhere);
     elsewhere.remove();

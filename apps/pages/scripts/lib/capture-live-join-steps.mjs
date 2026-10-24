@@ -9,8 +9,7 @@
  */
 
 import { ask, grantClipboard, owners } from "./capture-live-steps.mjs";
-import { admitControl, joinerConnects } from "./live-join-walk.mjs";
-import { opensSharedItems } from "./live-joined.mjs";
+import { admitControl } from "./live-join-walk.mjs";
 import { phoneContext } from "./mobile-contract.mjs";
 
 /** Which page a `shot` takes, per owner page: absent means the owner's own. */
@@ -96,7 +95,8 @@ async function joinThrough(page, harness, { link, code }, name) {
   await grantClipboard(page);
   await reply.click();
   const answer = await page.evaluate(() => navigator.clipboard.readText());
-  await joinerConnects(seat, answer);
+  await seat.getByLabel("The owner's reply code", { exact: true }).fill(answer);
+  await seat.getByRole("button", { name: "Connect" }).click();
   return seat;
 }
 
@@ -133,13 +133,14 @@ export function liveJoinSteps({ harness }) {
       const held = owners.get(page);
       if (!held?.link) return console.log("  liveJoin: skipped (no session)");
       const seat = await joinThrough(page, harness, held, name);
-      // Joining opens the joiner's vault; the shared items are one key away.
-      const joined = await opensSharedItems(seat, wait)
+      const joined = await seat
+        .getByRole("img", { name: "Joined Team" })
+        .waitFor({ timeout: wait })
         .then(() => true)
         .catch(() => false);
       await seat.waitForTimeout(1500);
       views.set(page, seat);
-      console.log(`  liveJoin: joiner reached the shared items=${joined}`);
+      console.log(`  liveJoin: joiner reached "Joined Team"=${joined}`);
       console.log(`  joiner marks: ${(await marksOf(seat)).join(" | ")}`);
       const own = page.locator("#live-session");
       console.log(`  owner marks: ${(await marksOf(own)).join(" | ")}`);

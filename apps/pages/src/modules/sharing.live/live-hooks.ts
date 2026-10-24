@@ -28,11 +28,12 @@ import {
   onLiveSessionChange,
 } from "@opensesame/app-core/lib/live/session.js";
 import { webRtc } from "@opensesame/app-core/lib/live/webrtc.js";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { StatusTone } from "../../components/StatusMark.js";
 import { carriersUnavailable } from "./carriers/index.js";
 import { liveOwnerCertificate } from "./live-dtls-pin.js";
 import { cancelVaultEntry } from "./live-entry.js";
+import { joinTrustFields } from "./live-join-trust.js";
 
 /** A glyph's tone, its short page label, and the tray sentence. */
 export type Standing = Readonly<{
@@ -64,8 +65,10 @@ export type LiveHostView = Readonly<{
 /**
  * What the joiner has typed, and the link in hand, kept in memory across a
  * remount: committing the join road's consent re-plans the page, and the
- * screen can mount again after the person has started typing. Cleared when
- * they close the screen; never written anywhere.
+ * screen can mount again after the person has started typing. An ask that
+ * creates the joiner's vault mounts the form again while it is still
+ * running, so what it learns afterwards is written here, where the new form
+ * reads it. Cleared when they close the screen; never written anywhere.
  */
 export type JoinDraft = {
   link: LiveLink | null;
@@ -75,6 +78,8 @@ export type JoinDraft = {
   note: string;
   /** Why the last ask failed: the form mounts afresh after one. */
   failed: string;
+  /** A refusal that holds the Ask key until the peer trust signal changes. */
+  alarm: string;
   /** Whether to use the servers the link names (shown before any contact). */
   useRoutes: boolean;
   /** Optional OOB peer-trust signal from the owner (browser-only; no daemon). */
@@ -88,9 +93,23 @@ export const joinDraft: JoinDraft = {
   name: "",
   note: "",
   failed: "",
+  alarm: "",
   useRoutes: true,
   peerTrust: "",
 };
+
+const draftWatchers = new Set<() => void>();
+
+function draftChanged(): void {
+  for (const watcher of draftWatchers) watcher();
+}
+
+function watchDraft(watcher: () => void): () => void {
+  draftWatchers.add(watcher);
+  return () => {
+    draftWatchers.delete(watcher);
+  };
+}
 
 export function clearJoinDraft(): void {
   cancelVaultEntry();
@@ -102,21 +121,26 @@ export function clearJoinDraft(): void {
     name: "",
     note: "",
     failed: "",
+    alarm: "",
     useRoutes: true,
     peerTrust: "",
   });
+  draftChanged();
 }
 
-/** One field of the draft, as React state that writes through. */
+/**
+ * One field of the draft, read from the draft on every render. A write from a
+ * form that has since mounted again reaches the form now drawn.
+ */
 export function useDraftField(
-  key: "pasted" | "code" | "name" | "note" | "failed" | "peerTrust",
+  key: "pasted" | "code" | "name" | "note" | "failed" | "alarm" | "peerTrust",
 ): [string, (next: string) => void] {
-  const [value, setValue] = useState(() => joinDraft[key]);
+  const value = useSyncExternalStore(watchDraft, () => joinDraft[key]);
   return [
     value,
     (next) => {
       joinDraft[key] = next;
-      setValue(next);
+      draftChanged();
     },
   ];
 }
@@ -142,6 +166,8 @@ export const liveUiSeams = {
    */
   joinUrl: () => new URL(import.meta.env.BASE_URL, window.location.origin).href,
   now: () => Date.now(),
+  /** The remembered-key check every ask makes before it is sent. */
+  joinTrust: joinTrustFields,
 };
 
 export function useLiveGuest(): LiveGuestView {

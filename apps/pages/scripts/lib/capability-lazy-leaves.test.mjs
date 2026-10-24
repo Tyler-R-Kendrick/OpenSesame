@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import { LIB_RULES } from "../../src/lib/capabilities/classification-lib.js";
+import { classifyModule } from "./capability-graph.mjs";
 import {
-  commonjsShimChunk,
   lazyLeafChunk,
-  leafSource,
   secretBackendSdkChunk,
 } from "./capability-lazy-leaves.mjs";
 
@@ -271,47 +271,27 @@ test("virtual IDs, unrelated packages and query lookalikes cannot claim the nati
   }
 });
 
-test("a CommonJS wrapper is read as the file it wraps, and joins that file's leaf", () => {
-  const pnpm = "/workspace/node_modules/.pnpm";
-  const nkeys = `${pnpm}/@nats-io+nkeys@2.0.3/node_modules/@nats-io/nkeys/lib/mod.js`;
-  const nacl = `${pnpm}/tweetnacl@1.0.3/node_modules/tweetnacl/nacl-fast.js`;
-  const live = { classification: "optional", capability: "sharing.live" };
-  for (const kind of ["exports", "module", "es-import", "proxy", "wrapped"]) {
-    assert.equal(leafSource(`\0${nkeys}?commonjs-${kind}`), nkeys, kind);
+// Actual owner, not a test-only reclassification of the pure organization model.
+test("keeps the directory sign-in model off the bootstrap without promoting its owner", () => {
+  const file = "/workspace/packages/app-core/src/lib/org-signin.ts";
+  const entry = classifyModule(file, LIB_RULES, { repoRoot: "/workspace" });
+  assert.equal(entry.classification, "optional");
+  assert.equal(entry.capability, "enterprise.directory-provisioning");
+  for (const id of [file, file.replaceAll("/", "\\")])
+    assert.equal(lazyLeafChunk(id, entry), "directory-signin-model");
+  for (const owner of [
+    { classification: "shared", capability: null },
+    { classification: "core", capability: null },
+    { classification: "optional", capability: "connectors.external" },
+  ])
+    assert.equal(lazyLeafChunk(file, owner), undefined);
+  for (const name of [
+    "org-signin.test.ts",
+    "org-signin-other.ts",
+    "identity-enterprise.ts",
+  ])
     assert.equal(
-      lazyLeafChunk(leafSource(`\0${nacl}?commonjs-${kind}`), live),
-      "live-nats",
-      kind,
+      lazyLeafChunk(file.replace("org-signin.ts", name), entry),
+      undefined,
     );
-  }
-  assert.equal(lazyLeafChunk(nkeys, live), "live-nats");
-  assert.equal(lazyLeafChunk(nacl, live), "live-nats");
-  assert.equal(leafSource(nacl), nacl, "a file is its own source");
-  assert.equal(
-    lazyLeafChunk(nacl, { classification: "shared", capability: null }),
-    undefined,
-    "the pin follows the capability's claim on the package",
-  );
-  for (const id of [
-    "\0commonjsHelpers.js",
-    "\0vite/preload-helper.js",
-    `\0${nkeys}`,
-    `\0${nkeys}?commonjs-unknown`,
-  ])
-    assert.equal(leafSource(id), undefined, JSON.stringify(id));
-});
-
-test("the CommonJS stand-ins two vendors share get one small chunk of their own", () => {
-  for (const id of [
-    "\0commonjs-dynamic-modules",
-    "__vite-browser-external",
-    "\0__vite-browser-external?commonjs-proxy",
-  ])
-    assert.equal(commonjsShimChunk(id), "commonjs-shims", JSON.stringify(id));
-  for (const id of [
-    "\0commonjsHelpers.js",
-    "__vite-browser-external:crypto",
-    "/workspace/node_modules/tweetnacl/nacl-fast.js",
-  ])
-    assert.equal(commonjsShimChunk(id), undefined, JSON.stringify(id));
 });

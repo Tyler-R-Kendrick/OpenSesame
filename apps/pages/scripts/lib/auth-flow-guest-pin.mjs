@@ -27,40 +27,10 @@ export async function guestSetPinKey(page, { check, snap, PIN }) {
   await page.waitForTimeout(3500);
   const stepTwo = await snap(page, "1-guest-step2-scan");
   check(/2 · Scan/.test(stepTwo), "scan follows the key on its own");
-  const current = await dialog
-    .locator(".steps__seg.is-now .steps__label")
-    .textContent({ timeout: 30_000 })
-    .catch(async () => {
-      throw new Error(
-        `no current step on the rail after Set PIN: ${await afterSetPin(page)}`,
-      );
-    });
-  check(current === "2 · Scan", "the rail marks Scan as the current step");
+  check(
+    (await dialog.locator(".steps__seg.is-now .steps__label").textContent()) ===
+      "2 · Scan",
+    "the rail marks Scan as the current step",
+  );
   return { dialog, totpRow };
-}
-
-/**
- * What the screen shows when the rail is gone: the sheets open, their rail,
- * and the status marks, by name only (never a field's value).
- */
-async function afterSetPin(page) {
-  const sheets = await page
-    .getByRole("dialog")
-    .evaluateAll((nodes) =>
-      nodes.map((node) => node.getAttribute("aria-label") ?? node.id),
-    );
-  const rail = await page.locator(".steps__label").allInnerTexts();
-  const marks = await page
-    .getByRole("img")
-    .evaluateAll((nodes) =>
-      nodes.map((node) => node.getAttribute("aria-label")).filter(Boolean),
-    );
-  const headings = await page.getByRole("heading").allInnerTexts();
-  return JSON.stringify({
-    path: new URL(page.url()).pathname,
-    sheets,
-    rail,
-    marks,
-    headings,
-  });
 }

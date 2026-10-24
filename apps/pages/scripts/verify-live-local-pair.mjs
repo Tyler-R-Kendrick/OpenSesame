@@ -2,8 +2,7 @@
 /**
  * Direct live join with two contexts on one runner and default Chromium mDNS
  * hiding (no `WebRtcHideLocalIpsWithMdns` disable). Proves same-machine
- * sessions connect without STUN/TURN once the owner names this machine in
- * Routes and the joiner allows the address the reply names (ADR 0150 §6).
+ * sessions connect without STUN/TURN after loopback hints are sealed in SDP.
  */
 
 import fs from "node:fs";
@@ -17,7 +16,6 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
-import { joinedSession } from "./lib/live-joined.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -87,7 +85,7 @@ async function configs(page) {
   );
 }
 
-const joined = joinedSession;
+const joined = (page) => page.getByRole("img", { name: "Joined Team" });
 
 bindWalk({
   check,
