@@ -32,6 +32,13 @@ async function sharedAiLayout(page, form) {
   return read();
 }
 
+/**
+ * Image generation (`isAiImageFamily`) asks for its API key the way a
+ * prediction or a transcription does: no Authentication select, no
+ * unauthenticated mode, and its setup is a paragraph rather than a fold.
+ */
+const IMAGE_FAMILIES = new Set(["stability_sd3"]);
+
 function sharedAiDefaultFields(preset) {
   const azure = preset.azure;
   const prediction = preset.family === "replicate_predictions";
@@ -52,7 +59,7 @@ function sharedAiDefaultFields(preset) {
     [azure ? "Deployment ID" : "Model ID", preset.model ?? ""],
     ...(preset.providerId === "ollama" ? [] : [[key, ""]]),
   ];
-  if (!prediction && !speech)
+  if (!prediction && !speech && !IMAGE_FAMILIES.has(preset.family))
     fields.push([
       azure ? "Azure authentication" : "Authentication",
       azure?.credential ??
@@ -110,7 +117,7 @@ async function sharedAiDefaults(form, row, preset, check) {
     "deepgram_listen",
     "assemblyai_transcript",
   ].includes(preset.family);
-  const finite = prediction || speech;
+  const finite = prediction || speech || IMAGE_FAMILIES.has(preset.family);
   const authentication = finite ? [] : await selectOptions(form, defaults.auth);
   if (prediction)
     check(
@@ -126,7 +133,7 @@ async function sharedAiDefaults(form, row, preset, check) {
           JSON.stringify(
             preset.azure ? ["api-key", "entra-token"] : ["api-key", "none"],
           ),
-    `${row.id}: ${prediction ? "prediction requires its API token without an unauthenticated mode" : speech ? "transcription requires its API key without an unauthenticated mode" : "published authentication choices are explicit"}`,
+    `${row.id}: ${authenticationClaim(preset.family)}`,
   );
   if (speech) await speechInputDefaults(form, row, check);
   const { apiKeyType, actionsDisabled } = await sharedAiCredentialDefaults(
@@ -210,6 +217,44 @@ async function sharedAiModeDefaults(form, row, preset, check) {
   return modes;
 }
 
+/** What the form says about a family's authentication choices. */
+function authenticationClaim(family) {
+  if (family === "replicate_predictions")
+    return "prediction requires its API token without an unauthenticated mode";
+  if (IMAGE_FAMILIES.has(family))
+    return "image generation requires its API key without an unauthenticated mode";
+  if (
+    ["elevenlabs_scribe", "deepgram_listen", "assemblyai_transcript"].includes(
+      family,
+    )
+  )
+    return "transcription requires its API key without an unauthenticated mode";
+  return "published authentication choices are explicit";
+}
+
+/**
+ * Where the form explains custody: a paragraph for a prediction or an image,
+ * the "Connection setup" fold for the rest.
+ */
+function setupFor(form, preset) {
+  if (preset.family === "replicate_predictions")
+    return {
+      setup: form
+        .locator("p")
+        .filter({ hasText: "Enter the model owner/name" }),
+      paragraph: true,
+    };
+  if (IMAGE_FAMILIES.has(preset.family))
+    return {
+      setup: form.locator("p").filter({ hasText: "generate an actual PNG" }),
+      paragraph: true,
+    };
+  return {
+    setup: form.locator("details").filter({ hasText: "Connection setup" }),
+    paragraph: false,
+  };
+}
+
 function custodyPatterns(preset) {
   if (preset.vertex)
     return [
@@ -222,6 +267,12 @@ function custodyPatterns(preset) {
       /Credentials stay sealed in the owning vault/,
       /approved PWA network transport/,
       /permission to invoke this model/,
+    ];
+  if (IMAGE_FAMILIES.has(preset.family))
+    return [
+      /actual PNG from the verification prompt/,
+      /prompt and verification image are not saved/,
+      /API key is sealed in the owning vault/,
     ];
   if (preset.family === "replicate_predictions")
     return [
@@ -271,11 +322,8 @@ export async function nativeAiFormContract(
       `${row.id}: shared AI page keeps its provider heading`,
     );
   const observed = await sharedAiDefaults(form, row, preset, check);
-  const prediction = preset.family === "replicate_predictions";
-  const setup = prediction
-    ? form.locator("p").filter({ hasText: "Enter the model owner/name" })
-    : form.locator("details").filter({ hasText: "Connection setup" });
-  const wasOpen = prediction || (await setup.getAttribute("open")) !== null;
+  const { setup, paragraph } = setupFor(form, preset);
+  const wasOpen = paragraph || (await setup.getAttribute("open")) !== null;
   if (!wasOpen) await setup.locator("summary").click();
   const custody = await setup.innerText();
   check(
