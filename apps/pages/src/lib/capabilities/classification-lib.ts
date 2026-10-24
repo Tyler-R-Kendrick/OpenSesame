@@ -144,8 +144,11 @@ export const LIB_RULES = [
   ...each(L, SIGNIN_FILES, (p) =>
     core(p, SIGNIN, "front door, guest, session; MIXED where noted"),
   ),
-  ...each(L, ["install", "pwa-update"], (p) =>
-    core(p, "install.pwa", "install and update"),
+  ...each(
+    L,
+    ["install", "pwa-update", "pwa-refresh", "launch-intake", "share-target"],
+    (p) =>
+      core(p, "install.pwa", "install, update and user-selected file intake"),
   ),
   ...each(
     L,
