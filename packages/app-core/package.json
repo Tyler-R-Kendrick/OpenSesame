@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",
-    "@peculiar/x509": "1.14.3",
+    "@peculiar/x509": "2.2.0",
     "@types/node": "22.15.29",
     "@types/react": "19.2.7",
     "@types/whatwg-url": "13.0.0",
