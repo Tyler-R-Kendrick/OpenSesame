@@ -6,6 +6,7 @@
 
 import { expect } from "@playwright/test";
 import { defaultRouteAddress } from "./live-engines.mjs";
+import { joinedMarks } from "./live-joined.mjs";
 
 /**
  * This machine as a route (ADR 0150 §6, amended 2026-10-24). A walk's two
@@ -48,20 +49,25 @@ export async function namesSameMachine(routes, addresses = true) {
   }
 }
 
-/** Where the join stands once the reply was taken, past its addresses. */
-const PAST_ADDRESSES =
-  /^(Connecting to the owner's browser|Joined |No route to the owner's browser|Connection timed out|The session ended)/;
+/** Where the join stands once the reply was taken and it has not joined. */
+const NOT_JOINED =
+  /^(Connecting to the owner's browser|No route to the owner's browser|Connection timed out|The session ended)/;
 
 /**
  * The owner's reply names addresses (ADR 0150 §6): the joiner allows them
  * (`allow`), or joins without them. True when the step was there to answer;
- * false when the reply named none and the join went straight on.
+ * false when the reply named none and the join went straight on, however
+ * far: a join that completes first has already opened the joiner's vault,
+ * so being past the step is read through the walks' one "joined"
+ * (`joinedMarks`) as well as the statuses short of it.
  */
 export async function answerAddresses(page, allow = true, timeout = 45_000) {
   const step = page.locator("#live-addresses");
-  const past = page.getByRole("img", { name: PAST_ADDRESSES });
-  await step.or(past).first().waitFor({ timeout });
-  if (!(await step.isVisible())) return false;
+  const past = page
+    .getByRole("img", { name: NOT_JOINED })
+    .or(joinedMarks(page));
+  await step.or(past).first().waitFor({ state: "attached", timeout });
+  if ((await step.count()) === 0) return false;
   const key = allow ? "Allow the owner's addresses" : "Join without them";
   await step.getByRole("button", { name: key, exact: true }).click();
   return true;
