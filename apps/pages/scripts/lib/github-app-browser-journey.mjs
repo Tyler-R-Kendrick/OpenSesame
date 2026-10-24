@@ -6,6 +6,7 @@ import {
   SOURCE_PIN,
   TARGET_PIN,
   addCanary,
+  assertCarriedPrincipal,
   bindRepository,
   captureGithub,
   contains,
@@ -96,7 +97,7 @@ async function restoreAt(page, pin, { failure = false } = {}) {
 export async function sourceJourney(owner, options) {
   const { phase, repo, width, fixture, base, record } = options;
   let page = owner.page;
-  await newVault(page, { ...options, pin: SOURCE_PIN });
+  const principal = await newVault(page, { ...options, pin: SOURCE_PIN });
   const canary = {
     name: `GitHub source ${width}`,
     value: `github-browser-encrypted-source-${width}`,
@@ -129,6 +130,7 @@ export async function sourceJourney(owner, options) {
     body.deviceIdentityKey,
     "Source backup carries a genuine sealed device identity",
   );
+  assertCarriedPrincipal(principal, body.deviceIdentityKey, "Source");
   await captureGithub(page, `${phase}-${width}-repository`, options);
   const restore = page.getByRole("button", {
     name: "Read encrypted vault backup",
@@ -157,6 +159,7 @@ export async function sourceJourney(owner, options) {
   return {
     remote,
     body,
+    principal,
     canary,
     canaryRoute: canaryURL.split(base)[1],
     restoreAvailable: available === 1,
@@ -244,7 +247,7 @@ async function withdrawApp(page, options) {
   await lockVault(page);
   record(
     "withdrawal",
-    "App key removal persists cold and vault lock removes access; no identity sign-in session was fabricated",
+    "App key removal persists cold and vault lock removes access; device identity used the normal UI and no third-party IdP assertion was fabricated",
   );
 }
 
@@ -302,7 +305,8 @@ async function admitDestinationWrites(
 export async function destinationJourney(owner, source, options) {
   const { fixture, repo, base, width, record } = options;
   let page = owner.page;
-  await newVault(page, { ...options, pin: TARGET_PIN });
+  const principal = await newVault(page, { ...options, pin: TARGET_PIN });
+  assert.notEqual(principal, source.principal, "Independent UI principals");
   const retained = {
     name: `GitHub destination ${width}`,
     value: `destination-kept-${width}`,
@@ -318,6 +322,7 @@ export async function destinationJourney(owner, source, options) {
     original.deviceIdentityKey,
     "Destination has its independently sealed identity",
   );
+  assertCarriedPrincipal(principal, original.deviceIdentityKey, "Destination");
   assert.ok(
     fingerprint(original.deviceIdentityKey) !==
       fingerprint(source.body.deviceIdentityKey),
@@ -388,6 +393,6 @@ export async function destinationJourney(owner, source, options) {
     callerCancellation: true,
     automaticWrite: true,
     humanIdpSignOut:
-      "not-created: local-only App-key authority; lock and key withdrawal actually exercised",
+      "not-created: no third-party human IdP session; genuine UI device identity, lock and App-key withdrawal actually exercised",
   };
 }
