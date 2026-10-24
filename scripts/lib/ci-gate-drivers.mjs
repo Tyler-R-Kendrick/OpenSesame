@@ -28,6 +28,7 @@ export const DRIVER_GATES = {
   "verify-provider-auth.mjs": ["native-public-protocol"],
   "verify-identity-connections.mjs": ["native-public-protocol"],
   "verify-secret-backends.mjs": ["native-public-backends"],
+  "verify-github-app-browser.mjs": ["native-public-backends"],
   // Separate jobs use the bundle changed area and report through Bundle budgets.
   "verify-ai-connections.mjs": ["budgets"],
   "verify-tailnet-browser-node.mjs": ["budgets"],
