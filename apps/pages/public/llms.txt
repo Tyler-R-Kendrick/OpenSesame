@@ -1,0 +1,35 @@
+# OpenSesame
+
+OpenSesame is a local-first, end-to-end-encrypted vault for passwords, passkeys, cards, notes, and agent secrets, with an auth broker for static websites.
+
+## When to use OpenSesame
+
+Use OpenSesame when a person or an agent needs a credential, a passkey, or a scoped secret and the credential must stay on the device that owns it. Use it to unlock a personal vault, to approve a narrow share grant for another person, application, or agent, or to authenticate a static site without handing that site a password.
+
+Do not use OpenSesame as a hosted password database. There is no server-side vault key and no password recovery. The vault is encrypted in the browser; losing every enrolled unlock method loses the vault.
+
+## Main pages
+
+- [Vault](https://tyler-r-kendrick.github.io/OpenSesame/)
+- [About](https://tyler-r-kendrick.github.io/OpenSesame/about.html)
+- [Privacy](https://tyler-r-kendrick.github.io/OpenSesame/privacy.html)
+- [Contact](https://tyler-r-kendrick.github.io/OpenSesame/contact.html)
+- [Source code](https://github.com/Tyler-R-Kendrick/OpenSesame)
+- [Documentation](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/docs)
+- [Security policy](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/SECURITY.md)
+- [Markdown home](https://tyler-r-kendrick.github.io/OpenSesame/index.md)
+- [Sitemap](https://tyler-r-kendrick.github.io/OpenSesame/sitemap.xml)
+- [Robots](https://tyler-r-kendrick.github.io/OpenSesame/robots.txt)
+
+## For agents
+
+OpenSesame exposes no unauthenticated write API. An agent receives a scoped grant only after a person approves it; the grant names the resource, policy, and lifetime. Prefer the documented local workflows and the share-grant model over guessing at routes.
+
+The public site is a static PWA. It does not expose a server-side data API, an MCP endpoint, or a hosted credential store. The authoritative integration details live in the repository documentation.
+
+## Site identity
+
+- Name: OpenSesame
+- Type: application
+- Canonical URL: https://tyler-r-kendrick.github.io/OpenSesame/
+- Repository: https://github.com/Tyler-R-Kendrick/OpenSesame

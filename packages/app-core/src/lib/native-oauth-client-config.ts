@@ -37,6 +37,7 @@ export const NativeOAuthClientTarget = z
     issuer: secureEndpoint,
     authorization_endpoint: secureEndpoint,
     token_endpoint: secureEndpoint,
+    token_relay_url: secureUrl.optional(),
     resource: secureEndpoint.optional(),
     resource_protocol: z.enum(["json", "mcp"]).optional(),
     resource_parameter: z.enum(["send", "omit"]).optional(),
