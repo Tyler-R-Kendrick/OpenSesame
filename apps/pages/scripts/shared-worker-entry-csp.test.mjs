@@ -85,16 +85,28 @@ await monitor.link(()=>{throw Error('Monitor has no imports')});await monitor.ev
 const modules=new Map();const load=file=>{if(!modules.has(file))modules.set(file,new SourceTextModule(outputs[file],{context,identifier:file}));return modules.get(file)};
 const actual=load(root);await actual.link((source,parent)=>load(new URL(source,'file:///'+parent.identifier).pathname.slice(1)));await actual.evaluate();
 assert.equal(listeners.size,1);const dispatch=listeners.get('message');
-const receive=event=>dispatch({origin:'',...event});
-receive({origin:'https://foreign.example.test',data:{kind:'nativeHTTPReady'}});
-assert.deepEqual(messages,[],'Cross-origin messages cannot reach the Worker');
-receive({data:{kind:'nativeHTTPReady'}});
+const receive=event=>dispatch({origin:'',ports:[],...event});
+// The page's end of a transferred MessageChannel: the handler the Worker binds, and what it replies.
+const channel=()=>{const port={onmessage:null,replies:[],postMessage:value=>port.replies.push(value)};return port};
 const config={hostname:'csp-browser',controlURL:'https://controlplane.tailscale.com',authKey:'',state:{},assets:{runtime:'https://assets.example/runtime.js',wasm:'https://assets.example/main.wasm.gz'},nativeHTTP:{routeMode:'peer',peerID:'',trustMode:'public',targets:[{origin:'https://byo.example.test',prefixes:['100.64.0.1/32']}]}};
-receive({data:{kind:'start',config}});
-receive({data:{kind:'start',config:{...config,nativeHTTP:{...config.nativeHTTP,peerID:'n-peer',exitNodeID:'unapproved-fallback'}}}});
+const peer={...config,nativeHTTP:{...config.nativeHTTP,peerID:'n-peer'}};
+const foreign=channel();
+receive({origin:'https://foreign.example.test',data:{kind:'start',config:peer},ports:[foreign]});
+assert.equal(foreign.onmessage,null,'Cross-origin messages cannot reach the Worker');
 receive({data:{kind:'nativeHTTPReady'}});
-assert.deepEqual(JSON.parse(JSON.stringify(messages)),[{kind:'nativeHTTPReady',ready:false},{kind:'nativeHTTPReady',ready:false}]);
+const rejected=channel();
+receive({data:{kind:'start',config},ports:[rejected]});
+receive({data:{kind:'start',config:{...peer,nativeHTTP:{...peer.nativeHTTP,exitNodeID:'unapproved-fallback'}}},ports:[rejected]});
+assert.equal(rejected.onmessage,null,'Rejected peer starts bind no channel');
 assert.equal(network,0,'Rejected peer starts cannot initialize SDK/network');
+const bound=channel();
+receive({data:{kind:'start',config:peer},ports:[bound]});
+assert.equal(typeof bound.onmessage,'function','A valid peer start binds its one transferred port');
+bound.onmessage({data:{kind:'nativeHTTPReady'}});
+await new Promise(resolve=>setTimeout(resolve,0));
+assert.deepEqual(JSON.parse(JSON.stringify(bound.replies)),[{kind:'nativeHTTPReady',ready:false},{kind:'error'}]);
+assert.deepEqual(messages,[],'Nothing is answered on the Worker channel');
+assert.equal(network,0,'Assets off this deployment never reach SDK fetch');
 assert.equal(context.evalAttempts,0,'Actual production Worker must never probe dynamic compilation, even when Zod catches the CSP refusal');
 process.stdout.write('actual-worker-entry-csp-ok');`;
 
