@@ -11,6 +11,7 @@ import {
   OrganizationTenantResponseSchema,
   UpdateOrganizationRequestSchema,
 } from "@opensesame/contracts";
+import { OrganizationIssuerConflictError } from "@opensesame/database";
 import type {
   Organization,
   OrganizationMembership,
@@ -63,17 +64,6 @@ export {
 export type { JitJoinInput, JitJoinResult } from "./organization-membership.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
-
-/** A tenant issuer may name exactly one organization. */
-async function issuerClaimed(
-  ctx: AppContext,
-  issuer: string | undefined,
-  exceptOrganizationId?: string,
-): Promise<boolean> {
-  if (!issuer) return false;
-  const owner = await ctx.stores.organizations.findByIssuer(issuer);
-  return owner !== undefined && owner.id !== exceptOrganizationId;
-}
 
 /**
  * How stale an organization assertion may be at the join route (ADR 0055).
@@ -508,20 +498,6 @@ organizationRoutes.post(
             if (await ctx.stores.organizations.getBySlug(parsed.data.slug)) {
               return c.json({ error: "slug_taken" }, 409);
             }
-            if (
-              (await issuerClaimed(ctx, parsed.data.samlIssuer)) ||
-              (await issuerClaimed(ctx, parsed.data.ssoIssuer))
-            ) {
-              return c.json(
-                {
-                  error: "issuer_taken",
-                  message:
-                    "That identity provider already belongs to another tenant.",
-                },
-                409,
-              );
-            }
-
             const now = ctx.clock();
             const org: Organization = {
               // Rust Host APIs use the canonical opaque-id spelling `org:<uuid>`.
@@ -535,7 +511,17 @@ organizationRoutes.post(
             };
             if (parsed.data.ssoIssuer) org.ssoIssuer = parsed.data.ssoIssuer;
             if (parsed.data.samlIssuer) org.samlIssuer = parsed.data.samlIssuer;
-            await createOrganization(ctx, actor, proof, org);
+            try {
+              await createOrganization(ctx, actor, proof, org);
+            } catch (error) {
+              if (error instanceof OrganizationIssuerConflictError) {
+                return c.json(
+                  { error: "issuer_taken", message: error.message },
+                  409,
+                );
+              }
+              throw error;
+            }
             await ctx.stores.organizationMemberships.upsert({
               organizationId: org.id,
               principalId,
@@ -791,21 +777,6 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
         metadataXml: samlMetadataXml,
       });
       if (samlError) return c.json(samlError, 400);
-      if (
-        (parsed.data.samlIssuer !== undefined &&
-          (await issuerClaimed(ctx, samlIssuer, org.id))) ||
-        (parsed.data.ssoIssuer !== undefined &&
-          (await issuerClaimed(ctx, ssoIssuer, org.id)))
-      ) {
-        return c.json(
-          {
-            error: "issuer_taken",
-            message:
-              "That identity provider already belongs to another tenant.",
-          },
-          409,
-        );
-      }
       const unsafeIssuer = issuerConfigurationError(
         ctx.config,
         parsed.data.ssoIssuer,
@@ -836,7 +807,14 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
       const provisioningEnabled =
         parsed.data.provisioningEnabled ?? org.provisioningEnabled;
       if (provisioningEnabled) updated.provisioningEnabled = true;
-      await writeOrganization(ctx, orgName, proof, updated);
+      try {
+        await writeOrganization(ctx, orgName, proof, updated);
+      } catch (error) {
+        if (error instanceof OrganizationIssuerConflictError) {
+          return c.json({ error: "issuer_taken", message: error.message }, 409);
+        }
+        throw error;
+      }
       await appendAuditEvent(ctx.repos.auditEvents, {
         eventType: "organization.updated",
         outcome: "succeeded",

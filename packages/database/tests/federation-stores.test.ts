@@ -137,7 +137,7 @@ describe.each(backends)("$name federation storage", ({ create }) => {
   describe("organization store", () => {
     it("round-trips a full row and keeps unset optionals absent", async () => {
       const organization = await seedOrganization({
-        ssoIssuer: "https://sso.acme.example",
+        ssoIssuer: `https://sso-${randomUUID()}.acme.example`,
         ssoClientId: "acme-client-id",
         ssoClientSecret: "acme-client-secret",
         samlIssuer: "https://saml.acme.example",
@@ -169,7 +169,7 @@ describe.each(backends)("$name federation storage", ({ create }) => {
      */
     it("round-trips the tenant client credentials verbatim", async () => {
       const organization = await seedOrganization({
-        ssoIssuer: "https://sso.acme.example",
+        ssoIssuer: `https://sso-${randomUUID()}.acme.example`,
         ssoClientId: "acme-client-id",
         // Held as issued: it has to reach the tenant's token endpoint
         // byte-for-byte, so there is no digest that could stand in for it.
@@ -186,7 +186,7 @@ describe.each(backends)("$name federation storage", ({ create }) => {
       // A public client registered at the tenant's IdP: real, and distinct
       // from having no credentials at all.
       const organization = await seedOrganization({
-        ssoIssuer: "https://sso.acme.example",
+        ssoIssuer: `https://sso-${randomUUID()}.acme.example`,
         ssoClientId: "acme-public-client",
       });
       const read = await backend.organizations.organizations.get(
@@ -208,7 +208,7 @@ describe.each(backends)("$name federation storage", ({ create }) => {
 
     it("set is a full-row upsert: clearing an optional clears the column", async () => {
       const organization = await seedOrganization({
-        ssoIssuer: "https://sso.acme.example",
+        ssoIssuer: `https://sso-${randomUUID()}.acme.example`,
       });
       const { ssoIssuer: _cleared, ...rest } = organization;
       await backend.organizations.organizations.set(organization.id, {

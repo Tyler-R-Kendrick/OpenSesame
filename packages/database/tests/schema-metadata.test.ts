@@ -30,6 +30,7 @@ const EXPECTED_TABLES = [
   "better_auth_verifications",
   "organizations",
   "organization_memberships",
+  "organization_issuer_claims",
   "authentication_applications",
   "authentication_users",
   "authentication_aliases",

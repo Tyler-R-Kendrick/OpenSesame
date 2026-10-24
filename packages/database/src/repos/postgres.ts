@@ -15,7 +15,6 @@ import {
   type JsonObject,
   type NotificationDelivery,
   type NotificationPreferences,
-  type Organization,
   type OrganizationMembership,
   type OutboxEvent,
   type Principal,
@@ -27,7 +26,6 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import {
-  type Column,
   and,
   asc,
   desc,
@@ -38,7 +36,6 @@ import {
   isNull,
   lte,
   notExists,
-  or,
   sql,
 } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -74,7 +71,6 @@ import {
   type NotificationPreferenceRepository,
   OUTBOX_CLAIM_HOLD_MS,
   type OrganizationMembershipStore,
-  type OrganizationStore,
   type OrganizationStores,
   type OutboxRepository,
   type PrincipalRepository,
@@ -92,7 +88,8 @@ import {
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
-import { mapOrganization, organizationRowValues } from "./organization-row.js";
+import { PostgresOrganizationStore } from "./organization-stores.js";
+export { PostgresOrganizationStore } from "./organization-stores.js";
 import { mapAuditEvent } from "./postgres-map-audit.js";
 import { createPostgresPushSubscriptions } from "./push-subscriptions-postgres.js";
 import { createPostgresWalletInteractionRepos } from "./wallet-interaction-postgres.js";
@@ -2501,11 +2498,6 @@ export function createPostgresProjectStores(db: Database): ProjectStores {
   };
 }
 
-/** `rtrim(col, '/')` — the SQL half of {@link normalizeIssuer}. */
-function normalizedIssuerColumn(column: Column) {
-  return sql<string>`rtrim(${column}, '/')`;
-}
-
 function mapOrganizationMembership(
   row: typeof schema.organizationMemberships.$inferSelect,
 ): OrganizationMembership {
@@ -2516,72 +2508,6 @@ function mapOrganizationMembership(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
-}
-
-/** Postgres organization rows behind the `OrganizationStore` interface. */
-export class PostgresOrganizationStore implements OrganizationStore {
-  constructor(
-    private readonly db: Database,
-    private readonly sealer?: EventSealer,
-  ) {}
-
-  async get(id: string): Promise<Organization | undefined> {
-    const [row] = await this.db
-      .select()
-      .from(schema.organizations)
-      .where(eq(schema.organizations.id, id))
-      .limit(1);
-    return row ? mapOrganization(row, this.sealer) : undefined;
-  }
-
-  /** Full-row upsert — the durable equivalent of the former Map `set`. */
-  async set(id: string, organization: Organization): Promise<void> {
-    const values = organizationRowValues({ ...organization, id }, this.sealer);
-    const { id: _id, ...update } = values;
-    await this.db
-      .insert(schema.organizations)
-      .values(values)
-      .onConflictDoUpdate({ target: schema.organizations.id, set: update });
-  }
-
-  async getBySlug(slug: string): Promise<Organization | undefined> {
-    const [row] = await this.db
-      .select()
-      .from(schema.organizations)
-      .where(eq(schema.organizations.slug, slug))
-      .limit(1);
-    return row ? mapOrganization(row, this.sealer) : undefined;
-  }
-
-  async findByIssuer(issuer: string): Promise<Organization | undefined> {
-    const target = normalizeIssuer(issuer);
-    if (!target) return undefined;
-    // The stored spelling is whatever the operator typed; the comparison is
-    // normalized on both sides so a trailing slash never hides a tenant.
-    const [row] = await this.db
-      .select()
-      .from(schema.organizations)
-      .where(
-        or(
-          eq(normalizedIssuerColumn(schema.organizations.ssoIssuer), target),
-          eq(normalizedIssuerColumn(schema.organizations.samlIssuer), target),
-        ),
-      )
-      .orderBy(
-        asc(schema.organizations.createdAt),
-        asc(schema.organizations.id),
-      )
-      .limit(1);
-    return row ? mapOrganization(row, this.sealer) : undefined;
-  }
-
-  async listByCreator(principalId: string): Promise<Organization[]> {
-    const rows = await this.db
-      .select()
-      .from(schema.organizations)
-      .where(eq(schema.organizations.createdBy, principalId));
-    return rows.map((row) => mapOrganization(row, this.sealer));
-  }
 }
 
 /** Postgres membership rows behind the `OrganizationMembershipStore` interface. */

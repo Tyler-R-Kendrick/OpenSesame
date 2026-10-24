@@ -1,3 +1,5 @@
+import { MemoryOrganizationStore } from "./organization-stores.js";
+export { MemoryOrganizationStore } from "./organization-stores.js";
 import { randomUUID } from "node:crypto";
 import type {
   ApprovalActivation,
@@ -16,7 +18,6 @@ import type {
   InteractionKind,
   NotificationDelivery,
   NotificationPreferences,
-  Organization,
   OrganizationMembership,
   OutboxEvent,
   Principal,
@@ -52,7 +53,6 @@ import {
   type NotificationPreferenceRepository,
   OUTBOX_CLAIM_HOLD_MS,
   type OrganizationMembershipStore,
-  type OrganizationStore,
   type OrganizationStores,
   type OutboxRepository,
   type PrincipalRepository,
@@ -68,8 +68,6 @@ import {
   type WebhookEndpointRepository,
   buildPersonalProject,
   normalizeIssuer,
-  normalizeOrganizationRow,
-  organizationClaimsIssuer,
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
@@ -1665,44 +1663,6 @@ export class MemoryOrganizationMembershipStore
       }
     }
     return count;
-  }
-}
-
-/**
- * In-memory organization store — the former `AppStores.organizations` Map
- * behind the store interface, with `organizationSlugs` folded into
- * {@link MemoryOrganizationStore.getBySlug} (a second Map could disagree with
- * the first; a scan cannot).
- *
- * `set` normalizes the row so an optional field left empty reads back absent,
- * exactly as a Postgres NULL does.
- */
-export class MemoryOrganizationStore
-  extends Map<string, Organization>
-  implements OrganizationStore
-{
-  override set(id: string, organization: Organization): this;
-  override set(id: string, organization: Organization): void;
-  override set(id: string, organization: Organization): this {
-    return super.set(id, normalizeOrganizationRow({ ...organization, id }));
-  }
-
-  getBySlug(slug: string): Organization | undefined {
-    for (const organization of this.values()) {
-      if (organization.slug === slug) return organization;
-    }
-    return undefined;
-  }
-
-  findByIssuer(issuer: string): Organization | undefined {
-    for (const organization of this.values()) {
-      if (organizationClaimsIssuer(organization, issuer)) return organization;
-    }
-    return undefined;
-  }
-
-  listByCreator(principalId: string): Organization[] {
-    return [...this.values()].filter((org) => org.createdBy === principalId);
   }
 }
 

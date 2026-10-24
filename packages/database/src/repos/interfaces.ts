@@ -1,4 +1,8 @@
-import { normalizeIssuer } from "./issuer-normalization.js";
+export {
+  OrganizationIssuerConflictError,
+  normalizeOrganizationRow,
+  organizationClaimsIssuer,
+} from "./organization-row.js";
 export { normalizeIssuer } from "./issuer-normalization.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -415,7 +419,7 @@ export interface ProjectStores {
  */
 export interface OrganizationStore {
   get(id: string): Awaitable<Organization | undefined>;
-  /** Full-row upsert (Map `set` semantics). */
+  /** Full-row upsert; atomically rejects issuers held by another organization. */
   set(id: string, organization: Organization): Awaitable<void>;
   getBySlug(slug: string): Awaitable<Organization | undefined>;
   /**
@@ -447,56 +451,6 @@ export interface OrganizationMembershipStore {
 export interface OrganizationStores {
   organizations: OrganizationStore;
   organizationMemberships: OrganizationMembershipStore;
-}
-
-/**
- * Row shape both organization stores agree on.
- *
- * Optional fields are present only when set — a Postgres NULL reads back as an
- * absent key, so the memory store must drop empty values too or a round-trip
- * that passes in memory fails against the database (and vice versa).
- */
-export function normalizeOrganizationRow(
-  organization: Organization,
-): Organization {
-  const row: Organization = {
-    id: organization.id,
-    slug: organization.slug,
-    displayName: organization.displayName,
-    state: organization.state,
-    createdBy: organization.createdBy,
-    createdAt: organization.createdAt,
-    updatedAt: organization.updatedAt,
-  };
-  if (organization.ssoIssuer) row.ssoIssuer = organization.ssoIssuer;
-  if (organization.ssoClientId) row.ssoClientId = organization.ssoClientId;
-  if (organization.ssoClientSecret) {
-    row.ssoClientSecret = organization.ssoClientSecret;
-  }
-  if (organization.samlIssuer) row.samlIssuer = organization.samlIssuer;
-  if (organization.samlMetadataUrl) {
-    row.samlMetadataUrl = organization.samlMetadataUrl;
-  }
-  if (organization.samlMetadataXml) {
-    row.samlMetadataXml = organization.samlMetadataXml;
-  }
-  if (organization.provisioningEnabled) row.provisioningEnabled = true;
-  return row;
-}
-
-/** True when either issuer column of `organization` names `issuer`. */
-export function organizationClaimsIssuer(
-  organization: Organization,
-  issuer: string,
-): boolean {
-  const target = normalizeIssuer(issuer);
-  if (!target) return false;
-  return (
-    (organization.ssoIssuer !== undefined &&
-      normalizeIssuer(organization.ssoIssuer) === target) ||
-    (organization.samlIssuer !== undefined &&
-      normalizeIssuer(organization.samlIssuer) === target)
-  );
 }
 
 export interface WebhookEndpointRepository {

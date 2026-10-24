@@ -17,6 +17,7 @@ import {
 import type { Profile } from "@node-saml/node-saml";
 import { parseDomFromString, xpath } from "@node-saml/node-saml/lib/xml.js";
 import { appendAuditEvent } from "@opensesame/audit";
+import { OrganizationIssuerConflictError } from "@opensesame/database";
 import {
   type Organization,
   isJsonObject,
@@ -32,7 +33,6 @@ import {
 } from "../routes/organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "../routes/projects.js";
 import { provisionedRoleForSubject } from "../routes/scim.js";
-import { serializeKeyed } from "../serialize.js";
 import {
   UnsafeUpstreamError,
   assertPublicUpstreamUrl,
@@ -538,53 +538,38 @@ function samlOrganizationSignsIn(organization: Organization): boolean {
   return organization.state !== "suspended" && organization.state !== "deleted";
 }
 
-/**
- * One IdP entityID belongs to one tenant.
- *
- * An entityID that is not already recorded on the organization row is adopted
- * on first use, inside the same serialized claim as the uniqueness check. Two
- * tenants configured with the same metadata therefore cannot both accept that
- * IdP's assertions: the first resolves the entityID, writes it to its row, and
- * the second's lookup finds the existing owner and refuses. Without the write,
- * an empty `samlIssuer` would make every assertion look unclaimed forever.
- */
+/** First-use entityIDs use the same atomic store claim as configured issuers. */
 async function claimSamlEntityId(
   ctx: AppContext,
   organizationId: string,
   entityId: string,
 ): Promise<void> {
-  await serializeKeyed(
-    ctx.stores.principalMutations,
-    `saml-entity:${entityId}`,
-    async () => {
-      const owner = await ctx.stores.organizations.findByIssuer(entityId);
-      if (owner && owner.id !== organizationId) {
-        throw new SamlAuthError(
-          "not_configured",
-          "This identity provider belongs to another tenant.",
-        );
-      }
-      const organization = await ctx.stores.organizations.get(organizationId);
-      if (!organization || !samlOrganizationSignsIn(organization)) {
-        throw new SamlAuthError(
-          "not_configured",
-          "No organization on this server accepts that identity provider.",
-        );
-      }
-      if (organization.samlIssuer === entityId) return;
-      if (organization.samlIssuer) {
-        throw new SamlAuthError(
-          "metadata_unavailable",
-          "The organization's SAML metadata does not match its configured entityID.",
-        );
-      }
-      await ctx.stores.organizations.set(organization.id, {
-        ...organization,
-        samlIssuer: entityId,
-        updatedAt: ctx.clock(),
-      });
-    },
-  );
+  const organization = await ctx.stores.organizations.get(organizationId);
+  if (!organization || !samlOrganizationSignsIn(organization)) {
+    throw new SamlAuthError(
+      "not_configured",
+      "No organization on this server accepts that identity provider.",
+    );
+  }
+  if (organization.samlIssuer === entityId) return;
+  if (organization.samlIssuer) {
+    throw new SamlAuthError(
+      "metadata_unavailable",
+      "The organization's SAML metadata does not match its configured entityID.",
+    );
+  }
+  try {
+    await ctx.stores.organizations.set(organization.id, {
+      ...organization,
+      samlIssuer: entityId,
+      updatedAt: ctx.clock(),
+    });
+  } catch (error) {
+    if (error instanceof OrganizationIssuerConflictError) {
+      throw new SamlAuthError("not_configured", error.message);
+    }
+    throw error;
+  }
 }
 
 function buildSamlClient(

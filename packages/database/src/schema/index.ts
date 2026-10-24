@@ -458,8 +458,7 @@ export const organizations = pgTable(
       .notNull()
       .references(() => principals.id),
     /**
-     * Tenant federation config. Queried by issuer on the login path (home-realm
-     * routing and trust resolution), so these are columns and not a jsonb blob.
+     * Federation config; the atomic issuer claims table routes sign-in.
      */
     ssoIssuer: text("sso_issuer"),
     /**
@@ -2387,3 +2386,4 @@ export const agentServiceAssertions = pgTable(
 );
 export { agentProviderAssertionReplays } from "./agent-auth-replay.js";
 export { oauthClientSectorClaims } from "./oauth-client-sectors.js";
+export { organizationIssuerClaims } from "./organization-issuers.js";
