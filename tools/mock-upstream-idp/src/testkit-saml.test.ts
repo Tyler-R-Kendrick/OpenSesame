@@ -83,6 +83,8 @@ function assertionIdOf(samlResponse: string): string {
 }
 
 describe("reference IdP — SAML 2.0", () => {
+  // The first IdP start generates the X.509 certificate; on a loaded runner
+  // that crosses vitest's default 5s.
   it("publishes metadata carrying a real X.509 signing certificate", async () => {
     const idp = await startReferenceIdp({ protocol: "saml" });
     try {
@@ -112,7 +114,7 @@ describe("reference IdP — SAML 2.0", () => {
     } finally {
       await idp.close();
     }
-  });
+  }, 30_000);
 
   it("completes an SP-initiated round trip the SP library accepts", async () => {
     const idp = await startReferenceIdp({
