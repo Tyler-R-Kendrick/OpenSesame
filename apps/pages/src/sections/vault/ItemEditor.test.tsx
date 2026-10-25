@@ -239,8 +239,23 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-  it("saves a generated password with no site as the all-domains rule", async () => {
+  it("keeps a generated password unbound when no site was chosen", async () => {
     renderEditor();
+    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(savedItem()).toMatchObject({
+      kind: "account",
+      uris: [],
+    });
+  });
+  it("saves an all-domains wildcard only when explicitly chosen", async () => {
+    renderEditor();
+    await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
+    await userEvent.type(screen.getByLabelText("Address 1"), "*");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Match rule 1"),
+      "wildcard",
+    );
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect(savedItem()).toMatchObject({
@@ -248,8 +263,15 @@ describe("ItemEditor", () => {
       uris: [{ uri: "*", match: "wildcard" }],
     });
   });
-  it("starts with an all-domains wildcard and saves its removal", async () => {
+  it("adds an explicit all-domains wildcard and saves its removal", async () => {
     renderEditor();
+    expect(screen.queryByLabelText("Address 1")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
+    await userEvent.type(screen.getByLabelText("Address 1"), "*");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Match rule 1"),
+      "wildcard",
+    );
     expect(inputByLabel("Address 1").value).toBe("*");
     expect(screen.getByLabelText("Match rule 1")).toHaveProperty(
       "value",

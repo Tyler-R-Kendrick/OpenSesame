@@ -8,6 +8,7 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { isNativeDeviceConnection } from "@opensesame/app-core/lib/device-connector-view.js";
 import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useState } from "react";
@@ -129,7 +130,12 @@ function LocalConnectPanels(props: Props) {
       />
     );
   if (!plan || plan.refused) return null;
-  if (provider.id === "linear" && isSelfHostedConnector(connection))
+  if (
+    provider.id === "linear" &&
+    connection !== null &&
+    isSelfHostedConnector(connection) &&
+    !isNativeDeviceConnection(connection)
+  )
     return <LinearLocalPanels {...props} plan={plan} />;
   if (provider.id !== "linear") return <NativeConnectorPanels {...props} />;
   return <LinearMcpPanels {...props} plan={plan} />;

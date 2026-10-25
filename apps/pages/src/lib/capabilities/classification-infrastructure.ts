@@ -1,5 +1,5 @@
 /** Core storage, input, and shell infrastructure classification. */
-import { core, each } from "./classification-rule.js";
+import { core, each, shared } from "./classification-rule.js";
 
 const CORE_INFRA = [
   "kv",
@@ -73,6 +73,12 @@ const CORE_INFRA = [
   "__snapshots__/",
 ];
 
-export const CORE_INFRA_RULES = each("src/lib/", CORE_INFRA, (p) =>
-  core(p, null, "storage, focus, theme and shell infrastructure"),
-);
+export const CORE_INFRA_RULES = [
+  ...each("src/lib/", CORE_INFRA, (p) =>
+    core(p, null, "storage, focus, theme and shell infrastructure"),
+  ),
+  shared(
+    "src/test-support/lock-manager.ts",
+    "test-only Web Locks double with independent named queues",
+  ),
+];

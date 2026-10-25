@@ -116,33 +116,37 @@ export function nativeSettingsDescriptor(
     `${import.meta.env.BASE_URL}auth/native-connector.html`,
     window.location.origin,
   ).href;
-  const descriptor = nativeProviderDescriptor(plan, {
-    callbackUrl,
-    apiKey: {
-      available: nativeApiKeyAvailable(provider),
+  const descriptor = nativeProviderDescriptor(
+    plan,
+    {
+      callbackUrl,
+      apiKey: {
+        available: nativeApiKeyAvailable(provider),
+      },
+      oauth: {
+        registeredAvailable:
+          hasNativeConnectorDriver("oauth", provider.id) &&
+          supportsNativeOAuthResource(provider.id),
+        available:
+          supportsNativeOAuthResource(provider.id) &&
+          (provider.id !== "google" || nativeGoogleBrowserAvailable()),
+        reason: !hasNativeConnectorDriver("oauth", provider.id)
+          ? "Enable External connectors to configure this OAuth application on this device."
+          : provider.id === "google" && !nativeGoogleBrowserAvailable()
+            ? "Google consent is unavailable under this deployment's isolation policy."
+            : undefined,
+        profile: nativeBrowserOAuthProfile(provider.id) ?? undefined,
+      },
+      mcp: {
+        available: hasNativeConnectorDriver("mcp", provider.id),
+        reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
+        inactiveReason: mcpInactiveReason(),
+        actor: "user",
+        defaultScopes: provider.id === "linear" ? ["read"] : undefined,
+      },
     },
-    oauth: {
-      registeredAvailable:
-        hasNativeConnectorDriver("oauth", provider.id) &&
-        supportsNativeOAuthResource(provider.id),
-      available:
-        supportsNativeOAuthResource(provider.id) &&
-        (provider.id !== "google" || nativeGoogleBrowserAvailable()),
-      reason: !hasNativeConnectorDriver("oauth", provider.id)
-        ? "Enable External connectors to configure this OAuth application on this device."
-        : provider.id === "google" && !nativeGoogleBrowserAvailable()
-          ? "Google consent is unavailable under this deployment's isolation policy."
-          : undefined,
-      profile: nativeBrowserOAuthProfile(provider.id) ?? undefined,
-    },
-    mcp: {
-      available: hasNativeConnectorDriver("mcp", provider.id),
-      reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
-      inactiveReason: mcpInactiveReason(),
-      actor: "user",
-      defaultScopes: provider.id === "linear" ? ["read"] : undefined,
-    },
-  });
+    savedMethod,
+  );
   // Linear's GraphQL app/key ceremony lives in its existing advanced form.
   // Existing native records keep their own method and credential custody.
   return provider.id === "linear"

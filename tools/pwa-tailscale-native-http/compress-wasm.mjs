@@ -167,7 +167,7 @@ export async function compressNativeWasm({
       [...compressorPin.arguments, "--", input],
       work,
       env,
-      60_000,
+      120_000,
       67_108_864,
     ),
     raw,

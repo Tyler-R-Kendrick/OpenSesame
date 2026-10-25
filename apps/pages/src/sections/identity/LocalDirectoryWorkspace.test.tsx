@@ -1,7 +1,9 @@
 /** @vitest-environment jsdom */
+import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
 import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { signInLocalIdentity } from "@opensesame/app-core/lib/local-sessions.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 import {
   cleanup,
@@ -22,6 +24,8 @@ beforeEach(async () => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
   fixture = await localRequestFixture();
+  await ensureDefaultAccess(fixture.tomb);
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   Object.assign(vaultHooksSeams, {
     useVault: () => ({ ...originalVault.useVault(), tomb: fixture.tomb }),
     useVaultStore: () => ({ activeTomb: () => fixture.tomb }),
@@ -83,6 +87,7 @@ it("creates, selects, edits and deletes one agent through the vault list and buf
   expect(screen.getByTestId("location").textContent).toContain(
     `#${encodeURIComponent(agent.id)}`,
   );
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   await userEvent.click(screen.getByRole("button", { name: "Edit Build bot" }));
   const name = await screen.findByLabelText("Name");
   await userEvent.clear(name);
@@ -95,6 +100,7 @@ it("creates, selects, edits and deletes one agent through the vault list and buf
       { timeout: 5000 },
     ),
   ).toBeTruthy();
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   await userEvent.click(screen.getByRole("button", { name: "Delete" }));
   expect(
     (await readLocalDirectory(fixture.tomb)).entries.some(
@@ -128,6 +134,7 @@ it("opens an existing subtree hash as detail and keeps a malformed hash safe", a
   });
   const agent = next.entries.find((entry) => entry.name === "Support bot");
   if (!agent) throw new Error("Expected saved agent");
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   open(`/identity?view=agents#${encodeURIComponent(agent.id)}`);
   expect(
     await screen.findByRole(
@@ -157,6 +164,7 @@ it("keeps the text entered as soon as the editor receives focus", async () => {
   });
   const agent = next.entries.find((entry) => entry.name === "Fast typist");
   if (!agent) throw new Error("Expected saved agent");
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   open(`/identity?view=agents#${encodeURIComponent(agent.id)}`);
   const edit = await screen.findByRole("button", { name: "Edit Fast typist" });
   await waitFor(() => expect(edit).toHaveProperty("disabled", false));

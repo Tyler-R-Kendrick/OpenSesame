@@ -18,7 +18,7 @@ use super::{
     vault_drive_routes, App,
 };
 
-async fn daemon_health() -> Json<Value> {
+pub(super) async fn daemon_health() -> Json<Value> {
     Json(json!({"status":"ok"}))
 }
 

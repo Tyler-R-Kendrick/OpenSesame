@@ -26,9 +26,9 @@ test.skipIf(process.arch !== "x64")(
     assert.match(assets.get(TAILSCALE_ASSETS.license).toString(), /Go Authors/);
     assert.match(
       assets.get(TAILSCALE_ASSETS.license).toString(),
-      /Zod3 runtime/,
+      /Zod4 runtime/,
     );
-    assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 23988);
+    assert.equal(assets.get(TAILSCALE_ASSETS.nativeHTTP).length, 28377);
     assertTailscaleHash(
       assets.get(TAILSCALE_ASSETS.nativeHTTP),
       TAILSCALE_SDK.nativeHTTPHash,
