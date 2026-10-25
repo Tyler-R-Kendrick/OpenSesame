@@ -14,6 +14,10 @@ export type UpstreamIdentity = {
   name?: string | undefined;
   picture?: string | undefined;
 };
+/** Native protocol evidence is held by its verified adapter, never serialized as scalar token metadata. */
+export function isNativeFederationFormat(value: string | undefined): boolean {
+  return value === "saml" || value === "native-oidc" || value === "ldap";
+}
 export type NativeFederationIdentity = Readonly<
   UpstreamIdentity & {
     assertionFormat: "saml";

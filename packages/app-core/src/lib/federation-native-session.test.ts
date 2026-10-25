@@ -87,15 +87,21 @@ it("canonical federation reads the native adapter session without deserializing 
   const state = fixture();
   expect(loadSession()).toBe(state.original);
 });
-it("canonical save refuses to serialize a native SAML session", () => {
-  const state = fixture();
-  const storedBefore = readFederationSessionJson();
-  const generation = federationSessionGeneration();
-  if (!state.original) throw new Error("fixture was not created");
-  expect(() => saveSession(state.original)).toThrow(/must remain/);
-  expect(readFederationSessionJson()).toBe(storedBefore);
-  expect(federationSessionGeneration()).toBe(generation);
-});
+it.each(["saml", "native-oidc", "ldap"])(
+  "canonical save refuses scalar serialization of %s evidence before any generation or storage change",
+  (format) => {
+    const state = fixture();
+    const storedBefore = readFederationSessionJson();
+    const generation = federationSessionGeneration();
+    if (!state.original) throw new Error("fixture was not created");
+    const untrusted = { ...state.original };
+    Object.defineProperty(untrusted, "assertionFormat", { value: format });
+    expect(() => saveSession(untrusted)).toThrow(/must remain/);
+    expect(readFederationSessionJson()).toBe(storedBefore);
+    expect(federationSessionGeneration()).toBe(generation);
+    expect(readNativeFederationSession()).toBe(state.original);
+  },
+);
 it("saving a different provider session retires the native identity before replacement", () => {
   fixture();
   const generation = federationSessionGeneration();

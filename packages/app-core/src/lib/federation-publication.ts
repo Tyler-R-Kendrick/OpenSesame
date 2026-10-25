@@ -7,6 +7,7 @@ import {
   type UpstreamIdentity,
   advanceFederationSessionGeneration,
   federationSessionGeneration,
+  isNativeFederationFormat,
 } from "./federation-native-session.js";
 import {
   clearFederationSessionJson,
@@ -67,14 +68,14 @@ onVaultLock(() => {
   advanceFederationSessionGeneration();
 });
 
-/** Saved JWT metadata retains the original API; native SAML evidence cannot be serialized here. */
+/** Saved JWT metadata retains the original API; native protocol evidence cannot be serialized here. */
 export function saveSession(
   identity: UpstreamIdentity,
   expectedGeneration?: FederationSessionGeneration,
 ): FederationSessionGeneration {
-  if (identity.assertionFormat === "saml")
+  if (isNativeFederationFormat(identity.assertionFormat))
     throw new Error(
-      "Native SAML evidence must remain in its verified browser session",
+      "Native identity evidence must remain in its verified browser session",
     );
   if (expectedGeneration !== undefined) assertGeneration(expectedGeneration);
   const published = advanceFederationSessionGeneration();
