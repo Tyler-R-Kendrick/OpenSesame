@@ -4,9 +4,13 @@
  * Split out of `classification-lib.ts` for the 400-line module budget.
  */
 
-import { core } from "./classification-rule.js";
+import { core, shared } from "./classification-rule.js";
 
 export const DEV_EVIDENCE_RULES = [
+  shared(
+    "src/test-support/lock-manager.ts",
+    "test-only Web Locks fixture shared by guest, local IAM and vault UI tests",
+  ),
   core(
     "src/lib/ai-completion-observation.ts",
     null,
