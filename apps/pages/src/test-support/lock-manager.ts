@@ -1,5 +1,7 @@
 import { vi } from "vitest";
 
+const queues = new Map<string, Promise<void>>();
+
 function request(_name: string, action: () => Promise<void>): Promise<void>;
 function request(
   _name: string,
@@ -7,13 +9,22 @@ function request(
   action: () => Promise<void>,
 ): Promise<void>;
 function request(
-  _name: string,
+  name: string,
   optionsOrAction: { mode?: string } | (() => Promise<void>),
   maybeAction?: () => Promise<void>,
 ): Promise<void> {
-  if (maybeAction) return maybeAction();
   // SAFETY: the checked two-argument Web Locks contract declares optionsOrAction as the callback; maybeAction is absent only on that branch.
-  return (optionsOrAction as () => Promise<void>)();
+  const action = maybeAction ?? (optionsOrAction as () => Promise<void>);
+  const previous = queues.get(name) ?? Promise.resolve();
+  const next = previous.then(action);
+  queues.set(
+    name,
+    next.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return next;
 }
 
 export const testLockManager = { request };
