@@ -243,7 +243,7 @@ export async function tlsOracle(
   return {
     operatorCA: tls.cert.toString(),
     closed: state.closed,
-    beforeResponse: (callback: (path: string) => Promise<void>) => {
+    beforeResponse: (callback: ((path: string) => Promise<void>) | null) => {
       state.beforeResponse = callback;
     },
     config,
