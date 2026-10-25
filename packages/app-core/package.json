@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133) — no React, no DOM shell",
+  "description": "The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133) \u2014 no React, no DOM shell",
   "exports": {
     "./*.js": {
       "types": "./src/*.ts",
@@ -71,6 +71,7 @@
     "@opensesame/support-agent": "workspace:*",
     "@opensesame/vault-core": "workspace:*",
     "@opensesame/vault-item-types": "workspace:*",
+    "@opensesame/wallet": "workspace:*",
     "@opensesame/wallet-budget": "workspace:*",
     "@opensesame/wallet-consent": "workspace:*",
     "@opensesame/webmcp": "workspace:*",
