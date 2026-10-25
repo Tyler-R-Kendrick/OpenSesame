@@ -24,7 +24,6 @@ export type {
 } from "./federation-contract.js";
 import {
   consumeBrokeredPublication,
-  forgetBrokeredPublication,
   runOwnedFederationExchange,
 } from "./federation-publication.js";
 export {
@@ -35,7 +34,6 @@ import { FederationError } from "./federation-error.js";
 import {
   type FederationSessionGeneration,
   type UpstreamIdentity,
-  advanceFederationSessionGeneration,
   upstreamIdentityDisplayName as displayNameDefault,
   federationSessionGeneration,
   readNativeFederationSession,
@@ -47,10 +45,8 @@ import {
   redirectUri,
 } from "./federation-origin.js";
 import { takeMatchingPending } from "./federation-pending.js";
-import {
-  clearFederationSessionJson,
-  readFederationSessionJson,
-} from "./federation-session-store.js";
+import { clearFederationSession as clearSessionDefault } from "./federation-retirement.js";
+import { readFederationSessionJson } from "./federation-session-store.js";
 import { readStoredSessionSync } from "./federation-stored-session.js";
 import {
   type IdentitySession,
@@ -484,12 +480,6 @@ function loadSessionDefault(): UpstreamIdentity | null {
     return null;
   }
   return identity;
-}
-
-function clearSessionDefault(): void {
-  advanceFederationSessionGeneration();
-  forgetBrokeredPublication();
-  clearFederationSessionJson();
 }
 
 async function completeSignInWired(): Promise<CompletedSignIn | null> {
