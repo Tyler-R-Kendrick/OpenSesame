@@ -2,6 +2,7 @@ import type {
   BrowserUnavailableKind,
   DispositionRoute,
 } from "@opensesame/app-core/lib/browser-disposition.js";
+import type { NativeConfigurationOwner } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import type { ConfigChoice } from "@opensesame/app-core/lib/self-hosted-config.js";
@@ -81,6 +82,7 @@ export type NativeConnectorDescriptor = {
 };
 
 export type NativeConfigureInput = {
+  owner?: NativeConfigurationOwner;
   method: NativeMethod;
   displayName: string;
   icon?: string;

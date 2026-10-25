@@ -11,6 +11,7 @@ import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import {
   NativeCancelSignIn,
+  nativeConfigurationOwner,
   useNativeSignInUiLifetime,
 } from "./NativeCancelSignIn.js";
 import { NativeConnectorFields } from "./NativeConnectorFields.js";
@@ -142,6 +143,7 @@ function useNativeForm(props: Props) {
       const signIn = nativeSignInRequired(method, view);
       const next = await (signIn ? controller.connect : controller.configure)({
         method: method.id,
+        owner: nativeConfigurationOwner(attempt),
         displayName: name.trim(),
         icon: image.icon,
         parameters: nativeFieldValues(method.fields, values, false),

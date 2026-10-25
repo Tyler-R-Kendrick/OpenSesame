@@ -62,7 +62,12 @@ it("keeps provider fields and credentials separate and waits for verified durabl
   await userEvent.click(
     screen.getByRole("button", { name: "Verify and connect Algolia" }),
   );
+  const owner = controller.configure.mock.calls[0]?.[0].owner;
+  expect(owner?.signal).toBeInstanceOf(AbortSignal);
+  expect(owner?.signal.aborted).toBe(false);
+  expect(() => owner?.assertCurrent()).not.toThrow();
   expect(controller.configure).toHaveBeenCalledWith({
+    owner,
     method: "api-key",
     displayName: "Algolia",
     icon: "",
@@ -80,6 +85,8 @@ it("keeps provider fields and credentials separate and waits for verified durabl
   ).toHaveProperty("value", "private-human-key");
   finish?.(nativeUiView());
   await waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
+  expect(owner?.signal.aborted).toBe(false);
+  expect(() => owner?.assertCurrent()).toThrow("This configuration ended.");
   expect(
     screen.getByLabelText("Algolia API key", {
       selector: 'input[type="password"]',
