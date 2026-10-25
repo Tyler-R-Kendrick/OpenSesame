@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { initialDraftState } from "@opensesame/app-core/lib/connect-draft.js";
+import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
   Provider,
