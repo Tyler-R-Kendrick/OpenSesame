@@ -5,7 +5,15 @@ import { createControlPlane } from "../create-app.js";
 
 describe("organization OIDC credential configuration", () => {
   it("retains write-only secrets only for the issuer and client that received them", async () => {
-    const { app, ctx } = createControlPlane();
+    const { app, ctx } = createControlPlane({
+      config: {
+        organizationIssuerAllowlist: [
+          "https://idp.example",
+          "https://other.example",
+          "https://third.example",
+        ],
+      },
+    });
     const created = await app.request("/v1/principals/provisional", {
       method: "POST",
     });
@@ -39,6 +47,11 @@ describe("organization OIDC credential configuration", () => {
         headers,
         body: JSON.stringify(body),
       });
+    ctx.config.organizationIssuerAllowlist = [
+      "https://idp.example",
+      "https://other.example",
+      "https://third.example",
+    ].map((issuer) => `${id}|${issuer}`);
     const secret = randomBytes(24).toString("base64url");
     const first = await patch({
       ssoIssuer: "https://idp.example",

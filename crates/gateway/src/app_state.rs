@@ -83,6 +83,7 @@ pub struct AppState {
     /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
     pub device_approve_failures: Arc<Mutex<Vec<chrono::DateTime<chrono::Utc>>>>,
     pub claims: Arc<Mutex<HashMap<String, ClaimSession>>>,
+    pub(crate) public_enrollment: Arc<Mutex<crate::middleware::public_enrollment::Budgets>>,
     /// `claim_id` -> failed user-code attempts on completion (brute-force fence).
     pub claim_user_code_attempts: Arc<Mutex<HashMap<String, u32>>>,
     pub bootstrap: Arc<Mutex<Option<Bootstrap>>>,
@@ -222,6 +223,9 @@ async fn build_with_security(
         session_lifecycle: Arc::new(Mutex::new(())),
         device_approve_failures: Arc::new(Mutex::new(Vec::new())),
         claims: Arc::new(Mutex::new(HashMap::new())),
+        public_enrollment: Arc::new(Mutex::new(
+            crate::middleware::public_enrollment::Budgets::default(),
+        )),
         claim_user_code_attempts: Arc::new(Mutex::new(HashMap::new())),
         bootstrap: Arc::new(Mutex::new(boot.demo)),
         openfga,

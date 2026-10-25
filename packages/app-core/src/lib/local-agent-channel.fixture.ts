@@ -106,11 +106,14 @@ export async function verifyAgentApplicationChannel(input: ChannelCase) {
       state: request.state,
       id: "2",
     });
-    expect(await take("identity")).toMatchObject({
-      sub: agent,
+    const identity = await take("identity");
+    expect(identity).toMatchObject({
       audience: app,
       scope: "openid",
     });
+    expect(identity.sub).toMatch(/^[0-9a-f-]{36}$/);
+    expect(identity.sub).not.toBe(agent);
+    expect(identity.sub).not.toBe(humanSession.principalId);
     await revokeLocalIdentitySession(tomb, humanSession.id);
     pipe.port1.postMessage({
       type: "userinfo",

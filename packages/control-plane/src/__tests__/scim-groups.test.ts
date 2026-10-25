@@ -78,7 +78,7 @@ describe("SCIM member selector", () => {
 describe("SCIM Groups persistence", () => {
   it("ADV-20: selector-only members[value eq id] remove drops membership and privilege", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "adv20-org", idp);
+    const { owner, org } = await seedTenant(app, ctx, "adv20-org", idp);
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
     await putGroupRoleMappingAsOwner(ctx, org.id, "owners", "owner");
@@ -133,7 +133,7 @@ describe("SCIM Groups persistence", () => {
 
   it("ADV-21: remaining mapped group keeps its role; unmapped owners grants nothing", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "adv21-org", idp);
+    const { owner, org } = await seedTenant(app, ctx, "adv21-org", idp);
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
     await putGroupRoleMappingAsOwner(ctx, org.id, "leaders", "owner");
@@ -187,7 +187,7 @@ describe("SCIM Groups persistence", () => {
 
   it("ADV-22: changing externalId/username then deactivating still offboards", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
-    const { owner, org } = await seedTenant(app, "adv22-org", idp);
+    const { owner, org } = await seedTenant(app, ctx, "adv22-org", idp);
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     idp.setSubject("adv22-user");
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);

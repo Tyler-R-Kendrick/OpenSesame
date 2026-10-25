@@ -15,7 +15,6 @@ import {
   type JsonObject,
   type NotificationDelivery,
   type NotificationPreferences,
-  type Organization,
   type OrganizationMembership,
   type OutboxEvent,
   type Principal,
@@ -27,7 +26,6 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import {
-  type Column,
   and,
   asc,
   desc,
@@ -38,7 +36,6 @@ import {
   isNull,
   lte,
   notExists,
-  or,
   sql,
 } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -50,6 +47,10 @@ import {
   claimDueNotificationRows,
   claimDueWebhookRows,
 } from "./delivery-claims.js";
+import {
+  MAX_WEBHOOK_ENDPOINTS_PER_PRINCIPAL,
+  WebhookEndpointLimitError,
+} from "./interfaces.js";
 import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
@@ -74,7 +75,6 @@ import {
   type NotificationPreferenceRepository,
   OUTBOX_CLAIM_HOLD_MS,
   type OrganizationMembershipStore,
-  type OrganizationStore,
   type OrganizationStores,
   type OutboxRepository,
   type PrincipalRepository,
@@ -92,7 +92,7 @@ import {
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
-import { mapOrganization, organizationRowValues } from "./organization-row.js";
+import { PostgresOrganizationStore } from "./organization-store-postgres.js";
 import { mapAuditEvent } from "./postgres-map-audit.js";
 import { createPostgresPushSubscriptions } from "./push-subscriptions-postgres.js";
 import { createPostgresWalletInteractionRepos } from "./wallet-interaction-postgres.js";
@@ -1403,8 +1403,36 @@ export class PostgresRepositories implements Repositories {
 
   readonly webhookEndpoints: WebhookEndpointRepository = {
     create: async (endpoint, uow) => {
+      if (!(uow instanceof PostgresUnitOfWork)) {
+        return this.transaction((transaction) =>
+          this.webhookEndpoints.create(endpoint, transaction),
+        );
+      }
+      const db = dbOf(uow, this.db);
+      // Lock the durable owner, including when it has no endpoint rows yet.
+      await db
+        .select({ id: schema.principals.id })
+        .from(schema.principals)
+        .where(eq(schema.principals.id, endpoint.principalId))
+        .for("update");
+      const active = await db
+        .select({ id: schema.webhookEndpoints.id })
+        .from(schema.webhookEndpoints)
+        .where(
+          and(
+            eq(schema.webhookEndpoints.principalId, endpoint.principalId),
+            isNull(schema.webhookEndpoints.disabledAt),
+          ),
+        )
+        .limit(MAX_WEBHOOK_ENDPOINTS_PER_PRINCIPAL);
+      if (
+        endpoint.disabledAt === undefined &&
+        active.length >= MAX_WEBHOOK_ENDPOINTS_PER_PRINCIPAL
+      ) {
+        throw new WebhookEndpointLimitError("Webhook endpoint limit reached");
+      }
       try {
-        const [row] = await dbOf(uow, this.db)
+        const [row] = await db
           .insert(schema.webhookEndpoints)
           .values({
             id: endpoint.id,
@@ -2501,11 +2529,6 @@ export function createPostgresProjectStores(db: Database): ProjectStores {
   };
 }
 
-/** `rtrim(col, '/')` — the SQL half of {@link normalizeIssuer}. */
-function normalizedIssuerColumn(column: Column) {
-  return sql<string>`rtrim(${column}, '/')`;
-}
-
 function mapOrganizationMembership(
   row: typeof schema.organizationMemberships.$inferSelect,
 ): OrganizationMembership {
@@ -2518,71 +2541,7 @@ function mapOrganizationMembership(
   };
 }
 
-/** Postgres organization rows behind the `OrganizationStore` interface. */
-export class PostgresOrganizationStore implements OrganizationStore {
-  constructor(
-    private readonly db: Database,
-    private readonly sealer?: EventSealer,
-  ) {}
-
-  async get(id: string): Promise<Organization | undefined> {
-    const [row] = await this.db
-      .select()
-      .from(schema.organizations)
-      .where(eq(schema.organizations.id, id))
-      .limit(1);
-    return row ? mapOrganization(row, this.sealer) : undefined;
-  }
-
-  /** Full-row upsert — the durable equivalent of the former Map `set`. */
-  async set(id: string, organization: Organization): Promise<void> {
-    const values = organizationRowValues({ ...organization, id }, this.sealer);
-    const { id: _id, ...update } = values;
-    await this.db
-      .insert(schema.organizations)
-      .values(values)
-      .onConflictDoUpdate({ target: schema.organizations.id, set: update });
-  }
-
-  async getBySlug(slug: string): Promise<Organization | undefined> {
-    const [row] = await this.db
-      .select()
-      .from(schema.organizations)
-      .where(eq(schema.organizations.slug, slug))
-      .limit(1);
-    return row ? mapOrganization(row, this.sealer) : undefined;
-  }
-
-  async findByIssuer(issuer: string): Promise<Organization | undefined> {
-    const target = normalizeIssuer(issuer);
-    if (!target) return undefined;
-    // The stored spelling is whatever the operator typed; the comparison is
-    // normalized on both sides so a trailing slash never hides a tenant.
-    const [row] = await this.db
-      .select()
-      .from(schema.organizations)
-      .where(
-        or(
-          eq(normalizedIssuerColumn(schema.organizations.ssoIssuer), target),
-          eq(normalizedIssuerColumn(schema.organizations.samlIssuer), target),
-        ),
-      )
-      .orderBy(
-        asc(schema.organizations.createdAt),
-        asc(schema.organizations.id),
-      )
-      .limit(1);
-    return row ? mapOrganization(row, this.sealer) : undefined;
-  }
-
-  async listByCreator(principalId: string): Promise<Organization[]> {
-    const rows = await this.db
-      .select()
-      .from(schema.organizations)
-      .where(eq(schema.organizations.createdBy, principalId));
-    return rows.map((row) => mapOrganization(row, this.sealer));
-  }
-}
+export { PostgresOrganizationStore };
 
 /** Postgres membership rows behind the `OrganizationMembershipStore` interface. */
 export class PostgresOrganizationMembershipStore

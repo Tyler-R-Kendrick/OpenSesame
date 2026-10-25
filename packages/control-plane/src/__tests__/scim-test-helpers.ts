@@ -103,7 +103,21 @@ export async function mintOrgIdToken(idp: ReferenceIdp, origin: string) {
   return { idToken, subject };
 }
 
-export async function seedTenant(app: App, slug: string, idp: ReferenceIdp) {
+export async function seedTenant(
+  app: App,
+  ctx: ReturnType<typeof createControlPlane>["ctx"],
+  slug: string,
+  idp: ReferenceIdp,
+) {
+  return seedTenantWithIssuer(app, ctx, slug, idp.issuer);
+}
+
+export async function seedTenantWithIssuer(
+  app: App,
+  ctx: ReturnType<typeof createControlPlane>["ctx"],
+  slug: string,
+  issuer: string | null,
+) {
   const owner = await verified(app, `${slug}-owner`);
   const created = await app.request("/v1/organizations", {
     method: "POST",
@@ -111,17 +125,23 @@ export async function seedTenant(app: App, slug: string, idp: ReferenceIdp) {
     body: JSON.stringify({
       slug,
       displayName: `Org ${slug}`,
-      ssoIssuer: idp.issuer,
     }),
   });
   expect(created.status).toBe(201);
   const org = overlapCast(await created.json());
   const orgId = overlapCast(org.id);
   if (!isString(orgId)) throw new Error("org.id missing");
+  ctx.config.organizationIssuerAllowlist = [
+    ...(ctx.config.organizationIssuerAllowlist ?? []),
+    ...(issuer ? [`${orgId}|${issuer}`] : []),
+  ];
   const enabled = await app.request(`/v1/organizations/${orgId}`, {
     method: "PATCH",
     headers: json(requireToken(owner)),
-    body: JSON.stringify({ provisioningEnabled: true }),
+    body: JSON.stringify({
+      provisioningEnabled: true,
+      ...(issuer ? { ssoIssuer: issuer } : undefined),
+    }),
   });
   expect(enabled.status).toBe(200);
   return { owner, org };

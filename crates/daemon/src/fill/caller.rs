@@ -16,8 +16,9 @@
 //!   digest the pairing ceremony recorded for exactly that origin.
 //!
 //! A local process can forge the first two; it cannot forge the third
-//! without the extension's storage, which is the same-user boundary
-//! ADR 0150 §7 and ADR 0048 already draw.
+//! without the extension's live session. The bearer is no longer written to
+//! the browser profile, and pairing alone never authorizes a value release:
+//! that also needs the independent, one-use local operator grant.
 
 use axum::{
     http::{header, HeaderMap, StatusCode},
@@ -124,4 +125,17 @@ pub(crate) fn extension_caller(headers: &HeaderMap) -> Result<Caller, Response> 
         origin: origin.to_string(),
         token: token.to_string(),
     })
+}
+
+/// The caller, with its token verified against the pairing it presented.
+pub(super) fn paired_caller(
+    fill: &super::FillState,
+    headers: &HeaderMap,
+) -> Result<Caller, Response> {
+    let caller = extension_caller(headers)?;
+    if fill.pairings.verify(&caller.origin, &caller.token) {
+        Ok(caller)
+    } else {
+        Err(refuse(StatusCode::UNAUTHORIZED, "not_paired"))
+    }
 }

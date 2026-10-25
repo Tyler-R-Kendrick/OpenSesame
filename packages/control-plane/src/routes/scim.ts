@@ -18,8 +18,7 @@ import { serializeKeyed } from "../serialize.js";
 import { mintScimToken, revokeScimToken } from "../services/org-admin.js";
 import { type OrgOwnerSource, asOrgOwner } from "./org-owner-gate.js";
 import {
-  SCIM_ROLE_ATTRIBUTE,
-  SCIM_SUBJECTS_ATTRIBUTE,
+  SCIM_BOOKKEEPING_ATTRIBUTES as BOOKKEEPING,
   deprovision,
   provisionedRoleForSubject,
   withRememberedSubjects,
@@ -82,7 +81,6 @@ export const SCIM_TOKEN_PREFIX = "sct_";
 
 /** Attributes never kept, whatever the directory sends. */
 const NEVER_STORED = new Set(["password", "schemas", "meta", "id"]);
-const BOOKKEEPING = new Set([SCIM_ROLE_ATTRIBUTE, SCIM_SUBJECTS_ATTRIBUTE]);
 
 const MAX_USER_NAME_LENGTH = 320;
 const MAX_DISPLAY_LENGTH = 512;

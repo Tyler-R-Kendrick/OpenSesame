@@ -24,6 +24,10 @@ import { startSession } from "./harness/session.mjs";
 let session;
 before(async () => {
   session = await startSession();
+  const worker = await session.worker();
+  await worker.evaluate(() =>
+    chrome.storage.local.set({ fillPairingToken: "A".repeat(43) }),
+  );
 });
 after(async () => {
   await session?.close();
@@ -63,6 +67,18 @@ describe("switching on and pairing", () => {
     const origins = new Set(session.daemon.log.map((row) => row.origin));
     assert.deepEqual([...origins].filter(Boolean), [own]);
     assert.ok(session.daemon.isPaired(own));
+    const worker = await session.worker();
+    const kept = await worker.evaluate(async () => ({
+      local: await chrome.storage.local.get("fillPairingToken"),
+      session: await chrome.storage.session.get("fillPairingToken"),
+    }));
+    assert.deepEqual(
+      kept.local,
+      {},
+      "no durable bearer remains after migration",
+    );
+    assert.match(kept.session.fillPairingToken, /^[A-Za-z0-9_-]{43}$/);
+    assert.notEqual(kept.session.fillPairingToken, "A".repeat(43));
     await popup.close();
     await page.close();
   });

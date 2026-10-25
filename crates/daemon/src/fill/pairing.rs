@@ -30,6 +30,9 @@ pub(crate) const MAX_PAIRED: usize = 16;
 
 /// File the paired callers are kept in, under the fill state directory.
 pub(crate) const PAIRINGS_FILE: &str = "fill-pairings.json";
+/// Version 1 admitted bearers kept in plaintext browser profile storage.
+/// Do not load those credentials after the session-only migration.
+const PAIRINGS_VERSION: u32 = 2;
 
 /// Code alphabet: no `0/O`, `1/I/L` or `U`, so it survives being read aloud.
 const CODE_ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTVWXYZ23456789";
@@ -99,7 +102,7 @@ pub(crate) struct Pairings {
     inner: Mutex<Inner>,
 }
 
-fn digest_hex(token: &str) -> String {
+pub(super) fn digest_hex(token: &str) -> String {
     Sha256::digest(token.as_bytes())
         .iter()
         .fold(String::with_capacity(64), |mut out, byte| {
@@ -138,7 +141,7 @@ impl Pairings {
             .and_then(|path| std::fs::read(path).ok())
             .and_then(
                 |bytes| match serde_json::from_slice::<PairingFile>(&bytes) {
-                    Ok(parsed) if parsed.v == 1 => Some(parsed.pairings),
+                    Ok(parsed) if parsed.v == PAIRINGS_VERSION => Some(parsed.pairings),
                     _ => {
                         tracing::warn!("fill pairing file unreadable; starting with none paired");
                         None
@@ -286,7 +289,7 @@ impl Pairings {
             std::fs::create_dir_all(parent)?;
         }
         let body = serde_json::to_vec_pretty(&PairingFile {
-            v: 1,
+            v: PAIRINGS_VERSION,
             pairings: paired.to_vec(),
         })
         .map_err(std::io::Error::other)?;

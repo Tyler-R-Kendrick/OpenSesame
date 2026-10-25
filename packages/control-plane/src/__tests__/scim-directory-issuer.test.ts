@@ -33,19 +33,32 @@ function plane() {
   });
 }
 
-async function createOrg(app: App, ownerToken: string) {
+async function createOrg(
+  app: App,
+  ctx: ReturnType<typeof createControlPlane>["ctx"],
+  ownerToken: string,
+) {
   const created = await app.request("/v1/organizations", {
     method: "POST",
     headers: json(ownerToken),
     body: JSON.stringify({
       slug: "dir-org",
       displayName: "Directory org",
-      ssoIssuer: "https://idp.example",
     }),
   });
   expect(created.status).toBe(201);
   const id = overlapCast(await created.json()).id;
   if (!isString(id)) throw new Error("org.id missing");
+  ctx.config.organizationIssuerAllowlist = [
+    ...(ctx.config.organizationIssuerAllowlist ?? []),
+    `${id}|https://idp.example`,
+  ];
+  const configured = await app.request(`/v1/organizations/${id}`, {
+    method: "PATCH",
+    headers: json(ownerToken),
+    body: JSON.stringify({ ssoIssuer: "https://idp.example" }),
+  });
+  expect(configured.status).toBe(200);
   return id;
 }
 
@@ -53,7 +66,7 @@ describe("SCIM directory issuers", () => {
   it("revokes a member admitted by the organization LDAP directory", async () => {
     const { app, ctx } = plane();
     const owner = await verified(app, "dir-owner");
-    const orgId = await createOrg(app, String(owner.accessToken));
+    const orgId = await createOrg(app, ctx, String(owner.accessToken));
     const directoryUrl = "ldaps://dir.acme.example:636/dc=acme?x=1";
     await ctx.stores.orgFederation.ldapConfigs.put({
       organizationId: orgId,
@@ -127,7 +140,7 @@ describe("SCIM directory issuers", () => {
   it("revokes a native SAML member stored under the metadata entityID", async () => {
     const { app, ctx } = plane();
     const owner = await verified(app, "saml-owner");
-    const orgId = await createOrg(app, String(owner.accessToken));
+    const orgId = await createOrg(app, ctx, String(owner.accessToken));
     const org = await ctx.stores.organizations.get(orgId);
     if (!org) throw new Error("org missing");
     await ctx.stores.organizations.set(orgId, {

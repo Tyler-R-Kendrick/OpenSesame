@@ -1,3 +1,4 @@
+import { assertOrganizationIssuerApproval } from "./org-issuer-approval.js";
 /**
  * Mutations that need a verified identity, each demanding a `VerifiedPrincipal`
  * proof about the exact principal it acts for (ADR 0178).
@@ -136,5 +137,6 @@ export async function createOrganization<A>(
   if (organization.createdBy !== founder.value) {
     throw new Error("organization was created by a different principal");
   }
+  assertOrganizationIssuerApproval(ctx.config, organization.id, organization);
   await ctx.stores.organizations.set(organization.id, organization);
 }

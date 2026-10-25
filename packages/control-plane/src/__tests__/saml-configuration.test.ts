@@ -50,6 +50,10 @@ describe("native SAML entity configuration fences", () => {
       samlMetadataUrl: "https://idp.example/metadata",
       samlMetadataXml: null,
     };
+    ctx.config.organizationIssuerAllowlist = [
+      ...(ctx.config.organizationIssuerAllowlist ?? []),
+      `${id}|${native.samlIssuer}`,
+    ];
     expect((await patch(native)).status).toBe(200);
     expect((await ctx.stores.organizations.get(id))?.samlIssuer).toBe(
       native.samlIssuer,

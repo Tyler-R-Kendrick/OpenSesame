@@ -94,6 +94,19 @@ function fake(answers: Answers): Fake {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("the companion popup", () => {
+  it("offers no fill or pairing shortcut while independent local approval is pending", async () => {
+    const els = elements();
+    const p = fake({
+      status: { ...ON, references: [], error: "approval_required" },
+    });
+    await mountPanel(els, p);
+    expect(els.go.hidden).toBe(true);
+    expect(els.pair.hidden).toBe(true);
+    expect(els.mark.getAttribute("aria-label")).toContain(
+      "opensesame daemon fill authorize",
+    );
+    expect(p.calls).toEqual(["status"]);
+  });
   it("puts a passkey first: the fill key is disabled and the mark says so", async () => {
     const els = elements();
     await mountPanel(els, fake({ status: { ...ON, passkey: true } }));

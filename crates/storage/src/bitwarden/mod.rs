@@ -16,6 +16,7 @@ mod member_edit;
 mod moves;
 mod org_ciphers;
 mod org_moves;
+mod org_share;
 mod orgs;
 mod policies;
 mod policy_rules;

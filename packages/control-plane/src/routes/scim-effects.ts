@@ -25,6 +25,13 @@ export const SCIM_SUBJECTS_ATTRIBUTE =
 const SCIM_DEPROVISION_PRINCIPALS_ATTRIBUTE =
   "urn:opensesame:params:scim:2.0:deprovision-principals";
 
+/** Directory-supplied payloads cannot set or read internal reconciliation state. */
+export const SCIM_BOOKKEEPING_ATTRIBUTES = new Set([
+  SCIM_ROLE_ATTRIBUTE,
+  SCIM_SUBJECTS_ATTRIBUTE,
+  SCIM_DEPROVISION_PRINCIPALS_ATTRIBUTE,
+]);
+
 const ORG_IDENTITY_KINDS = ["oidc", "oauth2", "saml", "ldap", "email"] as const;
 
 export function roleOf(user: ScimUserRecord): OrganizationRole | undefined {

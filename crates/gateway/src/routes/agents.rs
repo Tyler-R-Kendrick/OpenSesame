@@ -28,22 +28,6 @@ pub async fn create_identity(
     State(st): State<AppState>,
     Json(req): Json<AgentIdentityRequest>,
 ) -> impl IntoResponse {
-    // Evict expired claim sessions to bound memory / DoS surface.
-    // Lock order: claims then claim_user_code_attempts (must match complete).
-    {
-        let mut map = st.claims.lock().unwrap();
-        let now = Utc::now();
-        map.retain(|_, s| s.expires_at > now);
-        let mut attempts = st.claim_user_code_attempts.lock().unwrap();
-        attempts.retain(|id, _| map.contains_key(id));
-        if map.len() >= 256 {
-            return (
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(json!({"error":"claim_capacity","hint":"too many pending agent claims"})),
-            )
-                .into_response();
-        }
-    }
     let claim_token = generate_claim_token();
     let user_code = opensesame_claims::generate_user_code();
     let id = ClaimSessionId::new();
@@ -85,7 +69,23 @@ pub async fn create_identity(
         narrowed_actions: None,
     };
     let claim_id = session.id.to_string();
-    st.claims.lock().unwrap().insert(claim_id.clone(), session);
+    // Capacity admission and insertion share the lock: concurrent requests
+    // cannot all observe the last free slot.
+    {
+        let mut map = st.claims.lock().unwrap();
+        let now = Utc::now();
+        map.retain(|_, s| s.expires_at > now);
+        let mut attempts = st.claim_user_code_attempts.lock().unwrap();
+        attempts.retain(|id, _| map.contains_key(id));
+        if map.len() >= 256 {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error":"claim_capacity"})),
+            )
+                .into_response();
+        }
+        map.insert(claim_id.clone(), session);
+    }
     (
         StatusCode::OK,
         Json(json!({

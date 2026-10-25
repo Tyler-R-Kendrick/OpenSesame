@@ -40,7 +40,42 @@ const PERSON_APPROVES_PAIRING: CapabilityExclusion = {
   adr: ADR_SURROGATES,
 };
 
+const INDEPENDENT_LOCAL_OPERATOR: CapabilityExclusion = {
+  reason:
+    "an independent local operator reviews and authorizes the exact credential operation",
+  adr: ADR_SURROGATES,
+};
+
 export const browserAutofillCapabilities: readonly Capability[] = [
+  ...(["requests", "authorize"] as const).map(
+    (verb): Capability => ({
+      id: `vault.autofill.${verb}`,
+      title:
+        verb === "requests"
+          ? "Review pending local autofill operations"
+          : "Authorize one local autofill operation",
+      plane: "host",
+      kind: verb === "requests" ? "read" : "ceremony",
+      plugin: BROWSER_AUTOFILL_PLUGIN,
+      surfaces: {
+        cli: `opensesame daemon fill ${verb}`,
+        pwa: null,
+        mcp_host: null,
+        mcp_client: null,
+        webmcp: null,
+        extension: null,
+        android: null,
+      },
+      excluded: {
+        pwa: PAGES_HAS_NO_HOST,
+        mcp_host: INDEPENDENT_LOCAL_OPERATOR,
+        mcp_client: INDEPENDENT_LOCAL_OPERATOR,
+        webmcp: INDEPENDENT_LOCAL_OPERATOR,
+        extension: INDEPENDENT_LOCAL_OPERATOR,
+        android: COMPANION_EXTENSION_ONLY,
+      },
+    }),
+  ),
   {
     id: "vault.autofill.fill",
     title:

@@ -61,6 +61,7 @@ function tenantOnlyConfig() {
     publicUrl: "http://127.0.0.1:8788",
     issuer: "http://127.0.0.1:8788",
     trustedUpstreamIssuers: ["https://unrelated.example"],
+    organizationIssuerAllowlist: [idp.issuer],
   } as const;
 }
 
@@ -277,7 +278,7 @@ describe("back-channel logout", () => {
     expect(empty.status).toBe(400);
   });
 
-  it("ends the memberships the issuing tenant granted", async () => {
+  it("ends sessions but preserves the memberships the issuing tenant granted", async () => {
     const { app, ctx } = createControlPlane({ config: tenantOnlyConfig() });
     // The owner's own identity is unrelated to the tenant's IdP.
     const owner = await signedIn(app, "https://mock.example", "tenant-owner");
@@ -287,11 +288,20 @@ describe("back-channel logout", () => {
       body: JSON.stringify({
         slug: "acme",
         displayName: "Acme",
-        ssoIssuer: idp.issuer,
       }),
     });
     expect(created.status).toBe(201);
     const org = overlapCast(await created.json());
+    ctx.config.organizationIssuerAllowlist = [`${org.id}|${idp.issuer}`];
+    expect(
+      (
+        await app.request(`/v1/organizations/${org.id}`, {
+          method: "PATCH",
+          headers: json(owner.accessToken),
+          body: JSON.stringify({ ssoIssuer: idp.issuer }),
+        })
+      ).status,
+    ).toBe(200);
 
     const { idToken, subject } = await mintOrgIdToken(PAGES_ORIGIN);
     const guest = await provisional(app);
@@ -312,7 +322,7 @@ describe("back-channel logout", () => {
 
     expect(
       await ctx.stores.organizationMemberships.find(org.id, guest.principalId),
-    ).toBeUndefined();
+    ).toMatchObject({ role: "member" });
     expect(await stillSignedIn(app, guest.accessToken)).toBe(false);
   }, 30_000);
 

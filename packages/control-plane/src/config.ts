@@ -9,6 +9,7 @@ import {
   type AgentAuthTrustedProvider,
   loadAgentAuthFromEnv,
   truthy,
+  truthyDefaultOn,
 } from "./config-agent-providers.js";
 import {
   notificationChannelsFromEnv,
@@ -32,6 +33,7 @@ import {
   normalizeIssuer,
 } from "./interactions/registry.js";
 import { assertClientAppUrl } from "./interactions/rendezvous.js";
+import { organizationIssuerAllowlistFromEnv } from "./services/org-issuer-approval.js";
 import { readSupportProxyConfig } from "./services/support-proxy.js";
 import {
   type TransportConfig,
@@ -116,6 +118,8 @@ export interface ControlPlaneConfig {
    * `id_token` on POST /v1/principals/link-identities (ADR 0033).
    */
   trustedUpstreamIssuers: string[];
+  /** Operator-approved org-id|issuer pairs; empty denies tenant claims. */
+  organizationIssuerAllowlist?: string[];
   /**
    * Confidential-client credentials for ONE upstream issuer, when that broker
    * cannot serve the secret-less origin-profile contract (ADR 0034). Present
@@ -198,12 +202,6 @@ export interface ControlPlaneConfig {
      */
     trustedProviders: AgentAuthTrustedProvider[];
   };
-}
-
-/** Like {@link truthy}, but an unset value means on. Only `false`/`0` opt out. */
-function truthyDefaultOn(v: string | undefined): boolean {
-  if (v === undefined || v.trim() === "") return true;
-  return !(v === "false" || v === "0");
 }
 
 /** The variable a duration is read from and the range it must fall in. */
@@ -344,6 +342,7 @@ export function loadConfig(
         .filter(Boolean),
       providers,
     ),
+    organizationIssuerAllowlist: organizationIssuerAllowlistFromEnv(env),
     providers,
     notifications: {
       // `in_app` is the durable inbox and is always configured: it is the

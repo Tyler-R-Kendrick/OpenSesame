@@ -10,7 +10,8 @@ import {
   samlRelayPath,
   samlServiceProviderMetadata,
 } from "../interactions/saml.js";
-import type { startServer } from "../server.js";
+import { startServer } from "../server.js";
+import { seedApprovedOrganization } from "./approved-organization-fixture.js";
 import { onFreePort } from "./free-port.js";
 import { hopUrl } from "./upstream-hop.js";
 
@@ -66,8 +67,7 @@ async function startControlPlane(
   upstreamIssuer: string,
   port: number,
 ): Promise<Started> {
-  const { startServer: start } = await import("../server.js");
-  return start({
+  return startServer({
     config: {
       host: "127.0.0.1",
       port,
@@ -251,15 +251,12 @@ describe("native SAML SP, SP-initiated", () => {
     idp = await startReferenceIdp({ protocol: "saml" });
     started = await onFreePort((port) => startControlPlane(idp.issuer, port));
     base = `http://127.0.0.1:${started.port}`;
-    const now = started.ctx.clock();
-    await started.ctx.stores.organizations.set(organizationId, {
+    await seedApprovedOrganization(started.ctx, {
       id: organizationId,
       slug: "acme",
       displayName: "Acme",
       state: "active",
       createdBy: "prn_seed_owner",
-      createdAt: now,
-      updatedAt: now,
       samlIssuer: idp.saml.entityId,
       samlMetadataUrl: idp.saml.metadataUrl,
     });

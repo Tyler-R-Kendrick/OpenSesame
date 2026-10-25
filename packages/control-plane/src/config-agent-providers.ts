@@ -43,7 +43,7 @@ export function truthy(v: string | undefined): boolean {
 }
 
 /** Like {@link truthy}, but an unset value means on. Only `false`/`0` opt out. */
-function truthyDefaultOn(v: string | undefined): boolean {
+export function truthyDefaultOn(v: string | undefined): boolean {
   if (v === undefined || v.trim() === "") return true;
   return !(v === "false" || v === "0");
 }

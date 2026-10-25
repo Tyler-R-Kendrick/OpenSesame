@@ -36,6 +36,44 @@ pub(super) struct RevokeReq {
     origin: String,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct AuthorizeReq {
+    id: String,
+}
+
+/// The operator sees the exact site, reference, field and extension to approve.
+pub(super) async fn requests(
+    State(st): State<App>,
+    uds: UdsPeer,
+    Extension(fill): Extension<Arc<FillState>>,
+    headers: HeaderMap,
+) -> Response {
+    if let Err(response) = require_operator(&st, &headers, &uds) {
+        return response;
+    }
+    super::no_store(
+        Json(json!({ "requests": fill.approvals.list(chrono::Utc::now()) })).into_response(),
+    )
+}
+
+/// Only the separate local operator channel can authorize a queued operation.
+pub(super) async fn authorize(
+    State(st): State<App>,
+    uds: UdsPeer,
+    Extension(fill): Extension<Arc<FillState>>,
+    headers: HeaderMap,
+    Json(req): Json<AuthorizeReq>,
+) -> Response {
+    if let Err(response) = require_operator(&st, &headers, &uds) {
+        return response;
+    }
+    match fill.approvals.approve(&req.id, chrono::Utc::now()) {
+        Some(request) => super::no_store(Json(json!({ "authorized": request })).into_response()),
+        None => refuse(StatusCode::NOT_FOUND, "unknown_request"),
+    }
+}
+
 fn pairing_failed(error: &PairingError) -> Response {
     match error {
         PairingError::Full => refuse(StatusCode::CONFLICT, "too_many_paired"),
@@ -59,6 +97,7 @@ pub(super) async fn approve(
     }
     match fill.pairings.approve(&req.code, chrono::Utc::now()) {
         Ok(Some(origin)) => {
+            fill.approvals.revoke_origin(&origin);
             tracing::info!(%origin, "fill: extension paired");
             Json(json!({ "paired": true, "origin": origin })).into_response()
         }
@@ -80,6 +119,7 @@ pub(super) async fn revoke(
     }
     match fill.pairings.revoke(&req.origin) {
         Ok(revoked) => {
+            fill.approvals.revoke_origin(&req.origin);
             if revoked {
                 tracing::info!(origin = %req.origin, "fill: extension pairing revoked");
             }

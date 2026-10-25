@@ -30,6 +30,10 @@ import {
   writeOrganization,
   writeOrganizationMembership,
 } from "../services/org-admin.js";
+import {
+  assertOrganizationIssuerAdmission,
+  issuerClaimed,
+} from "../services/org-issuer-approval.js";
 import { createOrganization } from "../services/verified-admin.js";
 import { getUsage } from "../state.js";
 import {
@@ -39,6 +43,7 @@ import {
   verifyOrgIdToken,
 } from "./org-assertion.js";
 import { normalizeEmailDomain } from "./org-domains.js";
+import { organizationIssuerErrorHandler } from "./org-issuer-errors.js";
 import {
   issuerConfigurationError,
   samlConfigurationError,
@@ -63,17 +68,7 @@ export {
 export type { JitJoinInput, JitJoinResult } from "./organization-membership.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
-
-/** A tenant issuer may name exactly one organization. */
-async function issuerClaimed(
-  ctx: AppContext,
-  issuer: string | undefined,
-  exceptOrganizationId?: string,
-): Promise<boolean> {
-  if (!issuer) return false;
-  const owner = await ctx.stores.organizations.findByIssuer(issuer);
-  return owner !== undefined && owner.id !== exceptOrganizationId;
-}
+organizationRoutes.onError(organizationIssuerErrorHandler);
 
 /**
  * How stale an organization assertion may be at the join route (ADR 0055).
@@ -668,6 +663,7 @@ organizationRoutes.post(
     if (!issuer) {
       return c.json({ error: "auth_method_unavailable" }, 409);
     }
+    await assertOrganizationIssuerAdmission(ctx, org.id, issuer);
 
     let assertion: VerifiedOrgIdToken;
     try {

@@ -1,5 +1,6 @@
 import type { ByoUpstream, Organization } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
+import { organizationIssuerApproved } from "../services/org-issuer-approval.js";
 import {
   type ProviderDescriptor,
   normalizeIssuer,
@@ -68,7 +69,12 @@ async function resolveOrganizationIssuer(
   issuer: string,
 ): Promise<TrustResolution | undefined> {
   const organization = await ctx.stores.organizations.findByIssuer(issuer);
-  if (!organization || !organizationSignsIn(organization)) return undefined;
+  if (
+    !organization ||
+    !organizationSignsIn(organization) ||
+    !organizationIssuerApproved(ctx.config, issuer, organization.id)
+  )
+    return undefined;
   const method =
     normalizeIssuer(organization.ssoIssuer ?? "") === issuer ? "sso" : "saml";
   return {

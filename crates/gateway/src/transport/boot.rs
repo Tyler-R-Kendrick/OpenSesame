@@ -50,7 +50,11 @@ pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<
     let listener = tokio::net::TcpListener::bind(args.listen)
         .await
         .with_context(|| format!("bind {listen}"))?;
-    axum::serve(listener, plain).await?;
+    axum::serve(
+        listener,
+        plain.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await?;
     Ok(())
 }
 

@@ -14,13 +14,15 @@ use tower::ServiceExt;
 const PIN: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
 /// Every route this module serves, and one it never did.
-const FILL_PATHS: [&str; 6] = [
+const FILL_PATHS: [&str; 8] = [
     "/v1/fill",
     "/v1/fill/match",
     "/v1/fill/pair",
     "/v1/fill/pair/approve",
     "/v1/fill/pair/revoke",
     "/v1/fill/pairings",
+    "/v1/fill/requests",
+    "/v1/fill/authorize",
 ];
 const NEVER_SERVED: &str = "/v1/fill-was-never-a-route";
 

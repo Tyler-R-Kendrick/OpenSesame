@@ -13,8 +13,9 @@ import {
   resetFederatedDiscoveryCache,
   revokeSessionsForIdentity,
 } from "../interactions/federated.js";
-import type { startServer } from "../server.js";
+import { startServer } from "../server.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
+import { seedApprovedOrganization } from "./approved-organization-fixture.js";
 import { onFreePort } from "./free-port.js";
 import { hopUrl } from "./upstream-hop.js";
 
@@ -88,8 +89,7 @@ async function startControlPlane(
   port: number,
   extraEnv: FederatedTestEnvironment = {},
 ): Promise<Started> {
-  const { startServer: start } = await import("../server.js");
-  return start({
+  return startServer({
     config: {
       host: "127.0.0.1",
       port,
@@ -907,25 +907,20 @@ describe("federated leg, organization sign-in", () => {
       startControlPlane(allowlisted.issuer, port),
     );
     base = `http://127.0.0.1:${started.port}`;
-    const now = started.ctx.clock();
-    await started.ctx.stores.organizations.set(organizationId, {
+    await seedApprovedOrganization(started.ctx, {
       id: organizationId,
       slug: "acme",
       displayName: "Acme",
       state: "active",
       createdBy: "prn_seed_owner",
-      createdAt: now,
-      updatedAt: now,
       ssoIssuer: tenantIdp.issuer,
     });
-    await started.ctx.stores.organizations.set(enterpriseOrgId, {
+    await seedApprovedOrganization(started.ctx, {
       id: enterpriseOrgId,
       slug: "enterprise",
       displayName: "Enterprise",
       state: "active",
       createdBy: "prn_seed_owner",
-      createdAt: now,
-      updatedAt: now,
       ssoIssuer: enterpriseIdp.issuer,
       ssoClientId: enterpriseIdp.clientId,
       ssoClientSecret: enterpriseIdp.clientSecret,

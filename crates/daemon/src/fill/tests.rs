@@ -95,8 +95,37 @@ pub(super) async fn fill(
     let headers = extension_headers();
     let borrowed: Vec<(&str, &str)> = headers.iter().map(|(n, v)| (*n, v.as_str())).collect();
     let body = json!({ "reference": reference, "origin": origin, "field": field });
-    let (status, _, json) = call(app, request("/v1/fill", &body, &borrowed)).await;
+    let (mut status, _, mut json) = call(app, request("/v1/fill", &body, &borrowed)).await;
+    // Tests of origin/source behavior still cross the real operator boundary;
+    // the dedicated approval tests use raw requests to prove it is mandatory.
+    if json["error"] == "approval_required" {
+        approve_pending(app).await;
+        (status, _, json) = call(app, request("/v1/fill", &body, &borrowed)).await;
+    }
     (status, json)
+}
+
+pub(super) async fn approve_pending(app: &Router) {
+    let list = Request::builder()
+        .uri("/v1/fill/requests")
+        .header("x-opensesame-operator", crate::test_operator_token())
+        .body(Body::empty())
+        .unwrap();
+    let (status, _, listed) = call(app, list).await;
+    assert_eq!(status, StatusCode::OK);
+    for pending in listed["requests"].as_array().unwrap() {
+        let body = json!({ "id": pending["id"] });
+        let (status, _, _) = call(
+            app,
+            request(
+                "/v1/fill/authorize",
+                &body,
+                &[("x-opensesame-operator", crate::test_operator_token())],
+            ),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+    }
 }
 
 #[tokio::test]
@@ -115,7 +144,12 @@ async fn a_value_is_never_cached() {
     let headers = extension_headers();
     let borrowed: Vec<(&str, &str)> = headers.iter().map(|(n, v)| (*n, v.as_str())).collect();
     let body = json!({ "reference": "Web/example.com", "origin": "https://example.com", "field": "password" });
-    let (_, headers, _) = call(&app, request("/v1/fill", &body, &borrowed)).await;
+    let (status, headers, _) = call(&app, request("/v1/fill", &body, &borrowed)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(headers[header::CACHE_CONTROL], "no-store");
+    approve_pending(&app).await;
+    let (status, headers, _) = call(&app, request("/v1/fill", &body, &borrowed)).await;
+    assert_eq!(status, StatusCode::OK);
     assert_eq!(headers[header::CACHE_CONTROL], "no-store");
 }
 
@@ -195,6 +229,9 @@ async fn match_names_entries_and_never_values() {
     let headers = extension_headers();
     let borrowed: Vec<(&str, &str)> = headers.iter().map(|(n, v)| (*n, v.as_str())).collect();
     let body = json!({ "origin": "https://example.com" });
+    let (status, _, _) = call(&app, request("/v1/fill/match", &body, &borrowed)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    approve_pending(&app).await;
     let (status, headers, json) = call(&app, request("/v1/fill/match", &body, &borrowed)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(

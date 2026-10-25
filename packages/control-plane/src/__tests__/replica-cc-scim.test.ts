@@ -151,7 +151,12 @@ describe("J-REPLICA enrollment, SCIM, and client_credentials", () => {
     expect(replayTicket.status).toBe(401);
 
     const keys = rsaPair("replica-cc-1");
-    const { owner, org } = await seedTenant(first.app, "replica-cc-org", idp);
+    const { owner, org } = await seedTenant(
+      first.app,
+      first.ctx,
+      "replica-cc-org",
+      idp,
+    );
     const created = await first.app.request("/v1/oauth/clients", {
       method: "POST",
       headers: {

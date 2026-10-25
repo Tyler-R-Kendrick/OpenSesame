@@ -16,7 +16,6 @@ import type {
   InteractionKind,
   NotificationDelivery,
   NotificationPreferences,
-  Organization,
   OrganizationMembership,
   OutboxEvent,
   Principal,
@@ -28,6 +27,10 @@ import type {
 import { interactionMachine } from "@opensesame/os-domain";
 import { MemoryAgentAuthRepository } from "./agent-auth-repo.js";
 import { claimDueMemoryRows } from "./delivery-claims.js";
+import {
+  MAX_WEBHOOK_ENDPOINTS_PER_PRINCIPAL,
+  WebhookEndpointLimitError,
+} from "./interfaces.js";
 import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
@@ -52,7 +55,6 @@ import {
   type NotificationPreferenceRepository,
   OUTBOX_CLAIM_HOLD_MS,
   type OrganizationMembershipStore,
-  type OrganizationStore,
   type OrganizationStores,
   type OutboxRepository,
   type PrincipalRepository,
@@ -68,12 +70,11 @@ import {
   type WebhookEndpointRepository,
   buildPersonalProject,
   normalizeIssuer,
-  normalizeOrganizationRow,
-  organizationClaimsIssuer,
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
 import { mergeInteractionPatch } from "./memory-interaction-merge.js";
+import { MemoryOrganizationStore } from "./organization-store-memory.js";
 import { createMemoryPushSubscriptions } from "./push-subscriptions-memory.js";
 import { MemoryWalletInteractionRepos } from "./wallet-interaction-memory.js";
 
@@ -250,6 +251,18 @@ type PendingOp = () => void;
 class MemoryUnitOfWork implements UnitOfWork {
   readonly ops: PendingOp[] = [];
   readonly outboxBuffer: OutboxEvent[] = [];
+  private readonly webhookAdmissions = new Map<string, number>();
+  private readonly admissionChecks: PendingOp[] = [];
+
+  reserveWebhookEndpoint(
+    principalId: string,
+    check: (pending: number) => void,
+  ): void {
+    const pending = (this.webhookAdmissions.get(principalId) ?? 0) + 1;
+    check(pending);
+    this.webhookAdmissions.set(principalId, pending);
+    this.admissionChecks.push(() => check(pending));
+  }
 
   constructor(private readonly store: MemoryStore) {}
 
@@ -276,6 +289,7 @@ class MemoryUnitOfWork implements UnitOfWork {
   }
 
   commit(): void {
+    for (const check of this.admissionChecks) check();
     for (const op of this.ops) {
       op();
     }
@@ -939,6 +953,24 @@ export class MemoryRepositories implements Repositories {
         );
       }
       const row: WebhookEndpoint = { ...endpoint };
+      const assertCapacity = (pending = 1) => {
+        const active = [...this.#store.webhookEndpoints.values()].filter(
+          (existing) =>
+            existing.principalId === row.principalId &&
+            existing.disabledAt === undefined,
+        ).length;
+        if (
+          row.disabledAt === undefined &&
+          active + pending > MAX_WEBHOOK_ENDPOINTS_PER_PRINCIPAL
+        ) {
+          throw new WebhookEndpointLimitError("Webhook endpoint limit reached");
+        }
+      };
+      if (uow instanceof MemoryUnitOfWork && row.disabledAt === undefined) {
+        uow.reserveWebhookEndpoint(row.principalId, assertCapacity);
+      } else {
+        assertCapacity();
+      }
       applyNowOrDefer(uow, () => {
         this.#store.webhookEndpoints.set(row.id, { ...row });
       });
@@ -1668,43 +1700,7 @@ export class MemoryOrganizationMembershipStore
   }
 }
 
-/**
- * In-memory organization store — the former `AppStores.organizations` Map
- * behind the store interface, with `organizationSlugs` folded into
- * {@link MemoryOrganizationStore.getBySlug} (a second Map could disagree with
- * the first; a scan cannot).
- *
- * `set` normalizes the row so an optional field left empty reads back absent,
- * exactly as a Postgres NULL does.
- */
-export class MemoryOrganizationStore
-  extends Map<string, Organization>
-  implements OrganizationStore
-{
-  override set(id: string, organization: Organization): this;
-  override set(id: string, organization: Organization): void;
-  override set(id: string, organization: Organization): this {
-    return super.set(id, normalizeOrganizationRow({ ...organization, id }));
-  }
-
-  getBySlug(slug: string): Organization | undefined {
-    for (const organization of this.values()) {
-      if (organization.slug === slug) return organization;
-    }
-    return undefined;
-  }
-
-  findByIssuer(issuer: string): Organization | undefined {
-    for (const organization of this.values()) {
-      if (organizationClaimsIssuer(organization, issuer)) return organization;
-    }
-    return undefined;
-  }
-
-  listByCreator(principalId: string): Organization[] {
-    return [...this.values()].filter((org) => org.createdBy === principalId);
-  }
-}
+export { MemoryOrganizationStore };
 
 /** The organization pair, mirroring {@link createMemoryProjectStores}. */
 export function createMemoryOrganizationStores(): OrganizationStores & {

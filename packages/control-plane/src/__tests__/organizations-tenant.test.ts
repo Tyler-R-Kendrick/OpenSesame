@@ -6,47 +6,14 @@ import {
   OrgAssertionError,
   orgAssertionSeams,
 } from "../routes/org-assertion.js";
-
-type App = ReturnType<typeof createControlPlane>["app"];
-
-function testConfig() {
-  return {
-    port: 0,
-    publicUrl: "http://127.0.0.1:8788",
-    issuer: "http://127.0.0.1:8788",
-  } as const;
-}
-
-async function provisional(app: App) {
-  const res = await app.request("/v1/principals/provisional", {
-    method: "POST",
-  });
-  expect(res.status).toBe(201);
-  return overlapCast(await res.json());
-}
-
-async function verified(app: App, subject: string) {
-  const created = await provisional(app);
-  const linked = await app.request("/v1/principals/link-identities", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${created.accessToken}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      kind: "oidc",
-      issuer: "https://mock.example",
-      subject,
-      assurance: "verified",
-    }),
-  });
-  expect(linked.status).toBe(201);
-  return created;
-}
-
-function auth(token: string) {
-  return { authorization: `Bearer ${token}` };
-}
+import {
+  auth,
+  operatorApprovals,
+  provisional,
+  seedOrg,
+  testConfig,
+  verified,
+} from "./organization-tenant-fixture.js";
 
 describe("organization tenant discovery and join", () => {
   const originalVerify = orgAssertionSeams.verifyOrgIdToken;
@@ -55,25 +22,6 @@ describe("organization tenant discovery and join", () => {
     vi.restoreAllMocks();
     orgAssertionSeams.verifyOrgIdToken = originalVerify;
   });
-
-  async function seedOrg(app: App) {
-    const owner = await verified(app, "tenant-owner");
-    const created = await app.request("/v1/organizations", {
-      method: "POST",
-      headers: {
-        ...auth(owner.accessToken),
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        slug: "acme",
-        displayName: "Acme",
-        ssoIssuer: "http://127.0.0.1:9090",
-        samlIssuer: "http://127.0.0.1:8080/realms/acme",
-      }),
-    });
-    expect(created.status).toBe(201);
-    return overlapCast(await created.json());
-  }
 
   it("refuses to claim an entityID another tenant holds in either column", async () => {
     const { app } = createControlPlane({ config: testConfig() });
@@ -225,10 +173,23 @@ describe("organization tenant discovery and join", () => {
       body: JSON.stringify({
         slug: "solo",
         displayName: "Solo",
-        ssoIssuer: "http://127.0.0.1:9090",
       }),
     });
     expect(created.status).toBe(201);
+    const solo = overlapCast(await created.json());
+    operatorApprovals.push(`${solo.id}|http://127.0.0.1:9090`);
+    expect(
+      (
+        await app.request(`/v1/organizations/${solo.id}`, {
+          method: "PATCH",
+          headers: {
+            ...auth(owner.accessToken),
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ ssoIssuer: "http://127.0.0.1:9090" }),
+        })
+      ).status,
+    ).toBe(200);
 
     const guest = await provisional(app);
     const missing = await app.request("/v1/organizations/tenants/solo/join", {
@@ -268,6 +229,7 @@ describe("organization tenant discovery and join", () => {
     });
     const org = overlapCast(await created.json());
 
+    operatorApprovals.push(`${org.id}|https://idp.example`);
     const patched = await app.request(`/v1/organizations/${org.id}`, {
       method: "PATCH",
       headers: {
@@ -377,7 +339,8 @@ describe("organization tenant discovery and join", () => {
       expect(overlapCast(await res.json()).error).toBe("unsafe_issuer");
     }
 
-    // A public issuer still lands.
+    // An operator-approved public issuer still lands.
+    operatorApprovals.push(`${org.id}|https://idp.example`);
     const allowed = await app.request(`/v1/organizations/${org.id}`, {
       method: "PATCH",
       headers: {

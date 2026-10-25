@@ -116,8 +116,13 @@ async fn a_non_loopback_host_is_refused() {
         assert_eq!(json["error"], "loopback_only");
     }
     for host in ["localhost:18790", "[::1]:18790", "127.0.0.1"] {
-        let (status, _) = attempt(&app, FILL, &with("host", Some(host))).await;
-        assert_eq!(status, StatusCode::OK, "{host}");
+        let (status, body) = attempt(&app, FILL, &with("host", Some(host))).await;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "{host}: independent authorization still required"
+        );
+        assert_eq!(body["error"], "approval_required");
     }
 }
 
@@ -173,7 +178,7 @@ async fn the_ceremony_pairs_only_after_a_person_approves() {
     assert_eq!(json, json!({ "paired": true, "origin": EXT }));
     assert_eq!(
         attempt(&app, FILL, &extension_headers()).await.0,
-        StatusCode::OK
+        StatusCode::FORBIDDEN
     );
     let (status, json) = attempt(&app, "/v1/fill/pair", &extension_headers()).await;
     assert_eq!(
@@ -238,12 +243,85 @@ async fn a_forger_claiming_the_extensions_origin_cannot_starve_the_real_extensio
         );
     }
     let body = json!({ "origin": "https://example.com" });
+    let headers = extension_headers();
+    let borrowed: Vec<(&str, &str)> = headers.iter().map(|(n, v)| (*n, v.as_str())).collect();
+    call(&app, request("/v1/fill/match", &body, &borrowed)).await;
+    super::tests::approve_pending(&app).await;
     for _ in 0..5 {
         let headers = extension_headers();
         let borrowed: Vec<(&str, &str)> = headers.iter().map(|(n, v)| (*n, v.as_str())).collect();
         let (status, _, _) = call(&app, request("/v1/fill/match", &body, &borrowed)).await;
         assert_eq!(status, StatusCode::OK, "the real extension was throttled");
     }
+}
+
+#[tokio::test]
+async fn a_paired_extension_cannot_authorize_its_own_operation_or_replay_a_grant() {
+    let app = paired_app(source());
+    let (status, pending) = attempt(&app, FILL, &extension_headers()).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(pending["error"], "approval_required");
+    assert!(pending.get("value").is_none());
+    let list = axum::http::Request::builder()
+        .uri("/v1/fill/requests")
+        .header("x-opensesame-operator", crate::test_operator_token())
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let (_, _, listed) = call(&app, list).await;
+    let approve = json!({ "id": listed["requests"][0]["id"] });
+    let mut own = extension_headers();
+    own.push(("x-opensesame-operator", crate::test_operator_token().into()));
+    let borrowed: Vec<(&str, &str)> = own.iter().map(|(n, v)| (*n, v.as_str())).collect();
+    let (status, _, _) = call(&app, request("/v1/fill/authorize", &approve, &borrowed)).await;
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "Origin cannot approve even with an operator header"
+    );
+    let (status, _, _) = call(&app, request("/v1/fill/authorize", &approve, &[])).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        attempt(&app, FILL, &extension_headers()).await.0,
+        StatusCode::FORBIDDEN
+    );
+
+    super::tests::approve_pending(&app).await;
+    let (status, filled) = attempt(&app, FILL, &extension_headers()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(filled["value"], "s3cret-value");
+    assert_eq!(
+        attempt(&app, FILL, &extension_headers()).await.0,
+        StatusCode::FORBIDDEN
+    );
+}
+
+#[tokio::test]
+async fn revocation_and_repairing_do_not_resurrect_an_operation_approval() {
+    let app = paired_app(source());
+    assert_eq!(
+        attempt(&app, FILL, &extension_headers()).await.0,
+        StatusCode::FORBIDDEN
+    );
+    super::tests::approve_pending(&app).await;
+    let operator = [("x-opensesame-operator", crate::test_operator_token())];
+    let revoke = json!({ "origin": EXT });
+    assert_eq!(
+        call(&app, request("/v1/fill/pair/revoke", &revoke, &operator))
+            .await
+            .0,
+        StatusCode::OK
+    );
+    let (_, pending) = attempt(&app, "/v1/fill/pair", &extension_headers()).await;
+    let approve = json!({ "code": pending["code"] });
+    assert_eq!(
+        call(&app, request("/v1/fill/pair/approve", &approve, &operator))
+            .await
+            .0,
+        StatusCode::OK
+    );
+    let (status, body) = attempt(&app, FILL, &extension_headers()).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(body["error"], "approval_required");
 }
 
 #[tokio::test]

@@ -58,7 +58,7 @@ sha256sum apps/browser-extension-autofill/.output/browser-autofill-0.1.0-chrome.
    Capabilities) turns it on. `OPENSESAME_PLUGIN_BROWSER_AUTOFILL=off` on the
    daemon forces it off whatever the file says; nothing in the environment
    turns it on.
-3. Pair once: open the popup on any page, press the pairing key, and approve
+3. Pair for this browser session: open the popup on any page, press the pairing key, and approve
    the code it shows from a terminal on the same computer:
 
    ```bash
@@ -67,9 +67,22 @@ sha256sum apps/browser-extension-autofill/.output/browser-autofill-0.1.0-chrome.
    opensesame daemon fill revoke chrome-extension://<id>
    ```
 
+   The bearer lives only in memory-backed browser session storage (or worker
+   memory where that API is absent). After restarting the browser, pair again;
+   on older browsers without session storage, a worker restart also needs a new
+   pairing. Upgrading removes the old plaintext bearer from local storage and
+   the daemon rejects all legacy version-1 pairings, so approve a fresh code.
+
 4. On a login page, press the site switch in the popup and accept the
    browser's prompt for that one site. Focus the username or password field
    and press the fill key or `Alt+Shift+O`.
+
+   Pairing alone grants no site access. When approval is requested, run
+   `opensesame daemon fill requests` on this computer, review the extension,
+   site, entry and field, then run `opensesame daemon fill authorize <request-id>`
+   and confirm only the operation you intended. Reopen the popup and retry.
+   Listing matching entries is approved for that site for 90 seconds; each
+   field fill requires its own one-use approval and expires after 90 seconds.
 
 Entries are read from the sealed store (`opensesame pass`); an entry matches a
 page only when a `url:` line (or a `uris` entry of an account the vault wrote)

@@ -65,20 +65,11 @@ pub async fn authorize(
         let mut map = st.device_codes.lock().unwrap();
         map.retain(|_, p| p.expires_at > now);
         if map.len() >= MAX_PENDING_DEVICE_CODES {
-            let oldest_unapproved = map
-                .iter()
-                .filter(|(_, pending)| pending.approved.is_none())
-                .min_by_key(|(_, pending)| pending.expires_at)
-                .map(|(digest, _)| digest.clone());
-            if let Some(digest) = oldest_unapproved {
-                map.remove(&digest);
-            } else {
-                return (
-                    StatusCode::TOO_MANY_REQUESTS,
-                    Json(json!({"error":"device_code_capacity"})),
-                )
-                    .into_response();
-            }
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error":"device_code_capacity"})),
+            )
+                .into_response();
         }
         let device_code = format!("dc_{}", uuid::Uuid::new_v4());
         let user_code = opensesame_claims::generate_user_code();

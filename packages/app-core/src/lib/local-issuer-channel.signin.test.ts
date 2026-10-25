@@ -5,6 +5,7 @@
  * back what it raised.
  */
 
+import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import { createPkcePair } from "@opensesame/sdk-browser";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -32,6 +33,7 @@ let tomb: string;
 let person: string;
 let session: LocalSession;
 let request: LocalAuthorizationRequest;
+let verifier: string;
 let issuer: LocalIssuerChannel;
 let pipe: MessageChannel;
 let browser: EventTarget;
@@ -99,6 +101,7 @@ beforeEach(async () => {
     role: "owner",
   });
   const pkce = await createPkcePair();
+  verifier = pkce.codeVerifier;
   request = {
     applicationId: app,
     redirectUri: "https://rp.example.test/callback",
@@ -168,6 +171,60 @@ it("is not in the inbox, and not offered to be decided, while the passkey is bei
   releasePasskey();
   await approving;
   expect(await listInbox(tomb)).toEqual([]);
+});
+
+it("emits only an opaque pairwise subject on both redemption and userinfo", async () => {
+  const messages: BoundaryValue[] = [];
+  pipe.port1.onmessage = (event: MessageEvent<BoundaryValue>) => {
+    messages.push(event.data);
+  };
+  await issuer.approve(session);
+  await vi.waitFor(() =>
+    expect(
+      messages.some((row) => isJsonObject(row) && row.type === "code"),
+    ).toBe(true),
+  );
+  const code = messages.find((row) => isJsonObject(row) && row.type === "code");
+  if (!isJsonObject(code)) throw new Error("Missing authorization code");
+  pipe.port1.postMessage({
+    type: "redeem",
+    state: request.state,
+    id: "1",
+    code: code.code,
+    verifier,
+  });
+  await vi.waitFor(() =>
+    expect(
+      messages.some((row) => isJsonObject(row) && row.type === "identity"),
+    ).toBe(true),
+  );
+  const identity = messages.find(
+    (row) => isJsonObject(row) && row.type === "identity",
+  );
+  if (!isJsonObject(identity)) throw new Error("Missing identity response");
+  expect(identity.sub).toMatch(/^[0-9a-f-]{36}$/);
+  expect(identity.sub).not.toBe(person);
+  expect(identity).toMatchObject({
+    audience: request.applicationId,
+    nonce: request.nonce,
+  });
+  pipe.port1.postMessage({
+    type: "userinfo",
+    state: request.state,
+    id: "2",
+    scope: "openid",
+  });
+  await vi.waitFor(() =>
+    expect(
+      messages.filter((row) => isJsonObject(row) && row.type === "identity"),
+    ).toHaveLength(2),
+  );
+  expect(
+    messages.filter((row) => isJsonObject(row) && row.type === "identity"),
+  ).toEqual([
+    expect.objectContaining({ sub: identity.sub }),
+    expect.objectContaining({ sub: identity.sub }),
+  ]);
 });
 
 it("takes back what it raised when the window ends before the person has decided", async () => {

@@ -5,6 +5,7 @@ import {
   createDaemonClient,
   newToken,
   pairingToken,
+  sessionPairingToken,
 } from "./daemon";
 
 const TOKEN = "A".repeat(43);
@@ -173,6 +174,46 @@ describe("the pairing token", () => {
     const second = await pairingToken(store, random);
     expect(first).toBe(second);
     expect(saved.get(TOKEN_KEY)).toBe(first);
+    expect(draws).toBe(1);
+  });
+
+  it("removes the durable legacy bearer and shares one token across concurrent calls", async () => {
+    const durable = new Map([[TOKEN_KEY, TOKEN]]);
+    const session = new Map<string, string>();
+    let draws = 0;
+    const token = sessionPairingToken(
+      {
+        get: async (key) => session.get(key),
+        set: async (key, value) => {
+          session.set(key, value);
+        },
+      },
+      async () => {
+        durable.delete(TOKEN_KEY);
+      },
+      (bytes) => bytes.fill(++draws),
+    );
+    const [first, second] = await Promise.all([token(), token()]);
+    expect(first).toBe(second);
+    expect(first).not.toBe(TOKEN);
+    expect(draws).toBe(1);
+    expect(durable.has(TOKEN_KEY)).toBe(false);
+    expect(session.get(TOKEN_KEY)).toBe(first);
+  });
+
+  it("refuses to use a token until legacy storage is erased, and retries a failed erase", async () => {
+    let attempts = 0;
+    let draws = 0;
+    const token = sessionPairingToken(
+      { get: async () => undefined, set: async () => {} },
+      async () => {
+        if (++attempts === 1) throw new Error("storage unavailable");
+      },
+      (bytes) => bytes.fill(++draws),
+    );
+    await expect(token()).rejects.toThrow("storage unavailable");
+    expect(draws).toBe(0);
+    await expect(token()).resolves.toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(draws).toBe(1);
   });
 });

@@ -1309,6 +1309,90 @@
     }
   },
   {
+    "id": "vault.autofill.requests",
+    "title": "Review pending local autofill operations",
+    "plane": "host",
+    "kind": "read",
+    "plugin": "browser-autofill",
+    "surfaces": {
+      "cli": "opensesame daemon fill requests",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "an independent local operator reviews and authorizes the exact credential operation",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "an independent local operator reviews and authorizes the exact credential operation",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "an independent local operator reviews and authorizes the exact credential operation",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "extension": {
+        "reason": "an independent local operator reviews and authorizes the exact credential operation",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "android": {
+        "reason": "the plugin is a browser extension only",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
+    "id": "vault.autofill.authorize",
+    "title": "Authorize one local autofill operation",
+    "plane": "host",
+    "kind": "ceremony",
+    "plugin": "browser-autofill",
+    "surfaces": {
+      "cli": "opensesame daemon fill authorize",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "extension": null,
+      "android": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "an independent local operator reviews and authorizes the exact credential operation",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "an independent local operator reviews and authorizes the exact credential operation",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "an independent local operator reviews and authorizes the exact credential operation",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "extension": {
+        "reason": "an independent local operator reviews and authorizes the exact credential operation",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "android": {
+        "reason": "the plugin is a browser extension only",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
     "id": "vault.autofill.fill",
     "title": "Fill a focused login field by reference from the companion extension",
     "plane": "host",

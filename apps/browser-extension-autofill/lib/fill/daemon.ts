@@ -17,7 +17,7 @@ import {
   pairState,
 } from "./wire";
 
-/** The pairing token's key in `storage.local`. It admits fill, not values. */
+/** The pairing token's key in memory-backed `storage.session`, never on disk. */
 export const TOKEN_KEY = "fillPairingToken";
 
 /** A refusal from the daemon, by its stable code. Never carries a value. */
@@ -65,7 +65,7 @@ export function newToken(random: (bytes: Uint8Array) => Uint8Array): string {
 
 const TOKEN_FORM = /^[A-Za-z0-9_-]{43,128}$/;
 
-/** This install's pairing token, minted on first use. */
+/** This browser session's pairing token, minted on first use. */
 export async function pairingToken(
   store: KeyValueStore,
   random: (bytes: Uint8Array) => Uint8Array,
@@ -75,6 +75,28 @@ export async function pairingToken(
   const token = newToken(random);
   await store.set(TOKEN_KEY, token);
   return token;
+}
+
+/**
+ * Forget the legacy durable bearer before using a session token. Share the
+ * first read/mint across concurrent requests so they cannot pair different
+ * tokens. Failed storage operations are retried rather than cached forever.
+ */
+export function sessionPairingToken(
+  session: KeyValueStore,
+  removeLegacy: () => Promise<void>,
+  random: (bytes: Uint8Array) => Uint8Array,
+): () => Promise<string> {
+  let current: Promise<string> | undefined;
+  return () => {
+    current ??= removeLegacy()
+      .then(() => pairingToken(session, random))
+      .catch((error) => {
+        current = undefined;
+        throw error;
+      });
+    return current;
+  };
 }
 
 /**

@@ -1,3 +1,4 @@
+import { assertOrganizationIssuerApproval } from "./org-issuer-approval.js";
 /**
  * Owner-only organization mutations, each demanding an `OrgOwner` proof about
  * the exact organization it touches (ADR 0178).
@@ -108,6 +109,7 @@ export function writeOrganization<A, O>(
   if (updated.id !== org.value) {
     throw new Error("organization row is for a different organization");
   }
+  assertOrganizationIssuerApproval(ctx.config, org.value, updated);
   return Promise.resolve(ctx.stores.organizations.set(org.value, updated));
 }
 

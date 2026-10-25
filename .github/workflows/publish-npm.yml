@@ -20,12 +20,14 @@ permissions:
 jobs:
   publish:
     name: npm publish
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
+          ref: ${{ github.sha }}
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -39,16 +41,11 @@ jobs:
       - name: Publish selected packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_PACKAGES: ${{ inputs.packages }}
         run: |
           set -euo pipefail
           if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
             echo "NPM_TOKEN secret is not configured on this repository."
             exit 1
           fi
-          IFS=',' read -ra PKGS <<< "${{ inputs.packages }}"
-          for pkg in "${PKGS[@]}"; do
-            trimmed="$(echo "$pkg" | xargs)"
-            [ -n "$trimmed" ] || continue
-            echo "Publishing $trimmed"
-            pnpm --filter "$trimmed" publish --access public --no-git-checks
-          done
+          node scripts/release/publish-packages.mjs

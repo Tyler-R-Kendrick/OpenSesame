@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { name } from "@gdp-ts/core";
 import { appendAuditEvent } from "@opensesame/audit";
 import { RegisterWebhookEndpointSchema } from "@opensesame/contracts";
+import { WebhookEndpointLimitError } from "@opensesame/database";
 import type { WebhookEndpoint } from "@opensesame/os-domain";
 import { generateWebhookSecret, maskWebhookSecret } from "@opensesame/webhooks";
 import { Hono } from "hono";
@@ -28,8 +29,6 @@ import { authenticatedPrincipalId } from "./organizations.js";
  *    keys turns a read scope into a forgery kit.
  */
 
-const MAX_ENDPOINTS_PER_PRINCIPAL = 10;
-
 function endpointId(): string {
   return `whep_${randomBytes(12).toString("base64url")}`;
 }
@@ -52,11 +51,6 @@ webhookRoutes.post(
         400,
       );
     }
-    const existing =
-      await ctx.repos.webhookEndpoints.listForPrincipal(principalId);
-    if (existing.length >= MAX_ENDPOINTS_PER_PRINCIPAL) {
-      return c.json({ error: "endpoint_limit" }, 422);
-    }
     const endpoint: WebhookEndpoint = {
       id: endpointId(),
       principalId,
@@ -67,7 +61,15 @@ webhookRoutes.post(
         : undefined),
       createdAt: ctx.clock(),
     };
-    const created = await ctx.repos.webhookEndpoints.create(endpoint);
+    let created: WebhookEndpoint;
+    try {
+      created = await ctx.repos.webhookEndpoints.create(endpoint);
+    } catch (error) {
+      if (error instanceof WebhookEndpointLimitError) {
+        return c.json({ error: "endpoint_limit" }, 422);
+      }
+      throw error;
+    }
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "webhook.endpoint_registered",
       principalId,
