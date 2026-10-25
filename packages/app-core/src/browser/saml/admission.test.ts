@@ -14,6 +14,7 @@ import {
 } from "../../lib/federation-session-store.js";
 import { guestAuthSeams } from "../../lib/guest-auth.js";
 import { vaultStore } from "../../lib/vault/store.js";
+import { createNativeOidcAdmissionRuntime } from "../oidc/admission.js";
 import {
   type NativeSamlAdmissionRuntime,
   createNativeSamlAdmissionRuntime,
@@ -332,6 +333,23 @@ it.each([false, true])(
     );
   },
 );
+
+it("OIDC installation replaces the SAML original runtime without allowing late SAML proof to regain the session", async () => {
+  const events: string[] = [];
+  const before = runtime();
+  const { proof } = await protocolProof(events);
+  const next = createNativeOidcAdmissionRuntime();
+  try {
+    const generation = federationSessionGeneration();
+    await expect(before.admit(proof, target)).rejects.toThrow(/replaced/);
+    before.dispose();
+    expect(federationSessionGeneration()).toBe(generation);
+    expect(readNativeFederationSession()).toBeNull();
+  } finally {
+    next.dispose();
+    consumeNativeSamlSignIn(proof).release();
+  }
+});
 
 it.each(["release", "target"])(
   "rejects an older genuine admission when %s publishes successor metadata",
