@@ -245,6 +245,7 @@ async function runOwnedApi<Result>(
   caller: AbortSignal,
   call: (transport: NativeProviderTransport) => Promise<Result>,
 ) {
+  caller.throwIfAborted();
   const transport = ownedApiTransport(capture(), caller);
   try {
     const result = await call(transport);
