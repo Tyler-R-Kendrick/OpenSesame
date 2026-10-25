@@ -271,6 +271,32 @@ jobs:
                       'inventorySha256': hashlib.sha256(encode(inventory)).hexdigest()}
           
           
+          def sanitized_graphql_errors(errors, token):
+              """Only bounded error metadata; never response data, extensions or input."""
+              if not isinstance(errors, list):
+                  return [{'type': 'MALFORMED', 'message': 'Non-list GraphQL errors', 'path': []}]
+              rows = []
+              for error in errors[:8]:
+                  if not isinstance(error, dict):
+                      rows.append({'type': 'MALFORMED', 'message': 'Non-object GraphQL error', 'path': []})
+                      continue
+                  kind = error.get('type', 'UNKNOWN')
+                  kind = kind if isinstance(kind, str) and re.fullmatch('[A-Z_]{1,48}', kind) else 'UNKNOWN'
+                  message = error.get('message', '')
+                  message = message if isinstance(message, str) else 'Non-text GraphQL message'
+                  if token:
+                      message = message.replace(token, '[credential redacted]')
+                  message = re.sub(r'(?i)bearer\s+\S+|github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9_]+', '[credential redacted]', message)
+                  message = re.sub(r'"[^"\n]*"|\x27[^\x27\n]*\x27|`[^`\n]*`', '[quoted value redacted]', message)
+                  message = re.sub(r'[A-Za-z0-9+/=_-]{40,}', '[long value redacted]', message)
+                  message = ''.join(ch if 32 <= ord(ch) <= 126 else ' ' for ch in message)[:512]
+                  path = error.get('path', [])
+                  path = path if isinstance(path, list) else []
+                  safe_path = [part if (type(part) is int and 0 <= part <= 1000) or part in ('createCommitOnBranch', 'commit', 'oid') else '[redacted]' for part in path[:8] if isinstance(part, (str, int))]
+                  rows.append({'type': kind, 'message': message, 'path': safe_path})
+              return rows
+          
+          
           MUTATION = '''mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}'''
           
           
@@ -286,6 +312,8 @@ jobs:
                   'fileChanges': {'additions': additions},
                   'clientMutationId': PAYLOAD_SHA256[:16] + '-' + str(row['pr']),
               }}})
+              if result.get('errors'):
+                  print(json.dumps({'graphqlErrors': sanitized_graphql_errors(result['errors'], api.token)}), file=sys.stderr, flush=True)
               require(not result.get('errors'), 'GraphQL commit rejected; inspect staging ref before rerun')
               try:
                   oid = result['data']['createCommitOnBranch']['commit']['oid']
