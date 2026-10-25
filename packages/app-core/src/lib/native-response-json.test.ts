@@ -60,6 +60,7 @@ async function fixture(write: (response: ServerResponse) => void) {
   const closed = deferred();
   const headers = deferred();
   let finished = false;
+  let closedBeforeCleanup = false;
   const server = createServer(tls, async (request, response) => {
     for await (const _part of request) {
       /* Drain the actual request. */
@@ -67,7 +68,10 @@ async function fixture(write: (response: ServerResponse) => void) {
     response.once("finish", () => {
       finished = true;
     });
-    response.once("close", closed.resolve);
+    response.once("close", () => {
+      closedBeforeCleanup = true;
+      closed.resolve();
+    });
     response.setHeader("content-type", "text/plain");
     write(response);
     arrived.resolve();
@@ -96,6 +100,7 @@ async function fixture(write: (response: ServerResponse) => void) {
     arrived: arrived.promise,
     closed: closed.promise,
     finished: () => finished,
+    closedBeforeCleanup: () => closedBeforeCleanup,
   };
 }
 async function read(
@@ -299,3 +304,60 @@ it.each(["api", "oauth"] as const)(
     expect(f.finished()).toBe(false);
   },
 );
+
+it.each([
+  { status: 401, code: "authorization" },
+  { status: 403, code: "permission" },
+  { status: 429, code: "rate-limit" },
+  { status: 500, code: "response" },
+  { status: 302, code: "response" },
+])(
+  "API retires refused HTTP $status held body before fixture cleanup",
+  async ({ status, code }) => {
+    const secret = "private-upstream-refusal-material";
+    const f = await fixture((response) => {
+      response.writeHead(status);
+      response.write(secret);
+    });
+    try {
+      await read("api", f);
+      throw new Error("Expected provider refusal");
+    } catch (error) {
+      expect(error).toMatchObject({ code, status });
+      expect(String(error)).not.toContain(secret);
+      expect(String(error)).not.toContain(f.url);
+    }
+    // Observe the actual TLS producer before afterEach can close its socket.
+    await expect.poll(f.closedBeforeCleanup, { timeout: 1000 }).toBe(true);
+    expect(f.finished()).toBe(false);
+  },
+);
+it("API retires a held body when its original owner withdraws after headers", async () => {
+  const f = await fixture((response) => {
+    response.writeHead(200);
+    response.write('{"private-upstream-material":"');
+  });
+  let current = true;
+  const transport = {
+    async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+      const response = await f.fetch(input, init);
+      current = false;
+      return response;
+    },
+    assertCurrent() {
+      if (!current) throw new Error("Original owner ended after headers");
+    },
+  };
+  await expect(
+    nativeApiHttp(
+      {
+        url: f.url,
+        method: "GET",
+        headers: new Headers(),
+      },
+      transport,
+    ),
+  ).rejects.toMatchObject({ code: "network" });
+  await expect.poll(f.closedBeforeCleanup, { timeout: 1000 }).toBe(true);
+  expect(f.finished()).toBe(false);
+});
