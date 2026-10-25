@@ -237,73 +237,84 @@ function rescueTimeoutSec(): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 420;
 }
 
-async function* runDeepWithRescue(
+async function* tryRescueThenDeep(
   params: InvestigateParams,
   agentOptions: AgentOptions,
-  deepMax: number,
-  deepBudgetSec: number,
   shallowOutcome: PassOutcome,
   shallowMax: number,
+  deepMax: number,
+  deepTimeout: number,
   passSignal: AbortSignal,
   fileWallCtx: GrokFileWallContext,
 ): AsyncGenerator<unknown, InvestigateReturn> {
-  try {
-    const deepOutcome = yield* drainPass(
-      runPass(
-        params,
-        agentOptions,
-        deepMax,
-        deepBudgetSec,
-        passSignal,
-        fileWallCtx,
-      ),
-    );
-    bumpGrokDepthSummary({ deepCompleted: 1 });
-    return finalizeDeepOutcome(
-      deepOutcome,
-      shallowOutcome,
-      shallowMax,
-      deepMax,
-    );
-  } catch (deepErr) {
-    const rescueTurns = rescueMaxTurns();
-    const rescueBudgetSec = capInvokeTimeoutToFileWall(
-      rescueTimeoutSec(),
-      fileWallCtx,
-      WALL_HEADROOM_SEC,
-    );
-    if (rescueBudgetSec < 60) {
-      throw deepErr;
-    }
+  const shallowTag = limitMessage(
+    shallowOutcome.lastCap,
+    shallowOutcome.lastTimedOut,
+    shallowMax,
+  );
+  const rescueTurns = rescueMaxTurns();
+  const rescueBudgetSec = capInvokeTimeoutToFileWall(
+    rescueTimeoutSec(),
+    fileWallCtx,
+    WALL_HEADROOM_SEC,
+  );
+  if (rescueBudgetSec >= 60) {
     yield {
       type: "started",
-      message: `Deep pass failed — rescue investigate (${rescueTurns} turns, ${rescueBudgetSec}s)`,
+      message: `Shallow ${shallowTag} — rescue investigate (${rescueTurns} turns, ${rescueBudgetSec}s budget)`,
     };
-    const rescueOutcome = yield* drainPass(
-      runPass(
-        params,
-        agentOptions,
+    try {
+      const rescueOutcome = yield* drainPass(
+        runPass(
+          params,
+          agentOptions,
+          rescueTurns,
+          rescueBudgetSec,
+          passSignal,
+          fileWallCtx,
+        ),
+      );
+      bumpGrokDepthSummary({ deepCompleted: 1 });
+      const finalized = finalizeDeepOutcome(
+        rescueOutcome,
+        shallowOutcome,
+        shallowMax,
         rescueTurns,
-        rescueBudgetSec,
-        passSignal,
-        fileWallCtx,
-      ),
-    );
-    bumpGrokDepthSummary({ deepCompleted: 1 });
-    const finalized = finalizeDeepOutcome(
-      rescueOutcome,
-      shallowOutcome,
-      shallowMax,
-      rescueTurns,
-    );
-    return {
-      ...finalized,
-      meta: {
-        ...finalized.meta,
-        codexStderr: `rescue_ok;${finalized.meta.codexStderr ?? ""}`,
-      },
-    };
+      );
+      return {
+        ...finalized,
+        meta: {
+          ...finalized.meta,
+          codexStderr: `rescue_ok;${finalized.meta.codexStderr ?? ""}`,
+        },
+      };
+    } catch {
+      // fall through to deep while file wall still allows
+    }
   }
+
+  const deepBudgetSec = deepBudgetOrThrow(fileWallCtx, deepTimeout);
+  yield {
+    type: "started",
+    message: `Rescue unavailable or failed — deep investigate (${deepMax} turns, ${deepBudgetSec}s budget)`,
+  };
+  const deepOutcome = yield* drainPass(
+    runPass(
+      params,
+      agentOptions,
+      deepMax,
+      deepBudgetSec,
+      passSignal,
+      fileWallCtx,
+    ),
+  );
+  bumpGrokDepthSummary({ deepCompleted: 1 });
+  return finalizeDeepOutcome(
+    deepOutcome,
+    shallowOutcome,
+    shallowMax,
+    deepMax,
+  );
 }
 
 function finalizeDeepOutcome(
@@ -380,19 +391,13 @@ export async function* grokWave2Investigate(
     }
 
     bumpGrokDepthSummary({ shallowCapOrTimeout: 1, deepRetries: 1 });
-    const deepBudgetSec = deepBudgetOrThrow(fileWallCtx, deepTimeout);
-    yield {
-      type: "started",
-      message: `Shallow ${limitMessage(shallowOutcome.lastCap, shallowOutcome.lastTimedOut, shallowMax)} — re-investigating with ${deepMax} Grok turns (${deepBudgetSec}s budget)`,
-    };
-
-    return yield* runDeepWithRescue(
+    return yield* tryRescueThenDeep(
       params,
       agentOptions,
-      deepMax,
-      deepBudgetSec,
       shallowOutcome,
       shallowMax,
+      deepMax,
+      deepTimeout,
       wallScope.signal,
       fileWallCtx,
     );
