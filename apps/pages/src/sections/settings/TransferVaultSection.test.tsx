@@ -1,9 +1,6 @@
 /** @vitest-environment jsdom */
 import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
-import {
-  type LocalDirectory,
-  readLocalDirectory,
-} from "@opensesame/app-core/lib/local-directory.js";
+import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
 import {
@@ -16,6 +13,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { testLockManager } from "../../test-support/lock-manager.js";
 import { TransferVaultSection } from "./TransferVaultSection.js";
 
 let tomb: string;
@@ -52,20 +50,7 @@ async function seed(extra: Change[] = []) {
 beforeEach(async () => {
   tomb = `transfer-section-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    ...navigator,
-    locks: {
-      request: (_name: string, run: () => Promise<LocalDirectory>) => {
-        const result = queue.then(run);
-        queue = result.then(
-          () => undefined,
-          () => undefined,
-        );
-        return result;
-      },
-    },
-  });
+  vi.stubGlobal("navigator", { ...navigator, locks: testLockManager });
   vaultHooksSeams.useVault = () => ({ ...realUseVault(), tomb, guest: false });
 });
 afterEach(() => {

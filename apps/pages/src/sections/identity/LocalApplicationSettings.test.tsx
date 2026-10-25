@@ -15,6 +15,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { expectInTray } from "../../components/tray.test-support.js";
+import { installTestLocks } from "../../test-support/lock-manager.js";
 import { LocalApplicationSettings } from "./LocalApplicationSettings.js";
 
 let tomb: string;
@@ -23,19 +24,7 @@ let directory: LocalDirectory;
 beforeEach(async () => {
   tomb = `registration-ui-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: <T,>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
-  });
+  installTestLocks();
   directory = { version: 2, revision: 0, entries: [], memberships: [] };
   for (const kind of ["person", "organization", "application"] as const)
     directory = await changeLocalDirectory(tomb, directory.revision, {

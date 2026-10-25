@@ -43,19 +43,22 @@ afterEach(() => {
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: (_name: string, action: () => Promise<void>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
-  });
+  function request(_name: string, action: () => Promise<void>): Promise<void>;
+  function request(
+    _name: string,
+    _options: { mode?: string },
+    action: () => Promise<void>,
+  ): Promise<void>;
+  function request(
+    _name: string,
+    optionsOrAction: { mode?: string } | (() => Promise<void>),
+    maybeAction?: () => Promise<void>,
+  ): Promise<void> {
+    if (maybeAction) return maybeAction();
+    // SAFETY: the two-argument form is the callback overload.
+    return (optionsOrAction as () => Promise<void>)();
+  }
+  vi.stubGlobal("navigator", { locks: { request } });
   vi.spyOn(deviceIdentity, "isRemoteIdentityConfigured").mockReturnValue(true);
 });
 

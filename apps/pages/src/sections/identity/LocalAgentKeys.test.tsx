@@ -19,6 +19,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { installTestLocks } from "../../test-support/lock-manager.js";
 import { LocalAgentKeys } from "./LocalAgentKeys.js";
 
 let tomb: string;
@@ -28,19 +29,7 @@ beforeEach(async () => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   tomb = `agent-ui-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: <T,>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
-  });
+  installTestLocks();
   const directory = await changeLocalDirectory(tomb, 0, {
     action: "create",
     kind: "agent",
