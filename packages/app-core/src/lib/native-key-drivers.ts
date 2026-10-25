@@ -8,6 +8,7 @@ import { awsKeyFlows } from "./native-aws.js";
 import { azureAcKeyFlows } from "./native-azure-ac.js";
 import { azureSecretsKeyFlows } from "./native-azure-secrets.js";
 import { gcpIamKeyFlows, gcpKeyFlows } from "./native-gcp.js";
+import { googleWalletKeyFlows } from "./native-google-wallet.js";
 import { infisicalKeyFlows } from "./native-infisical.js";
 import type { NativeKeyFlows } from "./native-key-driver.js";
 import { snowflakeKeyFlows } from "./native-snowflake.js";
@@ -23,6 +24,7 @@ export const NATIVE_KEY_DRIVERS: readonly NativeKeyFlows[] = [
   acmeKeyFlows,
   infisicalKeyFlows,
   snowflakeKeyFlows,
+  googleWalletKeyFlows,
 ];
 
 export function nativeKeyDriverFor(providerId: string): NativeKeyFlows | null {
