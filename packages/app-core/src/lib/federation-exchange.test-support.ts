@@ -1,7 +1,7 @@
 /** Independent signed OIDC issuer over real HTTP; no token or JWT verification mock. */
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createServer } from "node:http";
+import { type IncomingMessage, createServer } from "node:http";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { vi } from "vitest";
 import { z } from "zod";
@@ -151,13 +151,13 @@ export function holdStartLoader() {
     });
   return { release, arrived, load };
 }
-function discoveryControl() {
+function responseControl() {
   let release = () => {};
   let arrived = () => {};
   let current: Promise<void> | null = null;
   return {
     hold() {
-      if (current) throw new Error("A discovery response is already held");
+      if (current) throw new Error("A provider response is already held");
       const reached = new Promise<void>((resolve) => {
         arrived = resolve;
       });
@@ -186,7 +186,15 @@ type IssuerWire = Readonly<{
   errors: string[];
   discovery: () => string;
   discoveryWait: () => Promise<void>;
+  brokered: boolean;
+  accessToken: string;
+  adoptionWait: () => Promise<void>;
 }>;
+async function requestBody(request: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString();
+}
 function issuerServer(wire: IssuerWire) {
   const { requests, forms, errors } = wire;
   return createServer((request, response) => {
@@ -207,14 +215,24 @@ function issuerServer(wire: IssuerWire) {
         return;
       }
       assert.equal(request.method, "POST");
-      assert.equal(request.url, "/token");
       assert.equal(request.headers.cookie, undefined);
-      const chunks: Buffer[] = [];
-      for await (const chunk of request) chunks.push(Buffer.from(chunk));
+      const body = await requestBody(request);
+      if (request.url === "/v1/principals/federated-session") {
+        assert.equal(wire.brokered, true);
+        assert.equal(forms.length, 1);
+        assert.deepEqual(JSON.parse(body), { accessToken: wire.accessToken });
+        await wire.adoptionWait();
+        response.end(
+          JSON.stringify({
+            principalId: "principal-signed-operator",
+            accessToken: "adopted-opaque-session",
+          }),
+        );
+        return;
+      }
+      assert.equal(request.url, "/token");
       const form = formSchema.parse(
-        Object.fromEntries(
-          new URLSearchParams(Buffer.concat(chunks).toString()),
-        ),
+        Object.fromEntries(new URLSearchParams(body)),
       );
       forms.push(form);
       assert.deepEqual(form, {
@@ -225,7 +243,12 @@ function issuerServer(wire: IssuerWire) {
         redirect_uri: "https://app.example.test/registered-callback",
       });
       assert.equal(forms.length, 1, "One callback cannot exchange twice");
-      response.end(JSON.stringify({ id_token: wire.token() }));
+      response.end(
+        JSON.stringify({
+          id_token: wire.token(),
+          access_token: wire.accessToken,
+        }),
+      );
     };
     answer().catch(() => {
       errors.push("Independent issuer refused a request");
@@ -235,10 +258,10 @@ function issuerServer(wire: IssuerWire) {
   });
 }
 
-function configuredIssuerSettings(issuer: string) {
+function configuredIssuerSettings(issuer: string, mode: "public" | "brokered") {
   const settings = {
     ...loadSettings(),
-    identityApi: "",
+    identityApi: mode === "brokered" ? issuer : "",
     signIn: {
       builtin: true,
       providers: [
@@ -258,7 +281,10 @@ function configuredIssuerSettings(issuer: string) {
   return settings;
 }
 
-export async function exchangeIssuer(fault: TokenFault = "none") {
+export async function exchangeIssuer(
+  fault: TokenFault = "none",
+  mode: "public" | "brokered" = "public",
+) {
   const keys = await generateKeyPair("ES256");
   const foreign = await generateKeyPair("ES256");
   const jwk = {
@@ -277,7 +303,9 @@ export async function exchangeIssuer(fault: TokenFault = "none") {
     token_endpoint: "",
     jwks_uri: "",
   };
-  const control = discoveryControl();
+  const control = responseControl();
+  const adoption = responseControl();
+  const accessToken = crypto.randomUUID();
   const server = issuerServer({
     token: () => token,
     jwks: JSON.stringify({ keys: [jwk] }),
@@ -286,6 +314,9 @@ export async function exchangeIssuer(fault: TokenFault = "none") {
     errors,
     discovery: () => JSON.stringify(discovery),
     discoveryWait: () => control.wait(),
+    brokered: mode === "brokered",
+    accessToken,
+    adoptionWait: () => adoption.wait(),
   });
   await once(server.listen(0, "127.0.0.1"), "listening");
   const { port } = z
@@ -310,7 +341,7 @@ export async function exchangeIssuer(fault: TokenFault = "none") {
     .setIssuedAt(now)
     .setExpirationTime(fault === "expired" ? now - 3600 : now + 600)
     .sign(fault === "signature" ? foreign.privateKey : keys.privateKey);
-  const settings = configuredIssuerSettings(issuer);
+  const settings = configuredIssuerSettings(issuer, mode);
   storePending({
     upstreamId: "identity:callback",
     issuer,
@@ -328,6 +359,8 @@ export async function exchangeIssuer(fault: TokenFault = "none") {
     issuer,
     discovery,
     holdDiscovery: () => control.hold(),
+    holdAdoption: () => adoption.hold(),
+    accessToken,
     requests,
     forms,
     errors,
@@ -335,6 +368,7 @@ export async function exchangeIssuer(fault: TokenFault = "none") {
     token,
     close: async () => {
       control.close();
+      adoption.close();
       server.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
