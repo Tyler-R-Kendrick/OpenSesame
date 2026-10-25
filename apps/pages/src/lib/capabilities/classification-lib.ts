@@ -52,6 +52,7 @@ const SIGNIN_FILES = [
   "account",
   "identity",
   "federation",
+  "native-identity-admission",
   "federation-copy",
   "federation-callback",
   "federation-pending",
