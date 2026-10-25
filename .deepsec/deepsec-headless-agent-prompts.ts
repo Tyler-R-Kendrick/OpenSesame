@@ -58,11 +58,29 @@ After your investigation, output a JSON block with your findings for EACH file. 
 
 If a file has no real vulnerabilities after thorough investigation, include it with an empty findings array.`;
 
-export function buildInvestigatePrompt(params: {
-  promptTemplate: string;
-  projectInfo: string;
-  batch: FileRecord[];
-}): string {
+const RESCUE_INVESTIGATE_OUTPUT_FORMAT = `## Rescue pass (strict time budget)
+
+Read each target file **once** with the Read tool. Do not open other files unless the target cannot be read.
+
+Then reply with **only** a JSON array in this shape (empty findings is valid):
+
+\`\`\`json
+[
+  {
+    "filePath": "relative/path/from/repo/root.rs",
+    "findings": []
+  }
+]
+\`\`\``;
+
+export function buildInvestigatePrompt(
+  params: {
+    promptTemplate: string;
+    projectInfo: string;
+    batch: FileRecord[];
+  },
+  mode: "full" | "rescue" = "full",
+): string {
   const fileList = params.batch
     .map((r) => {
       if (r.candidates.length === 0) {
@@ -86,7 +104,7 @@ ${projectInfoBlock}## Target Files
 
 ${fileList}
 
-${INVESTIGATE_OUTPUT_FORMAT}`;
+${mode === "rescue" ? RESCUE_INVESTIGATE_OUTPUT_FORMAT : INVESTIGATE_OUTPUT_FORMAT}`;
 }
 
 function normalizeInvestigateEntry(

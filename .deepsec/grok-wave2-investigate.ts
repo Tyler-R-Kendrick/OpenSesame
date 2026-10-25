@@ -6,6 +6,7 @@ import {
   grokFileWallSec,
   grokShallowMaxTurns,
   grokShallowTimeoutSec,
+  grokWallRemainingSec,
   runGrokPromptWithMeta,
   startFileWallAbortScope,
   type GrokFileWallContext,
@@ -237,6 +238,66 @@ function rescueTimeoutSec(): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 420;
 }
 
+function compactRescueMaxTurns(): number {
+  const n = Number(process.env.DEEPSEC_GROK_COMPACT_RESCUE_MAX_TURNS ?? "12");
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 12;
+}
+
+function compactRescueTimeoutSec(): number {
+  const n = Number(process.env.DEEPSEC_GROK_COMPACT_RESCUE_TIMEOUT_SEC ?? "180");
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 180;
+}
+
+function withRescueInvestigateMode(
+  params: InvestigateParams,
+): InvestigateParams {
+  return {
+    ...params,
+    config: { ...params.config, grokInvestigateMode: "rescue" },
+  };
+}
+
+async function* runRescuePass(
+  params: InvestigateParams,
+  agentOptions: AgentOptions,
+  turns: number,
+  budgetSec: number,
+  shallowOutcome: PassOutcome,
+  shallowMax: number,
+  passSignal: AbortSignal,
+  fileWallCtx: GrokFileWallContext,
+  label: string,
+): AsyncGenerator<unknown, InvestigateReturn> {
+  yield {
+    type: "started",
+    message: label,
+  };
+  const rescueOutcome = yield* drainPass(
+    runPass(
+      withRescueInvestigateMode(params),
+      agentOptions,
+      turns,
+      budgetSec,
+      passSignal,
+      fileWallCtx,
+    ),
+  );
+  bumpGrokDepthSummary({ deepCompleted: 1 });
+  const finalized = finalizeDeepOutcome(
+    rescueOutcome,
+    shallowOutcome,
+    shallowMax,
+    turns,
+  );
+  return {
+    ...finalized,
+    meta: {
+      ...finalized.meta,
+      codexStderr: `rescue_ok;${finalized.meta.codexStderr ?? ""}`,
+    },
+  };
+}
+
 async function* tryRescueThenDeep(
   params: InvestigateParams,
   agentOptions: AgentOptions,
@@ -259,38 +320,49 @@ async function* tryRescueThenDeep(
     WALL_HEADROOM_SEC,
   );
   if (rescueBudgetSec >= 60) {
-    yield {
-      type: "started",
-      message: `Shallow ${shallowTag} — rescue investigate (${rescueTurns} turns, ${rescueBudgetSec}s budget)`,
-    };
     try {
-      const rescueOutcome = yield* drainPass(
-        runPass(
-          params,
-          agentOptions,
-          rescueTurns,
-          rescueBudgetSec,
-          passSignal,
-          fileWallCtx,
-        ),
-      );
-      bumpGrokDepthSummary({ deepCompleted: 1 });
-      const finalized = finalizeDeepOutcome(
-        rescueOutcome,
+      return yield* runRescuePass(
+        params,
+        agentOptions,
+        rescueTurns,
+        rescueBudgetSec,
         shallowOutcome,
         shallowMax,
-        rescueTurns,
+        passSignal,
+        fileWallCtx,
+        `Shallow ${shallowTag} — rescue investigate (${rescueTurns} turns, ${rescueBudgetSec}s budget)`,
       );
-      return {
-        ...finalized,
-        meta: {
-          ...finalized.meta,
-          codexStderr: `rescue_ok;${finalized.meta.codexStderr ?? ""}`,
-        },
-      };
     } catch {
-      // fall through to deep while file wall still allows
+      const compactTurns = compactRescueMaxTurns();
+      const compactBudgetSec = capInvokeTimeoutToFileWall(
+        compactRescueTimeoutSec(),
+        fileWallCtx,
+        WALL_HEADROOM_SEC,
+      );
+      if (compactBudgetSec >= 45) {
+        try {
+          return yield* runRescuePass(
+            params,
+            agentOptions,
+            compactTurns,
+            compactBudgetSec,
+            shallowOutcome,
+            shallowMax,
+            passSignal,
+            fileWallCtx,
+            `Rescue timed out — compact investigate (${compactTurns} turns, ${compactBudgetSec}s budget)`,
+          );
+        } catch {
+          // fall through to deep while file wall still allows
+        }
+      }
     }
+  }
+
+  if (grokWallRemainingSec(fileWallCtx) < 900) {
+    throw new Error(
+      `grok file wall: ${Math.floor(grokWallRemainingSec(fileWallCtx))}s left after rescue passes (DEEPSEC_GROK_FILE_WALL_SEC)`,
+    );
   }
 
   const deepBudgetSec = deepBudgetOrThrow(fileWallCtx, deepTimeout);

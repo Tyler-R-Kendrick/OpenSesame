@@ -24,11 +24,16 @@ export async function* runHeadlessInvestigateOnce(
 ) {
   const { providerLabel, runPrompt, defaultModel } = options;
   const model = modelFromConfig(params.config, defaultModel);
-  const prompt = `${DEEPSEC_SYSTEM_NOTE}\n\n${buildInvestigatePrompt({
-    promptTemplate: params.promptTemplate,
-    projectInfo: params.projectInfo,
-    batch: params.batch,
-  })}${JSON_ONLY_SUFFIX}`;
+  const investigateMode =
+    params.config?.grokInvestigateMode === "rescue" ? "rescue" : "full";
+  const prompt = `${DEEPSEC_SYSTEM_NOTE}\n\n${buildInvestigatePrompt(
+    {
+      promptTemplate: params.promptTemplate,
+      projectInfo: params.projectInfo,
+      batch: params.batch,
+    },
+    investigateMode,
+  )}${JSON_ONLY_SUFFIX}`;
   const start = Date.now();
   yield {
     type: "started",
