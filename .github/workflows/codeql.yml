@@ -119,39 +119,3 @@ jobs:
           name: codeql-sarif-${{ matrix.language }}
           path: ${{ runner.temp }}/codeql-results
           if-no-files-found: warn
-      - name: Record independently reviewed HMAC false positive
-        if: >-
-          ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/security-alerts-20261025' && matrix.language == 'actions' && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import json, subprocess
-          repo = "Tyler-R-Kendrick/OpenSesame"
-          path = "packages/control-plane/src/interactions/federated.ts"
-          def api(endpoint, body=None):
-              command = ["gh", "api", endpoint]
-              if body is not None:
-                  command += ["--method", "PATCH", "--input", "-"]
-              result = subprocess.run(command, input=None if body is None else json.dumps(body), text=True, capture_output=True, check=True)
-              return json.loads(result.stdout)
-          main = api(f"repos/{repo}/git/ref/heads/main")
-          if main["object"]["sha"] != "aad2c85b4b567fd632d0e409d53d17bb66e8fba4":
-              raise SystemExit("Default branch changed since independent review; refusing automatic disposition")
-          alert = api(f"repos/{repo}/code-scanning/alerts/520")
-          if alert["number"] != 520 or alert["rule"]["id"] != "js/insufficient-password-hash" or alert["tool"]["name"] != "CodeQL":
-              raise SystemExit("Alert identity differs from the independently reviewed finding")
-          instance = alert["most_recent_instance"]
-          if instance["location"]["path"] != path or instance["ref"] != "refs/heads/main":
-              raise SystemExit("Alert location differs from the independently reviewed finding")
-          source = api(f"repos/{repo}/contents/{path}?ref=main")
-          if source["sha"] not in {'d46cbc9cc9b232c707e4668736fd221ca4724a83', '15de2ab813bcc856479e24af0f78738bbf4d6df0'}:
-              raise SystemExit("Source changed since the HMAC review; refusing automatic disposition")
-          if alert["state"] == "open":
-              alert = api(f"repos/{repo}/code-scanning/alerts/520", {
-                  "state": "dismissed", "dismissed_reason": "false positive",
-                  "dismissed_comment": "Independently reviewed: pendingSignature authenticates a federated OAuth cookie with HMAC-SHA256 and the deployment pepper. It does not derive or store a user password. Production callers supply the pepper; decodePending length-checks and timingSafeEqual-verifies the MAC before parsing. No crypto change or query exclusion is needed."
-              })
-          print(json.dumps({"number": alert["number"], "state": alert["state"], "dismissed_reason": alert.get("dismissed_reason")}))
-          PY
