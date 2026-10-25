@@ -164,3 +164,31 @@ it("an original disposer cannot erase a new adapter installed reentrantly during
   old();
   expect(readNativeFederationSession()).not.toBeNull();
 });
+
+it("returns the exact immutable generation allocated by this transition", () => {
+  const previous = federationSessionGeneration();
+  const published = advanceFederationSessionGeneration();
+  expect(published).not.toBe(previous);
+  expect(Object.isFrozen(published)).toBe(true);
+  expect(federationSessionGeneration()).toBe(published);
+});
+it("never returns a reentrant successor as the outer publication's owner", () => {
+  let reenter = false;
+  let clears = 0;
+  const dispose = bindNativeFederationSession({
+    read: () => null,
+    clear() {
+      clears++;
+      if (reenter) {
+        reenter = false;
+        advanceFederationSessionGeneration();
+      }
+    },
+  });
+  disposers.push(dispose);
+  reenter = true;
+  const published = advanceFederationSessionGeneration();
+  expect(clears).toBe(2);
+  expect(federationSessionGeneration()).not.toBe(published);
+  expect(Object.isFrozen(published)).toBe(true);
+});

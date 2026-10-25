@@ -44,10 +44,15 @@ export function federationSessionGeneration(): FederationSessionGeneration {
   return generation;
 }
 /** An opaque object prevents integer reset/wraparound from reviving an old initiating generation. */
-export function advanceFederationSessionGeneration(): void {
+export function advanceFederationSessionGeneration(): FederationSessionGeneration {
   durableGeneration = currentAuthGeneration();
-  generation = Object.freeze({ [brand]: true });
+  const published: FederationSessionGeneration = Object.freeze({
+    [brand]: true,
+  });
+  generation = published;
   active?.clear();
+  // Return this transition, even if clearing the previous native owner advanced again.
+  return published;
 }
 /** Installation is an adapter lifecycle port, never a scalar-to-verified-identity factory. */
 export function bindNativeFederationSession(
