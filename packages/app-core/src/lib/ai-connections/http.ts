@@ -29,7 +29,12 @@ export function bindAiResponseLifetime(
   responseLifetimes.set(response, { signal, retire });
 }
 
-function finishAiResponseBody(response: Response) {
+/** Other bounded decoders retain the original request deadline and retirement. */
+export function aiResponseBodySignal(response: Response) {
+  return responseLifetimes.get(response)?.signal;
+}
+
+export function finishAiResponseBody(response: Response) {
   const lifetime = responseLifetimes.get(response);
   responseLifetimes.delete(response);
   lifetime?.retire?.();

@@ -1,6 +1,10 @@
 import { isJsonObject, isString } from "@opensesame/os-domain";
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { aiCompletionSeams } from "./http.js";
+import {
+  aiCompletionSeams,
+  aiResponseBodySignal,
+  finishAiResponseBody,
+} from "./http.js";
 import { aiStreamBody } from "./stream-body.js";
 import {
   AiConnectionError,
@@ -111,16 +115,7 @@ export async function readAiTextStream(
   check: () => void,
   signal: AbortSignal,
 ): Promise<string> {
-  textAiFamily(family);
-
-  if (
-    !response.headers
-      .get("content-type")
-      ?.toLowerCase()
-      .includes("text/event-stream")
-  )
-    throw malformed();
-  const body = aiStreamBody(response, check, signal, malformed);
+  let body: ReturnType<typeof aiStreamBody> | undefined;
   const decoder = new TextDecoder();
   let pending = "";
   let answer = "";
@@ -143,6 +138,21 @@ export async function readAiTextStream(
     onText(result.text);
   }
   try {
+    textAiFamily(family);
+    if (
+      !response.headers
+        .get("content-type")
+        ?.toLowerCase()
+        .includes("text/event-stream")
+    )
+      throw malformed();
+    const requestSignal = aiResponseBodySignal(response);
+    body = aiStreamBody(
+      response,
+      check,
+      requestSignal ? AbortSignal.any([signal, requestSignal]) : signal,
+      malformed,
+    );
     for (;;) {
       const next = await body.read();
       if (next.done) break;
@@ -165,7 +175,12 @@ export async function readAiTextStream(
     check();
     await body.finish(bytes);
   } finally {
-    await body.close();
+    try {
+      if (body) await body.close();
+      else await response.body?.cancel().catch(() => undefined);
+    } finally {
+      finishAiResponseBody(response);
+    }
   }
   aiCompletionSeams.observe?.({
     phase: "body",
