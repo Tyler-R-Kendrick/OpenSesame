@@ -188,7 +188,8 @@ function mcpDescriptor(
   availability: BrowserProviderAvailability["mcp"],
 ): NativeMethodDescriptor {
   const metadata = method.mcp.status === "ok" ? method.mcp : null;
-  return {
+  const defaults = availability.defaultScopes ?? metadata?.defaultScopes;
+  const descriptor: NativeMethodDescriptor = {
     id: "mcp",
     authorizeFirst: true,
     preferredRank:
@@ -220,12 +221,15 @@ function mcpDescriptor(
               name: scope,
               description:
                 "Permission advertised by the provider's MCP authorization server.",
-              default: availability.defaultScopes?.includes(scope) ?? false,
+              default: defaults?.includes(scope) ?? false,
             })),
           },
         ]
       : [],
   };
+  return metadata?.configurable === false
+    ? descriptor
+    : configuredMcpDescriptor(providerId, method.mcp, descriptor);
 }
 
 function publicOAuthDescriptor(
@@ -334,6 +338,7 @@ function additionalOAuthMethod(
 function providerMethods(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
+  savedMethod?: NativeMethodDescriptor["id"],
 ): NativeMethodDescriptor[] {
   const methods: NativeMethodDescriptor[] = [];
   for (const method of plan.methods) {
@@ -342,27 +347,26 @@ function providerMethods(
     if (method.kind === "oauth")
       methods.push(publicOAuthDescriptor(plan, availability, method));
     if (method.kind === "mcp")
-      methods.push(
-        configuredMcpDescriptor(
-          plan.id,
-          method.mcp,
-          mcpDescriptor(plan.id, method, availability.mcp),
-        ),
-      );
+      methods.push(mcpDescriptor(plan.id, method, availability.mcp));
   }
   if (!methods.some((method) => method.id === "oauth")) {
     const additional = additionalOAuthMethod(plan, availability);
     if (additional) methods.unshift(additional);
   }
-  return methods;
+  return plan.primaryMethod
+    ? methods.filter(
+        (method) => method.id === (savedMethod ?? plan.primaryMethod),
+      )
+    : methods;
 }
 
 export function nativeProviderDescriptor(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
+  savedMethod?: NativeMethodDescriptor["id"],
 ): NativeConnectorDescriptor {
-  const methods = providerMethods(plan, availability).map((method) =>
-    nativePolicyMethod(plan.id, method),
+  const methods = providerMethods(plan, availability, savedMethod).map(
+    (method) => nativePolicyMethod(plan.id, method),
   );
   if (methods.length === 0)
     methods.push({
