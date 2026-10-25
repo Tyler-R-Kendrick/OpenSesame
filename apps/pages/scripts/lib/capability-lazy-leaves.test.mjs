@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { LIB_RULES } from "../../src/lib/capabilities/classification-lib.js";
+import { PACKAGE_RULES } from "../../src/lib/capabilities/classification-packages.js";
 import { classifyModule } from "./capability-graph.mjs";
 import {
   lazyLeafChunk,
@@ -294,4 +295,41 @@ test("keeps the directory sign-in model off the bootstrap without promoting its 
       lazyLeafChunk(file.replace("org-signin.ts", name), entry),
       undefined,
     );
+});
+
+test("keeps the real NKeys signer with NATS without claiming virtual wrappers or connector credentials", () => {
+  const root = "/workspace";
+  const source = `${root}/node_modules/.pnpm/tweetnacl@1.0.3/node_modules/tweetnacl/nacl-fast.js`;
+  const entry = classifyModule(source, PACKAGE_RULES, { repoRoot: root });
+  assert.equal(entry.classification, "optional");
+  assert.equal(entry.capability, "sharing.live");
+  for (const id of [
+    source,
+    source.replaceAll("/", "\\"),
+    `${root}/node_modules/tweetnacl/nacl-fast.js`,
+  ])
+    assert.equal(lazyLeafChunk(id, entry), "live-nats");
+  const wrapper = `\0${source}?commonjs-module`;
+  const wrapperEntry = classifyModule(wrapper, PACKAGE_RULES, {
+    repoRoot: root,
+  });
+  assert.equal(wrapperEntry.rationale, "virtual");
+  assert.equal(lazyLeafChunk(wrapper, wrapperEntry), undefined);
+  for (const owner of [
+    { classification: "shared", capability: null },
+    { classification: "core", capability: null },
+    { classification: "optional", capability: "connectors.external" },
+  ])
+    assert.equal(lazyLeafChunk(source, owner), undefined);
+  const credentials = `${root}/packages/app-core/src/browser/secret-backend-credentials.ts`;
+  const credentialOwner = classifyModule(credentials, LIB_RULES, {
+    repoRoot: root,
+  });
+  assert.equal(credentialOwner.classification, "optional");
+  assert.equal(credentialOwner.capability, "connectors.external");
+  assert.equal(lazyLeafChunk(credentials, credentialOwner), undefined);
+  assert.equal(
+    lazyLeafChunk(source.replace("/tweetnacl/", "/tweetnacl-extra/"), entry),
+    undefined,
+  );
 });
