@@ -126,6 +126,11 @@ export const PACKAGE_RULES = [
     "Vite's empty stand-in for the Node `crypto` kdbxweb's UMD header requires",
   ),
   optional(
+    `${NM}@opensesame/wallet/`,
+    "connectors.external",
+    "public wallet pass presentation and Google protocol adapters, never spending authority",
+  ),
+  optional(
     `${NM}@opensesame/wallet-budget`,
     "wallet.spending",
     "conserved ledger",
