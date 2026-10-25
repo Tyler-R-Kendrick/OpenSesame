@@ -22,6 +22,15 @@ export type {
   OidcDiscovery,
   TrustedUpstream,
 } from "./federation-contract.js";
+import {
+  consumeBrokeredPublication,
+  forgetBrokeredPublication,
+  runOwnedFederationExchange,
+} from "./federation-publication.js";
+export {
+  federationExchangeSeams,
+  saveSession,
+} from "./federation-publication.js";
 import { FederationError } from "./federation-error.js";
 import {
   type FederationSessionGeneration,
@@ -41,7 +50,6 @@ import { takeMatchingPending } from "./federation-pending.js";
 import {
   clearFederationSessionJson,
   readFederationSessionJson,
-  writeFederationSessionJson,
 } from "./federation-session-store.js";
 import { readStoredSessionSync } from "./federation-stored-session.js";
 import {
@@ -50,7 +58,6 @@ import {
   remoteIdentityApi,
   restoreSession,
 } from "./identity.js";
-import { rememberLastSignIn } from "./last-sign-in.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import { signInMethods } from "./settings.js";
 export {
@@ -206,11 +213,6 @@ async function beginSignInDefault(
 
 export { hasAuthResponse } from "./federation-response.js";
 
-export const federationExchangeSeams = {
-  load: (): Promise<typeof import("./federation-exchange.js")> =>
-    import("./federation-exchange.js"),
-};
-
 function callbackTrust(): string {
   return JSON.stringify({
     upstreams: TRUSTED_UPSTREAMS,
@@ -227,12 +229,7 @@ function captureFederationAction() {
   const trust = callbackTrust();
   const originalFetch = fetch;
   let expectedHref = href;
-  const assertCurrent = () => {
-    if (federationSessionGeneration() !== generation)
-      throw new FederationError(
-        "sign_in_cancelled",
-        "That sign-in was ended by a sign-out. Start again.",
-      );
+  const assertConfiguration = () => {
     if (
       host() !== originalHost ||
       pageOrigin() !== origin ||
@@ -245,6 +242,15 @@ function captureFederationAction() {
         "Identity configuration changed or callback was replaced during sign-in; start again",
       );
   };
+  const assertCurrent = () => {
+    if (federationSessionGeneration() !== generation)
+      throw new FederationError(
+        "sign_in_cancelled",
+        "That sign-in was ended by a sign-out. Start again.",
+      );
+    assertConfiguration();
+  };
+
   return Object.freeze({
     search,
     origin,
@@ -252,6 +258,7 @@ function captureFederationAction() {
     clientId: originClientId(origin),
     redirectUri: redirectUri(),
     assertCurrent,
+    assertConfiguration,
     scrub() {
       assertCurrent();
       const url = new URL(expectedHref);
@@ -359,12 +366,8 @@ async function completeSignInDefault(
     issuerBrokered: isBrokeredIssuer,
     subjectIsPairwise: (issuer: string) =>
       isBrokeredIssuer(issuer) || isOperatorIdpIssuer(issuer),
-    save: (identity: UpstreamIdentity) =>
-      saveSession(identity, captured.generation),
   });
-  const { exchangeCapturedSignIn } = await federationExchangeSeams.load();
-  captured.assertCurrent();
-  return exchangeCapturedSignIn(context);
+  return runOwnedFederationExchange(context, captured);
 }
 
 /**
@@ -378,7 +381,9 @@ async function completeSignInDefault(
 async function adoptBrokeredSessionDefault(
   accessToken: string,
   expectedGeneration?: FederationSessionGeneration,
+  assertOriginal: () => void = () => undefined,
 ): Promise<IdentitySession> {
+  assertOriginal();
   const generation = expectedGeneration ?? federationSessionGeneration();
   const sessionEpoch = identitySessionEpoch();
   if (federationSessionGeneration() !== generation)
@@ -412,6 +417,7 @@ async function adoptBrokeredSessionDefault(
       `Could not reach the sign-in service at ${base} to finish signing in.`,
     );
   }
+  assertOriginal();
   if (!response.ok) {
     throw new FederationError(
       "session_adoption_failed",
@@ -425,6 +431,7 @@ async function adoptBrokeredSessionDefault(
     accessToken?: BoundaryValue;
     expiresAt?: BoundaryValue;
   } = overlapCast(await response.json());
+  assertOriginal();
   if (!isString(body.principalId) || !isString(body.accessToken)) {
     throw new FederationError(
       "session_adoption_failed",
@@ -444,6 +451,7 @@ async function adoptBrokeredSessionDefault(
       "sign_in_cancelled",
       "That sign-in was ended by a sign-out. Start again.",
     );
+  assertOriginal();
   restoreSession(session, sessionEpoch);
   return session;
 }
@@ -455,39 +463,6 @@ export function clearAuthResponseFromUrl(): void {
     url.searchParams.delete(key);
   }
   page().replaceUrl(url.toString());
-}
-
-/**
- * localStorage, like the pending record above and for the same reason: the
- * upstream round trip can finish in a different browsing context than it
- * started in (an installed PWA hands out-of-scope navigation to a browser
- * tab), and a session only the finishing tab can see leaves the app itself
- * signed out — the person signs in successfully and still lands on the
- * sign-in screen. This is also where shoo's official clients keep the same
- * identity. The stored assertion is bounded by its own `exp`, checked on
- * every load, and dropped the moment its issuer loses trust. The broker's
- * session check vetted it once, when the sign-in completed; an upstream
- * revocation after that takes effect only when `exp` passes.
- */
-export function saveSession(
-  identity: UpstreamIdentity,
-  expectedGeneration?: FederationSessionGeneration,
-): void {
-  if (identity.assertionFormat === "saml")
-    throw new Error(
-      "Native SAML evidence must remain in its verified browser session",
-    );
-  if (
-    expectedGeneration !== undefined &&
-    federationSessionGeneration() !== expectedGeneration
-  )
-    throw new FederationError(
-      "sign_in_cancelled",
-      "That sign-in was ended by a sign-out. Start again.",
-    );
-  advanceFederationSessionGeneration();
-  writeFederationSessionJson(JSON.stringify(identity));
-  rememberLastSignIn(identity.upstreamId);
 }
 
 function issuerIsTrusted(issuer: string): boolean {
@@ -513,6 +488,7 @@ function loadSessionDefault(): UpstreamIdentity | null {
 
 function clearSessionDefault(): void {
   advanceFederationSessionGeneration();
+  forgetBrokeredPublication();
   clearFederationSessionJson();
 }
 
@@ -555,7 +531,14 @@ export async function adoptBrokeredSession(
   accessToken: string,
   expectedGeneration?: FederationSessionGeneration,
 ): Promise<IdentitySession> {
-  return federationSeams.adoptBrokeredSession(accessToken, expectedGeneration);
+  const owner = consumeBrokeredPublication(accessToken, expectedGeneration);
+  return owner
+    ? federationSeams.adoptBrokeredSession(
+        accessToken,
+        owner.generation,
+        owner.assertCurrent,
+      )
+    : federationSeams.adoptBrokeredSession(accessToken, expectedGeneration);
 }
 
 export function loadSession(): UpstreamIdentity | null {
