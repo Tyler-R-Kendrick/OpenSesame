@@ -3,8 +3,8 @@
 use base64::Engine as _;
 use p256::ecdsa::SigningKey;
 use p256::elliptic_curve::pkcs8::EncodePublicKey;
+use p256::elliptic_curve::Generate;
 use p256::PublicKey;
-use rand_core::OsRng;
 use serde_json::json;
 
 use crate::daemon_attest::daemon_integration_id;
@@ -54,7 +54,7 @@ pub const TEST_VAULT_SESSION_ROOT_DIGEST: &str =
 
 fn pairing_fixture() -> &'static (SigningKey, String) {
     TEST_PAIRING.get_or_init(|| {
-        let key = SigningKey::random(&mut OsRng);
+        let key = SigningKey::generate();
         let public_key = PublicKey::from(key.verifying_key());
         let spki = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(public_key.to_public_key_der().expect("spki").as_ref());
@@ -64,7 +64,7 @@ fn pairing_fixture() -> &'static (SigningKey, String) {
 
 fn approval_fixture() -> &'static (SigningKey, String) {
     TEST_APPROVAL.get_or_init(|| {
-        let key = SigningKey::random(&mut OsRng);
+        let key = SigningKey::generate();
         let public_key = PublicKey::from(key.verifying_key());
         let spki = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(public_key.to_public_key_der().expect("spki").as_ref());

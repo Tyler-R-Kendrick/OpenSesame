@@ -142,7 +142,7 @@
     "typescript": "5.8.3",
     "vite": "6.4.4",
     "vite-plugin-pwa": "1.0.3",
-    "vitest": "4.1.11",
+    "vitest": "4.1.12",
     "wbn": "0.0.9",
     "wbn-sign": "0.3.3",
     "workbox-window": "7.3.0",

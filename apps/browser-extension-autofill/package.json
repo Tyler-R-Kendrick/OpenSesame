@@ -20,7 +20,7 @@
     "@playwright/test": "1.55.1",
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
-    "vitest": "4.1.11",
+    "vitest": "4.1.12",
     "wxt": "0.20.19"
   }
 }

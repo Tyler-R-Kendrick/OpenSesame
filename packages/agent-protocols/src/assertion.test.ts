@@ -138,6 +138,53 @@ describe("service agent identity assertion", () => {
     ).resolves.toMatchObject({ resource: "https://api.example" });
   });
 
+  it.each([
+    ["https://api.example///", "https://api.example/", true],
+    ["///", "/", true],
+    ["", "/", true],
+    ["https://api.example/a/b", "https://api.example/ab", false],
+    [
+      "https://api.example/",
+      `https://api.example/${"/".repeat(100_000)}x`,
+      false,
+    ],
+    [
+      `https://api.example/${"/".repeat(100_000)}x`,
+      "https://api.example/",
+      false,
+    ],
+  ])(
+    "compares resource suffixes without backtracking (case %#)",
+    async (resource, expectedResource, matches) => {
+      const { privateKey, publicKey } = await generateKeyPair("ES256");
+      const issued = await issueServiceAgentIdentityAssertion(
+        { privateKey, publicJwk: {}, kid: "k1", alg: "ES256" },
+        {
+          issuer: "https://issuer.example",
+          audience: "https://issuer.example",
+          registrationId: "areg_abc",
+          claimed: false,
+          assertionVersion: 1,
+          scopes: [],
+          expiresAt: new Date(Date.now() + 60_000),
+          resource,
+        },
+      );
+      const started = performance.now();
+      const verified = verifyServiceAgentIdentityAssertion(issued.jwt, {
+        issuer: "https://issuer.example",
+        audience: "https://issuer.example",
+        resource: expectedResource,
+        getKey: async () => publicKey,
+      });
+      if (matches) await expect(verified).resolves.toMatchObject({ resource });
+      else await expect(verified).rejects.toBeInstanceOf(AgentAuthError);
+      // A reverse scan finishes well below this generous bound; quadratic
+      // retries over the attacker-controlled slash run take several seconds.
+      expect(performance.now() - started).toBeLessThan(1_000);
+    },
+  );
+
   it("requires exp, iat and jti rather than accepting a non-expiring assertion", async () => {
     const { privateKey, publicKey } = await generateKeyPair("ES256", {
       extractable: true,

@@ -63,7 +63,7 @@ const JsonOutputSchema: z.ZodType<JsonValue> = z.lazy(() =>
     z.boolean(),
     z.null(),
     z.array(JsonOutputSchema),
-    z.record(JsonOutputSchema),
+    z.record(z.string(), JsonOutputSchema),
   ]),
 );
 
@@ -91,7 +91,7 @@ function restoreReceiptCount(
       secretEchoes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
     })
     .safeParse(data);
-  const object = z.record(JsonOutputSchema).safeParse(redacted);
+  const object = z.record(z.string(), JsonOutputSchema).safeParse(redacted);
   if (metric.success && object.success)
     return { ...object.data, secretEchoes: metric.data.secretEchoes };
   return redacted;

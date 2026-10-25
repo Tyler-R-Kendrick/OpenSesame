@@ -285,7 +285,7 @@ fn raw_sec1_is_not_a_root_spki() {
     let mut host = CliAppIntegrationHost::new();
     let opened = open(&mut host, 30);
     let key = generate_root_signing_key();
-    let raw = key.verifying_key().to_encoded_point(false);
+    let raw = key.verifying_key().to_sec1_point(false);
     let raw = raw.as_bytes().to_vec();
     let client = RootEnrollClient::start(&opened.secret).expect("client");
     let confirm = client

@@ -11,6 +11,7 @@ use base64::Engine as _;
 use ecdsa::signature::Signer;
 use p256::ecdsa::SigningKey;
 use p256::elliptic_curve::pkcs8::EncodePublicKey;
+use p256::elliptic_curve::Generate;
 use p256::PublicKey;
 
 const ENSURE_PATH: &str = "/v1/cli/app-integration/ensure";
@@ -27,8 +28,7 @@ static TEST_DAEMON_PIN: OnceLock<TestDaemonPin> = OnceLock::new();
 
 fn test_daemon_pin() -> &'static TestDaemonPin {
     TEST_DAEMON_PIN.get_or_init(|| {
-        use rand::rngs::OsRng;
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         let public_key = PublicKey::from(signing_key.verifying_key());
         let der = public_key
             .to_public_key_der()

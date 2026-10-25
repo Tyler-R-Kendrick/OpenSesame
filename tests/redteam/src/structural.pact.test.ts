@@ -287,8 +287,10 @@ describe("PACT — redteam structural (live mcp-host)", () => {
         ],
       });
       expect(data.calls[0]?.response.isError).toBe(true);
+      expect(dump(data)).toContain("MCP error -32602: Input validation error");
+      expect(data.upstreamRequests).toEqual([]);
       expect(dump(data)).toContain(
-        "Array must contain at most 64 element(s) at capabilities",
+        "Too big: expected array to have <=64 items at capabilities",
       );
       expect(dump(data)).not.toContain("at Object.");
     });
@@ -308,8 +310,10 @@ describe("PACT — redteam structural (live mcp-host)", () => {
         ],
       });
       expect(data.calls[0]?.response.isError).toBe(true);
+      expect(dump(data)).toContain("MCP error -32602: Input validation error");
+      expect(data.upstreamRequests).toEqual([]);
       expect(dump(data)).toContain(
-        "Number must be less than or equal to 86400 at ttl_seconds",
+        "Too big: expected number to be <=86400 at ttl_seconds",
       );
     });
 
@@ -327,8 +331,10 @@ describe("PACT — redteam structural (live mcp-host)", () => {
         ],
       });
       expect(data.calls[0]?.response.isError).toBe(true);
+      expect(dump(data)).toContain("MCP error -32602: Input validation error");
+      expect(data.upstreamRequests).toEqual([]);
       expect(dump(data)).toContain(
-        "Array must contain at least 1 element(s) at capabilities",
+        "Too small: expected array to have >=1 items at capabilities",
       );
     });
 
@@ -346,8 +352,10 @@ describe("PACT — redteam structural (live mcp-host)", () => {
         ],
       });
       expect(data.calls[0]?.response.isError).toBe(true);
+      expect(dump(data)).toContain("MCP error -32602: Input validation error");
+      expect(data.upstreamRequests).toEqual([]);
       expect(dump(data)).toContain(
-        "Expected string, received number at capabilities[0].action",
+        "Invalid input: expected string, received number at capabilities[0].action",
       );
     });
 

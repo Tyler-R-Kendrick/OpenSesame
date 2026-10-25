@@ -210,7 +210,6 @@ interface PeerEvidenceViewWireOutput {
 /** Audit-safe view of verified evidence. A view decodes; it never becomes evidence. */
 export const PeerEvidenceViewSchema: z.ZodType<
   PeerEvidenceViewWireOutput,
-  z.ZodTypeDef,
   PeerEvidenceViewWireInput
 > = z.lazy(() =>
   z

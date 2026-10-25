@@ -22,6 +22,7 @@ import {
 } from "./device-connector-records.js";
 import { readNativeFederationSession } from "./federation-native-session.js";
 import { clearSession } from "./federation.js";
+import { captureConfiguredIdentitySessionOwner } from "./identity-connections-admission.js";
 import {
   getIdentityConnectionRuntime,
   identityConnectionRevision,
@@ -288,7 +289,7 @@ it.each([
   },
 );
 it.each(["record-close", "trust-callback"] as const)(
-  "restores an earlier configured connection with a phase-appropriate revision after %s withdrawal",
+  "restores an earlier configured connection with a fresh revision after %s withdrawal",
   async (phase) => {
     const fixture = await samlSaveFixture();
     const prior = { ...draft(), name: "Earlier saved identity" };
@@ -296,6 +297,13 @@ it.each(["record-close", "trust-callback"] as const)(
     await projectIdentityTrust(prior, saved.connectionId);
     const revision = identityConnectionRevision(saved.connectionId);
     const providers = signInMethods().providers;
+    const secrets = readDeviceSecrets();
+    const previousOwner = captureConfiguredIdentitySessionOwner(
+      saved.connectionId,
+    );
+    let failedOwner:
+      | ReturnType<typeof captureConfiguredIdentitySessionOwner>
+      | undefined;
     const held = await holdSamlSavePhase(phase, fenceLocalSignOut);
     const outcome = saveIdentityConnection(
       { ...draft(), name: "Attempted replacement" },
@@ -306,18 +314,22 @@ it.each(["record-close", "trust-callback"] as const)(
     );
     try {
       await held.reached;
+      const attemptedRevision = identityConnectionRevision(saved.connectionId);
+      failedOwner = captureConfiguredIdentitySessionOwner(saved.connectionId);
+      expect(attemptedRevision).not.toBe(revision);
       if (phase !== "trust-callback") fenceLocalSignOut();
       held.resume();
       expect(await outcome).toBe(false);
       expect(getIdentityConnectionRuntime(saved.connectionId)).toEqual(prior);
-      // A published attempt is compensated by republishing the previous
-      // bytes under a fresh revision; an attempt stopped at record-close
-      // never published, so the prior row and revision stand untouched.
+      // Both hooks run after durable publication. Compensation republishes
+      // the previous bytes under a fresh revision, so neither attempt revives.
       const restoredRevision = identityConnectionRevision(saved.connectionId);
       expect(restoredRevision).toEqual(expect.any(String));
-      if (phase === "trust-callback")
-        expect(restoredRevision).not.toBe(revision);
-      else expect(restoredRevision).toBe(revision);
+      expect(restoredRevision).not.toBe(revision);
+      expect(restoredRevision).not.toBe(attemptedRevision);
+      expect(() => previousOwner.assertCurrent()).toThrow();
+      expect(() => failedOwner?.assertCurrent()).toThrow();
+      expect(readDeviceSecrets()).toEqual(secrets);
       expect(signInMethods().providers).toEqual(providers);
       kvForgetAll();
       await kvHydrate([...DEVICE_CONNECTOR_KEYS, "settings.v1"]);
@@ -327,6 +339,8 @@ it.each(["record-close", "trust-callback"] as const)(
       );
       expect(signInMethods().providers).toEqual(providers);
     } finally {
+      previousOwner.release();
+      failedOwner?.release();
       await held.close();
       await outcome;
       await fixture.close();

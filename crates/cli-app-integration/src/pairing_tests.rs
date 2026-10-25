@@ -5,6 +5,7 @@ use base64::Engine as _;
 use ecdsa::signature::Signer;
 use p256::ecdsa::SigningKey;
 use p256::elliptic_curve::pkcs8::EncodePublicKey;
+use p256::elliptic_curve::Generate;
 use p256::PublicKey;
 
 fn sign_pairing_confirm(key: &SigningKey, challenge: &[u8], code: &str, origin: &str) -> String {
@@ -14,7 +15,7 @@ fn sign_pairing_confirm(key: &SigningKey, challenge: &[u8], code: &str, origin: 
 }
 
 fn device_key_b64() -> (SigningKey, String) {
-    let key = SigningKey::random(&mut OsRng);
+    let key = SigningKey::generate();
     let vk = key.verifying_key();
     let spki = PublicKey::from(vk).to_public_key_der().expect("spki");
     let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(spki.as_ref());

@@ -122,7 +122,7 @@ const PublicKeyResponseBaseSchema = z.object({
   id: z.string().min(1).max(4096),
   rawId: z.string().min(1).max(4096),
   type: z.literal("public-key"),
-  clientExtensionResults: z.record(z.unknown()).default({}),
+  clientExtensionResults: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const RegistrationResponseSchema = PublicKeyResponseBaseSchema.extend({

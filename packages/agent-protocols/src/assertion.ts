@@ -63,12 +63,16 @@ function decodeHeader(jwt: string) {
 }
 
 /**
- * Resource identifiers are compared with one trailing slash removed. The
+ * Resource identifiers are compared with trailing slashes removed. The
  * published protected-resource metadata uses a slash while the assertion and
  * auth.md's exchange example use the bare URL; both name the same resource.
  */
 function sameResource(left: string, right: string): boolean {
-  const strip = (value: string) => value.replace(/\/+$/u, "");
+  const strip = (value: string) => {
+    let end = value.length;
+    while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+    return value.slice(0, end);
+  };
   return strip(left) === strip(right);
 }
 

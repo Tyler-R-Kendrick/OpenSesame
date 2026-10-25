@@ -42,7 +42,7 @@ function resolve(schema: JsonObject): JsonObject {
   return resolve(target);
 }
 
-function unwrap(type: z.ZodTypeAny) {
+function unwrap(type: z.core.$ZodType) {
   let inner = type;
   let optional = false;
   for (;;) {
@@ -65,12 +65,12 @@ function sorted(values: Iterable<string>): string[] {
 const MEMBER_MAP_KEY = "shape";
 
 /** The member schemas of a Zod object, by key. */
-function membersOf(type: z.AnyZodObject): Record<string, z.ZodTypeAny> {
+function membersOf(type: z.ZodObject): Record<string, z.core.$ZodType> {
   return type[MEMBER_MAP_KEY];
 }
 
 function compareObject(
-  type: z.AnyZodObject,
+  type: z.ZodObject,
   schema: JsonObject,
   path: string,
   problems: string[],
@@ -103,11 +103,14 @@ function compareObject(
       `${path}: required differs (contract [${zodRequired}], OpenAPI [${docRequired}])`,
     );
   }
-  const unknownKeys: string = type._def.unknownKeys;
-  if (unknownKeys === "strict" && schema.additionalProperties !== false) {
+  const catchall = type._zod.def.catchall;
+  if (catchall instanceof z.ZodNever && schema.additionalProperties !== false) {
     problems.push(`${path}: contract is strict, OpenAPI is not closed`);
   }
-  if (unknownKeys === "passthrough" && schema.additionalProperties === false) {
+  if (
+    catchall instanceof z.ZodUnknown &&
+    schema.additionalProperties === false
+  ) {
     problems.push(`${path}: contract passes extra keys, OpenAPI is closed`);
   }
   for (const key of zodKeys) {
@@ -120,7 +123,7 @@ function compareObject(
 }
 
 function compare(
-  type: z.ZodTypeAny,
+  type: z.core.$ZodType,
   schemaOrRef: JsonObject,
   path: string,
   problems: string[],
@@ -147,7 +150,7 @@ function compare(
 }
 
 /** [OpenAPI component, contract]. Every pair here is held to the comparison. */
-const PAIRS: ReadonlyArray<readonly [string, z.ZodTypeAny]> = [
+const PAIRS: ReadonlyArray<readonly [string, z.core.$ZodType]> = [
   ["AuthorizationRequestStatus", contracts.AuthorizationRequestStatusSchema],
   ["ApprovalDecidedByKind", contracts.ApprovalDecidedByKindSchema],
   ["AuthorizationDetail", contracts.AuthorizationDetailSchema],

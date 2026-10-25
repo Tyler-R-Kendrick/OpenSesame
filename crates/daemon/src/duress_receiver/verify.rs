@@ -233,6 +233,7 @@ mod crypto_tests {
     use super::*;
     use ecdsa::signature::Signer;
     use p256::ecdsa::SigningKey;
+    use p256::elliptic_curve::Generate;
 
     fn signed_view(sk: &SigningKey) -> PeerEnvelopeView {
         let mut view = PeerEnvelopeView {
@@ -261,7 +262,7 @@ mod crypto_tests {
 
     #[test]
     fn ecdsa_accepts_valid_and_rejects_forged() {
-        let sk = SigningKey::random(&mut rand_core::OsRng);
+        let sk = SigningKey::generate();
         let vk = VerifyingKey::from(&sk);
         let view = signed_view(&sk);
         let expect = EnvelopeVerifyExpect {
@@ -277,7 +278,7 @@ mod crypto_tests {
             "ambiguous_trigger"
         );
 
-        let other = SigningKey::random(&mut rand_core::OsRng);
+        let other = SigningKey::generate();
         let mut replay2 = ReplayCache::new(16);
         let mut forged = view.clone();
         forged.nonce = "nonce-002".into();
@@ -312,7 +313,7 @@ mod crypto_tests {
 
     #[test]
     fn future_dated_and_overlong_envelopes_are_refused() {
-        let sk = SigningKey::random(&mut rand_core::OsRng);
+        let sk = SigningKey::generate();
         let vk = VerifyingKey::from(&sk);
         let now = chrono::Utc::now();
         let mut future = signed_view(&sk);

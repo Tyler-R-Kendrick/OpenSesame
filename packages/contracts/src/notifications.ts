@@ -118,11 +118,17 @@ export const NotificationPreferenceSchema = z.object({
 });
 
 export const UpdateNotificationPreferencesSchema = z.object({
-  byClass: z.record(NotificationClassSchema, NotificationPreferenceSchema),
+  byClass: z.partialRecord(
+    NotificationClassSchema,
+    NotificationPreferenceSchema,
+  ),
 });
 
 export const NotificationPreferencesResponseSchema = z.object({
-  byClass: z.record(NotificationClassSchema, NotificationPreferenceSchema),
+  byClass: z.partialRecord(
+    NotificationClassSchema,
+    NotificationPreferenceSchema,
+  ),
   updatedAt: z.string().datetime(),
 });
 

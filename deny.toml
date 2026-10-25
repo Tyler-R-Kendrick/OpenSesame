@@ -31,4 +31,7 @@ unsound = "workspace"
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-allow-git = []
+# age/age-core use upstream crypto fixes pinned in sealed-store/Cargo.toml.
+# Other Git repositories remain denied; every Git dependency must pin a revision.
+allow-git = ["https://github.com/str4d/rage"]
+required-git-spec = "rev"

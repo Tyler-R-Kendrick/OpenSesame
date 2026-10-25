@@ -1,11 +1,12 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   GUEST_PERSON_ID,
   GUEST_PERSON_NAME,
 } from "./local-directory-bootstrap.js";
-import { type LocalDirectory, readLocalDirectory } from "./local-directory.js";
+import { readLocalDirectory } from "./local-directory.js";
 import {
   ownershipRecipients,
   transferRecipients,
@@ -19,19 +20,7 @@ beforeEach(async () => {
   tomb = `vault-ownership-${crypto.randomUUID()}`;
   const { vaultKey } = await mintVaultKey();
   unlockTomb(tomb, vaultKey);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: (_name: string, run: () => Promise<LocalDirectory>) => {
-        const result = queue.then(run);
-        queue = result.then(
-          () => undefined,
-          () => undefined,
-        );
-        return result;
-      },
-    },
-  });
+  vi.stubGlobal("navigator", { locks: webLocksDouble() });
 });
 afterEach(() => {
   lockAllTombs();

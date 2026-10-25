@@ -3,6 +3,8 @@
 use crate::device_crypto::{approval_challenge_digest_v3, ApprovalChallengeDigestV3};
 use crate::pairing::PairedBinding;
 use crate::webauthn_assertion::verify_passkey_assertion;
+#[cfg(any(test, feature = "test-seams"))]
+use p256::elliptic_curve::Generate;
 
 const PROOF_PREFIX: &str = "oschip3:";
 
@@ -106,15 +108,13 @@ pub fn mint_pin_human_proof(
 #[cfg(any(test, feature = "test-seams"))]
 #[must_use]
 pub fn mint_test_signing_key() -> p256::ecdsa::SigningKey {
-    use rand_core::OsRng;
-    p256::ecdsa::SigningKey::random(&mut OsRng)
+    p256::ecdsa::SigningKey::generate()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use p256::ecdsa::SigningKey;
-    use rand_core::OsRng;
 
     fn ctx() -> HumanProofContext {
         HumanProofContext {
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn pin_proof_rejected_even_with_paired_device_key() {
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         let spki = crate::device_crypto::verifying_key_spki_b64(signing_key.verifying_key());
         let c = ctx();
         let proof = mint_pin_human_proof(&signing_key, &c);
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn ark_only_pin_rejected_when_passkey_registered() {
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         let spki = crate::device_crypto::verifying_key_spki_b64(signing_key.verifying_key());
         let c = ctx();
         let proof = mint_pin_human_proof(&signing_key, &c);
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn software_passkey_cannot_authorize_high_risk_verbs() {
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         let spki = crate::device_crypto::verifying_key_spki_b64(signing_key.verifying_key());
         let binding = PairedBinding {
             device_public_key_spki_b64: spki.clone(),
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn persona_forged_passkey_bytes_are_rejected_without_webauthn_cred() {
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         let spki = crate::device_crypto::verifying_key_spki_b64(signing_key.verifying_key());
         let binding = PairedBinding {
             device_public_key_spki_b64: spki.clone(),

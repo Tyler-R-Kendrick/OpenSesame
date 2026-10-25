@@ -4,6 +4,7 @@
 use p256::elliptic_curve::ff::Field;
 use p256::elliptic_curve::ops::Reduce;
 use p256::elliptic_curve::pkcs8::EncodePublicKey;
+use p256::elliptic_curve::Generate;
 use p256::{PublicKey, Scalar};
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha256};
@@ -281,7 +282,7 @@ impl Pending {
 /// New P-256 root trust signing key. The daemon stores only the public `SPKI`.
 #[must_use]
 pub fn generate_root_signing_key() -> p256::ecdsa::SigningKey {
-    p256::ecdsa::SigningKey::random(&mut OsRng)
+    p256::ecdsa::SigningKey::generate()
 }
 
 /// `SubjectPublicKeyInfo` `DER` for `key`.
@@ -319,7 +320,7 @@ fn password_scalar(secret: &[u8]) -> Result<Scalar, RootEnrollError> {
     hasher.update([0u8]);
     hasher.update(secret);
     let digest = hasher.finalize();
-    let reduced = Scalar::reduce(p256::U256::from_be_slice(digest.as_slice()));
+    let reduced = Scalar::reduce(&p256::U256::from_be_slice(digest.as_slice()));
     if bool::from(reduced.is_zero()) {
         return Err(RootEnrollError::InvalidSecret);
     }

@@ -16,11 +16,11 @@ test-seams = []
 # Which `ps` runs (macOS session lookup), and what it is handed.
 opensesame-trusted-exec = { path = "../trusted-exec" }
 base64 = { workspace = true }
-ecdsa = { version = "0.16", default-features = false, features = ["signing", "verifying"] }
+ecdsa = { version = "0.17", default-features = false, features = ["algorithm"] }
 hex = { workspace = true }
 hkdf = { workspace = true }
 hmac = { workspace = true }
-p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pkcs8", "alloc", "arithmetic", "pem"] }
+p256 = { version = "0.14", default-features = false, features = ["getrandom", "ecdsa", "pkcs8", "alloc", "arithmetic", "pem"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
