@@ -121,7 +121,7 @@ export async function ask(page, { link, code, name }) {
   await page.getByLabel("Your name").fill(name);
   await sealOwnJoinerVault(page);
   await page.getByRole("button", { name: "Ask to join" }).click();
-  const copy = page.getByRole("button", { name: "Copy your request code" });
+  const copy = page.getByRole("button", { name: "Copy your join request" });
   await copy.waitFor({ timeout: 30_000 });
   await copy.click();
   return page.evaluate(() => navigator.clipboard.readText());
@@ -263,7 +263,7 @@ function guestSteps(harness) {
       const own = panelOf(page);
       if (!own) return console.log("  liveGuess: skipped (no panel)");
       const { link } = owners.get(page);
-      const field = own.getByLabel("A request code", { exact: true });
+      const field = own.getByLabel("Paste a join request", { exact: true });
       for (let miss = 0; miss < attempts; miss += 1) {
         const made = await joiner(page, harness);
         try {

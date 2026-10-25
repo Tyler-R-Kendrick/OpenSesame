@@ -266,7 +266,7 @@ export async function joinerAsks(
   const choice = page.getByRole("checkbox", { name: /^Through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
-  const copy = page.getByRole("button", { name: "Copy your request code" });
+  const copy = page.getByRole("button", { name: "Copy your join request" });
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }
@@ -312,7 +312,7 @@ export async function ownerAdmitsByHand(
   name,
   { admit = true } = {},
 ) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
   const match = panel.getByRole("button", {
     name: `Yes, they match for ${name}`,

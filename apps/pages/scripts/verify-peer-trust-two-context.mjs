@@ -132,7 +132,7 @@ async function beginOwner(browser) {
 }
 
 async function readRequest(panel, request) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
 }
 
@@ -268,7 +268,7 @@ async function changedKey(browser, session) {
   await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
   check(
     (await page
-      .getByRole("button", { name: "Copy your request code" })
+      .getByRole("button", { name: "Copy your join request" })
       .count()) === 0,
     "changed key does not ask",
   );
