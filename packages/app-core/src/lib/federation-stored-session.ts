@@ -8,8 +8,11 @@ import {
 } from "@opensesame/os-domain";
 import { decodeJwtEnvelope } from "@opensesame/sdk-browser";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
-import { configuredSamlIdentity } from "./federation-configured-token.js";
-import type { UpstreamIdentity } from "./federation-native-session.js";
+import { configuredNativeIdentity } from "./federation-configured-token.js";
+import {
+  type UpstreamIdentity,
+  isNativeFederationFormat,
+} from "./federation-native-session.js";
 
 export function parseStoredAssertion(raw: string): JsonObject | null {
   try {
@@ -18,8 +21,10 @@ export function parseStoredAssertion(raw: string): JsonObject | null {
       !isJsonObject(stored) ||
       !isString(stored.idToken) ||
       !isString(stored.issuer) ||
-      stored.assertionFormat === "saml" ||
-      (isString(stored.upstreamId) && configuredSamlIdentity(stored.upstreamId))
+      (isString(stored.assertionFormat) &&
+        isNativeFederationFormat(stored.assertionFormat)) ||
+      (isString(stored.upstreamId) &&
+        configuredNativeIdentity(stored.upstreamId))
     ) {
       return null;
     }
