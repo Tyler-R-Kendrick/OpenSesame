@@ -85,9 +85,10 @@ async function fixture({
   manualChunks,
   attach = true,
   originalPartition = false,
+  plans = workers,
 } = {}) {
   let bundle;
-  const workerPlugin = sharedWorkerGraph({ workers });
+  const workerPlugin = sharedWorkerGraph({ workers: plans });
   if (originalPartition) workerPlugin.outputOptions = undefined;
   const result = await build({
     configFile: false,
@@ -302,6 +303,7 @@ test("a direct host DOM/runtime import is rejected before worker emission", asyn
 test.each([
   [{ ...workers[1], name: workers[0].name }],
   [{ ...workers[1], owner: workers[0].owner }],
+  [{ ...workers[1], additionalOwners: [workers[1].owner] }],
 ])(
   "duplicate worker identities or original owners fail closed",
   (duplicate) => {
@@ -329,4 +331,62 @@ test.each([
     `import ${JSON.stringify(forged)};`,
     /Unowned worker realm module ID/,
   );
+});
+
+test("an explicit identity owner shares only the original Tailscale entry and offline closure", async () => {
+  const identity = join(dirname(controller), "identity-browser-node.ts");
+  await writeFile(
+    identity,
+    'export const start = () => new Worker(new URL("./worker.ts",import.meta.url),{type:"module",name:"identity-only"});',
+  );
+  const input = join(dir, "identity-host.ts");
+  await writeFile(
+    input,
+    `import * as sdk from ${JSON.stringify(sdk)};import * as tailnet from ${JSON.stringify(controller)};import * as identity from ${JSON.stringify(identity)};globalThis.owners=[sdk,tailnet,identity];`,
+  );
+  const { bundle } = await fixture({
+    input,
+    plans: [workers[0], { ...workers[1], additionalOwners: [identity] }],
+    manualChunks: (id) =>
+      id === sdk
+        ? "sdk-owner"
+        : id === controller
+          ? "tailnet-owner"
+          : id === identity
+            ? "identity-owner"
+            : undefined,
+  });
+  const values = Object.values(bundle);
+  const roots = values.filter(
+    (value) =>
+      value.type === "asset" &&
+      value.fileName.startsWith("assets/tailscale-node-"),
+  );
+  assert.equal(roots.length, 1);
+  for (const source of [controller, identity]) {
+    const owner = values.find(
+      (value) => value.type === "chunk" && source in value.modules,
+    );
+    assert.ok(owner);
+    assert.ok(owner.viteMetadata.importedAssets.has(roots[0].fileName));
+    for (const file of owner.viteMetadata.importedAssets)
+      assert.ok(bundle[file]);
+  }
+  assert.ok(
+    !Object.keys(roots[0].opensesameWorkerChunk.modules).some(
+      (id) => id === controller || id === identity,
+    ),
+  );
+});
+
+test("an owner alias cannot redirect the original relative Worker entry", () => {
+  const plugin = sharedWorkerGraph({
+    workers: [
+      {
+        ...workers[1],
+        additionalOwners: [join(dir, "foreign/identity-browser-node.ts")],
+      },
+    ],
+  });
+  assert.throws(() => plugin.configResolved({ root: dir }), /original entry/);
 });
