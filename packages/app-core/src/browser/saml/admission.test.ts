@@ -7,6 +7,11 @@ import {
   federationSessionGeneration,
   readNativeFederationSession,
 } from "../../lib/federation-native-session.js";
+import { saveSession } from "../../lib/federation-publication.js";
+import {
+  clearFederationSessionJson,
+  readFederationSessionJson,
+} from "../../lib/federation-session-store.js";
 import { guestAuthSeams } from "../../lib/guest-auth.js";
 import { vaultStore } from "../../lib/vault/store.js";
 import {
@@ -20,6 +25,7 @@ import type { NativeSamlSignInProof } from "./sign-in.js";
 const runtimes: NativeSamlAdmissionRuntime[] = [];
 afterEach(() => {
   for (const runtime of runtimes.splice(0)) runtime.dispose();
+  clearFederationSessionJson();
   vi.restoreAllMocks();
 });
 function runtime(): NativeSamlAdmissionRuntime {
@@ -320,6 +326,50 @@ it.each([false, true])(
     }
     expect(originalReleases).toBe(1);
     expect(replacementCleanup).not.toHaveBeenCalled();
+    expect(events).toEqual(["release", "release"]);
+    expect(() => consumeNativeSamlSignIn(next.proof)).toThrow(
+      "already consumed",
+    );
+  },
+);
+
+it.each(["release", "target"])(
+  "rejects an older genuine admission when %s publishes successor metadata",
+  async (hook) => {
+    const events: string[] = [];
+    const current = runtime();
+    const successor = {
+      issuer: "https://successor.example",
+      upstreamId: "successor",
+      idToken: "synthetic-successor-metadata",
+      pairwiseSub: "successor-subject",
+      audience: "successor-client",
+      jwksUri: "https://successor.example/jwks",
+      expiresAt: Date.now() + 60000,
+    };
+    let published = federationSessionGeneration();
+    let released = false;
+    const first = await protocolProof(events);
+    await current.admit(first.proof, {
+      ...target,
+      releaseSession() {
+        released = true;
+        if (hook === "release") published = saveSession(successor);
+      },
+    });
+    const next = await protocolProof(events);
+    await expect(
+      current.admit(next.proof, {
+        ...target,
+        assertSessionCurrent() {
+          if (released && hook === "target") published = saveSession(successor);
+        },
+      }),
+    ).rejects.toThrow("Native identity publication was superseded");
+    expect(released).toBe(true);
+    expect(federationSessionGeneration()).toBe(published);
+    expect(readFederationSessionJson()).toBe(JSON.stringify(successor));
+    expect(readNativeFederationSession()).toBeNull();
     expect(events).toEqual(["release", "release"]);
     expect(() => consumeNativeSamlSignIn(next.proof)).toThrow(
       "already consumed",
