@@ -1,0 +1,96 @@
+name: Documentation touch review evidence
+
+on:
+  push:
+    branches: [review/docs-touch-evidence]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-touch-evidence-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    if: >-
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor == github.repository_owner &&
+      github.ref == 'refs/heads/review/docs-touch-evidence'
+    name: Documentation targets (${{ matrix.phase }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        phase: [before, after]
+    env:
+      BEFORE_SHA: b00c40e2590d898e365a003904572b62b2342890
+      AFTER_SHA: 0b4452a2e018e4806a3363d1b7bc0525a54c9597
+      EVIDENCE_DIR: ${{ runner.temp }}/docs-touch-${{ matrix.phase }}
+      OPENSESAME_BUILD_MODE: hardened
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/minimal-local.json
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - name: Check out transient review tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: evidence-tools
+          persist-credentials: false
+      - name: Check out exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ matrix.phase == 'before' && env.BEFORE_SHA || env.AFTER_SHA }}
+          path: source
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 9.15.0
+          package_json_file: source/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: source/pnpm-lock.yaml
+      - name: Record immutable capture provenance
+        env:
+          PHASE: ${{ matrix.phase }}
+          TOOLING_SHA: ${{ github.sha }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          export SOURCE_SHA="$(git -C source rev-parse HEAD)"
+          test -x "$PLAYWRIGHT_CHROMIUM"
+          node -e 'const fs=require("node:fs"); const e=process.env; const expected=e.PHASE==="before"?e.BEFORE_SHA:e.AFTER_SHA; if(e.SOURCE_SHA!==expected)throw Error("source revision differs"); fs.writeFileSync(e.EVIDENCE_DIR+"/provenance.json",JSON.stringify({phase:e.PHASE,sourceCommit:e.SOURCE_SHA,toolingCommit:e.TOOLING_SHA,run:e.RUN_URL,profile:"minimal-local",mode:"hardened",scope:"documentation targets only; not full rich mobile verification",approval:"unapproved review artifact"},null,2));'
+          sha256sum source/pnpm-lock.yaml source/package.json source/apps/pages/package.json > "$EVIDENCE_DIR/dependency-fingerprints.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          pnpm --version > "$EVIDENCE_DIR/pnpm-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+      - name: Frozen dependency install from shared pnpm cache
+        working-directory: source
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build the actual source revision
+        working-directory: source
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/pages exec vite build 2>&1 | tee "$EVIDENCE_DIR/build.log"
+          git diff --exit-code
+      - name: Capture phone and desktop, measure all contexts, prove regression
+        env:
+          PHASE: ${{ matrix.phase }}
+        run: >-
+          node evidence-tools/scripts/review/docs-touch-evidence.mjs
+          "$PHASE" "$GITHUB_WORKSPACE/source" "$EVIDENCE_DIR"
+      - name: Publish review artifact
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: docs-touch-${{ matrix.phase }}
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
