@@ -4,6 +4,7 @@
 import { byoProvidersFirst } from "@opensesame/app-core/lib/catalog-provider.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { canonicalProviderId } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
 import {
@@ -22,7 +23,7 @@ type CatalogFamilyCategories = {
   readonly vercel: Provider["category"];
   readonly cloudflare: Provider["category"];
   readonly google: Provider["category"];
-  readonly azure: Provider["category"];
+  readonly "azure-sm": Provider["category"];
   readonly aws: Provider["category"];
   readonly gcp: Provider["category"];
 };
@@ -132,7 +133,12 @@ const ALLOWED = new Set([
 function featuredProviders(
   providers: readonly Provider[],
 ): readonly Provider[] {
-  const present = new Set(providers.map((provider) => provider.id));
+  const present = new Set(
+    providers.flatMap((provider) => [
+      provider.id,
+      canonicalProviderId(provider.id) ?? provider.id,
+    ]),
+  );
   const base = providers[0];
   if (!base) return [];
   const clone = (
@@ -209,7 +215,7 @@ function featuredProviders(
     vercel: "developer",
     cloudflare: "developer",
     google: "productivity",
-    azure: "encryption",
+    "azure-sm": "encryption",
     aws: "cloud_secret_storage",
     gcp: "cloud_secret_storage",
   };
@@ -243,6 +249,14 @@ export function curatedCatalogProviders(
     : providers;
   return byoProvidersFirst(
     source
+      .map((provider) => {
+        const canonical = canonicalProviderId(provider.id);
+        return options.includeFamilies &&
+          canonical &&
+          isFamilyCanonical(canonical)
+          ? { ...provider, id: canonical }
+          : provider;
+      })
       .filter(
         (provider) =>
           isConnectionCatalogProvider(provider) ||
