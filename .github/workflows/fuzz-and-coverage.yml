@@ -1,0 +1,178 @@
+# Evidence that the existing cargo-fuzz gate and the Rust llvm-cov command
+# actually run. Meant for OpenSSF Best Practices review.
+#
+# Not a required merge check. The default-branch ruleset still requires
+# TypeScript, Bundle budgets, and Rust (ops/github/default-branch.json).
+# Reports stay on the workflow run: a job summary and artifacts. No
+# third-party upload and no secrets.
+#
+# The cargo-fuzz job is the local gate (pnpm audit:fuzz), not a
+# ClusterFuzzLite workflow. This repo still does not add cflite_*.yml.
+
+name: Fuzz and coverage
+
+on:
+  schedule:
+    # Thursdays 07:17 UTC. Off the hour, and outside the Monday window
+    # already used by security.yml (05:23) and codeql.yml (04:41).
+    - cron: "17 7 * * 4"
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "tests/fuzz/**"
+      - "scripts/fuzz/**"
+      - "crates/**/*.rs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-and-coverage-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  cargo-fuzz:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    name: cargo-fuzz
+    runs-on: ubuntu-latest
+    # A diff that touches tests/fuzz/cargo maps to every target (60s each on
+    # a pull request). The schedule's empty diff runs the phase-1 set at 300s.
+    timeout-minutes: 240
+    env:
+      # Short on pull requests; longer on the weekly run and on manual runs.
+      FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && '60' || '300' }}
+      FUZZ_DIFF_BASE: origin/main
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          # fuzz-pr-gate.sh diffs origin/main...HEAD and needs that history.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        with:
+          toolchain: 1.88.0
+      - name: Install nightly rustc and cargo-fuzz
+        # docs/validation/fuzzing.md: install the CLI with cargo +1.94.0,
+        # keep rust-toolchain.toml on 1.88, and invoke cargo +nightly.
+        # cargo-fuzz's default sanitizer is address (-Zsanitizer=address),
+        # which rebuilds std (-Zbuild-std) and therefore needs nightly rust-src.
+        # 0.13.2 is the version tests/fuzz/clusterfuzzlite/build.sh installs.
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.94.0 --profile minimal
+          rustup toolchain install nightly --profile minimal --component rust-src
+          cargo +1.94.0 install cargo-fuzz --locked --version 0.13.2
+          cargo +nightly fuzz --version
+      - name: Fetch the diff base the fuzz gate reads
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git rev-parse --verify origin/main
+      - name: Run the cargo-fuzz pull-request gate
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/fuzz-pr-gate.log"
+          set +e
+          pnpm audit:fuzz 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+          audit_dir="$(grep -E '^Private audit artifacts: /' "$log" | tail -1 | sed 's/^Private audit artifacts: //' || true)"
+          if [ -n "${audit_dir}" ]; then
+            echo "FUZZ_AUDIT_DIR=${audit_dir}" >> "$GITHUB_ENV"
+          fi
+          exit "$status"
+      - name: Upload crash artifacts
+        if: failure() && env.FUZZ_AUDIT_DIR != ''
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cargo-fuzz-crashes
+          path: ${{ env.FUZZ_AUDIT_DIR }}/artifacts
+          if-no-files-found: ignore
+
+  rust-coverage:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    name: rust-coverage
+    runs-on: ubuntu-latest
+    # Workspace llvm-cov instruments every target. The scoped Rust test job
+    # is 45 minutes; the full measurement needs the rest of the window.
+    timeout-minutes: 180
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        with:
+          toolchain: 1.88.0
+          # rust-toolchain.toml lists rustfmt and clippy. llvm-tools-preview
+          # is what cargo-llvm-cov shells out to.
+          components: rustfmt, clippy, llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        run: cargo +1.88.0 install cargo-llvm-cov --locked
+      - name: Measure Rust coverage
+        run: pnpm test:coverage:rust
+      - name: Write line and function totals
+        if: always() && !cancelled()
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          path = "coverage/rust-summary.json"
+          if not os.path.isfile(path):
+              print("coverage/rust-summary.json was not written", file=sys.stderr)
+              sys.exit(0)
+          with open(path, encoding="utf-8") as handle:
+              doc = json.load(handle)
+          entries = doc.get("data") or []
+          if not entries or any("totals" not in entry for entry in entries):
+              sys.exit("coverage/rust-summary.json has no totals")
+
+          def metric(name):
+              if len(entries) == 1:
+                  block = entries[0]["totals"][name]
+                  covered = block["covered"]
+                  count = block["count"]
+                  percent = block.get("percent")
+                  if not isinstance(percent, (int, float)):
+                      percent = (100.0 * covered / count) if count else 0.0
+                  return covered, count, float(percent)
+              covered = sum(entry["totals"][name]["covered"] for entry in entries)
+              count = sum(entry["totals"][name]["count"] for entry in entries)
+              percent = (100.0 * covered / count) if count else 0.0
+              return covered, count, percent
+
+          lines = metric("lines")
+          functions = metric("functions")
+          note = ""
+          if len(entries) > 1:
+              note = f"\nTotals summed across {len(entries)} coverage exports in the file.\n"
+          text = (
+              "## Rust coverage\n\n"
+              "| Metric | Covered | Count | Percent |\n"
+              "| --- | ---: | ---: | ---: |\n"
+              f"| Lines | {lines[0]} | {lines[1]} | {lines[2]:.2f}% |\n"
+              f"| Functions | {functions[0]} | {functions[1]} | {functions[2]:.2f}% |\n"
+              "\nFrom `coverage/rust-summary.json`, produced by `pnpm test:coverage:rust`.\n"
+              f"{note}"
+          )
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(text)
+          print(text)
+          PY
+      - name: Upload Rust coverage summary
+        if: always() && !cancelled() && hashFiles('coverage/rust-summary.json') != ''
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: rust-coverage-summary
+          path: coverage/rust-summary.json
+          if-no-files-found: error

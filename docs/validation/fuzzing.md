@@ -32,6 +32,22 @@ pnpm audit:shuttle
 Override duration with `FUZZ_SECONDS`. Override the Miri nightly with
 `MIRI_TOOLCHAIN`.
 
+## CI
+
+`.github/workflows/fuzz-and-coverage.yml` runs this gate as
+`pnpm audit:fuzz` (`scripts/fuzz/fuzz-pr-gate.sh`). It is scheduled weekly,
+it can be started with `workflow_dispatch`, and it runs on pull requests
+that change `tests/fuzz/**`, `scripts/fuzz/**`, or `crates/**/*.rs`.
+`FUZZ_SECONDS` is 60 on `pull_request` and 300 on the schedule and on
+`workflow_dispatch`. Target choice is still the script's: the diff against
+`origin/main`, or the phase-1 set when that diff is empty or unmapped.
+The job invokes `cargo +nightly fuzz run`, whose default sanitizer is
+AddressSanitizer. If the job fails and the private audit directory has
+files under `artifacts/`, those files are uploaded with the run. This is
+not a ClusterFuzzLite workflow, and it does not run
+`pnpm audit:fuzz:batch`. The default-branch ruleset does not list it; the
+required checks stay TypeScript, Bundle budgets, and Rust.
+
 ## Layout
 
 - `tests/fuzz/cargo/fuzz_targets/` — libFuzzer binaries

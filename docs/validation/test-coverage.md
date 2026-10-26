@@ -42,6 +42,18 @@ These are repository-wide ratchets. Raise them as coverage lands; never lower
 them to make a change pass. New or changed trust-boundary code should have
 focused behavior and mutation coverage even when the global floor passes.
 
+## CI
+
+`.github/workflows/fuzz-and-coverage.yml` runs `pnpm test:coverage:rust` in
+the `rust-coverage` job on that same weekly schedule, on
+`workflow_dispatch`, and on the same pull-request paths as the fuzz job.
+The job installs Rust 1.88.0, `llvm-tools-preview`, and `cargo-llvm-cov`,
+then runs the `package.json` script (`cargo +1.88.0 llvm-cov` with
+`--fail-under-lines 69` and `--fail-under-functions 67`). It uploads
+`coverage/rust-summary.json` and writes the line and function totals from
+that file into the job summary. The report is not sent to a third-party
+coverage host. A run does not edit the measured figures below.
+
 Measured on 2026-08-19: TypeScript statements 95.58%, branches 89.52%,
 functions 95.82%, and lines 96.64%; Rust lines 69.83% and functions 67.96%.
 UI behavior is also exercised by Playwright and visual snapshots, which these

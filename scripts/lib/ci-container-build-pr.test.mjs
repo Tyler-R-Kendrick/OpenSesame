@@ -45,6 +45,7 @@ const auxiliaries = [
   "codeql.yml",
   "complete-verify.yml",
   "container-build-pr.yml",
+  "fuzz-and-coverage.yml",
   "native-platform-validation.yml",
   "password-parity.yml",
   "sync-target-security.yml",
