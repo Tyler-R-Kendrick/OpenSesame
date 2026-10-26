@@ -1,0 +1,91 @@
+# PROPOSAL ONLY: stored outside .github/workflows; this is not an active workflow.
+# Requires a NEW ci-fast-checks.yml reusable workflow. It must run the selected
+# fast suites and output typescript_verdict, bundle_verdict, rust_verdict.
+# Each output is "pass" only after its suite succeeds or its checked diff proves
+# it unaffected. Drafts, missing evidence and unexpectedly skipped jobs fail.
+# Preserve these top-level required check names during the ruleset migration.
+# Integration means main + successful CI; it does not promise a deployed URL.
+# No Linux release kit is built here. A complete compatible Pages artifact may
+# be retained from an existing fast build, but is not required for qualification.
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  # Main runs must finish so nightly selection has successful source evidence.
+  # GitHub may replace the pending main run; cumulative diff scoping is required.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  fast:
+    uses: ./.github/workflows/ci-fast-checks.yml
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    with:
+      # github.sha is the PR merge tree, merge-group tree or actual main commit.
+      test_sha: ${{ github.sha }}
+      change_head_sha: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+      change_base_sha: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+      # Empty main base: reusable resolves the last successful main CI ancestor;
+      # if none exists it runs every fast suite. Never scope to event.before only.
+      draft: ${{ github.event.pull_request.draft == true }}
+      # Keep current stack handling. Top-only aggregate stack CI is a separate
+      # change requiring stack.base.sha -> top head scope and merge-tree tests.
+
+  typescript:
+    name: TypeScript
+    needs: fast
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      SUITE_RESULT: ${{ needs.fast.result }}
+      VERDICT: ${{ needs.fast.outputs.typescript_verdict }}
+    steps:
+      - name: Require completed TypeScript evidence
+        run: |
+          test "$SUITE_RESULT" = success
+          test "$VERDICT" = pass
+
+  bundle:
+    name: Bundle budgets
+    needs: fast
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      SUITE_RESULT: ${{ needs.fast.result }}
+      VERDICT: ${{ needs.fast.outputs.bundle_verdict }}
+    steps:
+      - name: Require completed bundle evidence
+        run: |
+          test "$SUITE_RESULT" = success
+          test "$VERDICT" = pass
+
+  rust:
+    name: Rust
+    needs: fast
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      SUITE_RESULT: ${{ needs.fast.result }}
+      VERDICT: ${{ needs.fast.outputs.rust_verdict }}
+    steps:
+      - name: Require completed Rust evidence
+        run: |
+          test "$SUITE_RESULT" = success
+          test "$VERDICT" = pass
