@@ -29,7 +29,7 @@ jobs:
     env:
       BEFORE_SHA: b00c40e2590d898e365a003904572b62b2342890
       AFTER_SHA: 0b4452a2e018e4806a3363d1b7bc0525a54c9597
-      EVIDENCE_DIR: ${{ runner.temp }}/docs-touch-${{ matrix.phase }}
+      EVIDENCE_DIR: ${{ github.workspace }}/review-output/docs-touch-${{ matrix.phase }}
       OPENSESAME_BUILD_MODE: hardened
       OPENSESAME_CAPABILITY_PROFILE: capability-profiles/minimal-local.json
       VITE_BASE: /OpenSesame/
