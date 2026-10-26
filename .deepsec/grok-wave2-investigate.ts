@@ -248,6 +248,10 @@ function compactRescueTimeoutSec(): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 180;
 }
 
+function orderedLaneSkipsDeepPass(): boolean {
+  return process.env.DEEPSEC_GROK_ORDERED_SKIP_DEEP === "1";
+}
+
 function withRescueInvestigateMode(
   params: InvestigateParams,
 ): InvestigateParams {
@@ -357,6 +361,12 @@ async function* tryRescueThenDeep(
         }
       }
     }
+  }
+
+  if (orderedLaneSkipsDeepPass()) {
+    throw new Error(
+      "grok file wall: ordered lane skips deep pass after rescue (DEEPSEC_GROK_ORDERED_SKIP_DEEP)",
+    );
   }
 
   if (grokWallRemainingSec(fileWallCtx) < 900) {

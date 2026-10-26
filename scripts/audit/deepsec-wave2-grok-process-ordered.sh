@@ -34,6 +34,8 @@ export DEEPSEC_GROK_INVESTIGATE_TIMEOUT_SEC="${DEEPSEC_GROK_INVESTIGATE_TIMEOUT_
 export DEEPSEC_GROK_FILE_WALL_SEC="${DEEPSEC_GROK_FILE_WALL_SEC:-2700}"
 export DEEPSEC_GROK_DEEP_TIMEOUT_SEC="${DEEPSEC_GROK_DEEP_TIMEOUT_SEC:-1800}"
 export DEEPSEC_GROK_USE_COREUTILS_TIMEOUT="${DEEPSEC_GROK_USE_COREUTILS_TIMEOUT:-1}"
+export DEEPSEC_GROK_ORDERED_SKIP_DEEP="${DEEPSEC_GROK_ORDERED_SKIP_DEEP:-1}"
+ORDERED_PROCESS_TIMEOUT_SEC="${DEEPSEC_GROK_ORDERED_PROCESS_TIMEOUT_SEC:-$((DEEPSEC_GROK_FILE_WALL_SEC + 300))}"
 unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY
 
 read -r AGENT MODEL < <("${ROOT}/scripts/audit/deepsec-wave2-pick-agent.sh") || exit 2
@@ -59,7 +61,7 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
   echo "deepsec-wave2-grok-process-ordered: file $((idx + 1))/${TOTAL} ${path}"
   node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-file-locks.mjs" "$ROOT" || true
   cd "$WS"
-  if ! "$DEEPSEC" process --project-id opensesame \
+  if ! timeout -k 30 "$ORDERED_PROCESS_TIMEOUT_SEC" "$DEEPSEC" process --project-id opensesame \
     --agent "$AGENT" --model "$MODEL" \
     --thinking-level "${DEEPSEC_THINKING:-medium}" \
     --concurrency 1 \
