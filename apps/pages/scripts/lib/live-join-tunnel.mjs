@@ -17,6 +17,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 
 let check;
 let setStep;
@@ -111,6 +112,7 @@ async function tunnelWith(browser, owner, init, address) {
     { admit: false },
   );
   await joinerConnects(joiner.page, reply);
+  await opensSharedItems(joiner.page);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   const pairs = await selectedPairs(joiner.page);
   check(

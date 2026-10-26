@@ -310,7 +310,7 @@ export async function ownerAdmitsByHand(
   panel,
   request,
   name,
-  { admit = true } = {},
+  { admit = true, beforeAdmit } = {},
 ) {
   await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
@@ -323,6 +323,7 @@ export async function ownerAdmitsByHand(
   });
   if (admit) {
     await match.or(letIn).first().waitFor({ timeout: 20_000 });
+    await beforeAdmit?.();
     if (await match.isVisible()) {
       await confirmSessionSas(panel);
       await match.click();
@@ -331,6 +332,7 @@ export async function ownerAdmitsByHand(
     }
   } else {
     await match.or(copy).first().waitFor({ timeout: 20_000 });
+    await beforeAdmit?.();
     if (await match.isVisible()) {
       await confirmSessionSas(panel);
       await match.click();
@@ -342,5 +344,5 @@ export async function ownerAdmitsByHand(
 
 export async function joinerConnects(page, reply) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
-  await page.getByRole("button", { name: "Connect" }).click();
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
 }

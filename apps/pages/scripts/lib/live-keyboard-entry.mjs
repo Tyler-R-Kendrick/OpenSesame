@@ -1,5 +1,6 @@
 /** The current owner seal and joiner-local-vault ceremonies, using only keys. */
 import { expect } from "@playwright/test";
+import { inLiveSession } from "./live-joined.mjs";
 import { peerStates } from "./live-rtc.mjs";
 
 const PIN = "48291037";
@@ -39,6 +40,17 @@ export async function allowKeyboardMachine(page, tabTo) {
   });
   await expect(allow).toBeVisible();
   await tabTo(page, allow);
+  await page.keyboard.press("Enter");
+}
+
+/** Joining opens the person's own vault; return to shared items with keys. */
+export async function reopenKeyboardSession(page, tabTo, focusIn) {
+  await expect(inLiveSession(page)).toBeAttached({ timeout: 45_000 });
+  await focusIn(page, ".vault", "after Connect opens the local vault");
+  const open = page
+    .getByRole("button", { name: "Open live session", exact: true })
+    .filter({ visible: true });
+  await tabTo(page, open);
   await page.keyboard.press("Enter");
 }
 

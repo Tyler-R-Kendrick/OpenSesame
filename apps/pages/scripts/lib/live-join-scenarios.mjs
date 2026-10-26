@@ -26,6 +26,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
@@ -112,19 +113,30 @@ export async function direct(browser, owner) {
     /^osl-request\./.test(request) && !request.includes(JOINER),
     "a sealed request code",
   );
-  const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
-  const ownerSas = (
-    await panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
-  check(
-    /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) && joinerSas === ownerSas,
-    "both sides show the same session SAS",
-  );
+  const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER, {
+    async beforeAdmit() {
+      // Admission retires the owner's comparison row; compare while both show it.
+      await joiner.page.getByText("Security code", { exact: true }).click();
+      const joinerSas = (
+        await joiner.page.locator(".live-sas").innerText()
+      ).trim();
+      const ownerSas = (
+        await panel.locator(".vault-row .live-sas").innerText()
+      ).trim();
+      expect(joinerSas).toMatch(/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/);
+      expect(ownerSas).toBe(joinerSas);
+      check(
+        /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) &&
+          joinerSas === ownerSas,
+        "both sides show the same session SAS",
+      );
+    },
+  });
   const connect = () => joinerConnects(joiner.page, reply);
   if (whileJoinerConnects) await whileJoinerConnects(joiner, connect);
   else await connect();
   if (afterJoinerConnects) await afterJoinerConnects(joiner);
+  await opensSharedItems(joiner.page);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   // What a browser put in a description itself is its own doing; what the
   // app sealed beside it must be loopback (live-sdp-privacy.mjs).
@@ -215,6 +227,7 @@ export async function carried(browser, owner, kind) {
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
+    await opensSharedItems(joiner.page);
     await joined(joiner.page).waitFor({ timeout: 45_000 });
     await shot(joiner.page, `carrier-${kind}-joined`);
     check(true, `${kind}: joined with no code pasted either way`);

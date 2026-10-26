@@ -33,6 +33,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
@@ -213,6 +214,7 @@ export async function natsSession(browser, owner, binary, mode) {
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
+    await opensSharedItems(joiner.page, 60_000);
     await joined(joiner.page).waitFor({ timeout: 60_000 });
     await joiner.page
       .getByRole("button", { name: "Reveal GitHub Value" })

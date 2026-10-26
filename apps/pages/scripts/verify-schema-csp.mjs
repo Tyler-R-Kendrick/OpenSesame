@@ -95,7 +95,6 @@ function moduleLoader(context) {
 
 async function assertWorkerInput(file, context, messages, listeners) {
   if (file.includes("bitwarden-secrets.worker-")) {
-    assert.equal(typeof context.onmessage, "function");
     context.onmessage({ origin: "https://foreign.example.test", data: {} });
     context.onmessage({
       origin: "",
@@ -107,7 +106,6 @@ async function assertWorkerInput(file, context, messages, listeners) {
     ]);
   }
   if (file.includes("tailscale-node-")) {
-    assert.equal(typeof listeners.get("message"), "function");
     listeners.get("message")({
       origin: "",
       data: { kind: "start", config: {} },

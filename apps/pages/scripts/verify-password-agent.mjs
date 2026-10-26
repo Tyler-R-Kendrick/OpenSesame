@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+import { emulateFilePickers } from "./lib/file-pickers.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { openSettingsCategory } from "./lib/pages-journey.mjs";
 import {
@@ -42,6 +43,9 @@ try {
         hasTouch: width < 600,
       },
     });
+    // Accept the native save picker while retaining the app's write/close
+    // path and the real export bytes checked by the password workflows.
+    await emulateFilePickers(context);
     await page.goto(`${origin}${base}`);
     await doorGuest(page).click();
     await page

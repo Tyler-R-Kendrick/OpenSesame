@@ -19,6 +19,7 @@ import {
   allowKeyboardMachine,
   joinerAsks,
   nameKeyboardMachine,
+  reopenKeyboardSession,
   sealLiveKeyboardOwner,
   showKeyboardPeers,
 } from "./live-keyboard-entry.mjs";
@@ -226,6 +227,7 @@ async function joinerConnects(page, { reply, tabTo }) {
   await page.keyboard.insertText(reply);
   await page.keyboard.press("Enter");
   await allowKeyboardMachine(page, tabTo);
+  await reopenKeyboardSession(page, tabTo, focusIn);
   await expect(
     page.getByRole("img", { name: "Joined Team" }),
     "the two browsers connected",

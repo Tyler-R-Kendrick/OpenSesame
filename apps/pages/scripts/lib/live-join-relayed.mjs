@@ -41,6 +41,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 import { startLiveTurn } from "./live-turn.mjs";
@@ -155,6 +156,7 @@ async function through(browser, owner, label, hooks) {
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     if (connects) {
+      await opensSharedItems(joiner.page);
       await joined(joiner.page).waitFor({ timeout: 45_000 });
       await shot(joiner.page, `${label}-2-joined`);
     } else {
