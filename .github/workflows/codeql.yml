@@ -1,121 +1,63 @@
-name: CodeQL
-
-# Switch Security > Code scanning > CodeQL from default to advanced setup
-# before enabling this workflow: GitHub rejects advanced uploads while default
-# setup is active. Both native projects have explicit build commands below.
+name: Repository security inventory
 on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '41 4 * * 1'
-
 permissions:
   contents: read
-
-concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  analyze:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
-    name: Analyze (${{ matrix.language }})
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
+  inventory:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.ref == 'refs/heads/codex/security-inventory' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
-      actions: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - language: actions
-            runner: ubuntu-latest
-            mode: none
-          - language: javascript-typescript
-            runner: ubuntu-latest
-            mode: none
-          - language: python
-            runner: ubuntu-latest
-            mode: none
-          - language: rust
-            runner: ubuntu-latest
-            mode: none
-          - language: go
-            runner: ubuntu-latest
-            mode: autobuild
-          - language: java-kotlin
-            runner: ubuntu-latest
-            mode: manual
-          # Swift/mobile is intentionally not analyzed here: the Pages/native
-          # product is exercised on Linux runners, and the macOS XCTest harness
-          # is not part of this CodeQL gate.
-        # The repository's only C/C++ file is the generated Swift FFI header;
-        # there is no independent C/C++ program for autobuild to compile.
-    env:
-      CODEQL_EXTRACTOR_GO_OPTION_EXTRACT_TESTS: 'true'
-      CARGO_BUILD_JOBS: '2'
+      security-events: read
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        if: matrix.language == 'go'
-        with:
-          go-version-file: scripts/test/live-turn/go.mod
-          cache-dependency-path: scripts/test/live-turn/go.sum
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-        if: matrix.language == 'rust' || matrix.language == 'java-kotlin'
-        with:
-          toolchain: 1.88.0
-          targets: ${{ matrix.language == 'java-kotlin' && 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android' || '' }}
-      - name: Prepare Android SDK and pinned Gradle
-        if: matrix.language == 'java-kotlin'
-        shell: bash
+      - name: Read security alert metadata without secret values
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "ndk;28.0.13004108"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.13004108" >> "$GITHUB_ENV"
-          curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.13-bin.zip -o "$RUNNER_TEMP/gradle.zip"
-          echo "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78  $RUNNER_TEMP/gradle.zip" | sha256sum --check
-          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/gradle-8.13/bin" >> "$GITHUB_PATH"
-          cargo install cargo-ndk --version 4.1.2 --locked
-      - name: Build Android native libraries
-        if: matrix.language == 'java-kotlin'
-        run: apps/android/scripts/build-core.sh android
-      - name: Initialize analysis
-        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.mode }}
-          config-file: ./.github/codeql/codeql-config.yml
-          queries: security-extended
-      - name: Build Go modules and standalone tools
-        if: matrix.language == 'go'
-        uses: github/codeql-action/autobuild@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-      - name: Compile Android production and test Kotlin
-        if: matrix.language == 'java-kotlin'
-        run: |
-          gradle --no-daemon --no-build-cache --rerun-tasks --max-workers=2 \
-            -p apps/android/android -Pkotlin.compiler.execution.strategy=in-process \
-            :app:compileDebugKotlin :app:compileDebugUnitTestKotlin \
-            -PopensesameWalletBackendUrl=https://identity.example
-      - name: Analyze
-        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-        with:
-          category: /language:${{ matrix.language }}
-          output: ${{ runner.temp }}/codeql-results
-      - name: Keep SARIF for review
+          python3 - <<'PYTHON'
+          import json,os,pathlib,subprocess,datetime
+          repo="Tyler-R-Kendrick/OpenSesame"
+          assert os.environ["GITHUB_REPOSITORY"]==repo and os.environ["GITHUB_ACTOR"]=="Tyler-R-Kendrick"
+          assert os.environ["GITHUB_REF"]=="refs/heads/codex/security-inventory" and os.environ["GITHUB_EVENT_NAME"]=="workflow_dispatch"
+          def api(endpoint):
+           r=subprocess.run(["gh","api",endpoint],capture_output=True,text=True)
+           if r.returncode: return {"error":"API request denied or failed", "endpoint":endpoint.split("?")[0]}
+           return json.loads(r.stdout)
+          def pages(endpoint):
+           rows=[]
+           for page in range(1,101):
+            batch=api(endpoint+("&" if "?" in endpoint else "?")+f"per_page=100&page={page}")
+            if not isinstance(batch,list): return batch
+            rows+=batch
+            if len(batch)<100:return rows
+           raise RuntimeError("Pagination overflow")
+          main=api(f"repos/{repo}/git/ref/heads/main")["object"]["sha"]
+          report={"repository":repo,"main":main,"observed_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          alerts=pages(f"repos/{repo}/code-scanning/alerts?state=open&ref=refs%2Fheads%2Fmain")
+          if isinstance(alerts,list):
+           report["code_scanning"]=[{"number":a["number"],"state":a["state"],"rule":a["rule"],"tool":a["tool"],"url":a["html_url"],"instance":{"ref":a["most_recent_instance"].get("ref"),"commit_sha":a["most_recent_instance"].get("commit_sha"),"location":a["most_recent_instance"].get("location"),"analysis_key":a["most_recent_instance"].get("analysis_key"),"category":a["most_recent_instance"].get("category")}} for a in alerts]
+          else:report["code_scanning"]=alerts
+          analyses=pages(f"repos/{repo}/code-scanning/analyses?ref=refs%2Fheads%2Fmain")
+          if isinstance(analyses,list): report["analyses"]=[{k:a.get(k) for k in ["id","commit_sha","ref","category","tool","created_at","results_count","error","warning"]} for a in analyses[:150]]
+          else:report["analyses"]=analyses
+          for kind in ["dependabot","secret-scanning"]:
+           rows=pages(f"repos/{repo}/{kind}/alerts?state=open")
+           if isinstance(rows,list): report[kind]=[{k:a.get(k) for k in ["number","state","html_url","secret_type","secret_type_display_name","resolution","dependency","security_advisory","security_vulnerability"] if k in a} for a in rows]
+           else:report[kind]=rows
+          report["main_after"]=api(f"repos/{repo}/git/ref/heads/main")["object"]["sha"]
+          assert main==report["main_after"],"main changed during snapshot"
+          out=pathlib.Path(os.environ["RUNNER_TEMP"])/"security-inventory"
+          out.mkdir(exist_ok=True)
+          (out/"inventory.json").write_text(json.dumps(report,indent=2)+"\n")
+          print(json.dumps({"main":main,"counts":{k:len(v) if isinstance(v,list) else v for k,v in report.items() if k in ["code_scanning","dependabot","secret-scanning"]}}))
+          PYTHON
+      - name: Retain metadata inventory
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: codeql-sarif-${{ matrix.language }}
-          path: ${{ runner.temp }}/codeql-results
-          if-no-files-found: warn
+          name: security-inventory
+          path: ${{ runner.temp }}/security-inventory/inventory.json
+          if-no-files-found: error
+          retention-days: 1
