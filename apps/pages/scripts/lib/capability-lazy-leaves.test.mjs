@@ -385,7 +385,9 @@ test("keeps the real NKeys signer with NATS without claiming virtual wrappers or
   });
   assert.equal(credentialOwner.classification, "optional");
   assert.equal(credentialOwner.capability, "connectors.external");
-  assert.equal(lazyLeafChunk(credentials, credentialOwner), undefined);
+  // The credential adapter keeps its own backend leaf; the NKeys mapping
+  // above must not absorb it.
+  assert.equal(lazyLeafChunk(credentials, credentialOwner), "secret-backends");
   assert.equal(
     lazyLeafChunk(source.replace("/tweetnacl/", "/tweetnacl-extra/"), entry),
     undefined,
