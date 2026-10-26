@@ -18,7 +18,7 @@
   "totals": {
     "files": 447,
     "violations": 713,
-    "oversizedLines": 221131
+    "oversizedLines": 221105
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -223,7 +223,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 476
+      "max-lines": 468
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 1,
@@ -635,7 +635,7 @@
       "complexity": 1
     },
     "packages/app-core/src/lib/identity-saml-activation.test.ts": {
-      "max-lines": 404
+      "max-lines": 401
     },
     "packages/app-core/src/lib/identity-session.test.ts": {
       "max-lines": 495
@@ -1493,7 +1493,7 @@
       "complexity": 1
     },
     "tests/redteam/src/structural.pact.test.ts": {
-      "max-lines": 444
+      "max-lines": 429
     },
     "tools/mock-upstream-idp/src/config.ts": {
       "complexity": 1

@@ -1,7 +1,6 @@
 /** @vitest-environment jsdom */
 import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import * as popupPort from "../browser/native-auth-session.js";
 import {
   holdSamlSavePhase,
   samlSaveFixture,
@@ -38,6 +37,7 @@ import {
   saveIdentityConnection,
   testIdentityConnection,
 } from "./identity-connections.js";
+import { configuredSamlPopup } from "./identity-saml-popup.test-support.js";
 import { kvFlush, kvForgetAll, kvHydrate, kvSeams } from "./kv.js";
 import { bindNativeProviderTransport } from "./native-connector-transport.js";
 import { signInMethods } from "./settings.js";
@@ -102,23 +102,6 @@ function draft(url = "") {
     samlAuthnContext: "urn:configured:context",
   };
 }
-function popup() {
-  vi.spyOn(window, "open").mockImplementation(() => {
-    events.push("popup");
-    return window;
-  });
-  vi.spyOn(popupPort, "resumeNativeAuthPopup").mockReturnValue({
-    cancel: vi.fn(),
-    wait: vi.fn(),
-    waitWebMessage: vi.fn(),
-    showDeviceConsent: vi.fn(),
-    showRedirectConsent: vi.fn(),
-    showFormConsent: vi.fn(() => ({
-      signal: new AbortController().signal,
-      close() {},
-    })),
-  });
-}
 it("native SAML accepts exact URN entities, enforces shared signing validation and requires no broker", () => {
   expect(identityConnectionProblems(draft())).toEqual([]);
   expect(
@@ -165,7 +148,7 @@ it("saves sealed inline configuration, reloads cold and consumes genuine proof w
   for (const key of DEVICE_CONNECTOR_KEYS) memory.delete(key);
   kvForgetAll();
   expect(readIdentityConnection(connection.connectionId)).toBeNull();
-  popup();
+  configuredSamlPopup(events);
   oracle.install(events);
   const ambient = vi.spyOn(globalThis, "fetch");
   await beginIdentityConnectionSignIn(connection.connectionId);
@@ -202,7 +185,7 @@ it("cold URL sign-in retains one original route before hydration and spends the 
     kvForgetAll();
     events.length = 0;
     original.capture.mockClear();
-    popup();
+    configuredSamlPopup(events);
     oracle.install(events);
     await beginIdentityConnectionSignIn(connection.connectionId);
     expect(events.slice(0, 3)).toEqual(["capture", "popup", "hydrate"]);
@@ -226,7 +209,7 @@ it("cannot silently adopt a route enabled during cold hydration", async () => {
     unbind();
     for (const key of DEVICE_CONNECTOR_KEYS) memory.delete(key);
     kvForgetAll();
-    popup();
+    configuredSamlPopup(events);
     const later = { fetch: vi.fn(tls.fetch), assertCurrent() {} };
     const hydrate = vi.mocked(kvSeams.kvHydrate).getMockImplementation();
     if (!hydrate) throw new Error("Expected independent cold ledger hydration");
@@ -397,7 +380,7 @@ it("edits its own active SAML connection while retiring the old verified session
   const fixture = await samlSaveFixture();
   try {
     const saved = await saveIdentityConnection(draft());
-    popup();
+    configuredSamlPopup(events);
     oracle.install(events);
     await beginIdentityConnectionSignIn(saved.connectionId);
     expect(readNativeFederationSession()?.upstreamId).toBe(

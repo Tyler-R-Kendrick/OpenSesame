@@ -66,7 +66,7 @@ export async function joinerAsks(page, { link, code, tabTo, focusIn }) {
     await page.keyboard.press("Enter");
   }
   const codeField = page.getByLabel("Code", { exact: true });
-  if (await codeField.count()) {
+  if (code) {
     await tabTo(page, codeField);
     await page.keyboard.insertText(code.toLowerCase());
   }

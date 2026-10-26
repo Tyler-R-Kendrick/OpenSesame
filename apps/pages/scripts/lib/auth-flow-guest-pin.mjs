@@ -24,7 +24,7 @@ export async function guestSetPinKey(page, { check, snap, PIN }) {
   await dialog.getByLabel("PIN", { exact: true }).fill(PIN);
   await dialog.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
   await dialog.getByRole("button", { name: "Set PIN" }).click();
-  await page.waitForTimeout(3500);
+  await dialog.getByRole("img", { name: "Scan to add vault MFA" }).waitFor();
   const stepTwo = await snap(page, "1-guest-step2-scan");
   check(/2 · Scan/.test(stepTwo), "scan follows the key on its own");
   check(

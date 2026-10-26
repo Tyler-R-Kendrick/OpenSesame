@@ -7,7 +7,9 @@
  * by the walk's own `audit`, so a regression here fails the same gate.
  */
 import fs from "node:fs";
+import { emulateFilePickers } from "./file-pickers.mjs";
 import { passTheDoor } from "./front-door.mjs";
+import { waitOpen } from "./pages-journey.mjs";
 
 export const PIN = "48291037";
 
@@ -23,7 +25,7 @@ export async function sealWithPin(page) {
     .getByLabel("I understand this vault cannot be recovered.", { exact: true })
     .check();
   await page.getByRole("button", { name: "Seal with PIN" }).tap();
-  await page.waitForTimeout(5000);
+  await waitOpen(page);
 }
 
 /** Settings › Security, reached the way a thumb does. */
@@ -41,6 +43,9 @@ export async function protectorUnlockStops(
   page,
   { harness, audit, openTab, stop, origin, base },
 ) {
+  // Drive the native save seam as a person accepting its picker; enrollment
+  // still writes and closes the actual generated key before committing.
+  await emulateFilePickers(page.context());
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);
   await openSecurity(page, openTab);

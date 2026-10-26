@@ -1,3 +1,4 @@
+import { waitOpen } from "./pages-journey.mjs";
 import { toTheList } from "./phone-vault.mjs";
 import { openSessionSection } from "./session-section.mjs";
 import { readTray } from "./tray-contract.mjs";
@@ -54,11 +55,11 @@ export async function expectRefusedOnField(page, check) {
 
 /** Trash the vault's self-supplied authenticator: an item in the vault. */
 export async function withdrawSelfAuthenticator(page, check) {
-  // The phone's Settings page has no vault rail. Use the section drawer
-  // (or the desktop's current tree), then the vault's actual list pane.
+  // Desktop Settings has its own Back to vault row; the phone uses its
+  // section drawer. Once back, Vault is not an item in the Session menu.
   const back = page.getByRole("treeitem", { name: "Back to vault" });
   if (await back.isVisible().catch(() => false)) await back.click();
-  await openSessionSection(page, "Vault");
+  else await openSessionSection(page, "Vault");
   await toTheList(page);
   await page.waitForTimeout(1000);
   // The account is an entry, and so is the authenticator bound to it
@@ -136,7 +137,7 @@ export async function finishUnlockWithCode(
   await page
     .getByLabel("Authenticator code", { exact: true })
     .fill(totp(secret));
-  await page.waitForTimeout(1500);
+  await waitOpen(page);
   const open = await snap(page, `${name}-open`);
   check(
     /vault\/|:\/\s*$/m.test(open) && !/Confirm it is you/.test(open),
@@ -150,6 +151,7 @@ export async function finishUnlockWithCode(
 
 /** A self-supplied code opens without asking — the point of the whole thing. */
 export async function finishUnlockSelfSupplied(page, name, { check, snap }) {
+  await waitOpen(page);
   const open = await snap(page, `${name}-self-supplied`);
   check(!/Confirm it is you/.test(open), "no code is asked — it is supplied");
   check(

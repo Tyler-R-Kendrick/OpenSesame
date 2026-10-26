@@ -253,6 +253,39 @@ test("Connect, common configuration and other SDKs keep the ordinary backend lea
   assert.equal(lazyLeafChunk(save, nativeOwner), "vendor-1password-save");
 });
 
+test("the browser credential adapter stays with its actual backend owner", () => {
+  const file =
+    "/workspace/packages/app-core/src/browser/secret-backend-credentials.ts";
+  const entry = classifyModule(file, LIB_RULES, { repoRoot: "/workspace" });
+  assert.equal(entry.classification, "optional");
+  assert.equal(entry.capability, "connectors.external");
+  assert.equal(lazyLeafChunk(file, entry), "secret-backends");
+  assert.equal(
+    lazyLeafChunk(file.replaceAll("/", "\\"), entry),
+    "secret-backends",
+  );
+  assert.equal(
+    lazyLeafChunk(file, { classification: "shared", capability: null }),
+    undefined,
+  );
+  assert.equal(
+    lazyLeafChunk(file, {
+      classification: "optional",
+      capability: "sharing.live",
+    }),
+    undefined,
+  );
+  const neighbor =
+    "/workspace/packages/app-core/src/browser/kdbx-native-dom.ts";
+  assert.equal(
+    lazyLeafChunk(
+      neighbor,
+      classifyModule(neighbor, LIB_RULES, { repoRoot: "/workspace" }),
+    ),
+    undefined,
+  );
+});
+
 test("virtual IDs, unrelated packages and query lookalikes cannot claim the native leaf", () => {
   for (const id of [
     `\0${backendPath}onepassword-sdk.ts`,

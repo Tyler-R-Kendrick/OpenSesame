@@ -1,9 +1,6 @@
-import {
-  AGENT_SECRET_NAME_PATTERN,
-  mcpHostCatalog,
-} from "@opensesame/capability-registry";
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
+import { registerCatalogParityTests } from "./structural-catalog.test-support.js";
 import { dump, probe } from "./structural-probe.js";
 
 describe("PACT — redteam structural (live mcp-host)", () => {
@@ -386,27 +383,7 @@ describe("PACT — redteam structural (live mcp-host)", () => {
     });
   });
 
-  describe("catalog parity (live server vs registry)", () => {
-    it("advertises exactly the registry's mcp_host catalog, all denylist-clean", async () => {
-      const data = await probe({
-        calls: [{ tool: "host_ready", params: {} }],
-        includeToolSchemas: true,
-        mockRoutes: [
-          {
-            path: "/health/ready",
-            method: "GET",
-            status: 200,
-            body: { status: "ok" },
-          },
-        ],
-      });
-      const advertised = (data.tools ?? []).map((tool) => tool.name).sort();
-      expect(advertised).toEqual([...mcpHostCatalog()].sort());
-      for (const name of advertised) {
-        expect(name).not.toMatch(AGENT_SECRET_NAME_PATTERN);
-      }
-    });
-  });
+  registerCatalogParityTests();
 
   describe("prompt injection (structural, no model)", () => {
     it("embedded instruction is omitted and cannot execute as a side effect", async () => {
