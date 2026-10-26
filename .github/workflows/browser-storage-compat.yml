@@ -1,5 +1,7 @@
 name: Browser storage compatibility
 on:
+  push:
+    branches: [review/browser-storage-compat]
   workflow_dispatch:
 permissions:
   contents: read
