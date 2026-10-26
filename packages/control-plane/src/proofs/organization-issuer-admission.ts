@@ -31,7 +31,9 @@ function issuerApproved<O>(
   );
 }
 
-function refusal(): { ok: false; message: string } {
+type IssuerRefusal = { readonly ok: false; readonly message: string };
+
+function refusal(): IssuerRefusal {
   return {
     ok: false,
     message:
