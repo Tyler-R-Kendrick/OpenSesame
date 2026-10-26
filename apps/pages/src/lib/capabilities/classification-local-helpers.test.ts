@@ -12,9 +12,9 @@ it("keeps pairwise local subjects with their local issuer consumer", () => {
   expect(classify("src/lib/local-pairwise-subjects.ts")).toBeNull();
 });
 
-it("names only the authored lock manager test stand-in as core infrastructure", () => {
+it("names only the authored lock manager test stand-in as shared infrastructure", () => {
   expect(classify("src/test-support/lock-manager.ts")).toMatchObject({
-    classification: "core",
+    classification: "shared",
     capability: null,
   });
   expect(classify("src/test-support/lock-manager-production.ts")).toBeNull();
