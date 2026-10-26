@@ -6,7 +6,7 @@ Security fixes target the default branch (`main`). The released Pages deploy tra
 
 ## Reporting
 
-Report vulnerabilities through GitHub private vulnerability reporting. On this repository, open **Report a vulnerability** under Security Advisories. Do not file public issues that include exploit details, tokens, or claim secrets.
+Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new). On this repository, open **Report a vulnerability** under Security Advisories. Do not file public issues that include exploit details, tokens, or claim secrets.
 
 We acknowledge a report within 3 business days and aim for an initial assessment within 10 business days.
 

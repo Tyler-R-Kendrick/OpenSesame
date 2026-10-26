@@ -236,7 +236,14 @@ describe("release kit workflow", () => {
 
   it("verifies every attestation before it creates the release", () => {
     const publish = job("publish");
-    expect(publish).toContain("attestations: read");
+    expect(publish).not.toContain("attestations: read");
+    expect(publish).toContain('--bundle "$2"');
+    expect(publish).toContain(
+      'verify_attestation "dist/$file" dist/release-files.sigstore.json',
+    );
+    expect(publish).toContain(
+      "verify_attestation dist/SHA256SUMS dist/SHA256SUMS.sigstore.json",
+    );
     expect(publish).toContain(
       '--signer-workflow "$GH_REPO/.github/workflows/release-kit.yml"',
     );

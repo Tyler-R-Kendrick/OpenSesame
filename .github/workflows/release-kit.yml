@@ -283,12 +283,29 @@ jobs:
         working-directory: dist
         run: sha256sum --check --strict SHA256SUMS
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        id: files
         with:
           subject-checksums: dist/SHA256SUMS
       # The checksum file cannot list itself, so it is a subject of its own.
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        id: sums
         with:
           subject-path: dist/SHA256SUMS
+      - name: Keep the signed bundles beside the release files
+        env:
+          FILES_BUNDLE: ${{ steps.files.outputs.bundle-path }}
+          SUMS_BUNDLE: ${{ steps.sums.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p provenance
+          cp "$FILES_BUNDLE" provenance/release-files.sigstore.json
+          cp "$SUMS_BUNDLE" provenance/SHA256SUMS.sigstore.json
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: release-provenance
+          path: provenance/*.sigstore.json
+          if-no-files-found: error
+          retention-days: 35
 
   # The only job that writes to the repository. It checks nothing out and builds
   # nothing: it hands GitHub the files the jobs above made and attested. The
@@ -311,12 +328,14 @@ jobs:
       name: release
     permissions:
       contents: write
-      # `gh attestation verify` below reads the attestations `attest` made.
-      attestations: read
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: release-files
+          path: dist
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: release-provenance
           path: dist
       - name: Create as a draft, then publish
         env:
@@ -330,14 +349,14 @@ jobs:
           # carry an attestation from this workflow for this tag. Nothing is
           # created if one does not.
           verify_attestation() {
-            gh attestation verify "$1" --repo "$GH_REPO" \
+            gh attestation verify "$1" --bundle "$2" --repo "$GH_REPO" \
               --signer-workflow "$GH_REPO/.github/workflows/release-kit.yml" \
               --source-ref "refs/tags/$TAG"
           }
           while read -r _ file; do
-            verify_attestation "dist/$file"
+            verify_attestation "dist/$file" dist/release-files.sigstore.json
           done < dist/SHA256SUMS
-          verify_attestation dist/SHA256SUMS
+          verify_attestation dist/SHA256SUMS dist/SHA256SUMS.sigstore.json
           # The commit the tag names now, through any annotated tag objects.
           tag_commit() {
             local obj type
@@ -366,6 +385,7 @@ jobs:
             echo "- \`opensesame-kit_${TAG}_<target>.tar.gz\`: \`opensesame\` and \`opensesame-surrogate-proxy\` (shipped features) with the env-spec bridge, \`opensesame-env-parse.mjs\`, beside them."
             echo "- \`opensesame-surrogate-proxy-TEST-upstream-override_${TAG}_<target>.tar.gz\`: the plugin's **test build**, which can be aimed at a stand-in upstream. For test lanes only; never give it a real token."
             echo "- \`opensesame-env-parse.mjs\`: the bridge on its own."
+            echo "- \`release-files.sigstore.json\` and \`SHA256SUMS.sigstore.json\`: signed provenance bundles for the files and the checksum manifest."
             echo
             echo "Verify a download with \`sha256sum --check --ignore-missing SHA256SUMS\` and \`gh attestation verify <file> --repo $GH_REPO --signer-workflow $GH_REPO/.github/workflows/release-kit.yml --source-ref refs/tags/$TAG\`; see docs/operators/release-kit.md."
           } > notes.md
