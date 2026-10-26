@@ -1,0 +1,158 @@
+name: Connector catalog review evidence
+on:
+  push:
+    branches: [review/connector-evidence]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: >-
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor == github.repository_owner &&
+      github.ref == 'refs/heads/review/connector-evidence'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        phase: [before, after]
+    env:
+      BEFORE_SHA: b3f30460475f6aaefa089cfaf4855f6dc82b8bff
+      AFTER_SHA: 6012ac8658295c1753af878fbb0b216714c3898a
+      EVIDENCE_DIR: ${{ github.workspace }}/work/review-output/connectors-${{ matrix.phase }}
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - name: Check out exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ matrix.phase == 'before' && env.BEFORE_SHA || env.AFTER_SHA }}
+          persist-credentials: false
+      - name: Check out transient capture tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: work/evidence-tools
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Reuse normal CI pinned native distribution cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build real rich distribution and capture provenance
+        shell: bash
+        env:
+          PHASE: ${{ matrix.phase }}
+          TOOLING_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          export SOURCE_SHA="$(git rev-parse HEAD)"
+          node -e 'const e=process.env; const expected=e.PHASE==="before"?e.BEFORE_SHA:e.AFTER_SHA; if(e.SOURCE_SHA!==expected)throw Error("source mismatch"); require("node:fs").writeFileSync(e.EVIDENCE_DIR+"/provenance.json",JSON.stringify({source:e.SOURCE_SHA,tooling:e.TOOLING_SHA,profile:"rich-explicit",mode:"selective",state:"activated connector runtime; cold state is unit/source evidence only",approval:"unapproved review artifact"},null,2));'
+          sha256sum pnpm-lock.yaml package.json apps/pages/package.json > "$EVIDENCE_DIR/dependency-fingerprints.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          pnpm --version > "$EVIDENCE_DIR/pnpm-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+          set -o pipefail
+          pnpm --filter @opensesame/pages exec vite build 2>&1 | tee "$EVIDENCE_DIR/build.log"
+          git diff --exit-code
+      - name: Preserve exact source and built distribution for native browser diagnostics
+        shell: bash
+        run: |
+          git archive --format=tar HEAD > "$EVIDENCE_DIR/source-and-dist.tar"
+          tar --append --file="$EVIDENCE_DIR/source-and-dist.tar" apps/pages/dist
+          gzip -1 "$EVIDENCE_DIR/source-and-dist.tar"
+          sha256sum "$EVIDENCE_DIR/source-and-dist.tar.gz" > "$EVIDENCE_DIR/source-and-dist.sha256"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source-commit.txt"
+          git rev-parse HEAD^{tree} > "$EVIDENCE_DIR/source-tree.txt"
+      - name: Capture actual catalog and Azure family at phone and desktop widths
+        env:
+          PHASE: ${{ matrix.phase }}
+        run: >-
+          node work/evidence-tools/scripts/review/connectors-evidence.mjs
+          "$PHASE" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/apps/pages/dist" "$EVIDENCE_DIR"
+      - name: Upload review screenshots and measured geometry
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: connector-catalog-${{ matrix.phase }}
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
+  final-mobile:
+    name: Full rich mobile contract on integrated final source
+    needs: capture
+    if: >-
+      always() &&
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor == github.repository_owner &&
+      github.ref == 'refs/heads/review/connector-evidence'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      FINAL_SHA: 7ddbc24d7a8f1d37d2412821271a69319394bdbd
+      EVIDENCE_DIR: ${{ github.workspace }}/work/review-output/final-rich-mobile
+      PAGES_VERIFY_OUT: ${{ github.workspace }}/work/review-output/final-rich-mobile/mobile
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - name: Check out immutable fully integrated source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ env.FINAL_SHA }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Reuse normal CI pinned native distribution cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build actual rich Pages and record immutable source
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          test "$(git rev-parse HEAD)" = "$FINAL_SHA"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source-commit.txt"
+          git rev-parse HEAD^{tree} > "$EVIDENCE_DIR/source-tree.txt"
+          sha256sum pnpm-lock.yaml package.json apps/pages/package.json > "$EVIDENCE_DIR/dependency-fingerprints.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          pnpm --version > "$EVIDENCE_DIR/pnpm-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+          set -o pipefail
+          pnpm --filter @opensesame/pages build 2>&1 | tee "$EVIDENCE_DIR/build.log"
+          git diff --exit-code
+      - name: Walk full mobile contract at all default phone and tablet sizes
+        shell: bash
+        run: |
+          test -z "${MOBILE_SIZES:-}"
+          set -o pipefail
+          pnpm --filter @opensesame/pages verify:mobile 2>&1 | tee "$EVIDENCE_DIR/mobile.log"
+          git diff --exit-code
+      - name: Upload full rich mobile checks and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: final-rich-mobile-7ddbc24d
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
