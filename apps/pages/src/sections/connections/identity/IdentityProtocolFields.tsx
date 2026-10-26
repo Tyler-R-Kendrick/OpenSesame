@@ -93,13 +93,61 @@ function SamlFields(props: IdentityFieldProps) {
 }
 
 function OidcFields(props: IdentityFieldProps) {
+  const confidential =
+    props.draft.oidcClientType === "confidential" || !!props.draft.clientSecret;
+  const changed: IdentityFieldProps["onChange"] = (key, value) => {
+    if (key === "clientSecret" && value)
+      props.onChange("oidcClientType", "confidential");
+    props.onChange(key, value);
+  };
   return (
     <>
-      <IdentityDraftFields {...props} fields={OIDC_FIELDS} />
+      <fieldset className="cx-form" disabled={props.busy}>
+        <SelectField
+          label="OIDC client type"
+          value={confidential ? "confidential" : "public"}
+          options={[
+            { id: "public", label: "Public client" },
+            { id: "confidential", label: "Confidential client" },
+          ]}
+          onChange={(value) => {
+            if (value === "public") props.onChange("clientSecret", "");
+            props.onChange("oidcClientType", value);
+          }}
+        />
+      </fieldset>
+      <IdentityDraftFields
+        {...props}
+        fields={OIDC_FIELDS.map((field) =>
+          field.key === "clientId" && confidential
+            ? { ...field, label: "Client ID" }
+            : field,
+        )}
+      />
       <details className="conn-client-alt">
         <summary>Sign-in options</summary>
         <div className="cx-form">
-          <IdentityDraftFields {...props} fields={OIDC_OPTIONS} />
+          <IdentityDraftFields
+            {...props}
+            onChange={changed}
+            fields={OIDC_OPTIONS.filter(
+              (field) => field.key !== "clientSecret" || confidential,
+            )}
+          />
+          <IdentityDraftFields
+            {...props}
+            fields={[
+              { key: "organizationId", label: "Organization ID (optional)" },
+              {
+                key: "oidcOrganizationParameter",
+                label: "Organization authorization parameter",
+              },
+              {
+                key: "oidcOrganizationClaim",
+                label: "Signed organization claim",
+              },
+            ]}
+          />
         </div>
       </details>
     </>
