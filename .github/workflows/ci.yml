@@ -829,7 +829,10 @@ jobs:
     name: Live join (${{ matrix.owner }} owner)
     needs: changes
     if: needs.changes.outputs.live_join == 'true'
-    runs-on: ubuntu-latest
+    # Native ntfy is built with CGO here and runs in the Noble browser image.
+    runs-on: ubuntu-24.04
+    env:
+      LIVE_JOIN_IMAGE: mcr.microsoft.com/playwright:v1.55.1-noble@sha256:2f29369043d81d6d69a815ceb80760f55e85f5020371ad06a4d996f18503ad1c
     timeout-minutes: 50
     strategy:
       fail-fast: false
@@ -852,16 +855,30 @@ jobs:
           cache-dependency-path: scripts/test/live-turn/go.sum
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Pinned Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Cache the pinned browsers
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-firefox-webkit-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - name: Chromium, Firefox and WebKit at the pinned Playwright's builds
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Require the matching SDK and preinstalled browsers
+        run: |
+          test "$(id -u)" -ne 0
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          test -f "$live_pnpm_root/pnpm/package.json"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work,readonly" \
+            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+            --env CI --env PATH --env PNPM_HOME \
+            --workdir /work/apps/pages "$LIVE_JOIN_IMAGE" node -e '
+              const assert = require("node:assert/strict");
+              const fs = require("node:fs");
+              const { execFileSync } = require("node:child_process");
+              const { chromium, firefox, webkit } = require("@playwright/test");
+              assert.equal("pnpm@" + execFileSync("pnpm", ["--version"],
+                { encoding: "utf8" }).trim(), require("/work/package.json").packageManager);
+              execFileSync("pnpm", ["--filter", "@opensesame/cli", "exec", "tsx", "--version"],
+                { stdio: "inherit" });
+              assert.equal(require("@playwright/test/package.json").version, "1.55.1",
+                "Update the pinned Playwright image with the SDK");
+              for (const engine of [chromium, firefox, webkit]) {
+                fs.accessSync(engine.executablePath(), fs.constants.X_OK);
+              }
+            '
       - name: Cache the live servers
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
@@ -890,7 +907,18 @@ jobs:
           # Each browser's own output, where a crashed content process says
           # why; the walk writes it to browsers.log, not this log.
           DEBUG: pw:browser
-        run: pnpm --filter @opensesame/pages verify:live-join
+        # Keep native compilation on the runner; only the actual walk needs the
+        # upstream browser image. Host networking preserves same-machine routes.
+        run: |
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          docker run --rm --init --user "$(id -u):$(id -g)" \
+            --network host --shm-size=2g \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work" \
+            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+            --workdir /work/apps/pages \
+            --env PATH --env PNPM_HOME \
+            --env CI --env VITE_BASE --env LIVE_OWNER --env LIVE_JOINERS --env DEBUG \
+            "$LIVE_JOIN_IMAGE" node scripts/verify-live-join.mjs
       - name: Keep what the walk saw
         # Screenshots of every open page, each channel's events and frame
         # kinds (never a body) and the browsers' output, for the failure.
