@@ -240,3 +240,136 @@ it("switching a confidential client to public clears its secret and preserves th
   expect(f.captures()).toBe(0);
   expect(f.browserFetch).not.toHaveBeenCalled();
 });
+
+it("rendered native custom endpoints and Basic authentication round-trip through Test, Save and cold sign-in without discovery", async () => {
+  const f = await native();
+  const user = await configure(f);
+  await user.click(
+    screen.getByText("Sign-in options", { selector: "summary" }),
+  );
+  await user.selectOptions(screen.getByLabelText("Connection route"), "native");
+  const endpoints = {
+    "Authorization endpoint (optional)": `${f.idp.tokenBase}/authorize`,
+    "Token endpoint (optional)": `${f.idp.tokenBase}/token`,
+    "JWKS URI (optional)": `${f.idp.jwksBase}/jwks`,
+  };
+  for (const [label, value] of Object.entries(endpoints)) field(label, value);
+  await user.selectOptions(
+    screen.getByLabelText("Token endpoint authentication"),
+    "client_secret_basic",
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Test identity connection" }),
+  );
+  await approve(f, user);
+  await screen.findByRole("img", { name: /Sign in to verify/ });
+  expect(f.idp.requests.map((row) => row.path)).toEqual(["/issuer/jwks"]);
+  expect(listIdentityConnections()).toEqual([]);
+  await user.click(
+    screen.getByRole("button", { name: "Save identity connection" }),
+  );
+  await approve(f, user);
+  await screen.findByRole("img", { name: "Identity configuration saved" });
+  const saved = listIdentityConnections()[0];
+  if (!saved) throw new Error("Missing saved custom endpoint configuration");
+  expect(readIdentityConnection(saved.connectionId)).toMatchObject({
+    oidcTransport: "native",
+    oidcAuthorizationEndpoint: endpoints["Authorization endpoint (optional)"],
+    oidcTokenEndpoint: endpoints["Token endpoint (optional)"],
+    jwksUri: endpoints["JWKS URI (optional)"],
+    oidcTokenAuthentication: "client_secret_basic",
+    clientSecret: "",
+  });
+  for (const label of Object.keys(endpoints))
+    field(label, "https://discarded.example.invalid/endpoint");
+  await user.selectOptions(screen.getByLabelText("Connection route"), "auto");
+  await user.selectOptions(
+    screen.getByLabelText("Token endpoint authentication"),
+    "client_secret_post",
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Reload identity configuration" }),
+  );
+  for (const [label, value] of Object.entries(endpoints))
+    expect(screen.getByLabelText(label)).toHaveProperty("value", value);
+  expect(screen.getByLabelText("Connection route")).toHaveProperty(
+    "value",
+    "native",
+  );
+  expect(screen.getByLabelText("Token endpoint authentication")).toHaveProperty(
+    "value",
+    "client_secret_basic",
+  );
+  expect(screen.getByLabelText("Client secret (server client)")).toHaveProperty(
+    "value",
+    "",
+  );
+  expect(JSON.stringify([...f.storage.files.values()])).not.toContain(
+    f.draft.clientSecret,
+  );
+  const idp = signInMethods().providers.find(
+    (entry) => entry.connectionId === saved.connectionId,
+  );
+  if (!idp) throw new Error("Missing saved custom endpoint projection");
+  cleanup();
+  await kvFlush();
+  kvForgetAll();
+  forgetAtRestKeyForTest();
+  await kvHydrate([SETTINGS_PERSIST_KEY]);
+  expect(readIdentityConnection(saved.connectionId)).toBeNull();
+  const browser = popup(f.idp);
+  let pending: Promise<void> | undefined;
+  render(
+    <>
+      <button
+        type="button"
+        onClick={() =>
+          startConfiguredIdentity(idp, {
+            open: vi.fn(),
+            legacy: vi.fn(),
+            fail: vi.fn(),
+            start: (run) => {
+              pending = run();
+            },
+          })
+        }
+      >
+        Use custom SSO
+      </button>
+      <NativeOidcPeeringGate />
+    </>,
+  );
+  await user.click(screen.getByRole("button", { name: "Use custom SSO" }));
+  expect(browser.locations).toEqual([]);
+  await approve(f, user);
+  await pending;
+  expect(readNativeFederationSession()).toMatchObject({
+    assertionFormat: "native-oidc",
+    pairwiseSub: "owned-person",
+    issuer: f.draft.issuer,
+    idToken: "",
+  });
+  expect(f.idp.requests.map((row) => row.path)).toEqual([
+    "/issuer/jwks",
+    "/issuer/jwks",
+    "/issuer/jwks",
+    "/issuer/token",
+    "/issuer/jwks",
+  ]);
+  expect(f.idp.requests.map((row) => row.host)).toEqual(
+    Array(5).fill(new URL(f.idp.tokenBase).host),
+  );
+  expect(browser.locations).toHaveLength(1);
+  const authorization = new URL(browser.locations[0] ?? "");
+  expect(authorization.origin + authorization.pathname).toBe(
+    endpoints["Authorization endpoint (optional)"],
+  );
+  expect(authorization.searchParams.get("organization")).toBe("org_actual");
+  await waitFor(() => expect(browser.acknowledgements()).toBe(1));
+  expect(f.captures()).toBe(3);
+  expect(f.retired()).toBe(3);
+  expect(f.idp.errors).toEqual([]);
+  expect(browser.errors).toEqual([]);
+  expect(f.browserFetch).not.toHaveBeenCalled();
+  expect(readFederationSessionJson()).toBeNull();
+});

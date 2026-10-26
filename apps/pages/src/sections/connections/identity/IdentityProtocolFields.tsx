@@ -92,6 +92,44 @@ function SamlFields(props: IdentityFieldProps) {
   );
 }
 
+function OidcEndpointOptions(props: IdentityFieldProps) {
+  return (
+    <fieldset className="cx-form" disabled={props.busy}>
+      <SelectField
+        label="Connection route"
+        value={props.draft.oidcTransport}
+        options={[
+          { id: "auto", label: "Default for this client" },
+          { id: "native", label: "Tailscale browser node" },
+        ]}
+        onChange={(value) => props.onChange("oidcTransport", value)}
+      />
+      <IdentityDraftFields
+        {...props}
+        fields={[
+          {
+            key: "oidcAuthorizationEndpoint",
+            label: "Authorization endpoint (optional)",
+          },
+          { key: "oidcTokenEndpoint", label: "Token endpoint (optional)" },
+          { key: "jwksUri", label: "JWKS URI (optional)" },
+        ]}
+      />
+      <SelectField
+        label="Token endpoint authentication"
+        value={props.draft.oidcTokenAuthentication}
+        options={[
+          { id: "auto", label: "Provider discovery" },
+          { id: "none", label: "Public client (PKCE)" },
+          { id: "client_secret_basic", label: "Client secret in HTTP Basic" },
+          { id: "client_secret_post", label: "Client secret in request body" },
+        ]}
+        onChange={(value) => props.onChange("oidcTokenAuthentication", value)}
+      />
+    </fieldset>
+  );
+}
+
 function OidcFields(props: IdentityFieldProps) {
   const confidential =
     props.draft.oidcClientType === "confidential" || !!props.draft.clientSecret;
@@ -134,6 +172,7 @@ function OidcFields(props: IdentityFieldProps) {
               (field) => field.key !== "clientSecret" || confidential,
             )}
           />
+          <OidcEndpointOptions {...props} />
           <IdentityDraftFields
             {...props}
             fields={[
