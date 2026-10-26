@@ -6,6 +6,7 @@ import type {
 } from "../../lib/identity-connections-schema.js";
 import type { NativeIdentityOwner } from "../../lib/identity-native-owner.js";
 import {
+  configuredOidcClientOptions,
   configuredOidcOrganization,
   isNativeOidcConfiguration,
   nativeOidcCallbackUri,
@@ -33,6 +34,7 @@ function config(draft: IdentityConnectionDraft): ConfiguredOidc {
     clientSecret: draft.clientSecret,
     scope: draft.scope,
     organization: configuredOidcOrganization(draft),
+    ...configuredOidcClientOptions(draft),
   });
 }
 function redirectUri(): string {
@@ -45,12 +47,18 @@ export async function testConfiguredNativeOidc(
 ): Promise<IdentityConnectionTest> {
   owner.assertCurrent();
   transport.assertCurrent();
-  await prepareConfiguredOidc(config(draft), redirectUri(), transport, owner);
+  const prepared = await prepareConfiguredOidc(
+    config(draft),
+    redirectUri(),
+    transport,
+    owner,
+  );
   owner.assertCurrent();
   transport.assertCurrent();
   return {
-    message:
-      "OIDC discovery supports the configured client authentication. Sign in to verify your account and organization.",
+    message: prepared.manualEndpoints
+      ? "The configured OIDC signing-key endpoint is reachable. Sign in to verify the client, account and organization."
+      : "OIDC discovery supports the configured client authentication. Sign in to verify your account and organization.",
   };
 }
 export async function signInConfiguredNativeOidc(
