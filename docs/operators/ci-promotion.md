@@ -185,13 +185,18 @@ Before the first hosted release, verify existing external settings:
   required reviewers.
   The reviewed proposals are `ops/github/release-environment.json` and
   `ops/github/release-environment-branches.json`; the latter allows only
-  `main`. The separate `v*` tag ruleset protects version reservations.
+  `main`. Separate `v*` tag rulesets govern creation and mutation.
 - CodeQL must use advanced setup for these uploads; default setup must not
   independently own them.
 - Actions must permit the narrowly scoped contents/Pages/attestations/OIDC and
   code-scanning permissions requested by the specific jobs.
-- A configured tag ruleset must admit the intended publisher, or the owner
-  must create the exact tag in advance. The workflow does not bypass tag policy.
+- Verify both configured tag rulesets with `node ops/github/governance.mjs --verify`:
+  `opensesame-release-tag-creation` allows only owner/admin and Actions app 15368
+  to create a version reservation; `opensesame-release-tags` allows only the
+  owner/admin to move or delete it. Never add the Actions bypass to the mutation
+  ruleset. An owner-created tag at the exact verified source remains supported.
+  Checked-in policies are proposals until live application and verification
+  succeed; denied settings access must block activation, not relax protection.
 - Review external provider Git integrations separately: a Vercel or similar
   main-triggered rebuild is outside this publisher and this weekly cadence.
 

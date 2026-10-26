@@ -14,13 +14,34 @@ does not supply a second human maintainer or automatically satisfy an approval
 requirement. Add a real eligible reviewer before enabling mandatory approvals;
 do not lock the sole maintainer out or fabricate approval records.
 
-A second ruleset, `opensesame-release-tags` (`release-tags.json`), protects
-release version reservations: only a repository admin may create, move or delete
-`v*` tags. The trusted main controller stages a tag naming the qualified candidate
-before publication and rechecks its target. Tag protection remains separate from
-the `release` environment: scheduled promotion executes on `main`, not the tag.
-The admin role is the tag ruleset's one bypass actor. `--apply` writes that
-ruleset; `--verify` fails until it is in place.
+Two tag rulesets protect `refs/tags/v*` independently:
+
+- `opensesame-release-tags` (`release-tags.json`) restricts updates and deletion
+  to the repository admin (role 5). GitHub Actions has no mutation bypass.
+- `opensesame-release-tag-creation` (`release-tag-creation.json`) restricts new
+  tag creation to that admin and the GitHub Actions integration (app 15368).
+  This lets the publisher reserve a tag naming the verified candidate using
+  its job-scoped `GITHUB_TOKEN`, without receiving permission to move or delete
+  an existing tag.
+
+The creation exception identifies the Actions app, not one workflow. Any job
+with repository contents-write permission could reserve a new version tag;
+keep that permission narrowly scoped. The publisher independently validates
+candidate/source identity and refuses occupied or moved tags. Tag restrictions
+remain separate from the `release` environment: scheduled promotion executes
+on `main`, not the tag. Main's ruleset receives no bypass actor.
+
+`--apply` and `--verify` cover both named tag rulesets. On first activation,
+apply bootstraps combined owner-only tag protection, installs the creation-only
+exception, then removes creation from the original ruleset. During migration,
+the original creation restriction remains until the new rule is installed.
+Failure leaves the stronger restriction in place and verification fails. A
+checked-in proposal or HTTP 403 is not activation: after an authorized admin
+can apply settings, verify both live tag policies before release. GitHub documents that
+[rulesets aggregate](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#about-rule-layering),
+that [creation, update and deletion restrictions require their own bypass](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets),
+and that [`GITHUB_TOKEN` authenticates as a GitHub App installation](https://docs.github.com/en/actions/concepts/security/github_token),
+not as the owner who initiated the run.
 
 `release-environment.json` and `release-environment-branches.json` are the concrete
 proposed settings for that environment, not evidence of applied protection.
@@ -45,7 +66,7 @@ node ops/github/governance.mjs --verify
 
 Dry-run reads live state and prints the proposed changes; it writes nothing.
 Apply requires repository-administration and environment permissions. It only
-creates/updates the two named rulesets, preserves unrelated rulesets, enables
+creates/updates the three named rulesets, preserves unrelated rulesets, enables
 auto-merge, and restricts the existing github-pages environment to the current
 default branch. Non-default branch/tag environment policies (including the
 legacy gh-pages branch) are removed: manual deployment from them no longer
