@@ -23,7 +23,7 @@
  *    at all but a TURN server: the owner names one in Routes, relay only, and
  *    a Nostr carrier. Both peer connections are relay-only, the pair they
  *    select is relay to relay, and nobody pastes anything. One walk for each
- *    way to reach the server: `turn:` over UDP (node-turn on loopback),
+ *    way to reach the server: `turn:` over UDP (node-turn on this machine's interface),
  *    `turn:` with `?transport=tcp`, and `turns:` (TLS, a throwaway
  *    self-signed certificate whose public key alone Chromium is told to
  *    trust) — the last two on `live-turn`, a real pion/turn server. Each
@@ -74,6 +74,7 @@ import { keepBrowserOutput } from "./lib/browser-output.mjs";
 import { dedicatedSite } from "./lib/live-dedicated.mjs";
 import {
   NO_ROUTE_STEPS,
+  defaultRouteAddress,
   engineOf,
   enginesFrom,
   lacks,
@@ -232,10 +233,10 @@ bindNats({
   TLS,
 });
 
-// A throwaway certificate for 127.0.0.1: the TLS TURN server's, and a
-// carrier's TLS front where a pair needs one. Chromium trusts its public key
+// A throwaway certificate for this machine's TURN address and loopback
+// carrier TLS fronts. Chromium trusts its public key
 // alone, by flag: no blanket certificate override.
-const cert = mintTurnCert(TURN);
+const cert = mintTurnCert(TURN, await defaultRouteAddress());
 const turnFixture = { binary: TURN, cert: cert.missing ? undefined : cert };
 TLS.cert = turnFixture.cert;
 

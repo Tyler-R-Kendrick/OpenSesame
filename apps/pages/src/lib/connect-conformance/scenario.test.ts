@@ -15,6 +15,8 @@ describe("Asana current-user conformance responses", () => {
       const { profile } = scenario(plan, method);
       const target =
         VERIFY_TARGETS.asana[method === "api-key" ? "apiKey" : "oauth"];
+      if (!target)
+        throw new Error(`The actual Asana ${method} target is required`);
       expect(target.url).toBe("https://app.asana.com/api/1.0/users/me");
       expect(target.accountField).toBe("data.name");
       if (method === "api-key") expect(target.requiredFields).toContain("data");

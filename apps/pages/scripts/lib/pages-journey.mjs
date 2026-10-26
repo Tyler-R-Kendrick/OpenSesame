@@ -1,5 +1,6 @@
 /** Shared PIN-seal and chrome helpers for experience Playwright walks. */
 
+import { expect } from "@playwright/test";
 import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
@@ -101,6 +102,13 @@ export async function openSection(page, label) {
     .click();
 }
 
+/** Activate a visible switch without dismissing a notice over its pointer target. */
+export async function activateCapabilitySwitch(page, key) {
+  await key.focus();
+  await expect(key).toBeFocused();
+  await page.keyboard.press("Space");
+}
+
 /**
  * Choose capabilities the way a person does — Settings › Features and the
  * capability's switch, which commits in place. A device that has approved
@@ -120,7 +128,7 @@ export async function addCapabilities(page, titles) {
       continue;
     }
     await add.waitFor({ timeout: 15000 });
-    await add.click();
+    await activateCapabilitySwitch(page, add);
     await page.getByTestId("capability-review").waitFor({
       state: "detached",
       timeout: 15000,
