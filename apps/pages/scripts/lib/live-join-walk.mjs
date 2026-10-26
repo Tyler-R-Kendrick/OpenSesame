@@ -307,9 +307,8 @@ async function confirmSessionSas(panel) {
 
 /**
  * The owner pastes a request by hand and lets the person in. An open session
- * still auto-admits a request with no peer block (`admit: false`). A request
- * that shows a session SAS waits for "Yes, they match" either way. The reply
- * code.
+ * auto-admits requests (`admit: false`), so wait for its reply rather than
+ * clicking the transient comparison row. Invite sessions require approval.
  */
 export async function ownerAdmitsByHand(
   page,
@@ -335,13 +334,6 @@ export async function ownerAdmitsByHand(
       await match.click();
     } else {
       await letIn.click();
-    }
-  } else {
-    await match.or(copy).first().waitFor({ timeout: 20_000 });
-    await beforeAdmit?.();
-    if (await match.isVisible()) {
-      await confirmSessionSas(panel);
-      await match.click();
     }
   }
   await copy.waitFor({ timeout: 20_000 });

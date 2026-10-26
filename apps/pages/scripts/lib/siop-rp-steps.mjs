@@ -132,17 +132,20 @@ export async function gotoAfterAbort(page, url) {
   }
 }
 
-const BINDING_COOKIE = "__Host-siop_binding";
+const BINDING_COOKIE_PREFIX = "__Host-siop_binding_";
 
 /**
  * The binding cookie as this browser holds it, or null. The jar is read whole:
  * filtering it by an `http` URL would hide a `Secure` cookie even though
  * Chromium treats loopback as a secure context and keeps it.
  */
-export async function bindingCookieOf(context, rpUrl) {
+export async function bindingCookieOf(context, rpUrl, state) {
+  expect(state).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
   const { hostname } = new URL(rpUrl);
   const held = (await context.cookies()).find(
-    (cookie) => cookie.name === BINDING_COOKIE && cookie.domain === hostname,
+    (cookie) =>
+      cookie.name === `${BINDING_COOKIE_PREFIX}${state}` &&
+      cookie.domain === hostname,
   );
   return held ?? null;
 }

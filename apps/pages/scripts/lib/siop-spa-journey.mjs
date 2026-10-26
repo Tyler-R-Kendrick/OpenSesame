@@ -129,8 +129,17 @@ export function checkPublishedMetadata(dist, siopVerify, origin, base) {
   expect(published).toBe(siopVerify.expectedMetadataText(origin, base));
   expect(published).not.toMatch(/token_endpoint|jwks_uri/);
   expect(JSON.parse(published).opensesame.conventional_oidc).toBe(false);
-  expect(fs.existsSync(`${dist}/.well-known`)).toBe(false);
+  // security.txt and authenticator associations are unrelated to OIDC discovery.
+  for (const name of [
+    ".well-known/openid-configuration",
+    ".well-known/oauth-authorization-server",
+    "identity/siop/.well-known/openid-configuration",
+    ".well-known/oauth-authorization-server/identity/siop",
+    ".well-known/jwks.json",
+    ".well-known/jwks",
+  ])
+    expect(fs.existsSync(`${dist}/${name}`)).toBe(false);
   console.log(
-    "PASS metadata artifact: dist/siop-metadata.json is byte-identical to the kit's document, claims no token endpoint or jwks_uri, and no .well-known is shipped",
+    "PASS metadata artifact: dist/siop-metadata.json is byte-identical to the kit's document, claims no token endpoint or jwks_uri, and no conventional OIDC discovery or JWKS document is shipped",
   );
 }
