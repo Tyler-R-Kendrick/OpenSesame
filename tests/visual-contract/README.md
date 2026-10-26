@@ -243,6 +243,20 @@ branch then passed all six screens with Chrome for Testing 153.0.8010.12,
 `VISUAL_UPDATE` unset. Pixel/content thresholds, dimensions, fonts and
 comparison code remain unchanged.
 
+**2026-10-26.** Five fixtures were deliberately refreshed after the complete
+repository gate exposed stale references: both front-door and PIN-seal screens,
+plus the desktop vault list. Separate production builds of main `427d8921c`
+and the CI follow-up `8edaccd78`, walked through the unchanged enrollment journey
+with Chromium 151.0.7922.173, produced pixel-identical captures for all six
+screens. Each old baseline and actual capture was opened and reviewed.
+The existing UI already has the Release Notes title and version/Latest panels,
+stacked PIN fields, lower desktop seal card and centered dial from `2da62c518`,
+and the unified session header from `7a3d98ef1`. The old fixtures predate those
+layouts. The mobile vault-list reference remains within both comparison budgets
+and was retained. Local captures also match the failed hosted Chrome 155
+captures within the existing budgets. No application UI, threshold, font,
+viewport, enrollment assertion or comparison logic changed.
+
 ## What the orchestrator should do next
 
 If `apps/pages` changes in a way that's expected to alter its rendering,

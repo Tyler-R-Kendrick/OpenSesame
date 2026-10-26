@@ -51,17 +51,14 @@ export async function reopenKeyboardSession(page, tabTo, focusIn) {
     .getByRole("button", { name: "Open live session", exact: true })
     .filter({ visible: true });
   await tabTo(page, open);
+  await expect(open).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("img", { name: "Joined Team" })).toBeVisible({
     timeout: 45_000,
   });
-  // This shell key survives navigation: the focus policy keeps the chosen key.
-  await expect(open).toBeFocused();
-  await focusIn(
-    page,
-    'button[aria-label="Open live session"]',
-    "after opening shared items",
-  );
+  // The persistent shell key hands focus to the destination's joined status.
+  await expect(page.locator("#live-status")).toBeFocused();
+  await focusIn(page, "#live-status", "after opening shared items");
   const leave = page
     .locator(".live-join")
     .getByRole("button", { name: "Leave the session", exact: true });

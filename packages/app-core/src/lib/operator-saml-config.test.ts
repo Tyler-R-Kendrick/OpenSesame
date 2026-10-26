@@ -47,9 +47,25 @@ it.each([
 ] as const)("rejects incomplete native public trust: %s", (_name, changed) => {
   expect(readOperatorIdp({ ...native(), ...changed })).toBeNull();
 });
-it("never converts a saved SAML provider into an OAuth discovery/code upstream", () => {
-  expect(() => operatorUpstream(native())).toThrow(/native SAML/);
-});
+it.each([
+  ["SAML", native()],
+  [
+    "native OIDC",
+    {
+      ...native(),
+      protocol: "oidc",
+      nativeIdentity: true,
+      issuer: "https://identity.example.test",
+    },
+  ],
+] satisfies [string, OperatorIdp][])(
+  "never converts a saved %s provider into an OAuth discovery/code upstream",
+  (_name, provider) => {
+    expect(() => operatorUpstream(provider)).toThrow(
+      "Use the saved native identity connection for this identity",
+    );
+  },
+);
 it("native SAML public trust cannot authorize a legacy persisted OIDC/opaque assertion", () => {
   const baseline = loadSettings();
   settingsSeams.loadSettings = () => ({

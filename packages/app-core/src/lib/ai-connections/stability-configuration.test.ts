@@ -196,6 +196,7 @@ describe("image family cannot borrow text framing or credential builders", () =>
       { pull: pulled, cancel: cancelled },
       { highWaterMark: 0 },
     );
+    const acquire = vi.spyOn(body, "getReader");
     const response = new Response(body, {
       headers: { "content-type": "text/event-stream" },
     });
@@ -209,6 +210,8 @@ describe("image family cannot borrow text framing or credential builders", () =>
       ),
     ).rejects.toThrow();
     expect(pulled).not.toHaveBeenCalled();
+    expect(acquire).not.toHaveBeenCalled();
+    expect(cancelled).not.toHaveBeenCalled();
     expect(onText).not.toHaveBeenCalled();
     expect(check).not.toHaveBeenCalled();
     expect(response.bodyUsed).toBe(false);

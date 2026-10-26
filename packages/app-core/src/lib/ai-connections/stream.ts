@@ -115,6 +115,8 @@ export async function readAiTextStream(
   check: () => void,
   signal: AbortSignal,
 ): Promise<string> {
+  // Unsupported families never transfer response-body custody to this parser.
+  textAiFamily(family);
   let body: ReturnType<typeof aiStreamBody> | undefined;
   const decoder = new TextDecoder();
   let pending = "";
@@ -138,7 +140,6 @@ export async function readAiTextStream(
     onText(result.text);
   }
   try {
-    textAiFamily(family);
     if (
       !response.headers
         .get("content-type")

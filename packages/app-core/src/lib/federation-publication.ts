@@ -143,7 +143,10 @@ export async function runOwnedFederationExchange(
 export function consumeBrokeredPublication(
   accessToken: string,
   initiating: FederationSessionGeneration | undefined,
-) {
+): Readonly<{
+  generation: FederationSessionGeneration;
+  assertCurrent: () => void;
+}> | null {
   const original = brokeredPublication;
   if (
     !original ||
