@@ -29,6 +29,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { startDaemonStub } from "./daemon-stub.mjs";
 import { startSites } from "./sites.mjs";
+import { readyWorker } from "./worker.mjs";
 
 const PACKAGE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -118,10 +119,7 @@ export async function startSession({
   }
   const consoles = [];
   context.on("console", (message) => consoles.push(message.text()));
-  const worker = async () => {
-    const [known] = context.serviceWorkers();
-    return known ?? context.waitForEvent("serviceworker");
-  };
+  const worker = () => readyWorker(context);
   const id = new URL((await worker()).url()).host;
   return {
     context,

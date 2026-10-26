@@ -70,10 +70,10 @@ async function device(browser) {
     dist: DIST,
     passthrough: [],
   });
-  await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: ORIGIN,
-  });
-  await allowLoopbackDevelopment(made.page, ORIGIN);
+  await allowLoopbackDevelopment(made.page, ORIGIN, [
+    "clipboardReadWrite",
+    "clipboardSanitizedWrite",
+  ]);
   await made.context.addInitScript(WATCH_RTC);
   return made;
 }

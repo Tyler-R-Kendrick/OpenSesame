@@ -129,8 +129,15 @@ export function checkPublishedMetadata(dist, siopVerify, origin, base) {
   expect(published).toBe(siopVerify.expectedMetadataText(origin, base));
   expect(published).not.toMatch(/token_endpoint|jwks_uri/);
   expect(JSON.parse(published).opensesame.conventional_oidc).toBe(false);
-  expect(fs.existsSync(`${dist}/.well-known`)).toBe(false);
+  // The isolated web app legitimately publishes its manifest under .well-known.
+  // It must not make this self-issued profile look like a conventional IdP.
+  const documents = fs.existsSync(`${dist}/.well-known`)
+    ? fs.readdirSync(`${dist}/.well-known`)
+    : [];
+  expect(
+    documents.filter((document) => document !== "manifest.webmanifest"),
+  ).toEqual([]);
   console.log(
-    "PASS metadata artifact: dist/siop-metadata.json is byte-identical to the kit's document, claims no token endpoint or jwks_uri, and no .well-known is shipped",
+    "PASS metadata artifact: dist/siop-metadata.json is byte-identical to the kit's document, claims no token endpoint or jwks_uri, and ships no conventional OIDC discovery document",
   );
 }

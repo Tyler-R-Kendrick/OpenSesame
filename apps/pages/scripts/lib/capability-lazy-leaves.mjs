@@ -5,6 +5,31 @@
 
 const toPosix = (path) => path.replace(/\\/g, "/");
 
+/** Shared loader glue has no feature imports and must not pull another SDK. */
+export function commonJsRuntimeChunk(id) {
+  return [
+    "\0commonjsHelpers.js",
+    "\0commonjs-dynamic-modules",
+    "__vite-browser-external",
+    "\0__vite-browser-external?commonjs-proxy",
+  ].includes(id)
+    ? "commonjs-runtime"
+    : undefined;
+}
+
+/** Package-private CommonJS state must initialize with the NATS implementation. */
+export function natsCommonJsSource(id) {
+  if (!id.startsWith("\0")) return null;
+  const source = toPosix(id.slice(1)).replace(
+    /\?commonjs-(?:exports|module|es-import|proxy)$/,
+    "",
+  );
+  if (source.includes("?") || source === toPosix(id.slice(1))) return null;
+  return /\/node_modules\/(?:@nats-io\/|tweetnacl\/)/.test(source)
+    ? source
+    : null;
+}
+
 const ONEPASSWORD_SOURCE =
   /\/packages\/app-core\/src\/lib\/secret-backends\/onepassword-(?:sdk(?:-[a-z0-9-]+|\.worker)?|worker-[a-z0-9-]+)\.[jt]s$/;
 
