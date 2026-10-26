@@ -209,9 +209,11 @@ cutover prerequisite, not a claim made by the prototype producer.
 
 Preserve `SHA256SUMS` for the explicit set of native files being published. It may
 be generated from the verified manifest without rebuilding/repacking those files;
-its entries must exclude test-only archives unless a separately named test-artifact
-channel is deliberately supported. Verify the checksum file and every published
-entry before making a release public. Do not wildcard-upload the complete bundle.
+its entries cover every explicitly published asset. The existing release contract
+distributes clearly named TEST archives for downstream validation; preserve those
+through a separate test-asset allowlist while denying them admission as production
+executables. Verify the checksum file and every published entry before making a
+release public. Do not wildcard-upload the complete bundle.
 
 For Pages, download the existing candidate, verify the full payload, upload those
 unchanged files as the Pages artifact in the publication run, and deploy. Packaging

@@ -58,6 +58,11 @@ otherwise write the same filename under `target/release`. Separate upload names
 and `production/` versus `test-only/` directories preserve this distinction.
 Consumers select explicit production manifest entries; they must not publish
 the entire complete-bundle directory with a wildcard.
+The existing release contract also distributes explicitly named TEST archives
+for downstream validation. Preserve that capability with a separate test-asset
+allowlist and labeling; publishing a test download does not authorize installing
+it as a production executable. The publisher's checksum inventory covers every
+explicitly published asset, including those separately named test downloads.
 
 The final manifest step requires all expected files and rejects missing or
 unexpected files and symbolic links. It checks archive membership, checks the

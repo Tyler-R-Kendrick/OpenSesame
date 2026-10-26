@@ -145,4 +145,6 @@ jobs:
       # Pages: download exact dist; upload-pages-artifact may repackage it into
       # this run, then deploy-pages. Payload bytes/hash stay fixed; no rebuild or
       # restamping. Use existing pinned actions and the live revision verifier.
-      # Publish native kits from production/ only; test-only/ is never an asset.
+      # Publish native runtime packages from production/ only. Preserve explicitly
+      # named TEST archives for downstream validation through a separate asset
+      # allowlist; never install them as production executables or wildcard-upload.
