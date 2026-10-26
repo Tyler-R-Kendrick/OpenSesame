@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 447,
-    "violations": 713,
-    "oversizedLines": 221131
+    "files": 446,
+    "violations": 712,
+    "oversizedLines": 220232
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -269,7 +269,7 @@
       "max-lines": 676
     },
     "crates/connection-broker/src/delegation.rs": {
-      "max-lines": 1556
+      "max-lines": 1493
     },
     "crates/connection-broker/src/egress.rs": {
       "max-lines": 518
@@ -425,7 +425,7 @@
       "max-lines": 1592
     },
     "crates/gateway/src/routes/relay.rs": {
-      "max-lines": 955
+      "max-lines": 674
     },
     "crates/gateway/src/routes/rotation.rs": {
       "max-lines": 645
@@ -836,7 +836,7 @@
       "max-lines": 996
     },
     "packages/control-plane/src/__tests__/federated-interaction.test.ts": {
-      "max-lines": 1618
+      "max-lines": 1613
     },
     "packages/control-plane/src/__tests__/federated-leg.chaos.test.ts": {
       "complexity": 1,
@@ -873,16 +873,16 @@
       "max-lines": 536
     },
     "packages/control-plane/src/__tests__/org-domains.test.ts": {
-      "max-lines": 551
+      "max-lines": 547
     },
     "packages/control-plane/src/__tests__/org-signin-flow.test.ts": {
-      "max-lines": 561
+      "max-lines": 559
     },
     "packages/control-plane/src/__tests__/organizations-edge.test.ts": {
       "max-lines": 683
     },
     "packages/control-plane/src/__tests__/organizations-tenant.test.ts": {
-      "max-lines": 455
+      "max-lines": 418
     },
     "packages/control-plane/src/__tests__/origin-claim-admin.test.ts": {
       "max-lines": 1041
@@ -903,16 +903,16 @@
       "max-lines": 816
     },
     "packages/control-plane/src/__tests__/registry.units.test.ts": {
-      "max-lines": 1164
+      "max-lines": 1162
     },
     "packages/control-plane/src/__tests__/saml-security.test.ts": {
-      "max-lines": 464
+      "max-lines": 458
     },
     "packages/control-plane/src/__tests__/saml-sp.test.ts": {
-      "max-lines": 566
+      "max-lines": 563
     },
     "packages/control-plane/src/__tests__/scim.test.ts": {
-      "max-lines": 633
+      "max-lines": 615
     },
     "packages/control-plane/src/app.ts": {
       "max-lines-per-function": 1,
@@ -920,7 +920,7 @@
     },
     "packages/control-plane/src/config.ts": {
       "complexity": 2,
-      "max-lines": 520,
+      "max-lines": 519,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -932,7 +932,7 @@
       "max-lines": 455
     },
     "packages/control-plane/src/interactions/federated.ts": {
-      "max-lines": 873
+      "max-lines": 809
     },
     "packages/control-plane/src/interactions/handlers.ts": {
       "complexity": 3,
@@ -955,7 +955,7 @@
     },
     "packages/control-plane/src/interactions/saml.ts": {
       "complexity": 3,
-      "max-lines": 1363,
+      "max-lines": 1275,
       "max-lines-per-function": 2,
       "max-statements": 2
     },
@@ -982,9 +982,6 @@
       "max-lines": 1415,
       "max-lines-per-function": 4,
       "max-statements": 1
-    },
-    "packages/control-plane/src/routes/backchannel-logout.ts": {
-      "max-lines": 423
     },
     "packages/control-plane/src/routes/claims.ts": {
       "complexity": 1,
@@ -1075,7 +1072,7 @@
     },
     "packages/control-plane/src/routes/organizations.ts": {
       "complexity": 1,
-      "max-lines": 1042,
+      "max-lines": 990,
       "max-lines-per-function": 2
     },
     "packages/control-plane/src/routes/principals.ts": {
@@ -1089,7 +1086,7 @@
       "max-lines-per-function": 3
     },
     "packages/control-plane/src/routes/scim.ts": {
-      "max-lines": 605,
+      "max-lines": 603,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/siop-link.ts": {
@@ -1159,14 +1156,14 @@
       "max-lines-per-function": 1
     },
     "packages/database/src/repos/interfaces.ts": {
-      "max-lines": 851
+      "max-lines": 841
     },
     "packages/database/src/repos/memory.ts": {
-      "max-lines": 1718
+      "max-lines": 1714
     },
     "packages/database/src/repos/postgres.ts": {
       "complexity": 1,
-      "max-lines": 2697
+      "max-lines": 2656
     },
     "packages/database/src/repos/sealed-secrets-sweep.ts": {
       "complexity": 1
@@ -1273,7 +1270,7 @@
     },
     "packages/oauth-provider/src/create-provider.ts": {
       "complexity": 1,
-      "max-lines": 499,
+      "max-lines": 493,
       "max-lines-per-function": 1
     },
     "packages/oauth-provider/src/metadata/safe-fetcher.ts": {

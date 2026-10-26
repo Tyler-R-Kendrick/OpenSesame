@@ -5,6 +5,31 @@
 
 const toPosix = (path) => path.replace(/\\/g, "/");
 
+/** Shared loader glue has no feature imports and must not pull another SDK. */
+export function commonJsRuntimeChunk(id) {
+  return [
+    "\0commonjsHelpers.js",
+    "\0commonjs-dynamic-modules",
+    "__vite-browser-external",
+    "\0__vite-browser-external?commonjs-proxy",
+  ].includes(id)
+    ? "commonjs-runtime"
+    : undefined;
+}
+
+/** Package-private CommonJS state must initialize with the NATS implementation. */
+export function natsCommonJsSource(id) {
+  if (!id.startsWith("\0")) return null;
+  const source = toPosix(id.slice(1)).replace(
+    /\?commonjs-(?:exports|module|es-import|proxy)$/,
+    "",
+  );
+  if (source.includes("?") || source === toPosix(id.slice(1))) return null;
+  return /\/node_modules\/(?:@nats-io\/|tweetnacl\/)/.test(source)
+    ? source
+    : null;
+}
+
 const ONEPASSWORD_SOURCE =
   /\/packages\/app-core\/src\/lib\/secret-backends\/onepassword-(?:sdk(?:-[a-z0-9-]+|\.worker)?|worker-[a-z0-9-]+)\.[jt]s$/;
 
@@ -88,6 +113,9 @@ const LAZY_LEAVES = [
   ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],
   ["/src/modules/sharing.live/carriers/nats", "sharing.live", "live-nats"],
   ["/node_modules/@nats-io/", "sharing.live", "live-nats"],
+  // nkeys' CommonJS signer otherwise lands in an automatic index chunk with
+  // the native connector metadata, mixing sharing.live and connectors.external.
+  ["/node_modules/tweetnacl/", "sharing.live", "live-nats"],
   // A session's minted NATS credential (ADR 0167), reached only through
   // transport.ts's import() when a profile mints: it loads with the client.
   [

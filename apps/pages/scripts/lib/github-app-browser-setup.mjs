@@ -214,15 +214,15 @@ export async function bindRepository(
     exact: true,
   });
   await expect(repository).toBeEnabled();
-  if (create) {
-    await repository.focus();
-    await page
-      .getByRole("option", {
-        name: "fixture-owner/existing-private",
-        exact: true,
-      })
-      .waitFor();
-  }
+  // Focusing claims the editable draft and opens the loaded choices. Let that
+  // controlled-input transition settle before fill selects and replaces it.
+  await repository.focus();
+  await page
+    .getByRole("option", {
+      name: create ? "fixture-owner/existing-private" : `fixture-owner/${name}`,
+      exact: true,
+    })
+    .waitFor();
   await repository.fill(`fixture-owner/${name}`);
   assert.equal(
     await repository.inputValue(),
@@ -302,8 +302,12 @@ export async function editCanary(page, { base, route, name, value }) {
   await page.getByRole("heading", { name, exact: true }).waitFor();
 }
 async function openPhoneExport(page) {
+  // All opens the list asynchronously; its Add key sits above the list's
+  // status line, not at the tree pane's old coordinates.
+  await page.locator('.vault[data-pane="list"]').waitFor();
   const fab = page.locator(".fab__add").filter({ visible: true });
   await expect(fab).toHaveCount(1);
+  await fab.click({ trial: true });
   const box = await fab.boundingBox();
   assert.ok(box, "Actual phone Add key is visible");
   const session = await page.context().newCDPSession(page);
@@ -313,7 +317,8 @@ async function openPhoneExport(page) {
       type: "touchStart",
       touchPoints: [at],
     });
-    await page.waitForTimeout(700);
+    const exportZone = page.locator(".add-slide__zone--down");
+    await expect(exportZone).toHaveText("Export items");
     for (let step = 1; step <= 6; step++) {
       await session.send("Input.dispatchTouchEvent", {
         type: "touchMove",
@@ -321,6 +326,7 @@ async function openPhoneExport(page) {
       });
       await page.waitForTimeout(30);
     }
+    await expect(exportZone).toHaveAttribute("data-active", "true");
     await session.send("Input.dispatchTouchEvent", {
       type: "touchEnd",
       touchPoints: [],

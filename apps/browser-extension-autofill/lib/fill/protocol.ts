@@ -39,6 +39,7 @@ export type FlowOutcome =
   | "no_match"
   | "site_off"
   | "plugin_off"
+  | "approval_required"
   | "choose_in_popup"
   | "guard_unavailable";
 export type Outcome = FlowOutcome | Refusal | (string & {});

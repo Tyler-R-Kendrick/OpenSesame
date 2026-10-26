@@ -7,6 +7,7 @@
  * by the walk's own `audit`, so a regression here fails the same gate.
  */
 import fs from "node:fs";
+import { emulateFilePickers } from "./file-pickers.mjs";
 import { passTheDoor } from "./front-door.mjs";
 
 export const PIN = "48291037";
@@ -41,6 +42,7 @@ export async function protectorUnlockStops(
   page,
   { harness, audit, openTab, stop, origin, base },
 ) {
+  await emulateFilePickers(page.context());
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);
   await openSecurity(page, openTab);

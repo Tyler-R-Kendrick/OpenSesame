@@ -13,7 +13,9 @@ import { doorGuest } from "./front-door.mjs";
 import {
   copyFrom,
   joinerAsks,
+  openPeerTrustSignal,
   ownerEnters,
+  readJoinerSas,
   startSession,
 } from "./live-join-walk.mjs";
 import { waitOpen } from "./pages-journey.mjs";
@@ -138,6 +140,7 @@ async function readSas(locator) {
 }
 
 async function readExportPanel(panel, measure) {
+  await openPeerTrustSignal(panel);
   const copyKey = panel.getByRole("button", {
     name: "Copy peer trust signal",
   });
@@ -174,9 +177,11 @@ async function compareJoiner({
       name: JOINER,
       peerTrust: signal,
     });
-    measure.joinerSas = await readSas(joiner.page.locator(".live-sas").first());
+    measure.joinerSas = await readJoinerSas(joiner.page);
     const panel = started.panel;
-    await panel.getByLabel("A request code", { exact: true }).fill(request);
+    await panel
+      .getByLabel("Paste a join request", { exact: true })
+      .fill(request);
     await panel.getByRole("button", { name: "Read the request" }).click();
     const match = panel.getByRole("button", {
       name: `Yes, they match for ${JOINER}`,

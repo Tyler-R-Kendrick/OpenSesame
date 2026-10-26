@@ -153,13 +153,12 @@ async fn resolve_submit_delegation(
         .list_delegations_for(organization, subject)
         .await
         .map_err(|_| not_found())?;
-    let view = mine
-        .iter()
+    mine.iter()
         .find(|delegation| delegation.id == delegation_id && delegation.claimant_subject == subject)
         .ok_or_else(not_found)?;
     match st
         .connection_broker
-        .find_live_delegation(subject, &view.connection_id)
+        .find_live_delegation_by_id(subject, delegation_id)
         .await
     {
         Ok(Some(resolved)) if resolved.delegation_id == delegation_id => Ok(resolved),
@@ -355,23 +354,27 @@ pub async fn pending(State(st): State<AppState>, headers: axum::http::HeaderMap)
         return error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable");
     };
     let now = Utc::now();
-    let requests: Vec<Value> = rows
-        .iter()
-        .filter(|row| !expired(&row.get::<String, _>("expires_at"), now))
-        .map(|row| {
-            json!({
-                "id": row.get::<String, _>("id"),
-                "delegation_id": row.get::<String, _>("delegation_id"),
-                "connection_id": row.get::<String, _>("connection_id"),
-                "operation": row.get::<String, _>("operation"),
-                "resource": row.get::<String, _>("resource"),
-                "parameters": serde_json::from_str::<Value>(&row.get::<String, _>("parameters_json"))
-                    .unwrap_or(json!({})),
-                "request_digest": row.get::<String, _>("request_digest"),
-                "state": row.get::<String, _>("state"),
-            })
-        })
-        .collect();
+    let mut requests = Vec::new();
+    for row in &rows {
+        if expired(&row.get::<String, _>("expires_at"), now) {
+            continue;
+        }
+        let id: String = row.get("id");
+        if current_authority(&st, &id, &subject).await.is_err() {
+            continue;
+        }
+        requests.push(json!({
+            "id": id,
+            "delegation_id": row.get::<String, _>("delegation_id"),
+            "connection_id": row.get::<String, _>("connection_id"),
+            "operation": row.get::<String, _>("operation"),
+            "resource": row.get::<String, _>("resource"),
+            "parameters": serde_json::from_str::<Value>(&row.get::<String, _>("parameters_json"))
+                .unwrap_or(json!({})),
+            "request_digest": row.get::<String, _>("request_digest"),
+            "state": row.get::<String, _>("state"),
+        }));
+    }
     Json(json!({"requests": requests})).into_response()
 }
 
@@ -393,6 +396,9 @@ async fn decide(
         Err(resp) => return resp,
     };
     let now = Utc::now();
+    if approve && current_authority(st, id, &subject).await.is_err() {
+        return not_found();
+    }
     let next = if approve { "approved" } else { "denied" };
     let updated = sqlx::query(
         "UPDATE relay_requests
@@ -449,8 +455,6 @@ pub struct ResultRequest {
 }
 
 struct ResultContext {
-    delegation_id: String,
-    delegate_subject: String,
     approved_digest: String,
     approved: bool,
 }
@@ -477,44 +481,54 @@ async fn load_result_context(
         return Err(error_response(StatusCode::GONE, "expired"));
     }
     Ok(ResultContext {
-        delegation_id: row.get("delegation_id"),
-        delegate_subject: row.get("delegate_subject"),
         approved_digest: row.get("request_digest"),
         approved: row.get::<String, _>("state") == "approved",
     })
 }
 
-fn result_organization(
+/// Resolve the frozen request against today's delegation and every ancestor,
+/// before disclosing executable bytes, approving them, or accepting a result.
+async fn current_authority(
     st: &AppState,
-    headers: &axum::http::HeaderMap,
-) -> Result<opensesame_domain::OrganizationId, Response> {
-    match crate::middleware::auth::resolve_caller(st, headers) {
-        Ok(Caller::Session {
-            organization_id, ..
-        }) => Ok(organization_id),
-        _ => bootstrap_organization(st),
-    }
-}
-
-async fn live_execution_mode(
-    st: &AppState,
-    headers: &axum::http::HeaderMap,
-    context: &ResultContext,
+    id: &str,
+    holder: &str,
 ) -> Result<ExecutionMode, Response> {
-    let organization = result_organization(st, headers)?;
-    let live = st
-        .connection_broker
-        .list_delegations_for(&organization, &context.delegate_subject)
-        .await
-        .ok()
-        .and_then(|list| {
-            list.into_iter().find(|delegation| {
-                delegation.id == context.delegation_id && delegation.revoked_at.is_none()
-            })
-        });
-    Ok(live.as_ref().map_or(ExecutionMode::Broker, |delegation| {
-        delegation.execution_mode
-    }))
+    let row = sqlx::query(
+        "SELECT delegation_id, connection_id, organization_id, holder_subject,
+                delegate_subject, operation, resource, expires_at
+         FROM relay_requests WHERE id = ? AND holder_subject = ?",
+    )
+    .bind(id)
+    .bind(holder)
+    .fetch_optional(st.connection_broker.pool())
+    .await
+    .map_err(|_| error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable"))?
+    .ok_or_else(not_found)?;
+    if expired(&row.get::<String, _>("expires_at"), Utc::now()) {
+        return Err(not_found());
+    }
+    let organization =
+        opensesame_domain::OrganizationId::parse(&row.get::<String, _>("organization_id"))
+            .map_err(|_| not_found())?;
+    let delegate: String = row.get("delegate_subject");
+    let delegation_id: String = row.get("delegation_id");
+    let resolved = resolve_submit_delegation(st, &organization, &delegate, &delegation_id).await?;
+    if resolved.owner_subject != holder
+        || resolved.connection_id != row.get::<String, _>("connection_id")
+        || resolved.execution_mode != ExecutionMode::Relay
+    {
+        return Err(not_found());
+    }
+    authorize_relay_request(
+        &resolved,
+        &SubmitRequest {
+            delegation_id,
+            operation: row.get("operation"),
+            resource: row.get("resource"),
+            parameters: None,
+        },
+    )?;
+    Ok(resolved.execution_mode)
 }
 
 fn validate_result(
@@ -593,7 +607,7 @@ pub async fn result(
 
     // The delegation may have been revoked or narrowed since approval; the
     // stored digest pins the request, but authority is re-read live.
-    let mode = match live_execution_mode(&st, &headers, &context).await {
+    let mode = match current_authority(&st, &id, &subject).await {
         Ok(mode) => mode,
         Err(response) => return response,
     };
@@ -656,300 +670,5 @@ pub async fn get(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::extract::State;
-    use opensesame_connection_broker::delegation::{
-        ClaimOfferRequest, MintOfferRequest, OfferItemSpec,
-    };
-    use opensesame_connection_broker::model::ConnectionStatus;
-    use opensesame_connection_broker::store as broker_store;
-    use opensesame_domain::{ConnectionId, EgressBinding, OrganizationId, OrganizationRole};
-
-    const OWNER: &str = "principal:00000000-0000-4000-8000-000000000015";
-    const GUEST: &str = "principal:00000000-0000-4000-8000-000000000016";
-
-    async fn relay_delegation(
-        state: &crate::app_state::AppState,
-        org: OrganizationId,
-        mode: ExecutionMode,
-    ) -> String {
-        let now = Utc::now();
-        let row = broker_store::ConnectionRow {
-            id: ConnectionId::new().to_string(),
-            organization_id: org.to_string(),
-            project_id: None,
-            provider_id: "github".into(),
-            integration_id: "deployment:github".into(),
-            logical_name: format!("github-{}", uuid::Uuid::now_v7().simple()),
-            display_name: "Holder's GitHub".into(),
-            status: ConnectionStatus::Active,
-            status_detail: None,
-            requested_scopes: vec![],
-            granted_scopes: vec![],
-            account_label: None,
-            owner_kind: "user".into(),
-            owner_subject: Some(OWNER.into()),
-            shareability: "delegable".into(),
-            max_invoke_level: 2,
-            materialization: "deny".into(),
-            egress: EgressBinding {
-                scheme: "https".into(),
-                authorities: vec!["api.github.com".into()],
-                path_prefixes: vec![],
-                allow_redirects_cross_authority: false,
-            },
-            created_at: now,
-            updated_at: now,
-        };
-        broker_store::insert_connection(state.connection_broker.pool(), &row)
-            .await
-            .expect("insert connection");
-        let minted = state
-            .connection_broker
-            .mint_delegation_offer(
-                &org,
-                OWNER,
-                MintOfferRequest {
-                    items: vec![OfferItemSpec {
-                        connection_id: row.id.clone(),
-                        actions: Some(vec!["repository.read".into()]),
-                        resources: None,
-                        expires_in_seconds: None,
-                        budgets: None,
-                        execution_mode: mode,
-                        required: true,
-                        dependencies: vec![],
-                    }],
-                    ttl_seconds: None,
-                },
-                &state.claim_pepper,
-            )
-            .await
-            .expect("mint");
-        let manifest = state
-            .connection_broker
-            .present_delegation_offer(&minted.claim_token)
-            .await
-            .expect("present");
-        let delegations = state
-            .connection_broker
-            .claim_delegation_offer(
-                ClaimOfferRequest {
-                    claim_token: minted.claim_token.clone(),
-                    user_code: minted.user_code.clone(),
-                    accepted_item_ids: vec![manifest.items[0].id.clone()],
-                },
-                GUEST,
-                &state.claim_pepper,
-            )
-            .await
-            .expect("claim");
-        delegations[0].id.clone()
-    }
-
-    async fn body_json(response: Response) -> Value {
-        let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
-            .await
-            .expect("body");
-        serde_json::from_slice(&bytes).expect("json")
-    }
-
-    fn submit_body(delegation_id: &str) -> SubmitRequest {
-        SubmitRequest {
-            delegation_id: delegation_id.into(),
-            operation: "repository.read".into(),
-            resource: "repo:acme/catalog".into(),
-            parameters: Some(json!({})),
-        }
-    }
-
-    async fn open_relay_request(
-        state: &AppState,
-        holder: &axum::http::HeaderMap,
-        delegate: &axum::http::HeaderMap,
-        delegation_id: &str,
-    ) -> (String, String) {
-        // An offline holder is the end of the request, not a queue.
-        let refused = submit(
-            State(state.clone()),
-            delegate.clone(),
-            Json(submit_body(delegation_id)),
-        )
-        .await;
-        assert_eq!(refused.status(), StatusCode::CONFLICT);
-        assert_eq!(body_json(refused).await["error"], json!("holder_offline"));
-
-        // The holder announces itself; now the request parks in its inbox.
-        heartbeat(State(state.clone()), holder.clone()).await;
-        let accepted = submit(
-            State(state.clone()),
-            delegate.clone(),
-            Json(submit_body(delegation_id)),
-        )
-        .await;
-        assert_eq!(accepted.status(), StatusCode::ACCEPTED);
-        let accepted = body_json(accepted).await;
-        let id = accepted["id"].as_str().expect("id").to_string();
-        let digest = accepted["request_digest"]
-            .as_str()
-            .expect("digest")
-            .to_string();
-
-        let inbox = body_json(pending(State(state.clone()), holder.clone()).await).await;
-        assert_eq!(inbox["requests"][0]["id"], json!(id.clone()));
-
-        // Reporting a result before approval is refused: approval is the gate.
-        let early = result(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.clone()),
-            Json(ResultRequest {
-                executed_digest: digest.clone(),
-                outcome: "succeeded".into(),
-                safe_summary: None,
-            }),
-        )
-        .await;
-        assert_eq!(early.status(), StatusCode::FORBIDDEN);
-        (id, digest)
-    }
-
-    async fn approve_and_complete_relay(
-        state: &AppState,
-        holder: &axum::http::HeaderMap,
-        id: &str,
-        digest: &str,
-    ) {
-        // Approval binds to bytes: a wrong digest echo approves nothing.
-        let wrong = approve(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(DecideRequest {
-                request_digest: "sha256:0000".into(),
-            }),
-        )
-        .await;
-        assert_eq!(wrong.status(), StatusCode::NOT_FOUND);
-        let approved = approve(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(DecideRequest {
-                request_digest: digest.to_string(),
-            }),
-        )
-        .await;
-        assert_eq!(approved.status(), StatusCode::OK);
-
-        // Executing something other than what was approved is refused.
-        let drifted = result(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(ResultRequest {
-                executed_digest: "sha256:1111".into(),
-                outcome: "succeeded".into(),
-                safe_summary: None,
-            }),
-        )
-        .await;
-        assert_eq!(drifted.status(), StatusCode::CONFLICT);
-        assert_eq!(body_json(drifted).await["error"], json!("digest_mismatch"));
-
-        // A summary that smells like credential material never lands.
-        let leaking = result(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(ResultRequest {
-                executed_digest: digest.to_string(),
-                outcome: "succeeded".into(),
-                safe_summary: Some(json!({"note": "token ghp_PLANTED"})),
-            }),
-        )
-        .await;
-        assert_eq!(leaking.status(), StatusCode::UNPROCESSABLE_ENTITY);
-
-        let done = result(
-            State(state.clone()),
-            holder.clone(),
-            Path(id.to_string()),
-            Json(ResultRequest {
-                executed_digest: digest.to_string(),
-                outcome: "succeeded".into(),
-                safe_summary: Some(json!({"resource": "repo:acme/catalog"})),
-            }),
-        )
-        .await;
-        assert_eq!(done.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn contract_the_full_relay_round_trip_is_digest_bound() {
-        let state = crate::app_state::test_demo_state().await;
-        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let delegation_id = relay_delegation(&state, org, ExecutionMode::Relay).await;
-        let holder =
-            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
-        let delegate =
-            crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
-
-        let (id, digest) = open_relay_request(&state, &holder, &delegate, &delegation_id).await;
-        approve_and_complete_relay(&state, &holder, &id, &digest).await;
-
-        // The delegate reads the outcome; a stranger reads nothing.
-        let seen = get(State(state.clone()), delegate.clone(), Path(id.clone())).await;
-        assert_eq!(seen.status(), StatusCode::OK);
-        assert_eq!(body_json(seen).await["outcome"], json!("succeeded"));
-        let stranger = crate::app_state::test_session_headers(
-            &state,
-            "principal:00000000-0000-4000-8000-000000000014",
-            org,
-            OrganizationRole::Member,
-        );
-        let hidden = get(State(state.clone()), stranger, Path(id)).await;
-        assert_eq!(hidden.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test]
-    async fn adversarial_a_broker_delegation_does_not_open_the_relay() {
-        let state = crate::app_state::test_demo_state().await;
-        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let delegation_id = relay_delegation(&state, org, ExecutionMode::Broker).await;
-        let holder =
-            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
-        let delegate =
-            crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
-        heartbeat(State(state.clone()), holder).await;
-        let refused = submit(
-            State(state.clone()),
-            delegate,
-            Json(submit_body(&delegation_id)),
-        )
-        .await;
-        assert_eq!(refused.status(), StatusCode::CONFLICT);
-        assert_eq!(body_json(refused).await["error"], json!("not_relay_mode"));
-    }
-
-    #[tokio::test]
-    async fn adversarial_a_relayed_ask_outside_the_grant_never_reaches_the_inbox() {
-        let state = crate::app_state::test_demo_state().await;
-        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let delegation_id = relay_delegation(&state, org, ExecutionMode::Relay).await;
-        let holder =
-            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
-        let delegate =
-            crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
-        heartbeat(State(state.clone()), holder.clone()).await;
-        // An inbox is not a place to launder wider asks: the fence runs at
-        // submit, before a human ever sees a prompt to mis-approve.
-        let mut wider = submit_body(&delegation_id);
-        wider.operation = "contents.write".into();
-        let refused = submit(State(state.clone()), delegate, Json(wider)).await;
-        assert_eq!(refused.status(), StatusCode::FORBIDDEN);
-        let inbox = body_json(pending(State(state.clone()), holder).await).await;
-        assert_eq!(inbox["requests"], json!([]));
-    }
-}
+#[path = "relay_tests.rs"]
+mod tests;

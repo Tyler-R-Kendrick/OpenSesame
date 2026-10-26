@@ -7,6 +7,7 @@ import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { resetBackchannelLogoutBudget } from "../routes/backchannel-logout.js";
+import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 
 /**
  * OIDC Back-Channel Logout (C17, D13).
@@ -61,6 +62,7 @@ function tenantOnlyConfig() {
     publicUrl: "http://127.0.0.1:8788",
     issuer: "http://127.0.0.1:8788",
     trustedUpstreamIssuers: ["https://unrelated.example"],
+    organizationIssuerAllowlist: [idp.issuer],
   } as const;
 }
 
@@ -277,7 +279,7 @@ describe("back-channel logout", () => {
     expect(empty.status).toBe(400);
   });
 
-  it("ends the memberships the issuing tenant granted", async () => {
+  it("ends sessions but preserves the memberships the issuing tenant granted", async () => {
     const { app, ctx } = createControlPlane({ config: tenantOnlyConfig() });
     // The owner's own identity is unrelated to the tenant's IdP.
     const owner = await signedIn(app, "https://mock.example", "tenant-owner");
@@ -287,11 +289,20 @@ describe("back-channel logout", () => {
       body: JSON.stringify({
         slug: "acme",
         displayName: "Acme",
-        ssoIssuer: idp.issuer,
       }),
     });
     expect(created.status).toBe(201);
     const org = overlapCast(await created.json());
+    ctx.config.organizationIssuerAllowlist = [`${org.id}|${idp.issuer}`];
+    expect(
+      (
+        await app.request(`/v1/organizations/${org.id}`, {
+          method: "PATCH",
+          headers: json(owner.accessToken),
+          body: JSON.stringify({ ssoIssuer: idp.issuer }),
+        })
+      ).status,
+    ).toBe(200);
 
     const { idToken, subject } = await mintOrgIdToken(PAGES_ORIGIN);
     const guest = await provisional(app);
@@ -301,6 +312,32 @@ describe("back-channel logout", () => {
       body: JSON.stringify({ method: "sso", idToken }),
     });
     expect(joined.status).toBe(201);
+
+    const saml = await provisional(app);
+    const otherTenant = await provisional(app);
+    for (const [session, tenant] of [
+      [saml, org.id],
+      [otherTenant, "org:other"],
+    ]) {
+      expect(
+        (
+          await attachVerifiedExternalIdentity(ctx, session.principalId, {
+            kind: "saml",
+            issuer: idp.issuer,
+            subject,
+            tenant,
+            correlationId: "tenant-scoped-logout",
+          })
+        ).ok,
+      ).toBe(true);
+    }
+    await ctx.stores.organizationMemberships.upsert({
+      organizationId: org.id,
+      principalId: saml.principalId,
+      role: "member",
+      createdAt: ctx.clock(),
+      updatedAt: ctx.clock(),
+    });
 
     const res = await postLogout(
       app,
@@ -312,8 +349,13 @@ describe("back-channel logout", () => {
 
     expect(
       await ctx.stores.organizationMemberships.find(org.id, guest.principalId),
-    ).toBeUndefined();
+    ).toMatchObject({ role: "member" });
     expect(await stillSignedIn(app, guest.accessToken)).toBe(false);
+    expect(await stillSignedIn(app, saml.accessToken)).toBe(false);
+    expect(await stillSignedIn(app, otherTenant.accessToken)).toBe(true);
+    expect(
+      await ctx.stores.organizationMemberships.find(org.id, saml.principalId),
+    ).toMatchObject({ role: "member" });
   }, 30_000);
 
   it("rate-limits the endpoint and records no token material", async () => {

@@ -1,5 +1,7 @@
-import { eq, sql } from "drizzle-orm";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import type { BoundaryObject } from "@opensesame/os-domain";
+import { type SQLWrapper, eq, sql } from "drizzle-orm";
+import type { PgTable } from "drizzle-orm/pg-core";
+import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import { EventSealError, createEventSealer } from "../src/event-seal.js";
 import { createPostgresOrgFederationStores } from "../src/org-federation-store.js";
 import { createPostgresOrganizationStores } from "../src/repos/postgres.js";
@@ -18,6 +20,7 @@ const sealer = createEventSealer(
 beforeAll(async () => {
   ctx = await createPgTestContext();
 });
+afterEach(() => vi.restoreAllMocks());
 afterAll(async () => {
   await ctx.client.close();
 });
@@ -183,11 +186,37 @@ it("preserves a concurrent session ownership change during migration", async () 
         .set({ userId: "owner-after" })
         .where(eq(schema.betterAuthSessions.id, "owner-race-session"))
         .then(() => undefined);
+      // Another postgres-js connection may otherwise run the CAS before
+      // the ownership update commits. Exercise the stale-snapshot ordering.
+      const update = ctx.db.update.bind(ctx.db);
+      vi.spyOn(ctx.db, "update").mockImplementationOnce(function guardedUpdate<
+        T extends PgTable,
+      >(table: T) {
+        const builder = update(table);
+        const set = builder.set.bind(builder);
+        vi.spyOn(builder, "set").mockImplementationOnce((values) => {
+          const query = set(values);
+          const execute = query.execute.bind(query);
+          vi.spyOn(query, "execute").mockImplementation(async (parameters) => {
+            await rotation;
+            return execute(parameters);
+          });
+          return query;
+        });
+        return builder;
+      });
       return sealer.seal(purpose, value, scope);
     },
   };
   expect(await sealLegacySessions(ctx.db, migrating)).toBe(0);
   await rotation;
+  const [unmigrated] = await ctx.db
+    .select()
+    .from(schema.betterAuthSessions)
+    .where(eq(schema.betterAuthSessions.id, "owner-race-session"));
+  expect(unmigrated?.userId).toBe("owner-after");
+  expect(unmigrated?.token).toBe("owner-race-token");
+  expect(unmigrated?.sealedToken).toBeNull();
   expect(await sealLegacySessions(ctx.db, sealer)).toBe(1);
   const [session] = await ctx.db
     .select()
@@ -234,6 +263,21 @@ it("does not seal a row whose ownership changed during migration", async () => {
           .set({ principalId: after.id })
           .where(eq(schema.webhookEndpoints.id, "owner-race-hook"))
           .then(() => undefined);
+        // Keep the real SQL CAS, but commit the competing writer first.
+        const execute = ctx.db.execute.bind(ctx.db);
+        vi.spyOn(ctx.db, "execute").mockImplementationOnce(
+          function guardedExecute<TRow extends BoundaryObject = BoundaryObject>(
+            statement: SQLWrapper | string,
+          ) {
+            const query = execute<TRow>(statement);
+            const run = query.execute.bind(query);
+            vi.spyOn(query, "execute").mockImplementation(async () => {
+              await rotation;
+              return run();
+            });
+            return query;
+          },
+        );
       }
       return sealer.seal(purpose, value, scope);
     },
@@ -244,6 +288,8 @@ it("does not seal a row whose ownership changed during migration", async () => {
     .select()
     .from(schema.webhookEndpoints)
     .where(eq(schema.webhookEndpoints.id, "owner-race-hook"));
+  expect(rotated).toBe(true);
+  expect(staleOwner?.principalId).toBe(after.id);
   // The scope changed between read and write: the row is left for the next
   // sweep, not sealed under the previous principal.
   expect(staleOwner?.secret).toBe("race-sensitive");
@@ -263,6 +309,14 @@ it("does not seal a row whose ownership changed during migration", async () => {
       current.secret,
     ),
   ).toBe("race-sensitive");
+  expect(() =>
+    openSecretText(
+      sealer,
+      "webhook_endpoints.secret:owner-race-hook",
+      before.id,
+      current.secret,
+    ),
+  ).toThrow(EventSealError);
 });
 
 async function verifyStrictRestartColumns() {

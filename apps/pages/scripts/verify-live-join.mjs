@@ -74,6 +74,7 @@ import { keepBrowserOutput } from "./lib/browser-output.mjs";
 import { dedicatedSite } from "./lib/live-dedicated.mjs";
 import {
   NO_ROUTE_STEPS,
+  defaultRouteAddress,
   engineOf,
   enginesFrom,
   lacks,
@@ -172,8 +173,6 @@ const { device, shot, configs, wreckage } = livePages({
   named,
 });
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
-
 /** The walk's throwaway certificate, once minted: a carrier's TLS front uses it. */
 const TLS = { cert: undefined };
 
@@ -188,7 +187,6 @@ bindWalk({
   device,
   shot,
   configs,
-  joined,
   SECRET,
   PHONE,
   PASSTHROUGH,
@@ -202,7 +200,6 @@ bindTunnel({
   device,
   shot,
   configs,
-  joined,
   launch: launchEngine,
   SECRET,
   ORIGIN,
@@ -216,7 +213,6 @@ bindRelayed({
   device,
   shot,
   configs,
-  joined,
   PHONE,
   TLS,
 });
@@ -226,17 +222,21 @@ bindNats({
   failures,
   device,
   shot,
-  joined,
   SECRET,
   PHONE,
   TLS,
 });
 
-// A throwaway certificate for 127.0.0.1: the TLS TURN server's, and a
+// A throwaway certificate for this machine's TURN address and 127.0.0.1: a
 // carrier's TLS front where a pair needs one. Chromium trusts its public key
 // alone, by flag: no blanket certificate override.
-const cert = mintTurnCert(TURN);
-const turnFixture = { binary: TURN, cert: cert.missing ? undefined : cert };
+const turnHost = await defaultRouteAddress();
+const cert = mintTurnCert(TURN, turnHost);
+const turnFixture = {
+  binary: TURN,
+  host: turnHost,
+  cert: cert.missing ? undefined : cert,
+};
 TLS.cert = turnFixture.cert;
 
 /** One browser per engine, host candidates in the clear (see live-engines). */

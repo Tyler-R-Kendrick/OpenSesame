@@ -15,6 +15,7 @@ import { installPushShim } from "./push-browser-shim.mjs";
 import { PAGES_ORIGIN } from "./push-stack.mjs";
 import { OPERATOR_POLICY } from "./push-verify-kit.mjs";
 import {
+  dismissGuestToast,
   trackControlledBirth,
   until,
   untilBornControlled,
@@ -50,6 +51,7 @@ export async function policyWalk({ browser, stack, scope, check, serve }) {
   await doorGuest(second).waitFor({ timeout: 20_000 });
   await doorGuest(second).click();
   await waitOpen(second);
+  await dismissGuestToast(second);
   await addCapabilities(second, ["Push notifications", "Notification routing"]);
   await openSettingsCategory(second, "General");
   await second.getByRole("button", TURN_ON).click();

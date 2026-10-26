@@ -130,6 +130,7 @@ describe("RFC 8705 over a real TLS listener", () => {
   let plainServer: http.Server;
   let port: number;
   let anonymousPort: number;
+  let registrationToken: string;
   let plainPort: number;
   let issuer: string;
   let callback: (req: IncomingMessage, res: ServerResponse) => void;
@@ -197,6 +198,7 @@ describe("RFC 8705 over a real TLS listener", () => {
         },
       ],
     });
+    registrationToken = await new provider.InitialAccessToken({}).save();
     callback = overlapCast(provider.callback());
   });
   afterAll(async () => {
@@ -334,6 +336,7 @@ describe("RFC 8705 over a real TLS listener", () => {
       pki,
       method: "POST",
       path: "/reg",
+      headers: { authorization: `Bearer ${registrationToken}` },
       body: JSON.stringify({
         redirect_uris: ["https://rp.example/cb"],
         token_endpoint_auth_method: "tls_client_auth",
@@ -347,6 +350,7 @@ describe("RFC 8705 over a real TLS listener", () => {
       pki,
       method: "POST",
       path: "/reg",
+      headers: { authorization: `Bearer ${registrationToken}` },
       body: JSON.stringify({
         redirect_uris: ["https://rp.example/cb"],
         token_endpoint_auth_method: "none",
@@ -355,12 +359,13 @@ describe("RFC 8705 over a real TLS listener", () => {
     });
     expect(bound.status).toBe(400);
     expect(bound.json.error).toBe("invalid_client_metadata");
-    // The plain public-client registration path stays open.
+    // Authorized public-client registration remains supported.
     const ok = await request({
       port: anonymousPort,
       pki,
       method: "POST",
       path: "/reg",
+      headers: { authorization: `Bearer ${registrationToken}` },
       body: JSON.stringify({
         redirect_uris: ["https://rp.example/cb"],
         token_endpoint_auth_method: "none",

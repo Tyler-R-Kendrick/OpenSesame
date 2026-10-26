@@ -185,3 +185,12 @@ export const untilHeld = (page, base, script, what) =>
       s.installing === null,
     what,
   );
+
+/** A pointer over the guest toast holds it; dismiss it before choosing features. */
+export async function dismissGuestToast(page) {
+  const toast = page
+    .locator(".toasts .toast")
+    .filter({ hasText: "You skipped registered sign-in." });
+  if (await toast.isVisible())
+    await toast.getByRole("button", { name: "Dismiss", exact: true }).click();
+}

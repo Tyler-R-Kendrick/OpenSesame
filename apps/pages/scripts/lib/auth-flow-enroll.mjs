@@ -58,7 +58,7 @@ export async function withdrawSelfAuthenticator(page, check) {
   // (or the desktop's current tree), then the vault's actual list pane.
   const back = page.getByRole("treeitem", { name: "Back to vault" });
   if (await back.isVisible().catch(() => false)) await back.click();
-  await openSessionSection(page, "Vault");
+  else await openSessionSection(page, "Vault");
   await toTheList(page);
   await page.waitForTimeout(1000);
   // The account is an entry, and so is the authenticator bound to it

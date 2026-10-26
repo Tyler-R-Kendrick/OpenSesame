@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { appendAuditEvent } from "@opensesame/audit";
 import * as client from "openid-client";
 import { z } from "zod";
 import type { ControlPlaneConfig } from "../config.js";
@@ -738,69 +737,7 @@ export function disposeRefreshToken(
  * logout names an issuer and a subject but not a kind, so every leg's rows are
  * considered — a SAML session must end when its IdP says the human left.
  */
-const REVOCABLE_IDENTITY_KINDS = [
-  "oidc",
-  "oauth2",
-  "saml",
-  "ldap",
-  "email",
-] as const;
-
-/**
- * Revoke every live provisional session belonging to the principals linked to
- * `(issuer, subject)`; returns how many sessions ended (C17).
- *
- * This is the effect half of OIDC Back-Channel Logout (S10 owns the endpoint
- * that verifies the `logout_token`). It deliberately takes an issuer and a
- * subject rather than a principal id: the caller is holding an upstream
- * assertion, and resolving it to principals here keeps the tuple lookup — the
- * one binding that matters — in one place.
- */
-export async function revokeSessionsForIdentity(
-  ctx: AppContext,
-  issuer: string,
-  subject: string,
-): Promise<number> {
-  const principalIds = new Set<string>();
-  for (const kind of REVOCABLE_IDENTITY_KINDS) {
-    const identity = await ctx.repos.externalIdentities.findByTuple({
-      kind,
-      issuer,
-      subject,
-    });
-    if (identity) principalIds.add(identity.principalId);
-  }
-  if (principalIds.size === 0) return 0;
-
-  const now = ctx.clock();
-  let revoked = 0;
-  const sessions = await ctx.stores.provisionalSessions.entries();
-  for (const [, session] of sessions) {
-    const sessionId = session.id;
-    if (!principalIds.has(session.principalId)) continue;
-    if (session.revokedAt) continue;
-    await ctx.stores.provisionalSessions.set(sessionId, {
-      ...session,
-      revokedAt: now,
-    });
-    await revokeSessionTokens(ctx.stores, sessionId);
-    revoked += 1;
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "principal.provisional_revoked",
-      outcome: "succeeded",
-      principalId: session.principalId,
-      sessionId,
-      correlationId: `upstream-logout-${sessionId}`,
-      actorType: "system",
-      metadata: {
-        action: "principal.provisional_revoke",
-        issuer,
-        via: "upstream_logout",
-      },
-    });
-  }
-  return revoked;
-}
+export { revokeSessionsForIdentity } from "./upstream-logout.js";
 
 /** Cookie carrying `PendingFederatedAuth`, scoped to this interaction only. */
 export function pendingCookieName(uid: string): string {
@@ -870,4 +807,3 @@ export function decodePending(
     return undefined;
   }
 }
-import { revokeSessionTokens } from "../repos/session-storage.js";
