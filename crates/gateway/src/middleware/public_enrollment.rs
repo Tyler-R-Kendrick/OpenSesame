@@ -12,6 +12,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use opensesame_ingress_evidence::OriginatingPeerExtension;
 use opensesame_transport_security::PeerExtension;
 use serde_json::json;
 
@@ -48,16 +49,21 @@ pub(crate) async fn guard(State(st): State<AppState>, request: Request, next: Ne
         (&Method::POST, "/api/v1/device/authorize") => "device",
         _ => return next.run(request).await,
     };
-    let source =
-        if let Some(ConnectInfo(peer)) = request.extensions().get::<ConnectInfo<SocketAddr>>() {
-            format!("ip:{}", peer.ip())
-        } else if let Some(PeerExtension(peer)) = request.extensions().get::<PeerExtension>() {
-            format!("tls:{}", peer.leaf_thumbprint_sha256())
-        } else {
-            // Embedders and unauthenticated TLS listeners without peer addresses
-            // share a conservative budget; client headers cannot choose a key.
-            "unknown".to_string()
-        };
+    let source = if let Some(OriginatingPeerExtension(peer)) =
+        request.extensions().get::<OriginatingPeerExtension>()
+    {
+        // Installed only after the trusted-ingress certificate assertion
+        // has been verified. Do not charge all clients to the proxy IP.
+        format!("originating-tls:{}", peer.leaf_thumbprint_sha256())
+    } else if let Some(ConnectInfo(peer)) = request.extensions().get::<ConnectInfo<SocketAddr>>() {
+        format!("ip:{}", peer.ip())
+    } else if let Some(PeerExtension(peer)) = request.extensions().get::<PeerExtension>() {
+        format!("tls:{}", peer.leaf_thumbprint_sha256())
+    } else {
+        // Embedders and unauthenticated TLS listeners without peer addresses
+        // share a conservative budget; client headers cannot choose a key.
+        "unknown".to_string()
+    };
     let admitted = st
         .public_enrollment
         .lock()
@@ -160,5 +166,45 @@ mod tests {
             state.device_codes.lock().unwrap().len(),
             usize::try_from(PER_SOURCE + 1).unwrap()
         );
+    }
+
+    #[tokio::test]
+    async fn verified_originating_clients_have_independent_budgets_behind_one_proxy() {
+        use crate::transport::test_support::{forwarded, peer, THUMB_A, THUMB_B};
+        use axum::{body::Body, http::Request};
+        use std::sync::Arc;
+        use tower::ServiceExt;
+        let state = crate::app_state::test_demo_state().await;
+        let app = crate::routes::router(state);
+        let ingress = peer("edge.test", THUMB_A, 1);
+        for index in 0..=PER_SOURCE + 1 {
+            let thumb = if index <= PER_SOURCE {
+                THUMB_A
+            } else {
+                THUMB_B
+            };
+            let mut request = Request::builder()
+                .method("POST")
+                .uri("/api/v1/device/authorize")
+                .header("content-type", "application/json")
+                .header("client-cert", format!("untrusted-rotation-{index}"))
+                .body(Body::from(r#"{"client_id":"opensesame-cli"}"#))
+                .unwrap();
+            request
+                .extensions_mut()
+                .insert(ConnectInfo("192.0.2.1:443".parse::<SocketAddr>().unwrap()));
+            request
+                .extensions_mut()
+                .insert(PeerExtension(Arc::new(ingress.clone())));
+            request
+                .extensions_mut()
+                .insert(OriginatingPeerExtension(Arc::new(forwarded(
+                    "client.test",
+                    thumb,
+                    &ingress,
+                ))));
+            let response = app.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), expected_status(index == PER_SOURCE));
+        }
     }
 }

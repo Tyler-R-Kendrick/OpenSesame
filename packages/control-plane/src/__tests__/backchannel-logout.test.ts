@@ -7,6 +7,7 @@ import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { resetBackchannelLogoutBudget } from "../routes/backchannel-logout.js";
+import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 
 /**
  * OIDC Back-Channel Logout (C17, D13).
@@ -312,6 +313,32 @@ describe("back-channel logout", () => {
     });
     expect(joined.status).toBe(201);
 
+    const saml = await provisional(app);
+    const otherTenant = await provisional(app);
+    for (const [session, tenant] of [
+      [saml, org.id],
+      [otherTenant, "org:other"],
+    ]) {
+      expect(
+        (
+          await attachVerifiedExternalIdentity(ctx, session.principalId, {
+            kind: "saml",
+            issuer: idp.issuer,
+            subject,
+            tenant,
+            correlationId: "tenant-scoped-logout",
+          })
+        ).ok,
+      ).toBe(true);
+    }
+    await ctx.stores.organizationMemberships.upsert({
+      organizationId: org.id,
+      principalId: saml.principalId,
+      role: "member",
+      createdAt: ctx.clock(),
+      updatedAt: ctx.clock(),
+    });
+
     const res = await postLogout(
       app,
       await idp.mintBackchannelLogoutToken(subject, {
@@ -324,6 +351,11 @@ describe("back-channel logout", () => {
       await ctx.stores.organizationMemberships.find(org.id, guest.principalId),
     ).toMatchObject({ role: "member" });
     expect(await stillSignedIn(app, guest.accessToken)).toBe(false);
+    expect(await stillSignedIn(app, saml.accessToken)).toBe(false);
+    expect(await stillSignedIn(app, otherTenant.accessToken)).toBe(true);
+    expect(
+      await ctx.stores.organizationMemberships.find(org.id, saml.principalId),
+    ).toMatchObject({ role: "member" });
   }, 30_000);
 
   it("rate-limits the endpoint and records no token material", async () => {

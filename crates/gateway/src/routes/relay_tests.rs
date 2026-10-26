@@ -46,6 +46,15 @@ async fn relay_delegation(
     broker_store::insert_connection(state.connection_broker.pool(), &row)
         .await
         .expect("insert connection");
+    claim_relay_delegation(state, org, &row.id, mode).await
+}
+
+async fn claim_relay_delegation(
+    state: &AppState,
+    org: OrganizationId,
+    connection_id: &str,
+    mode: ExecutionMode,
+) -> String {
     let minted = state
         .connection_broker
         .mint_delegation_offer(
@@ -53,7 +62,7 @@ async fn relay_delegation(
             OWNER,
             MintOfferRequest {
                 items: vec![OfferItemSpec {
-                    connection_id: row.id.clone(),
+                    connection_id: connection_id.to_owned(),
                     actions: Some(vec!["repository.read".into()]),
                     resources: None,
                     expires_in_seconds: None,
@@ -359,32 +368,5 @@ async fn queued_requests_recheck_revocation_expiry_and_narrowing_before_executio
     }
 }
 
-#[tokio::test]
-async fn revoked_request_cannot_be_approved_after_the_holder_read_it() {
-    let state = crate::app_state::test_demo_state().await;
-    let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-    let delegation_id = relay_delegation(&state, org, ExecutionMode::Relay).await;
-    let holder =
-        crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
-    let delegate =
-        crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
-    let (id, digest) = open_relay_request(&state, &holder, &delegate, &delegation_id).await;
-    state
-        .connection_broker
-        .revoke_delegation(&org, OWNER, &delegation_id)
-        .await
-        .unwrap();
-    assert_eq!(
-        approve(
-            State(state),
-            holder,
-            Path(id),
-            Json(DecideRequest {
-                request_digest: digest
-            })
-        )
-        .await
-        .status(),
-        StatusCode::NOT_FOUND
-    );
-}
+#[path = "relay_authority_tests.rs"]
+mod authority;

@@ -42,13 +42,12 @@ import {
 } from "../services/guarded-fetch.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { organizationAssertedEmailIsVerified } from "../services/org-email-trust.js";
-import { organizationIssuerApproved } from "../services/org-issuer-approval.js";
 import {
   ProvisionalMintRefusedError,
   mintProvisionalForInteraction,
 } from "./handlers.js";
 import { SamlAuthError } from "./saml-errors.js";
-import { claimSamlEntityId } from "./saml-issuer-claim.js";
+import { claimSamlEntityId, issuerForResult } from "./saml-issuer-claim.js";
 
 /**
  * Native SAML 2.0 service provider (ADR 0056, C14/D9/D10).
@@ -1248,34 +1247,6 @@ export async function admitSamlSubject(
     issuer,
     ...(sessionToken !== undefined ? { sessionToken } : undefined),
   };
-}
-
-/**
- * The issuer recorded on a SAML identity row is the IdP's entityID, resolved
- * from the tenant's configuration rather than from the assertion — the row has
- * to name what this deployment trusts, not what the document claimed.
- */
-async function issuerForResult(
-  ctx: AppContext,
-  result: SamlAssertionResult,
-): Promise<string | undefined> {
-  const organization = await ctx.stores.organizations.get(
-    result.organizationId,
-  );
-  if (!organization || !samlOrganizationSignsIn(organization)) {
-    return undefined;
-  }
-  const cfg = samlOrgConfig(organization);
-  if (!cfg) return undefined;
-  try {
-    const issuer =
-      cfg.idpEntityId || (await resolveIdpMetadata(ctx, cfg)).entityId;
-    return organizationIssuerApproved(ctx.config, issuer, result.organizationId)
-      ? issuer
-      : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /** IdP-initiated sign-in is worth its own trail entry (D10). */

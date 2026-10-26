@@ -263,7 +263,7 @@ function guestSteps(harness) {
       const own = panelOf(page);
       if (!own) return console.log("  liveGuess: skipped (no panel)");
       const { link } = owners.get(page);
-      const field = own.getByLabel("A request code", { exact: true });
+      const field = own.getByLabel("Paste a join request", { exact: true });
       for (let miss = 0; miss < attempts; miss += 1) {
         const made = await joiner(page, harness);
         try {

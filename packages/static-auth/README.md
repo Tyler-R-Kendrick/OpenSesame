@@ -35,6 +35,9 @@ reconnects to another port or origin. An issuer that announces no version is
 still accepted for one release, bounded by `popup_closed` and the 300 s
 deadline.
 
+Browser-local identity subjects are opaque, pairwise UUIDs scoped to the
+approved application. They are not canonical local person or agent IDs.
+
 `src/browser.ts` installs `window.OpenSesame` (`signIn`, `complete`) for the
 hosted artifact; `src/compatibility.ts` is the deprecated loopback-only root
 artifact.

@@ -153,13 +153,12 @@ async fn resolve_submit_delegation(
         .list_delegations_for(organization, subject)
         .await
         .map_err(|_| not_found())?;
-    let view = mine
-        .iter()
+    mine.iter()
         .find(|delegation| delegation.id == delegation_id && delegation.claimant_subject == subject)
         .ok_or_else(not_found)?;
     match st
         .connection_broker
-        .find_live_delegation(subject, &view.connection_id)
+        .find_live_delegation_by_id(subject, delegation_id)
         .await
     {
         Ok(Some(resolved)) if resolved.delegation_id == delegation_id => Ok(resolved),

@@ -132,7 +132,7 @@ async function beginOwner(browser) {
 }
 
 async function readRequest(panel, request) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
 }
 

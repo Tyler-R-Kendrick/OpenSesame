@@ -1,62 +1,27 @@
+import type { Named } from "@gdp-ts/core";
 import { ConflictError } from "@opensesame/database";
 import type { Organization } from "@opensesame/os-domain";
-import type { ControlPlaneConfig } from "../config.js";
 import type { AppContext } from "../context.js";
-import { normalizeIssuer } from "../interactions/registry.js";
-
-type OrganizationIssuerConfiguration = Pick<
-  Organization,
-  "ssoIssuer" | "samlIssuer"
->;
-
-/** Tenant ownership alone cannot authorize an issuer on this deployment. */
-export function organizationIssuerApproved(
-  config: ControlPlaneConfig,
-  issuer: string,
-  organizationId: string | undefined,
-): boolean {
-  if (!organizationId) return false;
-  const normalized = normalizeIssuer(issuer);
-  return (
-    normalized.length > 0 &&
-    (config.organizationIssuerAllowlist ?? []).some((approval) => {
-      const separator = approval.indexOf("|");
-      return (
-        separator > 0 &&
-        approval.slice(0, separator) === organizationId &&
-        normalizeIssuer(approval.slice(separator + 1)) === normalized
-      );
-    })
-  );
-}
-
-export function organizationIssuerApprovalError(
-  config: ControlPlaneConfig,
-  organizationId: string | undefined,
-  ...issuers: (string | undefined)[]
-): string | undefined {
-  return issuers.some(
-    (issuer) =>
-      issuer && !organizationIssuerApproved(config, issuer, organizationId),
-  )
-    ? "The operator must approve this organization's identity-provider issuer."
-    : undefined;
-}
+import type { OrganizationId } from "../lib/ids.js";
+import type { OrganizationIssuerAdmission } from "../proofs/organization-issuer-admission.js";
+import {
+  type VerifiedOrgIdToken,
+  originAudiences,
+  verifyOrgIdToken,
+} from "../routes/org-assertion.js";
 
 export class OrganizationIssuerApprovalError extends Error {}
 
-export function assertOrganizationIssuerApproval(
-  config: ControlPlaneConfig,
-  organizationId: string | undefined,
-  organization: OrganizationIssuerConfiguration,
-): void {
-  const message = organizationIssuerApprovalError(
-    config,
-    organizationId,
-    organization.ssoIssuer,
-    organization.samlIssuer,
-  );
-  if (message) throw new OrganizationIssuerApprovalError(message);
+/** Persist only the exact row and tenant whose issuer configuration was proved. */
+export function writeIssuerAdmittedOrganization<O, C>(
+  ctx: AppContext,
+  org: Named<O, OrganizationId>,
+  row: Named<C, Organization>,
+  _proof: OrganizationIssuerAdmission<O, C>,
+): Promise<void> {
+  if (row.value.id !== org.value)
+    throw new Error("organization row is for a different organization");
+  return Promise.resolve(ctx.stores.organizations.set(org.value, row.value));
 }
 
 export function organizationIssuerAllowlistFromEnv(
@@ -79,15 +44,21 @@ export async function issuerClaimed(
   return owner !== undefined && owner.id !== exceptOrganizationId;
 }
 
-/** A direct tenant join must not bypass ambiguous legacy issuer ownership. */
-export async function assertOrganizationIssuerAdmission(
+/** Direct joins demand deployment approval as well as unambiguous ownership. */
+export async function verifyAdmittedOrganizationAssertion<O, C>(
   ctx: AppContext,
-  organizationId: string,
-  issuer: string,
-): Promise<void> {
-  assertOrganizationIssuerApproval(ctx.config, organizationId, {
-    ssoIssuer: issuer,
+  org: Named<O, OrganizationId>,
+  configuration: Named<C, { ssoIssuer: string }>,
+  _proof: OrganizationIssuerAdmission<O, C>,
+  idToken: string,
+): Promise<VerifiedOrgIdToken> {
+  const owner = await ctx.stores.organizations.findByIssuer(
+    configuration.value.ssoIssuer,
+  );
+  if (owner?.id !== org.value) throw new ConflictError("issuer_taken");
+  return verifyOrgIdToken(idToken, configuration.value.ssoIssuer, {
+    expectedAudiences: originAudiences(ctx.config),
+    maxTokenAgeSec: 600,
+    blockPrivateIssuerHosts: !ctx.config.allowDevDefaults,
   });
-  const owner = await ctx.stores.organizations.findByIssuer(issuer);
-  if (owner?.id !== organizationId) throw new ConflictError("issuer_taken");
 }

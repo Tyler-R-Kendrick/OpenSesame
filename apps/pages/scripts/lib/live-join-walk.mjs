@@ -312,7 +312,7 @@ export async function ownerAdmitsByHand(
   name,
   { admit = true } = {},
 ) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
   const match = panel.getByRole("button", {
     name: `Yes, they match for ${name}`,

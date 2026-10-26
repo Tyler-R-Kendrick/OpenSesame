@@ -85,7 +85,7 @@ async function joinThrough(page, harness, { link, code }, name) {
   const own = page.locator("#live-session");
   const { page: seat } = await joinerFor(page, harness);
   const request = await ask(seat, { link, code, name });
-  await own.getByLabel("A request code", { exact: true }).fill(request);
+  await own.getByLabel("Paste a join request", { exact: true }).fill(request);
   await own.getByRole("button", { name: "Read the request" }).click();
   await admitControl(own, name).click();
   const reply = own.getByRole("button", {

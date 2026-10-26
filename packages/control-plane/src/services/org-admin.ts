@@ -1,4 +1,8 @@
-import { assertOrganizationIssuerApproval } from "./org-issuer-approval.js";
+import { organizationIssuerAdmission } from "../proofs/organization-issuer-admission.js";
+import {
+  OrganizationIssuerApprovalError,
+  writeIssuerAdmittedOrganization,
+} from "./org-issuer-approval.js";
 /**
  * Owner-only organization mutations, each demanding an `OrgOwner` proof about
  * the exact organization it touches (ADR 0178).
@@ -13,7 +17,7 @@ import { assertOrganizationIssuerApproval } from "./org-issuer-approval.js";
  * route; only the write that needs the owner's authority lives here.
  */
 
-import type { Named } from "@gdp-ts/core";
+import { type Named, name } from "@gdp-ts/core";
 import type {
   OrgLdapConfig,
   OrganizationMembership,
@@ -109,8 +113,11 @@ export function writeOrganization<A, O>(
   if (updated.id !== org.value) {
     throw new Error("organization row is for a different organization");
   }
-  assertOrganizationIssuerApproval(ctx.config, org.value, updated);
-  return Promise.resolve(ctx.stores.organizations.set(org.value, updated));
+  return name(updated, (row) => {
+    const verdict = organizationIssuerAdmission(ctx.config, org, row);
+    if (!verdict.ok) throw new OrganizationIssuerApprovalError(verdict.message);
+    return writeIssuerAdmittedOrganization(ctx, org, row, verdict.proof);
+  });
 }
 
 export function writeOrganizationMembership<A, O>(

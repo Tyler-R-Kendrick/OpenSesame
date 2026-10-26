@@ -348,6 +348,7 @@ export function createBackchannelLogoutRoutes(): Hono<{
         ctx,
         issuer,
         claims.subject,
+        resolution.source === "org" ? resolution.organizationId : undefined,
       );
     }
 

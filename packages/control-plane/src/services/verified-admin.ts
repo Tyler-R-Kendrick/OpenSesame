@@ -1,4 +1,8 @@
-import { assertOrganizationIssuerApproval } from "./org-issuer-approval.js";
+import { organizationIssuerAdmission } from "../proofs/organization-issuer-admission.js";
+import {
+  OrganizationIssuerApprovalError,
+  writeIssuerAdmittedOrganization,
+} from "./org-issuer-approval.js";
 /**
  * Mutations that need a verified identity, each demanding a `VerifiedPrincipal`
  * proof about the exact principal it acts for (ADR 0178).
@@ -11,7 +15,7 @@ import { assertOrganizationIssuerApproval } from "./org-issuer-approval.js";
  */
 
 import { randomUUID } from "node:crypto";
-import type { Named } from "@gdp-ts/core";
+import { type Named, name } from "@gdp-ts/core";
 import {
   DEFAULT_AUTHENTICATION_CONFIGURATIONS,
   mintAuthenticationApplicationSecret,
@@ -21,7 +25,7 @@ import type {
   Organization,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
-import type { ActorId } from "../lib/ids.js";
+import { type ActorId, organizationId } from "../lib/ids.js";
 import type { VerifiedPrincipal } from "../proofs/verified-principal.js";
 
 type Clients = AppContext["stores"]["oauthClients"];
@@ -137,6 +141,9 @@ export async function createOrganization<A>(
   if (organization.createdBy !== founder.value) {
     throw new Error("organization was created by a different principal");
   }
-  assertOrganizationIssuerApproval(ctx.config, organization.id, organization);
-  await ctx.stores.organizations.set(organization.id, organization);
+  await name(organizationId(organization.id), organization, (org, row) => {
+    const verdict = organizationIssuerAdmission(ctx.config, org, row);
+    if (!verdict.ok) throw new OrganizationIssuerApprovalError(verdict.message);
+    return writeIssuerAdmittedOrganization(ctx, org, row, verdict.proof);
+  });
 }

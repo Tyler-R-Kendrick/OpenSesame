@@ -269,7 +269,7 @@
       "max-lines": 676
     },
     "crates/connection-broker/src/delegation.rs": {
-      "max-lines": 1556
+      "max-lines": 1493
     },
     "crates/connection-broker/src/egress.rs": {
       "max-lines": 518
@@ -425,7 +425,7 @@
       "max-lines": 1592
     },
     "crates/gateway/src/routes/relay.rs": {
-      "max-lines": 675
+      "max-lines": 674
     },
     "crates/gateway/src/routes/rotation.rs": {
       "max-lines": 645
@@ -932,7 +932,7 @@
       "max-lines": 455
     },
     "packages/control-plane/src/interactions/federated.ts": {
-      "max-lines": 873
+      "max-lines": 809
     },
     "packages/control-plane/src/interactions/handlers.ts": {
       "complexity": 3,
@@ -955,7 +955,7 @@
     },
     "packages/control-plane/src/interactions/saml.ts": {
       "complexity": 3,
-      "max-lines": 1304,
+      "max-lines": 1275,
       "max-lines-per-function": 2,
       "max-statements": 2
     },
@@ -1072,7 +1072,7 @@
     },
     "packages/control-plane/src/routes/organizations.ts": {
       "complexity": 1,
-      "max-lines": 1038,
+      "max-lines": 990,
       "max-lines-per-function": 2
     },
     "packages/control-plane/src/routes/principals.ts": {
