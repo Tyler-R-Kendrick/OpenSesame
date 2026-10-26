@@ -12,9 +12,9 @@ const OrganizationIssuerAdmission = defineProof("OrganizationIssuerAdmission");
 export interface OrganizationIssuerAdmission<O, C>
   extends Proof<"OrganizationIssuerAdmission", [O, C]> {}
 
-function issuerApproved(
+function issuerApproved<O>(
   config: ControlPlaneConfig,
-  org: Named<unknown, OrganizationId>,
+  org: Named<O, OrganizationId>,
   issuer: string,
 ): boolean {
   const normalized = normalizeIssuer(issuer);
@@ -68,15 +68,18 @@ export function organizationIssuerUpdateAdmission<O, C>(
 ):
   | { ok: true; proof: OrganizationIssuerAdmission<O, C> }
   | { ok: false; message: string } {
-  const changed = [
+  const changed: string[] = [];
+  for (const [before, after] of [
     [previous?.ssoIssuer, configuration.value.ssoIssuer],
     [previous?.samlIssuer, configuration.value.samlIssuer],
-  ].filter(
-    ([before, after]): after is string =>
-      Boolean(after) &&
-      (!before || normalizeIssuer(before) !== normalizeIssuer(after)),
-  );
-  return changed.every(([, issuer]) => issuerApproved(config, org, issuer))
+  ] as const) {
+    if (
+      after &&
+      (!before || normalizeIssuer(before) !== normalizeIssuer(after))
+    )
+      changed.push(after);
+  }
+  return changed.every((issuer) => issuerApproved(config, org, issuer))
     ? { ok: true, proof: OrganizationIssuerAdmission.prove(org, configuration) }
     : refusal();
 }
