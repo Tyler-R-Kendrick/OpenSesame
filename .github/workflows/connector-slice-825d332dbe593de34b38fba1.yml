@@ -1,0 +1,357 @@
+name: Publish focused PWA integration slice
+run-name: Verify focused PWA slice 825d332dbe593de3
+on:
+  push:
+    branches: ["work/pwa-slice-sign-825d332dbe593de34b38fba1"]
+    paths: [".github/workflows/connector-slice-825d332dbe593de34b38fba1.yml"]
+permissions: {}
+concurrency:
+  group: connector-pwa-slice-825d332dbe593de3
+  cancel-in-progress: false
+jobs:
+  staging:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.ref == 'refs/heads/work/pwa-slice-sign-825d332dbe593de34b38fba1' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 6
+    permissions:
+      contents: write
+    steps:
+      - name: Create and independently verify isolated signed slice
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISHER_SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          """Reviewed Actions-only staging publisher. No checkout or PR/ref promotion."""
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import sys
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          
+          REPOSITORY = 'Tyler-R-Kendrick/OpenSesame'
+          API = 'https://api.github.com'
+          PAYLOAD_PATH = '.github/connector-stack/slice-825d332dbe593de34b38fba1.json'
+          PAYLOAD_SHA256 = '825d332dbe593de34b38fba1d999648fbed749ce61e48266486d8170c1a5e626'
+          NEW_BASE = '405745fe57ebd531c6eefceb37044ba608651157'
+          FINAL_TREE = '29d3e21b3ce9d85e59a3c041b2312a61a4a7fc7e'
+          SHA1 = re.compile(r'[0-9a-f]{40}\Z')
+          SHA256 = re.compile(r'[0-9a-f]{64}\Z')
+          STAGE_PREFIX = 'connector-signed-stage/' + PAYLOAD_SHA256[:16] + '/'
+          OUTPUT = Path('connector-signed-checkpoints')
+          
+          
+          class Refusal(Exception):
+              pass
+          
+          
+          def require(condition, message):
+              if not condition:
+                  raise Refusal(message)
+          
+          
+          def encode(value):
+              return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+          
+          
+          def git_blob_oid(content):
+              header = b'blob ' + str(len(content)).encode() + b'\0'
+              return hashlib.sha1(header + content, usedforsecurity=False).hexdigest()
+          
+          
+          def check_blob(oid, descriptor, content):
+              require(len(content) == descriptor['bytes'], 'Blob length mismatch')
+              require(git_blob_oid(content) == oid, 'Git blob OID mismatch')
+              require(hashlib.sha256(content).hexdigest() == descriptor['sha256'], 'Blob SHA256 mismatch')
+              return content
+          
+          
+          def validate_payload(content):
+              require(hashlib.sha256(content).hexdigest() == PAYLOAD_SHA256, 'Frozen payload digest mismatch')
+              payload = json.loads(content)
+              require(payload['schemaVersion'] == 1 and payload['repository'] == REPOSITORY, 'Payload scope mismatch')
+              require(payload['newBase'] == NEW_BASE and payload['expectedTree'] == FINAL_TREE, 'Replay target mismatch')
+              require(len(payload['rows']) == 1, 'Expected exactly 1 receipt slice')
+              require(SHA256.fullmatch(payload['planSha256']), 'Invalid source plan digest')
+              seen_prs, seen_branches, used_blobs = set(), set(), set()
+              prior_tree = None
+              for row in payload['rows']:
+                  require(type(row['pr']) is int and row['pr'] not in seen_prs, 'Duplicate or invalid PR')
+                  seen_prs.add(row['pr'])
+                  branch = row['branch']
+                  require(type(branch) is str and branch and branch not in seen_branches, 'Duplicate or invalid lease branch')
+                  require(not branch.startswith(STAGE_PREFIX) and '\n' not in branch, 'Invalid lease branch scope')
+                  seen_branches.add(branch)
+                  for key in ('oldBase', 'oldHead', 'parentTree', 'resultTree'):
+                      require(SHA1.fullmatch(row[key]), 'Invalid row object identifier')
+                  require(prior_tree is None or prior_tree == row['parentTree'], 'Broken planned parent chain')
+                  prior_tree = row['resultTree']
+                  require(row['changes'], 'Empty source slice')
+                  paths = set()
+                  for change in row['changes']:
+                      path = change['path']
+                      require(type(path) is str and path and not path.startswith('/') and '\\' not in path,
+                              'Invalid file path')
+                      require(all(part not in ('', '.', '..', '.git') for part in path.split('/')), 'Unsafe file path')
+                      require(path not in paths, 'Duplicate row file')
+                      paths.add(path)
+                      require(change['status'] in ('A', 'M') and change['mode'] == '100644', 'Unsupported file operation')
+                      require(SHA1.fullmatch(change['blobOid']), 'Invalid file blob OID')
+                      used_blobs.add(change['blobOid'])
+              require(prior_tree == FINAL_TREE, 'Final slice tree mismatch')
+              require(set(payload['blobs']) == used_blobs, 'Blob inventory mismatch')
+              for oid, descriptor in payload['blobs'].items():
+                  require(type(descriptor['bytes']) is int and 0 <= descriptor['bytes'] <= 2_000_000, 'Invalid blob size')
+                  require(SHA256.fullmatch(descriptor['sha256']), 'Invalid blob digest')
+                  if 'base64' in descriptor:
+                      check_blob(oid, descriptor, base64.b64decode(descriptor['base64'], validate=True))
+              return payload
+          
+          
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, request, response, code, message, headers, new_url):
+                  raise Refusal('GitHub API redirect refused')
+          
+          
+          class GitHub:
+              def __init__(self, token):
+                  self.token = token
+                  self.opener = urllib.request.build_opener(NoRedirect())
+          
+              def call(self, method, path, data=None, limit=32_000_000):
+                  require(path.startswith('/repos/' + REPOSITORY + '/') or path == '/graphql', 'API scope refused')
+                  body = None if data is None else encode(data)
+                  request = urllib.request.Request(API + path, data=body, method=method, headers={
+                      'Authorization': 'Bearer ' + self.token,
+                      'Accept': 'application/vnd.github+json',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'Content-Type': 'application/json',
+                      'User-Agent': 'OpenSesame-frozen-staging-publisher',
+                  })
+                  attempts = 4 if method == 'GET' else 1
+                  for attempt in range(attempts):
+                      try:
+                          with self.opener.open(request, timeout=60) as response:
+                              content = response.read(limit + 1)
+                              require(len(content) <= limit, 'API response size exceeded')
+                              return json.loads(content), response.headers
+                      except urllib.error.HTTPError as error:
+                          if method == 'GET' and error.code in (429, 500, 502, 503, 504) and attempt + 1 < attempts:
+                              time.sleep(min(30, 2 ** attempt))
+                              continue
+                          raise Refusal('GitHub API HTTP ' + str(error.code)) from None
+                      except (urllib.error.URLError, TimeoutError):
+                          if method == 'GET' and attempt + 1 < attempts:
+                              time.sleep(2 ** attempt)
+                              continue
+                          raise Refusal('GitHub API transport failed; rerun reconciles staging refs') from None
+                  raise Refusal('GitHub API retry exhausted')
+          
+              def get(self, path):
+                  return self.call('GET', '/repos/' + REPOSITORY + '/' + path)
+          
+              def ref(self, branch):
+                  result, _ = self.get('git/ref/heads/' + urllib.parse.quote(branch, safe='/'))
+                  require(result.get('ref') == 'refs/heads/' + branch, 'Unexpected ref response')
+                  require(result.get('object', {}).get('type') == 'commit', 'Ref is not a commit')
+                  oid = result['object']['sha']
+                  require(SHA1.fullmatch(oid), 'Invalid ref commit OID')
+                  return oid
+          
+              def optional_stage_ref(self, branch):
+                  require(branch.startswith(STAGE_PREFIX), 'Non-staging ref refused')
+                  try:
+                      return self.ref(branch)
+                  except Refusal as error:
+                      if str(error) == 'GitHub API HTTP 404':
+                          return None
+                      raise
+          
+              def created_ref(self, branch, parent):
+                  require(branch.startswith(STAGE_PREFIX), 'Non-staging ref visibility read refused')
+                  for delay in (0, 1, 2, 4):
+                      if delay:
+                          time.sleep(delay)
+                      try:
+                          actual = self.ref(branch)
+                      except Refusal as error:
+                          if str(error) == 'GitHub API HTTP 404':
+                              continue
+                          raise
+                      require(actual == parent, 'New staging ref has unexpected parent')
+                      return actual
+                  raise Refusal('New staging ref remains invisible; rerun reconciles it')
+          
+              def create_stage(self, branch, parent):
+                  require(branch.startswith(STAGE_PREFIX), 'Non-staging ref creation refused')
+                  self.call('POST', '/repos/' + REPOSITORY + '/git/refs', {
+                      'ref': 'refs/heads/' + branch, 'sha': parent,
+                  })
+          
+          
+          def load_payload(api, source_commit):
+              require(SHA1.fullmatch(source_commit), 'Source commit must be an exact 40-character SHA')
+              path = 'contents/' + PAYLOAD_PATH + '?ref=' + source_commit
+              data, _ = api.get(path)
+              require(data.get('type') == 'file' and data.get('encoding') == 'base64', 'Payload file unavailable')
+              content = base64.b64decode(data['content'].replace('\n', ''), validate=True)
+              require(git_blob_oid(content) == data['sha'], 'Source payload blob mismatch')
+              return validate_payload(content)
+          
+          
+          def load_blobs(api, payload):
+              cache = {}
+              for oid, descriptor in payload['blobs'].items():
+                  if 'base64' in descriptor:
+                      content = base64.b64decode(descriptor['base64'], validate=True)
+                  else:
+                      data, _ = api.get('git/blobs/' + oid)
+                      require(data.get('sha') == oid and data.get('encoding') == 'base64', 'Remote blob mismatch')
+                      content = base64.b64decode(data['content'].replace('\n', ''), validate=True)
+                  cache[oid] = base64.b64encode(check_blob(oid, descriptor, content)).decode()
+                  if len(cache) % 25 == 0 or len(cache) == len(payload['blobs']):
+                      print(json.dumps({'preflightBlobsValidated': len(cache), 'total': len(payload['blobs'])}), flush=True)
+              return cache
+          
+          
+          def read_leases(api, payload):
+              leases = []
+              for row in payload['rows']:
+                  actual = api.ref(row['branch'])
+                  require(actual == row['oldHead'], 'Original head lease changed for PR ' + str(row['pr']))
+                  leases.append({'pr': row['pr'], 'branch': row['branch'], 'head': actual})
+              return leases
+          
+          
+          def verify_commit(api, oid, parent, row):
+              require(SHA1.fullmatch(oid), 'Invalid created commit OID')
+              expected = {c['path']: c for c in row['changes']}
+              inventory, seen_pages = {}, set()
+              page = 1
+              while True:
+                  require(page not in seen_pages and page <= 20, 'Invalid inventory pagination')
+                  seen_pages.add(page)
+                  commit, headers = api.get('commits/' + oid + '?per_page=300&page=' + str(page))
+                  require(commit.get('sha') == oid, 'Unexpected inspected commit')
+                  require([p['sha'] for p in commit.get('parents', [])] == [parent], 'Commit must have exact single parent')
+                  detail = commit['commit']
+                  require(detail['tree']['sha'] == row['resultTree'], 'Created tree does not match frozen replay')
+                  verification = detail.get('verification', {})
+                  require(verification.get('verified') is True and verification.get('reason') == 'valid',
+                          'Created commit signature is not valid')
+                  require(verification.get('signature') and verification.get('payload'), 'Signature evidence missing')
+                  for file in commit.get('files', []):
+                      path = file['filename']
+                      require(path not in inventory and path in expected, 'Unexpected or duplicate changed file')
+                      change = expected[path]
+                      require(file['status'] == {'A': 'added', 'M': 'modified'}[change['status']], 'Changed-file status mismatch')
+                      require(file['sha'] == change['blobOid'], 'Changed-file blob mismatch')
+                      require('previous_filename' not in file, 'Unexpected renamed file')
+                      inventory[path] = {'status': file['status'], 'sha': file['sha']}
+                  links = headers.get('Link', '')
+                  next_links = re.findall(r'<([^>]+)>;\s*rel="next"', links)
+                  if not next_links:
+                      break
+                  require(len(next_links) == 1, 'Ambiguous pagination')
+                  next_url = urllib.parse.urlsplit(next_links[0])
+                  require(next_url.scheme == 'https' and next_url.netloc == 'api.github.com', 'Pagination origin refused')
+                  require(next_url.path == '/repos/' + REPOSITORY + '/commits/' + oid, 'Pagination path refused')
+                  query = urllib.parse.parse_qs(next_url.query)
+                  require(query.get('page') == [str(page + 1)], 'Unexpected next inventory page')
+                  page += 1
+              require(set(inventory) == set(expected), 'Incomplete changed-file inventory')
+              return {'commit': oid, 'parent': parent, 'tree': row['resultTree'], 'signature': 'valid',
+                      'fileCount': len(inventory), 'inventoryPages': len(seen_pages),
+                      'inventorySha256': hashlib.sha256(encode(inventory)).hexdigest()}
+          
+          
+          MUTATION = '''mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}'''
+          
+          
+          def create_signed_commit(api, branch, parent, row, blobs, payload):
+              require(branch.startswith(STAGE_PREFIX), 'Non-staging commit target refused')
+              additions = [{'path': c['path'], 'contents': blobs[c['blobOid']]} for c in row['changes']]
+              body = 'Reviewed focused PWA integration slice.\nFrozen plan SHA256: ' + payload['planSha256']
+              body += '\nExpected branch head: ' + row['oldHead'] + '\nExpected tree: ' + row['resultTree']
+              result, _ = api.call('POST', '/graphql', {'query': MUTATION, 'variables': {'input': {
+                  'branch': {'repositoryNameWithOwner': REPOSITORY, 'branchName': branch},
+                  'expectedHeadOid': parent,
+                  'message': {'headline': row['headline'], 'body': body},
+                  'fileChanges': {'additions': additions},
+                  'clientMutationId': PAYLOAD_SHA256[:16] + '-' + str(row['pr']),
+              }}})
+              require(not result.get('errors'), 'GraphQL commit rejected; inspect staging ref before rerun')
+              try:
+                  oid = result['data']['createCommitOnBranch']['commit']['oid']
+              except (KeyError, TypeError):
+                  raise Refusal('GraphQL commit result missing') from None
+              require(api.ref(branch) == oid, 'Staging ref changed after commit creation')
+              return oid
+          
+          
+          def checkpoint(name, value):
+              OUTPUT.mkdir(mode=0o700, exist_ok=True)
+              path = OUTPUT / (name + '.json')
+              temporary = path.with_suffix('.tmp')
+              temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + '\n')
+              temporary.replace(path)
+              print(json.dumps({'checkpoint': name, **value}, sort_keys=True), flush=True)
+          
+          
+          def main():
+              require(os.environ.get('GITHUB_REPOSITORY') == REPOSITORY, 'Repository allowlist refused')
+              token = os.environ.get('GH_TOKEN', '')
+              require(bool(token), 'GH_TOKEN is required')
+              api = GitHub(token)
+              source_commit = os.environ.get('PUBLISHER_SOURCE_COMMIT', '')
+              payload = load_payload(api, source_commit)
+              leases = read_leases(api, payload)  # ALL original leases pass before ANY write.
+              base, _ = api.get('git/commits/' + NEW_BASE)
+              require(base['sha'] == NEW_BASE and base['tree']['sha'] == payload['rows'][0]['parentTree'], 'New base tree mismatch')
+              blobs = load_blobs(api, payload)  # All content verified before any staging ref is created.
+              checkpoint('preflight', {'repository': REPOSITORY, 'sourceCommit': source_commit,
+                                      'payloadSha256': PAYLOAD_SHA256, 'newBase': NEW_BASE, 'leases': leases})
+              parent, rows = NEW_BASE, []
+              for row in payload['rows']:
+                  branch = STAGE_PREFIX + 'pr-' + str(row['pr']) + '-' + row['resultTree'][:12]
+                  existing = api.optional_stage_ref(branch)
+                  if existing is None:
+                      api.create_stage(branch, parent)
+                      existing = api.created_ref(branch, parent)
+                  if existing == parent:
+                      oid = create_signed_commit(api, branch, parent, row, blobs, payload)
+                  else:
+                      oid = existing  # Resume only after complete independent verification below.
+                  verified = verify_commit(api, oid, parent, row)
+                  require(api.ref(branch) == oid, 'Staging ref changed during verification')
+                  receipt = {'pr': row['pr'], 'originalBranch': row['branch'], 'originalHead': row['oldHead'],
+                             'stagingBranch': branch, **verified}
+                  checkpoint('pr-' + str(row['pr']), receipt)
+                  rows.append(receipt)
+                  parent = oid
+              require(rows[-1]['tree'] == FINAL_TREE, 'Final source tree mismatch')
+              final = {'repository': REPOSITORY, 'payloadSha256': PAYLOAD_SHA256, 'sourceCommit': source_commit,
+                       'newBase': NEW_BASE, 'finalCommit': parent, 'finalTree': FINAL_TREE, 'rows': rows,
+                       'promotionPerformed': False, 'originalLeases': leases}
+              checkpoint('complete', final)
+              summary = os.environ.get('GITHUB_STEP_SUMMARY')
+              if summary:
+                  with open(summary, 'a', encoding='utf-8') as stream:
+                      stream.write('Verified 1 receipt staging commit; no PR branches or bases changed.\n\n')
+                      stream.write('Final commit: `' + parent + '`\n\nFinal tree: `' + FINAL_TREE + '`\n')
+          
+          
+          if __name__ == '__main__':
+              try:
+                  main()
+              except Exception as error:
+                  # Never expose API response bodies, credentials, file contents, or traceback locals.
+                  message = str(error) if isinstance(error, Refusal) else 'Malformed input or unexpected publisher failure'
+                  print(json.dumps({'publisherFailure': message}), file=sys.stderr)
+                  sys.exit(1)
