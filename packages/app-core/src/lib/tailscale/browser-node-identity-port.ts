@@ -177,3 +177,35 @@ export function captureIdentityBrowserNode(
     stop: () => methods.stop.call(node),
   });
 }
+
+/** Reserve the initiating activation without constructing a node for a public HTTP flow. */
+export function reserveIdentityBrowserNode(owner: IdentityBrowserNodeOwner) {
+  const original = registration;
+  const signal = owner.signal;
+  const assert = owner.assertCurrent;
+  let opened = false;
+  const check = () => {
+    signal.throwIfAborted();
+    if (
+      registration !== original ||
+      owner.signal !== signal ||
+      owner.assertCurrent !== assert
+    )
+      throw new Error("Original identity peering activation changed.");
+    assert.call(owner);
+    signal.throwIfAborted();
+    if (registration !== original)
+      throw new Error("Original identity peering activation changed.");
+  };
+  return () => {
+    if (opened)
+      throw new Error("Original identity peering was already opened.");
+    opened = true;
+    check();
+    const node = captureIdentityBrowserNode(
+      Object.freeze({ signal, assertCurrent: check }),
+    );
+    check();
+    return node;
+  };
+}
