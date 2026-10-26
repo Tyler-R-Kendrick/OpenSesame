@@ -1,0 +1,72 @@
+name: Final rich mobile evidence
+on:
+  push:
+    branches: [review/final-mobile-evidence]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  final-mobile:
+    name: Full rich mobile contract on integrated final source
+    if: >-
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor == github.repository_owner &&
+      github.ref == 'refs/heads/review/final-mobile-evidence'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      FINAL_SHA: 915f9473f4bce40d747a9461408b7548eefcfc2c
+      EVIDENCE_DIR: ${{ github.workspace }}/work/review-output/final-rich-mobile
+      PAGES_VERIFY_OUT: ${{ github.workspace }}/work/review-output/final-rich-mobile/mobile
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - name: Check out immutable fully integrated source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ env.FINAL_SHA }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Reuse normal CI pinned native distribution cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build actual rich Pages and record immutable source
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          test "$(git rev-parse HEAD)" = "$FINAL_SHA"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source-commit.txt"
+          git rev-parse HEAD^{tree} > "$EVIDENCE_DIR/source-tree.txt"
+          sha256sum pnpm-lock.yaml package.json apps/pages/package.json > "$EVIDENCE_DIR/dependency-fingerprints.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          pnpm --version > "$EVIDENCE_DIR/pnpm-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+          set -o pipefail
+          pnpm --filter @opensesame/pages build 2>&1 | tee "$EVIDENCE_DIR/build.log"
+          git diff --exit-code
+      - name: Walk full mobile contract at all default phone and tablet sizes
+        shell: bash
+        run: |
+          test -z "${MOBILE_SIZES:-}"
+          set -o pipefail
+          pnpm --filter @opensesame/pages verify:mobile 2>&1 | tee "$EVIDENCE_DIR/mobile.log"
+          git diff --exit-code
+      - name: Upload full rich mobile checks and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: final-rich-mobile-915f9473
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
