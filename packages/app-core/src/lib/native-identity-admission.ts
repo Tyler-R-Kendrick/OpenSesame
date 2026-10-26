@@ -6,6 +6,7 @@ import {
   bindNativeFederationSession,
   federationSessionGeneration,
 } from "./federation-native-session.js";
+import { notifyFederationSessionChanged } from "./federation-session-events.js";
 import { clearFederationSessionJson } from "./federation-session-store.js";
 import { openVaultAfterSignIn } from "./guest-auth.js";
 import { vaultStore } from "./vault/store.js";
@@ -127,6 +128,7 @@ class NativeAdmission<P, C extends NativeIdentityClaims> {
     this.current = null;
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
+    if (previous) notifyFederationSessionChanged();
     previous?.release();
   };
   assertRuntime = (): void => {
@@ -176,6 +178,7 @@ class NativeAdmission<P, C extends NativeIdentityClaims> {
       },
       Math.max(0, identity.expiresAt - Date.now()),
     );
+    notifyFederationSessionChanged();
   }
   admit = async (
     proof: P,

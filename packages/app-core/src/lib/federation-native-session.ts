@@ -30,6 +30,7 @@ export type NativeFederationSessionPort = Readonly<{
   clear: () => void;
 }>;
 import { currentAuthGeneration } from "./auth-generation.js";
+import { notifyFederationSessionChanged } from "./federation-session-events.js";
 const brand: unique symbol = Symbol("federation-session-generation");
 export type FederationSessionGeneration = Readonly<{ [brand]: true }>;
 let generation: FederationSessionGeneration = Object.freeze({ [brand]: true });
@@ -54,7 +55,11 @@ export function advanceFederationSessionGeneration(): FederationSessionGeneratio
     [brand]: true,
   });
   generation = published;
-  active?.clear();
+  try {
+    active?.clear();
+  } finally {
+    notifyFederationSessionChanged();
+  }
   // Return this transition, even if clearing the previous native owner advanced again.
   return published;
 }
