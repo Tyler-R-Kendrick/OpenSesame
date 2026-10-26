@@ -18,6 +18,8 @@ the archives are made by
 | `opensesame-surrogate-proxy-TEST-upstream-override_<tag>_<target>.tar.gz` | The plugin's **test build** (`--features upstream-override`), under that name, and `LICENSE`. It can be aimed at a stand-in for the provider with `OPENSESAME_SURROGATE_TEST_UPSTREAM` and prints `TEST BUILD` on stderr. For test lanes only: never give it a real token |
 | `opensesame-env-parse.mjs` | The bundled bridge on its own, the same bytes as in every kit |
 | `SHA256SUMS` | The sha256 of every file above, and an attestation of its own |
+| `release-files.sigstore.json` | The signed Sigstore provenance bundle covering every file named by `SHA256SUMS` |
+| `SHA256SUMS.sigstore.json` | The signed Sigstore provenance bundle covering `SHA256SUMS` |
 
 The shipped plugin and `opensesame` do not contain the test build's override at
 all; the archive script refuses to pack them if they do, and refuses a test
@@ -28,9 +30,15 @@ build that does not.
 ```bash
 tag=v0.1.0 target=x86_64-unknown-linux-gnu
 gh release download "$tag" --repo Tyler-R-Kendrick/OpenSesame \
-  --pattern SHA256SUMS --pattern "opensesame-kit_${tag}_${target}.tar.gz"
+  --pattern SHA256SUMS --pattern '*.sigstore.json' \
+  --pattern "opensesame-kit_${tag}_${target}.tar.gz"
+gh attestation verify SHA256SUMS --bundle SHA256SUMS.sigstore.json \
+  --repo Tyler-R-Kendrick/OpenSesame \
+  --signer-workflow Tyler-R-Kendrick/OpenSesame/.github/workflows/release-kit.yml \
+  --source-ref refs/tags/$tag
 sha256sum --check --ignore-missing SHA256SUMS
 gh attestation verify "opensesame-kit_${tag}_${target}.tar.gz" \
+  --bundle release-files.sigstore.json \
   --repo Tyler-R-Kendrick/OpenSesame \
   --signer-workflow Tyler-R-Kendrick/OpenSesame/.github/workflows/release-kit.yml \
   --source-ref refs/tags/$tag
@@ -45,8 +53,16 @@ digest, and the statement names the commit and the run. Without
 `--signer-workflow` and `--source-ref` it proves only that some workflow of the
 repository attested the file: a run of an edited copy of the workflow on a
 branch would pass. Add `--source-digest <commit sha>` to pin the commit as well.
-Every file `SHA256SUMS` names has its own attestation, and so does `SHA256SUMS`
-(verify it with the same flags before trusting its lines).
+The files named by `SHA256SUMS` are subjects of `release-files.sigstore.json`;
+`SHA256SUMS` is the subject of its separate bundle. Verify the manifest before
+trusting its lines. These are the action's original signed bundles, also uploaded
+to GitHub's attestation service; omitting `--bundle` retrieves them from that
+service. The bundles do not list their own hashes in `SHA256SUMS`.
+
+Publishing the bundles as release assets also makes the signatures discoverable
+by OpenSSF Scorecard's Signed-Releases check. A workflow change alone does not
+change that check: it examines published releases. It does not verify signatures,
+so use the commands above to verify the downloaded bytes and signer.
 
 It does not prove that the commit was reviewed, that the source is free of
 defects, or that the binaries rebuild bit for bit. The workflow checks that the
@@ -175,7 +191,8 @@ settings add friction and tamper resistance.
   edited workflow.
 
 Before it creates anything, `publish` runs `gh attestation verify` on every file
-and on `SHA256SUMS` with the flags in [Verify a download](#verify-a-download),
+and on `SHA256SUMS` using the exact bundles it will publish and the flags in
+[Verify a download](#verify-a-download),
 and `kit-archive.sh sums` refuses to write `SHA256SUMS` unless the bridge on its
 own is the one inside every kit.
 
