@@ -346,9 +346,8 @@ async function confirmSessionSas(panel) {
 
 /**
  * The owner pastes a request by hand and lets the person in. An open session
- * auto-admits after the asking seat is emitted (`admit: false`), so its
- * transient comparison key is not a manual admission step. Invite sessions
- * compare the displayed SAS before pressing "Yes, they match". The reply code.
+ * auto-admits requests (`admit: false`), so wait for its reply rather than
+ * clicking the transient comparison row. Invite sessions require approval.
  */
 export async function ownerAdmitsByHand(
   page,
@@ -374,13 +373,6 @@ export async function ownerAdmitsByHand(
       await match.click();
     } else {
       await letIn.click();
-    }
-  } else {
-    await match.or(copy).first().waitFor({ timeout: 20_000 });
-    await beforeAdmit?.();
-    if (await match.isVisible()) {
-      await confirmSessionSas(panel);
-      await match.click();
     }
   }
   await copy.waitFor({ timeout: 20_000 });

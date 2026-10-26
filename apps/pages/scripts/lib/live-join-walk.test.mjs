@@ -180,6 +180,18 @@ test("a refused SAS comparison cannot admit the person or copy a reply", async (
   assert.deepEqual(events, ["read"]);
 });
 
+test("open admission waits for the automatic reply without approving a transient SAS row", async () => {
+  const { panel, events } = admissionFixture();
+  const reply = await ownerAdmitsByHand(pageOf(null), panel, "request", "Ada", {
+    admit: false,
+    beforeAdmit() {
+      throw new Error("Open admission must not request manual comparison");
+    },
+  });
+  assert.equal(reply, "osl-reply.fixture");
+  assert.deepEqual(events, ["read"]);
+});
+
 function requestFixture() {
   const { clipboard, taken } = browser(async () => {});
   const seen = { asked: false, choice: null, automatic: false, manual: false };

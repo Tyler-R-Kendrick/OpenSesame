@@ -49,8 +49,7 @@ function put(value: JsonValue, parts: string[], next: JsonValue): JsonValue {
 function verificationReply(target: VerifyTarget): JsonValue {
   let reply = accountReplyFor(target.accountField, CONFORMANCE_ACCOUNT);
   for (const field of target.requiredFields ?? []) {
-    // The account reply already supplies this field and its containing objects.
-    // Replacing an ancestor would erase the account value (for example data.name).
+    // The account leaf already proves its parent exists; preserve that object.
     if (
       target.accountField === field ||
       target.accountField?.startsWith(`${field}.`)

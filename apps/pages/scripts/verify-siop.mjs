@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { build } from "vite";
 import { chooseCapabilities } from "./lib/choose-capabilities.mjs";
+import { nativeVisit } from "./lib/native-browser-catalog-journey.mjs";
 import { privateTempDir } from "./lib/private-files.mjs";
 import { bundleFixture, bundleVerify } from "./lib/siop-fixture-bundles.mjs";
 import {
@@ -179,11 +180,29 @@ function routeRp(context) {
   );
 }
 
-async function runSocialAllow(page, clientId, personName, label) {
+async function runSocialAllow(page, clientId, personId, personName, label) {
   const nonce = `social-${label}-${crypto.randomUUID().slice(0, 8)}`;
   const state = `social-${label}`;
   const siopUrl = buildSiopUrl(origin, base, clientId, { nonce, state });
-  await gotoUnlocked(page, siopUrl);
+  // The upstream account is not authority to impersonate a local person.
+  // Authenticate that person through the real directory/passkey UI, then
+  // keep the tab-owned actor when opening consent in this document.
+  await gotoUnlocked(
+    page,
+    `${origin}${base}identity?view=people#${encodeURIComponent(personId)}`,
+  );
+  const detail = page.locator(".vault__detail");
+  await expect(
+    detail.getByRole("heading", { name: personName, exact: true }),
+  ).toBeVisible();
+  await detail.locator("summary", { hasText: "Passkeys" }).click();
+  await detail
+    .getByRole("button", { name: "Sign in locally", exact: true })
+    .click();
+  await expect(
+    detail.getByRole("status", { name: "Local session status" }),
+  ).toContainText("Signed in locally with a passkey.");
+  await nativeVisit(page, base, siopUrl.slice(`${origin}${base}`.length));
   const redirectUrl = await approveSiopConsentWithSocial(page, personName);
   const verified = await siopVerify.verifySiopRedirect(redirectUrl, {
     issuer: siopIssuer(origin, base),
@@ -237,15 +256,16 @@ try {
   await installPasskeyCredentials(page, credentials);
   // `/siop` and the local applications this seeds belong to Self-issued
   // OpenID and browser-local IAM, which are always on (ADR 0142): the walk
-  // asks for them and `chooseCapabilities` finds nothing to switch.
+  // asks for them and explicitly approves Directory provisioning for the
+  // local-person passkey UI used by the social actor precondition.
   await chooseCapabilities(
     context,
     1280,
-    ["Self-issued OpenID"],
+    ["Self-issued OpenID", "Directory provisioning"],
     `${origin}${base}`.replace(/\/$/, ""),
   );
   await timed("first unlock", () => gotoUnlocked(page, `${origin}${base}`));
-  const { appOneId, appTwoId, personName } = identities;
+  const { appOneId, appTwoId, personId, personName } = identities;
 
   const subOne = await timed("pages allow", () =>
     runAllow(page, appOneId, personName, "primary"),
@@ -254,13 +274,12 @@ try {
     "PASS allow: verified Self-Issued ID Token for primary application",
   );
 
-  const socialSub = await timed("pages social", async () => {
-    await gotoUnlocked(page, `${origin}${base}vault`);
-    return runSocialAllow(page, appOneId, personName, "primary");
-  });
+  const socialSub = await timed("pages social", () =>
+    runSocialAllow(page, appOneId, personId, personName, "primary"),
+  );
   expect(socialSub).toBe(subOne);
   console.log(
-    "PASS social: a configured connection and the selected person's passkey minted a Self-Issued ID Token",
+    "PASS social: a configured connection minted a Self-Issued ID Token for the authenticated local person",
   );
 
   const subTwo = await timed("pages pairwise", async () => {
