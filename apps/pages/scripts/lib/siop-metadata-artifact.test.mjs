@@ -20,13 +20,50 @@ afterEach(() => {
     fs.rmSync(directory, { recursive: true, force: true });
 });
 
-it("accepts self-issued metadata beside the isolated web app manifest", () => {
+const publicDocuments = [
+  "security.txt",
+  "manifest.webmanifest",
+  "apple-app-site-association",
+  "assetlinks.json",
+];
+
+it.each(publicDocuments)(
+  "accepts the documented public artifact %s",
+  (document) => {
+    const { dist, verifier } = artifact();
+    fs.mkdirSync(path.join(dist, ".well-known"));
+    fs.writeFileSync(path.join(dist, ".well-known", document), "{}");
+    expect(() =>
+      checkPublishedMetadata(dist, verifier, origin, basePath),
+    ).not.toThrow();
+  },
+);
+
+it("accepts all current public and generated association artifacts together", () => {
   const { dist, verifier } = artifact();
   fs.mkdirSync(path.join(dist, ".well-known"));
-  fs.writeFileSync(path.join(dist, ".well-known/manifest.webmanifest"), "{}");
+  for (const document of publicDocuments)
+    fs.writeFileSync(path.join(dist, ".well-known", document), "{}");
   expect(() =>
     checkPublishedMetadata(dist, verifier, origin, basePath),
   ).not.toThrow();
+  expect(
+    fs.readdirSync(new URL("../../public/.well-known/", import.meta.url)),
+  ).toEqual(["security.txt"]);
+});
+
+it("refuses nested documents hidden under an allowed artifact name", () => {
+  const { dist, verifier } = artifact();
+  fs.mkdirSync(path.join(dist, ".well-known/security.txt"), {
+    recursive: true,
+  });
+  fs.writeFileSync(
+    path.join(dist, ".well-known/security.txt/openid-configuration"),
+    "{}",
+  );
+  expect(() =>
+    checkPublishedMetadata(dist, verifier, origin, basePath),
+  ).toThrow();
 });
 
 it.each([
