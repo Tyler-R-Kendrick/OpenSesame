@@ -1,3 +1,4 @@
+import { opensSharedItems } from "./live-joined.mjs";
 /**
  * The walks verify:live-join takes (ADR 0150): direct, each carrier and a
  * declined route (the tunnel is `live-join-tunnel.mjs`, relay only through
@@ -14,6 +15,7 @@ import {
   startNtfyServer,
 } from "./live-carriers.mjs";
 import { engineOf } from "./live-engines.mjs";
+import { thisMachine } from "./live-join-addresses.mjs";
 import {
   WATCH_RTC,
   admitControl,
@@ -23,6 +25,7 @@ import {
   joinerAsks,
   joinerConnects,
   ownerAdmitsByHand,
+  readJoinerSas,
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
@@ -35,7 +38,6 @@ let failures;
 let device;
 let shot;
 let configs;
-let joined;
 let SECRET;
 let PHONE;
 let PASSTHROUGH;
@@ -62,7 +64,6 @@ export function bindWalk(walk) {
     device,
     shot,
     configs,
-    joined,
     SECRET,
     PHONE,
     PASSTHROUGH,
@@ -96,6 +97,7 @@ async function topicOf(link) {
 
 export async function direct(browser, owner) {
   setStep("direct");
+  await setRoutes(owner.page, { addresses: await thisMachine() });
   const { panel, code, link } = await startSession(owner.page);
   check(
     !/\.[\w-]{87}\.[\w-]{43}\./.test(link),
@@ -112,7 +114,7 @@ export async function direct(browser, owner) {
     /^osl-request\./.test(request) && !request.includes(JOINER),
     "a sealed request code",
   );
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  const joinerSas = await readJoinerSas(joiner.page);
   let ownerSas = "";
   const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER, {
     onSas: (sas) => {
@@ -121,13 +123,13 @@ export async function direct(browser, owner) {
   });
   check(
     /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) && joinerSas === ownerSas,
-    "both sides show the same session SAS",
+    `both sides show the same session SAS (joiner=${joinerSas}, owner=${ownerSas})`,
   );
   const connect = () => joinerConnects(joiner.page, reply);
   if (whileJoinerConnects) await whileJoinerConnects(joiner, connect);
   else await connect();
   if (afterJoinerConnects) await afterJoinerConnects(joiner);
-  await joined(joiner.page).waitFor({ timeout: 45_000 });
+  await opensSharedItems(joiner.page);
   // What a browser put in a description itself is its own doing; what the
   // app sealed beside it must be loopback (live-sdp-privacy.mjs).
   const own = new Set([
@@ -217,7 +219,7 @@ export async function carried(browser, owner, kind) {
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
-    await joined(joiner.page).waitFor({ timeout: 45_000 });
+    await opensSharedItems(joiner.page);
     await shot(joiner.page, `carrier-${kind}-joined`);
     check(true, `${kind}: joined with no code pasted either way`);
     if (server.collect) await server.collect([await topicOf(link)]);

@@ -141,6 +141,8 @@ async function offlineStatus(page, context) {
   const status = page.locator(".app-header .rail__presence [data-touch-twin]");
   try {
     await expect(status).toBeVisible();
+    await expect(status).toHaveCSS("width", "44px");
+    await expect(status).toHaveCSS("height", "44px");
     await measure(page, "320-offline-with-install");
   } finally {
     await context.setOffline(false);

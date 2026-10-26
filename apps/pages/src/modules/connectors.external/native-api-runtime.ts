@@ -245,6 +245,7 @@ async function runOwnedApi<Result>(
   caller: AbortSignal,
   call: (transport: NativeProviderTransport) => Promise<Result>,
 ) {
+  caller.throwIfAborted();
   const transport = ownedApiTransport(capture(), caller);
   try {
     const result = await call(transport);
@@ -280,6 +281,7 @@ export function bindNativeApiRuntime(activation: Activation): void {
           assertCaller?.call(owner);
         };
         checkCaller();
+        caller?.throwIfAborted();
         const original = authority.capture();
         const configure = async (transport: NativeProviderTransport) => {
           const configured = await configureApi(draft, transport);

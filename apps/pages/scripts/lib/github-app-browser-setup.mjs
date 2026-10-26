@@ -214,15 +214,15 @@ export async function bindRepository(
     exact: true,
   });
   await expect(repository).toBeEnabled();
-  if (create) {
-    await repository.focus();
-    await page
-      .getByRole("option", {
-        name: "fixture-owner/existing-private",
-        exact: true,
-      })
-      .waitFor();
-  }
+  // Focusing claims the editable draft and opens the loaded choices. Let that
+  // controlled-input transition settle before fill selects and replaces it.
+  await repository.focus();
+  await page
+    .getByRole("option", {
+      name: create ? "fixture-owner/existing-private" : `fixture-owner/${name}`,
+      exact: true,
+    })
+    .waitFor();
   await repository.fill(`fixture-owner/${name}`);
   assert.equal(
     await repository.inputValue(),

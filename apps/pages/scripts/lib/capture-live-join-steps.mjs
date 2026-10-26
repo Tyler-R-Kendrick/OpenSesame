@@ -1,3 +1,4 @@
+import { opensSharedItems } from "./live-joined.mjs";
 /**
  * Capture verbs for a live session that is actually joined (ADR 0150 §5): an
  * owner whose vault is heavy, and a joiner in a browser of its own who goes
@@ -133,9 +134,7 @@ export function liveJoinSteps({ harness }) {
       const held = owners.get(page);
       if (!held?.link) return console.log("  liveJoin: skipped (no session)");
       const seat = await joinThrough(page, harness, held, name);
-      const joined = await seat
-        .getByRole("img", { name: "Joined Team" })
-        .waitFor({ timeout: wait })
+      const joined = await opensSharedItems(seat, wait)
         .then(() => true)
         .catch(() => false);
       await seat.waitForTimeout(1500);

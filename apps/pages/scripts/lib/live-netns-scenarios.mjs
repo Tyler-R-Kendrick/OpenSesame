@@ -1,3 +1,4 @@
+import { joinedSession, opensSharedItems } from "./live-joined.mjs";
 /**
  * The walks verify:live-netns takes (ADR 0150 §6): the owner in one network
  * namespace, the joiner in another, and a real veth between them
@@ -72,14 +73,11 @@ function selected(page) {
   });
 }
 
-const joinedMark = (page) => page.getByRole("img", { name: "Joined Team" });
 const meets = (page, ms) =>
-  joinedMark(page)
-    .waitFor({ timeout: ms })
-    .then(
-      () => true,
-      () => false,
-    );
+  joinedSession(page, ms).then(
+    () => true,
+    () => false,
+  );
 
 /** Owner asks nobody to be let in: an open session, codes passed by hand. */
 async function pairByHand(ctx, joiner, { name = JOINER } = {}) {
@@ -159,7 +157,7 @@ export async function withAddress(ctx) {
     !session.link.includes(ADDRESS.a),
     "address: the owner's address is not in the link",
   );
-  await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
+  await opensSharedItems(joiner.page);
   const theirs = await pairs(joiner.page);
   check(
     theirs.length > 0 &&
@@ -211,7 +209,7 @@ export async function carried(ctx) {
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
-    await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
+    await opensSharedItems(joiner.page);
     check(true, "carrier: joined with no code pasted either way");
     const made = await pairs(joiner.page);
     check(
@@ -262,7 +260,7 @@ export async function relayed(ctx) {
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
-    await joinedMark(joiner.page).waitFor({ timeout: 45_000 });
+    await opensSharedItems(joiner.page);
     for (const [who, page] of [
       ["owner", owner.page],
       ["joiner", joiner.page],

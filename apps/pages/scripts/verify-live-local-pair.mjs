@@ -85,8 +85,6 @@ async function configs(page) {
   );
 }
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
-
 bindWalk({
   check,
   setStep,
@@ -94,7 +92,6 @@ bindWalk({
   device,
   shot,
   configs,
-  joined,
   launch,
   SECRET,
   ORIGIN,

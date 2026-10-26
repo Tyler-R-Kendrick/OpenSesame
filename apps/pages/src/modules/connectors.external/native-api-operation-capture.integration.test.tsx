@@ -120,6 +120,29 @@ function activate() {
 function controller() {
   return nativeConnectorController({ id: "algolia", refused: false });
 }
+it("refuses an already-aborted configuration owner before capturing a native route", async () => {
+  const bound = activate();
+  await save();
+  const originalRows = structuredClone(readDeviceRows());
+  const native = node();
+  const driver = nativeConnectorDriver("api-key", "algolia");
+  await expect(
+    driver.configure({
+      ...input,
+      providerId: "algolia",
+      owner: { signal: AbortSignal.abort(), assertCurrent: () => {} },
+    }),
+  ).rejects.toThrow();
+  expect(native.capture).not.toHaveBeenCalled();
+  expect(native.fetch).not.toHaveBeenCalled();
+  expect(readDeviceRows()).toEqual(originalRows);
+  await expect(
+    driver.configure({ ...input, providerId: "algolia" }),
+  ).resolves.toMatchObject({ status: "connected" });
+  expect(native.capture).toHaveBeenCalledOnce();
+  expect(native.fetch).toHaveBeenCalledOnce();
+  expect(bound.context.egressCalls).toEqual([]);
+});
 it("binds before node configuration then mounts, tests, connects, verifies and reads only through native HTTP", async () => {
   const bound = activate();
   const browser = vi

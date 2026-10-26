@@ -172,8 +172,6 @@ const { device, shot, configs, wreckage } = livePages({
   named,
 });
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
-
 /** The walk's throwaway certificate, once minted: a carrier's TLS front uses it. */
 const TLS = { cert: undefined };
 
@@ -188,7 +186,6 @@ bindWalk({
   device,
   shot,
   configs,
-  joined,
   SECRET,
   PHONE,
   PASSTHROUGH,
@@ -202,7 +199,6 @@ bindTunnel({
   device,
   shot,
   configs,
-  joined,
   launch: launchEngine,
   SECRET,
   ORIGIN,
@@ -216,7 +212,6 @@ bindRelayed({
   device,
   shot,
   configs,
-  joined,
   PHONE,
   TLS,
 });
@@ -226,7 +221,6 @@ bindNats({
   failures,
   device,
   shot,
-  joined,
   SECRET,
   PHONE,
   TLS,

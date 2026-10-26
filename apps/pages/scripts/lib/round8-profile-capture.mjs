@@ -14,6 +14,7 @@ import {
   copyFrom,
   joinerAsks,
   ownerEnters,
+  readJoinerSas,
   startSession,
 } from "./live-join-walk.mjs";
 import { waitOpen } from "./pages-journey.mjs";
@@ -174,7 +175,7 @@ async function compareJoiner({
       name: JOINER,
       peerTrust: signal,
     });
-    measure.joinerSas = await readSas(joiner.page.locator(".live-sas").first());
+    measure.joinerSas = await readJoinerSas(joiner.page);
     const panel = started.panel;
     await panel
       .getByLabel("Paste a join request", { exact: true })

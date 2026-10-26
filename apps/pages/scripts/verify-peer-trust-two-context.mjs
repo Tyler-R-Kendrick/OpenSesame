@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { opensSharedItems } from "./lib/live-joined.mjs";
 /**
  * Peer-trust peering on the static dist, two browser contexts (journeys-2).
  *
@@ -21,6 +22,7 @@ import {
   ownerAdmitsByHand,
   ownerEnters,
   peerStates,
+  readJoinerSas,
   startSession,
 } from "./lib/live-join-walk.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
@@ -146,7 +148,7 @@ async function verifiedJoin(browser, session) {
     name: VERIFIED_NAME,
     peerTrust: session.signal,
   });
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  const joinerSas = await readJoinerSas(joiner.page);
   check(
     (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
     "verified join is not marked unverified",
@@ -170,9 +172,7 @@ async function verifiedJoin(browser, session) {
     "verified join shows the same session SAS on both sides",
   );
   await joinerConnects(joiner.page, reply);
-  await joiner.page
-    .getByRole("img", { name: "Joined Team" })
-    .waitFor({ timeout: 45_000 });
+  await opensSharedItems(joiner.page);
   check(true, "copied peer trust signal joins");
   await shot(joiner.page, "verified-join");
   await joiner.context.close();

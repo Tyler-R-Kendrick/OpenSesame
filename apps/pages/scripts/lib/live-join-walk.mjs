@@ -6,6 +6,7 @@
  */
 
 import { SHARED_ITEM } from "./live-item-labels.mjs";
+import { answerAddresses } from "./live-join-addresses.mjs";
 import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
@@ -273,6 +274,17 @@ export async function joinerAsks(
 
 const SAS_TEXT = /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/;
 
+/** Read the joiner's session code after opening its Security code disclosure. */
+export async function readJoinerSas(page) {
+  const disclosure = page.locator("details.live-verify");
+  await disclosure.waitFor();
+  if ((await disclosure.getAttribute("open")) === null)
+    await disclosure.getByText("Security code", { exact: true }).click();
+  const sas = disclosure.locator(".live-sas");
+  await sas.waitFor({ state: "visible" });
+  return (await sas.innerText()).trim();
+}
+
 function escapeName(name) {
   return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -353,4 +365,5 @@ export async function ownerAdmitsByHand(
 export async function joinerConnects(page, reply) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
   await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await answerAddresses(page);
 }

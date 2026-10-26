@@ -66,12 +66,12 @@ export function LiveJoinRoute() {
     liveJoinLandingFor(root.current, guest ? status?.at : "ask"),
   );
   useEffect(() => {
-    // Creating the joiner's vault can remount this route after the request
-    // already exists. That arrival has no phase change for useLandOnChange.
-    if (!guest || status?.at !== "request") return;
+    // Creating the joiner's vault, or returning from it to a joined session,
+    // mounts a phase that already exists, with no useLandOnChange transition.
+    if (!guest || (status?.at !== "request" && status?.at !== "joined")) return;
     const fallback = document.getElementById("main");
     if (!keyboardIsIdle() && document.activeElement !== fallback) return;
-    const target = liveJoinLandingFor(root.current, "request");
+    const target = liveJoinLandingFor(root.current, status.at);
     if (landFocus(target) && target) revealClear(target);
   }, [guest, status?.at]);
 
