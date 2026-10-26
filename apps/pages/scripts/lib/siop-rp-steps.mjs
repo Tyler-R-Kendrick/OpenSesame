@@ -9,6 +9,7 @@
  * hours back.
  */
 import { expect } from "@playwright/test";
+import { isString } from "../../../../scripts/lib/json-boundary.mjs";
 
 const VAULT_PASSWORD = "Cedar-lantern-47-river!";
 const NAVIGATION_TIMEOUT = 15_000;
@@ -140,7 +141,8 @@ const BINDING_COOKIE_PREFIX = "__Host-siop_binding_";
  * Chromium treats loopback as a secure context and keeps it.
  */
 export async function bindingCookieOf(context, rpUrl, state) {
-  expect(state).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
+  if (!isString(state) || !/^[A-Za-z0-9_-]{1,256}$/.test(state))
+    throw new Error("A binding-cookie lookup requires the exact login state");
   const { hostname } = new URL(rpUrl);
   const held = (await context.cookies()).find(
     (cookie) =>
