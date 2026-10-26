@@ -10,9 +10,11 @@
 //   - a sheet opens with the keyboard on its close key, Tab and Shift+Tab stay
 //     inside it, Escape closes it and gives the keyboard back to the key that
 //     opened it;
-//   - a real directory person enrolls a browser passkey before selection;
-//   - Save stays off without people, and Enter saves a named circle whose
-//     person and approval threshold survive reopening the editor.
+//   - the unlock-policy editor cannot save a circle without a selected person
+//     with a passkey; typing a name and Enter leaves it open with no circle.
+//
+// Real passkey quorum acceptance and below-threshold refusal are also walked
+// by verify-trusted-unlock.mjs; this walk proves keyboard operation and refusal.
 //
 // Every step is a real key press. Nothing is clicked, focused or dispatched;
 // the only `evaluate` calls read the page, as a person would.
@@ -20,8 +22,6 @@
 import { expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
 import { focusIn } from "./live-keyboard-contract.mjs";
-import { openIdentityView } from "./local-directory-navigation.mjs";
-import { installWebAuthn } from "./siop-journey.mjs";
 
 const PIN = "48291037";
 
@@ -163,109 +163,32 @@ async function sheet(page, tabTo, name, inside) {
   ).toBeFocused();
 }
 
-const PERSON = "Family contact";
-
-/** Create the real local person and enroll through the browser's WebAuthn API. */
-async function personWithPasskey(page, tabTo) {
-  await openIdentityView(page, tabTo, "People");
-  const panel = page.locator('.record-workspace[data-section="Identity"]');
-  const create = panel.getByRole("button", { name: "New person", exact: true });
-  try {
-    // The list can arrive before its encrypted default-directory seed lands.
-    // Like the directory keyboard contract, wait for its command to open.
-    await expect(create).toBeVisible();
-    await expect(create).toBeEnabled();
-    await tabTo(page, create);
-  } catch (error) {
-    console.error(
-      "New person keyboard target:",
-      await create.evaluate((node) => ({
-        disabled: node.disabled,
-        tabIndex: node.tabIndex,
-        hidden: node.hidden,
-        pane: node.closest(".record-workspace")?.getAttribute("data-pane"),
-        visible: node.getClientRects().length > 0,
-      })),
-    );
-    throw error;
-  }
-  await page.keyboard.press("Enter");
-  const name = panel.getByRole("textbox", { name: "Name", exact: true });
-  await expect(name).toBeFocused();
-  await page.keyboard.insertText(PERSON);
-  await page.keyboard.press("Enter");
-  const detail = panel.locator(".vault__detail");
-  await expect(
-    detail.getByRole("heading", { name: PERSON, exact: true }),
-  ).toBeVisible();
-  await tabTo(page, detail.locator("summary", { hasText: "Passkeys" }));
-  await page.keyboard.press("Enter");
-  const enroll = detail.getByRole("button", {
-    name: "Enroll passkey",
-    exact: true,
-  });
-  await expect(enroll).toBeEnabled();
-  await tabTo(page, enroll);
-  await page.keyboard.press("Enter");
-  await expect(
-    detail.getByRole("status", { name: "Passkey status" }),
-  ).toContainText("Passkey enrolled.");
-}
-
-/** The current circle form saves real directory people rather than invitation packets. */
-async function saveCircle(page, tabTo) {
-  const opener = page.getByRole("button", {
-    name: "Start a circle",
-    exact: true,
-  });
-  await tabTo(page, opener);
-  await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", {
-    name: "Trusted contacts",
-    exact: true,
-  });
-  await expect(dialog).toBeVisible();
-  const save = dialog.getByRole("button", {
+/** A name alone cannot authorize a circle without a passkey-bearing person. */
+async function newCircleStep(page, tabTo) {
+  const name = page.getByLabel("Name", { exact: true });
+  const save = page.getByRole("button", {
     name: "Save the circle",
     exact: true,
   });
   await expect(save).toBeDisabled();
-  const person = dialog
-    .getByRole("group", { name: "People", exact: true })
-    .getByRole("checkbox", { name: PERSON, exact: true });
-  await expect(person).toBeEnabled();
-  await tabTo(page, person);
-  await page.keyboard.press("Space");
-  await expect(person).toBeChecked();
-  const threshold = dialog.getByRole("combobox", {
-    name: "Required approvals",
-    exact: true,
-  });
-  await tabTo(page, threshold);
-  await expect(threshold.locator("option:checked")).toHaveText("1 of 1");
-  const name = dialog.getByLabel("Name", { exact: true });
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
   await tabTo(page, name);
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Family");
-  await expect(save).toBeEnabled();
+  await expect(name).toHaveValue("Family");
   await page.keyboard.press("Enter");
-  await expect(dialog).toHaveCount(0);
-  await expect(opener).toBeFocused();
-  const circles = page.locator("section#circles");
+  await expect(save).toBeDisabled();
+  await expect(name).toBeFocused();
+  await focusIn(
+    page,
+    '[role="dialog"]',
+    "an incomplete circle stays in its editor",
+  );
+  // Escape leaves a text edit first; the sheet's Escape then closes it.
+  await page.keyboard.press("Escape");
   await expect(
-    circles.getByRole("heading", { name: "Family", exact: true }),
-  ).toBeVisible();
-  await expect(circles).toContainText("1 of 1 contacts must approve");
-  await expect(circles).toContainText(PERSON);
-  await sheet(page, tabTo, "Start a circle", async (reopened) => {
-    await expect(reopened.getByLabel("Name", { exact: true })).toHaveValue(
-      "Family",
-    );
-    await expect(
-      reopened.getByRole("checkbox", { name: PERSON, exact: true }),
-    ).toBeChecked();
-    await expect(reopened.getByLabel("Required approvals")).toHaveValue("1");
-  });
+    page.getByRole("dialog", { name: "Trusted contacts", exact: true }),
+  ).toBeFocused();
 }
 
 export async function trustedContactsKeyboardContract({
@@ -278,45 +201,27 @@ export async function trustedContactsKeyboardContract({
 }) {
   const before = harness.failures.length;
   const { page, context } = await harness.newPage(browser);
-  let device;
-  try {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-    await sealByKeyboard(page, tabTo, width);
-    await approveByKeyboard(page, tabTo, [
-      "Directory provisioning",
-      "Trusted contacts",
-    ]);
-    device = await installWebAuthn(page);
-    await personWithPasskey(page, tabTo);
-    await openTab(page, tabTo);
-    await expect(page.locator(":focus")).not.toHaveJSProperty(
-      "tagName",
-      "BODY",
-    );
-    await keysInOrder(page, tabTo);
-    await sheet(page, tabTo, "Start a circle", async (dialog) => {
-      await expect(
-        dialog.getByRole("button", { name: "Save the circle", exact: true }),
-      ).toBeDisabled();
-    });
-    await saveCircle(page, tabTo);
-  } finally {
-    try {
-      if (device)
-        await device.cdp.send("WebAuthn.removeVirtualAuthenticator", {
-          authenticatorId: device.authenticatorId,
-        });
-    } finally {
-      try {
-        if (device) await device.cdp.detach();
-      } finally {
-        await context.close();
-      }
-    }
-  }
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+  await sealByKeyboard(page, tabTo, width);
+  await approveByKeyboard(page, tabTo, ["Trusted contacts"]);
+  await openTab(page, tabTo);
+  await expect(page.locator(":focus")).not.toHaveJSProperty("tagName", "BODY");
+  await keysInOrder(page, tabTo);
+  await sheet(page, tabTo, "Start a circle", () => newCircleStep(page, tabTo));
+  await expect(
+    page
+      .locator("#circles")
+      .getByRole("img", { name: "No circles yet.", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator("#circles")
+      .getByRole("heading", { name: "Family", exact: true }),
+  ).toHaveCount(0);
+  await context.close();
   if (harness.failures.length === before)
     console.log(
-      `PASS ${width}px: Trusted contacts by keyboard — tab, key in order, sheet focus trap, Escape/opener return, real passkey person and persisted circle save`,
+      `PASS ${width}px: Trusted contacts by keyboard — tab, key in order, one sheet, focus in and back`,
     );
 }

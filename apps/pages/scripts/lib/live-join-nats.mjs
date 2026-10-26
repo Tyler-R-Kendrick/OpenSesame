@@ -210,7 +210,13 @@ export async function natsSession(browser, owner, binary, mode) {
       dist: owner.dist,
       init: mode === "fallback" ? [[NO_ROUTE]] : [],
     });
-    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    await joinerAsks(joiner.page, {
+      link,
+      code,
+      name: JOINER,
+      routes: true,
+      automatic: true,
+    });
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();

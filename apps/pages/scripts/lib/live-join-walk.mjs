@@ -230,7 +230,7 @@ export async function endSession(panel) {
  */
 export async function joinerAsks(
   page,
-  { link, code, name, routes = null, peerTrust = "" },
+  { link, code, name, routes = null, peerTrust = "", automatic = false },
 ) {
   await page.goto(link, { waitUntil: "networkidle" });
   await page
@@ -264,6 +264,15 @@ export async function joinerAsks(
   const choice = page.getByRole("checkbox", { name: /^Pair through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
+  if (automatic) {
+    await page
+      .getByRole("img", {
+        name: "The owner can see your request. Waiting for them to let you in.",
+        exact: true,
+      })
+      .waitFor({ timeout: 20_000 });
+    return "";
+  }
   const copy = page.getByRole("button", { name: "Copy your join request" });
   if (routes === true) {
     const automatic = page.getByRole("img", {

@@ -206,7 +206,13 @@ export async function carried(ctx) {
       .getByRole("img", { name: /^Carrying codes: / })
       .waitFor({ timeout: 20_000 });
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
-    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    await joinerAsks(joiner.page, {
+      link,
+      code,
+      name: JOINER,
+      routes: true,
+      automatic: true,
+    });
     const admit = admitControl(panel, JOINER);
     await admitAndAnswer(admit, joiner.page);
     await opensSharedItems(joiner.page);
@@ -256,7 +262,13 @@ export async function relayed(ctx) {
     });
     const { panel, code, link } = await startSession(owner.page);
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
-    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    await joinerAsks(joiner.page, {
+      link,
+      code,
+      name: JOINER,
+      routes: true,
+      automatic: true,
+    });
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();

@@ -234,7 +234,13 @@ export async function carried(browser, owner, kind) {
             dist: owner.dist,
           });
     if (kind === "broadcast") await joiner.page.addInitScript(WATCH_RTC);
-    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    await joinerAsks(joiner.page, {
+      link,
+      code,
+      name: JOINER,
+      routes: true,
+      automatic: true,
+    });
     // The request crossed on the carrier: the owner is asked with nothing pasted.
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
