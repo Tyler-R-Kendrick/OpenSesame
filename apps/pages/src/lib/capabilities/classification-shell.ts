@@ -112,7 +112,6 @@ export const SHELL_RULES = [
     "zod runs jitless under the CSP, set by the host boot before anything parses (ADR 0193)",
   ),
   core("src/test-host", null, "the app-core test host (ADR 0133)"),
-  core("src/test-support/lock-manager.ts", null, "Web Locks test stand-in"),
   core("src/ports", null, "the app-core port accessors (ADR 0133)"),
   core("src/no-host-import", null, "proof the core loads with no host"),
   core("src/memory-storage", null, "in-memory Web Storage for hosts"),
