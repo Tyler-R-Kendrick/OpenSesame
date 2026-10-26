@@ -214,8 +214,15 @@ export async function bindRepository(
     exact: true,
   });
   await expect(repository).toBeEnabled();
+  // The field is editable before inventory loading finishes. Settle that draft
+  // and the on-focus combobox render before fill selects its replacement text.
+  await expect(
+    page.getByRole("button", { name: "Refresh repositories", exact: true }),
+  ).toBeEnabled();
+  await repository.focus();
+  await expect(repository).toBeFocused();
+  await expect(repository).toHaveAttribute("aria-expanded", "true");
   if (create) {
-    await repository.focus();
     await page
       .getByRole("option", {
         name: "fixture-owner/existing-private",

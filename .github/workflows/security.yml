@@ -4,12 +4,13 @@
 # (`pnpm audit:osv`, `audit:cargo-audit`, `audit:cve-lite`, `audit:gitleaks`,
 # `audit:semgrep`, `audit:ast-grep`, …) remain local scripts and git hooks —
 # see AGENTS.md §8 and docs/security/tooling-evaluation.md. This workflow
-# exists so the same three checks surface on GitHub's Security tab and on a
-# schedule, where a hidden red is visible without a local checkout:
+# keeps package-level source audits and dashboard checks visible on a schedule,
+# where a hidden red is visible without a local checkout:
 #
+#   - TURN cryptography and the actual source-composed native JS/WASM import
+#     graph, including their selected Go standard libraries
 #   - OSV-Scanner over every lockfile (same engine as `pnpm audit:osv`;
-#     findings expected for RUSTSEC-2023-0071, already ignored in
-#     osv-scanner.toml and .cargo/audit.toml)
+#     unresolved advisories remain visible, with no configured exceptions)
 #   - gitleaks over full history (same engine as `pnpm audit:gitleaks` and
 #     the pre-commit hook; .gitleaks.toml carries the allowlists)
 #   - OpenSSF Scorecard (checks the repo against the OpenSSF supply-chain
@@ -32,6 +33,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  native-go:
+    name: Native JS/WASM source graph and Go advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install the locked audit runtime
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Scan the composed production import graph and selected standard library
+        # The helper owns a fresh private temporary directory; raw audit output
+        # is neither checked into the repository nor uploaded as a public artifact.
+        run: node tools/pwa-tailscale-native-http/native-audit.mjs
+
+  turn-crypto:
+    name: TURN cryptography source and advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: scripts/test/live-turn/go.mod
+          cache-dependency-path: scripts/test/live-turn/go.sum
+      - name: Verify upstream source and scan all imported packages
+        run: bash scripts/test/live-turn/audit-crypto.sh
+
   osv-scanner:
     name: OSV-Scanner (lockfiles)
     runs-on: ubuntu-latest
@@ -46,9 +86,8 @@ jobs:
       - name: Scan every lockfile against the OSV database
         uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
         with:
-          # osv-scanner 2.x auto-discovers osv-scanner.toml at the scan root,
-          # so the RUSTSEC-2023-0071 ignore in it applies here as it does
-          # locally.
+          # osv-scanner 2.x auto-discovers osv-scanner.toml at the scan root.
+          # Keep this scheduled scan consistent with the local no-exception gate.
           scan-args: |-
             --output=osv-results.json
             --format=json
@@ -74,7 +113,6 @@ jobs:
     permissions:
       contents: read
       security-events: write
-      issues: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -87,6 +125,8 @@ jobs:
           # 8.24.x (the action's default) predates plural [[allowlists]], which
           # .gitleaks.toml uses for every global exclusion; 8.30.1 parses it.
           GITLEAKS_VERSION: "8.30.1"
+          # This job runs on a schedule or by hand; it needs no PR write access.
+          GITLEAKS_ENABLE_COMMENTS: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   scorecard:
@@ -97,7 +137,6 @@ jobs:
       contents: read
       security-events: write
       id-token: write
-      issues: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:

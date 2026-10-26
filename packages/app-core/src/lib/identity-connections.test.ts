@@ -360,6 +360,7 @@ it("separate saved native organizations remain cold-bound and never fall back to
       }
     });
   memory.set("settings.v1", disk.get("settings.v1") ?? "");
+  vi.mocked(fetch).mockClear();
   // The click must reserve its window before private hydration or Networking.
   for (const connection of saved) {
     await expect(
@@ -369,6 +370,8 @@ it("separate saved native organizations remain cold-bound and never fall back to
   expect(open.mock.calls).toEqual(
     saved.map(() => ["about:blank", "_blank", "popup,width=600,height=720"]),
   );
+  expect(fetch).not.toHaveBeenCalled();
+  expect(loadSession()).toBeNull();
   expect(hydrate).not.toHaveBeenCalled();
   expect(navigation).toEqual([]);
   expect(list).not.toHaveBeenCalled();

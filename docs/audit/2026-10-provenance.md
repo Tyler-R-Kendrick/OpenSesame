@@ -705,3 +705,29 @@ The Codex session produced the dependency and assertion-validation changes on
 subscription authentication and no Kimi executable in this managed environment;
 Codex implemented and reviewed the changes directly. No Grok or Kimi authorship
 is claimed. Validation evidence is retained outside the checkout.
+
+## OpenSSF Scorecard remediation, 2026-10-26
+
+Codex agents refreshed the independent fuzz lock, expanded the tracked-input
+OSV gate, and prepared downloadable release signatures and maintenance guidance.
+The coding preflight found no Grok subscription authentication and no Kimi
+executable; Codex implemented and reviewed these slices in an isolated worktree.
+No Grok or Kimi authorship is claimed, and no advisory exceptions were added.
+
+The follow-up pins real upstream TOML-consumer fixes, removes unsupported Go
+OpenPGP source with verified upstream-subset maintenance and a mandatory package
+advisory audit, requires patched Go 1.26.10, and removes a yanked Rust dependency
+version. Codex agents also corrected three stale security-test expectations and
+prepared integrity-pinned cloud tooling. Native crypto/relay, parser and binding
+generation checks accompany these changes; public scoring and live repository
+protections are reported separately from local verification.
+
+The separately pinned native Tailscale compiler lacked the new crypto/x509
+distrust fix. Codex verified upstream Go 1.27.3 and its certificate-chain
+filter, updated immutable compiler hashes, and rebuilt the native distribution.
+The advisory gate now also inventories that compiled Go standard library;
+its real pre-fix scan rejected Go 1.27.2 with GO-2026-6809.
+The exact native WASM package audit also exposed affected SSH imports; verified
+composition requirements update maintained Go modules and their required MVS
+dependencies while preserving immutable upstream source files. A mandatory
+package-graph audit complements the native standard-library inventory.

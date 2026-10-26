@@ -291,6 +291,9 @@ try {
       await direct(browsers.get(joiner), owner);
     }
   pair = "";
+  // This owner is finished; release its browser resources before the local walks.
+  // On failure the outer catch still captures the active contexts as wreckage.
+  await owner.context.close();
   // A carrier server runs on this machine, so these walks run on a build of
   // one's own (see DEDICATED_ORIGIN): the shared origin may not reach it.
   if (LOCAL_CARRIER_WALKS.some((name) => SCENARIOS.has(name))) {
@@ -307,6 +310,7 @@ try {
       pair = `${OWNER}>${joiner}`;
       await localWalks(own, joiner);
     }
+    await own.context.close();
   }
 } catch (error) {
   failures.push(

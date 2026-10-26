@@ -16,6 +16,7 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
+import { joinedTeam } from "./lib/live-joined.mjs";
 import { allowLoopbackDevelopment } from "./lib/local-network-permission.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -88,6 +89,7 @@ bindWalk({
   device,
   shot,
   configs,
+  joined: joinedTeam,
   launch,
   SECRET,
   ORIGIN,
