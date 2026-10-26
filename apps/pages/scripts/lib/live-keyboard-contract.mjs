@@ -18,6 +18,7 @@ import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
 import {
   joinerAsks,
   joinerConnects,
+  logLiveFocus,
   nameKeyboardLoopback,
   sealLiveKeyboardOwner,
 } from "./live-keyboard-entry.mjs";
@@ -327,6 +328,7 @@ export async function liveKeyboardContract({
         console.error(
           `${who} showed: ${shown.replace(/\s+/g, " ").slice(0, 400)}`,
         );
+        await logLiveFocus(page, who);
       }
     };
     const walk = async () => {

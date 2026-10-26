@@ -1,9 +1,13 @@
 import { currentHost } from "@opensesame/app-core/lib/live/session.js";
+import * as guideCatalog from "@opensesame/app-core/tutorial/registry/catalog.js";
+import { LIVE_TARGETS } from "@opensesame/app-core/tutorial/registry/live-catalog.js";
 /** @vitest-environment jsdom */
 import { act, render, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
-import { expect, it } from "vitest";
+import { MemoryRouter, Route, Routes } from "react-router";
+import { expect, it, vi } from "vitest";
+import { VaultShareProvider } from "../../components/vault-share-seat.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
+import { LiveShareButton } from "./LiveShareButton.js";
 import {
   asked,
   enter,
@@ -78,6 +82,37 @@ it("keeps a chosen control when an already joined session remounts", async () =>
   act(() => chosen.focus());
   view.rerender(scene("returning-to-session"));
   await landsOn(chosen);
+});
+
+it("hands focus from the persistent shell key to joined status after navigation", async () => {
+  // The real shell key binds its authored tutorial target; approval itself
+  // is outside this router/focus integration.
+  vi.spyOn(guideCatalog, "mergedGuideTargets").mockReturnValue([
+    ...guideCatalog.CORE_GUIDE_TARGETS,
+    ...LIVE_TARGETS,
+  ]);
+  const view = await joinedDevice();
+  view.rerender(
+    <MemoryRouter key="shell-navigation" initialEntries={["/vault"]}>
+      <VaultShareProvider value={{ Button: LiveShareButton, open: () => {} }}>
+        <LiveShareButton />
+        <main id="main" tabIndex={-1}>
+          <Routes>
+            <Route path="/vault" element={<p>Own vault</p>} />
+            <Route path="/live" element={<LiveJoinRoute />} />
+          </Routes>
+        </main>
+      </VaultShareProvider>
+    </MemoryRouter>,
+  );
+  const key = within(view.container).getByRole("button", {
+    name: "Open live session",
+  });
+  press(key);
+  await within(view.container).findByRole("img", { name: "Joined Team" });
+  expect(key.isConnected).toBe(true);
+  await landsOn(view.container.querySelector("#live-status"));
+  view.unmount();
 });
 
 it("preserves a real control the person chose across the owned-vault remount", async () => {

@@ -70,7 +70,17 @@ export function LiveJoinRoute() {
     // mounts a phase that already exists, with no useLandOnChange transition.
     if (!guest || (status?.at !== "request" && status?.at !== "joined")) return;
     const fallback = document.getElementById("main");
-    if (!keyboardIsIdle() && document.activeElement !== fallback) return;
+    // The shell's navigation key stays mounted across this route change.
+    // It handed the keyboard here; another control the person chose did not.
+    const fromSessionKey =
+      status.at === "joined" &&
+      document.activeElement?.matches('button[aria-controls="live-view"]');
+    if (
+      !keyboardIsIdle() &&
+      document.activeElement !== fallback &&
+      !fromSessionKey
+    )
+      return;
     const target = liveJoinLandingFor(root.current, status.at);
     if (landFocus(target) && target) revealClear(target);
   }, [guest, status?.at]);

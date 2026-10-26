@@ -6,7 +6,7 @@
  */
 
 import { SHARED_ITEM } from "./live-item-labels.mjs";
-import { answerAddresses } from "./live-join-addresses.mjs";
+import { answerAddresses, namesSameMachine } from "./live-join-addresses.mjs";
 import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
@@ -143,11 +143,7 @@ export async function setRoutes(page, wanted) {
     await remove.first().click();
     await page.waitForTimeout(150);
   }
-  for (const address of wanted.addresses ?? []) {
-    await routes.getByLabel("Tailnet, VPN or LAN address").fill(address);
-    await routes.getByRole("button", { name: "Add the address" }).click();
-    await routes.getByText(address, { exact: true }).waitFor();
-  }
+  await namesSameMachine(routes, wanted.addresses ?? []);
   for (const server of wanted.ice ?? []) {
     await routes.getByLabel("STUN or TURN server").fill(server.url);
     if (server.username) {

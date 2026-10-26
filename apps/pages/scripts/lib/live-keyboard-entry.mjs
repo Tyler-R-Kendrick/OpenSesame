@@ -4,6 +4,20 @@ import { joinedSession } from "./live-joined.mjs";
 
 const PIN = "48291037";
 
+/** Focus metadata only: no field values, notice text, or clipboard material. */
+export async function logLiveFocus(page, who) {
+  const focus = await page.evaluate(() => {
+    const held = document.activeElement;
+    return {
+      tag: held?.tagName,
+      id: held?.id,
+      role: held?.getAttribute("role"),
+      controls: held?.getAttribute("aria-controls"),
+    };
+  });
+  console.error(`${who} focus: ${JSON.stringify(focus)}`);
+}
+
 export async function sealLiveKeyboardOwner(page, tabTo, width) {
   await expect(
     page.getByRole("button", { name: "Set up your own" }),

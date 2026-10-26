@@ -163,7 +163,7 @@ async function keyboardControls(page, label) {
   await summary.focus();
   await page.keyboard.press("Enter");
   const read = page
-    .locator("details")
+    .locator("details.cx-selection")
     .filter({ has: summary })
     .getByRole("checkbox", { name: "read", exact: true });
   check(
