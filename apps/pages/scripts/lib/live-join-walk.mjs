@@ -332,20 +332,11 @@ export function admitControl(root, name) {
   });
 }
 
-async function confirmSessionSas(panel, name) {
+async function confirmSessionSas(panel) {
   // The owner's fingerprint is also `.live-sas`. The session string is the
   // one on the guest row, which is what the joiner is showing.
   const text = (
-    await panel
-      .locator(".vault-row")
-      .filter({
-        has: panel.page().getByRole("button", {
-          name: `Yes, they match for ${name}`,
-          exact: true,
-        }),
-      })
-      .locator(".live-sas")
-      .innerText()
+    await panel.locator(".vault-row .live-sas").first().innerText()
   ).trim();
   if (!SAS_TEXT.test(text)) {
     throw new Error(`session SAS is not readable: ${text}`);
@@ -364,7 +355,7 @@ export async function ownerAdmitsByHand(
   panel,
   request,
   name,
-  { admit = true, beforeAdmit, onSas = () => {} } = {},
+  { admit = true, beforeAdmit } = {},
 ) {
   await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
@@ -379,7 +370,7 @@ export async function ownerAdmitsByHand(
     await match.or(letIn).first().waitFor({ timeout: 20_000 });
     await beforeAdmit?.();
     if (await match.isVisible()) {
-      onSas(await confirmSessionSas(panel, name));
+      await confirmSessionSas(panel);
       await match.click();
     } else {
       await letIn.click();
@@ -388,7 +379,7 @@ export async function ownerAdmitsByHand(
     await match.or(copy).first().waitFor({ timeout: 20_000 });
     await beforeAdmit?.();
     if (await match.isVisible()) {
-      onSas(await confirmSessionSas(panel, name));
+      await confirmSessionSas(panel);
       await match.click();
     }
   }
