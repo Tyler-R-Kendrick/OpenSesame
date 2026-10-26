@@ -181,6 +181,12 @@ export function providerUrl(
       value.endsWith(".")
     )
       throw new Error("Enter a valid provider tenant host");
+    // A hostname-only contract keeps its hostname: a port belongs to the
+    // machine's own loopback endpoint and nowhere else (the 443 rule below
+    // still binds everything this check lets through).
+    const port = value.indexOf(":");
+    if (port >= 0 && !isLoopbackHost(value.slice(0, port)))
+      throw new Error("Enter a valid provider tenant host");
     return value;
   });
   const url = new URL(

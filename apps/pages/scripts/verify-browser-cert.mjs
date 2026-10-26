@@ -150,7 +150,7 @@ const browser = await chromium.launch({ executablePath: chromiumPath });
 const engine = {
   engine: "chromium",
   version: browser.version(),
-  playwright: "1.55.1",
+  playwright: "1.64.1",
   platform: `${process.platform} ${process.arch}`,
   node: process.version,
 };

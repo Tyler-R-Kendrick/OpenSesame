@@ -42,20 +42,28 @@ describe("providerUrl", () => {
   });
 
   it("still requires the standard port for a public provider host", () => {
+    // Even the standard port is hostname syntax a hostname-only contract refuses.
+    expect(() =>
+      providerUrl(
+        "https://{endpoint}/",
+        target({ endpoint: "api.example.com:443" }),
+        {},
+      ),
+    ).toThrow("tenant host");
     expect(() =>
       providerUrl(
         "https://{endpoint}/",
         target({ endpoint: "127.attacker.example:8443" }),
         {},
       ),
-    ).toThrow("compiled HTTPS target");
+    ).toThrow("tenant host");
     expect(() =>
       providerUrl(
         "https://{endpoint}/v1",
         target({ endpoint: "api.example.com:8443" }),
         {},
       ),
-    ).toThrow("compiled HTTPS target");
+    ).toThrow("tenant host");
     expect(providerUrl("https://api.example.com/v1", target({}), {}).port).toBe(
       "",
     );
