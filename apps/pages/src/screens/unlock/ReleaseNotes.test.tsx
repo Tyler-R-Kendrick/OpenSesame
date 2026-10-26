@@ -110,3 +110,57 @@ it("starts collapsed on a stacked gate, toggles releases, and keeps at most one 
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.queryByText(/ADR|Host|Vercel Connect|backend/i)).toBeNull();
 });
+
+it("opens About this project collapsed and lists external documentation links", () => {
+  stubViewport(false);
+  render(<ReleaseNotes />);
+  const aboutBtn = screen.getByRole("button", { name: "About this project" });
+  const newestBtn = screen.getByRole("button", { name: `${version} Latest` });
+  // Collapsed by default, even wide where the newest release starts open.
+  expect(aboutBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByRole("link")).toBeNull();
+
+  fireEvent.click(aboutBtn);
+  expect(aboutBtn.getAttribute("aria-expanded")).toBe("true");
+  // The accordion still holds one open row: the release panel closed.
+  expect(newestBtn.getAttribute("aria-expanded")).toBe("false");
+  const panel = document.getElementById(
+    aboutBtn.getAttribute("aria-controls") ?? "",
+  );
+  if (!panel) throw new Error("expected about panel");
+  const links = within(panel).getAllByRole("link");
+  expect(links.length).toBeGreaterThan(0);
+  for (const link of links) {
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.getAttribute("href")).toMatch(
+      /^https:\/\/github\.com\/Tyler-R-Kendrick\/OpenSesame/,
+    );
+  }
+  expect(
+    within(panel)
+      .getByRole("link", { name: "What it is" })
+      .getAttribute("href"),
+  ).toBe("https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/README.md");
+  expect(
+    within(panel).getByRole("link", { name: "Changelog" }).getAttribute("href"),
+  ).toBe(
+    "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/CHANGELOG.md",
+  );
+  expect(
+    within(panel)
+      .getByRole("link", { name: "Open a private advisory" })
+      .getAttribute("href"),
+  ).toBe(
+    "https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new",
+  );
+
+  fireEvent.click(aboutBtn);
+  expect(aboutBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByRole("link")).toBeNull();
+
+  fireEvent.click(aboutBtn);
+  fireEvent.click(newestBtn);
+  expect(aboutBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(newestBtn.getAttribute("aria-expanded")).toBe("true");
+});

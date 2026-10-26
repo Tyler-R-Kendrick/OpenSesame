@@ -284,6 +284,20 @@
   color: inherit;
 }
 
+/* About this project: the shared list grid reserves a column for a status
+   mark; these rows hold one documentation link each. The notes pane takes
+   no pointer events of its own, so the links re-enable theirs. */
+.unlock__notes-about-list li {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.unlock__notes-about-list a {
+  pointer-events: auto;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 @media (min-width: 1100px) {
   .unlock {
     grid-template-columns: 1fr 1fr;
@@ -763,6 +777,12 @@
 }
 
 @media (pointer: coarse), (max-width: 900px) {
+  .unlock__notes-about-list a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
   .unlock__brand {
     container-type: inline-size;
     gap: 0.5rem;

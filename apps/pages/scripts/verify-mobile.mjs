@@ -15,7 +15,12 @@ import { doorGuest } from "./lib/front-door.mjs";
 import { auditSettings } from "./lib/layout-contract.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
 import { AUDIT, phoneContext, recordStop } from "./lib/mobile-contract.mjs";
-import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
+import {
+  doorRoads,
+  helpKey,
+  lockedReload,
+  setupCeremony,
+} from "./lib/mobile-gates.mjs";
 import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { sizesToWalk } from "./lib/mobile-sizes.mjs";
@@ -243,14 +248,7 @@ async function walk(browser, phone) {
   await contextMenuTouchContract(page, stop, { harness, openTab, audit });
   await phonePolish.passwordKeysOneLine(page, stop, { harness, base });
 
-  // A locked reload is the screen most phone sessions actually start on.
-  await openTab(page, "Vault");
-  const lock = page.getByRole("button", { name: "Lock vault" }).first();
-  if (await lock.count()) {
-    await lock.tap();
-    await page.waitForTimeout(900);
-    await audit(page, stop("unlock"));
-  }
+  await lockedReload(page, stop, { openTab, audit, harness });
 
   await context.close();
 }

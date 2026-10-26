@@ -41,3 +41,27 @@ export async function doorRoads(page, stop, harness) {
     );
   }
 }
+
+/** Locked reloads expose the standalone project documentation targets. */
+export async function lockedReload(page, stop, { openTab, audit, harness }) {
+  // A locked reload is the screen most phone sessions actually start on.
+  await openTab(page, "Vault");
+  const lock = page.getByRole("button", { name: "Lock vault" }).first();
+  if (await lock.count()) {
+    await lock.tap();
+    await page.waitForTimeout(900);
+    await audit(page, stop("unlock"));
+    const about = page.getByRole("button", { name: "About this project" });
+    await about.tap();
+    const links = page.locator(".unlock__notes-about-list a");
+    await links.first().waitFor({ state: "visible" });
+    await audit(page, stop("unlock-about-project"));
+    for (const link of await links.all()) {
+      const box = await link.boundingBox();
+      harness.check(
+        box !== null && box.height >= 44 && box.width >= 44,
+        `${stop("unlock-about-project")}: ${await link.textContent()} target is at least 44px`,
+      );
+    }
+  }
+}

@@ -17,6 +17,20 @@ without running a backend.
 
 **Status:** Pre-release / early stage. APIs and behavior may change.
 
+<!-- TODO: add the OpenSSF Best Practices badge once the project is
+     registered at https://www.bestpractices.dev/ (criteria pass in progress). -->
+
+## Project information
+
+- **Homepage:** [tyler-r-kendrick.github.io/OpenSesame](https://tyler-r-kendrick.github.io/OpenSesame/)
+- **Install / getting started:** [docs/getting-started](docs/getting-started/README.md)
+- **Configuration:** [docs/getting-started](docs/getting-started/README.md) — environment variables follow [`.env.schema`](.env.schema)
+- **How to contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Report a bug:** [GitHub Issues](https://github.com/Tyler-R-Kendrick/OpenSesame/issues)
+- **Report a vulnerability:** [SECURITY.md](SECURITY.md) · [open a private advisory](https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new)
+- **Changelog:** [CHANGELOG.md](CHANGELOG.md)
+- **License:** MIT — [LICENSE](LICENSE)
+
 ---
 
 ## The idea in one paragraph
