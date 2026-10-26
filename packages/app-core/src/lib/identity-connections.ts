@@ -225,10 +225,10 @@ export async function saveIdentityConnection(
     requireValidIdentityConnection(draft);
     if (existingId && !readIdentityConnection(existingId))
       throw new Error("Saved identity connection not found");
+    const legacy = captureLegacyIdentityMigration(draft, existingId);
     if (saml) return await saveConfiguredNativeSaml(draft, existingId, saml);
     if (oidc && isNativeOidcConfiguration(draft))
-      return await saveConfiguredNativeOidc(draft, existingId, oidc);
-    const legacy = captureLegacyIdentityMigration(draft, existingId);
+      return await saveConfiguredNativeOidc(draft, existingId, oidc, legacy);
     assertIdentityTrustAvailable(draft, existingId ?? "", legacy);
     const previous = existingId
       ? getIdentityConnectionRuntime(existingId)

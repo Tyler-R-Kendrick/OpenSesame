@@ -4,7 +4,10 @@ import { expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { organizationId } from "../lib/ids.js";
 import { writeIssuerAdmittedOrganization } from "../services/org-issuer-approval.js";
-import { organizationIssuerAdmission } from "./organization-issuer-admission.js";
+import {
+  organizationIssuerAdmission,
+  organizationIssuerUpdateAdmission,
+} from "./organization-issuer-admission.js";
 
 const issuer = "https://idp.example";
 it.each([
@@ -75,6 +78,58 @@ it("requires approval for every issuer but permits removal of legacy claims", ()
       expect(
         organizationIssuerAdmission(ctx.config, org, cleared),
       ).toMatchObject({ ok: true });
+    },
+  );
+});
+
+it("admits unrelated edits and removals while refusing changed issuers", () => {
+  const { ctx } = createControlPlane({
+    config: {
+      organizationIssuerAllowlist: [`org:approved|${issuer}`],
+    },
+  });
+  const previous = {
+    ssoIssuer: issuer,
+    samlIssuer: "https://unapproved.example",
+  };
+  name(
+    organizationId("org:approved"),
+    { ...previous, displayName: "Renamed" },
+    {},
+    (org, renamed) => {
+      expect(
+        organizationIssuerUpdateAdmission(ctx.config, org, previous, renamed),
+      ).toMatchObject({ ok: true });
+    },
+  );
+  name(
+    organizationId("org:approved"),
+    { ssoIssuer: issuer },
+    {},
+    (org, cleared) => {
+      expect(
+        organizationIssuerUpdateAdmission(ctx.config, org, previous, cleared),
+      ).toMatchObject({ ok: true });
+    },
+  );
+  name(
+    organizationId("org:approved"),
+    { ...previous, ssoIssuer: "https://changed.example" },
+    {},
+    (org, changed) => {
+      expect(
+        organizationIssuerUpdateAdmission(ctx.config, org, previous, changed),
+      ).toMatchObject({ ok: false });
+    },
+  );
+  name(
+    organizationId("org:approved"),
+    { ssoIssuer: issuer, samlIssuer: "https://added.example" },
+    {},
+    (org, added) => {
+      expect(
+        organizationIssuerUpdateAdmission(ctx.config, org, previous, added),
+      ).toMatchObject({ ok: false });
     },
   );
 });

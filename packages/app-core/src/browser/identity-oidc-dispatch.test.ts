@@ -25,7 +25,11 @@ import {
 } from "../lib/identity-connections.js";
 import { kvFlush, kvForgetAll, kvHydrate } from "../lib/kv.js";
 import { fixture } from "../lib/origin-file-publication-custody.test-support.js";
-import { signInMethods } from "../lib/settings.js";
+import {
+  loadSettings,
+  saveSettingsDurable,
+  signInMethods,
+} from "../lib/settings.js";
 import {
   type IdentityBrowserNode,
   bindIdentityBrowserNodeFactory,
@@ -241,6 +245,29 @@ function popup(idp: Awaited<ReturnType<typeof tlsOracle>>) {
     acknowledgements: () => acknowledgements,
   };
 }
+it("retires a legacy direct OIDC entry instead of colliding with its issuer", async () => {
+  const f = await native();
+  const current = loadSettings();
+  const legacy = {
+    providerId: f.draft.providerId,
+    issuer: f.draft.issuer,
+    clientId: "legacy-client",
+    label: "Old direct sign-in",
+  };
+  await saveSettingsDurable({
+    ...current,
+    signIn: { ...signInMethods(current), providers: [legacy] },
+  });
+  const saved = await enroll(() => saveIdentityConnection(f.draft));
+  expect(signInMethods().providers).toEqual([
+    expect.objectContaining({
+      providerId: f.draft.providerId,
+      connectionId: saved.connectionId,
+      nativeIdentity: true,
+    }),
+  ]);
+});
+
 it("Test/Save use real captured TLS without an Identity API and cold custody retains only native public trust", async () => {
   const f = await native();
   expect(

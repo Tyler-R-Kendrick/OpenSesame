@@ -139,6 +139,7 @@ export async function saveCapturedIdentityConfiguration(
   draft: IdentityConnectionDraft,
   existingId: string | undefined,
   owner: IdentityConfigurationPublicationOwner,
+  legacy: OperatorIdp | null = null,
 ): Promise<Connection> {
   owner.assertCurrent();
   const previous = existingId ? getIdentityConnectionRuntime(existingId) : null;
@@ -148,12 +149,17 @@ export async function saveCapturedIdentityConfiguration(
         (provider) => provider.connectionId === existingId,
       )
     : 0;
-  assertIdentityTrustAvailable(draft, existingId ?? "", null);
+  assertIdentityTrustAvailable(draft, existingId ?? "", legacy);
   await owner.check(draft);
   owner.assertCurrent();
   const retiringSession = loadSession();
   owner.assertCurrent();
-  if (existingId && retiringSession?.upstreamId === `identity:${existingId}`)
+  if (
+    (existingId && retiringSession?.upstreamId === `identity:${existingId}`) ||
+    (!existingId &&
+      legacy &&
+      retiringSession?.upstreamId === `operator:${legacy.issuer}`)
+  )
     owner.clearOwnSession();
   owner.assertCurrent();
   const publication: IdentityPublicationState = {
@@ -182,7 +188,7 @@ export async function saveCapturedIdentityConfiguration(
     assertOwned();
     assertProjection(selected, previousProjection);
     expected = identityTrustProjection(draft, selected);
-    await projectIdentityTrust(draft, selected, null, () => {
+    await projectIdentityTrust(draft, selected, legacy, () => {
       assertOwned();
       assertProjection(selected, previousProjection);
     });

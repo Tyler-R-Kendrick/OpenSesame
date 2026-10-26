@@ -1,4 +1,3 @@
-import { organizationIssuerAdmission } from "../proofs/organization-issuer-admission.js";
 import {
   OrganizationIssuerApprovalError,
   writeIssuerAdmittedOrganization,
@@ -25,6 +24,7 @@ import type {
 import type { AppContext } from "../context.js";
 import type { OrganizationId } from "../lib/ids.js";
 import type { OrgOwner } from "../proofs/org-owner.js";
+import { organizationIssuerUpdateAdmission } from "../proofs/organization-issuer-admission.js";
 
 type Org<O> = Named<O, OrganizationId>;
 type EmailDomains = AppContext["stores"]["orgFederation"]["emailDomains"];
@@ -104,7 +104,7 @@ export function revokeScimToken<A, O>(
   return ctx.stores.scim.tokens.revoke(org.value, tokenId);
 }
 
-export function writeOrganization<A, O>(
+export async function writeOrganization<A, O>(
   ctx: AppContext,
   org: Org<O>,
   _proof: OrgOwner<A, O>,
@@ -113,8 +113,14 @@ export function writeOrganization<A, O>(
   if (updated.id !== org.value) {
     throw new Error("organization row is for a different organization");
   }
+  const previous = await ctx.stores.organizations.get(org.value);
   return name(updated, (row) => {
-    const verdict = organizationIssuerAdmission(ctx.config, org, row);
+    const verdict = organizationIssuerUpdateAdmission(
+      ctx.config,
+      org,
+      previous,
+      row,
+    );
     if (!verdict.ok) throw new OrganizationIssuerApprovalError(verdict.message);
     return writeIssuerAdmittedOrganization(ctx, org, row, verdict.proof);
   });
