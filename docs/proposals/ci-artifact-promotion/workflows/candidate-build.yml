@@ -1,0 +1,313 @@
+# PROPOSAL ONLY. This file is outside .github/workflows and cannot run here.
+# Materialize ONE selected main snapshot, once, after fast CI. The nightly
+# controller owns scheduling; this producer has no push/PR/schedule trigger.
+# Activation requires the controller/consumer contracts in artifact-builds.md,
+# workflow-identity verification, and qualification of these recipes on runners.
+# Complete-candidate lookup/reuse is a PLANNED controller interface; it is not
+# faked by a successful no-op job here. This file implements the build path.
+# No Git tags, attestations, releases, or Pages deployments are created.
+name: Candidate build (proposal)
+
+on:
+  workflow_call:
+    inputs:
+      source_sha: { required: true, type: string }
+      source_ci_run_id: { required: true, type: string }
+      source_ci_run_attempt: { required: true, type: string }
+    outputs:
+      candidate_id: { value: "${{ jobs.resolve.outputs.candidate_id }}" }
+      source_sha: { value: "${{ jobs.resolve.outputs.source_sha }}" }
+      run_id: { value: "${{ github.run_id }}" }
+      run_attempt: { value: "${{ github.run_attempt }}" }
+      artifact_id: { value: "${{ jobs.manifest.outputs.artifact_id }}" }
+      artifact_digest: { value: "${{ jobs.manifest.outputs.artifact_digest }}" }
+      payload_digest: { value: "${{ jobs.manifest.outputs.payload_digest }}" }
+  workflow_dispatch:
+    inputs:
+      source_sha: { description: "Exact main commit; 40 lowercase hex", required: true, type: string }
+      source_ci_run_id: { description: "Successful push-main CI run", required: true, type: string }
+      source_ci_run_attempt: { description: "Exact successful CI attempt", required: true, type: string }
+
+permissions: { contents: read, actions: read }
+concurrency:
+  group: candidate-build-${{ inputs.source_sha }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      source_sha: ${{ steps.identity.outputs.source_sha }}
+      candidate_id: ${{ steps.identity.outputs.candidate_id }}
+      version: ${{ steps.identity.outputs.version }}
+      tag: ${{ steps.identity.outputs.tag }}
+      epoch: ${{ steps.identity.outputs.epoch }}
+    steps:
+      - name: Refuse a caller or manual dispatch outside main
+        run: '[ "$GITHUB_REF" = refs/heads/main ]'
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { ref: refs/heads/main, fetch-depth: 0, persist-credentials: false }
+      - name: Resolve exact identity and successful fast-CI evidence
+        id: identity
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          CI_RUN_ID: ${{ inputs.source_ci_run_id }}
+          CI_ATTEMPT: ${{ inputs.source_ci_run_attempt }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CI_RUN_ID" =~ ^[1-9][0-9]*$ && "$CI_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main
+          gh api "repos/$GH_REPO/actions/workflows/ci.yml" > "$RUNNER_TEMP/workflow.json"
+          gh api "repos/$GH_REPO/actions/runs/$CI_RUN_ID/attempts/$CI_ATTEMPT" > "$RUNNER_TEMP/ci.json"
+          python3 - <<'PY'
+          import json, os, pathlib, re, subprocess, tomllib
+          env = os.environ
+          run = json.loads(pathlib.Path(env['RUNNER_TEMP'], 'ci.json').read_text())
+          workflow = json.loads(pathlib.Path(env['RUNNER_TEMP'], 'workflow.json').read_text())
+          expected = {'id': int(env['CI_RUN_ID']), 'run_attempt': int(env['CI_ATTEMPT']),
+                      'workflow_id': workflow['id'], 'head_sha': env['SOURCE_SHA'],
+                      'head_branch': 'main', 'event': 'push', 'status': 'completed', 'conclusion': 'success'}
+          if workflow.get('path') != '.github/workflows/ci.yml':
+              raise SystemExit('Unexpected fast-CI workflow')
+          if any(run.get(key) != value for key, value in expected.items()):
+              raise SystemExit('Source does not have the specified successful push-main CI attempt')
+          if any(run.get(key, {}).get('full_name') != env['GH_REPO']
+                 for key in ('repository', 'head_repository')):
+              raise SystemExit('CI evidence belongs to another repository')
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          version = tomllib.loads(git('show', env['SOURCE_SHA'] + ':Cargo.toml'))['workspace']['package']['version']
+          if not re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version):
+              raise SystemExit('Choose a prospective stable workspace version before building')
+          identity = f"{env['SOURCE_SHA']}-{env['GITHUB_RUN_ID']}-{env['GITHUB_RUN_ATTEMPT']}"
+          values = {'source_sha': env['SOURCE_SHA'], 'candidate_id': identity, 'version': version,
+                    'tag': 'v' + version, 'epoch': git('show', '-s', '--format=%ct', env['SOURCE_SHA'])}
+          with open(env['GITHUB_OUTPUT'], 'a') as output:
+              for key, value in values.items(): output.write(f'{key}={value}\n')
+          PY
+
+  bridge:
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { ref: "${{ needs.resolve.outputs.source_sha }}", persist-credentials: false }
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 22 }
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
+      - run: pnpm --filter @opensesame/env-spec-bridge test
+      - run: node packages/env-spec-bridge/scripts/bundle.mjs dist/opensesame-env-parse.mjs
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ needs.resolve.outputs.candidate_id }}-bridge
+          path: dist/opensesame-env-parse.mjs
+          if-no-files-found: error
+          retention-days: 7
+
+  pages:
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+      SOURCE_DATE_EPOCH: ${{ needs.resolve.outputs.epoch }}
+      TAG: ${{ needs.resolve.outputs.tag }}
+      VITE_BASE: /OpenSesame/
+      PAGES_DEPLOYMENT_PROFILE: shared_origin_demo
+      PAGES_CANONICAL_ORIGIN: https://tyler-r-kendrick.github.io
+      PAGES_HEADER_SECURITY: "0"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { ref: "${{ needs.resolve.outputs.source_sha }}", persist-credentials: false }
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Build all dependencies and production Pages, then freeze its bytes
+        # --force prevents unverified task-output cache reuse. Loose env passes
+        # the declared Vite/profile inputs; no environment secrets are attached.
+        run: |
+          set -euo pipefail
+          pnpm exec turbo run build --filter=@opensesame/pages --force --env-mode=loose
+          cp apps/pages/dist/index.html apps/pages/dist/404.html
+          touch apps/pages/dist/.nojekyll
+          node apps/pages/scripts/write-runtime-config.mjs
+          node scripts/release/pages-release.mjs stamp apps/pages/dist "$SOURCE_SHA"
+          mkdir -p packed
+          tar -C apps/pages/dist --format=ustar --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
+            --owner=0 --group=0 --numeric-owner -cf - . | gzip -n -9 > "packed/opensesame-pages_${TAG}.tar.gz"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ needs.resolve.outputs.candidate_id }}-pages
+          path: packed/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  native:
+    needs: [resolve, bridge]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, runner: ubuntu-24.04 }
+          - { target: aarch64-unknown-linux-gnu, runner: ubuntu-24.04-arm }
+    env:
+      TARGET: ${{ matrix.target }}
+      TAG: ${{ needs.resolve.outputs.tag }}
+      SOURCE_DATE_EPOCH: ${{ needs.resolve.outputs.epoch }}
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { ref: "${{ needs.resolve.outputs.source_sha }}", persist-credentials: false }
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # pinned installer
+        with: { toolchain: 1.88.0 }
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 22, package-manager-cache: false }
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with: { name: "${{ needs.resolve.outputs.candidate_id }}-bridge", path: bridge }
+      - name: Build shipped binaries and separately capture the test proxy
+        # This expensive matrix is called only for selected candidates. No Rust
+        # output cache is accepted as a substitute for a candidate artifact.
+        run: |
+          set -euo pipefail
+          [ "$(rustc +1.88.0 -vV | sed -n 's/^host: //p')" = "$TARGET" ]
+          export RUSTFLAGS="--remap-path-prefix=$GITHUB_WORKSPACE=/opensesame --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo"
+          mkdir -p bins
+          cargo +1.88.0 build --locked --release -p opensesame-cli --bin opensesame
+          cp target/release/opensesame bins/opensesame
+          [ "$(bins/opensesame --version)" = "opensesame ${TAG#v}" ]
+          cargo +1.88.0 build --locked --release -p opensesame-surrogate-proxy --bin opensesame-surrogate-proxy
+          cp target/release/opensesame-surrogate-proxy bins/opensesame-surrogate-proxy
+          cargo +1.88.0 build --locked --release -p opensesame-surrogate-proxy --features upstream-override --bin opensesame-surrogate-proxy
+          cp target/release/opensesame-surrogate-proxy bins/opensesame-surrogate-proxy-TEST-upstream-override
+          scripts/release/kit-archive.sh pack "$TAG" "$TARGET" bins bridge/opensesame-env-parse.mjs dist
+      - name: Smoke the actual archived kit and reject a writable bridge
+        run: |
+          set -euo pipefail
+          kit="$RUNNER_TEMP/opensesame-kit_${TAG}_${TARGET}"
+          tar -xzf "dist/opensesame-kit_${TAG}_${TARGET}.tar.gz" -C "$RUNNER_TEMP"
+          export OPENSESAME_NODE="$(readlink -f "$(command -v node)")"
+          unset OPENSESAME_ENV_PARSE
+          mv packages/env-spec-bridge/bin/opensesame-env-parse.mjs "$RUNNER_TEMP/checkout-bridge.mjs"
+          "$kit/opensesame" dev --schema tests/fixtures/demo.env.schema check > "$RUNNER_TEMP/check.json"
+          node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); if(!s.items.some(i=>i.key==="WORKOS_API_KEY")) process.exit(1)' "$RUNNER_TEMP/check.json"
+          chmod 0666 "$kit/opensesame-env-parse.mjs"
+          if "$kit/opensesame" dev --schema tests/fixtures/demo.env.schema check 2> "$RUNNER_TEMP/refused.txt"; then
+            echo 'Writable bridge was executed'; exit 1
+          fi
+          grep -F 'writable by others' "$RUNNER_TEMP/refused.txt"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ needs.resolve.outputs.candidate_id }}-kit-${{ matrix.target }}
+          path: dist/opensesame-kit_*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ needs.resolve.outputs.candidate_id }}-test-proxy-${{ matrix.target }}
+          path: dist/opensesame-surrogate-proxy-TEST-upstream-override_*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  manifest:
+    needs: [resolve, bridge, pages, native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+      payload_digest: ${{ steps.manifest.outputs.payload_digest }}
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with: { name: "${{ needs.resolve.outputs.candidate_id }}-bridge", path: payload/production }
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with: { name: "${{ needs.resolve.outputs.candidate_id }}-pages", path: payload/production }
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with: { pattern: "${{ needs.resolve.outputs.candidate_id }}-kit-*", merge-multiple: true, path: payload/production }
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with: { pattern: "${{ needs.resolve.outputs.candidate_id }}-test-proxy-*", merge-multiple: true, path: payload/test-only }
+      - name: Require every exact output and create the candidate manifest
+        id: manifest
+        env:
+          SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+          CANDIDATE_ID: ${{ needs.resolve.outputs.candidate_id }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+          SOURCE_CI_RUN_ID: ${{ inputs.source_ci_run_id }}
+          SOURCE_CI_RUN_ATTEMPT: ${{ inputs.source_ci_run_attempt }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, tarfile
+          env, root = os.environ, pathlib.Path('payload')
+          tag = 'v' + env['VERSION']
+          proxy = 'opensesame-surrogate-proxy-TEST-upstream-override'
+          expected = {f'production/opensesame-pages_{tag}.tar.gz': ('production', 'pages'),
+                      'production/opensesame-env-parse.mjs': ('production', 'node22')}
+          for target in ('x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu'):
+              expected[f'production/opensesame-kit_{tag}_{target}.tar.gz'] = ('production', target)
+              expected[f'test-only/{proxy}_{tag}_{target}.tar.gz'] = ('test-only', target)
+          actual = {p.relative_to(root).as_posix() for p in root.rglob('*') if not p.is_dir()}
+          if actual != set(expected) or any(p.is_symlink() for p in root.rglob('*')):
+              raise SystemExit(f'Output inventory mismatch: expected {sorted(expected)}, found {sorted(actual)}')
+          bridge = (root / 'production/opensesame-env-parse.mjs').read_bytes()
+          marker = b'OPENSESAME_SURROGATE_TEST_UPSTREAM'
+          for name, (_, target) in expected.items():
+              if not name.endswith('.tar.gz'): continue
+              with tarfile.open(root / name, 'r:gz') as archive:
+                  files = {}
+                  for member in archive.getmembers():
+                      path = pathlib.PurePosixPath(member.name)
+                      if path.is_absolute() or '..' in path.parts or not (member.isfile() or member.isdir()):
+                          raise SystemExit(f'Unsafe archive member: {name}: {member.name}')
+                      if member.isfile():
+                          if str(path) in files: raise SystemExit('Duplicate archive member')
+                          files[str(path)] = archive.extractfile(member).read()
+                  if target == 'pages':
+                      required = {'index.html', '404.html', 'os-runtime-config.json', 'security-profile.json', 'release.json'}
+                      if not required <= files.keys(): raise SystemExit('Incomplete production Pages archive')
+                      release = json.loads(files['release.json'])
+                      if release.get('revision') != env['SOURCE_SHA']: raise SystemExit('Pages source mismatch')
+                      profile = json.loads(files['security-profile.json'])
+                      if profile.get('profile') != 'shared_origin_demo' or profile.get('canonicalOrigin') != 'https://tyler-r-kendrick.github.io':
+                          raise SystemExit('Wrong Pages deployment profile')
+                  else:
+                      directory = pathlib.PurePosixPath(name).name.removesuffix('.tar.gz')
+                      wanted = {'LICENSE', proxy} if name.startswith('test-only/') else {'LICENSE', 'opensesame', 'opensesame-surrogate-proxy', 'opensesame-env-parse.mjs'}
+                      if set(files) != {directory + '/' + leaf for leaf in wanted}: raise SystemExit('Native kit membership mismatch')
+                      if name.startswith('test-only/'):
+                          if marker not in files[directory + '/' + proxy]: raise SystemExit('Test proxy marker missing')
+                      else:
+                          if files[directory + '/opensesame-env-parse.mjs'] != bridge: raise SystemExit('Bridge differs across kits')
+                          if any(marker in files[directory + '/' + leaf] for leaf in ('opensesame', 'opensesame-surrogate-proxy')):
+                              raise SystemExit('Test-only proxy behavior in a production binary')
+          payloads = []
+          for path, (role, target) in sorted(expected.items()):
+              data = (root / path).read_bytes()
+              payloads.append({'path': path, 'role': role, 'target': target, 'sha256': hashlib.sha256(data).hexdigest(), 'size': len(data)})
+          manifest = {'format': 'opensesame-candidate', 'schema_version': 1, 'candidate_id': env['CANDIDATE_ID'],
+                      'source_sha': env['SOURCE_SHA'], 'version': env['VERSION'],
+                      'producer': {'run_id': env['GITHUB_RUN_ID'], 'run_attempt': env['GITHUB_RUN_ATTEMPT'],
+                                   'workflow_ref': env['GITHUB_WORKFLOW_REF'], 'workflow_sha': env['GITHUB_WORKFLOW_SHA'],
+                                   'recipe_path': '.github/workflows/candidate-build.yml'},
+                      'source_ci': {'run_id': env['SOURCE_CI_RUN_ID'], 'run_attempt': env['SOURCE_CI_RUN_ATTEMPT']},
+                      'payloads': payloads}
+          data = (json.dumps(manifest, sort_keys=True, separators=(',', ':')) + '\n').encode()
+          (root / 'candidate.json').write_bytes(data)
+          digest = hashlib.sha256(data).hexdigest()
+          with open(env['GITHUB_OUTPUT'], 'a') as output: output.write(f'payload_digest={digest}\n')
+          PY
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        id: upload
+        with:
+          name: ${{ needs.resolve.outputs.candidate_id }}-complete
+          path: payload/
+          if-no-files-found: error
+          retention-days: 35
