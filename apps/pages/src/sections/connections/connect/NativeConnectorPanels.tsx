@@ -79,6 +79,24 @@ function mcpInactiveReason(): string | undefined {
   return "Open your own vault to connect this provider. Guest sessions do not store provider credentials.";
 }
 
+function nativeOAuthAvailability(providerId: string) {
+  const googleBlocked =
+    providerId === "google" && !nativeGoogleBrowserAvailable();
+  return {
+    registeredAvailable:
+      hasNativeConnectorDriver("oauth", providerId) &&
+      supportsNativeOAuthResource(providerId),
+    available:
+      supportsNativeOAuthResource(providerId) &&
+      !nativeConnectorWithdrawn("oauth") &&
+      !googleBlocked,
+    reason: googleBlocked
+      ? "Google consent is unavailable under this deployment's isolation policy."
+      : undefined,
+    profile: nativeBrowserOAuthProfile(providerId) ?? undefined,
+  };
+}
+
 export function nativeSettingsDescriptor(
   provider: Provider,
   savedMethod?: NativeConnectorView["configuration"]["method"],
@@ -86,23 +104,13 @@ export function nativeSettingsDescriptor(
   // The compiled contract decides what this device can configure; a runtime
   // that was activated and then withdrawn closes its road again (ADR 0142).
   const closed = nativeConnectorWithdrawn("api-key");
+  const apiAvailable = compiledApiKeyRoute(provider.id) && !closed;
   if (provider.id === "github")
-    return nativeGithubDescriptor(
-      provider,
-      compiledApiKeyRoute(provider.id) && !closed,
-    );
-  if (provider.id === "s3")
-    return nativeS3Descriptor(
-      provider,
-      compiledApiKeyRoute(provider.id) && !closed,
-    );
+    return nativeGithubDescriptor(provider, apiAvailable);
+  if (provider.id === "s3") return nativeS3Descriptor(provider, apiAvailable);
   const keyed = nativeKeyDriverFor(provider.id);
   if (keyed)
-    return nativeKeyDescriptor(
-      provider,
-      compiledApiKeyRoute(provider.id) && !closed,
-      keyed.ui(provider.id),
-    );
+    return nativeKeyDescriptor(provider, apiAvailable, keyed.ui(provider.id));
   const plan = connectPlan(provider.id);
   if (!plan)
     return nativeDeviceProviderDescriptor(provider.id, {
@@ -120,22 +128,9 @@ export function nativeSettingsDescriptor(
     {
       callbackUrl,
       apiKey: {
-        available: compiledApiKeyRoute(provider.id) && !closed,
+        available: apiAvailable,
       },
-      oauth: {
-        registeredAvailable:
-          hasNativeConnectorDriver("oauth", provider.id) &&
-          supportsNativeOAuthResource(provider.id),
-        available:
-          supportsNativeOAuthResource(provider.id) &&
-          !nativeConnectorWithdrawn("oauth") &&
-          (provider.id !== "google" || nativeGoogleBrowserAvailable()),
-        reason:
-          provider.id === "google" && !nativeGoogleBrowserAvailable()
-            ? "Google consent is unavailable under this deployment's isolation policy."
-            : undefined,
-        profile: nativeBrowserOAuthProfile(provider.id) ?? undefined,
-      },
+      oauth: nativeOAuthAvailability(provider.id),
       mcp: {
         // Linear's authorization is its own specialized ceremony: it draws
         // only when its owner runtime is actually active, never invented.

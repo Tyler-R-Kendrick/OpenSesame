@@ -30,6 +30,43 @@ const workflow = (name) =>
     ),
   );
 
+function releaseFixture(work) {
+  const directory = join(work, "candidate");
+  const evidence = join(work, "evidence");
+  const output = join(work, "release");
+  mkdirSync(directory);
+  mkdirSync(evidence);
+  const manifest = {
+    version: "0.2.0",
+    source_sha: "a".repeat(40),
+    candidate_id: `${"a".repeat(40)}-100-1`,
+    producer: {
+      workflow_sha: "b".repeat(40),
+      run_id: "100",
+      run_attempt: "1",
+    },
+    source_ci: { run_id: "99", run_attempt: "1" },
+    payloads: [],
+  };
+  for (const name of productAssets(manifest.version).filter(
+    (name) => name !== "candidate.json",
+  )) {
+    const bytes = Buffer.from(`original:${name}`);
+    writeFileSync(join(directory, name), bytes);
+    manifest.payloads.push({
+      path: name,
+      sha256: hash(bytes),
+      size: bytes.length,
+    });
+  }
+  const bytes = Buffer.from(JSON.stringify(manifest));
+  writeFileSync(join(directory, "candidate.json"), bytes);
+  for (const name of ["dev", "prerelease", "mutation", "security"])
+    writeFileSync(join(evidence, `${name}-receipt.json`), "{}");
+  writeFileSync(join(evidence, "promotion.json"), "{}");
+  return { directory, evidence, output, manifest, bytes };
+}
+
 describe("release provenance assets", () => {
   it("attests the original candidate separately from promotion and retires the tag builder", () => {
     const build = workflow("candidate-build").jobs.manifest;
@@ -56,39 +93,8 @@ describe("release provenance assets", () => {
   it("stages the verified builder signature unchanged and hashes its release representation", async () => {
     const work = mkdtempSync(join(tmpdir(), "release-bundles-"));
     try {
-      const directory = join(work, "candidate");
-      const evidence = join(work, "evidence");
-      const output = join(work, "release");
-      mkdirSync(directory);
-      mkdirSync(evidence);
-      const manifest = {
-        version: "0.2.0",
-        source_sha: "a".repeat(40),
-        candidate_id: `${"a".repeat(40)}-100-1`,
-        producer: {
-          workflow_sha: "b".repeat(40),
-          run_id: "100",
-          run_attempt: "1",
-        },
-        source_ci: { run_id: "99", run_attempt: "1" },
-        payloads: [],
-      };
-      for (const name of productAssets(manifest.version).filter(
-        (name) => name !== "candidate.json",
-      )) {
-        const bytes = Buffer.from(`original:${name}`);
-        writeFileSync(join(directory, name), bytes);
-        manifest.payloads.push({
-          path: name,
-          sha256: hash(bytes),
-          size: bytes.length,
-        });
-      }
-      const bytes = Buffer.from(JSON.stringify(manifest));
-      writeFileSync(join(directory, "candidate.json"), bytes);
-      for (const name of ["dev", "prerelease", "mutation", "security"])
-        writeFileSync(join(evidence, `${name}-receipt.json`), "{}");
-      writeFileSync(join(evidence, "promotion.json"), "{}");
+      const { directory, evidence, output, manifest, bytes } =
+        releaseFixture(work);
       // Encoded signed payload and signature strings must never be decoded or regenerated.
       const bundle = {
         dsseEnvelope: {

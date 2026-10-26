@@ -129,16 +129,20 @@ const ALLOWED = new Set([
   ...AI,
 ]);
 
-/** Featured browse rows; an actual provider with the same ID takes precedence. */
-function featuredProviders(
-  providers: readonly Provider[],
-): readonly Provider[] {
-  const present = new Set(
+function presentProviderIds(providers: readonly Provider[]): Set<string> {
+  return new Set(
     providers.flatMap((provider) => [
       provider.id,
       canonicalProviderId(provider.id) ?? provider.id,
     ]),
   );
+}
+
+/** Featured browse rows; an actual provider with the same ID takes precedence. */
+function featuredProviders(
+  providers: readonly Provider[],
+): readonly Provider[] {
+  const present = presentProviderIds(providers);
   const base = providers[0];
   if (!base) return [];
   const clone = (
@@ -239,6 +243,16 @@ export type CatalogSelectionOptions = {
   includeFamilies?: boolean;
 };
 
+function canonicalFamilyProvider(
+  provider: Provider,
+  includeFamilies = false,
+): Provider {
+  const canonical = canonicalProviderId(provider.id);
+  return includeFamilies && canonical && isFamilyCanonical(canonical)
+    ? { ...provider, id: canonical }
+    : provider;
+}
+
 /** BYO leads the curated browse list; partner providers stay alphabetical. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
@@ -249,14 +263,9 @@ export function curatedCatalogProviders(
     : providers;
   return byoProvidersFirst(
     source
-      .map((provider) => {
-        const canonical = canonicalProviderId(provider.id);
-        return options.includeFamilies &&
-          canonical &&
-          isFamilyCanonical(canonical)
-          ? { ...provider, id: canonical }
-          : provider;
-      })
+      .map((provider) =>
+        canonicalFamilyProvider(provider, options.includeFamilies),
+      )
       .filter(
         (provider) =>
           isConnectionCatalogProvider(provider) ||

@@ -239,10 +239,12 @@ production publication:
   `main`, and the Pages publishing source must be GitHub Actions. The PWA is
   still the existing shared-origin `/OpenSesame/` deployment, not four isolated
   hosted environments.
-- **Tag policy.** Do not assume `ops/github/release-tags.json` is applied. If a
-  `v*` creation rule excludes the workflow token, an authorized operator must
-  create the exact tag or explicitly configure the intended publishing identity.
-  The workflow reports a denied tag write and stops; it never relaxes a rule.
+- **Tag policy.** Verify both `ops/github/release-tag-creation.json` and
+  `ops/github/release-tags.json` are applied. The first permits owner/admin and
+  the Actions integration to create `v*` tags; the second permits only the
+  owner/admin to update or delete them. Never give Actions a mutation bypass.
+  An authorized operator may instead create the exact tag at the verified
+  source. A denied tag write stops the workflow; it never relaxes a rule.
 - **Attestations.** The repository/account must support artifact attestations,
   and the reusable caller must grant the declared token scopes. A signing or
   verification failure blocks qualification; there is no unsigned fallback.
