@@ -2,23 +2,26 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createRequire } from "node:module";
-import path from "node:path";
 import vm from "node:vm";
 import { describe, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const playwright = createRequire(require.resolve("@playwright/test"));
 const core = createRequire(playwright.resolve("playwright/package.json"));
-const vendor = path.join(
-  path.dirname(core.resolve("playwright-core/package.json")),
-  "lib/generated/clockSource.js",
+// Playwright 1.64 bundles its generated clock primitive in coreBundle.
+// Decode that exact shipped source; a packaging change must fail explicitly.
+const bundle = fs.readFileSync(
+  core.resolve("playwright-core/lib/coreBundle"),
+  "utf8",
 );
+const clockModule = bundle
+  .split("// packages/playwright-core/src/generated/clockSource.ts\n")[1]
+  ?.split("\n// packages/playwright-core/")[0];
+const sourceLiteral = clockModule?.match(/^\s+source = ('.*');$/m)?.[1];
+assert.equal(typeof sourceLiteral, "string", "Pinned SDK exports clock source");
+const clockSource = vm.runInNewContext(sourceLiteral, {}, { timeout: 1000 });
 const module = { exports: {} };
-vm.runInNewContext(
-  require(vendor).source,
-  { module, console },
-  { timeout: 1000 },
-);
+vm.runInNewContext(clockSource, { module, console }, { timeout: 1000 });
 const createClock = module.exports.createClock();
 const BASE = 1_792_375_200_000;
 
@@ -153,13 +156,13 @@ async function expiryBlock(fixture, failOperation = false) {
 }
 
 describe("Linear expiry clock isolation", () => {
-  it("demonstrates the old system clock rewind using the exact pinned primitive", async () => {
+  it("keeps the Playwright 1.64 system-clock restore from rewinding time", async () => {
     const fixture = clockFixture();
     fixture.clock.setSystemTime(BASE + 2 * 60 * 60 * 1000);
     fixture.clock.setSystemTime(BASE);
     assert.deepEqual(await pendingTimerInterleaving(fixture), {
-      backwardMilliseconds: 25,
-      exceedsMaximum: true,
+      backwardMilliseconds: 0,
+      exceedsMaximum: false,
       timerCalls: [1, 1],
     });
   });
