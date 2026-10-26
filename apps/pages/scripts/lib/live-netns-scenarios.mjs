@@ -1,3 +1,4 @@
+import { admitAndAnswer } from "./live-join-addresses.mjs";
 import { joinedSession, opensSharedItems } from "./live-joined.mjs";
 /**
  * The walks verify:live-netns takes (ADR 0150 §6): the owner in one network
@@ -207,8 +208,7 @@ export async function carried(ctx) {
     const joiner = await ctx.device(ctx.browsers.b, site(ctx));
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     const admit = admitControl(panel, JOINER);
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
+    await admitAndAnswer(admit, joiner.page);
     await opensSharedItems(joiner.page);
     check(true, "carrier: joined with no code pasted either way");
     const made = await pairs(joiner.page);

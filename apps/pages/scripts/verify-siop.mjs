@@ -260,7 +260,7 @@ try {
   });
   expect(socialSub).toBe(subOne);
   console.log(
-    "PASS social: a configured connection minted a Self-Issued ID Token without a passkey",
+    "PASS social: a configured connection and the selected person's passkey minted a Self-Issued ID Token",
   );
 
   const subTwo = await timed("pages pairwise", async () => {

@@ -284,7 +284,7 @@ const SAS_TEXT = /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/;
 /** The owner's export is behind its own Peer trust signal disclosure. */
 export async function openPeerTrustSignal(panel) {
   const summary = panel.getByText("Peer trust signal", { exact: true });
-  const disclosure = panel.locator("details").filter({ has: summary });
+  const disclosure = summary.locator("..");
   await summary.waitFor();
   if ((await disclosure.getAttribute("open")) === null) await summary.click();
   return disclosure;

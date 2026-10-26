@@ -15,7 +15,7 @@ import {
   startNtfyServer,
 } from "./live-carriers.mjs";
 import { engineOf } from "./live-engines.mjs";
-import { thisMachine } from "./live-join-addresses.mjs";
+import { admitAndAnswer, thisMachine } from "./live-join-addresses.mjs";
 import {
   WATCH_RTC,
   admitControl,
@@ -205,7 +205,12 @@ export async function carried(browser, owner, kind) {
       : await reachableBy(started, [owner.engine, engineOf(browser)], TLS.cert);
   if (kind === "ntfy") PASSTHROUGH.push(new URL(server.url).origin);
   try {
-    await setRoutes(owner.page, { carriers: [{ kind, url: server.url }] });
+    // The carrier delivers codes, not the WebRTC session. These browsers
+    // share a machine, whose private candidates require explicit permission.
+    await setRoutes(owner.page, {
+      addresses: await thisMachine(),
+      carriers: [{ kind, url: server.url }],
+    });
     const { panel, code, link } = await startSession(owner.page);
     await panel
       .getByRole("img", { name: /^Carrying codes: / })
@@ -222,8 +227,7 @@ export async function carried(browser, owner, kind) {
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     // The request crossed on the carrier: the owner is asked with nothing pasted.
     const admit = admitControl(panel, JOINER);
-    await admit.waitFor({ timeout: 30_000 });
-    await admit.click();
+    await admitAndAnswer(admit, joiner.page);
     await opensSharedItems(joiner.page);
     await shot(joiner.page, `carrier-${kind}-joined`);
     check(true, `${kind}: joined with no code pasted either way`);

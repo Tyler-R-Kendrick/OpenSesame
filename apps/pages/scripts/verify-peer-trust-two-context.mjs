@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { opensSharedItems } from "./lib/live-joined.mjs";
+import { joinedMarks, opensSharedItems } from "./lib/live-joined.mjs";
+import { allowLoopbackDevelopment } from "./lib/local-network-permission.mjs";
 /**
  * Peer-trust peering on the static dist, two browser contexts (journeys-2).
  *
@@ -72,12 +73,7 @@ async function device(browser) {
   await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
     origin: ORIGIN,
   });
-  const cdp = await made.context.newCDPSession(made.page);
-  await cdp.send("Browser.setPermission", {
-    permission: { name: "local-network-access" },
-    setting: "granted",
-    origin: ORIGIN,
-  });
+  await allowLoopbackDevelopment(made.page, ORIGIN);
   await made.context.addInitScript(WATCH_RTC);
   return made;
 }
@@ -210,7 +206,7 @@ async function crossedSignal(browser, source, target) {
       `crossed signal refused before a request (${words})`,
     );
     check(
-      (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+      (await joinedMarks(joiner.page).count()) === 0,
       "crossed signal does not join",
     );
     await shot(joiner.page, "mitm-joiner");
@@ -222,7 +218,7 @@ async function crossedSignal(browser, source, target) {
     .getByRole("img", { name: "Not a request code" })
     .waitFor({ timeout: 20_000 });
   check(
-    (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+    (await joinedMarks(joiner.page).count()) === 0,
     "a signal from the first session does not join the second",
   );
   await shot(target.page, "mitm-owner");
