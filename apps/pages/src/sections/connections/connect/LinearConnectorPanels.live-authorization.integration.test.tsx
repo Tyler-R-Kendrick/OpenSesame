@@ -50,7 +50,10 @@ afterEach(() => {
 function LiveLinearSettings({
   onFlash,
   advanced,
-}: { onFlash: (flash: Flash) => void; advanced: boolean }) {
+}: {
+  onFlash: (flash: Flash) => void;
+  advanced: boolean;
+}) {
   const provider = catalogProvider("linear");
   const plan = connectPlan("linear");
   if (!provider || !plan) throw new Error("Missing actual Linear provider");
@@ -107,7 +110,7 @@ function LiveLinearSettings({
   );
 }
 
-function linearFixture(advanced = false) {
+function fixture(advanced = false) {
   const actual = connectorIntegration();
   applyLinearClientId("registered-linear-live-projection");
   const windows: {
@@ -155,29 +158,21 @@ function linearFixture(advanced = false) {
       <LiveLinearSettings onFlash={onFlash} advanced={advanced} />
     </MemoryRouter>,
   );
-  return { ...actual, windows, onFlash };
+  return { ...actual, windows, onFlash, advanced };
 }
 
-async function openAdvanced(advanced: boolean) {
-  if (advanced)
-    await userEvent.click(
-      screen.getByText("Advanced: existing OAuth app or API key", {
-        exact: true,
-      }),
-    );
-}
+const loaded = () => screen.getByLabelText("Connections loaded").textContent;
 
 it.each([false, true])(
   "keeps one originating Cancel after actual Linear creation auto-selects its committed row (Advanced: %s)",
   async (advanced) => {
-    const actual = linearFixture(advanced);
-    await waitFor(() =>
-      expect(screen.getByLabelText("Connections loaded").textContent).toBe(
-        "yes",
-      ),
-    );
-    await openAdvanced(advanced);
+    const actual = fixture(advanced);
+    await waitFor(() => expect(loaded()).toBe("yes"));
     expect(readDeviceRows()).toHaveLength(0);
+    if (advanced)
+      await userEvent.click(
+        screen.getByText("Advanced: existing OAuth app or API key"),
+      );
     await userEvent.clear(screen.getByLabelText("Connector Name"));
     await userEvent.type(
       screen.getByLabelText("Connector Name"),
@@ -226,10 +221,7 @@ it.each([false, true])(
     expect(actual.requests).toHaveLength(0);
     expect(readDeviceRows()).toHaveLength(1);
     expect(deviceConnection(saved.connectionId)?.status).toBe("pending");
-    console.info("LINEAR_PHYSICAL_CLOSE", {
-      rawInvocations: actual.windows[0]?.rawClose.mock.calls.length,
-      transitions: actual.windows[0]?.close.mock.calls.length,
-    });
+
     await startConsent(actual, 1);
     expect(readDeviceRows()).toHaveLength(1);
     expect(readDeviceRows()[0]?.connectionId).toBe(saved.connectionId);
@@ -247,13 +239,12 @@ it.each([false, true])(
   },
 );
 
-async function startConsent(
-  actual: ReturnType<typeof linearFixture>,
-  index = 0,
-) {
-  await waitFor(() =>
-    expect(screen.getByLabelText("Connections loaded").textContent).toBe("yes"),
-  );
+async function startConsent(actual: ReturnType<typeof fixture>, index = 0) {
+  await waitFor(() => expect(loaded()).toBe("yes"));
+  if (actual.advanced && !screen.queryByLabelText("Connector Name"))
+    await userEvent.click(
+      screen.getByText("Advanced: existing OAuth app or API key"),
+    );
   await userEvent.click(
     screen.getByRole("button", {
       name: /^(Create|Save) and authorize Linear$/,
@@ -272,52 +263,55 @@ async function startConsent(
   return id;
 }
 
-it("announces actual provider denial across its own remount and retries the same row with fresh state", async () => {
-  const actual = linearFixture();
-  const id = await startConsent(actual);
-  const pending = readDeviceSecrets()[id]?.linear_pending;
-  const navigation = actual.windows[0]?.location.replace.mock.calls[0]?.[0];
-  const authorization = new URL(String(navigation));
-  const state = authorization.searchParams.get("state");
-  const redirectUri = authorization.searchParams.get("redirect_uri");
-  if (!state || !redirectUri)
-    throw new Error("Actual Linear return target missing");
-  const channel = new BroadcastChannel(await nativeAuthChannel(state));
-  try {
-    await act(async () =>
-      channel.postMessage({
-        kind: "authorization-code",
-        redirectUri,
-        receipt: "a".repeat(64),
-        state,
-        error: true,
-        code: null,
-      }),
-    );
-    await screen.findByRole("img", {
-      name: "Linear authorization was declined; your connector is not authorized",
-    });
-    expect(actual.onFlash).toHaveBeenCalledWith({
-      tone: "err",
-      text: "Linear authorization was declined; your connector is not authorized",
-    });
-    expect(readDeviceSecrets()[id]?.linear_pending).toBeUndefined();
-    expect(deviceConnection(id)?.status).toBe("pending");
-    expect(await startConsent(actual, 1)).toBe(id);
-    expect(readDeviceSecrets()[id]?.linear_pending).not.toBe(pending);
-    expect(actual.windows[0]?.close).toHaveBeenCalledOnce();
-    expect(actual.windows[1]?.close).not.toHaveBeenCalled();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Cancel sign-in" }),
-    );
-    await waitFor(() =>
-      expect(actual.windows[1]?.close).toHaveBeenCalledOnce(),
-    );
-    expect(actual.requests).toHaveLength(0);
-  } finally {
-    channel.close();
-  }
-});
+it.each([false, true])(
+  "announces actual provider denial across its own remount and retries the same row with fresh state (Advanced: %s)",
+  async (advanced) => {
+    const actual = fixture(advanced);
+    const id = await startConsent(actual);
+    const pending = readDeviceSecrets()[id]?.linear_pending;
+    const navigation = actual.windows[0]?.location.replace.mock.calls[0]?.[0];
+    const authorization = new URL(String(navigation));
+    const state = authorization.searchParams.get("state");
+    const redirectUri = authorization.searchParams.get("redirect_uri");
+    if (!state || !redirectUri)
+      throw new Error("Actual Linear return target missing");
+    const channel = new BroadcastChannel(await nativeAuthChannel(state));
+    try {
+      await act(async () =>
+        channel.postMessage({
+          kind: "authorization-code",
+          redirectUri,
+          receipt: "a".repeat(64),
+          state,
+          error: true,
+          code: null,
+        }),
+      );
+      await screen.findByRole("img", {
+        name: "Linear authorization was declined; your connector is not authorized",
+      });
+      expect(actual.onFlash).toHaveBeenCalledWith({
+        tone: "err",
+        text: "Linear authorization was declined; your connector is not authorized",
+      });
+      expect(readDeviceSecrets()[id]?.linear_pending).toBeUndefined();
+      expect(deviceConnection(id)?.status).toBe("pending");
+      expect(await startConsent(actual, 1)).toBe(id);
+      expect(readDeviceSecrets()[id]?.linear_pending).not.toBe(pending);
+      expect(actual.windows[0]?.close).toHaveBeenCalledOnce();
+      expect(actual.windows[1]?.close).not.toHaveBeenCalled();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Cancel sign-in" }),
+      );
+      await waitFor(() =>
+        expect(actual.windows[1]?.close).toHaveBeenCalledOnce(),
+      );
+      expect(actual.requests).toHaveLength(0);
+    } finally {
+      channel.close();
+    }
+  },
+);
 
 async function createOtherLinear() {
   const plan = connectPlan("linear");
@@ -350,10 +344,17 @@ async function createOtherLinear() {
   return saved.connectionId;
 }
 
-it.each(["route", "lock", "removal", "selected B"])(
-  "withdraws only the originating pending Linear attempt on %s",
-  async (reason) => {
-    const actual = linearFixture();
+it.each(
+  [false, true].flatMap((advanced) =>
+    ["route", "lock", "removal", "selected B"].map((reason) => ({
+      advanced,
+      reason,
+    })),
+  ),
+)(
+  "withdraws only the originating pending Linear attempt on $reason (Advanced: $advanced)",
+  async ({ reason, advanced }) => {
+    const actual = fixture(advanced);
     const id = await startConsent(actual);
     expect(
       screen

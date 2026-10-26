@@ -22,11 +22,11 @@ export const ClaimStateSchema = z.enum([
 
 export const CreateClaimRequestSchema = z.object({
   type: ClaimTargetTypeSchema,
-  targetManifest: z.record(z.unknown()),
+  targetManifest: z.record(z.string(), z.unknown()),
   ttlSeconds: z.number().int().positive().max(86_400).optional(),
   proofKeyJkt: z.string().min(8).optional(),
-  requestedDestination: z.record(z.unknown()).optional(),
-  requestedGrant: z.record(z.unknown()).optional(),
+  requestedDestination: z.record(z.string(), z.unknown()).optional(),
+  requestedGrant: z.record(z.string(), z.unknown()).optional(),
 });
 export type CreateClaimRequest = z.infer<typeof CreateClaimRequestSchema>;
 
@@ -57,7 +57,7 @@ export type PresentClaimRequest = z.infer<typeof PresentClaimRequestSchema>;
 
 export const ReviewClaimRequestSchema = z.object({
   acceptedItemIds: z.array(z.string()),
-  destination: z.record(z.unknown()).optional(),
+  destination: z.record(z.string(), z.unknown()).optional(),
 });
 export type ReviewClaimRequest = z.infer<typeof ReviewClaimRequestSchema>;
 
@@ -76,7 +76,7 @@ export const CompleteClaimRequestSchema = z.object({
     .string()
     .regex(/^osc_clm_/)
     .optional(),
-  destination: z.record(z.unknown()).optional(),
+  destination: z.record(z.string(), z.unknown()).optional(),
   idempotencyKey: z.string().min(8).optional(),
 });
 export type CompleteClaimRequest = z.infer<typeof CompleteClaimRequestSchema>;
@@ -123,6 +123,6 @@ export type ClaimSessionResponse = z.infer<typeof ClaimSessionResponseSchema>;
  * presentation window. GET/poll/complete keep projecting only the digest.
  */
 export const PresentClaimResponseSchema = ClaimSessionResponseSchema.extend({
-  targetManifest: z.record(z.unknown()),
+  targetManifest: z.record(z.string(), z.unknown()),
 });
 export type PresentClaimResponse = z.infer<typeof PresentClaimResponseSchema>;

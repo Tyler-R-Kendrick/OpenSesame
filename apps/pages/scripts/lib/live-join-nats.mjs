@@ -1,4 +1,3 @@
-import { opensSharedItems } from "./live-joined.mjs";
 /**
  * verify:live-join's NATS walks (ADR 0167): a real nats-server in operator
  * mode, configured by `pnpm dev:live-nats`, and an owner who names it in
@@ -34,6 +33,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
@@ -180,7 +180,8 @@ function checkFrames(server, base, label) {
 
 /** One NATS walk: `always`, or the default fallback with no route between. */
 export async function natsSession(browser, owner, binary, mode) {
-  const { setStep, failures, device, shot, check, SECRET, PHONE, TLS } = walk;
+  const { setStep, failures, device, shot, joined, check, SECRET, PHONE, TLS } =
+    walk;
   const label = `nats-${mode}`;
   setStep(label);
   const started = await startMintedNats(binary);
@@ -214,6 +215,7 @@ export async function natsSession(browser, owner, binary, mode) {
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     await opensSharedItems(joiner.page, 60_000);
+    await joined(joiner.page).waitFor({ timeout: 60_000 });
     await joiner.page
       .getByRole("button", { name: "Reveal GitHub Value" })
       .click();

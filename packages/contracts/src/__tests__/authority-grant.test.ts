@@ -40,6 +40,30 @@ const validGrant = {
 } as const;
 
 describe("authority grant wire schema (GA-A-04)", () => {
+  it("rejects oversized authority lists before validating their elements", () => {
+    let reads = 0;
+    const oversized = Array.from({ length: 65 }, () => 0);
+    Object.defineProperty(oversized, 0, {
+      get() {
+        reads += 1;
+        return 0;
+      },
+    });
+    for (const field of ["actions", "resources"] as const) {
+      const result = AuthorityGrantSchema.safeParse({
+        ...validGrant,
+        [field]: oversized,
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues).toMatchObject([
+          { code: "too_big", path: [field], maximum: 64 },
+        ]);
+      }
+    }
+    expect(reads).toBe(0);
+  });
+
   it("parses a Host-shaped Grant record", () => {
     const parsed = AuthorityGrantSchema.parse(validGrant);
     expect(parsed.id).toBe("grn_1");

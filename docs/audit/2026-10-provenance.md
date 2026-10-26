@@ -697,3 +697,11 @@ base/changed production builds for desktop, tablet and phone evidence.
 - 2026-10-23: Latest-main integration and CI follow-up. Grok Build subscription authentication was unavailable and Kimi Code was not installed; bounded Codex agents prepared isolated slices, with root review, canonical checks, and GitHub-signed stacked publication.
 
 - 2026-10-25: Codex Security Cloud finding remediation in an isolated worktree from `aad2c85b`. Grok subscription authentication was absent and Kimi Code was unavailable. Codex agents implemented separate boundary fixes with independent candidate reviews and focused validation. The operator approved exact organization-bound issuer authorization and independent local autofill approval.
+
+## Security alert remediation, 2026-10-25
+
+The Codex session produced the dependency and assertion-validation changes on
+`fix/security-alerts-20261025`. The repository coding preflight found no Grok
+subscription authentication and no Kimi executable in this managed environment;
+Codex implemented and reviewed the changes directly. No Grok or Kimi authorship
+is claimed. Validation evidence is retained outside the checkout.

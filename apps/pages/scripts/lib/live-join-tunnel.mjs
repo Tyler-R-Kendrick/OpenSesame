@@ -1,4 +1,3 @@
-import { joinedSession, opensSharedItems } from "./live-joined.mjs";
 /**
  * The tunnel walk verify:live-join takes (ADR 0150 §6): a tailnet or VPN
  * between two machines, played on one, with mDNS hiding on as every browser
@@ -7,6 +6,7 @@ import { joinedSession, opensSharedItems } from "./live-joined.mjs";
  */
 
 import { defaultRouteAddress, lacks } from "./live-engines.mjs";
+import { answerAddresses } from "./live-join-addresses.mjs";
 import {
   TUNNEL_ONLY,
   endSession,
@@ -18,12 +18,14 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 
 let check;
 let setStep;
 let device;
 let shot;
 let configs;
+let joined;
 let launch;
 let SECRET;
 let ORIGIN;
@@ -41,6 +43,7 @@ export function bindTunnel(walk) {
     device,
     shot,
     configs,
+    joined,
     launch,
     SECRET,
     ORIGIN,
@@ -71,10 +74,12 @@ async function tunnelWithout(browser, owner, init) {
     { admit: false },
   );
   await joinerConnects(lost.page, reply);
-  const reached = await joinedSession(lost.page, 20_000).then(
-    () => true,
-    () => false,
-  );
+  const reached = await joined(lost.page)
+    .waitFor({ timeout: 20_000 })
+    .then(
+      () => true,
+      () => false,
+    );
   check(!reached, "tunnel: with no address named, the browsers never meet");
   await shot(lost.page, "tunnel-1-no-address");
   await endSession(session.panel);
@@ -108,7 +113,9 @@ async function tunnelWith(browser, owner, init, address) {
     { admit: false },
   );
   await joinerConnects(joiner.page, reply);
+  await answerAddresses(joiner.page);
   await opensSharedItems(joiner.page);
+  await joined(joiner.page).waitFor({ timeout: 45_000 });
   const pairs = await selectedPairs(joiner.page);
   check(
     pairs.some((pair) => pair.address === address),

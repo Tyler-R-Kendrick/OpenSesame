@@ -5,6 +5,7 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { isNativeDeviceConnection } from "@opensesame/app-core/lib/device-connector-view.js";
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
@@ -37,7 +38,10 @@ export function nativeSettingsPageDescriptor(
   provider: Provider,
   connection: Connection | null,
 ) {
-  return provider.id === "linear" && isSelfHostedConnector(connection)
+  return provider.id === "linear" &&
+    connection !== null &&
+    isSelfHostedConnector(connection) &&
+    !isNativeDeviceConnection(connection)
     ? null
     : nativeSettingsDescriptor(provider);
 }

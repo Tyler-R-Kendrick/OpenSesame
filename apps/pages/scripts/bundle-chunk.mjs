@@ -7,6 +7,11 @@
  */
 export function bundleChunk(id) {
   const path = id.split("\\").join("/");
+  // Evaluate CSP-safe schema configuration before any imported schema chunks,
+  // including hardened profiles that emit no dedicated workers.
+  if (path.endsWith("/packages/app-core/src/lib/zod-jitless.ts")) {
+    return "schema-csp";
+  }
   if (
     path.includes("/node_modules/react-dom/") ||
     path.includes("/node_modules/react/") ||

@@ -20,8 +20,8 @@ import {
 const repo = fileURLToPath(new URL("../../..", import.meta.url));
 const appRequire = createRequire(join(repo, "packages/app-core/package.json"));
 const pageRequire = createRequire(join(repo, "apps/pages/package.json"));
-const z4 = appRequire.resolve("zod").replace(/index\.cjs$/, "index.js");
-const z3 = pageRequire
+const coreZod = appRequire.resolve("zod").replace(/index\.cjs$/, "index.js");
+const pageZod = pageRequire
   .resolve("zod")
   .replace("/dist/commonjs/", "/dist/esm/")
   .replace(/index\.cjs$/, "index.js");
@@ -48,21 +48,21 @@ for (const file of [sdk, controller])
   await mkdir(dirname(file), { recursive: true });
 await writeFile(
   sdk,
-  `import {z} from ${JSON.stringify(z4)}; z.config({jitless:true});
+  `import {z} from ${JSON.stringify(coreZod)}; z.config({jitless:true});
 export const check = v => z.object({id:z.number().int().positive()}).strict().safeParse(v).success;
 export const start = () => new Worker(new URL("./onepassword-sdk.worker.ts",import.meta.url),{type:"module",name:"original-sdk"});`,
 );
 await writeFile(
   controller,
-  `import {z} from ${JSON.stringify(z3)};
+  `import {z} from ${JSON.stringify(pageZod)}; z.config({jitless:true});
 export const check = v => z.object({id:z.number().int().positive()}).strict().safeParse(v).success;
 export const start = () => new Worker(new URL("./worker.ts",import.meta.url),{type:"module",name:"original-tailnet"});`,
 );
 for (const [index, plan] of workers.entries()) {
   await writeFile(
     resolve(dirname(plan.owner), plan.specifier),
-    `import {z} from ${JSON.stringify(index === 0 ? z4 : z3)};
-${index === 0 ? "z.config({jitless:true});" : ""}
+    `import {z} from ${JSON.stringify(index === 0 ? coreZod : pageZod)};
+z.config({jitless:true});
 const schema = z.object({id:z.number().int().positive()}).strict();
 globalThis.onmessage = value => schema.safeParse(value).success;
 globalThis.workerRealm = ${JSON.stringify(plan.name)};`,
@@ -151,7 +151,7 @@ async function fixture({
   return { bundle, output: result.output };
 }
 
-test("module workers retain original owners, pure versions, and complete offline closures", async () => {
+test("module workers retain original owners, patched Zod, pure versions, and complete offline closures", async () => {
   const { bundle } = await fixture();
   const values = Object.values(bundle);
   const sdkOwner = values.find((v) => v.type === "chunk" && sdk in v.modules);
@@ -181,8 +181,11 @@ test("module workers retain original owners, pure versions, and complete offline
   );
   assert.ok(pureChunks.length > 0);
   const ids = pureChunks.flatMap((v) => Object.keys(v.modules));
-  assert.ok(ids.some((id) => id.includes("zod@4.")));
-  assert.ok(ids.some((id) => id.includes("zod@3.")));
+  const zodIds = ids.filter((id) => id.includes("/node_modules/zod/"));
+  assert.ok(zodIds.length > 0);
+  assert.ok(zodIds.every((id) => id.includes("zod@4.6.6/")));
+  assert.ok(!ids.some((id) => id.includes("zod@3.")));
+  assert.ok(!zodIds.some((id) => id.includes("/node_modules/zod/v3/")));
   for (const [i, owner] of [sdkOwner, tailnetOwner].entries()) {
     const refs = owner.viteMetadata.importedAssets;
     assert.ok(refs.has(roots[i].fileName));

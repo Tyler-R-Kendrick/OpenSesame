@@ -72,28 +72,39 @@ async function positive(panel, https, check, record, label) {
 }
 async function negative(panel, url, proof, check, record, label) {
   const before = counts(proof);
-  await panel.getByLabel("Tailnet service URL", { exact: true }).fill(url);
-  await panel
-    .getByRole("button", { name: "Test tailnet service", exact: true })
-    .click();
-  await panel
-    .getByRole("img", { name: stopped, exact: true })
-    .waitFor({ timeout: 45_000 });
-  await expect
-    .poll(() => proof.stats.errors, { timeout: 45_000 })
-    .toBeGreaterThan(before.errors);
-  await expect(panel.getByRole("img", { name: /^HTTP 200 · / })).toHaveCount(0);
-  await expect(
-    panel.getByRole("button", { name: "Connect browser node", exact: true }),
-  ).toBeEnabled();
-  const after = counts(proof);
-  check(
-    after.connections > before.connections &&
-      after.errors > before.errors &&
-      after.requests === before.requests,
-    `${label}: actual TLS rejection receives zero HTTP and withdraws the original node`,
-  );
-  record("peer-tls-proof", JSON.stringify({ label, before, after }));
+  try {
+    await panel.getByLabel("Tailnet service URL", { exact: true }).fill(url);
+    await panel
+      .getByRole("button", { name: "Test tailnet service", exact: true })
+      .click();
+    await panel
+      .getByRole("img", { name: stopped, exact: true })
+      .waitFor({ timeout: 45_000 });
+    await expect
+      .poll(() => proof.stats.errors, { timeout: 45_000 })
+      .toBeGreaterThan(before.errors);
+    await expect(panel.getByRole("img", { name: /^HTTP 200 · / })).toHaveCount(
+      0,
+    );
+    await expect(
+      panel.getByRole("button", { name: "Connect browser node", exact: true }),
+    ).toBeEnabled();
+    const after = counts(proof);
+    check(
+      after.connections > before.connections &&
+        after.errors > before.errors &&
+        after.requests === before.requests,
+      `${label}: actual TLS rejection receives zero HTTP and withdraws the original node`,
+    );
+    record("peer-tls-proof", JSON.stringify({ label, before, after }));
+  } catch (error) {
+    record(
+      "peer-tls-failure",
+      JSON.stringify({ label, before, after: counts(proof) }),
+    );
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`${label}: ${reason}`, { cause: error });
+  }
 }
 
 export async function exerciseTailscalePeerHTTPS({

@@ -20,6 +20,8 @@ export function createAuthFlowHarness({ DIST, ORIGIN, BASE, OUT, record }) {
       viewport: { width: 1280, height: 900 },
       serviceWorkers: "block",
     });
+    // Accept native save pickers in headless Chromium: the app still writes
+    // and closes the generated recovery key before enrollment can commit.
     await emulateFilePickers(context);
     await context.route("**/*", async (route) => {
       const request = route.request();

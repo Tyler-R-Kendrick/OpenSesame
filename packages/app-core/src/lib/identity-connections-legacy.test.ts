@@ -54,7 +54,7 @@ function storage(): Storage {
   };
 }
 function page(search = ""): PagePort {
-  return {
+  const port: PagePort = {
     location: {
       origin: "https://app.example.com",
       hostname: "app.example.com",
@@ -73,7 +73,15 @@ function page(search = ""): PagePort {
     opener: null,
     isSecureContext: true,
     visibilityState: "visible",
-    replaceUrl: () => {},
+    replaceUrl: (href) => {
+      const next = new URL(href, port.location.href);
+      Object.assign(port.location, {
+        href: next.href,
+        search: next.search,
+        pathname: next.pathname,
+        hash: next.hash,
+      });
+    },
     addEventListener: () => {},
     removeEventListener: () => {},
     open: () => null,
@@ -82,6 +90,7 @@ function page(search = ""): PagePort {
     startDownload: () => {},
     submitForm: () => {},
   };
+  return port;
 }
 function discovery() {
   return {

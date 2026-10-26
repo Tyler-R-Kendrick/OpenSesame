@@ -154,8 +154,8 @@
     ],
     "existingRuntimeImport": {
       "package": "zod",
-      "version": "3.25.67",
-      "qualification": "Existing root lockfile dependency, no install or dependency change. The actual later worker bundle must verify its resolved graph.",
+      "version": "4.6.6",
+      "qualification": "Declared root Zod4 dependency; the isolated worker bundle verifies its resolved graph.",
       "entryPoint": "zod/v4/mini",
       "initialization": "z.config({ jitless: true }) before schemas; no dynamic-code schema compilation in the isolated worker."
     },
@@ -367,8 +367,8 @@
     "runtimeSha256": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14",
     "thirdPartySha256": "9467842c7b63c53ca102a9485075ee375f3ac3a03b51764ed2d247d530df5fa2",
     "zod": {
-      "version": "3.25.67",
-      "packageSha256": "b60783bbe1e3fe898d6d8a8ab9613df906cd2cb16f19ce95a74e4e71395d1093",
+      "version": "4.6.6",
+      "packageSha256": "cff7e142055a9dd9bc2947a71ca3fb5e3aacdfda966d7728993ff3656245b94a",
       "licenseSha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8",
       "entryPoint": "zod/v4/mini"
     },
@@ -376,7 +376,7 @@
       "version": "6.4.4",
       "packageSha256": "08aa811517022c5b83c52c63dc435d2aa725a64fe4e3cfa6f351affa6b9ed9de"
     },
-    "bridgeSha256": "2f1fa90dc075cd2d9869d7991603bc93c3f4908712b635c886f35062f725558a",
+    "bridgeSha256": "1992487ea59d7d1745441fd77e538fba3d0086aefd72ceafb43446068211e54f",
     "files": [
       {
         "path": "build.mjs",
@@ -388,7 +388,7 @@
       },
       {
         "path": "native-assets.mjs",
-        "sha256": "7370a9e82e572c7ab36ab7ae07b718d281a7a8b09b009732da42a4ebc85a58f6"
+        "sha256": "378b3c995db4d7aaf56c24913505b41b186f233ae0aab0e81482a29bd0313538"
       },
       {
         "path": "compose-native.test.mjs",
@@ -396,7 +396,7 @@
       },
       {
         "path": "compress-wasm.mjs",
-        "sha256": "aa404d2be3b9660b0a8f6a74c14e91ce32b30d5762914add414f5684c7532e2c"
+        "sha256": "b7fc1b685202f2de16c8e60d8c2f075c5a3cf4954e6d2f0268916f7c293fa925"
       },
       {
         "path": "compress-wasm.test.mjs",
@@ -470,7 +470,7 @@
       "arguments": ["-11", "-I", "3", "-p", "2", "-b", "1024", "-n", "-c"],
       "qualification": "Owned build-only source compilation, not an installed PWA dependency. Each output must decode to the exact complete input bytes; source archive, notices, compiler and executable provenance are retained. No four-phase Go build or runtime feature change."
     },
-    "bridgeUnminifiedSha256": "903c084b8ebb058e968adc5cab043fe5fa19a0af924042c1df19021b3ea6207f",
+    "bridgeUnminifiedSha256": "80f09f233d5256ee4d39ecf1df95803d08d4ed4b5220506b619565c984be57b5",
     "runtimeMinifiedSha256": "3e61b3267aa67a553c289335805e5947e2f80935f782d3d6bcb30adb15674017",
     "terser": {
       "version": "5.51.2",

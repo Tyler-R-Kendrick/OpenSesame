@@ -38,7 +38,7 @@
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-cli": "workspace:*",
     "@opensesame/vault-core": "workspace:*",
-    "zod": "3.25.67"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@opensesame/capability-registry": "workspace:*",
@@ -49,7 +49,7 @@
     "esbuild": "0.25.12",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
-    "vitest": "4.1.11",
+    "vitest": "4.1.12",
     "ws": "8.21.3"
   },
   "license": "MIT",

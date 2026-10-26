@@ -11,6 +11,8 @@
 //! is neither `Clone` nor `Serialize`, and its `Debug` is redacted.
 
 use aws_lc_rs::{rand::SystemRandom, signature as aws_signature};
+use p256::ecdsa::signature::{Signer as _, Verifier as _};
+use p256::pkcs8::{DecodePrivateKey as _, DecodePublicKey as _};
 use pkcs8::DecodePrivateKey as _;
 use signature::{Signer as _, Verifier as _};
 use spki::DecodePublicKey as _;

@@ -2,25 +2,73 @@
  * A master password changed on one device opens the vault on the others
  * (ADR 0144), and nothing but a device holding the vault key can change it.
  */
-import {
-  WrongPasswordError,
-  createItem,
-  wrapVaultKeyWithPassword,
-} from "@opensesame/vault-core";
+import { createItem, wrapVaultKeyWithPassword } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type Host, configureHost, host } from "../../host.js";
 import { SEALED_UNDER_ANOTHER_KEY } from "../vault/store-merge.js";
-import { adoptSnapshot } from "./adopt.js";
-import { type Device, as, device } from "./devices.fixture.js";
+import type { Device } from "./devices.fixture.js";
 import { type MemoryDrive, PAIRING, memoryDrive } from "./drive.fixture.js";
-import { syncOnce } from "./engine.js";
 
 const OLD = "correct horse battery staple";
 const NEW = "a different, longer passphrase entirely";
 const PIN = "48291573";
 const NOW = Date.parse("2026-09-01T00:00:00.000Z");
 
+type DeviceRealm = {
+  host: Host;
+  as: typeof import("./devices.fixture.js").as;
+  engine: typeof import("./engine.js");
+  adopt: typeof import("./adopt.js");
+  vaultCore: typeof import("@opensesame/vault-core");
+};
+const realms = new WeakMap<Device, DeviceRealm>();
+
+function realmOf(on: Device): DeviceRealm {
+  const realm = realms.get(on);
+  if (!realm) throw new Error("device realm is missing");
+  return realm;
+}
+
+/**
+ * Physical devices share neither module lease counts nor a Web Locks manager.
+ * Keep each realm alive across switches: an open vault still holds its lease.
+ */
+async function device(name: string): Promise<Device> {
+  vi.resetModules();
+  const [fixture, engine, adopt, vaultCore, testHost] = await Promise.all([
+    import("./devices.fixture.js"),
+    import("./engine.js"),
+    import("./adopt.js"),
+    import("@opensesame/vault-core"),
+    import("../../test-host.js"),
+  ]);
+  // The fixture has memory files and no other tabs on this device. Do not
+  // inherit Node's process-wide navigator.locks across physical devices.
+  const deviceHost = testHost.createTestHost({ locks: undefined });
+  const on = fixture.device(name);
+  realms.set(on, {
+    host: deviceHost,
+    as: fixture.as,
+    engine,
+    adopt,
+    vaultCore,
+  });
+  return on;
+}
+
+async function as<T>(on: Device, act: () => Promise<T>): Promise<T> {
+  const realm = realmOf(on);
+  const previousHost = host();
+  configureHost(realm.host);
+  try {
+    return await realm.as(on, act);
+  } finally {
+    configureHost(previousHost);
+  }
+}
+
 function sync(on: Device, drive: MemoryDrive) {
-  return as(on, () => syncOnce(on.store, PAIRING, drive));
+  return as(on, () => realmOf(on).engine.syncOnce(on.store, PAIRING, drive));
 }
 
 function tick(minutes = 1): void {
@@ -32,7 +80,7 @@ async function adopt(on: Device, drive: MemoryDrive, password: string) {
   const snapshot = drive.snapshot;
   if (!snapshot) throw new Error("the drive is empty");
   await as(on, async () => {
-    expect(await adoptSnapshot(snapshot)).toBe("adopted");
+    expect(await realmOf(on).adopt.adoptSnapshot(snapshot)).toBe("adopted");
     on.store.rehydrate();
     await on.store.unlock(password);
   });
@@ -46,7 +94,9 @@ async function opensWith(on: Device, password: string): Promise<boolean> {
       await on.store.unlock(password);
       return true;
     } catch (error) {
-      if (error instanceof WrongPasswordError) return false;
+      if (error instanceof realmOf(on).vaultCore.WrongPasswordError) {
+        return false;
+      }
       throw error;
     }
   });
@@ -54,8 +104,8 @@ async function opensWith(on: Device, password: string): Promise<boolean> {
 
 async function pairedDevices() {
   const drive = memoryDrive();
-  const laptop = device("laptop");
-  const phone = device("phone");
+  const laptop = await device("laptop");
+  const phone = await device("phone");
   await as(laptop, async () => {
     await laptop.store.create(OLD);
     await laptop.store.enrollPin(PIN);
@@ -98,7 +148,7 @@ describe("a master password changed on one device", () => {
     tick();
     await as(laptop, () => laptop.store.changeMasterPassword(OLD, NEW));
     await sync(laptop, drive);
-    const tablet = device("tablet");
+    const tablet = await device("tablet");
     await adopt(tablet, drive, NEW);
     expect(tablet.store.getSnapshot().status).toBe("unlocked");
   });
@@ -169,7 +219,7 @@ describe("a vault key rotated on another device", () => {
 describe("a master password removed on one device", () => {
   it("is removed where another way in remains, and kept where it is the only one", async () => {
     const { drive, laptop, phone } = await pairedDevices();
-    const tablet = device("tablet");
+    const tablet = await device("tablet");
     await adopt(tablet, drive, OLD);
     // The tablet has a PIN of its own; the phone has only the password.
     await as(tablet, () => tablet.store.enrollPin(PIN));

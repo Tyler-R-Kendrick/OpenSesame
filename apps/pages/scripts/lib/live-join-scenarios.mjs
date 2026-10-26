@@ -1,4 +1,3 @@
-import { opensSharedItems } from "./live-joined.mjs";
 /**
  * The walks verify:live-join takes (ADR 0150): direct, each carrier and a
  * declined route (the tunnel is `live-join-tunnel.mjs`, relay only through
@@ -15,7 +14,7 @@ import {
   startNtfyServer,
 } from "./live-carriers.mjs";
 import { engineOf } from "./live-engines.mjs";
-import { admitAndAnswer, thisMachine } from "./live-join-addresses.mjs";
+import { answerAddresses, thisMachine } from "./live-join-addresses.mjs";
 import {
   WATCH_RTC,
   admitControl,
@@ -25,10 +24,10 @@ import {
   joinerAsks,
   joinerConnects,
   ownerAdmitsByHand,
-  readJoinerSas,
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
@@ -38,6 +37,7 @@ let failures;
 let device;
 let shot;
 let configs;
+let joined;
 let SECRET;
 let PHONE;
 let PASSTHROUGH;
@@ -47,6 +47,7 @@ let TLS;
 let afterJoinerConnects;
 /** Runs around `joinerConnects` so ICE UI can be read while connecting (P8-3). */
 let whileJoinerConnects;
+let directAddresses;
 
 /**
  * The joiner's name. It has a space in it, which base64url never does, so
@@ -64,6 +65,7 @@ export function bindWalk(walk) {
     device,
     shot,
     configs,
+    joined,
     SECRET,
     PHONE,
     PASSTHROUGH,
@@ -72,6 +74,7 @@ export function bindWalk(walk) {
     TLS,
     afterJoinerConnects = null,
     whileJoinerConnects = null,
+    directAddresses = null,
   } = walk);
 }
 
@@ -97,12 +100,13 @@ async function topicOf(link) {
 
 export async function direct(browser, owner) {
   setStep("direct");
-  const addresses = await thisMachine();
-  await setRoutes(owner.page, { addresses });
+  await setRoutes(owner.page, {
+    addresses: directAddresses ?? (await thisMachine()),
+  });
   const { panel, code, link } = await startSession(owner.page);
   check(
     !/\.[\w-]{87}\.[\w-]{43}\./.test(link),
-    "with no route named, the link names no server",
+    "the direct link names no ICE server or carrier",
   );
   await shot(owner.page, "direct-1-owner-live");
   const joiner = await device(browser, {
@@ -115,25 +119,36 @@ export async function direct(browser, owner) {
     /^osl-request\./.test(request) && !request.includes(JOINER),
     "a sealed request code",
   );
-  const joinerSas = await readJoinerSas(joiner.page);
-  let ownerSas = "";
   const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER, {
-    onSas: (sas) => {
-      ownerSas = sas;
+    async beforeAdmit() {
+      // Admission retires the owner's comparison row; compare while both show it.
+      await joiner.page.getByText("Security code", { exact: true }).click();
+      const joinerSas = (
+        await joiner.page.locator(".live-sas").innerText()
+      ).trim();
+      const ownerSas = (
+        await panel.locator(".vault-row .live-sas").innerText()
+      ).trim();
+      expect(joinerSas).toMatch(/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/);
+      expect(ownerSas).toBe(joinerSas);
+      check(
+        /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) &&
+          joinerSas === ownerSas,
+        "both sides show the same session SAS",
+      );
     },
   });
-  check(
-    /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) && joinerSas === ownerSas,
-    `both sides show the same session SAS (joiner=${joinerSas}, owner=${ownerSas})`,
-  );
-  const connect = () => joinerConnects(joiner.page, reply);
+  const connect = async () => {
+    await joinerConnects(joiner.page, reply);
+    await answerAddresses(joiner.page);
+  };
   if (whileJoinerConnects) await whileJoinerConnects(joiner, connect);
   else await connect();
   if (afterJoinerConnects) await afterJoinerConnects(joiner);
   await opensSharedItems(joiner.page);
+  await joined(joiner.page).waitFor({ timeout: 45_000 });
   // What a browser put in a description itself is its own doing; what the
-  // app sealed beside it must be loopback or an explicitly named route
-  // accepted above (live-sdp-privacy.mjs).
+  // app sealed beside it must be loopback (live-sdp-privacy.mjs).
   const own = new Set([
     ...(await gatheredHosts(owner.page)),
     ...(await gatheredHosts(joiner.page)),
@@ -142,10 +157,7 @@ export async function direct(browser, owner) {
     ["owner", owner.page],
     ["joiner", joiner.page],
   ]) {
-    await assertSameMachineSdpPrivacy(page, who, {
-      own,
-      named: new Set(addresses),
-    });
+    await assertSameMachineSdpPrivacy(page, who, { own });
   }
   await joiner.page
     .getByRole("button", { name: "Reveal GitHub Value" })
@@ -205,8 +217,6 @@ export async function carried(browser, owner, kind) {
       : await reachableBy(started, [owner.engine, engineOf(browser)], TLS.cert);
   if (kind === "ntfy") PASSTHROUGH.push(new URL(server.url).origin);
   try {
-    // The carrier delivers codes, not the WebRTC session. These browsers
-    // share a machine, whose private candidates require explicit permission.
     await setRoutes(owner.page, {
       addresses: await thisMachine(),
       carriers: [{ kind, url: server.url }],
@@ -227,8 +237,11 @@ export async function carried(browser, owner, kind) {
     await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
     // The request crossed on the carrier: the owner is asked with nothing pasted.
     const admit = admitControl(panel, JOINER);
-    await admitAndAnswer(admit, joiner.page);
+    await admit.waitFor({ timeout: 30_000 });
+    await admit.click();
+    await answerAddresses(joiner.page);
     await opensSharedItems(joiner.page);
+    await joined(joiner.page).waitFor({ timeout: 45_000 });
     await shot(joiner.page, `carrier-${kind}-joined`);
     check(true, `${kind}: joined with no code pasted either way`);
     if (server.collect) await server.collect([await topicOf(link)]);

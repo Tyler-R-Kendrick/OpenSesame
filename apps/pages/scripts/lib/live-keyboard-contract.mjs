@@ -16,12 +16,14 @@
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
 import {
+  allowKeyboardMachine,
   joinerAsks,
-  joinerConnects,
-  logLiveFocus,
-  nameKeyboardLoopback,
+  nameKeyboardMachine,
+  reopenKeyboardSession,
   sealLiveKeyboardOwner,
+  showKeyboardPeers,
 } from "./live-keyboard-entry.mjs";
+import { WATCH_RTC } from "./live-rtc.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
@@ -139,7 +141,6 @@ async function ownerStarts(page, tabTo) {
     name: "Share personal",
     exact: true,
   });
-  await nameKeyboardLoopback(page, panel, tabTo);
   await tabTo(page, panel.getByLabel("Session name"));
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Team");
@@ -209,6 +210,29 @@ async function ownerAdmits(page, { request, tabTo }) {
   );
   await page.keyboard.press("Enter");
   return copied(page);
+}
+
+/** A wrong reply keeps the field; the right one joins, and focus follows. */
+async function joinerConnects(page, { reply, tabTo }) {
+  const field = page.getByLabel("The owner's reply code", { exact: true });
+  await tabTo(page, field);
+  await page.keyboard.insertText("osl-reply.nope.nope");
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("img", { name: "That reply is not for this request" }),
+  ).toBeVisible();
+  await expect(field, "a wrong reply returns to its field").toBeFocused();
+  await focusIn(page, ".live-join", "after a wrong reply");
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText(reply);
+  await page.keyboard.press("Enter");
+  await allowKeyboardMachine(page, tabTo);
+  await reopenKeyboardSession(page, tabTo, focusIn);
+  await expect(
+    page.getByRole("img", { name: "Joined Team" }),
+    "the two browsers connected",
+  ).toBeVisible({ timeout: 45_000 });
+  await focusIn(page, ".live-join", "after Connect");
 }
 
 /** The owner removes the guest, the joiner starts over and closes; the owner ends. */
@@ -300,6 +324,7 @@ export async function liveKeyboardContract({
   try {
     const device = async () => {
       const made = await harness.newPage(browser);
+      await made.page.addInitScript(WATCH_RTC);
       // A public origin pairing over loopback is a local-network access.
       // Headless has no prompt to allow it. Grant this device's real
       // context both local-network and (Chrome 151+) loopback permission.
@@ -313,30 +338,13 @@ export async function liveKeyboardContract({
       });
       return made;
     };
-    const showed = async (owner, joiner) => {
-      // Say what each side showed, so a connection that never forms reads as
-      // one, not as a bare "element(s) not found".
-      for (const [who, page] of [
-        ["owner", owner],
-        ["joiner", joiner],
-      ]) {
-        const shown = await page
-          .locator('[role="dialog"][aria-label="Share personal"], .live-join')
-          .first()
-          .innerText({ timeout: 2000 })
-          .catch(() => "(no live panel)");
-        console.error(
-          `${who} showed: ${shown.replace(/\s+/g, " ").slice(0, 400)}`,
-        );
-        await logLiveFocus(page, who);
-      }
-    };
     const walk = async () => {
       const owner = await device();
       let joiner = null;
       try {
         await ownerEnters(owner.page, { origin, base, tabTo, width });
         await openLive(owner.page, tabTo);
+        await nameKeyboardMachine(owner.page, tabTo);
         const { link, code } = await ownerStarts(owner.page, tabTo);
         joiner = await device();
         const request = await joinerAsks(joiner.page, {
@@ -346,9 +354,9 @@ export async function liveKeyboardContract({
           focusIn,
         });
         const reply = await ownerAdmits(owner.page, { request, tabTo });
-        await joinerConnects(joiner.page, { reply, tabTo, focusIn }).catch(
+        await joinerConnects(joiner.page, { reply, tabTo }).catch(
           async (error) => {
-            await showed(owner.page, joiner.page);
+            await showKeyboardPeers(owner.page, joiner.page);
             throw error;
           },
         );

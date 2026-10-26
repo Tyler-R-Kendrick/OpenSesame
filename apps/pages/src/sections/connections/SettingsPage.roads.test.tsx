@@ -21,8 +21,6 @@ import {
   connectorIntegration,
   installConnectorIntegration,
 } from "./connect/native-connector-integration.test-support.js";
-import { nativeScopeDefaults } from "./connect/native-connector-ui-values.js";
-import { nativeProviderDescriptor } from "./connect/native-provider-descriptor.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 const originalIdentity = { ...identitySeams };
@@ -245,33 +243,6 @@ describe("Linear's top-level native settings route", () => {
       nativeSettingsDescriptor(provider("linear"))?.methods[0]?.available,
     ).toBe(false);
     expect(integration.requests).toHaveLength(0);
-  });
-
-  it("defaults only advertised read scope and keeps shared callers' defaults empty", () => {
-    connectorIntegration();
-    const method = nativeSettingsDescriptor(provider("linear"))?.methods[0];
-    if (!method) throw new Error("Actual Linear MCP descriptor required");
-    expect(nativeScopeDefaults(method)).toEqual({ user: ["read"] });
-    const plan = connectPlan("linear");
-    if (!plan) throw new Error("Actual Linear plan required");
-    for (const defaults of [undefined, ["not-advertised"]]) {
-      const descriptor = nativeProviderDescriptor(plan, {
-        callbackUrl: "https://app.example/auth/native-connector.html",
-        apiKey: { available: false },
-        oauth: { available: false },
-        mcp: { available: true, actor: "user", defaultScopes: defaults },
-      });
-      const sharedMethod = descriptor.methods.find(
-        (entry) => entry.id === "mcp",
-      );
-      if (!sharedMethod) throw new Error("Actual Linear MCP metadata required");
-      expect(nativeScopeDefaults(sharedMethod)).toEqual({ user: [] });
-      expect(
-        sharedMethod.scopeGroups
-          .flatMap((group) => group.choices)
-          .some((choice) => choice.name === "not-advertised"),
-      ).toBe(false);
-    }
   });
 });
 

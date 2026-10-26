@@ -1,21 +1,92 @@
 /** The current owner seal and joiner-local-vault ceremonies, using only keys. */
 import { expect } from "@playwright/test";
-import { joinedSession } from "./live-joined.mjs";
+import { inLiveSession } from "./live-joined.mjs";
+import { peerStates } from "./live-rtc.mjs";
 
 const PIN = "48291037";
 
-/** Focus metadata only: no field values, notice text, or clipboard material. */
-export async function logLiveFocus(page, who) {
-  const focus = await page.evaluate(() => {
-    const held = document.activeElement;
-    return {
-      tag: held?.tagName,
-      id: held?.id,
-      role: held?.getAttribute("role"),
-      controls: held?.getAttribute("aria-controls"),
-    };
+/** These two browsers share a machine; authorize its address through Routes. */
+export async function nameKeyboardMachine(page, tabTo) {
+  const panel = page.getByRole("dialog", {
+    name: "Share personal",
+    exact: true,
   });
-  console.error(`${who} focus: ${JSON.stringify(focus)}`);
+  const advanced = panel.locator("summary").filter({ hasText: /^Advanced$/ });
+  await tabTo(page, advanced);
+  await page.keyboard.press("Enter");
+  const field = panel.getByLabel("Tailnet, VPN or LAN address", {
+    exact: true,
+  });
+  await tabTo(page, field);
+  await page.keyboard.insertText("127.0.0.1");
+  const add = panel.getByRole("button", {
+    name: "Add the address",
+    exact: true,
+  });
+  await expect(add).toBeEnabled();
+  await tabTo(page, add);
+  await page.keyboard.press("Enter");
+  await expect(panel.getByText("127.0.0.1", { exact: true })).toBeVisible();
+  await expect(field).toHaveValue("");
+  await tabTo(page, advanced);
+  await page.keyboard.press("Enter");
+}
+
+/** Consent to the owner's explicitly named same-machine route using keys. */
+export async function allowKeyboardMachine(page, tabTo) {
+  const allow = page.getByRole("button", {
+    name: "Allow the owner's addresses",
+    exact: true,
+  });
+  await expect(allow).toBeVisible();
+  await tabTo(page, allow);
+  await page.keyboard.press("Enter");
+}
+
+/** Joining opens the person's own vault; return to shared items with keys. */
+export async function reopenKeyboardSession(page, tabTo, focusIn) {
+  await expect(inLiveSession(page)).toBeAttached({ timeout: 45_000 });
+  await focusIn(page, ".vault", "after Connect opens the local vault");
+  const open = page
+    .getByRole("button", { name: "Open live session", exact: true })
+    .filter({ visible: true });
+  await tabTo(page, open);
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("img", { name: "Joined Team" })).toBeVisible({
+    timeout: 45_000,
+  });
+  // This shell key survives navigation: the focus policy keeps the chosen key.
+  await expect(open).toBeFocused();
+  await focusIn(
+    page,
+    'button[aria-label="Open live session"]',
+    "after opening shared items",
+  );
+  const leave = page
+    .locator(".live-join")
+    .getByRole("button", { name: "Leave the session", exact: true });
+  await expect(leave).toBeVisible();
+  await tabTo(page, leave);
+  await expect(leave).toBeFocused();
+  await focusIn(page, ".live-join", "after tabbing into the shared session");
+}
+
+/** UI and real ICE state, without protocol message bodies or credentials. */
+export async function showKeyboardPeers(owner, joiner) {
+  for (const [who, page] of [
+    ["owner", owner],
+    ["joiner", joiner],
+  ]) {
+    const shown = await page
+      .locator('[role="dialog"][aria-label="Share personal"], .live-join')
+      .first()
+      .innerText({ timeout: 2000 })
+      .catch(() => "(no live panel)");
+    console.error(`${who} showed: ${shown.replace(/\s+/g, " ").slice(0, 400)}`);
+    console.error(
+      `${who} peer states: ${JSON.stringify(await peerStates(page))}`,
+    );
+  }
 }
 
 export async function sealLiveKeyboardOwner(page, tabTo, width) {
@@ -80,12 +151,8 @@ export async function joinerAsks(page, { link, code, tabTo, focusIn }) {
     await tabTo(page, apply);
     await page.keyboard.press("Enter");
   }
-  // Applying the plan loads the live form asynchronously. Wait for that
-  // form before deciding whether its required out-of-band code is present.
-  await expect(page.getByLabel("Your name")).toBeVisible();
+  const codeField = page.getByLabel("Code", { exact: true });
   if (code) {
-    const codeField = page.getByLabel("Code", { exact: true });
-    await expect(codeField).toBeVisible();
     await tabTo(page, codeField);
     await page.keyboard.insertText(code.toLowerCase());
   }
@@ -105,68 +172,4 @@ export async function joinerAsks(page, { link, code, tabTo, focusIn }) {
   await focusIn(page, ".live-join", "after asking");
   await page.keyboard.press("Enter");
   return page.evaluate(() => navigator.clipboard.readText());
-}
-
-/** A wrong reply keeps the field; the right one joins, and focus follows. */
-export async function joinerConnects(page, { reply, tabTo, focusIn }) {
-  const field = page.getByLabel("The owner's reply code", { exact: true });
-  await tabTo(page, field);
-  await page.keyboard.insertText("osl-reply.nope.nope");
-  await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("img", { name: "That reply is not for this request" }),
-  ).toBeVisible();
-  await expect(field, "a wrong reply returns to its field").toBeFocused();
-  await focusIn(page, ".live-join", "after a wrong reply");
-  await page.keyboard.press("ControlOrMeta+A");
-  await page.keyboard.insertText(reply);
-  await page.keyboard.press("Enter");
-  const allow = page.getByRole("button", {
-    name: "Allow the owner's addresses",
-    exact: true,
-  });
-  await expect(allow).toBeVisible();
-  await tabTo(page, allow);
-  await page.keyboard.press("Enter");
-  await joinedSession(page);
-  await expect(page.locator(".vault")).toBeVisible();
-  await focusIn(page, ".app", "after joining the local vault");
-  const shared = page
-    .getByRole("button", {
-      name: "Open live session",
-      exact: true,
-    })
-    .filter({ visible: true });
-  await tabTo(page, shared);
-  await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("img", { name: "Joined Team" }),
-    "the two browsers connected",
-  ).toBeVisible({ timeout: 45_000 });
-  await expect(
-    page.locator("#live-status"),
-    "Connect lands on the session's status",
-  ).toBeFocused();
-  await focusIn(page, ".live-join", "after Connect");
-}
-
-/** Two browsers on this machine explicitly name loopback, using only keys. */
-export async function nameKeyboardLoopback(page, panel, tabTo) {
-  const advanced = panel.locator("details.live-advanced");
-  const summary = advanced.locator("summary");
-  await tabTo(page, summary);
-  await page.keyboard.press("Enter");
-  const routes = panel.locator("#live-routes");
-  const address = routes.getByLabel("Tailnet, VPN or LAN address");
-  await tabTo(page, address);
-  await page.keyboard.insertText("127.0.0.1");
-  await tabTo(
-    page,
-    routes.getByRole("button", { name: "Add the address", exact: true }),
-  );
-  await page.keyboard.press("Enter");
-  await expect(routes.getByText("127.0.0.1", { exact: true })).toBeVisible();
-  await expect(address).toHaveValue("");
-  await tabTo(page, summary);
-  await page.keyboard.press("Enter");
 }

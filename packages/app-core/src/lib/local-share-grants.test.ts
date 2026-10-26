@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readLocalDirectory } from "./local-directory.js";
 import { ALL_USERS_GROUP_ID } from "./local-groups.js";
 import { localRequestFixture } from "./local-request.fixture.js";
+import { signInLocalIdentity } from "./local-sessions.js";
 import {
   approvePendingShare,
   denyPendingShare,
@@ -249,6 +250,7 @@ async function agentNamed(tomb: string, name: string) {
 it("holds an agent grant until it is approved", async () => {
   const fixture = await localRequestFixture();
   await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   const agent = await agentNamed(fixture.tomb, "Helper");
   const input = {
     principalId: agent.id,
@@ -285,6 +287,7 @@ it("holds an agent grant until it is approved", async () => {
 it("refuses a grant to a disabled agent", async () => {
   const fixture = await localRequestFixture();
   await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   const agent = await agentNamed(fixture.tomb, "Helper");
   await fixture.change({
     action: "update",
@@ -292,6 +295,7 @@ it("refuses a grant to a disabled agent", async () => {
     name: agent.name,
     enabled: false,
   });
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   await expect(
     submitLocalShare(fixture.tomb, {
       principalId: agent.id,

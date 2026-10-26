@@ -135,7 +135,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}
-    timeout-minutes: 45
+    # Real crypto suites run without competing package/typecheck workloads;
+    # retain their per-test deadlines. Measured serial app-core (~38m) and
+    # projected Pages (~73m), plus setup/typechecking, exceed the old 90-minute job.
+    timeout-minutes: 180
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
@@ -366,7 +369,16 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/header-layout
         run: pnpm --filter @opensesame/pages verify:header-layout
+      - name: Preserve measured header geometry
+        if: always() && matrix.shard == 'mobile-320'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: header-layout-${{ github.sha }}
+          path: ${{ runner.temp }}/header-layout/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Browser-local application sign-in contract
         if: matrix.shard == 'sign-in'
         # Real cross-origin popup and virtual WebAuthn, no Identity/Host backend.
@@ -496,11 +508,9 @@ jobs:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         if: matrix.shard == 'journeys-1'
-      - name: Install CLI keychain build dependencies
+      - name: Prepare DBus headers without root
         if: matrix.shard == 'journeys-1'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config
+        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
       - name: Build opensesame-cli
         if: matrix.shard == 'journeys-1'
         # Same cargo limits as the Rust tests job, so the link stays inside
@@ -509,7 +519,9 @@ jobs:
           CARGO_BUILD_JOBS: 2
           CARGO_INCREMENTAL: 0
           CARGO_PROFILE_DEV_DEBUG: 0
-        run: cargo +1.88.0 build -p opensesame-cli --locked
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          cargo +1.88.0 build -p opensesame-cli --locked
       - name: Relay join
         # ADR 0181. One leg only, so the walk runs once against the gateway
         # relay profile (`opensesame host run --profile relay`).
@@ -914,9 +926,7 @@ jobs:
         run: node scripts/lib/ci-affected-tests.mjs cargo
       - name: Install Linux keychain build and test dependencies
         if: runner.os == 'Linux' && steps.affected.outputs.scope != 'none'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
+        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
         if: steps.affected.outputs.scope != 'none'
         with:
@@ -953,11 +963,15 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
-        run: node scripts/lib/ci-affected-tests.mjs run-cargo
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          node scripts/lib/ci-affected-tests.mjs run-cargo
       - name: Test the Bitwarden bridge build (ADR 0148)
         # Default builds leave the bridge out; this compiles it in.
         if: steps.affected.outputs.bitwarden == 'true'
-        run: cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden
 
   android-native:
     name: Android crypto and application build

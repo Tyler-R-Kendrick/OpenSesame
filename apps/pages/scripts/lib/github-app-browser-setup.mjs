@@ -214,15 +214,15 @@ export async function bindRepository(
     exact: true,
   });
   await expect(repository).toBeEnabled();
-  // Focusing claims the editable draft and opens the loaded choices. Let that
-  // controlled-input transition settle before fill selects and replaces it.
-  await repository.focus();
-  await page
-    .getByRole("option", {
-      name: create ? "fixture-owner/existing-private" : `fixture-owner/${name}`,
-      exact: true,
-    })
-    .waitFor();
+  if (create) {
+    await repository.focus();
+    await page
+      .getByRole("option", {
+        name: "fixture-owner/existing-private",
+        exact: true,
+      })
+      .waitFor();
+  }
   await repository.fill(`fixture-owner/${name}`);
   assert.equal(
     await repository.inputValue(),
@@ -302,38 +302,16 @@ export async function editCanary(page, { base, route, name, value }) {
   await page.getByRole("heading", { name, exact: true }).waitFor();
 }
 async function openPhoneExport(page) {
-  // All opens the list asynchronously; its Add key sits above the list's
-  // status line, not at the tree pane's old coordinates.
-  await page.locator('.vault[data-pane="list"]').waitFor();
   const fab = page.locator(".fab__add").filter({ visible: true });
   await expect(fab).toHaveCount(1);
-  await fab.click({ trial: true });
-  const box = await fab.boundingBox();
-  assert.ok(box, "Actual phone Add key is visible");
-  const session = await page.context().newCDPSession(page);
-  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  try {
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [at],
-    });
-    const exportZone = page.locator(".add-slide__zone--down");
-    await expect(exportZone).toHaveText("Export items");
-    for (let step = 1; step <= 6; step++) {
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [{ x: at.x, y: at.y + (70 * step) / 6 }],
-      });
-      await page.waitForTimeout(30);
-    }
-    await expect(exportZone).toHaveAttribute("data-active", "true");
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [],
-    });
-  } finally {
-    await session.detach();
-  }
+  // Use the Add button's supported keyboard menu. A raw touch at a cached
+  // coordinate can land on the list while the restored route settles.
+  await fab.focus();
+  await fab.press("Shift+F10");
+  const menu = page.getByRole("menu", { name: "Add actions", exact: true });
+  await menu
+    .getByRole("menuitem", { name: "Export items", exact: true })
+    .click();
 }
 export async function exportedBody(page, name, { base, pin, out }) {
   await nativeVisit(page, base, "vault");

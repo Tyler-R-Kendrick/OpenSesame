@@ -43,6 +43,8 @@ try {
         hasTouch: width < 600,
       },
     });
+    // Accept the native save picker while retaining the app's write/close
+    // path and the real export bytes checked by the password workflows.
     await emulateFilePickers(context);
     await page.goto(`${origin}${base}`);
     await doorGuest(page).click();
@@ -52,9 +54,6 @@ try {
       .first()
       .waitFor();
     await openSettingsCategory(page, "Item types");
-    await page
-      .getByRole("heading", { name: "Item types", exact: true })
-      .waitFor();
     const switchOn = async (pack) => {
       const control = page.getByRole("switch", { name: pack, exact: true });
       if ((await control.getAttribute("aria-checked")) === "false")
@@ -86,9 +85,6 @@ try {
       window.dispatchEvent(new PopStateEvent("popstate"));
     }, `${base}vault`);
     await openSettingsCategory(page, "Item types");
-    await page
-      .getByRole("heading", { name: "Item types", exact: true })
-      .waitFor();
     await page.waitForFunction(() => {
       const found = document.querySelector(
         '[role="switch"][aria-label="API key"]',

@@ -12,8 +12,8 @@ use base64::Engine as _;
 use ecdsa::signature::Signer;
 use p256::ecdsa::SigningKey;
 use p256::elliptic_curve::pkcs8::EncodePublicKey;
+use p256::elliptic_curve::Generate;
 use p256::PublicKey;
-use rand_core::OsRng;
 use sha2::{Digest, Sha256};
 
 fn sign_confirm(key: &SigningKey, challenge: &[u8], code: &str, origin: &str) -> String {
@@ -40,7 +40,7 @@ fn first_pairing_requires_host_arm_not_auto_arm() {
     let now = 1_000;
     pairings.enroll_root_key_for_tests();
     let (code, _) = pairings.issue(origin, now).unwrap();
-    let attacker = SigningKey::random(&mut OsRng);
+    let attacker = SigningKey::generate();
     let challenge = pairings.pairing_challenge_for_code(&code, now).unwrap();
     let sig = sign_confirm(&attacker, &challenge, &code, origin);
     let outcome = pairings
@@ -70,7 +70,7 @@ fn enroll_through_attacker_pty_with_self_minted_key_fails_without_arm() {
     let now = 2_000;
     pairings.enroll_root_key_for_tests();
     let (code, _) = pairings.issue(origin, now).unwrap();
-    let attacker = SigningKey::random(&mut OsRng);
+    let attacker = SigningKey::generate();
     let challenge = pairings.pairing_challenge_for_code(&code, now).unwrap();
     let sig = sign_confirm(&attacker, &challenge, &code, origin);
     assert!(pairings

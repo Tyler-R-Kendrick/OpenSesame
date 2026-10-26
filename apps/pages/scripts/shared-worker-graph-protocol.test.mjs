@@ -23,10 +23,11 @@ const protocol = join(
   repo,
   "apps/pages/src/modules/networking.tailnet/browser/protocol.ts",
 );
-const z3 = createRequire(join(repo, "apps/pages/package.json"))
+const pageZod = createRequire(join(repo, "apps/pages/package.json"))
   .resolve("zod")
-  .replace("/dist/commonjs/", "/dist/esm/");
-const z4 = createRequire(join(repo, "packages/app-core/package.json"))
+  .replace("/dist/commonjs/", "/dist/esm/")
+  .replace(/index\.cjs$/, "index.js");
+const coreZod = createRequire(join(repo, "packages/app-core/package.json"))
   .resolve("zod")
   .replace(/index\.cjs$/, "index.js");
 const dir = await mkdtemp(join(tmpdir(), "opensesame-real-worker-protocol-"));
@@ -56,9 +57,9 @@ async function fixture({
   }
   await writeFile(
     owner,
-    `import {z as z3} from ${JSON.stringify(z3)};
-import {z as z4} from ${JSON.stringify(z4)};
-globalThis.hostOnly=[z3.string().parse('host'),z4.string().parse('host')];
+    `import {z as pageZod} from ${JSON.stringify(pageZod)};
+import {z as coreZod} from ${JSON.stringify(coreZod)};
+globalThis.hostOnly=[pageZod.string().parse('host'),coreZod.string().parse('host')];
 export const start=()=>new Worker(new URL(${JSON.stringify(worker)},import.meta.url),{type:'module'});`,
   );
   const body =
@@ -184,7 +185,7 @@ process.stdout.write('real-shipped-protocol-csp-strict-ok');`;
   );
 }
 
-test("real shipped peer protocol isolates both Zod engines and exact public validation dependencies", async () => {
+test("real shipped peer protocol isolates patched Zod and exact public validation dependencies", async () => {
   const { bundle, owner, work } = await fixture();
   const values = Object.values(bundle);
   const root = values.find(
@@ -205,8 +206,11 @@ test("real shipped peer protocol isolates both Zod engines and exact public vali
   const ids = values.flatMap((value) =>
     Object.keys(value.modules ?? value.opensesameWorkerChunk?.modules ?? {}),
   );
-  assert.ok(ids.some((id) => id.includes("zod@3.")));
-  assert.ok(ids.some((id) => id.includes("zod@4.")));
+  const zodIds = ids.filter((id) => id.includes("/node_modules/zod/"));
+  assert.ok(zodIds.length > 0);
+  assert.ok(zodIds.every((id) => id.includes("zod@4.6.6/")));
+  assert.ok(!ids.some((id) => id.includes("zod@3.")));
+  assert.ok(!zodIds.some((id) => id.includes("/node_modules/zod/v3/")));
   const host = values.find(
     (value) => value.type === "chunk" && owner in value.modules,
   );

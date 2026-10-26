@@ -6,6 +6,7 @@
 import { createItem } from "@opensesame/vault-core";
 import type { VaultItem } from "@opensesame/vault-core";
 import { Effect } from "effect";
+import { configureHost, host } from "../../host.js";
 import { kvForgetAll } from "../kv.js";
 import { VaultStore } from "../vault/store.js";
 import { forgetOpenLeasesForTest } from "../vault/vault-shared-locks.js";
@@ -29,9 +30,19 @@ export async function startProcess(files: SecretFiles): Promise<() => void> {
   lockAllTombs();
   kvForgetAll();
   forgetOpenLeasesForTest();
-  const restore = await installFileBackedVfs(files);
+  const previousHost = host();
+  // Each restart is another process, whose Web Locks cannot remain held here.
+  configureHost({ ...previousHost, locks: undefined });
+  let restore: () => void;
+  try {
+    restore = await installFileBackedVfs(files);
+  } catch (error) {
+    configureHost(previousHost);
+    throw error;
+  }
   return () => {
     restore();
+    configureHost(previousHost);
     lockAllTombs();
     kvForgetAll();
     forgetOpenLeasesForTest();

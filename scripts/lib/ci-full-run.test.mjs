@@ -106,9 +106,9 @@ describe("full-suite native preparation", () => {
     const manifest = JSON.parse(
       readFileSync(join(root, "package.json"), "utf8"),
     );
-    expect(manifest.scripts.test).toContain("--concurrency=4");
+    expect(manifest.scripts.test).toContain("--concurrency=1");
     expect(stepFor("pnpm exec turbo run typecheck test")).toContain(
-      "run: pnpm exec turbo run typecheck test --concurrency=4",
+      "run: pnpm exec turbo run typecheck test --concurrency=1",
     );
   });
   it("checks out the selected workflow commit for scheduled and manual validation", () => {
@@ -116,7 +116,7 @@ describe("full-suite native preparation", () => {
     expect(fullWorkflow).toContain("          ref: ${{ github.sha }}");
     expect(fullWorkflow).not.toContain("          ref: main\n");
   });
-  it("finishes canonical native asset verification before concurrent package tests", () => {
+  it("finishes canonical native asset verification before package tests", () => {
     const preparation = stepFor("await loadTailscaleAssets();");
     expect(preparation).toContain("node --input-type=module -e");
     expect(preparation).toContain(
@@ -167,7 +167,7 @@ describe("full-suite native preparation", () => {
         fullSteps.indexOf(postgres),
       );
     }
-    expect(fullWorkflow).toContain("timeout-minutes: 60");
+    expect(fullWorkflow).toContain("timeout-minutes: 180");
     expect(fullWorkflow).not.toContain("--passWithNoTests");
   });
 });
@@ -248,6 +248,60 @@ describe("affected Pages native preparation", () => {
     expect(cache).not.toMatch(/restore-keys:|\/work|continue-on-error:/);
     expect(scopedSteps.indexOf(cache)).toBeLessThan(
       scopedSteps.indexOf(scopedStepFor("await loadTailscaleAssets();")),
+    );
+  });
+});
+
+const completeWorkflow = readFileSync(
+  join(root, ".github/workflows/complete-verify.yml"),
+  "utf8",
+);
+const completeSteps = completeWorkflow
+  .split("    steps:\n")[1]
+  .split(/\n {6}- (?=name:|uses:)/);
+
+function completeStepFor(command) {
+  const matches = completeSteps.filter((step) => step.includes(command));
+  expect(matches).toHaveLength(1);
+  return matches[0];
+}
+
+describe("complete verify native preparation", () => {
+  it("finishes canonical verification after install and before the complete gate", () => {
+    const preparation = completeStepFor("await loadTailscaleAssets();");
+    expect(preparation).toContain("node --input-type=module -e");
+    expect(preparation).toContain(
+      'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"',
+    );
+    expect(preparation).not.toMatch(
+      /cache-hit|continue-on-error:|timeout-minutes:|\n\s+if:/,
+    );
+    expect(
+      completeSteps.indexOf(completeStepFor("pnpm install --frozen-lockfile")),
+    ).toBeLessThan(completeSteps.indexOf(preparation));
+    expect(completeSteps.indexOf(preparation)).toBeLessThan(
+      completeSteps.indexOf(completeStepFor("pnpm verify 2>&1")),
+    );
+  });
+
+  it("caches only exact-pin static distributions and still verifies cache hits", () => {
+    const cache = completeStepFor(
+      "name: Cache the pinned native PWA distribution",
+    );
+    expect(cache).toContain(
+      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+    );
+    expect(cache).toContain(
+      "path: .cache/pwa-tailscale-native-http/distributions\n",
+    );
+    expect(cache).toContain(
+      "key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}",
+    );
+    expect(cache).not.toMatch(
+      /restore-keys:|\/work|continue-on-error:|\n\s+if:/,
+    );
+    expect(completeSteps.indexOf(cache)).toBeLessThan(
+      completeSteps.indexOf(completeStepFor("await loadTailscaleAssets();")),
     );
   });
 });

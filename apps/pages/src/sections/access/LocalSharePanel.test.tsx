@@ -1,5 +1,6 @@
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { signInLocalIdentity } from "@opensesame/app-core/lib/local-sessions.js";
 import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
@@ -90,6 +91,8 @@ it("offers a new application and grants it a vault", async () => {
     kind: "application",
     name: "Payroll",
   });
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
+  await waitFor(() => expect(grant).toHaveProperty("disabled", false));
   await userEvent.click(grant);
   await screen.findByLabelText("Identity");
   await waitFor(() => {
@@ -159,6 +162,7 @@ it("asks twice before revoking an active share", async () => {
 it("lists a pending agent grant on the requests tab", async () => {
   const fixture = await localRequestFixture();
   await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   render(<LocalSharePanel tomb={fixture.tomb} />);
   const grant = screen.getByRole("button", { name: "Grant identity share" });
   await waitFor(() => {
@@ -182,6 +186,7 @@ it("lists a pending agent grant on the requests tab", async () => {
 it("asks for approval before an agent share is active", async () => {
   const fixture = await localRequestFixture();
   await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   render(
     <LocalSharePanel tomb={fixture.tomb} />,
     "/access?view=grants#identity-shares",

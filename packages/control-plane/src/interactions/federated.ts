@@ -45,10 +45,10 @@ export type FederatedUpstream = {
 /**
  * The per-interaction leg state. Travels in an httpOnly cookie scoped to
  * `/interaction/<uid>` rather than server memory, so the leg survives a
- * restart and does not pin a user to one node. It needs no signing: the
- * callback rejects unless the upstream echoes a `state` byte-equal to the one
- * in this cookie, so a forged cookie can only invalidate the attacker's own
- * flow. The verifier is single-use and the cookie is deleted on the callback.
+ * restart and does not pin a user to one node. Production routes authenticate
+ * the cookie with the deployment pepper so its flow kind and identity context
+ * cannot be rewritten. The callback also checks the upstream's state. The
+ * verifier is single-use and the cookie is deleted on the callback.
  *
  * Everything past `verifier` is v2 (C3) and OPTIONAL by contract: a cookie
  * written by the previous release is in flight in somebody's browser while a
@@ -744,7 +744,7 @@ export function pendingCookieName(uid: string): string {
   return `os.fed.${uid}`;
 }
 
-/** Sign with the deployment pepper when one is supplied; tests may omit it. */
+/** HMAC cookie integrity tag, not a password hash; tests may omit the pepper. */
 function pendingSignature(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }

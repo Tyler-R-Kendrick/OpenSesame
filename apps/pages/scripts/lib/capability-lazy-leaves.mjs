@@ -46,6 +46,13 @@ const LAZY_LEAVES = [
     "connectors.external",
     "secret-backends",
   ],
+  // The browser Credential Management adapter belongs to the same backend
+  // boundary. Otherwise the minimum chunk floor can merge it with NATS crypto.
+  [
+    "/packages/app-core/src/browser/secret-backend-credentials.ts",
+    "connectors.external",
+    "secret-backends",
+  ],
   [
     "/node_modules/@1password/save-button/",
     "connectors.external",

@@ -34,19 +34,15 @@ async function visit(page, route) {
   }, `${base}${route}`);
   await page.waitForTimeout(900);
   if (route === "connections/linear") {
-    // Linear defaults to MCP. This contract exercises the separate GraphQL
-    // OAuth/API-key road, which a person explicitly opens under Advanced.
+    // The published MCP sign-in is the default. This walk exercises the
+    // separate existing-application/API-key configuration through its control.
+    const name = page.getByLabel("Connector Name", { exact: true });
     const advanced = page.getByText("Advanced: existing OAuth app or API key", {
       exact: true,
     });
-    const managed = page.getByRole("radio", { name: "Managed", exact: true });
-    await advanced.or(managed).first().waitFor();
-    if (
-      (await advanced.isVisible()) &&
-      (await advanced.locator("..").getAttribute("open")) === null
-    )
-      await advanced.click();
-    await managed.waitFor();
+    await name.or(advanced).first().waitFor();
+    if (!(await name.isVisible())) await advanced.click();
+    await name.waitFor();
   }
 }
 
@@ -99,9 +95,7 @@ async function verifyIcon(page, label) {
 }
 
 async function providerSpecific(page, label) {
-  await page
-    .getByRole("heading", { name: "Linear", level: 1, exact: true })
-    .waitFor();
+  await page.getByRole("heading", { name: "2 Connect", exact: true }).waitFor();
   const text = await page.locator("main").innerText();
   check(
     !/Vercel Connect|Vercel access token|Vercel tokens|Team ID|Project ID/.test(
@@ -163,7 +157,7 @@ async function keyboardControls(page, label) {
   await summary.focus();
   await page.keyboard.press("Enter");
   const read = page
-    .locator("details.cx-selection")
+    .locator("details")
     .filter({ has: summary })
     .getByRole("checkbox", { name: "read", exact: true });
   check(
