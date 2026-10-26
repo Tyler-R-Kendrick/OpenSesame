@@ -23,7 +23,7 @@
  *    at all but a TURN server: the owner names one in Routes, relay only, and
  *    a Nostr carrier. Both peer connections are relay-only, the pair they
  *    select is relay to relay, and nobody pastes anything. One walk for each
- *    way to reach the server: `turn:` over UDP (node-turn on loopback),
+ *    way to reach the server: `turn:` over UDP (node-turn on this machine's interface),
  *    `turn:` with `?transport=tcp`, and `turns:` (TLS, a throwaway
  *    self-signed certificate whose public key alone Chromium is told to
  *    trust) — the last two on `live-turn`, a real pion/turn server. Each
@@ -173,6 +173,8 @@ const { device, shot, configs, wreckage } = livePages({
   named,
 });
 
+const joined = (page) => page.getByRole("img", { name: "Joined Team" });
+
 /** The walk's throwaway certificate, once minted: a carrier's TLS front uses it. */
 const TLS = { cert: undefined };
 
@@ -187,6 +189,7 @@ bindWalk({
   device,
   shot,
   configs,
+  joined,
   SECRET,
   PHONE,
   PASSTHROUGH,
@@ -200,6 +203,7 @@ bindTunnel({
   device,
   shot,
   configs,
+  joined,
   launch: launchEngine,
   SECRET,
   ORIGIN,
@@ -213,6 +217,7 @@ bindRelayed({
   device,
   shot,
   configs,
+  joined,
   PHONE,
   TLS,
 });
@@ -222,21 +227,17 @@ bindNats({
   failures,
   device,
   shot,
+  joined,
   SECRET,
   PHONE,
   TLS,
 });
 
-// A throwaway certificate for this machine's TURN address and 127.0.0.1: a
-// carrier's TLS front where a pair needs one. Chromium trusts its public key
+// A throwaway certificate for this machine's TURN address and loopback
+// carrier TLS fronts. Chromium trusts its public key
 // alone, by flag: no blanket certificate override.
-const turnHost = await defaultRouteAddress();
-const cert = mintTurnCert(TURN, turnHost);
-const turnFixture = {
-  binary: TURN,
-  host: turnHost,
-  cert: cert.missing ? undefined : cert,
-};
+const cert = mintTurnCert(TURN, await defaultRouteAddress());
+const turnFixture = { binary: TURN, cert: cert.missing ? undefined : cert };
 TLS.cert = turnFixture.cert;
 
 /** One browser per engine, host candidates in the clear (see live-engines). */
