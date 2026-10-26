@@ -4,7 +4,8 @@ import type { Connection } from "../lib/connections.js";
 import { deviceConnection } from "../lib/device-connectors.js";
 import { resolveIdentityBase } from "../lib/device-identity.js";
 import { federationSessionGeneration } from "../lib/federation-native-session.js";
-import { clearSession, loadSession } from "../lib/federation.js";
+import { retireOwnedFederationSession } from "../lib/federation-retirement.js";
+import { loadSession } from "../lib/federation.js";
 import type { IdentityConnectionDraft } from "../lib/identity-connections-schema.js";
 import {
   type IdentityConnectionPublication,
@@ -156,14 +157,16 @@ export function captureSamlConfiguration(
     assertActor,
     clearOwnSession: () => {
       assertActor();
-      clearSession();
-      actor();
-      route.assertAuthority();
-      if (loadSession() !== null)
+      const retired = retireOwnedFederationSession(generation, () => {
+        actor();
+        route.assertAuthority();
+        actor();
+      });
+      if (loadSession() !== null || federationSessionGeneration() !== retired)
         throw new Error(
           "Original identity session changed during configuration",
         );
-      generation = federationSessionGeneration();
+      generation = retired;
       assertActor();
     },
     check: async (draft: IdentityConnectionDraft) => {

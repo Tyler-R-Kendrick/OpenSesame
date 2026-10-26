@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import { fenceLocalSignOut } from "../lib/ambient-auth/generation.js";
 import {
+  advanceFederationSessionGeneration,
   federationSessionGeneration,
   readNativeFederationSession,
 } from "../lib/federation-native-session.js";
@@ -26,7 +27,10 @@ import { vaultStore } from "../lib/vault/store.js";
 import { vfsFlush } from "../lib/vfs.js";
 import { createMemoryStorage } from "../memory-storage.js";
 import { createTestHost } from "../test-host.js";
-import { beginSavedNativeSaml } from "./identity-saml-dispatch.js";
+import {
+  beginSavedNativeSaml,
+  captureSamlConfiguration,
+} from "./identity-saml-dispatch.js";
 import * as popupPort from "./native-auth-session.js";
 import {
   configuredSamlOracle,
@@ -311,3 +315,32 @@ it("explicit logout preserves newer metadata published by genuine native session
   expect(readFederationSessionJson()).toBe(JSON.stringify(successor));
   expect(readNativeFederationSession()).toBeNull();
 });
+
+it.each(["generation", "metadata"])(
+  "configuration retirement rejects genuine cleanup successor %s without borrowing it",
+  async (kind) => {
+    const successor = successorMetadata();
+    let published = federationSessionGeneration();
+    const arm = await signedSessionRetirementHook(() => {
+      published =
+        kind === "metadata"
+          ? saveSession(successor)
+          : advanceFederationSessionGeneration();
+    });
+    const configuration = captureSamlConfiguration("");
+    try {
+      arm();
+      expect(() => configuration.clearOwnSession()).toThrow(
+        /superseded|authority changed/,
+      );
+      expect(federationSessionGeneration()).toBe(published);
+      expect(readFederationSessionJson()).toBe(
+        kind === "metadata" ? JSON.stringify(successor) : null,
+      );
+      expect(() => configuration.assertActor()).toThrow(/authority changed/);
+      expect(readNativeFederationSession()).toBeNull();
+    } finally {
+      await configuration.release();
+    }
+  },
+);
