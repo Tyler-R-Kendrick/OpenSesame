@@ -63,13 +63,25 @@ There is no merge queue; use auto-merge after review.
 
 ## After merge
 
-`main` deploys `apps/pages` to GitHub Pages. Publication is complete only when
-the Deploy Pages workflow's live check passes: it stamps `release.json` with
-the source SHA and hashes of the HTML and runtime configuration, then verifies
-those bytes over HTTPS. Check a release by hand with:
+`main` integrates continuously; publication follows the scheduled candidate
+pipeline. Nightly at **00:17 America/Chicago**, `dev-nightly.yml` builds/reuses an
+immutable successful-main candidate and qualifies its source and packaged bytes.
+Thursday at **04:17 America/Chicago**, `release-weekly.yml` qualifies one fixed
+candidate through full prerelease, mutation and security gates, then promotes the
+same Pages/native files. Main continues moving while a release runs.
+
+Use the same controllers' manual dispatch on `main` for an urgent release; it
+runs the same gates. An old publisher or direct version-tag push cannot publish
+around them. The required PR check names remain TypeScript, Rust and Bundle
+budgets, with affected fast scope. See [CI and promotion](docs/operators/ci-promotion.md)
+for versions, receipts, failure recovery and environment configuration.
+
+Publication is complete only after the stored Pages payload is deployed, its
+source/HTML/runtime marker is verified over HTTPS, and the immutable native
+release assets and qualification evidence are published. Check the served marker:
 
 ```bash
-node scripts/release/pages-release.mjs verify https://tyler-r-kendrick.github.io/OpenSesame/ <full-sha>
+node scripts/release/pages-release.mjs verify https://tyler-r-kendrick.github.io/OpenSesame/ <candidate-source-sha>
 ```
 
 ## Ground rules

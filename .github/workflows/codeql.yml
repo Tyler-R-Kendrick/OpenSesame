@@ -4,25 +4,22 @@ name: CodeQL
 # before enabling this workflow: GitHub rejects advanced uploads while default
 # setup is active. Both native projects have explicit build commands below.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [main]
-  workflow_dispatch:
-  schedule:
-    - cron: '41 4 * * 1'
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact candidate source selected by the release controller
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: codeql-${{ github.run_id }}-${{ inputs.source_sha }}
+  cancel-in-progress: false
 
 jobs:
   analyze:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -64,6 +61,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
+          ref: ${{ inputs.source_sha }}
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         if: matrix.language == 'go'
         with:
@@ -111,11 +109,17 @@ jobs:
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           category: /language:${{ matrix.language }}
+          ref: refs/heads/main
+          sha: ${{ inputs.source_sha }}
           output: ${{ runner.temp }}/codeql-results
+      - name: Reject findings and incomplete analysis
+        env:
+          SARIF_DIRECTORY: ${{ runner.temp }}/codeql-results
+        run: node scripts/release/check-codeql-sarif.mjs "$SARIF_DIRECTORY"
       - name: Keep SARIF for review
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: codeql-sarif-${{ matrix.language }}
           path: ${{ runner.temp }}/codeql-results
-          if-no-files-found: warn
+          if-no-files-found: error

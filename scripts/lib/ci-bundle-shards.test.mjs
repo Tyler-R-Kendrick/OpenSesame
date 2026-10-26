@@ -9,7 +9,10 @@ import { repoRootFromHere } from "./ci-changed-areas.mjs";
 import { DRIVER_GATES, bundleMatrix, loadShards } from "./ci-gates.mjs";
 
 const root = repoRootFromHere();
-const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+const ci = readFileSync(
+  join(root, ".github/workflows/ci-prerelease-checks.yml"),
+  "utf8",
+);
 const bundle = ci.split("  bundle:")[1]?.split("  device-inbox:")[0] ?? "";
 
 /** The matrix legs, in order: `{ shard, sizes? }`. */
@@ -314,7 +317,9 @@ it("preserves only reviewed GitHub evidence after success or failure, excluding 
   expect(upload.text).toContain(
     "uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0",
   );
-  expect(upload.text).toContain("name: github-app-browser-${{ github.sha }}");
+  expect(upload.text).toContain(
+    "name: github-app-browser-${{ inputs.source_sha }}",
+  );
   const paths = /path: \|\n([\s\S]*?) {10}if-no-files-found:/.exec(
     upload.text,
   )?.[1];

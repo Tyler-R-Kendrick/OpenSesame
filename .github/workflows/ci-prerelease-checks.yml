@@ -1,0 +1,1483 @@
+# Candidate-bound qualification; production archives are never rebuilt here.
+name: Complete prerelease checks
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        type: string
+        required: true
+      candidate_id:
+        type: string
+        required: true
+      run_id:
+        type: string
+        required: true
+      run_attempt:
+        type: string
+        required: true
+      artifact_id:
+        type: string
+        required: true
+      artifact_digest:
+        type: string
+        required: true
+      payload_digest:
+        type: string
+        required: true
+      prerequisite_receipt:
+        type: string
+        required: true
+    outputs:
+      receipt:
+        description: Verified qualification artifact identity
+        value: ${{ jobs.receipt.outputs.receipt }}
+
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+
+env:
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  CANDIDATE_ID: ${{ inputs.candidate_id }}
+  CANDIDATE_RUN_ID: ${{ inputs.run_id }}
+  CANDIDATE_RUN_ATTEMPT: ${{ inputs.run_attempt }}
+  ARTIFACT_ID: ${{ inputs.artifact_id }}
+  ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+  PAYLOAD_DIGEST: ${{ inputs.payload_digest }}
+  PREREQUISITE_RECEIPT: ${{ inputs.prerequisite_receipt }}
+
+jobs:
+  admission:
+    name: Candidate admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release
+            scripts/lib
+            .github/workflows
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify the exact immutable candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/release/candidate.mjs verify
+          --directory "$RUNNER_TEMP/candidate"
+          --prerequisite-env PREREQUISITE_RECEIPT
+
+  changes:
+    name: Complete candidate scope
+    needs: admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      typescript: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.typescript }}
+      # Quoted so the keyboard contract's job-id split does not match here.
+      "bundle": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.bundle }}
+      "rust": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.rust }}
+      native_mobile: ${{ github.event.pull_request.draft == true && 'false' || steps.native.outputs.native_mobile }}
+      mtls: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.mtls }}
+      "push": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.push }}
+      # The browser gates this diff reaches (scripts/lib/ci-gates.mjs): the
+      # bundle job's legs as a matrix, and the gates that are jobs of their own.
+      bundle_matrix: ${{ github.event.pull_request.draft == true && '[]' || steps.areas.outputs.bundle_matrix }}
+      tutorials: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.tutorials }}
+      device_inbox: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.device_inbox }}
+      device_identity: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.device_identity }}
+      live_join: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.live_join }}
+      # A draft pull request runs no suite; the three required checks fail on it
+      # (below) so a head SHA that only ever ran as a draft can never read green.
+      draft: ${{ github.event.pull_request.draft == true && 'true' || 'false' }}
+      # The runner the two jobs that can leave GitHub-hosted runners ask for.
+      linux_runner: ${{ steps.runner.outputs.linux }}
+      # Pages' canonical cold compiler requires Linux AMD64. Other packages
+      # retain the configured Linux runner, including the owner's ARM64 box.
+      typescript_runner: ${{ (steps.packages.outputs.scope == 'all' || contains(steps.packages.outputs.packages, '@opensesame/pages')) && '"ubuntu-latest"' || steps.runner.outputs.linux }}
+    steps:
+      - name: Choose the Linux runner
+        id: runner
+        # Off unless the repository variable CI_SELF_HOSTED_ARM64 is "true", so
+        # the default is GitHub-hosted and flipping it back is the whole rollback.
+        # Only the owner's own branches may reach the self-hosted box: this
+        # repository is public, and a runner executes whatever the PR contains.
+        env:
+          ENABLED: ${{ vars.CI_SELF_HOSTED_ARM64 }}
+          EVENT: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          linux='"ubuntu-latest"'
+          if [ "$ENABLED" = "true" ] && [ "$ACTOR" = "$OWNER" ] \
+            && { [ "$EVENT" != "pull_request" ] || [ "$HEAD_REPO" = "$REPO" ]; }; then
+            linux='["self-hosted","linux","ARM64","os-devbox"]'
+          fi
+          echo "linux=$linux" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+          # The classifier diffs the pull request against its merge base.
+          fetch-depth: 0
+      - name: Select affected TypeScript packages
+        id: packages
+        env:
+          BASE_SHA: ''
+          HEAD_SHA: ''
+        run: node scripts/lib/ci-affected-tests.mjs plan
+      - name: Validate approved current evidence
+        run: node scripts/quality/evidence-gate.mjs
+      - name: Validate repository footprint and shared skills
+        run: |
+          node scripts/quality/repository-size-gate.mjs
+          node scripts/dev/sync-agent-skills.mjs --check
+      - name: Verify merge-required commit signatures
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/release/check-pr-signatures.mjs "$GITHUB_REPOSITORY" "$PR_NUMBER" "$PR_HEAD"
+      - name: Verify merge-group commit signature
+        if: github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGE_HEAD: ${{ github.event.merge_group.head_sha }}
+        run: node scripts/release/check-merge-group-signature.mjs "$GITHUB_REPOSITORY" "$MERGE_HEAD"
+      - name: Classify changed areas
+        id: areas
+        env:
+          BASE_SHA: ''
+          HEAD_SHA: ''
+        run: node scripts/lib/ci-changed-areas.mjs
+      - name: Select native mobile checks
+        id: native
+        env:
+          BASE_SHA: ''
+          HEAD_SHA: ''
+        run: bash scripts/test/mobile-changed.sh
+
+  typescript-tests:
+    name: TypeScript tests
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
+    runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}
+    # Full serial app-core and Pages validation retains each test's deadline.
+    # Keep the same job budget as current main's full TypeScript workload.
+    timeout-minutes: 180
+    services:
+      # A real server for the repository contract: PGlite accepts a `Date`
+      # in raw SQL that the production driver (postgres-js) rejects.
+      postgres:
+        # Same Docker Official Image digest, served by Google's Docker Hub
+        # mirror. Anonymous Docker Hub pulls exhaust the shared hosted-runner
+        # quota, and the public ECR mirror now answers `toomanyrequests: Data
+        # limit exceeded` for the same pool.
+        image: mirror.gcr.io/library/postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+        env:
+          POSTGRES_USER: opensesame
+          POSTGRES_PASSWORD: opensesame
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opensesame"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+          # pnpm lint diffs changed files against origin/main.
+          fetch-depth: 0
+      - name: Select affected packages
+        id: affected
+        env:
+          BASE_SHA: ''
+          HEAD_SHA: ''
+        run: node scripts/lib/ci-affected-tests.mjs plan
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        # Not `pnpm bootstrap`: that also runs db:migrate (needs a live
+        # DATABASE_URL) and installs git hooks, neither of which belongs in CI.
+        run: pnpm install --frozen-lockfile
+      - name: Cache the pinned native PWA distribution
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Prepare and verify native PWA assets before package tests
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
+        # The canonical loader verifies cache hits and owns cold four-phase builds.
+        # Finish setup before pnpm quality and individual 20-second Vitest tests.
+        run: >-
+          node --input-type=module -e
+          'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
+      - name: Lint (changed files)
+        run: node scripts/quality/lint-changed.mjs
+      - name: Lint generated auth artifacts
+        if: steps.affected.outputs.lint_artifacts == 'true'
+        run: pnpm lint:artifacts
+      - name: Quality gates (structure + component coupling)
+        # Ratchets against tools/quality/quality-baseline.json / tools/quality/package-metrics-baseline.json
+        # and hard-fails on dependency cycles and phantom deps. Sub-second.
+        run: pnpm quality
+      - name: Typecheck and test affected packages
+        env:
+          BASE_SHA: ''
+          HEAD_SHA: ''
+        run: node scripts/lib/ci-affected-tests.mjs run-ts
+      - name: Repository contract on a real Postgres
+        # The same suites as the PGlite run, through the production driver.
+        # Each suite creates and drops its own database.
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/database')
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+          OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
+        run: pnpm --filter @opensesame/database test:postgres
+      - name: Worker delivery on a real Postgres
+        # Web Push through the real worker tick and a stand-in push service,
+        # over the production driver. Builds and drops its own database.
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/identity-worker')
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+        run: pnpm --filter @opensesame/identity-worker test:postgres
+      - name: Product-experience contracts
+        # One block across the experience packages. It runs when the
+        # affected set includes any of them.
+        if: steps.affected.outputs.verify_experience == 'true'
+        # Only the blocks of the experience packages the diff reached.
+        env:
+          EXPERIENCE_PACKAGES: ${{ steps.affected.outputs.verify_packages }}
+        run: pnpm verify:experience
+
+  bundle:
+    # Shards of one job, run in parallel, and only the ones the diff reaches:
+    # `changes` writes the matrix (`bundle_matrix`) from the shard list in
+    # `scripts/lib/ci-bundle-shards.json`, narrowed by `scripts/lib/ci-gates.mjs`
+    # to the gates the changed files can break. A stylesheet starts the budget
+    # and phone shards; a settings panel starts the walks that open it; a docs
+    # or test-only diff starts none. A path the rules cannot place starts every
+    # shard. Each shard builds Pages (without the typecheck, which the
+    # TypeScript job owns) and walks its own gates. Every gate named below runs
+    # in exactly one shard (`ci-bundle-shards.test.mjs` fails on one that runs
+    # in none or in two), and `bundle-check` reads this job's result across the
+    # shards that ran, so a failed shard fails the required "Bundle budgets"
+    # check and a diff that needed none passes it.
+    name: Bundle budget tests (${{ matrix.shard }})
+    needs: changes
+    if: needs.changes.outputs.bundle_matrix != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.shard == 'native-public-protocol' && 30 || 15 }}
+    strategy:
+      fail-fast: false
+      # The legs are listed once, in scripts/lib/ci-bundle-shards.json; `changes`
+      # writes the ones this diff reaches (scripts/lib/ci-gates.mjs).
+      matrix:
+        include: ${{ fromJSON(needs.changes.outputs.bundle_matrix) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build Pages
+        if: matrix.shard != 'budgets'
+        env:
+          VITE_BASE: /OpenSesame/
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Build and measure shipped bundles
+        if: matrix.shard == 'budgets'
+        # apps/pages precaches its whole dist for offline use, so growth here is
+        # growth in what every installing device downloads. The two hardened
+        # capability profiles are built too: each build fails on an excluded
+        # module reachable from an entry (ADR 0130), and the gate measures them
+        # only when their dist-profiles directory exists.
+        run: |
+          node scripts/lib/ci-pages-build.mjs
+          for profile in minimal-local family-local; do
+            VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
+              --profile "capability-profiles/$profile.json" --mode hardened
+          done
+          test -s apps/pages/dist-profiles/minimal-local-hardened/index.html
+          test -s apps/pages/dist-profiles/family-local-hardened/index.html
+          node scripts/quality/bundle-budget-gate.mjs
+      - name: Capability matrix shapes the budgets do not measure
+        if: matrix.shard == 'budgets'
+        # `build:profile --all` (BUILD-07) found three regressions the two
+        # builds above cannot see: an organization that keeps Access but not
+        # browser-local IAM or Connections (enterprise-selected, hardened) had
+        # their files emitted under the excluded capability's name, the
+        # everything-on build (rich-explicit, selective) put two capabilities in
+        # one chunk, and rich-explicit did not validate against the catalog.
+        # Each build verifies its own dist and fails on any violation.
+        run: |
+          VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
+            --profile capability-profiles/enterprise-selected.json --mode hardened
+          VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
+            --profile capability-profiles/rich-explicit.json --mode selective
+          test -s apps/pages/dist-profiles/enterprise-selected-hardened/index.html
+          test -s apps/pages/dist-profiles/rich-explicit-selective/index.html
+      - name: Native Chrome WebMCP discovery and control
+        if: matrix.shard == 'budgets'
+        # Chrome's WebMCP CDP domain backs the Application pane. No polyfill;
+        # unavailable native support or zero tools must fail this required job.
+        env:
+          PLAYWRIGHT_CHROME_CHANNEL: chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          google-chrome --version
+          pnpm --filter @opensesame/pages verify:webmcp
+      - name: Self-hosted provider configuration without hosted Connect
+        if: matrix.shard == 'budgets'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/self-hosted-connectors
+        run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
+      - name: Preserve self-hosted provider evidence
+        if: always() && matrix.shard == 'budgets'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: self-hosted-connectors-${{ inputs.source_sha }}
+          path: ${{ runner.temp }}/self-hosted-connectors/
+          if-no-files-found: warn
+      - name: Keyboard-only first-load and navigation contract
+        if: matrix.shard == 'keyboard'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Push worker installs on approval and reverts on removal
+        if: matrix.shard == 'budgets'
+        # A real localhost origin with service workers allowed (context.route
+        # never sees a worker's fetches). A device holding the core worker
+        # approves Push notifications and must end on sw-push.js at the same
+        # scope — one registration, no reload, the vault still open — then a
+        # push delivered over CDP must ring the contract's doorbell; removing
+        # the capability returns the core worker.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:push-worker
+      - name: Service worker reload waits for a dirty edit
+        if: matrix.shard == 'budgets'
+        # A guest with an unsaved item must see the waiting release instead of
+        # losing the edit. Lock, idle, and a missing chunk still reload.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:sw-dirty-edit
+      - name: Phone and tablet layout and touch contract
+        if: startsWith(matrix.shard, 'mobile-')
+        # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
+        # targets, no field under 16px (iOS zooms a smaller one on focus and
+        # never zooms back), one-row statusline, safe areas, nothing floating
+        # over a control. Then a finger above 900px, where the wide
+        # arrangement is drawn: a width rule that hid the strip without
+        # putting the phone's top bar back left a tablet in landscape with no
+        # support, notifications or plane truth at all, and every other gate
+        # was green. DESIGN.md § Touch.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          MOBILE_SIZES: ${{ matrix.sizes }}
+        run: pnpm --filter @opensesame/pages verify:mobile
+      - name: Approved header parity across viewport and pointer layouts
+        if: matrix.shard == 'mobile-320'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/header-layout
+        run: pnpm --filter @opensesame/pages verify:header-layout
+      - name: Preserve measured header geometry
+        if: always() && matrix.shard == 'mobile-320'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: header-layout-${{ inputs.source_sha }}
+          path: ${{ runner.temp }}/header-layout/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Browser-local application sign-in contract
+        if: matrix.shard == 'sign-in'
+        # Real cross-origin popup and virtual WebAuthn, no Identity/Host backend.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:local-iam
+      - name: Trusted contacts through the browser's own WebAuthn and PRF
+        if: matrix.shard == 'sign-in'
+        # Five people, five contexts, five virtual authenticators that do PRF,
+        # the real desk in each page and only packets between them. ADR 0187.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:quorum-browser
+      - name: Self-Issued OpenID Provider v2 contract
+        if: matrix.shard == 'keyboard'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:siop
+      - name: Static front end complete without a backend
+        if: matrix.shard == 'static'
+        # ADR 0090: first screen is sign-in + guest, deep links resolve, no
+        # loopback request or backend copy. verify:experience in the
+        # TypeScript job skips browser gates (it builds no dist), so this is
+        # the one place CI runs it.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:static
+      - name: Encrypted search in the built app
+        if: matrix.shard == 'static'
+        # ADR 0175: with the capability on, retiring a password writes only an
+        # encrypted database. A sweep of every record of every database finds
+        # no item id, no store, index or field name, and no digest; the sealed
+        # database the capability replaced was readable until it was switched
+        # on, and is gone; a password retired before the switch is still found.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:encrypted-search
+      - name: Portable drop opens on a second browser
+        if: matrix.shard == 'static'
+        # P8-1: a guest with no Identity API seals a secret. The card says any
+        # browser with the link, and the fragment carries the bearer, the drop
+        # key and the sealed packet. The query string stays empty. A second
+        # context, with its own storage, opens that link, enters the user code,
+        # and reads the payload. The bearer has already left the address.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:portable-drop
+      - name: Unlock methods and second steps
+        if: matrix.shard == 'auth'
+        # ADR 0091: key first, then scan, then a code; lock → PIN → code.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:auth
+      - name: Trusted-contact vault unlock quorum
+        if: matrix.shard == 'auth'
+        # Real browser passkeys: below-threshold stays locked for 2-of-3 and 3-of-3.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:trusted-unlock
+      - name: Customer vault and file envelopes in real WebCrypto
+        if: matrix.shard == 'customer-crypto'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+        run: |
+          pnpm verify:customer-vault-browser
+          pnpm --filter @opensesame/pages exec node --test --experimental-test-isolation=none --test-concurrency=1 --test-timeout=20000 scripts/verify-kdbx-native-dom.mjs
+      - name: Native provider configuration and encrypted reloads
+        if: matrix.shard == 'native-connectors'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:native-connectors
+      - name: Public OAuth and MCP authorization protocols
+        if: matrix.shard == 'native-public-protocol'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          pnpm --filter @opensesame/pages verify:native-public-protocol
+          pnpm --filter @opensesame/pages verify:provider-auth
+          pnpm --filter @opensesame/pages build:identity-verify
+          pnpm --filter @opensesame/pages verify:identity-connections
+      - name: Secret backends and encrypted vault
+        if: matrix.shard == 'native-secret-backends'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          pnpm --filter @opensesame/pages build:secret-backends-verify
+          pnpm --filter @opensesame/pages verify:secret-backends
+          PAGES_VERIFY_OUT=${{ runner.temp }}/github-app-browser GITHUB_APP_VERIFY_PHASE=after pnpm --filter @opensesame/pages verify:github-app-browser
+      - name: Preserve GitHub App browser evidence
+        if: always() && matrix.shard == 'native-secret-backends'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: github-app-browser-${{ inputs.source_sha }}
+          path: |
+            ${{ runner.temp }}/github-app-browser/receipt.json
+            ${{ runner.temp }}/github-app-browser/progress.json
+            ${{ runner.temp }}/github-app-browser/after-*.png
+            ${{ runner.temp }}/github-app-browser/after-*.json
+            ${{ runner.temp }}/github-app-browser/failure-*.png
+            !${{ runner.temp }}/github-app-browser/*.encrypted.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Experience journeys
+        # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
+        if: startsWith(matrix.shard, 'journeys')
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          EXPERIENCE_SHARD: ${{ matrix.journeys }}
+        run: node apps/pages/scripts/verify-experience-journeys.mjs
+      # Rust 1.88, same action and toolchain as the Rust tests job. Only this
+      # shard builds the CLI the live relay walk spawns.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        if: matrix.shard == 'journeys-1'
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        if: matrix.shard == 'journeys-1'
+      - name: Prepare DBus headers without root
+        if: matrix.shard == 'journeys-1'
+        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
+      - name: Build opensesame-cli
+        if: matrix.shard == 'journeys-1'
+        # Same cargo limits as the Rust tests job, so the link stays inside
+        # this shard's timeout. The binary lands in target/debug.
+        env:
+          CARGO_BUILD_JOBS: 2
+          CARGO_INCREMENTAL: 0
+          CARGO_PROFILE_DEV_DEBUG: 0
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          cargo +1.88.0 build -p opensesame-cli --locked
+      - name: Relay join
+        # ADR 0181. One leg only, so the walk runs once against the gateway
+        # relay profile (`opensesame host run --profile relay`).
+        if: matrix.shard == 'journeys-1'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          PATH="${GITHUB_WORKSPACE}/target/debug:/usr/local/cargo/bin:${PATH}" \
+            pnpm --filter @opensesame/pages verify:relay-join-live
+      - name: Same-machine live session
+        # Two browser contexts, no ICE servers; loopback hints only on one machine.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:live-local-pair
+      - name: Peer-trust peering diagnostics
+        # Two contexts on the static dist: distinct SAS, a verified paste,
+        # a crossed signal refused, a changed key blocked, duplicate names marked.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peer-trust-two-context
+      - name: Peering diagnostics
+        # Two contexts on the static dist: ICE line while connecting (P8-3).
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peering-diagnostics
+      - name: Fresh vault Passwords onboarding
+        # P8-4: the walker rebuilds dist with its opt-in, then saves an account.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:fresh-vault-login
+      - name: CLI on the public site
+        # P8-5: Pair CLI on the shared origin, with no loopback pairing field.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:cli-public-site
+
+  ai-connections-e2e:
+    name: AI connections end to end
+    needs: changes
+    # Shared controls, vault custody and protocol adapters are in the Pages
+    # bundle graph. Keep this walk separate from the native connector shard.
+    if: needs.changes.outputs.bundle == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /OpenSesame/
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build the declared AI verification profile
+        run: pnpm --filter @opensesame/pages build:ai-connections-verify
+      - name: Configure and use real AI protocol connections in Chromium
+        env:
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/ai-connections-browser
+        run: pnpm --filter @opensesame/pages verify:ai-connections
+      - name: Preserve AI browser evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ai-connections-browser-${{ inputs.source_sha }}
+          path: ${{ runner.temp }}/ai-connections-browser/
+          if-no-files-found: warn
+
+  tailnet-browser-node-e2e:
+    name: Tailscale browser node end to end
+    needs: changes
+    if: needs.changes.outputs.bundle == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /OpenSesame/
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build the declared Tailscale verification profile
+        run: pnpm --filter @opensesame/pages build:tailnet-browser-verify
+      - name: Official browser SDK through real Headscale and a native peer
+        # The Linux x64 fixture downloads hash-pinned binaries and uses
+        # userspace networking; no TUN device or elevated runner is needed.
+        env:
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/tailnet-browser-node
+        run: pnpm --filter @opensesame/pages verify:tailnet-browser-node
+      - name: Preserve Tailscale browser evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: tailnet-browser-node-${{ inputs.source_sha }}
+          path: ${{ runner.temp }}/tailnet-browser-node/
+          if-no-files-found: warn
+
+  device-inbox:
+    name: Device inbox and local notifications
+    needs: changes
+    if: needs.changes.outputs.device_inbox == 'true'
+    runs-on: ubuntu-latest
+    # Its own job, so the bundle job's 20 minutes are not spent on it: a build
+    # (about a minute) and the journey at two widths (about a minute). It is
+    # required through the Bundle budgets check below.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build the static front end
+        env:
+          VITE_BASE: /OpenSesame/
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Receipts, inbox and local notifications with no backend
+        # ADR 0162: a request raised, shown on the tab and told to a second
+        # tab, approved and refused with the keyboard and the passkey, every
+        # decision a receipt, and a locked device showing nothing and
+        # answering 423, at desktop and phone width.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:device-inbox
+
+  push-e2e:
+    # Its own job: the Bundle budget job's twenty minutes are spent, and this
+    # needs a second Pages build (stamped for its own origin), the control-plane
+    # and a browser. `bundle-check` below folds its result into the required
+    # "Bundle budgets" check, so it gates merges without another required name.
+    name: Web Push end to end
+    needs: changes
+    # The server code verify:push runs (the push area) and the changes the gate
+    # rules send to it (scripts/lib/ci-gates.mjs).
+    if: needs.changes.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build Pages for the loopback origin the walk serves
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages build:push-verify
+      - name: Push, end to end
+        # The real Identity API (control-plane startServer(), in memory), the
+        # Host's Web Push delivery, and a stand-in push service that verifies
+        # RFC 8292 VAPID and decrypts RFC 8291 aes128gcm, against Pages in a
+        # real browser: approve Push, turn it on (the subscription is recorded
+        # server-side), a real push rings the closed doorbell, turn it off (the
+        # server's row is gone), and the failures a person can meet. Only the
+        # browser's own push subscription is stood in for.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:push
+
+  device-identity-e2e:
+    # Its own job: the Bundle budget job's twenty minutes were spent when this
+    # walk (about two and a half minutes, its backup-and-restore flows run in
+    # real browser contexts) was one of its steps. It builds Pages itself and
+    # `bundle-check` below folds its result into the required "Bundle budgets"
+    # check, so it gates merges without another required name.
+    name: Device identity end to end
+    needs: changes
+    # What it drives is the Pages build and the packages that build ships
+    # (app-core, vault-core and what they depend on), which is the bundle area.
+    if: needs.changes.outputs.device_identity == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build Pages
+        env:
+          VITE_BASE: /OpenSesame/
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Device is the Identity plane with no Identity API
+        # ADR 0160: a guest on the static build, at desktop and phone widths.
+        # The sign-out row appears only once the device has a session, the
+        # status reads "This device", the principal is the vault key's
+        # thumbprint and survives Refresh, no copy names a service that is not
+        # there, and Receipts is drawn only where the device serves an audit
+        # trail. Then the principal across backup and restore, one browser
+        # context per device: the key rides sealed in the vault body, a restore
+        # takes it only when the person chooses, a guest's card draws no choice.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:device-identity
+
+  tutorials-e2e:
+    # Its own job, one per width and third of the library (`TUTORIALS_SHARD`;
+    # the first third also walks Escape, the move and the gates, so every
+    # tutorial and pass runs in exactly one leg): every tutorial is walked end to end (the
+    # shell's, each started, walked, gone back through, replayed and walked
+    # again, and the gates', ADR 0166, each started from the help key its
+    # screen draws). Measured locally that is about four minutes a width for
+    # the shell with the fixed sleeps gone, twice that on a hosted runner,
+    # and the gate pass adds a minute or two on top of it, which still sits
+    # inside the twenty-five minutes below; it does not fit in
+    # the Bundle budget job's twenty minutes beside its builds and gates. `bundle-check` below folds the
+    # result into the required "Bundle budgets" check, so it gates merges
+    # without another required name.
+    name: Every tutorial, walked (${{ matrix.width }}px, ${{ matrix.shard }})
+    needs: changes
+    # The Pages build, the app core and the guide runtime that build ships.
+    if: needs.changes.outputs.tutorials == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        width: [1280, 390]
+        shard: ["1/3", "2/3", "3/3"]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build Pages
+        env:
+          VITE_BASE: /OpenSesame/
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Every tutorial, walked end to end
+        # ADR 0163: the Support sheet's Tutorials tab lists them, each is
+        # started from its row and walked with Next alone at this width, on
+        # the shell with every capability on, and on the gates (ADR 0166: the
+        # front door, setup, sign-in, unlock, the broker popup and the
+        # federation return), whose help key is held to the ADR as well. Escape from
+        # the lit control ends a tour, and the move a step waits for, made
+        # through the aperture, advances it. A step whose control (found by its
+        # registry id) is missing or covered, a skipped step, a card outside
+        # the screen, a Next that is not there, or focus dropped on the way out
+        # is a failure.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          TUTORIALS_WIDTHS: ${{ matrix.width }}
+          TUTORIALS_SHARD: ${{ matrix.shard }}
+        run: pnpm --filter @opensesame/pages verify:tutorials
+
+  live-join-e2e:
+    # Live sessions browser to browser (ADR 0150), the walk a person takes to
+    # join somebody's vault: direct, a tunnel, every code carrier, relay only
+    # through TURN over UDP, TCP and TLS, TURN REST and NATS, each against
+    # real servers on loopback. Two people rarely hold the same browser, so
+    # each shard is one owner's browser and walks every joiner's: Chromium,
+    # Firefox and WebKit as the pinned Playwright installs them, every ordered
+    # pair across the three shards (apps/pages/scripts/lib/live-engines.mjs
+    # says what an engine cannot be told here and so does not walk). Its own
+    # job: two Pages builds, the servers and three browsers do not fit the
+    # bundle job. `bundle-check` below folds the result into the required
+    # "Bundle budgets" check, so it gates merges without another required name.
+    name: Live join (${{ matrix.owner }} owner)
+    needs: changes
+    if: needs.changes.outputs.live_join == 'true'
+    # Native ntfy is built with CGO here and runs in the Noble browser image.
+    runs-on: ubuntu-24.04
+    env:
+      LIVE_JOIN_IMAGE: mcr.microsoft.com/playwright:v1.55.1-noble@sha256:2f29369043d81d6d69a815ceb80760f55e85f5020371ad06a4d996f18503ad1c
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        owner: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      # live-turn and ntfy are built from pinned source (go.sum); the Go that
+      # builds them is the one live-turn's go.mod names.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: scripts/test/live-turn/go.mod
+          cache-dependency-path: scripts/test/live-turn/go.sum
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Require the matching SDK and preinstalled browsers
+        run: |
+          test "$(id -u)" -ne 0
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          test -f "$live_pnpm_root/pnpm/package.json"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work,readonly" \
+            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+            --env CI --env PATH --env PNPM_HOME \
+            --workdir /work/apps/pages "$LIVE_JOIN_IMAGE" node -e '
+              const assert = require("node:assert/strict");
+              const fs = require("node:fs");
+              const { execFileSync } = require("node:child_process");
+              const { chromium, firefox, webkit } = require("@playwright/test");
+              assert.equal("pnpm@" + execFileSync("pnpm", ["--version"],
+                { encoding: "utf8" }).trim(), require("/work/package.json").packageManager);
+              execFileSync("pnpm", ["--filter", "@opensesame/cli", "exec", "tsx", "--version"],
+                { stdio: "inherit" });
+              assert.equal(require("@playwright/test/package.json").version, "1.55.1",
+                "Update the pinned Playwright image with the SDK");
+              for (const engine of [chromium, firefox, webkit]) {
+                fs.accessSync(engine.executablePath(), fs.constants.X_OK);
+              }
+            '
+      - name: Cache the live servers
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            .cache/live-fixtures/bin
+            .cache/mtls-fixtures
+          key: live-fixtures-${{ hashFiles('scripts/test/live-fixtures.sh', 'scripts/test/live-turn/**', 'scripts/mtls/mtls-fixtures.sh') }}
+      - name: The servers the walk runs (nats-server, ntfy, live-turn)
+        # Fails, never skips: a missing server fails the walk that needs it.
+        run: pnpm test:live-fixtures
+      - name: Build Pages
+        env:
+          VITE_BASE: /OpenSesame/
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Build Pages for a dedicated origin
+        # The carrier, relayed and NATS walks reach servers on loopback, which
+        # only a deployment of one's own may do (`mayPairLocalAuthority`).
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages build:live-dedicated
+      - name: Join a live session, ${{ matrix.owner }} owner, every joiner
+        env:
+          VITE_BASE: /OpenSesame/
+          LIVE_OWNER: ${{ matrix.owner }}
+          LIVE_JOINERS: chromium,firefox,webkit
+          # Each browser's own output, where a crashed content process says
+          # why; the walk writes it to browsers.log, not this log.
+          DEBUG: pw:browser
+        # Keep native compilation on the runner; only the actual walk needs the
+        # upstream browser image. Host networking preserves same-machine routes.
+        run: |
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          docker run --rm --init --user "$(id -u):$(id -g)" \
+            --network host --shm-size=2g \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work" \
+            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+            --workdir /work/apps/pages \
+            --env PATH --env PNPM_HOME \
+            --env CI --env VITE_BASE --env LIVE_OWNER --env LIVE_JOINERS --env DEBUG \
+            "$LIVE_JOIN_IMAGE" node scripts/verify-live-join.mjs
+      - name: Keep what the walk saw
+        # Screenshots of every open page, each channel's events and frame
+        # kinds (never a body) and the browsers' output, for the failure.
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: live-join-${{ matrix.owner }}
+          path: artifacts/live-join/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  rust:
+    name: Rust tests
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+      - name: Select affected crates
+        id: affected
+        env:
+          BASE_SHA: ''
+          HEAD_SHA: ''
+        run: node scripts/lib/ci-affected-tests.mjs cargo
+      - name: Install Linux keychain build and test dependencies
+        if: runner.os == 'Linux' && steps.affected.outputs.scope != 'none'
+        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        if: steps.affected.outputs.scope != 'none'
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        if: steps.affected.outputs.scope != 'none'
+      # `bridge_roundtrip_fixture` reads a real schema through @env-spec/parser
+      # and fails on CI without it. The same pinned pnpm and Node as the
+      # TypeScript job, installed only when the env-spec crate is tested. No
+      # `cache: pnpm`: setup-node would save this job's one-package store under
+      # the key the TypeScript job restores its whole store from.
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+        with:
+          node-version: 22
+      - name: Install the env-spec bridge's parser
+        # That package and its dependencies only (@env-spec/parser has none
+        # and no install script), from the lockfile.
+        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
+      - name: Name the runner's node for the bridge
+        # The env-spec bridge runs only a `node` nobody else could have
+        # replaced, and the hosted image keeps its own in /usr/local/bin with
+        # mode 0777. OPENSESAME_NODE names the file the way an operator does
+        # (docs/operators/proxied-run-quickstart.md); no node fails the job.
+        if: steps.affected.outputs.scope != 'none'
+        run: |
+          node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
+          echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
+      - name: Test affected crates
+        if: steps.affected.outputs.scope != 'none'
+        env:
+          BASE_SHA: ''
+          HEAD_SHA: ''
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          node scripts/lib/ci-affected-tests.mjs run-cargo
+      - name: Test the Bitwarden bridge build (ADR 0148)
+        # Default builds leave the bridge out; this compiles it in.
+        if: steps.affected.outputs.bitwarden == 'true'
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden
+
+  android-native:
+    name: Android crypto and application build
+    needs: changes
+    if: needs.changes.outputs.native_mobile == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - name: Install pinned Android build tools
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "ndk;28.0.13004108"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.13004108" >> "$GITHUB_ENV"
+          curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.13-bin.zip -o "$RUNNER_TEMP/gradle.zip"
+          echo "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78  $RUNNER_TEMP/gradle.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-8.13/bin" >> "$GITHUB_PATH"
+      - name: Build packaged Android Rust libraries
+        run: |
+          cargo install cargo-ndk --version 4.1.2 --locked
+          apps/android/scripts/build-core.sh android
+      - name: Test real JVM crypto and FFI, then assemble the app
+        run: bash scripts/test/mobile-android.sh
+      - name: Verify all four native architectures in the APK
+        run: bash scripts/test/mobile-android-apk.sh
+      - name: Preserve Android test results and APK
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: android-native-tests
+          path: |
+            apps/android/android/app/build/test-results/testDebugUnitTest/
+            apps/android/android/app/build/outputs/apk/debug/
+
+  apple-native:
+    name: Swift crypto and iOS application build
+    needs: changes
+    if: needs.changes.outputs.native_mobile == 'true'
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - name: Test Swift envelopes and compile all iOS package targets
+        run: bash scripts/test/mobile-apple.sh ios
+      - name: Preserve iOS simulator XCTest results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ios-native-tests
+          path: ${{ runner.temp }}/mobile-ios/tests.xcresult
+
+  mtls:
+    # Optional mTLS / workload identity (ADR 0132): the fast suite, then the
+    # real-protocol suite against pinned, checksum-verified fixtures
+    # (scripts/mtls/mtls-fixtures.sh). Both write artifacts/mtls/ through
+    # scripts/lib/mtls-manifest.mjs; a required step that ran nothing, a
+    # fixture that cannot start, or an all-ignored suite fails the job
+    # (AT-EVIDENCE-NORUN). Not in the required-checks ruleset.
+    name: mTLS
+    needs: changes
+    if: needs.changes.outputs.mtls == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Cache pinned native fixtures
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .cache/mtls-fixtures
+          key: mtls-fixtures-${{ hashFiles('scripts/mtls/mtls-fixtures.sh') }}
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Fast mTLS suite (unit, contracts, static bundle boundary)
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm test:mtls
+      - name: Real-protocol mTLS suite (pinned nats-server, OpenBao, SPIRE, Caddy; Chromium)
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm test:mtls:integration
+      - name: Upload sanitized evidence manifest
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: mtls-evidence
+          path: artifacts/mtls/
+          if-no-files-found: error
+          retention-days: 30
+
+  typescript:
+    name: TypeScript
+    needs: [changes, typescript-tests]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
+        run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
+          changes="${{ needs.changes.result }}"
+          heavy="${{ needs.typescript-tests.result }}"
+          if [ "$changes" != "success" ]; then
+            echo "change detection result: $changes"
+            exit 1
+          fi
+          case "$heavy" in
+            success|skipped) exit 0 ;;
+            *) echo "typescript tests result: $heavy"; exit 1 ;;
+          esac
+
+  bundle-check:
+    name: Bundle budgets
+    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, tutorials-e2e, live-join-e2e, ai-connections-e2e, tailnet-browser-node-e2e]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
+        run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
+          changes="${{ needs.changes.result }}"
+          heavy="${{ needs.bundle.result }}"
+          tutorials="${{ needs.tutorials-e2e.result }}"
+          inbox="${{ needs.device-inbox.result }}"
+          push="${{ needs.push-e2e.result }}"
+          identity="${{ needs.device-identity-e2e.result }}"
+          live="${{ needs.live-join-e2e.result }}"
+          ai="${{ needs.ai-connections-e2e.result }}"
+          tailnet="${{ needs.tailnet-browser-node-e2e.result }}"
+          if [ "$changes" != "success" ]; then
+            echo "change detection result: $changes"
+            exit 1
+          fi
+          case "$heavy" in
+            success|skipped) ;;
+            *) echo "bundle tests result: $heavy"; exit 1 ;;
+          esac
+          case "$tutorials" in
+            success|skipped) ;;
+            *) echo "tutorials end to end result: $tutorials"; exit 1 ;;
+          esac
+          case "$inbox" in
+            success|skipped) ;;
+            *) echo "device inbox result: $inbox"; exit 1 ;;
+          esac
+          case "$push" in
+            success|skipped) ;;
+            *) echo "push end to end result: $push"; exit 1 ;;
+          esac
+          case "$live" in
+            success|skipped) ;;
+            *) echo "live join result: $live"; exit 1 ;;
+          esac
+          case "$ai" in
+            success|skipped) ;;
+            *) echo "AI connections end to end result: $ai"; exit 1 ;;
+          esac
+          case "$tailnet" in
+            success|skipped) ;;
+            *) echo "Tailscale browser node result: $tailnet"; exit 1 ;;
+          esac
+          case "$identity" in
+            success|skipped) exit 0 ;;
+            *) echo "device identity end to end result: $identity"; exit 1 ;;
+          esac
+
+  rust-check:
+    name: Rust
+    needs: [changes, rust, android-native, apple-native]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report the required check
+        env:
+          DRAFT: ${{ needs.changes.outputs.draft }}
+        run: |
+          if [ "${DRAFT:-false}" = "true" ]; then
+            echo "draft pull request: CI runs when it is marked ready for review"
+            exit 1
+          fi
+          changes="${{ needs.changes.result }}"
+          heavy="${{ needs.rust.result }}"
+          native="${{ needs.changes.outputs.native_mobile }}"
+          android="${{ needs.android-native.result }}"
+          apple="${{ needs.apple-native.result }}"
+          if [ "$changes" != "success" ]; then
+            echo "change detection result: $changes"
+            exit 1
+          fi
+          if [ "$native" = "true" ] && { [ "$android" != "success" ] || [ "$apple" != "success" ]; }; then
+            echo "native mobile checks: Android=$android Apple=$apple"
+            exit 1
+          fi
+          case "$heavy" in
+            success|skipped) exit 0 ;;
+            *) echo "rust tests result: $heavy"; exit 1 ;;
+          esac
+
+  complete-verify:
+    needs: admission
+    uses: ./.github/workflows/complete-verify.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  native-platform:
+    needs: admission
+    uses: ./.github/workflows/native-platform-validation.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  password-parity:
+    needs: admission
+    uses: ./.github/workflows/password-parity.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  container:
+    needs: admission
+    uses: ./.github/workflows/container-build-pr.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  native-wasm:
+    needs: admission
+    uses: ./.github/workflows/pwa-native-wasm.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  autofill-browser:
+    needs: admission
+    uses: ./.github/workflows/autofill-browser.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  coverage:
+    needs: admission
+    uses: ./.github/workflows/ci-coverage.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  artifact-smoke:
+    name: Prerelease artifact smoke (${{ matrix.target }})
+    needs: admission
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          path: .ci-control
+          sparse-checkout: |
+            scripts/release
+            scripts/lib
+            .github/workflows
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Materialize the verified candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node .ci-control/scripts/release/candidate.mjs verify
+          --directory "$RUNNER_TEMP/candidate"
+          --prerequisite-env PREREQUISITE_RECEIPT
+      - name: Execute the packaged native host and bundled parser
+        env:
+          KIT_ARCHIVE: ${{ matrix.target == 'x86_64-unknown-linux-gnu' && steps.candidate.outputs.native_x86_archive || steps.candidate.outputs.native_arm_archive }}
+        run: bash .ci-control/scripts/release/smoke-kit.sh "$KIT_ARCHIVE"
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+      - name: Install the candidate source's browser test dependencies
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: pnpm install --frozen-lockfile
+      - name: Extract the production Pages payload without rebuilding
+        id: pages
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        env:
+          PAGES_ARCHIVE: ${{ steps.candidate.outputs.pages_archive }}
+        run: |
+          test ! -e apps/pages/dist
+          python3 .ci-control/scripts/release/archive-safe.py tar "$PAGES_ARCHIVE" apps/pages/dist
+          find apps/pages/dist -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/pages-before.sha256"
+      - name: Walk the exact production Pages payload in a browser
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        # These drivers consume dist; none compiles or restamps a distribution.
+        # Service-worker drivers use their actual local HTTP worker harnesses.
+        run: |
+          pnpm --filter @opensesame/pages verify:static
+          pnpm --filter @opensesame/pages verify:local-iam
+          pnpm --filter @opensesame/pages verify:auth
+          pnpm --filter @opensesame/pages verify:trusted-unlock
+          pnpm --filter @opensesame/pages verify:encrypted-search
+          pnpm --filter @opensesame/pages verify:portable-drop
+          pnpm --filter @opensesame/pages verify:sw-dirty-edit
+          pnpm --filter @opensesame/pages verify:push-worker
+          pnpm verify:customer-vault-browser
+      - name: Require unchanged production files after the browser journeys
+        if: ${{ always() && steps.pages.outcome == 'success' }}
+        run: |
+          find apps/pages/dist -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/pages-after.sha256"
+          cmp "$RUNNER_TEMP/pages-before.sha256" "$RUNNER_TEMP/pages-after.sha256"
+
+  gate:
+    name: Prerelease gate
+    needs: [admission, changes, typescript-tests, bundle, ai-connections-e2e, tailnet-browser-node-e2e, device-inbox, push-e2e, device-identity-e2e, tutorials-e2e, live-join-e2e, rust, android-native, apple-native, mtls, typescript, bundle-check, rust-check, complete-verify, native-platform, password-parity, container, native-wasm, autofill-browser, coverage, artifact-smoke]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release
+            scripts/lib
+            .github/workflows
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Require every qualification job to succeed
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/lib/ci-required-result.mjs all
+
+  receipt:
+    name: Record prerelease qualification
+    needs: [admission, gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      receipt: ${{ steps.envelope.outputs.receipt }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release
+            scripts/lib
+            .github/workflows
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Record successful candidate qualification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: >-
+          node scripts/release/candidate.mjs receipt --stage prerelease
+          --needs-env NEEDS_JSON --directory "$RUNNER_TEMP/qualification"
+      - name: Retain qualification evidence
+        id: evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: qualification-prerelease-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qualification/receipt.json
+          if-no-files-found: error
+          retention-days: 35
+      - name: Return the exact evidence identity
+        id: envelope
+        env:
+          RECEIPT_ARTIFACT_ID: ${{ steps.evidence.outputs.artifact-id }}
+          RECEIPT_ARTIFACT_DIGEST: ${{ steps.evidence.outputs.artifact-digest }}
+        run: >-
+          node scripts/release/candidate.mjs receipt-envelope --stage prerelease
+          --artifact-id "$RECEIPT_ARTIFACT_ID" --artifact-digest "$RECEIPT_ARTIFACT_DIGEST"
+          --output "$GITHUB_OUTPUT"

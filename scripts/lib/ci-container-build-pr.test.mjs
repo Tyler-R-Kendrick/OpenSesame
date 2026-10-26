@@ -7,11 +7,11 @@ const root = repoRootFromHere();
 const file = join(root, ".github/workflows/container-build-pr.yml");
 const yaml = readFileSync(file, "utf8");
 
-describe("container build on a pull request", () => {
+describe("candidate-bound container validation", () => {
   it("builds the compose image and does not push", () => {
-    expect(yaml).toMatch(
-      /^on:\n {2}pull_request:\n {4}types: \[opened, synchronize, reopened, ready_for_review\]\n {2}workflow_dispatch:\n/m,
-    );
+    expect(yaml).toContain("  workflow_call:");
+    expect(yaml).not.toMatch(/^ {2}(?:pull_request|push|schedule):/m);
+    expect(yaml).toContain("ref: ${{ inputs.source_sha }}");
     expect(yaml).toContain("contents: read");
     expect(yaml).not.toMatch(/packages:\s*write/);
     expect(yaml).not.toContain("push: true");
@@ -19,8 +19,7 @@ describe("container build on a pull request", () => {
     expect(yaml).toContain("timeout-minutes: 45");
     expect(yaml).toContain("file: ops/compose/Dockerfile");
     expect(yaml).toContain("context: .");
-    expect(yaml).toContain("opensesame:pr-");
-    expect(yaml).toContain("opensesame:ci");
+    expect(yaml).toContain("opensesame:candidate-${{ inputs.source_sha }}");
     expect(yaml).toContain("persist-credentials: false");
     expect(yaml).toContain(
       "uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0",
@@ -40,15 +39,7 @@ describe("container build on a pull request", () => {
   });
 });
 
-const auxiliaries = [
-  "autofill-browser.yml",
-  "codeql.yml",
-  "complete-verify.yml",
-  "container-build-pr.yml",
-  "native-platform-validation.yml",
-  "password-parity.yml",
-  "sync-target-security.yml",
-];
+const auxiliaries = ["autofill-browser.yml", "sync-target-security.yml"];
 const readyTypes =
   "    types: [opened, synchronize, reopened, ready_for_review]";
 const draftGuard =
@@ -101,10 +92,13 @@ describe("auxiliary pull-request suites respect draft stacks", () => {
   it("keeps drafts failing all three required CI reporters", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
     expect(
-      ci.match(/if \[ "\$\{DRAFT:-false\}" = "true" \]; then/g),
+      ci.match(/DRAFT: \$\{\{ needs.changes.outputs.draft \}\}/g),
+    ).toHaveLength(3);
+    expect(
+      ci.match(/run: node scripts\/lib\/ci-required-result.mjs/g),
     ).toHaveLength(3);
     expect(ci).toContain(
-      "draft pull request: CI runs when it is marked ready for review",
+      "draft: ${{ github.event.pull_request.draft == true && 'true' || 'false' }}",
     );
   });
 });

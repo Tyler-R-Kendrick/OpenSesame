@@ -14,22 +14,18 @@ does not supply a second human maintainer or automatically satisfy an approval
 requirement. Add a real eligible reviewer before enabling mandatory approvals;
 do not lock the sole maintainer out or fabricate approval records.
 
-A second ruleset, `opensesame-release-tags` (`release-tags.json`), covers the
-tags that start a release: only a repository admin may create, move or delete a
-tag matching `v*`. The release workflow checks the tag it was started by, but
-that check is in a file whoever pushes the tag controls; without this ruleset a
-collaborator with push access could tag a branch commit carrying an edited
-workflow. The admin role is its one bypass actor, because the owner has to be
-able to cut the release. It is the owner's to apply: `--apply` writes it,
-`--verify` fails until it is in place
-([release kit](../../docs/operators/release-kit.md)). The workflow's `release`
-environment (a required reviewer, `v*`-only deployments) is configured in
-Settings › Environments and is not managed here.
+A second ruleset, `opensesame-release-tags` (`release-tags.json`), protects
+release version reservations: only a repository admin may create, move or delete
+`v*` tags. The trusted main controller stages a tag naming the qualified candidate
+before publication and rechecks its target. Tag protection remains separate from
+the `release` environment: scheduled promotion executes on `main`, not the tag.
+The admin role is the tag ruleset's one bypass actor. `--apply` writes that
+ruleset; `--verify` fails until it is in place.
 
-`release-environment.json` and `release-environment-tags.json` are the concrete
+`release-environment.json` and `release-environment-branches.json` are the concrete
 proposed settings for that environment, not evidence of applied protection.
 They require the repository owner to approve a release, allow the sole owner to
-approve a run they initiated, restrict deployment to `v*` tags and disable admin
+approve a run they initiated, restrict deployment to the `main` branch and disable admin
 bypass. The owner ID is this repository's public GitHub owner ID. Do not apply
 them to another repository or overwrite an existing environment's reviewers
 without review. Activation requires explicit authorization for these exact

@@ -188,3 +188,32 @@ describe("repository governance pages and workflows", () => {
     }
   });
 });
+
+it("gates main artifact promotion with the owner review and no admin bypass", () => {
+  const environment = JSON.parse(
+    readFileSync(new URL("ops/github/release-environment.json", root), "utf8"),
+  );
+  const branch = JSON.parse(
+    readFileSync(
+      new URL("ops/github/release-environment-branches.json", root),
+      "utf8",
+    ),
+  );
+  expect(environment).toEqual({
+    wait_timer: 0,
+    prevent_self_review: false,
+    reviewers: [{ type: "User", id: 145080887 }],
+    can_admins_bypass: false,
+    deployment_branch_policy: {
+      protected_branches: false,
+      custom_branch_policies: true,
+    },
+  });
+  expect(branch).toEqual({ name: "main", type: "branch" });
+  const publish = readFileSync(
+    new URL(".github/workflows/release-publish.yml", root),
+    "utf8",
+  );
+  expect(publish).toContain('[ "$GITHUB_REF" = refs/heads/main ]');
+  expect(publish).toMatch(/environment:\n +name: release/);
+});

@@ -181,18 +181,29 @@ describe("release workflow wiring", () => {
     for (const name of ["TypeScript", "Bundle budgets", "Rust"])
       expect(ci).toContain(`name: ${name}`);
   });
-  it("stamps before upload and verifies after deployment", () => {
-    const deploy = readFileSync(
+  it("stamps once during candidate construction and promotes that archive after qualification", () => {
+    const producer = readFileSync(
+      new URL("../../.github/workflows/candidate-build.yml", import.meta.url),
+      "utf8",
+    );
+    const publisher = readFileSync(
+      new URL("../../.github/workflows/release-publish.yml", import.meta.url),
+      "utf8",
+    );
+    expect(producer.indexOf("pages-release.mjs stamp")).toBeLessThan(
+      producer.indexOf("path: src/packed/*.tar.gz"),
+    );
+    expect(publisher).not.toContain("pages-release.mjs stamp");
+    expect(publisher).toContain("verify-promotion");
+    expect(publisher.indexOf("verify-site.mjs")).toBeGreaterThan(
+      publisher.indexOf("uses: actions/deploy-pages@"),
+    );
+    const legacy = readFileSync(
       new URL("../../.github/workflows/deploy-pages.yml", import.meta.url),
       "utf8",
     );
-    expect(deploy.indexOf("pages-release.mjs stamp")).toBeLessThan(
-      deploy.indexOf("uses: actions/upload-pages-artifact@"),
-    );
-    expect(deploy.indexOf("pages-release.mjs verify")).toBeGreaterThan(
-      deploy.indexOf("uses: actions/deploy-pages@"),
-    );
-    expect(deploy).toContain("branches: [main]");
-    expect(deploy).toContain("workflow_dispatch:");
+    expect(legacy).not.toContain("uses: actions/deploy-pages@");
+    expect(legacy).not.toContain("branches: [main]");
+    expect(legacy).toContain("exit 1");
   });
 });

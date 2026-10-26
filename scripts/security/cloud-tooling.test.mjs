@@ -226,7 +226,18 @@ test("scheduled native auditing fails closed on the real production graph after 
   assert.equal(job.steps[audit].if, undefined);
   assert.equal(job.steps[audit].env?.OPENSESAME_AUDIT_DIR, undefined);
   assert.ok(workflow.jobs["turn-crypto"]);
-  assert.ok(workflow.jobs["osv-scanner"]);
+  assert.equal(workflow.jobs["osv-scanner"], undefined);
+  // Lockfile scanning now gates candidate qualification rather than reporting
+  // findings through the retired continue-on-error scheduled scanner job.
+  const deep = readFileSync(
+    join(root, "scripts/release/deep-check.sh"),
+    "utf8",
+  );
+  assert.match(
+    deep,
+    /dependencies\)\n +pnpm audit:osv\n +pnpm audit:cargo-audit/,
+  );
+  assert.doesNotMatch(deep, /pnpm audit:osv[^\n]*\|\|/);
 });
 
 function imageProfile(dockerfile, name) {

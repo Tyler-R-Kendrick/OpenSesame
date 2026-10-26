@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   copyFileSync,
   mkdirSync,
@@ -91,6 +92,9 @@ if (args[0] === "--version") {
           ...process.env,
           OPENSESAME_OSV_SCANNER_BIN: scanner,
           OPENSESAME_OSV_SCANNER_VERSION: "2.5.0",
+          OPENSESAME_OSV_SCANNER_SHA256: createHash("sha256")
+            .update(readFileSync(scanner))
+            .digest("hex"),
           OPENSESAME_AUDIT_DIR: directory,
           OSV_TEST_LOG: log,
           ...env,

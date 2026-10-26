@@ -17,7 +17,7 @@
 #     criteria and publishes the score to the code-scanning dashboard and
 #     the badge on the README)
 
-name: Security scanning
+name: Repository security monitoring
 
 on:
   schedule:
@@ -71,40 +71,6 @@ jobs:
           cache-dependency-path: scripts/test/live-turn/go.sum
       - name: Verify upstream source and scan all imported packages
         run: bash scripts/test/live-turn/audit-crypto.sh
-
-  osv-scanner:
-    name: OSV-Scanner (lockfiles)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - name: Scan every lockfile against the OSV database
-        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
-        with:
-          # osv-scanner 2.x auto-discovers osv-scanner.toml at the scan root.
-          # Keep this scheduled scan consistent with the local no-exception gate.
-          scan-args: |-
-            --output=osv-results.json
-            --format=json
-            --recursive
-            ./
-        continue-on-error: true
-      - name: Convert results to SARIF
-        uses: google/osv-scanner-action/osv-reporter-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
-        with:
-          scan-args: |-
-            --output=osv-results.sarif
-            --fail-on-vuln=false
-            --new=osv-results.json
-      - name: Upload to the code-scanning dashboard
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-        with:
-          sarif_file: osv-results.sarif
 
   gitleaks:
     name: gitleaks (full history)

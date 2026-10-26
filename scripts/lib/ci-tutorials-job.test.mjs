@@ -7,7 +7,10 @@ const root = repoRootFromHere();
 
 describe("the tutorial walk's CI job", () => {
   it("runs the tutorial walk in its own job per width, gated on the bundle area, and Bundle budgets still reports it", () => {
-    const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+    const ci = readFileSync(
+      join(root, ".github/workflows/ci-prerelease-checks.yml"),
+      "utf8",
+    );
     const bundle = ci.split("  bundle:")[1]?.split("  push-e2e:")[0] ?? "";
     // Out of the twenty-minute bundle job, which the walk would not fit in.
     expect(bundle).not.toContain("verify:tutorials");
