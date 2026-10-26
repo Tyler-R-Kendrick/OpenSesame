@@ -19,6 +19,7 @@ export const WATCH_RTC = () => {
   window.__rtcPeers = [];
   window.__rtcChannels = [];
   window.__rtcStates = [];
+  window.__rtcCandidates = [];
   const t0 = performance.now();
   const at = () => Math.round(performance.now() - t0);
   const kind = (data) => {
@@ -27,6 +28,15 @@ export const WATCH_RTC = () => {
     } catch {
       return "non-json";
     }
+  };
+  const candidateFields = (line) => {
+    const parts = line.split(" ");
+    return {
+      protocol: parts[2],
+      address: parts[4],
+      port: parts[5],
+      type: parts[7],
+    };
   };
   const send = RTCDataChannel.prototype.send;
   RTCDataChannel.prototype.send = function (data) {
@@ -52,6 +62,21 @@ export const WATCH_RTC = () => {
       super(config);
       window.__rtcConfigs.push(JSON.stringify(config ?? {}));
       window.__rtcPeers.push(this);
+      const candidates = { gathered: [], retained: [] };
+      window.__rtcCandidates.push(candidates);
+      this.addEventListener("icecandidate", (event) => {
+        if (event.candidate)
+          candidates.gathered.push(candidateFields(event.candidate.candidate));
+      });
+      this.addEventListener("signalingstatechange", () => {
+        if (this.signalingState === "closed") return;
+        const sdp = this.remoteDescription?.sdp;
+        if (sdp)
+          candidates.retained = sdp
+            .split("\r\n")
+            .filter((line) => line.startsWith("a=candidate:"))
+            .map(candidateFields);
+      });
       this.addEventListener("datachannel", (event) =>
         watch(event.channel, "remote"),
       );
@@ -113,6 +138,7 @@ export async function peerStates(page) {
         (node) => node.getAttribute("aria-label"),
       ),
       states: window.__rtcStates ?? [],
+      candidates: window.__rtcCandidates ?? [],
       channels: (window.__rtcChannels ?? []).map(({ channel, ...rest }) => ({
         ...rest,
         state: read(() => channel.readyState),

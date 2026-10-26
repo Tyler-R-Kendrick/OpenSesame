@@ -52,6 +52,23 @@ export async function reopenKeyboardSession(page, tabTo, focusIn) {
     .filter({ visible: true });
   await tabTo(page, open);
   await page.keyboard.press("Enter");
+  await expect(page.getByRole("img", { name: "Joined Team" })).toBeVisible({
+    timeout: 45_000,
+  });
+  // This shell key survives navigation: the focus policy keeps the chosen key.
+  await expect(open).toBeFocused();
+  await focusIn(
+    page,
+    'button[aria-label="Open live session"]',
+    "after opening shared items",
+  );
+  const leave = page
+    .locator(".live-join")
+    .getByRole("button", { name: "Leave the session", exact: true });
+  await expect(leave).toBeVisible();
+  await tabTo(page, leave);
+  await expect(leave).toBeFocused();
+  await focusIn(page, ".live-join", "after tabbing into the shared session");
 }
 
 /** UI and real ICE state, without protocol message bodies or credentials. */

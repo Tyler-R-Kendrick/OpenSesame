@@ -304,30 +304,14 @@ export async function editCanary(page, { base, route, name, value }) {
 async function openPhoneExport(page) {
   const fab = page.locator(".fab__add").filter({ visible: true });
   await expect(fab).toHaveCount(1);
-  const box = await fab.boundingBox();
-  assert.ok(box, "Actual phone Add key is visible");
-  const session = await page.context().newCDPSession(page);
-  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  try {
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [at],
-    });
-    await page.waitForTimeout(700);
-    for (let step = 1; step <= 6; step++) {
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [{ x: at.x, y: at.y + (70 * step) / 6 }],
-      });
-      await page.waitForTimeout(30);
-    }
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [],
-    });
-  } finally {
-    await session.detach();
-  }
+  // Use the Add button's supported keyboard menu. A raw touch at a cached
+  // coordinate can land on the list while the restored route settles.
+  await fab.focus();
+  await fab.press("Shift+F10");
+  const menu = page.getByRole("menu", { name: "Add actions", exact: true });
+  await menu
+    .getByRole("menuitem", { name: "Export items", exact: true })
+    .click();
 }
 export async function exportedBody(page, name, { base, pin, out }) {
   await nativeVisit(page, base, "vault");

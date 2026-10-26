@@ -6,6 +6,7 @@
  */
 
 import { defaultRouteAddress, lacks } from "./live-engines.mjs";
+import { answerAddresses } from "./live-join-addresses.mjs";
 import {
   TUNNEL_ONLY,
   endSession,
@@ -112,6 +113,7 @@ async function tunnelWith(browser, owner, init, address) {
     { admit: false },
   );
   await joinerConnects(joiner.page, reply);
+  await answerAddresses(joiner.page);
   await opensSharedItems(joiner.page);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   const pairs = await selectedPairs(joiner.page);

@@ -14,6 +14,7 @@ import {
   startNtfyServer,
 } from "./live-carriers.mjs";
 import { engineOf } from "./live-engines.mjs";
+import { answerAddresses, thisMachine } from "./live-join-addresses.mjs";
 import {
   WATCH_RTC,
   admitControl,
@@ -46,6 +47,7 @@ let TLS;
 let afterJoinerConnects;
 /** Runs around `joinerConnects` so ICE UI can be read while connecting (P8-3). */
 let whileJoinerConnects;
+let directAddresses;
 
 /**
  * The joiner's name. It has a space in it, which base64url never does, so
@@ -72,6 +74,7 @@ export function bindWalk(walk) {
     TLS,
     afterJoinerConnects = null,
     whileJoinerConnects = null,
+    directAddresses = null,
   } = walk);
 }
 
@@ -97,10 +100,13 @@ async function topicOf(link) {
 
 export async function direct(browser, owner) {
   setStep("direct");
+  await setRoutes(owner.page, {
+    addresses: directAddresses ?? (await thisMachine()),
+  });
   const { panel, code, link } = await startSession(owner.page);
   check(
     !/\.[\w-]{87}\.[\w-]{43}\./.test(link),
-    "with no route named, the link names no server",
+    "the direct link names no ICE server or carrier",
   );
   await shot(owner.page, "direct-1-owner-live");
   const joiner = await device(browser, {
@@ -132,7 +138,10 @@ export async function direct(browser, owner) {
       );
     },
   });
-  const connect = () => joinerConnects(joiner.page, reply);
+  const connect = async () => {
+    await joinerConnects(joiner.page, reply);
+    await answerAddresses(joiner.page);
+  };
   if (whileJoinerConnects) await whileJoinerConnects(joiner, connect);
   else await connect();
   if (afterJoinerConnects) await afterJoinerConnects(joiner);
@@ -208,7 +217,10 @@ export async function carried(browser, owner, kind) {
       : await reachableBy(started, [owner.engine, engineOf(browser)], TLS.cert);
   if (kind === "ntfy") PASSTHROUGH.push(new URL(server.url).origin);
   try {
-    await setRoutes(owner.page, { carriers: [{ kind, url: server.url }] });
+    await setRoutes(owner.page, {
+      addresses: await thisMachine(),
+      carriers: [{ kind, url: server.url }],
+    });
     const { panel, code, link } = await startSession(owner.page);
     await panel
       .getByRole("img", { name: /^Carrying codes: / })
@@ -227,6 +239,7 @@ export async function carried(browser, owner, kind) {
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
+    await answerAddresses(joiner.page);
     await opensSharedItems(joiner.page);
     await joined(joiner.page).waitFor({ timeout: 45_000 });
     await shot(joiner.page, `carrier-${kind}-joined`);

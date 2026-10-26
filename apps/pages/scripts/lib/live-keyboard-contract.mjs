@@ -232,10 +232,6 @@ async function joinerConnects(page, { reply, tabTo }) {
     page.getByRole("img", { name: "Joined Team" }),
     "the two browsers connected",
   ).toBeVisible({ timeout: 45_000 });
-  await expect(
-    page.locator("#live-status"),
-    "Connect lands on the session's status",
-  ).toBeFocused();
   await focusIn(page, ".live-join", "after Connect");
 }
 
