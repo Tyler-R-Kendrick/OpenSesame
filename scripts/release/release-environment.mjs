@@ -10,6 +10,42 @@ const requireProtection = (condition, detail) =>
     `Release environment protection missing or mismatched: ${detail}. Configure the reviewed ops/github/release-environment.json and release-environment-branches.json settings before promotion`,
   );
 
+function assertDeploymentBranches(policy, branches) {
+  requireProtection(
+    policy?.protected_branches === false &&
+      policy.custom_branch_policies === true,
+    "custom deployment branch restrictions must be enabled",
+  );
+  requireProtection(
+    Array.isArray(branches) &&
+      branches.length === 1 &&
+      branches[0]?.name === "main" &&
+      branches[0]?.type === "branch",
+    "only the main branch may deploy; tags and wildcard policies are refused",
+  );
+}
+
+function assertRequiredReviewer(rules) {
+  requireProtection(Array.isArray(rules), "protection rules are absent");
+  const reviewers = rules.filter((rule) => rule?.type === "required_reviewers");
+  requireProtection(
+    reviewers.length === 1,
+    "one required-reviewer rule is required",
+  );
+  const rule = reviewers[0];
+  requireProtection(
+    rule.prevent_self_review === false,
+    "the approved owner self-review policy must be retained",
+  );
+  requireProtection(
+    Array.isArray(rule.reviewers) &&
+      rule.reviewers.length === 1 &&
+      rule.reviewers[0]?.type === "User" &&
+      rule.reviewers[0]?.reviewer?.id === 145080887,
+    "only the approved owner (User 145080887) may approve a release",
+  );
+}
+
 export async function assertReleaseEnvironment(api) {
   let environment;
   let branches;
@@ -33,42 +69,8 @@ export async function assertReleaseEnvironment(api) {
     environment.can_admins_bypass === false,
     "admin bypass must be disabled",
   );
-  const policy = environment.deployment_branch_policy;
-  requireProtection(
-    policy?.protected_branches === false &&
-      policy.custom_branch_policies === true,
-    "custom deployment branch restrictions must be enabled",
-  );
-  requireProtection(
-    Array.isArray(branches) &&
-      branches.length === 1 &&
-      branches[0]?.name === "main" &&
-      branches[0]?.type === "branch",
-    "only the main branch may deploy; tags and wildcard policies are refused",
-  );
-  requireProtection(
-    Array.isArray(environment.protection_rules),
-    "protection rules are absent",
-  );
-  const reviewers = environment.protection_rules.filter(
-    (rule) => rule?.type === "required_reviewers",
-  );
-  requireProtection(
-    reviewers.length === 1,
-    "one required-reviewer rule is required",
-  );
-  const rule = reviewers[0];
-  requireProtection(
-    rule.prevent_self_review === false,
-    "the approved owner self-review policy must be retained",
-  );
-  requireProtection(
-    Array.isArray(rule.reviewers) &&
-      rule.reviewers.length === 1 &&
-      rule.reviewers[0]?.type === "User" &&
-      rule.reviewers[0]?.reviewer?.id === 145080887,
-    "only the approved owner (User 145080887) may approve a release",
-  );
+  assertDeploymentBranches(environment.deployment_branch_policy, branches);
+  assertRequiredReviewer(environment.protection_rules);
 }
 
 export async function checkReleaseEnvironment({ repository, token, api }) {
