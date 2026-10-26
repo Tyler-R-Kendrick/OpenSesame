@@ -144,6 +144,8 @@ export default defineConfig({
     // contracts. Root `vitest run scripts/lib` discovers `**/scripts/lib/**`,
     // so that file cannot stay on `node:test`.
     exclude: [...configDefaults.exclude, "server/**"],
+    // Real PIN/KDF and bundling suites share a bounded CPU budget, including related runs.
+    maxWorkers: 1,
     testTimeout: 20_000,
     hookTimeout: 20_000,
     // Real TLS/native integration fixtures occasionally miss a short deadline

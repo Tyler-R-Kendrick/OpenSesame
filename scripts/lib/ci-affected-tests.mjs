@@ -77,22 +77,18 @@ function runListed(command, args, options = {}) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-/** `pnpm` args for `turbo run test`. Scope `all` uses concurrency 8. */
-export function turboTestArgs(scope) {
-  return [
-    "exec",
-    "turbo",
-    "run",
-    "test",
-    `--concurrency=${scope === "all" ? 8 : 4}`,
-  ];
+/** Keep real KDF suites from competing with other packages for runner CPU. */
+export function turboTestArgs() {
+  return ["exec", "turbo", "run", "test", "--concurrency=1"];
 }
 
-/** Typecheck beside the full suite. `runLanes` runs the two lanes together. */
+/** Complete typechecking before starting CPU-bound crypto integration tests. */
 export function allScopeLanes() {
   return [
-    [{ command: "pnpm", args: ["typecheck"] }],
-    [{ command: "pnpm", args: turboTestArgs("all") }],
+    [
+      { command: "pnpm", args: ["typecheck"] },
+      { command: "pnpm", args: turboTestArgs() },
+    ],
   ];
 }
 
@@ -102,7 +98,6 @@ async function runTs(plan) {
     return;
   }
   if (plan.scope === "all") {
-    // Typecheck and the full suite do not wait on each other.
     const status = await runLanes(allScopeLanes());
     if (status !== 0) process.exit(status);
     return;
@@ -122,8 +117,7 @@ async function runTs(plan) {
       ...plan.packages.map((name) => `--filter=${name}`),
     ],
   };
-  // The typecheck and the tests do not wait on each other.
-  const status = await runLanes([[typecheck], unitTestSteps(plan)]);
+  const status = await runLanes([[typecheck, ...unitTestSteps(plan)]]);
   if (status !== 0) process.exit(status);
 }
 

@@ -24,7 +24,7 @@ export function unitTestCommands(root, packages, plans) {
         "turbo",
         "run",
         "test",
-        "--concurrency=4",
+        "--concurrency=1",
         ...whole.map((name) => `--filter=${name}`),
       ],
     });

@@ -135,7 +135,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}
-    timeout-minutes: 45
+    # Real crypto suites run without competing package/typecheck workloads;
+    # retain their per-test deadlines and allow the full serial workload.
+    timeout-minutes: 90
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.

@@ -34,7 +34,7 @@
     "quality:report": "node scripts/quality/quality-gate.mjs --summary && node scripts/quality/package-metrics-gate.mjs --report && node scripts/quality/bundle-budget-gate.mjs --report",
     "lint:fix": "biome check --write --changed --since=origin/main --no-errors-on-unmatched . && biome check --write --staged --no-errors-on-unmatched .",
     "setup:hooks": "bash scripts/dev/setup-hooks.sh",
-    "test": "turbo run test --concurrency=4",
+    "test": "turbo run test --concurrency=1",
     "test:integration": "turbo run test:integration --concurrency=4",
     "test:e2e": "turbo run test:e2e",
     "test:security": "pnpm --filter @opensesame/testing test:security",
