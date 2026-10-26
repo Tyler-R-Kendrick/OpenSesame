@@ -1,0 +1,142 @@
+/** Captured configured OIDC, one original popup/carrier and genuine local admission. */
+import { env } from "../../host.js";
+import type {
+  IdentityConnectionDraft,
+  IdentityConnectionTest,
+} from "../../lib/identity-connections-schema.js";
+import type { NativeIdentityOwner } from "../../lib/identity-native-owner.js";
+import {
+  configuredOidcOrganization,
+  isNativeOidcConfiguration,
+  nativeOidcCallbackUri,
+} from "../../lib/identity-oidc-config.js";
+import type { IdentityHTTPPort } from "../../lib/tailscale/browser-node-identity-port.js";
+import { page } from "../../ports.js";
+import type { NativeAuthPopup } from "../native-auth-session.js";
+import {
+  type NativeOidcAdmissionRuntime,
+  createNativeOidcAdmissionRuntime,
+} from "./admission.js";
+import type { OidcOwner } from "./claims.js";
+import { type ConfiguredOidc, prepareConfiguredOidc } from "./transaction.js";
+
+let admission: NativeOidcAdmissionRuntime | null = null;
+let admittedOwner: NativeIdentityOwner | null = null;
+function config(draft: IdentityConnectionDraft): ConfiguredOidc {
+  if (!isNativeOidcConfiguration(draft))
+    throw new Error("Use the existing public OIDC flow for this connection");
+  if (draft.oidcClientType === "confidential" && !draft.clientSecret)
+    throw new Error("Enter the confidential OIDC client secret");
+  return Object.freeze({
+    issuer: draft.issuer,
+    clientId: draft.clientId,
+    clientSecret: draft.clientSecret,
+    scope: draft.scope,
+    organization: configuredOidcOrganization(draft),
+  });
+}
+function redirectUri(): string {
+  return nativeOidcCallbackUri(page().location.origin, env().BASE_URL);
+}
+export async function testConfiguredNativeOidc(
+  draft: IdentityConnectionDraft,
+  owner: OidcOwner,
+  transport: IdentityHTTPPort,
+): Promise<IdentityConnectionTest> {
+  owner.assertCurrent();
+  transport.assertCurrent();
+  await prepareConfiguredOidc(config(draft), redirectUri(), transport, owner);
+  owner.assertCurrent();
+  transport.assertCurrent();
+  return {
+    message:
+      "OIDC discovery supports the configured client authentication. Sign in to verify your account and organization.",
+  };
+}
+export async function signInConfiguredNativeOidc(
+  connectionId: string,
+  input: IdentityConnectionDraft,
+  owner: NativeIdentityOwner,
+  popup: Pick<NativeAuthPopup, "wait" | "cancel">,
+  transport: IdentityHTTPPort,
+  retire: () => Promise<void>,
+): Promise<void> {
+  const draft = Object.freeze({ ...input });
+  let runtime: NativeOidcAdmissionRuntime | null = null;
+  let completed = false;
+  let admissionStarted = false;
+  let protocolRetired = false;
+  const abort = () => {
+    popup.cancel();
+    if (admittedOwner === owner) {
+      admittedOwner = null;
+      runtime?.clear();
+    }
+  };
+  const release = () => {
+    owner.signal.removeEventListener("abort", abort);
+    transport.signal.removeEventListener("abort", abort);
+    if (admittedOwner === owner) admittedOwner = null;
+    owner.release();
+  };
+  try {
+    owner.assertPending();
+    transport.assertCurrent();
+    owner.prepareRuntime(() => {
+      admission?.dispose();
+      admission = createNativeOidcAdmissionRuntime();
+    });
+    runtime = admission;
+    if (!runtime)
+      throw new Error("Native OIDC session runtime was not installed");
+    owner.signal.addEventListener("abort", abort, { once: true });
+    transport.signal.addEventListener("abort", abort, { once: true });
+    const attempt = await prepareConfiguredOidc(
+      config(draft),
+      redirectUri(),
+      transport,
+      { signal: owner.signal, assertCurrent: owner.assertPending },
+    );
+    owner.assertPending();
+    transport.assertCurrent();
+    const answer = await popup.wait({
+      authorizationUrl: attempt.authorizationUrl,
+      state: attempt.state,
+      expiresAt: attempt.expiresAt,
+      redirectUri: redirectUri(),
+      signal: AbortSignal.any([owner.signal, transport.signal]),
+    });
+    owner.assertPending();
+    transport.assertCurrent();
+    const proof = await attempt.complete(answer);
+    owner.assertPending();
+    transport.assertCurrent();
+    admissionStarted = true;
+    await runtime.admit(proof, {
+      connectionId,
+      label: draft.name,
+      assertSessionCurrent: (claims) =>
+        owner.assertSessionCurrent(claims.issuer, claims.audience),
+      retireProtocol: async () => {
+        owner.assertPending();
+        transport.assertCurrent();
+        transport.signal.removeEventListener("abort", abort);
+        await retire();
+        owner.assertPending();
+        protocolRetired = true;
+      },
+      releaseSession: release,
+    });
+    owner.assertSessionCurrent(draft.issuer, draft.clientId);
+    if (!protocolRetired)
+      throw new Error("Original OIDC protocol did not retire before admission");
+    admittedOwner = owner;
+    completed = true;
+  } finally {
+    popup.cancel();
+    if (!completed) {
+      release();
+      if (admissionStarted) runtime?.clear();
+    }
+  }
+}
