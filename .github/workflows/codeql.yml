@@ -1,121 +1,125 @@
-name: CodeQL
-
-# Switch Security > Code scanning > CodeQL from default to advanced setup
-# before enabling this workflow: GitHub rejects advanced uploads while default
-# setup is active. Both native projects have explicit build commands below.
+name: Prepare final-main CodeQL read-only verification
 on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '41 4 * * 1'
-
 permissions:
   contents: read
-
 concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
+  group: final-main-codeql-readiness-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  analyze:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
-    name: Analyze (${{ matrix.language }})
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
+  readiness:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/final-main-codeql-readiness-2149' && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' }}
+    name: Preparation/read-only verification (not a CI gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
-      actions: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - language: actions
-            runner: ubuntu-latest
-            mode: none
-          - language: javascript-typescript
-            runner: ubuntu-latest
-            mode: none
-          - language: python
-            runner: ubuntu-latest
-            mode: none
-          - language: rust
-            runner: ubuntu-latest
-            mode: none
-          - language: go
-            runner: ubuntu-latest
-            mode: autobuild
-          - language: java-kotlin
-            runner: ubuntu-latest
-            mode: manual
-          # Swift/mobile is intentionally not analyzed here: the Pages/native
-          # product is exercised on Linux runners, and the macOS XCTest harness
-          # is not part of this CodeQL gate.
-        # The repository's only C/C++ file is the generated Swift FFI header;
-        # there is no independent C/C++ program for autobuild to compile.
-    env:
-      CODEQL_EXTRACTOR_GO_OPTION_EXTRACT_TESTS: 'true'
-      CARGO_BUILD_JOBS: '2'
+      pull-requests: read
+      security-events: read
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        if: matrix.language == 'go'
-        with:
-          go-version-file: scripts/test/live-turn/go.mod
-          cache-dependency-path: scripts/test/live-turn/go.sum
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-        if: matrix.language == 'rust' || matrix.language == 'java-kotlin'
-        with:
-          toolchain: 1.88.0
-          targets: ${{ matrix.language == 'java-kotlin' && 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android' || '' }}
-      - name: Prepare Android SDK and pinned Gradle
-        if: matrix.language == 'java-kotlin'
+      - name: Observe PR merge readiness and guarded main CodeQL count
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "ndk;28.0.13004108"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.13004108" >> "$GITHUB_ENV"
-          curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.13-bin.zip -o "$RUNNER_TEMP/gradle.zip"
-          echo "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78  $RUNNER_TEMP/gradle.zip" | sha256sum --check
-          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/gradle-8.13/bin" >> "$GITHUB_PATH"
-          cargo install cargo-ndk --version 4.1.2 --locked
-      - name: Build Android native libraries
-        if: matrix.language == 'java-kotlin'
-        run: apps/android/scripts/build-core.sh android
-      - name: Initialize analysis
-        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.mode }}
-          config-file: ./.github/codeql/codeql-config.yml
-          queries: security-extended
-      - name: Build Go modules and standalone tools
-        if: matrix.language == 'go'
-        uses: github/codeql-action/autobuild@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-      - name: Compile Android production and test Kotlin
-        if: matrix.language == 'java-kotlin'
-        run: |
-          gradle --no-daemon --no-build-cache --rerun-tasks --max-workers=2 \
-            -p apps/android/android -Pkotlin.compiler.execution.strategy=in-process \
-            :app:compileDebugKotlin :app:compileDebugUnitTestKotlin \
-            -PopensesameWalletBackendUrl=https://identity.example
-      - name: Analyze
-        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-        with:
-          category: /language:${{ matrix.language }}
-          output: ${{ runner.temp }}/codeql-results
-      - name: Keep SARIF for review
+          python3 - <<'PY'
+          import datetime, json, os, pathlib, subprocess
+          repo = "Tyler-R-Kendrick/OpenSesame"
+          pr_number = 2149
+          expected_head = "af6d468773d7564bd523601c402e92f1eb8f6308"
+          expected_tree = "d21faf8e82ea4ef4aba2be065afefb639f773bf3"
+          output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "final-main-readiness"
+          output.mkdir()
+          report = {
+              "repository": repo, "pull_request": pr_number,
+              "expected_head": expected_head, "expected_tree": expected_tree,
+              "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "state": "not_verified", "verified": False,
+              "codeql": {"status": "not_checked", "open_count": None},
+              "dependabot": {"status": "permission_unavailable", "open_count": None,
+                             "reason": "Existing workflow token previously returned HTTP 403; this job makes no Dependabot zero claim."},
+              "scope": "Read-only dashboard observation; CodeQL scan freshness, merge approval and global CI gates are not verified by this job.",
+              "analysis_freshness": "not_verified_by_this_job"
+          }
+          def api(endpoint):
+              result = subprocess.run(["gh", "api", "--method", "GET", endpoint], text=True, capture_output=True)
+              if result.returncode:
+                  raise RuntimeError(f"GET {endpoint} failed: {result.stderr.strip()}")
+              return json.loads(result.stdout)
+          def checked_pr():
+              pr = api(f"repos/{repo}/pulls/{pr_number}")
+              if (pr["number"] != pr_number or pr["head"]["sha"] != expected_head or
+                  pr["head"]["repo"]["full_name"] != repo or pr["base"]["ref"] != "main" or
+                  pr["base"]["repo"]["full_name"] != repo):
+                  raise RuntimeError("PR identity, source head or base differs from the independently reviewed snapshot")
+              return pr
+          def checked_main(pr):
+              if not pr["merged"] or not pr.get("merge_commit_sha"):
+                  raise RuntimeError("PR is not merged; final-main verification refused")
+              main = api(f"repos/{repo}/git/ref/heads/main")["object"]["sha"]
+              if main != pr["merge_commit_sha"]:
+                  raise RuntimeError("Current main is not the PR merge commit")
+              tree = api(f"repos/{repo}/git/commits/{main}")["tree"]["sha"]
+              if tree != expected_tree:
+                  raise RuntimeError("Main tree differs from the reviewed PR head tree")
+              return main
+          def codeql_alerts():
+              alerts = []
+              for page in range(1, 1001):
+                  batch = api(f"repos/{repo}/code-scanning/alerts?state=open&ref=refs%2Fheads%2Fmain&tool_name=CodeQL&per_page=100&page={page}")
+                  if not isinstance(batch, list):
+                      raise RuntimeError("Expected a paginated alert list")
+                  if any(a["tool"]["name"] != "CodeQL" or a["state"] != "open" for a in batch):
+                      raise RuntimeError("Alert response differs from the requested CodeQL/open scope")
+                  alerts.extend(batch)
+                  if len(batch) < 100:
+                      return alerts
+              raise RuntimeError("Pagination bound exceeded; incomplete count refused")
+          failure = None
+          try:
+              source_tree = api(f"repos/{repo}/git/commits/{expected_head}")["tree"]["sha"]
+              if source_tree != expected_tree:
+                  raise RuntimeError("Immutable source commit tree does not match the recorded tree")
+              pr = checked_pr()
+              if not pr["merged"]:
+                  if pr["state"] != "open":
+                      raise RuntimeError("PR closed without merging; readiness cannot proceed")
+                  report["state"] = "awaiting_merge"
+              else:
+                  main = checked_main(pr)
+                  alerts = codeql_alerts()
+                  if checked_main(checked_pr()) != main:
+                      raise RuntimeError("Main changed during the paginated dashboard read")
+                  rows = [{"number": a["number"], "rule": a["rule"]["id"],
+                           "severity": a["rule"].get("security_severity_level"), "url": a["html_url"],
+                           "most_recent_instance": {"ref": a["most_recent_instance"]["ref"],
+                               "path": a["most_recent_instance"]["location"]["path"],
+                               "line": a["most_recent_instance"]["location"].get("start_line")}}
+                          for a in alerts]
+                  report.update(main_sha=main, state="dashboard_zero" if not rows else "open_findings", verified=not rows)
+                  report["codeql"] = {"status": "ok", "ref": "refs/heads/main", "open_count": len(rows), "alerts": rows}
+                  if rows:
+                      failure = "Main has open CodeQL findings; zero is not verified"
+          except Exception as error:
+              failure = str(error)
+              report.update(state="verification_error", verified=False, error=failure)
+              report["codeql"] = {"status": "not_verified", "open_count": None}
+          (output / "readiness.json").write_text(json.dumps(report, indent=2) + "\n")
+          print(json.dumps(report, indent=2), flush=True)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Read-only dashboard readiness: **{report['state']}**.\n\n")
+              summary.write(f"Main CodeQL open count: {report['codeql']['open_count']}. Dependabot count: unknown (permission unavailable).\n\n")
+              summary.write("This is not a global CI gate, a merge approval, or evidence of zero before merge.\n")
+          if failure:
+              raise SystemExit(failure)
+          PY
+      - name: Keep provisional or verified read-only report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: codeql-sarif-${{ matrix.language }}
-          path: ${{ runner.temp }}/codeql-results
-          if-no-files-found: warn
+          name: final-main-codeql-readiness
+          path: ${{ runner.temp }}/final-main-readiness/readiness.json
+          if-no-files-found: error
+          retention-days: 7
