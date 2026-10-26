@@ -97,7 +97,8 @@ async function topicOf(link) {
 
 export async function direct(browser, owner) {
   setStep("direct");
-  await setRoutes(owner.page, { addresses: await thisMachine() });
+  const addresses = await thisMachine();
+  await setRoutes(owner.page, { addresses });
   const { panel, code, link } = await startSession(owner.page);
   check(
     !/\.[\w-]{87}\.[\w-]{43}\./.test(link),
@@ -131,7 +132,8 @@ export async function direct(browser, owner) {
   if (afterJoinerConnects) await afterJoinerConnects(joiner);
   await opensSharedItems(joiner.page);
   // What a browser put in a description itself is its own doing; what the
-  // app sealed beside it must be loopback (live-sdp-privacy.mjs).
+  // app sealed beside it must be loopback or an explicitly named route
+  // accepted above (live-sdp-privacy.mjs).
   const own = new Set([
     ...(await gatheredHosts(owner.page)),
     ...(await gatheredHosts(joiner.page)),
@@ -140,7 +142,10 @@ export async function direct(browser, owner) {
     ["owner", owner.page],
     ["joiner", joiner.page],
   ]) {
-    await assertSameMachineSdpPrivacy(page, who, { own });
+    await assertSameMachineSdpPrivacy(page, who, {
+      own,
+      named: new Set(addresses),
+    });
   }
   await joiner.page
     .getByRole("button", { name: "Reveal GitHub Value" })

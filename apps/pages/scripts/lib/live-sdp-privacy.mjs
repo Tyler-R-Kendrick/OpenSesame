@@ -1,14 +1,14 @@
 /**
  * What a sealed description of a same-machine pair may carry (D3): the app
- * seals loopback hints and never a private LAN address a remote peer could
- * dial, so the description a page holds of the other side names `127.0.0.1`
- * or `::1` (or an mDNS name) and no 10/8, 172.16/12 or 192.168/16 literal.
+ * seals loopback hints. Private LAN literals are permitted only when the
+ * browsers gathered them themselves, or the owner explicitly named those
+ * exact routes and the joiner consented. Other LAN hosts remain refused.
  *
  * A browser hiding its host addresses (the shipped default) puts none in a
  * description, so any such literal is the app's. A walk that shows them in
  * the clear (`live-engines.mjs`, because nothing on a runner resolves an mDNS
  * name) puts its own there: a literal is excused only where a browser of the
- * walk gathered it (`own`), so one the app added still fails. A runner's
+ * walk gathered it (`own`), or consent named it (`named`). A runner's
  * address is private; a sandbox's may not be (192.0.2.0/24), which makes a
  * check on the address alone pass where a runner would fail it.
  */
@@ -36,15 +36,21 @@ const isLoopback = (host) => host === "127.0.0.1" || host === "::1";
  * where none. A peer whose descriptions are unreadable is skipped: it is a
  * closed connection of an earlier pair, checked in its own pair. `own` is the
  * set of host addresses the walk's browsers gathered themselves, which a
- * description may carry.
+ * description may carry. `named` holds only routes explicitly selected and
+ * accepted through the joiner's address-consent form.
  */
-export function sameMachineSdpFault(peers, who, own = new Set()) {
+export function sameMachineSdpFault(
+  peers,
+  who,
+  own = new Set(),
+  named = new Set(),
+) {
   let loopbackSealed = false;
   for (const peer of peers) {
     if (!peer.remote || !peer.local) continue;
     const remoteHosts = peer.remote.map(hostFromCandidateLine);
     const lan = remoteHosts.find(
-      (host) => isPrivateLanHost(host) && !own.has(host),
+      (host) => isPrivateLanHost(host) && !own.has(host) && !named.has(host),
     );
     if (lan)
       return `direct: ${who}'s remote description must not carry a private LAN IP (${lan})`;
@@ -92,7 +98,11 @@ export async function gatheredHosts(page) {
 }
 
 /** Read every peer connection `page` made and say if it breaks that. */
-export async function assertSameMachineSdpPrivacy(page, who, { own } = {}) {
-  const fault = sameMachineSdpFault(await candidatesOf(page), who, own);
+export async function assertSameMachineSdpPrivacy(
+  page,
+  who,
+  { own, named } = {},
+) {
+  const fault = sameMachineSdpFault(await candidatesOf(page), who, own, named);
   if (fault) throw new Error(fault);
 }

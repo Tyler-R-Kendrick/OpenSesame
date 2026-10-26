@@ -260,7 +260,7 @@ export async function joinerAsks(
   if (peerTrust) {
     await page.getByLabel("Peer trust signal", { exact: true }).fill(peerTrust);
   }
-  const choice = page.getByRole("checkbox", { name: /^Through / });
+  const choice = page.getByRole("checkbox", { name: /^Pair through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
   const copy = page.getByRole("button", { name: "Copy your join request" });
@@ -319,9 +319,9 @@ async function confirmSessionSas(panel, name) {
 
 /**
  * The owner pastes a request by hand and lets the person in. An open session
- * still auto-admits a request with no peer block (`admit: false`). A request
- * that shows a session SAS waits for "Yes, they match" either way. The reply
- * code.
+ * auto-admits after the asking seat is emitted (`admit: false`), so its
+ * transient comparison key is not a manual admission step. Invite sessions
+ * compare the displayed SAS before pressing "Yes, they match". The reply code.
  */
 export async function ownerAdmitsByHand(
   page,
@@ -346,12 +346,6 @@ export async function ownerAdmitsByHand(
       await match.click();
     } else {
       await letIn.click();
-    }
-  } else {
-    await match.or(copy).first().waitFor({ timeout: 20_000 });
-    if (await match.isVisible()) {
-      onSas(await confirmSessionSas(panel, name));
-      await match.click();
     }
   }
   await copy.waitFor({ timeout: 20_000 });
