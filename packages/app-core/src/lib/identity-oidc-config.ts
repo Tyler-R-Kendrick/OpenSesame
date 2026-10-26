@@ -40,8 +40,51 @@ export function assertOidcOrganization(value: OidcOrganization): void {
     throw new Error("Invalid configured OIDC organization binding");
 }
 
+export type OidcTokenAuthentication =
+  | "auto"
+  | "none"
+  | "client_secret_basic"
+  | "client_secret_post";
+export type OidcEndpointOverrides = Readonly<{
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
+  jwksUri: string;
+}>;
+export type OidcClientOptions = Readonly<{
+  oidcAuthorizationEndpoint?: string;
+  oidcTokenEndpoint?: string;
+  jwksUri?: string;
+  oidcTokenAuthentication?: OidcTokenAuthentication;
+}>;
+export function configuredOidcClientOptions(draft: OidcClientOptions) {
+  return Object.freeze({
+    endpoints: Object.freeze({
+      authorizationEndpoint: draft.oidcAuthorizationEndpoint ?? "",
+      tokenEndpoint: draft.oidcTokenEndpoint ?? "",
+      jwksUri: draft.jwksUri ?? "",
+    }),
+    authentication: draft.oidcTokenAuthentication ?? "auto",
+  });
+}
+
+export type ConfiguredOidc = Readonly<{
+  issuer: string;
+  clientId: string;
+  clientSecret: string;
+  scope: string;
+  organization: OidcOrganization | null;
+  endpoints?: OidcEndpointOverrides;
+  authentication?: OidcTokenAuthentication;
+}>;
+
 export const OIDC_NATIVE_FIELDS = {
   oidcClientType: z.enum(["public", "confidential"]).default("public"),
+  oidcTransport: z.enum(["auto", "native"]).default("auto"),
+  oidcAuthorizationEndpoint: z.string().max(2048).default(""),
+  oidcTokenEndpoint: z.string().max(2048).default(""),
+  oidcTokenAuthentication: z
+    .enum(["auto", "none", "client_secret_basic", "client_secret_post"])
+    .default("auto"),
   oidcOrganizationParameter: z.string().max(64).default("organization"),
   oidcOrganizationClaim: z.string().max(128).default("org_id"),
 };
@@ -67,12 +110,21 @@ export function isNativeOidcConfiguration(
     clientSecret: string;
     oidcClientType?: "public" | "confidential";
     organizationId: string;
+    oidcTransport?: "auto" | "native";
+    oidcAuthorizationEndpoint?: string;
+    oidcTokenEndpoint?: string;
+    oidcTokenAuthentication?: OidcTokenAuthentication;
   }>,
 ): boolean {
   return (
     draft.protocol === "oidc" &&
     Boolean(
-      draft.oidcClientType === "confidential" ||
+      draft.oidcTransport === "native" ||
+        draft.oidcAuthorizationEndpoint ||
+        draft.oidcTokenEndpoint ||
+        (draft.oidcTokenAuthentication &&
+          draft.oidcTokenAuthentication !== "auto") ||
+        draft.oidcClientType === "confidential" ||
         draft.clientSecret ||
         draft.organizationId,
     )

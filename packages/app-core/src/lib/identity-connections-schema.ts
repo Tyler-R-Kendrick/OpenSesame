@@ -82,6 +82,8 @@ export function normalizeIdentityConnectionDraft(
     "brokerUrl",
     "organizationId",
     "organizationSlug",
+    "oidcAuthorizationEndpoint",
+    "oidcTokenEndpoint",
     "oidcOrganizationParameter",
     "oidcOrganizationClaim",
     "samlMetadataUrl",
