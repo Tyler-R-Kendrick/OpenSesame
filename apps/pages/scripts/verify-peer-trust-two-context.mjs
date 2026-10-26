@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { joinedMarks, opensSharedItems } from "./lib/live-joined.mjs";
+import { allowLoopbackDevelopment } from "./lib/local-network-permission.mjs";
 /**
  * Peer-trust peering on the static dist, two browser contexts (journeys-2).
  *
@@ -11,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { thisMachine } from "./lib/live-join-addresses.mjs";
 import {
   WATCH_RTC,
   admitControl,
@@ -18,9 +21,12 @@ import {
   joinerAsks,
   joinerConnects,
   openLive,
+  openPeerTrustSignal,
   ownerAdmitsByHand,
   ownerEnters,
   peerStates,
+  readJoinerSas,
+  setRoutes,
   startSession,
 } from "./lib/live-join-walk.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
@@ -67,12 +73,7 @@ async function device(browser) {
   await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
     origin: ORIGIN,
   });
-  const cdp = await made.context.newCDPSession(made.page);
-  await cdp.send("Browser.setPermission", {
-    permission: { name: "local-network-access" },
-    setting: "granted",
-    origin: ORIGIN,
-  });
+  await allowLoopbackDevelopment(made.page, ORIGIN);
   await made.context.addInitScript(WATCH_RTC);
   return made;
 }
@@ -119,12 +120,14 @@ async function beginOwner(browser) {
     secret: SECRET,
   });
   await openLive(owner.page);
+  await setRoutes(owner.page, { addresses: await thisMachine() });
   const started = await startSession(owner.page);
-  const copyKey = started.panel.getByRole("button", {
+  const exportPanel = await openPeerTrustSignal(started.panel);
+  const copyKey = exportPanel.getByRole("button", {
     name: "Copy peer trust signal",
   });
   await copyKey.waitFor({ timeout: 20_000 });
-  const sasLoc = started.panel.locator(".live-sas");
+  const sasLoc = exportPanel.locator(".live-sas");
   await sasLoc.waitFor({ timeout: 20_000 });
   const sas = (await sasLoc.innerText()).trim();
   const signal = await copyFrom(owner.page, copyKey);
@@ -146,30 +149,31 @@ async function verifiedJoin(browser, session) {
     name: VERIFIED_NAME,
     peerTrust: session.signal,
   });
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
+  const joinerSas = await readJoinerSas(joiner.page);
   check(
     (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
     "verified join is not marked unverified",
   );
   // ownerAdmitsByHand pastes the request and reads the guest-row SAS.
   // Reading it earlier waits on a row that does not exist yet.
+  let ownerSas = "";
   const reply = await ownerAdmitsByHand(
     session.page,
     session.panel,
     request,
     VERIFIED_NAME,
+    {
+      onSas: (sas) => {
+        ownerSas = sas;
+      },
+    },
   );
-  const ownerSas = (
-    await session.panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
   check(
     SAS.test(joinerSas) && joinerSas === ownerSas,
     "verified join shows the same session SAS on both sides",
   );
   await joinerConnects(joiner.page, reply);
-  await joiner.page
-    .getByRole("img", { name: "Joined Team" })
-    .waitFor({ timeout: 45_000 });
+  await opensSharedItems(joiner.page);
   check(true, "copied peer trust signal joins");
   await shot(joiner.page, "verified-join");
   await joiner.context.close();
@@ -202,7 +206,7 @@ async function crossedSignal(browser, source, target) {
       `crossed signal refused before a request (${words})`,
     );
     check(
-      (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+      (await joinedMarks(joiner.page).count()) === 0,
       "crossed signal does not join",
     );
     await shot(joiner.page, "mitm-joiner");
@@ -214,7 +218,7 @@ async function crossedSignal(browser, source, target) {
     .getByRole("img", { name: "Not a request code" })
     .waitFor({ timeout: 20_000 });
   check(
-    (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+    (await joinedMarks(joiner.page).count()) === 0,
     "a signal from the first session does not join the second",
   );
   await shot(target.page, "mitm-owner");

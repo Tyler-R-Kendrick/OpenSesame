@@ -6,6 +6,7 @@
  * check pass vacuously.
  */
 import { expect } from "@playwright/test";
+import { opensSharedItems } from "./live-joined.mjs";
 
 export const SHARED_ITEM = { name: "GitHub", field: "Value" };
 export const PRIVATE_ITEM = { name: "Payroll", field: "Value" };
@@ -39,14 +40,11 @@ export async function itemAbsent(page, item) {
  * delivered the catalog fails here, with this message, not as a click timeout.
  */
 export async function joinerSeesCatalog(page, item = SHARED_ITEM) {
-  await page
-    .getByRole("img", { name: "Joined Team" })
-    .waitFor({ timeout: 45_000 })
-    .catch((error) => {
-      throw new Error(
-        `joiner never reached "Joined Team" after Connect: ${error instanceof Error ? error.message : error}`,
-      );
-    });
+  await opensSharedItems(page).catch((error) => {
+    throw new Error(
+      `joiner never reached "Joined Team" after Connect: ${error instanceof Error ? error.message : error}`,
+    );
+  });
   await expect(
     revealButton(page, item),
     `joiner joined but the catalog never showed "${revealName(item)}"`,

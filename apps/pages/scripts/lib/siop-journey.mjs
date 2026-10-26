@@ -174,6 +174,18 @@ export async function approveSiopConsentWithSocial(
   await expect(
     page.getByLabel("Self-issued sign-in status", { exact: true }),
   ).toContainText(`Signed in with ${provider}`);
+  await expect(
+    page.getByRole("button", {
+      name: "Allow Self-Issued sign-in",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Verify with passkey", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Self-issued sign-in status", { exact: true }),
+  ).toContainText("Passkey verified.");
   const allow = page.getByRole("button", {
     name: "Allow Self-Issued sign-in",
     exact: true,

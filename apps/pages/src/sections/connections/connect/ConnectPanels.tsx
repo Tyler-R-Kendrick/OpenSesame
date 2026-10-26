@@ -129,14 +129,31 @@ function LocalConnectPanels(props: Props) {
       />
     );
   if (!plan || plan.refused) return null;
-  if (provider.id === "linear" && isSelfHostedConnector(connection))
-    return <LinearLocalPanels {...props} plan={plan} />;
   if (provider.id !== "linear") return <NativeConnectorPanels {...props} />;
-  return <LinearMcpPanels {...props} plan={plan} />;
+  return <LinearProviderPanels {...props} plan={plan} />;
+}
+
+type LinearPending = ReturnType<typeof useNativeAuthorization>;
+
+/** One consent owner survives the Advanced form's first durable connection. */
+function LinearProviderPanels(props: Props & { plan: ConnectPlan }) {
+  const pending = useNativeAuthorization(
+    props.plan.id,
+    props.connection?.connectionId,
+  );
+  return isSelfHostedConnector(props.connection) ? (
+    <LinearLocalPanelContent {...props} pending={pending} />
+  ) : (
+    <LinearMcpPanels {...props} pending={pending} />
+  );
 }
 
 /** Linear's default road is Linear's MCP authorization; GraphQL is an explicit fallback. */
-function LinearMcpPanels({ plan, ...props }: Props & { plan: ConnectPlan }) {
+function LinearMcpPanels({
+  plan,
+  pending,
+  ...props
+}: Props & { plan: ConnectPlan; pending: LinearPending }) {
   const [advanced, setAdvanced] = useState(false);
   const { connection, onFlash, onChanged } = props;
   return (
@@ -164,6 +181,9 @@ function LinearMcpPanels({ plan, ...props }: Props & { plan: ConnectPlan }) {
                     plan={plan}
                     onFlash={onFlash}
                     onSaved={onChanged}
+                    onAuthorization={pending.onAuthorization}
+                    authorization={pending.authorization}
+                    captureUiCurrent={pending.captureUiCurrent}
                   />
                 </div>
               ) : null}
@@ -175,13 +195,21 @@ function LinearMcpPanels({ plan, ...props }: Props & { plan: ConnectPlan }) {
   );
 }
 
-export function LinearLocalPanels({
+export function LinearLocalPanels(props: Props & { plan: ConnectPlan }) {
+  const pending = useNativeAuthorization(
+    props.plan.id,
+    props.connection?.connectionId,
+  );
+  return <LinearLocalPanelContent {...props} pending={pending} />;
+}
+
+function LinearLocalPanelContent({
   connection,
   plan,
   onFlash,
   onChanged,
-}: Props & { plan: ConnectPlan }) {
-  const pending = useNativeAuthorization(plan.id, connection?.connectionId);
+  pending,
+}: Props & { plan: ConnectPlan; pending: LinearPending }) {
   const local =
     connection?.providerId === "linear" && isSelfHostedConnector(connection)
       ? connection

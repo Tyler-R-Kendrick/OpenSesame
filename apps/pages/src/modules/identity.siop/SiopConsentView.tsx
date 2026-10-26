@@ -79,7 +79,7 @@ function consentStatus(state: SiopConsentState): string {
   return finished
     ? "Finishing sign-in…"
     : socialProof
-      ? `Signed in with ${socialProof.label}.`
+      ? `Signed in with ${socialProof.label}. ${session ? "Passkey verified." : "Verify the selected person with a passkey."}`
       : session
         ? "Passkey verified."
         : "Verify to continue.";
@@ -96,7 +96,6 @@ export function SiopConsentView({
 }) {
   const {
     finished,
-    socialProof,
     session,
     busy,
     application,
@@ -165,7 +164,7 @@ export function SiopConsentView({
                 />
               ) : null}
               <SiopCommit
-                signedIn={Boolean(session || socialProof)}
+                signedIn={Boolean(session)}
                 busy={busy || socialBusy}
                 canVerify={Boolean(person)}
                 onAllow={actions.allow}

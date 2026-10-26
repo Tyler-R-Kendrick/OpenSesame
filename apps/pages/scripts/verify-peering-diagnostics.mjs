@@ -84,8 +84,6 @@ async function configs(page) {
   return raw.map((entry) => JSON.parse(entry));
 }
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
-
 bindWalk({
   check,
   setStep,
@@ -93,7 +91,6 @@ bindWalk({
   device,
   shot,
   configs,
-  joined,
   launch,
   SECRET,
   ORIGIN,

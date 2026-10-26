@@ -8,6 +8,31 @@ import {
   secretBackendSdkChunk,
 } from "./capability-lazy-leaves.mjs";
 
+test("keeps the NATS signer with its carrier instead of connector metadata", () => {
+  const file =
+    "/repo/node_modules/.pnpm/tweetnacl@1.0.3/node_modules/tweetnacl/nacl-fast.js";
+  const owner = classifyModule(file, PACKAGE_RULES, { repoRoot: "/repo" });
+  assert.equal(owner.classification, "optional");
+  assert.equal(owner.capability, "sharing.live");
+  assert.equal(lazyLeafChunk(file, owner), "live-nats");
+  assert.equal(lazyLeafChunk(file.replaceAll("/", "\\"), owner), "live-nats");
+  assert.equal(
+    lazyLeafChunk(file, { classification: "shared", capability: null }),
+    undefined,
+  );
+  assert.equal(
+    lazyLeafChunk(file, {
+      classification: "optional",
+      capability: "connectors.external",
+    }),
+    undefined,
+  );
+  assert.equal(
+    lazyLeafChunk("/repo/node_modules/tweetnacl-extra/index.js", owner),
+    undefined,
+  );
+});
+
 test("pins the optional Tailnet pairing leaf without changing ownership of other modules", () => {
   const file =
     "/workspace/packages/app-core/src/lib/tailnet-sync/plugin-pairing.ts";

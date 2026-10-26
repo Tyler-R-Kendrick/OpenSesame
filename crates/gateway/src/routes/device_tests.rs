@@ -322,7 +322,11 @@ async fn authorize_capacity_fence_holds_under_interleaving() {
             _ => panic!("unexpected authorize status {status}"),
         }
     }
-    assert_eq!(created, 32, "old unapproved grants should be evicted");
+    assert_eq!(created, 12, "live pending grants must never be evicted");
+    assert_eq!(fenced, 20);
+    let codes = state.device_codes.lock().unwrap();
+    assert!((0..500).all(|index| codes.contains_key(&format!("fill-{index}"))));
+    drop(codes);
     assert!(created + fenced == 32);
     assert!(state.device_codes.lock().unwrap().len() <= MAX_PENDING_DEVICE_CODES);
 }

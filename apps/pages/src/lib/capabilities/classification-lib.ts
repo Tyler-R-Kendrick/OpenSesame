@@ -108,6 +108,7 @@ const LOCAL_IAM_FILES = [
   "local-pending-codes",
   "local-iam-lock-resets",
   "local-issuer-channel",
+  "local-pairwise-subject",
   "local-request",
   "local-request-authorization",
   "local-request-issuance",

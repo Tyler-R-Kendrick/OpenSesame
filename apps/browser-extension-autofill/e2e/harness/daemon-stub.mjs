@@ -13,6 +13,7 @@
 import http from "node:http";
 import * as z from "zod";
 import { createAdmission, refuse, reply } from "./daemon-admission.mjs";
+import { createOperatorApproval } from "./operator-approval.mjs";
 
 /** The port `ENDPOINTS.daemon.default` (packages/os-domain) gives the extension. */
 export const DAEMON_PORT = 18790;
@@ -48,42 +49,64 @@ async function readJson(req) {
 
 const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.once("error", (cause) =>
+      reject(
+        new Error(
+          `the stub daemon needs 127.0.0.1:${DAEMON_PORT}, which the extension is built to call (${cause.code})`,
+        ),
+      ),
+    );
+    server.listen(DAEMON_PORT, "127.0.0.1", resolve);
+  });
+}
+
 /**
  * @param {{ entries: { name: string, url: string, login: string, secret: string }[] }} options
  */
-export async function startDaemonStub({ entries }) {
+export async function startDaemonStub({ entries, requireApproval = false }) {
   const state = {
     /** The `browser-autofill` plugin switch. Off answers as a path never served. */
     pluginActive: true,
     /** Milliseconds a value-bearing answer is held, to let a page change under it. */
     fillDelayMs: 0,
+    // Guard/origin suites preapprove their fixture; approval.e2e.mjs walks
+    // the independent operator channel explicitly with this switched on.
+    requireApproval,
   };
   const admission = createAdmission();
   const log = [];
   let inflight = 0;
+  const approvals = createOperatorApproval(() => state.requireApproval);
 
   // An entry declares a URL, which may carry a path; its origin is what counts.
   const declaring = (origin) =>
     entries.filter((entry) => new URL(entry.url).origin === origin);
 
   async function match(req, res) {
-    if (!admission.pairedCaller(req, res)) return null;
+    const who = admission.pairedCaller(req, res);
+    if (!who) return null;
     const asked = matchBody.safeParse(await readJson(req));
     if (!asked.success) return refuse(res, 400, "invalid_request");
     const origin = canonicalOrigin(asked.data.origin);
     if (!origin) return refuse(res, 400, "invalid_origin");
+    if (!approvals.authorized(who, res, { origin })) return null;
     const references = declaring(origin).map((entry) => entry.name);
     reply(res, 200, { references, truncated: false });
     return null;
   }
 
   async function fill(req, res) {
-    if (!admission.pairedCaller(req, res)) return null;
+    const who = admission.pairedCaller(req, res);
+    if (!who) return null;
     const asked = fillBody.safeParse(await readJson(req));
     if (!asked.success) return refuse(res, 400, "invalid_request");
     const { reference, field } = asked.data;
     const origin = canonicalOrigin(asked.data.origin);
     if (!origin) return refuse(res, 400, "invalid_origin");
+    if (!approvals.authorized(who, res, { origin, reference, field }))
+      return null;
     // A reference for another site answers exactly like one that is absent.
     const entry = declaring(origin).find((one) => one.name === reference);
     if (!entry) return refuse(res, 404, "no_match");
@@ -118,22 +141,15 @@ export async function startDaemonStub({ entries }) {
       ...seen,
     });
   });
-  await new Promise((resolve, reject) => {
-    server.once("error", (cause) =>
-      reject(
-        new Error(
-          `the stub daemon needs 127.0.0.1:${DAEMON_PORT}, which the extension is built to call (${cause.code})`,
-        ),
-      ),
-    );
-    server.listen(DAEMON_PORT, "127.0.0.1", resolve);
-  });
+  await listen(server);
 
   return {
     state,
     log,
     approve: admission.approve,
     isPaired: admission.isPaired,
+    requests: approvals.requests,
+    authorize: approvals.authorize,
     /** Value requests the daemon is holding for `fillDelayMs`. */
     pendingFills: () => inflight,
     /** Requests that reached the value route, with the facts it decided on. */

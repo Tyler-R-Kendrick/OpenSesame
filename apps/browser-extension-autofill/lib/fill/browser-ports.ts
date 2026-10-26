@@ -8,12 +8,17 @@
  *   `executeScript` only as a fallback into a tab that loaded before its site
  *   was switched on — which the site's own host grant permits.
  * - Messages to the guard go to frame 0 only.
- * - The pairing token lives in `storage.local`; a person's per-origin choice
- *   of entry lives in `storage.session` and is a reference, never a value.
+ * - The pairing token and a person's per-origin choice of entry live in
+ *   memory-backed `storage.session`; neither bearer nor value reaches disk.
  */
 import { browser } from "wxt/browser";
 import { type SitePorts, createSiteRegistry } from "../sites/sites";
-import { type KeyValueStore, createDaemonClient, pairingToken } from "./daemon";
+import {
+  type KeyValueStore,
+  TOKEN_KEY,
+  createDaemonClient,
+  sessionPairingToken,
+} from "./daemon";
 import type { FillPorts, RuntimeSender } from "./ports";
 import { GUARD_SCRIPT, type Outcome } from "./protocol";
 import { guardReply, storedString } from "./wire";
@@ -64,11 +69,15 @@ export function browserSitePorts(): SitePorts {
 }
 
 export function browserFillPorts(): FillPorts {
-  const local = keyValue(browser.storage.local);
   const session = browser.storage.session
     ? keyValue(browser.storage.session)
     : memoryStore();
   const random = (bytes: Uint8Array) => crypto.getRandomValues(bytes);
+  const token = sessionPairingToken(
+    session,
+    () => browser.storage.local.remove(TOKEN_KEY),
+    random,
+  );
   return {
     ownId: browser.runtime.id,
     ownBase: browser.runtime.getURL("/"),
@@ -92,7 +101,7 @@ export function browserFillPorts(): FillPorts {
       return reply.success ? reply.data : { outcome: "guard_unavailable" };
     },
     sites: createSiteRegistry(browserSitePorts()),
-    daemon: createDaemonClient({ token: () => pairingToken(local, random) }),
+    daemon: createDaemonClient({ token }),
     choices: session,
     now: () => Date.now(),
     nonce: () => crypto.randomUUID(),

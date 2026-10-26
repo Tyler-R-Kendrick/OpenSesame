@@ -18,11 +18,43 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
+  verify:
+    name: Verify publication revision
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - name: Check main or a release tag on main
+        id: check
+        env:
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_REF" = refs/heads/main ]; then
+            sha="$(scripts/release/tag-check.sh commit "$EVENT_SHA")"
+            git merge-base --is-ancestor "$sha" refs/remotes/origin/main
+          else
+            sha="$(scripts/release/tag-check.sh verify "$TAG" "$EVENT_SHA")"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
   ghcr:
     name: GHCR opensesame
+    needs: verify
+    environment: container-release
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -32,12 +64,13 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
+          ref: ${{ needs.verify.outputs.sha }}
       - name: Log in to GHCR
         uses: docker/login-action@5e57cdca8bd33bd31c8f2a4eabd65eb91159b82d # v3.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_PUBLISH_TOKEN }}
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@8e5442c4ef9f88e8b696d8d65b0d1d6933ef0551 # v5.5.1

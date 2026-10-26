@@ -1,5 +1,11 @@
+import { type Named, name } from "@gdp-ts/core";
 import type { ByoUpstream, Organization } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
+import { type OrganizationId, organizationId } from "../lib/ids.js";
+import {
+  type OrganizationIssuerAdmission,
+  organizationIssuerAdmission,
+} from "../proofs/organization-issuer-admission.js";
 import {
   type ProviderDescriptor,
   normalizeIssuer,
@@ -69,11 +75,39 @@ async function resolveOrganizationIssuer(
 ): Promise<TrustResolution | undefined> {
   const organization = await ctx.stores.organizations.findByIssuer(issuer);
   if (!organization || !organizationSignsIn(organization)) return undefined;
+  return name(
+    organizationId(organization.id),
+    { ssoIssuer: issuer },
+    (org, configuration) => {
+      const verdict = organizationIssuerAdmission(
+        ctx.config,
+        org,
+        configuration,
+      );
+      return verdict.ok
+        ? admittedOrganizationTrust(
+            org,
+            configuration,
+            verdict.proof,
+            organization,
+          )
+        : undefined;
+    },
+  );
+}
+
+function admittedOrganizationTrust<O, C>(
+  org: Named<O, OrganizationId>,
+  configuration: Named<C, { ssoIssuer: string }>,
+  _proof: OrganizationIssuerAdmission<O, C>,
+  organization: Organization,
+): TrustResolution {
+  const issuer = configuration.value.ssoIssuer;
   const method =
     normalizeIssuer(organization.ssoIssuer ?? "") === issuer ? "sso" : "saml";
   return {
     source: "org",
-    organizationId: organization.id,
+    organizationId: org.value,
     issuer,
     method,
     ...(organization.ssoClientId

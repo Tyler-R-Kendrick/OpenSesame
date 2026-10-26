@@ -234,7 +234,8 @@ facade remains unimplemented ([ADR 0116](../adr/0116-browser-native-siop-v2.md)
 
 The popup cannot simultaneously claim cross-origin isolation. Its message port
 is not operator authority, and it exposes no arbitrary fetch, vault or Host
-operation. A public subject may correlate the same local person across admitted
+operation. Browser-local subjects are pairwise per approved application;
+profile claims or public agent keys may still permit correlation across
 applications. Same-origin malicious scripts can act inside the unlocked vault;
 neither a path prefix nor a MessagePort cures that trust boundary. Use a dedicated
 trusted issuer origin for real deployments; a shared-origin Pages demo is not

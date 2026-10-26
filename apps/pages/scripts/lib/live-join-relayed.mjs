@@ -1,3 +1,4 @@
+import { joinedSession, opensSharedItems } from "./live-joined.mjs";
 /**
  * The relay-only walks verify:live-join takes (ADR 0150 §6): the owner names
  * one TURN server in Routes and turns "Relay only, through TURN" on, a Nostr
@@ -51,7 +52,6 @@ let failures;
 let device;
 let shot;
 let configs;
-let joined;
 let PHONE;
 let TLS;
 
@@ -72,8 +72,7 @@ const JOINER = "Ada Lovelace";
 
 /** The runner's harness and pages, for every walk below. */
 export function bindRelayed(walk) {
-  ({ check, setStep, failures, device, shot, configs, joined, PHONE, TLS } =
-    walk);
+  ({ check, setStep, failures, device, shot, configs, PHONE, TLS } = walk);
 }
 
 /** Both peers were relay-only through `url`, and met relay to relay over `protocol`. */
@@ -155,15 +154,13 @@ async function through(browser, owner, label, hooks) {
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
     if (connects) {
-      await joined(joiner.page).waitFor({ timeout: 45_000 });
+      await opensSharedItems(joiner.page);
       await shot(joiner.page, `${label}-2-joined`);
     } else {
-      const reached = await joined(joiner.page)
-        .waitFor({ timeout: NO_ROUTE_MS })
-        .then(
-          () => true,
-          () => false,
-        );
+      const reached = await joinedSession(joiner.page, NO_ROUTE_MS).then(
+        () => true,
+        () => false,
+      );
       check(!reached, `${label}: the browsers never met`);
       await shot(joiner.page, `${label}-2-not-joined`);
     }

@@ -14,7 +14,8 @@ import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
 import { zodJitless } from "@opensesame/app-core/lib/zod-jitless.js";
 import { shellBuild } from "./shell-build.js";
 
-// Before any schema module loads: zod must not probe for eval under the CSP.
+// The classic browser-schema-config.js script seeds this before the module
+// graph evaluates. Keep this defensive seed for hosts importing boot directly.
 zodJitless();
 
 configureHost(

@@ -35,7 +35,6 @@ import {
 } from "../routes/organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "../routes/projects.js";
 import { provisionedRoleForSubject } from "../routes/scim.js";
-import { serializeKeyed } from "../serialize.js";
 import {
   UnsafeUpstreamError,
   assertPublicUpstreamUrl,
@@ -47,6 +46,8 @@ import {
   ProvisionalMintRefusedError,
   mintProvisionalForInteraction,
 } from "./handlers.js";
+import { SamlAuthError } from "./saml-errors.js";
+import { claimSamlEntityId, issuerForResult } from "./saml-issuer-claim.js";
 
 /**
  * Native SAML 2.0 service provider (ADR 0056, C14/D9/D10).
@@ -132,22 +133,7 @@ export type SamlAssertionResult = {
   name?: string;
 };
 
-export type SamlAuthErrorCode =
-  | "not_configured"
-  | "metadata_unavailable"
-  | "unknown_request"
-  | "invalid_assertion"
-  | "replayed_assertion";
-
-export class SamlAuthError extends Error {
-  constructor(
-    readonly code: SamlAuthErrorCode,
-    message: string,
-  ) {
-    super(message);
-    this.name = "SamlAuthError";
-  }
-}
+export { SamlAuthError, type SamlAuthErrorCode } from "./saml-errors.js";
 
 /** What a started SP-initiated leg hands back to the route that started it. */
 export type SamlAuthStart = {
@@ -533,55 +519,6 @@ function assertEntity(
 
 function samlOrganizationSignsIn(organization: Organization): boolean {
   return organization.state !== "suspended" && organization.state !== "deleted";
-}
-
-/**
- * One IdP entityID belongs to one tenant.
- *
- * An entityID that is not already recorded on the organization row is adopted
- * on first use, inside the same serialized claim as the uniqueness check. Two
- * tenants configured with the same metadata therefore cannot both accept that
- * IdP's assertions: the first resolves the entityID, writes it to its row, and
- * the second's lookup finds the existing owner and refuses. Without the write,
- * an empty `samlIssuer` would make every assertion look unclaimed forever.
- */
-async function claimSamlEntityId(
-  ctx: AppContext,
-  organizationId: string,
-  entityId: string,
-): Promise<void> {
-  await serializeKeyed(
-    ctx.stores.principalMutations,
-    `saml-entity:${entityId}`,
-    async () => {
-      const owner = await ctx.stores.organizations.findByIssuer(entityId);
-      if (owner && owner.id !== organizationId) {
-        throw new SamlAuthError(
-          "not_configured",
-          "This identity provider belongs to another tenant.",
-        );
-      }
-      const organization = await ctx.stores.organizations.get(organizationId);
-      if (!organization || !samlOrganizationSignsIn(organization)) {
-        throw new SamlAuthError(
-          "not_configured",
-          "No organization on this server accepts that identity provider.",
-        );
-      }
-      if (organization.samlIssuer === entityId) return;
-      if (organization.samlIssuer) {
-        throw new SamlAuthError(
-          "metadata_unavailable",
-          "The organization's SAML metadata does not match its configured entityID.",
-        );
-      }
-      await ctx.stores.organizations.set(organization.id, {
-        ...organization,
-        samlIssuer: entityId,
-        updatedAt: ctx.clock(),
-      });
-    },
-  );
 }
 
 function buildSamlClient(
@@ -1310,31 +1247,6 @@ export async function admitSamlSubject(
     issuer,
     ...(sessionToken !== undefined ? { sessionToken } : undefined),
   };
-}
-
-/**
- * The issuer recorded on a SAML identity row is the IdP's entityID, resolved
- * from the tenant's configuration rather than from the assertion — the row has
- * to name what this deployment trusts, not what the document claimed.
- */
-async function issuerForResult(
-  ctx: AppContext,
-  result: SamlAssertionResult,
-): Promise<string | undefined> {
-  const organization = await ctx.stores.organizations.get(
-    result.organizationId,
-  );
-  if (!organization || !samlOrganizationSignsIn(organization)) {
-    return undefined;
-  }
-  const cfg = samlOrgConfig(organization);
-  if (!cfg) return undefined;
-  if (cfg.idpEntityId.length > 0) return cfg.idpEntityId;
-  try {
-    return (await resolveIdpMetadata(ctx, cfg)).entityId;
-  } catch {
-    return undefined;
-  }
 }
 
 /** IdP-initiated sign-in is worth its own trail entry (D10). */

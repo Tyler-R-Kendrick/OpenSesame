@@ -41,6 +41,7 @@ describe("container build on a pull request", () => {
 });
 
 const auxiliaries = [
+  "autofill-browser.yml",
   "codeql.yml",
   "complete-verify.yml",
   "container-build-pr.yml",

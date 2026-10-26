@@ -18,17 +18,15 @@ use opensesame_storage::bitwarden::{BitwardenAttachment, BitwardenMark, Bitwarde
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
-use super::ciphers::{new_cipher, owned_folder, OUT_OF_DATE};
+use super::ciphers::{new_cipher, owned_folder};
 use super::folders::list_json;
+use super::org_share::{share, share_many};
 use super::vault_view::{membership, render_one, VaultView};
-use super::{attachments, cipher_bulk, ciphers, touch, touch_org};
+use super::{attachments, cipher_bulk, ciphers, touch_org};
 use crate::auth::Authed;
 use crate::error::{ApiError, ApiResult};
 use crate::wire::cipher::{is_enc_string, normalize, parse_cipher_for};
 use crate::BitwardenServer;
-
-/// Bitwarden caps a bulk share at this many ciphers.
-const SHARE_LIMIT: usize = 500;
 
 pub(super) fn routes() -> Router<BitwardenServer> {
     Router::new()
@@ -130,115 +128,6 @@ pub(crate) async fn create(
         .await?;
     touch_org(server, org).await?;
     Ok(Json(render_one(server, &user.id, &cipher.id).await?))
-}
-
-/// Share one of the account's own ciphers into an organization.
-async fn share_one(
-    server: &BitwardenServer,
-    user: &BitwardenUser,
-    view: &VaultView,
-    id: &str,
-    body: Value,
-    collections: &[String],
-) -> ApiResult<String> {
-    let cipher = view
-        .find(id)
-        .filter(|c| c.user_id.as_deref() == Some(user.id.as_str()))
-        .ok_or_else(ApiError::not_found)?;
-    let org = normalize(body.clone())
-        .get("organizationId")
-        .and_then(Value::as_str)
-        .map(str::to_owned)
-        .ok_or_else(|| ApiError::bad_request("The cipher must name an organization."))?;
-    let org_view = view.orgs.get(&org).ok_or_else(ApiError::not_found)?;
-    if collections.is_empty() {
-        return Err(ApiError::bad_request(
-            "You must select at least one collection.",
-        ));
-    }
-    if !org_view.can_write_to(collections) {
-        return Err(no_permission());
-    }
-    let input = parse_cipher_for(body, &user.id, Some(&org))?;
-    if let Some(known) = input.last_known_revision {
-        if (cipher.revision_at - known).num_milliseconds().abs() > 1_000 {
-            return Err(ApiError::bad_request(OUT_OF_DATE));
-        }
-    }
-    let mut shared = cipher.clone();
-    shared.user_id = None;
-    shared.organization_id = Some(org.clone());
-    shared.folder_id = None;
-    shared.favorite = false;
-    shared.cipher_type = input.cipher_type;
-    shared.data = input.data.to_string();
-    shared.revision_at = Utc::now();
-    if !server
-        .db
-        .bitwarden_share_cipher(&user.id, &shared, cipher.revision_at, collections)
-        .await?
-    {
-        return Err(ApiError::bad_request(OUT_OF_DATE));
-    }
-    Ok(org)
-}
-
-/// `PUT /ciphers/{id}/share`: `{cipher, collectionIds}`, the cipher
-/// re-encrypted under the organization key.
-async fn share(
-    State(server): State<BitwardenServer>,
-    Authed { user, .. }: Authed,
-    Path(id): Path<String>,
-    Json(body): Json<Value>,
-) -> ApiResult<Json<Value>> {
-    let mut body = normalize(body);
-    let collections = collection_ids(&body);
-    let cipher = body.remove("cipher").unwrap_or(Value::Null);
-    let view = VaultView::load(&server, &user.id).await?;
-    let org = share_one(&server, &user, &view, &id, cipher, &collections).await?;
-    touch(&server, &user.id).await?;
-    touch_org(&server, &org).await?;
-    Ok(Json(render_one(&server, &user.id, &id).await?))
-}
-
-/// `PUT /ciphers/share`: `{ciphers, collectionIds}`, each with its `id`.
-async fn share_many(
-    State(server): State<BitwardenServer>,
-    Authed { user, .. }: Authed,
-    Json(body): Json<Value>,
-) -> ApiResult<Json<Value>> {
-    let mut body = normalize(body);
-    let collections = collection_ids(&body);
-    let ciphers = match body.remove("ciphers") {
-        Some(Value::Array(items)) if items.len() <= SHARE_LIMIT => items,
-        _ => {
-            return Err(ApiError::bad_request(
-                "Share between 1 and 500 items at once.",
-            ))
-        }
-    };
-    let view = VaultView::load(&server, &user.id).await?;
-    let (mut ids, mut orgs) = (Vec::new(), HashSet::new());
-    for cipher in ciphers {
-        let id = normalize(cipher.clone())
-            .get("id")
-            .and_then(Value::as_str)
-            .map(str::to_owned)
-            .ok_or_else(ApiError::not_found)?;
-        orgs.insert(share_one(&server, &user, &view, &id, cipher, &collections).await?);
-        ids.push(id);
-    }
-    touch(&server, &user.id).await?;
-    for org in &orgs {
-        touch_org(&server, org).await?;
-    }
-    let view = VaultView::load(&server, &user.id).await?;
-    let shared: Vec<Value> = ids
-        .iter()
-        .filter_map(|id| view.find(id))
-        .map(|c| view.render(c))
-        .collect();
-    Ok(Json(list_json(&shared)))
 }
 
 /// Put an organization cipher in exactly `requested`, as far as the account

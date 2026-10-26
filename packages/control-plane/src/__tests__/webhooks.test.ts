@@ -59,6 +59,23 @@ describe("webhook endpoint registration", () => {
     expect(endpoints[0]?.secret.startsWith("whsec_")).toBe(true);
   });
 
+  it("caps concurrent registration and keeps the endpoint-limit response", async () => {
+    const { app } = plane();
+    const owner = await principal(app);
+    const responses = await Promise.all(
+      Array.from({ length: 24 }, () => register(app, owner.accessToken)),
+    );
+    expect(
+      responses.filter((response) => response.status === 201),
+    ).toHaveLength(10);
+    const denied = responses.filter((response) => response.status !== 201);
+    expect(denied).toHaveLength(14);
+    for (const response of denied) {
+      expect(response.status).toBe(422);
+      expect(await response.json()).toEqual({ error: "endpoint_limit" });
+    }
+  });
+
   it("adversarial: plain-http receivers are refused", async () => {
     // The payload names authorization requests; an eavesdroppable receiver
     // would leak what is pending to anyone on the path.

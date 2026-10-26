@@ -306,6 +306,14 @@ const HTML_ASSET_RELS = new Set([
 /** Same-origin resource links in this document, not a scan of public files. */
 function linkedHtmlAssets(html, resolveRef) {
   const assets = [];
+  // Classic scripts are copied public resources, outside Rollup's module
+  // chunks. The core offline plan still needs those the shell loads.
+  for (const tag of html.matchAll(/<script\b[^>]*>/gi)) {
+    if (/\btype\s*=\s*["']module["']/i.test(tag[0])) continue;
+    const src = tag[0].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (src && !/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(src))
+      assets.push(resolveRef(src));
+  }
   for (const tag of html.matchAll(/<link\b[^>]*>/gi)) {
     const rel = tag[0].match(/\brel\s*=\s*["']([^"']+)["']/i)?.[1];
     if (

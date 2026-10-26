@@ -53,6 +53,7 @@ import {
   MemoryPairwiseSubjectStore,
   createPairwiseIdentifierCallback as pairwiseCallback,
 } from "./pairwise/store.js";
+import { METADATA_FETCH_LIMITS } from "./provider-config.js";
 import { canonicalResource, isResourceAllowed } from "./resource-indicators.js";
 import type {
   OAuthClientRecord,
@@ -326,6 +327,7 @@ export function createOpenSesameProvider(
   const pages = providerPages(options.pages);
   const configuration: Configuration = {
     adapter,
+    ...METADATA_FETCH_LIMITS,
     renderError: pages.renderError,
     clients: staticClients,
     jwks,
@@ -403,7 +405,7 @@ export function createOpenSesameProvider(
         },
         useGrantedResource: async () => false,
       },
-      registration: { enabled: env.dcrEnabled },
+      registration: { enabled: env.dcrEnabled, initialAccessToken: true },
       registrationManagement: { enabled: env.dcrEnabled },
       clientCredentials: CLIENT_CREDENTIALS_FEATURE,
       ...buildMtlsFeature(options.transport),
@@ -488,12 +490,4 @@ export function createOpenSesameProvider(
 }
 
 /** Whether PKCE is required under the current configuration. */
-export function isPkceRequired(
-  bundle: OpenSesameProviderBundle,
-  ctx: BoundaryValue = {},
-  client: BoundaryValue = {},
-): boolean {
-  const required = bundle.configuration.pkce?.required;
-  if (!required) return false;
-  return required(overlapCast(ctx), client);
-}
+export { isPkceRequired } from "./provider-config.js";

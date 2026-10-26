@@ -124,6 +124,7 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   "contact.html": null,
   "privacy.html": null,
   "save-button.js": null,
+  "browser-schema-config.js": null,
   "icon.svg": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,

@@ -149,6 +149,12 @@
 /* Touch and narrow windows keep every key's real box at least 44px. */
 @media (pointer: coarse), (max-width: 900px) {
   .app-header .status-mark[data-touch-twin] {
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
     margin: 0;
   }
 

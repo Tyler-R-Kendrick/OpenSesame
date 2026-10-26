@@ -108,6 +108,32 @@ test("excusing the browser's own address does not excuse another", () => {
   );
 });
 
+test("consenting to an exact named route permits only that LAN host", () => {
+  const named = new Set(["10.1.0.118"]);
+  assert.equal(
+    sameMachineSdpFault(
+      [peer(["10.1.0.118", "127.0.0.1"])],
+      "owner",
+      new Set(),
+      named,
+    ),
+    null,
+  );
+  assert.match(
+    sameMachineSdpFault(
+      [peer(["10.1.0.118", "10.1.0.119", "127.0.0.1"])],
+      "owner",
+      new Set(),
+      named,
+    ),
+    /10\.1\.0\.119/,
+  );
+  assert.match(
+    sameMachineSdpFault([peer(["10.1.0.118"])], "owner", new Set(), named),
+    /should seal loopback/,
+  );
+});
+
 // The in-page reader, run against a stand-in `window`: a closed connection
 // answers its descriptions by throwing in Firefox.
 const closedFirefox = {

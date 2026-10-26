@@ -7,8 +7,11 @@ import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
+const operatorApprovals: string[] = [];
+
 function testConfig() {
   return {
+    organizationIssuerAllowlist: operatorApprovals,
     port: 0,
     publicUrl: "http://127.0.0.1:8788",
     issuer: "http://127.0.0.1:8788",
@@ -65,12 +68,28 @@ describe("verified email retarget on tenant join", () => {
       body: JSON.stringify({
         slug: "acme",
         displayName: "Acme",
+      }),
+    });
+    expect(created.status).toBe(201);
+    const org = overlapCast(await created.json());
+    operatorApprovals.push(
+      `${org.id}|http://127.0.0.1:9090`,
+      `${org.id}|http://127.0.0.1:8080/realms/acme`,
+      `${org.id}|https://idp.example`,
+    );
+    const configured = await app.request(`/v1/organizations/${org.id}`, {
+      method: "PATCH",
+      headers: {
+        ...auth(owner.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
         ssoIssuer: "http://127.0.0.1:9090",
         samlIssuer: "http://127.0.0.1:8080/realms/acme",
       }),
     });
-    expect(created.status).toBe(201);
-    return overlapCast(await created.json());
+    expect(configured.status).toBe(200);
+    return overlapCast(await configured.json());
   }
 
   it("does not grant the caller a membership when verified email retargets the identity", async () => {

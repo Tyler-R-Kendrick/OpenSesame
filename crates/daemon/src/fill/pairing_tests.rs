@@ -129,6 +129,37 @@ fn a_malformed_file_pairs_nobody() {
 }
 
 #[test]
+fn legacy_plaintext_browser_tokens_are_invalidated() {
+    let dir = tempfile::tempdir().unwrap();
+    let now = Utc::now();
+    let legacy = PairingFile {
+        v: 1,
+        pairings: vec![PairedCaller {
+            origin: EXT.to_string(),
+            token_sha256: digest_hex(TOKEN),
+            paired_at: now,
+        }],
+    };
+    std::fs::write(
+        dir.path().join(PAIRINGS_FILE),
+        serde_json::to_vec(&legacy).unwrap(),
+    )
+    .unwrap();
+    let pairings = Pairings::load(Some(dir.path()));
+    assert!(!pairings.verify(EXT, TOKEN));
+    assert!(pairings.snapshot(now).0.is_empty());
+
+    let fresh = "another-token-another-token-another-token-1";
+    let code = code_of(pairings.request(EXT, fresh, now));
+    pairings.approve(&code, now).unwrap();
+    assert!(pairings.verify(EXT, fresh));
+    assert!(!pairings.verify(EXT, TOKEN));
+    let reloaded = Pairings::load(Some(dir.path()));
+    assert!(reloaded.verify(EXT, fresh));
+    assert!(!reloaded.verify(EXT, TOKEN));
+}
+
+#[test]
 fn the_operator_snapshot_carries_no_digest() {
     let pairings = Pairings::load(None);
     let now = Utc::now();
