@@ -44,6 +44,10 @@ function certificate() {
         "/CN=localhost",
         "-addext",
         "subjectAltName=IP:127.0.0.1,IP:127.0.0.2",
+        "-addext",
+        "basicConstraints=critical,CA:TRUE",
+        "-addext",
+        "keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign,cRLSign",
         "-keyout",
         key,
         "-out",
@@ -147,6 +151,7 @@ async function receive(
   state: OracleState,
   method: string,
 ) {
+  request.socket.once("close", () => state.closed.push(request.url ?? ""));
   try {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
@@ -157,7 +162,6 @@ async function receive(
       basic: request.headers.authorization ?? "",
       host: request.headers.host ?? "",
     });
-    request.socket.once("close", () => state.closed.push(request.url ?? ""));
     state.onRequest?.(request.url ?? "");
     await state.beforeResponse?.(request.url ?? "");
     response.setHeader("content-type", "application/json");
