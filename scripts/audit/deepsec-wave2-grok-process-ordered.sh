@@ -7,7 +7,20 @@ LOG="${DEEPSEC_REINVESTIGATE_LOG:-/tmp/deepsec-reinvestigate-wave.log}"
 WS="${ROOT}/.deepsec"
 DEEPSEC="${WS}/node_modules/.bin/deepsec"
 WAVE="${DEEPSEC_REINVESTIGATE_WAVE:-2}"
-GROK_TIER="${DEEPSEC_GROK_TIER:-all}"
+PERSIST_TIER_STATE="${ROOT}/.deepsec/wave2-grok-tier-state.json"
+STATE_TIER=""
+if [[ -f "$PERSIST_TIER_STATE" ]]; then
+  STATE_TIER="$(node -e "
+    const s = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));
+    const t = s.currentTier;
+    process.stdout.write(t === 1 || t === 2 || t === 3 ? String(t) : '');
+  " "$PERSIST_TIER_STATE")"
+fi
+if [[ -n "$STATE_TIER" && ( -z "${DEEPSEC_GROK_TIER:-}" || "${DEEPSEC_GROK_TIER}" == "all" ) ]]; then
+  GROK_TIER="$STATE_TIER"
+else
+  GROK_TIER="${DEEPSEC_GROK_TIER:-all}"
+fi
 export PATH="${HOME}/.local/bin:${PATH}"
 # Force wave-2 ordered thresholds (parent tier-run may export 60/600).
 export DEEPSEC_GROK_SHALLOW_MAX_TURNS=30

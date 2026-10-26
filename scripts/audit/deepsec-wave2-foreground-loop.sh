@@ -83,7 +83,8 @@ wave2_running() {
   pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' >/dev/null \
     || pgrep -f 'deepsec/dist/cli.mjs process.*--agent grok' >/dev/null \
     || pgrep -f 'deepsec/dist/cli.mjs process.*--agent cursor' >/dev/null \
-    || pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null
+    || pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null \
+    || pgrep -f 'deepsec-wave2-grok-process-ordered.sh' >/dev/null
 }
 
 grok_investigate_active() {
