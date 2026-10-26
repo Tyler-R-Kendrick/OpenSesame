@@ -176,7 +176,9 @@ async function compareJoiner({
     });
     measure.joinerSas = await readSas(joiner.page.locator(".live-sas").first());
     const panel = started.panel;
-    await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
+    await panel
+      .getByLabel("Paste a join request", { exact: true })
+      .fill(request);
     await panel.getByRole("button", { name: "Read the request" }).click();
     const match = panel.getByRole("button", {
       name: `Yes, they match for ${JOINER}`,
