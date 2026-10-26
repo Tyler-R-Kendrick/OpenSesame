@@ -1,0 +1,53 @@
+name: Browser storage compatibility
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  storage:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/browser-storage-compat'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      STORAGE_IMAGE: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: b44a8444cbc94b4ad69c4dab541791df912ce95b
+          path: source
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install the exact source dependencies
+        working-directory: source
+        run: pnpm install --frozen-lockfile
+      - name: Compare ordinary OPFS API behavior for both users serially
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          test -f "$live_pnpm_root/pnpm/package.json"
+          docker pull "$STORAGE_IMAGE"
+          result=0
+          for identity in "$(id -u):$(id -g)" "1000:1000"; do
+            if ! docker run --rm --init --user "$identity" \
+              --network none --cap-drop ALL --security-opt no-new-privileges \
+              --mount "type=bind,source=$GITHUB_WORKSPACE/source,target=/work,readonly" \
+              --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+              --mount "type=bind,source=$GITHUB_WORKSPACE/control/scripts/review/browser-storage-compat.mjs,target=/compat.mjs,readonly" \
+              --env CI --env PATH --env PNPM_HOME --workdir /work \
+              "$STORAGE_IMAGE" node /compat.mjs; then
+              result=1
+            fi
+          done
+          exit "$result"
