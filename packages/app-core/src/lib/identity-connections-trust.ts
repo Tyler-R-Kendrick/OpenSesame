@@ -11,6 +11,8 @@ import {
   identitySessionJwksUri,
 } from "./identity-connections-session.js";
 import { readIdentityConnection } from "./identity-connections-store.js";
+import { isNativeOidcConfiguration } from "./identity-oidc-config.js";
+import { readOperatorIdp } from "./operator-idp-config.js";
 import {
   type OperatorIdp,
   loadSettings,
@@ -81,6 +83,17 @@ function providerProjection(
       issuer: draft.samlEntityId,
       clientId: draft.clientId,
     };
+  if (isNativeOidcConfiguration(draft))
+    return {
+      providerId: draft.providerId,
+      issuer: draft.issuer,
+      clientId: draft.clientId,
+      label: draft.name,
+      connectionId,
+      protocol: "oidc",
+      nativeIdentity: true,
+      scope: draft.scope,
+    };
   if (identityConnectionUsesBroker(draft))
     return {
       providerId: draft.providerId,
@@ -136,6 +149,7 @@ function assertNoIssuerConflict(
     providers.some(
       (idp) =>
         !idp.providerHint &&
+        !(idp.nativeIdentity === true && next.nativeIdentity === true) &&
         (idp.protocol === "saml" || next.protocol === "saml"
           ? idp.issuer === next.issuer
           : idp.issuer.replace(/\/+$/, "") === next.issuer.replace(/\/+$/, "")),
@@ -182,4 +196,16 @@ export async function projectIdentityTrust(
     { ...current, signIn: { ...methods, providers } },
     beforeCommit,
   );
+}
+
+/** Match the same strict public projection parser used by Settings reads. */
+export function identityTrustProjection(
+  draft: IdentityConnectionDraft,
+  connectionId: string,
+): OperatorIdp {
+  const parsed = readOperatorIdp(
+    JSON.parse(JSON.stringify(providerProjection(draft, connectionId))),
+  );
+  if (!parsed) throw new Error("Configured identity public trust is invalid");
+  return parsed;
 }

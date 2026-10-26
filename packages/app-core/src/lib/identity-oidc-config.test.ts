@@ -74,7 +74,7 @@ it("normalization keeps a write-only confidential discriminator while public OID
   const edit = publicIdentityDraft(confidential);
   expect(edit.clientSecret).toBe("");
   expect(isNativeOidcConfiguration(edit)).toBe(true);
-  expect(identityConnectionUsesBroker(confidential)).toBe(true);
+  expect(identityConnectionUsesBroker(confidential)).toBe(false);
   const publicClient = { ...draft(), clientSecret: "" };
   expect(isNativeOidcConfiguration(publicClient)).toBe(false);
   expect(identityConnectionUsesBroker(publicClient)).toBe(false);

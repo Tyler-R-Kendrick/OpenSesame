@@ -802,6 +802,9 @@ importers:
       '@opensesame/vault-item-types':
         specifier: workspace:*
         version: link:../vault-item-types
+      '@opensesame/wallet':
+        specifier: workspace:*
+        version: link:../wallet
       '@opensesame/wallet-budget':
         specifier: workspace:*
         version: link:../wallet-budget

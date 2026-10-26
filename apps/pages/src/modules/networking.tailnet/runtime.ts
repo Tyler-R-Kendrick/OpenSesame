@@ -37,6 +37,10 @@ import {
 } from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
 import { sectionCategory } from "../../sections/settings/FeatureSections.js";
 import { createActivation } from "../activation.js";
+import {
+  NativeOidcPeeringGate,
+  NativeOidcPeeringWrapper,
+} from "./NativeOidcPeering.js";
 import { TailnetSyncPanel } from "./TailnetSyncPanel.js";
 import { bindTailscaleBrowserRuntime } from "./browser/runtime.js";
 
@@ -117,6 +121,12 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
     bindTailscaleBrowserRuntime(ctx, activation);
+    activation.register("shell-wrapper", {
+      id: "native-oidc-peering",
+      Wrapper: NativeOidcPeeringWrapper,
+      Gate: NativeOidcPeeringGate,
+      order: 15,
+    });
     activation.onDispose(registerTailnetReader(readSavedTailnet));
 
     activation.register("background-job", {

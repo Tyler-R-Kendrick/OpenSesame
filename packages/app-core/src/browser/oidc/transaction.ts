@@ -1,57 +1,19 @@
 /** An operator's sealed OAuth secret is spent only at its original discovered token endpoint. */
-import { type BoundaryValue, isString } from "@opensesame/os-domain";
+import { isString } from "@opensesame/os-domain";
 import { createPkcePair, fetchOidcJson } from "@opensesame/sdk-browser";
 import { identityEndpoint } from "../../lib/identity-connections-schema.js";
+import type { ConfiguredOidc } from "../../lib/identity-oidc-config.js";
 import type { NativeProviderTransport } from "../../lib/native-connector-transport.js";
-import {
-  type OidcOrganization,
-  type OidcOwner,
-  assertOidcOrganization,
-  verifyNativeOidcProof,
-} from "./claims.js";
+import { type OidcOwner, verifyNativeOidcProof } from "./claims.js";
 
-export type ConfiguredOidc = Readonly<{
-  issuer: string;
-  clientId: string;
-  clientSecret: string;
-  scope: string;
-  organization: OidcOrganization | null;
-}>;
-type Discovery = Readonly<{
-  issuer: string;
-  authorizationEndpoint: string;
-  tokenEndpoint: string;
-  jwksUri: string;
-  authentication: "none" | "client_secret_basic" | "client_secret_post";
-}>;
-function endpoint(value: BoundaryValue): string {
-  if (!isString(value) || value.length > 2048)
-    throw new Error("Invalid configured OIDC endpoint");
-  const url = new URL(value);
-  if (
-    !identityEndpoint(url.origin) ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash
-  )
-    throw new Error("Invalid secure configured OIDC endpoint");
-  return url.href;
-}
-function assertConfiguration(config: ConfiguredOidc): void {
-  if (
-    !identityEndpoint(config.issuer) ||
-    config.issuer.trim() !== config.issuer ||
-    !config.clientId ||
-    config.clientId.length > 2048 ||
-    config.clientId.trim() !== config.clientId ||
-    config.clientSecret.length > 16384 ||
-    config.scope.length > 2048 ||
-    !config.scope.split(/\s+/).includes("openid")
-  )
-    throw new Error("Invalid configured OIDC client");
-  if (config.organization) assertOidcOrganization(config.organization);
-}
+import {
+  type Discovery,
+  assertConfiguredOidc,
+  assertOidcKeyEndpoint,
+  discoverConfiguredOidc,
+} from "./discovery.js";
+
+export type { ConfiguredOidc } from "../../lib/identity-oidc-config.js";
 /** Retain receiver-bound authority; replacement or reentry permanently retires it. */
 function captureOidcAuthority(
   source: NativeProviderTransport,
@@ -137,69 +99,6 @@ function guardedFetch(
     return response;
   };
 }
-function authenticationMethod(
-  config: ConfiguredOidc,
-  advertised: BoundaryValue | undefined,
-): Discovery["authentication"] {
-  if (
-    advertised !== undefined &&
-    (!Array.isArray(advertised) ||
-      !advertised.length ||
-      advertised.length > 32 ||
-      advertised.some((value) => !isString(value)))
-  )
-    throw new Error("Invalid OIDC token authentication metadata");
-  const methods = Array.isArray(advertised)
-    ? advertised
-    : ["client_secret_basic"];
-  let authentication: Discovery["authentication"] = "none";
-  if (config.clientSecret) {
-    if (methods.includes("client_secret_basic"))
-      authentication = "client_secret_basic";
-    else if (methods.includes("client_secret_post"))
-      authentication = "client_secret_post";
-    else
-      throw new Error(
-        "Provider has no configured client-secret authentication method",
-      );
-  } else if (!methods.includes("none")) {
-    throw new Error("Provider has no public-client authentication method");
-  }
-  return authentication;
-}
-async function discover(config: ConfiguredOidc, fetchImpl: typeof fetch) {
-  const document = await fetchOidcJson(
-    fetchImpl,
-    `${config.issuer.replace(/\/+$/, "")}/.well-known/openid-configuration`,
-  );
-  if (document.issuer !== config.issuer)
-    throw new Error(
-      "OIDC discovery does not exactly match the configured issuer",
-    );
-  for (const [key, required] of [
-    ["response_types_supported", "code"],
-    ["code_challenge_methods_supported", "S256"],
-  ] as const) {
-    const advertised = document[key];
-    if (
-      advertised !== undefined &&
-      (!Array.isArray(advertised) || !advertised.includes(required))
-    )
-      throw new Error(
-        "OIDC provider does not advertise authorization code with S256 PKCE",
-      );
-  }
-  return Object.freeze({
-    issuer: config.issuer,
-    authorizationEndpoint: endpoint(document.authorization_endpoint),
-    tokenEndpoint: endpoint(document.token_endpoint),
-    jwksUri: endpoint(document.jwks_uri),
-    authentication: authenticationMethod(
-      config,
-      document.token_endpoint_auth_methods_supported,
-    ),
-  });
-}
 function encodedCredential(value: string): string {
   return new URLSearchParams({ value }).toString().slice("value=".length);
 }
@@ -280,17 +179,47 @@ function endpointRoutes(transport: NativeProviderTransport, issuer: string) {
   });
 }
 
+function snapshotOidcConfiguration(input: ConfiguredOidc): ConfiguredOidc {
+  return Object.freeze({
+    ...input,
+    organization:
+      input.organization && Object.freeze({ ...input.organization }),
+    endpoints: input.endpoints && Object.freeze({ ...input.endpoints }),
+  });
+}
+
+function configuredAuthorizationUrl(
+  config: ConfiguredOidc,
+  discovery: Discovery,
+  redirectUri: string,
+  pair: Awaited<ReturnType<typeof createPkcePair>>,
+): URL {
+  const url = new URL(discovery.authorizationEndpoint);
+  for (const [key, value] of Object.entries({
+    response_type: "code",
+    client_id: config.clientId,
+    redirect_uri: redirectUri,
+    scope: config.scope,
+    state: pair.state,
+    nonce: pair.nonce,
+    code_challenge: pair.codeChallenge,
+    code_challenge_method: "S256",
+  }))
+    url.searchParams.set(key, value);
+  if (config.organization)
+    url.searchParams.set(
+      config.organization.authorizationParameter,
+      config.organization.id,
+    );
+  return url;
+}
 export async function prepareConfiguredOidc(
   input: ConfiguredOidc,
   redirectUri: string,
   source: NativeProviderTransport,
   original: OidcOwner,
 ) {
-  const config = Object.freeze({
-    ...input,
-    organization:
-      input.organization && Object.freeze({ ...input.organization }),
-  });
+  const config = snapshotOidcConfiguration(input);
   const { transport, owner: originalOwner } = captureOidcAuthority(
     source,
     original,
@@ -310,32 +239,20 @@ export async function prepareConfiguredOidc(
     },
   });
   owner.assertCurrent();
-  assertConfiguration(config);
+  assertConfiguredOidc(config);
   if (!identityEndpoint(redirectUri))
     throw new Error("Invalid OIDC redirect URI");
   const fetchImpl = guardedFetch(transport, owner);
-  const discovery = await discover(config, fetchImpl);
+  const discovery = await discoverConfiguredOidc(config, fetchImpl);
   routes.bind(discovery);
   owner.assertCurrent();
+  if (discovery.manual) {
+    await assertOidcKeyEndpoint(fetchImpl, discovery.jwksUri);
+    owner.assertCurrent();
+  }
   const pair = await createPkcePair();
   owner.assertCurrent();
-  const url = new URL(discovery.authorizationEndpoint);
-  for (const [key, value] of Object.entries({
-    response_type: "code",
-    client_id: config.clientId,
-    redirect_uri: redirectUri,
-    scope: config.scope,
-    state: pair.state,
-    nonce: pair.nonce,
-    code_challenge: pair.codeChallenge,
-    code_challenge_method: "S256",
-  }))
-    url.searchParams.set(key, value);
-  if (config.organization)
-    url.searchParams.set(
-      config.organization.authorizationParameter,
-      config.organization.id,
-    );
+  const url = configuredAuthorizationUrl(config, discovery, redirectUri, pair);
   let spent = false;
   const complete = async (
     response: Readonly<{ state: string; code: string | null; error: boolean }>,
@@ -374,6 +291,7 @@ export async function prepareConfiguredOidc(
     });
   };
   return Object.freeze({
+    manualEndpoints: discovery.manual,
     authorizationUrl: url.href,
     state: pair.state,
     expiresAt,

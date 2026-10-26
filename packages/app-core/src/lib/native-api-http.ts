@@ -55,6 +55,13 @@ async function reply(
     throw new NativeApiError("response", response.status);
   }
 }
+async function cancelUnreadResponse(
+  response: Response | undefined,
+): Promise<void> {
+  if (response && !response.bodyUsed)
+    await response.body?.cancel().catch(() => undefined);
+}
+
 export async function nativeApiHttp(
   request: NativeApiHttpRequest,
   transport: NativeProviderTransport,
@@ -65,6 +72,7 @@ export async function nativeApiHttp(
   request.signal?.addEventListener("abort", abort, { once: true });
   if (request.signal?.aborted) controller.abort();
   const deadline = setTimeout(abort, 15_000);
+  let response: Response | undefined;
   try {
     const init: RequestInit = {
       method: request.method,
@@ -77,7 +85,7 @@ export async function nativeApiHttp(
       referrerPolicy: "no-referrer",
     };
     if (request.body !== undefined) init.body = request.body;
-    const response = await transport.fetch(request.url, init);
+    response = await transport.fetch(request.url, init);
     transport.assertCurrent();
     if (response.status === 401) throw new NativeApiError("authorization", 401);
     if (response.status === 403) throw new NativeApiError("permission", 403);
@@ -93,7 +101,13 @@ export async function nativeApiHttp(
     if (error instanceof EgressDenied) throw new NativeApiError("deployment");
     throw new NativeApiError("network");
   } finally {
-    clearTimeout(deadline);
-    request.signal?.removeEventListener("abort", abort);
+    try {
+      // HTTP refusal and post-header withdrawal never enter the JSON reader.
+      // Close that original unread body before its request deadline retires.
+      await cancelUnreadResponse(response);
+    } finally {
+      clearTimeout(deadline);
+      request.signal?.removeEventListener("abort", abort);
+    }
   }
 }

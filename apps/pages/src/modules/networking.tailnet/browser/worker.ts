@@ -103,14 +103,14 @@ export class BrowserNodeWorker {
     this.started = true;
     this.port = port;
     port.onmessage = (command) => this.command(command);
-    const state = parsed.data.config.state;
+    const { state, ephemeral } = parsed.data.config;
     const config = {
       ...parsed.data.config,
       stateStorage: {
         getState: (id: string) => state[id] ?? "",
         setState: (id: string, value: string) => {
           state[id] = value;
-          this.post({ kind: "storage", state });
+          if (!ephemeral) this.post({ kind: "storage", state });
         },
       },
     };

@@ -5,6 +5,7 @@ import ts from "typescript";
 import { searchForWorkspaceRoot, transformWithEsbuild } from "vite";
 import { bitwardenWorkerAssets } from "./bitwarden-worker-assets.mjs";
 import { workerRealmSource } from "./lib/capability-graph.mjs";
+import { defaultWorkers, workerPlanOwners } from "./shared-worker-plans.mjs";
 
 const PREFIX = "\0opensesame-worker:";
 const purePackages =
@@ -130,7 +131,9 @@ async function loadPrivate(ctx, id, minted, sdk) {
 }
 
 function transformWorkerURLs(ctx, code, id, workers, refs, owners, minted) {
-  const plans = workers.filter((entry) => entry.owner === id.split("?", 1)[0]);
+  const plans = workers.filter((entry) =>
+    workerPlanOwners(entry).includes(id.split("?", 1)[0]),
+  );
   if (!plans.length) return;
   const ast = ts.createSourceFile(id, code, ts.ScriptTarget.Latest, true);
   const edits = [];
@@ -301,38 +304,6 @@ function attachWorkerClosures(ctx, bundle, owners, minted, pure) {
     };
 }
 
-function defaultWorkers(root) {
-  const backend = resolve(
-    root,
-    "../../packages/app-core/src/lib/secret-backends",
-  );
-  return [
-    {
-      owner: resolve(backend, "bitwarden-native-worker-client.ts"),
-      specifier: "./bitwarden-native.worker.ts",
-      name: "bitwarden-native.worker",
-    },
-    {
-      owner: resolve(backend, "bitwarden-wasm-loader.ts"),
-      specifier: "./bitwarden-secrets.worker.ts",
-      name: "bitwarden-secrets.worker",
-    },
-    {
-      owner: resolve(backend, "onepassword-sdk-loader.ts"),
-      specifier: "./onepassword-sdk.worker.ts",
-      name: "onepassword-sdk.worker",
-    },
-    {
-      owner: resolve(
-        root,
-        "src/modules/networking.tailnet/browser/controller.ts",
-      ),
-      specifier: "./worker.ts",
-      name: "tailscale-node",
-    },
-  ];
-}
-
 /** Share audited library/codec bytes, not realm instances. @returns {import("vite").Plugin} */
 export function sharedWorkerGraph({ workers } = {}) {
   const refs = new Map();
@@ -356,9 +327,10 @@ export function sharedWorkerGraph({ workers } = {}) {
     configResolved(config) {
       pure = pureSources(config.root);
       plans ??= defaultWorkers(config.root);
+      const originalOwners = plans.flatMap(workerPlanOwners);
       if (
         new Set(plans.map((plan) => plan.name)).size !== plans.length ||
-        new Set(plans.map((plan) => plan.owner)).size !== plans.length
+        new Set(originalOwners).size !== originalOwners.length
       )
         throw new Error(
           "Module workers need unique names and original owners.",

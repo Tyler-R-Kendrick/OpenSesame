@@ -26,8 +26,8 @@ describe("networking.tailnet runtime", () => {
   it("registers the sync job and the Networking feature panel", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "networking.tailnet",
-      kinds: ["background-job", "settings-panel"],
-      count: 2,
+      kinds: ["background-job", "settings-panel", "shell-wrapper"],
+      count: 3,
     });
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
@@ -42,6 +42,11 @@ describe("networking.tailnet runtime", () => {
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(t.egressCalls).toEqual([]);
     expect(t.hydrated).toEqual([]);
+    const [wrapper] = t.entries("shell-wrapper");
+    const peering = await import("./NativeOidcPeering.js");
+    expect(wrapper?.id).toBe("native-oidc-peering");
+    expect(wrapper?.Gate).toBe(peering.NativeOidcPeeringGate);
+    expect(wrapper?.Wrapper).toBe(peering.NativeOidcPeeringWrapper);
     await handle.dispose();
     await handle.dispose();
   });

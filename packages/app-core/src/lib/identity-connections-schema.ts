@@ -82,6 +82,8 @@ export function normalizeIdentityConnectionDraft(
     "brokerUrl",
     "organizationId",
     "organizationSlug",
+    "oidcAuthorizationEndpoint",
+    "oidcTokenEndpoint",
     "oidcOrganizationParameter",
     "oidcOrganizationClaim",
     "samlMetadataUrl",
@@ -111,11 +113,7 @@ export function normalizeIdentityConnectionDraft(
 export function identityConnectionUsesBroker(
   draft: IdentityConnectionDraft,
 ): boolean {
-  return (
-    draft.protocol === "ldap" ||
-    (draft.protocol === "oidc" &&
-      (!!draft.clientSecret || !!draft.organizationId))
-  );
+  return draft.protocol === "ldap";
 }
 
 export const IDENTITY_SECRET_FIELDS = [
