@@ -5,6 +5,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { verifyPromotionProvenance } from "./provenance.mjs";
 import { ReleaseApi, prepareDraft, publishDraft } from "./publish-assets.mjs";
+import { checkReleaseEnvironment } from "./release-environment.mjs";
 import { hash } from "./stage-release.mjs";
 
 const [command, directory] = process.argv.slice(2);
@@ -21,6 +22,10 @@ if (
 ) {
   throw new Error("Publisher candidate identity mismatch");
 }
+await checkReleaseEnvironment({
+  repository: process.env.GITHUB_REPOSITORY,
+  token: process.env.GH_TOKEN,
+});
 verifyPromotionProvenance({
   directory,
   repository: process.env.GITHUB_REPOSITORY,

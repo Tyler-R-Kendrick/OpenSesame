@@ -202,13 +202,31 @@ prove rejection logic, not platform qualification or an actual deployment.
 The read-only settings inspection for this change found the protected-main
 ruleset and its three existing required checks, no tag ruleset, and a
 `github-pages` environment that permits `main` without required reviewers.
-There was no `release` environment. These settings were not modified. Configure
-that environment with a required reviewer before merge if the release draft
-needs an editorial approval; the YAML alone does not supply one. The draft and
-its tag are staged before this gate, while both production publications wait
-after it. Without that
-additional protection, the weekly schedule can publish automatically after its
-required checks pass. The schedules become active when these files reach main.
+There was no `release` environment. These settings were not modified. An
+administrator must apply the reviewed owner-required-reviewer policy, disabled
+admin bypass and main-only deployment branch policy before promotion can run.
+Naming an environment in YAML does not establish those protections: GitHub can
+create an unprotected environment automatically.
+
+`release-environment.mjs` reads the live `release` environment and its complete
+deployment branch policy before publication admission, draft staging, and every
+publication job. It checks the exact owner reviewer (User `145080887`), the
+approved self-review setting, disabled admin bypass, and the sole allowed
+`main` branch. It rechecks after the environment wait, immediately before Pages
+deployment, and in the publisher before draft/native release writes. Missing,
+unprotected, mismatched or unreadable configuration fails closed; no environment
+is created or repaired by this guard. An HTTP 403 remains an administrator setup
+issue, never a reason to continue without approval. Both REST reads require only
+`actions: read`, already scoped to these jobs; no administration write permission
+or additional credential is needed. GitHub documents the read permission for
+[Get an environment](https://docs.github.com/en/rest/deployments/environments#get-an-environment)
+and [List deployment branch policies](https://docs.github.com/en/rest/deployments/branch-policies#list-deployment-branch-policies).
+
+The draft and its version tag are staged before the approval wait, while both
+production publications wait after it. The schedules become active when these
+files reach main, but release promotion stays blocked until the live approved
+protections are configured and readable.
+
 
 ## References
 

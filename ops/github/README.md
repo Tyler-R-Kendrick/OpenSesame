@@ -30,8 +30,12 @@ bypass. The owner ID is this repository's public GitHub owner ID. Do not apply
 them to another repository or overwrite an existing environment's reviewers
 without review. Activation requires explicit authorization for these exact
 protections and repository-administration plus environment access. Checked-in
-files do not establish live protection. Some integrations can read settings but
-cannot change them; an HTTP 403 must never be reported as a successful apply.
+files do not establish live protection. The release pipeline reads the live
+environment and main-only branch policy with `actions: read` before staging or
+publishing. Missing, unprotected, mismatched or unreadable settings block
+promotion; the pipeline never auto-configures protection. Apply the reviewed
+settings through an authorized administrator and rerun the existing checks. Some
+integrations can read settings but cannot change them; an HTTP 403 must never be reported as a successful apply.
 
 ```sh
 node ops/github/governance.mjs --dry-run

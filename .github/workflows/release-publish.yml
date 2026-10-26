@@ -79,6 +79,8 @@ jobs:
       with:
         node-version: 22
         package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate original build and every prerequisite receipt
       id: qualified
       run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
@@ -113,6 +115,8 @@ jobs:
       with:
         node-version: 22
         package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate original build and every prerequisite receipt
       id: qualified
       run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
@@ -155,6 +159,8 @@ jobs:
       with:
         node-version: 22
         package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate the reviewed candidate after the environment wait
       run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
   pages:
@@ -191,6 +197,8 @@ jobs:
       with:
         node-version: 22
         package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate original build and every prerequisite receipt
       id: qualified
       run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
@@ -230,6 +238,8 @@ jobs:
         if (JSON.stringify(readdirSync('hosting-checked')) !== '["artifact.tar"]') throw new Error('Unexpected Pages transport inventory');
         JS
         cmp hosting/artifact.tar hosting-checked/artifact.tar
+    - name: Recheck release protection immediately before deployment
+      run: node .ci-control/scripts/release/release-environment.mjs
     - name: Deploy the verified original Pages artifact
       id: deployment
       uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
@@ -267,6 +277,8 @@ jobs:
       with:
         node-version: 22
         package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate original build and every prerequisite receipt
       id: qualified
       run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
