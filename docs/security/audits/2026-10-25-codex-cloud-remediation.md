@@ -48,9 +48,9 @@ terminal. Credential grants expire after 90 seconds and can be used once.
 
 ## Occurrence disposition
 
-Overall outcome is **blocked**: code is prepared, but browser end-to-end evidence
-and independent GHCR configuration are still missing. Nothing was merged and
-no Cloud occurrence was closed.
+Overall outcome is **blocked** on independent GHCR configuration. Browser
+end-to-end evidence was subsequently obtained in GitHub CI. Merge remains
+subject to the PR's required checks; no Cloud occurrence was closed.
 
 | Finding | Scan title | Disposition |
 | --- | --- | --- |
@@ -59,13 +59,13 @@ no Cloud occurrence was closed.
 | csf_12a30196c04678c10ff985ac | Bitwarden file uploads bypass storage quota through attacker-declared sizes | no_change — existing fix verified |
 | csf_4d4a5d289bd932b8d9fb27b0 | Concurrent issuer reservation permits duplicate organization claims | fixed — focused verification passed |
 | csf_955006820f7e0aba1a9ac4a4 | Enabled dynamic client registration buffers unbounded relying-party metadata responses | fixed — focused verification passed |
-| csf_bed178c4a8c94fffabb95bf6 | Autofill extension stores its daemon pairing token in plaintext browser storage | blocked — code prepared; browser policy prevents E2E |
+| csf_bed178c4a8c94fffabb95bf6 | Autofill extension stores its daemon pairing token in plaintext browser storage | fixed — focused checks and Chromium E2E passed |
 | csf_5f0a456b66b1116e85758420 | Browser-local OIDC exposes the canonical principal as downstream subject | fixed — focused verification passed |
 | csf_785e75b6230bb5f75ddede24 | Relay requests can execute after delegation is revoked, expired, or narrowed | fixed — focused verification passed |
 | csf_844626ce73b577b54fd2f9fc | Manual container publication can push unverified branch code to official GHCR | blocked — separate release credentials/package policy |
 | csf_e4547f3f168c2c3f4917e707 | Sharing personal ciphers transfers attachments without enforcing destination organization quota | fixed — focused verification passed |
 | csf_463c5bad30fad8b88281e7fe | Organization owners can claim an identity-provider issuer without proving control | fixed — focused verification passed |
-| csf_dd453af617a548f01f2d90fb | Paired autofill extension can request passwords for arbitrary origins without tab- or gesture-bound authorization | blocked — code prepared; browser policy prevents E2E |
+| csf_dd453af617a548f01f2d90fb | Paired autofill extension can request passwords for arbitrary origins without tab- or gesture-bound authorization | fixed — focused checks and Chromium E2E passed |
 | csf_f5f84db24aefa060ee6b4532 | Unauthenticated agent-identity creation can exhaust the pending-claim pool | fixed — focused verification passed |
 | csf_1b2f924a268b9ad03fd45f76 | Identity linking accepts ID tokens minted for other clients | no_change — existing fix verified |
 | csf_aa81613362f6291c60985081 | Public device authorization evicts legitimate pending logins | fixed — focused verification passed |
@@ -126,10 +126,20 @@ Focused regression suites exercise malicious requests, legitimate controls,
 concurrency and revocation. The session's private remediation report records
 the exact validation results and remaining merge gates.
 
-Browser extension end-to-end and screenshot evidence could not run in this
-environment: managed Chromium policy blocks every extension installation and
-URL. Unit tests, typechecks and the production extension build do not replace
-that missing browser check. The managed policy was left intact.
+Managed local Chromium policy blocks extension installation and URLs; it was
+left intact. GitHub Chromium E2E subsequently passed all 46 cases, with zero
+failures or skips, in run `40249092877` at source `7262670`. This covers legacy
+pairing-token migration, independent site and one-use field approval, hostile
+pages/frames and legitimate filling. Artifact `12620296235` was downloaded,
+its digest verified, and both actual popup screenshots inspected: pending
+approval exposes no Fill control, and neither screenshot exposes credentials
+or a pairing token. These are temporary review captures, not promoted evidence.
+
+PR review also required exact named issuer-admission proofs, frozen delegation
+lookup by ID, separate verified-ingress client budgets, and tenant-scoped logout
+revocation while retaining membership. Those fixes passed 136 identity tests,
+control-plane typechecking with misuse tests, six relay tests and four enrollment
+tests. Classic-script ownership and offline-plan regressions passed 52 tests.
 
 Container publication remains blocked until an operator configures the release
 environment to allow only branch `main` and tags `v*`, supplies its separate

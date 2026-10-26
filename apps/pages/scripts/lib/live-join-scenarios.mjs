@@ -112,11 +112,13 @@ export async function direct(browser, owner) {
     /^osl-request\./.test(request) && !request.includes(JOINER),
     "a sealed request code",
   );
-  const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
   const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
-  const ownerSas = (
-    await panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
+  let ownerSas = "";
+  const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER, {
+    onSas: (sas) => {
+      ownerSas = sas;
+    },
+  });
   check(
     /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) && joinerSas === ownerSas,
     "both sides show the same session SAS",

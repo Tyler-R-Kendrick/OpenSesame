@@ -153,15 +153,18 @@ async function verifiedJoin(browser, session) {
   );
   // ownerAdmitsByHand pastes the request and reads the guest-row SAS.
   // Reading it earlier waits on a row that does not exist yet.
+  let ownerSas = "";
   const reply = await ownerAdmitsByHand(
     session.page,
     session.panel,
     request,
     VERIFIED_NAME,
+    {
+      onSas: (sas) => {
+        ownerSas = sas;
+      },
+    },
   );
-  const ownerSas = (
-    await session.panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
   check(
     SAS.test(joinerSas) && joinerSas === ownerSas,
     "verified join shows the same session SAS on both sides",

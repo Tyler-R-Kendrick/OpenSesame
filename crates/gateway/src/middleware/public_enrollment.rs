@@ -177,12 +177,10 @@ mod tests {
         let state = crate::app_state::test_demo_state().await;
         let app = crate::routes::router(state);
         let ingress = peer("edge.test", THUMB_A, 1);
-        for index in 0..=PER_SOURCE + 1 {
-            let thumb = if index <= PER_SOURCE {
-                THUMB_A
-            } else {
-                THUMB_B
-            };
+        let clients = (0..=PER_SOURCE)
+            .map(|_| THUMB_A)
+            .chain(std::iter::once(THUMB_B));
+        for (index, thumb) in clients.enumerate() {
             let mut request = Request::builder()
                 .method("POST")
                 .uri("/api/v1/device/authorize")
@@ -204,7 +202,10 @@ mod tests {
                     &ingress,
                 ))));
             let response = app.clone().oneshot(request).await.unwrap();
-            assert_eq!(response.status(), expected_status(index == PER_SOURCE));
+            assert_eq!(
+                response.status(),
+                expected_status(index == usize::try_from(PER_SOURCE).unwrap())
+            );
         }
     }
 }

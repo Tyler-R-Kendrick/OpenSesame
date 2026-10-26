@@ -15,7 +15,12 @@
 
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
-import { joinerAsks, sealLiveKeyboardOwner } from "./live-keyboard-entry.mjs";
+import {
+  joinerAsks,
+  joinerConnects,
+  nameKeyboardLoopback,
+  sealLiveKeyboardOwner,
+} from "./live-keyboard-entry.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
@@ -133,6 +138,7 @@ async function ownerStarts(page, tabTo) {
     name: "Share personal",
     exact: true,
   });
+  await nameKeyboardLoopback(page, panel, tabTo);
   await tabTo(page, panel.getByLabel("Session name"));
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Team");
@@ -202,31 +208,6 @@ async function ownerAdmits(page, { request, tabTo }) {
   );
   await page.keyboard.press("Enter");
   return copied(page);
-}
-
-/** A wrong reply keeps the field; the right one joins, and focus follows. */
-async function joinerConnects(page, { reply, tabTo }) {
-  const field = page.getByLabel("The owner's reply code", { exact: true });
-  await tabTo(page, field);
-  await page.keyboard.insertText("osl-reply.nope.nope");
-  await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("img", { name: "That reply is not for this request" }),
-  ).toBeVisible();
-  await expect(field, "a wrong reply returns to its field").toBeFocused();
-  await focusIn(page, ".live-join", "after a wrong reply");
-  await page.keyboard.press("ControlOrMeta+A");
-  await page.keyboard.insertText(reply);
-  await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("img", { name: "Joined Team" }),
-    "the two browsers connected",
-  ).toBeVisible({ timeout: 45_000 });
-  await expect(
-    page.locator("#live-status"),
-    "Connect lands on the session's status",
-  ).toBeFocused();
-  await focusIn(page, ".live-join", "after Connect");
 }
 
 /** The owner removes the guest, the joiner starts over and closes; the owner ends. */
@@ -363,7 +344,7 @@ export async function liveKeyboardContract({
           focusIn,
         });
         const reply = await ownerAdmits(owner.page, { request, tabTo });
-        await joinerConnects(joiner.page, { reply, tabTo }).catch(
+        await joinerConnects(joiner.page, { reply, tabTo, focusIn }).catch(
           async (error) => {
             await showed(owner.page, joiner.page);
             throw error;

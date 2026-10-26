@@ -288,15 +288,25 @@ export function admitControl(root, name) {
   });
 }
 
-async function confirmSessionSas(panel) {
+async function confirmSessionSas(panel, name) {
   // The owner's fingerprint is also `.live-sas`. The session string is the
   // one on the guest row, which is what the joiner is showing.
   const text = (
-    await panel.locator(".vault-row .live-sas").first().innerText()
+    await panel
+      .locator(".vault-row")
+      .filter({
+        has: panel.page().getByRole("button", {
+          name: `Yes, they match for ${name}`,
+          exact: true,
+        }),
+      })
+      .locator(".live-sas")
+      .innerText()
   ).trim();
   if (!SAS_TEXT.test(text)) {
     throw new Error(`session SAS is not readable: ${text}`);
   }
+  return text;
 }
 
 /**
@@ -310,7 +320,7 @@ export async function ownerAdmitsByHand(
   panel,
   request,
   name,
-  { admit = true } = {},
+  { admit = true, onSas = () => {} } = {},
 ) {
   await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
@@ -324,7 +334,7 @@ export async function ownerAdmitsByHand(
   if (admit) {
     await match.or(letIn).first().waitFor({ timeout: 20_000 });
     if (await match.isVisible()) {
-      await confirmSessionSas(panel);
+      onSas(await confirmSessionSas(panel, name));
       await match.click();
     } else {
       await letIn.click();
@@ -332,7 +342,7 @@ export async function ownerAdmitsByHand(
   } else {
     await match.or(copy).first().waitFor({ timeout: 20_000 });
     if (await match.isVisible()) {
-      await confirmSessionSas(panel);
+      onSas(await confirmSessionSas(panel, name));
       await match.click();
     }
   }
@@ -342,5 +352,5 @@ export async function ownerAdmitsByHand(
 
 export async function joinerConnects(page, reply) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
-  await page.getByRole("button", { name: "Connect" }).click();
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
 }

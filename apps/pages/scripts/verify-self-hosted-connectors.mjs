@@ -33,6 +33,21 @@ async function visit(page, route) {
     dispatchEvent(new PopStateEvent("popstate"));
   }, `${base}${route}`);
   await page.waitForTimeout(900);
+  if (route === "connections/linear") {
+    // Linear defaults to MCP. This contract exercises the separate GraphQL
+    // OAuth/API-key road, which a person explicitly opens under Advanced.
+    const advanced = page.getByText("Advanced: existing OAuth app or API key", {
+      exact: true,
+    });
+    const managed = page.getByRole("radio", { name: "Managed", exact: true });
+    await advanced.or(managed).first().waitFor();
+    if (
+      (await advanced.isVisible()) &&
+      (await advanced.locator("..").getAttribute("open")) === null
+    )
+      await advanced.click();
+    await managed.waitFor();
+  }
 }
 
 async function enableConnections(page) {
@@ -84,7 +99,9 @@ async function verifyIcon(page, label) {
 }
 
 async function providerSpecific(page, label) {
-  await page.getByRole("heading", { name: /Configure$/ }).waitFor();
+  await page
+    .getByRole("heading", { name: "Linear", level: 1, exact: true })
+    .waitFor();
   const text = await page.locator("main").innerText();
   check(
     !/Vercel Connect|Vercel access token|Vercel tokens|Team ID|Project ID/.test(
