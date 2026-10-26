@@ -14,7 +14,7 @@ export async function localDevicesJourney({
   const { popup } = await openConsent(page, context, credentials, width);
   await approveConsent(page, popup, width);
   await expect(page.locator("output")).toHaveText(
-    /^Signed in locally: local_/,
+    /^Signed in locally: [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     {
       timeout: 30_000,
     },

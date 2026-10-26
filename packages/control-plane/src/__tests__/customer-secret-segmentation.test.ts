@@ -13,6 +13,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
 import { expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { approveOrganizationIssuers } from "./approved-organization-fixture.js";
 
 type Plane = ReturnType<typeof createControlPlane>;
 interface Owner {
@@ -49,6 +50,11 @@ async function customer(plane: Plane, name: string) {
   });
   expect(created.status).toBe(201);
   const organization: { id: string } = overlapCast(await created.json());
+  approveOrganizationIssuers(
+    plane.ctx,
+    organization.id,
+    `https://${name}.example.test`,
+  );
   const secret = `${name}-private-sso-secret`;
   const configured = await plane.app.request(
     `/v1/organizations/${organization.id}`,

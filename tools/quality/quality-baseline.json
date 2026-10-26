@@ -873,10 +873,10 @@
       "max-lines": 536
     },
     "packages/control-plane/src/__tests__/org-domains.test.ts": {
-      "max-lines": 551
+      "max-lines": 547
     },
     "packages/control-plane/src/__tests__/org-signin-flow.test.ts": {
-      "max-lines": 561
+      "max-lines": 559
     },
     "packages/control-plane/src/__tests__/organizations-edge.test.ts": {
       "max-lines": 683
@@ -903,7 +903,7 @@
       "max-lines": 816
     },
     "packages/control-plane/src/__tests__/registry.units.test.ts": {
-      "max-lines": 1164
+      "max-lines": 1162
     },
     "packages/control-plane/src/__tests__/saml-security.test.ts": {
       "max-lines": 458

@@ -169,7 +169,7 @@ async function connect() {
     id: message.data.id,
     issuer: origin,
     audience: clientId,
-    sub: "local_00000000-0000-4000-8000-000000000002",
+    sub: "00000000-0000-4000-8000-000000000002",
     nonce: request.nonce,
     scope: "openid",
     authTime: String(now),
@@ -221,6 +221,10 @@ it.each([
   { authTime: "Infinity" },
   { type: "unverified" },
   { scope: "admin" },
+  { sub: "local_00000000-0000-4000-8000-000000000002" },
+  { sub: "" },
+  { sub: "00000000-0000-4000-0000-000000000002" },
+  { sub: "00000000-0000-4000-8000-000000000002-suffix" },
 ])("refuses untrusted identity metadata %j", async (patch) => {
   const { result, port, identity } = await connect();
   port.postMessage({ ...identity, ...patch });

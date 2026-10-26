@@ -3,6 +3,7 @@ import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { orgDomainDependencies } from "../routes/org-domains.js";
 import type { startServer } from "../server.js";
+import { createApprovedOrganization } from "./approved-organization-fixture.js";
 import { onFreePort } from "./free-port.js";
 
 /**
@@ -150,19 +151,14 @@ async function verifiedPrincipal(): Promise<string> {
 
 async function seedOrg(slug: string) {
   const ownerToken = await verifiedPrincipal();
-  const created = await api("/v1/organizations", {
-    method: "POST",
-    headers: json(ownerToken),
-    body: JSON.stringify({
-      slug,
-      displayName: `Org ${slug}`,
-      // One tenant per issuer: the create route refuses a second claim on the
-      // same IdP, and these cases are exercising domain routing, not SSO.
-      ssoIssuer: `${UPSTREAM_ISSUER}/${slug}`,
-    }),
-  });
-  expect(created.status).toBe(201);
-  return { id: String(created.body.id), ownerToken };
+  const { id } = await createApprovedOrganization(
+    started,
+    ownerToken,
+    slug,
+    `Org ${slug}`,
+    `${UPSTREAM_ISSUER}/${slug}`,
+  );
+  return { id, ownerToken };
 }
 
 async function claimDomain(orgId: string, ownerToken: string, domain: string) {

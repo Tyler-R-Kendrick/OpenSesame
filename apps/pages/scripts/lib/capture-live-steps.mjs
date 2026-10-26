@@ -121,7 +121,7 @@ export async function ask(page, { link, code, name }) {
   await page.getByLabel("Your name").fill(name);
   await sealOwnJoinerVault(page);
   await page.getByRole("button", { name: "Ask to join" }).click();
-  const copy = page.getByRole("button", { name: "Copy your request code" });
+  const copy = page.getByRole("button", { name: "Copy your join request" });
   await copy.waitFor({ timeout: 30_000 });
   await copy.click();
   return page.evaluate(() => navigator.clipboard.readText());

@@ -118,7 +118,7 @@ async function signIn(port: MessagePort, state: string, nonce: string) {
     id: message.data.id,
     issuer: origin,
     audience: clientId,
-    sub: "local_00000000-0000-4000-8000-000000000002",
+    sub: "00000000-0000-4000-8000-000000000002",
     nonce,
     scope: "openid",
     authTime: String(now),

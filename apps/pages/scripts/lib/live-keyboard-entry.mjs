@@ -65,8 +65,12 @@ export async function joinerAsks(page, { link, code, tabTo, focusIn }) {
     await tabTo(page, apply);
     await page.keyboard.press("Enter");
   }
-  const codeField = page.getByLabel("Code", { exact: true });
-  if (await codeField.count()) {
+  // Applying the plan loads the live form asynchronously. Wait for that
+  // form before deciding whether its required out-of-band code is present.
+  await expect(page.getByLabel("Your name")).toBeVisible();
+  if (code) {
+    const codeField = page.getByLabel("Code", { exact: true });
+    await expect(codeField).toBeVisible();
     await tabTo(page, codeField);
     await page.keyboard.insertText(code.toLowerCase());
   }

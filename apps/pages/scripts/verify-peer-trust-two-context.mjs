@@ -268,7 +268,7 @@ async function changedKey(browser, session) {
   await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
   check(
     (await page
-      .getByRole("button", { name: "Copy your request code" })
+      .getByRole("button", { name: "Copy your join request" })
       .count()) === 0,
     "changed key does not ask",
   );
