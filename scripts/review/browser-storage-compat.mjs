@@ -11,12 +11,10 @@ const record = (phase, error) => console.log(JSON.stringify({
   homedir: homedir(),
   ...(error ? { errorName: error.name, errorMessage: error.message } : {}),
 }));
-let browser;
 let context;
 try {
   record("launch");
-  browser = await webkit.launch({ headless: true });
-  context = await browser.newContext();
+  context = await webkit.launchPersistentContext("", { headless: true });
   const page = await context.newPage();
   await page.exposeFunction("recordStoragePhase", (phase) => record(phase));
   await page.route("https://storage-compat.opensesame.test/", (route) => route.fulfill({
@@ -74,5 +72,4 @@ try {
   process.exitCode = 1;
 } finally {
   await context?.close();
-  await browser?.close();
 }
