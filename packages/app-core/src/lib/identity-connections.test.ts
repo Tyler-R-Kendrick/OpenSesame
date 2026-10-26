@@ -304,6 +304,8 @@ it("rolls back a sealed create when the public sign-in method cannot persist", a
   expect(signInMethods().providers).toEqual([]);
 });
 it("separate saved native organizations remain cold-bound and never fall back to an owner API or broker redirect", async () => {
+  const open = vi.fn(() => null);
+  configureHost(createTestHost({ page: { ...testPage(), open } }));
   const broker = "https://broker.example.com";
   vi.spyOn(deviceIdentitySeams, "remoteIdentityApi").mockReturnValue(broker);
   const client = enterprise.identityEnterpriseClient();
@@ -358,9 +360,15 @@ it("separate saved native organizations remain cold-bound and never fall back to
       }
     });
   memory.set("settings.v1", disk.get("settings.v1") ?? "");
-  await expect(
-    beginIdentityConnectionSignIn(saved[1]?.connectionId ?? ""),
-  ).rejects.toThrow("Enable Networking");
+  // The click must reserve its window before private hydration or Networking.
+  for (const connection of saved) {
+    await expect(
+      beginIdentityConnectionSignIn(connection.connectionId),
+    ).rejects.toThrow("Allow the identity sign-in window and try again");
+  }
+  expect(open.mock.calls).toEqual(
+    saved.map(() => ["about:blank", "_blank", "popup,width=600,height=720"]),
+  );
   expect(hydrate).not.toHaveBeenCalled();
   expect(navigation).toEqual([]);
   expect(list).not.toHaveBeenCalled();

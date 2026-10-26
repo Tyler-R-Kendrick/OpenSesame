@@ -27,7 +27,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
-import { opensSharedItems } from "./live-joined.mjs";
+import { joinedTeam, opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
@@ -65,7 +65,7 @@ export function bindWalk(walk) {
     device,
     shot,
     configs,
-    joined,
+    joined = joinedTeam,
     SECRET,
     PHONE,
     PASSTHROUGH,
