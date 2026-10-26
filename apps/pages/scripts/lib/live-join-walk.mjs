@@ -5,6 +5,7 @@
  * link, keeps or declines the routes it names, and asks.
  */
 
+import { expect } from "@playwright/test";
 import { SHARED_ITEM } from "./live-item-labels.mjs";
 import { answerAddresses, namesSameMachine } from "./live-join-addresses.mjs";
 import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
@@ -145,13 +146,15 @@ export async function setRoutes(page, wanted) {
   }
   await namesSameMachine(routes, wanted.addresses ?? []);
   for (const server of wanted.ice ?? []) {
-    await routes.getByLabel("STUN or TURN server").fill(server.url);
+    const field = routes.getByLabel("STUN or TURN server");
+    await field.fill(server.url);
     if (server.username) {
       await routes.getByLabel("TURN username").fill(server.username);
       await routes.getByLabel("TURN credential").fill(server.credential);
     }
     await routes.getByRole("button", { name: "Add the server" }).click();
     await routes.getByText(server.url, { exact: true }).waitFor();
+    await expect(field).toHaveValue("");
   }
   if (wanted.relay)
     await routes
@@ -163,10 +166,14 @@ export async function setRoutes(page, wanted) {
       await routes.getByRole("button", { name: "Add the carrier" }).click();
       continue;
     }
-    await routes.getByLabel(/^Server \(/).fill(carrier.url);
+    const field = routes.getByLabel(/^Server \(/);
+    await field.fill(carrier.url);
     if (carrier.kind === "nats") await natsChoices(routes, carrier);
     await routes.getByRole("button", { name: "Add the carrier" }).click();
     await routes.getByText(carrier.url, { exact: true }).waitFor();
+    // Rows are optimistic; the submitted field clears after the write settles.
+    // Wait for that reset before another step can type a newer draft.
+    await expect(field).toHaveValue("");
   }
 }
 

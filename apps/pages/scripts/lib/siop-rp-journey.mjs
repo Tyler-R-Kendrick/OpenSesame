@@ -100,9 +100,10 @@ async function submitForm(env, watched, { clientId } = {}) {
   );
   page.off("console", onConsole);
   expect(violations).toEqual([]);
-  const cookie = await bindingCookieOf(context, rpUrl);
+  const state = new URL(request.url()).searchParams.get("state");
+  const cookie = await bindingCookieOf(context, rpUrl, state);
   expect(cookie).toMatchObject({
-    name: "__Host-siop_binding",
+    name: `__Host-siop_binding_${state}`,
     httpOnly: true,
     secure: true,
     sameSite: "Lax",
@@ -178,7 +179,8 @@ async function allow(env, watched) {
   });
   expect(await page.content()).not.toContain("id_token");
   expect(page.url()).toBe(`${rpUrl}/callback`);
-  expect(await bindingCookieOf(env.context, rpUrl)).toBeNull();
+  const state = watched.asked.at(-1).searchParams.get("state");
+  expect(await bindingCookieOf(env.context, rpUrl, state)).toBeNull();
   pass(
     "rp allow: the form's redirect passed the page's CSP, the browser kept the __Host- binding cookie and sent it back, and the Node relying party verified the token itself and agrees with an independent verifier",
   );

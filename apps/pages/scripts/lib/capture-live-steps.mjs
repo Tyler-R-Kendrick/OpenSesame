@@ -11,6 +11,7 @@
  * page that serves the build under test.
  */
 
+import { expect } from "@playwright/test";
 import { PIN } from "./pages-journey.mjs";
 
 /** Complete the device seal fields when the joiner needs their own vault. */
@@ -191,9 +192,11 @@ function ownerSteps() {
       const routes = page.locator("#live-routes");
       for (const carrier of carriers) {
         await routes.getByLabel("Code carrier").selectOption(carrier.kind);
-        await routes.getByLabel(/^Server \(/).fill(carrier.url);
+        const field = routes.getByLabel(/^Server \(/);
+        await field.fill(carrier.url);
         await routes.getByRole("button", { name: "Add the carrier" }).click();
-        await page.waitForTimeout(500);
+        await routes.getByText(carrier.url, { exact: true }).waitFor();
+        await expect(field).toHaveValue("");
       }
       console.log(
         `  routes now name ${await routes.getByText(carriers[0].url, { exact: true }).count()} x ${carriers[0].url}`,
