@@ -1,6 +1,7 @@
 /** Shared PIN-seal and chrome helpers for experience Playwright walks. */
 
 import { expect } from "@playwright/test";
+import "./expect-timeout.mjs";
 import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
