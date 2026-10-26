@@ -169,10 +169,26 @@ const PERSON = "Family contact";
 async function personWithPasskey(page, tabTo) {
   await openIdentityView(page, tabTo, "People");
   const panel = page.locator('.record-workspace[data-section="Identity"]');
-  await tabTo(
-    page,
-    panel.getByRole("button", { name: "New person", exact: true }),
-  );
+  const create = panel.getByRole("button", { name: "New person", exact: true });
+  try {
+    // The list can arrive before its encrypted default-directory seed lands.
+    // Like the directory keyboard contract, wait for its command to open.
+    await expect(create).toBeVisible();
+    await expect(create).toBeEnabled();
+    await tabTo(page, create);
+  } catch (error) {
+    console.error(
+      "New person keyboard target:",
+      await create.evaluate((node) => ({
+        disabled: node.disabled,
+        tabIndex: node.tabIndex,
+        hidden: node.hidden,
+        pane: node.closest(".record-workspace")?.getAttribute("data-pane"),
+        visible: node.getClientRects().length > 0,
+      })),
+    );
+    throw error;
+  }
   await page.keyboard.press("Enter");
   const name = panel.getByRole("textbox", { name: "Name", exact: true });
   await expect(name).toBeFocused();

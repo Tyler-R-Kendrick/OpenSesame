@@ -114,9 +114,15 @@ subject to the PR's required checks; no Cloud occurrence was closed.
    passed separate lower-concurrency reruns. `pnpm verify` as a whole has not
    passed, and the full workspace/all-feature Clippy audit was not completed.
 
-Real PostgreSQL was not configured; PGlite exercised the PostgreSQL repository
-implementation. Official Bitwarden/SignalR oracle tests that require external
-fixtures remain explicitly ignored. The session did not access production data.
+The initial database pass used PGlite. Follow-up verification passed all 474
+database tests across 49 files on both PGlite and a private PostgreSQL 16.14
+fixture using the production driver. The exact real-PostgreSQL worker stage
+also passed both delivery tests. Migration race fixtures now wait for the
+competing ownership update before executing the actual SQL compare-and-swap;
+both negative controls fail when the owner predicate is removed. Production
+migration guards were already correct. Official Bitwarden/SignalR oracle tests
+that require external fixtures remain explicitly ignored. The session did not
+access production data.
 
 An additional SCIM input guard strips reserved reconciliation markers supplied
 by a directory. Preexisting malicious marker rows are indistinguishable from

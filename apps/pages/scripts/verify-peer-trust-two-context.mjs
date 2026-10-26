@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { thisMachine } from "./lib/live-join-addresses.mjs";
 import {
   WATCH_RTC,
   admitControl,
@@ -19,10 +20,12 @@ import {
   joinerAsks,
   joinerConnects,
   openLive,
+  openPeerTrustSignal,
   ownerAdmitsByHand,
   ownerEnters,
   peerStates,
   readJoinerSas,
+  setRoutes,
   startSession,
 } from "./lib/live-join-walk.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
@@ -121,12 +124,14 @@ async function beginOwner(browser) {
     secret: SECRET,
   });
   await openLive(owner.page);
+  await setRoutes(owner.page, { addresses: await thisMachine() });
   const started = await startSession(owner.page);
-  const copyKey = started.panel.getByRole("button", {
+  const exportPanel = await openPeerTrustSignal(started.panel);
+  const copyKey = exportPanel.getByRole("button", {
     name: "Copy peer trust signal",
   });
   await copyKey.waitFor({ timeout: 20_000 });
-  const sasLoc = started.panel.locator(".live-sas");
+  const sasLoc = exportPanel.locator(".live-sas");
   await sasLoc.waitFor({ timeout: 20_000 });
   const sas = (await sasLoc.innerText()).trim();
   const signal = await copyFrom(owner.page, copyKey);

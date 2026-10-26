@@ -13,6 +13,7 @@ import { doorGuest } from "./front-door.mjs";
 import {
   copyFrom,
   joinerAsks,
+  openPeerTrustSignal,
   ownerEnters,
   readJoinerSas,
   startSession,
@@ -139,6 +140,7 @@ async function readSas(locator) {
 }
 
 async function readExportPanel(panel, measure) {
+  await openPeerTrustSignal(panel);
   const copyKey = panel.getByRole("button", {
     name: "Copy peer trust signal",
   });

@@ -225,7 +225,8 @@ export async function endSession(panel) {
 /**
  * The joiner opens the link and asks. `routes` keeps (true) or declines
  * (false) the servers the link names; null when it names none. `peerTrust`,
- * when set, is pasted into Peer trust signal before the ask.
+ * when set, is pasted into Peer trust signal before the ask. The carrier road
+ * returns null: its request travels automatically, with no manual copy needed.
  */
 export async function joinerAsks(
   page,
@@ -264,11 +265,30 @@ export async function joinerAsks(
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
   const copy = page.getByRole("button", { name: "Copy your join request" });
+  if (routes === true) {
+    const automatic = page.getByRole("img", {
+      name: "The owner can see your request. Waiting for them to let you in.",
+      exact: true,
+    });
+    // A ready carrier hides the manual packet controls. A refused carrier
+    // keeps them as the fallback; both are an actual request, not the form.
+    await automatic.or(copy).first().waitFor({ timeout: 20_000 });
+    return null;
+  }
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }
 
 const SAS_TEXT = /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/;
+
+/** The owner's export is behind its own Peer trust signal disclosure. */
+export async function openPeerTrustSignal(panel) {
+  const summary = panel.getByText("Peer trust signal", { exact: true });
+  const disclosure = panel.locator("details").filter({ has: summary });
+  await summary.waitFor();
+  if ((await disclosure.getAttribute("open")) === null) await summary.click();
+  return disclosure;
+}
 
 /** Read the joiner's session code after opening its Security code disclosure. */
 export async function readJoinerSas(page) {
