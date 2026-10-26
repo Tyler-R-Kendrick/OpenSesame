@@ -28,8 +28,8 @@ jobs:
           import datetime, json, os, pathlib, subprocess
           repo = "Tyler-R-Kendrick/OpenSesame"
           pr_number = 2149
-          expected_head = "1c8bce92d9353cf722369bf086d6413ab6010119"
-          expected_tree = "bfbfbf4c93d589c766d51395d3814d09131ca84c"
+          expected_head = "d85a8cc6e6da5af3074506d5347c14cc02778faa"
+          expected_tree = "e6572e53fbd25c4ebb44be8d18bb636ac29b51e4"
           output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "final-main-readiness"
           output.mkdir()
           report = {
