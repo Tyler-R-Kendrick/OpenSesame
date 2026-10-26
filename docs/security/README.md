@@ -27,6 +27,7 @@ same method onto one subsystem each. To report a vulnerability, see
 | [Duress limitations](duress/limitations.md) | Normative limits for duress product copy and security claims. |
 | [Audit log](audits/README.md) | Every dated audit: what was reviewed, what was found, how each finding was fixed and proved. |
 | [Tooling evaluation](tooling-evaluation.md) | The scanners and harnesses behind `pnpm audit:*`, why each was chosen, and the running log of fixes they drove. |
+| [OpenSSF Scorecard](openssf-scorecard.md) | Dependency remediation, remaining advisories, signed releases and Best Practices enrollment. |
 | [Scanner rules and negative controls](../../tools/security) | The ast-grep rule set, proof that the ast-grep and gitleaks gates can still fail, and the PR security-review checklist. |
 | [Security-review skill](../../skills/security-review/SKILL.md) | How to run the gates and a budgeted Codex Security scan. |
 
