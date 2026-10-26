@@ -19,7 +19,7 @@ jobs:
   typescript-full:
     name: Full TypeScript suite
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     services:
       postgres:
         # The same mirror and digest as ci.yml (see the comment there).
@@ -59,7 +59,7 @@ jobs:
           node --input-type=module -e
           'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
       - name: Typecheck and test every package
-        run: pnpm exec turbo run typecheck test --concurrency=4
+        run: pnpm exec turbo run typecheck test --concurrency=1
       - name: Repository contract on a real Postgres
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres

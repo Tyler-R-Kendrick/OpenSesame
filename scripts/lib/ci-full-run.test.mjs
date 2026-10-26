@@ -106,9 +106,9 @@ describe("full-suite native preparation", () => {
     const manifest = JSON.parse(
       readFileSync(join(root, "package.json"), "utf8"),
     );
-    expect(manifest.scripts.test).toContain("--concurrency=4");
+    expect(manifest.scripts.test).toContain("--concurrency=1");
     expect(stepFor("pnpm exec turbo run typecheck test")).toContain(
-      "run: pnpm exec turbo run typecheck test --concurrency=4",
+      "run: pnpm exec turbo run typecheck test --concurrency=1",
     );
   });
   it("checks out the selected workflow commit for scheduled and manual validation", () => {
@@ -116,7 +116,7 @@ describe("full-suite native preparation", () => {
     expect(fullWorkflow).toContain("          ref: ${{ github.sha }}");
     expect(fullWorkflow).not.toContain("          ref: main\n");
   });
-  it("finishes canonical native asset verification before concurrent package tests", () => {
+  it("finishes canonical native asset verification before package tests", () => {
     const preparation = stepFor("await loadTailscaleAssets();");
     expect(preparation).toContain("node --input-type=module -e");
     expect(preparation).toContain(
@@ -167,7 +167,7 @@ describe("full-suite native preparation", () => {
         fullSteps.indexOf(postgres),
       );
     }
-    expect(fullWorkflow).toContain("timeout-minutes: 60");
+    expect(fullWorkflow).toContain("timeout-minutes: 90");
     expect(fullWorkflow).not.toContain("--passWithNoTests");
   });
 });
