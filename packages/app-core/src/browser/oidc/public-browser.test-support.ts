@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 /** @vitest-environment-options {"url":"https://pwa.example.test/OpenSesame/"} */
 // Real default fetch/HTTP/JOSE/admission; popup/OPFS are explicit browser-port doubles.
-import { createHash } from "node:crypto";
+import { Buffer } from "node:buffer";
+import {
+  type KeyObject,
+  createHash,
+  generateKeyPairSync,
+  sign,
+} from "node:crypto";
 import { once } from "node:events";
 import {
   type IncomingMessage,
@@ -10,7 +16,6 @@ import {
 } from "node:http";
 import { BroadcastChannel } from "node:worker_threads";
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { afterEach, expect, vi } from "vitest";
 import { z } from "zod";
 import { configureHost, host } from "../../host.js";
@@ -29,7 +34,7 @@ import "./oidc.test-support.js";
 
 type Wire = {
   issuer: string;
-  keys: Awaited<ReturnType<typeof generateKeyPair>>;
+  keys: Readonly<{ privateKey: KeyObject; publicKey: KeyObject }>;
   nonce: string;
   challenge: string;
   organization: string;
@@ -67,19 +72,28 @@ async function token(
     return;
   }
   wire.used = true;
-  const assertion = await new SignJWT({
-    nonce: wire.fault === "nonce" ? "wrong-original-nonce" : wire.nonce,
-    org_id: wire.fault === "organization" ? "wrong-org" : wire.organization,
-    auth_time: Math.floor(Date.now() / 1000),
-    email: "verified@example.test",
-  })
-    .setProtectedHeader({ alg: "ES256", kid: "original-public-key" })
-    .setIssuer(wire.issuer)
-    .setAudience("public-browser-client")
-    .setSubject("browser-person")
-    .setIssuedAt()
-    .setExpirationTime("5m")
-    .sign(wire.keys.privateKey);
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = [
+    { alg: "ES256", kid: "original-public-key" },
+    {
+      nonce: wire.fault === "nonce" ? "wrong-original-nonce" : wire.nonce,
+      org_id: wire.fault === "organization" ? "wrong-org" : wire.organization,
+      auth_time: now,
+      email: "verified@example.test",
+      iss: wire.issuer,
+      aud: "public-browser-client",
+      sub: "browser-person",
+      iat: now,
+      exp: now + 300,
+    },
+  ]
+    .map((value) => Buffer.from(JSON.stringify(value)).toString("base64url"))
+    .join(".");
+  const signature = sign("sha256", Buffer.from(unsigned), {
+    key: wire.keys.privateKey,
+    dsaEncoding: "ieee-p1363",
+  }).toString("base64url");
+  const assertion = `${unsigned}.${signature}`;
   wire.beforeToken();
   json(response, {
     token_type: "Bearer",
@@ -110,7 +124,7 @@ async function request(
       grant_types_supported: ["authorization_code"],
     });
   } else if (path === "/jwks") {
-    const jwk = await exportJWK(wire.keys.publicKey);
+    const jwk = wire.keys.publicKey.export({ format: "jwk" });
     json(response, {
       keys: [
         {
@@ -130,7 +144,7 @@ async function request(
 async function provider() {
   const wire: Wire = {
     issuer: "",
-    keys: await generateKeyPair("ES256"),
+    keys: generateKeyPairSync("ec", { namedCurve: "P-256" }),
     nonce: "",
     challenge: "",
     organization: "",
