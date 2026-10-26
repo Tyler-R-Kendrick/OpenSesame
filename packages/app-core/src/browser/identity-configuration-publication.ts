@@ -134,6 +134,15 @@ async function restoreSamlTrust(
 type IdentityPublicationState = {
   current: IdentityConnectionPublication | null;
 };
+
+function retiresSavedSession(
+  existingId: string | undefined,
+  legacy: OperatorIdp | null,
+  session: ReturnType<typeof loadSession>,
+): boolean {
+  if (existingId) return session?.upstreamId === `identity:${existingId}`;
+  return Boolean(legacy && session?.upstreamId === `operator:${legacy.issuer}`);
+}
 /** A successful provider check cannot publish a save under a retired actor. */
 export async function saveCapturedIdentityConfiguration(
   draft: IdentityConnectionDraft,
@@ -154,12 +163,7 @@ export async function saveCapturedIdentityConfiguration(
   owner.assertCurrent();
   const retiringSession = loadSession();
   owner.assertCurrent();
-  if (
-    (existingId && retiringSession?.upstreamId === `identity:${existingId}`) ||
-    (!existingId &&
-      legacy &&
-      retiringSession?.upstreamId === `operator:${legacy.issuer}`)
-  )
+  if (retiresSavedSession(existingId, legacy, retiringSession))
     owner.clearOwnSession();
   owner.assertCurrent();
   const publication: IdentityPublicationState = {
