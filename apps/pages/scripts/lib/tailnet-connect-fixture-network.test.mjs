@@ -92,12 +92,14 @@ it("counts real TLS rejection before HTTP for wrong CA and same-CA wrong hostnam
       .poll(() => trusted.stats.errors)
       .toBeGreaterThan(before.errors);
     expect(trusted.stats.connections).toBeGreaterThan(before.connections);
+    expect(trusted.stats.lastError).toMatch(/^[A-Z0-9_]{1,80}$/);
     expect(trusted.requests).toHaveLength(1);
     await expect(
       readTLS(`${wrongHostname.origin}/proof`, certificates.caPEM),
     ).rejects.toMatchObject({ code: "ERR_TLS_CERT_ALTNAME_INVALID" });
     await expect.poll(() => wrongHostname.stats.errors).toBeGreaterThan(0);
     expect(wrongHostname.stats.connections).toBeGreaterThan(0);
+    expect(wrongHostname.stats.lastError).toMatch(/^[A-Z0-9_]{1,80}$/);
     expect(wrongHostname.requests).toEqual([]);
   } finally {
     await wrongHostname?.close();

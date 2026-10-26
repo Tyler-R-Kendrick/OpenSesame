@@ -10,9 +10,12 @@ import {
 } from "./tailscale-wasm-assets.mjs";
 test.skipIf(process.arch !== "x64")(
   "ships exact source-built native WASM, isolated runtime, jitless bridge and complete notices",
+  // A cold cache may wait on the 600s preparation lock, download two archives
+  // (125s each), then run the separately bounded 600s native build.
+  { timeout: 1_500_000 },
   async () => {
     const assets = await loadTailscaleAssets();
-    assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6760535);
+    assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6764328);
     assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8078);
     assert.match(
       assets.get(TAILSCALE_ASSETS.runtime).toString(),

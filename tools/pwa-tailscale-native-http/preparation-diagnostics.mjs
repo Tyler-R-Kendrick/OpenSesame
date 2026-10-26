@@ -17,6 +17,7 @@ const reasons = new Set([
   "spawn",
   "timeout",
   "resource",
+  "descendant",
   "SIGINT",
   "SIGTERM",
 ]);
@@ -28,6 +29,7 @@ const codes = new Set([
   "ENOEXEC",
   "ENOMEM",
   "EAGAIN",
+  "NATIVE_GROUP_DRAIN",
 ]);
 const innerLogs = [
   "exit-feature-repeat",

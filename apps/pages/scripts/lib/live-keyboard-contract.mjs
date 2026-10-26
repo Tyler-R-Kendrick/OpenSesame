@@ -117,6 +117,13 @@ async function ownerEnters(page, { origin, base, tabTo, width }) {
   );
   await page.keyboard.press("Enter");
   await expect(page.locator("form.editor")).toHaveCount(0);
+  // Escape returns to the listing; a phone also leaves the item's own route.
+  // Await that navigation before sending the Settings section chord.
+  await page.keyboard.press("Escape");
+  if (width < 600) await expect(page).toHaveURL(/\/vault(?:\?[^#]*)?$/);
+  await expect(
+    page.getByRole("tree", { name: "Vault items", exact: true }),
+  ).toBeFocused();
   await approveByKeyboard(page, tabTo, ["Live sessions"]);
 }
 

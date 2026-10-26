@@ -1,14 +1,28 @@
 /** Automatic build-only preparation; the installed PWA receives static deployment assets. */
-import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, mkdir, open, readFile, rename, rm } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  rename,
+  rm,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { cleanupNativeAuditScratch } from "./audit-scratch.mjs";
 import { nativeBuildEnvironment } from "./compose-native.mjs";
 import {
   assertNativeSourceInputs,
   readNativeDistribution,
 } from "./distribution-cache.mjs";
+import {
+  OUTER_GROUP_GRACE_MS,
+  startOwnedCommand,
+  stopOwnedCommand,
+} from "./owned-process-group.mjs";
 import { describePreparationFailure } from "./preparation-diagnostics.mjs";
 import { assertNativeTaskResources } from "./task-resources.mjs";
 const digestPattern = /^[a-f0-9]{64}$/;
@@ -73,30 +87,19 @@ export async function nativePreparationCommand(
   const taskRoot = resolve(output, "../..");
   await assertNativeTaskResources(taskRoot);
   const log = await open(logPath, "wx", 0o600);
-  const child = spawn(program, args, {
-    detached: true,
-    stdio: ["ignore", log.fd, log.fd],
-    env: nativeBuildEnvironment(output, ""),
-  });
   const observation = { reason: "exit", exitCode: null, signal: null };
-  let interrupted = false;
+  const state = await startOwnedCommand({
+    program,
+    args,
+    env: nativeBuildEnvironment(output, ""),
+    stdio: ["ignore", log.fd, log.fd],
+    observation,
+    graceMs: OUTER_GROUP_GRACE_MS,
+    failureMessage:
+      "Native asset preparation failed; retained build log contains the details.",
+  });
   let completed = false;
-  let force;
-  const stop = (reason) => {
-    if (!interrupted) observation.reason = reason;
-    interrupted = true;
-    if (!child.pid) return;
-    try {
-      process.kill(-child.pid, "SIGTERM");
-    } catch (error) {
-      if (error?.code !== "ESRCH") throw error;
-    }
-    force ??= setTimeout(() => {
-      try {
-        process.kill(-child.pid, "SIGKILL");
-      } catch {}
-    }, 3000);
-  };
+  const stop = (reason) => stopOwnedCommand(state, reason);
   const terminated = () => stop("SIGTERM");
   const interruptedByUser = () => stop("SIGINT");
   process.on("SIGTERM", terminated);
@@ -116,35 +119,27 @@ export async function nativePreparationCommand(
   }, 1000);
   let failure;
   try {
-    await new Promise((accept, reject) => {
-      child.once("error", (error) => {
-        observation.reason = "spawn";
-        reject(error);
-      });
-      child.once("exit", (code, signal) => {
-        observation.exitCode = code;
-        observation.signal = signal;
-        code === 0 && !interrupted
-          ? accept()
-          : reject(
-              new Error(
-                "Native asset preparation failed; retained build log contains the details.",
-              ),
-            );
-      });
-    });
+    await state.done;
   } catch (error) {
     failure = error;
   } finally {
     completed = true;
     clearInterval(monitoring);
     clearTimeout(deadline);
-    clearTimeout(force);
     process.off("SIGTERM", terminated);
     process.off("SIGINT", interruptedByUser);
     await log.close();
   }
   if (failure) {
+    if (
+      observation.exitCode === 125 ||
+      observation.signal ||
+      state.anchorSignal
+    ) {
+      failure.code = "NATIVE_GROUP_DRAIN";
+      failure.message +=
+        " Nested process-group drain is uncertain; owned scratch is retained.";
+    }
     await describePreparationFailure(failure, output, logPath, observation);
     throw failure;
   }
@@ -315,5 +310,56 @@ export async function prepareNativeDistribution(
     return await promise;
   } finally {
     if (inFlight.get(key) === promise) inFlight.delete(key);
+  }
+}
+
+/** Reuse exact preparation and verification, but inspect packages without four WASM compilations. */
+export async function prepareNativeAudit(
+  repositoryRoot,
+  sourceSha256,
+  auditDirectory,
+) {
+  const here = join(resolve(repositoryRoot), "tools/pwa-tailscale-native-http");
+  const pins = await assertNativeSourceInputs(here, sourceSha256);
+  const owner = auditDirectory
+    ? resolve(auditDirectory)
+    : await mkdtemp(join(tmpdir(), "opensesame-native-audit-"));
+  const task = join(owner, "native-go");
+  const work = join(task, "work", randomUUID());
+  const archives = join(
+    resolve(repositoryRoot),
+    ".cache/pwa-tailscale-native-http/archives",
+  );
+  let retainScratch = false;
+  try {
+    await mkdir(join(work, "tmp"), { recursive: true, mode: 0o700 });
+    await mkdir(archives, { recursive: true });
+    const source = await archive(pins.source, archives, work, "source");
+    const compiler = await archive(pins.compiler, archives, work, "compiler");
+    const output = join(work, "audit");
+    await nativePreparationCommand(
+      process.execPath,
+      [join(here, "build.mjs"), source, compiler, output, "--audit"],
+      join(work, "audit.log"),
+      work,
+      600_000,
+    );
+    await assertNativeSourceInputs(here, sourceSha256);
+    const result = JSON.parse(
+      await readFile(join(output, "native-audit.json"), "utf8"),
+    );
+    if (
+      result.compilerVersion !== pins.compiler.version ||
+      result.affectedImportedPackages !== 0
+    )
+      throw new Error(
+        "Native package audit receipt differs from the selected compiler.",
+      );
+    return result;
+  } catch (error) {
+    retainScratch = error?.code === "NATIVE_GROUP_DRAIN";
+    throw error;
+  } finally {
+    if (!retainScratch) await cleanupNativeAuditScratch(work);
   }
 }

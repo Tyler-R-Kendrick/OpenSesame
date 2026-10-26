@@ -66,6 +66,23 @@ it.each([
     );
   },
 );
+it.each(["saml", "oidc"] as const)(
+  "refuses a false native marker at the %s settings boundary",
+  (protocol) => {
+    const provider: OperatorIdp = { ...native(), protocol };
+    if (protocol === "oidc") {
+      provider.issuer = "https://idp.example.test";
+      provider.clientId = "public-client";
+    }
+    expect(readOperatorIdp(provider)).toEqual(provider);
+    if (protocol === "oidc")
+      expect(readOperatorIdp({ ...provider, nativeIdentity: true })).toEqual({
+        ...provider,
+        nativeIdentity: true,
+      });
+    expect(readOperatorIdp({ ...provider, nativeIdentity: false })).toBeNull();
+  },
+);
 it("native SAML public trust cannot authorize a legacy persisted OIDC/opaque assertion", () => {
   const baseline = loadSettings();
   settingsSeams.loadSettings = () => ({

@@ -20,7 +20,7 @@ import { nativePatchCommand } from "./apply-native-patch.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const before = "7275f792d406d3c386cc807937a45a4a7b699d42\n";
-const after = "186053ab2af2ef8fc43f3c1d1150216e89d4aff0\n";
+const after = "7ef7b403648ac3a9481a6e88e8b894eff50b0167\n";
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "native-patch-"));
   t.after(() => rm(root, { recursive: true, force: true }));

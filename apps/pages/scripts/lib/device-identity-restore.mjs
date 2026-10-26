@@ -245,6 +245,9 @@ export async function restoreDeclined(browser) {
     .setInputFiles(backup);
   const sheet = target.page.getByRole("dialog", { name: "Import items" });
   await sheet.waitFor({ timeout: 15000 });
+  // The dialog opens on ReadingCard; inspect the choice once the real sealed
+  // backup card has arrived, just as the guest's absence check does below.
+  await sheet.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
   const box = sheet.getByRole("checkbox", { name: TAKE });
   env.check(
     (await box.count()) === 1 && !(await box.isChecked()),
