@@ -25,7 +25,7 @@ export const WATCH_RTC = () => {
     try {
       return JSON.parse(data).t ?? "?";
     } catch {
-      return String(data).slice(0, 16);
+      return "non-json";
     }
   };
   const send = RTCDataChannel.prototype.send;

@@ -21,6 +21,7 @@
  * The disk reading, comparison and measurement live in
  * `lib/verify-dist-checks.mjs`; this file is the orchestration and the CLI.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -174,6 +175,19 @@ if (
 ) {
   const args = parseArgs(process.argv.slice(2));
   const { report, table } = await verifyDist(args);
+  if (report.ok)
+    execFileSync(
+      process.execPath,
+      [
+        "--experimental-vm-modules",
+        join(here, "verify-schema-csp.mjs"),
+        resolve(APP_ROOT, args.dist),
+      ],
+      {
+        stdio: ["ignore", "ignore", "pipe"],
+        timeout: 15000,
+      },
+    );
   if (!args.quiet) console.error(table);
   if (args.out)
     writeFileSync(resolve(APP_ROOT, args.out), canonicalJson(report));

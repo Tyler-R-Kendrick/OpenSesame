@@ -22,6 +22,7 @@ export const DRIVER_GATES = {
   // P8-6: a dirty edit holds a service-worker release reload.
   "verify-sw-dirty-edit.mjs": ["budgets"],
   "verify-capability-graph.mjs": ["budgets"],
+  "verify-schema-csp.mjs": ["budgets"],
   "verify-self-hosted-connectors.mjs": ["budgets"],
   "verify-native-connectors-journey.mjs": ["native-connectors"],
   "verify-native-public-protocol.mjs": ["native-public-protocol"],

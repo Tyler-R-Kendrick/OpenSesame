@@ -2,12 +2,11 @@
 import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
-  holdSamlSavePhase,
-  samlSaveFixture,
-} from "../browser/saml/configured-runtime.test-support.js";
-import {
   configuredSamlOracle,
   configuredSamlTls,
+  holdSamlSavePhase,
+  interleaveSamlSaveWrite,
+  samlSaveFixture,
 } from "../browser/saml/configured-runtime.test-support.js";
 import { configureHost } from "../host.js";
 import { createMemoryStorage } from "../memory-storage.js";
@@ -288,6 +287,7 @@ it.each(["record-close", "trust-callback"] as const)(
       | ReturnType<typeof captureConfiguredIdentitySessionOwner>
       | undefined;
     const held = await holdSamlSavePhase(phase, fenceLocalSignOut);
+    const unrelatedWrite = interleaveSamlSaveWrite(phase);
     const outcome = saveIdentityConnection(
       { ...draft(), name: "Attempted replacement" },
       saved.connectionId,
@@ -326,6 +326,7 @@ it.each(["record-close", "trust-callback"] as const)(
       failedOwner?.release();
       await held.close();
       await outcome;
+      await unrelatedWrite;
       await fixture.close();
     }
   },
@@ -375,7 +376,6 @@ it("preserves a real queued successor with identical public trust and different 
     await fixture.close();
   }
 });
-
 it("edits its own active SAML connection while retiring the old verified session", async () => {
   const fixture = await samlSaveFixture();
   try {

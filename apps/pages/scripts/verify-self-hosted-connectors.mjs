@@ -33,6 +33,17 @@ async function visit(page, route) {
     dispatchEvent(new PopStateEvent("popstate"));
   }, `${base}${route}`);
   await page.waitForTimeout(900);
+  if (route === "connections/linear") {
+    // The published MCP sign-in is the default. This walk exercises the
+    // separate existing-application/API-key configuration through its control.
+    const name = page.getByLabel("Connector Name", { exact: true });
+    const advanced = page.getByText("Advanced: existing OAuth app or API key", {
+      exact: true,
+    });
+    await name.or(advanced).first().waitFor();
+    if (!(await name.isVisible())) await advanced.click();
+    await name.waitFor();
+  }
 }
 
 async function enableConnections(page) {
@@ -84,7 +95,7 @@ async function verifyIcon(page, label) {
 }
 
 async function providerSpecific(page, label) {
-  await page.getByRole("heading", { name: /Configure$/ }).waitFor();
+  await page.getByRole("heading", { name: "2 Connect", exact: true }).waitFor();
   const text = await page.locator("main").innerText();
   check(
     !/Vercel Connect|Vercel access token|Vercel tokens|Team ID|Project ID/.test(

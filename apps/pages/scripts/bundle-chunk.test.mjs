@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { bundleChunk } from "./bundle-chunk.mjs";
 
+test("schema initialization remains an evaluated dependency without workers", () => {
+  const file = "/x/packages/app-core/src/lib/zod-jitless.ts";
+  assert.equal(bundleChunk(file), "schema-csp");
+  assert.equal(bundleChunk(file.replaceAll("/", "\\")), "schema-csp");
+  assert.equal(bundleChunk(`${file}x`), undefined);
+});
+
 test("renderer and router keep their own chunks", () => {
   assert.equal(bundleChunk("/x/node_modules/react-dom/client.js"), "react-dom");
   assert.equal(bundleChunk("/x/node_modules/react/index.js"), "react-dom");

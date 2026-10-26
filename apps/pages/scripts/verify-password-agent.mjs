@@ -49,7 +49,7 @@ try {
       .locator("visible=true")
       .first()
       .waitFor();
-    await openSettingsCategory(page, "Vaults");
+    await openSettingsCategory(page, "Item types");
     const switchOn = async (pack) => {
       const control = page.getByRole("switch", { name: pack, exact: true });
       if ((await control.getAttribute("aria-checked")) === "false")
@@ -80,7 +80,7 @@ try {
       history.pushState(null, "", route);
       window.dispatchEvent(new PopStateEvent("popstate"));
     }, `${base}vault`);
-    await openSettingsCategory(page, "Vaults");
+    await openSettingsCategory(page, "Item types");
     await page.waitForFunction(() => {
       const found = document.querySelector(
         '[role="switch"][aria-label="API key"]',

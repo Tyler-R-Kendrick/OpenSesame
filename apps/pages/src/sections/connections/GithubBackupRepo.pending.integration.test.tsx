@@ -128,6 +128,23 @@ beforeEach(async () => {
         response.flushHeaders();
         return;
       }
+      // Binding starts the real observer's branch poll, separately authorized
+      // for this one repository. Inventory credentials must never serve it.
+      if (
+        request.path === "/repos/fixture-owner/vault-backup/git/ref/heads/main"
+      ) {
+        expect(request.method).toBe("GET");
+        expect(request.headers.authorization).toBe(
+          "Bearer ghs_owned_backup_poll_token",
+        );
+        response.end(
+          JSON.stringify({
+            ref: "refs/heads/main",
+            object: { type: "commit", sha: "b".repeat(40) },
+          }),
+        );
+        return;
+      }
       const discovery = githubBackupDiscoveryReply(
         request.path,
         request.method,
@@ -144,13 +161,22 @@ beforeEach(async () => {
       expect(request.path).toBe("/app/installations/77/access_tokens");
       expect(request.method).toBe("POST");
       verifyBackupAppAssertion(request.headers.authorization ?? "", app.id);
-      expect(JSON.parse(request.body)).toEqual({
-        permissions: { metadata: "read" },
-      });
+      const input = JSON.parse(request.body);
+      const backupPoll = Object.hasOwn(input, "repositories");
+      expect(input).toEqual(
+        backupPoll
+          ? {
+              repositories: ["vault-backup"],
+              permissions: { contents: "write", metadata: "read" },
+            }
+          : { permissions: { metadata: "read" } },
+      );
       response.statusCode = 201;
       response.end(
         JSON.stringify({
-          token: "ghs_owned_repository_token",
+          token: backupPoll
+            ? "ghs_owned_backup_poll_token"
+            : "ghs_owned_repository_token",
           expires_at: new Date(Date.now() + 600000).toISOString(),
         }),
       );
@@ -284,6 +310,15 @@ it("a successful existing-repository bind retires the old refresh target snapsho
     }),
   );
   await screen.findByTestId("github-backup-repo");
+  await waitFor(() =>
+    expect(
+      server.requests.filter(
+        (request) =>
+          request.path ===
+          "/repos/fixture-owner/vault-backup/git/ref/heads/main",
+      ),
+    ).toHaveLength(1),
+  );
   const before = JSON.stringify(readLocalBackupTarget("github"));
   const marker = onReady.mock.calls.length;
   await finish(1, ["stale-only"]);
@@ -292,6 +327,10 @@ it("a successful existing-repository bind retires the old refresh target snapsho
   );
   expect(JSON.stringify(readLocalBackupTarget("github"))).toBe(before);
   expect(onReady.mock.calls.slice(marker)).not.toContainEqual([false]);
+  // Selecting an existing repository starts a read, never an initial write.
+  expect(server.requests.some((request) => request.method === "PUT")).toBe(
+    false,
+  );
   expect(
     server.requests.some(
       (request) =>
