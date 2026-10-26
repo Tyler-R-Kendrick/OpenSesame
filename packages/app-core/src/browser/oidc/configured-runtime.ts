@@ -61,6 +61,39 @@ export async function testConfiguredNativeOidc(
       : "OIDC discovery supports the configured client authentication. Sign in to verify your account and organization.",
   };
 }
+function onceRetirement(retire: () => Promise<void>) {
+  let retiring: Promise<void> | null = null;
+  return () => {
+    if (retiring) return retiring;
+    let begin = () => {};
+    retiring = new Promise<void>((resolve, reject) => {
+      begin = () => {
+        void (async () => retire())().then(resolve, reject);
+      };
+    });
+    begin();
+    return retiring;
+  };
+}
+/** Caught failures remain opaque: cleanup must preserve the original thrown value. */
+type OidcProtocolFailure = Readonly<{ cause: unknown }>;
+async function retireFailedProtocol(
+  failure: OidcProtocolFailure,
+  retire: () => Promise<void>,
+): Promise<never> {
+  const error = failure.cause;
+  try {
+    await retire();
+  } catch (cleanup) {
+    if (cleanup === error) throw error;
+    throw new AggregateError(
+      [error, cleanup],
+      "OIDC failed and its original carrier retirement also failed",
+      { cause: error },
+    );
+  }
+  throw error;
+}
 export async function signInConfiguredNativeOidc(
   connectionId: string,
   input: IdentityConnectionDraft,
@@ -74,6 +107,7 @@ export async function signInConfiguredNativeOidc(
   let completed = false;
   let admissionStarted = false;
   let protocolRetired = false;
+  const retireOriginal = onceRetirement(retire);
   const abort = () => {
     popup.cancel();
     if (admittedOwner === owner) {
@@ -129,7 +163,7 @@ export async function signInConfiguredNativeOidc(
         owner.assertPending();
         transport.assertCurrent();
         transport.signal.removeEventListener("abort", abort);
-        await retire();
+        await retireOriginal();
         owner.assertPending();
         protocolRetired = true;
       },
@@ -140,6 +174,9 @@ export async function signInConfiguredNativeOidc(
       throw new Error("Original OIDC protocol did not retire before admission");
     admittedOwner = owner;
     completed = true;
+  } catch (error) {
+    transport.signal.removeEventListener("abort", abort);
+    await retireFailedProtocol({ cause: error }, retireOriginal);
   } finally {
     popup.cancel();
     if (!completed) {
