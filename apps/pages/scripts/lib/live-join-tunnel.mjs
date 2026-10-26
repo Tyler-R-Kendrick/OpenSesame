@@ -18,7 +18,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
-import { opensSharedItems } from "./live-joined.mjs";
+import { joinedSession, opensSharedItems } from "./live-joined.mjs";
 
 let check;
 let setStep;
@@ -74,12 +74,10 @@ async function tunnelWithout(browser, owner, init) {
     { admit: false },
   );
   await joinerConnects(lost.page, reply);
-  const reached = await joined(lost.page)
-    .waitFor({ timeout: 20_000 })
-    .then(
-      () => true,
-      () => false,
-    );
+  const reached = await joinedSession(lost.page, 20_000).then(
+    () => true,
+    () => false,
+  );
   check(!reached, "tunnel: with no address named, the browsers never meet");
   await shot(lost.page, "tunnel-1-no-address");
   await endSession(session.panel);

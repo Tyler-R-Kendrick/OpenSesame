@@ -41,7 +41,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
-import { opensSharedItems } from "./live-joined.mjs";
+import { joinedSession, opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 import { startLiveTurn } from "./live-turn.mjs";
@@ -151,7 +151,13 @@ async function through(browser, owner, label, hooks) {
       origin: owner.origin,
       dist: owner.dist,
     });
-    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    await joinerAsks(joiner.page, {
+      link,
+      code,
+      name: JOINER,
+      routes: true,
+      automatic: true,
+    });
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
@@ -160,12 +166,10 @@ async function through(browser, owner, label, hooks) {
       await joined(joiner.page).waitFor({ timeout: 45_000 });
       await shot(joiner.page, `${label}-2-joined`);
     } else {
-      const reached = await joined(joiner.page)
-        .waitFor({ timeout: NO_ROUTE_MS })
-        .then(
-          () => true,
-          () => false,
-        );
+      const reached = await joinedSession(joiner.page, NO_ROUTE_MS).then(
+        () => true,
+        () => false,
+      );
       check(!reached, `${label}: the browsers never met`);
       await shot(joiner.page, `${label}-2-not-joined`);
     }
