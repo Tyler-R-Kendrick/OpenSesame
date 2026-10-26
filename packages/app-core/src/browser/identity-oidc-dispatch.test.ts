@@ -278,11 +278,12 @@ it("cold saved native sign-in captures its original window/factory before hydrat
   const before = vaultStore.getSnapshot();
   const operation = beginIdentityConnectionSignIn(saved.connectionId);
   expect(browser.open).toHaveBeenCalledTimes(1);
-  expect(f.captures()).toBe(2);
+  expect(f.captures()).toBe(1);
   expect(browser.locations).toEqual([]);
   await vi.waitFor(() =>
     expect(nativeOidcPeering()?.state.status).toBe("login"),
   );
+  expect(f.captures()).toBe(2);
   nativeOidcPeering()?.node.login();
   await operation;
   const identity = readNativeFederationSession();

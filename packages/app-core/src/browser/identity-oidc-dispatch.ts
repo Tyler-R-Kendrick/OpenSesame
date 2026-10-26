@@ -1,4 +1,4 @@
-/** Original node, actor and browser window are retained before cold private hydration. */
+/** Original factory, actor and browser window are retained before cold private hydration. */
 import type { IdentityConnectionDraft } from "../lib/identity-connections-schema.js";
 import {
   getIdentityConnectionRuntime,
@@ -6,13 +6,20 @@ import {
 } from "../lib/identity-connections-store.js";
 import { requireValidIdentityConnection } from "../lib/identity-connections-validation.js";
 import { captureNativeIdentityOwner } from "../lib/identity-native-owner.js";
-import { isNativeOidcConfiguration } from "../lib/identity-oidc-config.js";
+import {
+  isNativeOidcConfiguration,
+  usesNativeOidcTransport,
+} from "../lib/identity-oidc-config.js";
 import {
   type IdentityBrowserNode,
   type IdentityBrowserNodeOwner,
-  captureIdentityBrowserNode,
+  reserveIdentityBrowserNode,
 } from "../lib/tailscale/browser-node-identity-port.js";
 import { page } from "../ports.js";
+import {
+  enrollIdentityBrowserNode,
+  retireIdentityBrowserNode as retire,
+} from "./identity-browser-node-enrollment.js";
 import {
   captureIdentityConfigurationActor,
   saveCapturedIdentityConfiguration,
@@ -21,23 +28,42 @@ import {
   type NativeAuthPopup,
   resumeNativeAuthPopup,
 } from "./native-auth-session.js";
-
+import {
+  type BrowserOidcHTTP,
+  captureBrowserOidcHTTP,
+} from "./oidc/browser-transport.js";
 export {
   nativeIdentityPeering as nativeOidcPeering,
   subscribeNativeIdentityPeering as subscribeNativeOidcPeering,
 } from "./identity-browser-node-enrollment.js";
-import {
-  enrollIdentityBrowserNode,
-  retireIdentityBrowserNode as retire,
-} from "./identity-browser-node-enrollment.js";
-async function connect(
-  node: IdentityBrowserNode | null,
-  owner: IdentityBrowserNodeOwner,
-  label: string,
-) {
-  return (
-    await enrollIdentityBrowserNode(node, owner, label)
-  ).captureNativeHTTP(owner.signal);
+
+/** Reserve native activation before hydration, but open only the saved/selected carrier. */
+function captureOidcCarrier(owner: IdentityBrowserNodeOwner) {
+  const openNode = reserveIdentityBrowserNode(owner);
+  let node: IdentityBrowserNode | null = null;
+  let browser: BrowserOidcHTTP | null = null;
+  let opened = false;
+  return Object.freeze({
+    snapshot: () => node?.snapshot(),
+    connect: async (draft: IdentityConnectionDraft) => {
+      owner.assertCurrent();
+      if (opened)
+        throw new Error("Original OIDC HTTP carrier was already opened");
+      opened = true;
+      if (usesNativeOidcTransport(draft)) {
+        node = openNode();
+        return (
+          await enrollIdentityBrowserNode(node, owner, draft.name)
+        ).captureNativeHTTP(owner.signal);
+      }
+      browser = captureBrowserOidcHTTP(owner);
+      return browser.transport;
+    },
+    retire: async () => {
+      if (browser) await browser.retire();
+      else await retire(node);
+    },
+  });
 }
 /** Public OIDC can release this unused capture without requiring Networking or opening a Worker. */
 export function captureOidcConfiguration(existingId?: string) {
@@ -46,23 +72,23 @@ export function captureOidcConfiguration(existingId?: string) {
     signal: actor.signal,
     assertCurrent: actor.assertActor,
   });
-  const node = captureIdentityBrowserNode(nodeOwner);
+  const carrier = captureOidcCarrier(nodeOwner);
   let checked = false;
   const assertActor = () => {
     actor.assertActor();
-    node?.snapshot();
+    carrier.snapshot();
   };
   const owner = Object.freeze({
     signal: actor.signal,
     assertActor,
     assertCurrent: () => {
       actor.assertCurrent();
-      node?.snapshot();
+      carrier.snapshot();
     },
     clearOwnSession: () => {
       assertActor();
       actor.clearOwnSession();
-      node?.snapshot();
+      carrier.snapshot();
     },
     check: async (draft: IdentityConnectionDraft) => {
       actor.assertCurrent();
@@ -71,7 +97,7 @@ export function captureOidcConfiguration(existingId?: string) {
       checked = true;
       await hydrateIdentityConnections();
       actor.assertCurrent();
-      const transport = await connect(node, nodeOwner, draft.name);
+      const transport = await carrier.connect(draft);
       actor.assertCurrent();
       const { testConfiguredNativeOidc } = await import(
         "./oidc/configured-runtime.js"
@@ -83,13 +109,13 @@ export function captureOidcConfiguration(existingId?: string) {
         transport,
       );
       actor.assertCurrent();
-      await retire(node);
+      await carrier.retire();
       actor.assertCurrent();
       return result;
     },
     release: async () => {
       try {
-        await retire(node);
+        await carrier.retire();
       } finally {
         actor.release();
       }
@@ -124,12 +150,10 @@ export async function beginSavedNativeOidc(
     signal: owner.signal,
     assertCurrent: owner.assertPending,
   });
-  let node: IdentityBrowserNode | null = null;
+  const carrier = captureOidcCarrier(pendingOwner);
   let popup: ReturnType<typeof retainPopup> | null = null;
+  let failed = false;
   try {
-    node = captureIdentityBrowserNode(pendingOwner);
-    if (!node)
-      throw new Error("Enable Networking before native identity sign-in");
     const window = page().open(
       "about:blank",
       "_blank",
@@ -146,26 +170,41 @@ export async function beginSavedNativeOidc(
       throw new Error("Saved native OIDC configuration changed");
     requireValidIdentityConnection(draft);
     owner.bindConfiguration(draft);
-    const transport = await connect(node, pendingOwner, draft.name);
+    const transport = await carrier.connect(draft);
     owner.assertPending();
     const { signInConfiguredNativeOidc } = await import(
       "./oidc/configured-runtime.js"
     );
     owner.assertPending();
-    const originalNode = node;
     await signInConfiguredNativeOidc(
       connectionId,
       draft,
       owner,
       popup,
       transport,
-      () => retire(originalNode),
+      carrier.retire,
     );
   } catch (error) {
-    owner.release();
-    popup?.cancel();
+    failed = true;
+    try {
+      await carrier.retire();
+    } catch (cleanup) {
+      if (
+        error === cleanup ||
+        (error instanceof AggregateError && error.errors.includes(cleanup))
+      )
+        throw error;
+      throw new AggregateError(
+        [error, cleanup],
+        "OIDC failed and its original carrier retirement also failed",
+        { cause: error },
+      );
+    } finally {
+      owner.release();
+      popup?.cancel();
+    }
     throw error;
   } finally {
-    await retire(node);
+    if (!failed) await carrier.retire();
   }
 }

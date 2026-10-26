@@ -100,6 +100,7 @@ function OidcEndpointOptions(props: IdentityFieldProps) {
         value={props.draft.oidcTransport}
         options={[
           { id: "auto", label: "Default for this client" },
+          { id: "browser", label: "Browser HTTPS (provider CORS)" },
           { id: "native", label: "Tailscale browser node" },
         ]}
         onChange={(value) => props.onChange("oidcTransport", value)}
