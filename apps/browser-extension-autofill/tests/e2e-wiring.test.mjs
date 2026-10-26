@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { readyWorker } from "../e2e/harness/worker.mjs";
 
 // The browser end-to-end suite (`e2e/`) is wired into the repository's e2e
 // aggregation and nowhere else: `pnpm test` needs no browser, no port and no
@@ -13,6 +14,98 @@ const root = join(companion, "../..");
 const json = (...parts) => JSON.parse(readFileSync(join(...parts), "utf8"));
 
 const pkg = json(companion, "package.json");
+
+test("worker discovery waits for extension bindings and ignores page workers", async () => {
+  let polls = 0;
+  const reads = [];
+  const unrelated = {
+    url: () => "http://app.test/sw.js",
+    evaluate: () => assert.fail("page worker must not be selected"),
+  };
+  const extension = {
+    url: () => "chrome-extension://test/background.js",
+    evaluate: async (probe) => {
+      // Run the real probe against the early CDP global, then ready bindings.
+      const previous = globalThis.chrome;
+      globalThis.chrome =
+        polls < 2
+          ? {}
+          : {
+              runtime: { getURL: () => "chrome-extension://test/" },
+              storage: {
+                local: {
+                  get: async (keys) => {
+                    reads.push(["local", keys]);
+                    return {};
+                  },
+                },
+                session: {
+                  get: async (keys) => {
+                    reads.push(["session", keys]);
+                    return {};
+                  },
+                },
+              },
+              scripting: { getRegisteredContentScripts() {} },
+            };
+      try {
+        return await probe();
+      } finally {
+        globalThis.chrome = previous;
+      }
+    },
+  };
+  assert.equal(
+    await readyWorker(
+      { serviceWorkers: () => [unrelated, extension] },
+      {
+        attempts: 3,
+        pause: async () => {
+          polls++;
+        },
+      },
+    ),
+    extension,
+  );
+  assert.equal(polls, 2);
+  assert.deepEqual(reads, [
+    ["local", []],
+    ["session", []],
+  ]);
+});
+
+test("worker readiness handles replacement and fails closed if APIs stay absent", async () => {
+  const stopped = {
+    url: () => "chrome-extension://test/background.js",
+    evaluate: async () => {
+      throw new Error("worker stopped");
+    },
+  };
+  const replacement = { ...stopped, evaluate: async () => true };
+  let current = stopped;
+  assert.equal(
+    await readyWorker(
+      { serviceWorkers: () => [current] },
+      {
+        attempts: 2,
+        pause: async () => {
+          current = replacement;
+        },
+      },
+    ),
+    replacement,
+  );
+  await assert.rejects(
+    readyWorker(
+      { serviceWorkers: () => [stopped] },
+      {
+        attempts: 2,
+        pause: async () => {},
+      },
+    ),
+    /extension worker APIs did not become ready/,
+  );
+});
 
 test("the default test script needs no browser", () => {
   // (`tests/e2e-wiring.test.mjs` is this file; `e2e/` is the browser suite.)

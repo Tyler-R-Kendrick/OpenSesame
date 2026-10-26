@@ -29,6 +29,7 @@ import {
   admitControl,
   endSession,
   joinerAsks,
+  openLive,
   peerStates,
   setRoutes,
   startSession,
@@ -134,7 +135,7 @@ function checkLink(link, server, label) {
   check(
     allow.length === 2 &&
       allow.every((subject) => subject.startsWith("opensesame.live.")) &&
-      // The start form's default: a session of an hour.
+      // This walk explicitly selects a session of an hour in the start form.
       Math.abs(claims.exp - (Date.now() / 1000 + 60 * 60)) < 120,
     `${label}: scoped to the session's subjects, expiring with it (${allow.join(", ")})`,
   );
@@ -198,6 +199,8 @@ export async function natsSession(browser, owner, binary, mode) {
     const carrier = { kind: "nats", url: server.url, mint: server.mint };
     if (mode === "always") carrier.session = "always";
     await setRoutes(owner.page, { carriers: [carrier] });
+    const { session } = await openLive(owner.page);
+    await session.getByLabel("For", { exact: true }).selectOption("60");
     const { panel, code, link } = await startSession(owner.page);
     await panel
       .getByRole("img", { name: /^Carrying codes: / })

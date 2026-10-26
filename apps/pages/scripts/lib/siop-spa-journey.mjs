@@ -129,8 +129,25 @@ export function checkPublishedMetadata(dist, siopVerify, origin, base) {
   expect(published).toBe(siopVerify.expectedMetadataText(origin, base));
   expect(published).not.toMatch(/token_endpoint|jwks_uri/);
   expect(JSON.parse(published).opensesame.conventional_oidc).toBe(false);
-  expect(fs.existsSync(`${dist}/.well-known`)).toBe(false);
+  // Public security.txt and the IWA/native-association build generators publish
+  // these files. None makes this self-issued profile a conventional IdP.
+  const publicDocuments = new Set([
+    "security.txt",
+    "manifest.webmanifest",
+    "apple-app-site-association",
+    "assetlinks.json",
+  ]);
+  const documents = fs.existsSync(`${dist}/.well-known`)
+    ? fs.readdirSync(`${dist}/.well-known`, { withFileTypes: true })
+    : [];
+  expect(
+    documents
+      .filter(
+        (document) => !document.isFile() || !publicDocuments.has(document.name),
+      )
+      .map((document) => document.name),
+  ).toEqual([]);
   console.log(
-    "PASS metadata artifact: dist/siop-metadata.json is byte-identical to the kit's document, claims no token endpoint or jwks_uri, and no .well-known is shipped",
+    "PASS metadata artifact: dist/siop-metadata.json is byte-identical to the kit's document, claims no token endpoint or jwks_uri, and ships no conventional OIDC discovery document",
   );
 }

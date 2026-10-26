@@ -32,7 +32,11 @@ import { composeState } from "./lib/capability-compose-state.mjs";
 import { publicPathTarget } from "./lib/capability-distribution.mjs";
 import { VIRTUAL_MODULES, canonicalJson } from "./lib/capability-graph.mjs";
 import { formatViolations, violations } from "./lib/capability-invariants.mjs";
-import { lazyLeafChunk } from "./lib/capability-lazy-leaves.mjs";
+import {
+  commonJsRuntimeChunk,
+  lazyLeafChunk,
+  natsCommonJsSource,
+} from "./lib/capability-lazy-leaves.mjs";
 import { itemTypePackChunk } from "./lib/item-type-pack-chunks.mjs";
 import { walk } from "./lib/verify-dist-checks.mjs";
 
@@ -117,13 +121,16 @@ function installManualChunks(build, state) {
     // statically reachable from the first page load.
     output.onlyExplicitManualChunks = true;
     output.manualChunks = (id, api) => {
+      const runtime = commonJsRuntimeChunk(id);
+      if (runtime) return runtime;
       // A built-in item type is a pack, a download of its own (ADR 0165).
       const pack = itemTypePackChunk(id);
       if (pack) return pack;
       // A lazy leaf first: a carrier inside a module directory would
       // otherwise join the module's chunk and load with it.
-      if (!id.startsWith("\0")) {
-        const entry = state.classify(id);
+      const source = natsCommonJsSource(id) ?? id;
+      if (!source.startsWith("\0")) {
+        const entry = state.classify(source);
         // Naming an excluded pure module forces even its unused shell to emit.
         // Leave it to Rollup (or the caller); emitted-code gates still apply.
         if (
@@ -132,7 +139,7 @@ function installManualChunks(build, state) {
           !state.sets.distributed.has(entry.capability)
         )
           return previous ? previous(id, api) : undefined;
-        const leaf = lazyLeafChunk(id, entry);
+        const leaf = lazyLeafChunk(source, entry);
         if (leaf) return leaf;
         if (
           partitionable(id) &&

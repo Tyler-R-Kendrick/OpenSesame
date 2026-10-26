@@ -4,7 +4,7 @@
  * carrier passes the codes, and both browsers meet through the relay alone.
  * One walk per way to reach the server, because each is a different road:
  *
- * - **relayed** — `turn:host:port?transport=udp`, node-turn on loopback.
+ * - **relayed** — `turn:host:port?transport=udp`, node-turn on this machine.
  * - **relayed-tcp** — `turn:host:port?transport=tcp`, the road through a
  *   firewall that lets only TCP out.
  * - **relayed-tls** — `turns:host:port?transport=tcp`, the road through a
@@ -26,7 +26,7 @@
 
 import { createHmac, randomBytes } from "node:crypto";
 import { startNostrRelay, startTurnServer } from "./live-carriers.mjs";
-import { engineOf, lacks } from "./live-engines.mjs";
+import { defaultRouteAddress, engineOf, lacks } from "./live-engines.mjs";
 import {
   backToForm,
   linkRoutes,
@@ -191,7 +191,7 @@ async function through(browser, owner, label, hooks) {
 
 /** UDP, through node-turn: the road with no firewall in it. */
 export async function relayed(browser, owner) {
-  const turn = await startTurnServer();
+  const turn = await startTurnServer({ host: await defaultRouteAddress() });
   try {
     const route = {
       url: turn.url,
@@ -209,9 +209,14 @@ export async function relayed(browser, owner) {
 }
 
 /** TCP or TLS, through live-turn, which says which transport it was reached on. */
-export async function relayedOver(browser, owner, transport, { binary, cert }) {
+export async function relayedOver(
+  browser,
+  owner,
+  transport,
+  { binary, cert, host },
+) {
   const label = `relayed-${transport}`;
-  const turn = await startLiveTurn(binary, { cert });
+  const turn = await startLiveTurn(binary, { cert, host });
   if (turn.missing) {
     failures.push(`[${label}] no live-turn binary at ${turn.missing}`);
     return;
@@ -295,10 +300,15 @@ async function checkRefused(turn, label) {
  * TURN REST: the secret is written in the profile file, the app mints the
  * credential. `wrong` gives the server a different secret: the negative control.
  */
-export async function relayedRest(browser, owner, { binary, wrong = false }) {
+export async function relayedRest(
+  browser,
+  owner,
+  { binary, host, wrong = false },
+) {
   const label = wrong ? "relayed-rest-wrong" : "relayed-rest";
   const secret = randomBytes(16).toString("hex");
   const turn = await startLiveTurn(binary, {
+    host,
     restSecret: wrong ? randomBytes(16).toString("hex") : secret,
   });
   if (turn.missing) {
