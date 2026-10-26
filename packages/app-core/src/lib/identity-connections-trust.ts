@@ -11,6 +11,7 @@ import {
   identitySessionJwksUri,
 } from "./identity-connections-session.js";
 import { readIdentityConnection } from "./identity-connections-store.js";
+import { readOperatorIdp } from "./operator-idp-config.js";
 import {
   type OperatorIdp,
   loadSettings,
@@ -182,4 +183,16 @@ export async function projectIdentityTrust(
     { ...current, signIn: { ...methods, providers } },
     beforeCommit,
   );
+}
+
+/** Match the same strict public projection parser used by Settings reads. */
+export function identityTrustProjection(
+  draft: IdentityConnectionDraft,
+  connectionId: string,
+): OperatorIdp {
+  const parsed = readOperatorIdp(
+    JSON.parse(JSON.stringify(providerProjection(draft, connectionId))),
+  );
+  if (!parsed) throw new Error("Configured identity public trust is invalid");
+  return parsed;
 }

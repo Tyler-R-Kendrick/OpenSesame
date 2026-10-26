@@ -1,38 +1,14 @@
-/** Original SAML workflow authority is retained before cold ledger or protocol imports. */
-import { currentAuthGeneration } from "../lib/auth-generation.js";
-import type { Connection } from "../lib/connections.js";
-import { deviceConnection } from "../lib/device-connectors.js";
-import { resolveIdentityBase } from "../lib/device-identity.js";
-import { federationSessionGeneration } from "../lib/federation-native-session.js";
-import { retireOwnedFederationSession } from "../lib/federation-retirement.js";
-import { loadSession } from "../lib/federation.js";
 import type { IdentityConnectionDraft } from "../lib/identity-connections-schema.js";
 import {
-  type IdentityConnectionPublication,
-  assertIdentityConnectionPublication,
-  compensateIdentityConnectionPublication,
   getIdentityConnectionRuntime,
   hydrateIdentityConnections,
-  identityConnectionRevision,
   readIdentityConnection,
-  writeIdentityConnection,
 } from "../lib/identity-connections-store.js";
-import {
-  assertIdentityTrustAvailable,
-  projectIdentityTrust,
-} from "../lib/identity-connections-trust.js";
 import { requireValidIdentityConnection } from "../lib/identity-connections-validation.js";
 import { captureNativeIdentityOwner } from "../lib/identity-native-owner.js";
-import { currentSession } from "../lib/identity.js";
 import { captureNativeProviderAuthority } from "../lib/native-connector-transport.js";
-import {
-  type OperatorIdp,
-  loadSettings,
-  saveSettingsDurable,
-  signInMethods,
-} from "../lib/settings.js";
-import { vaultStore } from "../lib/vault/store.js";
 import { page } from "../ports.js";
+import { captureIdentityConfigurationActor } from "./identity-configuration-publication.js";
 import { resumeNativeAuthPopup } from "./native-auth-session.js";
 import type { SamlPostOwner } from "./saml/assertion-conditions.js";
 
@@ -107,66 +83,20 @@ export function captureSamlConfiguration(
   metadataUrl: string,
   existingId?: string,
 ) {
-  const original = vaultStore.getSnapshot();
-  const header = JSON.stringify(original.header);
-  const auth = currentAuthGeneration();
-  const session = currentSession();
-  const realm = resolveIdentityBase();
-  let generation = federationSessionGeneration();
-  const revision = existingId ? identityConnectionRevision(existingId) : null;
-  const stop = new AbortController();
-  const owner = Object.freeze({
-    signal: AbortSignal.any([stop.signal, AbortSignal.timeout(15000)]),
-    assertCurrent: () => {
-      stop.signal.throwIfAborted();
-      const now = vaultStore.getSnapshot();
-      if (
-        now.tomb !== original.tomb ||
-        now.status !== original.status ||
-        now.guest !== original.guest ||
-        now.awaitingSecondStep !== original.awaitingSecondStep ||
-        JSON.stringify(now.header) !== header ||
-        currentAuthGeneration() !== auth ||
-        currentSession() !== session ||
-        resolveIdentityBase() !== realm
-      )
-        throw new Error("Original SAML configuration authority changed");
-    },
-  });
-  const actor = owner.assertCurrent;
-  const pending = Object.freeze({
-    signal: owner.signal,
-    assertCurrent: () => {
-      actor();
-      if (
-        federationSessionGeneration() !== generation ||
-        (existingId && identityConnectionRevision(existingId) !== revision)
-      )
-        throw new Error("Original SAML configuration authority changed");
-    },
-  });
+  const actor = captureIdentityConfigurationActor(existingId);
+  const pending = { signal: actor.signal, assertCurrent: actor.assertCurrent };
   const route = captureMetadataRoute(metadataUrl, pending);
   const assertActor = () => {
-    actor();
+    actor.assertActor();
     route.assertAuthority();
-    if (federationSessionGeneration() !== generation)
-      throw new Error("Original SAML configuration authority changed");
+    actor.assertActor();
   };
   return Object.freeze({
     assertCurrent: route.assertCurrent,
     assertActor,
     clearOwnSession: () => {
       assertActor();
-      const retired = retireOwnedFederationSession(generation, () => {
-        actor();
-        route.assertAuthority();
-        actor();
-      });
-      if (loadSession() !== null || federationSessionGeneration() !== retired)
-        throw new Error(
-          "Original identity session changed during configuration",
-        );
-      generation = retired;
+      actor.clearOwnSession(route.assertAuthority);
       assertActor();
     },
     check: async (draft: IdentityConnectionDraft) => {
@@ -180,130 +110,12 @@ export function captureSamlConfiguration(
       return testNativeSamlConfiguration(draft, pending, route.transport);
     },
     release: async () => {
-      stop.abort();
+      actor.release();
       await route.retire();
     },
   });
 }
-function projection(id: string): OperatorIdp | undefined {
-  return signInMethods().providers.find(
-    (provider) => provider.connectionId === id,
-  );
-}
-function assertProjection(id: string, expected: OperatorIdp | undefined): void {
-  if (JSON.stringify(projection(id)) !== JSON.stringify(expected))
-    throw new Error("Original public identity trust changed");
-}
-async function restoreSamlTrust(
-  id: string,
-  expected: OperatorIdp,
-  previous: OperatorIdp | undefined,
-  previousIndex: number,
-  publication: IdentityConnectionPublication,
-): Promise<void> {
-  if (JSON.stringify(projection(id)) !== JSON.stringify(expected)) return;
-  const current = loadSettings();
-  const methods = signInMethods(current);
-  const providers = methods.providers.filter(
-    (provider) => provider.connectionId !== id,
-  );
-  if (previous)
-    providers.splice(Math.min(previousIndex, providers.length), 0, previous);
-  await saveSettingsDurable(
-    { ...current, signIn: { ...methods, providers } },
-    () => {
-      assertIdentityConnectionPublication(id, publication);
-      assertProjection(id, expected);
-    },
-  );
-}
-type SamlPublicationState = { current: IdentityConnectionPublication | null };
-/** A successful provider check cannot publish a save under a retired actor. */
-export async function saveConfiguredNativeSaml(
-  draft: IdentityConnectionDraft,
-  existingId: string | undefined,
-  owner: ReturnType<typeof captureSamlConfiguration>,
-): Promise<Connection> {
-  owner.assertCurrent();
-  const previous = existingId ? getIdentityConnectionRuntime(existingId) : null;
-  const previousProjection = existingId ? projection(existingId) : undefined;
-  const previousIndex = existingId
-    ? signInMethods().providers.findIndex(
-        (provider) => provider.connectionId === existingId,
-      )
-    : 0;
-  assertIdentityTrustAvailable(draft, existingId ?? "", null);
-  await owner.check(draft);
-  owner.assertCurrent();
-  const retiringSession = loadSession();
-  owner.assertCurrent();
-  if (existingId && retiringSession?.upstreamId === `identity:${existingId}`)
-    owner.clearOwnSession();
-  owner.assertCurrent();
-  const publication: SamlPublicationState = {
-    current: null,
-  };
-  let id = existingId;
-  let expected: OperatorIdp | null = null;
-  try {
-    const connection = await writeIdentityConnection(
-      draft,
-      existingId,
-      owner.assertCurrent,
-      (prepared) => {
-        publication.current = prepared;
-      },
-    );
-    id = connection.connectionId;
-    const receipt = publication.current;
-    if (!receipt)
-      throw new Error("Original identity publication was not prepared");
-    const selected = id;
-    const assertOwned = () => {
-      owner.assertActor();
-      assertIdentityConnectionPublication(selected, receipt);
-    };
-    assertOwned();
-    assertProjection(selected, previousProjection);
-    expected = {
-      protocol: "saml",
-      providerId: draft.providerId,
-      issuer: draft.samlEntityId,
-      clientId: draft.clientId,
-      connectionId: selected,
-      label: draft.name,
-    };
-    await projectIdentityTrust(draft, selected, null, () => {
-      assertOwned();
-      assertProjection(selected, previousProjection);
-    });
-    assertOwned();
-    assertProjection(selected, expected);
-    const view = deviceConnection(selected) ?? connection;
-    assertOwned();
-    assertProjection(selected, expected);
-    return view;
-  } catch (error) {
-    const receipt = publication.current;
-    if (receipt)
-      await compensateIdentityConnectionPublication(
-        id,
-        receipt,
-        previous,
-        async (selected) => {
-          if (expected)
-            await restoreSamlTrust(
-              selected,
-              expected,
-              previousProjection,
-              previousIndex,
-              receipt,
-            );
-        },
-      );
-    throw error;
-  }
-}
+export { saveCapturedIdentityConfiguration as saveConfiguredNativeSaml } from "./identity-configuration-publication.js";
 function retainPopup(original: ReturnType<typeof resumeNativeAuthPopup>) {
   const show = original.showFormConsent;
   const cancel = original.cancel;
