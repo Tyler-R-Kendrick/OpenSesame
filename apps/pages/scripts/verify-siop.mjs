@@ -112,7 +112,7 @@ async function unlockVault(page) {
   const password = page.getByLabel("Password", { exact: true });
   await expect(password).toBeVisible();
   await password.fill(VAULT_PASSWORD);
-  await password.press("Enter");
+  await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await expect(password).not.toBeVisible();
 }
 
