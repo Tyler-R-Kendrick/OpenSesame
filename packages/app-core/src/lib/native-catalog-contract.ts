@@ -6,25 +6,36 @@ export type NativeCatalogConfiguration = {
   classification: NativeFieldClassification;
 };
 
-export function nativeCatalogConfigurationContract(
-  provider: Provider,
-): NativeCatalogConfiguration | null {
-  const fields = provider.configurationFields;
-  const wallet =
+function walletConfiguration(provider: Provider): boolean {
+  return (
     provider.id === "google-wallet" &&
     provider.authKind === "configuration" &&
     provider.egress.scheme === "none" &&
     provider.egress.authorities.length === 0 &&
     provider.egress.pathPrefixes.length === 0 &&
     provider.operations.length === 1 &&
-    provider.operations[0] === "wallet.configure" &&
-    fields?.length;
-  const runtime =
+    provider.operations[0] === "wallet.configure"
+  );
+}
+
+function runtimeConfiguration(provider: Provider): boolean {
+  return (
     provider.category === "cua_runtime" &&
     provider.authKind === "configuration" &&
     provider.operations.length === 1 &&
-    ["sandbox.execute", "browser.cdp"].includes(provider.operations[0]);
-  if ((!wallet && !runtime) || !fields) return null;
+    ["sandbox.execute", "browser.cdp"].includes(provider.operations[0])
+  );
+}
+
+export function nativeCatalogConfigurationContract(
+  provider: Provider,
+): NativeCatalogConfiguration | null {
+  const fields = provider.configurationFields;
+  if (
+    (!walletConfiguration(provider) && !runtimeConfiguration(provider)) ||
+    !fields
+  )
+    return null;
   const names = fields.map((field) => field.name);
   if (
     names.some((name) => !name.trim()) ||
