@@ -23,7 +23,8 @@ function runtimeConfiguration(provider: Provider): boolean {
     provider.category === "cua_runtime" &&
     provider.authKind === "configuration" &&
     provider.operations.length === 1 &&
-    ["sandbox.execute", "browser.cdp"].includes(provider.operations[0])
+    (provider.operations[0] === "sandbox.execute" ||
+      provider.operations[0] === "browser.cdp")
   );
 }
 
