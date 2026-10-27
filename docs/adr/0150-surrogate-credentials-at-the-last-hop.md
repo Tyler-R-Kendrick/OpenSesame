@@ -292,7 +292,10 @@ into a body field. The rules for when ADR 0076 §8's runner implements it:
 - **Responses** are scrubbed as in §4.
 - **Failure.** A failed login falls back to the recipe's CDP fill, never to
   retrying substitution.
-- **Password-set fields** are never a substitution site.
+- **Password-set fields** are never a substitution site, except the narrow CUA
+  reset case in [ADR 0213](0213-cua-password-reset-recipes.md): the signed
+  recipe must prove one exact, untransformed form field by a canary round trip.
+  Every other password-set shape remains refused.
 
 Until then, the agent browser uses CDP fill.
 

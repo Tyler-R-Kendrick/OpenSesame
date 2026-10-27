@@ -227,6 +227,8 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
 
     // --- optional: password reset ---------------------------------------
     "password_reset.mailboxes.manage": "ai.password-reset",
+    "password_reset.cua.run": "ai.password-reset",
+    "password_reset.cua.configure": "ai.password-reset",
 
     // --- optional: wallet -----------------------------------------------
     "wallet.capabilities.read": "wallet.spending",
