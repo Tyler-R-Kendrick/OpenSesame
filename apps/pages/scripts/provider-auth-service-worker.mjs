@@ -143,7 +143,8 @@ async function failedCallbacks({
     }
   }
   controls.offline = true;
-  await context.setOffline(true);
+  // Keep transport enabled so the fixture refuses real sockets; browser
+  // offline emulation can fail requests before the server observes them.
   for (const filename of AUTH_PAGES) {
     const page = await context.newPage();
     try {
