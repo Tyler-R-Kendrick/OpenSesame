@@ -74,7 +74,6 @@ function supportedApiProvider(id: string): boolean {
   if (nativeKeyDriverFor(id)) return true;
   const plan = connectPlan(id);
   return (
-    id !== "linear" &&
     !!plan &&
     !plan.refused &&
     plan.methods.some(

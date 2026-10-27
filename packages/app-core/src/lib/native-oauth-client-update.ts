@@ -20,7 +20,7 @@ import { NativeOAuthError } from "./native-oauth-errors.js";
 import { nativeOAuthGuard } from "./native-oauth-session.js";
 import {
   assertVaultCredentials,
-  discardVaultCredentials,
+  discardUnpublishedVaultCredentials,
   readVaultCredentials,
   stageVaultCredentials,
 } from "./vault-credential-custody.js";
@@ -150,33 +150,63 @@ export async function saveNativeOAuthClientConfiguration(update: Update) {
     oauth_client_reference: captured.reference,
     oauth_client_vault: owner.tomb,
   };
-  try {
-    if (!old)
-      return await saveNativeConnector(
-        {
-          connectionId: `devconn_${crypto.randomUUID()}`,
-          configuration: desired,
-          runtime: emptyNativeRuntime(),
-          privateState: state,
-        },
-        classification,
-        assertCaptured,
-      );
-    return await updateNativeConnector(
-      old.connectionId,
-      nativeOAuthGuard(old),
-      classification,
-      (record) => {
-        assertCaptured();
-        record.configuration = desired;
-        record.privateState = state;
-        record.runtime = emptyNativeRuntime();
-        return record;
+  if (
+    old &&
+    old.privateState.credentials.oauth_client_reference !== captured.reference
+  )
+    state.recovery.push({
+      id: `oauth-client-cleanup:${old.revision}`,
+      kind: "revoke",
+      providerId: old.configuration.providerId,
+      actor: "user",
+      fingerprint: old.configuration.fingerprint,
+      targetId: old.configuration.clientId ?? old.configuration.providerId,
+      credentials: {
+        phase: "superseded",
+        oauth_client_reference:
+          old.privateState.credentials.oauth_client_reference ?? "",
+        oauth_client_vault:
+          old.privateState.credentials.oauth_client_vault ?? "",
+        oauth_client_binding: old.configuration.fingerprint,
       },
-      assertCaptured,
-    );
+    });
+  const connectionId = old?.connectionId ?? `devconn_${crypto.randomUUID()}`;
+  let saved: Awaited<ReturnType<typeof saveNativeConnector>>;
+  try {
+    saved = old
+      ? await updateNativeConnector(
+          old.connectionId,
+          nativeOAuthGuard(old),
+          classification,
+          (record) => {
+            assertCaptured();
+            record.configuration = desired;
+            record.privateState = state;
+            record.runtime = emptyNativeRuntime();
+            return record;
+          },
+          assertCaptured,
+        )
+      : await saveNativeConnector(
+          {
+            connectionId,
+            configuration: desired,
+            runtime: emptyNativeRuntime(),
+            privateState: state,
+          },
+          classification,
+          assertCaptured,
+        );
   } catch (error) {
-    await discardVaultCredentials(captured, owner.tomb, check);
+    await discardUnpublishedVaultCredentials(
+      captured,
+      owner.tomb,
+      () =>
+        loadNativeConnectorRecord(connectionId)?.privateState.credentials
+          .oauth_client_reference === captured.reference,
+      check,
+    );
     throw error;
   }
+  return saved;
 }

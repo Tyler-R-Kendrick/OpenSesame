@@ -120,6 +120,37 @@ describe("where the token goes", () => {
     const [id, row] = withKey;
     assert.equal(verifyTargetFor({ service: id, type: "api-key" }), row.apiKey);
   });
+
+  it("binds shared-host OAuth aliases by UID without cross-provider routing", () => {
+    const drive = verifyTargetFor({
+      service: "accounts.google.com",
+      uid: "google-drive/default",
+      data: {},
+    });
+    assert.equal(drive.url, "https://www.googleapis.com/oauth2/v3/userinfo");
+    const m365 = verifyTargetFor({
+      service: "login.microsoftonline.com",
+      uid: "m365/default",
+      data: {},
+    });
+    assert.equal(m365.accountField, "displayName");
+    assert.equal(
+      verifyTargetFor({
+        service: "accounts.google.com",
+        uid: "unlisted/default",
+        data: {},
+      }).url,
+      "https://openidconnect.googleapis.com/v1/userinfo",
+    );
+    assert.equal(
+      verifyTargetFor({
+        service: "login.microsoftonline.com",
+        uid: "google-drive/default",
+        data: {},
+      }),
+      VERIFY_TARGETS.microsoft.oauth,
+    );
+  });
 });
 
 describe("generated verify targets", () => {
@@ -139,5 +170,49 @@ describe("generated verify targets", () => {
         );
       }
     }
+  });
+
+  it("includes Attio's native OAuth and API-key targets", () => {
+    assert.equal(
+      VERIFY_TARGETS.attio.oauth.url,
+      "https://api.attio.com/v2/objects",
+    );
+    assert.equal(
+      VERIFY_TARGETS.attio.apiKey.url,
+      "https://api.attio.com/v2/objects",
+    );
+    assert.deepEqual(VERIFY_TARGETS.attio.apiKey.requiredFields, ["data"]);
+    assert.deepEqual(VERIFY_TARGETS.attio.oauth.requiredFields, ["data"]);
+  });
+
+  it("rejects wrong-shaped Attio replies for either credential method", async () => {
+    for (const target of [
+      VERIFY_TARGETS.attio.oauth,
+      VERIFY_TARGETS.attio.apiKey,
+    ]) {
+      const result = await verifyWithToken(target, TOKEN, async () =>
+        Response.json({ items: [] }),
+      );
+      assert.equal(result.ok, false);
+    }
+  });
+
+  it("requires Origin's actual rate-limit resource fields", async () => {
+    assert.deepEqual(VERIFY_TARGETS.origin.oauth.requiredFields, [
+      "resources.core.limit",
+      "resources.core.remaining",
+      "resources.core.reset",
+      "resources.core.used",
+    ]);
+    const result = await verifyWithToken(
+      VERIFY_TARGETS.origin.oauth,
+      TOKEN,
+      async () => Response.json({}),
+    );
+    assert.equal(result.ok, false);
+  });
+
+  it("omits targets whose local endpoint parameters cannot be recovered safely", () => {
+    assert.equal(VERIFY_TARGETS.obsidian, undefined);
   });
 });

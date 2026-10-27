@@ -113,7 +113,7 @@ describe("legacy proof refuses unsupported credential metadata", () => {
     }
   });
 
-  it("uses only declared public choices and leaves unknown or secret parameters unresolved", () => {
+  it("admits only declared public choices and omits unknown or secret parameters", () => {
     const row = source("assemblyai");
     const publicTarget = verifyTargets(
       { services: [] },
@@ -137,15 +137,15 @@ describe("legacy proof refuses unsupported credential metadata", () => {
           },
         ],
       },
-    ).assemblyai.apiKey;
-    assert.equal(secretTarget.url, row.verify.url);
+    ).assemblyai?.apiKey;
+    assert.equal(secretTarget, undefined);
     const unknownTarget = verifyTargets(
       { services: [] },
       {
         oauth: [],
         api_key: [{ ...row, template_params: [] }],
       },
-    ).assemblyai.apiKey;
-    assert.equal(unknownTarget.url, row.verify.url);
+    ).assemblyai?.apiKey;
+    assert.equal(unknownTarget, undefined);
   });
 });

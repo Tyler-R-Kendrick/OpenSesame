@@ -64,6 +64,10 @@ function openPeople() {
   );
 }
 
+async function signOwnerInAgain() {
+  fixture.session = await signInLocalIdentity(fixture.tomb, fixture.personId);
+}
+
 async function rowOf(name: string) {
   const row = (await screen.findByRole("heading", { level: 3, name })).closest(
     "li",
@@ -82,6 +86,7 @@ it("arms delete, keeps focus on keep, and lands focus on the add key once the ro
     () => expect(remove).toHaveProperty("disabled", false),
     SEALED_WRITE,
   );
+  await signOwnerInAgain();
   await userEvent.click(remove);
   expect(remove.className).toContain("is-armed");
   expect(remove.getAttribute("aria-label")).toBe("Confirm deletion");
@@ -124,6 +129,7 @@ it("reports a refused delete and keeps the row", async () => {
     () => expect(remove).toHaveProperty("disabled", false),
     SEALED_WRITE,
   );
+  await signOwnerInAgain();
   await userEvent.click(remove);
   await userEvent.click(
     within(row).getByRole("button", { name: "Confirm deletion" }),

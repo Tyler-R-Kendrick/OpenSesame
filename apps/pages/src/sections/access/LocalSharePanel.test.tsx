@@ -33,6 +33,18 @@ function identityOption(name: string): Element | null {
   });
 }
 
+type Fixture = Awaited<ReturnType<typeof localRequestFixture>>;
+
+// A directory change ends every local session, and a tab that has signed
+// someone in administers only as that person, never as the custodian.
+async function changeAsOwner(
+  fixture: Fixture,
+  input: Parameters<Fixture["change"]>[0],
+): Promise<void> {
+  await fixture.change(input);
+  fixture.session = await signInLocalIdentity(fixture.tomb, fixture.personId);
+}
+
 // The share + and its form are the Access walkthrough's targets, which the
 // access capability declares when it activates.
 let revokeRealm = () => {};
@@ -86,13 +98,14 @@ it("offers a new application and grants it a vault", async () => {
   await waitFor(() => {
     expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);
   });
-  await fixture.change({
+  await changeAsOwner(fixture, {
     action: "create",
     kind: "application",
     name: "Payroll",
   });
-  await signInLocalIdentity(fixture.tomb, fixture.personId);
-  await waitFor(() => expect(grant).toHaveProperty("disabled", false));
+  await waitFor(() => {
+    expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);
+  });
   await userEvent.click(grant);
   await screen.findByLabelText("Identity");
   await waitFor(() => {
@@ -161,8 +174,11 @@ it("asks twice before revoking an active share", async () => {
 
 it("lists a pending agent grant on the requests tab", async () => {
   const fixture = await localRequestFixture();
-  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
-  await signInLocalIdentity(fixture.tomb, fixture.personId);
+  await changeAsOwner(fixture, {
+    action: "create",
+    kind: "agent",
+    name: "Helper",
+  });
   render(<LocalSharePanel tomb={fixture.tomb} />);
   const grant = screen.getByRole("button", { name: "Grant identity share" });
   await waitFor(() => {
@@ -185,8 +201,11 @@ it("lists a pending agent grant on the requests tab", async () => {
 
 it("asks for approval before an agent share is active", async () => {
   const fixture = await localRequestFixture();
-  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
-  await signInLocalIdentity(fixture.tomb, fixture.personId);
+  await changeAsOwner(fixture, {
+    action: "create",
+    kind: "agent",
+    name: "Helper",
+  });
   render(
     <LocalSharePanel tomb={fixture.tomb} />,
     "/access?view=grants#identity-shares",

@@ -196,10 +196,11 @@ describe("image family cannot borrow text framing or credential builders", () =>
       { pull: pulled, cancel: cancelled },
       { highWaterMark: 0 },
     );
-    const acquire = vi.spyOn(body, "getReader");
     const response = new Response(body, {
       headers: { "content-type": "text/event-stream" },
     });
+    const getReader = vi.spyOn(body, "getReader");
+    const clone = vi.spyOn(response, "clone");
     await expect(
       readAiTextStream(
         response,
@@ -210,10 +211,10 @@ describe("image family cannot borrow text framing or credential builders", () =>
       ),
     ).rejects.toThrow();
     expect(pulled).not.toHaveBeenCalled();
-    expect(acquire).not.toHaveBeenCalled();
-    expect(cancelled).not.toHaveBeenCalled();
     expect(onText).not.toHaveBeenCalled();
     expect(check).not.toHaveBeenCalled();
+    expect(getReader).not.toHaveBeenCalled();
+    expect(clone).not.toHaveBeenCalled();
     expect(response.bodyUsed).toBe(false);
     await response.body?.cancel();
     expect(cancelled).toHaveBeenCalledOnce();

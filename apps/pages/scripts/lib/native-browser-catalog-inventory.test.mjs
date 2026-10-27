@@ -16,15 +16,7 @@ it("requires every actual featured and family Add card in the native inventory",
     includeFamilies: true,
   }).map((provider) => provider.id);
   const rail = catalogPageItems(providers).map((row) => row.id);
-  expect(rendered.filter((id) => !rail.includes(id)).sort()).toEqual([
-    "aws",
-    "azure-kms",
-    "fal-ai",
-    "gcp",
-    "higgsfield",
-    "obsidian",
-    "polar",
-  ]);
+  expect(rendered.filter((id) => !rail.includes(id))).toEqual([]);
   expect(NATIVE_CANONICAL_CATALOG_IDS).toEqual(rendered);
   expect(new Set(NATIVE_CANONICAL_CATALOG_IDS).size).toBe(rendered.length);
   expect(rail.every((id) => NATIVE_CANONICAL_CATALOG_IDS.includes(id))).toBe(

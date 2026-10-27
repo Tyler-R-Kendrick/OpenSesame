@@ -70,6 +70,15 @@ export function bindNativeConnectorDriver(
                 : cleanup.prepare(id, original);
             })
         : undefined,
+      finalize: cleanup.finalize
+        ? (id, original) =>
+            guard(() => {
+              if (!cleanup.finalize) return Promise.resolve();
+              return original === undefined
+                ? cleanup.finalize(id)
+                : cleanup.finalize(id, original);
+            })
+        : undefined,
       cleanup: (obligation, context) =>
         guard(() => cleanup.cleanup(obligation, context)),
     },

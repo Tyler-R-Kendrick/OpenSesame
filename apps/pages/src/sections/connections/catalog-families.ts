@@ -1,4 +1,6 @@
 /** One browse tile per provider family, with its API surfaces listed inside. */
+import { canonicalProviderId } from "@opensesame/app-core/lib/connector-catalog.js";
+
 export type ApiFamily = {
   readonly id: string;
   readonly name: string;
@@ -74,7 +76,7 @@ const BY_MEMBER = new Map(
 );
 
 export function apiFamilyFor(providerId: string): ApiFamily | undefined {
-  return BY_MEMBER.get(providerId);
+  return BY_MEMBER.get(canonicalProviderId(providerId) ?? providerId);
 }
 
 /** Hide non-canonical members from the browse list; their family tile owns them. */

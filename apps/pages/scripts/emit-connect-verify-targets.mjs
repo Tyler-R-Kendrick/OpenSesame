@@ -101,18 +101,28 @@ function oauthTarget(row) {
 function apiKeyTarget(row) {
   const verify = legacyApiVerification(row);
   if (!verify) return null;
+  const sources = templated(
+    (row.service_urls ?? []).map((template, index) => ({
+      template,
+      field: `serviceUrls.${index}`,
+    })),
+  );
+  const recoverable = new Set(
+    sources.flatMap((source) =>
+      [...source.template.matchAll(/\{([a-z_]+)\}/g)].map((match) => match[1]),
+    ),
+  );
+  const unresolved = [...verify.url.matchAll(/\{([a-z_]+)\}/g)].some(
+    (match) => match[1] !== "key" && !recoverable.has(match[1]),
+  );
+  if (unresolved) return null;
   return target(
     "api-key",
     verify,
     row.header,
     row.scheme ?? null,
     row.basic ?? null,
-    templated(
-      (row.service_urls ?? []).map((template, index) => ({
-        template,
-        field: `serviceUrls.${index}`,
-      })),
-    ),
+    sources,
   );
 }
 
@@ -197,6 +207,19 @@ export function verifyHosts(presets = spec("connect-presets.json")) {
   );
 }
 
+export function verifyAliasHosts(presets = spec("connect-presets.json")) {
+  const out = {};
+  for (const row of oauthRows(presets)) {
+    if (!row.verify || row.server_url.includes("{")) continue;
+    const host = new URL(row.server_url).host;
+    out[host] ??= [];
+    out[host].push(row.service);
+  }
+  return Object.fromEntries(
+    Object.entries(out).sort(([a], [b]) => a.localeCompare(b)),
+  );
+}
+
 export function renderModule() {
   const rows = Object.entries(verifyTargets()).map(
     ([id, row]) => `  ${JSON.stringify(JSON.stringify([id, row]))},`,
@@ -214,6 +237,8 @@ export function renderModule() {
     ");",
     "",
     `export const VERIFY_HOSTS = Object.freeze(${JSON.stringify(verifyHosts())});`,
+    "",
+    `export const VERIFY_OAUTH_ALIAS_HOSTS = Object.freeze(${JSON.stringify(verifyAliasHosts(), null, 2)});`,
     "",
   ].join("\n");
 }

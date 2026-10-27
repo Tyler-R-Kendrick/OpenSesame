@@ -14,7 +14,7 @@ it("reconstructs every original connector plan byte for byte, including provider
   );
   expect(decoded).toEqual(originals);
   expect(CONNECT_PLAN_JSON).toEqual(originals);
-  expect(originals).toHaveLength(252);
+  expect(originals).toHaveLength(259);
 });
 
 it("reconstructs the complete authored browser policy with every recorded probe unchanged", () => {

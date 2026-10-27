@@ -90,6 +90,18 @@ function mcpCleanupAdapter(
         ) ?? Promise.resolve()
       );
     },
+    finalize: (id, original) => {
+      authority.assertCurrent();
+      const view = readNativeConnector(id);
+      if (!view || view.configuration.method !== "mcp")
+        throw new Error("Saved MCP connection not found");
+      return (
+        cleanup(id, view.configuration.fingerprint, original).finalize?.(
+          id,
+          original,
+        ) ?? Promise.resolve()
+      );
+    },
     cleanup: (obligation, context) =>
       cleanup(
         context.connectionId,

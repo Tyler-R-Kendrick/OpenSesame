@@ -3,7 +3,9 @@ import { z } from "zod";
 
 export const ProviderUrlSchema = z.string().refine((value) => {
   try {
-    const filled = value.replace(/\{[a-z_]+\}/g, "x");
+    const filled = value.replace(/\{([a-z_]+)\}/g, (_match, name) =>
+      name === "port" ? "443" : "x",
+    );
     if (/[{}]/.test(filled)) return false;
     const url = new URL(filled);
     return url.protocol === "https:" && !url.username && !url.password;
@@ -36,6 +38,7 @@ export const ProviderTemplateParamSchema = z.object({
   placeholder: z.string(),
   required: z.boolean().default(true),
   secret: z.boolean().default(false),
+  defaultValue: z.string().optional(),
   choices: z
     .array(z.object({ value: z.string(), label: z.string() }))
     .optional(),

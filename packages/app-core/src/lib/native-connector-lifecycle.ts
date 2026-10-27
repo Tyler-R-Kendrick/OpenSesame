@@ -50,6 +50,11 @@ export interface NativeProviderCleanup {
     connectionId: string,
     transport?: NativeProviderTransport,
   ) => Promise<void>;
+  /** Release an active local credential after earlier recovery, during removal only. */
+  finalize?: (
+    connectionId: string,
+    transport?: NativeProviderTransport,
+  ) => Promise<void>;
   cleanup: (
     obligation: NativeRecovery,
     context: NativeCleanupContext,
@@ -223,12 +228,17 @@ async function retryCleanup(
   connectionId: string,
   adapter: NativeProviderCleanup,
   transport: NativeProviderTransport | undefined,
+  removal = false,
+  finalize = false,
 ): Promise<NativeConnectorView> {
   assertCleanupAdapter(connectionId, adapter);
   try {
     transport?.assertCurrent();
-    if (transport) await adapter.prepare?.(connectionId, transport);
-    else await adapter.prepare?.(connectionId);
+    const prepare = finalize ? adapter.finalize : adapter.prepare;
+    if (removal || requiredRecord(connectionId).privateState.recovery.length) {
+      if (transport) await prepare?.(connectionId, transport);
+      else await prepare?.(connectionId);
+    }
     transport?.assertCurrent();
     assertCleanupAdapter(connectionId, adapter);
   } catch {
@@ -333,7 +343,9 @@ export async function removeNativeConnectorWithCleanup(
   return withCleanupLock(connectionId, async () => {
     transport?.assertCurrent();
     await journalRemoval(connectionId, adapter);
-    await retryCleanup(connectionId, adapter, transport);
+    await retryCleanup(connectionId, adapter, transport, true);
+    if (adapter.finalize)
+      await retryCleanup(connectionId, adapter, transport, true, true);
     assertCleanupAdapter(connectionId, adapter);
     const current = requiredRecord(connectionId);
     const cleared = await updateNativeConnector(

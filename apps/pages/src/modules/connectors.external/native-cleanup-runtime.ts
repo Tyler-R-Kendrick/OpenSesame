@@ -15,6 +15,7 @@ import {
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import { loadNativeConnectorRecord } from "@opensesame/app-core/lib/native-connector-store.js";
 import { captureNativeProviderAuthority } from "@opensesame/app-core/lib/native-connector-transport.js";
+import { readSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Activation } from "../activation.js";
 
 const METHODS: readonly NativeMethod[] = [
@@ -37,7 +38,9 @@ export function bindNativeCleanupRuntime(
     ...extraProviderIds,
   ]);
   for (const providerId of ids) {
-    if (providerId === "linear") continue;
+    const legacy =
+      providerId === "linear" ? deviceProviderRevokers.linear : undefined;
+    if (legacy) deviceProviderRevokers.linear = undefined;
     const captured = new Map<NativeMethod, NativeConnectorDriver>();
     for (const method of METHODS) {
       if (hasNativeConnectorDriver(method, providerId))
@@ -74,6 +77,16 @@ export function bindNativeCleanupRuntime(
           else await prepare?.(connectionId);
           transport.assertCurrent();
         },
+        finalize: async (connectionId, original) => {
+          transport.assertCurrent();
+          const record = loadNativeConnectorRecord(connectionId);
+          if (!record || record.configuration.providerId !== providerId)
+            throw new Error("Provider cleanup belongs to another connection");
+          const finalize = driver(record.configuration.method).cleanup.finalize;
+          if (original) await finalize?.(connectionId, original);
+          else await finalize?.(connectionId);
+          transport.assertCurrent();
+        },
         credentialSlots: (configuration, grant) => {
           const slots =
             driver(grant?.kind ?? configuration.method).cleanup
@@ -93,9 +106,13 @@ export function bindNativeCleanupRuntime(
         },
       }),
     );
-    const previous = deviceProviderRevokers[providerId];
+    const previous = legacy ?? deviceProviderRevokers[providerId];
     const revoke = async (id: string) => {
       transport.assertCurrent();
+      if (legacy && readSelfHostedConnector(id)) {
+        await legacy(id);
+        return;
+      }
       const record = loadNativeConnectorRecord(id);
       if (!record || record.configuration.providerId !== providerId)
         throw new Error("Provider cleanup belongs to another connection");

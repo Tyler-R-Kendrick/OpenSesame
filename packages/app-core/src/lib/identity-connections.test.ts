@@ -1,6 +1,8 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
+import { page } from "../ports.js";
 import type { PagePort } from "../ports.js";
 import { createTestHost } from "../test-host.js";
 import {
@@ -373,6 +375,24 @@ it("separate saved native organizations remain cold-bound and never fall back to
   expect(fetch).not.toHaveBeenCalled();
   expect(loadSession()).toBeNull();
   expect(hydrate).not.toHaveBeenCalled();
+  const opener = { open: vi.fn() };
+  vi.stubGlobal("window", opener);
+  const popup = {
+    closed: false,
+    opener,
+    location: { href: "about:blank" },
+    close: vi.fn(),
+  };
+  vi.spyOn(page(), "open").mockReturnValue(
+    overlapCast<typeof popup, Window>(popup),
+  );
+  await expect(
+    beginIdentityConnectionSignIn(saved[1]?.connectionId ?? ""),
+  ).rejects.toThrow("Enable Networking");
+  expect(hydrate).toHaveBeenCalledWith(
+    expect.arrayContaining(["opensesame.self-hosted-connectors.v1"]),
+  );
+  expect(popup.close).toHaveBeenCalledOnce();
   expect(navigation).toEqual([]);
   expect(list).not.toHaveBeenCalled();
 });

@@ -39,7 +39,12 @@ it("derives standard configurable native OAuth from the actual confidential prov
   const method = descriptor.methods.find((row) => row.id === "oauth");
   expect(method).toEqual(
     nativePolicyMethod(f.plan.id, {
-      ...nativeOAuthResourceDescriptor(f.preset, callbackUrl, true),
+      ...nativeOAuthResourceDescriptor(
+        f.preset,
+        callbackUrl,
+        true,
+        configuredNativeOAuthPreset(f.plan) ?? {},
+      ),
       preferredRank: 35,
     }),
   );

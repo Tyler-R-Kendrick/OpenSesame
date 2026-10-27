@@ -147,8 +147,7 @@ export function nativeSettingsDescriptor(
     },
     savedMethod,
   );
-  // Linear's GraphQL app/key ceremony lives in its existing advanced form.
-  // Existing native records keep their own method and credential custody.
+  // Existing Linear records keep their own method and credential custody.
   return provider.id === "linear"
     ? {
         ...descriptor,
@@ -171,7 +170,15 @@ function primaryActions(
     : nativeApiResourceActions(view.providerId, view.configuration.method);
   const actions = resources.length
     ? resources
-    : [{ id: "provider.read", label: `Check ${name} access` }];
+    : [
+        {
+          id: "provider.read",
+          label:
+            view.configuration.method === "native-local"
+              ? `Review ${name} configuration`
+              : `Check ${name} access`,
+        },
+      ];
   return actions.map((action) => ({
     ...action,
     available: true,

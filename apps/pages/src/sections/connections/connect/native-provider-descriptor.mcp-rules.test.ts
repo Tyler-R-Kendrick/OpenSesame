@@ -37,7 +37,17 @@ it("offers only the plan's primary MCP method, its default permission selected",
     primary: true,
     configurable: false,
   } satisfies McpPageRules);
-  const descriptor = nativeProviderDescriptor(plan, availability);
+  const descriptor = nativeProviderDescriptor(plan, {
+    ...availability,
+    mcp: {
+      ...availability.mcp,
+      defaultScopes: plan.methods.flatMap((method) =>
+        method.kind === "mcp" && method.mcp.status === "ok"
+          ? (method.mcp.defaultScopes ?? [])
+          : [],
+      ),
+    },
+  });
   expect(descriptor.methods.map((method) => method.id)).toEqual(["mcp"]);
   const mcp = descriptor.methods[0];
   expect(mcp?.fields).toEqual([]);

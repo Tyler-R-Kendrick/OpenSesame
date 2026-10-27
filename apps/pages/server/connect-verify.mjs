@@ -12,6 +12,7 @@ import {
 } from "./connect-verify-response.mjs";
 import {
   VERIFY_HOSTS,
+  VERIFY_OAUTH_ALIAS_HOSTS,
   VERIFY_TARGETS,
 } from "./connect-verify-targets.generated.mjs";
 import {
@@ -45,12 +46,21 @@ function pick(value, path, token) {
     : account.slice(0, 80);
 }
 
+function oauthAlias(connector) {
+  const named = text(connector?.service, 128);
+  const uid = text(connector?.uid, 512);
+  // Only aliases already bound to this authorization host can refine its target.
+  return (VERIFY_OAUTH_ALIAS_HOSTS[named] ?? []).find((id) =>
+    uid.startsWith(`${id}/`),
+  );
+}
+
 /** Which of the service's verify calls fits this connector. */
 export function verifyTargetFor(connector) {
   const named = text(connector?.service, 128);
   const service = Object.hasOwn(VERIFY_TARGETS, named)
     ? named
-    : (VERIFY_HOSTS[named] ?? "");
+    : (oauthAlias(connector) ?? VERIFY_HOSTS[named] ?? "");
   const targets = VERIFY_TARGETS[service];
   if (!targets) return null;
   const data = isObject(connector.data) ? connector.data : {};

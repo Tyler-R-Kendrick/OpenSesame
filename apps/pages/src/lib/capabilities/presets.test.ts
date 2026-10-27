@@ -100,8 +100,15 @@ describe("MODULE_OWNERSHIP", () => {
     expect(GENERATED_PUBLIC_FILES["auth/native-client.json"]).toBe(
       "scripts/native-client-metadata-plugin.mjs",
     );
+    for (const file of [
+      "404.html",
+      "about.html",
+      "contact.html",
+      "privacy.html",
+    ])
+      expect(HTML_ENTRY_OWNERSHIP[file]).toBeNull();
     for (const owner of Object.values(HTML_ENTRY_OWNERSHIP)) {
-      expect(isKnownCapability(owner)).toBe(true);
+      if (owner !== null) expect(isKnownCapability(owner)).toBe(true);
     }
     const publicHtml = readdirSync(join(pagesRoot, "public"))
       .filter((file) => file.endsWith(".html"))

@@ -151,7 +151,7 @@ export function NativeConnectorFields({
         {method.links?.map((link) => {
           const url = nativePublicUrl(link.url);
           return url ? (
-            <OutLink key={link.label} href={url}>
+            <OutLink key={`${link.label}:${link.url}`} href={url}>
               {link.label}
             </OutLink>
           ) : null;

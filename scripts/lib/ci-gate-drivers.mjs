@@ -26,6 +26,7 @@ export const DRIVER_GATES = {
   "verify-self-hosted-connectors.mjs": ["budgets"],
   "verify-native-connectors-journey.mjs": ["native-connectors"],
   "verify-native-public-protocol.mjs": ["native-public-protocol"],
+  "verify-origin-app.mjs": ["native-public-protocol"],
   "verify-provider-auth.mjs": ["native-public-protocol"],
   "verify-identity-connections.mjs": ["native-public-protocol"],
   "verify-secret-backends.mjs": ["native-public-backends"],

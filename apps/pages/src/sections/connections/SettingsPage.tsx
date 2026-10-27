@@ -4,6 +4,7 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { canonicalProviderId } from "@opensesame/app-core/lib/connector-catalog.js";
 import { canConfigureAutomatically } from "@opensesame/app-core/lib/connector-guidance.js";
 import { docLink } from "@opensesame/app-core/lib/doc-link.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
@@ -108,15 +109,14 @@ export function ConnectorSettingsPage({
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const family = provider === null ? undefined : apiFamilyFor(provider.id);
-  const familyOptions =
-    family === undefined
-      ? []
-      : family.members.map((id) => {
-          const row = (providers ?? []).find(
-            (candidate) => candidate.id === id,
-          );
-          return { id, label: row?.displayName ?? id };
-        });
+  const familyOptions = (family?.members ?? []).map((id) => {
+    const row = (providers ?? []).find(
+      (candidate) =>
+        candidate.id === id ||
+        canonicalProviderId(candidate.id) === canonicalProviderId(id),
+    );
+    return { id, label: row?.displayName ?? id };
+  });
   const ceremonyRoot = connectorCeremonyRoot(pathname);
   const backRef = useGuideTarget<HTMLAnchorElement>("connections.back");
   const authorizeRef = useGuideTarget<HTMLElement>("connections.authorize");
@@ -216,7 +216,7 @@ export function ConnectorSettingsPage({
           <label htmlFor="connector-api-family">API family</label>
           <select
             id="connector-api-family"
-            value={provider.id}
+            value={canonicalProviderId(provider.id) ?? provider.id}
             onChange={(event) => navigate(connectorPath(event.target.value))}
           >
             {familyOptions.map((option) => (

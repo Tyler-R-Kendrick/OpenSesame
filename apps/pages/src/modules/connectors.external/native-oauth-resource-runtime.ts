@@ -19,6 +19,7 @@ import {
 import { NativeOAuthError } from "@opensesame/app-core/lib/native-oauth-errors.js";
 import { createNativeOAuthResourceDriver } from "@opensesame/app-core/lib/native-oauth-resource-driver.js";
 import { configuredNativeOAuthPreset } from "@opensesame/app-core/lib/native-oauth-resource-preset.js";
+import { createNativeOriginDriver } from "@opensesame/app-core/lib/native-origin-driver.js";
 import { captureSecretBackendVault } from "@opensesame/app-core/lib/secret-backends/runtime-owners.js";
 
 type Authority = ReturnType<typeof captureNativeProviderAuthority>;
@@ -30,6 +31,7 @@ export function supportsNativeOAuthResource(id: string): boolean {
 export function nativeOAuthClientConfigured(
   configuration: NativeConfiguration,
 ): boolean {
+  if (configuration.providerId === "origin") return false;
   if (configuration.method !== "oauth") return false;
   if (
     ![...NativeOAuthClientTarget.keyof().options, "redirect_uri"].some(
@@ -91,12 +93,15 @@ export function composeNativeOAuthResourceDriver(
   authority: Authority,
   redirectUri: string,
 ): NativeConnectorDriver {
+  const capture = (signal?: AbortSignal, original?: NativeProviderTransport) =>
+    captureOwner(authority, redirectUri, signal, original);
   const configured = createNativeOAuthResourceDriver({
     supports: supportsNativeOAuthResource,
-    capture: (signal, original) =>
-      captureOwner(authority, redirectUri, signal, original),
+    capture,
   });
+  const origin = createNativeOriginDriver({ capture });
   const forConfiguration = (configuration: NativeConfiguration) => {
+    if (configuration.providerId === "origin") return origin;
     if (nativeOAuthClientConfigured(configuration)) {
       if (!configured.supports(configuration.providerId))
         throw new NativeOAuthError("callback");
@@ -112,6 +117,7 @@ export function composeNativeOAuthResourceDriver(
     return forConfiguration(view.configuration);
   };
   const configure = (input: NativeDriverInput) => {
+    if (input.providerId === "origin") return origin.configure(input);
     if (
       ["cimd", "provider"].includes(input.parameters.token_auth_method ?? "")
     ) {
@@ -160,6 +166,14 @@ export function composeNativeOAuthResourceDriver(
         return (
           (original === undefined ? prepare?.(id) : prepare?.(id, original)) ??
           Promise.resolve()
+        );
+      },
+      finalize: (id, original) => {
+        const finalize = forConnection(id).cleanup.finalize;
+        return (
+          (original === undefined
+            ? finalize?.(id)
+            : finalize?.(id, original)) ?? Promise.resolve()
         );
       },
       cleanup: (obligation, context) =>

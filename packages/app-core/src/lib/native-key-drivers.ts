@@ -6,6 +6,7 @@
 import { acmeKeyFlows } from "./native-acme.js";
 import { awsKeyFlows } from "./native-aws.js";
 import { azureAcKeyFlows } from "./native-azure-ac.js";
+import { azureKeysKeyFlows } from "./native-azure-keys.js";
 import { azureSecretsKeyFlows } from "./native-azure-secrets.js";
 import { gcpIamKeyFlows, gcpKeyFlows } from "./native-gcp.js";
 import { googleWalletKeyFlows } from "./native-google-wallet.js";
@@ -19,6 +20,7 @@ export const NATIVE_KEY_DRIVERS: readonly NativeKeyFlows[] = [
   stsKeyFlows,
   azureAcKeyFlows,
   azureSecretsKeyFlows,
+  azureKeysKeyFlows,
   gcpKeyFlows,
   gcpIamKeyFlows,
   acmeKeyFlows,

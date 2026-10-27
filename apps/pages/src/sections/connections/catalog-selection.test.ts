@@ -157,7 +157,7 @@ describe("the curated Connections list", () => {
     );
   });
 
-  it("puts BYO AI first while partners stay alphabetical and the input is preserved", () => {
+  it("retires BYO AI from browse while partners stay alphabetical and the input is preserved", () => {
     const allById = new Map(
       mergeVercelCatalog(getBundledProviders()).map((provider) => [
         provider.id,
@@ -174,7 +174,6 @@ describe("the curated Connections list", () => {
     const original = [...input];
     const ordered = curatedCatalogProviders(input);
     expect(ordered.map((provider) => provider.id)).toEqual([
-      "byo-ai",
       "anthropic",
       "asana",
       "openai",
@@ -185,7 +184,7 @@ describe("the curated Connections list", () => {
       ordered
         .filter((provider) => matchesCatalog(provider, "model provider"))
         .map((provider) => provider.id),
-    ).toEqual(["byo-ai", "anthropic", "openai"]);
+    ).toEqual(["anthropic", "openai"]);
   });
 
   it("never admits an AI provider outside the Settings list", () => {
@@ -205,6 +204,9 @@ describe("the curated Connections list", () => {
       expect(family.members.length, family.id).toBeGreaterThan(1);
     }
     expect(apiFamilyFor("azure-kms")?.members).toContain("azure-kms");
+    expect(apiFamilyFor("aws-secrets-manager")?.id).toBe("aws");
+    expect(apiFamilyFor("gcp-secret-manager")?.id).toBe("gcp");
+    expect(apiFamilyFor("azure-key-vault-secrets")?.id).toBe("azure-kms");
   });
 
   it("labels each card with supported auth methods, not internal tags", () => {

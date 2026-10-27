@@ -144,6 +144,17 @@ describe("every provider without a road gets an honest statement", () => {
       authored: false,
     });
   });
+
+  it("describes Google Wallet as local configuration without provider proof", () => {
+    const wallet = catalogProvider("google-wallet");
+    expect(wallet && browserDisposition(wallet)).toMatchObject({
+      kind: "built-in",
+      authored: false,
+    });
+    expect(wallet && browserDisposition(wallet).summary).toMatch(
+      /no provider request or provider-access verification/i,
+    );
+  });
 });
 
 it.each([

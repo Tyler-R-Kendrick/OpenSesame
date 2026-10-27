@@ -20,6 +20,7 @@ const projection = buildSync({
       import {nativeKeyDescriptor} from './apps/pages/src/sections/connections/connect/native-key-descriptor.ts';
       import {nativeS3Descriptor} from './apps/pages/src/sections/connections/connect/native-s3-descriptor.ts';
       import {getBundledProviders} from './packages/app-core/src/lib/embedded-catalog.ts';
+      import {catalogProvider} from './packages/app-core/src/lib/connector-catalog.ts';
       export {CONNECT_PLAN_JSON as connectPlanJson} from './packages/app-core/src/lib/connect-presets.generated.ts';
       import {mergeVercelCatalog} from './packages/app-core/src/lib/vercel-connect-catalog.ts';
       import {isConnectionCatalogProvider} from './packages/app-core/src/lib/catalog-provider.ts';
@@ -40,7 +41,7 @@ const projection = buildSync({
           callbackUrl: 'https://tyler-r-kendrick.github.io/OpenSesame/auth/native-connector.html',
           apiKey: {available: true},
           oauth: {available: true, registeredAvailable: true, profile: nativeBrowserOAuthProfile(providerId) ?? undefined},
-          mcp: {available: true, actor: 'user'},
+          mcp: {available: true, actor: 'user', defaultScopes: providerId === 'linear' ? ['read'] : undefined},
         };
         const methods = nativeProviderDescriptor(plan, availability).methods;
         // Isolation can disable Google's popup while registered OAuth stays configurable.
@@ -53,9 +54,15 @@ const projection = buildSync({
       releaseOrigin();
       import {curatedCatalogProviders} from './apps/pages/src/sections/connections/catalog-selection.ts';
       import {connectionRouteProvider} from './packages/app-core/src/sections/connections/provider-route.ts';
+      import {API_FAMILIES} from './apps/pages/src/sections/connections/catalog-families.ts';
+      export const families = API_FAMILIES;
       export const all = mergeVercelCatalog(getBundledProviders()).filter(isConnectionCatalogProvider);
       export function routeProvider(providerId) { return connectionRouteProvider(all, providerId); }
       export const listed = curatedCatalogProviders(all, {includeFeatured: true, includeFamilies: true});
+      export const displayNames = Object.fromEntries(
+        [...new Set([...listed.map(row => row.id), ...families.flatMap(family => family.members)])]
+          .map(id => [id, catalogProvider(id)?.displayName ?? null]),
+      );
       export const aiModelProviderIds = all.filter(isAiModelProvider).map(provider => provider.id);
       export const sharedAiPresets = all.flatMap(provider => {
         const preset = aiConnectionPreset(provider.id);
@@ -82,16 +89,19 @@ globalThis.require ??= createRequire(import.meta.url);
 const source = await import(
   `data:text/javascript;base64,${Buffer.from(projection.outputFiles[0].text).toString("base64")}`
 );
-export const NATIVE_CANONICAL_PROVIDERS = source.all.map((provider) => ({
-  id: provider.id,
-  name: provider.displayName,
-}));
+export const NATIVE_CANONICAL_PROVIDERS = [
+  ...new Map([
+    ...source.all.map((provider) => [provider.id, provider.displayName]),
+    ...Object.entries(source.displayNames).filter(([, name]) => name !== null),
+  ]),
+].map(([id, name]) => ({ id, name }));
 /** Match the production route's exact-id then canonical-alias lookup. */
 export function nativeCanonicalRouteProvider(providerId) {
   const provider = source.routeProvider(providerId);
   return provider ? { id: provider.id, name: provider.displayName } : null;
 }
 export const NATIVE_CANONICAL_CATALOG_IDS = source.listed.map((row) => row.id);
+export const NATIVE_API_FAMILIES = source.families;
 export const NATIVE_CONNECT_PLAN_JSON = source.connectPlanJson;
 
 /**

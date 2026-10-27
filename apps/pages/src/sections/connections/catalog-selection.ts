@@ -35,6 +35,7 @@ const MANAGED = new Set(
 /** Retired from browse; saved connections and Settings retain these rows. */
 const RETIRED_FROM_BROWSE = new Set([
   "assemblyai",
+  "byo-ai",
   "cohere",
   "deepgram",
   "minimax",
@@ -233,7 +234,7 @@ export type CatalogSelectionOptions = {
   includeFamilies?: boolean;
 };
 
-/** BYO leads the curated browse list; partner providers stay alphabetical. */
+/** Curated browse providers stay alphabetical. */
 export function curatedCatalogProviders(
   providers: readonly Provider[],
   options: CatalogSelectionOptions = {},

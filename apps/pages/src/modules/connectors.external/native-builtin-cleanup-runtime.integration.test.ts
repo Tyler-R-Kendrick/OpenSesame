@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 /** Builtin providers must be removable through the production activation, even without a generated plan. */
+import { initialDraftState } from "@opensesame/app-core/lib/connect-draft.js";
+import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { deviceProviderRevokers } from "@opensesame/app-core/lib/device-connectors.js";
 import { modelMemoryBackend } from "@opensesame/app-core/lib/hosted-model.test-support.js";
 import { kvForgetAll } from "@opensesame/app-core/lib/kv.js";
 import type { NativeDriverInput } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
+import {
+  readSelfHostedConnector,
+  saveSelfHostedConnector,
+} from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import { afterEach as afterGenuine, beforeEach as beforeGenuine } from "vitest";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { nativeConnectorController } from "../../sections/connections/connect/native-connector-controller.js";
@@ -26,7 +32,23 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 type Builtin = { input: NativeDriverInput; response: () => Response };
+const linear: Builtin = {
+  input: {
+    providerId: "linear",
+    method: "api-key",
+    displayName: "Linear",
+    parameters: {},
+    credentials: { api_key: "private-linear-api-key" },
+    requestedScopes: {},
+    targetIds: {},
+  },
+  response: () =>
+    Response.json({
+      data: { viewer: { id: "linear-user", name: "Protocol Linear user" } },
+    }),
+};
 const providers: Builtin[] = [
+  linear,
   {
     input: {
       providerId: "github",
@@ -113,6 +135,27 @@ it.each(providers)(
     expect(fetcher).toHaveBeenCalledTimes(2);
   },
 );
+it("preserves the legacy Linear revoker beside native cleanup", async () => {
+  activate(linear);
+  const plan = connectPlan("linear");
+  if (!plan) throw new Error("Linear plan required");
+  const saved = await saveSelfHostedConnector(
+    plan,
+    { ...initialDraftState(plan, "api-key"), key: "lin_api_test-only" },
+    {
+      mode: "byo",
+      workspace: "protocol-workspace",
+      appScopes: [],
+      userScopes: [],
+      webhookResourceTypes: [],
+      icon: "",
+    },
+  );
+  const revoke = deviceProviderRevokers.linear;
+  if (!revoke) throw new Error("Missing the Linear revoker");
+  await revoke(saved.connectionId);
+  expect(readSelfHostedConnector(saved.connectionId)).toBeNull();
+});
 it.each(providers)(
   "rejects retained $input.providerId revokers after their production activation is disposed",
   async (provider) => {

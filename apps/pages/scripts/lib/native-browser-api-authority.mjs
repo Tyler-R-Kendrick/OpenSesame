@@ -40,9 +40,11 @@ function expectedHeaders(fixture, resource) {
     const value = auth.valueTemplate
       ? substitute(auth.valueTemplate, fixture)
       : fixture.credentials.api_key;
-    headers[auth.header.toLowerCase()] = auth.scheme
-      ? `${auth.scheme} ${value}`
-      : value;
+    headers[auth.header.toLowerCase()] = auth.valueTemplate
+      ? value
+      : auth.scheme
+        ? `${auth.scheme} ${value}`
+        : value;
   }
   if (auth.kind === "basic")
     headers.authorization = `Basic ${Buffer.from(`${substitute(auth.username, fixture)}:${substitute(auth.password, fixture)}`).toString("base64")}`;

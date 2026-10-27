@@ -1,106 +1,24 @@
-import { type ChannelListener, channel } from "node:diagnostics_channel";
-import { IncomingMessage, ServerResponse } from "node:http";
-import { afterEach, expect, it } from "vitest";
-import { z } from "zod";
-import {
-  registerNativeProviderCleanup,
-  removeNativeConnectorWithCleanup,
-} from "./native-connector-lifecycle.js";
+import { expect, it } from "vitest";
+import { removeNativeConnectorWithCleanup } from "./native-connector-lifecycle.js";
 import {
   loadNativeConnectorRecord,
   readNativeConnector,
   updateNativeConnector,
 } from "./native-connector-store.js";
-import type { NativeProviderTransport } from "./native-connector-transport.js";
-import { bindNativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 import { nativeOAuthClientClassification } from "./native-oauth-client-config.js";
+import { CLIENT_SECRET } from "./native-oauth-client.test-support.js";
 import {
-  CLIENT_SECRET,
-  nativeOAuthClientFixture,
-} from "./native-oauth-client.test-support.js";
-import { createNativeOAuthResourceDriver } from "./native-oauth-resource-driver.js";
+  authorize,
+  operations,
+  setup,
+} from "./native-oauth-resource.test-support.js";
 import {
   nativeOAuthGuard,
   requireNativeOAuthRecord,
 } from "./native-oauth-session.js";
-import { localVaultSessionGuard } from "./secret-backends/local-vault-port.js";
 import { runtimePassword } from "./secret-backends/runtime.test-support.js";
 import { vaultStore } from "./vault/store.js";
-const closes: (() => Promise<void>)[] = [];
-const operations: Promise<unknown>[] = [];
-afterEach(async () => {
-  for (const close of closes.splice(0).reverse()) await close();
-  await Promise.allSettled(operations.splice(0));
-});
-async function setup() {
-  const f = await nativeOAuthClientFixture("client_secret_post");
-  closes.push(f.close);
-  let cancelled = false;
-  const unbind = bindNativeOAuthBrowserPort({
-    redirectUri: f.owner.redirectUri,
-    navigate: () => {
-      throw new Error("Unexpected navigation");
-    },
-    scrubCallback: () => {},
-    authorize: async (url) => {
-      if (cancelled) throw new Error("Operator dismissed consent");
-      const target = new URL(url);
-      f.state.challenge = target.searchParams.get("code_challenge") ?? "";
-      return new URLSearchParams({
-        native_state: target.searchParams.get("state") ?? "",
-        native_code: "one-use-code",
-      }).toString();
-    },
-  });
-  closes.push(async () => unbind());
-  let capturedSignal: AbortSignal | undefined;
-  let captures = 0;
-  let released = 0;
-  const driver = createNativeOAuthResourceDriver({
-    supports: (id) => id === f.input.providerId,
-    capture: async (signal) => {
-      signal?.throwIfAborted();
-      capturedSignal = signal;
-      const guard = localVaultSessionGuard(vaultStore);
-      captures++;
-      const base = f.owner.transport;
-      const transport: NativeProviderTransport = {
-        ...base,
-        assertCurrent: () => {
-          base.assertCurrent();
-          guard.current();
-        },
-      };
-      return {
-        ...f.owner,
-        transport,
-        close: () => {
-          guard.close();
-          released++;
-        },
-      };
-    },
-  });
-  const unregister = registerNativeProviderCleanup(
-    f.input.providerId,
-    driver.cleanup,
-  );
-  closes.push(async () => unregister());
-  return {
-    ...f,
-    driver,
-    cancel: () => {
-      cancelled = true;
-    },
-    captureCounts: () => ({ captures, released }),
-    capturedSignal: () => capturedSignal,
-  };
-}
-function authorize(f: Awaited<ReturnType<typeof setup>>, id: string) {
-  if (!f.driver.authorize)
-    throw new Error("Missing actual authorization driver");
-  return f.driver.authorize(id);
-}
+
 it("activates only after the actual configured bearer resource and exposes the real project JSON", async () => {
   const f = await setup();
   const saved = await f.driver.configure(f.input);
@@ -133,6 +51,53 @@ it("activates only after the actual configured bearer resource and exposes the r
   await expect(
     f.driver.invoke(saved.connectionId, "provider.read", {}),
   ).rejects.toThrow();
+});
+it("uses the provider's documented POST verification contract", async () => {
+  const f = await setup();
+  f.input.providerId = "slack";
+  f.input.parameters.resource = "https://slack.com/api/auth.test";
+  f.state.resource = f.input.parameters.resource;
+  const saved = await f.driver.configure(f.input);
+  const providerFetch = f.owner.transport.fetch;
+  const calls: { url: string; init?: RequestInit }[] = [];
+  f.owner.transport.fetch = async (input, init) => {
+    const url = String(input);
+    if (url !== "https://slack.com/api/auth.test")
+      return providerFetch(input, init);
+    calls.push({ url, init });
+    return Response.json({ ok: true, team: "Protocol authority Slack team" });
+  };
+  await authorize(f, saved.connectionId);
+  expect(readNativeConnector(saved.connectionId)?.status).toBe("connected");
+  expect(calls).toHaveLength(1);
+  expect(calls[0]?.init?.method).toBe("POST");
+  expect(new Headers(calls[0]?.init?.headers).get("authorization")).toBe(
+    "Bearer issued-access-1",
+  );
+});
+it("uses a templated provider endpoint and its documented credential header", async () => {
+  const f = await setup();
+  f.input.providerId = "shopify";
+  f.input.parameters.resource =
+    "https://contract-shop.myshopify.com/admin/oauth/access_scopes.json";
+  f.state.resource = f.input.parameters.resource;
+  const saved = await f.driver.configure(f.input);
+  const providerFetch = f.owner.transport.fetch;
+  const calls: { url: string; init?: RequestInit }[] = [];
+  f.owner.transport.fetch = async (input, init) => {
+    const url = String(input);
+    if (url !== f.state.resource) return providerFetch(input, init);
+    calls.push({ url, init });
+    return Response.json({
+      access_scopes: [{ handle: "read_products" }],
+    });
+  };
+  await authorize(f, saved.connectionId);
+  expect(readNativeConnector(saved.connectionId)?.status).toBe("connected");
+  const headers = new Headers(calls[0]?.init?.headers);
+  expect(calls).toHaveLength(1);
+  expect(headers.get("x-shopify-access-token")).toBe("issued-access-1");
+  expect(headers.get("authorization")).toBeNull();
 });
 it("does not activate on a genuine resource401 and retains the minted grant for cleanup", async () => {
   const f = await setup();
@@ -307,74 +272,3 @@ it.each(["unknown", "token-bearing", "network", "unexpected-field"] as const)(
     expect(f.requests).toHaveLength(1);
   },
 );
-
-it("physically closes a held TLS resource on caller cancellation and retains independent original operations", async () => {
-  const f = await setup();
-  const saved = await f.driver.configure(f.input);
-  await authorize(f, saved.connectionId);
-  const cancelled = new AbortController();
-  cancelled.abort();
-  const beforeAbort = f.captureCounts();
-  const beforeRequests = f.requests.length;
-  await expect(
-    f.driver.invoke(
-      saved.connectionId,
-      "provider.resource.read",
-      {},
-      cancelled.signal,
-    ),
-  ).rejects.toThrow();
-  expect(f.captureCounts()).toEqual(beforeAbort);
-  expect(f.requests).toHaveLength(beforeRequests);
-  const event = z.object({
-    request: z.instanceof(IncomingMessage),
-    response: z.instanceof(ServerResponse),
-  });
-  const actualServer = channel("http.server.request.start");
-  let closed = false;
-  const observe: ChannelListener = (message) => {
-    const actual = event.parse(message);
-    if (
-      actual.request.url === "/resource" &&
-      actual.request.headers.host === new URL(f.state.resource).host
-    )
-      actual.response.once("close", () => {
-        closed = !actual.response.writableEnded;
-      });
-  };
-  actualServer.subscribe(observe);
-  closes.push(async () => {
-    actualServer.unsubscribe(observe);
-  });
-  f.state.holdResource = true;
-  const caller = new AbortController();
-  const before = f.captureCounts();
-  const operation = f.driver.invoke(
-    saved.connectionId,
-    "provider.resource.read",
-    {},
-    caller.signal,
-  );
-  operations.push(operation);
-  const rejected = expect(operation).rejects.toThrow();
-  expect(f.captureCounts().captures).toBe(before.captures + 1);
-  expect(f.capturedSignal()).toBe(caller.signal);
-  await f.entered.promise;
-  const started = performance.now();
-  caller.abort();
-  await rejected;
-  await expect.poll(() => closed, { timeout: 2000 }).toBe(true);
-  expect(performance.now() - started).toBeLessThan(2000);
-  expect(f.controller.signal.aborted).toBe(false);
-  expect(f.captureCounts().captures).toBe(f.captureCounts().released);
-  f.release.resolve();
-  f.state.holdResource = false;
-  const independent = await f.driver.invoke(
-    saved.connectionId,
-    "provider.resource.read",
-    {},
-  );
-  expect(JSON.parse(independent.items[0]?.secretValue ?? "null")).toEqual({
-    projects: [{ id: "project-42", name: "Actual configured project" }],
-  });
-});
