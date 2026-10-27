@@ -58,6 +58,10 @@ export const TUTORIAL = {
     "identity.users.manage",
     "identity.agents.manage",
     "identity.device.approve",
+    "identity.local.agent.keys.manage",
+    "identity.local.passkeys.manage",
+    "identity.local.directory.manage",
+    "identity.local.organizations.member",
   ]),
 } as const;
 
