@@ -349,12 +349,9 @@ paths = [
   '''(^|/)spec/conformance/quorum-recovery-fixture\.json$''',
   '''(^|/)apps/cli/src/security/watchtower/tests\.rs$''',
   '''(^|/)crates/invoke-through/src/surrogate_honey_tests\.rs$''',
-  '''(^|/)crates/connection-broker/src/secret_debug\.rs$''',
-  '''(^|/)crates/pki-core/src/(keys|bundle)\.rs$''',
-  '''(^|/)crates/ceremony/src/capture\.rs$''',
   '''(^|/)crates/ceremony/tests/github_ceremony\.rs$''',
   '''(^|/)crates/rotation-web/tests/ceremony_envelope\.rs$''',
-  '''(^|/)packages/wallet/src/(payload\.test|config)\.ts$''',
+  '''(^|/)packages/wallet/src/payload\.test\.ts$''',
   '''(^|/)apps/cli/tests/dev_run_bridge_env\.rs$''',
   '''(^|/)apps/cli/src/github/tests\.rs$''',
   '''(^|/)packages/cli/src/vault-sync-security\.test\.ts$''',
@@ -390,3 +387,52 @@ paths = [
   '''(^|/)crates/provider-bitwarden/tests/common/mod\.rs$''',
   '''__tests__/oauth2-proxy-live\.test\.ts$''',
 ]
+
+# Production modules are NOT path-exempt (that would silence future content of
+# live code and weaken the pre-commit gate, which shares this config). Their
+# historical synthetic-vector findings are exempted per exact commit instead:
+[[allowlists]]
+description = "Historical synthetic vectors in crates/pki-core/src/keys.rs: exact commits only, no forward surface"
+paths = [
+  '''(^|/)crates/pki-core/src/keys\.rs$''',
+]
+commits = [
+  '''d20a55bb4d7b456189b7443080a0960a97157a65''',
+]
+
+[[allowlists]]
+description = "Historical synthetic vectors in crates/pki-core/src/bundle.rs: exact commits only, no forward surface"
+paths = [
+  '''(^|/)crates/pki-core/src/bundle\.rs$''',
+]
+commits = [
+  '''d20a55bb4d7b456189b7443080a0960a97157a65''',
+]
+
+[[allowlists]]
+description = "Historical synthetic vectors in crates/ceremony/src/capture.rs: exact commits only, no forward surface"
+paths = [
+  '''(^|/)crates/ceremony/src/capture\.rs$''',
+]
+commits = [
+  '''64b8206877908a56fbb72774e5399512262b0848''',
+]
+
+[[allowlists]]
+description = "Historical synthetic vectors in crates/connection-broker/src/secret_debug.rs: exact commits only, no forward surface"
+paths = [
+  '''(^|/)crates/connection-broker/src/secret_debug\.rs$''',
+]
+commits = [
+  '''7d611db8fde8c93b2447b16049a86ff96cad0b8d''',
+]
+
+[[allowlists]]
+description = "Historical synthetic vectors in packages/wallet/src/config.ts: exact commits only, no forward surface"
+paths = [
+  '''(^|/)packages/wallet/src/config\.ts$''',
+]
+commits = [
+  '''45a8cda477addf42863699b500252b784ac69a51''',
+]
+
