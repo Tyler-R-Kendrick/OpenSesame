@@ -32,6 +32,20 @@ export function deferredPathSet(repoRoot) {
   return set;
 }
 
+/** Drop deferred rows whose reason matches (e.g. re-queue after a tooling fix). */
+export function clearDeferredByReason(repoRoot, reason) {
+  const store = loadDeferred(repoRoot);
+  const before = store.entries.length;
+  store.entries = store.entries.filter((e) => e.reason !== reason);
+  const removed = before - store.entries.length;
+  if (removed > 0) {
+    const out = deferredStorePath(repoRoot);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, `${JSON.stringify(store, null, 2)}\n`);
+  }
+  return { removed, remaining: store.entries.length };
+}
+
 export function addDeferred(repoRoot, filePath, reason) {
   const store = loadDeferred(repoRoot);
   const now = new Date().toISOString();
@@ -57,6 +71,14 @@ export function addDeferred(repoRoot, filePath, reason) {
 const [cmd, repoRoot, filePath, reason] = process.argv.slice(2);
 if (cmd === "path") {
   addDeferred(repoRoot ?? process.cwd(), filePath, reason);
+} else if (cmd === "clear-reason") {
+  const { removed, remaining } = clearDeferredByReason(
+    repoRoot ?? process.cwd(),
+    filePath,
+  );
+  process.stdout.write(
+    `${JSON.stringify({ reason: filePath, removed, remaining })}\n`,
+  );
 } else if (cmd === "list") {
   process.stdout.write(`${JSON.stringify(loadDeferred(repoRoot ?? process.cwd()), null, 2)}\n`);
 } else if (cmd === "is-deferred") {
