@@ -1709,7 +1709,8 @@ body {
   .access-tab,
   .identity-tab,
   .sites-effect,
-  .set__nav-link {
+  .set__nav-link,
+  .conn-back {
     min-height: 2.75rem;
   }
 
