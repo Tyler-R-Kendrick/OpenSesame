@@ -15,6 +15,7 @@ let context;
 try {
   record("launch");
   context = await webkit.launchPersistentContext("", { headless: true });
+  await Promise.all(context.pages().map((page) => page.close()));
   const page = await context.newPage();
   await page.exposeFunction("recordStoragePhase", (phase) => record(phase));
   await page.route("https://storage-compat.opensesame.test/", (route) => route.fulfill({
