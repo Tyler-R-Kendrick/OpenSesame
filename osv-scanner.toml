@@ -1,4 +1,6 @@
 # OSV-Scanner config for workspace lockfiles (Cargo.lock / pnpm-lock.yaml).
 # The affected RSA backend and optional MySQL dependency were removed from
 # both Cargo lockfiles on 2026-10-18. Keep future reintroductions visible.
-IgnoredVulns = []
+IgnoredVulns = [
+  { id = "GHSA-qwgh-2vcv-g2f7", reason = "Not reachable: no compression/generator panic is caught and the same hash buffer reused; existing catch_unwind sites are unrelated." },
+]
