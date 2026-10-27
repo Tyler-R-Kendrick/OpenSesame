@@ -1,10 +1,13 @@
 /** The owner's side of a live session (ADR 0150). A peer-trust ask waits for the SAS. */
 import { noteLiveSessionGranted } from "../sharing-receipts.js";
-import { DeviceBroker } from "./device-broker.js";
-import { DeviceResetBroker } from "./device-reset-broker.js";
+import type { DeviceBroker } from "./device-broker.js";
+import type { DeviceResetBroker } from "./device-reset-broker.js";
 import { NO_RESET_DEVICES } from "./device-reset-types.js";
 import { NO_DEVICES } from "./device-types.js";
-import { deviceSeatRouter } from "./host-device-router.js";
+import {
+  createSessionDeviceBrokers,
+  deviceSeatRouter,
+} from "./host-device-router.js";
 import { HostPeer, type LogEntry } from "./host-peer.js";
 import {
   CLOSED_MAX,
@@ -40,12 +43,9 @@ export * from "./host-types.js";
 /** One live session, hosted by this tab. */
 export class LiveHost {
   readonly link: LiveLink;
-  /** Receipt id. Not the link secret and not the invite code. */
   readonly id = crypto.randomUUID();
-  /** The out-of-band code, in an invite session. */
   readonly code: string | null;
   readonly expiresAt: number;
-  /** Where devices ask for the owner's connections; null when they may not. */
   readonly devices: DeviceBroker | null;
   readonly resets: DeviceResetBroker | null;
   readonly #owner: Keypair;
@@ -55,9 +55,7 @@ export class LiveHost {
   #log: LogEntry[] = [];
   #misses = 0;
   #locked = false;
-  /** The wrong codes already counted, so a repost is not counted twice. */
   readonly #missed = new Set<string>();
-  /** Requests whose seat ended and was forgotten. */
   readonly #closed = new Set<string>();
   #ended: HostState["endedBecause"] = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
@@ -79,30 +77,20 @@ export class LiveHost {
       () => this.end("expired"),
       Math.max(0, this.expiresAt - this.#now()),
     );
-    this.devices = options.devices
-      ? new DeviceBroker({
-          port: options.devices.port,
-          expiresAt: this.expiresAt,
-          now: this.#now,
-          onLog: (entry) => this.#record(deviceLogEntry(entry)),
-        })
-      : null;
-    this.resets = options.resets
-      ? new DeviceResetBroker({
-          items: options.resets.items,
-          expiresAt: this.expiresAt,
-          now: this.#now,
-          changed: () => this.#emit(),
-        })
-      : null;
-    this.devices?.subscribe(() => this.#emit());
+    const brokers = createSessionDeviceBrokers(
+      options,
+      this.expiresAt,
+      this.#now,
+      (entry) => this.#record(deviceLogEntry(entry)),
+      () => this.#emit(),
+    );
+    this.devices = brokers.devices;
+    this.resets = brokers.resets;
   }
-  /** One more line in the owner's log, the last two hundred kept. */
   #record(entry: LogEntry): void {
     this.#log = [...this.#log.slice(-199), entry];
     this.#emit();
   }
-  /** Start a session: a fresh owner key, link secret and code. */
   static async start(options: HostOptions): Promise<LiveHost> {
     return new LiveHost(options, await newKeypair());
   }
@@ -138,7 +126,6 @@ export class LiveHost {
     this.#emit();
   }
 
-  /** A request code the owner pasted, or a carrier passed on. */
   async receive(text: string): Promise<Received> {
     if (this.#ended) return { kind: "ended" };
     const opened = await openRequestCode(

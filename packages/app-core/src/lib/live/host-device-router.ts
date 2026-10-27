@@ -1,7 +1,33 @@
-import type { DeviceBroker } from "./device-broker.js";
+import { DeviceBroker } from "./device-broker.js";
 import type { DeviceRequest } from "./device-messages.js";
-import type { DeviceResetBroker } from "./device-reset-broker.js";
-import type { SeatDevices, SeatIdentity } from "./device-types.js";
+import { DeviceResetBroker } from "./device-reset-broker.js";
+import type { DeviceLog, SeatDevices, SeatIdentity } from "./device-types.js";
+import type { HostOptions } from "./host-types.js";
+
+export function createSessionDeviceBrokers(
+  options: Pick<HostOptions, "devices" | "resets">,
+  expiresAt: number,
+  now: () => number,
+  onLog: (entry: DeviceLog) => void,
+  changed: () => void,
+): Readonly<{
+  devices: DeviceBroker | null;
+  resets: DeviceResetBroker | null;
+}> {
+  const devices = options.devices
+    ? new DeviceBroker({ port: options.devices.port, expiresAt, now, onLog })
+    : null;
+  const resets = options.resets
+    ? new DeviceResetBroker({
+        items: options.resets.items,
+        expiresAt,
+        now,
+        changed,
+      })
+    : null;
+  devices?.subscribe(changed);
+  return { devices, resets };
+}
 
 export function deviceSeatRouter(
   identity: SeatIdentity,
