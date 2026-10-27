@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { ProviderVerification } from "./connect-provider-auth-schema.js";
+import { ProviderVerificationSchema } from "./connect-provider-auth-schema.js";
 import type { NativeApiTarget } from "./native-api-target.js";
 import { providerUrl } from "./native-api-target.js";
 
+type TargetParameters = { endpoint?: string; tenant?: string };
+
 function target(
-  parameters: Record<string, string>,
+  parameters: TargetParameters,
   publicParameters: readonly string[] = Object.keys(parameters),
 ): NativeApiTarget {
   return {
@@ -12,7 +14,11 @@ function target(
     providerName: "Obsidian",
     profile: {
       auth: null,
-      verify: null as unknown as ProviderVerification,
+      verify: ProviderVerificationSchema.parse({
+        method: "GET",
+        url: "https://{endpoint}/",
+        accountField: null,
+      }),
       templateParams: [],
       additionalCredentials: [],
     },

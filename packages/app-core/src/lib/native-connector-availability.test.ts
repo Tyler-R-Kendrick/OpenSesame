@@ -12,10 +12,22 @@ import {
 } from "./native-connector-drivers.js";
 
 const driver: NativeConnectorDriver = {
-  cleanup: { classification: () => ({}) } as never,
+  cleanup: {
+    classification: () => ({
+      publicParameters: [],
+      privateCredentials: [],
+    }),
+    cleanup: async () => {
+      throw new Error("Registration fixture must not clean up a connection");
+    },
+  },
   supports: () => true,
-  configure: async () => ({}) as never,
-  verify: async () => ({}) as never,
+  configure: async () => {
+    throw new Error("Registration fixture must not configure a connection");
+  },
+  verify: async () => {
+    throw new Error("Registration fixture must not verify a connection");
+  },
   invoke: async () => ({ label: "", items: [] }),
 };
 
