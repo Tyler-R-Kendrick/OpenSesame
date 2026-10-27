@@ -1,0 +1,38 @@
+{
+  "name": "@opensesame/cua-password-reset",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Durable, recipe-driven computer-use password resets (ADR 0213)",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude e2e/**/*.spec.ts",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "1.0.59",
+    "agent-browser": "0.39.4",
+    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/vault-core": "workspace:*",
+    "ai": "6.0.237",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@opensesame/testing": "workspace:*",
+    "@playwright/test": "1.55.1",
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.12"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
+  }
+}
