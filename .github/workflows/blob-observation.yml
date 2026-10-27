@@ -1,4 +1,4 @@
-name: Observe ordinary WebKit tunnel blob lifecycle
+name: Observe ordinary full WebKit flow blob lifecycle
 on:
   push:
     branches: [review/blob-observation]
@@ -10,7 +10,7 @@ jobs:
   observe:
     if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/blob-observation'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 50
     env:
       LIVE_JOIN_IMAGE: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
     steps:
@@ -21,8 +21,13 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: 273d4fb9ab0343e8867cae2c9e3d7c412b0bdfc0
+          ref: a54309dca6f0a810527152a8d2687e9ebf54bac7
           path: source
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: b3f30460475f6aaefa089cfaf4855f6dc82b8bff
+          path: before-source
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
         with:
@@ -30,6 +35,14 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: source/scripts/test/live-turn/go.mod
+          cache-dependency-path: source/scripts/test/live-turn/go.sum
+      - name: Require the immutable helper and companion-build revisions
+        run: |
+          test "$(git -C source rev-parse HEAD)" = a54309dca6f0a810527152a8d2687e9ebf54bac7
+          test "$(git -C before-source rev-parse HEAD)" = b3f30460475f6aaefa089cfaf4855f6dc82b8bff
       - name: Install the exact helper dependencies without rebuilding assets
         working-directory: source
         run: pnpm install --frozen-lockfile
@@ -44,14 +57,61 @@ jobs:
           path: before
       - name: Verify the original receipt and extract only its dist
         run: python3 control/scripts/review/blob-observation/extract-dist.py before source
+      - name: Install the pinned before-source build dependencies
+        working-directory: before-source
+        run: pnpm install --frozen-lockfile
+      - name: Build only the existing dedicated-origin companion from b3 source
+        working-directory: before-source
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages build:live-dedicated
+      - name: Stage the before-source companion without changing the verified shared build
+        run: |
+          test ! -e source/apps/pages/dist-live-dedicated
+          cp -a before-source/apps/pages/dist-live-dedicated source/apps/pages/dist-live-dedicated
+          git -C before-source rev-parse HEAD > before/dedicated-build-source.txt
+      - name: Require the matching SDK and preinstalled browsers
+        working-directory: source
+        run: |
+          test "$(id -u)" -ne 0
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          test -f "$live_pnpm_root/pnpm/package.json"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/source,target=/work,readonly" \
+            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+            --env CI --env PATH --env PNPM_HOME \
+            --workdir /work/apps/pages "$LIVE_JOIN_IMAGE" node -e '
+              const assert = require("node:assert/strict");
+              const fs = require("node:fs");
+              const { execFileSync } = require("node:child_process");
+              const { chromium, firefox, webkit } = require("@playwright/test");
+              assert.equal("pnpm@" + execFileSync("pnpm", ["--version"],
+                { encoding: "utf8" }).trim(), require("/work/package.json").packageManager);
+              execFileSync("pnpm", ["--filter", "@opensesame/cli", "exec", "tsx", "--version"],
+                { stdio: "inherit" });
+              assert.equal(require("@playwright/test/package.json").version, "1.64.1",
+                "Update the pinned Playwright image with the SDK");
+              for (const engine of [chromium, firefox, webkit]) {
+                fs.accessSync(engine.executablePath(), fs.constants.X_OK);
+              }
+            '
+      - name: Cache the normal live servers
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: |
+            source/.cache/live-fixtures/bin
+            source/.cache/mtls-fixtures
+          key: blob-observation-live-fixtures-${{ hashFiles('source/scripts/test/live-fixtures.sh', 'source/scripts/test/live-turn/**', 'source/scripts/mtls/mtls-fixtures.sh') }}
+      - name: Prepare the normal nats-server, ntfy and live-turn fixtures
+        working-directory: source
+        run: pnpm test:live-fixtures
       - name: Install transient metadata observation in the existing helper
         run: node control/scripts/review/blob-observation/install-observer.mjs source
-      - name: Run the existing WebKit-owner Chromium-joiner tunnel case once
+      - name: Run the full existing WebKit-owner flow, every joiner, once
         env:
           CI: '1'
           LIVE_OWNER: webkit
-          LIVE_JOINERS: chromium
-          LIVE_SCENARIOS: tunnel
+          LIVE_JOINERS: chromium,firefox,webkit
           VITE_BASE: /OpenSesame/
           DEBUG: pw:browser
         shell: bash
@@ -66,17 +126,20 @@ jobs:
             --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
             --workdir /work/apps/pages --env PATH --env PNPM_HOME \
             --env CI --env VITE_BASE --env LIVE_OWNER --env LIVE_JOINERS \
-            --env LIVE_SCENARIOS --env DEBUG \
+            --env DEBUG \
             "$LIVE_JOIN_IMAGE" node scripts/verify-live-join.mjs
       - name: Keep minimal observation and normal results
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: webkit-tunnel-blob-observation
+          name: webkit-full-flow-blob-observation
           path: |
             source/artifacts/live-join/blob-observation.jsonl
             source/artifacts/live-join/log.json
             source/artifacts/live-join/browsers.log
             source/artifacts/live-join/*.png
+            before/source-commit.txt
+            before/source-and-dist.sha256
+            before/dedicated-build-source.txt
           if-no-files-found: error
           retention-days: 7
