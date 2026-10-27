@@ -27,13 +27,32 @@ it("formats configuration-only catalog fields separately from provider verificat
   expect(descriptor?.disconnectExplanation).toContain("no provider request");
 });
 
+it("offers CUA runtime configuration without claiming provider access", () => {
+  for (const id of ["vercel-sandbox", "e2b", "browserbase-cdp"]) {
+    const provider = catalogProvider(id);
+    if (!provider) throw new Error(`Missing ${id} catalog row`);
+    const method = nativeCatalogConfigurationDescriptor(provider, true)
+      ?.methods[0];
+    expect(method).toMatchObject({
+      id: "native-local",
+      available: true,
+      fields: [],
+    });
+    expect(method?.instructions).toContain("makes no provider request");
+    expect(method?.instructions).toContain("does not verify provider access");
+    expect(
+      nativeDeviceProviderDescriptor(id, { has: () => true })?.methods[0]?.id,
+    ).toBe("native-local");
+  }
+});
+
 it("leaves Google Wallet to its specialized key driver instead of generic local configuration", () => {
   const has = vi.fn(() => false);
   expect(nativeDeviceProviderDescriptor("google-wallet", { has })).toBeNull();
   expect(has).not.toHaveBeenCalled();
 });
 
-it("does not turn providers without a configuration-only no-egress contract into local connectors", () => {
+it("does not turn providers without a supported local-configuration contract into local connectors", () => {
   for (const id of ["google", "github", "unknown-provider"]) {
     const provider = catalogProvider(id);
     if (provider)

@@ -159,6 +159,44 @@ it("seals catalog secrets and survives the store's encrypted cold reload without
   expect(fetcher).not.toHaveBeenCalled();
 });
 
+it("configures CUA runtimes locally without provider requests", async () => {
+  for (const providerId of ["vercel-sandbox", "e2b", "browserbase-cdp"]) {
+    const saved = await configureNativeCatalogConfiguration(
+      {
+        ...input,
+        providerId,
+        displayName: `Synthetic ${providerId}`,
+        parameters: {},
+        credentials: {},
+      },
+      transport,
+    );
+    expect(saved.status).toBe("connected");
+    expect(saved.configuration.parameters).toEqual({});
+    expect(saved.identity).toMatchObject({
+      kind: "configuration",
+      assurance: "credential-valid",
+    });
+    await coldReload();
+    expect(readNativeConnector(saved.connectionId)).toEqual(saved);
+    expect(
+      await verifyNativeCatalogConfiguration(saved.connectionId, transport),
+    ).toMatchObject({ status: "connected" });
+    expect(
+      await readNativeCatalogConfiguration(saved.connectionId, {}, transport),
+    ).toMatchObject({
+      items: [
+        {
+          id: "status",
+          label:
+            "Configuration verified locally; provider access was not checked",
+        },
+      ],
+    });
+  }
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
 it("retains the sealed key on edit and enforces revision and fingerprint guards", async () => {
   const saved = await configureNativeCatalogConfiguration(input, transport);
   const renamed = await configureNativeCatalogConfiguration(

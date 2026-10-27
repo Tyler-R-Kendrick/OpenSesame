@@ -101,6 +101,9 @@ export function nativeCanonicalRouteProvider(providerId) {
   return provider ? { id: provider.id, name: provider.displayName } : null;
 }
 export const NATIVE_CANONICAL_CATALOG_IDS = source.listed.map((row) => row.id);
+export const NATIVE_CONFIGURATION_INTEGRATION_IDS = source.all
+  .filter((provider) => provider.category === "cua_runtime")
+  .map((provider) => provider.id);
 export const NATIVE_API_FAMILIES = source.families;
 export const NATIVE_CONNECT_PLAN_JSON = source.connectPlanJson;
 
