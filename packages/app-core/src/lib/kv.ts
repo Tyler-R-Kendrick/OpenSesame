@@ -5,6 +5,11 @@ import {
   sealOriginFile,
   sealedFileBound,
 } from "./at-rest/origin-files.js";
+import {
+  originMemoryChanged,
+  originMemoryForgotten,
+  withOriginFile,
+} from "./kv-entry-lifecycle.js";
 import { bindRead } from "./kv-original-reader-data.js";
 import { haltedWriteError, storageWritesHalted } from "./storage-halt.js";
 import { ORIGIN_FILE_PREFIX } from "./storage-ownership.js";
@@ -100,12 +105,14 @@ export function kvFileName(key: string): string {
  * describes storage that no longer exists.
  */
 export function kvForgetAll(): void {
+  originMemoryForgotten();
   memory.clear();
   unreadable.clear();
 }
 
 /** Drop every in-memory copy whose origin file is in `files` (already removed). */
 export function kvForgetFiles(files: ReadonlySet<string>): void {
+  for (const name of files) originMemoryChanged(name, true);
   for (const key of [...memory.keys(), ...unreadable]) {
     if (!files.has(fileName(key))) continue;
     memory.delete(key);
@@ -120,19 +127,26 @@ export function kvForgetFiles(files: ReadonlySet<string>): void {
  */
 const unreadable = new Set<string>();
 
-async function opfsRead(key: string): Promise<string | null> {
-  try {
-    const root = await opfsRoot();
-    if (!root) return null;
-    const name = fileName(key);
-    const handle = await root.getFileHandle(name);
-    const file = await handle.getFile();
-    const opened = await openOriginFile(name, await file.text());
-    if (opened === null) unreadable.add(key);
-    return opened;
-  } catch {
-    return null;
-  }
+async function opfsRead(
+  key: string,
+  ready: Promise<FileSystemDirectoryHandle | null>,
+): Promise<void> {
+  await withOriginFile(fileName(key), async (turn) => {
+    try {
+      await ready;
+      const root = await opfsRoot();
+      if (!root) return;
+      const name = fileName(key);
+      const handle = await root.getFileHandle(name);
+      const file = await handle.getFile();
+      const opened = await openOriginFile(name, await file.text());
+      if (opened === null) {
+        if (turn.isLive()) unreadable.add(key);
+      } else turn.publish(() => memory.set(key, opened));
+    } catch {
+      /* Ordinary hydration treats unreadable storage as absent. */
+    }
+  });
 }
 
 async function opfsWriteNow(
@@ -172,10 +186,16 @@ function opfsWrite(
   key: string,
   value: string,
   beforeCommit?: () => void,
+  publish?: () => void,
 ): Promise<void> {
   // Refused before it starts, so nothing is in flight to wait for.
   if (storageWritesHalted()) return Promise.reject(haltedWriteError());
-  return track(opfsWriteNow(key, value, beforeCommit));
+  return track(
+    withOriginFile(fileName(key), async (turn) => {
+      await opfsWriteNow(key, value, beforeCommit);
+      if (publish) turn.publish(publish);
+    }),
+  );
 }
 
 /** Sync read from hydrated memory. */
@@ -189,6 +209,7 @@ function kvGetDefault(key: string): string | null {
  * wherever losing the write would mean losing the only copy of something.
  */
 export function kvSet(key: string, value: string): void {
+  originMemoryChanged(fileName(key));
   memory.set(key, value);
   void opfsWrite(key, value).catch(() => {
     /* memory remains source of truth for the session */
@@ -209,8 +230,7 @@ async function kvSetDurableDefault(
   value: string,
   beforeCommit?: () => void,
 ): Promise<void> {
-  await opfsWrite(key, value, beforeCommit);
-  memory.set(key, value);
+  await opfsWrite(key, value, beforeCommit, () => memory.set(key, value));
 }
 
 export const kvSeams = {
@@ -235,10 +255,11 @@ export async function kvSetDurable(
 }
 
 export function kvDelete(key: string): void {
+  originMemoryChanged(fileName(key), true);
   memory.delete(key);
   unreadable.delete(key);
   void track(
-    (async () => {
+    withOriginFile(fileName(key), async () => {
       try {
         const root = await opfsRoot();
         if (!root) return;
@@ -246,7 +267,7 @@ export function kvDelete(key: string): void {
       } catch {
         /* ignore */
       }
-    })(),
+    }),
   );
 }
 
@@ -256,26 +277,30 @@ export function kvDelete(key: string): void {
  * gone; anything else is reported.
  */
 export async function kvDeleteDurable(key: string): Promise<void> {
+  originMemoryChanged(fileName(key), true);
   memory.delete(key);
   unreadable.delete(key);
-  const root = await opfsRoot();
-  if (!root) return;
-  try {
-    await root.removeEntry(fileName(key));
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "NotFoundError") return;
-    // Restricted OPFS (CI Chrome / sandboxed profiles) refuses mutation; memory
-    // already dropped the key, so treat as session-only storage.
-    if (
-      error instanceof DOMException &&
-      (error.name === "NoModificationAllowedError" ||
-        error.name === "SecurityError")
-    ) {
-      durability = "memory";
-      return;
+  return withOriginFile(fileName(key), async () => {
+    const root = await opfsRoot();
+    if (!root) return;
+    try {
+      await root.removeEntry(fileName(key));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError")
+        return;
+      // Restricted OPFS (CI Chrome / sandboxed profiles) refuses mutation; memory
+      // already dropped the key, so treat as session-only storage.
+      if (
+        error instanceof DOMException &&
+        (error.name === "NoModificationAllowedError" ||
+          error.name === "SecurityError")
+      ) {
+        durability = "memory";
+        return;
+      }
+      throw error;
     }
-    throw error;
-  }
+  });
 }
 
 /** Load keys from OPFS into memory before first paint. */
@@ -286,13 +311,10 @@ export async function kvHydrate(keys: string[]): Promise<void> {
 async function kvHydrateDefault(keys: string[]): Promise<void> {
   // Settle durability even with nothing to load, so the first render already
   // knows whether anything written here can survive a reload.
-  await opfsRoot();
-  await Promise.all(
-    keys.map(async (key) => {
-      const value = await opfsRead(key);
-      if (value != null) memory.set(key, value);
-    }),
-  );
+  const ready = opfsRoot();
+  const reads = keys.map((key) => opfsRead(key, ready));
+  await ready;
+  await Promise.all(reads);
 }
 
 /** Refresh a security record without treating storage failure as absence.
@@ -312,38 +334,43 @@ export async function kvRefresh(
     durability = "memory";
     return;
   }
-  try {
-    const root = await openRoot();
-    original();
-    durability = "persistent";
-    let handle: FileSystemFileHandle;
+  return withOriginFile(fileName(key), async (turn) => {
     try {
-      handle = await root.getFileHandle(fileName(key));
       original();
-    } catch (error) {
+      const root = await openRoot();
       original();
-      if (error instanceof DOMException && error.name === "NotFoundError") {
-        memory.delete(key);
-        return;
+      durability = "persistent";
+      let handle: FileSystemFileHandle;
+      try {
+        handle = await root.getFileHandle(fileName(key));
+        original();
+      } catch (error) {
+        original();
+        if (error instanceof DOMException && error.name === "NotFoundError") {
+          if (!turn.publish(() => memory.delete(key)))
+            throw new Error("Storage changed during refresh");
+          return;
+        }
+        throw error;
       }
+      const file = await handle.getFile();
+      original();
+      if (file.size > sealedFileBound(maxBytes))
+        throw new Error("Storage record exceeds read limit");
+      const text = await file.text();
+      original();
+      const value = await openOriginFile(fileName(key), text);
+      original();
+      if (value === null) throw new Error("Storage record does not open");
+      if (new TextEncoder().encode(value).length > maxBytes)
+        throw new Error("Storage record exceeds read limit");
+      original();
+      if (!turn.publish(() => memory.set(key, value)))
+        throw new Error("Storage changed during refresh");
+    } catch (error) {
+      // No later sync reader may consume an authority snapshot we failed to refresh.
+      turn.clear(() => memory.delete(key));
       throw error;
     }
-    const file = await handle.getFile();
-    original();
-    if (file.size > sealedFileBound(maxBytes))
-      throw new Error("Storage record exceeds read limit");
-    const text = await file.text();
-    original();
-    const value = await openOriginFile(fileName(key), text);
-    original();
-    if (value === null) throw new Error("Storage record does not open");
-    if (new TextEncoder().encode(value).length > maxBytes)
-      throw new Error("Storage record exceeds read limit");
-    original();
-    memory.set(key, value);
-  } catch (error) {
-    // No later sync reader may consume an authority snapshot we failed to refresh.
-    memory.delete(key);
-    throw error;
-  }
+  });
 }
