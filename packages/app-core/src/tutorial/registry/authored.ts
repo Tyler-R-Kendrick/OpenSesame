@@ -40,10 +40,8 @@ import {
 } from "./notifications-catalog.js";
 import {
   AUTOFILL_GOALS,
-  AUTOFILL_ROUTES,
   AUTOFILL_TARGETS,
   SURROGATE_GOALS,
-  SURROGATE_ROUTES,
   SURROGATE_TARGETS,
 } from "./plugins-catalog.js";
 import { CORE_GUIDE_ROUTES, type GuideRouteDescriptor } from "./routes.js";
@@ -158,7 +156,7 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     targets: SURROGATE_TARGETS,
     goals: SURROGATE_GOALS,
     help: [],
-    routes: SURROGATE_ROUTES,
+    routes: [],
   },
   {
     capability: "vault.browser-autofill",
@@ -166,7 +164,7 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     targets: AUTOFILL_TARGETS,
     goals: AUTOFILL_GOALS,
     help: [],
-    routes: AUTOFILL_ROUTES,
+    routes: [],
   },
   {
     capability: "sharing.drops",

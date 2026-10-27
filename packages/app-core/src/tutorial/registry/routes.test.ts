@@ -14,6 +14,7 @@ import {
   guideRouteWithin,
   isKnownGuideRoute,
   mergedGuideRoutes,
+  navigationGuideRoutes,
   scopeApplies,
 } from "./routes.js";
 
@@ -27,13 +28,13 @@ describe("guide route registry", () => {
   afterEach(() => revokeRealm());
 
   it("declares only ids the guide grammar accepts (checked here, not at load)", () => {
-    for (const route of mergedGuideRoutes()) {
+    for (const route of navigationGuideRoutes()) {
       expect(isGuideRouteId(route.id), route.id).toBe(true);
     }
   });
 
   it("declares each route once", () => {
-    const ids = mergedGuideRoutes().map((route) => route.id);
+    const ids = navigationGuideRoutes().map((route) => route.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(isKnownGuideRoute(id)).toBe(true);
   });
@@ -69,16 +70,27 @@ describe("a core-only plan", () => {
     expect(isKnownGuideRoute("/settings/security")).toBe(true);
   });
 
-  it("names the local AI settings view without registering other capability pages", () => {
-    const route = "/settings/features/ai/support.local-ai";
-    expect(isKnownGuideRoute(route)).toBe(true);
-    expect(guideRouteForPath(route)).toBe(route);
-    expect(guideRouteForLocation(`${route}/details`)).toBe(route);
+  it("derives real feature pages without adding them to the model's route list", () => {
+    for (const route of [
+      "/settings/features/ai/support.local-ai",
+      "/settings/features/autofill",
+      "/settings/features/surrogates",
+    ]) {
+      expect(isKnownGuideRoute(route), route).toBe(true);
+      expect(guideRouteForPath(route)).toBe(route);
+      expect(guideRouteForLocation(route)).toBe(route);
+      expect(navigationGuideRoutes().some((entry) => entry.id === route)).toBe(
+        true,
+      );
+      expect(mergedGuideRoutes().some((entry) => entry.id === route)).toBe(
+        route === "/settings/features/ai/support.local-ai",
+      );
+    }
     for (const unknown of [
-      "/settings/features/ai",
-      "/settings/features/ai/support.remote-ai",
-      `${route}/details`,
-      `${route}-other`,
+      "/settings/features/not-a-feature",
+      "/settings/features/ai/not-a-capability",
+      "/settings/features/ai/support.local-ai/details",
+      "/settings/features/ai/support.local-ai-other",
     ]) {
       expect(isKnownGuideRoute(unknown), unknown).toBe(false);
     }

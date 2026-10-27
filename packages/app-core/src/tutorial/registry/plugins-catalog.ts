@@ -1,26 +1,11 @@
 /**
- * Targets, routes and walkthroughs the runtime-installed plugin capabilities
+ * Targets and walkthroughs the runtime-installed plugin capabilities
  * contribute (ADR 0150 §7): each plugin's tile on its Settings › Features
  * page, live only while that capability is in the plan.
  */
 
 import type { GuideGoalDescriptor } from "./goals.js";
-import type { GuideRouteDescriptor } from "./routes.js";
 import type { GuideTargetDescriptor } from "./targets.js";
-
-export const SURROGATE_ROUTES: readonly GuideRouteDescriptor[] = [
-  {
-    id: "/settings/features/surrogates",
-    title: "Settings — Surrogate credentials",
-  },
-];
-
-export const AUTOFILL_ROUTES: readonly GuideRouteDescriptor[] = [
-  {
-    id: "/settings/features/autofill",
-    title: "Settings — Browser autofill",
-  },
-];
 
 export const SURROGATE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
