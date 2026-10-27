@@ -44,7 +44,7 @@ export async function unlockIfAsked(page) {
   ]);
   if (await password.isVisible()) {
     await password.fill(VAULT_PASSWORD);
-    await password.press("Enter");
+    await page.getByRole("button", { name: "Unlock", exact: true }).click();
     await expect(password).not.toBeVisible();
   }
 }

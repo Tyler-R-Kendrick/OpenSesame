@@ -108,6 +108,7 @@ const CATEGORIES = [
   "encryption",
   "password_managers",
   "agent_harnesses",
+  "cua_runtime",
   "ai_model_provider",
   "networking",
   "wallet",
