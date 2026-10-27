@@ -78,7 +78,11 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     {
       // The login item types: a mailbox is chosen on the account editor.
       dependencies: ["vault.derived-records"],
-      operationIds: ["password_reset.mailboxes.manage"],
+      operationIds: [
+        "password_reset.mailboxes.manage",
+        "password_reset.cua.run",
+        "password_reset.cua.configure",
+      ],
       egress: [
         {
           class: "external-service",

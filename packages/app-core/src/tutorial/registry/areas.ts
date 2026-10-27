@@ -212,6 +212,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.surrogate-credentials",
       "settings.browser-autofill",
       "feature.password-reset",
+      "integration.password-reset",
       "feature.sharing",
       "feature.payments",
       "feature.ai",

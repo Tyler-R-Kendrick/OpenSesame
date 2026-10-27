@@ -7,7 +7,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -90,7 +90,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -165,7 +165,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -241,7 +241,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -297,7 +297,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -367,7 +367,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [],
@@ -456,7 +456,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [],
@@ -537,7 +537,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [],
@@ -618,7 +618,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [],
@@ -699,7 +699,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "crm",
       "configured": false,
       "connection_configuration_fields": [],
@@ -780,7 +780,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [],
@@ -855,7 +855,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "storage",
       "configured": false,
       "connection_configuration_fields": [],
@@ -937,7 +937,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "storage",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1007,7 +1007,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1082,7 +1082,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1156,7 +1156,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1237,7 +1237,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1277,7 +1277,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1316,7 +1316,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "testing",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1390,7 +1390,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1430,7 +1430,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1470,7 +1470,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1510,7 +1510,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1550,7 +1550,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1590,7 +1590,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1630,7 +1630,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1670,7 +1670,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1710,7 +1710,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1750,7 +1750,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1790,7 +1790,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1830,7 +1830,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1870,7 +1870,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -1912,7 +1912,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -1949,7 +1949,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "certificates",
       "configured": false,
       "connection_configuration_fields": [
@@ -1985,7 +1985,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "certificates",
       "configured": false,
       "connection_configuration_fields": [
@@ -2031,7 +2031,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "certificates",
       "configured": false,
       "connection_configuration_fields": [
@@ -2076,7 +2076,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2111,10 +2111,94 @@
     },
     {
       "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-27.1",
+      "category": "cua_runtime",
+      "configured": false,
+      "connection_configuration_fields": [],
+      "display_name": "Vercel Sandbox",
+      "docs_url": "https://vercel.com/docs/vercel-sandbox",
+      "egress": {
+        "authorities": [
+          "api.vercel.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "vercel-sandbox",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "operations": [
+        "sandbox.execute"
+      ],
+      "provenance_url": "https://vercel.com/docs/vercel-sandbox",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-27.1",
+      "category": "cua_runtime",
+      "configured": false,
+      "connection_configuration_fields": [],
+      "display_name": "E2B",
+      "docs_url": "https://e2b.dev/docs",
+      "egress": {
+        "authorities": [
+          "api.e2b.dev"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "e2b",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "operations": [
+        "sandbox.execute"
+      ],
+      "provenance_url": "https://e2b.dev/docs",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-27.1",
+      "category": "cua_runtime",
+      "configured": false,
+      "connection_configuration_fields": [],
+      "display_name": "Browserbase CDP",
+      "docs_url": "https://docs.browserbase.com/guides/connect-session",
+      "egress": {
+        "authorities": [
+          "api.browserbase.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "browserbase-cdp",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "operations": [
+        "browser.cdp"
+      ],
+      "provenance_url": "https://docs.browserbase.com/guides/connect-session",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2150,7 +2234,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2186,7 +2270,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2222,7 +2306,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2258,7 +2342,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2294,7 +2378,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2330,7 +2414,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2376,7 +2460,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2412,7 +2496,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2458,7 +2542,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2503,7 +2587,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2540,7 +2624,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2576,7 +2660,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2612,7 +2696,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2659,7 +2743,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2695,7 +2779,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2742,7 +2826,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2778,7 +2862,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2814,7 +2898,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2850,7 +2934,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2886,7 +2970,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2922,7 +3006,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2960,7 +3044,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2998,7 +3082,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3040,7 +3124,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3079,7 +3163,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3131,7 +3215,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3187,7 +3271,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3241,7 +3325,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3297,7 +3381,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3351,7 +3435,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3405,7 +3489,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3447,7 +3531,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3501,7 +3585,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3543,7 +3627,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3590,7 +3674,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3639,7 +3723,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3678,7 +3762,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3725,7 +3809,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3775,7 +3859,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3817,7 +3901,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3854,7 +3938,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3891,7 +3975,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3933,7 +4017,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3975,7 +4059,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4007,7 +4091,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -4044,7 +4128,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4091,7 +4175,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4138,7 +4222,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -4185,7 +4269,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4222,7 +4306,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4259,7 +4343,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -4309,7 +4393,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -4364,7 +4448,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [],
@@ -4398,7 +4482,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -4442,7 +4526,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "networking",
       "configured": false,
       "connection_configuration_fields": [
@@ -4502,7 +4586,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4549,7 +4633,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4591,7 +4675,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4628,7 +4712,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4660,7 +4744,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4692,7 +4776,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4725,7 +4809,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4759,7 +4843,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4796,7 +4880,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4833,7 +4917,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4870,7 +4954,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -4912,7 +4996,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "custom",
       "configured": false,
       "connection_configuration_fields": [
@@ -4944,7 +5028,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -4986,7 +5070,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -5023,7 +5107,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [],
@@ -5051,7 +5135,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [
@@ -5114,7 +5198,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -5177,7 +5261,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [],
@@ -5203,7 +5287,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5244,7 +5328,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5285,7 +5369,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5326,7 +5410,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5365,7 +5449,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5406,7 +5490,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5447,7 +5531,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5488,7 +5572,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5529,7 +5613,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5570,7 +5654,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5611,7 +5695,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5652,7 +5736,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5693,7 +5777,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5734,7 +5818,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5775,7 +5859,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5816,7 +5900,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5857,7 +5941,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5898,7 +5982,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5939,7 +6023,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -5980,7 +6064,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6021,7 +6105,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6062,7 +6146,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6103,7 +6187,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6144,7 +6228,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6185,7 +6269,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6226,7 +6310,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6267,7 +6351,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6308,7 +6392,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6349,7 +6433,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6390,7 +6474,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6431,7 +6515,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6472,7 +6556,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6513,7 +6597,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6554,7 +6638,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6595,7 +6679,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6636,7 +6720,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6677,7 +6761,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6718,7 +6802,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6759,7 +6843,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6800,7 +6884,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6841,7 +6925,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6882,7 +6966,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6923,7 +7007,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -6964,7 +7048,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7005,7 +7089,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7046,7 +7130,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7087,7 +7171,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7138,7 +7222,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7179,7 +7263,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7220,7 +7304,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7261,7 +7345,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7302,7 +7386,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7343,7 +7427,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7384,7 +7468,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7425,7 +7509,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7466,7 +7550,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7507,7 +7591,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7548,7 +7632,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7589,7 +7673,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7630,7 +7714,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7671,7 +7755,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7716,7 +7800,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7761,7 +7845,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7801,7 +7885,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7841,7 +7925,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7881,7 +7965,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7921,7 +8005,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -7961,7 +8045,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -8060,7 +8144,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -8159,7 +8243,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -8256,7 +8340,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -8353,7 +8437,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
@@ -8408,7 +8492,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -8500,7 +8584,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [],
@@ -8526,7 +8610,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-14.3",
+      "catalog_revision": "2026-10-27.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [],
@@ -8548,5 +8632,5 @@
       "supports_refresh": false
     }
   ],
-  "revision": "2026-10-14.3"
+  "revision": "2026-10-27.1"
 }

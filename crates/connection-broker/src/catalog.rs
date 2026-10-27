@@ -86,6 +86,8 @@ pub enum Category {
     Encryption,
     PasswordManagers,
     AgentHarnesses,
+    /// User-provided browser and sandbox runtimes for approved CUA ceremonies.
+    CuaRuntime,
     /// Hosted model APIs (ADR 0192): a key held in the vault, exchanged for a
     /// narrower, short-lived key before an app or agent may use it.
     AiModelProvider,
@@ -112,6 +114,7 @@ impl Category {
             Self::Encryption => "encryption",
             Self::PasswordManagers => "password_managers",
             Self::AgentHarnesses => "agent_harnesses",
+            Self::CuaRuntime => "cua_runtime",
             Self::AiModelProvider => "ai_model_provider",
             Self::Networking => "networking",
             Self::Wallet => "wallet",
@@ -723,14 +726,12 @@ fn validate_token(value: &str, field: &str, max: usize) -> Result<(), CatalogErr
     }
     Ok(())
 }
-
 fn validate_text(value: &str, field: &str, max: usize) -> Result<(), CatalogError> {
     if value.trim().is_empty() || value.len() > max || value.contains('\0') {
         return Err(CatalogError::invalid(format!("invalid {field}")));
     }
     Ok(())
 }
-
 fn validate_unique_values(
     values: &[String],
     field: &str,
@@ -753,7 +754,6 @@ fn validate_unique_values(
     }
     Ok(())
 }
-
 fn provider_error(provider: &Provider, message: impl std::fmt::Display) -> CatalogError {
     CatalogError::invalid(format!("provider `{}`: {message}", provider.id))
 }

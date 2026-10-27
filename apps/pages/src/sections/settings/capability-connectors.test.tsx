@@ -99,6 +99,7 @@ describe("capability connectors the page lists", () => {
       const run = runCapabilityFeature(provider);
       if (
         provider.category === "agent_harnesses" ||
+        provider.category === "cua_runtime" ||
         provider.category === "ai_model_provider"
       ) {
         expect(run).toEqual({ ok: false, providerId: provider.id });
