@@ -172,10 +172,11 @@ async function* runShallowPass(
       msg.includes("DEEPSEC_GROK_FILE_WALL_SEC") ||
       fileWallSignal.aborted;
     const cap = msg.includes("max turns");
-    if (!timedOut && !cap) {
+    const parseFailed = msg.includes("investigation JSON parse failed");
+    if (!timedOut && !cap && !parseFailed) {
       throw err;
     }
-    return emptyOutcome(agentOptions, cap, timedOut);
+    return emptyOutcome(agentOptions, cap, timedOut || parseFailed);
   }
 }
 

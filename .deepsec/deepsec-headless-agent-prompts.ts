@@ -7,9 +7,49 @@ import {
   type TriageVerdict,
 } from "./deepsec-headless-agent-types.js";
 
+function extractJsonArrayString(text: string): string {
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) {
+    return fence[1].trim();
+  }
+  const trimmed = text.trim();
+  const start = trimmed.indexOf("[");
+  if (start < 0) {
+    return trimmed;
+  }
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < trimmed.length; i += 1) {
+    const c = trimmed[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (c === "\\") {
+        escape = true;
+      } else if (c === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === "[") {
+      depth += 1;
+    } else if (c === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return trimmed.slice(start, i + 1);
+      }
+    }
+  }
+  return trimmed;
+}
+
 function parseJsonArrayFromAgent(text: string): unknown[] {
-  const fence = text.match(/```json\s*([\s\S]*?)```/);
-  const jsonStr = fence ? fence[1].trim() : text.trim();
+  const jsonStr = extractJsonArrayString(text);
   const parsed = JSON.parse(jsonStr) as unknown;
   if (!Array.isArray(parsed)) {
     throw new Error("Expected JSON array from agent");
