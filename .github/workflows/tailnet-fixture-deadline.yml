@@ -1,0 +1,48 @@
+name: Ordinary Tailscale fixture deadline verification
+on:
+  push:
+    branches: [review/tailnet-fixture-deadline]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tailnet-browser-node-e2e:
+    name: Tailscale browser node end to end
+    if: >-
+      github.actor_id == '145080887' &&
+      github.repository_owner_id == '145080887' &&
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.ref == 'refs/heads/review/tailnet-fixture-deadline'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /OpenSesame/
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: d4e7862009759cdceb5c2bef4f9362ad445c5ff1
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build the declared Tailscale verification profile
+        run: pnpm --filter @opensesame/pages build:tailnet-browser-verify
+      - name: Official browser SDK through real Headscale and a native peer
+        # The Linux x64 fixture downloads hash-pinned binaries and uses
+        # userspace networking; no TUN device or elevated runner is needed.
+        env:
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/tailnet-browser-node
+        run: pnpm --filter @opensesame/pages verify:tailnet-browser-node
+      - name: Preserve Tailscale browser evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: tailnet-browser-node-${{ github.sha }}
+          path: ${{ runner.temp }}/tailnet-browser-node/
+          if-no-files-found: warn
+
