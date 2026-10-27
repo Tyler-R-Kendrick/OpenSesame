@@ -23,7 +23,10 @@ export function modelObservation(observation: Observation): Observation {
   const sensitive = observation.sensitiveValues ?? [];
   const redact = (label: string, kind: string) => {
     if (kind === "password") return "[masked password]";
-    if (kind === "otp") return /mail|email/iu.test(label) ? "[masked mail_code]" : "[masked totp]";
+    if (kind === "otp")
+      return /mail|email/iu.test(label)
+        ? "[masked mail_code]"
+        : "[masked totp]";
     return sensitive
       .reduce((text, value) => text.replaceAll(value, "[redacted]"), label)
       .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]/gu, "[redacted]");
@@ -46,14 +49,17 @@ export function modelObservation(observation: Observation): Observation {
   return safe;
 }
 
-export function detectChallenge(observation: Observation): HumanChallenge | null {
+export function detectChallenge(
+  observation: Observation,
+): HumanChallenge | null {
   const text = observation.fields.map((field) => field.label).join(" ");
   if (!CHALLENGE.test(text)) return null;
   if (/captcha|verify you are human/iu.test(text)) return "captcha";
   if (/passkey|security key/iu.test(text)) return "passkey";
   if (/text message/iu.test(text)) return "sms";
   if (/authenticator|totp/iu.test(text)) return "totp";
-  if (/one.time code|mail_code|email code|code from email/iu.test(text)) return "mail_code";
+  if (/one.time code|mail_code|email code|code from email/iu.test(text))
+    return "mail_code";
   return "two_fa";
 }
 
@@ -61,31 +67,47 @@ export function legalCandidates(observation: Observation): DecisionCandidate[] {
   const actions = observation.fields.flatMap((field): ResetActionDecision[] => {
     if (field.kind === "button" || field.kind === "link") {
       const click: ResetActionDecision = {
-        kind: "click", observationId: observation.id, ref: field.ref,
+        kind: "click",
+        observationId: observation.id,
+        ref: field.ref,
       };
-      if (field.kind === "button" && /reset|submit|save|change password|set password|update password/iu.test(field.label))
-        return [click, { kind: "submit", observationId: observation.id, ref: field.ref }];
+      if (
+        field.kind === "button" &&
+        /reset|submit|save|change password|set password|update password/iu.test(
+          field.label,
+        )
+      )
+        return [
+          click,
+          { kind: "submit", observationId: observation.id, ref: field.ref },
+        ];
       return [click];
     }
     if (field.kind === "otp")
-      return [{
-        kind: "await-human",
-        observationId: observation.id,
-        challenge: detectChallenge(observation) ?? "two_fa",
-      }];
+      return [
+        {
+          kind: "await-human",
+          observationId: observation.id,
+          challenge: detectChallenge(observation) ?? "two_fa",
+        },
+      ];
     if (field.kind === "password")
-      return [{
+      return [
+        {
+          kind: "fill-field",
+          observationId: observation.id,
+          ref: field.ref,
+          purpose: "new-password",
+        },
+      ];
+    return [
+      {
         kind: "fill-field",
         observationId: observation.id,
         ref: field.ref,
-        purpose: "new-password",
-      }];
-    return [{
-      kind: "fill-field",
-      observationId: observation.id,
-      ref: field.ref,
-      purpose: "identifier",
-    }];
+        purpose: "identifier",
+      },
+    ];
   });
   actions.push(
     { kind: "navigate", observationId: observation.id },
@@ -94,7 +116,11 @@ export function legalCandidates(observation: Observation): DecisionCandidate[] {
   );
   const challenge = detectChallenge(observation);
   if (challenge)
-    actions.push({ kind: "await-human", observationId: observation.id, challenge });
+    actions.push({
+      kind: "await-human",
+      observationId: observation.id,
+      challenge,
+    });
   return actions.map((action, index) => ({
     id: `c${index + 1}`,
     effectId: `${observation.id}:effect-${index + 1}`,
@@ -119,7 +145,10 @@ export function guardDecision(
     if (!candidate || candidate.effectId !== decision.effectId)
       throw new Error("Decision is not a legal typed candidate");
   }
-  if (decision.kind === "handoff" && detectChallenge(observation) !== decision.challenge)
+  if (
+    decision.kind === "handoff" &&
+    detectChallenge(observation) !== decision.challenge
+  )
     throw new Error("Decision invented a human challenge");
   return decision;
 }
@@ -143,7 +172,8 @@ export function selectedAction(
 ): ResetActionDecision {
   if (decision.kind !== "act") throw new Error("Decision is not an action");
   const candidate = legalCandidates(observation).find(
-    ({ id, effectId }) => id === decision.candidateId && effectId === decision.effectId,
+    ({ id, effectId }) =>
+      id === decision.candidateId && effectId === decision.effectId,
   );
   if (!candidate) throw new Error("Decision candidate is no longer legal");
   return candidate.action;

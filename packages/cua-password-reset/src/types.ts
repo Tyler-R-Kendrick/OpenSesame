@@ -65,55 +65,75 @@ export const challengeSchema = z.enum([
 export type HumanChallenge = z.infer<typeof challengeSchema>;
 
 export const resetActionDecisionSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.enum(["navigate", "await-email-link", "verify-login"]),
-    observationId: z.string().max(128),
-  }).strict(),
-  z.object({
-    kind: z.enum(["click", "submit", "passkey-prompt"]),
-    observationId: z.string().max(128),
-    ref: z.string().max(32),
-  }).strict(),
-  z.object({
-    kind: z.literal("fill-field"),
-    observationId: z.string().max(128),
-    ref: z.string().max(32),
-    purpose: z.enum(["identifier", "new-password"]),
-  }).strict(),
-  z.object({
-    kind: z.literal("await-human"),
-    observationId: z.string().max(128),
-    challenge: challengeSchema,
-  }).strict(),
+  z
+    .object({
+      kind: z.enum(["navigate", "await-email-link", "verify-login"]),
+      observationId: z.string().max(128),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.enum(["click", "submit", "passkey-prompt"]),
+      observationId: z.string().max(128),
+      ref: z.string().max(32),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("fill-field"),
+      observationId: z.string().max(128),
+      ref: z.string().max(32),
+      purpose: z.enum(["identifier", "new-password"]),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("await-human"),
+      observationId: z.string().max(128),
+      challenge: challengeSchema,
+    })
+    .strict(),
 ]);
 export type ResetActionDecision = z.infer<typeof resetActionDecisionSchema>;
 
-export const decisionCandidateSchema = z.object({
-  id: z.string().regex(/^c[1-9][0-9]*$/),
-  effectId: z.string().min(1).max(256),
-  action: resetActionDecisionSchema,
-}).strict();
+export const decisionCandidateSchema = z
+  .object({
+    id: z.string().regex(/^c[1-9][0-9]*$/),
+    effectId: z.string().min(1).max(256),
+    action: resetActionDecisionSchema,
+  })
+  .strict();
 export type DecisionCandidate = z.infer<typeof decisionCandidateSchema>;
 
 export const decisionSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("act"),
-    observationId: z.string().max(128),
-    candidateId: z.string().max(32),
-    effectId: z.string().max(256),
-  }).strict(),
-  z.object({ kind: z.literal("wait"), observationId: z.string().max(128) }).strict(),
-  z.object({
-    kind: z.literal("handoff"),
-    observationId: z.string().max(128),
-    challenge: challengeSchema,
-  }).strict(),
-  z.object({ kind: z.literal("finish"), observationId: z.string().max(128) }).strict(),
-  z.object({
-    kind: z.literal("refuse"),
-    observationId: z.string().max(128),
-    reason: z.enum(["ambiguous", "unsupported", "drift", "unsafe"]),
-  }).strict(),
+  z
+    .object({
+      kind: z.literal("act"),
+      observationId: z.string().max(128),
+      candidateId: z.string().max(32),
+      effectId: z.string().max(256),
+    })
+    .strict(),
+  z
+    .object({ kind: z.literal("wait"), observationId: z.string().max(128) })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("handoff"),
+      observationId: z.string().max(128),
+      challenge: challengeSchema,
+    })
+    .strict(),
+  z
+    .object({ kind: z.literal("finish"), observationId: z.string().max(128) })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("refuse"),
+      observationId: z.string().max(128),
+      reason: z.enum(["ambiguous", "unsupported", "drift", "unsafe"]),
+    })
+    .strict(),
 ]);
 export type Decision = z.infer<typeof decisionSchema>;
 

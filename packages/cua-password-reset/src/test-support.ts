@@ -1,6 +1,11 @@
 import type { AuthorityGrant } from "@opensesame/os-domain";
 import { fixedGrants, resetAudience, resetResource } from "./grants.js";
-import { RESET_ACTIONS, type Observation, type ResetAction, type ResetRun } from "./types.js";
+import {
+  type Observation,
+  RESET_ACTIONS,
+  type ResetAction,
+  type ResetRun,
+} from "./types.js";
 
 export const ORIGIN = "https://accounts.example.test";
 
@@ -15,7 +20,9 @@ export function run(): ResetRun {
     origin: ORIGIN,
     itemId: "item-1",
     transport: "cdp",
-    grantIds: Object.fromEntries(RESET_ACTIONS.map((action) => [action, `grant:${action}`])),
+    grantIds: Object.fromEntries(
+      RESET_ACTIONS.map((action) => [action, `grant:${action}`]),
+    ),
     cursor: 0,
     status: "running",
     updatedAt: "2026-10-27T00:00:00.000Z",
@@ -27,10 +34,20 @@ export function run(): ResetRun {
       allowedOrigins: [ORIGIN],
       steps: [
         { id: "open", primitive: "navigate", path: "/login" },
-        { id: "identify", primitive: "fill-field", ref: "e1", purpose: "identifier" },
+        {
+          id: "identify",
+          primitive: "fill-field",
+          ref: "e1",
+          purpose: "identifier",
+        },
         { id: "request", primitive: "click", ref: "e2" },
         { id: "mail", primitive: "await-email-link" },
-        { id: "password", primitive: "fill-field", ref: "e3", purpose: "new-password" },
+        {
+          id: "password",
+          primitive: "fill-field",
+          ref: "e3",
+          purpose: "new-password",
+        },
         { id: "submit", primitive: "submit", ref: "e4" },
         { id: "verify", primitive: "verify-login" },
       ],
@@ -78,5 +95,7 @@ export function grant(
 }
 
 export function grants() {
-  return fixedGrants(Object.fromEntries(RESET_ACTIONS.map((action) => [action, grant(action)])));
+  return fixedGrants(
+    Object.fromEntries(RESET_ACTIONS.map((action) => [action, grant(action)])),
+  );
 }

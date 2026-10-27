@@ -9,13 +9,15 @@ import { join } from "node:path";
 import { z } from "zod";
 import type { CheckpointJournal } from "./types.js";
 
-const envelopeSchema = z.object({
-  version: z.literal(1),
-  previous: z.string().regex(/^[a-f0-9]{64}$/),
-  iv: z.string().min(1),
-  tag: z.string().min(1),
-  data: z.string().min(1),
-}).strict();
+const envelopeSchema = z
+  .object({
+    version: z.literal(1),
+    previous: z.string().regex(/^[a-f0-9]{64}$/),
+    iv: z.string().min(1),
+    tag: z.string().min(1),
+    data: z.string().min(1),
+  })
+  .strict();
 const EMPTY_DIGEST = "0".repeat(64);
 
 export class FileCheckpointJournal implements CheckpointJournal {
@@ -27,10 +29,15 @@ export class FileCheckpointJournal implements CheckpointJournal {
     private readonly key: Uint8Array,
   ) {}
 
-  static async open(directory: string, key?: Uint8Array): Promise<FileCheckpointJournal> {
+  static async open(
+    directory: string,
+    key?: Uint8Array,
+  ): Promise<FileCheckpointJournal> {
     await mkdir(directory, { recursive: true, mode: 0o700 });
-    const resolvedKey = key ?? await journalKey(join(directory, "journal.key"));
-    if (resolvedKey.byteLength !== 32) throw new Error("A journal key must contain 32 bytes");
+    const resolvedKey =
+      key ?? (await journalKey(join(directory, "journal.key")));
+    if (resolvedKey.byteLength !== 32)
+      throw new Error("A journal key must contain 32 bytes");
     return new FileCheckpointJournal(directory, Uint8Array.from(resolvedKey));
   }
 
@@ -58,7 +65,10 @@ export class FileCheckpointJournal implements CheckpointJournal {
       const iv = randomBytes(12);
       const cipher = createCipheriv("aes-256-gcm", this.key, iv);
       cipher.setAAD(Buffer.from(`${runId}:${current.digest}`));
-      const data = Buffer.concat([cipher.update(serialized, "utf8"), cipher.final()]);
+      const data = Buffer.concat([
+        cipher.update(serialized, "utf8"),
+        cipher.final(),
+      ]);
       const line = `${JSON.stringify({
         version: 1,
         previous: current.digest,
@@ -79,7 +89,9 @@ export class FileCheckpointJournal implements CheckpointJournal {
     }
   }
 
-  private async read(runId: string): Promise<{ events: unknown[]; digest: string }> {
+  private async read(
+    runId: string,
+  ): Promise<{ events: unknown[]; digest: string }> {
     let text: string;
     try {
       text = await readFile(this.filename(runId), "utf8");
@@ -92,8 +104,13 @@ export class FileCheckpointJournal implements CheckpointJournal {
     let previous = EMPTY_DIGEST;
     for (const line of text.split("\n").filter((part) => part !== "")) {
       const envelope = envelopeSchema.parse(JSON.parse(line));
-      if (envelope.previous !== previous) throw new Error("Journal chain is invalid");
-      const decipher = createDecipheriv("aes-256-gcm", this.key, Buffer.from(envelope.iv, "base64url"));
+      if (envelope.previous !== previous)
+        throw new Error("Journal chain is invalid");
+      const decipher = createDecipheriv(
+        "aes-256-gcm",
+        this.key,
+        Buffer.from(envelope.iv, "base64url"),
+      );
       decipher.setAAD(Buffer.from(`${runId}:${previous}`));
       decipher.setAuthTag(Buffer.from(envelope.tag, "base64url"));
       const plaintext = Buffer.concat([
@@ -107,16 +124,18 @@ export class FileCheckpointJournal implements CheckpointJournal {
   }
 
   private async acquire(runId: string): Promise<void> {
-    const create = () => writeFile(this.lockname(runId), String(process.pid), {
-      flag: "wx",
-      mode: 0o600,
-    });
+    const create = () =>
+      writeFile(this.lockname(runId), String(process.pid), {
+        flag: "wx",
+        mode: 0o600,
+      });
     try {
       return await create();
     } catch (error) {
       if (!isCode(error, "EEXIST")) throw error;
       const owner = Number(await readFile(this.lockname(runId), "utf8"));
-      if (!Number.isInteger(owner) || owner < 1) throw new Error("Journal writer lease is invalid");
+      if (!Number.isInteger(owner) || owner < 1)
+        throw new Error("Journal writer lease is invalid");
       try {
         process.kill(owner, 0);
       } catch {
@@ -128,7 +147,10 @@ export class FileCheckpointJournal implements CheckpointJournal {
   }
 
   private filename(runId: string): string {
-    return join(this.directory, `${createHash("sha256").update(runId).digest("hex")}.journal`);
+    return join(
+      this.directory,
+      `${createHash("sha256").update(runId).digest("hex")}.journal`,
+    );
   }
 
   private lockname(runId: string): string {

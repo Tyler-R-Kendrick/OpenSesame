@@ -25,6 +25,7 @@ const method: PasswordMethod = {
   secret: Buffer.alloc(32, 7).toString("base64"),
   changedAt: "2026-10-27T00:00:00.000Z",
 };
+
 const proof: ProxyProof = {
   origin: "https://accounts.example.test",
   method: "POST",
@@ -36,36 +37,28 @@ const proof: ProxyProof = {
   canaryVerified: true,
 };
 
-describe("run-scoped pepper custody", () => {
-  it("authorizes before production and asks once per run", async () => {
+describe("candidate custody", () => {
+  it("uses slotted algorithmic output and asks the person for pepper once per run", async () => {
+    const calls: string[] = [];
     const source = vi.fn(async () => method);
-    const pepper = vi.fn(async () => "PERSON_PEPPER");
-    const custody = new CandidateCustody(source, pepper);
+    const pepper = vi.fn(async () => "human-pepper");
+    const custody = new CandidateCustody(source, pepper, () => {
+      calls.push("grant");
+    });
     const first = await custody.withPassword(async (password) => password);
-    expect(first.endsWith("PERSON_PEPPER")).toBe(true);
-    expect(await custody.withPassword(async (password) => password)).toBe(first);
+    const second = await custody.withPassword(async (password) => password);
+    expect(first).toBe(second);
+    expect(first.endsWith("human-pepper")).toBe(true);
     expect(source).toHaveBeenCalledTimes(2);
     expect(pepper).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(custody)).not.toContain(first);
+    expect(calls[0]).toBe("grant");
+    expect(JSON.stringify(custody)).not.toContain("human-pepper");
     custody.forget();
     await custody.withPassword(async () => undefined);
     expect(pepper).toHaveBeenCalledTimes(2);
   });
 
-  it("uses a random same-shape synthetic only inside the proxy closure", async () => {
-    const custody = new CandidateCustody(method, () => "PERSON_PEPPER");
-    const real = await custody.withPassword(async (password) => password);
-    const synthetic = await custody.withSynthetic(proof, async (value) => value);
-    expect(synthetic).toHaveLength(real.length);
-    expect(synthetic).not.toBe(real);
-    expect([...synthetic].every((character, index) =>
-      /[a-z]/u.test(real[index] ?? "") ? /[a-z]/u.test(character) : true)).toBe(true);
-    expect(() => assertProxyLane(true, undefined)).toThrow("requires");
-    expect(() => assertProxyLane(true, { ...proof, canaryVerified: false } as never)).toThrow();
-  });
-
-  it("refuses manual and unslotted methods before asking for pepper", async () => {
-    const pepper = vi.fn(async () => "PERSON_PEPPER");
+  it("refuses manual output and an empty or missing pepper", async () => {
     const manual: PasswordMethod = {
       id: "manual-1",
       type: "password",
@@ -74,10 +67,36 @@ describe("run-scoped pepper custody", () => {
       pepper: false,
       changedAt: "2026-10-27T00:00:00.000Z",
     };
-    await expect(new CandidateCustody(manual, pepper)
-      .withPassword(async (value) => value)).rejects.toThrow("algorithmic");
-    await expect(new CandidateCustody({ ...method, pepper: false }, pepper)
-      .withPassword(async () => undefined)).rejects.toThrow("pepper slot");
-    expect(pepper).not.toHaveBeenCalled();
+    await expect(
+      new CandidateCustody(manual, async () => "pepper").withPassword(
+        async (value) => value,
+      ),
+    ).rejects.toThrow("algorithmic");
+    await expect(
+      new CandidateCustody(method, async () => "").withPassword(
+        async () => undefined,
+      ),
+    ).rejects.toThrow("supply the pepper");
+  });
+
+  it("makes a random same-shape synthetic only inside a strict proxy closure", async () => {
+    const custody = new CandidateCustody(method, async () => "human-pepper");
+    const real = await custody.withPassword(async (password) => password);
+    const synthetic = await custody.withSynthetic(
+      proof,
+      async (value) => value,
+    );
+    expect(synthetic).toHaveLength(real.length);
+    expect(synthetic).not.toBe(real);
+    expect(
+      [...synthetic].every((character, index) =>
+        /[a-z]/u.test(real[index] ?? "") ? /[a-z]/u.test(character) : true,
+      ),
+    ).toBe(true);
+    expect(() => assertProxyLane(true, undefined)).toThrow("requires");
+    expect(() => assertProxyLane(true, proof)).not.toThrow();
+    expect(() =>
+      assertProxyLane(true, { ...proof, canaryVerified: false } as never),
+    ).toThrow();
   });
 });

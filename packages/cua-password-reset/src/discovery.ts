@@ -1,13 +1,18 @@
-import { decide, modelObservation, selectedAction, type DecisionsApi } from "./decisions.js";
 import type { BrowserDriver } from "./agent-browser.js";
 import {
-  recipeSchema,
+  type DecisionsApi,
+  decide,
+  modelObservation,
+  selectedAction,
+} from "./decisions.js";
+import {
   type HumanChallenge,
   type Observation,
   type RecipeStep,
   type ResetAction,
   type ResetActionDecision,
   type ResetRecipe,
+  recipeSchema,
 } from "./types.js";
 
 export interface DiscoveryExecutor {
@@ -34,17 +39,24 @@ export function decisionStep(
 ): RecipeStep {
   const id = `step-${index}`;
   const safe = modelObservation(observation);
-  const target = "ref" in decision
-    ? {
-        ref: decision.ref,
-        expectedLabel: safe.fields.find((field) => field.ref === decision.ref)?.label,
-      }
-    : {};
+  const target =
+    "ref" in decision
+      ? {
+          ref: decision.ref,
+          expectedLabel: safe.fields.find((field) => field.ref === decision.ref)
+            ?.label,
+        }
+      : {};
   switch (decision.kind) {
     case "navigate":
       return { id, primitive: "navigate", path: entryPath };
     case "fill-field":
-      return { id, primitive: "fill-field", purpose: decision.purpose, ...target };
+      return {
+        id,
+        primitive: "fill-field",
+        purpose: decision.purpose,
+        ...target,
+      };
     case "click":
       return { id, primitive: "click", ...target };
     case "submit":
@@ -58,9 +70,15 @@ export function decisionStep(
   }
 }
 
-export async function discoverResetRecipe(options: DiscoveryOptions): Promise<ResetRecipe> {
+export async function discoverResetRecipe(
+  options: DiscoveryOptions,
+): Promise<ResetRecipe> {
   const entry = new URL(options.entryUrl);
-  if (!["https:", "http:"].includes(entry.protocol) || entry.username || entry.password)
+  if (
+    !["https:", "http:"].includes(entry.protocol) ||
+    entry.username ||
+    entry.password
+  )
     throw new Error("Discovery entry must be a credential-free HTTP(S) URL");
   if (!options.allowedOrigins.includes(entry.origin))
     throw new Error("Discovery entry is outside the allowed origins");
@@ -75,7 +93,11 @@ export async function discoverResetRecipe(options: DiscoveryOptions): Promise<Re
     options.authorize("password_reset.browser.drive");
     const observation = await options.browser.snapshot();
     options.authorize("password_reset.model.plan");
-    const decision = await decide(options.decisions, observation, options.allowedOrigins);
+    const decision = await decide(
+      options.decisions,
+      observation,
+      options.allowedOrigins,
+    );
     if (decision.kind === "refuse")
       throw new Error(`Discovery refused: ${decision.reason}`);
     if (decision.kind === "wait") continue;
@@ -99,11 +121,13 @@ export async function discoverResetRecipe(options: DiscoveryOptions): Promise<Re
     }
     const action = selectedAction(decision, observation);
     options.authorize("password_reset.runtime.execute");
-    options.authorize(action.kind === "await-email-link"
-      ? "password_reset.mailbox.read"
-      : action.kind === "await-human" || action.kind === "passkey-prompt"
-        ? "password_reset.human.takeover"
-        : "password_reset.browser.drive");
+    options.authorize(
+      action.kind === "await-email-link"
+        ? "password_reset.mailbox.read"
+        : action.kind === "await-human" || action.kind === "passkey-prompt"
+          ? "password_reset.human.takeover"
+          : "password_reset.browser.drive",
+    );
     steps.push(decisionStep(action, observation, entryPath, steps.length + 1));
     await options.executor.execute(action);
   }

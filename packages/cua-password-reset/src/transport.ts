@@ -17,7 +17,9 @@ export function selectTransport(
   transports: readonly ResetTransport[],
 ): ResetTransport {
   for (const kind of PREFERENCE) {
-    const selected = transports.find((transport) => transport.kind === kind && transport.available);
+    const selected = transports.find(
+      (transport) => transport.kind === kind && transport.available,
+    );
     if (selected) {
       if (kind === "proxy" && !selected.proxyProof)
         throw new Error("The proxy has no exact-form substitution proof");
@@ -34,7 +36,9 @@ export async function fillBeforeSubmit(
   if (selected.kind === "proxy") {
     const proof = selected.proxyProof;
     if (!proof) throw new Error("The selected proxy has no exact-form proof");
-    await custody.withSynthetic(proof, (synthetic) => selected.fillSynthetic(synthetic, proof));
+    await custody.withSynthetic(proof, (synthetic) =>
+      selected.fillSynthetic(synthetic, proof),
+    );
     return;
   }
   await custody.withPassword((password) => selected.fillReal(password));

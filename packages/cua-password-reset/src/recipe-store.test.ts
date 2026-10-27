@@ -26,7 +26,9 @@ describe("per-domain recipe store", () => {
     const store = await FileRecipeStore.open(directory);
     await store.put(run().recipe);
     expect(await store.get(run().recipe.domain)).toEqual(run().recipe);
-    expect((await readdir(directory)).some((name) => name.endsWith(".tmp"))).toBe(false);
+    expect(
+      (await readdir(directory)).some((name) => name.endsWith(".tmp")),
+    ).toBe(false);
     expect(await readdir(join(directory))).toHaveLength(1);
   });
 });

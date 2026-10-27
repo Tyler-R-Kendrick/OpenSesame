@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { discoverResetRecipe, type DiscoveryOptions } from "./discovery.js";
-import { recipeSchema, type ResetRecipe } from "./types.js";
+import { type DiscoveryOptions, discoverResetRecipe } from "./discovery.js";
+import { type ResetRecipe, recipeSchema } from "./types.js";
 
 export interface RecipeStore {
   get(domain: string): Promise<ResetRecipe | undefined>;
@@ -34,9 +34,12 @@ export class FileRecipeStore implements RecipeStore {
 
   async get(domain: string): Promise<ResetRecipe | undefined> {
     try {
-      return recipeSchema.parse(JSON.parse(await readFile(this.filename(domain), "utf8")));
+      return recipeSchema.parse(
+        JSON.parse(await readFile(this.filename(domain), "utf8")),
+      );
     } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+      if (error instanceof Error && "code" in error && error.code === "ENOENT")
+        return undefined;
       throw error;
     }
   }
@@ -45,12 +48,18 @@ export class FileRecipeStore implements RecipeStore {
     const parsed = recipeSchema.parse(recipe);
     const filename = this.filename(parsed.domain);
     const temporary = `${filename}.${randomUUID()}.tmp`;
-    await writeFile(temporary, JSON.stringify(parsed), { mode: 0o600, flag: "wx" });
+    await writeFile(temporary, JSON.stringify(parsed), {
+      mode: 0o600,
+      flag: "wx",
+    });
     await rename(temporary, filename);
   }
 
   private filename(domain: string): string {
-    return join(this.directory, `${createHash("sha256").update(domain).digest("hex")}.json`);
+    return join(
+      this.directory,
+      `${createHash("sha256").update(domain).digest("hex")}.json`,
+    );
   }
 }
 

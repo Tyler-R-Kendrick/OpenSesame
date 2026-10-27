@@ -1,22 +1,22 @@
-import type { Page } from "@playwright/test";
 import type { PasswordMethod } from "@opensesame/vault-core";
+import type { Page } from "@playwright/test";
 import {
+  type BrowserDriver,
   BrowserStepExecutor,
   CandidateCustody,
+  type CheckpointJournal,
   DurableJournal,
   DurableResetRunner,
-  MemoryCheckpointJournal,
-  RESET_ACTIONS,
-  fixedGrants,
-  resetResource,
-  type BrowserDriver,
-  type CheckpointJournal,
   type ExactFormProxyPort,
   type HumanChallenge,
+  MemoryCheckpointJournal,
   type Observation,
+  RESET_ACTIONS,
+  type ResetAction,
   type ResetEffects,
   type ResetRun,
-  type ResetAction,
+  fixedGrants,
+  resetResource,
 } from "../src/index.js";
 import { grant } from "../src/test-support.js";
 import type { Challenge, MockResetSite } from "./mock-site.js";
@@ -46,7 +46,10 @@ export const method: PasswordMethod = {
   changedAt: "2026-10-27T00:00:00.000Z",
 };
 
-export function resetRun(site: MockResetSite, challenge: Challenge = null): ResetRun {
+export function resetRun(
+  site: MockResetSite,
+  challenge: Challenge = null,
+): ResetRun {
   const domain = new URL(site.origin).hostname;
   return {
     id: "run-1",
@@ -54,7 +57,9 @@ export function resetRun(site: MockResetSite, challenge: Challenge = null): Rese
     origin: site.origin,
     itemId: "item-1",
     transport: "cdp",
-    grantIds: Object.fromEntries(RESET_ACTIONS.map((action) => [action, `grant:${action}`])),
+    grantIds: Object.fromEntries(
+      RESET_ACTIONS.map((action) => [action, `grant:${action}`]),
+    ),
     cursor: 0,
     status: "running",
     updatedAt: new Date().toISOString(),
@@ -66,12 +71,36 @@ export function resetRun(site: MockResetSite, challenge: Challenge = null): Rese
       allowedOrigins: [site.origin],
       steps: [
         { id: "open", primitive: "navigate", path: "/reset" },
-        { id: "identify", primitive: "fill-field", ref: "e1", expectedLabel: "Email", purpose: "identifier" },
-        { id: "request", primitive: "click", ref: "e2", expectedLabel: "Send reset link" },
+        {
+          id: "identify",
+          primitive: "fill-field",
+          ref: "e1",
+          expectedLabel: "Email",
+          purpose: "identifier",
+        },
+        {
+          id: "request",
+          primitive: "click",
+          ref: "e2",
+          expectedLabel: "Send reset link",
+        },
         { id: "mail", primitive: "await-email-link" },
-        ...(challenge ? [{ id: "challenge", primitive: "await-human" } as const] : []),
-        { id: "password", primitive: "fill-field", ref: "e3", expectedLabel: "New password", purpose: "new-password" },
-        { id: "submit", primitive: "submit", ref: "e4", expectedLabel: "Save password" },
+        ...(challenge
+          ? [{ id: "challenge", primitive: "await-human" } as const]
+          : []),
+        {
+          id: "password",
+          primitive: "fill-field",
+          ref: "e3",
+          expectedLabel: "New password",
+          purpose: "new-password",
+        },
+        {
+          id: "submit",
+          primitive: "submit",
+          ref: "e4",
+          expectedLabel: "Save password",
+        },
         { id: "verify", primitive: "verify-login" },
       ],
       ...(challenge === null ? {} : {}),
@@ -89,35 +118,51 @@ class PlaywrightDriver implements BrowserDriver {
   async snapshot(): Promise<Observation> {
     const path = new URL(this.page.url()).pathname;
     const fields: Observation["fields"] = [];
-    if (path === "/reset") fields.push(
-      { ref: "e1", kind: "email", label: "Email" },
-      { ref: "e2", kind: "button", label: "Send reset link" },
-    );
+    if (path === "/reset")
+      fields.push(
+        { ref: "e1", kind: "email", label: "Email" },
+        { ref: "e2", kind: "button", label: "Send reset link" },
+      );
     if (path === "/reset/link") {
       const text = await this.page.locator("body").innerText();
-      const challenge = /CAPTCHA/iu.test(text) ? "CAPTCHA verify you are human"
-        : /One-time code/iu.test(text) ? "One-time code from email"
-          : /Authenticator/iu.test(text) ? "Authenticator TOTP code required"
-            : /Passkey/iu.test(text) ? "Passkey security key required" : null;
+      const challenge = /CAPTCHA/iu.test(text)
+        ? "CAPTCHA verify you are human"
+        : /One-time code/iu.test(text)
+          ? "One-time code from email"
+          : /Authenticator/iu.test(text)
+            ? "Authenticator TOTP code required"
+            : /Passkey/iu.test(text)
+              ? "Passkey security key required"
+              : null;
       if (challenge) fields.push({ ref: "e9", kind: "text", label: challenge });
-      const save = await this.page.locator("form[action='/password'] button").innerText();
+      const save = await this.page
+        .locator("form[action='/password'] button")
+        .innerText();
       fields.push(
         { ref: "e3", kind: "password", label: "New password" },
         { ref: "e4", kind: "button", label: save },
       );
     }
-    return { id: crypto.randomUUID(), origin: new URL(this.page.url()).origin, fields };
+    return {
+      id: crypto.randomUUID(),
+      origin: new URL(this.page.url()).origin,
+      fields,
+    };
   }
 
   async click(ref: string): Promise<void> {
-    if (ref === "e2") await this.page.locator("form[action='/request'] button").click();
-    else if (ref === "e4") await this.page.locator("form[action='/password'] button").click();
+    if (ref === "e2")
+      await this.page.locator("form[action='/request'] button").click();
+    else if (ref === "e4")
+      await this.page.locator("form[action='/password'] button").click();
     else throw new Error("Unknown test ref");
   }
 
   async fill(ref: string, value: string): Promise<void> {
     if (ref !== "e1" && ref !== "e3") throw new Error("Unknown test ref");
-    await this.page.locator(ref === "e1" ? "input[name='email']" : "input[name='password']").fill(value);
+    await this.page
+      .locator(ref === "e1" ? "input[name='email']" : "input[name='password']")
+      .fill(value);
   }
 
   async fillSecret(ref: string, value: string): Promise<void> {
@@ -132,18 +177,26 @@ export function proxy(page: Page): ExactFormProxyPort {
     if (!armed) throw new Error("Unarmed password submission");
     const request = route.request();
     const values = new URLSearchParams(request.postData() ?? "");
-    const appearances = [...values.values()].join(" ").split(armed.synthetic).length - 1;
-    if (request.method() !== armed.proof.method || values.getAll(armed.proof.field).length !== 1 ||
-        values.get(armed.proof.field) !== armed.synthetic || appearances !== 1)
+    const appearances =
+      [...values.values()].join(" ").split(armed.synthetic).length - 1;
+    if (
+      request.method() !== armed.proof.method ||
+      values.getAll(armed.proof.field).length !== 1 ||
+      values.get(armed.proof.field) !== armed.synthetic ||
+      appearances !== 1
+    )
       throw new Error("Password form did not match its proof");
+    const field = armed.proof.field;
     await armed.withRealPassword(async (password) => {
-      values.set(armed!.proof.field, password);
+      values.set(field, password);
       await route.continue({ postData: values.toString() });
     });
   });
   return {
     exactFormSubstitution: true,
-    arm: async (input) => { armed = input; },
+    arm: async (input) => {
+      armed = input;
+    },
   };
 }
 
@@ -156,29 +209,44 @@ export function runtime(
 ) {
   const initial = resetRun(site, challenge);
   if (withProxy) initial.transport = "proxy";
-  if (withProxy) initial.recipe.proxySubstitution = {
-    origin: site.origin,
-    method: "POST",
-    path: "/password",
-    field: "password",
-    contentType: "application/x-www-form-urlencoded",
-    identityEncoding: true,
-    untransformedForm: true,
-    canaryVerified: true,
-  };
-  const provider = fixedGrants(Object.fromEntries(RESET_ACTIONS.map((action: ResetAction) => [
-    action,
-    { ...grant(action, new Date()), resources: [resetResource(initial.domain, initial.itemId)] },
-  ])));
-  const custody = new CandidateCustody(method, () => PEPPER, () => {
-    const live = provider.grant("password_reset.password.produce", initial);
-    if (live.actions[0] !== "password_reset.password.produce") throw new Error("Not authorized");
-  });
+  if (withProxy)
+    initial.recipe.proxySubstitution = {
+      origin: site.origin,
+      method: "POST",
+      path: "/password",
+      field: "password",
+      contentType: "application/x-www-form-urlencoded",
+      identityEncoding: true,
+      untransformedForm: true,
+      canaryVerified: true,
+    };
+  const provider = fixedGrants(
+    Object.fromEntries(
+      RESET_ACTIONS.map((action: ResetAction) => [
+        action,
+        {
+          ...grant(action, new Date()),
+          resources: [resetResource(initial.domain, initial.itemId)],
+        },
+      ]),
+    ),
+  );
+  const custody = new CandidateCustody(
+    method,
+    () => PEPPER,
+    () => {
+      const live = provider.grant("password_reset.password.produce", initial);
+      if (live.actions[0] !== "password_reset.password.produce")
+        throw new Error("Not authorized");
+    },
+  );
   const challenges: HumanChallenge[] = [];
   const verifyLogin = async () => {
     await page.goto(`${site.origin}/login`);
     await page.locator("input[name='email']").fill("person@example.test");
-    await custody.withPassword((password) => page.locator("input[name='password']").fill(password));
+    await custody.withPassword((password) =>
+      page.locator("input[name='password']").fill(password),
+    );
     await page.locator("form[action='/login'] button").click();
     return new URL(page.url()).pathname === "/account";
   };
@@ -187,20 +255,33 @@ export function runtime(
     identifier: async () => "person@example.test",
     mailbox: { resetLink: async () => site.resetLink() },
     candidate: custody,
-    authorizeProxy: () => { provider.grant("password_reset.proxy.substitute", initial); },
+    authorizeProxy: () => {
+      provider.grant("password_reset.proxy.substitute", initial);
+    },
     takeover: {
-      handoff: async (challenge) => { challenges.push(challenge); },
-      resume: async () => { await page.locator("form[action='/challenge/clear'] button").click(); },
+      handoff: async (challenge) => {
+        challenges.push(challenge);
+      },
+      resume: async () => {
+        await page.locator("form[action='/challenge/clear'] button").click();
+      },
     },
     verifyLogin,
-    ...(withProxy && initial.recipe.proxySubstitution ? { proxy: proxy(page) } : {}),
+    ...(withProxy && initial.recipe.proxySubstitution
+      ? { proxy: proxy(page) }
+      : {}),
   });
   const effects: ResetEffects = {
-    execute: (step, current, context) => executor.execute(step, current, context),
+    execute: (step, current, context) =>
+      executor.execute(step, current, context),
     backupCandidate: async () => {},
-    verifyCandidate: async () => await verifyLogin() ? "verified" : "not_active",
+    verifyCandidate: async () =>
+      (await verifyLogin()) ? "verified" : "not_active",
     promoteCandidate: async () => {},
-    compensate: async () => { site.restorePassword(); return "compensated"; },
+    compensate: async () => {
+      site.restorePassword();
+      return "compensated";
+    },
   };
   const journal = new DurableJournal(store);
   return {

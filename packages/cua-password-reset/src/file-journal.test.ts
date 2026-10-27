@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -22,7 +22,9 @@ describe("sealed atomic file journal", () => {
       { type: "run.status", status: "succeeded" },
       { type: "run.status", status: "failed" },
     ]);
-    for (const file of (await readdir(directory)).filter((name) => name.endsWith(".journal"))) {
+    for (const file of (await readdir(directory)).filter((name) =>
+      name.endsWith(".journal"),
+    )) {
       const contents = await readFile(join(directory, file), "utf8");
       expect(contents).not.toContain("run-1");
       expect(contents).not.toContain("succeeded");
@@ -32,7 +34,9 @@ describe("sealed atomic file journal", () => {
   it("fails closed on a modified ciphertext record", async () => {
     const journal = await FileCheckpointJournal.open(directory);
     await journal.append("run-1", { type: "checkpoint" });
-    const file = (await readdir(directory)).find((name) => name.endsWith(".journal"));
+    const file = (await readdir(directory)).find((name) =>
+      name.endsWith(".journal"),
+    );
     if (!file) throw new Error("Missing journal fixture");
     const filename = join(directory, file);
     const record = JSON.parse(await readFile(filename, "utf8"));
@@ -46,7 +50,12 @@ describe("sealed atomic file journal", () => {
     const second = await FileCheckpointJournal.open(directory);
     await first.append("run-1", { sequence: 1 });
     await second.append("run-1", { sequence: 2 });
-    await expect(first.append("run-1", { sequence: 3 })).rejects.toThrow("stale");
-    expect(await second.load("run-1")).toEqual([{ sequence: 1 }, { sequence: 2 }]);
+    await expect(first.append("run-1", { sequence: 3 })).rejects.toThrow(
+      "stale",
+    );
+    expect(await second.load("run-1")).toEqual([
+      { sequence: 1 },
+      { sequence: 2 },
+    ]);
   });
 });

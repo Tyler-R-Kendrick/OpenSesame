@@ -4,11 +4,16 @@ import { ORIGIN, observation } from "./test-support.js";
 
 describe("model observation masking", () => {
   it("removes raw images and sensitive field text before model state", async () => {
-    const safe = await maskObservation({
-      ...observation([{ ref: "e1", kind: "email", label: "person@example.test" }]),
-      screenshot: "data:image/png;base64,RAW_SCREENSHOT_CANARY",
-      sensitiveValues: ["person@example.test"],
-    }, new OpaqueScreenshotMasker());
+    const safe = await maskObservation(
+      {
+        ...observation([
+          { ref: "e1", kind: "email", label: "person@example.test" },
+        ]),
+        screenshot: "data:image/png;base64,RAW_SCREENSHOT_CANARY",
+        sensitiveValues: ["person@example.test"],
+      },
+      new OpaqueScreenshotMasker(),
+    );
     expect(JSON.stringify(safe)).not.toContain("RAW_SCREENSHOT_CANARY");
     expect(JSON.stringify(safe)).not.toContain("person@example.test");
     expect(safe.screenshot).toBeUndefined();
@@ -17,9 +22,11 @@ describe("model observation masking", () => {
   });
 
   it("fails closed when a raw screenshot cannot be masked", async () => {
-    await expect(maskObservation({
-      ...observation(),
-      screenshot: "data:image/png;base64,RAW_SCREENSHOT_CANARY",
-    })).rejects.toThrow("masked screenshot");
+    await expect(
+      maskObservation({
+        ...observation(),
+        screenshot: "data:image/png;base64,RAW_SCREENSHOT_CANARY",
+      }),
+    ).rejects.toThrow("masked screenshot");
   });
 });

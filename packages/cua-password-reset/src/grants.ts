@@ -53,12 +53,17 @@ export function assertResetGrant(
     throw new Error("Reset action requires its own exact grant");
   if (run.grantIds[action] !== grant.id)
     throw new Error("Reset grant is not the grant approved for this run");
-  if (grant.constraints.audiences.length !== 1 ||
-      grant.constraints.audiences[0] !== resetAudience(run.id))
+  if (
+    grant.constraints.audiences.length !== 1 ||
+    grant.constraints.audiences[0] !== resetAudience(run.id)
+  )
     throw new Error("Reset grant belongs to another run or audience");
   if (!grant.actorInstanceId || !grant.proofKeyThumbprint)
     throw new Error("Reset grant must name one agent instance and proof key");
-  if (grant.delegationDepth !== 0 || grant.constraints.maximumDelegationDepth !== 0)
+  if (
+    grant.delegationDepth !== 0 ||
+    grant.constraints.maximumDelegationDepth !== 0
+  )
     throw new Error("Reset grant cannot be redelegated");
   const resource =
     action === "password_reset.domain_metadata.list"

@@ -3,18 +3,15 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { detectChallenge } from "./decisions.js";
 import { stepDrift } from "./recipe.js";
+import { type CandidateCustody, assertProxyLane } from "./secrets.js";
 import {
-  assertProxyLane,
-  type CandidateCustody,
-} from "./secrets.js";
-import {
-  observationSchema,
   type HumanChallenge,
   type Observation,
   type ProxyProof,
   type RecipeStep,
   type ResetRun,
   type StepReceipt,
+  observationSchema,
 } from "./types.js";
 
 export interface BrowserDriver {
@@ -30,7 +27,9 @@ export interface MailboxPort {
   resetLink(): Promise<string>;
 }
 
-export type PasswordCall = <T>(use: (password: string) => Promise<T>) => Promise<T>;
+export type PasswordCall = <T>(
+  use: (password: string) => Promise<T>,
+) => Promise<T>;
 
 export interface ExactFormProxyPort {
   readonly exactFormSubstitution: true;
@@ -59,40 +58,61 @@ export interface AgentBrowserConfig {
   secretFill(ref: string, value: string): Promise<void>;
 }
 
-const rawSnapshotSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
-    snapshot: z.string(),
-    refs: z.record(z.string(), z.object({
-      role: z.string(),
-      name: z.string(),
-    }).passthrough()),
-  }).passthrough(),
-}).passthrough();
-const urlResultSchema = z.object({
-  success: z.literal(true),
-  data: z.union([z.string(), z.object({ url: z.string() }).passthrough()]),
-}).passthrough();
+const rawSnapshotSchema = z
+  .object({
+    success: z.literal(true),
+    data: z
+      .object({
+        snapshot: z.string(),
+        refs: z.record(
+          z.string(),
+          z
+            .object({
+              role: z.string(),
+              name: z.string(),
+            })
+            .passthrough(),
+        ),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+const urlResultSchema = z
+  .object({
+    success: z.literal(true),
+    data: z.union([z.string(), z.object({ url: z.string() }).passthrough()]),
+  })
+  .passthrough();
 
 function endpoint(value: string): URL {
   const url = new URL(value);
-  if (!["https:", "http:"].includes(url.protocol) || url.username || url.password)
+  if (
+    !["https:", "http:"].includes(url.protocol) ||
+    url.username ||
+    url.password
+  )
     throw new Error("Browser URL must be a credential-free HTTP(S) URL");
   return url;
 }
 
-export function parseAgentBrowserSnapshot(output: string, origin: string): Observation {
+export function parseAgentBrowserSnapshot(
+  output: string,
+  origin: string,
+): Observation {
   let raw: z.infer<typeof rawSnapshotSchema>;
   try {
     raw = rawSnapshotSchema.parse(JSON.parse(output));
   } catch {
     throw new Error("agent-browser returned an invalid snapshot");
   }
-  const fields = Object.entries(raw.data.refs).flatMap(([ref, value]) => {
-    if (!/^e[1-9][0-9]*$/.test(ref)) throw new Error("agent-browser returned an invalid ref");
-    const kind = fieldKind(value.role, value.name);
-    return kind ? [{ ref, kind, label: value.name.slice(0, 200) }] : [];
-  }).slice(0, 100);
+  const fields = Object.entries(raw.data.refs)
+    .flatMap(([ref, value]) => {
+      if (!/^e[1-9][0-9]*$/.test(ref))
+        throw new Error("agent-browser returned an invalid ref");
+      const kind = fieldKind(value.role, value.name);
+      return kind ? [{ ref, kind, label: value.name.slice(0, 200) }] : [];
+    })
+    .slice(0, 100);
   return observationSchema.parse({ id: randomUUID(), origin, fields });
 }
 
@@ -101,11 +121,21 @@ export class AgentBrowser implements BrowserDriver {
   private readonly timeoutMs: number;
 
   constructor(private readonly config: AgentBrowserConfig) {
-    if (!config.executable.trim() || !config.session.trim() || config.allowedDomains.length === 0)
-      throw new Error("agent-browser requires an executable, session and domain allowlist");
+    if (
+      !config.executable.trim() ||
+      !config.session.trim() ||
+      config.allowedDomains.length === 0
+    )
+      throw new Error(
+        "agent-browser requires an executable, session and domain allowlist",
+      );
     this.command = config.spawn ?? spawn;
     this.timeoutMs = config.timeoutMs ?? 30_000;
-    if (!Number.isInteger(this.timeoutMs) || this.timeoutMs < 1 || this.timeoutMs > 120_000)
+    if (
+      !Number.isInteger(this.timeoutMs) ||
+      this.timeoutMs < 1 ||
+      this.timeoutMs > 120_000
+    )
       throw new Error("Browser timeout is outside its bounds");
   }
 
@@ -142,24 +172,35 @@ export class AgentBrowser implements BrowserDriver {
   }
 
   private async currentUrl(): Promise<string> {
-    const result = urlResultSchema.parse(JSON.parse(await this.run(["get", "url", "--json"])));
+    const result = urlResultSchema.parse(
+      JSON.parse(await this.run(["get", "url", "--json"])),
+    );
     return typeof result.data === "string" ? result.data : result.data.url;
   }
 
   private run(args: string[]): Promise<string> {
     const globals = [
-      "--session", this.config.session,
-      "--allowed-domains", this.config.allowedDomains.join(","),
-      "--max-output", "1000000",
+      "--session",
+      this.config.session,
+      "--allowed-domains",
+      this.config.allowedDomains.join(","),
+      "--max-output",
+      "1000000",
       "--no-webmcp",
-      ...(this.config.browserExecutable ? ["--executable-path", this.config.browserExecutable] : []),
+      ...(this.config.browserExecutable
+        ? ["--executable-path", this.config.browserExecutable]
+        : []),
     ];
     return new Promise((resolve, reject) => {
-      const child = this.command(this.config.executable, [...globals, ...args], {
-        shell: false,
-        env: { HOME: process.env.HOME ?? "", PATH: process.env.PATH ?? "" },
-        stdio: ["ignore", "pipe", "pipe"],
-      });
+      const child = this.command(
+        this.config.executable,
+        [...globals, ...args],
+        {
+          shell: false,
+          env: { HOME: process.env.HOME ?? "", PATH: process.env.PATH ?? "" },
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
       let stdout = "";
       let settled = false;
       const finish = (error?: Error, output = "") => {
@@ -182,10 +223,14 @@ export class AgentBrowser implements BrowserDriver {
         }
       });
       child.stderr.resume();
-      child.on("error", () => finish(new Error("agent-browser command failed")));
-      child.on("close", (code) => code === 0
-        ? finish(undefined, stdout)
-        : finish(new Error("agent-browser command failed")));
+      child.on("error", () =>
+        finish(new Error("agent-browser command failed")),
+      );
+      child.on("close", (code) =>
+        code === 0
+          ? finish(undefined, stdout)
+          : finish(new Error("agent-browser command failed")),
+      );
     });
   }
 }
@@ -212,13 +257,23 @@ export class BrowserStepExecutor {
     context = { effectId: "direct", attempt: 1 },
   ): Promise<StepReceipt> {
     const done = { stepId: step.id, outcome: "completed" } as const;
-    if (["await-human", "enter-email-code", "enter-TOTP", "passkey-prompt"].includes(step.primitive))
+    if (
+      [
+        "await-human",
+        "enter-email-code",
+        "enter-TOTP",
+        "passkey-prompt",
+      ].includes(step.primitive)
+    )
       return this.challenge(step, run, context.attempt);
     switch (step.primitive) {
       case "navigate": {
         if (!step.path) throw new Error("Navigate step requires a path");
         const url = new URL(step.path, run.origin);
-        if (url.origin !== run.origin || !run.recipe.allowedOrigins.includes(url.origin))
+        if (
+          url.origin !== run.origin ||
+          !run.recipe.allowedOrigins.includes(url.origin)
+        )
           throw new Error("Navigate step left the approved origin");
         await this.browser.open(url.href);
         return done;
@@ -228,7 +283,8 @@ export class BrowserStepExecutor {
         await this.browser.click(requiredRef(step));
         return done;
       case "submit":
-        if (!(await this.current(step))) return { stepId: step.id, outcome: "failed_before_submit" };
+        if (!(await this.current(step)))
+          return { stepId: step.id, outcome: "failed_before_submit" };
         await this.browser.click(requiredRef(step));
         return done;
       case "await-email-link": {
@@ -243,7 +299,7 @@ export class BrowserStepExecutor {
         await this.fill(step, run);
         return done;
       case "verify-login":
-        return await this.ports.verifyLogin(run)
+        return (await this.ports.verifyLogin(run))
           ? done
           : { stepId: step.id, outcome: "reconcile" };
       default:
@@ -251,11 +307,19 @@ export class BrowserStepExecutor {
     }
   }
 
-  private async challenge(step: RecipeStep, run: ResetRun, attempt: number): Promise<StepReceipt> {
-    const challenge = step.primitive === "enter-TOTP" ? "totp"
-      : step.primitive === "enter-email-code" ? "mail_code"
-        : step.primitive === "passkey-prompt" ? "passkey"
-          : detectChallenge(await this.browser.snapshot()) ?? "unknown";
+  private async challenge(
+    step: RecipeStep,
+    run: ResetRun,
+    attempt: number,
+  ): Promise<StepReceipt> {
+    const challenge =
+      step.primitive === "enter-TOTP"
+        ? "totp"
+        : step.primitive === "enter-email-code"
+          ? "mail_code"
+          : step.primitive === "passkey-prompt"
+            ? "passkey"
+            : (detectChallenge(await this.browser.snapshot()) ?? "unknown");
     if (attempt > 1) {
       await this.ports.takeover.resume(challenge, run);
       if (detectChallenge(await this.browser.snapshot()) !== null)
@@ -279,14 +343,20 @@ export class BrowserStepExecutor {
       await this.browser.fill(requiredRef(step), await this.ports.identifier());
       return;
     }
-    if (step.purpose !== "new-password") throw new Error("Fill step has no approved purpose");
-    const index = run.recipe.steps.findIndex((candidate) => candidate.id === step.id);
+    if (step.purpose !== "new-password")
+      throw new Error("Fill step has no approved purpose");
+    const index = run.recipe.steps.findIndex(
+      (candidate) => candidate.id === step.id,
+    );
     if (index < 0 || run.recipe.steps[index + 1]?.primitive !== "submit")
-      throw new Error("The real password may only be filled immediately before submit");
+      throw new Error(
+        "The real password may only be filled immediately before submit",
+      );
     const proof = run.recipe.proxySubstitution;
     const proxy = this.ports.proxy;
     if (run.transport === "proxy") {
-      if (!proof || !proxy) throw new Error("The approved proxy lane is unavailable");
+      if (!proof || !proxy)
+        throw new Error("The approved proxy lane is unavailable");
       this.ports.authorizeProxy();
       assertProxyLane(true, proof);
       await this.ports.candidate.withSynthetic(proof, async (synthetic) => {
@@ -301,7 +371,8 @@ export class BrowserStepExecutor {
       return;
     }
     await this.ports.candidate.withPassword((password) =>
-      this.browser.fillSecret(requiredRef(step), password));
+      this.browser.fillSecret(requiredRef(step), password),
+    );
   }
 }
 
@@ -311,15 +382,20 @@ function requiredRef(step: RecipeStep): string {
 }
 
 function elementRef(ref: string): string {
-  if (!/^e[1-9][0-9]*$/.test(ref)) throw new Error("Invalid agent-browser element ref");
+  if (!/^e[1-9][0-9]*$/.test(ref))
+    throw new Error("Invalid agent-browser element ref");
   return `@${ref}`;
 }
 
-function fieldKind(role: string, name: string): Observation["fields"][number]["kind"] | null {
+function fieldKind(
+  role: string,
+  name: string,
+): Observation["fields"][number]["kind"] | null {
   if (role === "button" || role === "link") return role;
   if (role !== "textbox") return null;
   if (/password/iu.test(name)) return "password";
-  if (/totp|authenticator|one.time code|verification code/iu.test(name)) return "otp";
+  if (/totp|authenticator|one.time code|verification code/iu.test(name))
+    return "otp";
   if (/email/iu.test(name)) return "email";
   return "text";
 }

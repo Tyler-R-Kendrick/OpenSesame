@@ -32,8 +32,14 @@ function answer(
 ): Decision {
   const base = { observationId: "configuration-fixture" } as const;
   if (kind === "act") {
-    const candidate = candidates[0]!;
-    return { ...base, kind, candidateId: candidate.id, effectId: candidate.effectId };
+    const candidate = candidates[0];
+    if (!candidate) throw new Error("Configuration fixture has no candidates");
+    return {
+      ...base,
+      kind,
+      candidateId: candidate.id,
+      effectId: candidate.effectId,
+    };
   }
   if (kind === "handoff") return { ...base, kind, challenge: "totp" };
   if (kind === "refuse") return { ...base, kind, reason: "unsupported" };
@@ -44,12 +50,17 @@ describe("decision configuration validation", () => {
   it("validates every declared decision against masked fixtures", async () => {
     let calls = 0;
     let sent = "";
-    const validated = await validateDecisionConfiguration({
-      decide: async (input) => {
-        sent += JSON.stringify(input);
-        return answer(kinds[calls++]!, input.candidates);
+    const validated = await validateDecisionConfiguration(
+      {
+        decide: async (input) => {
+          sent += JSON.stringify(input);
+          const kind = kinds[calls++];
+          if (!kind) throw new Error("Unexpected configuration probe");
+          return answer(kind, input.candidates);
+        },
       },
-    }, configuration());
+      configuration(),
+    );
     expect(validated.validatedDecisions).toEqual(kinds);
     expect(calls).toBe(kinds.length);
     expect(sent).not.toContain("person@example.test");
@@ -57,22 +68,44 @@ describe("decision configuration validation", () => {
   });
 
   it("rejects malformed decisions and unsafe endpoints", async () => {
-    await expect(validateDecisionConfiguration({
-      decide: async () => ({ kind: "navigate", observationId: "configuration-fixture" }),
-    }, { ...configuration(), decisions: ["act"] })).rejects.toThrow();
-    await expect(validateDecisionConfiguration({
-      decide: async (input) => answer("act", input.candidates),
-    }, { ...configuration(), endpoint: "http://model.example.test", decisions: ["act"] }))
-      .rejects.toThrow("HTTPS");
+    await expect(
+      validateDecisionConfiguration(
+        {
+          decide: async () => ({
+            kind: "navigate",
+            observationId: "configuration-fixture",
+          }),
+        },
+        { ...configuration(), decisions: ["act"] },
+      ),
+    ).rejects.toThrow();
+    await expect(
+      validateDecisionConfiguration(
+        {
+          decide: async (input) => answer("act", input.candidates),
+        },
+        {
+          ...configuration(),
+          endpoint: "http://model.example.test",
+          decisions: ["act"],
+        },
+      ),
+    ).rejects.toThrow("HTTPS");
   });
 
   it("binds the proof to runtime, model and adapter configuration", async () => {
-    const api = { decide: async (input: { candidates: Parameters<typeof answer>[1] }) => answer("act", input.candidates) };
+    const api = {
+      decide: async (input: { candidates: Parameters<typeof answer>[1] }) =>
+        answer("act", input.candidates),
+    };
     const first = await validateDecisionConfiguration(api, {
-      ...configuration(), decisions: ["act"],
+      ...configuration(),
+      decisions: ["act"],
     });
     const changed = await validateDecisionConfiguration(api, {
-      ...configuration(), decisions: ["act"], modelId: "another-model",
+      ...configuration(),
+      decisions: ["act"],
+      modelId: "another-model",
     });
     expect(first.configurationKey).not.toBe(changed.configurationKey);
   });

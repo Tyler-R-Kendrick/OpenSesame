@@ -1,8 +1,8 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateObject, type LanguageModel } from "ai";
+import { type LanguageModel, generateObject } from "ai";
 import { z } from "zod";
-import { decide, modelObservation, type DecisionsApi } from "./decisions.js";
-import { decisionSchema, type Observation } from "./types.js";
+import { type DecisionsApi, decide, modelObservation } from "./decisions.js";
+import { type Observation, decisionSchema } from "./types.js";
 
 export interface AiDecisionConfig {
   model: string;
@@ -34,25 +34,38 @@ export interface AiDecisionRuntime {
   createModel(config: ModelConfig, model: string): LanguageModel;
 }
 
-const configSchema = z.object({
-  model: z.string().min(1).max(200),
-  baseURL: z.url(),
-  apiKey: z.custom<() => string | Promise<string>>((value) => typeof value === "function"),
-  timeoutMs: z.number().int().min(1).max(120_000).optional(),
-  maxOutputTokens: z.number().int().min(1).max(8_192).optional(),
-}).strict();
+const configSchema = z
+  .object({
+    model: z.string().min(1).max(200),
+    baseURL: z.url(),
+    apiKey: z.custom<() => string | Promise<string>>(
+      (value) => typeof value === "function",
+    ),
+    timeoutMs: z.number().int().min(1).max(120_000).optional(),
+    maxOutputTokens: z.number().int().min(1).max(8_192).optional(),
+  })
+  .strict();
 
-const SYSTEM = "Choose exactly one supplied password-reset decision. Return no other fields.";
+const SYSTEM =
+  "Choose exactly one supplied password-reset decision. Return no other fields.";
 
 function validatedConfig(config: AiDecisionConfig) {
   const parsed = configSchema.parse(config);
   const url = new URL(parsed.baseURL);
-  if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || url.hash)
+  if (
+    !["https:", "http:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.hash
+  )
     throw new Error("Model baseURL must be a credential-free HTTP(S) URL");
   return parsed;
 }
 
-async function safeModelFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+async function safeModelFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
   const response = await fetch(input, { ...init, redirect: "error" });
   if (response.status >= 300 && response.status < 400)
     throw new Error("Model endpoint redirected");
@@ -98,12 +111,15 @@ class AiDecisions implements DecisionsApi {
       const apiKey = await this.config.apiKey();
       if (!apiKey) throw new Error("empty key");
       const result = await this.sdk.generate({
-        model: this.sdk.createModel({
-          name: "opensesame-cua-password-reset",
-          baseURL: this.config.baseURL,
-          apiKey,
-          fetch: safeModelFetch,
-        }, this.config.model),
+        model: this.sdk.createModel(
+          {
+            name: "opensesame-cua-password-reset",
+            baseURL: this.config.baseURL,
+            apiKey,
+            fetch: safeModelFetch,
+          },
+          this.config.model,
+        ),
         schema: decisionSchema,
         schemaName: "password_reset_decision",
         system: SYSTEM,

@@ -1,5 +1,5 @@
-import { createServer, type Server } from "node:http";
 import { randomUUID } from "node:crypto";
+import { type Server, createServer } from "node:http";
 
 export type Challenge = "captcha" | "mail_code" | "totp" | "passkey" | null;
 
@@ -18,16 +18,20 @@ export class MockResetSite {
     this.server = createServer((request, response) => {
       void this.answer(request, response);
     });
-    await new Promise<void>((resolve) => this.server?.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>((resolve) =>
+      this.server?.listen(0, "127.0.0.1", resolve),
+    );
     const address = this.server.address();
-    if (!address || typeof address === "string") throw new Error("Mock site did not bind");
+    if (!address || typeof address === "string")
+      throw new Error("Mock site did not bind");
     this.origin = `http://127.0.0.1:${address.port}`;
   }
 
   async stop(): Promise<void> {
     const server = this.server;
     this.server = undefined;
-    if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (server)
+      await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 
   resetLink(): string {
@@ -64,7 +68,10 @@ export class MockResetSite {
   ): Promise<void> {
     const url = new URL(request.url ?? "/", this.origin);
     if (request.method === "GET" && url.pathname === "/reset") {
-      html(response, `<form method="post" action="/request"><label>Email<input name="email" type="email"></label><button>Send reset link</button></form>`);
+      html(
+        response,
+        `<form method="post" action="/request"><label>Email<input name="email" type="email"></label><button>Send reset link</button></form>`,
+      );
       return;
     }
     if (request.method === "POST" && url.pathname === "/request") {
@@ -72,7 +79,10 @@ export class MockResetSite {
       return;
     }
     if (request.method === "GET" && url.pathname === "/check-email") {
-      html(response, "<main>Check your email for a reset link or one-time code</main>");
+      html(
+        response,
+        "<main>Check your email for a reset link or one-time code</main>",
+      );
       return;
     }
     if (request.method === "GET" && url.pathname === "/reset/link") {
@@ -81,7 +91,10 @@ export class MockResetSite {
         return;
       }
       const saveLabel = this.drifted ? "Save changed" : "Save password";
-      html(response, `${challengeText(this.challenge)}<form method="post" action="/password"><label>New password<input name="password" type="password"></label><button>${saveLabel}</button></form>`);
+      html(
+        response,
+        `${challengeText(this.challenge)}<form method="post" action="/password"><label>New password<input name="password" type="password"></label><button>${saveLabel}</button></form>`,
+      );
       return;
     }
     if (request.method === "POST" && url.pathname === "/challenge/clear") {
@@ -103,7 +116,10 @@ export class MockResetSite {
       return;
     }
     if (request.method === "GET" && url.pathname === "/login") {
-      html(response, `<form method="post" action="/login"><label>Email<input name="email" type="email"></label><label>Password<input name="password" type="password"></label><button>Sign in</button></form>`);
+      html(
+        response,
+        `<form method="post" action="/login"><label>Email<input name="email" type="email"></label><label>Password<input name="password" type="password"></label><button>Sign in</button></form>`,
+      );
       return;
     }
     if (request.method === "POST" && url.pathname === "/login") {
@@ -123,20 +139,29 @@ export class MockResetSite {
 
 function challengeText(challenge: Challenge): string {
   if (!challenge) return "";
-  const text = challenge === "captcha" ? "CAPTCHA verify you are human"
-    : challenge === "mail_code" ? "One-time code from email"
-      : challenge === "totp" ? "Authenticator TOTP code required"
-        : "Passkey security key required";
+  const text =
+    challenge === "captcha"
+      ? "CAPTCHA verify you are human"
+      : challenge === "mail_code"
+        ? "One-time code from email"
+        : challenge === "totp"
+          ? "Authenticator TOTP code required"
+          : "Passkey security key required";
   return `<p>${text}</p><form method="post" action="/challenge/clear"><button>Challenge completed</button></form>`;
 }
 
-function html(response: import("node:http").ServerResponse, body: string): void {
-  response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(
-    `<!doctype html><html><body>${body}</body></html>`,
-  );
+function html(
+  response: import("node:http").ServerResponse,
+  body: string,
+): void {
+  response
+    .writeHead(200, { "content-type": "text/html; charset=utf-8" })
+    .end(`<!doctype html><html><body>${body}</body></html>`);
 }
 
-async function bodyText(request: import("node:http").IncomingMessage): Promise<string> {
+async function bodyText(
+  request: import("node:http").IncomingMessage,
+): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
   return Buffer.concat(chunks).toString("utf8");

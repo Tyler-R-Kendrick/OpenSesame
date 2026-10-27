@@ -5,7 +5,8 @@ export interface ScreenshotMasker {
   mask(observation: Observation): Promise<string>;
 }
 
-const OPAQUE_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const OPAQUE_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
 export class OpaqueScreenshotMasker implements ScreenshotMasker {
   mask(): Promise<string> {

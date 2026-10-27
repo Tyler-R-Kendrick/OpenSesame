@@ -1,9 +1,13 @@
 import type { LanguageModel } from "ai";
 import { describe, expect, it, vi } from "vitest";
-import { createAiDecisions, type AiDecisionRuntime } from "./ai-decisions.js";
+import { type AiDecisionRuntime, createAiDecisions } from "./ai-decisions.js";
 import { decide, selectedAction } from "./decisions.js";
-import { decisionSchema, type DecisionCandidate, type Observation } from "./types.js";
 import { ORIGIN } from "./test-support.js";
+import {
+  type DecisionCandidate,
+  type Observation,
+  decisionSchema,
+} from "./types.js";
 
 type GenerateOptions = Parameters<AiDecisionRuntime["generate"]>[0];
 
@@ -21,7 +25,9 @@ function fakeRuntime() {
         observation: Observation;
         candidates: DecisionCandidate[];
       };
-      const click = input.candidates.find((candidate) => candidate.action.kind === "click");
+      const click = input.candidates.find(
+        (candidate) => candidate.action.kind === "click",
+      );
       return {
         object: click
           ? {
@@ -37,8 +43,14 @@ function fakeRuntime() {
   return { runtime, calls, models };
 }
 
-function config(apiKey: () => string | Promise<string> = async () => "model-key-canary") {
-  return { model: "decision-model", baseURL: "https://model.example.test/v1", apiKey };
+function config(
+  apiKey: () => string | Promise<string> = async () => "model-key-canary",
+) {
+  return {
+    model: "decision-model",
+    baseURL: "https://model.example.test/v1",
+    apiKey,
+  };
 }
 
 describe("AI SDK decisions", () => {
@@ -57,11 +69,21 @@ describe("AI SDK decisions", () => {
       fields: [{ ref: "e1", kind: "button", label: "Continue" }],
     };
     const decision = await decide(api, observation, [ORIGIN]);
-    expect(selectedAction(decision, observation)).toMatchObject({ kind: "click" });
+    expect(selectedAction(decision, observation)).toMatchObject({
+      kind: "click",
+    });
     expect(apiKey).toHaveBeenCalledTimes(2);
     expect(models).toEqual([
-      { baseURL: config().baseURL, apiKey: "model-key-canary", model: "decision-model" },
-      { baseURL: config().baseURL, apiKey: "model-key-canary", model: "decision-model" },
+      {
+        baseURL: config().baseURL,
+        apiKey: "model-key-canary",
+        model: "decision-model",
+      },
+      {
+        baseURL: config().baseURL,
+        apiKey: "model-key-canary",
+        model: "decision-model",
+      },
     ]);
   });
 
@@ -98,16 +120,32 @@ describe("AI SDK decisions", () => {
 
   it("refuses invalid configuration and a malformed probe without external calls in tests", async () => {
     const { runtime, calls } = fakeRuntime();
-    await expect(createAiDecisions(config(async () => ""), runtime))
-      .rejects.toThrow("strict decision probe");
+    await expect(
+      createAiDecisions(
+        config(async () => ""),
+        runtime,
+      ),
+    ).rejects.toThrow("strict decision probe");
     expect(calls).toHaveLength(0);
-    await expect(createAiDecisions({ ...config(), model: "" }, runtime)).rejects.toThrow();
-    await expect(createAiDecisions({ ...config(), baseURL: "https://key@model.test" }, runtime))
-      .rejects.toThrow("credential-free");
+    await expect(
+      createAiDecisions({ ...config(), model: "" }, runtime),
+    ).rejects.toThrow();
+    await expect(
+      createAiDecisions(
+        { ...config(), baseURL: "https://key@model.test" },
+        runtime,
+      ),
+    ).rejects.toThrow("credential-free");
 
     runtime.generate = async () => ({
-      object: { kind: "finish", observationId: "configuration-probe", extra: "code" },
+      object: {
+        kind: "finish",
+        observationId: "configuration-probe",
+        extra: "code",
+      },
     });
-    await expect(createAiDecisions(config(), runtime)).rejects.toThrow("strict decision probe");
+    await expect(createAiDecisions(config(), runtime)).rejects.toThrow(
+      "strict decision probe",
+    );
   });
 });

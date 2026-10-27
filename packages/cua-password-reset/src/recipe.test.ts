@@ -27,7 +27,8 @@ describe("domain recipes", () => {
     });
     expect(repaired.status).toBe("review_required");
     expect(calls).toBe(1);
-    if (repaired.status !== "review_required") throw new Error("repair was not held for review");
+    if (repaired.status !== "review_required")
+      throw new Error("repair was not held for review");
     expect(repaired.recipe.review).toBe("candidate");
     expect(repaired.recipe.steps[1]?.ref).toBe("e9");
   });

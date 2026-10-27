@@ -46,7 +46,8 @@ export async function validateDecisionConfiguration(
     const candidates = legalCandidates(observation);
     const raw = await api.decide({ observation, candidates });
     const decision = guardDecision(raw, observation, [observation.origin]);
-    if (decision.kind !== kind) throw new Error(`Runtime did not validate ${kind}`);
+    if (decision.kind !== kind)
+      throw new Error(`Runtime did not validate ${kind}`);
   }
   return {
     configuration: { ...configuration, decisions },

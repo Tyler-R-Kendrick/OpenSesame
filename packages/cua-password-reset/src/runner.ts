@@ -1,7 +1,7 @@
 import {
+  type ResetGrantProvider,
   actionForPrimitive,
   assertResetGrant,
-  type ResetGrantProvider,
 } from "./grants.js";
 import type { DurableJournal, StepIntent } from "./journal.js";
 import { recipeMatches } from "./recipe.js";
@@ -27,9 +27,17 @@ export class DurableResetRunner {
       throw new Error("A reset run id already has a journal");
     if (run.status !== "running" || run.cursor !== 0)
       throw new Error("A new reset run starts running at step zero");
-    if (run.recipe.review !== "approved" || !recipeMatches(run.recipe, run.origin))
-      throw new Error("A reset requires an approved recipe for its exact origin");
-    this.authorize(run, actionForPrimitive(run.recipe.steps[0]?.primitive ?? "navigate"));
+    if (
+      run.recipe.review !== "approved" ||
+      !recipeMatches(run.recipe, run.origin)
+    )
+      throw new Error(
+        "A reset requires an approved recipe for its exact origin",
+      );
+    this.authorize(
+      run,
+      actionForPrimitive(run.recipe.steps[0]?.primitive ?? "navigate"),
+    );
     await this.journal.append(run.id, { type: "run.started", run });
     return this.drive(run, false);
   }
@@ -48,16 +56,22 @@ export class DurableResetRunner {
     return this.drive(await this.mark(restored, "running"), true);
   }
 
-  private async drive(initial: ResetRun, allowManual: boolean): Promise<ResetRun> {
+  private async drive(
+    initial: ResetRun,
+    allowManual: boolean,
+  ): Promise<ResetRun> {
     let run = initial;
     const unfinished = await this.journal.unfinished(run.id);
     if (unfinished) {
       if (unfinished.replay === "reconcile")
         return this.mark(run, "reconciliation_required");
       if (unfinished.replay === "manual" && !allowManual)
-        return this.mark(run, unfinished.replay === "manual" && isChallenge(unfinished.input)
-          ? "awaiting_human"
-          : "reconciliation_required");
+        return this.mark(
+          run,
+          unfinished.replay === "manual" && isChallenge(unfinished.input)
+            ? "awaiting_human"
+            : "reconciliation_required",
+        );
       run = await this.executeIntent(run, unfinished);
       if (run.status !== "running") return run;
     }
@@ -66,7 +80,8 @@ export class DurableResetRunner {
       const step = run.recipe.steps[run.cursor];
       if (!step) break;
       this.authorize(run, actionForPrimitive(step.primitive));
-      if (step.primitive === "submit" || isPasswordFill(step)) await this.ensureBackup(run);
+      if (step.primitive === "submit" || isPasswordFill(step))
+        await this.ensureBackup(run);
       const id = effectId(run, `${step.id}:${step.primitive}`);
       const intent: StepIntent = {
         type: "step.intent",
@@ -84,7 +99,10 @@ export class DurableResetRunner {
     return this.promote(run);
   }
 
-  private async executeIntent(run: ResetRun, intent: StepIntent): Promise<ResetRun> {
+  private async executeIntent(
+    run: ResetRun,
+    intent: StepIntent,
+  ): Promise<ResetRun> {
     this.authorize(run, actionForPrimitive(intent.operation));
     let receipt: StepReceipt;
     try {
@@ -92,11 +110,15 @@ export class DurableResetRunner {
         effectId: intent.effectId,
         attempt: intent.attempt,
       });
-      if (receipt.stepId !== intent.stepId) throw new Error("Effect answered for another step");
+      if (receipt.stepId !== intent.stepId)
+        throw new Error("Effect answered for another step");
     } catch {
       receipt = {
         stepId: intent.stepId,
-        outcome: intent.operation === "submit" ? "submit_indeterminate" : "failed_before_submit",
+        outcome:
+          intent.operation === "submit"
+            ? "submit_indeterminate"
+            : "failed_before_submit",
       };
     }
     await this.journal.append(run.id, {
@@ -110,12 +132,19 @@ export class DurableResetRunner {
     return this.applyOutcome(run, receipt.outcome);
   }
 
-  private async applyOutcome(run: ResetRun, outcome: StepOutcome): Promise<ResetRun> {
+  private async applyOutcome(
+    run: ResetRun,
+    outcome: StepOutcome,
+  ): Promise<ResetRun> {
     if (outcome === "waiting") return this.mark(run, "awaiting_human");
     if (outcome === "reconcile" || outcome === "submit_indeterminate")
       return this.mark(run, "reconciliation_required");
     if (outcome === "failed_before_submit") return this.mark(run, "failed");
-    return { ...run, cursor: run.cursor + 1, updatedAt: this.now().toISOString() };
+    return {
+      ...run,
+      cursor: run.cursor + 1,
+      updatedAt: this.now().toISOString(),
+    };
   }
 
   async reconcile(run: ResetRun | string): Promise<ResetRun> {
@@ -126,10 +155,14 @@ export class DurableResetRunner {
     let verdict = events.flatMap((event) =>
       event.type === "reconciliation.outcome" && event.effectId === id
         ? [event.verdict]
-        : [])[0];
+        : [],
+    )[0];
     if (!verdict) {
       const context = { effectId: id, attempt: 1 };
-      await this.journal.append(restored.id, { type: "reconciliation.intent", ...context });
+      await this.journal.append(restored.id, {
+        type: "reconciliation.intent",
+        ...context,
+      });
       try {
         verdict = await this.effects.verifyCandidate(restored, context);
       } catch {
@@ -142,7 +175,8 @@ export class DurableResetRunner {
       });
     }
     if (verdict === "verified") return this.promote(restored);
-    if (verdict === "unknown") return this.mark(restored, "reconciliation_required");
+    if (verdict === "unknown")
+      return this.mark(restored, "reconciliation_required");
     return this.compensate(restored);
   }
 
@@ -154,10 +188,14 @@ export class DurableResetRunner {
     let result = events.flatMap((event) =>
       event.type === "compensation.outcome" && event.effectId === id
         ? [event.result]
-        : [])[0];
+        : [],
+    )[0];
     if (!result) {
       const context = { effectId: id, attempt: 1 };
-      await this.journal.append(restored.id, { type: "compensation.intent", ...context });
+      await this.journal.append(restored.id, {
+        type: "compensation.intent",
+        ...context,
+      });
       try {
         result = await this.effects.compensate(restored, context);
       } catch {
@@ -169,51 +207,85 @@ export class DurableResetRunner {
         result,
       });
     }
-    return this.mark(restored, result === "compensated" ? "failed" : "compensation_required");
+    return this.mark(
+      restored,
+      result === "compensated" ? "failed" : "compensation_required",
+    );
   }
 
   private async ensureBackup(run: ResetRun): Promise<void> {
     const id = effectId(run, "candidate:backup");
     const events = await this.journal.events(run.id);
-    if (events.some((event) => event.type === "candidate.backed_up" && event.effectId === id))
+    if (
+      events.some(
+        (event) =>
+          event.type === "candidate.backed_up" && event.effectId === id,
+      )
+    )
       return;
     this.authorize(run, "password_reset.password.produce");
     const context = { effectId: id, attempt: 1 };
-    await this.journal.append(run.id, { type: "candidate.backup.intent", ...context });
+    await this.journal.append(run.id, {
+      type: "candidate.backup.intent",
+      ...context,
+    });
     await this.effects.backupCandidate(run, context);
-    await this.journal.append(run.id, { type: "candidate.backed_up", ...context });
+    await this.journal.append(run.id, {
+      type: "candidate.backed_up",
+      ...context,
+    });
   }
 
   private async promote(run: ResetRun): Promise<ResetRun> {
     if (run.status === "succeeded") return run;
     const id = effectId(run, "candidate:promotion");
     const events = await this.journal.events(run.id);
-    if (!events.some((event) => event.type === "candidate.promoted" && event.effectId === id)) {
+    if (
+      !events.some(
+        (event) => event.type === "candidate.promoted" && event.effectId === id,
+      )
+    ) {
       await this.ensureBackup(run);
       this.authorize(run, "password_reset.item.use");
       const context = { effectId: id, attempt: 1 };
-      await this.journal.append(run.id, { type: "candidate.promotion.intent", ...context });
+      await this.journal.append(run.id, {
+        type: "candidate.promotion.intent",
+        ...context,
+      });
       await this.effects.promoteCandidate(run, context);
-      await this.journal.append(run.id, { type: "candidate.promoted", ...context });
+      await this.journal.append(run.id, {
+        type: "candidate.promoted",
+        ...context,
+      });
     }
     return this.mark(run, "succeeded");
   }
 
   private async nextAttempt(runId: string, id: string): Promise<number> {
-    return (await this.journal.events(runId)).filter((event) =>
-      event.type === "step.intent" && event.effectId === id).length + 1;
+    return (
+      (await this.journal.events(runId)).filter(
+        (event) => event.type === "step.intent" && event.effectId === id,
+      ).length + 1
+    );
   }
 
   private async restore(run: ResetRun | string): Promise<ResetRun> {
-    const restored = await this.journal.restore(typeof run === "string" ? run : run.id);
-    return typeof run === "string" ? restored : { ...restored, grantIds: run.grantIds };
+    const restored = await this.journal.restore(
+      typeof run === "string" ? run : run.id,
+    );
+    return typeof run === "string"
+      ? restored
+      : { ...restored, grantIds: run.grantIds };
   }
 
   private authorize(run: ResetRun, action: ResetAction): void {
     assertResetGrant(this.grants.grant(action, run), run, action, this.now());
   }
 
-  private async mark(run: ResetRun, status: ResetRun["status"]): Promise<ResetRun> {
+  private async mark(
+    run: ResetRun,
+    status: ResetRun["status"],
+  ): Promise<ResetRun> {
     if (run.status === status) return run;
     const at = this.now().toISOString();
     await this.journal.append(run.id, { type: "run.status", status, at });
@@ -230,12 +302,21 @@ function isPasswordFill(step: RecipeStep): boolean {
 }
 
 function isChallenge(step: RecipeStep): boolean {
-  return ["await-human", "enter-email-code", "enter-TOTP", "passkey-prompt"].includes(step.primitive);
+  return [
+    "await-human",
+    "enter-email-code",
+    "enter-TOTP",
+    "passkey-prompt",
+  ].includes(step.primitive);
 }
 
 function replayFor(step: RecipeStep): StepIntent["replay"] {
-  if (step.primitive === "submit" || step.primitive === "verify-login" ||
-      step.primitive === "await-email-link" || step.primitive === "click")
+  if (
+    step.primitive === "submit" ||
+    step.primitive === "verify-login" ||
+    step.primitive === "await-email-link" ||
+    step.primitive === "click"
+  )
     return "reconcile";
   if (step.primitive === "navigate" || step.primitive === "fill-field")
     return "idempotent";
