@@ -32,6 +32,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isClientCertificateRefusal } from "./lib/browser-cert-refusal.mjs";
 import { browserCertStaticHandler } from "./lib/browser-cert-static.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -271,9 +272,12 @@ try {
   const refusedText = await anonymousPage.textContent("body").catch(() => "");
   check(
     "no-certificate-is-refused-in-the-handshake",
-    refused?.status() !== 200 &&
-      /certificate required/i.test(`${refusedText}${refused?.error ?? ""}`),
-    `status ${refused?.status()} ${String(refusedText).slice(0, 140)}`,
+    isClientCertificateRefusal({
+      status: refused?.status() ?? 0,
+      error: refused?.error ?? "",
+      body: refusedText ?? "",
+    }),
+    `status ${refused?.status()} ${String(refused?.error ?? refusedText).slice(0, 200)}`,
     ["AT-BROWSER-EXTERNAL"],
   );
   await anonymous.close();
