@@ -1,0 +1,97 @@
+name: Default profile keyboard failure diagnostic
+on:
+  push:
+    branches: [review/default-keyboard-diagnostic]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: >-
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor_id == '145080887' &&
+      github.ref == 'refs/heads/review/default-keyboard-diagnostic'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        phase: [after]
+    env:
+      AFTER_SHA: df5c2af1c95724da9fe18b92a4961647ed6e3277
+      EVIDENCE_DIR: ${{ github.workspace }}/work/review-output/default-keyboard-diagnostic-${{ matrix.phase }}
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - name: Check out exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ env.AFTER_SHA }}
+          persist-credentials: false
+      - name: Check out transient capture tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: work/evidence-tools
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Reuse normal CI pinned native distribution cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build exact source with ordinary CI defaults
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          test "$(git rev-parse HEAD)" = "$AFTER_SHA"
+          test -z "${OPENSESAME_CAPABILITY_PROFILE:-}"
+          test -z "${OPENSESAME_BUILD_MODE:-}"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source.txt"
+          echo "${{ github.sha }}" > "$EVIDENCE_DIR/tooling.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+          sha256sum pnpm-lock.yaml package.json apps/pages/package.json > "$EVIDENCE_DIR/dependency-fingerprints.txt"
+          set -o pipefail
+          node scripts/lib/ci-pages-build.mjs 2>&1 | tee "$EVIDENCE_DIR/build.log"
+          git diff --exit-code
+      - name: Add failure-only bounded keyboard diagnostics
+        env:
+          KEYBOARD_DIAGNOSTIC_HELPER: ${{ github.workspace }}/work/evidence-tools/scripts/review/keyboard-failure-diagnostic.mjs
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync, writeFileSync} from 'node:fs';
+          import {pathToFileURL} from 'node:url';
+          const path='apps/pages/scripts/verify-keyboard.mjs';
+          const source=readFileSync(path,'utf8');
+          const marker='  throw new Error(\n    `${key} cannot reach ${await target.getAttribute("aria-label")}`,\n  );';
+          if(source.split(marker).length!==2) throw Error('Unexpected keyboard failure boundary');
+          const helper=JSON.stringify(pathToFileURL(process.env.KEYBOARD_DIAGNOSTIC_HELPER).href);
+          const diagnostics=`  try { await (await import(${helper})).captureKeyboardFailure(page, target, key); } catch (error) { console.error("Failure diagnostic capture:", error); }\n`;
+          writeFileSync(path,source.replace(marker,diagnostics+marker));
+          JS
+      - name: Run unchanged ordinary keyboard contract
+        env:
+          KEYBOARD_DIAGNOSTIC_OUT: ${{ env.EVIDENCE_DIR }}
+          PAGES_VERIFY_OUT: ${{ env.EVIDENCE_DIR }}/keyboard
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/pages verify:keyboard 2>&1 | tee "$EVIDENCE_DIR/keyboard.log"
+      - name: Upload review screenshots and measured geometry
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: default-keyboard-diagnostic-${{ matrix.phase }}
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
