@@ -65,6 +65,7 @@ const out =
   fs.mkdtempSync(path.join(os.tmpdir(), "tailnet-devices-"));
 const stack = await startStack({
   out,
+  dist: process.env.TAILNET_DEVICES_DIST,
   port: Number(process.env.TAILNET_DEVICES_PORT ?? 18792),
 });
 const { base, state, stub, shot } = stack;

@@ -13,6 +13,7 @@ import { chromium, expect } from "@playwright/test";
 import { dedicatedSite } from "./live-dedicated.mjs";
 import { createHarness } from "./static-origin-harness.mjs";
 import { API_TOKEN, TAILNET, startTailscaleStub } from "./tailscale-stub.mjs";
+import { unlockIfLocked } from "./tutorial-walk.mjs";
 
 const repo = fileURLToPath(new URL("../../../..", import.meta.url));
 const binary =
@@ -31,21 +32,10 @@ export async function until(check, what, ms = 20_000) {
   throw new Error(`timed out waiting for ${what}`);
 }
 
-/**
- * Start the stub, connect the daemon to it with the CLI, run the daemon and a
- * browser. `dist` defaults to the dedicated build; `out` is where shots go.
- */
-export async function startStack({ out, dist = dedicatedSite().dist, port }) {
-  const { origin } = dedicatedSite();
-  const base = process.env.VITE_BASE ?? "/OpenSesame/";
-  const daemonUrl = `http://127.0.0.1:${port}`;
+/** Start a real daemon and its authenticated Tailscale stand-in. */
+export async function startDaemon({ origin, base, port }) {
+  const url = `http://127.0.0.1:${port}`;
   const state = fs.mkdtempSync(path.join(os.tmpdir(), "tailnet-admin-"));
-  const harness = createHarness({
-    dist,
-    origin,
-    base,
-    out: path.join(out, ".log"),
-  });
   const stub = await startTailscaleStub();
   const env = {
     ...process.env,
@@ -81,6 +71,45 @@ export async function startStack({ out, dist = dedicatedSite().dist, port }) {
     ["daemon", "run", "--listen", `127.0.0.1:${port}`],
     { env, stdio: ["ignore", "ignore", "inherit"] },
   );
+  await until(async () => (await fetch(`${url}/health`)).ok, "daemon");
+  return {
+    url,
+    state,
+    stub,
+    cli,
+    /** `opensesame daemon tailnet pair` for this page; the link it prints. */
+    pairLink(role, label) {
+      const printed = cli(
+        ...["pair", "--origin", origin, "--role", role, "--url", url],
+        ...["--label", label, "--pages-url", `${origin}${base}`, "--no-qr"],
+      );
+      const link = printed.match(/^link\s+(\S+)$/m)?.[1];
+      if (!link) throw new Error(`pair printed no link:\n${printed}`);
+      return link;
+    },
+    async close() {
+      daemon.kill();
+      await stub.close();
+      fs.rmSync(state, { recursive: true, force: true });
+    },
+  };
+}
+
+/**
+ * Start the daemon, a dedicated-origin page harness and a browser.
+ * `dist` defaults to the dedicated build; `out` is where shots go.
+ */
+export async function startStack({ out, dist = dedicatedSite().dist, port }) {
+  const { origin } = dedicatedSite();
+  const base = process.env.VITE_BASE ?? "/OpenSesame/";
+  const fixture = await startDaemon({ origin, base, port });
+  const { url: daemonUrl, state, stub, cli } = fixture;
+  const harness = createHarness({
+    dist,
+    origin,
+    base,
+    out: path.join(out, ".log"),
+  });
   // A person answers Chrome's local-network prompt once; headless cannot.
   const browser = await chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
@@ -89,7 +118,6 @@ export async function startStack({ out, dist = dedicatedSite().dist, port }) {
       "--disable-features=LocalNetworkAccessChecks,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults",
     ],
   });
-  await until(async () => (await fetch(`${daemonUrl}/health`)).ok, "daemon");
 
   const pages = [];
   const stack = {
@@ -100,16 +128,7 @@ export async function startStack({ out, dist = dedicatedSite().dist, port }) {
     cli,
     browser,
     pages,
-    /** `opensesame daemon tailnet pair` for this page; the link it prints. */
-    pairLink(role, label) {
-      const printed = cli(
-        ...["pair", "--origin", origin, "--role", role, "--url", daemonUrl],
-        ...["--label", label, "--pages-url", `${origin}${base}`, "--no-qr"],
-      );
-      const link = printed.match(/^link\s+(\S+)$/m)?.[1];
-      if (!link) throw new Error(`pair printed no link:\n${printed}`);
-      return link;
-    },
+    pairLink: fixture.pairLink,
     async browserPage(options) {
       const { page, context } = await harness.newPage(browser, options);
       await context.route(`${daemonUrl}/**`, (route) => route.continue());
@@ -127,9 +146,7 @@ export async function startStack({ out, dist = dedicatedSite().dist, port }) {
     },
     async close() {
       await browser.close();
-      daemon.kill();
-      await stub.close();
-      fs.rmSync(state, { recursive: true, force: true });
+      await fixture.close();
     },
   };
   return stack;
@@ -145,15 +162,25 @@ export async function visit(page, base, route) {
 
 /** Identity (the section the panel is in), then Networking (the panel). */
 export async function deviceManagementOn(page, base) {
-  await visit(page, base, "settings/features");
   for (const name of ["Identity", "Networking"]) {
+    await visit(page, base, "settings/features");
+    await unlockIfLocked(page);
     const toggle = page.getByRole("switch", { name, exact: true });
+    await expect(toggle).toBeVisible({ timeout: 20_000 });
     if ((await toggle.getAttribute("aria-checked")) === "true") continue;
     await toggle.click();
     await page
       .getByTestId("capability-review")
       .waitFor({ state: "detached", timeout: 20_000 });
+    await unlockIfLocked(page);
+    await expect(toggle).toHaveAttribute("aria-checked", "true", {
+      timeout: 20_000,
+    });
   }
+  await visit(page, base, "identity?view=devices#tailnet-devices");
+  await expect(
+    page.getByRole("region", { name: "Tailnet devices" }),
+  ).toBeVisible({ timeout: 20_000 });
 }
 
 /** Open the printed link and press the sheet's commit. */
