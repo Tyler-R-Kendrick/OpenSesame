@@ -22,7 +22,7 @@ jobs:
           node <<'NODE'
           (async () => {
           const fs = require('node:fs');
-          const plan = {"base": "92d896f85b77ba191c2a29b01d69db94bc3e652b", "staging": "6a39d6e8bd3326a9fcf904d0c86ae7e2ffb0ea07", "tree": "c4c5950d1ed26d646ec95e6b41c518008952440d", "branch": "codex/signed-publisher-final-v10", "headline": "test(a11y): verify native project navigation semantics", "files": {"apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx": "1c4747ec584718af9a671d3a9a0dbe1d1b4b5862"}};
+          const plan = {"base": "770999d0a0b2f7b6139b78267d2e497ea7eeedbf", "tree": "af2e9eab7f6bb4707fca3473b74c411743315945", "branch": "codex/signed-publisher-2196-cleanup", "headline": "fix(storage): finish body discard before wiping the shared index", "files": {"packages/app-core/src/lib/duress/store/decoy-scratch.ts": "56dbc2c0aed1530c4410c6bb5fce8fed5457d745", "packages/app-core/src/lib/vault/store-tomb-destruction.ts": "f540e4f449fff47dd36b4c6ac8c5e50bad4f4f4d"}, "staging": "dfc87b6c5a9be7fd407fbf24e12216cc3c1feca2"};
           const repo = 'Tyler-R-Kendrick/OpenSesame';
           if (process.env.GITHUB_REPOSITORY !== repo || process.env.GITHUB_ACTOR_ID !== '145080887' || process.env.GITHUB_REF !== 'refs/heads/review/signed-publisher-controller') throw Error('scope guard');
           if (!/^codex\/signed-publisher-[a-z0-9-]+$/.test(plan.branch)) throw Error('branch guard');
