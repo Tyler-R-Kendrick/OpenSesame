@@ -1,3 +1,4 @@
+import type { JsonValue } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DurableJournal, MemoryCheckpointJournal } from "./journal.js";
 import { DurableResetRunner } from "./runner.js";
@@ -70,7 +71,7 @@ class CrashJournal implements CheckpointJournal {
   load(runId: string) {
     return this.inner.load(runId);
   }
-  async append(runId: string, event: unknown) {
+  async append(runId: string, event: JsonValue) {
     await this.inner.append(runId, event);
     this.countdown--;
     if (this.countdown === 0) throw new Error("crash after journal append");

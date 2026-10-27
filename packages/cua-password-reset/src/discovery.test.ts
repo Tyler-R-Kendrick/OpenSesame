@@ -54,10 +54,12 @@ describe("first-run bounded discovery", () => {
     const execute = vi.fn(async (_action: ResetActionDecision) => undefined);
     const recipe = await discoverResetRecipe({
       decisions: {
-        decide: async (input) =>
-          sequence.length > 0
-            ? act(sequence.shift()!, input.candidates)
-            : { kind: "finish", observationId: "observation-1" },
+        decide: async (input) => {
+          const kind = sequence.shift();
+          return kind
+            ? act(kind, input.candidates)
+            : { kind: "finish", observationId: "observation-1" };
+        },
       },
       browser: browser(),
       executor: { execute, handoff: vi.fn(async () => undefined) },

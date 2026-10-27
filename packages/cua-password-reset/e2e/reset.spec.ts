@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { FileCheckpointJournal } from "../src/index.js";
-import { type Challenge, MockResetSite } from "./mock-site.js";
+import { MockResetSite } from "./mock-site.js";
 import { PEPPER, runtime } from "./runtime.js";
 
 let site: MockResetSite;
@@ -99,7 +99,7 @@ for (const challenge of ["captcha", "mail_code", "totp", "passkey"] as const) {
   test(`${challenge} pauses for a person and resumes with fresh state`, async ({
     page,
   }) => {
-    site.setChallenge(challenge as Challenge);
+    site.setChallenge(challenge);
     const current = runtime(page, site, challenge);
     expect((await current.runner.start(current.initial)).status).toBe(
       "awaiting_human",

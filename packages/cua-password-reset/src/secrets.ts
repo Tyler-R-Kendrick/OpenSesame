@@ -1,6 +1,6 @@
 import {
-  isAlgorithmic,
   type PasswordMethod,
+  isAlgorithmic,
   producePassword,
 } from "@opensesame/vault-core";
 import { type ProxyProof, proxyProofSchema } from "./types.js";
@@ -23,7 +23,7 @@ export class CandidateCustody {
   async withPassword<T>(use: (password: string) => Promise<T>): Promise<T> {
     await this.authorize();
     const method =
-      typeof this.source === "function" ? await this.source() : this.source;
+      this.source instanceof Function ? await this.source() : this.source;
     const produced = producePassword(method);
     if (!isAlgorithmic(method) || produced.status !== "slotted")
       throw new Error(
@@ -40,7 +40,7 @@ export class CandidateCustody {
     use: (synthetic: string) => Promise<T>,
   ): Promise<T> {
     assertProxyLane(true, proxy);
-    return this.withPassword((password) => use(sameShape(password)));
+    return this.withPassword((password) => use(syntheticCandidate(password)));
   }
 
   forget(): void {
@@ -54,11 +54,13 @@ export function assertProxyLane(
 ): void {
   if (!synthetic) return;
   if (!proxy)
-    throw new Error("A synthetic password requires the exact-form network proxy");
+    throw new Error(
+      "A synthetic password requires the exact-form network proxy",
+    );
   proxyProofSchema.parse(proxy);
 }
 
-function sameShape(password: string): string {
+function syntheticCandidate(password: string): string {
   return [...password]
     .map((character) => {
       if (/[a-z]/u.test(character))

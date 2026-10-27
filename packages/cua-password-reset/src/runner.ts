@@ -270,12 +270,11 @@ export class DurableResetRunner {
   }
 
   private async restore(run: ResetRun | string): Promise<ResetRun> {
-    const restored = await this.journal.restore(
-      typeof run === "string" ? run : run.id,
-    );
-    return typeof run === "string"
-      ? restored
-      : { ...restored, grantIds: run.grantIds };
+    if (run instanceof Object) {
+      const restored = await this.journal.restore(run.id);
+      return { ...restored, grantIds: run.grantIds };
+    }
+    return this.journal.restore(run);
   }
 
   private authorize(run: ResetRun, action: ResetAction): void {

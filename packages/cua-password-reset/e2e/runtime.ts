@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import {
   type BrowserDriver,
   BrowserStepExecutor,
+  type BrowserStepPorts,
   CandidateCustody,
   type CheckpointJournal,
   DurableJournal,
@@ -103,7 +104,6 @@ export function resetRun(
         },
         { id: "verify", primitive: "verify-login" },
       ],
-      ...(challenge === null ? {} : {}),
     },
   };
 }
@@ -251,7 +251,7 @@ export function runtime(
     return new URL(page.url()).pathname === "/account";
   };
   const browser = new PlaywrightDriver(page);
-  const executor = new BrowserStepExecutor(browser, {
+  const stepPorts: BrowserStepPorts = {
     identifier: async () => "person@example.test",
     mailbox: { resetLink: async () => site.resetLink() },
     candidate: custody,
@@ -267,10 +267,10 @@ export function runtime(
       },
     },
     verifyLogin,
-    ...(withProxy && initial.recipe.proxySubstitution
-      ? { proxy: proxy(page) }
-      : {}),
-  });
+  };
+  if (withProxy && initial.recipe.proxySubstitution)
+    stepPorts.proxy = proxy(page);
+  const executor = new BrowserStepExecutor(browser, stepPorts);
   const effects: ResetEffects = {
     execute: (step, current, context) =>
       executor.execute(step, current, context),

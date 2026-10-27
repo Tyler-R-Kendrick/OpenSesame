@@ -32,6 +32,8 @@ import {
   helpText,
   parseArgs,
 } from "./parse.js";
+import type { PasswordResetDependencies } from "./password-reset-command.js";
+import { dispatchPasswordReset } from "./password-reset-dispatch.js";
 import type { SessionDependencies } from "./session-commands.js";
 import { type CanaryCliDependencies, runVaultCanary } from "./vault-canary.js";
 import { type VaultDependencies, runVaultCommand } from "./vault-commands.js";
@@ -41,13 +43,10 @@ import {
   runVaultRetired,
 } from "./vault-retired.js";
 import { type VaultSyncDependencies, runVaultSync } from "./vault-sync.js";
-
 function defaultIssuer(): string {
   return process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
 }
-
 type StoredSession = NonNullable<Awaited<ReturnType<typeof loadSession>>>;
-
 /**
  * Revoke an OIDC session at its issuer (RFC 7009). The provisional endpoint
  * only ends guest sessions; a loopback/device login holds a refresh token that
@@ -100,12 +99,12 @@ interface RunDependencies
     VaultItemDependencies,
     VaultSyncDependencies,
     ParityDependencies,
+    PasswordResetDependencies,
     SessionDependencies {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   openBrowser?: (url: string) => void;
 }
-
 interface DispatchContext {
   issuer: string;
   api: string;
@@ -113,7 +112,6 @@ interface DispatchContext {
   fetchImpl: typeof fetch;
   deps: RunDependencies | undefined;
 }
-
 /** The public half of a stored agent identity, refused unless both halves are an EC P-256 pair. */
 function storedAgentPublicKey(text: string): JsonWebKey {
   const raw: JsonValue = JSON.parse(text);
@@ -251,6 +249,8 @@ async function dispatch(
     }
     case "parity":
       return runParity(command, deps);
+    case "password-reset":
+      return dispatchPasswordReset(command, deps);
     case "login": {
       if (command.mode === "anonymous") {
         // Guest on-ramp: a provisional principal with no upstream identity.

@@ -1,4 +1,4 @@
-import { EventEmitter } from "node:events";
+import { ChildProcess, type SpawnOptions } from "node:child_process";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -60,14 +60,23 @@ function passwordStep(current: ResetRun): RecipeStep {
   return step;
 }
 
-function queueSpawn(
-  outputs: { output: string; code?: number; stderr?: string }[],
-) {
-  return vi.fn(
-    (_executable: string, _args: readonly string[], _options: unknown) => {
-      const child = Object.assign(new EventEmitter(), {
-        stdout: new PassThrough(),
-        stderr: new PassThrough(),
+type SpawnAnswer = Readonly<{
+  output: string;
+  code?: number;
+  stderr?: string;
+}>;
+
+function queueSpawn(outputs: SpawnAnswer[]) {
+  const spawn = vi.fn(
+    (_executable: string, _args: readonly string[], _options: SpawnOptions) => {
+      const stdout = new PassThrough();
+      const stderr = new PassThrough();
+      const stdio: [null, PassThrough, PassThrough] = [null, stdout, stderr];
+      const child = Object.assign(new ChildProcess(), {
+        stdin: null,
+        stdout,
+        stderr,
+        stdio,
         kill: vi.fn(),
       });
       const next = outputs.shift() ?? { output: "" };
@@ -78,7 +87,8 @@ function queueSpawn(
       });
       return child;
     },
-  ) as unknown as NonNullable<AgentBrowserConfig["spawn"]>;
+  );
+  return spawn;
 }
 
 function config(

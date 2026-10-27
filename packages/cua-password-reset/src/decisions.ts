@@ -1,3 +1,4 @@
+import type { JsonValue } from "@opensesame/os-domain";
 import {
   type Decision,
   type DecisionCandidate,
@@ -10,11 +11,13 @@ import {
 const CHALLENGE =
   /captcha|verify you are human|one.time code|mail_code|text message|passkey|security key|two.factor|2fa|authenticator|totp/iu;
 
+export type DecisionWire = JsonValue | undefined;
+
 export interface DecisionsApi {
   decide(input: {
     observation: Observation;
     candidates: readonly DecisionCandidate[];
-  }): Promise<unknown>;
+  }): Promise<DecisionWire>;
 }
 
 export function modelObservation(observation: Observation): Observation {
@@ -39,10 +42,9 @@ export function modelObservation(observation: Observation): Observation {
       kind,
       label: redact(label, kind),
     })),
-    ...(observation.maskedScreenshot
-      ? { maskedScreenshot: observation.maskedScreenshot }
-      : {}),
   };
+  if (observation.maskedScreenshot)
+    safe.maskedScreenshot = observation.maskedScreenshot;
   const serialized = JSON.stringify(safe);
   if (sensitive.some((value) => serialized.includes(value)))
     throw new Error("Sensitive value survived observation masking");
@@ -129,7 +131,7 @@ export function legalCandidates(observation: Observation): DecisionCandidate[] {
 }
 
 export function guardDecision(
-  raw: unknown,
+  raw: DecisionWire,
   observation: Observation,
   allowedOrigins: readonly string[],
 ): Decision {

@@ -12,6 +12,7 @@ describe("shared CUA reset contract", () => {
       ),
       "utf8",
     );
+    // SAFETY: this repository-owned conformance fixture declares exactly these two arrays.
     const spec = JSON.parse(raw) as {
       primitives: string[];
       grant_actions: string[];

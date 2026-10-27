@@ -2,7 +2,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { type LanguageModel, generateObject } from "ai";
 import { z } from "zod";
 import { type DecisionsApi, decide, modelObservation } from "./decisions.js";
-import { type Observation, decisionSchema } from "./types.js";
+import { type Decision, type Observation, decisionSchema } from "./types.js";
 
 export interface AiDecisionConfig {
   model: string;
@@ -30,7 +30,7 @@ type GenerateInput = {
 };
 
 export interface AiDecisionRuntime {
-  generate(options: GenerateInput): Promise<{ object: unknown }>;
+  generate(options: GenerateInput): Promise<{ object: Decision }>;
   createModel(config: ModelConfig, model: string): LanguageModel;
 }
 
@@ -39,7 +39,7 @@ const configSchema = z
     model: z.string().min(1).max(200),
     baseURL: z.url(),
     apiKey: z.custom<() => string | Promise<string>>(
-      (value) => typeof value === "function",
+      (value) => value instanceof Function,
     ),
     timeoutMs: z.number().int().min(1).max(120_000).optional(),
     maxOutputTokens: z.number().int().min(1).max(8_192).optional(),
@@ -75,7 +75,7 @@ async function safeModelFetch(
 function safeObservation(input: Observation): Observation {
   const observation = modelObservation(input);
   const secrets = input.sensitiveValues ?? [];
-  return {
+  const safe: Observation = {
     id: observation.id,
     origin: observation.origin,
     fields: observation.fields.map((field) => ({
@@ -85,15 +85,17 @@ function safeObservation(input: Observation): Observation {
         field.label,
       ),
     })),
-    ...(observation.maskedScreenshot === undefined
-      ? {}
-      : { maskedScreenshot: observation.maskedScreenshot }),
   };
+  if (observation.maskedScreenshot !== undefined)
+    safe.maskedScreenshot = observation.maskedScreenshot;
+  return safe;
 }
 
 function runtime(overrides: Partial<AiDecisionRuntime>): AiDecisionRuntime {
   return {
-    generate: async (options) => generateObject(options),
+    generate: async (options) => ({
+      object: decisionSchema.parse((await generateObject(options)).object),
+    }),
     createModel: (config, model) => createOpenAICompatible(config)(model),
     ...overrides,
   };
@@ -105,7 +107,9 @@ class AiDecisions implements DecisionsApi {
     private readonly sdk: AiDecisionRuntime,
   ) {}
 
-  async decide(input: Parameters<DecisionsApi["decide"]>[0]): Promise<unknown> {
+  async decide(
+    input: Parameters<DecisionsApi["decide"]>[0],
+  ): Promise<Decision> {
     const observation = safeObservation(input.observation);
     try {
       const apiKey = await this.config.apiKey();

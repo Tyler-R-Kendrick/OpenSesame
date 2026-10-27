@@ -6,8 +6,11 @@ import {
 } from "node:crypto";
 import { mkdir, open, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { JsonValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import type { CheckpointJournal } from "./types.js";
+
+type JournalSnapshot = Readonly<{ events: JsonValue[]; digest: string }>;
 
 const envelopeSchema = z
   .object({
@@ -41,18 +44,18 @@ export class FileCheckpointJournal implements CheckpointJournal {
     return new FileCheckpointJournal(directory, Uint8Array.from(resolvedKey));
   }
 
-  async load(runId: string): Promise<readonly unknown[]> {
+  async load(runId: string): Promise<readonly JsonValue[]> {
     await this.operation;
     return (await this.read(runId)).events;
   }
 
-  append(runId: string, event: unknown): Promise<void> {
+  append(runId: string, event: JsonValue): Promise<void> {
     const result = this.operation.then(() => this.appendLocked(runId, event));
     this.operation = result.catch(() => {});
     return result;
   }
 
-  private async appendLocked(runId: string, event: unknown): Promise<void> {
+  private async appendLocked(runId: string, event: JsonValue): Promise<void> {
     await this.acquire(runId);
     try {
       const current = await this.read(runId);
@@ -89,18 +92,17 @@ export class FileCheckpointJournal implements CheckpointJournal {
     }
   }
 
-  private async read(
-    runId: string,
-  ): Promise<{ events: unknown[]; digest: string }> {
+  private async read(runId: string): Promise<JournalSnapshot> {
     let text: string;
     try {
       text = await readFile(this.filename(runId), "utf8");
     } catch (error) {
-      if (isCode(error, "ENOENT")) return { events: [], digest: EMPTY_DIGEST };
+      if (error instanceof Error && isCode(error, "ENOENT"))
+        return { events: [], digest: EMPTY_DIGEST };
       throw error;
     }
     if (text.length > 32_000_000) throw new Error("Journal exceeds its bound");
-    const events: unknown[] = [];
+    const events: JsonValue[] = [];
     let previous = EMPTY_DIGEST;
     for (const line of text.split("\n").filter((part) => part !== "")) {
       const envelope = envelopeSchema.parse(JSON.parse(line));
@@ -132,7 +134,7 @@ export class FileCheckpointJournal implements CheckpointJournal {
     try {
       return await create();
     } catch (error) {
-      if (!isCode(error, "EEXIST")) throw error;
+      if (!(error instanceof Error) || !isCode(error, "EEXIST")) throw error;
       const owner = Number(await readFile(this.lockname(runId), "utf8"));
       if (!Number.isInteger(owner) || owner < 1)
         throw new Error("Journal writer lease is invalid");
@@ -162,7 +164,7 @@ async function journalKey(filename: string): Promise<Uint8Array> {
   try {
     return await readFile(filename);
   } catch (error) {
-    if (!isCode(error, "ENOENT")) throw error;
+    if (!(error instanceof Error) || !isCode(error, "ENOENT")) throw error;
     const key = randomBytes(32);
     try {
       const file = await open(filename, "wx", 0o600);
@@ -174,7 +176,8 @@ async function journalKey(filename: string): Promise<Uint8Array> {
       }
       return key;
     } catch (writeError) {
-      if (isCode(writeError, "EEXIST")) return readFile(filename);
+      if (writeError instanceof Error && isCode(writeError, "EEXIST"))
+        return readFile(filename);
       throw writeError;
     }
   }
@@ -184,6 +187,6 @@ function digest(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function isCode(error: unknown, code: string): boolean {
-  return error instanceof Error && "code" in error && error.code === code;
+function isCode(error: Error, code: string): boolean {
+  return "code" in error && error.code === code;
 }

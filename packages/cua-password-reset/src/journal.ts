@@ -1,4 +1,6 @@
+import type { JsonValue } from "@opensesame/os-domain";
 import { z } from "zod";
+import { restoreJournalRun } from "./journal-restore.js";
 import {
   type CheckpointJournal,
   PRIMITIVES,
@@ -144,55 +146,7 @@ export class DurableJournal {
   }
 
   async restore(runId: string): Promise<ResetRun> {
-    const events = await this.events(runId);
-    const started = events.filter((event) => event.type === "run.started");
-    if (started.length !== 1 || started[0]?.type !== "run.started")
-      throw new Error("Reset run must have exactly one starting checkpoint");
-    let run = started[0].run;
-    const completed = new Set(
-      events.flatMap((event) =>
-        event.type === "step.outcome" && event.outcome === "completed"
-          ? [event.stepId]
-          : [],
-      ),
-    );
-    for (const step of run.recipe.steps)
-      if (
-        events.some(
-          (event) =>
-            event.type === "step.intent" &&
-            event.stepId === step.id &&
-            (event.operation !== step.primitive ||
-              JSON.stringify(event.input) !== JSON.stringify(step)),
-        )
-      )
-        throw new Error("Journal step does not match its recipe");
-    const cursor = run.recipe.steps.findIndex(
-      (step) => !completed.has(step.id),
-    );
-    run = { ...run, cursor: cursor < 0 ? run.recipe.steps.length : cursor };
-    const lastStatus = events.reduce(
-      (found, event, index) => (event.type === "run.status" ? index : found),
-      -1,
-    );
-    const status = lastStatus < 0 ? undefined : events[lastStatus];
-    if (status?.type === "run.status")
-      run = { ...run, status: status.status, updatedAt: status.at };
-    const latest = events.at(-1);
-    if (lastStatus < events.length - 1) {
-      if (latest?.type === "step.outcome" && latest.outcome !== "completed") {
-        const derived =
-          latest.outcome === "waiting"
-            ? "awaiting_human"
-            : latest.outcome === "failed_before_submit"
-              ? "failed"
-              : "reconciliation_required";
-        run = { ...run, status: derived };
-      }
-      if (latest?.type === "candidate.promoted")
-        run = { ...run, status: "succeeded" };
-    }
-    return run;
+    return restoreJournalRun(await this.events(runId));
   }
 }
 
@@ -213,13 +167,13 @@ function sameEventIdentity(left: JournalEvent, right: JournalEvent): boolean {
 }
 
 export class MemoryCheckpointJournal implements CheckpointJournal {
-  private readonly runs = new Map<string, unknown[]>();
+  private readonly runs = new Map<string, JsonValue[]>();
 
-  load(runId: string): Promise<readonly unknown[]> {
+  load(runId: string): Promise<readonly JsonValue[]> {
     return Promise.resolve(structuredClone(this.runs.get(runId) ?? []));
   }
 
-  append(runId: string, event: unknown): Promise<void> {
+  append(runId: string, event: JsonValue): Promise<void> {
     const events = this.runs.get(runId) ?? [];
     events.push(structuredClone(event));
     this.runs.set(runId, events);

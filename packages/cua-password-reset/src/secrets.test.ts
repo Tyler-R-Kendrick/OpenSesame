@@ -95,6 +95,7 @@ describe("candidate custody", () => {
     ).toBe(true);
     expect(() => assertProxyLane(true, undefined)).toThrow("requires");
     expect(() => assertProxyLane(true, proof)).not.toThrow();
+    // SAFETY: the deliberately invalid proof must reach the schema to prove rejection.
     expect(() =>
       assertProxyLane(true, { ...proof, canaryVerified: false } as never),
     ).toThrow();

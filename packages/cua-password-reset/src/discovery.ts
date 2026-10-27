@@ -1,19 +1,20 @@
 import type { BrowserDriver } from "./agent-browser.js";
+import type { DecisionsApi } from "./decisions.js";
 import {
-  type DecisionsApi,
-  decide,
-  modelObservation,
-  selectedAction,
-} from "./decisions.js";
+  executeDiscoveryAction,
+  finishDiscovery,
+  nextDiscoveryDecision,
+} from "./discovery-decision.js";
 import {
   type HumanChallenge,
-  type Observation,
   type RecipeStep,
   type ResetAction,
   type ResetActionDecision,
   type ResetRecipe,
   recipeSchema,
 } from "./types.js";
+
+export { decisionStep } from "./discovery-decision.js";
 
 export interface DiscoveryExecutor {
   execute(decision: ResetActionDecision): Promise<void>;
@@ -29,45 +30,6 @@ export interface DiscoveryOptions {
   entryUrl: string;
   allowedOrigins: readonly string[];
   maxSteps?: number;
-}
-
-export function decisionStep(
-  decision: ResetActionDecision,
-  observation: Observation,
-  entryPath: string,
-  index: number,
-): RecipeStep {
-  const id = `step-${index}`;
-  const safe = modelObservation(observation);
-  const target =
-    "ref" in decision
-      ? {
-          ref: decision.ref,
-          expectedLabel: safe.fields.find((field) => field.ref === decision.ref)
-            ?.label,
-        }
-      : {};
-  switch (decision.kind) {
-    case "navigate":
-      return { id, primitive: "navigate", path: entryPath };
-    case "fill-field":
-      return {
-        id,
-        primitive: "fill-field",
-        purpose: decision.purpose,
-        ...target,
-      };
-    case "click":
-      return { id, primitive: "click", ...target };
-    case "submit":
-      return { id, primitive: "submit", ...target };
-    case "passkey-prompt":
-      return { id, primitive: "passkey-prompt", ...target };
-    case "await-email-link":
-    case "await-human":
-    case "verify-login":
-      return { id, primitive: decision.kind };
-  }
 }
 
 export async function discoverResetRecipe(
@@ -92,44 +54,17 @@ export async function discoverResetRecipe(
   for (let index = 1; index <= maxSteps; index += 1) {
     options.authorize("password_reset.browser.drive");
     const observation = await options.browser.snapshot();
-    options.authorize("password_reset.model.plan");
-    const decision = await decide(
-      options.decisions,
+    const decision = await nextDiscoveryDecision(options, observation);
+    if (!decision) continue;
+    if (decision.kind === "finish")
+      return recipeSchema.parse(await finishDiscovery(options, entry, steps));
+    await executeDiscoveryAction(
+      options,
+      decision,
       observation,
-      options.allowedOrigins,
+      entryPath,
+      steps,
     );
-    if (decision.kind === "refuse")
-      throw new Error(`Discovery refused: ${decision.reason}`);
-    if (decision.kind === "wait") continue;
-    if (decision.kind === "handoff") {
-      options.authorize("password_reset.human.takeover");
-      await options.executor.handoff(decision.challenge);
-      continue;
-    }
-    if (decision.kind === "finish") {
-      options.authorize("password_reset.item.use");
-      if (!(await options.verify()))
-        throw new Error("Discovery finish was not independently verified");
-      return recipeSchema.parse({
-        schemaVersion: 1,
-        review: "candidate",
-        domain: entry.hostname,
-        entryPath,
-        allowedOrigins: options.allowedOrigins,
-        steps,
-      });
-    }
-    const action = selectedAction(decision, observation);
-    options.authorize("password_reset.runtime.execute");
-    options.authorize(
-      action.kind === "await-email-link"
-        ? "password_reset.mailbox.read"
-        : action.kind === "await-human" || action.kind === "passkey-prompt"
-          ? "password_reset.human.takeover"
-          : "password_reset.browser.drive",
-    );
-    steps.push(decisionStep(action, observation, entryPath, steps.length + 1));
-    await options.executor.execute(action);
   }
   throw new Error("Discovery exceeded its step bound");
 }

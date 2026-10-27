@@ -24,7 +24,6 @@
     "zod": "4.6.6"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
     "@playwright/test": "1.55.1",
     "@types/node": "22.15.29",
     "typescript": "5.8.3",

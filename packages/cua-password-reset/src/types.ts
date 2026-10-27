@@ -1,3 +1,4 @@
+import type { JsonValue } from "@opensesame/os-domain";
 import { z } from "zod";
 
 export const PRIMITIVES = [
@@ -241,6 +242,6 @@ export interface ResetEffects {
 }
 
 export interface CheckpointJournal {
-  load(runId: string): Promise<readonly unknown[]>;
-  append(runId: string, event: unknown): Promise<void>;
+  load(runId: string): Promise<readonly JsonValue[]>;
+  append(runId: string, event: JsonValue): Promise<void>;
 }

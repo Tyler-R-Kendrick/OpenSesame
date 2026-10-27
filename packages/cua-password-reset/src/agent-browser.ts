@@ -1,18 +1,14 @@
-import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { z } from "zod";
-import { detectChallenge } from "./decisions.js";
-import { stepDrift } from "./recipe.js";
-import { type CandidateCustody, assertProxyLane } from "./secrets.js";
 import {
-  type HumanChallenge,
-  type Observation,
-  type ProxyProof,
-  type RecipeStep,
-  type ResetRun,
-  type StepReceipt,
-  observationSchema,
-} from "./types.js";
+  type ChildProcessByStdio,
+  type SpawnOptions,
+  spawn,
+} from "node:child_process";
+import { randomUUID } from "node:crypto";
+import type { Readable } from "node:stream";
+import { z } from "zod";
+import { type Observation, observationSchema } from "./types.js";
+
+export * from "./browser-step-executor.js";
 
 export interface BrowserDriver {
   open(url: string): Promise<void>;
@@ -23,30 +19,11 @@ export interface BrowserDriver {
   close?(): Promise<void>;
 }
 
-export interface MailboxPort {
-  resetLink(): Promise<string>;
-}
-
-export type PasswordCall = <T>(
-  use: (password: string) => Promise<T>,
-) => Promise<T>;
-
-export interface ExactFormProxyPort {
-  readonly exactFormSubstitution: true;
-  arm(input: {
-    run: ResetRun;
-    proof: ProxyProof;
-    synthetic: string;
-    withRealPassword: PasswordCall;
-  }): Promise<void>;
-}
-
-export interface HumanTakeoverPort {
-  handoff(challenge: HumanChallenge, run: ResetRun): Promise<void>;
-  resume(challenge: HumanChallenge, run: ResetRun): Promise<void>;
-}
-
-type Spawn = typeof spawn;
+type Spawn = (
+  command: string,
+  args: string[],
+  options: SpawnOptions & { stdio: ["ignore", "pipe", "pipe"] },
+) => ChildProcessByStdio<null, Readable, Readable>;
 
 export interface AgentBrowserConfig {
   executable: string;
@@ -80,7 +57,10 @@ const rawSnapshotSchema = z
 const urlResultSchema = z
   .object({
     success: z.literal(true),
-    data: z.union([z.string(), z.object({ url: z.string() }).passthrough()]),
+    data: z.union([
+      z.string().transform((url) => ({ url })),
+      z.object({ url: z.string() }).passthrough(),
+    ]),
   })
   .passthrough();
 
@@ -129,7 +109,9 @@ export class AgentBrowser implements BrowserDriver {
       throw new Error(
         "agent-browser requires an executable, session and domain allowlist",
       );
-    this.command = config.spawn ?? spawn;
+    this.command =
+      config.spawn ??
+      ((command, args, options) => spawn(command, args, options));
     this.timeoutMs = config.timeoutMs ?? 30_000;
     if (
       !Number.isInteger(this.timeoutMs) ||
@@ -175,7 +157,7 @@ export class AgentBrowser implements BrowserDriver {
     const result = urlResultSchema.parse(
       JSON.parse(await this.run(["get", "url", "--json"])),
     );
-    return typeof result.data === "string" ? result.data : result.data.url;
+    return result.data.url;
   }
 
   private run(args: string[]): Promise<string> {
@@ -233,152 +215,6 @@ export class AgentBrowser implements BrowserDriver {
       );
     });
   }
-}
-
-export interface BrowserStepPorts {
-  identifier(): Promise<string>;
-  mailbox: MailboxPort;
-  candidate: Pick<CandidateCustody, "withSynthetic" | "withPassword">;
-  takeover: HumanTakeoverPort;
-  authorizeProxy(): void;
-  proxy?: ExactFormProxyPort;
-  verifyLogin(run: ResetRun): Promise<boolean>;
-}
-
-export class BrowserStepExecutor {
-  constructor(
-    private readonly browser: BrowserDriver,
-    private readonly ports: BrowserStepPorts,
-  ) {}
-
-  async execute(
-    step: RecipeStep,
-    run: ResetRun,
-    context = { effectId: "direct", attempt: 1 },
-  ): Promise<StepReceipt> {
-    const done = { stepId: step.id, outcome: "completed" } as const;
-    if (
-      [
-        "await-human",
-        "enter-email-code",
-        "enter-TOTP",
-        "passkey-prompt",
-      ].includes(step.primitive)
-    )
-      return this.challenge(step, run, context.attempt);
-    switch (step.primitive) {
-      case "navigate": {
-        if (!step.path) throw new Error("Navigate step requires a path");
-        const url = new URL(step.path, run.origin);
-        if (
-          url.origin !== run.origin ||
-          !run.recipe.allowedOrigins.includes(url.origin)
-        )
-          throw new Error("Navigate step left the approved origin");
-        await this.browser.open(url.href);
-        return done;
-      }
-      case "click":
-        await this.assertCurrent(step);
-        await this.browser.click(requiredRef(step));
-        return done;
-      case "submit":
-        if (!(await this.current(step)))
-          return { stepId: step.id, outcome: "failed_before_submit" };
-        await this.browser.click(requiredRef(step));
-        return done;
-      case "await-email-link": {
-        const url = endpoint(await this.ports.mailbox.resetLink());
-        if (!run.recipe.allowedOrigins.includes(url.origin))
-          throw new Error("Mail link left the approved origins");
-        await this.browser.open(url.href);
-        return done;
-      }
-      case "fill-field":
-        await this.assertCurrent(step);
-        await this.fill(step, run);
-        return done;
-      case "verify-login":
-        return (await this.ports.verifyLogin(run))
-          ? done
-          : { stepId: step.id, outcome: "reconcile" };
-      default:
-        throw new Error("Unsupported browser step");
-    }
-  }
-
-  private async challenge(
-    step: RecipeStep,
-    run: ResetRun,
-    attempt: number,
-  ): Promise<StepReceipt> {
-    const challenge =
-      step.primitive === "enter-TOTP"
-        ? "totp"
-        : step.primitive === "enter-email-code"
-          ? "mail_code"
-          : step.primitive === "passkey-prompt"
-            ? "passkey"
-            : (detectChallenge(await this.browser.snapshot()) ?? "unknown");
-    if (attempt > 1) {
-      await this.ports.takeover.resume(challenge, run);
-      if (detectChallenge(await this.browser.snapshot()) !== null)
-        return { stepId: step.id, outcome: "waiting" };
-      return { stepId: step.id, outcome: "completed" };
-    }
-    await this.ports.takeover.handoff(challenge, run);
-    return { stepId: step.id, outcome: "waiting" };
-  }
-
-  private async current(step: RecipeStep): Promise<boolean> {
-    return !stepDrift(step, await this.browser.snapshot());
-  }
-
-  private async assertCurrent(step: RecipeStep): Promise<void> {
-    if (!(await this.current(step))) throw new Error("Recipe step drifted");
-  }
-
-  private async fill(step: RecipeStep, run: ResetRun): Promise<void> {
-    if (step.purpose === "identifier") {
-      await this.browser.fill(requiredRef(step), await this.ports.identifier());
-      return;
-    }
-    if (step.purpose !== "new-password")
-      throw new Error("Fill step has no approved purpose");
-    const index = run.recipe.steps.findIndex(
-      (candidate) => candidate.id === step.id,
-    );
-    if (index < 0 || run.recipe.steps[index + 1]?.primitive !== "submit")
-      throw new Error(
-        "The real password may only be filled immediately before submit",
-      );
-    const proof = run.recipe.proxySubstitution;
-    const proxy = this.ports.proxy;
-    if (run.transport === "proxy") {
-      if (!proof || !proxy)
-        throw new Error("The approved proxy lane is unavailable");
-      this.ports.authorizeProxy();
-      assertProxyLane(true, proof);
-      await this.ports.candidate.withSynthetic(proof, async (synthetic) => {
-        await proxy.arm({
-          run,
-          proof,
-          synthetic,
-          withRealPassword: (use) => this.ports.candidate.withPassword(use),
-        });
-        await this.browser.fill(requiredRef(step), synthetic);
-      });
-      return;
-    }
-    await this.ports.candidate.withPassword((password) =>
-      this.browser.fillSecret(requiredRef(step), password),
-    );
-  }
-}
-
-function requiredRef(step: RecipeStep): string {
-  if (!step.ref) throw new Error("Browser step requires an element ref");
-  return step.ref;
 }
 
 function elementRef(ref: string): string {

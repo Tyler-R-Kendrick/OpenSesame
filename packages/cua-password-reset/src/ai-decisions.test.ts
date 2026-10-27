@@ -17,10 +17,12 @@ function fakeRuntime() {
   const runtime: AiDecisionRuntime = {
     createModel(config, model) {
       models.push({ baseURL: config.baseURL, apiKey: config.apiKey, model });
+      // SAFETY: checked against the createModel boundary: the strict probe reads only specificationVersion and invokes no SDK model methods.
       return { specificationVersion: "v3" } as LanguageModel;
     },
     async generate(options) {
       calls.push(options);
+      // SAFETY: checked at the serialization boundary: options.prompt was produced by JSON.stringify from these exact observation and candidates fields.
       const input = JSON.parse(options.prompt) as {
         observation: Observation;
         candidates: DecisionCandidate[];
