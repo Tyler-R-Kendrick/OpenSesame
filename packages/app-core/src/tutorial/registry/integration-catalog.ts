@@ -82,6 +82,14 @@ export const INTEGRATION_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
+    id: "integration.password-reset",
+    description:
+      "The Password reset section of Settings › Integrations: computer-use runtimes such as Vercel Sandbox, E2B and Browserbase CDP, each configured by reference. Model providers are in AI.",
+    role: "surface",
+    routes: ["/settings/integrations"],
+    capabilityId: null,
+  },
+  {
     id: "integration.ai",
     description:
       "The AI section of Settings › Integrations: connect agent harnesses and AI model providers. Voice and inference model choices are in Settings › Features › AI.",

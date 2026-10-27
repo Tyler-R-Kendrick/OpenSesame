@@ -106,6 +106,10 @@ describe("INTEGRATIONS", () => {
     expect(
       INTEGRATIONS.find((entry) => entry.id === "ai")?.providerCategories,
     ).toEqual(["agent_harnesses", "ai_model_provider"]);
+    expect(
+      INTEGRATIONS.find((entry) => entry.id === "password-reset")
+        ?.providerCategories,
+    ).toEqual(["cua_runtime"]);
     for (const entry of INTEGRATIONS)
       expect(entry).not.toHaveProperty("models");
   });

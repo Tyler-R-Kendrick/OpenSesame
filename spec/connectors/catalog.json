@@ -1289,6 +1289,57 @@
       }
     },
     {
+      "id": "vercel-sandbox",
+      "display_name": "Vercel Sandbox",
+      "category": "cua_runtime",
+      "docs_url": "https://vercel.com/docs/vercel-sandbox",
+      "provenance_url": "https://vercel.com/docs/vercel-sandbox",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.vercel.com"],
+        "path_prefixes": []
+      },
+      "operations": ["sandbox.execute"]
+    },
+    {
+      "id": "e2b",
+      "display_name": "E2B",
+      "category": "cua_runtime",
+      "docs_url": "https://e2b.dev/docs",
+      "provenance_url": "https://e2b.dev/docs",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.e2b.dev"],
+        "path_prefixes": []
+      },
+      "operations": ["sandbox.execute"]
+    },
+    {
+      "id": "browserbase-cdp",
+      "display_name": "Browserbase CDP",
+      "category": "cua_runtime",
+      "docs_url": "https://docs.browserbase.com/guides/connect-session",
+      "provenance_url": "https://docs.browserbase.com/guides/connect-session",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.browserbase.com"],
+        "path_prefixes": []
+      },
+      "operations": ["browser.cdp"]
+    },
+    {
       "id": "render",
       "display_name": "Render",
       "category": "developer",
@@ -5698,6 +5749,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-10-14.3",
+  "revision": "2026-10-27.1",
   "schema_version": 1
 }

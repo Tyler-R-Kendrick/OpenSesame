@@ -5349,6 +5349,60 @@
     }
   },
   {
+    "id": "password_reset.cua.run",
+    "title": "Run and reconcile an approved CUA password reset",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id password-reset run",
+      "pwa": "lib/live/device-reset-broker.ts:DeviceResetBroker",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "CUA reset drives account recovery, approves per-run authority and may ask the human for a pepper; MCP and WebMCP must not start, configure, approve or reconcile it",
+        "adr": "0213-cua-password-reset-recipes.md"
+      },
+      "mcp_client": {
+        "reason": "CUA reset drives account recovery, approves per-run authority and may ask the human for a pepper; MCP and WebMCP must not start, configure, approve or reconcile it",
+        "adr": "0213-cua-password-reset-recipes.md"
+      },
+      "webmcp": {
+        "reason": "CUA reset drives account recovery, approves per-run authority and may ask the human for a pepper; MCP and WebMCP must not start, configure, approve or reconcile it",
+        "adr": "0213-cua-password-reset-recipes.md"
+      }
+    }
+  },
+  {
+    "id": "password_reset.cua.configure",
+    "title": "Configure and validate the CUA browser runtime and model",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id password-reset configure",
+      "pwa": "route:/settings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "CUA reset drives account recovery, approves per-run authority and may ask the human for a pepper; MCP and WebMCP must not start, configure, approve or reconcile it",
+        "adr": "0213-cua-password-reset-recipes.md"
+      },
+      "mcp_client": {
+        "reason": "CUA reset drives account recovery, approves per-run authority and may ask the human for a pepper; MCP and WebMCP must not start, configure, approve or reconcile it",
+        "adr": "0213-cua-password-reset-recipes.md"
+      },
+      "webmcp": {
+        "reason": "CUA reset drives account recovery, approves per-run authority and may ask the human for a pepper; MCP and WebMCP must not start, configure, approve or reconcile it",
+        "adr": "0213-cua-password-reset-recipes.md"
+      }
+    }
+  },
+  {
     "id": "secrets.materialize",
     "title": "Reveal secrets, acquire leases, run crypto plans",
     "plane": "host",
