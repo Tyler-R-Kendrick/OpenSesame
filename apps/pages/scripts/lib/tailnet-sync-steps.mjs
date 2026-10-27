@@ -17,14 +17,22 @@ export function syncSteps(base) {
 
   async function networkingOn(page) {
     await visit(page, "settings/features");
-    await page.getByRole("switch", { name: "Networking", exact: true }).click();
-    await page
-      .getByTestId("capability-review")
-      .waitFor({ state: "detached", timeout: 20_000 });
+    const toggle = page.getByRole("switch", {
+      name: "Networking",
+      exact: true,
+    });
+    await expect(toggle).toBeVisible({ timeout: 20_000 });
+    if ((await toggle.getAttribute("aria-checked")) !== "true") {
+      await toggle.click();
+      await page
+        .getByTestId("capability-review")
+        .waitFor({ state: "detached", timeout: 20_000 });
+    }
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
   }
 
   async function saveItem(page, name) {
-    await visit(page, "settings/vaults");
+    await visit(page, "settings/item-types");
     const account = page.getByRole("switch", { name: "Account", exact: true });
     const held = page.getByRole("img", {
       name: /^Account stays on: this vault has \d+ items? of it\.$/,
@@ -60,7 +68,9 @@ export function syncSteps(base) {
     const save = page.getByRole("button", { name: "Save item", exact: true });
     await save.first().scrollIntoViewIfNeeded();
     await save.first().click();
-    await page.waitForTimeout(900);
+    await expect(
+      page.getByRole("heading", { level: 1, name, exact: true }),
+    ).toBeVisible({ timeout: 20_000 });
   }
 
   async function inStep(page) {
