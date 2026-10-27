@@ -1,12 +1,13 @@
 # ADR 0213 — CUA password reset: deterministic recipes, bounded fallback, durable reconciliation
 
-- **Status:** Proposed (design only; nothing in this ADR is built)
+- **Status:** Accepted
 - **Date:** 2026-10-27
-- **Amends (proposed):**
+- **Amends:**
   - [ADR 0191](0191-forgot-password-ceremony-remote-browser.md) §1 and its
-    architecture's crash rule, **only** to allow durable, read-only
-    reconciliation and compensation after a crash. Blind autonomous resume and
-    another password-request or password-set submit remain forbidden.
+    architecture's crash rule, to resume completed and idempotent steps and to
+    allow durable, read-only reconciliation and compensation after a crash.
+    Blind repetition of a password request, password-set submit, or other
+    indeterminate effect remains forbidden.
   - [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md) §6.3, **only** for
     a password-set form whose recipe and actual intercepted request prove that
     the synthetic value reaches one declared field untransformed. The general
@@ -25,10 +26,10 @@
   [ADR 0099](0099-scoped-local-agent-authority.md),
   [ADR 0130](0130-operator-controlled-capability-composition.md),
   [ADR 0149](0149-nothing-stored-in-the-clear.md),
-  [ADR 0150](0150-live-sessions-browser-to-browser.md),
+  [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md),
   [ADR 0157](0157-logs-and-events-carry-no-secrets.md),
   [ADR 0159](0159-agent-hooks-interceptor.md),
-  [ADR 0186](0186-live-session-transport-port-and-catalog-greeting.md),
+  [ADR 0186](0186-cli-app-integration-reveal.md),
   [ADR 0190](0190-password-reset-mailboxes-are-vault-items.md),
   [ADR 0191](0191-forgot-password-ceremony-remote-browser.md), and
   [ADR 0196](0196-device-authorization-in-live-sessions.md).
@@ -216,15 +217,19 @@ screenshots, and unmasked model messages are never journal values.
 Every step has a stable idempotency key and two durable checkpoints: intent
 **before** dispatch and outcome **after** the result is known. Retry is allowed
 only for an operation classified idempotent, or when the journal proves dispatch
-did not begin. A process crash between intent and outcome makes an external
-side effect indeterminate; it never licenses automatic repetition. Journal
-replay pins schema, recipe, configuration, and code versions and never executes
-serialized model code.
+did not begin. A process crash between intent and outcome makes a
+non-idempotent external side effect indeterminate; it never licenses automatic
+repetition. Journal replay pins schema, recipe, configuration, and code versions
+and never executes serialized model code.
 
-The ADR 0191 no-resume rule is amended only as follows:
+The ADR 0191 no-resume rule is amended as follows:
 
-- after a crash, no autonomous browser mutation, mail request, link reuse, fill,
-  or submit is resumed;
+- after a crash, completed steps reuse their recorded outcomes and interrupted
+  idempotent steps resume with the same effect key after their grants and fresh
+  observation are rechecked; a human wait resumes only through explicit handback;
+- an interrupted reset request, mail open, credential fill, password-set submit,
+  or verification submit is not blindly repeated; it enters read-only
+  reconciliation, with a before-dispatch proof the only automatic retry escape;
 - a still-valid, or newly human-approved **reconciliation-only** grant may run
   bounded read-only checks, fresh-context login verification, cleanup, and the
   compensations in the architecture;
@@ -234,9 +239,9 @@ The ADR 0191 no-resume rule is amended only as follows:
 - a single-use reset link is never replayed automatically, and an expired grant
   never becomes authority merely because the journal survives.
 
-This is durable reconciliation, not general workflow resume. In particular,
-`WorkflowAgent` automatic retries must not wrap password-request, password-set,
-or verification-submit effects without these guards.
+This is durable execution with explicit reconciliation, not exactly-once claims.
+In particular, `WorkflowAgent` automatic retries must not wrap password-request,
+password-set, or verification-submit effects without these guards.
 
 ### 8. Every interactive challenge belongs to the person
 

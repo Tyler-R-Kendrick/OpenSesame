@@ -1,9 +1,9 @@
 # CUA password reset
 
 Implementation design for [ADR 0213](../adr/0213-cua-password-reset-recipes.md).
-It extends the [forgot-password ceremony](forgot-password-ceremony.md). This
-slice supplies shared grant vectors and pure Rust scope checks; runtime names
-below are contracts for later slices, not claims that they already exist.
+It extends the [forgot-password ceremony](forgot-password-ceremony.md). The
+implementation is split across the pure grant model, the CUA engine and its
+local mock-site suites, and the existing client CLI/PWA approval surfaces.
 
 ## 1. Components and trust boundaries
 
