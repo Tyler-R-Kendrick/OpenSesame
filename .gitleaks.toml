@@ -285,3 +285,154 @@ condition = "AND"
 regexTarget = "secret"
 regexes = ['\AaLFFjcOCEhdA6stg4G0a\z']
 paths = ['(^|/)spec/conformance/produce\-vectors\.json$']
+
+
+# ---------------------------------------------------------------------------
+# Full-history scan coverage (the scheduled gitleaks pass walks every commit).
+# The lists above name current paths; the tree has moved files between the
+# packages/ and apps/ roots across its refactors, and the pre-refactor commits
+# predate the inline `gitleaks:allow` comments. These blocks are the
+# history-safe restatement of the same reviewed-synthetic judgments:
+# filename-or-unique-suffix scoping for moved fixtures, and the committed
+# historical build bundles and evidence captures.
+
+[[allowlists]]
+description = "Committed historical build bundles (assets/ predates its gitignore)"
+paths = [
+  '''(^|/)assets/index-[\w-]+\.js$''',
+]
+
+[[allowlists]]
+description = "Evidence captures: journeys/capabilities JSON and the prose pages that quote them"
+paths = [
+  '''(^|/)docs/evidence/.*/journeys?\.json$''',
+  '''(^|/)docs/evidence/.*/capabilities\.json$''',
+  '''(^|/)docs/evidence/2026-09-25-claim-route/README\.md$''',
+  '''(^|/)docs/design/vault-vfs\.md$''',
+  '''(^|/)docs/(contributing/)?ai-automation-roadmap\.md$''',
+  '''(^|/)docs/implementation/one-shot-automation-prompt\.md$''',
+  '''(^|/)docs/operators/proxied-run-quickstart\.md$''',
+  '''(^|/)ops/routines/(pr-security-review|weekly-security-audit)\.md$''',
+]
+
+[[allowlists]]
+description = "Synthetic fixtures whose files moved between workspace roots (scoped by unique path suffix)"
+paths = [
+  '''lib/age-keys\.test\.ts$''',
+  '''lib/git-auth-modes\.test\.ts$''',
+  '''lib/transport-browser\.test\.ts$''',
+  '''lib/transport-settings\.test\.ts$''',
+  '''lib/sops/fixtures/upstream/identities\.json$''',
+  '''lib/duress/store/store\.test\.ts$''',
+  '''lib/duress/redteam/unlock-visible-items\.(fixture|test)\.ts$''',
+  '''lib/capabilities/keys\.ts$''',
+  '''lib/capabilities/trust/accepted-revision\.ts$''',
+  '''lib/vault/protection/browser-enroll\.ts$''',
+  '''lib/vault/protection/browser-service\.ts$''',
+  '''lib/vault/protection/fixtures/shared-vectors\.json$''',
+  '''lib/share-target-intake\.test\.ts$''',
+  '''lib/join/presented\.ts$''',
+  '''lib/native-azure-ac\.test\.ts$''',
+  '''lib/secret-fs/s3\.(test|test-support)\.ts$''',
+  '''lib/tailnet-sync/plugin-daemon\.test\.ts$''',
+  '''lib/claims/link\.test\.ts$''',
+  '''lib/byo-connections\.test\.ts$''',
+  '''lib/vault/import/formats/cxf\.(characterization\.)?test\.ts$''',
+]
+
+[[allowlists]]
+description = "Synthetic vectors in test, conformance, and PKI fixtures added or renamed since the last audit pass"
+paths = [
+  '''(^|/)packages/vault-core/src/openssl/openssl\.test\.ts$''',
+  '''(^|/)packages/vault-core/src/item-formats\.test\.ts$''',
+  '''(^|/)spec/conformance/hpke-rfc9180-vectors\.json$''',
+  '''(^|/)spec/conformance/quorum-recovery-fixture\.json$''',
+  '''(^|/)apps/cli/src/security/watchtower/tests\.rs$''',
+  '''(^|/)crates/invoke-through/src/surrogate_honey_tests\.rs$''',
+  '''(^|/)crates/ceremony/tests/github_ceremony\.rs$''',
+  '''(^|/)crates/rotation-web/tests/ceremony_envelope\.rs$''',
+  '''(^|/)packages/wallet/src/payload\.test\.ts$''',
+  '''(^|/)apps/cli/tests/dev_run_bridge_env\.rs$''',
+  '''(^|/)apps/cli/src/github/tests\.rs$''',
+  '''(^|/)packages/cli/src/vault-sync-security\.test\.ts$''',
+  '''(^|/)apps/pages/src/lib/vault-relay-sync\.integration\.test\.ts$''',
+  '''(^|/)packages/contracts/src/__tests__/claims\.test\.ts$''',
+  '''(^|/)apps/pages/src/modules/sharing\.trusted-contacts/pending-store\.test\.ts$''',
+  '''(^|/)apps/pages/src/lib/vault/sample\.ts$''',
+  '''(^|/)apps/pages/src/lib/join-session\.test\.ts$''',
+  '''(^|/)apps/pages/src/lib/vault/crypto\.test\.ts$''',
+  '''(^|/)apps/pages/src/lib/vault/tomb-migration\.ts$''',
+  '''(^|/)apps/pages/src/tutorial/__tests__/adversarial/context-leak\.test\.ts$''',
+  '''(^|/)apps/pages/src/webmcp/tools\.test\.ts$''',
+  '''(^|/)apps/pm-bridges/src/pairing\.rs$''',
+  '''(^|/)apps/gateway/src/routes/nats_callout\.rs$''',
+  '''(^|/)apps/control-plane/src/__tests__/(agent-auth\.chaos|openid4vp-routes)\.test\.ts$''',
+  '''(^|/)apps/ceremonies/src/pages/DropAcceptance\.test\.tsx$''',
+  '''(^|/)apps/pages/src/sections/connections/ai/AiProviderSheet\.integration\.test\.tsx$''',
+  '''(^|/)apps/pages/src/sections/settings/security/DuressPanel\.visible\.test\.tsx$''',
+  '''(^|/)packages/webmcp/src/fence\.test\.ts$''',
+  '''(^|/)scripts/quality/credential-equivalence/(policy|cfg-inventory|repository-code-pins)\.json$''',
+  '''(^|/)tools/mutation/credential-adapter-applicability\.json$''',
+  '''(^|/)packages/env-spec-bridge/test/parse\.test\.mjs$''',
+]
+
+[[allowlists]]
+description = "Historical paths only (files since moved, renamed or removed; current equivalents are allowlisted or carry inline allows). No forward surface."
+paths = [
+  '''(^|/)apps/cli/src/bridge\.rs$''',
+  '''(^|/)apps/pages/src/lib/vault/store\.ts$''',
+  '''(^|/)crates/daemon/src/mint_tests\.rs$''',
+  '''(^|/)crates/env-spec/tests/bridge_isolation\.rs$''',
+  '''(^|/)crates/env-spec/tests/support/mod\.rs$''',
+  '''(^|/)crates/provider-bitwarden/tests/common/mod\.rs$''',
+  '''__tests__/oauth2-proxy-live\.test\.ts$''',
+]
+
+# Production modules are NOT path-exempt (that would silence future content of
+# live code and weaken the pre-commit gate, which shares this config). Their
+# historical synthetic-vector findings are exempted per exact commit instead:
+[[allowlists]]
+description = "Historical synthetic vectors in crates/pki-core/src/keys.rs: exact commits only, no forward surface"
+paths = [
+  '''(^|/)crates/pki-core/src/keys\.rs$''',
+]
+commits = [
+  '''d20a55bb4d7b456189b7443080a0960a97157a65''',
+]
+
+[[allowlists]]
+description = "Historical synthetic vectors in crates/pki-core/src/bundle.rs: exact commits only, no forward surface"
+paths = [
+  '''(^|/)crates/pki-core/src/bundle\.rs$''',
+]
+commits = [
+  '''d20a55bb4d7b456189b7443080a0960a97157a65''',
+]
+
+[[allowlists]]
+description = "Historical synthetic vectors in crates/ceremony/src/capture.rs: exact commits only, no forward surface"
+paths = [
+  '''(^|/)crates/ceremony/src/capture\.rs$''',
+]
+commits = [
+  '''64b8206877908a56fbb72774e5399512262b0848''',
+]
+
+[[allowlists]]
+description = "Historical synthetic vectors in crates/connection-broker/src/secret_debug.rs: exact commits only, no forward surface"
+paths = [
+  '''(^|/)crates/connection-broker/src/secret_debug\.rs$''',
+]
+commits = [
+  '''7d611db8fde8c93b2447b16049a86ff96cad0b8d''',
+]
+
+[[allowlists]]
+description = "Historical synthetic vectors in packages/wallet/src/config.ts: exact commits only, no forward surface"
+paths = [
+  '''(^|/)packages/wallet/src/config\.ts$''',
+]
+commits = [
+  '''45a8cda477addf42863699b500252b784ac69a51''',
+]
+
