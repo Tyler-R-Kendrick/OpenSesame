@@ -28,8 +28,13 @@ describe("agents.surrogate-credentials runtime", () => {
   it("registers the plugin tile in its section and its walkthrough", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "agents.surrogate-credentials",
-      kinds: ["settings-panel", "tutorial-target", "tutorial-goal"],
-      count: 3,
+      kinds: [
+        "settings-panel",
+        "tutorial-target",
+        "tutorial-goal",
+        "tutorial-route",
+      ],
+      count: 4,
     });
   });
 
@@ -40,6 +45,12 @@ describe("agents.surrogate-credentials runtime", () => {
     const [panel] = t.entries("settings-panel");
     expect(panel?.id).toBe("plugin-surrogate-proxy");
     expect(panel?.category).toBe("features.feature-surrogates");
+    expect(t.entries("tutorial-route")).toEqual([
+      {
+        id: "/settings/features/surrogates",
+        title: "Settings — Surrogate credentials",
+      },
+    ]);
     // No daemon is paired here: nothing is listed, nothing is asked.
     expect(panel?.files?.list()).toEqual([]);
     await Promise.resolve();

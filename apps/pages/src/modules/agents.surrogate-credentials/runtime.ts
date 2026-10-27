@@ -31,6 +31,7 @@ import { pluginById } from "@opensesame/app-core/lib/plugins/catalog.js";
 import { tailnetPluginDaemon } from "@opensesame/app-core/lib/tailnet-sync/plugin-daemon.js";
 import {
   SURROGATE_GOALS,
+  SURROGATE_ROUTES,
   SURROGATE_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/plugins-catalog.js";
 import { createActivation } from "../activation.js";
@@ -49,7 +50,11 @@ export const capabilityRuntime: CapabilityRuntime = {
       daemon: tailnetPluginDaemon(ctx.egress, CAPABILITY),
       section: "feature-surrogates",
       guideId: "settings.surrogate-credentials",
-      tutorial: { targets: SURROGATE_TARGETS, goals: SURROGATE_GOALS },
+      tutorial: {
+        targets: SURROGATE_TARGETS,
+        goals: SURROGATE_GOALS,
+        routes: SURROGATE_ROUTES,
+      },
     });
 
     return activation.handle();

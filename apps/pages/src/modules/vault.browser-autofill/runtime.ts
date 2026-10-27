@@ -31,6 +31,7 @@ import { pluginById } from "@opensesame/app-core/lib/plugins/catalog.js";
 import { tailnetPluginDaemon } from "@opensesame/app-core/lib/tailnet-sync/plugin-daemon.js";
 import {
   AUTOFILL_GOALS,
+  AUTOFILL_ROUTES,
   AUTOFILL_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/plugins-catalog.js";
 import { createActivation } from "../activation.js";
@@ -49,7 +50,11 @@ export const capabilityRuntime: CapabilityRuntime = {
       daemon: tailnetPluginDaemon(ctx.egress, CAPABILITY),
       section: "feature-autofill",
       guideId: "settings.browser-autofill",
-      tutorial: { targets: AUTOFILL_TARGETS, goals: AUTOFILL_GOALS },
+      tutorial: {
+        targets: AUTOFILL_TARGETS,
+        goals: AUTOFILL_GOALS,
+        routes: AUTOFILL_ROUTES,
+      },
     });
 
     return activation.handle();

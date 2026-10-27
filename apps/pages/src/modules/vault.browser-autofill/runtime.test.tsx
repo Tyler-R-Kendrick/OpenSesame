@@ -26,8 +26,13 @@ describe("vault.browser-autofill runtime", () => {
   it("registers the plugin tile in its section and its walkthrough", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "vault.browser-autofill",
-      kinds: ["settings-panel", "tutorial-target", "tutorial-goal"],
-      count: 3,
+      kinds: [
+        "settings-panel",
+        "tutorial-target",
+        "tutorial-goal",
+        "tutorial-route",
+      ],
+      count: 4,
     });
   });
 
@@ -38,10 +43,17 @@ describe("vault.browser-autofill runtime", () => {
     const [panel] = t.entries("settings-panel");
     expect(panel?.id).toBe("plugin-browser-autofill");
     expect(panel?.category).toBe("features.feature-autofill");
+    expect(t.entries("tutorial-route")).toEqual([
+      {
+        id: "/settings/features/autofill",
+        title: "Settings — Browser autofill",
+      },
+    ]);
     // The page registers no item kind, command or tool: it fills nothing.
     expect(t.liveKinds()).toEqual([
       "settings-panel",
       "tutorial-goal",
+      "tutorial-route",
       "tutorial-target",
     ]);
     await Promise.resolve();
