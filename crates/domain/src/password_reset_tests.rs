@@ -80,7 +80,7 @@ fn shared_cua_password_reset_vectors() {
                 authentication_max_age_seconds: None,
                 allowed_networks: vec![],
                 parameter_rules_digest: None,
-                budgets: Default::default(),
+                budgets: std::collections::BTreeMap::default(),
                 maximum_delegation_depth: 0,
                 offline_use: OfflineUse::Forbidden,
                 raw_credential_export: vector.raw_credential_export,
