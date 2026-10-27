@@ -45,6 +45,15 @@ describe("guide route registry", () => {
     );
     expect(isKnownGuideRoute("/nowhere")).toBe(false);
   });
+
+  it("distinguishes the Tailnet record from the Devices summary", () => {
+    expect(
+      guideRouteForLocation("/identity", "?view=devices", "#tailnet-devices"),
+    ).toBe("/identity/devices/tailnet");
+    expect(
+      guideRouteForLocation("/identity", "?view=devices", "#another-record"),
+    ).toBe("/identity");
+  });
 });
 
 describe("a core-only plan", () => {
@@ -52,6 +61,10 @@ describe("a core-only plan", () => {
     expect(mergedGuideRoutes()).toEqual(CORE_GUIDE_ROUTES);
     expect(isKnownGuideRoute("/connections")).toBe(false);
     expect(isKnownGuideRoute("/identity/authorize")).toBe(false);
+    expect(isKnownGuideRoute("/identity/devices/tailnet")).toBe(false);
+    expect(
+      guideRouteForLocation("/identity", "?view=devices", "#tailnet-devices"),
+    ).toBe("/vault");
     expect(isKnownGuideRoute("/vault")).toBe(true);
     expect(isKnownGuideRoute("/settings/security")).toBe(true);
   });

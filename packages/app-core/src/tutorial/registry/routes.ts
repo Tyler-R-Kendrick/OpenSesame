@@ -200,17 +200,29 @@ export function guideRouteWithin(
 /** `/vault/<id>`: one item's pane. `new` and `health` are screens of their own. */
 const ITEM_PANE = /^\/vault\/(?!new(?:\/|$)|health(?:\/|$))[^/]+\/?$/;
 
+export const TAILNET_DEVICES_ROUTE = "/identity/devices/tailnet";
+
 /**
  * Where the person stands, to the precision a tour needs. A path alone cannot
  * tell the list from an item's pane or from the trash (`/vault?f=trash`), and
  * a tour that points at an item's controls has to wait for the item to be
- * open. A deep path the registry cannot name still reports its section.
+ * open. The Tailnet record is a place too, only while its capability is live.
+ * A deep path the registry cannot name still reports its section.
  */
 export function guideRouteForLocation(
   pathname: string,
   search = "",
+  hash = "",
 ): GuideRouteId {
   const section = guideRouteForPath(pathname);
+  if (
+    section === "/identity" &&
+    hash === "#tailnet-devices" &&
+    new URLSearchParams(search).get("view") === "devices" &&
+    isKnownGuideRoute(TAILNET_DEVICES_ROUTE)
+  ) {
+    return TAILNET_DEVICES_ROUTE;
+  }
   if (section !== "/vault") return section;
   if (pathname === "/vault" || pathname === "/vault/") {
     return new URLSearchParams(search).get("f") === "trash"
