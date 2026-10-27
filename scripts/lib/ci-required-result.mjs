@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isJsonObject } from "./json-boundary.mjs";
 
 /** A skipped job is acceptable only after a successful, explicit classification. */
 export function assertSelectedResult({ draft, preflight, selected, result }) {
@@ -18,7 +19,7 @@ export function assertSelectedResult({ draft, preflight, selected, result }) {
 
 /** Qualification requires every declared dependency, including every matrix leg. */
 export function assertCompleteResults(needs) {
-  if (!needs || typeof needs !== "object" || Array.isArray(needs)) {
+  if (!isJsonObject(needs)) {
     throw new Error("invalid qualification dependencies");
   }
   const entries = Object.entries(needs);

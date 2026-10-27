@@ -109,10 +109,9 @@ export class Candidates {
         ["dev", "prerelease"].includes(ref),
         "Invalid verification prerequisite",
       );
-      await verifyReceipt(this, prerequisite, candidate, {
-        stage: ref,
-        ...(ref === "dev" ? { maxAgeHours: POLICY.dev_max_age_hours } : {}),
-      });
+      const options = { stage: ref };
+      if (ref === "dev") options.maxAgeHours = POLICY.dev_max_age_hours;
+      await verifyReceipt(this, prerequisite, candidate, options);
     }
     return { candidate, manifest, metadata };
   }

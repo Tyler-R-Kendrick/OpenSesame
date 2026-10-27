@@ -2,6 +2,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isJsonObject, isString } from "../lib/json-boundary.mjs";
 
 function reportPaths(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -46,16 +47,12 @@ function assertStrykerScope(report, config) {
   if (
     !Array.isArray(config.mutate) ||
     config.mutate.length === 0 ||
-    config.mutate.some(
-      (file) => typeof file !== "string" || /[*!?{}]/.test(file),
-    )
+    config.mutate.some((file) => !isString(file) || /[*!?{}]/.test(file))
   ) {
     throw new Error("Stryker requires an explicit nonempty source-file scope");
   }
   if (
-    !report.files ||
-    typeof report.files !== "object" ||
-    Array.isArray(report.files) ||
+    !isJsonObject(report.files) ||
     JSON.stringify(Object.keys(report.files).sort()) !==
       JSON.stringify([...config.mutate].sort())
   ) {
@@ -88,7 +85,7 @@ function assertStrykerFile(file, result, sourceRoot) {
   const ids = new Set();
   let detected = 0;
   for (const mutant of result.mutants) {
-    if (typeof mutant?.id !== "string" || ids.has(mutant.id)) {
+    if (!isString(mutant?.id) || ids.has(mutant.id)) {
       throw new Error("Missing or duplicate Stryker mutant identity");
     }
     ids.add(mutant.id);

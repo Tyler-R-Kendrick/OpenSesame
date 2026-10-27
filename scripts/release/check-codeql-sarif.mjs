@@ -2,12 +2,16 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isJsonObject } from "../lib/json-boundary.mjs";
 
 function assertNotifications(notifications = []) {
   if (!Array.isArray(notifications))
     throw new Error("Malformed CodeQL notifications");
   for (const notice of notifications) {
-    if (!notice || typeof notice !== "object" || notice.level === "error") {
+    if (
+      !(isJsonObject(notice) || Array.isArray(notice)) ||
+      notice.level === "error"
+    ) {
       throw new Error("CodeQL reported an execution or configuration error");
     }
   }

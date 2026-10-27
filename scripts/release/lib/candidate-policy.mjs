@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isString } from "../../lib/json-boundary.mjs";
 
 export const ROOT = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -58,10 +59,7 @@ export function demand(condition, message) {
 }
 
 export function sha(value, label = "SHA") {
-  demand(
-    typeof value === "string" && /^[a-f0-9]{40}$/.test(value),
-    `Invalid ${label}`,
-  );
+  demand(isString(value) && /^[a-f0-9]{40}$/.test(value), `Invalid ${label}`);
   return value;
 }
 

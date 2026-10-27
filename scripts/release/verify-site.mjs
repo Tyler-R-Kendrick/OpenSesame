@@ -6,6 +6,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { isString } from "../lib/json-boundary.mjs";
 
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function files(path) {
@@ -25,11 +26,7 @@ export async function verifySite(
   fetcher = fetch,
   deadline = AbortSignal.timeout(120_000),
 ) {
-  if (
-    !directory ||
-    typeof address !== "string" ||
-    !/^[0-9a-f]{40}$/.test(source ?? "")
-  )
+  if (!directory || !isString(address) || !/^[0-9a-f]{40}$/.test(source ?? ""))
     throw new Error("Invalid Pages verification inputs");
   const base = new URL(address.endsWith("/") ? address : `${address}/`);
   if (base.href !== "https://tyler-r-kendrick.github.io/OpenSesame/")

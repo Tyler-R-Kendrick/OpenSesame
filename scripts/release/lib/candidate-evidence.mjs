@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { isJsonObject } from "../../lib/json-boundary.mjs";
 import { assertRun, successfulGate } from "./candidate-api.mjs";
 import { envelope, sameCandidate } from "./candidate-model.mjs";
 import {
@@ -26,29 +27,24 @@ export function receiptName(stage, suite, runId, attempt) {
 }
 
 export function receiptEnvelope(input) {
-  demand(
-    input && typeof input === "object" && !Array.isArray(input),
-    "Receipt envelope is missing",
-  );
+  demand(isJsonObject(input), "Receipt envelope is missing");
   demand(input.repository === POLICY.repository, "Receipt repository mismatch");
   stageKey(input.stage, input.suite);
-  return {
+  const result = {
     repository: input.repository,
     stage: input.stage,
-    ...(input.suite ? { suite: input.suite } : {}),
     run_id: identifier(input.run_id),
     run_attempt: identifier(input.run_attempt),
     artifact_id: identifier(input.artifact_id),
     artifact_digest: digest(input.artifact_digest),
   };
+  if (input.suite) result.suite = input.suite;
+  return result;
 }
 
 export function validateNeeds(needs) {
   demand(
-    needs &&
-      typeof needs === "object" &&
-      !Array.isArray(needs) &&
-      Object.keys(needs).length > 0,
+    isJsonObject(needs) && Object.keys(needs).length > 0,
     "Qualification requires nonempty dependency evidence",
   );
   for (const [name, item] of Object.entries(needs)) {
@@ -116,7 +112,7 @@ export function validateReceipt(receipt, ref, expected, policyHash, now) {
     );
   else
     demand(
-      receipt.prerequisite && typeof receipt.prerequisite === "object",
+      isJsonObject(receipt.prerequisite) || Array.isArray(receipt.prerequisite),
       "Receipt prerequisite missing",
     );
   return receipt;
@@ -242,21 +238,17 @@ export async function writeReceipt(
     await service.api.jobs(service.ctx.runId, service.ctx.runAttempt),
     rule.gate,
   );
-  if (stage !== "dev")
-    await verifyReceipt(service, prerequisite, candidate, {
-      stage: stage === "prerelease" ? "dev" : "prerelease",
-      ...(stage === "prerelease"
-        ? { maxAgeHours: POLICY.dev_max_age_hours }
-        : {}),
-    });
-  else
+  if (stage !== "dev") {
+    const options = { stage: stage === "prerelease" ? "dev" : "prerelease" };
+    if (stage === "prerelease") options.maxAgeHours = POLICY.dev_max_age_hours;
+    await verifyReceipt(service, prerequisite, candidate, options);
+  } else
     demand(!prerequisite, "Dev qualification cannot inherit another receipt");
   const receipt = {
     format: "opensesame-qualification",
     schema_version: 1,
     repository: service.ctx.repository,
     stage,
-    ...(suite ? { suite } : {}),
     candidate: envelope(candidate),
     policy_sha256: await service.policyHash(),
     producer: {
@@ -276,6 +268,7 @@ export async function writeReceipt(
     ],
     prerequisite: prerequisite ? receiptEnvelope(prerequisite) : null,
   };
+  if (suite) receipt.suite = suite;
   await mkdir(directory, { recursive: true });
   const path = resolve(directory, "receipt.json");
   await writeFile(path, `${JSON.stringify(receipt)}\n`, { flag: "wx" });

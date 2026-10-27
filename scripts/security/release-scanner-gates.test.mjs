@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { isString } from "../lib/json-boundary.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const cleanSemgrep = {
@@ -82,8 +83,7 @@ exit "$SCANNER_STATUS"
           PATH: `${bin}:${process.env.PATH}`,
           OPENSESAME_AUDIT_DIR: fixture,
           SCANNER_STATUS: String(status),
-          SCANNER_REPORT:
-            typeof report === "string" ? report : JSON.stringify(report),
+          SCANNER_REPORT: isString(report) ? report : JSON.stringify(report),
         },
       },
     );

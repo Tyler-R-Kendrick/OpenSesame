@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { isJsonObject, isString } from "../../lib/json-boundary.mjs";
 import {
   POLICY,
   demand,
@@ -22,10 +23,7 @@ export const ENVELOPE_KEYS = [
 ];
 
 export function envelope(input) {
-  demand(
-    input && typeof input === "object" && !Array.isArray(input),
-    "Candidate envelope is missing",
-  );
+  demand(isJsonObject(input), "Candidate envelope is missing");
   const result = {
     source_sha: sha(input.source_sha),
     run_id: identifier(input.run_id),
@@ -136,7 +134,7 @@ function validatePayloads(manifest) {
   for (const item of manifest.payloads) {
     demand(
       item &&
-        typeof item.path === "string" &&
+        isString(item.path) &&
         required.has(item.path) &&
         !seen.has(item.path),
       "Unexpected or duplicate payload",

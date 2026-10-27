@@ -2,6 +2,7 @@
 import { appendFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isString } from "../lib/json-boundary.mjs";
 import { COMMANDS, COMMAND_OPTIONS } from "./lib/candidate-commands.mjs";
 import { envelopeFromEnv } from "./lib/candidate-model.mjs";
 import { context, demand } from "./lib/candidate-policy.mjs";
@@ -31,7 +32,7 @@ function argumentsOf(argv) {
 export async function outputs(values, path) {
   const lines = [];
   for (const [key, raw] of Object.entries(values)) {
-    const value = typeof raw === "string" ? raw : JSON.stringify(raw);
+    const value = isString(raw) ? raw : JSON.stringify(raw);
     demand(
       /^[a-z_][a-z0-9_]*$/.test(key) &&
         !/[\r\n]/.test(key) &&

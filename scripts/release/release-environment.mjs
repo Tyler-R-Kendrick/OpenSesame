@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Verify existing protection; never create an environment or relax its policy.
 import { pathToFileURL } from "node:url";
+import { isString } from "../lib/json-boundary.mjs";
 import { GitHub } from "./lib/candidate-api.mjs";
 import { POLICY, demand } from "./lib/candidate-policy.mjs";
 
@@ -79,7 +80,7 @@ export async function checkReleaseEnvironment({ repository, token, api }) {
     "Untrusted release environment repository",
   );
   demand(
-    typeof token === "string" && token.length > 0,
+    isString(token) && token.length > 0,
     "Release environment inspection requires an authenticated Actions token",
   );
   await assertReleaseEnvironment(api || new GitHub({ repository, token }));

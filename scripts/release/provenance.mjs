@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isJsonObject } from "../lib/json-boundary.mjs";
 
 export const BUILD_PREDICATE =
   "https://opensesame.dev/attestations/candidate-build/v1";
@@ -17,7 +18,7 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const stable = (value) =>
   Array.isArray(value)
     ? value.map(stable)
-    : value && typeof value === "object"
+    : isJsonObject(value)
       ? Object.fromEntries(
           Object.entries(value)
             .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
