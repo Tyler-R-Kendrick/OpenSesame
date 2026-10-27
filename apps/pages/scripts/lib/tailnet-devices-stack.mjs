@@ -160,9 +160,9 @@ export async function visit(page, base, route) {
   await page.waitForTimeout(1200);
 }
 
-/** Identity (the section the panel is in), then Networking (the panel). */
+/** Identity and Networking, then the Tailnet devices tile. */
 export async function deviceManagementOn(page, base) {
-  for (const name of ["Identity", "Networking"]) {
+  for (const name of ["Identity", "Networking", "Tailnet devices"]) {
     await visit(page, base, "settings/features");
     await unlockIfLocked(page);
     const toggle = page.getByRole("switch", { name, exact: true });
