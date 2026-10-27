@@ -10,4 +10,4 @@ jobs:
     if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/final-stack-verify'
     uses: ./.github/workflows/complete-verify.yml
     with:
-      source_sha: 1280076e3201b6257e2ca5e73f111ee8549950a7
+      source_sha: 4f3dc3215fa72028115fe7f037f1cd3d14bb3c0d
