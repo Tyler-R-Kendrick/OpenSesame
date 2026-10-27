@@ -62,6 +62,10 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
   echo "deepsec-wave2-grok-process-ordered: file $((idx + 1))/${TOTAL} ${path}"
   node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-file-locks.mjs" "$ROOT" || true
   cd "$WS"
+  unset DEEPSEC_GROK_WALL_RETRY_RESCUE_FIRST
+  if node "${ROOT}/scripts/audit/deepsec-wave2-grok-deferred.mjs" has-reason "$ROOT" "$path" file_wall_exceeded; then
+    export DEEPSEC_GROK_WALL_RETRY_RESCUE_FIRST=1
+  fi
   if ! timeout -k 30 "$ORDERED_PROCESS_TIMEOUT_SEC" "$DEEPSEC" process --project-id opensesame \
     --agent "$AGENT" --model "$MODEL" \
     --thinking-level "${DEEPSEC_THINKING:-medium}" \

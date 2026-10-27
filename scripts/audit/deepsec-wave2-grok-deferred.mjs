@@ -5,6 +5,8 @@
  *   node deepsec-wave2-grok-deferred.mjs path <repoRoot> <filePath> <reason>
  *   node deepsec-wave2-grok-deferred.mjs list <repoRoot>
  *   node deepsec-wave2-grok-deferred.mjs is-deferred <repoRoot> <filePath>
+ *   node deepsec-wave2-grok-deferred.mjs clear-reason <repoRoot> <reason>
+ *   node deepsec-wave2-grok-deferred.mjs has-reason <repoRoot> <filePath> <reason>
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -30,6 +32,20 @@ export function deferredPathSet(repoRoot) {
     if (typeof e.filePath === "string") set.add(e.filePath);
   }
   return set;
+}
+
+/** Paths blocked vs eligible for wall retry at manifest tail. */
+export function deferredManifestBuckets(repoRoot) {
+  const allDeferred = new Set();
+  const wallRetry = new Set();
+  for (const e of loadDeferred(repoRoot).entries) {
+    if (typeof e.filePath !== "string") continue;
+    allDeferred.add(e.filePath);
+    if (e.reason === "file_wall_exceeded") {
+      wallRetry.add(e.filePath);
+    }
+  }
+  return { allDeferred, wallRetry };
 }
 
 /** Drop deferred rows whose reason matches (e.g. re-queue after a tooling fix). */
@@ -84,4 +100,10 @@ if (cmd === "path") {
 } else if (cmd === "is-deferred") {
   const set = deferredPathSet(repoRoot ?? process.cwd());
   process.exit(set.has(filePath) ? 0 : 1);
+} else if (cmd === "has-reason") {
+  const store = loadDeferred(repoRoot ?? process.cwd());
+  const ok = store.entries.some(
+    (e) => e.filePath === filePath && e.reason === reason,
+  );
+  process.exit(ok ? 0 : 1);
 }

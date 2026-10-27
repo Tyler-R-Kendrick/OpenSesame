@@ -253,6 +253,10 @@ function orderedLaneSkipsDeepPass(): boolean {
   return process.env.DEEPSEC_GROK_ORDERED_SKIP_DEEP === "1";
 }
 
+function wallRetryRescueFirst(): boolean {
+  return process.env.DEEPSEC_GROK_WALL_RETRY_RESCUE_FIRST === "1";
+}
+
 function withRescueInvestigateMode(
   params: InvestigateParams,
 ): InvestigateParams {
@@ -453,6 +457,25 @@ export async function* grokWave2Investigate(
   };
   const wallScope = startFileWallAbortScope(fileWallCtx);
   try {
+    if (wallRetryRescueFirst()) {
+      yield {
+        type: "started",
+        message:
+          "Wall retry — rescue-first investigate (skip shallow; full wall for rescue passes)",
+      };
+      const shallowOutcome = emptyOutcome(agentOptions, false, true);
+      bumpGrokDepthSummary({ shallowCapOrTimeout: 1, deepRetries: 1 });
+      return yield* tryRescueThenDeep(
+        params,
+        agentOptions,
+        shallowOutcome,
+        shallowMax,
+        deepMax,
+        deepTimeout,
+        wallScope.signal,
+        fileWallCtx,
+      );
+    }
     const shallowBudgetSec = capInvokeTimeoutToFileWall(
       shallowTimeout,
       fileWallCtx,
