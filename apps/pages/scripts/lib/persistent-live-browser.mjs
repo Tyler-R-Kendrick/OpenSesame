@@ -22,8 +22,7 @@ export function persistentLiveBrowser(browserType, launchOptions) {
         ...launchOptions,
         ...options,
       });
-      // launchPersistentContext opens a blank page; the harness owns its page.
-      await Promise.all(context.pages().map((page) => page.close()));
+      // Keep the initial blank page: WebKit exits when its last page closes.
       const close = context.close.bind(context);
       let retired;
       context.close = (...args) => {
