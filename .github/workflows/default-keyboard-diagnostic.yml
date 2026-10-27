@@ -19,7 +19,7 @@ jobs:
       matrix:
         phase: [after]
     env:
-      AFTER_SHA: df5c2af1c95724da9fe18b92a4961647ed6e3277
+      AFTER_SHA: 8ab1964f3c8eaf6f76e72ca2e4be91f80e4783e1
       EVIDENCE_DIR: ${{ github.workspace }}/work/review-output/default-keyboard-diagnostic-${{ matrix.phase }}
       VITE_BASE: /OpenSesame/
       PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
@@ -64,7 +64,7 @@ jobs:
           set -o pipefail
           node scripts/lib/ci-pages-build.mjs 2>&1 | tee "$EVIDENCE_DIR/build.log"
           git diff --exit-code
-      - name: Add failure-only bounded keyboard diagnostics
+      - name: Add bounded sanitized keyboard diagnostics
         env:
           KEYBOARD_DIAGNOSTIC_HELPER: ${{ github.workspace }}/work/evidence-tools/scripts/review/keyboard-failure-diagnostic.mjs
         run: |
@@ -77,7 +77,13 @@ jobs:
           if(source.split(marker).length!==2) throw Error('Unexpected keyboard failure boundary');
           const helper=JSON.stringify(pathToFileURL(process.env.KEYBOARD_DIAGNOSTIC_HELPER).href);
           const diagnostics=`  try { await (await import(${helper})).captureKeyboardFailure(page, target, key); } catch (error) { console.error("Failure diagnostic capture:", error); }\n`;
-          writeFileSync(path,source.replace(marker,diagnostics+marker));
+          const start='    await page.setViewportSize({ width, height: 900 });';
+          const finish='    await context.close();';
+          const reload='    await page.reload({ waitUntil: "networkidle" });';
+          if(source.split(start).length!==2 || source.split(finish).length!==2 || source.split(reload).length!==2) throw Error('Unexpected ordinary main-page boundary');
+          const install=`\n    await (await import(${helper})).installKeyboardTrace(page);`;
+          const flush=`    await (await import(${helper})).flushKeyboardTrace(page);\n`;
+          writeFileSync(path,source.replace(marker,diagnostics+marker).replace(start,start+install).replace(reload,flush+reload).replace(finish,flush+finish));
           JS
       - name: Run unchanged ordinary keyboard contract
         env:
