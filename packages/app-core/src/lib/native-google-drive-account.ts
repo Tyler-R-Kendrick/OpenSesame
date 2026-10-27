@@ -28,6 +28,14 @@ export function isGoogleDriveAccountScopeSet(
   );
 }
 
+export function assertGoogleDriveAccountScopes(
+  providerId: string,
+  scopes: readonly string[] | null,
+): void {
+  if (!isGoogleDriveAccountScopeSet(providerId, scopes))
+    throw new NativeOAuthError("scope");
+}
+
 export function assertGoogleDriveAccountContract(
   configuration: NativeConfiguration,
 ): void {
@@ -38,7 +46,6 @@ export function assertGoogleDriveAccountContract(
     Object.keys(configuration.requestedScopes).some(
       (actor) => actor !== "user",
     ) ||
-    !isGoogleDriveAccountScopeSet(configuration.providerId, scopes) ||
     Object.entries(ACCOUNT_ENDPOINTS).some(
       ([key, endpoint]) => configuration.parameters[key] !== endpoint,
     ) ||
@@ -47,4 +54,5 @@ export function assertGoogleDriveAccountContract(
     )
   )
     throw new NativeOAuthError("scope");
+  assertGoogleDriveAccountScopes(configuration.providerId, scopes);
 }

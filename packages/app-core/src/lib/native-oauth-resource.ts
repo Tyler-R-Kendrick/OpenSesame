@@ -16,7 +16,7 @@ import {
   updateNativeConnector,
 } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
-import { isGoogleDriveAccountScopeSet } from "./native-google-drive-account.js";
+import { assertGoogleDriveAccountScopes } from "./native-google-drive-account.js";
 import {
   type NativeOAuthClientOwner,
   assertNativeOAuthClientOwner,
@@ -37,10 +37,7 @@ function actualResource(
   grant: NativeGrant,
 ): string {
   const target = nativeOAuthClientTarget(record.configuration);
-  if (
-    !isGoogleDriveAccountScopeSet(record.configuration.providerId, grant.scopes)
-  )
-    throw new NativeOAuthError("scope");
+  assertGoogleDriveAccountScopes(record.configuration.providerId, grant.scopes);
   if (
     !target.resource ||
     grant.resource !== target.resource ||
