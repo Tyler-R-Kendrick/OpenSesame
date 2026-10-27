@@ -178,7 +178,29 @@ describe("keyboard operability", () => {
     // Everything the trap can reach is a control the platform already makes
     // operable — no `div` wearing an onClick, no `role="button"` stand-in.
     const kinds = new Set(reachable(sheet).map((element) => element.tagName));
-    expect([...kinds].sort()).toEqual(["BUTTON", "INPUT"]);
+    expect([...kinds].sort()).toEqual(["A", "BUTTON", "INPUT"]);
+    const project = sheet.querySelector("details.support__project");
+    expect(project).toBeInstanceOf(HTMLDetailsElement);
+    if (!(project instanceof HTMLDetailsElement))
+      throw new Error("Project navigation needs a native disclosure");
+    const summary = project.querySelector("summary");
+    expect(project.firstElementChild).toBe(summary);
+    if (!summary) throw new Error("Project disclosure needs its summary");
+    expect(summary.tagName).toBe("SUMMARY");
+    expect(summary?.textContent).toBe("About this project");
+    expect(summary?.getAttribute("tabindex")).toBeNull();
+    expect(project.open).toBe(false);
+    const links = within(project).getAllByRole<HTMLAnchorElement>("link");
+    expect(links).toHaveLength(10);
+    expect(
+      reachable(sheet).filter((element) => element.tagName === "A"),
+    ).toEqual(links);
+    for (const link of links) {
+      expect(link.tagName).toBe("A");
+      expect(link.getAttribute("href")).toMatch(/^https:\/\//);
+      expect(link.tabIndex).toBe(0);
+      expect(link.textContent?.trim()).not.toBe("");
+    }
     expect(sheet.querySelectorAll('[role="button"]')).toHaveLength(0);
     expect(sheet.querySelectorAll("[onclick]")).toHaveLength(0);
 
