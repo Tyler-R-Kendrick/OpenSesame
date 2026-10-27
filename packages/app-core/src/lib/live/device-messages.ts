@@ -32,6 +32,10 @@ import {
   PROVIDER_ID,
   isOperationId,
 } from "./connection-wire.js";
+import {
+  type DeviceResetMessage,
+  readDeviceResetMessage,
+} from "./device-reset-messages.js";
 
 export {
   CONNECTIONS_MAX,
@@ -103,7 +107,8 @@ export type DeviceRequest =
       connection: string;
       operation: string;
       input: Readonly<Record<string, string>>;
-    }>;
+    }>
+  | Extract<DeviceResetMessage, { t: "dev.reset" | "dev.reset.status" }>;
 
 /** What the owner's tab answers. */
 export type DeviceReply =
@@ -142,7 +147,8 @@ export type DeviceReply =
       /** The owner's tab cut the answer to fit a frame. */
       truncated: boolean;
     }>
-  | Readonly<{ t: "dev.error"; req: string; error: DeviceErrorCode }>;
+  | Readonly<{ t: "dev.error"; req: string; error: DeviceErrorCode }>
+  | Extract<DeviceResetMessage, { t: "dev.reset.grant" | "dev.reset.ack" }>;
 
 export type DeviceMessage = DeviceRequest | DeviceReply;
 
@@ -329,7 +335,7 @@ export function readDeviceMessage(
       return error ? { t, req, error } : null;
     }
     default:
-      return null;
+      return readDeviceResetMessage(t, body);
   }
 }
 
@@ -348,7 +354,9 @@ export function isDeviceRequest(
     message.t === "dev.begin" ||
     message.t === "dev.poll" ||
     message.t === "dev.list" ||
-    message.t === "dev.call"
+    message.t === "dev.call" ||
+    message.t === "dev.reset" ||
+    message.t === "dev.reset.status"
   );
 }
 
@@ -361,6 +369,8 @@ export function isDeviceReply(
     message.t === "dev.auth" ||
     message.t === "dev.conns" ||
     message.t === "dev.result" ||
-    message.t === "dev.error"
+    message.t === "dev.error" ||
+    message.t === "dev.reset.grant" ||
+    message.t === "dev.reset.ack"
   );
 }

@@ -49,6 +49,8 @@ export type DeviceJoinInput = Readonly<{
   carriers: CarrierFactory;
   /** Stop waiting: leaves the session. */
   signal?: AbortSignal;
+  /** How long one request waits for its answer. */
+  replyMs?: number;
   /** Told as the request moves: sent, then connecting. */
   onStatus?: (status: "asking" | "connecting") => void;
 }>;
@@ -160,7 +162,9 @@ export async function joinAsDevice(
     if (error instanceof DeviceJoinError) throw error;
     throw new DeviceJoinError("unreachable");
   }
-  const client = new DeviceClient(devicePipe(guest));
+  const client = new DeviceClient(devicePipe(guest), {
+    replyMs: input.replyMs,
+  });
   return {
     client,
     guest,

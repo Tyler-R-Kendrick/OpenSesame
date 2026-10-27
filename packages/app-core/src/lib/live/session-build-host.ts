@@ -5,6 +5,7 @@
 import type { VaultItem } from "@opensesame/vault-core";
 import { vaultStore } from "../vault/store.js";
 import { connectionPort } from "./connection-port.js";
+import type { ResetItem } from "./device-reset-types.js";
 import { vaultWrite } from "./field-write.js";
 import { type HostOptions, LiveHost, MAX_SESSION_MS } from "./host.js";
 import type { SharePolicy } from "./messages.js";
@@ -14,7 +15,29 @@ import { hostRoutes } from "./session-carriers.js";
 import { provisionLiveSessionGuest } from "./session-provision.js";
 import { DIRECT_TRANSPORT, type LiveTransport } from "./transport.js";
 import type { ShareScope } from "./vault-share.js";
-import { vaultCatalog, vaultField } from "./vault-share.js";
+import { sharedItems, vaultCatalog, vaultField } from "./vault-share.js";
+
+function resetItems(
+  items: readonly VaultItem[],
+  scope: ShareScope,
+): ResetItem[] {
+  return sharedItems(items, scope).flatMap((item) => {
+    if (item.kind !== "account") return [];
+    const origins = [
+      ...new Set(
+        item.uris.flatMap(({ uri }) => {
+          try {
+            const url = new URL(uri);
+            return url.protocol === "https:" ? [url.origin] : [];
+          } catch {
+            return [];
+          }
+        }),
+      ),
+    ];
+    return [{ id: item.id, name: item.name, origins }];
+  });
+}
 
 export type HostBuildInput = Readonly<{
   title: string;
@@ -31,6 +54,8 @@ export type HostBuildInput = Readonly<{
   routes?: LiveTransport;
   /** Let devices ask to use the owner's connections (ADR 0196). */
   devices?: boolean;
+  /** Let devices ask for exact password-reset capabilities. */
+  resets?: boolean;
 }>;
 
 export type RelaySource = { carriers: Rendezvous | null };
@@ -77,6 +102,9 @@ export async function buildLiveHost(
     relay: (name) => source.carriers?.seat(name) ?? null,
     canRelay: () => source.carriers?.relays ?? false,
     devices: input.devices ? { port: connectionPort } : undefined,
+    resets: input.resets
+      ? { items: () => resetItems(items(), scope) }
+      : undefined,
     ...provisioning,
     post,
     expiresAt,
