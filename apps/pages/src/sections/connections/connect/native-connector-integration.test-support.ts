@@ -1,7 +1,10 @@
 /** Real connector protocols and encrypted KV, with typed provider HTTP fixtures. */
 import { configureHost } from "@opensesame/app-core/host.js";
 import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
-import { forgetAtRestKeyForTest } from "@opensesame/app-core/lib/at-rest/key.js";
+import {
+  atRestReady,
+  forgetAtRestKeyForTest,
+} from "@opensesame/app-core/lib/at-rest/key.js";
 import {
   DEVICE_CONNECTOR_KEYS,
   readDeviceRows,
@@ -34,6 +37,7 @@ export function installConnectorIntegration(): void {
     forgetAtRestKeyForTest();
     resetNativeConnectorDrivers();
     prepared = makeConnectorIntegration();
+    await atRestReady();
     vaultStore.loadActiveProjectScope();
     await vaultStore.create(connectorOwnerPassword);
   });
