@@ -21,11 +21,14 @@ import { privateTempDir } from "./lib/private-files.mjs";
  *     pnpm --filter @opensesame/pages verify:tutorials-profiles
  *
  * `VERIFY_SKIP_BUILD=1` reuses `dist-profiles/tutorials-<name>/` when
- * `index.html` is already there.
+ * `index.html` is already there. The full profile's Tailnet shard uses a
+ * dedicated origin and the real daemon: build `opensesame-cli` with the
+ * `tailnet-admin-test-upstream` feature before running that shard.
  */
 
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { inShard, parseShard } from "./lib/shard.mjs";
 import { appPaths, buildDist } from "./lib/verification-checklist-profiles.mjs";
 
 const PROFILES = [
@@ -61,6 +64,9 @@ for (const profile of PROFILES) {
     "dist-profiles",
     `tutorials-${profile.name}`,
   );
+  const needsTailnet =
+    profile.name === "full" &&
+    inShard("identity.tailnet.devices.manage", parseShard(shard));
   console.log(
     `\n[tutorials-profiles] ${profile.name} enable=${profile.enable} shard=${shard || "all"}`,
   );
@@ -69,12 +75,16 @@ for (const profile of PROFILES) {
     scriptsDir,
     outDir,
     capabilityProfile: fixture,
+    dedicated: needsTailnet,
   });
   const env = { ...process.env };
   env.TUTORIALS_DEV_URL = undefined;
   env.TUTORIALS_DIST = outDir;
   env.TUTORIALS_ENABLE = profile.enable;
   env.TUTORIALS_AI = "off";
+  env.TUTORIALS_TAILNET_DAEMON = needsTailnet
+    ? (process.env.TUTORIALS_TAILNET_DAEMON ?? "18794")
+    : undefined;
   env.VITE_BASE = "/OpenSesame/";
   env.TUTORIALS_OUT = privateTempDir(`opensesame-tutorials-${profile.name}-`);
   if (shard) env.TUTORIALS_SHARD = shard;
