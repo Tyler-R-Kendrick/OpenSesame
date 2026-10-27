@@ -6,6 +6,8 @@
  */
 
 import type { ConnectionPort } from "./connection-port.js";
+import type { ResetBrokerOptions } from "./device-reset-broker.js";
+import type { ResetDevicesState } from "./device-reset-types.js";
 import type { DeviceLog, DevicesState } from "./device-types.js";
 import type { HostPeer, LogEntry, ReadField, WriteField } from "./host-peer.js";
 import type { IcePhase } from "./ice-diagnostics.js";
@@ -67,6 +69,7 @@ export type HostState = Readonly<{
   locked: boolean;
   /** Devices asking for, or holding, a grant of the owner's connections. */
   devices: DevicesState;
+  resets: ResetDevicesState;
 }>;
 
 /** What pasting one request code did. */
@@ -112,6 +115,8 @@ export type HostOptions = Readonly<{
    * where the connections are. Absent, a device's request is not seated.
    */
   devices?: Readonly<{ port: () => ConnectionPort | null }> | undefined;
+  /** Exact reset capabilities a device may ask the owner to approve. */
+  resets?: Pick<ResetBrokerOptions, "items"> | undefined;
   now?: () => number;
 }>;
 
