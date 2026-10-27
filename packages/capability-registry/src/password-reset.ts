@@ -46,7 +46,7 @@ export const passwordResetCapabilities: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: "opensesame-id password-reset run",
-      pwa: "route:/password-reset",
+      pwa: "lib/live/device-reset-broker.ts:DeviceResetBroker",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,

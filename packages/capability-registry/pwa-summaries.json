@@ -380,7 +380,7 @@
     "title": "Run and reconcile an approved CUA password reset",
     "plane": "client_local",
     "surfaces": {
-      "pwa": "route:/password-reset"
+      "pwa": "lib/live/device-reset-broker.ts:DeviceResetBroker"
     }
   },
   {
