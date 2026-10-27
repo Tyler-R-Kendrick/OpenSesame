@@ -1,0 +1,64 @@
+name: Temporary verified commit publisher
+on:
+  push:
+    branches: [review/signed-publisher-controller]
+    paths: [.github/workflows/signed-publisher.yml]
+permissions: {}
+concurrency:
+  group: temporary-signed-publisher
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/signed-publisher-controller'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the reviewed tree with GitHub verified signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          (async () => {
+          const fs = require('node:fs');
+          const plan = {"base": "92d896f85b77ba191c2a29b01d69db94bc3e652b", "staging": "6a39d6e8bd3326a9fcf904d0c86ae7e2ffb0ea07", "tree": "c4c5950d1ed26d646ec95e6b41c518008952440d", "branch": "codex/signed-publisher-final-v10", "headline": "test(a11y): verify native project navigation semantics", "files": {"apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx": "1c4747ec584718af9a671d3a9a0dbe1d1b4b5862"}};
+          const repo = 'Tyler-R-Kendrick/OpenSesame';
+          if (process.env.GITHUB_REPOSITORY !== repo || process.env.GITHUB_ACTOR_ID !== '145080887' || process.env.GITHUB_REF !== 'refs/heads/review/signed-publisher-controller') throw Error('scope guard');
+          if (!/^codex\/signed-publisher-[a-z0-9-]+$/.test(plan.branch)) throw Error('branch guard');
+          for (const value of [plan.base, plan.staging, plan.tree]) if (!/^[a-f0-9]{40}$/.test(value)) throw Error('sha guard');
+          async function api(path, method = 'GET', body) {
+            const r = await fetch('https://api.github.com' + path, { method, headers: { authorization: 'Bearer ' + process.env.GH_TOKEN, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+            if (!r.ok) throw Error('GitHub API ' + method + ' ' + path + ': ' + r.status);
+            return r.json();
+          }
+          const base = await api('/repos/' + repo + '/commits/' + plan.base);
+          if (!base.commit.verification.verified) throw Error('unsigned base');
+          const stage = await api('/repos/' + repo + '/commits/' + plan.staging);
+          if (stage.commit.tree.sha !== plan.tree || stage.parents.length !== 1 || stage.parents[0].sha !== plan.base) throw Error('staging provenance');
+          const comparison = await api('/repos/' + repo + '/compare/' + plan.base + '...' + plan.staging);
+          if (comparison.total_commits !== 1 || !comparison.files?.length || comparison.files.length > 200) throw Error('diff bounds');
+          if (comparison.files.length !== Object.keys(plan.files).length) throw Error('allowlist count');
+          for (const file of comparison.files) if (plan.files[file.filename] !== (file.status === 'removed' ? null : file.sha)) throw Error('allowlist mismatch');
+          const additions = [], deletions = [];
+          for (const file of comparison.files) {
+            if (!file.filename || file.filename.startsWith('/') || file.filename.split('/').includes('..') || !['added','modified','removed'].includes(file.status)) throw Error('unsupported diff');
+            if (file.status === 'removed') deletions.push({path:file.filename});
+            else {
+              const blob = await api('/repos/' + repo + '/git/blobs/' + file.sha);
+              if (blob.encoding !== 'base64' || blob.size > 2000000) throw Error('blob bounds');
+              additions.push({path:file.filename, contents:blob.content.replace(/\s/g,'')});
+            }
+          }
+          await api('/repos/' + repo + '/git/refs', 'POST', {ref:'refs/heads/' + plan.branch, sha:plan.base});
+          const response = await api('/graphql', 'POST', {query:'mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid url}}}', variables:{input:{branch:{repositoryNameWithOwner:repo,branchName:plan.branch},expectedHeadOid:plan.base,message:{headline:plan.headline},fileChanges:{additions,deletions}}}});
+          if (response.errors) throw Error('GraphQL commit rejected');
+          const sha = response.data.createCommitOnBranch.commit.oid;
+          const result = await api('/repos/' + repo + '/commits/' + sha);
+          if (!result.commit.verification.verified || result.commit.tree.sha !== plan.tree || result.parents.length !== 1 || result.parents[0].sha !== plan.base) throw Error('signed result mismatch');
+          const summary = {branch:plan.branch,sha,tree:plan.tree,base:plan.base,verified:true,files:comparison.files.length};
+          console.log(JSON.stringify(summary));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'Verified signed publication\n```json\n' + JSON.stringify(summary,null,2) + '\n```\n');
+          
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
