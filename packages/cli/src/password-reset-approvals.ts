@@ -1,7 +1,4 @@
-import type {
-  ResetAction,
-  ResetRun,
-} from "@opensesame/cua-password-reset";
+import type { ResetAction, ResetRun } from "@opensesame/cua-password-reset";
 import type { AuthorityGrant } from "@opensesame/os-domain";
 import type { LoadedResetConfiguration } from "./password-reset-config.js";
 import type { PasswordResetCommand } from "./password-reset-parse.js";
@@ -34,5 +31,7 @@ export interface ResetApprovalSession {
 export async function openResetApprovals(
   _command: PasswordResetCommand,
 ): Promise<ResetApprovalSession> {
-  throw new Error("Live-session approval requires the reset client integration");
+  throw new Error(
+    "Live-session approval requires the reset client integration",
+  );
 }
