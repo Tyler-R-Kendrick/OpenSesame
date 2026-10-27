@@ -53,7 +53,7 @@ describe("persistent WebKit live peers", () => {
       assert.deepEqual(browser.contexts(), [owner, joiner]);
       for (const launch of launches) {
         assert.deepEqual(launch.options, { headless: true, ...options });
-        assert.equal(launch.blankClosed, true);
+        assert.equal(launch.blankClosed, false);
       }
       await writeFile(path.join(a, "vault"), "owner state");
       await assert.rejects(readFile(path.join(b, "vault")), { code: "ENOENT" });
