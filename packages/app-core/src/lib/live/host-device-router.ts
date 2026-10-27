@@ -4,16 +4,18 @@ import { DeviceResetBroker } from "./device-reset-broker.js";
 import type { DeviceLog, SeatDevices, SeatIdentity } from "./device-types.js";
 import type { HostOptions } from "./host-types.js";
 
+export type SessionDeviceBrokers = Readonly<{
+  devices: DeviceBroker | null;
+  resets: DeviceResetBroker | null;
+}>;
+
 export function createSessionDeviceBrokers(
   options: Pick<HostOptions, "devices" | "resets">,
   expiresAt: number,
   now: () => number,
   onLog: (entry: DeviceLog) => void,
   changed: () => void,
-): Readonly<{
-  devices: DeviceBroker | null;
-  resets: DeviceResetBroker | null;
-}> {
+): SessionDeviceBrokers {
   const devices = options.devices
     ? new DeviceBroker({ port: options.devices.port, expiresAt, now, onLog })
     : null;
