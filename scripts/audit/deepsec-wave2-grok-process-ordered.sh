@@ -71,7 +71,7 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
     --max-turns "${DEEPSEC_GROK_SHALLOW_MAX_TURNS:-60}" \
     --manifest "$SLICE"; then
     reason="process_exit"
-    if tail -20 "$LOG" 2>/dev/null | grep -q 'file wall exceeded'; then
+    if tail -40 "$LOG" 2>/dev/null | grep -qE 'file wall exceeded|after rescue passes \(ordered lane'; then
       reason="file_wall_exceeded"
     fi
     node "${ROOT}/scripts/audit/deepsec-wave2-grok-deferred.mjs" path "$ROOT" "$path" "$reason"

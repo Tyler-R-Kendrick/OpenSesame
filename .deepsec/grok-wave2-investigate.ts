@@ -366,7 +366,7 @@ async function* tryRescueThenDeep(
 
   if (orderedLaneSkipsDeepPass()) {
     throw new Error(
-      "grok file wall: ordered lane skips deep pass after rescue (DEEPSEC_GROK_ORDERED_SKIP_DEEP)",
+      `grok file wall exceeded ${fileWallCtx.wallSec}s after rescue passes (ordered lane; DEEPSEC_GROK_ORDERED_SKIP_DEEP)`,
     );
   }
 
