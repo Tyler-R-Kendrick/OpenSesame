@@ -81,5 +81,7 @@ export async function endEphemeralTomb(tomb: string): Promise<void> {
     return;
   }
   forgetDecoyScratch(tomb);
-  await Promise.all([discardVaultBody(tomb), wipeTombOnDestroy(tomb)]);
+  // Discard refreshes the shared index; finish before the wipe removes it.
+  await discardVaultBody(tomb);
+  await wipeTombOnDestroy(tomb);
 }
