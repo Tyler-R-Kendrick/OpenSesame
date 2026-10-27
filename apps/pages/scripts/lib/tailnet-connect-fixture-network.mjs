@@ -236,7 +236,11 @@ export async function proofServer(port, tls) {
       JSON.stringify({ source: "real-native-tailscale-peer", nonce, path }),
     );
   };
-  const server = tls ? createTlsServer(tls, handler) : createServer(handler);
+  // Node's two-minute default outlives the browser's TLS refusal oracle.
+  // A stalled peer handshake must settle while that unchanged oracle is active.
+  const server = tls
+    ? createTlsServer({ ...tls, handshakeTimeout: 10_000 }, handler)
+    : createServer(handler);
   const stats = tls
     ? { connections: 0, secure: 0, errors: 0, lastError: "" }
     : null;

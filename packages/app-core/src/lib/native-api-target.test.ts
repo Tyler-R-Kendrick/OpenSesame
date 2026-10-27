@@ -70,6 +70,10 @@ describe("providerUrl", () => {
         {},
       ),
     ).toThrow("tenant host");
+    // A template URL without a placeholder still answers to the compiled rule.
+    expect(() =>
+      providerUrl("https://api.example.com:8443/v1", target({}), {}),
+    ).toThrow("compiled HTTPS target");
     expect(providerUrl("https://api.example.com/v1", target({}), {}).port).toBe(
       "",
     );

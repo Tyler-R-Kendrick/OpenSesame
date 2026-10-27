@@ -7,6 +7,8 @@ also appears in the app's release notes.
 
 ## [Unreleased]
 
+## [0.1.0]
+
 ### Works
 
 - Continue as guest, or sign in with Google — you can start without an account

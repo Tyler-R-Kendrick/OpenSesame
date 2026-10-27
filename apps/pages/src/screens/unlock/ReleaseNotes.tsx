@@ -15,9 +15,7 @@ import {
  *
  * One accordion row per build. On wide layouts the newest opens on arrival
  * beside the form. On narrow, rows start collapsed so release history
- * stays available without pushing the unlocking controls away. An
- * "About this project" row under the releases links the project
- * documentation and starts collapsed.
+ * stays available without pushing the unlocking controls away.
  */
 
 type ReleaseNote = {
@@ -60,41 +58,6 @@ const RELEASES: readonly ReleaseNote[] = [
     inProgress: ["Connections and GitHub backup still landing"],
     knownIssues: ["Setup still showed leftover wording from older builds"],
   },
-];
-
-const REPO_URL = "https://github.com/Tyler-R-Kendrick/OpenSesame";
-
-const ABOUT_PANEL = "about";
-
-type AboutLink = {
-  readonly label: string;
-  readonly href: string;
-};
-
-/** Project documentation links for the "About this project" row. */
-const ABOUT_LINKS: readonly AboutLink[] = [
-  { label: "What it is", href: `${REPO_URL}/blob/main/README.md` },
-  {
-    label: "Install / getting started",
-    href: `${REPO_URL}/blob/main/docs/getting-started/README.md`,
-  },
-  {
-    label: "Configure",
-    href: `${REPO_URL}/blob/main/docs/getting-started/README.md`,
-  },
-  { label: "Contribute", href: `${REPO_URL}/blob/main/CONTRIBUTING.md` },
-  {
-    label: "Report a vulnerability",
-    href: `${REPO_URL}/blob/main/SECURITY.md`,
-  },
-  {
-    label: "Open a private advisory",
-    href: `${REPO_URL}/security/advisories/new`,
-  },
-  { label: "Report a bug", href: `${REPO_URL}/issues` },
-  { label: "Changelog", href: `${REPO_URL}/blob/main/CHANGELOG.md` },
-  { label: "License: MIT", href: `${REPO_URL}/blob/main/LICENSE` },
-  { label: "Source code", href: REPO_URL },
 ];
 
 function NoteList({
@@ -174,49 +137,6 @@ function ReleasePanel({
   );
 }
 
-function AboutProjectPanel({
-  open,
-  onToggle,
-}: {
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const panelId = "unlock-notes-about";
-  return (
-    <div
-      className={
-        open
-          ? "unlock__notes-release unlock__notes-release--open"
-          : "unlock__notes-release"
-      }
-    >
-      <button
-        type="button"
-        className="unlock__notes-summary"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={onToggle}
-      >
-        <span className="unlock__notes-summary-label">About this project</span>
-        <IconChevronRight className="unlock__notes-caret" size={24} />
-      </button>
-      {open ? (
-        <section className="unlock__notes-body" id={panelId}>
-          <ul className="unlock__notes-list unlock__notes-about-list">
-            {ABOUT_LINKS.map((link) => (
-              <li key={link.label}>
-                <a href={link.href} target="_blank" rel="noopener noreferrer">
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-    </div>
-  );
-}
-
 function initialOpenVersion(): string | null {
   // Narrow: history is available on demand below the unlocking controls.
   // matchMedia is absent in some test hosts; prefer the wide (open) default.
@@ -245,14 +165,6 @@ export const ReleaseNotes = forwardRef<HTMLElement>(
               }
             />
           ))}
-          <AboutProjectPanel
-            open={active === ABOUT_PANEL}
-            onToggle={() =>
-              setActive((current) =>
-                current === ABOUT_PANEL ? null : ABOUT_PANEL,
-              )
-            }
-          />
         </div>
       </aside>
     );

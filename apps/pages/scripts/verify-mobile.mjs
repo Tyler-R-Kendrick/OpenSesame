@@ -19,6 +19,7 @@ import {
   doorRoads,
   helpKey,
   lockedReload,
+  projectLinks,
   setupCeremony,
 } from "./lib/mobile-gates.mjs";
 import { auditGestures } from "./lib/mobile-gestures.mjs";
@@ -121,6 +122,7 @@ async function openOverflowRow(page, pattern, label) {
   }
   await row.tap();
   await page.waitForTimeout(650);
+  if (pattern.test("Help")) await projectLinks(page, label, { audit, harness });
   await audit(page, label);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(350);

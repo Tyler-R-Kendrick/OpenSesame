@@ -42,26 +42,34 @@ export async function doorRoads(page, stop, harness) {
   }
 }
 
-/** Locked reloads expose the standalone project documentation targets. */
+/** Measure project links only in the already-open unlocked Support sheet. */
+export async function projectLinks(page, label, { audit, harness }) {
+  await page.getByText("About this project", { exact: true }).tap();
+  const links = page.locator(".support__project-links a");
+  await links.first().waitFor({ state: "visible" });
+  harness.check((await links.count()) === 10, `${label}: ten project links`);
+  await audit(page, label);
+  for (const link of await links.all()) {
+    const box = await link.boundingBox();
+    harness.check(
+      box !== null && box.height >= 44 && box.width >= 44,
+      `${label}: ${await link.textContent()} target is at least 44px`,
+    );
+  }
+}
+
+/** A locked gate keeps project navigation behind the vault. */
 export async function lockedReload(page, stop, { openTab, audit, harness }) {
-  // A locked reload is the screen most phone sessions actually start on.
   await openTab(page, "Vault");
   const lock = page.getByRole("button", { name: "Lock vault" }).first();
   if (await lock.count()) {
     await lock.tap();
     await page.waitForTimeout(900);
     await audit(page, stop("unlock"));
-    const about = page.getByRole("button", { name: "About this project" });
-    await about.tap();
-    const links = page.locator(".unlock__notes-about-list a");
-    await links.first().waitFor({ state: "visible" });
-    await audit(page, stop("unlock-about-project"));
-    for (const link of await links.all()) {
-      const box = await link.boundingBox();
-      harness.check(
-        box !== null && box.height >= 44 && box.width >= 44,
-        `${stop("unlock-about-project")}: ${await link.textContent()} target is at least 44px`,
-      );
-    }
+    harness.check(
+      (await page.getByText("About this project", { exact: true }).count()) ===
+        0,
+      `${stop("unlock")}: project navigation stays behind unlock`,
+    );
   }
 }

@@ -3,8 +3,8 @@
 # `header.last-reviewed` when the posture changes, not on a calendar.
 header:
   schema-version: 2.2.0
-  last-updated: '2026-10-23'
-  last-reviewed: '2026-10-23'
+  last-updated: '2026-10-27'
+  last-reviewed: '2026-10-27'
   url: https://raw.githubusercontent.com/Tyler-R-Kendrick/OpenSesame/main/security-insights.yml
   comment: |
     OpenSesame is an authorization fabric for the agentic era: agents hold
@@ -50,8 +50,9 @@ project:
       - denial of service against the Pages origin (static GitHub Pages)
       - the mock upstream IdP (tools/mock-upstream-idp) — local dev only
     comment: |
-      Reports are acknowledged within 3 business days and assessed within 10
-      (SECURITY.md). Every confirmed finding is recorded as a dated document
+      Reports are acknowledged within 3 business days. We aim for an initial
+      assessment within 10 business days and respond to every report within
+      14 days or less (SECURITY.md). Every confirmed finding is recorded as a dated document
       under docs/security/audits/ rather than by editing history.
 
 repository:
