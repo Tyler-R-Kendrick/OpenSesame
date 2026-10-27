@@ -66,7 +66,9 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
   if node "${ROOT}/scripts/audit/deepsec-wave2-grok-deferred.mjs" has-reason "$ROOT" "$path" file_wall_exceeded; then
     export DEEPSEC_GROK_WALL_RETRY_RESCUE_FIRST=1
   fi
-  if ! timeout -k 30 "$ORDERED_PROCESS_TIMEOUT_SEC" "$DEEPSEC" process --project-id opensesame \
+  if ! bash "${ROOT}/scripts/audit/deepsec-grok-slice-watchdog.sh" \
+    "$ORDERED_PROCESS_TIMEOUT_SEC" 30 60 \
+    "$DEEPSEC" process --project-id opensesame \
     --agent "$AGENT" --model "$MODEL" \
     --thinking-level "${DEEPSEC_THINKING:-medium}" \
     --concurrency 1 \
@@ -81,6 +83,7 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
     node "${ROOT}/scripts/audit/deepsec-wave2-grok-deferred.mjs" path "$ROOT" "$path" "$reason"
     echo "deepsec-wave2-grok-process-ordered: deferred ${path} (${reason}) — continuing"
   fi
+  node "${ROOT}/scripts/audit/deepsec-grok-kill-active.mjs" 2>/dev/null || true
   idx=$((idx + 1))
 done
 rm -f "$SLICE" "$ORDERED"

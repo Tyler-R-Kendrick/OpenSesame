@@ -216,8 +216,48 @@ export function killGrokGroup(
   }
 }
 
-function killGrokTree(child: ReturnType<typeof spawn>): void {
-  killGrokGroup(child, "SIGKILL");
+/** SIGTERM the process group, then SIGKILL after the configured grace window. */
+export function killGrokTree(child: ReturnType<typeof spawn>): void {
+  const graceMs = Math.max(
+    1000,
+    Number(process.env.DEEPSEC_GROK_KILL_GRACE_MS ?? "10000"),
+  );
+  killGrokGroup(child, "SIGTERM");
+  const pid = child.pid;
+  if (!pid) {
+    return;
+  }
+  const timer = setTimeout(() => {
+    if (process.platform !== "win32") {
+      try {
+        process.kill(-pid, "SIGKILL");
+        return;
+      } catch {
+        // fall through
+      }
+    }
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      // ignore
+    }
+  }, graceMs);
+  timer.unref?.();
+}
+
+/** Latest time a single grok invoke may run before we hard-kill and settle. */
+export function grokInvokeHardCapMs(
+  invokeTimeoutSec: number,
+  killGraceMs: number,
+  fileWall?: GrokFileWallContext,
+): number {
+  const perInvokeMs = invokeTimeoutSec * 1000 + killGraceMs + 5000;
+  if (!fileWall) {
+    return perInvokeMs;
+  }
+  const wallMs =
+    Math.max(0, grokWallRemainingSec(fileWall) * 1000) + killGraceMs + 5000;
+  return Math.min(perInvokeMs, wallMs);
 }
 
 function grokSpawnArgs(
@@ -291,6 +331,7 @@ type GrokSettler = {
   setTimers: (
     watchdog: ReturnType<typeof setTimeout>,
     killTimer: ReturnType<typeof setTimeout> | undefined,
+    hardInvokeTimer: ReturnType<typeof setTimeout>,
   ) => void;
   clearTimers: () => void;
 };
@@ -303,15 +344,18 @@ function makeGrokSettler(
   let settled = false;
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   let killTimer: ReturnType<typeof setTimeout> | undefined;
+  let hardInvokeTimer: ReturnType<typeof setTimeout> | undefined;
   const clearTimers = () => {
     clearTimeout(watchdog);
     clearTimeout(killTimer);
+    clearTimeout(hardInvokeTimer);
   };
   return {
     isSettled: () => settled,
-    setTimers: (w, k) => {
+    setTimers: (w, k, h) => {
       watchdog = w;
       killTimer = k;
+      hardInvokeTimer = h;
     },
     clearTimers,
     finish: (result) => {
@@ -391,6 +435,9 @@ export function runGrokPromptWithMeta(
     const fileWallCtx = params.fileWall;
     if (fileWallCtx) {
       const wallPoll = setInterval(() => {
+        if (settler.isSettled()) {
+          return;
+        }
         if (grokWallRemainingSec(fileWallCtx) <= 0) {
           killGrokTree(child);
           finishWrapped({
@@ -403,6 +450,20 @@ export function runGrokPromptWithMeta(
       }, 1000);
       wallPollStop = () => clearInterval(wallPoll);
     }
+
+    const hardCapMs = grokInvokeHardCapMs(timeoutSec, killGraceMs, fileWallCtx);
+    const hardInvokeTimer = setTimeout(() => {
+      if (settler.isSettled()) {
+        return;
+      }
+      killGrokTree(child);
+      finishWrapped({
+        text: io.stdout,
+        capHit: detectGrokCapHit(io.stderr, io.stdout, maxTurns),
+        timedOut: true,
+        stderr: `${io.stderr}\n[deepsec] grok invoke hard cap ${hardCapMs}ms (DEEPSEC_GROK_INVESTIGATE_TIMEOUT_SEC / DEEPSEC_GROK_FILE_WALL_SEC)`,
+      });
+    }, hardCapMs);
 
     // Hard kill only after the grace window: with coreutils, `timeout -k`
     // owns the TERM-then-KILL sequence; without it, killTimer sends the
@@ -423,7 +484,7 @@ export function runGrokPromptWithMeta(
       : setTimeout(() => {
           killGrokGroup(child, "SIGTERM");
         }, timeoutMs);
-    settler.setTimers(watchdog, killTimer);
+    settler.setTimers(watchdog, killTimer, hardInvokeTimer);
 
     const onAbort = () => {
       killGrokTree(child);

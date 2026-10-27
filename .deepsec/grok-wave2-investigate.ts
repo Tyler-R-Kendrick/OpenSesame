@@ -7,6 +7,7 @@ import {
   grokShallowMaxTurns,
   grokShallowTimeoutSec,
   grokWallRemainingSec,
+  killActiveGrokChild,
   runGrokPromptWithMeta,
   startFileWallAbortScope,
   type GrokFileWallContext,
@@ -509,6 +510,7 @@ export async function* grokWave2Investigate(
     );
   } finally {
     wallScope.stop();
+    killActiveGrokChild();
   }
 }
 

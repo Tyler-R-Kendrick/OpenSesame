@@ -25,6 +25,7 @@ const {
   grokDeepTimeoutSec,
   grokFileWallSec,
   grokInvestigateTimeoutSec,
+  grokInvokeHardCapMs,
   grokShallowTimeoutSec,
   grokWallRemainingSec,
 } = await import("./grok-agent-prompt.ts");
@@ -64,6 +65,15 @@ test("capInvokeTimeoutToFileWall shrinks invoke budget as the wall elapses", () 
     () => capInvokeTimeoutToFileWall(600, expired, 30),
     /DEEPSEC_GROK_FILE_WALL_SEC/,
   );
+});
+
+test("grokInvokeHardCapMs is bounded by remaining file wall", () => {
+  const ctx = { startedAtMs: Date.now() - 1000 * 1000, wallSec: 1050 };
+  const cap = grokInvokeHardCapMs(420, 10_000, ctx);
+  assert.ok(cap < 70_000, `expected wall-bound cap, got ${cap}`);
+  assert.ok(cap > 10_000);
+  const noWall = grokInvokeHardCapMs(420, 10_000);
+  assert.equal(noWall, 420 * 1000 + 10_000 + 5000);
 });
 
 test("env overrides are honored and invalid values fall back", () => {
