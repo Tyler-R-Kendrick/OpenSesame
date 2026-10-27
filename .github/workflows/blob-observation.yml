@@ -1,0 +1,82 @@
+name: Observe ordinary WebKit tunnel blob lifecycle
+on:
+  push:
+    branches: [review/blob-observation]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  observe:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/blob-observation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      LIVE_JOIN_IMAGE: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 273d4fb9ab0343e8867cae2c9e3d7c412b0bdfc0
+          path: source
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install the exact helper dependencies without rebuilding assets
+        working-directory: source
+        run: pnpm install --frozen-lockfile
+      - name: Download the original before-source build
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          repository: Tyler-R-Kendrick/OpenSesame
+          github-token: ${{ github.token }}
+          run-id: 40416563489
+          artifact-ids: 12694979419
+          merge-multiple: true
+          path: before
+      - name: Verify the original receipt and extract only its dist
+        run: python3 control/scripts/review/blob-observation/extract-dist.py before source
+      - name: Install transient metadata observation in the existing helper
+        run: node control/scripts/review/blob-observation/install-observer.mjs source
+      - name: Run the existing WebKit-owner Chromium-joiner tunnel case once
+        env:
+          CI: '1'
+          LIVE_OWNER: webkit
+          LIVE_JOINERS: chromium
+          LIVE_SCENARIOS: tunnel
+          VITE_BASE: /OpenSesame/
+          DEBUG: pw:browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          test -f "$live_pnpm_root/pnpm/package.json"
+          docker run --rm --init --user "$(id -u):$(id -g)" \
+            --network host --shm-size=2g \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/source,target=/work" \
+            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+            --workdir /work/apps/pages --env PATH --env PNPM_HOME \
+            --env CI --env VITE_BASE --env LIVE_OWNER --env LIVE_JOINERS \
+            --env LIVE_SCENARIOS --env DEBUG \
+            "$LIVE_JOIN_IMAGE" node scripts/verify-live-join.mjs
+      - name: Keep minimal observation and normal results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: webkit-tunnel-blob-observation
+          path: |
+            source/artifacts/live-join/blob-observation.jsonl
+            source/artifacts/live-join/log.json
+            source/artifacts/live-join/browsers.log
+            source/artifacts/live-join/*.png
+          if-no-files-found: error
+          retention-days: 7
