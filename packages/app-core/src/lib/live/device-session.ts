@@ -162,9 +162,10 @@ export async function joinAsDevice(
     if (error instanceof DeviceJoinError) throw error;
     throw new DeviceJoinError("unreachable");
   }
-  const client = new DeviceClient(devicePipe(guest), {
-    replyMs: input.replyMs,
-  });
+  const client = new DeviceClient(
+    devicePipe(guest),
+    input.replyMs === undefined ? {} : { replyMs: input.replyMs },
+  );
   return {
     client,
     guest,
