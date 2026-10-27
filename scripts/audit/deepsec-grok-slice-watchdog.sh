@@ -2,6 +2,9 @@
 # Run a command with GNU timeout plus a hard wall-clock watchdog that SIGTERM/SIGKILLs
 # the whole process group if the child survives past limit+grace+slack.
 set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+KILL_ACTIVE="${ROOT}/scripts/audit/deepsec-grok-kill-active.mjs"
+FILE_WALL_SEC="${DEEPSEC_GROK_FILE_WALL_SEC:-1050}"
 LIMIT_SEC="${1:?limit sec}"
 GRACE_SEC="${2:-30}"
 SLACK_SEC="${3:-60}"
@@ -12,14 +15,19 @@ timeout -k "$GRACE_SEC" "$LIMIT_SEC" "$@" &
 PID=$!
 while kill -0 "$PID" 2>/dev/null; do
   ELAPSED=$(($(date +%s) - START))
+  if ((ELAPSED >= FILE_WALL_SEC)); then
+    node "$KILL_ACTIVE" 2>/dev/null || true
+  fi
   if ((ELAPSED >= HARD_LIMIT)); then
     echo "deepsec-grok-slice-watchdog: hard cap ${HARD_LIMIT}s — SIGTERM pgid ${PID}" >&2
     kill -TERM "-${PID}" 2>/dev/null || kill -TERM "$PID" 2>/dev/null || true
     sleep 10
     kill -KILL "-${PID}" 2>/dev/null || kill -KILL "$PID" 2>/dev/null || true
+    node "$KILL_ACTIVE" 2>/dev/null || true
     wait "$PID" 2>/dev/null || true
     exit 124
   fi
   sleep 2
 done
 wait "$PID"
+node "$KILL_ACTIVE" 2>/dev/null || true

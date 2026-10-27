@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { extractTextFromAgentStdout } from "./deepsec-agent-stdout.js";
 import type { RunPromptParams } from "./deepsec-headless-agent-types.js";
 
@@ -99,6 +99,56 @@ export function killActiveGrokChild(): void {
   }
   killGrokTree(activeGrokChild);
   activeGrokChild = null;
+}
+
+const DEEPSEC_GROK_INVOKE_Pgrep =
+  "grok -p You are running inside the deepsec";
+
+/** Kill detached grok investigate children that outlived their parent slice. */
+export function killOrphanDeepsecGrokInvokes(): number {
+  if (process.platform === "win32") {
+    return 0;
+  }
+  let raw = "";
+  try {
+    raw = execFileSync("pgrep", ["-f", DEEPSEC_GROK_INVOKE_Pgrep], {
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    return 0;
+  }
+  const pids = raw
+    .split("\n")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isFinite(n) && n > 1);
+  for (const pid of pids) {
+    try {
+      process.kill(-pid, "SIGTERM");
+    } catch {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {
+        // ignore
+      }
+    }
+    const graceMs = Math.max(
+      1000,
+      Number(process.env.DEEPSEC_GROK_KILL_GRACE_MS ?? "10000"),
+    );
+    const timer = setTimeout(() => {
+      try {
+        process.kill(-pid, "SIGKILL");
+      } catch {
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch {
+          // ignore
+        }
+      }
+    }, graceMs);
+    timer.unref?.();
+  }
+  return pids.length;
 }
 
 /** Poll wall-clock deadline; kills the active grok process group when exceeded. */

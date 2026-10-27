@@ -6,7 +6,11 @@ register(
     "if(s.endsWith('.js')){try{return await next(s.replace(/\\.js$/,'.ts'),c);}catch{}}" +
     "return next(s,c);}",
 );
-const { killActiveGrokChild } = await import(
+const { killActiveGrokChild, killOrphanDeepsecGrokInvokes } = await import(
   new URL("../../.deepsec/grok-agent-prompt.ts", import.meta.url).href
 );
 killActiveGrokChild();
+const orphans = killOrphanDeepsecGrokInvokes();
+if (process.argv.includes("--json")) {
+  process.stdout.write(`${JSON.stringify({ orphans })}\n`);
+}
