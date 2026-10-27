@@ -1,0 +1,237 @@
+import {
+  type ChildProcessByStdio,
+  type SpawnOptions,
+  spawn,
+} from "node:child_process";
+import { randomUUID } from "node:crypto";
+import type { Readable } from "node:stream";
+import { z } from "zod";
+import { type Observation, observationSchema } from "./types.js";
+
+export * from "./browser-step-executor.js";
+
+export interface BrowserDriver {
+  open(url: string): Promise<void>;
+  snapshot(): Promise<Observation>;
+  click(ref: string): Promise<void>;
+  fill(ref: string, value: string): Promise<void>;
+  fillSecret(ref: string, value: string): Promise<void>;
+  close?(): Promise<void>;
+}
+
+type Spawn = (
+  command: string,
+  args: string[],
+  options: SpawnOptions & { stdio: ["ignore", "pipe", "pipe"] },
+) => ChildProcessByStdio<null, Readable, Readable>;
+
+export interface AgentBrowserConfig {
+  executable: string;
+  session: string;
+  allowedDomains: readonly string[];
+  browserExecutable?: string;
+  timeoutMs?: number;
+  spawn?: Spawn;
+  secretFill(ref: string, value: string): Promise<void>;
+}
+
+const rawSnapshotSchema = z
+  .object({
+    success: z.literal(true),
+    data: z
+      .object({
+        snapshot: z.string(),
+        refs: z.record(
+          z.string(),
+          z
+            .object({
+              role: z.string(),
+              name: z.string(),
+            })
+            .passthrough(),
+        ),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+const urlResultSchema = z
+  .object({
+    success: z.literal(true),
+    data: z.union([
+      z.string().transform((url) => ({ url })),
+      z.object({ url: z.string() }).passthrough(),
+    ]),
+  })
+  .passthrough();
+
+function endpoint(value: string): URL {
+  const url = new URL(value);
+  if (
+    !["https:", "http:"].includes(url.protocol) ||
+    url.username ||
+    url.password
+  )
+    throw new Error("Browser URL must be a credential-free HTTP(S) URL");
+  return url;
+}
+
+export function parseAgentBrowserSnapshot(
+  output: string,
+  origin: string,
+): Observation {
+  let raw: z.infer<typeof rawSnapshotSchema>;
+  try {
+    raw = rawSnapshotSchema.parse(JSON.parse(output));
+  } catch {
+    throw new Error("agent-browser returned an invalid snapshot");
+  }
+  const fields = Object.entries(raw.data.refs)
+    .flatMap(([ref, value]) => {
+      if (!/^e[1-9][0-9]*$/.test(ref))
+        throw new Error("agent-browser returned an invalid ref");
+      const kind = fieldKind(value.role, value.name);
+      return kind ? [{ ref, kind, label: value.name.slice(0, 200) }] : [];
+    })
+    .slice(0, 100);
+  return observationSchema.parse({ id: randomUUID(), origin, fields });
+}
+
+export class AgentBrowser implements BrowserDriver {
+  private readonly command: Spawn;
+  private readonly timeoutMs: number;
+
+  constructor(private readonly config: AgentBrowserConfig) {
+    if (
+      !config.executable.trim() ||
+      !config.session.trim() ||
+      config.allowedDomains.length === 0
+    )
+      throw new Error(
+        "agent-browser requires an executable, session and domain allowlist",
+      );
+    this.command =
+      config.spawn ??
+      ((command, args, options) => spawn(command, args, options));
+    this.timeoutMs = config.timeoutMs ?? 30_000;
+    if (
+      !Number.isInteger(this.timeoutMs) ||
+      this.timeoutMs < 1 ||
+      this.timeoutMs > 120_000
+    )
+      throw new Error("Browser timeout is outside its bounds");
+  }
+
+  async open(url: string): Promise<void> {
+    const target = endpoint(url);
+    if (!this.config.allowedDomains.includes(target.hostname))
+      throw new Error("Browser navigation left the approved domains");
+    await this.run(["open", target.href]);
+  }
+
+  async snapshot(): Promise<Observation> {
+    const current = endpoint(await this.currentUrl());
+    if (!this.config.allowedDomains.includes(current.hostname))
+      throw new Error("Browser page left the approved domains");
+    const output = await this.run(["snapshot", "-i", "--json"]);
+    return parseAgentBrowserSnapshot(output, current.origin);
+  }
+
+  async click(ref: string): Promise<void> {
+    await this.run(["click", elementRef(ref)]);
+  }
+
+  async fill(ref: string, value: string): Promise<void> {
+    if (value.length > 4096) throw new Error("Browser fill exceeds its bound");
+    await this.run(["fill", elementRef(ref), value]);
+  }
+
+  fillSecret(ref: string, value: string): Promise<void> {
+    return this.config.secretFill(elementRef(ref), value);
+  }
+
+  async close(): Promise<void> {
+    await this.run(["close"]);
+  }
+
+  private async currentUrl(): Promise<string> {
+    const result = urlResultSchema.parse(
+      JSON.parse(await this.run(["get", "url", "--json"])),
+    );
+    return result.data.url;
+  }
+
+  private run(args: string[]): Promise<string> {
+    const globals = [
+      "--session",
+      this.config.session,
+      "--allowed-domains",
+      this.config.allowedDomains.join(","),
+      "--max-output",
+      "1000000",
+      "--no-webmcp",
+      ...(this.config.browserExecutable
+        ? ["--executable-path", this.config.browserExecutable]
+        : []),
+    ];
+    return new Promise((resolve, reject) => {
+      const child = this.command(
+        this.config.executable,
+        [...globals, ...args],
+        {
+          shell: false,
+          env: { HOME: process.env.HOME ?? "", PATH: process.env.PATH ?? "" },
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
+      let stdout = "";
+      let settled = false;
+      const finish = (error?: Error, output = "") => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve(output);
+      };
+      const timer = setTimeout(() => {
+        child.kill();
+        finish(new Error("agent-browser command timed out"));
+      }, this.timeoutMs);
+      child.stdout.setEncoding("utf8");
+      child.stdout.on("data", (chunk: string) => {
+        stdout += chunk;
+        if (stdout.length > 1_000_000) {
+          child.kill();
+          finish(new Error("agent-browser output exceeded its bound"));
+        }
+      });
+      child.stderr.resume();
+      child.on("error", () =>
+        finish(new Error("agent-browser command failed")),
+      );
+      child.on("close", (code) =>
+        code === 0
+          ? finish(undefined, stdout)
+          : finish(new Error("agent-browser command failed")),
+      );
+    });
+  }
+}
+
+function elementRef(ref: string): string {
+  if (!/^e[1-9][0-9]*$/.test(ref))
+    throw new Error("Invalid agent-browser element ref");
+  return `@${ref}`;
+}
+
+function fieldKind(
+  role: string,
+  name: string,
+): Observation["fields"][number]["kind"] | null {
+  if (role === "button" || role === "link") return role;
+  if (role !== "textbox") return null;
+  if (/password/iu.test(name)) return "password";
+  if (/totp|authenticator|one.time code|verification code/iu.test(name))
+    return "otp";
+  if (/email/iu.test(name)) return "email";
+  return "text";
+}

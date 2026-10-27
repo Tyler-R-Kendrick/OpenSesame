@@ -32,6 +32,8 @@
     "@nats-io/nats-core": "3.4.0",
     "@opensesame/api-client": "workspace:*",
     "@opensesame/app-core": "workspace:*",
+    "@opensesame/agent-client": "workspace:*",
+    "@opensesame/cua-password-reset": "workspace:*",
     "@opensesame/log-scrub": "workspace:*",
     "@opensesame/mcp-client": "workspace:*",
     "@opensesame/mcp-host": "workspace:*",

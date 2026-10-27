@@ -26,7 +26,11 @@ technique meant edits in each.
 purpose**: the person adds a secret of their own where they use it. The product
 keeps one more fact, **where**, as `pepperAt`, and nothing else: no pepper, no
 envelope sealed under one, no verifier. There is no prompt, no confirmation field
-and no "wrong pepper": nothing here can tell.
+and no "wrong pepper": nothing here can tell. The sole exception is the CUA
+password reset in [ADR 0213](0213-cua-password-reset-recipes.md): a human supplies
+the pepper afresh for each reset at the point of use. It is never agent-chosen,
+stored, verified or logged, and this exception does not change ordinary copy or
+fill.
 
 ### 2. Where the pepper goes is a Python-style index expression
 

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "vercel-sandbox",
+  "kind": "cdp",
+  "display_name": "Vercel Sandbox",
+  "runtime_configuration": ["connection_id", "sandbox_id", "cdp_url"],
+  "confinement": "driver-enforced",
+  "custody": ["input", "reset-link"],
+  "recording": "must-be-absent",
+  "handoff": ["host-transport", "webrtc"],
+  "user_provided": true,
+  "conformance_required": true,
+  "notes": "The user's sandbox runs the OpenSesame client and agent-browser. No OpenSesame-operated service."
+}

@@ -276,3 +276,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0210](0210-session-share-generator.md) | The share key opens a session generator, not a one-press session | Accepted |
 | [0211](0211-oss-fuzz-and-oss-verify-enrollment.md) | OpenSesame enrolls in OSS-Fuzz and OSS Verify | Accepted |
 | [0212](0212-release-kit-binaries.md) | A release kit of native binaries, verified by digest | Accepted |
+| [0213](0213-cua-password-reset-recipes.md) | CUA password reset: deterministic recipes, bounded fallback, durable reconciliation | Accepted |
