@@ -3,7 +3,12 @@ import {
   type DecisionConfiguration,
   validateDecisionConfiguration,
 } from "./configuration.js";
-import type { Decision, DecisionCandidate } from "./types.js";
+import type { Decision, DecisionCandidate, Observation } from "./types.js";
+
+type Probe = Readonly<{
+  observation: Observation;
+  candidates: readonly DecisionCandidate[];
+}>;
 
 const kinds: DecisionConfiguration["decisions"] = [
   "act",
@@ -28,11 +33,11 @@ function configuration(): DecisionConfiguration {
 
 function answer(
   kind: DecisionConfiguration["decisions"][number],
-  candidates: readonly DecisionCandidate[],
+  input: Probe,
 ): Decision {
-  const base = { observationId: "configuration-fixture" } as const;
+  const base = { observationId: input.observation.id } as const;
   if (kind === "act") {
-    const candidate = candidates[0];
+    const candidate = input.candidates[0];
     if (!candidate) throw new Error("Configuration fixture has no candidates");
     return {
       ...base,
@@ -50,19 +55,27 @@ describe("decision configuration validation", () => {
   it("validates every declared decision against masked fixtures", async () => {
     let calls = 0;
     let sent = "";
+    const scenarios: Observation[] = [];
     const validated = await validateDecisionConfiguration(
       {
         decide: async (input) => {
+          scenarios.push(input.observation);
           sent += JSON.stringify(input);
           const kind = kinds[calls++];
           if (!kind) throw new Error("Unexpected configuration probe");
-          return answer(kind, input.candidates);
+          return answer(kind, input);
         },
       },
       configuration(),
     );
     expect(validated.validatedDecisions).toEqual(kinds);
     expect(calls).toBe(kinds.length);
+    expect(scenarios.map((scenario) => scenario.id)).toEqual(
+      kinds.map((kind) => `configuration-fixture-${kind}`),
+    );
+    expect(
+      new Set(scenarios.map((scenario) => scenario.fields[0]?.kind)).size,
+    ).toBeGreaterThan(1);
     expect(sent).not.toContain("person@example.test");
     expect(sent).not.toContain("sensitiveValues");
   });
@@ -82,7 +95,7 @@ describe("decision configuration validation", () => {
     await expect(
       validateDecisionConfiguration(
         {
-          decide: async (input) => answer("act", input.candidates),
+          decide: async (input) => answer("act", input),
         },
         {
           ...configuration(),
@@ -95,8 +108,7 @@ describe("decision configuration validation", () => {
 
   it("binds the proof to runtime, model and adapter configuration", async () => {
     const api = {
-      decide: async (input: { candidates: Parameters<typeof answer>[1] }) =>
-        answer("act", input.candidates),
+      decide: async (input: Probe) => answer("act", input),
     };
     const first = await validateDecisionConfiguration(api, {
       ...configuration(),

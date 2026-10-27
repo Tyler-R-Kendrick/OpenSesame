@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FileCheckpointJournal } from "./file-journal.js";
 
 let directory: string;
@@ -53,6 +53,34 @@ describe("sealed atomic file journal", () => {
     await expect(first.append("run-1", { sequence: 3 })).rejects.toThrow(
       "stale",
     );
+    expect(await second.load("run-1")).toEqual([
+      { sequence: 1 },
+      { sequence: 2 },
+    ]);
+  });
+
+  it("holds the run lease across its effect and releases it afterward", async () => {
+    const first = await FileCheckpointJournal.open(directory);
+    const second = await FileCheckpointJournal.open(directory);
+    let release = () => {};
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const held = first.exclusive("run-1", async () => {
+      await first.append("run-1", { sequence: 1 });
+      await waiting;
+    });
+    await vi.waitFor(async () => {
+      expect(await first.load("run-1")).toHaveLength(1);
+    });
+    await expect(
+      second.exclusive("run-1", async () => undefined),
+    ).rejects.toThrow("lease");
+    release();
+    await held;
+    await second.exclusive("run-1", async () => {
+      await second.append("run-1", { sequence: 2 });
+    });
     expect(await second.load("run-1")).toEqual([
       { sequence: 1 },
       { sequence: 2 },

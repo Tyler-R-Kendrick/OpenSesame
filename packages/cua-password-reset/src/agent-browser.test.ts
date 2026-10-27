@@ -103,18 +103,19 @@ function config(
   };
 }
 
-function driver(): BrowserDriver {
+function driver(origin = ORIGIN): BrowserDriver {
   return {
     open: vi.fn(async () => undefined),
-    snapshot: vi.fn(async () =>
-      observation([
+    snapshot: vi.fn(async () => ({
+      ...observation([
         { ref: "e1", kind: "email", label: "Email" },
         { ref: "e2", kind: "button", label: "Continue" },
         { ref: "e3", kind: "password", label: "New password" },
         { ref: "e4", kind: "button", label: "Reset password" },
         { ref: "e5", kind: "otp", label: "Authenticator code" },
       ]),
-    ),
+      origin,
+    })),
     click: vi.fn(async () => undefined),
     fill: vi.fn(async () => undefined),
     fillSecret: vi.fn(async () => undefined),
@@ -268,6 +269,26 @@ describe("browser primitive executor", () => {
     expect(browser.click).toHaveBeenCalledWith("e2");
   });
 
+  it("refuses clicks, fills and submits from a different exact origin", async () => {
+    const browser = driver(`${ORIGIN}:444`);
+    const { ports } = makePorts();
+    const executor = new BrowserStepExecutor(browser, ports);
+    const current = run();
+    const click: RecipeStep = { id: "click", primitive: "click", ref: "e2" };
+    const submit = current.recipe.steps[1];
+    if (!submit) throw new Error("Fixture requires submit");
+    await expect(executor.execute(click, current)).rejects.toThrow("drifted");
+    await expect(
+      executor.execute(passwordStep(current), current),
+    ).rejects.toThrow("drifted");
+    expect((await executor.execute(submit, current)).outcome).toBe(
+      "failed_before_submit",
+    );
+    expect(browser.click).not.toHaveBeenCalled();
+    expect(browser.fill).not.toHaveBeenCalled();
+    expect(browser.fillSecret).not.toHaveBeenCalled();
+  });
+
   it("fills the real password through the secret port only immediately before submit", async () => {
     const browser = driver();
     const values: string[] = [];
@@ -280,12 +301,27 @@ describe("browser primitive executor", () => {
     );
     expect(values).toEqual(["real"]);
 
+    const consecutive = run();
+    consecutive.recipe.steps.splice(1, 0, {
+      id: "confirm-password",
+      primitive: "fill-field",
+      ref: "e3",
+      purpose: "new-password",
+    });
+    await executor.execute(passwordStep(consecutive), consecutive);
+    await executor.execute(
+      consecutive.recipe.steps[1] ?? passwordStep(consecutive),
+      consecutive,
+    );
+    expect(browser.fillSecret).toHaveBeenCalledTimes(3);
+    expect(values).toEqual(["real", "real", "real"]);
+
     const early = run();
     early.recipe.steps[1] = { id: "verify", primitive: "verify-login" };
     await expect(executor.execute(passwordStep(early), early)).rejects.toThrow(
-      "immediately before submit",
+      "block before submit",
     );
-    expect(values).toEqual(["real"]);
+    expect(values).toEqual(["real", "real", "real"]);
   });
 
   it("uses synthetic material only on the approved exact-form proxy lane", async () => {

@@ -42,7 +42,7 @@ export async function validateDecisionConfiguration(
     throw new Error("A model endpoint must be HTTPS or loopback");
   const decisions = [...new Set(configuration.decisions)];
   for (const kind of decisions) {
-    const observation = modelObservation(fixture());
+    const observation = modelObservation(fixture(kind));
     const candidates = legalCandidates(observation);
     const raw = await api.decide({ observation, candidates });
     const decision = guardDecision(raw, observation, [observation.origin]);
@@ -56,16 +56,22 @@ export async function validateDecisionConfiguration(
   };
 }
 
-function fixture(): Observation {
+const SCENARIOS = {
+  act: [
+    { ref: "e1", kind: "email", label: "person@example.test" },
+    { ref: "e2", kind: "button", label: "Reset password" },
+  ],
+  wait: [{ ref: "e1", kind: "text", label: "Waiting for email" }],
+  handoff: [{ ref: "e1", kind: "otp", label: "Authenticator code" }],
+  finish: [{ ref: "e1", kind: "button", label: "Sign in" }],
+  refuse: [{ ref: "e1", kind: "text", label: "Unsupported account recovery" }],
+} as const satisfies Record<Decision["kind"], Observation["fields"]>;
+
+function fixture(kind: Decision["kind"]): Observation {
   return {
-    id: "configuration-fixture",
+    id: `configuration-fixture-${kind}`,
     origin: "https://accounts.example.test",
-    fields: [
-      { ref: "e1", kind: "email", label: "person@example.test" },
-      { ref: "e2", kind: "password", label: "New password" },
-      { ref: "e3", kind: "otp", label: "Authenticator code" },
-      { ref: "e4", kind: "button", label: "Reset password" },
-    ],
+    fields: [...SCENARIOS[kind]],
     maskedScreenshot: "data:image/png;base64,bWFza2Vk",
     sensitiveValues: ["person@example.test"],
   };

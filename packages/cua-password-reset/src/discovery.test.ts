@@ -117,4 +117,68 @@ describe("first-run bounded discovery", () => {
       }),
     ).rejects.toThrow("independently verified");
   });
+
+  it("records human handoffs and requires a recorded verify-login before finishing", async () => {
+    const driven = browser();
+    vi.mocked(driven.snapshot).mockResolvedValue({
+      ...observation([
+        ...fields,
+        { ref: "e4", kind: "otp", label: "Authenticator code" },
+      ]),
+      sensitiveValues: ["person@example.test"],
+    });
+    const handoff = vi.fn(async () => undefined);
+    const verify = vi.fn(async () => true);
+    let decision = 0;
+    const recipe = await discoverResetRecipe({
+      decisions: {
+        decide: async (input) => {
+          decision += 1;
+          if (decision === 1)
+            return {
+              kind: "handoff",
+              observationId: "observation-1",
+              challenge: "totp",
+            };
+          if (decision === 2) return act("verify-login", input.candidates);
+          return { kind: "finish", observationId: "observation-1" };
+        },
+      },
+      browser: driven,
+      executor: {
+        execute: vi.fn(async (_action: ResetActionDecision) => undefined),
+        handoff,
+      },
+      authorize: vi.fn(),
+      verify,
+      entryUrl: `${ORIGIN}/forgot`,
+      allowedOrigins: [ORIGIN],
+    });
+    expect(recipe.steps.map((step) => step.primitive)).toEqual([
+      "await-human",
+      "verify-login",
+    ]);
+    expect(handoff).toHaveBeenCalledWith("totp");
+    expect(verify).toHaveBeenCalledTimes(1);
+
+    await expect(
+      discoverResetRecipe({
+        decisions: {
+          decide: async () => ({
+            kind: "finish",
+            observationId: "observation-1",
+          }),
+        },
+        browser: browser(),
+        executor: {
+          execute: vi.fn(async (_action: ResetActionDecision) => undefined),
+          handoff: vi.fn(async () => undefined),
+        },
+        authorize: vi.fn(),
+        verify: async () => true,
+        entryUrl: `${ORIGIN}/forgot`,
+        allowedOrigins: [ORIGIN],
+      }),
+    ).rejects.toThrow("record a successful verify-login");
+  });
 });

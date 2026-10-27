@@ -59,6 +59,7 @@ interface ResetResources {
 
 type LoadedReset = Awaited<ReturnType<typeof loadResetConfiguration>>;
 type ResetApproval = Awaited<ReturnType<ResetApprovalSession["approve"]>>;
+type ResetSharedItem = NonNullable<ResetApproval["items"]>[number];
 
 export async function runPasswordReset(
   command: PasswordResetCommand,
@@ -177,9 +178,11 @@ function assertSharedItem(
   itemId: string,
 ): void {
   const shared = metadata.items?.some(
-    (item) =>
+    (item: ResetSharedItem) =>
       item.id === itemId &&
-      item.origins.some((rule) => domainMatchScore(run.origin, rule) > 0),
+      item.origins.some(
+        (rule: string) => domainMatchScore(run.origin, rule) > 0,
+      ),
   );
   if (!shared)
     throw new Error("The exact reset item is not shared for this origin");

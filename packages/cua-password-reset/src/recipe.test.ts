@@ -33,6 +33,23 @@ describe("domain recipes", () => {
     expect(repaired.recipe.steps[1]?.ref).toBe("e9");
   });
 
+  it("replays expected labels through the same masking as discovery", async () => {
+    const recipe = run().recipe;
+    const identify = recipe.steps[1];
+    if (!identify) throw new Error("Fixture requires an identifier step");
+    recipe.steps[1] = { ...identify, expectedLabel: "[redacted]" };
+    const current = {
+      ...observation([
+        { ref: "e1", kind: "email" as const, label: "person@example.test" },
+      ]),
+      sensitiveValues: ["person@example.test"],
+    };
+    expect(await replayStep(recipe, 1, current)).toEqual({
+      status: "ready",
+      step: recipe.steps[1],
+    });
+  });
+
   it("does not let drift repair change the step meaning", async () => {
     await expect(
       replayStep(run().recipe, 1, observation([]), {

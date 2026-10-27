@@ -244,4 +244,5 @@ export interface ResetEffects {
 export interface CheckpointJournal {
   load(runId: string): Promise<readonly JsonValue[]>;
   append(runId: string, event: JsonValue): Promise<void>;
+  exclusive?<T>(runId: string, execute: () => Promise<T>): Promise<T>;
 }

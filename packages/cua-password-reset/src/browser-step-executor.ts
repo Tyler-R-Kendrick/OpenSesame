@@ -77,11 +77,11 @@ export class BrowserStepExecutor {
         return done;
       }
       case "click":
-        await this.assertCurrent(step);
+        await this.assertCurrent(step, run);
         await this.browser.click(requiredRef(step));
         return done;
       case "submit":
-        if (!(await this.current(step)))
+        if (!(await this.current(step, run)))
           return { stepId: step.id, outcome: "failed_before_submit" };
         await this.browser.click(requiredRef(step));
         return done;
@@ -93,7 +93,7 @@ export class BrowserStepExecutor {
         return done;
       }
       case "fill-field":
-        await this.assertCurrent(step);
+        await this.assertCurrent(step, run);
         await this.fill(step, run);
         return done;
       case "verify-login":
@@ -128,12 +128,14 @@ export class BrowserStepExecutor {
     return { stepId: step.id, outcome: "waiting" };
   }
 
-  private async current(step: RecipeStep): Promise<boolean> {
-    return !stepDrift(step, await this.browser.snapshot());
+  private async current(step: RecipeStep, run: ResetRun): Promise<boolean> {
+    const observation = await this.browser.snapshot();
+    return observation.origin === run.origin && !stepDrift(step, observation);
   }
 
-  private async assertCurrent(step: RecipeStep): Promise<void> {
-    if (!(await this.current(step))) throw new Error("Recipe step drifted");
+  private async assertCurrent(step: RecipeStep, run: ResetRun): Promise<void> {
+    if (!(await this.current(step, run)))
+      throw new Error("Recipe step drifted");
   }
 
   private async fill(step: RecipeStep, run: ResetRun): Promise<void> {
@@ -146,9 +148,16 @@ export class BrowserStepExecutor {
     const index = run.recipe.steps.findIndex(
       (candidate) => candidate.id === step.id,
     );
-    if (index < 0 || run.recipe.steps[index + 1]?.primitive !== "submit")
+    const next = run.recipe.steps
+      .slice(index + 1)
+      .find(
+        (candidate) =>
+          candidate.primitive !== "fill-field" ||
+          candidate.purpose !== "new-password",
+      );
+    if (index < 0 || next?.primitive !== "submit")
       throw new Error(
-        "The real password may only be filled immediately before submit",
+        "The real password may only be filled in the block before submit",
       );
     const proof = run.recipe.proxySubstitution;
     const proxy = this.ports.proxy;

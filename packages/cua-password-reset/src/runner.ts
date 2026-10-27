@@ -23,6 +23,10 @@ export class DurableResetRunner {
   ) {}
 
   async start(run: ResetRun): Promise<ResetRun> {
+    return this.journal.exclusive(run.id, () => this.startLocked(run));
+  }
+
+  private async startLocked(run: ResetRun): Promise<ResetRun> {
     if ((await this.journal.events(run.id)).length > 0)
       throw new Error("A reset run id already has a journal");
     if (run.status !== "running" || run.cursor !== 0)
@@ -43,12 +47,24 @@ export class DurableResetRunner {
   }
 
   async resume(run: ResetRun | string): Promise<ResetRun> {
+    return this.journal.exclusive(runId(run), () => this.resumeLocked(run));
+  }
+
+  private async resumeLocked(run: ResetRun | string): Promise<ResetRun> {
     const restored = await this.restore(run);
     if (restored.status !== "running") return restored;
     return this.drive(restored, false);
   }
 
   async resumeAfterHuman(run: ResetRun | string): Promise<ResetRun> {
+    return this.journal.exclusive(runId(run), () =>
+      this.resumeAfterHumanLocked(run),
+    );
+  }
+
+  private async resumeAfterHumanLocked(
+    run: ResetRun | string,
+  ): Promise<ResetRun> {
     const restored = await this.restore(run);
     if (restored.status !== "awaiting_human")
       throw new Error("The run is not waiting for a person");
@@ -116,7 +132,7 @@ export class DurableResetRunner {
       receipt = {
         stepId: intent.stepId,
         outcome:
-          intent.operation === "submit"
+          intent.operation === "submit" || intent.operation === "verify-login"
             ? "submit_indeterminate"
             : "failed_before_submit",
       };
@@ -148,17 +164,30 @@ export class DurableResetRunner {
   }
 
   async reconcile(run: ResetRun | string): Promise<ResetRun> {
+    return this.journal.exclusive(runId(run), () => this.reconcileLocked(run));
+  }
+
+  private async reconcileLocked(run: ResetRun | string): Promise<ResetRun> {
     const restored = await this.restore(run);
     this.authorize(restored, "password_reset.run.reconcile");
     const id = effectId(restored, "reconciliation");
     const events = await this.journal.events(restored.id);
-    let verdict = events.flatMap((event) =>
-      event.type === "reconciliation.outcome" && event.effectId === id
+    let verdict:
+      | Awaited<ReturnType<ResetEffects["verifyCandidate"]>>
+      | undefined = events.flatMap((event) =>
+      event.type === "reconciliation.outcome" &&
+      event.effectId === id &&
+      event.verdict !== "unknown"
         ? [event.verdict]
         : [],
     )[0];
     if (!verdict) {
-      const context = { effectId: id, attempt: 1 };
+      const attempt =
+        events.filter(
+          (event) =>
+            event.type === "reconciliation.intent" && event.effectId === id,
+        ).length + 1;
+      const context = { effectId: id, attempt };
       await this.journal.append(restored.id, {
         type: "reconciliation.intent",
         ...context,
@@ -177,10 +206,14 @@ export class DurableResetRunner {
     if (verdict === "verified") return this.promote(restored);
     if (verdict === "unknown")
       return this.mark(restored, "reconciliation_required");
-    return this.compensate(restored);
+    return this.compensateLocked(restored);
   }
 
   async compensate(run: ResetRun | string): Promise<ResetRun> {
+    return this.journal.exclusive(runId(run), () => this.compensateLocked(run));
+  }
+
+  private async compensateLocked(run: ResetRun | string): Promise<ResetRun> {
     const restored = await this.restore(run);
     this.authorize(restored, "password_reset.run.compensate");
     const id = effectId(restored, "compensation");
@@ -240,6 +273,21 @@ export class DurableResetRunner {
     if (run.status === "succeeded") return run;
     const id = effectId(run, "candidate:promotion");
     const events = await this.journal.events(run.id);
+    const verifiedLogin = events.some(
+      (event) =>
+        event.type === "step.outcome" &&
+        event.operation === "verify-login" &&
+        event.outcome === "completed",
+    );
+    const independentlyReconciled = events.some(
+      (event) =>
+        event.type === "reconciliation.outcome" && event.verdict === "verified",
+    );
+    const verified =
+      verifiedLogin ||
+      (independentlyReconciled &&
+        run.recipe.steps.some((step) => step.primitive === "verify-login"));
+    if (!verified) return this.mark(run, "reconciliation_required");
     if (
       !events.some(
         (event) => event.type === "candidate.promoted" && event.effectId === id,
@@ -294,6 +342,10 @@ export class DurableResetRunner {
 
 function effectId(run: ResetRun, operation: string): string {
   return `${run.id}:${operation}`;
+}
+
+function runId(run: ResetRun | string): string {
+  return run instanceof Object ? run.id : run;
 }
 
 function isPasswordFill(step: RecipeStep): boolean {

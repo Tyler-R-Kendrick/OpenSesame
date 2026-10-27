@@ -142,7 +142,10 @@ describe("durable reset runner", () => {
 
   it("reconciles an interrupted page mutation without replaying it", async () => {
     const initial = run();
-    initial.recipe.steps = [{ id: "request", primitive: "click", ref: "e2" }];
+    initial.recipe.steps = [
+      { id: "request", primitive: "click", ref: "e2" },
+      { id: "verify", primitive: "verify-login" },
+    ];
     const step = stepAt(initial, 0);
     await journal.append(initial.id, { type: "run.started", run: initial });
     await journal.append(initial.id, {

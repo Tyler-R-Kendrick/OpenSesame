@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 import type { WebStorage } from "@opensesame/app-core/ports.js";
 import {
   type CheckpointJournal,
@@ -38,7 +38,10 @@ export class SealedCheckpointJournal implements CheckpointJournal {
   }
 
   private key(runId: string): string {
-    const digest = createHash("sha256").update(runId).digest("base64url");
+    const key = `opensesame.password-reset.journal.v1:${runId}`;
+    const digest = createHmac("sha256", key)
+      .update("checkpoint")
+      .digest("base64url");
     return `opensesame.password-reset.${digest}`;
   }
 }

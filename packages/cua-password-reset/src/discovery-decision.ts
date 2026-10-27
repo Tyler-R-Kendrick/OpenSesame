@@ -50,6 +50,8 @@ export function decisionStep(
 export async function nextDiscoveryDecision(
   options: DiscoveryOptions,
   observation: Observation,
+  entryPath: string,
+  steps: RecipeStep[],
 ): Promise<Decision | null> {
   options.authorize("password_reset.model.plan");
   const decision = await decide(
@@ -62,6 +64,12 @@ export async function nextDiscoveryDecision(
   if (decision.kind === "wait") return null;
   if (decision.kind === "handoff") {
     options.authorize("password_reset.human.takeover");
+    const action = {
+      kind: "await-human" as const,
+      observationId: observation.id,
+      challenge: decision.challenge,
+    };
+    steps.push(decisionStep(action, observation, entryPath, steps.length + 1));
     await options.executor.handoff(decision.challenge);
     return null;
   }
@@ -76,6 +84,8 @@ export async function finishDiscovery(
   options.authorize("password_reset.item.use");
   if (!(await options.verify()))
     throw new Error("Discovery finish was not independently verified");
+  if (!steps.some((step) => step.primitive === "verify-login"))
+    throw new Error("Discovery must record a successful verify-login step");
   return {
     schemaVersion: 1,
     review: "candidate",

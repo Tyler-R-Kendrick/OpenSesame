@@ -104,7 +104,29 @@ export type StepIntent = Extract<JournalEvent, { type: "step.intent" }>;
 export type StepOutcomeEvent = Extract<JournalEvent, { type: "step.outcome" }>;
 
 export class DurableJournal {
+  private static readonly leases = new Map<string, Promise<void>>();
+
   constructor(private readonly store: CheckpointJournal) {}
+
+  async exclusive<T>(runId: string, execute: () => Promise<T>): Promise<T> {
+    const previous = DurableJournal.leases.get(runId) ?? Promise.resolve();
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const queued = previous.then(() => gate);
+    DurableJournal.leases.set(runId, queued);
+    await previous;
+    try {
+      return this.store.exclusive
+        ? await this.store.exclusive(runId, execute)
+        : await execute();
+    } finally {
+      release();
+      if (DurableJournal.leases.get(runId) === queued)
+        DurableJournal.leases.delete(runId);
+    }
+  }
 
   async events(runId: string): Promise<JournalEvent[]> {
     return (await this.store.load(runId)).map((event) =>
@@ -130,19 +152,12 @@ export class DurableJournal {
 
   async unfinished(runId: string): Promise<StepIntent | null> {
     const events = await this.events(runId);
-    const outcomes = events.filter((event) => event.type === "step.outcome");
-    const unfinished = events.filter(
-      (event): event is StepIntent =>
-        event.type === "step.intent" &&
-        !outcomes.some(
-          (outcome) =>
-            outcome.effectId === event.effectId &&
-            outcome.attempt === event.attempt,
-        ),
-    );
-    if (unfinished.length > 1)
-      throw new Error("Journal has multiple unfinished steps");
-    return unfinished[0] ?? null;
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index];
+      if (event?.type === "step.outcome") return null;
+      if (event?.type === "step.intent") return event;
+    }
+    return null;
   }
 
   async restore(runId: string): Promise<ResetRun> {

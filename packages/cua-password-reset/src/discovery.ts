@@ -54,7 +54,12 @@ export async function discoverResetRecipe(
   for (let index = 1; index <= maxSteps; index += 1) {
     options.authorize("password_reset.browser.drive");
     const observation = await options.browser.snapshot();
-    const decision = await nextDiscoveryDecision(options, observation);
+    const decision = await nextDiscoveryDecision(
+      options,
+      observation,
+      entryPath,
+      steps,
+    );
     if (!decision) continue;
     if (decision.kind === "finish")
       return recipeSchema.parse(await finishDiscovery(options, entry, steps));

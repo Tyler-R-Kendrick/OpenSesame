@@ -2,6 +2,7 @@ import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  createHmac,
   randomBytes,
 } from "node:crypto";
 import { mkdir, open, readFile, unlink, writeFile } from "node:fs/promises";
@@ -26,6 +27,7 @@ const EMPTY_DIGEST = "0".repeat(64);
 export class FileCheckpointJournal implements CheckpointJournal {
   private operation: Promise<void> = Promise.resolve();
   private readonly expected = new Map<string, string>();
+  private readonly held = new Set<string>();
 
   private constructor(
     private readonly directory: string,
@@ -49,6 +51,17 @@ export class FileCheckpointJournal implements CheckpointJournal {
     return (await this.read(runId)).events;
   }
 
+  async exclusive<T>(runId: string, execute: () => Promise<T>): Promise<T> {
+    await this.acquire(runId);
+    this.held.add(runId);
+    try {
+      return await execute();
+    } finally {
+      this.held.delete(runId);
+      await unlink(this.lockname(runId)).catch(() => {});
+    }
+  }
+
   append(runId: string, event: JsonValue): Promise<void> {
     const result = this.operation.then(() => this.appendLocked(runId, event));
     this.operation = result.catch(() => {});
@@ -56,7 +69,8 @@ export class FileCheckpointJournal implements CheckpointJournal {
   }
 
   private async appendLocked(runId: string, event: JsonValue): Promise<void> {
-    await this.acquire(runId);
+    const own = !this.held.has(runId);
+    if (own) await this.acquire(runId);
     try {
       const current = await this.read(runId);
       const expected = this.expected.get(runId);
@@ -88,7 +102,7 @@ export class FileCheckpointJournal implements CheckpointJournal {
       }
       this.expected.set(runId, digest(line));
     } finally {
-      await unlink(this.lockname(runId)).catch(() => {});
+      if (own) await unlink(this.lockname(runId)).catch(() => {});
     }
   }
 
@@ -151,7 +165,7 @@ export class FileCheckpointJournal implements CheckpointJournal {
   private filename(runId: string): string {
     return join(
       this.directory,
-      `${createHash("sha256").update(runId).digest("hex")}.journal`,
+      `${createHmac("sha256", this.key).update(runId).digest("hex")}.journal`,
     );
   }
 
@@ -162,7 +176,7 @@ export class FileCheckpointJournal implements CheckpointJournal {
 
 async function journalKey(filename: string): Promise<Uint8Array> {
   try {
-    return await readFile(filename);
+    return await readJournalKey(filename);
   } catch (error) {
     if (!(error instanceof Error) || !isCode(error, "ENOENT")) throw error;
     const key = randomBytes(32);
@@ -177,9 +191,21 @@ async function journalKey(filename: string): Promise<Uint8Array> {
       return key;
     } catch (writeError) {
       if (writeError instanceof Error && isCode(writeError, "EEXIST"))
-        return readFile(filename);
+        return readJournalKey(filename);
       throw writeError;
     }
+  }
+}
+
+async function readJournalKey(filename: string): Promise<Uint8Array> {
+  const file = await open(filename, "r");
+  try {
+    const stat = await file.stat();
+    if (!stat.isFile() || stat.size !== 32)
+      throw new Error("Journal key must be a regular 32-byte file");
+    return Uint8Array.from(await file.readFile());
+  } finally {
+    await file.close();
   }
 }
 

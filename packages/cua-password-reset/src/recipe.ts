@@ -1,3 +1,4 @@
+import { modelObservation } from "./decisions.js";
 import type { Observation, RecipeStep, ResetRecipe } from "./types.js";
 import { recipeSchema, recipeStepSchema } from "./types.js";
 
@@ -24,7 +25,14 @@ export function stepDrift(step: RecipeStep, observation: Observation): boolean {
   if (step.purpose === "new-password" && field.kind !== "password") return true;
   if (step.purpose === "identifier" && !["email", "text"].includes(field.kind))
     return true;
-  return step.expectedLabel !== undefined && field.label !== step.expectedLabel;
+  const masked = modelObservation(observation).fields.find(
+    (candidate) => candidate.ref === step.ref,
+  );
+  return (
+    step.expectedLabel !== undefined &&
+    field.label !== step.expectedLabel &&
+    masked?.label !== step.expectedLabel
+  );
 }
 
 export interface RecipeRepair {
