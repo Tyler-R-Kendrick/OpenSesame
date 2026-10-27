@@ -4,6 +4,7 @@ import path from "node:path";
 import { expect } from "@playwright/test";
 import ts from "typescript";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
+import { offlineAppRequests } from "./offline-app-requests.mjs";
 import {
   addCapabilities,
   sealWithPin,
@@ -268,10 +269,27 @@ async function verifyCacheConsent(
   return cached;
 }
 
+async function stopOwnedApp(
+  appServer,
+  origin,
+  base,
+  width,
+  requestFailures,
+  check,
+) {
+  await appServer.pause();
+  check(
+    await appSocketStopped(origin, base),
+    `${width}: actual app HTTP socket is closed while real control/DERP/native peer remain live`,
+  );
+  requestFailures.begin();
+}
+
 export async function verifyInstalledTailscalePwa(
   browser,
   { origin, base, width, fixture, appServer, workerAsset, record, check },
 ) {
+  const requestFailures = offlineAppRequests(origin, base);
   const { context, page } = await newBackendPage(browser, {
     width,
     origin,
@@ -282,6 +300,7 @@ export async function verifyInstalledTailscalePwa(
     ],
     record,
     serviceWorkers: "allow",
+    requestFailures,
   });
   const workers = [];
   page.on("worker", async (worker) => {
@@ -327,11 +346,7 @@ export async function verifyInstalledTailscalePwa(
     await panel
       .getByRole("button", { name: "Disconnect browser node", exact: true })
       .click();
-    await appServer.pause();
-    check(
-      await appSocketStopped(origin, base),
-      `${width}: actual app HTTP socket is closed while real control/DERP/native peer remain live`,
-    );
+    await stopOwnedApp(appServer, origin, base, width, requestFailures, check);
     await page.reload({ waitUntil: "domcontentloaded" });
     await allowLoopbackDevelopment(page, origin);
     await unlockWithPin(page);
@@ -362,6 +377,7 @@ export async function verifyInstalledTailscalePwa(
     throw error;
   } finally {
     await context.close();
+    requestFailures.end();
     await appServer.resume();
   }
 }
