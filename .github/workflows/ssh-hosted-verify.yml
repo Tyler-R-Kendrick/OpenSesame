@@ -58,8 +58,10 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test "$(git rev-parse HEAD^{tree})" = db832d4469cb569cd87d083b292050aa6449f5ad
           test "$(git rev-parse HEAD^)" = b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
-          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/ssh-reviewed.patch"
+          git diff --abbrev=9 --no-renames HEAD^ HEAD > "$RUNNER_TEMP/ssh-reviewed.patch"
           printf '%s  %s\n' 56c0a3af4cc8172c92afe956bb9322a362643d6ec2c75da7c34ef84adb81ad63 "$RUNNER_TEMP/ssh-reviewed.patch" | sha256sum --check
+          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/ssh-full-index.patch"
+          printf '%s  %s\n' d443fa6f2d8e3dea5a9101018de70e272a6f939944892da514f8469f047bb704 "$RUNNER_TEMP/ssh-full-index.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
           test -x "$PLAYWRIGHT_CHROMIUM"
