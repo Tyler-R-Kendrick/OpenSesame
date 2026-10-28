@@ -59,6 +59,7 @@
     "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs",
     "verify:tailnet-devices": "node scripts/verify-tailnet-devices.mjs",
     "verify:password-agent": "node scripts/verify-password-agent.mjs",
+    "verify:vault-password-reset": "node scripts/verify-vault-password-reset.mjs",
     "verify:encrypted-search": "node scripts/verify-encrypted-search.mjs",
     "verify:portable-drop": "node scripts/verify-portable-drop.mjs",
     "verify:native-connectors": "node scripts/verify-native-connectors-journey.mjs",
