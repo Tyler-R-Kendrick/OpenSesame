@@ -97,15 +97,103 @@ jobs:
           umask 077
           trap 'rm -f "$EVIDENCE_DIR/directory-raw.json" "$EVIDENCE_DIR/history-raw.json" "$EVIDENCE_DIR/directory-scan.log" "$EVIDENCE_DIR/scan-state.json"' EXIT
           node scripts/security/gitleaks-working-tree-gate.mjs prepare "$GITHUB_WORKSPACE" scripts/security/gitleaks-reviewed-working-tree.json "$EVIDENCE_DIR/scan-state.json"
+          python3 - <<'PYTHON'
+          import hashlib,pathlib,subprocess
+          approved={
+            'apps/cli/src/security/watchtower/tests.rs':('4e9305234e0b1fc77b1d3ea74af6107b99ec0a38','f9f498c6b0d2d30fc49c6f5dd4d503dec5ac40fed5fef173983a3c6f04ee50be'),
+            'packages/app-core/src/lib/native-azure-ac.test.ts':('0f85bcd91904565e93320a280d26ee494eca4eb1','d757ef2e5002138bf170cfe0d56d9e06a212fb84d2bf0a668693e0393269be49'),
+            'apps/pages/src/lib/share-target-intake.test.ts':('c32049a39a41ce7507ae7ebe62e08bfc8e5b468a','f9f08c3d24e7b1148d9f9101c356bafcf107ce0188b811cd942c61e4e88025e1'),
+            'apps/cli/tests/dev_run_bridge_env.rs':('7f05d623b77f3fa0343bc8fe391a6859a64b70f3','38f9353dd0edb336c5caed5749e6a336ab7d54f5371e7dffa9fbdc101aa35e95'),
+            'crates/env-spec/tests/support/mod.rs':('ae31299b51a7031adcfe1233d9426d60c4d4bf61','902da18ca4892fdf926a6da3c121cef0ddc4800ec633b7dce82e7c13f0bcfe38'),
+            'scripts/lib/mtls-manifest.test.mjs':('6db41bc3de9526a2f311a5ccfb0aa9e5cc39d153','68d816472360bc104c3666ad977de269ca308d21006cc33d58c7e78df8a34cb7'),
+          }
+          for name,(blob,digest) in approved.items():
+           path=pathlib.Path(name)
+           if any(p.is_symlink() for p in (path,*path.parents)): raise RuntimeError('Unexpected symlink in approved vector path')
+           if hashlib.sha256(path.read_bytes()).hexdigest()!=digest: raise RuntimeError('Approved vector bytes differ')
+           if subprocess.check_output(['git','--no-replace-objects','hash-object','--no-filters',name],text=True).strip()!=blob: raise RuntimeError('Approved fixture blob differs')
+          PYTHON
           set +e
           "$RUNNER_TEMP/gitleaks" dir . --config .gitleaks.toml --gitleaks-ignore-path "$GITHUB_WORKSPACE" --report-path "$EVIDENCE_DIR/directory-raw.json" --report-format json --no-banner --log-level error >"$EVIDENCE_DIR/directory-scan.log" 2>&1
           DIR_STATUS=$?
           node scripts/security/gitleaks-working-tree-gate.mjs classify "$GITHUB_WORKSPACE" scripts/security/gitleaks-reviewed-working-tree.json "$EVIDENCE_DIR/scan-state.json" "$EVIDENCE_DIR/directory-raw.json" "$EVIDENCE_DIR/directory-dispositions.json" "$DIR_STATUS"
           DIR_CLASSIFIER_STATUS=$?
+          set -e
+          python3 - <<'PYTHON'
+          import collections,hashlib,json,pathlib,subprocess,os
+          root=pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+          out=pathlib.Path(os.environ['EVIDENCE_DIR'])
+          approved={
+            'apps/cli/src/security/watchtower/tests.rs':('4e9305234e0b1fc77b1d3ea74af6107b99ec0a38','f9f498c6b0d2d30fc49c6f5dd4d503dec5ac40fed5fef173983a3c6f04ee50be',1),
+            'packages/app-core/src/lib/native-azure-ac.test.ts':('0f85bcd91904565e93320a280d26ee494eca4eb1','d757ef2e5002138bf170cfe0d56d9e06a212fb84d2bf0a668693e0393269be49',1),
+            'apps/pages/src/lib/share-target-intake.test.ts':('c32049a39a41ce7507ae7ebe62e08bfc8e5b468a','f9f08c3d24e7b1148d9f9101c356bafcf107ce0188b811cd942c61e4e88025e1',1),
+            'apps/cli/tests/dev_run_bridge_env.rs':('7f05d623b77f3fa0343bc8fe391a6859a64b70f3','38f9353dd0edb336c5caed5749e6a336ab7d54f5371e7dffa9fbdc101aa35e95',1),
+            'crates/env-spec/tests/support/mod.rs':('ae31299b51a7031adcfe1233d9426d60c4d4bf61','902da18ca4892fdf926a6da3c121cef0ddc4800ec633b7dce82e7c13f0bcfe38',1),
+            'scripts/lib/mtls-manifest.test.mjs':('6db41bc3de9526a2f311a5ccfb0aa9e5cc39d153','68d816472360bc104c3666ad977de269ca308d21006cc33d58c7e78df8a34cb7',1),
+          }
+          approved_lines={
+            'apps/cli/src/security/watchtower/tests.rs':{54},
+            'packages/app-core/src/lib/native-azure-ac.test.ts':{15},
+            'apps/pages/src/lib/share-target-intake.test.ts':{12},
+            'apps/cli/tests/dev_run_bridge_env.rs':{98},
+            'crates/env-spec/tests/support/mod.rs':{137},
+            'scripts/lib/mtls-manifest.test.mjs':{48},
+          }
+          approved_rules={
+            'apps/cli/src/security/watchtower/tests.rs':'private-key',
+            'packages/app-core/src/lib/native-azure-ac.test.ts':'generic-api-key',
+            'apps/pages/src/lib/share-target-intake.test.ts':'generic-api-key',
+            'apps/cli/tests/dev_run_bridge_env.rs':'generic-api-key',
+            'crates/env-spec/tests/support/mod.rs':'generic-api-key',
+            'scripts/lib/mtls-manifest.test.mjs':'jwt',
+          }
+          reasons={
+            'apps/cli/src/security/watchtower/tests.rs':'PEM detector test constructs a header around 14 printable ASCII bytes rather than an ASN.1 private key.',
+            'packages/app-core/src/lib/native-azure-ac.test.ts':'Decoded mock key contains test and secret labels; the test uses a mocked fetch transport.',
+            'apps/pages/src/lib/share-target-intake.test.ts':'UUID-shaped value is used as an in-memory cache selector in a test.',
+            'apps/cli/tests/dev_run_bridge_env.rs':'Explicitly dummy-labeled GitHub-style sample has a nonstandard short length and is used in a child-process environment test.',
+            'crates/env-spec/tests/support/mod.rs':'Explicitly dummy-labeled GitHub-style sample has a nonstandard short length and is used in a test environment fixture.',
+            'scripts/lib/mtls-manifest.test.mjs':'Sanitizer test JWT declares RS256 but has a 32-byte signature, too short for a standards-compliant 2048-bit minimum RSA key.',
+          }
+          rows=json.loads((out/'directory-raw.json').read_text())
+          if not isinstance(rows,list): raise RuntimeError('Malformed scanner report')
+          entries=[]
+          for row in rows:
+           name=row.get('File') if isinstance(row,dict) else None
+           if name not in approved or row.get('StartLine') not in approved_lines[name]: continue
+           if row.get('RuleID')!=approved_rules[name] or not isinstance(row.get('Match'),str) or not isinstance(row.get('StartLine'),int) or row['StartLine']<1: raise RuntimeError('Unexpected fixture finding')
+           if name=='scripts/lib/mtls-manifest.test.mjs':
+            import base64,re
+            match=re.search(r'([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)',row['Match'])
+            if not match: raise RuntimeError('JWT fixture shape changed')
+            parts=match.group(1).split('.')
+            decode=lambda t:base64.urlsafe_b64decode(t+'='*(-len(t)%4))
+            if json.loads(decode(parts[0])).get('alg')!='RS256' or len(decode(parts[2]))!=32: raise RuntimeError('JWT fixture no longer demonstrates invalid RS256 length')
+           blob,digest,_=approved[name]
+           entries.append({'path':name,'rule':row['RuleID'],'line':row['StartLine'],'fileSha256':digest,'matchSha256':hashlib.sha256(row['Match'].encode()).hexdigest(),'reason':reasons[name]+' Exact source Git blob '+blob+'.'})
+          counts=collections.Counter(x['path'] for x in entries)
+          if any(counts[name]!=expected for name,(_,_,expected) in approved.items()): raise RuntimeError('Unexpected approved fixture finding count')
+          if len({(x['path'],x['rule'],x['line'],x['fileSha256'],x['matchSha256']) for x in entries})!=len(entries): raise RuntimeError('Duplicate fixture finding')
+          for name,(blob,digest,_) in approved.items():
+           path=root/name
+           if any(p.is_symlink() for p in (path,*path.parents)): raise RuntimeError('Unexpected symlink in approved vector path')
+           if hashlib.sha256(path.read_bytes()).hexdigest()!=digest: raise RuntimeError('Approved vector bytes changed during scan')
+           if subprocess.check_output(['git','--no-replace-objects','hash-object','--no-filters',name],cwd=root,text=True).strip()!=blob: raise RuntimeError('Approved fixture blob changed during scan')
+          entries.sort(key=lambda x:(x['path'],x['line'],x['matchSha256']))
+          (out/'reviewed-six-proposals.json').write_text(json.dumps(entries,indent=2)+'\n')
+          base=json.loads((root/'scripts/security/gitleaks-reviewed-working-tree.json').read_text())
+          if not isinstance(base,list): raise RuntimeError('Malformed base review manifest')
+          (out/'simulation-manifest.json').write_text(json.dumps(base+entries)+'\n')
+          print('Reviewed fixture digest proposals:',len(entries))
+          PYTHON
+          node scripts/security/gitleaks-working-tree-gate.mjs prepare "$GITHUB_WORKSPACE" "$EVIDENCE_DIR/simulation-manifest.json" "$EVIDENCE_DIR/simulation-state.json"
+          set +e
+          node scripts/security/gitleaks-working-tree-gate.mjs classify "$GITHUB_WORKSPACE" "$EVIDENCE_DIR/simulation-manifest.json" "$EVIDENCE_DIR/simulation-state.json" "$EVIDENCE_DIR/directory-raw.json" "$EVIDENCE_DIR/simulation-dispositions.json" "$DIR_STATUS"
+          SIMULATION_STATUS=$?
           "$RUNNER_TEMP/gitleaks" git . --config .gitleaks.toml --gitleaks-ignore-path "$GITHUB_WORKSPACE" --report-path "$EVIDENCE_DIR/history-raw.json" --report-format json --redact=100 --no-banner --log-level error
           HISTORY_STATUS=$?
           set -e
-          export DIR_STATUS DIR_CLASSIFIER_STATUS HISTORY_STATUS
+          export DIR_STATUS DIR_CLASSIFIER_STATUS SIMULATION_STATUS HISTORY_STATUS
           python3 - <<'PYTHON'
           import hashlib,json,os,pathlib,subprocess,sys,datetime
           out=pathlib.Path(os.environ['EVIDENCE_DIR'])
@@ -126,18 +214,43 @@ jobs:
             safe={k:row.get(k) for k in ('Commit','RuleID','StartLine','EndLine','StartColumn','EndColumn')}
             safe['file_sha256']=hashlib.sha256(row['File'].encode()).hexdigest()
             safe['is_unknown_pat_path']=row['File']=='apps/pages/src/lib/transport-settings.test.ts'
+            safe['is_unknown_stripe_path']=row['File']=='crates/connector-host/src/lib.rs'
             findings.append(safe)
            counts[name]=findings
           disposition_path=out/'directory-dispositions.json'
           if not disposition_path.exists(): raise RuntimeError('Directory classifier evidence is missing')
           dispositions=json.loads(disposition_path.read_text())
           if not isinstance(dispositions,list) or len(dispositions)!=len(counts['directory']): raise RuntimeError('Directory classifier evidence is inconsistent')
-          summary={'directory_reviewed':sum(x.get('reviewed') is True for x in dispositions),'directory_unreviewed':sum(x.get('reviewed') is not True for x in dispositions),'directory_dispositions':dispositions,'directory_classifier_status':int(os.environ['DIR_CLASSIFIER_STATUS']),'repository':repo,'source_sha':os.environ['CANDIDATE_SHA'],'base_sha':expected,'main_after':after,'run_id':os.environ['GITHUB_RUN_ID'],'observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'directory_status':int(os.environ['DIR_STATUS']),'history_status':int(os.environ['HISTORY_STATUS']),'directory_findings':counts['directory'],'history_findings':counts['history']}
+          proposal_path=out/'reviewed-six-proposals.json'
+          simulation_path=out/'simulation-dispositions.json'
+          if not proposal_path.exists() or not simulation_path.exists(): raise RuntimeError('Fixture simulation evidence is missing')
+          proposals=json.loads(proposal_path.read_text())
+          simulation=json.loads(simulation_path.read_text())
+          if not isinstance(proposals,list) or len(proposals)!=6 or not isinstance(simulation,list) or len(simulation)!=len(dispositions): raise RuntimeError('Fixture simulation evidence is inconsistent')
+          approved_triples={(hashlib.sha256(p.encode()).hexdigest(),line,hashlib.sha256(rule.encode()).hexdigest()) for p,line,rule in (
+            ('apps/cli/src/security/watchtower/tests.rs',54,'private-key'),
+            ('packages/app-core/src/lib/native-azure-ac.test.ts',15,'generic-api-key'),
+            ('apps/pages/src/lib/share-target-intake.test.ts',12,'generic-api-key'),
+            ('apps/cli/tests/dev_run_bridge_env.rs',98,'generic-api-key'),
+            ('crates/env-spec/tests/support/mod.rs',137,'generic-api-key'),
+            ('scripts/lib/mtls-manifest.test.mjs',48,'jwt'),
+          )}
+          newly_reviewed=0
+          for old,new in zip(dispositions,simulation):
+           if any(old.get(k)!=new.get(k) for k in ('pathSha256','ruleSha256','line')): raise RuntimeError('Fixture simulation changed finding identity')
+           if old.get('reviewed') is True and new.get('reviewed') is not True: raise RuntimeError('Fixture simulation lost a reviewed result')
+           if old.get('reviewed') is not True and new.get('reviewed') is True:
+            if (new.get('pathSha256'),new.get('line'),new.get('ruleSha256')) not in approved_triples: raise RuntimeError('Fixture simulation reviewed an unrelated finding')
+            newly_reviewed+=1
+          if newly_reviewed!=6: raise RuntimeError('Fixture simulation did not review the exact expected results')
+          summary={'fixture_proposal_count':len(proposals),'simulation_status':int(os.environ['SIMULATION_STATUS']),'simulation_reviewed':sum(x.get('reviewed') is True for x in simulation),'simulation_unreviewed':sum(x.get('reviewed') is not True for x in simulation),'directory_reviewed':sum(x.get('reviewed') is True for x in dispositions),'directory_unreviewed':sum(x.get('reviewed') is not True for x in dispositions),'directory_dispositions':dispositions,'directory_classifier_status':int(os.environ['DIR_CLASSIFIER_STATUS']),'repository':repo,'source_sha':os.environ['CANDIDATE_SHA'],'base_sha':expected,'main_after':after,'run_id':os.environ['GITHUB_RUN_ID'],'observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'directory_status':int(os.environ['DIR_STATUS']),'history_status':int(os.environ['HISTORY_STATUS']),'directory_findings':counts['directory'],'history_findings':counts['history']}
           summary['unknown_pat_visible']=any(x['Commit']=='c9862a0e99b1fc7a8bc3169ec8158dd9abaebf01' and x['is_unknown_pat_path'] and x['RuleID']=='github-pat' and x['StartLine']==42 for x in counts['history'])
+          summary['unknown_stripe_visible']=any(x['Commit']=='9b15cdf5f97ab761f5324d9d69865e064e700663' and x['is_unknown_stripe_path'] and x['RuleID']=='stripe-access-token' and x['StartLine']==683 for x in counts['history'])
           (out/'metadata.json').write_text(json.dumps(summary,indent=2)+'\n')
           print(json.dumps({'directory_count':len(counts['directory']),'history_count':len(counts['history']),'unknown_pat_visible':summary['unknown_pat_visible'],'main_unchanged':after==expected}))
           for name in ('directory','history'): (out/(name+'-raw.json')).unlink()
-          if after!=expected or not summary['unknown_pat_visible'] or summary['directory_status'] not in (0,1) or summary['history_status'] not in (0,1): raise SystemExit('Inventory evidence incomplete or main changed')
+          if after!=expected or not summary['unknown_pat_visible'] or not summary['unknown_stripe_visible'] or summary['directory_status'] not in (0,1) or summary['history_status'] not in (0,1): raise SystemExit('Inventory evidence incomplete or main changed')
+          if summary['simulation_status'] not in (0,1) or (summary['simulation_status']==0) != (summary['simulation_unreviewed']==0): raise SystemExit('Fixture simulation failed')
           if summary['directory_classifier_status'] not in (0,1): raise SystemExit('Directory classifier failed')
           if (summary['directory_classifier_status']==0) != (summary['directory_unreviewed']==0): raise SystemExit('Directory classifier status disagrees with findings')
           if summary['directory_classifier_status'] or summary['history_status']: raise SystemExit('Security findings remain; review sanitized metadata')
@@ -147,6 +260,8 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: gitleaks-scope-evidence
-          path: ${{ runner.temp }}/gitleaks-scope-evidence/metadata.json
+          path: |
+            ${{ runner.temp }}/gitleaks-scope-evidence/metadata.json
+            ${{ runner.temp }}/gitleaks-scope-evidence/reviewed-six-proposals.json
           if-no-files-found: error
           retention-days: 7
