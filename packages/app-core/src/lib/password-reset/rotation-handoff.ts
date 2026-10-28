@@ -14,9 +14,13 @@ import {
 
 export type PasswordResetHandOff = (origin: string) => Promise<boolean>;
 
-export const passwordResetHandOffSeams: {
+export type PasswordResetHandOffSeams = {
   handOff: PasswordResetHandOff | null;
-} = { handOff: null };
+};
+
+export const passwordResetHandOffSeams: PasswordResetHandOffSeams = {
+  handOff: null,
+};
 
 export async function dispatchPasswordResetRotation(
   event: RotationEvent,
