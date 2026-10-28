@@ -11,6 +11,12 @@ import {
   type ProviderProfile,
 } from "./provider-emulator.js";
 
+function unavailableProof(
+  target: { unbound?: boolean; proofDisabled?: boolean } | undefined,
+): boolean {
+  return Boolean(target?.unbound || target?.proofDisabled);
+}
+
 export function assertTokenProof({
   plan,
   kind,
@@ -28,7 +34,7 @@ export function assertTokenProof({
 }): void {
   const target =
     VERIFY_TARGETS[plan.id]?.[kind === "oauth" ? "oauth" : "apiKey"];
-  if (target?.unbound || target?.proofDisabled) {
+  if (unavailableProof(target)) {
     expect(check.verified).toBeNull();
     expect(provider.log).toEqual(providerCallsBeforeCheck);
   } else if (profile.verify) {

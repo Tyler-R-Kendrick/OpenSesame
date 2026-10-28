@@ -80,24 +80,33 @@ function oauthAlias(connector) {
   return VERIFY_OAUTH_ALIAS_HOSTS[named].find((id) => uid.startsWith(`${id}/`));
 }
 
-/** Which of the service's verify calls fits this connector. */
-export function verifyTargetFor(connector) {
-  const named = text(connector?.service, 128);
+function mismatchedProvider(named, connector) {
   const uid = text(connector?.uid, 512);
   const claimed = uid.includes("/") ? uid.split("/", 1)[0] : "";
   if (claimed && Object.hasOwn(VERIFY_TARGETS, claimed)) {
-    if (Object.hasOwn(VERIFY_TARGETS, named) && claimed !== named) return null;
+    if (Object.hasOwn(VERIFY_TARGETS, named) && claimed !== named) return true;
     if (
       !Object.hasOwn(VERIFY_TARGETS, named) &&
       Object.hasOwn(VERIFY_OAUTH_ALIAS_HOSTS, named) &&
       !VERIFY_OAUTH_ALIAS_HOSTS[named].includes(claimed)
     )
-      return null;
+      return true;
   }
-  const service = Object.hasOwn(VERIFY_TARGETS, named)
+  return false;
+}
+
+function knownService(named, connector) {
+  return Object.hasOwn(VERIFY_TARGETS, named)
     ? named
     : (oauthAlias(connector) ??
-      (Object.hasOwn(VERIFY_HOSTS, named) ? VERIFY_HOSTS[named] : ""));
+        (Object.hasOwn(VERIFY_HOSTS, named) ? VERIFY_HOSTS[named] : ""));
+}
+
+/** Which of the service's verify calls fits this connector. */
+export function verifyTargetFor(connector) {
+  const named = text(connector?.service, 128);
+  if (mismatchedProvider(named, connector)) return null;
+  const service = knownService(named, connector);
   const targets = VERIFY_TARGETS[service];
   if (!targets) return null;
   const data = isObject(connector.data) ? connector.data : {};

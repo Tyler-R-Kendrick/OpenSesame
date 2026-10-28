@@ -20,6 +20,26 @@ const spec = (name) =>
   );
 const outputPath = join(here, "../server/connect-verify-targets.generated.mjs");
 
+function validateRelayRow(row, names) {
+  if (
+    !isJsonObject(row) ||
+    !isString(row.service) ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.service) ||
+    ["constructor", "prototype"].includes(row.service) ||
+    names.has(row.service)
+  )
+    throw new Error("Conflicting relay verification preset");
+  const aliases = row.legacy_server_urls ?? [];
+  if (
+    !Array.isArray(aliases) ||
+    aliases.some(
+      (url) => !isString(url) || !/^https:\/\/[a-z0-9.-]+\/?$/i.test(url),
+    )
+  )
+    throw new Error("Invalid relay verification host alias");
+  names.add(row.service);
+}
+
 /** Relay-only source rows must be promoted or removed before a shared row claims them. */
 export function relayVerificationPresets(
   presets = spec("connect-presets.json"),
@@ -37,23 +57,7 @@ export function relayVerificationPresets(
       throw new Error("Invalid relay verification presets");
     const names = new Set();
     for (const row of [...presets[kind], ...relay[kind]]) {
-      if (
-        !isJsonObject(row) ||
-        !isString(row.service) ||
-        !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.service) ||
-        ["constructor", "prototype"].includes(row.service) ||
-        names.has(row.service)
-      )
-        throw new Error("Conflicting relay verification preset");
-      const aliases = row.legacy_server_urls ?? [];
-      if (
-        !Array.isArray(aliases) ||
-        aliases.some(
-          (url) => !isString(url) || !/^https:\/\/[a-z0-9.-]+\/?$/i.test(url),
-        )
-      )
-        throw new Error("Invalid relay verification host alias");
-      names.add(row.service);
+      validateRelayRow(row, names);
     }
     merged[kind] = [...presets[kind], ...relay[kind]];
   }
@@ -92,6 +96,15 @@ function unboundTemplate(template, hostSuffixes) {
   return !hostSuffixes.some((suffix) => host.endsWith(`.${suffix}`));
 }
 
+function validateProofDisabled(verify) {
+  if (
+    verify.proof_disabled !== undefined &&
+    verify.proof_disabled !== true &&
+    verify.proof_disabled !== false
+  )
+    throw new Error("Invalid verification disabled flag");
+}
+
 function target(
   kind,
   verify,
@@ -101,12 +114,7 @@ function target(
   sources = [],
   hostSuffixes = [],
 ) {
-  if (
-    verify.proof_disabled !== undefined &&
-    verify.proof_disabled !== true &&
-    verify.proof_disabled !== false
-  )
-    throw new Error("Invalid verification disabled flag");
+  validateProofDisabled(verify);
   const built = {
     sources,
     kind,
