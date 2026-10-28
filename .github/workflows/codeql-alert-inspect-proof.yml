@@ -1,0 +1,44 @@
+name: Inspect composed Go proof alerts
+on:
+  workflow_dispatch:
+  push:
+    branches: [review/codeql-alert-inspect-proof]
+permissions:
+  contents: read
+  security-events: read
+jobs:
+  inspect:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/codeql-alert-inspect-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect branch analyses and alerts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(gh api repos/Tyler-R-Kendrick/OpenSesame/git/ref/heads/review/native-ssh-host-key-proof --jq .object.sha)"
+          test "$actual" = 69e60b69be2348fef8c1bed84f21d853af444148
+          gh api --method GET repos/Tyler-R-Kendrick/OpenSesame/code-scanning/alerts -f ref=refs/heads/review/native-ssh-host-key-proof -f state=all -f per_page=100 --paginate --slurp > "$RUNNER_TEMP/alerts.json"
+          gh api --method GET repos/Tyler-R-Kendrick/OpenSesame/code-scanning/analyses -f ref=refs/heads/review/native-ssh-host-key-proof -f per_page=100 --paginate --slurp > "$RUNNER_TEMP/analyses.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const read = (name) => JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/${name}.json`, 'utf8')).flat();
+          const target = '/language:go-composed-native-review/';
+          const analyses = read('analyses').filter(a => a.category === target).map(a => ({ id: a.id, category: a.category, ref: a.ref, commit_sha: a.commit_sha, results_count: a.results_count, rules_count: a.rules_count, tool: a.tool?.name, created_at: a.created_at, error: a.error }));
+          const all = read('alerts');
+          const alerts = all.filter(a => a.most_recent_instance?.category === target).map(a => ({ number: a.number, state: a.state, rule: a.rule?.id, category: a.most_recent_instance?.category, path: a.most_recent_instance?.location?.path, line: a.most_recent_instance?.location?.start_line }));
+          const categories = [...new Set(all.map(a => a.most_recent_instance?.category ?? '(missing)'))];
+          const evidence = { target, countAllBranchAlerts: all.length, categories, analyses, alerts };
+          const value = JSON.stringify(evidence, null, 2);
+          console.log(value);
+          writeFileSync(`${process.env.RUNNER_TEMP}/inspection.json`, `${value}\n`);
+          NODE
+      - name: Retain inspection summary
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codeql-alert-inspection
+          path: ${{ runner.temp }}/inspection.json
+          if-no-files-found: warn
