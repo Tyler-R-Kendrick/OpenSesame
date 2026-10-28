@@ -1,0 +1,75 @@
+name: Tailnet tour before-fix evidence
+on:
+  push:
+    branches: [review/tailnet-tour-baseline]
+permissions:
+  contents: read
+jobs:
+  walk:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/tailnet-tour-baseline'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SOURCE_SHA: b23dcc77b7f1e7d1b5ca1243a189ba24f00cf8d7
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /OpenSesame/
+      TUTORIALS_ONLY: identity.tailnet.devices.manage
+      TUTORIALS_WIDTHS: 1280,390
+      TUTORIALS_SHOTS: '1'
+      TUTORIALS_OUT: ${{ github.workspace }}/work/tailnet-tour-baseline
+    steps:
+      - name: Check out the unmodified source under review
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Verify and record the exact unmodified source
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code
+          mkdir -p "$TUTORIALS_OUT"
+          printf '%s\n' "$SOURCE_SHA" > "$TUTORIALS_OUT/source.txt"
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build the ordinary unpaired app
+        run: |
+          node scripts/lib/ci-pages-build.mjs
+          git diff --exit-code
+      - name: Record existing walker geometry without changing app source
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync, writeFileSync} from 'node:fs';
+          const path='apps/pages/scripts/lib/tutorial-walk.mjs';
+          const source=readFileSync(path,'utf8');
+          const importLine='import { readFileSync } from "node:fs";';
+          const step='    const label = `${id} · ${info.kind} ${info.counter || ""}`.trim();';
+          if(source.split(importLine).length!==2 || source.split(step).length!==2) throw Error('Unexpected original walker');
+          const instrument=`    if ((id === "identity.tailnet.devices.manage" || id === "identity.tailnet.devices.manage (replay)") && tailnetObservations++ < 80) {
+                const probe = info.probe ? { visible: info.probe.visible, onControl: info.probe.onControl, onCard: info.probe.onCard, onDim: info.probe.onDim, x: info.probe.x, y: info.probe.y } : null;
+                const targets = ["", "identity.tailnet-devices", "identity.tailnet-devices.add", "identity.tailnet-devices.commands"];
+                const data = { width: page.viewportSize()?.width, replay: id.endsWith("(replay)"), kind: info.kind, step: info.step, counter: info.counter, target: targets.includes(info.target) ? info.target : "other", degraded: info.degraded, notOnScreen: info.notOnScreen, card: info.card, ring: info.ring, control: info.control, probe, viewport: info.viewport, go: info.go, goDisabled: info.goDisabled, backDisabled: info.backDisabled };
+                appendFileSync(process.env.TUTORIALS_OUT + "/geometry.ndjson", JSON.stringify(data) + "\\n");
+              }
+          `;
+          const result=source.replace(importLine,'import { appendFileSync, readFileSync } from "node:fs";\nlet tailnetObservations = 0;').replace(step,instrument+step);
+          writeFileSync(path,result);
+          JS
+          git diff --check
+          test "$(git diff --name-only)" = apps/pages/scripts/lib/tutorial-walk.mjs
+      - name: Walk the original tour at both widths
+        run: pnpm --filter @opensesame/pages verify:tutorials
+      - name: Preserve before screenshots and provenance
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: tailnet-tour-before
+          path: ${{ env.TUTORIALS_OUT }}
+          if-no-files-found: error
+          retention-days: 7
