@@ -1,0 +1,31 @@
+name: Format pinned DERP regression test
+on:
+  push:
+    branches: [review/tls-format-proof]
+permissions:
+  contents: read
+jobs:
+  format:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/tls-format-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5d8b3a19a8cae5388b55320 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Format with the pinned compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e 'const p=require("./tools/pwa-tailscale-native-http/source.json"); if(!/^https:\/\//.test(p.compiler.archiveURL)||!/^[0-9a-f]{64}$/.test(p.compiler.archiveSha256)) process.exit(1); console.log(p.compiler.archiveURL);console.log(p.compiler.archiveSha256)' > "$RUNNER_TEMP/pins"
+          mapfile -t pins < "$RUNNER_TEMP/pins"
+          test "${#pins[@]}" = 2
+          curl --fail --show-error --location --proto '=https' --proto-redir '=https' --max-time 120 --max-filesize 1073741824 --output "$RUNNER_TEMP/compiler.tar.gz" -- "${pins[0]}"
+          printf '%s  %s\n' "${pins[1]}" "$RUNNER_TEMP/compiler.tar.gz" | sha256sum --check
+          mkdir "$RUNNER_TEMP/compiler"
+          tar -xzf "$RUNNER_TEMP/compiler.tar.gz" --strip-components=1 -C "$RUNNER_TEMP/compiler"
+          test "$("$RUNNER_TEMP/compiler/bin/go" env GOVERSION)" = go1.27.3
+          "$RUNNER_TEMP/compiler/bin/gofmt" -w scripts/security/tls-derp-caller-proof_test.go
+          printf 'FORMATTED_GO_BASE64:'
+          base64 -w0 scripts/security/tls-derp-caller-proof_test.go
+          printf '\n'
