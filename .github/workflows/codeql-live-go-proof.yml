@@ -1,0 +1,76 @@
+name: Review live Go and oracle CodeQL extraction
+on:
+  push:
+    branches: [review/codeql-live-go-proof]
+permissions:
+  contents: read
+  security-events: read
+concurrency:
+  group: codeql-live-go-proof
+  cancel-in-progress: false
+jobs:
+  live-go:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CODEQL_EXTRACTOR_GO_OPTION_EXTRACT_TESTS: 'true'
+      GOTOOLCHAIN: local
+      GOFLAGS: -mod=readonly -buildvcs=false
+      SOPS_ORACLE_DIR: ${{ github.workspace }}/.codeql-sops
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: scripts/test/live-turn/go.mod
+          cache-dependency-path: scripts/test/live-turn/go.sum
+      - name: Isolate the traced Go build cache
+        run: echo "GOCACHE=$RUNNER_TEMP/codeql-live-go-cache" >> "$GITHUB_ENV"
+      - name: Initialize manual Go analysis
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: go
+          build-mode: manual
+          config-file: ./.github/codeql/codeql-config.yml
+          queries: security-extended
+      - name: Extract live-turn and its reviewed local crypto module
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
+          test "$(command -v go)" = "$CODEQL_ACTION_GO_BINARY"
+          python3 scripts/test/live-turn/verify-crypto-subset.py
+          cd scripts/test/live-turn
+          go build -o "$RUNNER_TEMP/codeql-live-turn" .
+          go test -c -o "$RUNNER_TEMP/codeql-live-turn.test" .
+          cd third_party/x-crypto
+          go list ./... > "$RUNNER_TEMP/codeql-xcrypto-packages"
+          test -s "$RUNNER_TEMP/codeql-xcrypto-packages"
+          while IFS= read -r package; do
+            go test -c -o "$RUNNER_TEMP/codeql-xcrypto.test" "$package"
+          done < "$RUNNER_TEMP/codeql-xcrypto-packages"
+      - name: Extract the existing pinned SOPS development oracle
+        run: |
+          set -euo pipefail
+          test ! -e "$SOPS_ORACLE_DIR"
+          node --input-type=module -e 'import {provisionTreedump} from "./packages/app-core/scripts/sops-oracle/oracle.mjs"; const result=provisionTreedump(); if(!result.bin) throw new Error(result.error ?? "SOPS oracle build failed");'
+          test -f "$SOPS_ORACLE_DIR/sops-src/treedump/main.go"
+          cmp packages/app-core/scripts/sops-oracle/treedump.go "$SOPS_ORACLE_DIR/sops-src/treedump/main.go"
+      - name: Analyze without uploading temporary paths
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          category: /language:go-live-review
+          upload: never
+          output: ${{ runner.temp }}/codeql-live-sarif
+      - name: Keep raw SARIF and package list
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codeql-live-review
+          path: |
+            ${{ runner.temp }}/codeql-live-sarif
+            ${{ runner.temp }}/codeql-xcrypto-packages
+          if-no-files-found: error
