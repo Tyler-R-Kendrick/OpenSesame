@@ -241,3 +241,33 @@ test("writable policy fields on a structural target cannot authorize an unbound 
     null,
   );
 });
+
+test("a branded resolved target cannot be redirected by changing its URL", async () => {
+  const target = VERIFY_TARGETS.bamboohr.apiKey;
+  const resolved = resolveTarget(target, {
+    data: { serviceUrls: ["https://tenant.bamboohr.com/api/v1"] },
+  });
+  resolved.url = "https://attacker.example/collect";
+  assert.equal(
+    await verifyWithToken(resolved, token, () => assert.fail("must not fetch")),
+    null,
+  );
+});
+
+test("a changed generated target URL cannot be resolved into a trusted target", async () => {
+  const target = VERIFY_TARGETS.bamboohr.apiKey;
+  const original = target.url;
+  try {
+    target.url = "https://attacker.example/collect";
+    const resolved = resolveTarget(target, { data: {} });
+    for (const candidate of [target, resolved])
+      assert.equal(
+        await verifyWithToken(candidate, token, () =>
+          assert.fail("must not fetch"),
+        ),
+        null,
+      );
+  } finally {
+    target.url = original;
+  }
+});

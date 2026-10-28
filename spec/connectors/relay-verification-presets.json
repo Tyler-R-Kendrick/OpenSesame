@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "oauth": [
+    {
+      "service": "google-drive",
+      "server_url": "https://accounts.google.com",
+      "discovery_url": "https://accounts.google.com/.well-known/openid-configuration",
+      "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+      "token_endpoint": "https://oauth2.googleapis.com/token",
+      "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
+      "userinfo_endpoint": "https://www.googleapis.com/oauth2/v3/userinfo",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "Identify the signed-in Google user",
+          "default": true
+        },
+        {
+          "name": "email",
+          "description": "Read the account email address",
+          "default": true
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://console.cloud.google.com/apis/credentials",
+      "docs_url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+      "verify": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/oauth2/v3/userinfo",
+        "account_field": "email",
+        "required_fields": ["email"]
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://developers.google.com/identity/protocols/oauth2/web-server"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "m365",
+      "server_url": "https://login.microsoftonline.com/common",
+      "discovery_url": "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration",
+      "authorization_endpoint": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "token_endpoint": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": "https://graph.microsoft.com/v1.0/me",
+      "token_endpoint_auth_method": "client_secret_post",
+      "pkce": "S256",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "openid",
+          "description": "Identify the signed-in Microsoft user",
+          "default": true
+        },
+        {
+          "name": "offline_access",
+          "description": "Keep access when the user is not present",
+          "default": true
+        },
+        {
+          "name": "User.Read",
+          "description": "Read the signed-in user's profile",
+          "default": true
+        },
+        {
+          "name": "Files.Read.All",
+          "description": "Read files the signed-in user can access",
+          "default": false
+        }
+      ],
+      "refresh_tokens": true,
+      "client_registration": "manual",
+      "developer_console_url": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+      "docs_url": "https://learn.microsoft.com/graph/use-the-api",
+      "verify": {
+        "method": "GET",
+        "url": "https://graph.microsoft.com/v1.0/me",
+        "account_field": "displayName",
+        "required_fields": ["id"]
+      },
+      "probe_status": 200,
+      "confidence": "high",
+      "sources": [
+        "https://learn.microsoft.com/graph/api/user-get?view=graph-rest-1.0",
+        "https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "origin",
+      "server_url": "https://api.cursor.com/v1/origin",
+      "legacy_server_urls": ["https://cursor.com"],
+      "discovery_url": "https://api.cursor.com/v1/origin/.well-known/openid-configuration",
+      "authorization_endpoint": "https://cursor.com/codebase/apps/install",
+      "token_endpoint": "https://api.cursor.com/v1/origin/app/installations",
+      "revocation_endpoint": null,
+      "userinfo_endpoint": "https://api.cursor.com/v1/origin/rate_limit",
+      "token_endpoint_auth_method": "none",
+      "pkce": "none",
+      "authorization_params": {},
+      "scope_separator": " ",
+      "scopes": [
+        {
+          "name": "repository:contents:read",
+          "description": "Read repository contents over Git HTTPS and the REST API",
+          "default": true
+        },
+        {
+          "name": "repository:contents:write",
+          "description": "Push repository contents (required for sealed-store history)",
+          "default": false
+        }
+      ],
+      "refresh_tokens": false,
+      "client_registration": "manual",
+      "developer_console_url": "https://cursor.com/codebase/settings/apps",
+      "docs_url": "https://cursor.com/docs/api/origin/reference/installation",
+      "verify": {
+        "method": "GET",
+        "url": "https://api.cursor.com/v1/origin/rate_limit",
+        "account_field": null,
+        "required_fields": [
+          "resources.core.limit",
+          "resources.core.remaining",
+          "resources.core.reset",
+          "resources.core.used"
+        ]
+      },
+      "probe_status": null,
+      "confidence": "high",
+      "sources": [
+        "https://cursor.com/docs/api/origin/reference/installation.md",
+        "https://cursor.com/docs/api/origin/reference/app-jwt.md",
+        "https://cursor.com/docs/api/origin/reference/create-installation-access-token.md",
+        "https://cursor.com/docs/api/origin/reference/get-rate-limit.md"
+      ],
+      "template_params": []
+    }
+  ],
+  "api_key": [
+    {
+      "service": "fal-ai",
+      "key_url": "https://fal.ai/dashboard/keys",
+      "header": "Authorization",
+      "scheme": "Key",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://fal.run",
+        "https://queue.fal.run",
+        "https://rest.alpha.fal.ai"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://rest.alpha.fal.ai/openapi.json",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "account_field": null,
+        "required_fields": ["openapi"]
+      },
+      "instructions": "Open fal\u2019s dashboard keys page, create a key, and copy it. The key has the form `key_id:key_secret` and is sent as an `Authorization: Key` header. Verification reads the API\u2019s own published contract and runs no model.",
+      "docs_url": "https://fal.ai/docs/api-reference/platform-apis/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Key scheme with the combined id:secret credential; one bounded read-only GET of the published API contract. No model runs, writes or token minting.",
+      "sources": [
+        "https://fal.ai/docs/api-reference/platform-apis/authentication"
+      ],
+      "template_params": [],
+      "display_name": "FAL.ai",
+      "category": "ai_model_provider"
+    },
+    {
+      "service": "higgsfield",
+      "key_url": "https://console.higgsfield.ai",
+      "header": "Authorization",
+      "scheme": "Key",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.higgsfield.ai"],
+      "verify": {
+        "method": "POST",
+        "url": "https://api.higgsfield.ai/v1/models",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{}",
+        "account_field": null,
+        "required_fields": [],
+        "proof_disabled": true,
+        "proof_disabled_reason": "The POST endpoint is not yet verified to be read-only or to prove valid credentials."
+      },
+      "instructions": "Create an API credential in the Higgsfield Console and copy the key ID and secret. Paste them here joined with a colon (`key_id:key_secret`); they travel as an `Authorization: Key` header. Relay verification is unavailable pending a documented safe proof.",
+      "docs_url": "https://docs.higgsfield.ai/docs/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Key scheme with the combined id:secret credential; this POST proof is disabled until its safety and credential semantics are documented.",
+      "sources": [
+        "https://docs.higgsfield.ai/docs/authentication",
+        "https://docs.higgsfield.ai/docs/api-reference/overview"
+      ],
+      "template_params": [],
+      "display_name": "Higgsfield",
+      "category": "ai_model_provider"
+    },
+    {
+      "service": "obsidian",
+      "key_url": "https://coddingtonbear.github.io/obsidian-local-rest-api/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://{obsidian_endpoint}"],
+      "verify": {
+        "method": "GET",
+        "url": "https://{obsidian_endpoint}/",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "account_field": null,
+        "success": [
+          {
+            "field": "authenticated",
+            "equals": true
+          }
+        ],
+        "required_fields": ["authenticated"]
+      },
+      "instructions": "Install the **Local REST API** community plugin in Obsidian, copy its API key, and enter the HTTPS endpoint it serves (default `127.0.0.1:27124`). Trust the plugin\u2019s certificate authority in this browser (download it from the plugin at `https://127.0.0.1:27124/obsidian-local-rest-api.crt`) so the connection can open. Verification reads the plugin\u2019s own status document; your notes are never read here.",
+      "docs_url": "https://coddingtonbear.github.io/obsidian-local-rest-api/",
+      "probe_status": 200,
+      "confidence": "medium",
+      "notes": "Bearer key against the plugin\u2019s local HTTPS endpoint on the machine\u2019s loopback; one bounded read-only status call whose authenticated flag must be true. No note reads, writes or events.",
+      "sources": [
+        "https://github.com/coddingtonbear/obsidian-local-rest-api",
+        "https://coddingtonbear.github.io/obsidian-local-rest-api/"
+      ],
+      "template_params": [
+        {
+          "name": "obsidian_endpoint",
+          "label": "Plugin HTTPS endpoint",
+          "placeholder": "127.0.0.1:27124",
+          "required": true,
+          "secret": false
+        }
+      ],
+      "display_name": "Obsidian",
+      "category": "storage"
+    },
+    {
+      "service": "polar",
+      "key_url": "https://polar.sh/to/dashboard/settings",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.polar.sh"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.polar.sh/v1/organizations/",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "account_field": null,
+        "required_fields": ["items"]
+      },
+      "instructions": "Open Polar\u2019s dashboard settings, create an organization access token under **Developers** with the `organizations:read` scope, and copy it. The token is sent as a Bearer token to the Polar API and only lists your organizations.",
+      "docs_url": "https://polar.sh/docs/integrate/oat",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "Bearer organization access token; one bounded read-only organizations listing. No writes, token minting or refresh.",
+      "sources": [
+        "https://polar.sh/docs/integrate/oat",
+        "https://github.com/polarsource/polar/blob/main/docs/openapi/2026-10.openapi.json"
+      ],
+      "template_params": [],
+      "display_name": "Polar",
+      "category": "crm"
+    },
+    {
+      "service": "azure-access-token",
+      "key_url": "https://learn.microsoft.com/cli/azure/account#az-account-get-access-token",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://management.azure.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://management.azure.com/subscriptions?api-version=2020-01-01",
+        "account_field": null,
+        "required_fields": ["value"],
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "instructions": "Create an Azure Resource Manager access token with `az account get-access-token --scope https://management.azure.com/.default` and paste it here. Verification lists subscriptions with one bounded read-only request; the token is sealed on this device and can be replaced when it expires.",
+      "docs_url": "https://learn.microsoft.com/cli/azure/account#az-account-get-access-token",
+      "probe_status": 200,
+      "confidence": "high",
+      "notes": "Azure Resource Manager Bearer token; one bounded read-only subscription listing.",
+      "sources": [
+        "https://learn.microsoft.com/cli/azure/account#az-account-get-access-token",
+        "https://learn.microsoft.com/rest/api/resources/subscriptions/list"
+      ],
+      "template_params": []
+    }
+  ]
+}

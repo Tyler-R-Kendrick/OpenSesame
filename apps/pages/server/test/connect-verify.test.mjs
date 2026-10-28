@@ -119,6 +119,24 @@ describe("where the token goes", () => {
     assert.match(unknown.url, /\{domain\}/);
   });
 
+  it("selects known shared-host OAuth aliases by UID without crossing issuers", () => {
+    const service = "login.microsoftonline.com";
+    const teams = verifyTargetFor({
+      service,
+      uid: "microsoft-teams/default",
+      data: {},
+    });
+    assert.equal(teams, VERIFY_TARGETS["microsoft-teams"].oauth);
+    assert.equal(
+      verifyTargetFor({ service, uid: "unlisted/default", data: {} }),
+      VERIFY_TARGETS.microsoft.oauth,
+    );
+    assert.equal(
+      verifyTargetFor({ service, uid: "google-drive/default", data: {} }),
+      null,
+    );
+  });
+
   it("chooses the API-key call for an API-key connector", () => {
     const withKey = Object.entries(VERIFY_TARGETS).find(
       ([, row]) => row.apiKey,
@@ -153,6 +171,10 @@ describe("generated verify targets", () => {
       null,
       {},
       { schema_version: 2, providers: {} },
+      {
+        schema_version: 1,
+        providers: { "bad!": { host_suffixes: ["example.com"] } },
+      },
       {
         schema_version: 1,
         providers: { x: { host_suffixes: ["*.example.com"] } },

@@ -28,7 +28,7 @@ export function assertTokenProof({
 }): void {
   const target =
     VERIFY_TARGETS[plan.id]?.[kind === "oauth" ? "oauth" : "apiKey"];
-  if (target?.unbound) {
+  if (target?.unbound || target?.proofDisabled) {
     expect(check.verified).toBeNull();
     expect(provider.log).toEqual(providerCallsBeforeCheck);
   } else if (profile.verify) {

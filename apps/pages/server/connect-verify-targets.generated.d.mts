@@ -14,6 +14,7 @@ export type VerifyTarget = {
   errorFields?: string[];
   hostSuffixes?: readonly string[];
   unbound?: boolean;
+  proofDisabled?: boolean;
 };
 
 export const VERIFY_TARGETS: Readonly<

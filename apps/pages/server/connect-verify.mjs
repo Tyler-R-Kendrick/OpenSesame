@@ -42,7 +42,12 @@ function unboundTemplate(template, hostSuffixes) {
 // metadata can be resolved. Later writes to public target fields cannot change it.
 for (const targets of Object.values(VERIFY_TARGETS)) {
   for (const target of Object.values(targets)) {
-    targetPolicy.set(target, unboundTemplate(target.url, target.hostSuffixes));
+    targetPolicy.set(target, {
+      url: target.url,
+      blocked:
+        target.proofDisabled === true ||
+        unboundTemplate(target.url, target.hostSuffixes),
+    });
   }
 }
 
@@ -78,6 +83,17 @@ function oauthAlias(connector) {
 /** Which of the service's verify calls fits this connector. */
 export function verifyTargetFor(connector) {
   const named = text(connector?.service, 128);
+  const uid = text(connector?.uid, 512);
+  const claimed = uid.includes("/") ? uid.split("/", 1)[0] : "";
+  if (claimed && Object.hasOwn(VERIFY_TARGETS, claimed)) {
+    if (Object.hasOwn(VERIFY_TARGETS, named) && claimed !== named) return null;
+    if (
+      !Object.hasOwn(VERIFY_TARGETS, named) &&
+      Object.hasOwn(VERIFY_OAUTH_ALIAS_HOSTS, named) &&
+      !VERIFY_OAUTH_ALIAS_HOSTS[named].includes(claimed)
+    )
+      return null;
+  }
   const service = Object.hasOwn(VERIFY_TARGETS, named)
     ? named
     : (oauthAlias(connector) ??
@@ -208,7 +224,13 @@ export function resolveTarget(target, connector) {
         }
       : target.basic,
   };
-  targetPolicy.set(resolved, targetPolicy.get(target) ?? unboundTarget(target));
+  const policy = targetPolicy.get(target);
+  targetPolicy.set(resolved, {
+    url: resolved.url,
+    blocked: policy
+      ? policy.blocked || target.url !== policy.url
+      : unboundTarget(target),
+  });
   return resolved;
 }
 
@@ -321,6 +343,7 @@ function unboundTarget(target) {
   // Structural callers have no generated provider provenance. Never trust
   // writable policy fields on them; fall back to the original templates.
   return (
+    target.proofDisabled === true ||
     unboundTemplate(target.url, []) ||
     (Array.isArray(target.sources) &&
       target.sources.some((source) => unboundTemplate(source?.template, [])))
@@ -329,7 +352,11 @@ function unboundTarget(target) {
 
 export async function verifyWithToken(target, token, fetchImpl = fetch) {
   if (!target || openTemplate(target)) return null;
-  if (targetPolicy.get(target) ?? unboundTarget(target)) return null;
+  const policy = targetPolicy.get(target);
+  if (
+    policy ? policy.blocked || target.url !== policy.url : unboundTarget(target)
+  )
+    return null;
   const { url, init } = verifyRequest(target, token);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);

@@ -3246,7 +3246,8 @@
       "verify": {
         "method": "GET",
         "url": "https://api.attio.com/v2/objects",
-        "account_field": null
+        "account_field": null,
+        "required_fields": ["data"]
       },
       "probe_status": 401,
       "confidence": "high",
