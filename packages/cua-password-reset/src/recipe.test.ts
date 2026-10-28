@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { recipeMatches, replayStep } from "./recipe.js";
+import {
+  recipeMatches,
+  replayStep,
+  resolveStepRef,
+  stepDrift,
+} from "./recipe.js";
 import { ORIGIN, observation, run } from "./test-support.js";
 
 describe("domain recipes", () => {
@@ -48,6 +53,46 @@ describe("domain recipes", () => {
       status: "ready",
       step: recipe.steps[1],
     });
+  });
+
+  it("resolves renumbered snapshot refs by unique label and kind", () => {
+    const step = {
+      id: "identify",
+      primitive: "fill-field" as const,
+      ref: "e2",
+      expectedLabel: "Email",
+      purpose: "identifier" as const,
+    };
+    const renumbered = observation([
+      { ref: "e5", kind: "button", label: "Send reset link" },
+      { ref: "e6", kind: "email", label: "Email" },
+    ]);
+    expect(stepDrift(step, renumbered)).toBe(false);
+    expect(resolveStepRef(step, renumbered)).toBe("e6");
+    const ambiguous = observation([
+      { ref: "e5", kind: "email", label: "Email" },
+      { ref: "e6", kind: "email", label: "Email" },
+    ]);
+    expect(stepDrift(step, ambiguous)).toBe(true);
+    expect(resolveStepRef(step, ambiguous)).toBeNull();
+    const wrongKind = observation([
+      { ref: "e6", kind: "password", label: "Email" },
+    ]);
+    expect(stepDrift(step, wrongKind)).toBe(true);
+  });
+
+  it("refuses to rebind a generic masked password label", () => {
+    const step = {
+      id: "password",
+      primitive: "fill-field" as const,
+      ref: "e2",
+      expectedLabel: "[masked password]",
+      purpose: "new-password" as const,
+    };
+    const changed = observation([
+      { ref: "e3", kind: "password", label: "Current password" },
+    ]);
+    expect(resolveStepRef(step, changed)).toBeNull();
   });
 
   it("does not let drift repair change the step meaning", async () => {

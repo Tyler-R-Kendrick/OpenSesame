@@ -12,6 +12,7 @@ export * from "./discovery.js";
 export * from "./file-journal.js";
 export * from "./grants.js";
 export * from "./journal.js";
+export * from "./local-sandbox.js";
 export * from "./masking.js";
 export * from "./recipe.js";
 export * from "./recipe-store.js";
