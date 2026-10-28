@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
+          ref: 69e60b69be2348fef8c1bed84f21d853af444148
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
+          test "$(git rev-parse HEAD)" = 69e60b69be2348fef8c1bed84f21d853af444148
           mkdir -p "$RUNNER_TEMP/native-input"
           node -e 'const p=require("./tools/pwa-tailscale-native-http/source.json"); for(const x of [p.source,p.compiler]) {if(!/^https:\/\//.test(x.archiveURL)||!/^[0-9a-f]{64}$/.test(x.archiveSha256)) process.exit(1);console.log(x.archiveURL);console.log(x.archiveSha256)}' > "$RUNNER_TEMP/native-input/pins"
           mapfile -t pins < "$RUNNER_TEMP/native-input/pins"
