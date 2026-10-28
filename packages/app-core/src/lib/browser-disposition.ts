@@ -21,6 +21,7 @@ import {
   catalogProvenanceUrl,
 } from "./connector-catalog.js";
 import { isFnoxLink } from "./doc-link.js";
+import { nativeCatalogConfigurationContract } from "./native-catalog-contract.js";
 
 /** Why a browser has no road to a provider, as a closed set. */
 export type BrowserUnavailableKind =
@@ -188,6 +189,8 @@ function authorities(provider: Provider): string {
  * own catalog does and does not contain.
  */
 function derivedSummary(provider: Provider): string {
+  if (nativeCatalogConfigurationContract(provider))
+    return `${provider.displayName} configuration is validated and sealed locally. No provider request or provider-access verification occurs.`;
   const lead = `OpenSesame has no browser connection for ${provider.displayName}.`;
   if (provider.category === "wallet")
     return `${provider.displayName} provisioning is unavailable under this product's wallet connection policy. This browser has no wallet driver and does not collect signing or issuer credentials.`;
@@ -217,7 +220,11 @@ export function browserDisposition(provider: Provider): BrowserDisposition {
       authored: true,
     };
   return {
-    kind: provider.category === "wallet" ? "policy" : "no-contract",
+    kind: nativeCatalogConfigurationContract(provider)
+      ? "built-in"
+      : provider.category === "wallet"
+        ? "policy"
+        : "no-contract",
     summary: derivedSummary(provider),
     sources: [],
     alternative: null,

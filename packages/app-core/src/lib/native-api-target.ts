@@ -82,6 +82,41 @@ function selectedProfile(
     throw new Error("Select a supported provider credential type");
   return { profile, variantId };
 }
+function publicInputValue(
+  field: NativeApiProfile["templateParams"][number],
+  supplied: Record<string, string>,
+) {
+  const value =
+    supplied[field.name]?.trim() ||
+    field.defaultValue ||
+    field.choices?.[0]?.value ||
+    "";
+  if (field.required && !value) throw new Error(`Enter ${field.label}`);
+  if (
+    value &&
+    field.choices &&
+    !field.choices.some((choice) => choice.value === value)
+  )
+    throw new Error(`Select a supported ${field.label}`);
+  if (value.length > 256 || /[\r\n]/.test(value))
+    throw new Error("Enter valid provider parameters");
+  validatePublicFormat(field, value);
+  return value;
+}
+
+function validatePublicFormat(
+  field: NativeApiProfile["templateParams"][number],
+  value: string,
+): void {
+  if (
+    value &&
+    field.format === "uuid" &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  )
+    throw new Error(`Enter a valid ${field.label}`);
+}
 function publicInputs(
   profile: NativeApiProfile,
   supplied: Record<string, string>,
@@ -89,20 +124,8 @@ function publicInputs(
 ) {
   const parameters: Record<string, string> = {};
   if (variantId) parameters.credential_variant = variantId;
-  for (const field of profile.templateParams.filter((entry) => !entry.secret)) {
-    const value =
-      supplied[field.name]?.trim() || field.choices?.[0]?.value || "";
-    if (field.required && !value) throw new Error(`Enter ${field.label}`);
-    if (
-      value &&
-      field.choices &&
-      !field.choices.some((choice) => choice.value === value)
-    )
-      throw new Error(`Select a supported ${field.label}`);
-    if (value.length > 256 || /[\r\n]/.test(value))
-      throw new Error("Enter valid provider parameters");
-    parameters[field.name] = value;
-  }
+  for (const field of profile.templateParams.filter((entry) => !entry.secret))
+    parameters[field.name] = publicInputValue(field, supplied);
   return parameters;
 }
 
@@ -141,7 +164,7 @@ export function providerTemplate(
   credentials: Record<string, string>,
   url = false,
 ): string {
-  return value.replace(/\{([a-z_]+)\}/g, (_whole, name: string) => {
+  const filled = value.replace(/\{([a-z_]+)\}/g, (_whole, name: string) => {
     const replacement =
       name === "key"
         ? credentials.api_key
@@ -150,6 +173,45 @@ export function providerTemplate(
       throw new Error("Complete the provider's required configuration");
     return url ? encodeURIComponent(replacement) : replacement;
   });
+  const path = filled.split(/[?#]/, 1)[0] ?? "";
+  if (
+    url &&
+    path.split("/").some((segment) => segment === "." || segment === "..")
+  )
+    throw new Error("Enter valid provider parameters");
+  return filled;
+}
+
+/** A machine's own loopback address: the one place a non-standard port is the person's. */
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "::1" ||
+    /^127(?:\.[0-9]{1,3}){3}$/.test(host)
+  );
+}
+
+function assertTenantHosts(template: string, target: NativeApiTarget): void {
+  const hostPart = template.slice("https://".length).split("/")[0] ?? "";
+  for (const match of hostPart.matchAll(/\{([a-z_]+)\}/g)) {
+    const name = match[1] ?? "";
+    const value = target.parameters[name] ?? "";
+    if (
+      !target.classification.publicParameters.includes(name) ||
+      !/^[A-Za-z0-9.-]+(?::[0-9]{1,5})?$/.test(value) ||
+      value.startsWith(".") ||
+      value.endsWith(".")
+    )
+      throw new Error("Enter a valid provider tenant host");
+    // A hostname-only contract keeps its hostname: a port belongs to the
+    // machine's own loopback endpoint and nowhere else (the 443 rule below
+    // still binds everything this check lets through).
+    const port = value.indexOf(":");
+    if (port >= 0 && !isLoopbackHost(value.slice(0, port)))
+      throw new Error("Enter a valid provider tenant host");
+  }
 }
 
 export function providerUrl(
@@ -157,27 +219,21 @@ export function providerUrl(
   target: NativeApiTarget,
   credentials: Record<string, string>,
 ): URL {
-  const hostPart = template.slice("https://".length).split("/")[0] ?? "";
-  for (const match of hostPart.matchAll(/\{([a-z_]+)\}/g)) {
-    const name = match[1] ?? "";
-    const value = target.parameters[name] ?? "";
-    if (
-      !target.classification.publicParameters.includes(name) ||
-      !/^[A-Za-z0-9.-]+$/.test(value) ||
-      value.startsWith(".") ||
-      value.endsWith(".")
-    )
-      throw new Error("Enter a valid provider tenant host");
-  }
+  assertTenantHosts(template, target);
+  const [hostPart = ""] = template.slice("https://".length).split("/");
+  const hostFilled = template.replace(/\{([a-z_]+)\}/g, (whole, name) => {
+    if (!hostPart.includes(whole)) return whole;
+    return target.parameters[name] ?? "";
+  });
   const url = new URL(
-    providerTemplate(template, target.parameters, credentials, true),
+    providerTemplate(hostFilled, target.parameters, credentials, true),
   );
   if (
     url.protocol !== "https:" ||
     url.username ||
     url.password ||
     url.hash ||
-    (url.port && url.port !== "443")
+    (url.port && url.port !== "443" && !isLoopbackHost(url.hostname))
   )
     throw new Error("Provider requests require the compiled HTTPS target");
   return url;

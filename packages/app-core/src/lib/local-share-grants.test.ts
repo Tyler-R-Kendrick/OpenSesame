@@ -289,6 +289,7 @@ it("refuses a grant to a disabled agent", async () => {
   await fixture.change({ action: "create", kind: "agent", name: "Helper" });
   await signInLocalIdentity(fixture.tomb, fixture.personId);
   const agent = await agentNamed(fixture.tomb, "Helper");
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   await fixture.change({
     action: "update",
     id: agent.id,

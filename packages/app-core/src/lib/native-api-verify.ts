@@ -63,17 +63,74 @@ function hasProviderError(value: BoundaryValue | undefined): boolean {
     (!Array.isArray(value) || value.length > 0)
   );
 }
+function matchesResponseBinding(
+  verify: ProviderVerification,
+  body: BoundaryValue,
+  parameters: Record<string, string>,
+): boolean {
+  const binding = verify.responseBinding;
+  if (!binding) return true;
+  const requested = parameters[binding.parameter];
+  const received = providerField(body, binding.field);
+  if (!requested || !isString(received)) return false;
+  if (binding.format !== "uuid") return received === requested;
+  const uuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return (
+    uuid.test(requested) &&
+    uuid.test(received) &&
+    received.toLowerCase() === requested.toLowerCase()
+  );
+}
+
+function allowedProviderError(
+  verify: ProviderVerification,
+  path: string,
+  body: BoundaryValue,
+): boolean {
+  const rule = verify.allowedError;
+  return Boolean(
+    rule &&
+      verify.responseBinding &&
+      rule.field === path &&
+      providerField(body, rule.whenField) === rule.whenEquals,
+  );
+}
+
+function assertNoProviderErrors(
+  verify: ProviderVerification,
+  body: BoundaryValue,
+  parameters: Record<string, string>,
+): void {
+  if (!matchesResponseBinding(verify, body, parameters))
+    throw new NativeApiError("authorization");
+  for (const path of new Set(["error", "errors", ...verify.errorFields]))
+    if (
+      hasProviderError(providerField(body, path)) &&
+      !allowedProviderError(verify, path, body)
+    )
+      throw new NativeApiError("authorization");
+}
+
+function assertRequiredArrays(
+  verify: ProviderVerification,
+  body: BoundaryValue,
+): void {
+  for (const path of verify.requiredArrayFields ?? [])
+    if (!Array.isArray(providerField(body, path)))
+      throw new NativeApiError("response");
+}
+
 export function verifyNativeApiResponse(
   providerName: string,
   verify: ProviderVerification,
   body: BoundaryValue,
   credentials: Record<string, string>,
+  parameters: Record<string, string> = {},
 ): NativeApiReadResult {
   if (!Array.isArray(body) && !isJsonObject(body))
     throw new NativeApiError("response");
-  for (const path of new Set(["error", "errors", ...verify.errorFields]))
-    if (hasProviderError(providerField(body, path)))
-      throw new NativeApiError("authorization");
+  assertNoProviderErrors(verify, body, parameters);
   for (const condition of verify.success)
     if (providerField(body, condition.field) !== condition.equals)
       throw new NativeApiError("authorization");
@@ -82,6 +139,7 @@ export function verifyNativeApiResponse(
     if (value === undefined || value === null || value === "")
       throw new NativeApiError("response");
   }
+  assertRequiredArrays(verify, body);
   const account = verify.accountField
     ? providerField(body, verify.accountField)
     : undefined;

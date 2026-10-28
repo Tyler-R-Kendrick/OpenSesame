@@ -97,7 +97,12 @@ export const CERTIFICATE_PROVIDER_IDS = ["letsencrypt"] as const;
  * category `cloud_secret_storage`, ADR 0198): what a key is, and what it may
  * assume, rather than a store of secrets.
  */
-export const CLOUD_CREDENTIAL_PROVIDER_IDS = ["aws-sts", "gcp-iam"] as const;
+export const CLOUD_CREDENTIAL_PROVIDER_IDS = [
+  "aws-sts",
+  "gcp-iam",
+  "azure-access-token",
+  "azure-kms",
+] as const;
 
 /**
  * Field sets this app collects that differ from the catalog row's. Each is a

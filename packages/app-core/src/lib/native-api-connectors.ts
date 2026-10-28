@@ -137,6 +137,7 @@ async function providerVerification(
       target.profile.verify,
       body,
       nativeApiExposedCredentials(target, credentials),
+      target.parameters,
     ),
     origin: new URL(request.url).origin,
   };

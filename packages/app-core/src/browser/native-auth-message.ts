@@ -98,9 +98,33 @@ export function parseNativeAuthCode(
   return { state: response.state, code, error };
 }
 
+function installationReceiptState(receipt: string): string | null {
+  try {
+    const parts = receipt.split(".");
+    if (parts.length !== 3 || !parts[1]) return null;
+    const encoded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "="));
+    const bytes = Uint8Array.from(binary, (character) =>
+      character.charCodeAt(0),
+    );
+    const payload: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    return z.object({ state: z.string() }).parse(payload).state;
+  } catch {
+    return null;
+  }
+}
 export function captureNativeAuthCode(url: URL): NativeAuthCode | null {
-  for (const name of ["code", "state", "error"])
+  for (const name of ["code", "state", "error", "installation_receipt"])
     if (url.searchParams.getAll(name).length > 1) return null;
+  const receipt = url.searchParams.get("installation_receipt");
+  if (receipt) {
+    if (["code", "state", "error"].some((name) => url.searchParams.has(name)))
+      return null;
+    return parseNativeAuthCode({
+      state: installationReceiptState(receipt) ?? "",
+      code: receipt,
+    });
+  }
   return parseNativeAuthCode({
     state: url.searchParams.get("state") ?? "",
     code: url.searchParams.get("code"),

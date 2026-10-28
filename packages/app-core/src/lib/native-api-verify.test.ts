@@ -29,7 +29,12 @@ describe("provider verification envelopes and credential reflection", () => {
           .filter((field) => !field.secret)
           .map((field) => [
             field.name,
-            field.choices?.[0]?.value ?? (field.required ? "tenant" : ""),
+            field.choices?.[0]?.value ??
+              (field.format === "uuid"
+                ? "d7e6c0f3-6699-4f6c-bb45-2ad7fd9158ff"
+                : field.required
+                  ? "tenant"
+                  : ""),
           ]),
       );
       const target = nativeApiTarget(provider, parameters);

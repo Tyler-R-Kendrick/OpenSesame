@@ -27,7 +27,13 @@ describe("compiled native API-key request protocols", () => {
         (entry) => !entry.secret,
       ))
         parameters[field.name] =
-          field.choices?.[0]?.value ?? (field.required ? "tenant" : "");
+          field.defaultValue ??
+          field.choices?.[0]?.value ??
+          (field.format === "uuid"
+            ? "d7e6c0f3-6699-4f6c-bb45-2ad7fd9158ff"
+            : field.required
+              ? "tenant"
+              : "");
       const target = nativeApiTarget(id, parameters);
       const values = Object.fromEntries(
         target.classification.privateCredentials.map((name) => [
@@ -53,6 +59,44 @@ describe("compiled native API-key request protocols", () => {
       }
     },
   );
+
+  it("keeps the new provider endpoints and credential schemes exact", () => {
+    const obsidian = nativeApiVerificationRequest(
+      nativeApiTarget("obsidian", { host: "127.0.0.1", port: "27124" }),
+      { api_key: "owned-key" },
+    );
+    expect(String(obsidian.url)).toBe("https://127.0.0.1:27124/vault/");
+    expect(obsidian.headers.get("authorization")).toBe("Bearer owned-key");
+
+    const higgsfield = nativeApiVerificationRequest(
+      nativeApiTarget("higgsfield", {
+        request_id: "d7e6c0f3-6699-4f6c-bb45-2ad7fd9158ff",
+      }),
+      { api_key: "key-id", key_secret: "key-secret" },
+    );
+    expect(higgsfield.headers.get("authorization")).toBe(
+      "Key key-id:key-secret",
+    );
+    expect(String(higgsfield.url)).toBe(
+      "https://api.higgsfield.ai/requests/d7e6c0f3-6699-4f6c-bb45-2ad7fd9158ff/status",
+    );
+
+    const fal = nativeApiVerificationRequest(
+      nativeApiTarget("fal-ai", { request_id: "request-2" }),
+      { api_key: "fal-key" },
+    );
+    expect(fal.headers.get("authorization")).toBe("Key fal-key");
+    expect(String(fal.url)).toBe(
+      "https://queue.fal.run/fal-ai/flux/requests/request-2/status",
+    );
+    const preset = connectPlans()
+      .find((plan) => plan.id === "fal-ai")
+      ?.methods.find((method) => method.kind === "api-key")?.preset;
+    expect(preset?.instructions).toContain(
+      "Only fal-ai/flux request IDs are supported",
+    );
+    expect(preset?.templateParams[0]?.label).toContain("fal-ai/flux");
+  });
 
   it("uses exact Basic pairs, custom headers, compound headers and optional header omission", () => {
     const mailgun = nativeApiTarget("mailgun", {});
