@@ -22,10 +22,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { doorGuest } from "./lib/front-door.mjs";
-import {
-  addCapabilities,
-  openSettingsCategory,
-} from "./lib/pages-journey.mjs";
+import { addCapabilities, openSettingsCategory } from "./lib/pages-journey.mjs";
 import { privateTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -97,10 +94,13 @@ try {
       found?.getAttribute("aria-busy") !== "true"
     );
   });
-  await page.evaluate((route) => {
-    history.pushState(null, "", route);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, `${base}vault/new/account?uri=${encodeURIComponent("https://mail.example.test")}`);
+  await page.evaluate(
+    (route) => {
+      history.pushState(null, "", route);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    },
+    `${base}vault/new/account?uri=${encodeURIComponent("https://mail.example.test")}`,
+  );
   await page
     .getByLabel("Name", { exact: true })
     .first()
@@ -112,9 +112,7 @@ try {
   // Path 1a: the rotation panel prompts to configure.
   const rotation = page.getByRole("region", { name: "Rotation" });
   await rotation.waitFor({ timeout: 15000 });
-  await rotation
-    .getByRole("button", { name: /Generate new password/ })
-    .click();
+  await rotation.getByRole("button", { name: /Generate new password/ }).click();
   let tray = await openTray(page);
   await tray.getByText("Password reset", { exact: true }).first().waitFor();
   await tray.getByText(/Turn on Password reset/).waitFor();
@@ -127,19 +125,23 @@ try {
 
   // Path 1b: the password control prompts the same way and does not
   // regenerate locally.
-  await page.evaluate((route) => {
-    history.pushState(null, "", route);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, `${new URL(itemUrl).pathname}/edit`);
+  await page.evaluate(
+    (route) => {
+      history.pushState(null, "", route);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    },
+    `${new URL(itemUrl).pathname}/edit`,
+  );
   const password = page.getByLabel("Password", { exact: true });
   await password.waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Show password" }).click();
   const before = await password.inputValue();
-  await page
-    .getByRole("button", { name: "Generate another password" })
-    .click();
+  await page.getByRole("button", { name: "Generate another password" }).click();
   tray = await openTray(page);
-  await tray.getByText(/Turn on Password reset/).first().waitFor();
+  await tray
+    .getByText(/Turn on Password reset/)
+    .first()
+    .waitFor();
   await closeTray(page);
   assert.equal(
     await password.inputValue(),
@@ -166,9 +168,7 @@ try {
     .locator("#feature-password-reset")
     .getByRole("img", { name: "starting", exact: true });
   if ((await starting.count()) === 0) {
-    await starting
-      .waitFor({ state: "visible", timeout: 1000 })
-      .catch(() => {});
+    await starting.waitFor({ state: "visible", timeout: 1000 }).catch(() => {});
   }
   await starting.waitFor({ state: "hidden", timeout: 15000 });
   const item = new URL(itemUrl);
@@ -182,7 +182,10 @@ try {
     .getByRole("button", { name: /Generate new password/ })
     .click();
   tray = await openTray(page);
-  await tray.getByText(/Connect a computer-use runtime/).first().waitFor();
+  await tray
+    .getByText(/Connect a computer-use runtime/)
+    .first()
+    .waitFor();
   await closeTray(page);
 
   assert.deepEqual(harness.failures, []);
