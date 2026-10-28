@@ -1,4 +1,4 @@
-name: Review promotion 08 native build
+name: Review promotion ce7 native assets
 on:
   workflow_dispatch:
   push:
@@ -6,63 +6,36 @@ on:
 permissions:
   contents: read
 jobs:
-  handshakes:
+  verify:
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/promotion-08-native-proof'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 45
     steps:
-      - name: Checkout reviewed controller
+      - name: Checkout exact candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          path: controller
+          ref: ce7d267c3d4dc3fc2424e145a4426557de27fc0c
           persist-credentials: false
-      - name: Checkout exact PR candidate
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          path: candidate
-          ref: 08b55360d0c153603d8311444131565fc0b498a7
-          persist-credentials: false
+      - name: Verify source identity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ce7d267c3d4dc3fc2424e145a4426557de27fc0c
+          test "$(git rev-parse HEAD^{tree})" = f636d2300426eccf151656385e0a9de5e433b6fe
+          test "$(git rev-parse HEAD^)" = 08b55360d0c153603d8311444131565fc0b498a7
+          git diff --exit-code
+          git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-        with:
-          package_json_file: candidate/package.json
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-      - name: Install frozen build dependencies
-        working-directory: candidate
+      - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Compose pinned production graph
-        working-directory: candidate
-        shell: bash
+      - name: Verify native assets and exact assertions
+        run: pnpm --filter @opensesame/pages exec vitest run scripts/tailscale-wasm-assets.test.mjs
+      - name: Verify source after test
+        if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 08b55360d0c153603d8311444131565fc0b498a7
-          test "$(git rev-parse HEAD^{tree})" = 3f08c863c78bf65d2e7f76bba06560eae2562b34
-          mkdir -p "$RUNNER_TEMP/native-input"
-          node -e 'const p=require("./tools/pwa-tailscale-native-http/source.json"); if(p.source.commit!=="b31d8a75af155bcf19853d1a66041782d13e56ae" || p.source.archiveSha256!=="2bddc92dbecd97af4f522f4a9ef44013d10b84a176c906d1d0a739e6a40ed630") process.exit(1); for(const x of [p.source,p.compiler]) {if(!/^https:\/\//.test(x.archiveURL)||!/^[0-9a-f]{64}$/.test(x.archiveSha256)) process.exit(1);console.log(x.archiveURL);console.log(x.archiveSha256)}' > "$RUNNER_TEMP/native-input/pins"
-          mapfile -t pins < "$RUNNER_TEMP/native-input/pins"
-          test "${#pins[@]}" = 4
-          for n in 0 2; do
-            i=$((n / 2))
-            curl --fail --show-error --location --proto '=https' --proto-redir '=https' --max-time 120 --max-filesize 1073741824 --output "$RUNNER_TEMP/native-input/$i.tar.gz" -- "${pins[$n]}"
-            printf '%s  %s\n' "${pins[$((n + 1))]}" "$RUNNER_TEMP/native-input/$i.tar.gz" | sha256sum --check
-          done
-          node tools/pwa-tailscale-native-http/build.mjs "$RUNNER_TEMP/native-input/0.tar.gz" "$RUNNER_TEMP/native-input/1.tar.gz" "$GITHUB_WORKSPACE/candidate/.codeql-native"
-      - name: Verify source after the build
-        working-directory: candidate
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = 08b55360d0c153603d8311444131565fc0b498a7
+          test "$(git rev-parse HEAD)" = ce7d267c3d4dc3fc2424e145a4426557de27fc0c
           git diff --exit-code
           git diff --cached --exit-code
-          sha256sum .codeql-native/artifacts/native-artifacts.json
-      - name: Retain native manifest and test results
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
-        with:
-          name: promotion-08-native-proof
-          if-no-files-found: error
-          retention-days: 14
-          path: |
-            candidate/.codeql-native/artifacts/native-artifacts.json
-            candidate/.codeql-native/result.json
