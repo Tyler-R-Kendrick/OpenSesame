@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      SOURCE_SHA: e4bc31e2f7683c064356ae88ddc31bd13f9af5c2
-      SOURCE_TREE: 6dfeaa6aa6e2ae07182dd8377927c5b32460a9d2
+      SOURCE_SHA: 158f89b00dad40d71a8ecfe16e278bf15975d7f8
+      SOURCE_TREE: c6f09df0a8b53ccdf2da4063115ccfadfe140296
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
     steps:
       - name: Validate immutable source identifiers
