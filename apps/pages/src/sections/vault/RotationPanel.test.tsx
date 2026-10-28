@@ -9,7 +9,7 @@ import {
   loadRotationEvents,
 } from "@opensesame/app-core/lib/vault/rotation-queue.js";
 import { rotationSeams } from "@opensesame/app-core/lib/vault/rotation-relay.js";
-import { createItem } from "@opensesame/vault-core";
+import { type VaultItem, createItem } from "@opensesame/vault-core";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -25,7 +25,7 @@ function snapshotApproving(approved: readonly string[]): CompositionSnapshot {
   return { ...base, plan: { ...base.plan, approvedCapabilities: approved } };
 }
 
-function renderPanel(item: ReturnType<typeof account>) {
+function renderPanel(item: VaultItem) {
   return render(
     <MemoryRouter>
       <RotationPanel item={item} scope="personal" />
