@@ -4,6 +4,8 @@ import {
   double,
   installDoublePorts,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import { installPasswordResetVaultUi } from "@opensesame/app-core/lib/password-reset/vault-ui-seam.js";
 import {
   clearRotationQueue,
   loadRotationEvents,
@@ -35,6 +37,7 @@ function renderPanel(item: VaultItem) {
 
 beforeEach(() => {
   clearRotationQueue();
+  clearNotices();
   const hidden = snapshotApproving([]);
   Object.assign(capabilityPorts, {
     compositionStore: {
@@ -68,13 +71,39 @@ describe("RotationPanel", () => {
     ).toBe("true");
   });
 
-  it("queues a manual rotation and says it is out of sync without a relay", async () => {
+  it("prompts to configure password reset when the capability is off", async () => {
     renderPanel(account());
     await userEvent.click(
       screen.getByRole("button", { name: /Generate new password/i }),
     );
-    expect(loadRotationEvents()).toHaveLength(1);
-    expect(await screen.findByText(/Out of sync/u)).toBeTruthy();
+    expect(loadRotationEvents()).toHaveLength(0);
+    const notices = listNotices();
+    expect(notices).toHaveLength(1);
+    expect(notices[0]?.title).toBe("Password reset");
+    expect(notices[0]?.act?.label).toBe("Settings");
+  });
+
+  it("queues a manual rotation when configured and says out of sync without a relay", async () => {
+    const ready = snapshotApproving(["ai.password-reset"]);
+    Object.assign(capabilityPorts, {
+      compositionStore: { ...double, getSnapshot: () => ready },
+    });
+    const restore = installPasswordResetVaultUi({
+      subscribeRuns: () => () => undefined,
+      runPhaseFor: () => null,
+      evaluateReadiness: async () => ({ ok: true }),
+    });
+    try {
+      renderPanel(account());
+      await userEvent.click(
+        screen.getByRole("button", { name: /Generate new password/i }),
+      );
+      expect(loadRotationEvents()).toHaveLength(1);
+      expect(await screen.findByText(/Out of sync/u)).toBeTruthy();
+      expect(listNotices()).toHaveLength(0);
+    } finally {
+      restore();
+    }
   });
 
   it("warns on a generator-backed type with no provider path", () => {

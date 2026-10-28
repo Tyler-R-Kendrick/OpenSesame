@@ -28,11 +28,18 @@ export function PasswordControl({
   method,
   onEdit,
   options,
+  onGenerate,
 }: {
   method: PasswordMethod;
   onEdit: (next: PasswordMethod) => void;
   /** The key that opens the generator's options, and whether they are open. */
   options: { open: boolean; controls: string; onToggle: () => void };
+  /**
+   * Agent-driven reset for a saved account with a web login origin. Resolves
+   * true when the reset handoff handled the key (queued or prompted to
+   * configure); absent or false keeps the local regenerate.
+   */
+  onGenerate?: (() => Promise<boolean>) | undefined;
 }) {
   const [reveal, setReveal] = useState(false);
   const { generator } = method;
@@ -58,12 +65,17 @@ export function PasswordControl({
         <IconKey
           label="Generate another password"
           onClick={() => {
-            const made =
-              generator.id === "derived" ? rotate(method) : regenerate(method);
-            if (made) {
-              onEdit(made);
-              setReveal(true);
-            }
+            void (async () => {
+              if (onGenerate && (await onGenerate())) return;
+              const made =
+                generator.id === "derived"
+                  ? rotate(method)
+                  : regenerate(method);
+              if (made) {
+                onEdit(made);
+                setReveal(true);
+              }
+            })();
           }}
         >
           <IconRefresh size={17} />

@@ -37,6 +37,7 @@ export function PasswordMethodEditor({
   liveRoll,
   onEdit,
   onRemove,
+  onGenerate,
 }: {
   /** Only these are read: an older pepper seal is bound to them. */
   account: Pick<AccountItem, "id" | "username">;
@@ -46,6 +47,8 @@ export function PasswordMethodEditor({
   onEdit: (next: PasswordMethod) => void;
   /** The line's remove key, at its end like a website's. */
   onRemove?: (() => void) | undefined;
+  /** Agent-driven reset handoff; see PasswordControl. */
+  onGenerate?: (() => Promise<boolean>) | undefined;
 }) {
   const [open, setOpen] = useState(false);
   if (isLegacyMethod(method)) {
@@ -84,6 +87,7 @@ export function PasswordMethodEditor({
           <PasswordControl
             method={method}
             onEdit={onEdit}
+            onGenerate={onGenerate}
             options={{
               open,
               controls: panel,
