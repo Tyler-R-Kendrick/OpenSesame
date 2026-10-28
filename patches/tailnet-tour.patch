@@ -1,0 +1,189 @@
+diff --git a/apps/pages/scripts/verify-tutorials.mjs b/apps/pages/scripts/verify-tutorials.mjs
+index a58a3efcdf1e409b30ba40a90fc97cd68f96b3b6..5125ae41cf15479fddf42e85081e4dcb2915cf1b 100644
+--- a/apps/pages/scripts/verify-tutorials.mjs
++++ b/apps/pages/scripts/verify-tutorials.mjs
+@@ -321,8 +321,36 @@ async function shellPass(width) {
+ async function walkEntries(page, entries, { phone, width }) {
+   for (const entry of entries) {
+     const began = Date.now();
++    const tailnetCalls = tailnet?.stub.tailnet.calls.length ?? 0;
+     try {
+       await walkOne(page, entry, { phone, width });
++      if (entry.id === "identity.tailnet.devices.manage") {
++        const panel = page.getByRole("region", { name: "Tailnet devices" });
++        const commands = panel.locator(
++          '[data-guide-targets~="identity.tailnet-devices.commands"]',
++        );
++        const add = panel.getByRole("button", {
++          name: "Add a device",
++          exact: true,
++        });
++        const addTarget = panel.locator(
++          '[data-guide-targets~="identity.tailnet-devices.add"]',
++        );
++        await expect(commands).toBeVisible();
++        if (tailnet) {
++          await expect(add).toBeVisible();
++          await expect(addTarget).toHaveCount(1);
++          const mutations = tailnet.stub.tailnet.calls
++            .slice(tailnetCalls)
++            .filter((call) => call.method !== "GET")
++            .map(({ method, path }) => ({ method, path }));
++          expect(mutations).toEqual([]);
++        } else {
++          await expect(add).toHaveCount(0);
++          await expect(addTarget).toHaveCount(0);
++        }
++        check(true, `${entry.id}: actual controls match the pairing`);
++      }
+     } catch (error) {
+       check(
+         false,
+diff --git a/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.safety.test.tsx b/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.safety.test.tsx
+index ba1b151ee4906a2c575eb0a42c8e083e0d9b2f99..ae4f0ab582e37c483977e49caf742641c9ff0487 100644
+--- a/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.safety.test.tsx
++++ b/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.safety.test.tsx
+@@ -6,6 +6,7 @@ import { registerContributionForTest } from "@opensesame/app-core/lib/contributi
+ import { tailnetAdminSeams } from "@opensesame/app-core/lib/tailnet-admin/client.js";
+ import { formatTailnetPairingCode } from "@opensesame/app-core/lib/tailnet-admin/pairing.js";
+ import { TAILNET_DEVICES_TARGETS } from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
++import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
+ import {
+   act,
+   cleanup,
+@@ -54,6 +55,14 @@ describe("Tailnet devices, the review's regressions", () => {
+     expect(
+       screen.queryByRole("button", { name: "Pair with the tailnet daemon" }),
+     ).toBeNull();
++    expect(
++      resolveGuideTargetElement("identity.tailnet-devices.commands")?.contains(
++        screen.getByRole("heading", { name: "Tailnet devices" }),
++      ),
++    ).toBe(true);
++    expect(
++      resolveGuideTargetElement("identity.tailnet-devices.add"),
++    ).toBeNull();
+   });
+ 
+   it("a credential without the keys scope still lists the devices", async () => {
+diff --git a/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.test.tsx b/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.test.tsx
+index ed78a4a2f707d8e39de6ad30acca7d7499c43491..597b6d5f5e88b879997c7356a145bebb127e66a7 100644
+--- a/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.test.tsx
++++ b/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.test.tsx
+@@ -2,6 +2,7 @@
+ import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
+ import { tailnetAdminSeams } from "@opensesame/app-core/lib/tailnet-admin/client.js";
+ import { TAILNET_DEVICES_TARGETS } from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
++import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
+ import {
+   cleanup,
+   render,
+@@ -50,6 +51,17 @@ describe("Tailnet devices", () => {
+       }),
+     ).toBeTruthy();
+     expect(screen.queryByRole("button", { name: "Add a device" })).toBeNull();
++    expect(
++      resolveGuideTargetElement("identity.tailnet-devices.add"),
++    ).toBeNull();
++    const commands = resolveGuideTargetElement(
++      "identity.tailnet-devices.commands",
++    );
++    expect(
++      commands?.contains(
++        screen.getByRole("button", { name: "Pair with the tailnet daemon" }),
++      ),
++    ).toBe(true);
+     await userEvent.click(
+       screen.getByRole("button", { name: "Pair with the tailnet daemon" }),
+     );
+@@ -150,7 +162,16 @@ describe("Tailnet devices", () => {
+     const daemon = fakeDaemon([router()]);
+     render(<TailnetDevices admin={pairedClient(daemon)} />);
+     await screen.findByRole("heading", { name: "router" });
+-    await userEvent.click(screen.getByRole("button", { name: "Add a device" }));
++    const add = screen.getByRole("button", { name: "Add a device" });
++    expect(
++      resolveGuideTargetElement("identity.tailnet-devices.commands")?.contains(
++        add,
++      ),
++    ).toBe(true);
++    expect(
++      resolveGuideTargetElement("identity.tailnet-devices.add")?.contains(add),
++    ).toBe(true);
++    await userEvent.click(add);
+     const sheet = within(screen.getByRole("dialog", { name: "Add a device" }));
+     await userEvent.type(sheet.getByLabelText("Description"), "sams phone");
+     await userEvent.click(sheet.getByRole("button", { name: "7 days" }));
+@@ -242,6 +263,14 @@ describe("Tailnet devices", () => {
+     );
+     await screen.findByRole("heading", { name: "sams-phone" });
+     expect(screen.queryByRole("button", { name: "Add a device" })).toBeNull();
++    expect(
++      resolveGuideTargetElement("identity.tailnet-devices.add"),
++    ).toBeNull();
++    expect(
++      resolveGuideTargetElement("identity.tailnet-devices.commands")?.contains(
++        screen.getByRole("button", { name: "Reload tailnet devices" }),
++      ),
++    ).toBe(true);
+     expect(
+       screen.queryByRole("button", { name: "Approve sams-phone" }),
+     ).toBeNull();
+diff --git a/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.tsx b/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.tsx
+index 622cbba9eccb8396c5826930ce30bfdc0f0fec63..53054dd567acdd3ba17fad077b657d84132ad13b 100644
+--- a/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.tsx
++++ b/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.tsx
+@@ -210,6 +210,9 @@ function useLinkedPairing(onCode: (code: string) => void) {
+ export function TailnetDevices({ admin }: { admin: TailnetAdmin }) {
+   const model = useTailnetAdmin(admin);
+   const guide = useGuideTarget<HTMLElement>("identity.tailnet-devices");
++  const commandsGuide = useGuideTarget<HTMLDivElement>(
++    "identity.tailnet-devices.commands",
++  );
+   const [filter, setFilter] = useState<DeviceFilter>("all");
+   const [editing, setEditing] = useState<TailnetDevice | null>(null);
+   const [adding, setAdding] = useState(false);
+@@ -223,7 +226,7 @@ export function TailnetDevices({ admin }: { admin: TailnetAdmin }) {
+   return (
+     <>
+       <section ref={guide} className="panel" aria-label="Tailnet devices">
+-        <div className="panel__head">
++        <div ref={commandsGuide} className="panel__head">
+           <h2>Tailnet devices</h2>
+           <HeadKeys
+             model={model}
+diff --git a/packages/app-core/src/tutorial/registry/tailnet-devices-catalog.ts b/packages/app-core/src/tutorial/registry/tailnet-devices-catalog.ts
+index 262a92fa1604db62d10d493246f7c43d109ee4e8..4c29173df1837dd9f896013e32e95737bb5c0b92 100644
+--- a/packages/app-core/src/tutorial/registry/tailnet-devices-catalog.ts
++++ b/packages/app-core/src/tutorial/registry/tailnet-devices-catalog.ts
+@@ -21,6 +21,14 @@ export const TAILNET_DEVICES_TARGETS: readonly GuideTargetDescriptor[] = [
+     routes: ["/identity"],
+     capabilityId: "tailnet.devices.manage",
+   },
++  {
++    id: "identity.tailnet-devices.commands",
++    description:
++      "The Tailnet devices heading and its available controls. An eligible unpaired page can offer pairing; a connected daemon with a manage pairing offers Add a device. Other pairings may offer reload and forget instead.",
++    role: "surface",
++    routes: ["/identity"],
++    capabilityId: "tailnet.devices.manage",
++  },
+   {
+     id: "identity.tailnet-devices.add",
+     description:
+@@ -42,11 +50,11 @@ export const TAILNET_DEVICES_GOALS: readonly GuideGoalDescriptor[] = [
+       'wait state "vault.unlocked" is=true timeout=60000',
+       'navigate "/identity/devices/tailnet"',
+       'wait route "/identity/devices/tailnet" timeout=15000',
+-      'say "The Tailnet devices record under Identity › Devices. Pair once with opensesame daemon tailnet pair and this page\'s address, then open the link it prints. The daemon holds the Tailscale credential and makes every change."',
++      'say "The Tailnet devices record is under Identity › Devices. Connect the daemon to a tailnet. On a dedicated or loopback deployment, run opensesame daemon tailnet pair --origin with this page\'s address and open the link it prints. The daemon holds the Tailscale credential and makes every change."',
+       'wait target "identity.tailnet-devices" event=appear timeout=60000',
+-      'focus "identity.tailnet-devices" "Each machine Tailscale reports, waiting ones first. Its marks say what needs someone; its keys approve it, open its settings, expire its key or remove it. Every change goes through the daemon and is in the Activity list below." side=top',
+-      'wait target "identity.tailnet-devices.add" event=appear timeout=60000',
+-      'focus "identity.tailnet-devices.add" "Add a device mints an auth key for the next machine. It is shown once, with the tailscale up command that joins with it; neither this page nor the daemon keeps it." side=bottom',
++      'focus "identity.tailnet-devices" "Once the daemon is paired and connected, the machines it reports appear here, waiting ones first. Marks say what needs someone; the keys your pairing allows approve a device, open its settings, expire its key or remove it. Changes go through the daemon and appear in Activity." side=top',
++      'wait target "identity.tailnet-devices.commands" event=appear timeout=60000',
++      'focus "identity.tailnet-devices.commands" "Available controls depend on the pairing and connection. An eligible page can pair with a daemon. With a connected daemon and manage access, Add a device mints an auth key shown once with the tailscale up command; neither this page nor the daemon keeps it." side=bottom',
+       "end",
+     ].join("\n"),
+   },

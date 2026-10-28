@@ -1,0 +1,102 @@
+name: Tailnet tour paired and unpaired validation
+on:
+  push:
+    branches: [review/tailnet-tour-validation]
+permissions:
+  contents: read
+jobs:
+  walk:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/tailnet-tour-validation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.variant == 'paired' && 50 || 25 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [unpaired, paired]
+    env:
+      SOURCE_SHA: b23dcc77b7f1e7d1b5ca1243a189ba24f00cf8d7
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /OpenSesame/
+      TUTORIALS_ONLY: identity.tailnet.devices.manage
+      TUTORIALS_WIDTHS: 1280,390
+      TUTORIALS_SHOTS: '1'
+      TUTORIALS_OUT: ${{ github.workspace }}/work/tailnet-tour-output-${{ matrix.variant }}
+    steps:
+      - name: Check out exact candidate base
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Check out reviewed validation patch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          path: work/tailnet-tour-controller
+          persist-credentials: false
+      - name: Apply the exact reviewed patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code
+          test "$(sha256sum work/tailnet-tour-controller/patches/tailnet-tour.patch | cut -d ' ' -f1)" = e6ebbb1ba9e51273bd4454f7ee81879e0e038ac592fc6f8e21f8fa767e80846c
+          git apply --check work/tailnet-tour-controller/patches/tailnet-tour.patch
+          git apply work/tailnet-tour-controller/patches/tailnet-tour.patch
+          git diff --check
+          mkdir -p "$TUTORIALS_OUT"
+          printf '%s\n' "$SOURCE_SHA" > "$TUTORIALS_OUT/source.txt"
+          printf '%s\n' "e6ebbb1ba9e51273bd4454f7ee81879e0e038ac592fc6f8e21f8fa767e80846c" > "$TUTORIALS_OUT/patch.sha256"
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        if: matrix.variant == 'paired'
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        if: matrix.variant == 'paired'
+      - name: Install system libraries for the native daemon
+        if: matrix.variant == 'paired'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build the ordinary unpaired app
+        if: matrix.variant == 'unpaired'
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Walk the full tour with no daemon paired
+        if: matrix.variant == 'unpaired'
+        run: pnpm --filter @opensesame/pages verify:tutorials
+      - name: Build the real daemon and dedicated-origin app
+        if: matrix.variant == 'paired'
+        run: |
+          cargo +1.88.0 build -p opensesame-cli --features tailnet-admin-test-upstream
+          pnpm --filter @opensesame/pages build:live-dedicated
+      - name: Verify real daemon management and read-only pairing
+        if: matrix.variant == 'paired'
+        env:
+          TAILNET_DEVICES_OUT: ${{ env.TUTORIALS_OUT }}/device-security
+        run: pnpm --filter @opensesame/pages verify:tailnet-devices
+      - name: Walk the full tour with a real paired daemon
+        if: matrix.variant == 'paired'
+        env:
+          TUTORIALS_DIST: ${{ github.workspace }}/apps/pages/dist-live-dedicated
+          TUTORIALS_TAILNET_DAEMON: '18794'
+        run: pnpm --filter @opensesame/pages verify:tutorials
+      - name: Preserve screenshots and provenance
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: tailnet-tour-${{ matrix.variant }}
+          path: ${{ env.TUTORIALS_OUT }}
+          if-no-files-found: error
+          retention-days: 7
