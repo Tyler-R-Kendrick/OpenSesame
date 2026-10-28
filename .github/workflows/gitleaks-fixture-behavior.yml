@@ -11,13 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: [javascript, rust_core, rust_cli, interoperability, rust_daemon]
+        kind: [gate]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      CANDIDATE_SHA: 47b08f4068b838c97ed00ee26a6c5e94f2cd541d
-      EXPECTED_TREE: 5cfdcc47e461e2bb5fbf3af59c603c30b3e94a2c
-      EXPECTED_PARENT: dfa0a72019f94b9596ddd1f1f0225309eb715cf5
+      CANDIDATE_SHA: 651243e0d060682b1627e625d35d091c98ea2172
+      EXPECTED_TREE: af61439f0c752533b899bc4faf71562a397bd129
+      EXPECTED_PARENT: 47b08f4068b838c97ed00ee26a6c5e94f2cd541d
       FIXTURE_KIND: ${{ matrix.kind }}
       CARGO_BUILD_JOBS: '2'
     steps:
@@ -40,9 +40,9 @@ jobs:
           test -z "${extra:-}"
           test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
-        if: matrix.kind == 'javascript' || matrix.kind == 'interoperability'
+        if: matrix.kind == 'javascript' || matrix.kind == 'interoperability' || matrix.kind == 'gate'
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        if: matrix.kind == 'javascript' || matrix.kind == 'interoperability'
+        if: matrix.kind == 'javascript' || matrix.kind == 'interoperability' || matrix.kind == 'gate'
         with:
           node-version: 22
           package-manager-cache: false
@@ -68,7 +68,9 @@ jobs:
             printf '%s\t%s\n' "$label" "$code" >> "$statuses"
             if [[ "$code" -ne 0 ]]; then failed=1; fi
           }
-          if [[ "$FIXTURE_KIND" == javascript ]]; then
+          if [[ "$FIXTURE_KIND" == gate ]]; then
+            run_test gate node --test scripts/security/gitleaks-allowlist-scope.test.mjs scripts/security/gitleaks-working-tree-gate.test.mjs
+          elif [[ "$FIXTURE_KIND" == javascript ]]; then
             run_test install pnpm install --frozen-lockfile
             if [[ "$failed" -eq 0 ]]; then
               run_test mtls pnpm exec vitest run scripts/lib/mtls-manifest.test.mjs --testTimeout=30000
