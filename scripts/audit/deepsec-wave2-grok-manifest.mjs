@@ -19,7 +19,7 @@ import { grokTierForPath } from "./deepsec-wave2-grok-tier-paths.mjs";
 import { deferredManifestBuckets } from "./deepsec-wave2-grok-deferred.mjs";
 
 const repoRoot = process.argv[2] ?? process.cwd();
-const { allDeferred, wallRetry } = deferredManifestBuckets(repoRoot);
+const { allDeferred, wallRetry, wallTwice } = deferredManifestBuckets(repoRoot);
 const marker = Number(process.argv[3] ?? String(DEFAULT_MARKER));
 const tierArg = process.argv[4] ?? "all";
 
@@ -42,7 +42,13 @@ for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const grokDone = hist.some((h) => isWaveProcessComplete(h, marker, "grok"));
   if (grokDone) continue;
   if (!tierFilter(rec.filePath)) continue;
-  if (allDeferred.has(rec.filePath) && !wallRetry.has(rec.filePath)) continue;
+  if (allDeferred.has(rec.filePath)) {
+    if (wallTwice.has(rec.filePath) || wallRetry.has(rec.filePath)) {
+      // second wall → super-tail; first wall → tail behind fresh candidate queue
+    } else {
+      continue;
+    }
+  }
   const candidateCount = Array.isArray(rec.candidates)
     ? rec.candidates.length
     : 0;
@@ -50,6 +56,7 @@ for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
     filePath: rec.filePath,
     strict: strictLast && fileHasInvestigateWaveStrict(rec, marker),
     wallRetry: wallRetry.has(rec.filePath),
+    wallTwice: wallTwice.has(rec.filePath),
     candidateCount,
   });
 }
@@ -65,6 +72,8 @@ function sourceByteSize(repoRoot, filePath) {
 
 const sortMode = process.env.DEEPSEC_GROK_MANIFEST_SORT ?? "size";
 entries.sort((a, b) => {
+  const twiceDelta = (a.wallTwice ? 1 : 0) - (b.wallTwice ? 1 : 0);
+  if (twiceDelta !== 0) return twiceDelta;
   const wallDelta = (a.wallRetry ? 1 : 0) - (b.wallRetry ? 1 : 0);
   if (wallDelta !== 0) return wallDelta;
   if (strictLast) {

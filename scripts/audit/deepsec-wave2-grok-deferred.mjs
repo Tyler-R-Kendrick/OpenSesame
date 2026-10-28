@@ -38,14 +38,20 @@ export function deferredPathSet(repoRoot) {
 export function deferredManifestBuckets(repoRoot) {
   const allDeferred = new Set();
   const wallRetry = new Set();
+  const wallTwice = new Set();
   for (const e of loadDeferred(repoRoot).entries) {
     if (typeof e.filePath !== "string") continue;
     allDeferred.add(e.filePath);
     if (e.reason === "file_wall_exceeded") {
-      wallRetry.add(e.filePath);
+      const attempts = e.attempts ?? 1;
+      if (attempts >= 2) {
+        wallTwice.add(e.filePath);
+      } else {
+        wallRetry.add(e.filePath);
+      }
     }
   }
-  return { allDeferred, wallRetry };
+  return { allDeferred, wallRetry, wallTwice };
 }
 
 /** Drop deferred rows whose reason matches (e.g. re-queue after a tooling fix). */

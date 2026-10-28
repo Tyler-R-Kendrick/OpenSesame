@@ -20,8 +20,11 @@ exec >>"$LOG" 2>&1
 echo "=== kimi-parallel start $(date -u +%Y-%m-%dT%H:%M:%SZ) wave=$WAVE concurrency=$DEEPSEC_CONCURRENCY batch_size=$DEEPSEC_BATCH_SIZE file_wall_sec=$DEEPSEC_KIMI_FILE_WALL_SEC ordered_slices=1 ==="
 
 if ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh"; then
-  echo "=== kimi-parallel: quota limited — exit $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-  exit 0
+  echo "=== kimi-parallel: quota limited — sleeping (probe every ${DEEPSEC_KIMI_PARALLEL_QUOTA_SLEEP_SEC:-300}s) $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+  while ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh"; do
+    sleep "${DEEPSEC_KIMI_PARALLEL_QUOTA_SLEEP_SEC:-300}"
+  done
+  echo "=== kimi-parallel: quota clear — resuming $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 fi
 
 MANIFEST="$(mktemp /tmp/deepsec-wave2-marker-incomplete.XXXXXX.json)"
