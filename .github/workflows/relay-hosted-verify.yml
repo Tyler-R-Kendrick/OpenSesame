@@ -1,0 +1,113 @@
+name: Reviewed relay full verification
+on:
+  push:
+    branches: [review/relay-hosted-verify]
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/relay-hosted-verify' }}
+    name: Complete pnpm verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      EXPECTED_HEAD: c28cd692b26d1635467bca18ea53007a1d669fb5
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - name: Validate immutable source input
+        env:
+          SOURCE_SHA: c28cd692b26d1635467bca18ea53007a1d669fb5
+        shell: bash
+        run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: c28cd692b26d1635467bca18ea53007a1d669fb5
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - name: Install Linux keychain build and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
+      - name: Install the repository contract tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERIFY_TOOLS_ROOT="$RUNNER_TEMP/opensesame-verify-tools"
+          cargo +1.88.0 install --locked --version 14.1.1 --root "$VERIFY_TOOLS_ROOT" ripgrep
+          "$VERIFY_TOOLS_ROOT/bin/rg" --version
+          printf '%s\n' "$VERIFY_TOOLS_ROOT/bin" >> "$GITHUB_PATH"
+      - name: Require the exact source and physical browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD^{tree})" = 622fc253df5099e47780b394ba113015f40cb7cf
+          test "$(git rev-parse HEAD^)" = b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
+          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/relay-reviewed.patch"
+          printf '%s  %s\n' cca2e0937960edcb9b670812228017e914a2bc91ae59c2c7bb5fc53029b5cb78 "$RUNNER_TEMP/relay-reviewed.patch" | sha256sum --check
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -x "$PLAYWRIGHT_CHROMIUM"
+          "$PLAYWRIGHT_CHROMIUM" --version
+          command -v cc
+          command -v cmake
+          OPENSESAME_AUDIT_DIR="$RUNNER_TEMP/opensesame-full-verify"
+          printf 'OPENSESAME_AUDIT_DIR=%s\n' "$OPENSESAME_AUDIT_DIR" >> "$GITHUB_ENV"
+          mkdir -m 700 "$OPENSESAME_AUDIT_DIR"
+          printf '%s\n' "$EXPECTED_HEAD" > "$OPENSESAME_AUDIT_DIR/source-head.txt"
+      - name: Install the frozen dependency graph
+        run: pnpm install --frozen-lockfile
+      - name: Prepare and verify native PWA assets before the complete gate
+        # Verify every cache hit; a cold four-phase build keeps its own deadlines.
+        # Asset preparation must finish before individual 20-second Vitest cases.
+        run: >-
+          node --input-type=module -e
+          'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
+      - name: Name the runner's node for the bridge
+        # The env-spec bridge runs only a `node` nobody else could have
+        # replaced, and the hosted image's tool cache and /usr/local/bin are
+        # writable by others. OPENSESAME_NODE names the file the way an
+        # operator does (docs/operators/proxied-run-quickstart.md), as the
+        # Rust job in ci.yml does; no node fails the job.
+        shell: bash
+        run: |
+          set -euo pipefail
+          node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
+          echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
+      - name: Execute the complete repository gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm verify 2>&1 | tee "$OPENSESAME_AUDIT_DIR/verify.log"
+      - name: Check the original source after the gate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Preserve complete-gate logs and failure evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: relay-complete-verify-c28cd692b26d1635467bca18ea53007a1d669fb5
+          path: |
+            ${{ runner.temp }}/opensesame-full-verify/
+            tests/visual-contract/output/
+          if-no-files-found: error
