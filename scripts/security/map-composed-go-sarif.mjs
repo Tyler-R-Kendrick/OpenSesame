@@ -119,11 +119,21 @@ export function mapReport(report, mappings) {
     throw new Error("Invalid SARIF runs");
   let unmappedPrimaryFindings = 0;
   let unmappedResultLocations = 0;
+  let invalidInvocations = 0;
+  let errorNotifications = 0;
   let findings = 0;
   const locations = [];
   for (const run of report.runs) {
     if (!Array.isArray(run.results) || !Array.isArray(run.artifacts))
       throw new Error("Missing SARIF results or artifacts");
+    if (!Array.isArray(run.invocations) || !run.invocations.length) invalidInvocations++;
+    else for (const invocation of run.invocations) {
+      if (invocation.executionSuccessful !== true) invalidInvocations++;
+      for (const field of ["toolExecutionNotifications", "toolConfigurationNotifications"]) {
+        if (invocation[field] !== undefined && !Array.isArray(invocation[field])) throw new Error("Invalid SARIF notifications");
+        errorNotifications += (invocation[field] ?? []).filter((notice) => notice.level === "error").length;
+      }
+    }
     const artifactUris = new Set();
     for (const [index, artifact] of run.artifacts.entries()) {
       const location = artifact.location;
@@ -184,7 +194,7 @@ export function mapReport(report, mappings) {
     location.uri = mappings.get(location.uri);
     state.mappedLocations++;
   }
-  return { findings, unmappedPrimaryFindings, unmappedResultLocations, verifiedFiles: mappings.size, mappedLocations: state.mappedLocations };
+  return { findings, unmappedPrimaryFindings, unmappedResultLocations, invalidInvocations, errorNotifications, verifiedFiles: mappings.size, mappedLocations: state.mappedLocations };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
@@ -195,5 +205,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   const summary = mapReport(report, mappings);
   writeFileSync(process.argv[6], `${JSON.stringify(report)}\n`, { flag: "wx" });
   writeFileSync(process.argv[7], `${JSON.stringify(summary)}\n`, { flag: "wx" });
-  console.log(`Verified ${summary.verifiedFiles} copied files and mapped ${summary.mappedLocations} SARIF locations; retained ${summary.findings} findings, ${summary.unmappedPrimaryFindings} without a verified copied-file primary mapping and ${summary.unmappedResultLocations} result locations without such a mapping.`);
+  console.log(`Verified ${summary.verifiedFiles} copied files and mapped ${summary.mappedLocations} SARIF locations; retained ${summary.findings} findings, ${summary.unmappedPrimaryFindings} without a verified copied-file primary mapping and ${summary.unmappedResultLocations} result locations without such a mapping. Unsuccessful or missing invocations: ${summary.invalidInvocations}; error-level notifications: ${summary.errorNotifications}.`);
 }

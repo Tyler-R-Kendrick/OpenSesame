@@ -69,7 +69,7 @@ test("maps exact committed overlay bytes while retaining all upstream findings a
       { ruleId: "go/upstream", locations: [loc(upstream, 1)] },
     ],
   }] };
-  assert.deepEqual(mapReport(report, mappings), { findings: 2, unmappedPrimaryFindings: 1, unmappedResultLocations: 1, verifiedFiles: entries.length, mappedLocations: 4 });
+  assert.deepEqual(mapReport(report, mappings), { findings: 2, unmappedPrimaryFindings: 1, unmappedResultLocations: 1, invalidInvocations: 0, errorNotifications: 0, verifiedFiles: entries.length, mappedLocations: 4 });
   const run = report.runs[0];
   assert.equal(run.artifacts[0].location.uri, target);
   assert.equal(run.results[0].locations[0].physicalLocation.artifactLocation.uri, target);
@@ -77,6 +77,17 @@ test("maps exact committed overlay bytes while retaining all upstream findings a
   assert.equal(run.invocations[0].toolExecutionNotifications[0].locations[0].physicalLocation.artifactLocation.uri, target);
   assert.equal(run.results[0].partialFingerprints.primaryLocationLineHash, "abc:1");
   assert.equal(run.results[1].locations[0].physicalLocation.artifactLocation.uri, upstream);
+});
+
+test("counts missing and failed invocations and both kinds of error notifications", () => {
+  const report = { version: "2.1.0", runs: [{ results: [], artifacts: [] }] };
+  assert.equal(mapReport(report, new Map()).invalidInvocations, 1);
+  report.runs[0].invocations = [{ executionSuccessful: false, toolExecutionNotifications: [{ level: "error" }], toolConfigurationNotifications: [{ level: "error" }] }];
+  const summary = mapReport(report, new Map());
+  assert.equal(summary.invalidInvocations, 1);
+  assert.equal(summary.errorNotifications, 2);
+  report.runs[0].invocations[0].toolConfigurationNotifications = {};
+  assert.throws(() => mapReport(report, new Map()), /notifications/);
 });
 
 test("validates SARIF indexes, preserves unrelated URIs, and counts unmapped result traces", () => {
