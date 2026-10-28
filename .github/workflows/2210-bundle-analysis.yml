@@ -1,0 +1,54 @@
+name: Compare provisional bundle source artifacts
+on:
+  push:
+    branches: [review/2210-bundle-analysis]
+    paths: [.github/workflows/2210-bundle-analysis.yml]
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-bundle-analysis'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: before
+            source: a26e0a62e4fff6850a3f9a1809f3df5b02e76bbb
+            tree: d0dfa41d734dc0405993f7d9111a2db6163fd9e7
+          - name: after
+            source: 474a21d74791e636235c3fd9b4d173740fdeedd2
+            tree: 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ matrix.source }}
+          persist-credentials: false
+      - name: Verify source identity
+        env:
+          EXPECTED_SOURCE: ${{ matrix.source }}
+          EXPECTED_TREE: ${{ matrix.tree }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          git diff --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the unmodified production bundle
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Archive the generated JavaScript only
+        run: |
+          find apps/pages/dist/assets -type f -name '*.js' -print0 | sort -z | tar --null -czf "$RUNNER_TEMP/bundle-js.tgz" -T -
+          sha256sum "$RUNNER_TEMP/bundle-js.tgz"
+          git diff --exit-code
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: bundle-js-${{ matrix.name }}
+          path: ${{ runner.temp }}/bundle-js.tgz
+          if-no-files-found: error
+          retention-days: 3
