@@ -93,6 +93,27 @@ describe("candidate custody", () => {
         /[a-z]/u.test(real[index] ?? "") ? /[a-z]/u.test(character) : true,
       ),
     ).toBe(true);
+    // Symbol characters of the real candidate (pepper included) must not
+    // pass through verbatim at their positions.
+    const symbolCustody = new CandidateCustody(
+      method,
+      async () => "!@#$%^&*",
+    );
+    const symbolReal = await symbolCustody.withPassword(
+      async (password) => password,
+    );
+    const symbolSynthetic = await symbolCustody.withSynthetic(
+      proof,
+      async (value) => value,
+    );
+    expect(symbolSynthetic).not.toContain("!@#$%^&*");
+    expect(
+      [...symbolSynthetic].some(
+        (character, index) =>
+          /[^a-zA-Z0-9]/u.test(symbolReal[index] ?? "") &&
+          character !== symbolReal[index],
+      ),
+    ).toBe(true);
     expect(() => assertProxyLane(true, undefined)).toThrow("requires");
     expect(() => assertProxyLane(true, proof)).not.toThrow();
     // SAFETY: the deliberately invalid proof must reach the schema to prove rejection.

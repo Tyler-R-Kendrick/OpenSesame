@@ -103,6 +103,35 @@ describe("durable reset runner", () => {
     expect(fx.promoteCandidate).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects a journaled run whose domain could alias another resource", async () => {
+    const initial = run();
+    const crafted = { ...initial, domain: "evil.test:item:other" };
+    await expect(
+      journal.append(initial.id, { type: "run.started", run: crafted }),
+    ).rejects.toThrow();
+  });
+
+  it("refuses to settle a terminal run twice", async () => {
+    const initial = run();
+    const fx = effects({}, true);
+    const done = await runner(journal, fx).start(initial);
+    expect(done.status).toBe("succeeded");
+    const again = effects({}, true);
+    expect((await runner(journal, again).compensate(done)).status).toBe(
+      "succeeded",
+    );
+    expect(again.compensate).not.toHaveBeenCalled();
+    expect((await runner(journal, again).reconcile(done)).status).toBe(
+      "succeeded",
+    );
+    expect(again.verifyCandidate).not.toHaveBeenCalled();
+    expect(
+      (await journal.events(initial.id)).filter(
+        (event) => event.type === "run.status" && event.status === "failed",
+      ),
+    ).toHaveLength(0);
+  });
+
   it("marks navigation and fills idempotent but page mutations reconciled", async () => {
     const initial = run();
     initial.recipe.steps = initial.recipe.steps.slice(0, 3);
