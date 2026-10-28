@@ -11,7 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { usePackSnapshot } from "../../bindings/type-packs.js";
 import { IconPlus } from "../../components/Icons.js";
-import { useVault } from "../../lib/vault/hooks.js";
+import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { MethodPicker, methodTitle, newMethod } from "./MethodPicker.js";
 import {
   ApiKeyLines,
@@ -21,6 +21,7 @@ import {
 } from "./OtherMethodEditors.js";
 import { PasswordMethodEditor } from "./PasswordMethodEditor.js";
 import { bindableCredentials, credentialPackSeams } from "./account-secrets.js";
+import { usePasswordResetGenerate } from "./use-password-reset-generate.js";
 
 /** One login method's lines: each value on a line of its own, the × on the first. */
 function MethodLines({
@@ -36,6 +37,18 @@ function MethodLines({
   onReplace: (next: LoginMethod) => void;
   onRemove: (method: LoginMethod) => void;
 }) {
+  const { guest } = useVault();
+  const store = useVaultStore();
+  const scope = guest ? "" : (store.activeTomb?.() ?? "");
+  const reset = usePasswordResetGenerate(account, scope);
+  // A never-saved draft has no provider account to reset; local only.
+  const onGenerate =
+    !liveRoll && reset.eligible
+      ? async () => {
+          const result = await reset.generate();
+          return result === "queued" || result === "prompted";
+        }
+      : undefined;
   const title = methodTitle(account.methods, method);
   const lines = {
     methods: account.methods,
@@ -55,6 +68,7 @@ function MethodLines({
           liveRoll={liveRoll}
           onEdit={onReplace}
           onRemove={lines.onRemove}
+          onGenerate={onGenerate}
         />
       ) : method.type === "api-key" ? (
         <ApiKeyLines {...lines} method={method} onChange={onReplace} />

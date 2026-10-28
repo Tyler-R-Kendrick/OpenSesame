@@ -19,9 +19,7 @@ import {
   itemTypeId,
 } from "@opensesame/vault-core";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { useComposition } from "../../bindings/capabilities.js";
-import { promptConfigurePasswordReset } from "./rotation-password-reset-prompt.js";
+import { usePasswordResetGenerate } from "./use-password-reset-generate.js";
 
 function resetRunHint(phase: VaultResetRunPhase | null): string | null {
   switch (phase) {
@@ -49,10 +47,7 @@ export function useRotationPanel(item: VaultItem, scope: string) {
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const { plan } = useComposition();
-  const featureOn =
-    plan?.approvedCapabilities.includes("ai.password-reset") === true;
+  const { eligible, generate } = usePasswordResetGenerate(item, scope);
 
   useEffect(
     () => subscribeRotationQueue(() => setRevision((value) => value + 1)),
@@ -89,20 +84,19 @@ export function useRotationPanel(item: VaultItem, scope: string) {
     setBusy(true);
     setError(null);
     try {
-      if (!scope) throw new Error("The vault is not open.");
-      if (featureOn) {
-        const readiness = await passwordResetVaultUiSeams.evaluateReadiness(
-          plan?.approvedCapabilities,
-        );
-        if (!readiness.ok) {
-          promptConfigurePasswordReset(readiness, navigate);
-          return;
-        }
+      if (!eligible) {
+        // No provider path: keep the plain queue entry the panel has always
+        // made, which stays visibly out of sync without a relay.
+        if (!scope) throw new Error("The vault is not open.");
+        if (!enqueueManualRotation(item, scope))
+          throw new Error("This item type has no generator.");
+        await processRotationQueue(scope);
+        return;
       }
-      if (!enqueueManualRotation(item, scope)) {
+      const result = await generate();
+      if (result === "no-scope") throw new Error("The vault is not open.");
+      if (result === "ineligible")
         throw new Error("This item type has no generator.");
-      }
-      await processRotationQueue(scope);
     } catch {
       setError("The rotation could not be queued.");
     } finally {
