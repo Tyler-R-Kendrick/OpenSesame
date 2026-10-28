@@ -1,0 +1,132 @@
+name: WebKit live carrier failure diagnostic
+on:
+  push:
+    branches: [review/webkit-live-carrier-diagnostic]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: >-
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor_id == '145080887' &&
+      github.ref == 'refs/heads/review/webkit-live-carrier-diagnostic'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      LIVE_JOIN_IMAGE: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+    steps:
+      - name: Check out exact failed source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: 40607077b8070d0ca52b46fa45ca8612a24e317c
+          persist-credentials: false
+      - name: Check out diagnostic helper
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: work/evidence-tools
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      # live-turn and ntfy are built from pinned source (go.sum); the Go that
+      # builds them is the one live-turn's go.mod names.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: scripts/test/live-turn/go.mod
+          cache-dependency-path: scripts/test/live-turn/go.sum
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Require the matching SDK and preinstalled browsers
+        run: |
+          test "$(id -u)" -ne 0
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          test -f "$live_pnpm_root/pnpm/package.json"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work,readonly" \
+            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+            --env CI --env PATH --env PNPM_HOME \
+            --workdir /work/apps/pages "$LIVE_JOIN_IMAGE" node -e '
+              const assert = require("node:assert/strict");
+              const fs = require("node:fs");
+              const { execFileSync } = require("node:child_process");
+              const { chromium, firefox, webkit } = require("@playwright/test");
+              assert.equal("pnpm@" + execFileSync("pnpm", ["--version"],
+                { encoding: "utf8" }).trim(), require("/work/package.json").packageManager);
+              execFileSync("pnpm", ["--filter", "@opensesame/cli", "exec", "tsx", "--version"],
+                { stdio: "inherit" });
+              assert.equal(require("@playwright/test/package.json").version, "1.64.1",
+                "Update the pinned Playwright image with the SDK");
+              for (const engine of [chromium, firefox, webkit]) {
+                fs.accessSync(engine.executablePath(), fs.constants.X_OK);
+              }
+            '
+      - name: Cache the live servers
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            .cache/live-fixtures/bin
+            .cache/mtls-fixtures
+          key: live-fixtures-${{ hashFiles('scripts/test/live-fixtures.sh', 'scripts/test/live-turn/**', 'scripts/mtls/mtls-fixtures.sh') }}
+      - name: The servers the walk runs (nats-server, ntfy, live-turn)
+        # Fails, never skips: a missing server fails the walk that needs it.
+        run: pnpm test:live-fixtures
+      - name: Build Pages
+        env:
+          VITE_BASE: /OpenSesame/
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Build Pages for a dedicated origin
+        # The carrier, relayed and NATS walks reach servers on loopback, which
+        # only a deployment of one's own may do (`mayPairLocalAuthority`).
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages build:live-dedicated
+      - name: Install failure-only diagnostics in the exact walk
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 40607077b8070d0ca52b46fa45ca8612a24e317c
+          test "$(git hash-object apps/pages/scripts/lib/live-join-walk.mjs)" = a80730cfbe848349f7e5784ba3edfd2e79aec8a5
+          cp work/evidence-tools/scripts/review/live-carrier-diagnostic.mjs apps/pages/scripts/lib/live-carrier-diagnostic.mjs
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from "node:fs";
+          const path = "apps/pages/scripts/lib/live-join-walk.mjs";
+          const source = readFileSync(path, "utf8");
+          const marker = `    if (carrier.kind === "nats") await natsChoices(routes, carrier);\n    await routes.getByRole("button", { name: "Add the carrier" }).click();`;
+          if (source.split(marker).length !== 2) throw Error("Unexpected walk boundary");
+          const replacement = `    if (carrier.kind === "nats") await natsChoices(routes, carrier);\n    try {\n      await routes.getByRole("button", { name: "Add the carrier" }).click();\n    } catch (error) {\n      try { await (await import("./live-carrier-diagnostic.mjs")).diagnoseCarrier(routes, carrier); } catch { console.log("Carrier diagnostic unavailable"); }\n      throw error;\n    }`;
+          writeFileSync(path, source.replace(marker, replacement));
+          JS
+      - name: Join a live session, webkit owner, every joiner
+        env:
+          VITE_BASE: /OpenSesame/
+          LIVE_OWNER: webkit
+          LIVE_JOINERS: chromium,firefox,webkit
+          # Each browser's own output, where a crashed content process says
+          # why; the walk writes it to browsers.log, not this log.
+          DEBUG: pw:browser
+        # Keep native compilation on the runner; only the actual walk needs the
+        # upstream browser image. Host networking preserves same-machine routes.
+        run: |
+          live_pnpm_root="$(dirname "$PNPM_HOME")"
+          docker run --rm --init --user "$(id -u):$(id -g)" \
+            --network host --shm-size=2g \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work" \
+            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
+            --workdir /work/apps/pages \
+            --env PATH --env PNPM_HOME \
+            --env CI --env VITE_BASE --env LIVE_OWNER --env LIVE_JOINERS --env DEBUG \
+            "$LIVE_JOIN_IMAGE" node scripts/verify-live-join.mjs
+      - name: Keep what the walk saw
+        # Screenshots of every open page, each channel's events and frame
+        # kinds (never a body) and the browsers' output, for the failure.
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: live-join-webkit
+          path: artifacts/live-join/
+          if-no-files-found: ignore
+          retention-days: 14
