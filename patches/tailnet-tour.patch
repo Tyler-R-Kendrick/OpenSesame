@@ -1,8 +1,58 @@
+diff --git a/apps/pages/scripts/verify-tailnet-devices.mjs b/apps/pages/scripts/verify-tailnet-devices.mjs
+index ef93282e5e31270252ef4c07531b11b5d77cd1cf..f8ffd563fb102a5c2ecc369a0df5a2001720d82e 100644
+--- a/apps/pages/scripts/verify-tailnet-devices.mjs
++++ b/apps/pages/scripts/verify-tailnet-devices.mjs
+@@ -59,6 +59,7 @@ import {
+   removeAndRevoke,
+ } from "./lib/tailnet-devices-steps.mjs";
+ import { API_TOKEN } from "./lib/tailscale-stub.mjs";
++import { listTutorials } from "./lib/tutorial-walk.mjs";
+ 
+ const out =
+   process.env.TAILNET_DEVICES_OUT ??
+@@ -152,6 +153,12 @@ try {
+   await expect(phoneRows.first()).toBeVisible({ timeout: 20_000 });
+   for (const name of [/^Add a device$/, /^Approve /, /^Remove /, /^Revoke /])
+     await expect(phone.page.getByRole("button", { name })).toHaveCount(0);
++  const readOnlyTutorials = await listTutorials(phone.page);
++  expect(
++    readOnlyTutorials.some(
++      (item) => item.id === "identity.tailnet.devices.add",
++    ),
++  ).toBe(false);
+   await shot(phone.page, "390-read-only");
+   stack.cli("unpair", "--all");
+   await phone.page
 diff --git a/apps/pages/scripts/verify-tutorials.mjs b/apps/pages/scripts/verify-tutorials.mjs
-index a58a3efcdf1e409b30ba40a90fc97cd68f96b3b6..5125ae41cf15479fddf42e85081e4dcb2915cf1b 100644
+index a58a3efcdf1e409b30ba40a90fc97cd68f96b3b6..8a4620553891269c86bb75c9f276824cb570e1ae 100644
 --- a/apps/pages/scripts/verify-tutorials.mjs
 +++ b/apps/pages/scripts/verify-tutorials.mjs
-@@ -321,8 +321,36 @@ async function shellPass(width) {
+@@ -214,6 +214,24 @@ async function sealedShell(width) {
+     await page.screenshot({
+       path: path.join(out, `${width}-tailnet-devices-paired.png`),
+     });
++    await guarded(page, "paired Add tutorial", async () => {
++      const before = tailnet.stub.tailnet.calls.length;
++      const entries = await listTutorials(page);
++      const entry = entries.find(
++        (item) => item.id === "identity.tailnet.devices.add",
++      );
++      expect(entry).toBeTruthy();
++      await walkOne(page, entry, { phone: width < 600, width, reset: false });
++      const mutations = tailnet.stub.tailnet.calls
++        .slice(before)
++        .filter((call) => call.method !== "GET")
++        .map(({ method, path }) => ({ method, path }));
++      expect(mutations).toEqual([]);
++      check(
++        true,
++        "the paired Add tutorial points at the real control without changes",
++      );
++    });
+   }
+   say("  back to the vault");
+   await page.goto(`${origin}${base}vault`, { waitUntil: "domcontentloaded" });
+@@ -321,8 +339,40 @@ async function shellPass(width) {
  async function walkEntries(page, entries, { phone, width }) {
    for (const entry of entries) {
      const began = Date.now();
@@ -33,6 +83,10 @@ index a58a3efcdf1e409b30ba40a90fc97cd68f96b3b6..5125ae41cf15479fddf42e85081e4dcb
 +        } else {
 +          await expect(add).toHaveCount(0);
 +          await expect(addTarget).toHaveCount(0);
++          const offered = await listTutorials(page);
++          expect(
++            offered.some((item) => item.id === "identity.tailnet.devices.add"),
++          ).toBe(false);
 +        }
 +        check(true, `${entry.id}: actual controls match the pairing`);
 +      }
@@ -67,24 +121,35 @@ index ba1b151ee4906a2c575eb0a42c8e083e0d9b2f99..ae4f0ab582e37c483977e49caf742641
  
    it("a credential without the keys scope still lists the devices", async () => {
 diff --git a/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.test.tsx b/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.test.tsx
-index ed78a4a2f707d8e39de6ad30acca7d7499c43491..597b6d5f5e88b879997c7356a145bebb127e66a7 100644
+index ed78a4a2f707d8e39de6ad30acca7d7499c43491..99db908aff4bae1fba547af8501ee6e389554cf8 100644
 --- a/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.test.tsx
 +++ b/apps/pages/src/modules/networking.tailnet-devices/TailnetDevices.test.tsx
-@@ -2,6 +2,7 @@
+@@ -2,6 +2,9 @@
  import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
  import { tailnetAdminSeams } from "@opensesame/app-core/lib/tailnet-admin/client.js";
  import { TAILNET_DEVICES_TARGETS } from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
++import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
++import { readGuidePredicate } from "@opensesame/app-core/tutorial/registry/state.js";
 +import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
  import {
    cleanup,
    render,
-@@ -50,6 +51,17 @@ describe("Tailnet devices", () => {
+@@ -25,6 +28,7 @@ import {
+ // The panel and its add key are tutorial targets the module declares on activation.
+ let undeclare: Array<() => void> = [];
+ beforeEach(() => {
++  registerGuidePredicates();
+   undeclare = TAILNET_DEVICES_TARGETS.map((target) =>
+     registerContributionForTest("tutorial-target", target),
+   );
+@@ -50,6 +54,18 @@ describe("Tailnet devices", () => {
        }),
      ).toBeTruthy();
      expect(screen.queryByRole("button", { name: "Add a device" })).toBeNull();
 +    expect(
 +      resolveGuideTargetElement("identity.tailnet-devices.add"),
 +    ).toBeNull();
++    expect(readGuidePredicate("tailnet.devices.add-available")).toBe(false);
 +    const commands = resolveGuideTargetElement(
 +      "identity.tailnet-devices.commands",
 +    );
@@ -96,12 +161,41 @@ index ed78a4a2f707d8e39de6ad30acca7d7499c43491..597b6d5f5e88b879997c7356a145bebb
      await userEvent.click(
        screen.getByRole("button", { name: "Pair with the tailnet daemon" }),
      );
-@@ -150,7 +162,16 @@ describe("Tailnet devices", () => {
+@@ -59,6 +75,27 @@ describe("Tailnet devices", () => {
+     expect(document.activeElement?.closest("[role=dialog]")).toBeTruthy();
+   });
+ 
++  it("withdraws the Add lesson when the daemon disconnects and restores it on reconnect", async () => {
++    const daemon = fakeDaemon([router()]);
++    render(<TailnetDevices admin={pairedClient(daemon)} />);
++    await screen.findByRole("button", { name: "Add a device" });
++    expect(readGuidePredicate("tailnet.devices.add-available")).toBe(true);
++    daemon.connected = false;
++    await userEvent.click(
++      screen.getByRole("button", { name: "Reload tailnet devices" }),
++    );
++    await waitFor(() =>
++      expect(readGuidePredicate("tailnet.devices.add-available")).toBe(false),
++    );
++    daemon.connected = true;
++    await userEvent.click(
++      screen.getByRole("button", { name: "Reload tailnet devices" }),
++    );
++    await waitFor(() =>
++      expect(readGuidePredicate("tailnet.devices.add-available")).toBe(true),
++    );
++  });
++
+   it("lists the tailnet's real devices, waiting ones first, with what needs someone", async () => {
+     const daemon = fakeDaemon([router(), pending()]);
+     render(<TailnetDevices admin={pairedClient(daemon)} />);
+@@ -150,7 +187,17 @@ describe("Tailnet devices", () => {
      const daemon = fakeDaemon([router()]);
      render(<TailnetDevices admin={pairedClient(daemon)} />);
      await screen.findByRole("heading", { name: "router" });
 -    await userEvent.click(screen.getByRole("button", { name: "Add a device" }));
 +    const add = screen.getByRole("button", { name: "Add a device" });
++    expect(readGuidePredicate("tailnet.devices.add-available")).toBe(true);
 +    expect(
 +      resolveGuideTargetElement("identity.tailnet-devices.commands")?.contains(
 +        add,
@@ -114,10 +208,11 @@ index ed78a4a2f707d8e39de6ad30acca7d7499c43491..597b6d5f5e88b879997c7356a145bebb
      const sheet = within(screen.getByRole("dialog", { name: "Add a device" }));
      await userEvent.type(sheet.getByLabelText("Description"), "sams phone");
      await userEvent.click(sheet.getByRole("button", { name: "7 days" }));
-@@ -242,6 +263,14 @@ describe("Tailnet devices", () => {
+@@ -242,6 +289,15 @@ describe("Tailnet devices", () => {
      );
      await screen.findByRole("heading", { name: "sams-phone" });
      expect(screen.queryByRole("button", { name: "Add a device" })).toBeNull();
++    expect(readGuidePredicate("tailnet.devices.add-available")).toBe(false);
 +    expect(
 +      resolveGuideTargetElement("identity.tailnet-devices.add"),
 +    ).toBeNull();
@@ -152,8 +247,205 @@ index 622cbba9eccb8396c5826930ce30bfdc0f0fec63..53054dd567acdd3ba17fad077b657d84
            <h2>Tailnet devices</h2>
            <HeadKeys
              model={model}
+diff --git a/apps/pages/src/modules/networking.tailnet-devices/fake-daemon.test-support.ts b/apps/pages/src/modules/networking.tailnet-devices/fake-daemon.test-support.ts
+index 62459738b0cfde428bf8521da86b2564d839471d..9a99416fe2e4f8fb8ae7270d42895c655e91f20a 100644
+--- a/apps/pages/src/modules/networking.tailnet-devices/fake-daemon.test-support.ts
++++ b/apps/pages/src/modules/networking.tailnet-devices/fake-daemon.test-support.ts
+@@ -57,6 +57,7 @@ export type FakeDaemon = {
+   /** Answer the next matching call with this refusal instead. */
+   refuse: { path: string; status: number; body: JsonObject } | null;
+   credential: "oauth" | "api_key";
++  connected: boolean;
+ };
+ 
+ function json(status: number, body: BoundaryValue): Response {
+@@ -74,7 +75,7 @@ const field = (body: BoundaryValue, name: string) =>
+ function readRoute(daemon: FakeDaemon, path: string): Response | null {
+   if (path.endsWith("/status"))
+     return json(200, {
+-      connected: true,
++      connected: daemon.connected,
+       tailnet: "example.com",
+       credential: daemon.credential,
+       connected_at: 1,
+@@ -175,7 +176,14 @@ export function pairedClient(
+ }
+ 
+ export function fakeDaemon(devices: WireDevice[]): FakeDaemon {
+-  return { devices, keys: [], calls: [], refuse: null, credential: "api_key" };
++  return {
++    devices,
++    keys: [],
++    calls: [],
++    refuse: null,
++    credential: "api_key",
++    connected: true,
++  };
+ }
+ 
+ export const originalSeams = { ...tailnetAdminSeams };
+diff --git a/apps/pages/src/tutorial/ui/SupportTutorials.tsx b/apps/pages/src/tutorial/ui/SupportTutorials.tsx
+index b6b3bf09901576c6309bef3eadecced6a1989f8d..6adf4031adbbf0f86ffb408d23c47798d57c53a6 100644
+--- a/apps/pages/src/tutorial/ui/SupportTutorials.tsx
++++ b/apps/pages/src/tutorial/ui/SupportTutorials.tsx
+@@ -9,6 +9,7 @@
+  */
+ 
+ import {
++  goalOffered,
+   type TutorialGroup,
+   tutorialLibrary,
+ } from "@opensesame/app-core/tutorial/registry/areas.js";
+@@ -62,9 +63,10 @@ export function SupportTutorials({
+                   type="button"
+                   className="support__tutorial"
+                   data-tutorial={goal.id}
+-                  onClick={() =>
+-                    void support.startGuide(goal.guide, "authored")
+-                  }
++                  onClick={() => {
++                    if (goalOffered(goal, gate))
++                      void support.startGuide(goal.guide, "authored");
++                  }}
+                 >
+                   <span className="support__tutorial-title">{goal.title}</span>
+                   <span className="support__tutorial-steps">
+diff --git a/apps/pages/src/tutorial/ui/support-library.test.tsx b/apps/pages/src/tutorial/ui/support-library.test.tsx
+index 3f235e210de60ab757be59326fcc9e938c00892b..5e443df4f992626836063a39a7ac013ea7cb34c1 100644
+--- a/apps/pages/src/tutorial/ui/support-library.test.tsx
++++ b/apps/pages/src/tutorial/ui/support-library.test.tsx
+@@ -13,6 +13,13 @@ import {
+   type GuideGoalDescriptor,
+   guideGoal,
+ } from "@opensesame/app-core/tutorial/registry/goals.js";
++import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
++import {
++  TAILNET_DEVICES_GOALS,
++  TAILNET_DEVICES_TARGETS,
++} from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
++import { mountGuideTarget } from "@opensesame/app-core/tutorial/registry/targets.js";
++import { act, fireEvent } from "@testing-library/react";
+ import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
+ import { screen, waitFor, within } from "@testing-library/react";
+ import userEvent from "@testing-library/user-event";
+@@ -54,6 +61,42 @@ async function openLibrary(route = "/vault") {
+ }
+ 
+ describe("the Tutorials tab", () => {
++  it("offers the paired Add lesson only while its real target is mounted", async () => {
++    const revokes = [
++      ...TAILNET_DEVICES_GOALS.map((goal) =>
++        registerContributionForTest("tutorial-goal", goal),
++      ),
++      ...TAILNET_DEVICES_TARGETS.map((target) =>
++        registerContributionForTest("tutorial-target", target),
++      ),
++    ];
++    try {
++      const { library } = await openLibrary("/identity/devices/tailnet");
++      const row = () =>
++        library.querySelector<HTMLElement>(
++          '[data-tutorial="identity.tailnet.devices.add"]',
++        );
++      expect(row()).toBeNull();
++      const add = document.createElement("button");
++      document.body.appendChild(add);
++      let detach = () => {};
++      act(() => {
++        detach = mountGuideTarget("identity.tailnet-devices.add", add);
++      });
++      await waitFor(() => expect(row()).not.toBeNull());
++      const stale = only(row());
++      await act(async () => {
++        detach();
++        fireEvent.click(stale);
++        await Promise.resolve();
++      });
++      await waitFor(() => expect(row()).toBeNull());
++      expect(screen.queryByRole("dialog", { name: /^Tutorial:/ })).toBeNull();
++      add.remove();
++    } finally {
++      for (const revoke of revokes) revoke();
++    }
++  });
+   it("opens on Search when no AI capability is approved, and the tabs are a named, selectable pair", async () => {
+     const user = userEvent.setup();
+     mountSupport({
+diff --git a/apps/pages/src/tutorial/ui/use-tutorial-gate.ts b/apps/pages/src/tutorial/ui/use-tutorial-gate.ts
+index 4a2e0b3fe3315ae6d92ae1ff79c64e3cd1194942..8f7e01e06acdcd85f96b7bc16d70387619fac1cb 100644
+--- a/apps/pages/src/tutorial/ui/use-tutorial-gate.ts
++++ b/apps/pages/src/tutorial/ui/use-tutorial-gate.ts
+@@ -18,7 +18,11 @@ import {
+   registerGuidePredicates,
+ } from "@opensesame/app-core/tutorial/registry/predicates.js";
+ import { readGuidePredicate } from "@opensesame/app-core/tutorial/registry/state.js";
+-import { useMemo } from "react";
++import {
++  guideTargetVersion,
++  subscribeToGuideTargets,
++} from "@opensesame/app-core/tutorial/registry/targets.js";
++import { useMemo, useSyncExternalStore } from "react";
+ import { useComposition } from "../../bindings/capabilities.js";
+ import { installPanelDraws } from "../../lib/install-panel.js";
+ import { installState } from "../../lib/install.js";
+@@ -27,6 +31,11 @@ import { finePointerNow, narrowNow } from "../../lib/use-narrow.js";
+ import { useIntegrationsDrawn } from "../../sections/settings/use-integrations-drawn.js";
+ 
+ export function useTutorialGate(): LibraryOptions {
++  const targetVersion = useSyncExternalStore(
++    subscribeToGuideTargets,
++    guideTargetVersion,
++    () => 0,
++  );
+   const { plan } = useComposition();
+   const integrations = useIntegrationsDrawn();
+   // Settings draws a section against the same facts, so a tutorial offered
+@@ -58,5 +67,5 @@ export function useTutorialGate(): LibraryOptions {
+       holds: readGuidePredicate,
+       installed: (id: string) => plan?.capabilities[id]?.approved === true,
+     };
+-  }, [plan, integrations, identityApi]);
++  }, [plan, integrations, identityApi, targetVersion]);
+ }
+diff --git a/packages/app-core/src/tutorial/registry/areas.ts b/packages/app-core/src/tutorial/registry/areas.ts
+index 096595e03ecfa58e4cc43d8ecc489cdd9d41e191..c35535dc3b740a1bf3d2954ba9dce7be07b1688c 100644
+--- a/packages/app-core/src/tutorial/registry/areas.ts
++++ b/packages/app-core/src/tutorial/registry/areas.ts
+@@ -195,6 +195,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
+       "identity.local.passkeys.manage",
+       "identity.local.siop.authorize",
+       "identity.tailnet.devices.manage",
++      "identity.tailnet.devices.add",
+       "feature.identity",
+       "integration.identity",
+       "feature.directory",
+diff --git a/packages/app-core/src/tutorial/registry/predicates.ts b/packages/app-core/src/tutorial/registry/predicates.ts
+index fdf792ff542e8549dfd8aa50cb558f9b6467c61c..93b2574e617afe9b8029f5f021ab84068e14a334 100644
+--- a/packages/app-core/src/tutorial/registry/predicates.ts
++++ b/packages/app-core/src/tutorial/registry/predicates.ts
+@@ -30,6 +30,7 @@ import {
+   isKnownGuidePredicate,
+ } from "./state.js";
+ import type { GuidePredicateDescriptor } from "./state.js";
++import { isMountedGuideTarget } from "./targets.js";
+ 
+ /**
+  * Whether the Connections area is currently showing at least one live
+@@ -122,6 +123,12 @@ function vaultUnlocked(): boolean {
+ }
+ 
+ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
++  {
++    id: "tailnet.devices.add-available",
++    description:
++      "The paired and connected tailnet offers its Add a device control.",
++    read: () => isMountedGuideTarget("identity.tailnet-devices.add"),
++  },
+   {
+     id: "vault.unlocked",
+     description: "The vault is open and its key is held in memory.",
 diff --git a/packages/app-core/src/tutorial/registry/tailnet-devices-catalog.ts b/packages/app-core/src/tutorial/registry/tailnet-devices-catalog.ts
-index 262a92fa1604db62d10d493246f7c43d109ee4e8..4c29173df1837dd9f896013e32e95737bb5c0b92 100644
+index 262a92fa1604db62d10d493246f7c43d109ee4e8..ac56f719388004fea04d98415cc1dadb97f824af 100644
 --- a/packages/app-core/src/tutorial/registry/tailnet-devices-catalog.ts
 +++ b/packages/app-core/src/tutorial/registry/tailnet-devices-catalog.ts
 @@ -21,6 +21,14 @@ export const TAILNET_DEVICES_TARGETS: readonly GuideTargetDescriptor[] = [
@@ -171,7 +463,7 @@ index 262a92fa1604db62d10d493246f7c43d109ee4e8..4c29173df1837dd9f896013e32e95737
    {
      id: "identity.tailnet-devices.add",
      description:
-@@ -42,11 +50,11 @@ export const TAILNET_DEVICES_GOALS: readonly GuideGoalDescriptor[] = [
+@@ -42,11 +50,24 @@ export const TAILNET_DEVICES_GOALS: readonly GuideGoalDescriptor[] = [
        'wait state "vault.unlocked" is=true timeout=60000',
        'navigate "/identity/devices/tailnet"',
        'wait route "/identity/devices/tailnet" timeout=15000',
@@ -184,6 +476,59 @@ index 262a92fa1604db62d10d493246f7c43d109ee4e8..4c29173df1837dd9f896013e32e95737
 +      'focus "identity.tailnet-devices" "Once the daemon is paired and connected, the machines it reports appear here, waiting ones first. Marks say what needs someone; the keys your pairing allows approve a device, open its settings, expire its key or remove it. Changes go through the daemon and appear in Activity." side=top',
 +      'wait target "identity.tailnet-devices.commands" event=appear timeout=60000',
 +      'focus "identity.tailnet-devices.commands" "Available controls depend on the pairing and connection. An eligible page can pair with a daemon. With a connected daemon and manage access, Add a device mints an auth key shown once with the tailscale up command; neither this page nor the daemon keeps it." side=bottom',
++      "end",
++    ].join("\n"),
++  },
++  {
++    id: "identity.tailnet.devices.add",
++    title: "Add a device to the tailnet",
++    routes: ["/identity"],
++    libraryOnly: true,
++    requires: ["tailnet.devices.add-available"],
++    guide: [
++      "guide/1",
++      'goal "identity.tailnet.devices.add"',
++      'focus "identity.tailnet-devices.add" "Add a device opens a sheet to mint an auth key. Choose its lifetime and permissions there; the key and tailscale up command are shown once." side=bottom',
        "end",
      ].join("\n"),
    },
+diff --git a/packages/app-core/src/tutorial/registry/targets.ts b/packages/app-core/src/tutorial/registry/targets.ts
+index 12e91cf41d26dbe124849ba6565be185b833770d..152926d716f25496cf027fb62646911590d393c5 100644
+--- a/packages/app-core/src/tutorial/registry/targets.ts
++++ b/packages/app-core/src/tutorial/registry/targets.ts
+@@ -19,6 +19,7 @@ import type {
+ import { mergedGuideTargets } from "./catalog.js";
+ import { inDevelopment } from "./dev.js";
+ import { type GuideRouteId, scopeApplies } from "./routes.js";
++import { announceGuideStateChange } from "./state.js";
+ 
+ export type GuideTargetDescriptor = {
+   readonly id: GuideTargetId;
+@@ -103,6 +104,7 @@ function declared(): ReadonlyMap<GuideTargetId, GuideTargetDescriptor> {
+  */
+ const mounted = new Map<GuideTargetId, MountedTarget[]>();
+ const mountListeners = new Set<() => void>();
++let mountVersion = 0;
+ const activationListeners = new Map<GuideTargetId, Set<ActivationListener>>();
+ // Session diagnostics, deduplicated: a control that keeps mounting with an
+ // undeclared or duplicate id records the id once, not once per mount, so a
+@@ -111,6 +113,8 @@ const duplicateMounts = new Set<string>();
+ const undeclaredMounts = new Set<string>();
+ 
+ function announce(): void {
++  mountVersion += 1;
++  announceGuideStateChange();
+   for (const listener of [...mountListeners]) listener();
+ }
+ 
+@@ -292,6 +296,10 @@ export function undeclaredGuideTargetMounts(): readonly string[] {
+   return [...undeclaredMounts];
+ }
+ 
++export function guideTargetVersion(): number {
++  return mountVersion;
++}
++
+ export function subscribeToGuideTargets(listener: () => void): () => void {
+   mountListeners.add(listener);
+   return () => {

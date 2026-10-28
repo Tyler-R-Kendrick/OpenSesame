@@ -43,13 +43,13 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           git diff --exit-code
-          test "$(sha256sum work/tailnet-tour-controller/patches/tailnet-tour.patch | cut -d ' ' -f1)" = e6ebbb1ba9e51273bd4454f7ee81879e0e038ac592fc6f8e21f8fa767e80846c
+          test "$(sha256sum work/tailnet-tour-controller/patches/tailnet-tour.patch | cut -d ' ' -f1)" = 53b3b6222ca174b411f9dfbac9b4214468c54ed5f9837583a623b93e2a200ea3
           git apply --check work/tailnet-tour-controller/patches/tailnet-tour.patch
           git apply work/tailnet-tour-controller/patches/tailnet-tour.patch
           git diff --check
           mkdir -p "$TUTORIALS_OUT"
           printf '%s\n' "$SOURCE_SHA" > "$TUTORIALS_OUT/source.txt"
-          printf '%s\n' "e6ebbb1ba9e51273bd4454f7ee81879e0e038ac592fc6f8e21f8fa767e80846c" > "$TUTORIALS_OUT/patch.sha256"
+          printf '%s\n' "53b3b6222ca174b411f9dfbac9b4214468c54ed5f9837583a623b93e2a200ea3" > "$TUTORIALS_OUT/patch.sha256"
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
         with:
           version: 9.15.0
