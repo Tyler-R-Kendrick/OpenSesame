@@ -8,6 +8,42 @@ import {
   timestamp,
 } from "./candidate-policy.mjs";
 
+// Security tools read these paths from the candidate checkout. Include both
+// present files and future additions so an older candidate cannot qualify under
+// a controller that reviews different ignore rules or scanner settings.
+const SCANNER_CONFIG_NAMES = new Set([
+  ".gitleaks.toml",
+  ".gitleaksignore",
+  ".osv-scanner.toml",
+  ".semgrepignore",
+  ".semgrep.yml",
+  ".semgrep.yaml",
+  ".gitignore",
+  "deny.toml",
+  "osv-scanner.toml",
+]);
+const REQUIRED_SCANNER_CONFIGS = [
+  ".github/codeql/codeql-config.yml",
+  ".gitleaks.toml",
+  ".cargo/audit.toml",
+  "deny.toml",
+  "osv-scanner.toml",
+];
+
+function scannerPolicyPath(path) {
+  const parts = path.split("/");
+  const name = parts.at(-1);
+  return (
+    SCANNER_CONFIG_NAMES.has(name) ||
+    path.startsWith(".github/codeql/") ||
+    parts.includes(".semgrep") ||
+    (parts.includes(".cargo") &&
+      ["audit.toml", "config", "config.toml"].includes(name)) ||
+    path === "scripts/lib/audit-directory.sh" ||
+    (path.startsWith("scripts/security/") && !path.includes(".test."))
+  );
+}
+
 export function policyEntriesForTree(tree) {
   return [...tree]
     .filter(
@@ -19,6 +55,7 @@ export function policyEntriesForTree(tree) {
         (path.startsWith("scripts/audit/") && path.endsWith("-gate.sh")) ||
         path.startsWith("tools/mutation/") ||
         path.startsWith("tools/security/") ||
+        scannerPolicyPath(path) ||
         path === "scripts/fuzz/fuzz-batch.sh" ||
         CI_RECIPE.includes(path),
     )
@@ -148,7 +185,7 @@ export class GitHub {
   async policyEntries() {
     const tree = await this.tree(this.ctx.workflowSha);
     const entries = policyEntriesForTree(tree);
-    for (const path of CI_RECIPE)
+    for (const path of [...CI_RECIPE, ...REQUIRED_SCANNER_CONFIGS])
       demand(tree.has(path), `Current policy is incomplete: ${path}`);
     demand(
       entries.length >= 12,
