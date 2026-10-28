@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      CANDIDATE_SHA: dfa0a72019f94b9596ddd1f1f0225309eb715cf5
+      CANDIDATE_SHA: 47b08f4068b838c97ed00ee26a6c5e94f2cd541d
       EXPECTED_BASE_SHA: bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -39,15 +39,17 @@ jobs:
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           read -r observed_commit observed_parent extra_parent <<< "$(git rev-list --parents -n 1 HEAD)"
           test "$observed_commit" = "$CANDIDATE_SHA"
-          test "$observed_parent" = "$EXPECTED_BASE_SHA"
+          test "$observed_parent" = dfa0a72019f94b9596ddd1f1f0225309eb715cf5
+          test "$(git rev-parse dfa0a72019f94b9596ddd1f1f0225309eb715cf5^1)" = "$EXPECTED_BASE_SHA"
+          test "$(git rev-list --parents -n 1 dfa0a72019f94b9596ddd1f1f0225309eb715cf5 | wc -w)" -eq 2
           test -z "${extra_parent:-}"
-          test "$(git rev-parse 'HEAD^{tree}')" = dd5c4604d558a0f00cea86a33aa1e70c49ed735e
+          test "$(git rev-parse 'HEAD^{tree}')" = 5cfdcc47e461e2bb5fbf3af59c603c30b3e94a2c
           test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$EXPECTED_BASE_SHA"
           test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
           python3 - <<'PYTHON'
           import os,subprocess
           rows=subprocess.check_output(['git','diff','--name-only',os.environ['EXPECTED_BASE_SHA'],os.environ['CANDIDATE_SHA']],text=True).splitlines()
-          expected={'.gitleaks.toml','.gitleaksignore','scripts/audit/gitleaks-gate.sh','scripts/security/gitleaks-allowlist-scope.test.mjs','scripts/security/gitleaks-working-tree-gate.mjs','scripts/security/gitleaks-working-tree-gate.test.mjs','scripts/security/gitleaks-reviewed-working-tree.json','apps/pages/src/modules/sharing.trusted-contacts/pending-store.test.ts','crates/bitwarden-server/tests/protocol.rs','crates/invoke-through/src/surrogate_honey_tests.rs','docs/operators/proxied-run-quickstart.md','packages/app-core/src/lib/duress/settings/unlock-secret-collision.test.ts','scripts/lib/mtls-manifest.test.mjs','apps/cli/src/github/tests.rs','apps/cli/tests/dev_run_bridge_env.rs'}
+          expected={'.gitleaks.toml','.gitleaksignore','scripts/audit/gitleaks-gate.sh','scripts/security/gitleaks-allowlist-scope.test.mjs','scripts/security/gitleaks-working-tree-gate.mjs','scripts/security/gitleaks-working-tree-gate.test.mjs','scripts/security/gitleaks-reviewed-working-tree.json','apps/pages/src/modules/sharing.trusted-contacts/pending-store.test.ts','crates/bitwarden-server/tests/protocol.rs','crates/invoke-through/src/surrogate_honey_tests.rs','docs/operators/proxied-run-quickstart.md','packages/app-core/src/lib/duress/settings/unlock-secret-collision.test.ts','scripts/lib/mtls-manifest.test.mjs','apps/cli/src/github/tests.rs','apps/cli/tests/dev_run_bridge_env.rs','packages/vault-core/src/item-formats.test.ts','packages/vault-core/src/openssl/openssl-test-support.ts','packages/vault-core/src/openssl/openssl.test.ts','spec/conformance/vault-drive-protocol.json'}
           if set(rows)!=expected: raise SystemExit('Candidate changed an unexpected path')
           PYTHON
           node --test scripts/security/gitleaks-allowlist-scope.test.mjs scripts/security/gitleaks-working-tree-gate.test.mjs
