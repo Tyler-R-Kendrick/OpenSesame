@@ -11,13 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: [javascript, rust_core, rust_cli]
+        kind: [javascript, rust_core, rust_cli, interoperability, rust_daemon]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      CANDIDATE_SHA: dfa0a72019f94b9596ddd1f1f0225309eb715cf5
-      EXPECTED_TREE: dd5c4604d558a0f00cea86a33aa1e70c49ed735e
-      EXPECTED_PARENT: bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
+      CANDIDATE_SHA: 47b08f4068b838c97ed00ee26a6c5e94f2cd541d
+      EXPECTED_TREE: 5cfdcc47e461e2bb5fbf3af59c603c30b3e94a2c
+      EXPECTED_PARENT: dfa0a72019f94b9596ddd1f1f0225309eb715cf5
       FIXTURE_KIND: ${{ matrix.kind }}
       CARGO_BUILD_JOBS: '2'
     steps:
@@ -40,14 +40,14 @@ jobs:
           test -z "${extra:-}"
           test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
-        if: matrix.kind == 'javascript'
+        if: matrix.kind == 'javascript' || matrix.kind == 'interoperability'
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        if: matrix.kind == 'javascript'
+        if: matrix.kind == 'javascript' || matrix.kind == 'interoperability'
         with:
           node-version: 22
           package-manager-cache: false
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-        if: matrix.kind != 'javascript'
+        if: matrix.kind == 'rust_core' || matrix.kind == 'rust_cli' || matrix.kind == 'rust_daemon'
         with:
           toolchain: 1.88.0
       - name: Run focused fixture tests privately
@@ -74,6 +74,29 @@ jobs:
               run_test mtls pnpm exec vitest run scripts/lib/mtls-manifest.test.mjs --testTimeout=30000
               run_test duress pnpm --filter @opensesame/app-core exec vitest run src/lib/duress/settings/unlock-secret-collision.test.ts --testTimeout=60000
               run_test pending pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.trusted-contacts/pending-store.test.ts --testTimeout=60000
+            fi
+          elif [[ "$FIXTURE_KIND" == interoperability ]]; then
+            run_test install pnpm install --frozen-lockfile
+            if [[ "$failed" -eq 0 ]]; then
+              run_test vault_tests pnpm --filter @opensesame/vault-core exec vitest run src/openssl/openssl.test.ts src/item-formats.test.ts --testTimeout=30000
+              run_test vault_typecheck pnpm --filter @opensesame/vault-core run typecheck
+              run_test protocol_tests pnpm --filter @opensesame/app-core exec vitest run src/lib/tailnet-sync/protocol-conformance.test.ts src/lib/tailnet-sync/parts-conformance.test.ts --testTimeout=60000
+              run_test app_core_boundary node scripts/quality/app-core-boundary.mjs --check
+            fi
+          elif [[ "$FIXTURE_KIND" == rust_daemon ]]; then
+            run_test dbus bash scripts/ci/prepare-dbus.sh "$private/dbus"
+            if [[ "$failed" -eq 0 ]]; then
+              source "$private/dbus/env.sh"
+              run_test daemon_conformance cargo test --message-format=json -p opensesame-daemon --lib vault_drive_routes::conformance
+              if ! python3 - "$private/daemon_conformance.log" <<'PYTHON'
+          import re,sys
+          text=open(sys.argv[1],encoding='utf-8',errors='replace').read()
+          if not any(int(n)>0 for n in re.findall(r'test result: ok\. (\d+) passed;',text)): raise SystemExit(1)
+          PYTHON
+              then
+                printf 'daemon-conformance-nonzero-tests\t1\n' >> "$statuses"
+                failed=1
+              fi
             fi
           elif [[ "$FIXTURE_KIND" == rust_core || "$FIXTURE_KIND" == rust_cli ]]; then
             if [[ "$FIXTURE_KIND" == rust_core ]]; then
@@ -115,7 +138,7 @@ jobs:
           diagnostics=[]
           categories=set()
           flags={'missing_dbus':'dbus-1 was not found', 'pkg_config_failure':'pkg-config exited with status', 'missing_library':'could not find system library', 'linker_failure':'linking with `cc` failed', 'disk_exhausted':'No space left on device', 'custom_build_failure':'failed to run custom build command', 'test_failure':'test failed'}
-          for label in ('dbus','enterprise','bridge'):
+          for label in ('dbus','enterprise','bridge','daemon_conformance'):
            path=pathlib.Path(sys.argv[5])/(label+'.log')
            if not path.exists(): continue
            for line in path.read_text(encoding='utf-8',errors='replace').splitlines():
