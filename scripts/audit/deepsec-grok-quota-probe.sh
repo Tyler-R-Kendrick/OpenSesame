@@ -21,5 +21,4 @@ if grep -qiE 'usage limit|rate limit|quota|403|429' "$out"; then
   exit 1
 fi
 rm -f "$out"
-node "${ROOT}/scripts/audit/deepsec-grok-kill-active.mjs" 2>/dev/null || true
 [[ "$ec" -eq 0 ]]

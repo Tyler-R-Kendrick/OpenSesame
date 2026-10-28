@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
+import fs from "node:fs";
 import { extractTextFromAgentStdout } from "./deepsec-agent-stdout.js";
 import type { RunPromptParams } from "./deepsec-headless-agent-types.js";
 
@@ -104,6 +105,51 @@ export function killActiveGrokChild(): void {
 const DEEPSEC_GROK_INVOKE_Pgrep =
   "grok -p You are running inside the deepsec";
 
+function readProcPpid(pid: number): number | null {
+  try {
+    const status = fs.readFileSync(`/proc/${pid}/status`, "utf8");
+    const match = status.match(/^PPid:\s*(\d+)/m);
+    return match ? Number(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readProcCmdline(pid: number): string {
+  try {
+    return fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ");
+  } catch {
+    return "";
+  }
+}
+
+/** True when `pid` is still owned by a live deepsec process slice (not an orphan). */
+export function grokPidHasLiveDeepsecProcessAncestor(
+  pid: number,
+  maxDepth = 16,
+): boolean {
+  let cur = pid;
+  for (let depth = 0; depth < maxDepth; depth += 1) {
+    const ppid = readProcPpid(cur);
+    if (ppid === null || ppid <= 1) {
+      return false;
+    }
+    const cmd = readProcCmdline(ppid);
+    if (
+      cmd.includes("deepsec/dist/cli.mjs") &&
+      cmd.includes("process") &&
+      cmd.includes("opensesame")
+    ) {
+      return true;
+    }
+    if (cmd.includes("node_modules/.bin/deepsec") && cmd.includes("process")) {
+      return true;
+    }
+    cur = ppid;
+  }
+  return false;
+}
+
 /** Kill detached grok investigate children that outlived their parent slice. */
 export function killOrphanDeepsecGrokInvokes(): number {
   if (process.platform === "win32") {
@@ -120,7 +166,8 @@ export function killOrphanDeepsecGrokInvokes(): number {
   const pids = raw
     .split("\n")
     .map((s) => Number(s.trim()))
-    .filter((n) => Number.isFinite(n) && n > 1);
+    .filter((n) => Number.isFinite(n) && n > 1)
+    .filter((pid) => !grokPidHasLiveDeepsecProcessAncestor(pid));
   for (const pid of pids) {
     try {
       process.kill(-pid, "SIGTERM");

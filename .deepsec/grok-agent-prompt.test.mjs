@@ -26,6 +26,7 @@ const {
   grokFileWallSec,
   grokInvestigateTimeoutSec,
   grokInvokeHardCapMs,
+  grokPidHasLiveDeepsecProcessAncestor,
   grokShallowTimeoutSec,
   grokWallRemainingSec,
 } = await import("./grok-agent-prompt.ts");
@@ -82,4 +83,8 @@ test("env overrides are honored and invalid values fall back", () => {
   process.env.DEEPSEC_GROK_FILE_WALL_SEC = "nope";
   assert.equal(grokFileWallSec(), 2700);
   process.env.DEEPSEC_GROK_FILE_WALL_SEC = "2700";
+});
+
+test("grokPidHasLiveDeepsecProcessAncestor is true for the running process", () => {
+  assert.equal(grokPidHasLiveDeepsecProcessAncestor(process.pid), true);
 });
