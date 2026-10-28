@@ -1,0 +1,171 @@
+name: Reviewed Gitleaks fixture behavior
+on:
+  push:
+    branches: [review/gitleaks-f8-behavior]
+    paths: [.github/workflows/gitleaks-f8-behavior.yml]
+permissions:
+  contents: read
+jobs:
+  tests:
+    if: github.event_name == 'push' && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/gitleaks-f8-behavior'
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [gate, javascript, interoperability, rust_core, rust_cli, rust_daemon]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CANDIDATE_SHA: 40b2f18d94c9d4092b7e00554b30352db0e6a858
+      EXPECTED_TREE: a0794286bd3f25248d473658da4dc587e3f8751d
+      EXPECTED_PARENT: f8c14fe908aba2e3728bee6979b35f8bbb8815de
+      FIXTURE_KIND: ${{ matrix.kind }}
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact candidate and its parent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$EXPECTED_TREE"
+          read -r commit parent extra <<< "$(git rev-list --parents -n 1 HEAD)"
+          test "$commit" = "$CANDIDATE_SHA"
+          test "$parent" = "$EXPECTED_PARENT"
+          test -z "${extra:-}"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        if: matrix.kind == 'javascript' || matrix.kind == 'interoperability' || matrix.kind == 'gate'
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        if: matrix.kind == 'javascript' || matrix.kind == 'interoperability' || matrix.kind == 'gate'
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        if: matrix.kind == 'rust_core' || matrix.kind == 'rust_cli' || matrix.kind == 'rust_daemon'
+        with:
+          toolchain: 1.88.0
+      - name: Run focused fixture tests privately
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          private="$(mktemp -d "$RUNNER_TEMP/fixture-tests.XXXXXXXX")"
+          trap 'rm -rf "$private"' EXIT
+          report="$RUNNER_TEMP/fixture-behavior-$FIXTURE_KIND.json"
+          failed=0
+          statuses="$private/status.tsv"
+          : > "$statuses"
+          run_test() {
+            local label="$1" code
+            shift
+            if "$@" >"$private/$label.log" 2>&1; then code=0; else code=$?; fi
+            printf '%s\t%s\n' "$label" "$code" >> "$statuses"
+            if [[ "$code" -ne 0 ]]; then failed=1; fi
+          }
+          if [[ "$FIXTURE_KIND" == gate ]]; then
+            run_test gate node --test scripts/security/gitleaks-allowlist-scope.test.mjs scripts/security/gitleaks-working-tree-gate.test.mjs
+          elif [[ "$FIXTURE_KIND" == javascript ]]; then
+            run_test install pnpm install --frozen-lockfile
+            if [[ "$failed" -eq 0 ]]; then
+              run_test mtls pnpm exec vitest run scripts/lib/mtls-manifest.test.mjs --testTimeout=30000
+              run_test duress pnpm --filter @opensesame/app-core exec vitest run src/lib/duress/settings/unlock-secret-collision.test.ts --testTimeout=60000
+              run_test pending pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.trusted-contacts/pending-store.test.ts --testTimeout=60000
+            fi
+          elif [[ "$FIXTURE_KIND" == interoperability ]]; then
+            run_test install pnpm install --frozen-lockfile
+            if [[ "$failed" -eq 0 ]]; then
+              run_test vault_tests pnpm --filter @opensesame/vault-core exec vitest run src/openssl/openssl.test.ts src/item-formats.test.ts --testTimeout=30000
+              run_test vault_typecheck pnpm --filter @opensesame/vault-core run typecheck
+              run_test protocol_tests pnpm --filter @opensesame/app-core exec vitest run src/lib/tailnet-sync/protocol-conformance.test.ts src/lib/tailnet-sync/parts-conformance.test.ts --testTimeout=60000
+              run_test app_core_boundary node scripts/quality/app-core-boundary.mjs --check
+            fi
+          elif [[ "$FIXTURE_KIND" == rust_daemon ]]; then
+            run_test dbus bash scripts/ci/prepare-dbus.sh "$private/dbus"
+            if [[ "$failed" -eq 0 ]]; then
+              source "$private/dbus/env.sh"
+              run_test daemon_conformance cargo test --message-format=json -p opensesame-daemon --lib vault_drive_routes::conformance
+              if ! python3 - "$private/daemon_conformance.log" <<'PYTHON'
+          import re,sys
+          text=open(sys.argv[1],encoding='utf-8',errors='replace').read()
+          if not any(int(n)>0 for n in re.findall(r'test result: ok\. (\d+) passed;',text)): raise SystemExit(1)
+          PYTHON
+              then
+                printf 'daemon-conformance-nonzero-tests\t1\n' >> "$statuses"
+                failed=1
+              fi
+            fi
+          elif [[ "$FIXTURE_KIND" == rust_core || "$FIXTURE_KIND" == rust_cli ]]; then
+            if [[ "$FIXTURE_KIND" == rust_core ]]; then
+              run_test honey cargo test -p opensesame-invoke-through honey_tests
+              run_test protocol cargo test -p opensesame-bitwarden-server --test protocol a_wrong_password_and_an_unknown_email_get_the_same_answer
+              labels=(honey protocol)
+            else
+              run_test dbus bash scripts/ci/prepare-dbus.sh "$private/dbus"
+              if [[ "$failed" -eq 0 ]]; then
+                source "$private/dbus/env.sh"
+                run_test enterprise cargo test --message-format=json -p opensesame-cli --bin opensesame gh_is_handed_a_ghes_token_and_a_version_managers_home
+                run_test bridge cargo test --message-format=json -p opensesame-cli --test dev_run_bridge_env
+                labels=(enterprise bridge)
+              else
+                labels=()
+              fi
+            fi
+            for label in "${labels[@]}"; do
+              if ! python3 - "$private/$label.log" <<'PYTHON'
+          import re,sys
+          text=open(sys.argv[1],encoding='utf-8',errors='replace').read()
+          if not any(int(n)>0 for n in re.findall(r'test result: ok\. (\d+) passed;',text)): raise SystemExit(1)
+          PYTHON
+              then
+                printf '%s\t%s\n' "$label-nonzero-tests" 1 >> "$statuses"
+                failed=1
+              fi
+            done
+          else
+            printf 'unexpected-kind\t1\n' >> "$statuses"
+            failed=1
+          fi
+          python3 - "$statuses" "$report" "$CANDIDATE_SHA" "$FIXTURE_KIND" "$private" <<'PYTHON'
+          import hashlib,json,pathlib,re,sys
+          rows=[]
+          for line in open(sys.argv[1],encoding='utf-8'):
+           name,code=line.rstrip('\n').split('\t')
+           rows.append({'check':name,'status':int(code)})
+          diagnostics=[]
+          categories=set()
+          flags={'missing_dbus':'dbus-1 was not found', 'pkg_config_failure':'pkg-config exited with status', 'missing_library':'could not find system library', 'linker_failure':'linking with `cc` failed', 'disk_exhausted':'No space left on device', 'custom_build_failure':'failed to run custom build command', 'test_failure':'test failed'}
+          for label in ('dbus','enterprise','bridge','daemon_conformance'):
+           path=pathlib.Path(sys.argv[5])/(label+'.log')
+           if not path.exists(): continue
+           for line in path.read_text(encoding='utf-8',errors='replace').splitlines():
+            for category,needle in flags.items():
+             if needle.lower() in line.lower(): categories.add(category)
+            try: event=json.loads(line)
+            except json.JSONDecodeError: continue
+            message=event.get('message',{}) if isinstance(event,dict) and event.get('reason')=='compiler-message' else {}
+            if not isinstance(message,dict) or message.get('level')!='error': continue
+            code=message.get('code');code=code.get('code') if isinstance(code,dict) else None
+            if code is not None and (not isinstance(code,str) or not re.fullmatch(r'E[0-9]{4}',code)): code=None
+            spans=[]
+            for span in message.get('spans',[]):
+             if isinstance(span,dict) and span.get('is_primary') and isinstance(span.get('file_name'),str):
+              spans.append({'path_sha256':hashlib.sha256(span['file_name'].encode()).hexdigest(),'line':span.get('line_start'),'column':span.get('column_start')})
+            diagnostics.append({'code':code,'primary_spans':spans})
+          open(sys.argv[2],'w',encoding='utf-8').write(json.dumps({'candidate_sha':sys.argv[3],'kind':sys.argv[4],'checks':rows,'diagnostic_categories':sorted(categories),'compiler_errors':diagnostics},indent=2)+'\n')
+          print('Focused fixture checks:',len(rows),'failed:',sum(row['status']!=0 for row in rows))
+          PYTHON
+          exit "$failed"
+      - name: Retain sanitized test statuses
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: gitleaks-fixture-behavior-${{ matrix.kind }}
+          path: ${{ runner.temp }}/fixture-behavior-${{ matrix.kind }}.json
+          if-no-files-found: error
+          retention-days: 7
