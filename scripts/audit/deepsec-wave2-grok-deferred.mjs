@@ -68,6 +68,21 @@ export function clearDeferredByReason(repoRoot, reason) {
   return { removed, remaining: store.entries.length };
 }
 
+/** Drop deferred rows for specific paths (re-queue after tooling fix). */
+export function clearDeferredPaths(repoRoot, filePaths) {
+  const drop = new Set(filePaths.filter((p) => typeof p === "string" && p.length > 0));
+  const store = loadDeferred(repoRoot);
+  const before = store.entries.length;
+  store.entries = store.entries.filter((e) => !drop.has(e.filePath));
+  const removed = before - store.entries.length;
+  if (removed > 0) {
+    const out = deferredStorePath(repoRoot);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, `${JSON.stringify(store, null, 2)}\n`);
+  }
+  return { removed, remaining: store.entries.length, paths: [...drop] };
+}
+
 export function addDeferred(repoRoot, filePath, reason) {
   const store = loadDeferred(repoRoot);
   const now = new Date().toISOString();
@@ -100,6 +115,15 @@ if (cmd === "path") {
   );
   process.stdout.write(
     `${JSON.stringify({ reason: filePath, removed, remaining })}\n`,
+  );
+} else if (cmd === "clear-paths") {
+  const paths = process.argv.slice(4);
+  const { removed, remaining } = clearDeferredPaths(
+    repoRoot ?? process.cwd(),
+    paths,
+  );
+  process.stdout.write(
+    `${JSON.stringify({ removed, remaining, paths })}\n`,
   );
 } else if (cmd === "list") {
   process.stdout.write(`${JSON.stringify(loadDeferred(repoRoot ?? process.cwd()), null, 2)}\n`);
