@@ -154,9 +154,10 @@ function IceServers({
           const submittedRevision = { ...draftRevision.current };
           void change((now) => withServer(now, server))
             .then((refused) => {
-              if (refused !== null) return;
-              if (draftRevision.current.url === submittedRevision.url)
-                setUrl("");
+              const targetChanged =
+                draftRevision.current.url !== submittedRevision.url;
+              if (refused !== null && !targetChanged) return;
+              if (refused === null && !targetChanged) setUrl("");
               if (draftRevision.current.username === submittedRevision.username)
                 setUsername("");
               if (

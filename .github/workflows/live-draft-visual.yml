@@ -51,8 +51,8 @@ jobs:
           test "$(git hash-object apps/pages/src/modules/sharing.live/live-route-parts.tsx)" = 8cd433cdadcac47673b3586b5493a44974e87338
           cd work/live-draft-visual-tools/scripts/review/live-draft
           printf '%s  %s\n' \
-            64ee4d965e06a11d89ade307826ac3e8373944151c692e33667a295397d6e960 LiveRoutesPanel.tsx \
-            a3ba8cd3bba9bb06b4e4b9208502bc80b251e00066d486d00f3a20c8f347820c LiveCarriers.tsx \
+            3474ba62f3b15f0e6e70a520971eb2700fe8cca4cb6a47685e7d24301bd4aac7 LiveRoutesPanel.tsx \
+            bd44e828f338331b416e37326c46ece8717087925145da9cd25b1a55dce8f6dd LiveCarriers.tsx \
             777d19d1be4fafa6304328b0daed0ff3266a71ed62e4ac221654fc5ec907288f live-route-parts.tsx \
             a3457ba10ad063da41995ac005c10543e2eb22fc9e71da2c0e981be02f2c9e77 visual.mjs | sha256sum --check
       - name: Apply reviewed source only for the after build
