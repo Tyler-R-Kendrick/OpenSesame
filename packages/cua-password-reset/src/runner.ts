@@ -169,6 +169,7 @@ export class DurableResetRunner {
 
   private async reconcileLocked(run: ResetRun | string): Promise<ResetRun> {
     const restored = await this.restore(run);
+    if (isTerminal(restored.status)) return restored;
     this.authorize(restored, "password_reset.run.reconcile");
     const id = effectId(restored, "reconciliation");
     const events = await this.journal.events(restored.id);
@@ -215,6 +216,7 @@ export class DurableResetRunner {
 
   private async compensateLocked(run: ResetRun | string): Promise<ResetRun> {
     const restored = await this.restore(run);
+    if (isTerminal(restored.status)) return restored;
     this.authorize(restored, "password_reset.run.compensate");
     const id = effectId(restored, "compensation");
     const events = await this.journal.events(restored.id);
@@ -334,10 +336,16 @@ export class DurableResetRunner {
     status: ResetRun["status"],
   ): Promise<ResetRun> {
     if (run.status === status) return run;
+    // A settled run never leaves its terminal state.
+    if (isTerminal(run.status)) return run;
     const at = this.now().toISOString();
     await this.journal.append(run.id, { type: "run.status", status, at });
     return { ...run, status, updatedAt: at };
   }
+}
+
+function isTerminal(status: ResetRun["status"]): boolean {
+  return status === "succeeded" || status === "failed";
 }
 
 function effectId(run: ResetRun, operation: string): string {

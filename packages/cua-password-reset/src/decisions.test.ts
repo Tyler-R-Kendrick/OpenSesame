@@ -44,6 +44,10 @@ describe("typed decisions", () => {
       ref: "e2",
     });
     expect(sent).not.toContain("person@example.test");
+    // The whole address is redacted as one token, not truncated after "@x"
+    // (the origin host accounts.example.test is the site, not the address).
+    expect(sent).not.toContain("person");
+    expect(sent).toContain('"label":"[redacted]"');
     expect(
       legalCandidates(current).every((entry) => !("value" in entry.action)),
     ).toBe(true);

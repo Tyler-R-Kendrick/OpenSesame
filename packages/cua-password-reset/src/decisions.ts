@@ -32,7 +32,7 @@ export function modelObservation(observation: Observation): Observation {
         : "[masked totp]";
     return sensitive
       .reduce((text, value) => text.replaceAll(value, "[redacted]"), label)
-      .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]/gu, "[redacted]");
+      .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/gu, "[redacted]");
   };
   const safe: Observation = {
     id: observation.id,

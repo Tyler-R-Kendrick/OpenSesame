@@ -21,7 +21,9 @@ const statusSchema = z.enum([
 const runSchema: z.ZodType<ResetRun> = z
   .object({
     id: z.string().min(1).max(128),
-    domain: z.string().min(1).max(253),
+    // Same shape as the recipe domain: a colon here could alias another
+    // item's grant resource when interpolated into resetResource().
+    domain: z.string().regex(/^(?=.{1,253}$)[a-z0-9.-]+$/),
     origin: z.url(),
     itemId: z.string().min(1).max(128),
     transport: z.enum(["cdp", "extension", "proxy"]),
