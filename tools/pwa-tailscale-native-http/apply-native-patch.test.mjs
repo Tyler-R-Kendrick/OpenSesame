@@ -235,6 +235,7 @@ test(
       "cmd/tsconnect/wasm/wasm_js.go",
       "net/tsdial/tsdial.go",
       "ipn/ipnlocal/node_backend.go",
+      "derp/derphttp/derphttp_client.go",
     ];
     const patch = paths
       .map((path) => `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-old\n+new\n`)

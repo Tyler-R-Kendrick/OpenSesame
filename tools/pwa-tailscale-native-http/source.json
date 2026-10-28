@@ -174,7 +174,7 @@
       },
       {
         "path": "native-node.patch",
-        "sha256": "cefc688e60359533459c0675ce3e1a1ae49f1eea9baf0440f61c1f26e5ff1749"
+        "sha256": "4db0a5d0c7c174569983c4c80d509348e22010e217b5f74c00bde14547c68ecb"
       },
       {
         "path": "nodepeer.go",
@@ -203,11 +203,15 @@
       {
         "path": "nodessh_js.go",
         "sha256": "34a6fdfefa18013e10225115c963c361e710483c7f82059bd380a1752574a71d"
+      },
+      {
+        "path": "derp-custom-roots_test.go",
+        "sha256": "65fc5ebaa8886043617ba6595fb2c9acdd471f05aed2c6b66dff5160ada8cd47"
       }
     ],
     "stagingHelper": {
       "path": "stage-native-node.mjs",
-      "sha256": "36a8dae55be16fc535d06565673755837d971d0dbd3134aa0b15c0647d51bafd"
+      "sha256": "e64b29eb046dc3f771608bbe9cf483a4ba30077b4c06b74796df6a8b06e18884"
     },
     "patchTargets": [
       {
@@ -224,6 +228,11 @@
         "path": "ipn/ipnlocal/node_backend.go",
         "beforeSha256": "6e5bd3f1091437cbbbdc3256d2c4e22b95e4373595ed140d38c9d589a542881b",
         "afterSha256": "a0832d65b115e3c3cb763a5b2833f80efd7e13d3d4db81f7219461202c7a8cf2"
+      },
+      {
+        "path": "derp/derphttp/derphttp_client.go",
+        "beforeSha256": "32e6e38145afc4f382bf2b76b9e9d8e9c593be71f22e82a4a90220ec39834506",
+        "afterSha256": "c9fb0f090d175d0fa0e3a80d4597cdb24b3f2669d1786e2295c17574948f4903"
       }
     ],
     "configuration": {
@@ -515,7 +524,7 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "78ca3e97f4c3cc8db9959208ebfdee439f1afdc3b900ca5967541393e5e324b6"
+        "sha256": "7ed91ffa8100f9cc96d7dae23a57407a1c6e1c0e9d05a56025553289cabcffc2"
       },
       {
         "path": "compose-native.mjs",
@@ -527,7 +536,7 @@
       },
       {
         "path": "compose-native.test.mjs",
-        "sha256": "625de8be78abcbd6251fb7f167d081fc109f88c207feea9832443e63483352ec"
+        "sha256": "7c9c0bce7fa7533b4d3d5375ce433a37e00589c65d26703b6bd7d30295371922"
       },
       {
         "path": "compress-wasm.mjs",
@@ -547,7 +556,7 @@
       },
       {
         "path": "preparation-diagnostics.mjs",
-        "sha256": "67961b1a457961b8583e8cdddb76b7d3ea09ac28fe2428130522d55c03292852"
+        "sha256": "521d04c1459dbd28873acefb81977994dcf5ff2e299177b6179a78e87a2a4f56"
       },
       {
         "path": "build-failure-context.test.mjs",
@@ -559,11 +568,11 @@
       },
       {
         "path": "apply-native-patch.mjs",
-        "sha256": "a41e3e7f1828d2d20cd97ca2887b82afd77c7b7b39e76dfcb2af0c442db5b733"
+        "sha256": "45a5c3c6e425d56abf16902a1921d6a7ea5215f412ff6b484214e89bc58d146f"
       },
       {
         "path": "apply-native-patch.test.mjs",
-        "sha256": "7106a3bad31c5efbdc1ee0b5542e71a2bdc997525fa247650ba527fb36b56fc6"
+        "sha256": "be0234dc1177b75a693bb4e92e0e3ed12073c305087d8ace5757cf1596057ffe"
       },
       {
         "path": "compressor-archive.mjs",

@@ -12,6 +12,7 @@ const targets = {
     "cmd/tsconnect/wasm/wasm_js.go",
     "net/tsdial/tsdial.go",
     "ipn/ipnlocal/node_backend.go",
+    "derp/derphttp/derphttp_client.go",
   ],
   "disable-logtail.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
   "native-peer-get.patch": ["cmd/tsconnect/wasm/wasm_js.go"],

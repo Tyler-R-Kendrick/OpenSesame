@@ -297,6 +297,33 @@ async function run() {
     ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/wasm"],
     "native-node-host-test",
   );
+  const derpResults = join(output, "derp-host-test.json");
+  await execute(
+    join(compiler, "bin/go"),
+    [
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=60s",
+      "-run",
+      "^TestDERPCustomRoots$",
+      "./derp/derphttp",
+    ],
+    "native-derp-host-test",
+    undefined,
+    { stdoutPath: derpResults },
+  );
+  const derpEvents = (await readFile(derpResults, "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  if (
+    !derpEvents.some(
+      (event) =>
+        event.Action === "pass" && event.Test === "TestDERPCustomRoots",
+    )
+  )
+    throw new Error("The DERP custom-root host test did not run.");
   const baseline = await build("baseline");
   const repeated = await build("baseline-repeat");
   if (baseline.sha256 !== repeated.sha256)
