@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      CANDIDATE_SHA: 71b54e15fb9767fdea7d0852c1880bf6e809ab6b
-      EXPECTED_TREE: e9deb94cfcff9902a94278c97fa3e8768b5ba387
-      EXPECTED_PARENT: 9e215fc9c282a7d329238abb05569efd4825545e
+      CANDIDATE_SHA: 8260c96124f3550f5624d1dde4826a320a6056e7
+      EXPECTED_TREE: 3ca01e6757a8788b67b434c73051ce74fb6231a0
+      EXPECTED_PARENT: 71b54e15fb9767fdea7d0852c1880bf6e809ab6b
       FIXTURE_KIND: ${{ matrix.kind }}
       CARGO_BUILD_JOBS: '2'
     steps:
