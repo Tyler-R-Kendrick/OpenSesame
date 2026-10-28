@@ -24,6 +24,27 @@ import {
 const VERIFY_TIMEOUT_MS = 8000;
 const VERIFY_MAX_BYTES = 64_000;
 
+// A dynamic verification host must remain beneath a reviewed provider-owned
+// suffix. Otherwise the connector metadata can redirect a stored credential.
+const VERIFIED_HOST_SUFFIXES = ["algolia.net", "bamboohr.com", "app.n8n.cloud"];
+const targetPolicy = new WeakMap();
+
+function unboundTemplate(template) {
+  const authority = /^https:\/\/([^/?#]+)/i.exec(template ?? "")?.[1];
+  if (!authority || authority.includes("@") || authority.includes("\\"))
+    return true;
+  if (!authority.includes("{")) return false;
+  if (authority.includes(":")) return true;
+  const host = authority.toLowerCase();
+  return !VERIFIED_HOST_SUFFIXES.some((suffix) => host.endsWith(`.${suffix}`));
+}
+
+for (const targets of Object.values(VERIFY_TARGETS)) {
+  for (const target of Object.values(targets)) {
+    targetPolicy.set(target, unboundTemplate(target.url));
+  }
+}
+
 const isObject = isJsonObject;
 
 function text(value, max = 256) {
@@ -159,7 +180,7 @@ function fillParams(value, params) {
 export function resolveTarget(target, connector) {
   if (!target) return null;
   const params = recoverParams(target, connector);
-  return {
+  const resolved = {
     ...target,
     url: fillParams(target.url, params),
     headers: Object.fromEntries(
@@ -177,6 +198,8 @@ export function resolveTarget(target, connector) {
         }
       : target.basic,
   };
+  targetPolicy.set(resolved, targetPolicy.get(target) ?? unboundTarget(target));
+  return resolved;
 }
 
 /** True while the target still needs a value only its person knows. */
@@ -284,8 +307,17 @@ async function verdict(target, response, token) {
   };
 }
 
+function unboundTarget(target) {
+  return (
+    unboundTemplate(target.url) ||
+    (Array.isArray(target.sources) &&
+      target.sources.some((source) => unboundTemplate(source?.template)))
+  );
+}
+
 export async function verifyWithToken(target, token, fetchImpl = fetch) {
   if (!target || openTemplate(target)) return null;
+  if (targetPolicy.get(target) ?? unboundTarget(target)) return null;
   const { url, init } = verifyRequest(target, token);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
